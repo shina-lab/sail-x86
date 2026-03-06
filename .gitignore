@@ -1,0 +1,6 @@
+/build
+sail_runtime/*
+!sail_runtime/CMakeLists.txt
+sail_smt_cache
+*.o
+*.a

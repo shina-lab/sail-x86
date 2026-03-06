@@ -1,0 +1,352 @@
+// x86-64 Decoder — Types and Structures
+
+// =========================================================================
+// Prefix state accumulated during prefix scanning
+// =========================================================================
+
+struct Prefixes = {
+  has_lock : bool,
+  has_repne : bool,   // F2
+  has_rep : bool,     // F3
+  seg_override : option(segreg_idx),
+  has_opsize : bool,  // 66
+  has_adsize : bool,  // 67
+  rex_w : bool,
+  rex_r : bool,
+  rex_x : bool,
+  rex_b : bool,
+  has_rex : bool,     // any REX present (changes byte reg encoding)
+}
+
+val default_prefixes : unit -> Prefixes
+function default_prefixes() = struct {
+  has_lock = false,
+  has_repne = false,
+  has_rep = false,
+  seg_override = None(),
+  has_opsize = false,
+  has_adsize = false,
+  rex_w = false,
+  rex_r = false,
+  rex_x = false,
+  rex_b = false,
+  has_rex = false,
+}
+
+// =========================================================================
+// Resolved ModR/M operand — either a register or memory address
+// =========================================================================
+
+union RM = {
+  RM_reg : gpr_idx,
+  RM_mem : qword,
+}
+
+// Fixup for RIP-relative addressing. When rip_rel_pending is true, the
+// RM_mem address was computed with an intermediate decode_pos (before
+// trailing imm bytes were fetched). This function recomputes the correct
+// address using the final decode_pos and the saved displacement.
+// Idempotent: safe to call multiple times (e.g. read + write).
+val fixup_addr : qword -> qword
+function fixup_addr(addr) =
+  if rip_rel_pending then decode_pos + rip_rel_disp
+  else addr
+
+// Extract the memory address from an RM, applying RIP-relative fixup.
+// For SSE/misc code that directly matches RM_mem(addr).
+val rm_effective_addr : RM -> qword
+function rm_effective_addr(rm) = match rm {
+  RM_mem(addr) => fixup_addr(addr),
+  RM_reg(_) => zeros(),  // shouldn't be called for register operands
+}
+
+// =========================================================================
+// ALU operation codes (for the regular 00-3F pattern + Group 1)
+// =========================================================================
+
+enum ALUOp = {
+  ALU_ADD,
+  ALU_OR,
+  ALU_ADC,
+  ALU_SBB,
+  ALU_AND,
+  ALU_SUB,
+  ALU_XOR,
+  ALU_CMP,
+}
+
+// =========================================================================
+// Shift/rotate operation codes (for Group 2)
+// =========================================================================
+
+enum ShiftOp = {
+  SHIFT_ROL,
+  SHIFT_ROR,
+  SHIFT_RCL,
+  SHIFT_RCR,
+  SHIFT_SHL,
+  SHIFT_SHR,
+  SHIFT_SAL,  // same as SHL
+  SHIFT_SAR,
+}
+
+// =========================================================================
+// Mandatory prefix classification (for 2-byte+ opcodes)
+// =========================================================================
+
+enum MandatoryPrefix = {
+  MP_NONE,
+  MP_66,
+  MP_F2,
+  MP_F3,
+}
+
+// =========================================================================
+// Decode state — mutable position tracking during fetch
+// (decode_pos is defined in core/regs.sail so instruction implementations
+// can access it for control-flow instructions)
+// =========================================================================
+
+val fetch_byte : unit -> byte
+function fetch_byte() = {
+  let b = mem_read8(decode_pos);
+  decode_pos = decode_pos + 1;
+  b
+}
+
+// =========================================================================
+// Operand size determination
+// =========================================================================
+
+// Standard operand size: default 32-bit in 64-bit mode.
+// REX.W -> 64, 66h -> 16, otherwise 32.
+val get_operand_size : Prefixes -> OperandSize
+function get_operand_size(pfx) =
+  if pfx.rex_w then OS64
+  else if pfx.has_opsize then OS16
+  else OS32
+
+// Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
+// REX.W or default -> 64, 66h -> 16. 32-bit is NOT encodable.
+val get_operand_size_d64 : Prefixes -> OperandSize
+function get_operand_size_d64(pfx) =
+  if pfx.has_opsize then OS16
+  else OS64
+
+// Operand size for instructions forced to 64-bit (JMP rel, CALL rel, Jcc rel).
+// Always 64-bit, 66h ignored.
+val get_operand_size_f64 : Prefixes -> OperandSize
+function get_operand_size_f64(_pfx) = OS64
+
+// =========================================================================
+// Register index helpers (extending 3-bit fields with REX bits)
+// =========================================================================
+
+// Extend a 3-bit register field with a REX extension bit to get gpr_idx.
+val extend_reg : (range(0, 7), bool) -> gpr_idx
+function extend_reg(base, rex_bit) =
+  if rex_bit then base + 8 else base
+
+// Decode the ModR/M reg field (bits 5:3) with REX.R.
+val modrm_reg : (byte, Prefixes) -> gpr_idx
+function modrm_reg(modrm, pfx) = {
+  let r : range(0, 7) = unsigned(modrm[5..3]);
+  extend_reg(r, pfx.rex_r)
+}
+
+// Decode the ModR/M r/m field (bits 2:0) with REX.B.
+val modrm_rm_reg : (byte, Prefixes) -> gpr_idx
+function modrm_rm_reg(modrm, pfx) = {
+  let r : range(0, 7) = unsigned(modrm[2..0]);
+  extend_reg(r, pfx.rex_b)
+}
+
+// =========================================================================
+// Byte register read/write (handles AH/CH/DH/BH vs SPL/BPL/SIL/DIL)
+// =========================================================================
+
+// In byte mode without REX, indices 4-7 mean AH/CH/DH/BH (high byte of
+// GPR 0-3). With any REX prefix, they mean SPL/BPL/SIL/DIL (low byte of
+// GPR 4-7, or 12-15 with REX.B).
+
+val read_byte_reg : (gpr_idx, bool) -> byte
+function read_byte_reg(idx, has_rex) =
+  if not_bool(has_rex) & idx >= 4 & idx <= 7 then
+    read_gpr8h(idx - 4)
+  else
+    read_gpr8l(idx)
+
+val write_byte_reg : (gpr_idx, bool, byte) -> unit
+function write_byte_reg(idx, has_rex, v) =
+  if not_bool(has_rex) & idx >= 4 & idx <= 7 then
+    write_gpr8h(idx - 4, v)
+  else
+    write_gpr8l(idx, v)
+
+// =========================================================================
+// Generic operand read/write through RM union
+// =========================================================================
+
+val read_rm_val : (RM, OperandSize, bool) -> qword
+function read_rm_val(rm, os, has_rex) = match rm {
+  RM_reg(idx) => match os {
+    OS8  => zero_extend(read_byte_reg(idx, has_rex)),
+    OS16 => zero_extend(read_gpr16(idx)),
+    OS32 => zero_extend(read_gpr32(idx)),
+    OS64 => read_gpr64(idx),
+  },
+  RM_mem(addr) => {
+    let a = fixup_addr(addr);
+    match os {
+      OS8  => zero_extend(mem_read8(a)),
+      OS16 => zero_extend(mem_read16(a)),
+      OS32 => zero_extend(mem_read32(a)),
+      OS64 => mem_read64(a),
+    }
+  },
+}
+
+val write_rm_val : (RM, OperandSize, bool, qword) -> unit
+function write_rm_val(rm, os, has_rex, v) = match rm {
+  RM_reg(idx) => match os {
+    OS8  => write_byte_reg(idx, has_rex, v[7..0]),
+    OS16 => write_gpr16(idx, v[15..0]),
+    OS32 => write_gpr32(idx, v[31..0]),
+    OS64 => write_gpr64(idx, v),
+  },
+  RM_mem(addr) => {
+    let a = fixup_addr(addr);
+    match os {
+      OS8  => mem_write8(a, v[7..0]),
+      OS16 => mem_write16(a, v[15..0]),
+      OS32 => mem_write32(a, v[31..0]),
+      OS64 => mem_write64(a, v),
+    }
+  },
+}
+
+// =========================================================================
+// Immediate fetch helpers
+// =========================================================================
+
+// Fetch a sign-extended immediate of size Ib (1 byte) -> qword.
+val fetch_imm8_sx : unit -> qword
+function fetch_imm8_sx() = sign_extend(fetch_byte())
+
+// Fetch an immediate Iz: 16-bit if opsize=16, else 32-bit, sign-extended to 64.
+val fetch_imm_z : OperandSize -> qword
+function fetch_imm_z(os) = match os {
+  OS16 => {
+    let lo = fetch_byte();
+    let hi = fetch_byte();
+    sign_extend(hi @ lo)
+  },
+  _ => {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    sign_extend(b3 @ b2 @ b1 @ b0)
+  },
+}
+
+// Fetch an immediate Iv: matches operand size. 64-bit only for MOV reg,imm with REX.W.
+val fetch_imm_v : OperandSize -> qword
+function fetch_imm_v(os) = match os {
+  OS8 => zero_extend(fetch_byte()),
+  OS16 => {
+    let lo = fetch_byte();
+    let hi = fetch_byte();
+    zero_extend(hi @ lo)
+  },
+  OS32 => {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    zero_extend(b3 @ b2 @ b1 @ b0)
+  },
+  OS64 => {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    let b4 = fetch_byte();
+    let b5 = fetch_byte();
+    let b6 = fetch_byte();
+    let b7 = fetch_byte();
+    b7 @ b6 @ b5 @ b4 @ b3 @ b2 @ b1 @ b0
+  },
+}
+
+// Fetch a 16-bit immediate (always 2 bytes, e.g. for RET imm16).
+val fetch_imm16 : unit -> word
+function fetch_imm16() = {
+  let lo = fetch_byte();
+  let hi = fetch_byte();
+  hi @ lo
+}
+
+// Fetch a 32-bit sign-extended relative offset.
+val fetch_rel32 : unit -> qword
+function fetch_rel32() = {
+  let b0 = fetch_byte();
+  let b1 = fetch_byte();
+  let b2 = fetch_byte();
+  let b3 = fetch_byte();
+  sign_extend(b3 @ b2 @ b1 @ b0)
+}
+
+// Fetch an 8-bit sign-extended relative offset.
+val fetch_rel8 : unit -> qword
+function fetch_rel8() = sign_extend(fetch_byte())
+
+// =========================================================================
+// Address size determination (for string ops, LOOP, XLAT, etc.)
+// =========================================================================
+
+// In 64-bit mode: default AS64, 67h -> AS32. AS16 not encodable.
+val get_address_size : Prefixes -> AddressSize
+function get_address_size(pfx) =
+  if pfx.has_adsize then AS32
+  else AS64
+
+// =========================================================================
+// Fetch a full moffs (memory offset) address — 64-bit in 64-bit mode,
+// 32-bit with 67h prefix.
+// =========================================================================
+val fetch_moffs : Prefixes -> qword
+function fetch_moffs(pfx) =
+  if pfx.has_adsize then {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    zero_extend(b3 @ b2 @ b1 @ b0)
+  } else {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    let b4 = fetch_byte();
+    let b5 = fetch_byte();
+    let b6 = fetch_byte();
+    let b7 = fetch_byte();
+    b7 @ b6 @ b5 @ b4 @ b3 @ b2 @ b1 @ b0
+  }
+
+// =========================================================================
+// SIMD register index helpers (extending 3-bit fields with REX bits)
+// =========================================================================
+
+val modrm_xmm_reg : (byte, Prefixes) -> simd_idx
+function modrm_xmm_reg(modrm, pfx) = {
+  let r : range(0, 7) = unsigned(modrm[5..3]);
+  if pfx.rex_r then r + 8 else r
+}
+
+val modrm_xmm_rm : (byte, Prefixes) -> simd_idx
+function modrm_xmm_rm(modrm, pfx) = {
+  let r : range(0, 7) = unsigned(modrm[2..0]);
+  if pfx.rex_b then r + 8 else r
+}

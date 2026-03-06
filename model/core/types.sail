@@ -1,0 +1,77 @@
+// x86-64 Sail Model — Core Types
+
+// Operand sizes used in x86 instructions.
+// This determines the width of register/memory operations.
+enum OperandSize = { OS8, OS16, OS32, OS64 }
+
+// Return the bit-width corresponding to an operand size.
+val operand_size_bits : OperandSize -> {8, 16, 32, 64}
+function operand_size_bits(os) = match os {
+  OS8  => 8,
+  OS16 => 16,
+  OS32 => 32,
+  OS64 => 64,
+}
+
+// Address sizes for memory operands.
+enum AddressSize = { AS16, AS32, AS64 }
+
+// Processor operating modes.
+enum ProcessorMode = {
+  RealMode,
+  ProtectedMode,
+  CompatibilityMode,
+  LongMode,
+}
+
+// Current privilege level.
+type cpl_t = range(0, 3)
+
+// Common byte/word/dword/qword types.
+type byte    = bits(8)
+type word    = bits(16)
+type dword   = bits(32)
+type qword   = bits(64)
+type fp80    = bits(80)
+type xmmword = bits(128)
+type ymmword = bits(256)
+type zmmword = bits(512)
+
+// Virtual and physical address types.
+type vaddr64 = bits(64)
+type paddr64 = bits(64)
+
+// Index into the 16 general-purpose registers (0..15).
+type gpr_idx = range(0, 15)
+
+// Index into the segment register file (0..5: ES, CS, SS, DS, FS, GS).
+type segreg_idx = range(0, 5)
+let ES : segreg_idx = 0
+let CS : segreg_idx = 1
+let SS : segreg_idx = 2
+let DS : segreg_idx = 3
+let FS : segreg_idx = 4
+let GS : segreg_idx = 5
+
+// Exception/interrupt vector numbers.
+type exception_vector = range(0, 255)
+
+// Standard x86 exceptions.
+let EXN_DE : exception_vector = 0   // Divide Error
+let EXN_DB : exception_vector = 1   // Debug
+let EXN_NMI : exception_vector = 2  // Non-Maskable Interrupt
+let EXN_BP : exception_vector = 3   // Breakpoint
+let EXN_OF : exception_vector = 4   // Overflow
+let EXN_BR : exception_vector = 5   // BOUND Range Exceeded
+let EXN_UD : exception_vector = 6   // Invalid Opcode
+let EXN_NM : exception_vector = 7   // Device Not Available
+let EXN_DF : exception_vector = 8   // Double Fault
+let EXN_TS : exception_vector = 10  // Invalid TSS
+let EXN_NP : exception_vector = 11  // Segment Not Present
+let EXN_SS : exception_vector = 12  // Stack-Segment Fault
+let EXN_GP : exception_vector = 13  // General Protection
+let EXN_PF : exception_vector = 14  // Page Fault
+let EXN_MF : exception_vector = 16  // x87 FPU Error
+let EXN_AC : exception_vector = 17  // Alignment Check
+let EXN_MC : exception_vector = 18  // Machine Check
+let EXN_XM : exception_vector = 19  // SIMD Floating-Point

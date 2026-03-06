@@ -1,0 +1,930 @@
+// x86-64 Decoder — 1-Byte Opcode Map Dispatch
+//
+// Dispatches the primary opcode byte to instruction execution.
+// This covers the main 1-byte opcode map (MAP 0).
+
+// Map rows 00-3F to ALU operation. Each operation occupies 8 opcodes.
+val opcode_to_alu : range(0, 63) -> ALUOp
+function opcode_to_alu(op) = {
+  let row : range(0, 7) = unsigned(to_bits_truncate(3, op / 8));
+  match row {
+    0 => ALU_ADD,
+    1 => ALU_OR,
+    2 => ALU_ADC,
+    3 => ALU_SBB,
+    4 => ALU_AND,
+    5 => ALU_SUB,
+    6 => ALU_XOR,
+    7 => ALU_CMP,
+  }
+}
+
+// ALU dispatch for opcodes 00-3F (columns 0-5).
+val dispatch_alu_opcode : (range(0, 63), Prefixes) -> ExecutionResult
+function dispatch_alu_opcode(op, pfx) = {
+  let alu_op = opcode_to_alu(op);
+  let col : range(0, 7) = op % 8;
+  match col {
+    0 => {
+      // OP r/m8, r8
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      exec_alu_rm_reg_byte(alu_op, rm, reg, pfx)
+    },
+    1 => {
+      // OP r/m, r (word/dword/qword)
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      exec_alu_rm_reg(alu_op, rm, reg, os, pfx)
+    },
+    2 => {
+      // OP r8, r/m8
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      exec_alu_reg_rm_byte(alu_op, reg, rm, pfx)
+    },
+    3 => {
+      // OP r, r/m (word/dword/qword)
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      exec_alu_reg_rm(alu_op, reg, rm, os, pfx)
+    },
+    4 => {
+      // OP AL, imm8
+      let imm : qword = zero_extend(fetch_byte());
+      exec_alu_acc_imm(alu_op, imm, OS8, pfx)
+    },
+    5 => {
+      // OP rAX, imm (Iz: 16 or 32 bit, sign-extended)
+      let os = get_operand_size(pfx);
+      let imm = fetch_imm_z(os);
+      exec_alu_acc_imm(alu_op, imm, os, pfx)
+    },
+    _ => raise_UD(),  // unreachable
+  }
+}
+
+// Dispatch a 1-byte opcode. The opcode byte has already been consumed.
+val dispatch_opcode_1byte : (byte, Prefixes) -> ExecutionResult
+function dispatch_opcode_1byte(opcode, pfx) = {
+  let op : range(0, 255) = unsigned(opcode);
+
+  // ALU instructions 00-3F (regular pattern, columns 0-5 only)
+  if op <= 63 & op % 8 <= 5 then dispatch_alu_opcode(op, pfx)
+  else match op {
+
+    // 0F: Two-byte escape
+    15 => {
+      let opcode2 = fetch_byte();
+      dispatch_opcode_2byte(opcode2, pfx)
+    },
+
+    // 63: MOVSXD r64, r/m32 (in 64-bit mode)
+    99 => {
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      if pfx.rex_w then {
+        let src = read_rm_val(rm, OS32, pfx.has_rex);
+        write_gpr64(reg, sign_extend(src[31..0]));
+        Ok(())
+      } else {
+        let os = get_operand_size(pfx);
+        let src = read_rm_val(rm, os, pfx.has_rex);
+        write_gpr(reg, os, src);
+        Ok(())
+      }
+    },
+
+    // 68: PUSH imm16/32 (d64, Iz)
+    104 => {
+      let os = get_operand_size_d64(pfx);
+      let imm = fetch_imm_z(os);
+      exec_push_imm(imm, os)
+    },
+
+    // 69: IMUL r, r/m, imm (3-operand, Iz)
+    105 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
+      let imm = fetch_imm_z(os);
+      let src = read_rm_val(rm, os, pfx.has_rex);
+      let product : int = match os {
+        OS8  => signed(src[7..0]) * signed(imm[7..0]),
+        OS16 => signed(src[15..0]) * signed(imm[15..0]),
+        OS32 => signed(src[31..0]) * signed(imm[31..0]),
+        OS64 => signed(src) * signed(imm),
+      };
+      let result : qword = to_bits_truncate(product);
+      let truncated : bool = match os {
+        OS8  => product != signed(result[7..0]),
+        OS16 => product != signed(result[15..0]),
+        OS32 => product != signed(result[31..0]),
+        OS64 => product != signed(result),
+      };
+      CF = if truncated then bitone else bitzero;
+      OF = CF;
+      write_gpr(reg, os, result);
+      Ok(())
+    },
+
+    // 6A: PUSH imm8 (d64, sign-extended)
+    106 => {
+      let os = get_operand_size_d64(pfx);
+      let imm = fetch_imm8_sx();
+      exec_push_imm(imm, os)
+    },
+
+    // 6B: IMUL r, r/m, imm8 (3-operand, Ib sign-extended)
+    107 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
+      let imm = fetch_imm8_sx();
+      let src = read_rm_val(rm, os, pfx.has_rex);
+      let product : int = match os {
+        OS8  => signed(src[7..0]) * signed(imm[7..0]),
+        OS16 => signed(src[15..0]) * signed(imm[15..0]),
+        OS32 => signed(src[31..0]) * signed(imm[31..0]),
+        OS64 => signed(src) * signed(imm),
+      };
+      let result : qword = to_bits_truncate(product);
+      let truncated : bool = match os {
+        OS8  => product != signed(result[7..0]),
+        OS16 => product != signed(result[15..0]),
+        OS32 => product != signed(result[31..0]),
+        OS64 => product != signed(result),
+      };
+      CF = if truncated then bitone else bitzero;
+      OF = CF;
+      write_gpr(reg, os, result);
+      Ok(())
+    },
+
+    // 80: Group 1 — ALU r/m8, imm8
+    128 => {
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let imm : qword = zero_extend(fetch_byte());
+      let alu_op = group1_op(reg_field);
+      exec_alu_rm_imm(alu_op, rm, imm, OS8, pfx)
+    },
+
+    // 81: Group 1 — ALU r/m, imm (Iz)
+    129 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let imm = fetch_imm_z(os);
+      let alu_op = group1_op(reg_field);
+      exec_alu_rm_imm(alu_op, rm, imm, os, pfx)
+    },
+
+    // 83: Group 1 — ALU r/m, imm8 (sign-extended)
+    131 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let imm = fetch_imm8_sx();
+      let alu_op = group1_op(reg_field);
+      exec_alu_rm_imm(alu_op, rm, imm, os, pfx)
+    },
+
+    // 84: TEST r/m8, r8
+    132 => {
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let a = read_rm_val(rm, OS8, pfx.has_rex);
+      let b : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
+      let result = a & b;
+      update_flags_logic(result[7..0]);
+      Ok(())
+    },
+
+    // 85: TEST r/m, r
+    133 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let a = read_rm_val(rm, os, pfx.has_rex);
+      let b = read_gpr(reg, os);
+      let result = a & b;
+      match os {
+        OS8  => update_flags_logic(result[7..0]),
+        OS16 => update_flags_logic(result[15..0]),
+        OS32 => update_flags_logic(result[31..0]),
+        OS64 => update_flags_logic(result),
+      };
+      Ok(())
+    },
+
+    // 86: XCHG r/m8, r8
+    134 => {
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let a = read_rm_val(rm, OS8, pfx.has_rex);
+      let b : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
+      write_rm_val(rm, OS8, pfx.has_rex, b);
+      write_byte_reg(reg, pfx.has_rex, a[7..0]);
+      Ok(())
+    },
+
+    // 87: XCHG r/m, r
+    135 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let a = read_rm_val(rm, os, pfx.has_rex);
+      let b = read_gpr(reg, os);
+      write_rm_val(rm, os, pfx.has_rex, b);
+      write_gpr(reg, os, a);
+      Ok(())
+    },
+
+    // 88: MOV r/m8, r8
+    136 => {
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let v : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
+      write_rm_val(rm, OS8, pfx.has_rex, v);
+      Ok(())
+    },
+
+    // 89: MOV r/m, r
+    137 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      write_rm_val(rm, os, pfx.has_rex, read_gpr(reg, os));
+      Ok(())
+    },
+
+    // 8A: MOV r8, r/m8
+    138 => {
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let v = read_rm_val(rm, OS8, pfx.has_rex);
+      write_byte_reg(reg, pfx.has_rex, v[7..0]);
+      Ok(())
+    },
+
+    // 8B: MOV r, r/m
+    139 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      write_gpr(reg, os, read_rm_val(rm, os, pfx.has_rex));
+      Ok(())
+    },
+
+    // 8C: MOV r/m16, sreg
+    140 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      if reg_field > 5 then raise_UD()
+      else {
+        let seg : segreg_idx = reg_field;
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_reg(idx) => {
+            let os = get_operand_size(pfx);
+            exec_mov_rm_from_segreg(idx, seg, os)
+          },
+          RM_mem(addr) => exec_mov_mem_from_segreg(addr, seg),
+        }
+      }
+    },
+
+    // 8E: MOV sreg, r/m16
+    142 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      if reg_field > 5 then raise_UD()
+      else {
+        let seg : segreg_idx = reg_field;
+        let rm = decode_rm(modrm, pfx);
+        let v : word = match rm {
+          RM_reg(idx) => read_gpr16(idx),
+          RM_mem(addr) => mem_read16(addr),
+        };
+        exec_mov_segreg_from_rm(seg, v)
+      }
+    },
+
+    // 8D: LEA r, m
+    141 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      match rm {
+        RM_mem(addr) => exec_lea(reg, addr, os),
+        RM_reg(_) => raise_UD(),
+      }
+    },
+
+    // 8F /0: POP r/m (d64)
+    143 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      if reg_field == 0 then {
+        let rm = decode_rm(modrm, pfx);
+        let os = get_operand_size_d64(pfx);
+        match rm {
+          RM_reg(idx) => exec_pop_reg(idx, os),
+          RM_mem(addr) => {
+            match os {
+              OS64 => mem_write64(addr, pop64()),
+              OS16 => mem_write16(addr, pop16()),
+              _ => (),
+            };
+            Ok(())
+          },
+        }
+      } else raise_UD()
+    },
+
+    // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
+    144 => {
+      if pfx.has_rep then exec_pause()
+      else if pfx.rex_b then {
+        let os = get_operand_size(pfx);
+        exec_xchg_reg_reg(RAX, R8, os)
+      } else
+        exec_nop()
+    },
+
+    // 98: CBW/CWDE/CDQE
+    152 => {
+      let os = get_operand_size(pfx);
+      match os {
+        OS16 => { let v : word = sign_extend(read_gpr8l(RAX)); write_gpr16(RAX, v) },
+        OS32 => { let v : dword = sign_extend(read_gpr16(RAX)); write_gpr32(RAX, v) },
+        OS64 => { let v : qword = sign_extend(read_gpr32(RAX)); write_gpr64(RAX, v) },
+        _ => (),
+      };
+      Ok(())
+    },
+
+    // 99: CWD/CDQ/CQO
+    153 => {
+      let os = get_operand_size(pfx);
+      match os {
+        OS16 => {
+          if read_gpr16(RAX)[15] == bitone then write_gpr16(RDX, 0xFFFF)
+          else write_gpr16(RDX, 0x0000)
+        },
+        OS32 => {
+          if read_gpr32(RAX)[31] == bitone then write_gpr32(RDX, 0xFFFFFFFF)
+          else write_gpr32(RDX, 0x00000000)
+        },
+        OS64 => {
+          if read_gpr64(RAX)[63] == bitone then write_gpr64(RDX, ones())
+          else write_gpr64(RDX, zeros())
+        },
+        _ => (),
+      };
+      Ok(())
+    },
+
+    // 9B: FWAIT/WAIT
+    155 => exec_fwait(),
+
+    // 9C: PUSHF (d64)
+    156 => {
+      let os = get_operand_size_d64(pfx);
+      let flags = read_rflags();
+      exec_push_imm(flags, os)
+    },
+
+    // 9D: POPF (d64)
+    157 => {
+      let os = get_operand_size_d64(pfx);
+      exec_popf(os)
+    },
+
+    // 9E: SAHF
+    158 => exec_sahf(),
+
+    // 9F: LAHF
+    159 => exec_lahf(),
+
+    // A0: MOV AL, moffs8
+    160 => {
+      let addr = fetch_moffs(pfx);
+      write_gpr8l(RAX, mem_read8(addr));
+      Ok(())
+    },
+
+    // A1: MOV rAX, moffs
+    161 => {
+      let os = get_operand_size(pfx);
+      let addr = fetch_moffs(pfx);
+      let v : qword = match os {
+        OS8  => zero_extend(mem_read8(addr)),
+        OS16 => zero_extend(mem_read16(addr)),
+        OS32 => zero_extend(mem_read32(addr)),
+        OS64 => mem_read64(addr),
+      };
+      write_gpr(RAX, os, v);
+      Ok(())
+    },
+
+    // A2: MOV moffs8, AL
+    162 => {
+      let addr = fetch_moffs(pfx);
+      mem_write8(addr, read_gpr8l(RAX));
+      Ok(())
+    },
+
+    // A3: MOV moffs, rAX
+    163 => {
+      let os = get_operand_size(pfx);
+      let addr = fetch_moffs(pfx);
+      let v = read_gpr(RAX, os);
+      match os {
+        OS8  => mem_write8(addr, v[7..0]),
+        OS16 => mem_write16(addr, v[15..0]),
+        OS32 => mem_write32(addr, v[31..0]),
+        OS64 => mem_write64(addr, v),
+      };
+      Ok(())
+    },
+
+    // A4: MOVSB
+    164 => {
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_movs, OS8, asz)
+      else exec_movs(OS8, asz)
+    },
+
+    // A5: MOVSW/MOVSD/MOVSQ
+    165 => {
+      let os = get_operand_size(pfx);
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz)
+      else exec_movs(os, asz)
+    },
+
+    // A6: CMPSB
+    166 => {
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_repe, STR_cmps, OS8, asz)
+      else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, OS8, asz)
+      else exec_cmps(OS8, asz)
+    },
+
+    // A7: CMPSW/CMPSD/CMPSQ
+    167 => {
+      let os = get_operand_size(pfx);
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_repe, STR_cmps, os, asz)
+      else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, os, asz)
+      else exec_cmps(os, asz)
+    },
+
+    // A8: TEST AL, imm8
+    168 => {
+      let imm : qword = zero_extend(fetch_byte());
+      let a : qword = zero_extend(read_gpr8l(RAX));
+      let result = a & imm;
+      update_flags_logic(result[7..0]);
+      Ok(())
+    },
+
+    // A9: TEST rAX, imm (Iz)
+    169 => {
+      let os = get_operand_size(pfx);
+      let imm = fetch_imm_z(os);
+      let a = read_gpr(RAX, os);
+      let result = a & imm;
+      match os {
+        OS8  => update_flags_logic(result[7..0]),
+        OS16 => update_flags_logic(result[15..0]),
+        OS32 => update_flags_logic(result[31..0]),
+        OS64 => update_flags_logic(result),
+      };
+      Ok(())
+    },
+
+    // AA: STOSB
+    170 => {
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_stos, OS8, asz)
+      else exec_stos(OS8, asz)
+    },
+
+    // AB: STOSW/STOSD/STOSQ
+    171 => {
+      let os = get_operand_size(pfx);
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz)
+      else exec_stos(os, asz)
+    },
+
+    // AC: LODSB
+    172 => {
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_lods, OS8, asz)
+      else exec_lods(OS8, asz)
+    },
+
+    // AD: LODSW/LODSD/LODSQ
+    173 => {
+      let os = get_operand_size(pfx);
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz)
+      else exec_lods(os, asz)
+    },
+
+    // AE: SCASB
+    174 => {
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_repe, STR_scas, OS8, asz)
+      else if pfx.has_repne then exec_rep(REP_repne, STR_scas, OS8, asz)
+      else exec_scas(OS8, asz)
+    },
+
+    // AF: SCASW/SCASD/SCASQ
+    175 => {
+      let os = get_operand_size(pfx);
+      let asz = get_address_size(pfx);
+      if pfx.has_rep then exec_rep(REP_repe, STR_scas, os, asz)
+      else if pfx.has_repne then exec_rep(REP_repne, STR_scas, os, asz)
+      else exec_scas(os, asz)
+    },
+
+    // C0: Group 2 — shift r/m8 by imm8
+    192 => {
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let count = fetch_byte();
+      exec_shift_rm(reg_field, rm, count, OS8, pfx)
+    },
+
+    // C1: Group 2 — shift r/m by imm8
+    193 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let count = fetch_byte();
+      exec_shift_rm(reg_field, rm, count, os, pfx)
+    },
+
+    // C2: RET near imm16
+    194 => {
+      let imm = fetch_imm16();
+      let os = get_operand_size_d64(pfx);
+      exec_ret_imm(imm, os)
+    },
+
+    // C3: RET near
+    195 => {
+      let os = get_operand_size_d64(pfx);
+      exec_ret(os)
+    },
+
+    // C6 /0: MOV r/m8, imm8
+    198 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      if reg_field == 0 then {
+        let rm = decode_rm(modrm, pfx);
+        let imm : qword = zero_extend(fetch_byte());
+        write_rm_val(rm, OS8, pfx.has_rex, imm);
+        Ok(())
+      } else raise_UD()
+    },
+
+    // C7 /0: MOV r/m, imm (Iz)
+    199 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      if reg_field == 0 then {
+        let os = get_operand_size(pfx);
+        let rm = decode_rm(modrm, pfx);
+        let imm = fetch_imm_z(os);
+        write_rm_val(rm, os, pfx.has_rex, imm);
+        Ok(())
+      } else raise_UD()
+    },
+
+    // C8: ENTER imm16, imm8
+    200 => {
+      let size = fetch_imm16();
+      let level = fetch_byte();
+      let os = get_operand_size_d64(pfx);
+      exec_enter(size, level, os)
+    },
+
+    // C9: LEAVE
+    201 => {
+      let os = get_operand_size_d64(pfx);
+      exec_leave(os)
+    },
+
+    // CC: INT 3
+    204 => exec_int3(),
+
+    // CD: INT imm8
+    205 => {
+      let imm = fetch_byte();
+      exec_int(imm)
+    },
+
+    // D0: Group 2 — shift r/m8 by 1
+    208 => {
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      exec_shift_rm(reg_field, rm, 0x01, OS8, pfx)
+    },
+
+    // D1: Group 2 — shift r/m by 1
+    209 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      exec_shift_rm(reg_field, rm, 0x01, os, pfx)
+    },
+
+    // D2: Group 2 — shift r/m8 by CL
+    210 => {
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let count = read_gpr8l(RCX);
+      exec_shift_rm(reg_field, rm, count, OS8, pfx)
+    },
+
+    // D3: Group 2 — shift r/m by CL
+    211 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let rm = decode_rm(modrm, pfx);
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let count = read_gpr8l(RCX);
+      exec_shift_rm(reg_field, rm, count, os, pfx)
+    },
+
+    // D7: XLAT/XLATB
+    215 => {
+      let asz = get_address_size(pfx);
+      exec_xlat(asz)
+    },
+
+    // D8-DF: x87 FPU
+    op if 216 <= op & op <= 223 => dispatch_x87(opcode, pfx),
+
+    // E0: LOOPNE/LOOPNZ rel8
+    224 => {
+      let rel = fetch_byte();
+      let asz = get_address_size(pfx);
+      exec_loop(rel, LOOP_ne, asz)
+    },
+
+    // E1: LOOPE/LOOPZ rel8
+    225 => {
+      let rel = fetch_byte();
+      let asz = get_address_size(pfx);
+      exec_loop(rel, LOOP_e, asz)
+    },
+
+    // E2: LOOP rel8
+    226 => {
+      let rel = fetch_byte();
+      let asz = get_address_size(pfx);
+      exec_loop(rel, LOOP_always, asz)
+    },
+
+    // E3: JRCXZ rel8
+    227 => {
+      let rel = fetch_rel8();
+      let asz = get_address_size(pfx);
+      let count_reg : qword = if asz == AS32 then zero_extend(read_gpr32(RCX)) else read_gpr64(RCX);
+      if count_reg == zeros() then {
+        let target = decode_pos + rel;
+        exec_jmp_abs(target)
+      } else Ok(())
+    },
+
+    // E4: IN AL, imm8
+    228 => {
+      let port : word = zero_extend(fetch_byte());
+      exec_in(port, OS8)
+    },
+
+    // E5: IN eAX, imm8
+    229 => {
+      let port : word = zero_extend(fetch_byte());
+      let os = get_operand_size(pfx);
+      exec_in(port, os)
+    },
+
+    // E6: OUT imm8, AL
+    230 => {
+      let port : word = zero_extend(fetch_byte());
+      exec_out(port, OS8)
+    },
+
+    // E7: OUT imm8, eAX
+    231 => {
+      let port : word = zero_extend(fetch_byte());
+      let os = get_operand_size(pfx);
+      exec_out(port, os)
+    },
+
+    // E8: CALL rel32 (f64)
+    232 => {
+      let offset = fetch_rel32();
+      let os = get_operand_size_f64(pfx);
+      exec_call_rel(offset, os)
+    },
+
+    // E9: JMP rel32 (f64)
+    233 => {
+      let offset = fetch_rel32();
+      exec_jmp_rel(offset)
+    },
+
+    // EB: JMP rel8 (f64)
+    235 => {
+      let offset = fetch_rel8();
+      exec_jmp_rel(offset)
+    },
+
+    // EC: IN AL, DX
+    236 => exec_in(read_gpr16(RDX), OS8),
+
+    // ED: IN eAX, DX
+    237 => {
+      let os = get_operand_size(pfx);
+      exec_in(read_gpr16(RDX), os)
+    },
+
+    // EE: OUT DX, AL
+    238 => exec_out(read_gpr16(RDX), OS8),
+
+    // EF: OUT DX, eAX
+    239 => {
+      let os = get_operand_size(pfx);
+      exec_out(read_gpr16(RDX), os)
+    },
+
+    // F4: HLT
+    244 => exec_hlt(),
+
+    // F5: CMC
+    245 => {
+      CF = if CF == bitone then bitzero else bitone;
+      Ok(())
+    },
+
+    // F6: Group 3 — unary byte operations
+    246 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let rm = decode_rm(modrm, pfx);
+      dispatch_group3_byte(reg_field, rm, pfx)
+    },
+
+    // F7: Group 3 — unary word/dword/qword operations
+    247 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let rm = decode_rm(modrm, pfx);
+      dispatch_group3(reg_field, rm, os, pfx)
+    },
+
+    // F8: CLC
+    248 => { CF = bitzero; Ok(()) },
+
+    // F9: STC
+    249 => { CF = bitone; Ok(()) },
+
+    // FA: CLI
+    250 => exec_cli(),
+
+    // FB: STI
+    251 => exec_sti(),
+
+    // FC: CLD
+    252 => { DF = bitzero; Ok(()) },
+
+    // FD: STD
+    253 => { DF = bitone; Ok(()) },
+
+    // FE: Group 4 — INC/DEC r/m8
+    254 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let rm = decode_rm(modrm, pfx);
+      if reg_field == 0 then {
+        let v = read_rm_val(rm, OS8, pfx.has_rex);
+        let one : qword = 0x0000000000000001;
+        let result = v + one;
+        let saved_cf = CF;
+        update_flags_add(result[7..0], v[7..0], one[7..0]);
+        CF = saved_cf;
+        write_rm_val(rm, OS8, pfx.has_rex, result);
+        Ok(())
+      } else if reg_field == 1 then {
+        let v = read_rm_val(rm, OS8, pfx.has_rex);
+        let one : qword = 0x0000000000000001;
+        let result = v - one;
+        let saved_cf = CF;
+        update_flags_sub(result[7..0], v[7..0], one[7..0]);
+        CF = saved_cf;
+        write_rm_val(rm, OS8, pfx.has_rex, result);
+        Ok(())
+      } else raise_UD()
+    },
+
+    // FF: Group 5 — INC/DEC/CALL/JMP/PUSH r/m
+    255 => {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let rm = decode_rm(modrm, pfx);
+      dispatch_group5(reg_field, rm, pfx)
+    },
+
+    // 50-57: PUSH reg (d64)
+    op if 80 <= op & op <= 87 => {
+      let reg_field : range(0, 7) = op - 80;
+      let reg = extend_reg(reg_field, pfx.rex_b);
+      let os = get_operand_size_d64(pfx);
+      exec_push_reg(reg, os)
+    },
+
+    // 58-5F: POP reg (d64)
+    op if 88 <= op & op <= 95 => {
+      let reg_field : range(0, 7) = op - 88;
+      let reg = extend_reg(reg_field, pfx.rex_b);
+      let os = get_operand_size_d64(pfx);
+      exec_pop_reg(reg, os)
+    },
+
+    // 70-7F: Jcc rel8 (f64)
+    op if 112 <= op & op <= 127 => {
+      let cc : cc_idx = op - 112;
+      let offset = fetch_rel8();
+      exec_jcc(cc, offset)
+    },
+
+    // 91-97: XCHG rAX, r
+    op if 145 <= op & op <= 151 => {
+      let reg_field : range(0, 7) = op - 144;
+      let reg = extend_reg(reg_field, pfx.rex_b);
+      let os = get_operand_size(pfx);
+      exec_xchg_reg_reg(RAX, reg, os)
+    },
+
+    // B0-B7: MOV r8, imm8
+    op if 176 <= op & op <= 183 => {
+      let reg_field : range(0, 7) = op - 176;
+      let reg = extend_reg(reg_field, pfx.rex_b);
+      let imm = fetch_byte();
+      write_byte_reg(reg, pfx.has_rex, imm);
+      Ok(())
+    },
+
+    // B8-BF: MOV r, imm (Iv)
+    op if 184 <= op & op <= 191 => {
+      let reg_field : range(0, 7) = op - 184;
+      let reg = extend_reg(reg_field, pfx.rex_b);
+      let os = get_operand_size(pfx);
+      let imm = fetch_imm_v(os);
+      write_gpr(reg, os, imm);
+      Ok(())
+    },
+
+    // Unhandled opcode
+    _ => raise_UD(),
+  }
+}
