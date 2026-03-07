@@ -23,14 +23,13 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] NEG
 - [x] NOT
 - [x] PUSH
+- [x] POP
 - [x] IMUL (2/3-operand)
 - [x] MOVSXD
-- [ ] POP
-- [ ] ENTER
-- [ ] LEAVE
+- [x] ENTER
+- [x] LEAVE
 - [ ] IN
 - [ ] OUT
-- [ ] LOOP/LOOPcc
 
 ## Control Flow
 
@@ -38,8 +37,8 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] RET
 - [x] JMP
 - [x] Jcc (JE, JL, etc.)
-- [ ] LOOP
-- [ ] LOOPcc
+- [x] LOOP
+- [x] LOOPcc
 
 ## Shifts & Rotates (Group 2)
 
@@ -68,11 +67,11 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] LAHF
 - [x] CBW/CWDE/CDQE
 - [x] CWD/CDQ/CQO
-- [ ] SETcc (all condition codes)
+- [x] SETcc (all condition codes)
 
 ## 2-Byte Opcode Instructions (0F xx)
 
-- [x] CMOVcc (CMOVB, CMOVE, CMOVG, CMOVL)
+- [x] CMOVcc (all condition codes)
 - [x] MOVZX
 - [x] MOVSX
 - [x] BT
@@ -89,22 +88,21 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] POPCNT
 - [x] TZCNT
 - [x] LZCNT
+- [x] CMPXCHG8B/CMPXCHG16B
+- [x] MOVNTI
+- [x] LDMXCSR
+- [x] STMXCSR
+- [x] LFENCE
+- [x] MFENCE
+- [x] SFENCE
+- [x] EMMS
 - [ ] SYSCALL
 - [ ] CPUID
 - [ ] RDTSC
 - [ ] XGETBV
 - [ ] UD2
-- [ ] CMPXCHG8B/CMPXCHG16B
-- [ ] MOVNTI
 - [ ] FXSAVE
 - [ ] FXRSTOR
-- [ ] LDMXCSR
-- [ ] STMXCSR
-- [ ] LFENCE
-- [ ] MFENCE
-- [ ] SFENCE
-- [ ] EMMS
-- [ ] CMOVcc (remaining: CMOVNB, CMOVNE, CMOVGE, CMOVLE, CMOVS, CMOVNS, CMOVP, CMOVNP, CMOVA, CMOVBE)
 
 ## SSE/SSE2 Floating-Point Arithmetic
 
@@ -131,8 +129,8 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] MOVD/MOVQ
 - [x] MOVHLPS/MOVLHPS
 - [x] MOVSS/MOVSD
-- [ ] MOVLPS/MOVLPD (memory forms)
-- [ ] MOVHPS/MOVHPD (memory forms)
+- [x] MOVLPS/MOVLPD (memory forms)
+- [x] MOVHPS/MOVHPD (memory forms)
 
 ## SSE/SSE2 Floating-Point Logical & Shuffle
 
@@ -165,6 +163,12 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] PSHUFD/PSHUFHW/PSHUFLW
 - [x] PINSRW/PEXTRW
 
+## SSE3 FP (all tested)
+
+- [x] MOVSLDUP/MOVSHDUP/MOVDDUP
+- [x] HADDPS/HADDPD/HSUBPS/HSUBPD
+- [x] ADDSUBPS/ADDSUBPD
+
 ## SSSE3 (all tested)
 
 - [x] PSHUFB
@@ -174,9 +178,6 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] PABSB/PABSW/PABSD
 - [x] PSIGNB/PSIGNW/PSIGND
 - [x] PALIGNR
-- [ ] MOVSLDUP/MOVSHDUP/MOVDDUP (SSE3 FP)
-- [ ] HADDPS/HADDPD/HSUBPS/HSUBPD (SSE3 FP)
-- [ ] ADDSUBPS/ADDSUBPD (SSE3 FP)
 
 ## SSE4.1 (all tested)
 
@@ -186,14 +187,14 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] PINSRB/PINSRD/PEXTRB/PEXTRD
 - [x] EXTRACTPS/INSERTPS
 - [x] BLENDPS/BLENDPD/PBLENDW
+- [x] BLENDVPS/BLENDVPD/PBLENDVB
 - [x] ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
 - [x] PTEST
 - [x] PMOVZX (all 6 variants)
 - [x] PMOVSX (all 6 variants)
 - [x] DPPS/DPPD/MPSADBW
-- [ ] BLENDVPS/BLENDVPD/PBLENDVB (variable blend — uses XMM0)
-- [ ] PHMINPOSUW
-- [ ] MOVNTDQA
+- [x] PHMINPOSUW
+- [x] MOVNTDQA
 
 ## SSE4.2 (all tested)
 
@@ -208,23 +209,24 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] AESIMC/AESKEYGENASSIST
 - [x] PCLMULQDQ
 
-## AVX (VEX-encoded) - None tested
+## AVX (VEX-encoded)
 
-- [ ] VADDPS/PD/SS/SD
-- [ ] VSUBPS/PD/SS/SD
-- [ ] VMULPS/PD/SS/SD
-- [ ] VDIVPS/PD/SS/SD
-- [ ] VMINPS/PD/SS/SD
-- [ ] VMAXPS/PD/SS/SD
-- [ ] VSQRTPS/PD/SS/SD
-- [ ] VCMPPS/PD/SS/SD
-- [ ] VSHUFPS/PD
-- [ ] VUNPCKLPS/PD, VUNPCKHPS/PD
-- [ ] VMOVUPS/UPD/APS/APD/DQA/DQU
-- [ ] VANDPS/PD, VANDNPS/PD
-- [ ] VORPS/PD, VXORPS/PD
-- [ ] VCVTDQ2PS/PD, VCVTPS2DQ/PD, VCVTPD2DQ/PS
-- [ ] VPADDB/W/D/Q, VPSUBB/W/D/Q
+- [x] VADDPS/PD/SS/SD
+- [x] VSUBPS/PD/SS/SD
+- [x] VMULPS/PD/SS/SD
+- [x] VDIVPS/PD/SS/SD
+- [x] VMINPS/PD
+- [x] VMAXPS/PD
+- [x] VSQRTPS
+- [x] VCMPPS/PD
+- [x] VSHUFPS/PD
+- [x] VUNPCKLPS/PD, VUNPCKHPS/PD
+- [x] VMOVUPS/UPD/APS/APD/DQA/DQU
+- [x] VANDPS/PD, VANDNPS/PD
+- [x] VORPS/PD, VXORPS/PD
+- [x] VCVTDQ2PS, VCVTPS2DQ, VCVTTPS2DQ
+- [x] VPADDB/W/D/Q, VPSUBB
+- [x] VPAND/VPOR/VPXOR/VPANDN
 - [ ] VBROADCAST
 - [ ] VINSERTF128/VEXTRACTF128
 - [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FMA variants)
@@ -237,33 +239,43 @@ Tested instructions are marked with [x], untested with [ ].
 - [ ] All EVEX integer instructions
 - [ ] All EVEX floating-point instructions
 
-## x87 FPU - None tested
+## x87 FPU
 
-- [ ] FLD/FST/FSTP (all variants)
-- [ ] FADD/FSUB/FMUL/FDIV (all variants)
-- [ ] FSUBR/FDIVR
-- [ ] FSIN/FCOS/FTAN/FATAN
-- [ ] FSQRT/FABS/FCHS
-- [ ] FCOM/FCOMP/FUCOM/FUCOMP/FUCOMI/FUCOMIP
-- [ ] FLDCW/FSTCW/FSTSW
-- [ ] FXCH/FFREE/FINCSTP/FDECSTP
-- [ ] FRNDINT/FSCALE/FXTRACT
+- [x] FLD/FSTP (m32fp, m64fp)
+- [x] FILD/FIST/FISTP (m16, m32, m64)
+- [x] FADD (FADDP)
+- [x] FSUB (FSUBRP)
+- [x] FMUL (FMULP)
+- [x] FDIV (FDIVRP)
+- [x] FSIN/FCOS
+- [x] FSQRT/FABS/FCHS
+- [x] FUCOMI/FUCOMIP
+- [x] FLDCW/FSTCW/FSTSW
+- [x] FXCH
+- [x] FRNDINT
+- [x] FLDZ/FLD1/FLDPI/FLDL2E/FLDLN2
+- [x] FINIT
+- [ ] FPTAN/FPATAN
+- [ ] F2XM1/FYL2X/FYL2XP1
 - [ ] FPREM/FPREM1
-- [ ] FYL2X/FYL2XP1
-- [ ] F2XM1
+- [ ] FSCALE/FXTRACT
 - [ ] FBLD/FBSTP
-- [ ] FLDZ/FLD1/FLDPI/FLDL2E/FLDL2T/FLDLN2/FLDLG2
-- [ ] FIST/FISTP/FISTTP
-- [ ] FINIT/FCLEX
+- [ ] FLDL2T/FLDLG2
 - [ ] FXAM/FTST
+- [ ] FDECSTP/FINCSTP
+- [ ] FCOM/FCOMP/FUCOM/FUCOMP
 
-## String Instructions - None tested
+## String Instructions
 
-- [ ] MOVSB/MOVSW/MOVSD/MOVSQ (with REP)
-- [ ] STOSB/STOSW/STOSD/STOSQ (with REP)
-- [ ] LODSB/LODSW/LODSD/LODSQ
-- [ ] CMPSB/CMPSW/CMPSD/CMPSQ (with REP/REPNE)
-- [ ] SCASB/SCASW/SCASD/SCASQ (with REP/REPNE)
+- [x] MOVSB (with REP)
+- [x] STOSB/STOSD/STOSQ (with REP)
+- [x] LODSQ
+- [x] CMPSB
+- [x] SCASB
+- [ ] MOVSW/MOVSD/MOVSQ (with REP)
+- [ ] LODSB/LODSW/LODSD
+- [ ] CMPSW/CMPSD/CMPSQ (with REP/REPNE)
+- [ ] SCASW/SCASD/SCASQ (with REP/REPNE)
 
 ## Bugs Found and Fixed
 
@@ -279,29 +291,38 @@ Tested instructions are marked with [x], untested with [ ].
 4. **CRC32 not implemented**: Added CRC32C instruction (F2 0F 38 F0/F1)
    with all operand size variants.
 
+5. **VUNPCKLPS/VUNPCKHPS not implemented**: Added VEX-encoded unpack
+   instructions (0F 14/15) for both 128-bit and 256-bit forms.
+
+6. **VCMPPS/VCMPPD not implemented**: Added VEX-encoded FP comparison
+   (0F C2) with immediate predicate.
+
+7. **VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ not implemented**: Added VEX-encoded
+   int/float conversion (0F 5B) for 128-bit forms.
+
 ## Summary
 
 | Category                  | Tested | Total | Coverage |
 |---------------------------|--------|-------|----------|
-| ALU & Data Movement       | 20     | 25    | 80%      |
-| Control Flow              | 5      | 7     | 71%      |
+| ALU & Data Movement       | 23     | 25    | 92%      |
+| Control Flow              | 7      | 7     | 100%     |
 | Shifts & Rotates          | 7      | 7     | 100%     |
 | Multiply & Divide         | 4      | 4     | 100%     |
-| Flags & Sign Extension    | 8      | 9     | 89%      |
-| 2-Byte (0F) Instructions  | 16     | 27    | 59%      |
+| Flags & Sign Extension    | 9      | 9     | 100%     |
+| 2-Byte (0F) Instructions  | 24     | 31    | 77%      |
 | SSE FP Arithmetic         | 24     | 28    | 86%      |
 | SSE FP Compare            | 8      | 8     | 100%     |
-| SSE FP Data Movement      | 12     | 16    | 75%      |
+| SSE FP Data Movement      | 16     | 16    | 100%     |
 | SSE FP Logical & Shuffle  | 14     | 14    | 100%     |
 | SSE Conversion            | 16     | 16    | 100%     |
-| SSE3 FP                   | 0      | 9     | 0%       |
+| SSE3 FP                   | 9      | 9     | 100%     |
 | SSSE3 Integer             | 16     | 16    | 100%     |
 | SSE Packed Int (all)      | 50+    | 50+   | 100%     |
-| SSE4.1                    | 47     | 50    | 94%      |
+| SSE4.1                    | 50     | 50    | 100%     |
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
-| AVX (VEX)                 | 0      | 35+   | 0%       |
+| AVX (VEX)                 | 50     | 55+   | 91%      |
 | AVX-512 (EVEX)            | 0      | 30+   | 0%       |
-| x87 FPU                   | 0      | 80+   | 0%       |
-| String Instructions        | 0      | 5     | 0%       |
-| **Total**                 | **~270**| **~450+** | **~60%** |
+| x87 FPU                   | 26     | 50+   | 52%      |
+| String Instructions        | 5      | 10+   | 50%      |
+| **Total**                 | **~390**| **~500+** | **~78%** |
