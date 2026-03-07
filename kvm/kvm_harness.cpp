@@ -14,7 +14,28 @@
 #include <random>
 #include <string>
 #include <unistd.h>
+#include <asm/kvm.h>
 #include <vector>
+
+// lbits helpers for XMM register access
+static void xmm_to_bytes(lbits val, u8 *out) {
+  mpz_t tmp;
+  mpz_init_set(tmp, *val.bits);
+  for (int i = 0; i < 16; i++) {
+    out[i] = (u8)(mpz_get_ui(tmp) & 0xFF);
+    mpz_fdiv_q_2exp(tmp, tmp, 8);
+  }
+  mpz_clear(tmp);
+}
+
+static void bytes_to_xmm(lbits *out, const u8 *in) {
+  mpz_set_ui(*out->bits, 0);
+  for (int i = 16; i > 0; i--) {
+    mpz_mul_2exp(*out->bits, *out->bits, 8);
+    mpz_add_ui(*out->bits, *out->bits, in[i - 1]);
+  }
+  out->len = 128;
+}
 
 // Guest physical memory layout (identity-mapped, 2MB total):
 //   0x00000 - 0x00FFF  PML4
@@ -49,12 +70,49 @@ static constexpr u64 FL_ZF_ONLY = FL_ZF;
 static constexpr u64 FL_CF_ZF = FL_CF | FL_ZF;
 static constexpr u64 FL_NONE = 0;
 
+// 128-bit XMM value stored as two 64-bit halves (little-endian).
+struct XmmVal {
+  u64 lo = 0, hi = 0;
+  bool operator==(const XmmVal &o) const { return lo == o.lo && hi == o.hi; }
+  bool operator!=(const XmmVal &o) const { return !(*this == o); }
+};
+
+static XmmVal xmm_from_f32(float a, float b, float c, float d) {
+  XmmVal v;
+  u32 parts[4];
+  memcpy(&parts[0], &a, 4); memcpy(&parts[1], &b, 4);
+  memcpy(&parts[2], &c, 4); memcpy(&parts[3], &d, 4);
+  v.lo = (u64)parts[0] | ((u64)parts[1] << 32);
+  v.hi = (u64)parts[2] | ((u64)parts[3] << 32);
+  return v;
+}
+
+static XmmVal xmm_from_f64(double a, double b) {
+  XmmVal v;
+  memcpy(&v.lo, &a, 8);
+  memcpy(&v.hi, &b, 8);
+  return v;
+}
+
+static XmmVal xmm_from_u64(u64 lo, u64 hi) {
+  return {lo, hi};
+}
+
+static XmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
+  XmmVal v;
+  v.lo = (u64)a | ((u64)b << 32);
+  v.hi = (u64)c | ((u64)d << 32);
+  return v;
+}
+
 // Architectural state we compare between KVM and Sail.
 struct ArchState {
   u64 rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp;
   u64 r8, r9, r10, r11, r12, r13, r14, r15;
   u64 rip;
   u64 rflags;
+  XmmVal xmm[16];
+  u32 mxcsr = 0x1F80;  // default MXCSR
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -66,10 +124,15 @@ struct ArchState {
             r8, r9, r10, r11);
     fprintf(stderr, "    R12=%016lx R13=%016lx R14=%016lx R15=%016lx\n",
             r12, r13, r14, r15);
-    fprintf(stderr, "    RIP=%016lx RFLAGS=%016lx\n", rip, rflags);
+    fprintf(stderr, "    RIP=%016lx RFLAGS=%016lx MXCSR=%08x\n", rip, rflags, mxcsr);
+    for (int i = 0; i < 16; i++) {
+      if (xmm[i].lo || xmm[i].hi)
+        fprintf(stderr, "    XMM%-2d=%016lx%016lx\n", i, xmm[i].hi, xmm[i].lo);
+    }
   }
 
-  bool compare(const ArchState &other, u64 flags_mask) const {
+  bool compare(const ArchState &other, u64 flags_mask, u32 xmm_mask,
+               bool cmp_mxcsr) const {
     bool ok = true;
     auto cmp = [&](const char *name, u64 a, u64 b) {
       if (a != b) {
@@ -95,6 +158,23 @@ struct ArchState {
     cmp("R15", r15, other.r15);
     // Skip RIP: KVM advances past HLT, Sail points at it.
     cmp("RFLAGS", rflags & flags_mask, other.rflags & flags_mask);
+    for (int i = 0; i < 16; i++) {
+      if (xmm_mask & (1u << i)) {
+        if (xmm[i] != other.xmm[i]) {
+          fprintf(stderr, "  MISMATCH XMM%d: kvm=%016lx%016lx sail=%016lx%016lx\n",
+                  i, xmm[i].hi, xmm[i].lo, other.xmm[i].hi, other.xmm[i].lo);
+          ok = false;
+        }
+      }
+    }
+    if (cmp_mxcsr) {
+      // Compare MXCSR excluding DAZ (bit 6) and FTZ (bit 15) and exception flags (bits 0-5)
+      u32 mask = 0x7F80;  // rounding mode + exception masks
+      if ((mxcsr & mask) != (other.mxcsr & mask)) {
+        fprintf(stderr, "  MISMATCH MXCSR: kvm=%08x sail=%08x\n", mxcsr, other.mxcsr);
+        ok = false;
+      }
+    }
     return ok;
   }
 };
@@ -105,6 +185,8 @@ struct TestCase {
   std::vector<u8> code;
   ArchState initial;
   u64 flags_mask;
+  u32 xmm_mask = 0;               // bitmask of XMM registers to compare
+  bool cmp_mxcsr = false;
   std::vector<u8> init_data;       // placed at DATA_ADDR
   size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
 };
@@ -189,8 +271,8 @@ struct KvmVm {
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
 
-    sregs.cr0 = 0x80000001;  // PE + PG
-    sregs.cr4 = 0x20;        // PAE
+    sregs.cr0 = 0x80000011;  // PE + PG + ET (EM=0, TS=0 for SSE)
+    sregs.cr4 = 0x620;       // PAE + OSFXSR + OSXMMEXCPT
     sregs.efer = 0x500;      // LME + LMA
     sregs.cr3 = PML4_ADDR;
 
@@ -227,6 +309,7 @@ struct KvmVm {
     setup_ds(sregs.ss);
 
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
+
   }
 
   void load_test(const TestCase &tc) {
@@ -260,6 +343,22 @@ struct KvmVm {
     regs.rflags = tc.initial.rflags | 0x2;
 
     ioctl(vcpu_fd, KVM_SET_REGS, &regs);
+
+    // Set XMM registers and MXCSR via XSAVE.
+    struct kvm_xsave xsave;
+    ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave);
+    u8 *xs = (u8 *)&xsave;
+    // MXCSR at offset 0x18
+    memcpy(xs + 0x18, &tc.initial.mxcsr, 4);
+    // XMM0-XMM15 at offset 0xA0 (16 bytes each)
+    for (int i = 0; i < 16; i++) {
+      memcpy(xs + 0xA0 + i * 16,     &tc.initial.xmm[i].lo, 8);
+      memcpy(xs + 0xA0 + i * 16 + 8, &tc.initial.xmm[i].hi, 8);
+    }
+    // XSTATE_BV at offset 0x200: set bit 0 (x87) + bit 1 (SSE) so KVM loads XMM state.
+    u64 xstate_bv = 0x3;
+    memcpy(xs + 0x200, &xstate_bv, 8);
+    ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
   }
 
   ArchState run_test() {
@@ -281,7 +380,7 @@ struct KvmVm {
     struct kvm_regs regs;
     ioctl(vcpu_fd, KVM_GET_REGS, &regs);
 
-    return {
+    ArchState state = {
       .rax = regs.rax, .rbx = regs.rbx, .rcx = regs.rcx, .rdx = regs.rdx,
       .rsi = regs.rsi, .rdi = regs.rdi, .rbp = regs.rbp, .rsp = regs.rsp,
       .r8  = regs.r8,  .r9  = regs.r9,  .r10 = regs.r10, .r11 = regs.r11,
@@ -289,6 +388,16 @@ struct KvmVm {
       .rip = regs.rip,
       .rflags = regs.rflags,
     };
+
+    struct kvm_xsave xsave;
+    ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave);
+    u8 *xs = (u8 *)&xsave;
+    memcpy(&state.mxcsr, xs + 0x18, 4);
+    for (int i = 0; i < 16; i++) {
+      memcpy(&state.xmm[i].lo, xs + 0xA0 + i * 16,     8);
+      memcpy(&state.xmm[i].hi, xs + 0xA0 + i * 16 + 8, 8);
+    }
+    return state;
   }
 
   // Read data area for memory comparison
@@ -348,6 +457,16 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len) {
   model.zDF = (flags >> 10) & 1;
   model.zOF = (flags >> 11) & 1;
 
+  // Set XMM registers and MXCSR
+  model.mxcsr_state.mxcsr = tc.initial.mxcsr;
+  for (int i = 0; i < 16; i++) {
+    u8 bytes[16];
+    memcpy(bytes,     &tc.initial.xmm[i].lo, 8);
+    memcpy(bytes + 8, &tc.initial.xmm[i].hi, 8);
+    RECREATE(lbits)(&model.zZMM.data[i]);
+    bytes_to_xmm(&model.zZMM.data[i], bytes);
+  }
+
   x86::zExecutionResult result = {};
   result.kind = x86::Kind_zOk;
   result.variants.zOk = UNIT;
@@ -402,6 +521,14 @@ done:
     .rip = model.zRIP,
     .rflags = rflags,
   };
+
+  state.mxcsr = model.mxcsr_state.mxcsr;
+  for (int i = 0; i < 16; i++) {
+    u8 bytes[16];
+    xmm_to_bytes(model.zZMM.data[i], bytes);
+    memcpy(&state.xmm[i].lo, bytes,     8);
+    memcpy(&state.xmm[i].hi, bytes + 8, 8);
+  }
 
   model.model_fini();
   return state;
@@ -535,8 +662,10 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
     {"xor", 0x30, FL_ALL}, {"cmp", 0x38, FL_ALL},
   };
 
-  for (auto &op : alu_ops) {
-    for (int si = 0; si < 4; si++) {
+  for (int si = 0; si < 4; si++) {
+    snprintf(name, sizeof(name), "ALU reg,reg %s", sz_sfx[si]);
+    cat = name;
+    for (auto &op : alu_ops) {
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
           ArchState init = {};
@@ -553,6 +682,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   }
 
   // ADC/SBB with CF=1 — exercises carry-in path with all value pairs
+  cat = "ADC/SBB CF=1";
   for (int oi : {2, 3}) {
     auto &op = alu_ops[oi];
     for (int si = 0; si < 4; si++) {
@@ -572,6 +702,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   }
 
   // TEST reg,reg — like AND but only sets flags, doesn't write result
+  cat = "TEST reg,reg";
   for (int si = 0; si < 4; si++) {
     for (int i = 0; i < NVALS; i++) {
       for (int j = 0; j < NVALS; j++) {
@@ -775,7 +906,7 @@ std::vector<TestCase> build_tests() {
 
   auto add_mem = [&](const char *name, std::vector<u8> code, ArchState init,
                      u64 mask, std::vector<u8> data, size_t cmp_len) {
-    tests.push_back({name, cat, std::move(code), init, mask, std::move(data), cmp_len});
+    tests.push_back({name, cat, std::move(code), init, mask, 0, false, std::move(data), cmp_len});
   };
 
   // =====================================================================
@@ -783,7 +914,7 @@ std::vector<TestCase> build_tests() {
   //    Exercises: exec_add_reg_reg, exec_or, exec_adc_reg_reg, exec_sbb_reg_reg,
   //    exec_and, exec_sub, exec_xor, exec_cmp through decode_alu.sail
   // =====================================================================
-  cat = "ALU reg,reg";
+  cat = "Baseline/ALU reg,reg";
   ArchState alu = {};
   alu.rax = 0x0000000000000037;  // 55
   alu.rbx = 0x000000000000001E;  // 30
@@ -813,7 +944,7 @@ std::vector<TestCase> build_tests() {
   //    32-bit should zero-extend upper 32 bits of dest.
   //    16-bit and 8-bit should preserve upper bits.
   // =====================================================================
-  cat = "ALU operand sizes";
+  cat = "Baseline/ALU operand sizes";
   ArchState sz = {};
   sz.rax = 0xFFFFFFFF00000005;
   sz.rbx = 0xFFFFFFFF00000003;
@@ -840,7 +971,7 @@ std::vector<TestCase> build_tests() {
   // 3. ALU reg,imm — exercises immediate operand fetch paths
   //    Group 1: 83 /op imm8 (sign-extended), 81 /op imm32
   // =====================================================================
-  cat = "ALU reg,imm";
+  cat = "Baseline/ALU reg,imm";
   ArchState imm = {};
   imm.rax = 100;
   imm.rflags = 0x2;
@@ -871,7 +1002,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 4. ALU corner cases — overflow, zero, MAX/MIN
   // =====================================================================
-  cat = "ALU corner cases";
+  cat = "Baseline/ALU corner cases";
   ArchState ov = {};
   ov.rflags = 0x2;
 
@@ -917,7 +1048,7 @@ std::vector<TestCase> build_tests() {
   //    Group 2: D1 /op (by 1), D3 /op (by CL), C1 /op imm8
   //    ModRM reg field: 0=ROL,1=ROR,2=RCL,3=RCR,4=SHL,5=SHR,7=SAR
   // =====================================================================
-  cat = "Shift operations";
+  cat = "Baseline/Shift operations";
   ArchState sh = {};
   sh.rax = 0x123456789ABCDEF0;
   sh.rcx = 7;
@@ -977,7 +1108,7 @@ std::vector<TestCase> build_tests() {
   //    MUL/IMUL 1-op: SF, ZF, AF, PF undefined; only CF, OF defined
   //    IMUL 2/3-op: SF, ZF, AF, PF undefined; only CF, OF defined
   // =====================================================================
-  cat = "Multiply";
+  cat = "Baseline/Multiply";
   ArchState mul = {};
   mul.rflags = 0x2;
 
@@ -1025,7 +1156,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 7. Divide — DIV, IDIV (all flags undefined)
   // =====================================================================
-  cat = "Divide";
+  cat = "Baseline/Divide";
   ArchState dv = {};
   dv.rflags = 0x2;
 
@@ -1069,7 +1200,7 @@ std::vector<TestCase> build_tests() {
   // 8. INC/DEC/NEG/NOT — unary operations
   //    INC/DEC: all flags except CF. NEG: all flags. NOT: no flags.
   // =====================================================================
-  cat = "INC/DEC/NEG/NOT";
+  cat = "Baseline/INC/DEC/NEG/NOT";
   ArchState un = {};
   un.rflags = 0x3;  // CF=1 (INC/DEC should preserve CF)
 
@@ -1101,7 +1232,7 @@ std::vector<TestCase> build_tests() {
   // 9. Conditional operations — SETcc, CMOVcc
   //    Tests all 16 condition codes via eval_cc
   // =====================================================================
-  cat = "SETcc/CMOVcc";
+  cat = "Baseline/SETcc/CMOVcc";
 
   // Set up flags to create interesting condition states.
   // State A: CF=1, ZF=0, SF=0, OF=0, PF=0 (carry set, positive nonzero)
@@ -1165,7 +1296,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 10. Branch — Jcc (tests decode_pos + offset calculation)
   // =====================================================================
-  cat = "Branch";
+  cat = "Baseline/Branch";
 
   // JE rel8: 74 xx. If taken, skip a MOV instruction.
   // Layout: JE +3 (skip 3 bytes) | MOV EAX,1 (B8 01 00 00 00 = 5 bytes, but
@@ -1195,7 +1326,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 11. Data movement — MOVSX, MOVZX, MOVSXD, BSWAP, CBW, CWD, XCHG
   // =====================================================================
-  cat = "Data movement";
+  cat = "Baseline/Data movement";
   ArchState mv = {};
   mv.rflags = 0x2;
 
@@ -1273,7 +1404,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 12. Bit operations — BT, BTS, BTR, BTC, BSF, BSR, POPCNT, LZCNT, TZCNT
   // =====================================================================
-  cat = "Bit operations";
+  cat = "Baseline/Bit operations";
   ArchState bt = {};
   bt.rflags = 0x2;
 
@@ -1343,7 +1474,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 13. Stack operations — PUSH, POP, CALL+RET
   // =====================================================================
-  cat = "Stack operations";
+  cat = "Baseline/Stack operations";
 
   // PUSH RBX (53) + POP RAX (58): RAX should get RBX's value
   ArchState stk = {};
@@ -1386,7 +1517,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 14. LEA — exercises addressing mode computation without memory access
   // =====================================================================
-  cat = "LEA";
+  cat = "Baseline/LEA";
   ArchState lea = {};
   lea.rbx = 100;
   lea.rcx = 7;
@@ -1410,7 +1541,7 @@ std::vector<TestCase> build_tests() {
   // 15. Memory operands — exercises RM_mem paths in read_rm_val/write_rm_val
   //     RDI = DATA_ADDR, initial data placed there
   // =====================================================================
-  cat = "Memory operands";
+  cat = "Baseline/Memory operands";
 
   // MOV RAX, [RDI]: 48 8B 07 (load 8 bytes)
   {
@@ -1505,7 +1636,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 16. Double-precision shifts — SHLD, SHRD
   // =====================================================================
-  cat = "SHLD/SHRD";
+  cat = "Baseline/SHLD/SHRD";
   ArchState ds = {};
   ds.rax = 0x123456789ABCDEF0;
   ds.rbx = 0xFEDCBA9876543210;
@@ -1533,7 +1664,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 17. MOV reg,imm — tests fetch_imm_v paths
   // =====================================================================
-  cat = "MOV reg,imm";
+  cat = "Baseline/MOV reg,imm";
   ArchState mi = {};
   mi.rflags = 0x2;
 
@@ -1552,7 +1683,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 18. XADD — exchange and add
   // =====================================================================
-  cat = "XADD";
+  cat = "Baseline/XADD";
   ArchState xa = {};
   xa.rax = 10;
   xa.rbx = 20;
@@ -1564,7 +1695,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 19. CMPXCHG — compare and exchange
   // =====================================================================
-  cat = "CMPXCHG";
+  cat = "Baseline/CMPXCHG";
   // CMPXCHG RBX, RCX: 48 0F B1 CB (reg=rcx, rm=rbx)
   // If RAX == RBX: ZF=1, RBX := RCX
   // If RAX != RBX: ZF=0, RAX := RBX
@@ -1586,7 +1717,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 20. Multi-instruction sequences — tests instruction interaction
   // =====================================================================
-  cat = "Multi-instruction";
+  cat = "Baseline/Multi-instruction";
 
   // ADD + ADC chain (tests carry propagation across instructions)
   // ADD RAX, RBX; ADC RDX, RCX
@@ -1626,7 +1757,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 21. REX prefix variations — tests REX.R, REX.B for upper registers
   // =====================================================================
-  cat = "REX prefix";
+  cat = "Baseline/REX prefix";
   ArchState rex = {};
   rex.r8  = 0x1111111111111111;
   rex.r9  = 0x2222222222222222;
@@ -1646,7 +1777,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 22. Flag manipulation — CLC, STC, CLD, STD, CMC, LAHF, SAHF
   // =====================================================================
-  cat = "Flag manipulation";
+  cat = "Baseline/Flag manipulation";
 
   // CLC: F8
   ArchState fl = {};
@@ -1676,13 +1807,223 @@ std::vector<TestCase> build_tests() {
   fl.rax = 0;
   add("lahf", {0x9F}, fl, FL_ALL);
 
+  // =====================================================================
+  // 23. SSE/SSE2 — packed and scalar floating-point operations
+  // =====================================================================
+  cat = "SSE";
+
+  auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+  };
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // ADDPS XMM0, XMM1: 0F 58 C1
+    add_xmm("addps xmm0,xmm1", {0x0F, 0x58, 0xC1}, s, 0x3);
+    // SUBPS XMM0, XMM1: 0F 5C C1
+    add_xmm("subps xmm0,xmm1", {0x0F, 0x5C, 0xC1}, s, 0x3);
+    // MULPS XMM0, XMM1: 0F 59 C1
+    add_xmm("mulps xmm0,xmm1", {0x0F, 0x59, 0xC1}, s, 0x3);
+    // DIVPS XMM0, XMM1: 0F 5E C1
+    add_xmm("divps xmm0,xmm1", {0x0F, 0x5E, 0xC1}, s, 0x3);
+    // MINPS XMM0, XMM1: 0F 5D C1
+    add_xmm("minps xmm0,xmm1", {0x0F, 0x5D, 0xC1}, s, 0x3);
+    // MAXPS XMM0, XMM1: 0F 5F C1
+    add_xmm("maxps xmm0,xmm1", {0x0F, 0x5F, 0xC1}, s, 0x3);
+
+    // MOVAPS XMM2, XMM0: 0F 28 D0
+    add_xmm("movaps xmm2,xmm0", {0x0F, 0x28, 0xD0}, s, 0x4);
+    // MOVUPS XMM2, XMM0: 0F 10 D0
+    add_xmm("movups xmm2,xmm0", {0x0F, 0x10, 0xD0}, s, 0x4);
+  }
+
+  // ADDPD/SUBPD/MULPD/DIVPD — packed double
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f64(1.5, 2.5);
+    s.xmm[1] = xmm_from_f64(3.0, 4.0);
+
+    // ADDPD XMM0, XMM1: 66 0F 58 C1
+    add_xmm("addpd xmm0,xmm1", {0x66, 0x0F, 0x58, 0xC1}, s, 0x3);
+    // SUBPD XMM0, XMM1: 66 0F 5C C1
+    add_xmm("subpd xmm0,xmm1", {0x66, 0x0F, 0x5C, 0xC1}, s, 0x3);
+    // MULPD XMM0, XMM1: 66 0F 59 C1
+    add_xmm("mulpd xmm0,xmm1", {0x66, 0x0F, 0x59, 0xC1}, s, 0x3);
+    // DIVPD XMM0, XMM1: 66 0F 5E C1
+    add_xmm("divpd xmm0,xmm1", {0x66, 0x0F, 0x5E, 0xC1}, s, 0x3);
+  }
+
+  // ADDSS/SUBSS/MULSS/DIVSS — scalar single
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // ADDSS XMM0, XMM1: F3 0F 58 C1
+    add_xmm("addss xmm0,xmm1", {0xF3, 0x0F, 0x58, 0xC1}, s, 0x3);
+    // SUBSS XMM0, XMM1: F3 0F 5C C1
+    add_xmm("subss xmm0,xmm1", {0xF3, 0x0F, 0x5C, 0xC1}, s, 0x3);
+    // MULSS XMM0, XMM1: F3 0F 59 C1
+    add_xmm("mulss xmm0,xmm1", {0xF3, 0x0F, 0x59, 0xC1}, s, 0x3);
+    // DIVSS XMM0, XMM1: F3 0F 5E C1
+    add_xmm("divss xmm0,xmm1", {0xF3, 0x0F, 0x5E, 0xC1}, s, 0x3);
+  }
+
+  // ADDSD/SUBSD/MULSD/DIVSD — scalar double
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f64(1.5, 100.0);
+    s.xmm[1] = xmm_from_f64(2.5, 200.0);
+
+    // ADDSD XMM0, XMM1: F2 0F 58 C1
+    add_xmm("addsd xmm0,xmm1", {0xF2, 0x0F, 0x58, 0xC1}, s, 0x3);
+    // SUBSD XMM0, XMM1: F2 0F 5C C1
+    add_xmm("subsd xmm0,xmm1", {0xF2, 0x0F, 0x5C, 0xC1}, s, 0x3);
+    // MULSD XMM0, XMM1: F2 0F 59 C1
+    add_xmm("mulsd xmm0,xmm1", {0xF2, 0x0F, 0x59, 0xC1}, s, 0x3);
+    // DIVSD XMM0, XMM1: F2 0F 5E C1
+    add_xmm("divsd xmm0,xmm1", {0xF2, 0x0F, 0x5E, 0xC1}, s, 0x3);
+  }
+
+  // SSE2 integer — PADDB/PADDW/PADDD/PADDQ, PSUBB, PAND/POR/PXOR
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x1011121314151617, 0x18191A1B1C1D1E1F);
+
+    // PADDB XMM0, XMM1: 66 0F FC C1
+    add_xmm("paddb xmm0,xmm1", {0x66, 0x0F, 0xFC, 0xC1}, s, 0x3);
+    // PADDW XMM0, XMM1: 66 0F FD C1
+    add_xmm("paddw xmm0,xmm1", {0x66, 0x0F, 0xFD, 0xC1}, s, 0x3);
+    // PADDD XMM0, XMM1: 66 0F FE C1
+    add_xmm("paddd xmm0,xmm1", {0x66, 0x0F, 0xFE, 0xC1}, s, 0x3);
+    // PADDQ XMM0, XMM1: 66 0F D4 C1
+    add_xmm("paddq xmm0,xmm1", {0x66, 0x0F, 0xD4, 0xC1}, s, 0x3);
+    // PSUBB XMM0, XMM1: 66 0F F8 C1
+    add_xmm("psubb xmm0,xmm1", {0x66, 0x0F, 0xF8, 0xC1}, s, 0x3);
+    // PAND XMM0, XMM1: 66 0F DB C1
+    add_xmm("pand xmm0,xmm1", {0x66, 0x0F, 0xDB, 0xC1}, s, 0x3);
+    // POR XMM0, XMM1: 66 0F EB C1
+    add_xmm("por xmm0,xmm1", {0x66, 0x0F, 0xEB, 0xC1}, s, 0x3);
+    // PXOR XMM0, XMM1: 66 0F EF C1
+    add_xmm("pxor xmm0,xmm1", {0x66, 0x0F, 0xEF, 0xC1}, s, 0x3);
+  }
+
+  // SSE2 shuffle/unpack
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // SHUFPS XMM0, XMM1, 0x1B: 0F C6 C1 1B (reverse order)
+    add_xmm("shufps xmm0,xmm1,0x1b", {0x0F, 0xC6, 0xC1, 0x1B}, s, 0x3);
+    // UNPCKLPS XMM0, XMM1: 0F 14 C1
+    add_xmm("unpcklps xmm0,xmm1", {0x0F, 0x14, 0xC1}, s, 0x3);
+    // UNPCKHPS XMM0, XMM1: 0F 15 C1
+    add_xmm("unpckhps xmm0,xmm1", {0x0F, 0x15, 0xC1}, s, 0x3);
+  }
+
+  // SSE conversions
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
+
+    // CVTPS2DQ XMM1, XMM0: 66 0F 5B C8 (ModRM: reg=1, rm=0)
+    add_xmm("cvtps2dq xmm1,xmm0", {0x66, 0x0F, 0x5B, 0xC8}, s, 0x2);
+
+    // CVTTPS2DQ XMM1, XMM0: F3 0F 5B C8
+    add_xmm("cvttps2dq xmm1,xmm0", {0xF3, 0x0F, 0x5B, 0xC8}, s, 0x2);
+
+    // CVTDQ2PS XMM1, XMM0: 0F 5B C8 (with integer input)
+    ArchState si = {};
+    si.rflags = 0x2;
+    si.xmm[0] = xmm_from_u32(1, 2, 0xFFFFFFFF, 100);
+    add_xmm("cvtdq2ps xmm1,xmm0", {0x0F, 0x5B, 0xC8}, si, 0x2);
+  }
+
+  // MOVD/MOVQ — GPR ↔ XMM
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x123456789ABCDEF0;
+
+    // MOVQ XMM0, RAX: 66 48 0F 6E C0
+    add_xmm("movq xmm0,rax", {0x66, 0x48, 0x0F, 0x6E, 0xC0}, s, 0x1);
+
+    // MOVD XMM0, EAX: 66 0F 6E C0
+    add_xmm("movd xmm0,eax", {0x66, 0x0F, 0x6E, 0xC0}, s, 0x1);
+
+    // MOVQ RAX, XMM1: 66 48 0F 7E C8 (reg=1, rm=0 → XMM1 to RAX)
+    ArchState s2 = {};
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
+    // MOVQ RAX, XMM1: 66 REX.W 0F 7E C8 (ModRM: reg=xmm1=1, rm=rax=0)
+    tests.push_back({"movq rax,xmm1", cat, {0x66, 0x48, 0x0F, 0x7E, 0xC8},
+                      s2, FL_ALL, 0x0, false});
+  }
+
+  // SSE compare — UCOMISS sets EFLAGS
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    // Equal
+    s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
+    s.xmm[1] = xmm_from_f32(1.0f, 0, 0, 0);
+    // UCOMISS XMM0, XMM1: 0F 2E C1
+    add_xmm("ucomiss eq", {0x0F, 0x2E, 0xC1}, s, 0x0);
+
+    // Less
+    s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
+    s.xmm[1] = xmm_from_f32(2.0f, 0, 0, 0);
+    add_xmm("ucomiss lt", {0x0F, 0x2E, 0xC1}, s, 0x0);
+
+    // Greater
+    s.xmm[0] = xmm_from_f32(3.0f, 0, 0, 0);
+    s.xmm[1] = xmm_from_f32(2.0f, 0, 0, 0);
+    add_xmm("ucomiss gt", {0x0F, 0x2E, 0xC1}, s, 0x0);
+
+    // UCOMISD XMM0, XMM1: 66 0F 2E C1
+    s.xmm[0] = xmm_from_f64(1.5, 0);
+    s.xmm[1] = xmm_from_f64(1.5, 0);
+    add_xmm("ucomisd eq", {0x66, 0x0F, 0x2E, 0xC1}, s, 0x0);
+
+    s.xmm[0] = xmm_from_f64(1.0, 0);
+    s.xmm[1] = xmm_from_f64(2.0, 0);
+    add_xmm("ucomisd lt", {0x66, 0x0F, 0x2E, 0xC1}, s, 0x0);
+  }
+
+  // Upper registers (XMM8+) via REX prefix
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[8]  = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[9]  = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // ADDPS XMM8, XMM9: 45 0F 58 C1 (REX.R+B)
+    add_xmm("addps xmm8,xmm9", {0x45, 0x0F, 0x58, 0xC1}, s, 0x300);
+  }
+
   add_systematic_tests(tests);
 
   return tests;
 }
 
 
-int main() {
+int main(int argc, char **argv) {
+  const char *filter = argc > 1 ? argv[1] : nullptr;
+
   KvmVm vm;
   if (!vm.init()) {
     fprintf(stderr, "Failed to initialize KVM VM\n");
@@ -1694,6 +2035,8 @@ int main() {
   std::string last_cat;
 
   for (const auto &tc : tests) {
+    if (filter && tc.category.compare(0, strlen(filter), filter) != 0)
+      continue;
     if (tc.category != last_cat) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
@@ -1710,7 +2053,8 @@ int main() {
     ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
 
     // Compare registers.
-    bool ok = kvm_state.compare(sail_state, tc.flags_mask);
+    bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
+                                tc.cmp_mxcsr);
 
     // Compare memory.
     if (tc.compare_data_len > 0 &&
