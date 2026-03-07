@@ -3,6 +3,51 @@
 // Dispatches the primary opcode byte to instruction execution.
 // This covers the main 1-byte opcode map (MAP 0).
 
+val __software_interrupt : byte -> ExecutionResult
+
+// JMP near relative: RIP := decode_pos + sign-extended offset
+
+// POP — Pop a Value from the Stack
+
+val exec_pop_reg : (gpr_idx, OperandSize) -> ExecutionResult
+function exec_pop_reg(dst, os) = {
+  match os {
+    OS64 => write_gpr64(dst, pop64()),
+    OS32 => write_gpr32(dst, pop64()[31..0]),
+    OS16 => write_gpr16(dst, pop16()),
+    _ => (),
+  };
+  Ok()
+}
+
+// LOOP/LOOPcc — Loop According to ECX Counter
+
+enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
+
+val exec_loop : (byte, LoopVariant, AddressSize) -> ExecutionResult
+function exec_loop(rel8, variant, asz) = {
+  match asz {
+    AS64 => write_gpr64(RCX, read_gpr64(RCX) - 1),
+    AS32 => write_gpr32(RCX, read_gpr32(RCX) - 1),
+    AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
+  };
+  let count_nonzero : bool = match asz {
+    AS64 => read_gpr64(RCX) != zeros(),
+    AS32 => read_gpr32(RCX) != zeros(),
+    AS16 => read_gpr16(RCX) != zeros(),
+  };
+  let take_branch : bool = match variant {
+    LOOP_always => count_nonzero,
+    LOOP_e      => if count_nonzero then ZF == bitone else false,
+    LOOP_ne     => if count_nonzero then ZF == bitzero else false,
+  };
+  if take_branch then {
+    RIP = decode_pos + sign_extend(rel8);
+    decode_pos = RIP;
+  };
+  Ok()
+}
+
 // Map rows 00-3F to ALU operation. Each operation occupies 8 opcodes.
 val opcode_to_alu : range(0, 63) -> ALUOp
 function opcode_to_alu(op) = {
@@ -817,7 +862,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let count_reg : qword = if asz == AS32 then zero_extend(read_gpr32(RCX)) else read_gpr64(RCX);
       if count_reg == zeros() then {
         let target = decode_pos + rel;
-        exec_jmp_abs(target)
+        RIP = target;
+        decode_pos = target;
+        Ok()
       } else Ok()
     },
 
@@ -858,22 +905,23 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS16 => push16(return_addr[15..0]),
         _ => (),
       };
-      let new_rip = return_addr + offset;
-      RIP = new_rip;
-      decode_pos = new_rip;
+      RIP = return_addr + offset;
+      decode_pos = RIP;
       Ok()
     },
 
     // E9: JMP rel32 (f64)
     233 => {
-      let offset = fetch_rel32();
-      exec_jmp_rel(offset)
+      RIP = decode_pos + fetch_rel32();
+      decode_pos = RIP;
+      Ok()
     },
 
     // EB: JMP rel8 (f64)
     235 => {
-      let offset = fetch_rel8();
-      exec_jmp_rel(offset)
+      RIP = decode_pos + fetch_rel8();
+      decode_pos = RIP;
+      Ok()
     },
 
     // EC: IN AL, DX
@@ -987,7 +1035,11 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     op if 112 <= op & op <= 127 => {
       let cc : cc_idx = op - 112;
       let offset = fetch_rel8();
-      exec_jcc(cc, offset)
+      if eval_cc(cc) then {
+        RIP = decode_pos + offset;
+        decode_pos = RIP;
+      };
+      Ok()
     },
 
     // 91-97: XCHG rAX, r

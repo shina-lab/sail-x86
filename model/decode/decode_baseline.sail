@@ -200,7 +200,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel32();
-      exec_jcc(cc, offset)
+      if eval_cc(cc) then {
+        RIP = decode_pos + offset;
+        decode_pos = RIP;
+      };
+      Ok()
     },
     // 0F 90-9F: SETcc r/m8
     op if 144 <= op & op <= 159 => {

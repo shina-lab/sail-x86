@@ -1,3 +1,16 @@
+// PUSH imm
+
+val exec_push_imm : (qword, OperandSize) -> ExecutionResult
+function exec_push_imm(imm, os) = {
+  match os {
+    OS64 => push64(imm),
+    OS32 => push64(imm),
+    OS16 => push16(imm[15..0]),
+    _ => (),
+  };
+  Ok()
+}
+
 // =========================================================================
 // Group 3 (F6): Unary byte operations
 // =========================================================================
@@ -131,7 +144,9 @@ function dispatch_group5(reg_field, rm, pfx) = {
     4 => {
       // JMP near indirect (f64)
       let target = read_rm_val(rm, OS64, pfx.has_rex);
-      exec_jmp_abs(target)
+      RIP = target;
+      decode_pos = target;
+      Ok()
     },
     6 => {
       // PUSH r/m (d64)

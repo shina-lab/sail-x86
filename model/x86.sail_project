@@ -23,7 +23,6 @@ helpers {
     helpers/sse_int.sail,
     helpers/sse_mov.sail,
     helpers/gpr.sail,
-    helpers/control.sail,
     helpers/string.sail,
     helpers/avx.sail,
 }
