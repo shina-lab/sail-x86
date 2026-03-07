@@ -2307,6 +2307,162 @@ std::vector<TestCase> build_tests() {
   // NOTE: RCPPS/RCPSS/RSQRTPS/RSQRTSS are approximate instructions with
   // implementation-defined precision, so we cannot do exact comparison.
 
+  // SSE conversions — remaining variants
+  {
+    // CVTDQ2PD: F3 0F E6 C8 (xmm1,xmm0)
+    ArchState si = {};
+    si.rflags = 0x2;
+    si.xmm[0] = xmm_from_u32(1, 0xFFFFFFFF, 100, 0);  // low 2 dwords used
+    add_xmm("cvtdq2pd xmm1,xmm0", {0xF3, 0x0F, 0xE6, 0xC8}, si, 0x2);
+
+    // CVTPD2DQ: F2 0F E6 C8 (xmm1,xmm0)
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.5, -2.5);
+    add_xmm("cvtpd2dq xmm1,xmm0", {0xF2, 0x0F, 0xE6, 0xC8}, sd, 0x2);
+
+    // CVTTPD2DQ: 66 0F E6 C8 (xmm1,xmm0)
+    add_xmm("cvttpd2dq xmm1,xmm0", {0x66, 0x0F, 0xE6, 0xC8}, sd, 0x2);
+
+    // CVTPS2PD: 0F 5A C8 (xmm1,xmm0)
+    ArchState sp = {};
+    sp.rflags = 0x2;
+    sp.xmm[0] = xmm_from_f32(1.5f, -2.5f, 3.0f, 4.0f);
+    add_xmm("cvtps2pd xmm1,xmm0", {0x0F, 0x5A, 0xC8}, sp, 0x2);
+
+    // CVTPD2PS: 66 0F 5A C8 (xmm1,xmm0)
+    add_xmm("cvtpd2ps xmm1,xmm0", {0x66, 0x0F, 0x5A, 0xC8}, sd, 0x2);
+
+    // CVTSS2SD: F3 0F 5A C8 (xmm1,xmm0)
+    add_xmm("cvtss2sd xmm1,xmm0", {0xF3, 0x0F, 0x5A, 0xC8}, sp, 0x2);
+
+    // CVTSD2SS: F2 0F 5A C8 (xmm1,xmm0)
+    add_xmm("cvtsd2ss xmm1,xmm0", {0xF2, 0x0F, 0x5A, 0xC8}, sd, 0x2);
+
+    // CVTSI2SS: F3 0F 2A C0 (xmm0,eax)
+    ArchState sg = {};
+    sg.rflags = 0x2;
+    sg.rax = 42;
+    add_xmm("cvtsi2ss xmm0,eax", {0xF3, 0x0F, 0x2A, 0xC0}, sg, 0x1);
+
+    // CVTSI2SD: F2 0F 2A C0 (xmm0,eax)
+    add_xmm("cvtsi2sd xmm0,eax", {0xF2, 0x0F, 0x2A, 0xC0}, sg, 0x1);
+
+    // CVTSI2SS with REX.W (64-bit): F3 48 0F 2A C0 (xmm0,rax)
+    ArchState sg64 = {};
+    sg64.rflags = 0x2;
+    sg64.rax = 0x100000042;
+    add_xmm("cvtsi2ss xmm0,rax", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, sg64, 0x1);
+
+    // CVTSI2SD with REX.W: F2 48 0F 2A C0 (xmm0,rax)
+    add_xmm("cvtsi2sd xmm0,rax", {0xF2, 0x48, 0x0F, 0x2A, 0xC0}, sg64, 0x1);
+
+    // CVTSS2SI: F3 0F 2D C0 (eax,xmm0) — result in RAX
+    ArchState sf = {};
+    sf.rflags = 0x2;
+    sf.xmm[0] = xmm_from_f32(42.5f, 0, 0, 0);
+    tests.push_back({"cvtss2si eax,xmm0", cat, {0xF3, 0x0F, 0x2D, 0xC0},
+                      sf, FL_ALL, 0x0, false});
+
+    // CVTSD2SI: F2 0F 2D C0 (eax,xmm0)
+    ArchState sfd = {};
+    sfd.rflags = 0x2;
+    sfd.xmm[0] = xmm_from_f64(42.5, 0);
+    tests.push_back({"cvtsd2si eax,xmm0", cat, {0xF2, 0x0F, 0x2D, 0xC0},
+                      sfd, FL_ALL, 0x0, false});
+
+    // CVTTSS2SI: F3 0F 2C C0 (eax,xmm0)
+    tests.push_back({"cvttss2si eax,xmm0", cat, {0xF3, 0x0F, 0x2C, 0xC0},
+                      sf, FL_ALL, 0x0, false});
+
+    // CVTTSD2SI: F2 0F 2C C0 (eax,xmm0)
+    tests.push_back({"cvttsd2si eax,xmm0", cat, {0xF2, 0x0F, 0x2C, 0xC0},
+                      sfd, FL_ALL, 0x0, false});
+  }
+
+  // COMISS/COMISD — ordered compare, set EFLAGS
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
+    s.xmm[1] = xmm_from_f32(2.0f, 0, 0, 0);
+    // COMISS XMM0, XMM1: 0F 2F C1
+    add_xmm("comiss lt", {0x0F, 0x2F, 0xC1}, s, 0x0);
+
+    s.xmm[1] = xmm_from_f32(1.0f, 0, 0, 0);
+    add_xmm("comiss eq", {0x0F, 0x2F, 0xC1}, s, 0x0);
+
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(3.0, 0);
+    sd.xmm[1] = xmm_from_f64(1.0, 0);
+    // COMISD XMM0, XMM1: 66 0F 2F C1
+    add_xmm("comisd gt", {0x66, 0x0F, 0x2F, 0xC1}, sd, 0x0);
+  }
+
+  // PSLLDQ/PSRLDQ — byte shift
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+
+    // PSLLDQ XMM0, 3: 66 0F 73 F8 03 (ModRM /7, rm=xmm0)
+    add_xmm("pslldq xmm0,3", {0x66, 0x0F, 0x73, 0xF8, 0x03}, s, 0x1);
+    // PSRLDQ XMM0, 3: 66 0F 73 D8 03 (ModRM /3, rm=xmm0)
+    add_xmm("psrldq xmm0,3", {0x66, 0x0F, 0x73, 0xD8, 0x03}, s, 0x1);
+  }
+
+  // MOVHLPS/MOVLHPS — reg-reg forms
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // MOVHLPS XMM0, XMM1: 0F 12 C1 (move high half of xmm1 to low half of xmm0)
+    add_xmm("movhlps xmm0,xmm1", {0x0F, 0x12, 0xC1}, s, 0x3);
+    // MOVLHPS XMM0, XMM1: 0F 16 C1 (move low half of xmm1 to high half of xmm0)
+    add_xmm("movlhps xmm0,xmm1", {0x0F, 0x16, 0xC1}, s, 0x3);
+  }
+
+  // MOVSS/MOVSD — reg-reg forms (merge into low element)
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // MOVSS XMM0, XMM1: F3 0F 10 C1 (merge low dword of xmm1 into xmm0)
+    add_xmm("movss xmm0,xmm1", {0xF3, 0x0F, 0x10, 0xC1}, s, 0x3);
+
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.5, 2.5);
+    sd.xmm[1] = xmm_from_f64(10.5, 20.5);
+
+    // MOVSD XMM0, XMM1: F2 0F 10 C1 (merge low qword of xmm1 into xmm0)
+    add_xmm("movsd xmm0,xmm1", {0xF2, 0x0F, 0x10, 0xC1}, sd, 0x3);
+  }
+
+  // PINSRW/PEXTRW
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x1234;
+    s.xmm[0] = xmm_from_u64(0, 0);
+
+    // PINSRW XMM0, EAX, 3: 66 0F C4 C0 03
+    add_xmm("pinsrw xmm0,eax,3", {0x66, 0x0F, 0xC4, 0xC0, 0x03}, s, 0x1);
+
+    // PEXTRW EAX, XMM1, 2: 66 0F C5 C1 02
+    ArchState s2 = {};
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+    tests.push_back({"pextrw eax,xmm1,2", cat, {0x66, 0x0F, 0xC5, 0xC1, 0x02},
+                      s2, FL_ALL, 0x0, false});
+  }
+
   // SSE2 PSHUFHW/PSHUFLW
   {
     ArchState s = {};
@@ -2317,6 +2473,429 @@ std::vector<TestCase> build_tests() {
     add_xmm("pshufhw xmm1,xmm0,0x1b", {0xF3, 0x0F, 0x70, 0xC8, 0x1B}, s, 0x2);
     // PSHUFLW XMM1, XMM0, 0x1B: F2 0F 70 C8 1B
     add_xmm("pshuflw xmm1,xmm0,0x1b", {0xF2, 0x0F, 0x70, 0xC8, 0x1B}, s, 0x2);
+  }
+
+  // =====================================================================
+  // 24. SSSE3 — supplemental SSE3 integer instructions
+  // =====================================================================
+  cat = "SSSE3";
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x0003020100070605, 0x0403020108070605);
+
+    // PSHUFB XMM0, XMM1: 66 0F 38 00 C1
+    add_xmm("pshufb xmm0,xmm1", {0x66, 0x0F, 0x38, 0x00, 0xC1}, s, 0x3);
+  }
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+    s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
+
+    // PHADDW XMM0, XMM1: 66 0F 38 01 C1
+    add_xmm("phaddw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x01, 0xC1}, s, 0x3);
+    // PHADDD XMM0, XMM1: 66 0F 38 02 C1
+    add_xmm("phaddd xmm0,xmm1", {0x66, 0x0F, 0x38, 0x02, 0xC1}, s, 0x3);
+    // PHADDSW XMM0, XMM1: 66 0F 38 03 C1
+    add_xmm("phaddsw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x03, 0xC1}, s, 0x3);
+    // PHSUBW XMM0, XMM1: 66 0F 38 05 C1
+    add_xmm("phsubw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x05, 0xC1}, s, 0x3);
+    // PHSUBD XMM0, XMM1: 66 0F 38 06 C1
+    add_xmm("phsubd xmm0,xmm1", {0x66, 0x0F, 0x38, 0x06, 0xC1}, s, 0x3);
+    // PHSUBSW XMM0, XMM1: 66 0F 38 07 C1
+    add_xmm("phsubsw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x07, 0xC1}, s, 0x3);
+
+    // PMADDUBSW XMM0, XMM1: 66 0F 38 04 C1
+    add_xmm("pmaddubsw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x04, 0xC1}, s, 0x3);
+    // PMULHRSW XMM0, XMM1: 66 0F 38 0B C1
+    add_xmm("pmulhrsw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x0B, 0xC1}, s, 0x3);
+  }
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+
+    // PABSB XMM1, XMM0: 66 0F 38 1C C8
+    add_xmm("pabsb xmm1,xmm0", {0x66, 0x0F, 0x38, 0x1C, 0xC8}, s, 0x2);
+    // PABSW XMM1, XMM0: 66 0F 38 1D C8
+    add_xmm("pabsw xmm1,xmm0", {0x66, 0x0F, 0x38, 0x1D, 0xC8}, s, 0x2);
+    // PABSD XMM1, XMM0: 66 0F 38 1E C8
+    add_xmm("pabsd xmm1,xmm0", {0x66, 0x0F, 0x38, 0x1E, 0xC8}, s, 0x2);
+  }
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+    s.xmm[1] = xmm_from_u64(0x0001000100010001, 0xFFFF0000FFFF0000);
+
+    // PSIGNB XMM0, XMM1: 66 0F 38 08 C1
+    add_xmm("psignb xmm0,xmm1", {0x66, 0x0F, 0x38, 0x08, 0xC1}, s, 0x3);
+    // PSIGNW XMM0, XMM1: 66 0F 38 09 C1
+    add_xmm("psignw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x09, 0xC1}, s, 0x3);
+    // PSIGND XMM0, XMM1: 66 0F 38 0A C1
+    add_xmm("psignd xmm0,xmm1", {0x66, 0x0F, 0x38, 0x0A, 0xC1}, s, 0x3);
+  }
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // PALIGNR XMM0, XMM1, 4: 66 0F 3A 0F C1 04
+    add_xmm("palignr xmm0,xmm1,4", {0x66, 0x0F, 0x3A, 0x0F, 0xC1, 0x04}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 25. SSE4.1 instructions
+  // =====================================================================
+  cat = "SSE4.1";
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+    s.xmm[1] = xmm_from_u64(0x02FE027E04806183, 0x80000000FFFFFFFF);
+
+    // PMAXSB XMM0, XMM1: 66 0F 38 3C C1
+    add_xmm("pmaxsb xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3C, 0xC1}, s, 0x3);
+    // PMAXSD XMM0, XMM1: 66 0F 38 3D C1
+    add_xmm("pmaxsd xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3D, 0xC1}, s, 0x3);
+    // PMAXUW XMM0, XMM1: 66 0F 38 3E C1
+    add_xmm("pmaxuw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3E, 0xC1}, s, 0x3);
+    // PMAXUD XMM0, XMM1: 66 0F 38 3F C1
+    add_xmm("pmaxud xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3F, 0xC1}, s, 0x3);
+
+    // PMINSB XMM0, XMM1: 66 0F 38 38 C1
+    add_xmm("pminsb xmm0,xmm1", {0x66, 0x0F, 0x38, 0x38, 0xC1}, s, 0x3);
+    // PMINSD XMM0, XMM1: 66 0F 38 39 C1
+    add_xmm("pminsd xmm0,xmm1", {0x66, 0x0F, 0x38, 0x39, 0xC1}, s, 0x3);
+    // PMINUW XMM0, XMM1: 66 0F 38 3A C1
+    add_xmm("pminuw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3A, 0xC1}, s, 0x3);
+    // PMINUD XMM0, XMM1: 66 0F 38 3B C1
+    add_xmm("pminud xmm0,xmm1", {0x66, 0x0F, 0x38, 0x3B, 0xC1}, s, 0x3);
+
+    // PMAXSW (SSE2): 66 0F EE C1
+    add_xmm("pmaxsw xmm0,xmm1", {0x66, 0x0F, 0xEE, 0xC1}, s, 0x3);
+    // PMINSW (SSE2): 66 0F EA C1
+    add_xmm("pminsw xmm0,xmm1", {0x66, 0x0F, 0xEA, 0xC1}, s, 0x3);
+    // PMAXUB (SSE2): 66 0F DE C1
+    add_xmm("pmaxub xmm0,xmm1", {0x66, 0x0F, 0xDE, 0xC1}, s, 0x3);
+    // PMINUB (SSE2): 66 0F DA C1
+    add_xmm("pminub xmm0,xmm1", {0x66, 0x0F, 0xDA, 0xC1}, s, 0x3);
+
+    // PMULLD XMM0, XMM1: 66 0F 38 40 C1
+    add_xmm("pmulld xmm0,xmm1", {0x66, 0x0F, 0x38, 0x40, 0xC1}, s, 0x3);
+
+    // PACKUSDW XMM0, XMM1: 66 0F 38 2B C1
+    add_xmm("packusdw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x2B, 0xC1}, s, 0x3);
+
+    // PCMPEQQ XMM0, XMM1: 66 0F 38 29 C1
+    add_xmm("pcmpeqq xmm0,xmm1", {0x66, 0x0F, 0x38, 0x29, 0xC1}, s, 0x3);
+  }
+
+  // PINSRB/PINSRD/PEXTRB/PEXTRD
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x42;
+    s.xmm[0] = xmm_from_u64(0, 0);
+
+    // PINSRB XMM0, EAX, 5: 66 0F 3A 20 C0 05
+    add_xmm("pinsrb xmm0,eax,5", {0x66, 0x0F, 0x3A, 0x20, 0xC0, 0x05}, s, 0x1);
+    // PINSRD XMM0, EAX, 2: 66 0F 3A 22 C0 02
+    add_xmm("pinsrd xmm0,eax,2", {0x66, 0x0F, 0x3A, 0x22, 0xC0, 0x02}, s, 0x1);
+
+    ArchState s2 = {};
+    s2.rflags = 0x2;
+    s2.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+
+    // PEXTRB EAX, XMM0, 5: 66 0F 3A 14 C0 05
+    tests.push_back({"pextrb eax,xmm0,5", cat, {0x66, 0x0F, 0x3A, 0x14, 0xC0, 0x05},
+                      s2, FL_ALL, 0x0, false});
+    // PEXTRD EAX, XMM0, 2: 66 0F 3A 16 C0 02
+    tests.push_back({"pextrd eax,xmm0,2", cat, {0x66, 0x0F, 0x3A, 0x16, 0xC0, 0x02},
+                      s2, FL_ALL, 0x0, false});
+  }
+
+  // EXTRACTPS/INSERTPS
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+
+    // EXTRACTPS EAX, XMM0, 2: 66 0F 3A 17 C0 02
+    tests.push_back({"extractps eax,xmm0,2", cat, {0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x02},
+                      s, FL_ALL, 0x0, false});
+
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    // INSERTPS XMM0, XMM1, 0x1A: 66 0F 3A 21 C1 1A (src[1] -> dst[2], zero mask=0b1010)
+    add_xmm("insertps xmm0,xmm1,0x1a", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0x1A}, s, 0x3);
+  }
+
+  // BLENDPS/BLENDPD/PBLENDW
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // BLENDPS XMM0, XMM1, 0x0A: 66 0F 3A 0C C1 0A (blend elements 1,3)
+    add_xmm("blendps xmm0,xmm1,0x0a", {0x66, 0x0F, 0x3A, 0x0C, 0xC1, 0x0A}, s, 0x3);
+
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.0, 2.0);
+    sd.xmm[1] = xmm_from_f64(10.0, 20.0);
+
+    // BLENDPD XMM0, XMM1, 0x02: 66 0F 3A 0D C1 02 (blend element 1)
+    add_xmm("blendpd xmm0,xmm1,0x02", {0x66, 0x0F, 0x3A, 0x0D, 0xC1, 0x02}, sd, 0x3);
+
+    ArchState si = {};
+    si.rflags = 0x2;
+    si.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+    si.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
+
+    // PBLENDW XMM0, XMM1, 0xAA: 66 0F 3A 0E C1 AA (blend alternate words)
+    add_xmm("pblendw xmm0,xmm1,0xaa", {0x66, 0x0F, 0x3A, 0x0E, 0xC1, 0xAA}, si, 0x3);
+  }
+
+  // ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.3f, 2.7f, -1.5f, -2.5f);
+
+    // ROUNDPS XMM1, XMM0, 0 (round nearest): 66 0F 3A 08 C8 00
+    add_xmm("roundps nearest", {0x66, 0x0F, 0x3A, 0x08, 0xC8, 0x00}, s, 0x2);
+    // ROUNDPS XMM1, XMM0, 1 (floor): 66 0F 3A 08 C8 01
+    add_xmm("roundps floor", {0x66, 0x0F, 0x3A, 0x08, 0xC8, 0x01}, s, 0x2);
+    // ROUNDPS XMM1, XMM0, 2 (ceil): 66 0F 3A 08 C8 02
+    add_xmm("roundps ceil", {0x66, 0x0F, 0x3A, 0x08, 0xC8, 0x02}, s, 0x2);
+    // ROUNDPS XMM1, XMM0, 3 (truncate): 66 0F 3A 08 C8 03
+    add_xmm("roundps trunc", {0x66, 0x0F, 0x3A, 0x08, 0xC8, 0x03}, s, 0x2);
+
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.3, -2.7);
+
+    // ROUNDPD XMM1, XMM0, 0: 66 0F 3A 09 C8 00
+    add_xmm("roundpd nearest", {0x66, 0x0F, 0x3A, 0x09, 0xC8, 0x00}, sd, 0x2);
+    // ROUNDPD XMM1, XMM0, 1: 66 0F 3A 09 C8 01
+    add_xmm("roundpd floor", {0x66, 0x0F, 0x3A, 0x09, 0xC8, 0x01}, sd, 0x2);
+
+    // ROUNDSS XMM1, XMM0, 0: 66 0F 3A 0A C8 00
+    add_xmm("roundss nearest", {0x66, 0x0F, 0x3A, 0x0A, 0xC8, 0x00}, s, 0x2);
+    // ROUNDSD XMM1, XMM0, 1: 66 0F 3A 0B C8 01
+    add_xmm("roundsd floor", {0x66, 0x0F, 0x3A, 0x0B, 0xC8, 0x01}, sd, 0x2);
+  }
+
+  // PTEST — sets ZF and CF in EFLAGS
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
+    s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00);
+
+    // PTEST XMM0, XMM1: 66 0F 38 17 C1 (AND is zero → ZF=1)
+    add_xmm("ptest zero", {0x66, 0x0F, 0x38, 0x17, 0xC1}, s, 0x0);
+
+    s.xmm[1] = s.xmm[0];
+    // PTEST XMM0, XMM0: same bits → ZF=0
+    add_xmm("ptest nonzero", {0x66, 0x0F, 0x38, 0x17, 0xC1}, s, 0x0);
+  }
+
+  // PMOVZX — zero-extend packed integers
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0);
+
+    // PMOVZXBW XMM1, XMM0: 66 0F 38 30 C8
+    add_xmm("pmovzxbw xmm1,xmm0", {0x66, 0x0F, 0x38, 0x30, 0xC8}, s, 0x2);
+    // PMOVZXBD XMM1, XMM0: 66 0F 38 31 C8
+    add_xmm("pmovzxbd xmm1,xmm0", {0x66, 0x0F, 0x38, 0x31, 0xC8}, s, 0x2);
+    // PMOVZXBQ XMM1, XMM0: 66 0F 38 32 C8
+    add_xmm("pmovzxbq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x32, 0xC8}, s, 0x2);
+    // PMOVZXWD XMM1, XMM0: 66 0F 38 33 C8
+    add_xmm("pmovzxwd xmm1,xmm0", {0x66, 0x0F, 0x38, 0x33, 0xC8}, s, 0x2);
+    // PMOVZXWQ XMM1, XMM0: 66 0F 38 34 C8
+    add_xmm("pmovzxwq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x34, 0xC8}, s, 0x2);
+    // PMOVZXDQ XMM1, XMM0: 66 0F 38 35 C8
+    add_xmm("pmovzxdq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x35, 0xC8}, s, 0x2);
+  }
+
+  // PMOVSX — sign-extend packed integers
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0);
+
+    // PMOVSXBW XMM1, XMM0: 66 0F 38 20 C8
+    add_xmm("pmovsxbw xmm1,xmm0", {0x66, 0x0F, 0x38, 0x20, 0xC8}, s, 0x2);
+    // PMOVSXBD XMM1, XMM0: 66 0F 38 21 C8
+    add_xmm("pmovsxbd xmm1,xmm0", {0x66, 0x0F, 0x38, 0x21, 0xC8}, s, 0x2);
+    // PMOVSXBQ XMM1, XMM0: 66 0F 38 22 C8
+    add_xmm("pmovsxbq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x22, 0xC8}, s, 0x2);
+    // PMOVSXWD XMM1, XMM0: 66 0F 38 23 C8
+    add_xmm("pmovsxwd xmm1,xmm0", {0x66, 0x0F, 0x38, 0x23, 0xC8}, s, 0x2);
+    // PMOVSXWQ XMM1, XMM0: 66 0F 38 24 C8
+    add_xmm("pmovsxwq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x24, 0xC8}, s, 0x2);
+    // PMOVSXDQ XMM1, XMM0: 66 0F 38 25 C8
+    add_xmm("pmovsxdq xmm1,xmm0", {0x66, 0x0F, 0x38, 0x25, 0xC8}, s, 0x2);
+  }
+
+  // DPPS/DPPD — dot product
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // DPPS XMM0, XMM1, 0xFF: 66 0F 3A 40 C1 FF (all elements, broadcast result)
+    add_xmm("dpps xmm0,xmm1,0xff", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0xFF}, s, 0x3);
+    // DPPS XMM0, XMM1, 0x71: first 3 elements, result to element 0 only
+    add_xmm("dpps xmm0,xmm1,0x71", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0x71}, s, 0x3);
+
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.5, 2.5);
+    sd.xmm[1] = xmm_from_f64(3.0, 4.0);
+
+    // DPPD XMM0, XMM1, 0x33: 66 0F 3A 41 C1 33 (both elements, broadcast)
+    add_xmm("dppd xmm0,xmm1,0x33", {0x66, 0x0F, 0x3A, 0x41, 0xC1, 0x33}, sd, 0x3);
+  }
+
+  // MPSADBW
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // MPSADBW XMM0, XMM1, 0: 66 0F 3A 42 C1 00
+    add_xmm("mpsadbw xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 26. SSE4.2 instructions
+  // =====================================================================
+  cat = "SSE4.2";
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
+
+    // PCMPGTQ XMM0, XMM1: 66 0F 38 37 C1
+    add_xmm("pcmpgtq xmm0,xmm1", {0x66, 0x0F, 0x38, 0x37, 0xC1}, s, 0x3);
+  }
+
+  // PCMPISTRI — implicit-length string compare
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // "Hello\0\0..." in xmm0
+    s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
+    // "Hello\0\0..." in xmm1
+    s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
+
+    // PCMPISTRI XMM0, XMM1, 0x08 (equal each, unsigned byte): 66 0F 3A 63 C1 08
+    // Result in ECX (index of first mismatch/match)
+    tests.push_back({"pcmpistri eq", cat, {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08},
+                      s, FL_ALL, 0x0, false});
+
+    // Different strings
+    s.xmm[1] = xmm_from_u64(0x0000006F6C6C6549, 0);  // "Iello\0..."
+    tests.push_back({"pcmpistri ne", cat, {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08},
+                      s, FL_ALL, 0x0, false});
+  }
+
+  // PCMPISTRM — implicit-length string compare, result in XMM0
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
+    s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
+
+    // PCMPISTRM XMM0, XMM1, 0x08 (equal each): 66 0F 3A 62 C1 08
+    add_xmm("pcmpistrm eq", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x08}, s, 0x1);
+  }
+
+  // PCMPESTRI — explicit-length string compare (length in EAX/EDX)
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 5;  // length of string in xmm0
+    s.rdx = 5;  // length of string in xmm1
+    s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
+    s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
+
+    // PCMPESTRI XMM0, XMM1, 0x08: 66 0F 3A 61 C1 08
+    tests.push_back({"pcmpestri eq", cat, {0x66, 0x0F, 0x3A, 0x61, 0xC1, 0x08},
+                      s, FL_ALL, 0x0, false});
+  }
+
+  // PCMPESTRM — explicit-length, result in XMM0
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 5;
+    s.rdx = 5;
+    s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
+    s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
+
+    // PCMPESTRM XMM0, XMM1, 0x08: 66 0F 3A 60 C1 08
+    add_xmm("pcmpestrm eq", {0x66, 0x0F, 0x3A, 0x60, 0xC1, 0x08}, s, 0x1);
+  }
+
+  // CRC32
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0;         // initial CRC
+    s.rcx = 0x12345678;
+
+    // CRC32 EAX, CL: F2 0F 38 F0 C1 (8-bit operand)
+    tests.push_back({"crc32 eax,cl", cat, {0xF2, 0x0F, 0x38, 0xF0, 0xC1},
+                      s, FL_ALL, 0x0, false});
+    // CRC32 EAX, ECX: F2 0F 38 F1 C1 (32-bit operand)
+    tests.push_back({"crc32 eax,ecx", cat, {0xF2, 0x0F, 0x38, 0xF1, 0xC1},
+                      s, FL_ALL, 0x0, false});
+  }
+
+  // =====================================================================
+  // 27. AES-NI & PCLMUL
+  // =====================================================================
+  cat = "AES";
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // AESENC XMM0, XMM1: 66 0F 38 DC C1
+    add_xmm("aesenc xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDC, 0xC1}, s, 0x3);
+    // AESENCLAST XMM0, XMM1: 66 0F 38 DD C1
+    add_xmm("aesenclast xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDD, 0xC1}, s, 0x3);
+    // AESDEC XMM0, XMM1: 66 0F 38 DE C1
+    add_xmm("aesdec xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDE, 0xC1}, s, 0x3);
+    // AESDECLAST XMM0, XMM1: 66 0F 38 DF C1
+    add_xmm("aesdeclast xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDF, 0xC1}, s, 0x3);
+    // AESIMC XMM1, XMM0: 66 0F 38 DB C8
+    add_xmm("aesimc xmm1,xmm0", {0x66, 0x0F, 0x38, 0xDB, 0xC8}, s, 0x2);
+    // AESKEYGENASSIST XMM1, XMM0, 0x01: 66 0F 3A DF C8 01
+    add_xmm("aeskeygenassist xmm1,xmm0,0x01", {0x66, 0x0F, 0x3A, 0xDF, 0xC8, 0x01}, s, 0x2);
+    // PCLMULQDQ XMM0, XMM1, 0x00: 66 0F 3A 44 C1 00
+    add_xmm("pclmulqdq xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
   }
 
   add_systematic_tests(tests);

@@ -18,6 +18,10 @@ set(KVM_CATEGORIES
   "Register variation"
   Random
   SSE
+  SSSE3
+  SSE4.1
+  SSE4.2
+  AES
 )
 
 foreach(cat ${KVM_CATEGORIES})
