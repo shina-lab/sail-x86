@@ -170,14 +170,26 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         MP_NONE => {
           // MOVLPS xmm, m64 or MOVHLPS xmm, xmm
           match rm {
-            RM_reg(_) => exec_movhlps(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(addr) => exec_movlps(xreg, mem_read64(addr)),
+            RM_reg(_) => {
+              let src = read_xmm(modrm_xmm_rm(modrm, pfx));
+              let high : qword = read_xmm(xreg)[127..64];
+              write_xmm_legacy(xreg, high @ src[127..64]); Ok(())
+            },
+            RM_mem(addr) => {
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[63..0] = mem_read64(addr);
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
           }
         },
         MP_66 => {
           // MOVLPD xmm, m64
           match rm {
-            RM_mem(addr) => exec_movlpd(xreg, mem_read64(addr)),
+            RM_mem(addr) => {
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[63..0] = mem_read64(addr);
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
             RM_reg(_) => raise_UD(),
           }
         },
@@ -191,7 +203,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         MP_F2 => {
           // MOVDDUP xmm1, xmm2/m64
           match rm {
-            RM_reg(_) => exec_movddup(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
+            RM_reg(_) => {
+              let s = read_xmm(modrm_xmm_rm(modrm, pfx));
+              write_xmm_legacy(xreg, s[63..0] @ s[63..0]); Ok(())
+            },
             RM_mem(addr) => {
               let lo = mem_read64(addr);
               write_xmm(xreg, lo @ lo);
@@ -261,13 +276,25 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       match mp {
         MP_NONE => {
           match rm {
-            RM_reg(_) => exec_movlhps(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(addr) => exec_movhps(xreg, mem_read64(addr)),
+            RM_reg(_) => {
+              let src = read_xmm(modrm_xmm_rm(modrm, pfx));
+              let low : qword = read_xmm(xreg)[63..0];
+              write_xmm_legacy(xreg, src[63..0] @ low); Ok(())
+            },
+            RM_mem(addr) => {
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[127..64] = mem_read64(addr);
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
           }
         },
         MP_66 => {
           match rm {
-            RM_mem(addr) => exec_movhpd(xreg, mem_read64(addr)),
+            RM_mem(addr) => {
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[127..64] = mem_read64(addr);
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
             RM_reg(_) => raise_UD(),
           }
         },
@@ -353,8 +380,26 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
       };
       match mp {
-        MP_F3 => exec_cvtsi2ss(xreg, src_val, os),
-        MP_F2 => exec_cvtsi2sd(xreg, src_val, os),
+        MP_F3 => {
+          let result : dword = match os {
+            OS64 => __int64_to_f32(src_val),
+            _    => __int32_to_f32(src_val[31..0]),
+          };
+          var xmm : xmmword = read_xmm(xreg);
+          xmm[31..0] = result;
+          write_xmm_legacy(xreg, xmm);
+          Ok(())
+        },
+        MP_F2 => {
+          let result : qword = match os {
+            OS64 => __int64_to_f64(src_val),
+            _    => __int32_to_f64(src_val[31..0]),
+          };
+          var xmm : xmmword = read_xmm(xreg);
+          xmm[63..0] = result;
+          write_xmm_legacy(xreg, xmm);
+          Ok(())
+        },
         _     => raise_UD(),
       }
     },
@@ -375,8 +420,20 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
       };
       match mp {
-        MP_F3 => exec_cvttss2si(reg, src_xmm, os),
-        MP_F2 => exec_cvttsd2si(reg, src_xmm, os),
+        MP_F3 => {
+          match os {
+            OS64 => write_gpr64(reg, __f32_to_int64_trunc(src_xmm[31..0])),
+            _    => write_gpr32(reg, __f32_to_int32_trunc(src_xmm[31..0])),
+          };
+          Ok(())
+        },
+        MP_F2 => {
+          match os {
+            OS64 => write_gpr64(reg, __f64_to_int64_trunc(src_xmm[63..0])),
+            _    => write_gpr32(reg, __f64_to_int32_trunc(src_xmm[63..0])),
+          };
+          Ok(())
+        },
         _     => raise_UD(),
       }
     },
@@ -397,8 +454,20 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
       };
       match mp {
-        MP_F3 => exec_cvtss2si(reg, src_xmm, os),
-        MP_F2 => exec_cvtsd2si(reg, src_xmm, os),
+        MP_F3 => {
+          match os {
+            OS64 => write_gpr64(reg, __f32_to_int64(src_xmm[31..0])),
+            _    => write_gpr32(reg, __f32_to_int32(src_xmm[31..0])),
+          };
+          Ok(())
+        },
+        MP_F2 => {
+          match os {
+            OS64 => write_gpr64(reg, __f64_to_int64(src_xmm[63..0])),
+            _    => write_gpr32(reg, __f64_to_int32(src_xmm[63..0])),
+          };
+          Ok(())
+        },
         _     => raise_UD(),
       }
     },
@@ -492,8 +561,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let _ = decode_rm(modrm, pfx);
       let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
       match mp {
-        MP_NONE => exec_movmskps(reg, src_xmm),
-        MP_66   => exec_movmskpd(reg, src_xmm),
+        MP_NONE => {
+          let mask : bits(4) = src_xmm[127] @ src_xmm[95] @ src_xmm[63] @ src_xmm[31];
+          write_gpr32(reg, zero_extend(mask)); Ok(())
+        },
+        MP_66 => {
+          let mask : bits(2) = src_xmm[127] @ src_xmm[63];
+          write_gpr32(reg, zero_extend(mask)); Ok(())
+        },
         _       => raise_UD(),
       }
     },
@@ -570,17 +645,45 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
         10 => { // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
           match mp {
-            MP_NONE => exec_cvtps2pd(xreg, src_xmm),
-            MP_66   => exec_cvtpd2ps(xreg, src_xmm),
-            MP_F3   => exec_cvtss2sd(xreg, src_xmm),
-            MP_F2   => exec_cvtsd2ss(xreg, src_xmm),
+            MP_NONE => {
+              let r : xmmword = __f32_to_f64(src_xmm[63..32]) @ __f32_to_f64(src_xmm[31..0]);
+              write_xmm_legacy(xreg, r); Ok(())
+            },
+            MP_66 => {
+              let r : xmmword = zeros(64) @ __f64_to_f32(src_xmm[127..64]) @ __f64_to_f32(src_xmm[63..0]);
+              write_xmm_legacy(xreg, r); Ok(())
+            },
+            MP_F3 => {
+              let result : qword = __f32_to_f64(src_xmm[31..0]);
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[63..0] = result;
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
+            MP_F2 => {
+              let result : dword = __f64_to_f32(src_xmm[63..0]);
+              var xmm : xmmword = read_xmm(xreg);
+              xmm[31..0] = result;
+              write_xmm_legacy(xreg, xmm); Ok(())
+            },
           }
         },
         11 => { // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ
           match mp {
-            MP_NONE => exec_cvtdq2ps(xreg, src_xmm),
-            MP_66   => exec_cvtps2dq(xreg, src_xmm),
-            MP_F3   => exec_cvttps2dq(xreg, src_xmm),
+            MP_NONE => {
+              let r : xmmword = __int32_to_f32(src_xmm[127..96]) @ __int32_to_f32(src_xmm[95..64]) @
+                __int32_to_f32(src_xmm[63..32]) @ __int32_to_f32(src_xmm[31..0]);
+              write_xmm_legacy(xreg, r); Ok(())
+            },
+            MP_66 => {
+              let r : xmmword = __f32_to_int32(src_xmm[127..96]) @ __f32_to_int32(src_xmm[95..64]) @
+                __f32_to_int32(src_xmm[63..32]) @ __f32_to_int32(src_xmm[31..0]);
+              write_xmm_legacy(xreg, r); Ok(())
+            },
+            MP_F3 => {
+              let r : xmmword = __f32_to_int32_trunc(src_xmm[127..96]) @ __f32_to_int32_trunc(src_xmm[95..64]) @
+                __f32_to_int32_trunc(src_xmm[63..32]) @ __f32_to_int32_trunc(src_xmm[31..0]);
+              write_xmm_legacy(xreg, r); Ok(())
+            },
             _       => raise_UD(),
           }
         },
@@ -708,14 +811,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           RM_reg(idx) => read_gpr64(idx),
           RM_mem(addr) => mem_read64(addr),
         };
-        exec_movq_to_xmm(xreg, v)
+        write_xmm_legacy(xreg, zero_extend(v)); Ok(())
       } else {
         // MOVD xmm, r/m32
         let v : dword = match rm {
           RM_reg(idx) => read_gpr32(idx),
           RM_mem(addr) => mem_read32(addr),
         };
-        exec_movd_to_xmm(xreg, v)
+        write_xmm_legacy(xreg, zero_extend(v)); Ok(())
       }
     },
 
@@ -858,7 +961,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           // MOVQ xmm1, xmm2/m64
           let xreg = modrm_xmm_reg(modrm, pfx);
           match rm {
-            RM_reg(_) => exec_movq_xmm(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
+            RM_reg(_) => {
+              let src = read_xmm(modrm_xmm_rm(modrm, pfx));
+              write_xmm_legacy(xreg, zero_extend(src[63..0])); Ok(())
+            },
             RM_mem(addr) => {
               let v : xmmword = zero_extend(mem_read64(addr));
               write_xmm(xreg, v);
@@ -918,7 +1024,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if reg_field == 2 then {
         // /2: LDMXCSR m32
         match rm {
-          RM_mem(addr) => exec_ldmxcsr(mem_read32(addr)),
+          RM_mem(addr) => { __ldmxcsr(mem_read32(addr)); Ok(()) },
           RM_reg(_) => raise_UD(),
         }
       } else if reg_field == 3 then {
@@ -1597,9 +1703,20 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         RM_mem(addr) => mem_read128(addr),
       };
       match mp {
-        MP_F3   => exec_cvtdq2pd(xreg, src_xmm),
-        MP_F2   => exec_cvtpd2dq(xreg, src_xmm),
-        MP_66   => exec_cvttpd2dq(xreg, src_xmm),
+        MP_F3 => {
+          let r : xmmword = __int32_to_f64(src_xmm[63..32]) @ __int32_to_f64(src_xmm[31..0]);
+          write_xmm_legacy(xreg, r); Ok(())
+        },
+        MP_F2 => {
+          let r : xmmword = zeros(64) @ __f64_to_int32(src_xmm[127..64]) @ __f64_to_int32(src_xmm[63..0]);
+          write_xmm_legacy(xreg, r); Ok(())
+        },
+        MP_66 => {
+          let lo : dword = __f64_to_int32_trunc(src_xmm[63..0]);
+          let hi : dword = __f64_to_int32_trunc(src_xmm[127..64]);
+          let r : xmmword = zeros(64) @ hi @ lo;
+          write_xmm_legacy(xreg, r); Ok(())
+        },
         _       => raise_UD(),
       }
     },
@@ -1870,8 +1987,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       match rm {
         RM_mem(addr) => {
           match mp {
-            MP_NONE => { mem_write128(addr, exec_movntps(read_xmm(xreg))); Ok(()) },
-            MP_66   => { mem_write128(addr, exec_movntpd(read_xmm(xreg))); Ok(()) },
+            MP_NONE => { mem_write128(addr, read_xmm(xreg)); Ok(()) },
+            MP_66   => { mem_write128(addr, read_xmm(xreg)); Ok(()) },
             _       => raise_UD(),
           }
         },
@@ -1892,7 +2009,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
     },
 
     // 0F 77: EMMS
-    119 => exec_emms(),
+    119 => Ok(()),
 
     // 0F 7C: HADDPS/HADDPD
     124 => {

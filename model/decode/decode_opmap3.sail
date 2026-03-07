@@ -102,7 +102,7 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
       42 => {
         // MOVNTDQA xmm, m128
         match rm {
-          RM_mem(addr) => exec_movntdqa(xreg, mem_read128(addr)),
+          RM_mem(addr) => { write_xmm_legacy(xreg, mem_read128(addr)); Ok(()) },
           RM_reg(_) => raise_UD(),
         }
       },
