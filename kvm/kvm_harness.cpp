@@ -365,10 +365,17 @@ struct KvmVm {
 
     ioctl(vcpu_fd, KVM_SET_REGS, &regs);
 
-    // Set XMM registers and MXCSR via XSAVE.
+    // Set XMM registers, MXCSR, and x87 state via XSAVE.
     struct kvm_xsave xsave;
-    ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave);
+    memset(&xsave, 0, sizeof(xsave));
     u8 *xs = (u8 *)&xsave;
+    // x87 state: FCW=0x037F (default), FSW=0, FTW=0xFF (all empty)
+    u16 fcw = 0x037F;
+    memcpy(xs + 0, &fcw, 2);     // FCW
+    // FSW at offset 2 = 0 (TOP=0, all flags clear) — already zero from memset
+    // Abridged FTW: 0 = empty, 1 = valid. 0x00 = all empty.
+    // (Already zero from memset)
+    // ST(0)-ST(7) at offset 32, 16 bytes stride — already zero from memset
     // MXCSR at offset 0x18
     memcpy(xs + 0x18, &tc.initial.mxcsr, 4);
     // XMM0-XMM15 at offset 0xA0 (16 bytes each)
@@ -376,7 +383,7 @@ struct KvmVm {
       memcpy(xs + 0xA0 + i * 16,     &tc.initial.xmm[i].lo, 8);
       memcpy(xs + 0xA0 + i * 16 + 8, &tc.initial.xmm[i].hi, 8);
     }
-    // XSTATE_BV at offset 0x200: set bit 0 (x87) + bit 1 (SSE) so KVM loads XMM state.
+    // XSTATE_BV at offset 0x200: set bit 0 (x87) + bit 1 (SSE) so KVM loads state.
     u64 xstate_bv = 0x3;
     memcpy(xs + 0x200, &xstate_bv, 8);
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
@@ -3754,6 +3761,129 @@ std::vector<TestCase> build_tests() {
     add_xmm("vcvtps2dq xmm0,xmm1", {0xC5, 0xF9, 0x5B, 0xC1}, s, 0x3);
     // VCVTTPS2DQ xmm0, xmm1: C5 FA 5B C1 (F3)
     add_xmm("vcvttps2dq xmm0,xmm1", {0xC5, 0xFA, 0x5B, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 48. AVX VBROADCAST, VINSERTF128/VEXTRACTF128
+  // =====================================================================
+  cat = "AVX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+
+    // VBROADCASTSS xmm0, xmm1: VEX.128.66.0F38.W0 18 /r
+    // 3-byte VEX: C4 [R̄.X̄.B̄.mmmmm] [W.vvvv.L.pp]
+    // R̄=1, X̄=1, B̄=1, mmmmm=00010 (0F38) → byte1 = 0b_111_00010 = 0xE2
+    // W=0, vvvv=1111 (unused), L=0, pp=01 (66) → byte2 = 0b_0_1111_0_01 = 0x79
+    // ModRM: mod=11, reg=xmm0=0, rm=xmm1=1 → 0xC1
+    add_xmm("vbroadcastss xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x18, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 49. More x87 transcendental/special operations
+  // =====================================================================
+  cat = "x87";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FLDL2T + FSTP: log2(10)
+    tests.push_back({"fldl2t; fstp [rdi]", cat, {0xD9, 0xE9, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLDLG2 + FSTP: log10(2)
+    tests.push_back({"fldlg2; fstp [rdi]", cat, {0xD9, 0xEC, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FTST: compare ST(0) with 0.0
+    // FLD1 + FTST → C1 should be clear (ST(0)>0)
+    // D9 E8 (FLD1) + D9 E4 (FTST) + DF E0 (FNSTSW AX) to read result
+    tests.push_back({"fld1+ftst+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE4, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FINCSTP/FDECSTP: adjust FPU stack pointer
+    // D9 F7 (FINCSTP) + DF E0 (FNSTSW AX)
+    tests.push_back({"fincstp+fstsw", cat,
+                      {0xD9, 0xF7, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // D9 F6 (FDECSTP) + DF E0 (FNSTSW AX)
+    tests.push_back({"fdecstp+fstsw", cat,
+                      {0xD9, 0xF6, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FCOM: compare ST(0) and ST(1)
+    // FLD1 + FLDZ + D8 D1 (FCOM ST(1)) + DF E0 (FNSTSW AX)
+    tests.push_back({"fld1+fldz+fcom+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xD8, 0xD1, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FCOMP: compare ST(0) and ST(1), pop
+    // FLD1 + FLDZ + D8 D9 (FCOMP ST(1)) + DF E0 (FNSTSW AX)
+    tests.push_back({"fld1+fldz+fcomp+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xD8, 0xD9, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FXAM: examine ST(0) classification
+    // FLD1 + D9 E5 (FXAM) + DF E0 (FNSTSW AX)
+    tests.push_back({"fld1+fxam+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE5, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FLDZ + FXAM (examine zero)
+    tests.push_back({"fldz+fxam+fstsw", cat,
+                      {0xD9, 0xEE, 0xD9, 0xE5, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+  }
+
+  // =====================================================================
+  // 50. More string instruction sizes
+  // =====================================================================
+  cat = "String";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // REP STOSW: fill with 16-bit values
+    s.rax = 0xABCD;
+    s.rcx = 4;
+    // 66 F3 AB (REP STOSW)
+    tests.push_back({"rep stosw", cat, {0x66, 0xF3, 0xAB},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // REP MOVSQ: copy 8-byte units
+    u8 src_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR + 32;
+    s.rcx = 1;
+    // F3 48 A5 (REP MOVSQ)
+    tests.push_back({"rep movsq", cat, {0xF3, 0x48, 0xA5},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 40});
+
+    // LODSB: load byte from [RSI] into AL
+    s.rsi = DATA_ADDR;
+    s.rdi = 0;
+    s.rcx = 0;
+    s.rax = 0;
+    // AC (LODSB)
+    tests.push_back({"lodsb", cat, {0xAC},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+
+    // LODSD: load dword from [RSI] into EAX
+    // AD (LODSD — no REX.W, so 32-bit)
+    tests.push_back({"lodsd", cat, {0xAD},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+
+    // SCASD: compare EAX with [RDI]
+    s.rdi = DATA_ADDR;
+    s.rax = 0x44332211;
+    // AF (SCASD)
+    tests.push_back({"scasd (match)", cat, {0xAF},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
   }
 
   add_systematic_tests(tests);
