@@ -2,6 +2,7 @@
 // These are member functions of x86::Model (which derives from X86PlatformBase).
 
 #include "sail_x86_model.h"
+#include "x86_cpuid.h"
 #include <cstring>
 #include <cmath>
 #include <cfenv>
@@ -725,16 +726,8 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
         result.ztup0 = 0x000506E3;
         // EBX: CLFLUSH=8, max logical=1, initial APIC=0
         result.ztup1 = 0x00010800;
-        // ECX feature flags (no AVX/FMA/XSAVE/OSXSAVE):
-        //  bit 0: SSE3, bit 1: PCLMULQDQ, bit 9: SSSE3
-        //  bit 13: CMPXCHG16B, bit 19: SSE4.1, bit 20: SSE4.2
-        //  bit 23: POPCNT, bit 25: AES-NI
-        result.ztup2 = 0x02B82203;
-        // EDX feature flags:
-        //  FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8, APIC, SEP,
-        //  MTRR, PGE, MCA, CMOV, PAT, PSE-36, CLFSH, MMX,
-        //  FXSR, SSE, SSE2
-        result.ztup3 = 0x078BFBFF;
+        result.ztup2 = EMU_CPUID_1_ECX;
+        result.ztup3 = EMU_CPUID_1_EDX;
         break;
     case 2:
         // Cache/TLB descriptors — return a plausible single descriptor
@@ -749,8 +742,7 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
         break;
     case 7:
         if (subleaf == 0) {
-            // EBX: ERMS (bit 9) only — no BMI1/BMI2/AVX2
-            result.ztup1 = 0x00000200;
+            result.ztup1 = EMU_CPUID_7_EBX;
         }
         break;
     case 0xD:
@@ -769,10 +761,8 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
         result.ztup0 = 0x80000008;  // max extended leaf
         break;
     case 0x80000001:
-        // ECX: LAHF (bit 0), LZCNT (bit 5)
-        result.ztup2 = 0x00000021;
-        // EDX: SYSCALL (bit 11), NX (bit 20), LM (bit 29)
-        result.ztup3 = 0x20100800;
+        result.ztup2 = EMU_CPUID_EXT1_ECX;
+        result.ztup3 = EMU_CPUID_EXT1_EDX;
         break;
     case 0x80000002:
         // Processor brand string part 1: "Sail"

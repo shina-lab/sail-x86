@@ -1,11 +1,27 @@
 #include "integers.h"
+#include "x86_cpuid.h"
 #include "x86_elf.h"
 #include <cstring>
+#include <random>
 #include <vector>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static constexpr u64 AT_NULL = 0;
+static constexpr u64 AT_PHDR = 3;
+static constexpr u64 AT_PHENT = 4;
+static constexpr u64 AT_PHNUM = 5;
+static constexpr u64 AT_BASE = 7;
+static constexpr u64 AT_ENTRY = 9;
+static constexpr u64 AT_PLATFORM = 15;
+static constexpr u64 AT_HWCAP = 16;
+static constexpr u64 AT_RANDOM = 25;
+static constexpr u64 AT_HWCAP2 = 26;
+static constexpr u64 AT_EXECFN = 31;
+static constexpr u64 AT_SYSINFO_EHDR = 33;
+
 
 struct Ehdr {
   u8 e_ident[16];
@@ -41,39 +57,28 @@ static constexpr u32 PT_PHDR = 6;
 static constexpr u16 ET_DYN = 3;
 static constexpr u16 EM_X86_64 = 62;
 
-struct MappedFile {
-  u8 *data = nullptr;
-  size_t size = 0;
+static u8 *mmap_file(const std::string &path) {
+  int fd = ::open(path.c_str(), O_RDONLY);
+  if (fd < 0) return nullptr;
+  struct stat st;
+  if (fstat(fd, &st) < 0) { close(fd); return nullptr; }
+  void *p = mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  close(fd);
+  return (p == MAP_FAILED) ? nullptr : (u8 *)p;
+}
 
-  ~MappedFile() {
-    if (data)
-      munmap(data, size);
-  }
+static const Ehdr *ehdr(u8 *elf) { return (const Ehdr *)elf; }
 
-  bool open(const std::string &path) {
-    int fd = ::open(path.c_str(), O_RDONLY);
-    if (fd < 0) return false;
-    struct stat st;
-    if (fstat(fd, &st) < 0) { close(fd); return false; }
-    size = st.st_size;
-    data = (u8 *)mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0);
-    close(fd);
-    return data != MAP_FAILED;
-  }
+static const Phdr *phdr(u8 *elf, int i) {
+  return (const Phdr *)(elf + ehdr(elf)->e_phoff + i * ehdr(elf)->e_phentsize);
+}
 
-  const Ehdr *ehdr() const { return (const Ehdr *)data; }
+static int phnum(u8 *elf) { return ehdr(elf)->e_phnum; }
 
-  const Phdr *phdr(int i) const {
-    return (const Phdr *)(data + ehdr()->e_phoff + i * ehdr()->e_phentsize);
-  }
-
-  int phnum() const { return ehdr()->e_phnum; }
-};
-
-static bool load_elf_segments(x86::Model &model, MappedFile &mf,
+static bool load_elf_segments(x86::Model &model, u8 *elf,
                               u64 bias, u64 &max_addr) {
-  for (int i = 0; i < mf.phnum(); i++) {
-    const Phdr *ph = mf.phdr(i);
+  for (int i = 0; i < phnum(elf); i++) {
+    const Phdr *ph = phdr(elf, i);
     if (ph->p_type != PT_LOAD) continue;
 
     u64 vaddr = ph->p_vaddr + bias;
@@ -83,7 +88,7 @@ static bool load_elf_segments(x86::Model &model, MappedFile &mf,
     model.memory.map_range(vaddr, memsz);
 
     if (filesz > 0)
-      model.memory.write(vaddr, mf.data + ph->p_offset, filesz);
+      model.memory.write(vaddr, elf + ph->p_offset, filesz);
 
     u64 end = vaddr + memsz;
     if (end > max_addr) max_addr = end;
@@ -91,11 +96,11 @@ static bool load_elf_segments(x86::Model &model, MappedFile &mf,
   return true;
 }
 
-static std::string find_interp(MappedFile &mf) {
-  for (int i = 0; i < mf.phnum(); i++) {
-    const Phdr *ph = mf.phdr(i);
+static std::string find_interp(u8 *elf) {
+  for (int i = 0; i < phnum(elf); i++) {
+    const Phdr *ph = phdr(elf, i);
     if (ph->p_type == PT_INTERP) {
-      const char *s = (const char *)(mf.data + ph->p_offset);
+      const char *s = (const char *)(elf + ph->p_offset);
       size_t len = ph->p_filesz;
       while (len > 0 && s[len - 1] == '\0') len--;
       return std::string(s, len);
@@ -107,18 +112,13 @@ static std::string find_interp(MappedFile &mf) {
 ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
   ElfLoadResult result = {};
 
-  MappedFile mf;
-  if (!mf.open(filename)) {
+  u8 *mf = mmap_file(filename);
+  if (!mf) {
     result.error = "Failed to open ELF file: " + filename;
     return result;
   }
 
-  if (mf.size < sizeof(Ehdr)) {
-    result.error = "File too small for ELF header";
-    return result;
-  }
-
-  const Ehdr *eh = mf.ehdr();
+  const Ehdr *eh = ehdr(mf);
   if (memcmp(eh->e_ident, "\177ELF", 4) != 0) {
     result.error = "Not an ELF file";
     return result;
@@ -144,16 +144,16 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
   result.phdr_size = eh->e_phentsize;
   result.phdr_addr = 0;
 
-  for (int i = 0; i < mf.phnum(); i++) {
-    const Phdr *ph = mf.phdr(i);
+  for (int i = 0; i < phnum(mf); i++) {
+    const Phdr *ph = phdr(mf, i);
     if (ph->p_type == PT_PHDR) {
       result.phdr_addr = ph->p_vaddr + prog_bias;
       break;
     }
   }
   if (result.phdr_addr == 0) {
-    for (int i = 0; i < mf.phnum(); i++) {
-      const Phdr *ph = mf.phdr(i);
+    for (int i = 0; i < phnum(mf); i++) {
+      const Phdr *ph = phdr(mf, i);
       if (ph->p_type == PT_LOAD) {
         result.phdr_addr = ph->p_vaddr + prog_bias + eh->e_phoff;
         break;
@@ -163,17 +163,17 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
 
   std::string interp_path = find_interp(mf);
   if (!interp_path.empty()) {
-    MappedFile interp_mf;
-    if (!interp_mf.open(interp_path)) {
+    u8 *interp_elf = mmap_file(interp_path);
+    if (!interp_elf) {
       result.error = "Failed to open interpreter: " + interp_path;
       return result;
     }
 
     u64 interp_base = 0x7FFFF7FC0000ULL;
-    load_elf_segments(model, interp_mf, interp_base, max_addr);
+    load_elf_segments(model, interp_elf, interp_base, max_addr);
 
     result.interp_base = interp_base;
-    result.entry_point = interp_mf.ehdr()->e_entry + interp_base;
+    result.entry_point = ehdr(interp_elf)->e_entry + interp_base;
   } else {
     result.interp_base = 0;
     result.entry_point = result.prog_entry;
@@ -188,7 +188,7 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
 }
 
 u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
-                int argc, char **argv, char **envp) {
+                int argc, char **argv, char **envp, char **auxv) {
   constexpr u64 STACK_TOP = 0x7FFFFFFFE000ULL;
   constexpr u64 STACK_SIZE = 8 * 1024 * 1024;
   u64 stack_base = STACK_TOP - STACK_SIZE;
@@ -222,32 +222,47 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
 
   sp -= 16;
   u64 random_addr = sp;
-  u8 random_bytes[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-  model.memory.write(random_addr, random_bytes, 16);
+  {
+    std::random_device rd;
+    u8 random_bytes[16];
+    for (int i = 0; i < 16; i++)
+      random_bytes[i] = rd();
+    model.memory.write(random_addr, random_bytes, 16);
+  }
 
   sp -= 16;
   u64 platform_addr = sp;
   model.memory.write(platform_addr, "x86_64", 7);
 
   struct AuxEntry { u64 type; u64 val; };
-  std::vector<AuxEntry> auxv;
-  auxv.push_back({3, elf.phdr_addr});
-  auxv.push_back({4, elf.phdr_size});
-  auxv.push_back({5, elf.phdr_num});
-  auxv.push_back({6, 4096});
-  auxv.push_back({7, elf.interp_base});
-  auxv.push_back({9, elf.prog_entry});
-  auxv.push_back({11, 1000});
-  auxv.push_back({12, 1000});
-  auxv.push_back({13, 1000});
-  auxv.push_back({14, 1000});
-  auxv.push_back({15, platform_addr});
-  auxv.push_back({17, 100});
-  auxv.push_back({23, 0});
-  auxv.push_back({25, random_addr});
-  auxv.push_back({0, 0});
+  std::vector<AuxEntry> guest_auxv;
 
-  size_t entries_count = auxv.size() * 2 + 1 + envp_ptrs.size() + 1 + argv_ptrs.size() + 1;
+  // Pass through host auxiliary vector entries, overriding the ones
+  // that must reflect the guest ELF layout or emulator capabilities,
+  // and filtering out host-specific entries.
+  u64 *host_auxv = (u64 *)auxv;
+  for (int i = 0; host_auxv[i] || host_auxv[i + 1]; i += 2) {
+    u64 type = host_auxv[i];
+    u64 val = host_auxv[i + 1];
+    switch (type) {
+    case AT_SYSINFO_EHDR: continue;  // host vDSO, not applicable
+    case AT_EXECFN:       continue;  // points to host memory
+    case AT_PHDR:     val = elf.phdr_addr; break;
+    case AT_PHENT:    val = elf.phdr_size; break;
+    case AT_PHNUM:    val = elf.phdr_num; break;
+    case AT_BASE:     val = elf.interp_base; break;
+    case AT_ENTRY:    val = elf.prog_entry; break;
+    case AT_RANDOM:   val = random_addr; break;
+    case AT_PLATFORM: val = platform_addr; break;
+    case AT_HWCAP:    val = EMU_CPUID_1_EDX; break;
+    case AT_HWCAP2:   val = EMU_CPUID_1_ECX; break;
+    default: break;
+    }
+    guest_auxv.push_back({type, val});
+  }
+  guest_auxv.push_back({AT_NULL, 0});
+
+  size_t entries_count = guest_auxv.size() * 2 + 1 + envp_ptrs.size() + 1 + argv_ptrs.size() + 1;
   size_t entries_bytes = entries_count * 8;
 
   sp -= entries_bytes;
@@ -269,7 +284,7 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
   }
   model.memory.write(write_sp, &val, 8); write_sp += 8;
 
-  for (auto &aux : auxv) {
+  for (auto &aux : guest_auxv) {
     model.memory.write(write_sp, &aux.type, 8); write_sp += 8;
     model.memory.write(write_sp, &aux.val, 8); write_sp += 8;
   }

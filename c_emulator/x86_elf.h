@@ -18,4 +18,4 @@ struct ElfLoadResult {
 ElfLoadResult load_elf(x86::Model &model, const std::string &filename);
 
 u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
-                     int argc, char **argv, char **envp);
+                int argc, char **argv, char **envp, char **auxv);

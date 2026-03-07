@@ -52,7 +52,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
   int guest_argc = argc - first_arg;
   char **guest_argv = &argv[first_arg];
-  u64 initial_rsp = setup_stack(model, elf, guest_argc, guest_argv, envp);
+
+  // Find the host auxiliary vector (follows the null-terminated envp array)
+  char **auxv_ptr = envp;
+  while (*auxv_ptr) auxv_ptr++;
+  auxv_ptr++;
+
+  u64 initial_rsp = setup_stack(model, elf, guest_argc, guest_argv, envp,
+                                auxv_ptr);
 
   model.zRIP = elf.entry_point;
   model.zGPR.data[4] = initial_rsp;
