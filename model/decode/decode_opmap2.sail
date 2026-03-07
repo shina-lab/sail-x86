@@ -9,6 +9,48 @@ val __fxsave : qword -> ExecutionResult
 val __fxsave64 : qword -> ExecutionResult
 val __fxrstor : qword -> ExecutionResult
 val __fxrstor64 : qword -> ExecutionResult
+val __f32_rsqrt : dword -> dword
+val __f32_rcp : dword -> dword
+
+// FP comparison predicate helpers (used by CMPPS/CMPPD/CMPSS/CMPSD)
+val cmp_pred_f32 : (dword, dword, bits(3)) -> dword
+function cmp_pred_f32(a, b, pred) = {
+  let result = __compare_ss(a, b);
+  let cond : bool = match pred {
+    0b000 => result == FP_EQ,
+    0b001 => result == FP_LT,
+    0b010 => result == FP_LT | result == FP_EQ,
+    0b011 => result == FP_UNORDERED,
+    0b100 => result != FP_EQ,
+    0b101 => result != FP_LT,
+    0b110 => result == FP_GT,
+    0b111 => result != FP_UNORDERED,
+  };
+  if cond then ones() else zeros()
+}
+
+val cmp_pred_f64 : (qword, qword, bits(3)) -> qword
+function cmp_pred_f64(a, b, pred) = {
+  let result = __compare_sd(a, b);
+  let cond : bool = match pred {
+    0b000 => result == FP_EQ,
+    0b001 => result == FP_LT,
+    0b010 => result == FP_LT | result == FP_EQ,
+    0b011 => result == FP_UNORDERED,
+    0b100 => result != FP_EQ,
+    0b101 => result != FP_LT,
+    0b110 => result == FP_GT,
+    0b111 => result != FP_UNORDERED,
+  };
+  if cond then ones() else zeros()
+}
+
+// SHUFPS helper: select one of four dwords by 2-bit index
+val select_dword : (xmmword, bits(2)) -> dword
+function select_dword(v, sel) = {
+  let idx : range(0, 3) = unsigned(sel);
+  v[(idx * 32 + 31) .. (idx * 32)]
+}
 
 val dispatch_opcode_2byte : (byte, Prefixes) -> ExecutionResult
 function dispatch_opcode_2byte(opcode, pfx) = {
@@ -248,8 +290,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         RM_mem(addr) => mem_read128(addr),
       };
       match mp {
-        MP_NONE => exec_unpcklps(xreg, src),
-        MP_66   => exec_unpcklpd(xreg, src),
+        MP_NONE => {
+            let d : xmmword = read_xmm(xreg);
+            let s : xmmword = src;
+            write_xmm_legacy(xreg, s[63..32] @ d[63..32] @ s[31..0] @ d[31..0]);
+            Ok()
+          },
+        MP_66 => {
+            let d : xmmword = read_xmm(xreg);
+            let s : xmmword = src;
+            write_xmm_legacy(xreg, s[63..0] @ d[63..0]);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -265,8 +317,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         RM_mem(addr) => mem_read128(addr),
       };
       match mp {
-        MP_NONE => exec_unpckhps(xreg, src),
-        MP_66   => exec_unpckhpd(xreg, src),
+        MP_NONE => {
+            let d : xmmword = read_xmm(xreg);
+            let s : xmmword = src;
+            write_xmm_legacy(xreg, s[127..96] @ d[127..96] @ s[95..64] @ d[95..64]);
+            Ok()
+          },
+        MP_66 => {
+            let d : xmmword = read_xmm(xreg);
+            let s : xmmword = src;
+            write_xmm_legacy(xreg, s[127..64] @ d[127..64]);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -494,8 +556,34 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
       };
       match mp {
-        MP_NONE => exec_ucomiss(xreg, src_xmm),
-        MP_66   => exec_ucomisd(xreg, src_xmm),
+        MP_NONE => {
+            let a : dword = read_xmm(xreg)[31..0];
+            let b : dword = src_xmm[31..0];
+            match __compare_ss(a, b) {
+            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            };
+            OF = bitzero;
+            AF = bitzero;
+            SF = bitzero;
+            Ok()
+          },
+        MP_66 => {
+            let a : qword = read_xmm(xreg)[63..0];
+            let b : qword = src_xmm[63..0];
+            match __compare_sd(a, b) {
+            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            };
+            OF = bitzero;
+            AF = bitzero;
+            SF = bitzero;
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -515,8 +603,34 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
       };
       match mp {
-        MP_NONE => exec_comiss(xreg, src_xmm),
-        MP_66   => exec_comisd(xreg, src_xmm),
+        MP_NONE => {
+            let a : dword = read_xmm(xreg)[31..0];
+            let b : dword = src_xmm[31..0];
+            match __compare_ss(a, b) {
+            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            };
+            OF = bitzero;
+            AF = bitzero;
+            SF = bitzero;
+            Ok()
+          },
+        MP_66 => {
+            let a : qword = read_xmm(xreg)[63..0];
+            let b : qword = src_xmm[63..0];
+            match __compare_sd(a, b) {
+            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            };
+            OF = bitzero;
+            AF = bitzero;
+            SF = bitzero;
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -602,54 +716,120 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       match arith_op {
         1 => { // 0F 51: SQRT
           match mp {
-            MP_NONE => exec_sqrtps(xreg, src_xmm),
-            MP_66   => exec_sqrtpd(xreg, src_xmm),
-            MP_F3   => exec_sqrtss(xreg, src_xmm),
-            MP_F2   => exec_sqrtsd(xreg, src_xmm),
+            MP_NONE => {
+                let r : xmmword = __f32_sqrt(src_xmm[127..96]) @
+                __f32_sqrt(src_xmm[95..64]) @
+                __f32_sqrt(src_xmm[63..32]) @
+                __f32_sqrt(src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                write_xmm_legacy(xreg, __f64_sqrt(src_xmm[127..64]) @ __f64_sqrt(src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_sqrt(src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_sqrt(src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         4 => { // 0F 54: ANDPS/ANDPD
           match mp {
-            MP_NONE => exec_andps(xreg, src_xmm),
-            MP_66   => exec_andpd(xreg, src_xmm),
+            MP_NONE => { write_xmm_legacy(xreg, read_xmm(xreg) & src_xmm); Ok() },
+            MP_66 => { write_xmm_legacy(xreg, read_xmm(xreg) & src_xmm); Ok() },
             _       => raise_UD(),
           }
         },
         5 => { // 0F 55: ANDNPS/ANDNPD
           match mp {
-            MP_NONE => exec_andnps(xreg, src_xmm),
-            MP_66   => exec_andnpd(xreg, src_xmm),
+            MP_NONE => { write_xmm_legacy(xreg, ~(read_xmm(xreg)) & src_xmm); Ok() },
+            MP_66 => { write_xmm_legacy(xreg, ~(read_xmm(xreg)) & src_xmm); Ok() },
             _       => raise_UD(),
           }
         },
         6 => { // 0F 56: ORPS/ORPD
           match mp {
-            MP_NONE => exec_orps(xreg, src_xmm),
-            MP_66   => exec_orpd(xreg, src_xmm),
+            MP_NONE => { write_xmm_legacy(xreg, read_xmm(xreg) | src_xmm); Ok() },
+            MP_66 => { write_xmm_legacy(xreg, read_xmm(xreg) | src_xmm); Ok() },
             _       => raise_UD(),
           }
         },
         7 => { // 0F 57: XORPS/XORPD
           match mp {
-            MP_NONE => exec_xorps(xreg, src_xmm),
-            MP_66   => exec_xorpd(xreg, src_xmm),
+            MP_NONE => { write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)); Ok() },
+            MP_66 => { write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)); Ok() },
             _       => raise_UD(),
           }
         },
         8 => { // 0F 58: ADD
           match mp {
-            MP_NONE => exec_addps(xreg, src_xmm),
-            MP_66   => exec_addpd(xreg, src_xmm),
-            MP_F3   => exec_addss(xreg, src_xmm),
-            MP_F2   => exec_addsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_add(a[127..96], src_xmm[127..96]) @
+                __f32_add(a[95..64], src_xmm[95..64]) @
+                __f32_add(a[63..32], src_xmm[63..32]) @
+                __f32_add(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                let lo : qword = __f64_add(a[63..0], src_xmm[63..0]);
+                let hi : qword = __f64_add(a[127..64], src_xmm[127..64]);
+                write_xmm_legacy(xreg, hi @ lo);
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_add(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_add(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         9 => { // 0F 59: MUL
           match mp {
-            MP_NONE => exec_mulps(xreg, src_xmm),
-            MP_66   => exec_mulpd(xreg, src_xmm),
-            MP_F3   => exec_mulss(xreg, src_xmm),
-            MP_F2   => exec_mulsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_mul(a[127..96], src_xmm[127..96]) @
+                __f32_mul(a[95..64], src_xmm[95..64]) @
+                __f32_mul(a[63..32], src_xmm[63..32]) @
+                __f32_mul(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                write_xmm_legacy(xreg, __f64_mul(a[127..64], src_xmm[127..64]) @ __f64_mul(a[63..0], src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_mul(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_mul(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         10 => { // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
@@ -705,47 +885,161 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         },
         12 => { // 0F 5C: SUB
           match mp {
-            MP_NONE => exec_subps(xreg, src_xmm),
-            MP_66   => exec_subpd(xreg, src_xmm),
-            MP_F3   => exec_subss(xreg, src_xmm),
-            MP_F2   => exec_subsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_sub(a[127..96], src_xmm[127..96]) @
+                __f32_sub(a[95..64], src_xmm[95..64]) @
+                __f32_sub(a[63..32], src_xmm[63..32]) @
+                __f32_sub(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                write_xmm_legacy(xreg, __f64_sub(a[127..64], src_xmm[127..64]) @ __f64_sub(a[63..0], src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_sub(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_sub(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         13 => { // 0F 5D: MIN
           match mp {
-            MP_NONE => exec_minps(xreg, src_xmm),
-            MP_66   => exec_minpd(xreg, src_xmm),
-            MP_F3   => exec_minss(xreg, src_xmm),
-            MP_F2   => exec_minsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_min(a[127..96], src_xmm[127..96]) @
+                __f32_min(a[95..64], src_xmm[95..64]) @
+                __f32_min(a[63..32], src_xmm[63..32]) @
+                __f32_min(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                write_xmm_legacy(xreg, __f64_min(a[127..64], src_xmm[127..64]) @ __f64_min(a[63..0], src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_min(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_min(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         14 => { // 0F 5E: DIV
           match mp {
-            MP_NONE => exec_divps(xreg, src_xmm),
-            MP_66   => exec_divpd(xreg, src_xmm),
-            MP_F3   => exec_divss(xreg, src_xmm),
-            MP_F2   => exec_divsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_div(a[127..96], src_xmm[127..96]) @
+                __f32_div(a[95..64], src_xmm[95..64]) @
+                __f32_div(a[63..32], src_xmm[63..32]) @
+                __f32_div(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                write_xmm_legacy(xreg, __f64_div(a[127..64], src_xmm[127..64]) @ __f64_div(a[63..0], src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_div(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_div(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         15 => { // 0F 5F: MAX
           match mp {
-            MP_NONE => exec_maxps(xreg, src_xmm),
-            MP_66   => exec_maxpd(xreg, src_xmm),
-            MP_F3   => exec_maxss(xreg, src_xmm),
-            MP_F2   => exec_maxsd(xreg, src_xmm),
+            MP_NONE => {
+                let a : xmmword = read_xmm(xreg);
+                let r : xmmword = __f32_max(a[127..96], src_xmm[127..96]) @
+                __f32_max(a[95..64], src_xmm[95..64]) @
+                __f32_max(a[63..32], src_xmm[63..32]) @
+                __f32_max(a[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, r);
+                Ok()
+              },
+            MP_66 => {
+                let a : xmmword = read_xmm(xreg);
+                write_xmm_legacy(xreg, __f64_max(a[127..64], src_xmm[127..64]) @ __f64_max(a[63..0], src_xmm[63..0]));
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_max(xmm[31..0], src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F2 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[63..0] = __f64_max(xmm[63..0], src_xmm[63..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
           }
         },
         2 => { // 0F 52: RSQRTPS/RSQRTSS
           match mp {
-            MP_NONE => exec_rsqrtps(xreg, src_xmm),
-            MP_F3   => exec_rsqrtss(xreg, src_xmm),
+            MP_NONE => {
+                var xmm : xmmword = zeros();
+                xmm[31..0]   = __f32_rsqrt(src_xmm[31..0]);
+                xmm[63..32]  = __f32_rsqrt(src_xmm[63..32]);
+                xmm[95..64]  = __f32_rsqrt(src_xmm[95..64]);
+                xmm[127..96] = __f32_rsqrt(src_xmm[127..96]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_rsqrt(src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
             _       => raise_UD(),
           }
         },
         3 => { // 0F 53: RCPPS/RCPSS
           match mp {
-            MP_NONE => exec_rcpps(xreg, src_xmm),
-            MP_F3   => exec_rcpss(xreg, src_xmm),
+            MP_NONE => {
+                var xmm : xmmword = zeros();
+                xmm[31..0]   = __f32_rcp(src_xmm[31..0]);
+                xmm[63..32]  = __f32_rcp(src_xmm[63..32]);
+                xmm[95..64]  = __f32_rcp(src_xmm[95..64]);
+                xmm[127..96] = __f32_rcp(src_xmm[127..96]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
+            MP_F3 => {
+                var xmm : xmmword = read_xmm(xreg);
+                xmm[31..0] = __f32_rcp(src_xmm[31..0]);
+                write_xmm_legacy(xreg, xmm);
+                Ok()
+              },
             _       => raise_UD(),
           }
         },
@@ -1563,8 +1857,22 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       };
       let imm = fetch_byte();
       match mp {
-        MP_NONE => exec_shufps(xreg, src_xmm, imm),
-        MP_66   => exec_shufpd(xreg, src_xmm, imm),
+        MP_NONE => {
+            let d : xmmword = read_xmm(xreg);
+            let d0 : dword = select_dword(d, imm[1..0]);
+            let d1 : dword = select_dword(d, imm[3..2]);
+            let d2 : dword = select_dword(src_xmm, imm[5..4]);
+            let d3 : dword = select_dword(src_xmm, imm[7..6]);
+            write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0);
+            Ok()
+          },
+        MP_66 => {
+            let d : xmmword = read_xmm(xreg);
+            let low : qword = if imm[0] == bitone then d[127..64] else d[63..0];
+            let high : qword = if imm[1] == bitone then src_xmm[127..64] else src_xmm[63..0];
+            write_xmm_legacy(xreg, high @ low);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -2050,8 +2358,22 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
       match mp {
-        MP_F2   => exec_haddps(xreg, src_xmm),
-        MP_66   => exec_haddpd(xreg, src_xmm),
+        MP_F2 => {
+            let a : xmmword = read_xmm(xreg);
+            let d0 : dword = __f32_add(a[31..0], a[63..32]);
+            let d1 : dword = __f32_add(a[95..64], a[127..96]);
+            let d2 : dword = __f32_add(src_xmm[31..0], src_xmm[63..32]);
+            let d3 : dword = __f32_add(src_xmm[95..64], src_xmm[127..96]);
+            write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0);
+            Ok()
+          },
+        MP_66 => {
+            let a : xmmword = read_xmm(xreg);
+            let lo : qword = __f64_add(a[63..0], a[127..64]);
+            let hi : qword = __f64_add(src_xmm[63..0], src_xmm[127..64]);
+            write_xmm_legacy(xreg, hi @ lo);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -2064,8 +2386,22 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
       match mp {
-        MP_F2   => exec_hsubps(xreg, src_xmm),
-        MP_66   => exec_hsubpd(xreg, src_xmm),
+        MP_F2 => {
+            let a : xmmword = read_xmm(xreg);
+            let d0 : dword = __f32_sub(a[31..0], a[63..32]);
+            let d1 : dword = __f32_sub(a[95..64], a[127..96]);
+            let d2 : dword = __f32_sub(src_xmm[31..0], src_xmm[63..32]);
+            let d3 : dword = __f32_sub(src_xmm[95..64], src_xmm[127..96]);
+            write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0);
+            Ok()
+          },
+        MP_66 => {
+            let a : xmmword = read_xmm(xreg);
+            let lo : qword = __f64_sub(a[63..0], a[127..64]);
+            let hi : qword = __f64_sub(src_xmm[63..0], src_xmm[127..64]);
+            write_xmm_legacy(xreg, hi @ lo);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
@@ -2086,10 +2422,42 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       };
       let imm = fetch_byte();
       match mp {
-        MP_NONE => exec_cmpps(xreg, src_xmm, imm),
-        MP_66   => exec_cmppd(xreg, src_xmm, imm),
-        MP_F3   => exec_cmpss2(xreg, src_xmm, imm),
-        MP_F2   => exec_cmpsd2(xreg, src_xmm, imm),
+        MP_NONE => {
+            let a : xmmword = read_xmm(xreg);
+            let pred : bits(3) = imm[2..0];
+            let r : xmmword =
+            cmp_pred_f32(a[127..96], src_xmm[127..96], pred) @
+            cmp_pred_f32(a[95..64], src_xmm[95..64], pred) @
+            cmp_pred_f32(a[63..32], src_xmm[63..32], pred) @
+            cmp_pred_f32(a[31..0], src_xmm[31..0], pred);
+            write_xmm_legacy(xreg, r);
+            Ok()
+          },
+        MP_66 => {
+            let a : xmmword = read_xmm(xreg);
+            let pred : bits(3) = imm[2..0];
+            let r : xmmword =
+            cmp_pred_f64(a[127..64], src_xmm[127..64], pred) @
+            cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
+            write_xmm_legacy(xreg, r);
+            Ok()
+          },
+        MP_F3 => {
+            let a : xmmword = read_xmm(xreg);
+            let pred : bits(3) = imm[2..0];
+            let low : dword = cmp_pred_f32(a[31..0], src_xmm[31..0], pred);
+            let r : xmmword = a[127..32] @ low;
+            write_xmm_legacy(xreg, r);
+            Ok()
+          },
+        MP_F2 => {
+            let a : xmmword = read_xmm(xreg);
+            let pred : bits(3) = imm[2..0];
+            let low : qword = cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
+            let r : xmmword = a[127..64] @ low;
+            write_xmm_legacy(xreg, r);
+            Ok()
+          },
       }
     },
 
@@ -2132,8 +2500,22 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
       match mp {
-        MP_F2   => exec_addsubps(xreg, src_xmm),
-        MP_66   => exec_addsubpd(xreg, src_xmm),
+        MP_F2 => {
+            let a : xmmword = read_xmm(xreg);
+            let d0 : dword = __f32_sub(a[31..0], src_xmm[31..0]);
+            let d1 : dword = __f32_add(a[63..32], src_xmm[63..32]);
+            let d2 : dword = __f32_sub(a[95..64], src_xmm[95..64]);
+            let d3 : dword = __f32_add(a[127..96], src_xmm[127..96]);
+            write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0);
+            Ok()
+          },
+        MP_66 => {
+            let a : xmmword = read_xmm(xreg);
+            let lo : qword = __f64_sub(a[63..0], src_xmm[63..0]);
+            let hi : qword = __f64_add(a[127..64], src_xmm[127..64]);
+            write_xmm_legacy(xreg, hi @ lo);
+            Ok()
+          },
         _       => raise_UD(),
       }
     },
