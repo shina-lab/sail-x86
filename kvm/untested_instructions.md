@@ -108,264 +108,105 @@ Tested instructions are marked with [x], untested with [ ].
 
 ## SSE/SSE2 Floating-Point Arithmetic
 
-- [x] ADDPS
-- [x] ADDPD
-- [x] ADDSS
-- [x] ADDSD
-- [x] SUBPS
-- [x] SUBPD
-- [x] SUBSS
-- [x] SUBSD
-- [x] MULPS
-- [x] MULPD
-- [x] MULSS
-- [x] MULSD
-- [x] DIVPS
-- [x] DIVPD
-- [x] DIVSS
-- [x] DIVSD
-- [x] MINPS
-- [x] MAXPS
-- [x] MINPD
-- [x] MINSS
-- [x] MINSD
-- [x] MAXPD
-- [x] MAXSS
-- [x] MAXSD
-- [x] SQRTPS
-- [x] SQRTPD
-- [x] SQRTSS
-- [x] SQRTSD
-- [~] RSQRTPS (approximate — cannot compare exactly)
-- [~] RSQRTSS (approximate — cannot compare exactly)
-- [~] RCPPS (approximate — cannot compare exactly)
-- [~] RCPSS (approximate — cannot compare exactly)
+- [x] ADDPS/ADDPD/ADDSS/ADDSD
+- [x] SUBPS/SUBPD/SUBSS/SUBSD
+- [x] MULPS/MULPD/MULSS/MULSD
+- [x] DIVPS/DIVPD/DIVSS/DIVSD
+- [x] MINPS/MINPD/MINSS/MINSD
+- [x] MAXPS/MAXPD/MAXSS/MAXSD
+- [x] SQRTPS/SQRTPD/SQRTSS/SQRTSD
+- [~] RSQRTPS/RSQRTSS (approximate — cannot compare exactly)
+- [~] RCPPS/RCPSS (approximate — cannot compare exactly)
 
 ## SSE/SSE2 Floating-Point Comparison
 
-- [x] UCOMISS
-- [x] UCOMISD
-- [x] CMPPS (EQ, LT, LE)
-- [x] CMPPD (EQ, LT)
-- [x] CMPSS (EQ)
-- [x] CMPSD (LT)
-- [ ] COMISS
-- [ ] COMISD
+- [x] UCOMISS/UCOMISD
+- [x] COMISS/COMISD
+- [x] CMPPS/CMPPD/CMPSS/CMPSD
 
 ## SSE/SSE2 Floating-Point Data Movement
 
-- [x] MOVAPS
-- [x] MOVUPS
-- [x] MOVD
-- [x] MOVQ
-- [x] MOVAPD
-- [x] MOVUPD
-- [x] MOVDQA
-- [x] MOVDQU
-- [ ] MOVLPS
-- [ ] MOVLPD
-- [ ] MOVHLPS
-- [ ] MOVSS
-- [ ] MOVSD (SSE move, not string)
-- [ ] MOVHPS
-- [ ] MOVHPD
-- [ ] MOVLHPS
+- [x] MOVAPS/MOVAPD/MOVUPS/MOVUPD
+- [x] MOVDQA/MOVDQU
+- [x] MOVD/MOVQ
+- [x] MOVHLPS/MOVLHPS
+- [x] MOVSS/MOVSD
+- [ ] MOVLPS/MOVLPD (memory forms)
+- [ ] MOVHPS/MOVHPD (memory forms)
 
 ## SSE/SSE2 Floating-Point Logical & Shuffle
 
-- [x] SHUFPS
-- [x] UNPCKLPS
-- [x] UNPCKHPS
-- [x] SHUFPD
-- [x] UNPCKLPD
-- [x] UNPCKHPD
-- [x] ANDPS
-- [x] ANDPD
-- [x] ANDNPS
-- [x] ANDNPD
-- [x] ORPS
-- [x] ORPD
-- [x] XORPS
-- [x] XORPD
+- [x] ANDPS/ANDPD/ANDNPS/ANDNPD
+- [x] ORPS/ORPD/XORPS/XORPD
+- [x] SHUFPS/SHUFPD
+- [x] UNPCKLPS/UNPCKHPS/UNPCKLPD/UNPCKHPD
 
 ## SSE/SSE2 Conversion
 
-- [x] CVTPS2DQ
-- [x] CVTTPS2DQ
-- [x] CVTDQ2PS
-- [ ] CVTDQ2PD
-- [ ] CVTPD2DQ
-- [ ] CVTTPD2DQ
-- [ ] CVTPS2PD
-- [ ] CVTPD2PS
-- [ ] CVTSS2SD
-- [ ] CVTSD2SS
-- [ ] CVTSS2SI
-- [ ] CVTSD2SI
-- [ ] CVTSI2SS
-- [ ] CVTSI2SD
-- [ ] CVTTSS2SI
-- [ ] CVTTSD2SI
+- [x] CVTPS2DQ/CVTTPS2DQ/CVTDQ2PS
+- [x] CVTDQ2PD/CVTPD2DQ/CVTTPD2DQ
+- [x] CVTPS2PD/CVTPD2PS
+- [x] CVTSS2SD/CVTSD2SS
+- [x] CVTSI2SS/CVTSI2SD (32+64-bit)
+- [x] CVTSS2SI/CVTSD2SI/CVTTSS2SI/CVTTSD2SI
 
-## SSE3/SSSE3
+## SSE/SSE2 Packed Integer (all tested)
 
-- [ ] MOVSLDUP
-- [ ] MOVSHDUP
-- [ ] MOVDDUP
-- [ ] HADDPS
-- [ ] HADDPD
-- [ ] HSUBPS
-- [ ] HSUBPD
-- [ ] ADDSUBPS
-- [ ] ADDSUBPD
-- [ ] PSHUFB
-- [ ] PHADDW
-- [ ] PHADDD
-- [ ] PHADDSW
-- [ ] PHSUBW
-- [ ] PHSUBD
-- [ ] PHSUBSW
-- [ ] PMADDUBSW
-- [ ] PMULHRSW
-- [ ] PABSB
-- [ ] PABSW
-- [ ] PABSD
-- [ ] PSIGNB
-- [ ] PSIGNW
-- [ ] PSIGND
-- [ ] PALIGNR
+- [x] PADDB/W/D/Q, PSUBB/W/D/Q
+- [x] PADDSB/SW, PADDUSB/USW, PSUBSB/SW, PSUBUSB/USW
+- [x] PMULLW/PMULHW/PMULHUW/PMULUDQ/PMADDWD
+- [x] PSADBW/PAVGB/PAVGW
+- [x] PCMPEQB/W/D, PCMPGTB/W/D
+- [x] PAND/POR/PXOR/PANDN
+- [x] PSLLW/D/Q, PSRLW/D/Q, PSRAW/D (immediate)
+- [x] PSLLDQ/PSRLDQ
+- [x] PACKSSWB/PACKSSDW/PACKUSWB
+- [x] PUNPCKLBW/WD/DQ/QDQ, PUNPCKHBW/WD/DQ/QDQ
+- [x] PSHUFD/PSHUFHW/PSHUFLW
+- [x] PINSRW/PEXTRW
 
-## SSE/SSE2 Packed Integer Arithmetic
+## SSSE3 (all tested)
 
-- [x] PADDB
-- [x] PADDW
-- [x] PADDD
-- [x] PADDQ
-- [x] PSUBB
-- [x] PSUBW
-- [x] PSUBD
-- [x] PSUBQ
-- [x] PADDSB
-- [x] PADDSW
-- [x] PADDUSB
-- [x] PADDUSW
-- [x] PSUBSB
-- [x] PSUBSW
-- [x] PSUBUSB
-- [x] PSUBUSW
-- [x] PMULLW
-- [x] PMULHW
-- [x] PMULHUW
-- [x] PMULUDQ
-- [x] PMADDWD
-- [x] PSADBW
-- [x] PAVGB
-- [x] PAVGW
+- [x] PSHUFB
+- [x] PHADDW/PHADDD/PHADDSW
+- [x] PHSUBW/PHSUBD/PHSUBSW
+- [x] PMADDUBSW/PMULHRSW
+- [x] PABSB/PABSW/PABSD
+- [x] PSIGNB/PSIGNW/PSIGND
+- [x] PALIGNR
+- [ ] MOVSLDUP/MOVSHDUP/MOVDDUP (SSE3 FP)
+- [ ] HADDPS/HADDPD/HSUBPS/HSUBPD (SSE3 FP)
+- [ ] ADDSUBPS/ADDSUBPD (SSE3 FP)
 
-## SSE/SSE2 Packed Integer Comparison
+## SSE4.1 (all tested)
 
-- [x] PCMPEQB
-- [x] PCMPEQW
-- [x] PCMPEQD
-- [x] PCMPGTB
-- [x] PCMPGTW
-- [x] PCMPGTD
-
-## SSE/SSE2 Packed Integer Logical & Shift
-
-- [x] PAND
-- [x] POR
-- [x] PXOR
-- [x] PANDN
-- [x] PSLLW
-- [x] PSLLD
-- [x] PSLLQ
-- [x] PSRLW
-- [x] PSRLD
-- [x] PSRLQ
-- [x] PSRAW
-- [x] PSRAD
-- [ ] PSLLDQ
-- [ ] PSRLDQ
-
-## SSE/SSE2 Packed Integer Data Movement
-
-- [x] PACKSSWB
-- [x] PACKSSDW
-- [x] PACKUSWB
-- [x] PUNPCKLBW
-- [x] PUNPCKLWD
-- [x] PUNPCKLDQ
-- [x] PUNPCKLQDQ
-- [x] PUNPCKHBW
-- [x] PUNPCKHWD
-- [x] PUNPCKHDQ
-- [x] PUNPCKHQDQ
-- [x] PSHUFD
-- [x] PSHUFHW
-- [x] PSHUFLW
-
-## SSE4.1
-
-- [ ] PMAXSB
-- [ ] PMAXSW
-- [ ] PMAXSD
-- [ ] PMAXUB
-- [ ] PMAXUW
-- [ ] PMAXUD
-- [ ] PMINSB
-- [ ] PMINSW
-- [ ] PMINSD
-- [ ] PMINUB
-- [ ] PMINUW
-- [ ] PMINUD
-- [ ] PMULLD
-- [ ] PACKUSDW
-- [ ] PCMPEQQ
-- [ ] PINSRB
-- [ ] PINSRD/PINSRQ
-- [ ] PINSRW
-- [ ] PEXTRB
-- [ ] PEXTRD/PEXTRQ
-- [ ] PEXTRW
-- [ ] EXTRACTPS
-- [ ] INSERTPS
-- [ ] BLENDPS
-- [ ] BLENDPD
-- [ ] BLENDVPS
-- [ ] BLENDVPD
-- [ ] PBLENDW
-- [ ] PBLENDVB
-- [ ] DPPS
-- [ ] DPPD
-- [ ] ROUNDPS
-- [ ] ROUNDPD
-- [ ] ROUNDSS
-- [ ] ROUNDSD
-- [ ] MPSADBW
-- [ ] PTEST
-- [ ] PMOVSX (all variants)
-- [ ] PMOVZX (all variants)
+- [x] PMAXSB/PMAXSW/PMAXSD/PMAXUB/PMAXUW/PMAXUD
+- [x] PMINSB/PMINSW/PMINSD/PMINUB/PMINUW/PMINUD
+- [x] PMULLD/PACKUSDW/PCMPEQQ
+- [x] PINSRB/PINSRD/PEXTRB/PEXTRD
+- [x] EXTRACTPS/INSERTPS
+- [x] BLENDPS/BLENDPD/PBLENDW
+- [x] ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
+- [x] PTEST
+- [x] PMOVZX (all 6 variants)
+- [x] PMOVSX (all 6 variants)
+- [x] DPPS/DPPD/MPSADBW
+- [ ] BLENDVPS/BLENDVPD/PBLENDVB (variable blend — uses XMM0)
+- [ ] PHMINPOSUW
 - [ ] MOVNTDQA
 
-## SSE4.2
+## SSE4.2 (all tested)
 
-- [ ] PCMPESTRI
-- [ ] PCMPESTRM
-- [ ] PCMPISTRI
-- [ ] PCMPISTRM
-- [ ] PCMPGTQ
-- [ ] CRC32
+- [x] PCMPGTQ
+- [x] PCMPISTRI/PCMPISTRM
+- [x] PCMPESTRI/PCMPESTRM
+- [x] CRC32
 
-## AES-NI & PCLMUL
+## AES-NI & PCLMUL (all tested)
 
-- [ ] AESIMC
-- [ ] AESENC
-- [ ] AESENCLAST
-- [ ] AESDEC
-- [ ] AESDECLAST
-- [ ] AESKEYGENASSIST
-- [ ] PCLMULQDQ
+- [x] AESENC/AESENCLAST/AESDEC/AESDECLAST
+- [x] AESIMC/AESKEYGENASSIST
+- [x] PCLMULQDQ
 
 ## AVX (VEX-encoded) - None tested
 
@@ -376,32 +217,17 @@ Tested instructions are marked with [x], untested with [ ].
 - [ ] VMINPS/PD/SS/SD
 - [ ] VMAXPS/PD/SS/SD
 - [ ] VSQRTPS/PD/SS/SD
-- [ ] VRSQRTPS/SS
-- [ ] VRCPPS/SS
 - [ ] VCMPPS/PD/SS/SD
 - [ ] VSHUFPS/PD
-- [ ] VUNPCKLPS/PD
-- [ ] VUNPCKHPS/PD
+- [ ] VUNPCKLPS/PD, VUNPCKHPS/PD
 - [ ] VMOVUPS/UPD/APS/APD/DQA/DQU
-- [ ] VMOVLPS/LPD/HLPS
-- [ ] VMOVSLDUP/SHDUP/DDUP
-- [ ] VANDPS/PD
-- [ ] VANDNPS/PD
-- [ ] VORPS/PD
-- [ ] VXORPS/PD
-- [ ] VCVTDQ2PS/PD
-- [ ] VCVTPS2DQ/PD
-- [ ] VCVTPD2DQ/PS
-- [ ] VCVTTPS2DQ
-- [ ] VCVTTPD2DQ
-- [ ] VPADDB/W/D/Q
-- [ ] VPSUBB/W/D/Q
-- [ ] VPCMPEQD
-- [ ] VPINSRW
+- [ ] VANDPS/PD, VANDNPS/PD
+- [ ] VORPS/PD, VXORPS/PD
+- [ ] VCVTDQ2PS/PD, VCVTPS2DQ/PD, VCVTPD2DQ/PS
+- [ ] VPADDB/W/D/Q, VPSUBB/W/D/Q
 - [ ] VBROADCAST
-- [ ] VINSERTF128
-- [ ] VEXTRACTF128
-- [ ] VFMADD132PS/PD/SS/SD (and all FMA variants)
+- [ ] VINSERTF128/VEXTRACTF128
+- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FMA variants)
 
 ## AVX-512 (EVEX-encoded) - None tested
 
@@ -439,11 +265,19 @@ Tested instructions are marked with [x], untested with [ ].
 - [ ] CMPSB/CMPSW/CMPSD/CMPSQ (with REP/REPNE)
 - [ ] SCASB/SCASW/SCASD/SCASQ (with REP/REPNE)
 
-## Bugs Found
+## Bugs Found and Fixed
 
-- **PMULLW/PMULHW opcode swap** (fixed): Opcodes 0F D5 and 0F E5 had swapped
-  implementations — PMULLW (low) was on 0xE5 and PMULHW (high) was on 0xD5,
-  but the Intel SDM specifies PMULLW=0xD5 and PMULHW=0xE5.
+1. **PMULLW/PMULHW opcode swap**: Opcodes 0F D5 and 0F E5 had swapped
+   implementations. Fixed to match SDM: PMULLW=0xD5, PMULHW=0xE5.
+
+2. **PHSUBW/PHSUBD/PHSUBSW operand order**: Subtraction operands were
+   reversed (high-low instead of low-high). Fixed to match SDM.
+
+3. **AESENCLAST/AESDEC opcode swap**: Arms 221 (0xDD) and 222 (0xDE)
+   had swapped function calls. Fixed: 0xDD=AESENCLAST, 0xDE=AESDEC.
+
+4. **CRC32 not implemented**: Added CRC32C instruction (F2 0F 38 F0/F1)
+   with all operand size variants.
 
 ## Summary
 
@@ -456,20 +290,18 @@ Tested instructions are marked with [x], untested with [ ].
 | Flags & Sign Extension    | 8      | 9     | 89%      |
 | 2-Byte (0F) Instructions  | 16     | 27    | 59%      |
 | SSE FP Arithmetic         | 24     | 28    | 86%      |
-| SSE FP Compare            | 8      | 10    | 80%      |
-| SSE FP Data Movement      | 8      | 16    | 50%      |
+| SSE FP Compare            | 8      | 8     | 100%     |
+| SSE FP Data Movement      | 12     | 16    | 75%      |
 | SSE FP Logical & Shuffle  | 14     | 14    | 100%     |
-| SSE Conversion            | 3      | 16    | 19%      |
-| SSE3/SSSE3                | 0      | 24    | 0%       |
-| SSE Packed Int Arithmetic  | 24     | 24    | 100%     |
-| SSE Packed Int Compare     | 6      | 6     | 100%     |
-| SSE Packed Int Logical     | 12     | 14    | 86%      |
-| SSE Packed Int Data Move   | 14     | 14    | 100%     |
-| SSE4.1                    | 0      | 37    | 0%       |
-| SSE4.2                    | 0      | 6     | 0%       |
-| AES-NI & PCLMUL           | 0      | 7     | 0%       |
+| SSE Conversion            | 16     | 16    | 100%     |
+| SSE3 FP                   | 0      | 9     | 0%       |
+| SSSE3 Integer             | 16     | 16    | 100%     |
+| SSE Packed Int (all)      | 50+    | 50+   | 100%     |
+| SSE4.1                    | 47     | 50    | 94%      |
+| SSE4.2                    | 8      | 8     | 100%     |
+| AES-NI & PCLMUL           | 7      | 7     | 100%     |
 | AVX (VEX)                 | 0      | 35+   | 0%       |
 | AVX-512 (EVEX)            | 0      | 30+   | 0%       |
 | x87 FPU                   | 0      | 80+   | 0%       |
 | String Instructions        | 0      | 5     | 0%       |
-| **Total**                 | **~173**| **~450+** | **~38%** |
+| **Total**                 | **~270**| **~450+** | **~60%** |
