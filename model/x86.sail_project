@@ -33,12 +33,15 @@ decode {
   requires prelude, core, helpers
 
   files
-    decode/decode_types.sail,
+    decode/types.sail,
     decode/decode_prefixes.sail,
     decode/decode_modrm.sail,
     decode/decode_alu.sail,
     decode/decode_opmap3.sail,
     decode/decode_x87.sail,
+    decode/decode_sse_fp.sail,
+    decode/decode_sse_int.sail,
+    decode/decode_baseline.sail,
     decode/decode_opmap2.sail,
     decode/decode_groups.sail,
     decode/decode_vex.sail,
