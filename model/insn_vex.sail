@@ -522,6 +522,74 @@ function dispatch_vex_0f(opcode, pfx) = {
     }
   },
 
+  // 0F 14: VUNPCKLPS (NP) / VUNPCKLPD (66)
+  20 => {
+    let modrm = fetch_byte();
+    let dst = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    if pfx.vex_l then {
+      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+      match mp {
+        MP_NONE => { // VUNPCKLPS ymm
+          let lo = src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0];
+          let hi = src2[191..160] @ src1[191..160] @ src2[159..128] @ src1[159..128];
+          write_ymm(dst, hi @ lo);
+          Ok()
+        },
+        MP_66 => { // VUNPCKLPD ymm
+          let lo = src2[63..0] @ src1[63..0];
+          let hi = src2[191..128] @ src1[191..128];
+          write_ymm(dst, hi @ lo);
+          Ok()
+        },
+        _ => raise_UD(),
+      }
+    } else {
+      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+      match mp {
+        MP_NONE => { write_xmm(dst, src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0]); Ok() },
+        MP_66   => { write_xmm(dst, src2[63..0] @ src1[63..0]); Ok() },
+        _ => raise_UD(),
+      }
+    }
+  },
+
+  // 0F 15: VUNPCKHPS (NP) / VUNPCKHPD (66)
+  21 => {
+    let modrm = fetch_byte();
+    let dst = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    if pfx.vex_l then {
+      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+      match mp {
+        MP_NONE => { // VUNPCKHPS ymm
+          let lo = src2[127..96] @ src1[127..96] @ src2[95..64] @ src1[95..64];
+          let hi = src2[255..224] @ src1[255..224] @ src2[223..192] @ src1[223..192];
+          write_ymm(dst, hi @ lo);
+          Ok()
+        },
+        MP_66 => { // VUNPCKHPD ymm
+          let lo = src2[127..64] @ src1[127..64];
+          let hi = src2[255..192] @ src1[255..192];
+          write_ymm(dst, hi @ lo);
+          Ok()
+        },
+        _ => raise_UD(),
+      }
+    } else {
+      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+      match mp {
+        MP_NONE => { write_xmm(dst, src2[127..96] @ src1[127..96] @ src2[95..64] @ src1[95..64]); Ok() },
+        MP_66   => { write_xmm(dst, src2[127..64] @ src1[127..64]); Ok() },
+        _ => raise_UD(),
+      }
+    }
+  },
+
   // 0F 12: VMOVLPS/VMOVHLPS (NP) / VMOVLPD (66) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   18 => {
     let modrm = fetch_byte();
@@ -826,6 +894,24 @@ function dispatch_vex_0f(opcode, pfx) = {
           MP_66   => { write_xmm(dst, vmulpd_xmm(src1, src2)); Ok() },
           MP_F3   => { write_xmm(dst, src1[127..32] @ __f32_mul(src1[31..0], src2[31..0])); Ok() },
           MP_F2   => { write_xmm(dst, src1[127..64] @ __f64_mul(src1[63..0], src2[63..0])); Ok() },
+        },
+        11 => match mp { // VCVTDQ2PS (NP) / VCVTPS2DQ (66) / VCVTTPS2DQ (F3)
+          MP_NONE => { // VCVTDQ2PS
+            write_xmm(dst, __int32_to_f32(src2[127..96]) @ __int32_to_f32(src2[95..64]) @
+              __int32_to_f32(src2[63..32]) @ __int32_to_f32(src2[31..0]));
+            Ok()
+          },
+          MP_66 => { // VCVTPS2DQ
+            write_xmm(dst, __f32_to_int32(src2[127..96]) @ __f32_to_int32(src2[95..64]) @
+              __f32_to_int32(src2[63..32]) @ __f32_to_int32(src2[31..0]));
+            Ok()
+          },
+          MP_F3 => { // VCVTTPS2DQ
+            write_xmm(dst, __f32_to_int32_trunc(src2[127..96]) @ __f32_to_int32_trunc(src2[95..64]) @
+              __f32_to_int32_trunc(src2[63..32]) @ __f32_to_int32_trunc(src2[31..0]));
+            Ok()
+          },
+          _ => raise_UD(),
         },
         10 => match mp { // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)
           MP_NONE => { // VCVTPS2PD: 2 floats -> 2 doubles
@@ -1393,6 +1479,39 @@ function dispatch_vex_0f(opcode, pfx) = {
       };
       write_gpr32(dst_gpr, zero_extend(result));
       Ok()
+    }
+  },
+
+  // 0F C2: VCMPPS/VCMPPD/VCMPSS/VCMPSD imm8
+  194 => {
+    let modrm = fetch_byte();
+    let dst = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+    let imm = fetch_byte();
+    let pred : bits(3) = imm[2..0];
+    match mp {
+      MP_NONE => { // VCMPPS
+        write_xmm(dst, cmp_pred_f32(src1[127..96], src2[127..96], pred) @
+                        cmp_pred_f32(src1[95..64],  src2[95..64],  pred) @
+                        cmp_pred_f32(src1[63..32],  src2[63..32],  pred) @
+                        cmp_pred_f32(src1[31..0],   src2[31..0],   pred));
+        Ok()
+      },
+      MP_66 => { // VCMPPD
+        write_xmm(dst, cmp_pred_f64(src1[127..64], src2[127..64], pred) @
+                        cmp_pred_f64(src1[63..0],   src2[63..0],   pred));
+        Ok()
+      },
+      MP_F3 => { // VCMPSS
+        write_xmm(dst, src1[127..32] @ cmp_pred_f32(src1[31..0], src2[31..0], pred));
+        Ok()
+      },
+      MP_F2 => { // VCMPSD
+        write_xmm(dst, src1[127..64] @ cmp_pred_f64(src1[63..0], src2[63..0], pred));
+        Ok()
+      },
     }
   },
 
