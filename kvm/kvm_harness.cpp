@@ -101,22 +101,12 @@ struct ArchState {
 
 struct TestCase {
   std::string name;
+  std::string category;
   std::vector<u8> code;
   ArchState initial;
   u64 flags_mask;
   std::vector<u8> init_data;       // placed at DATA_ADDR
   size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
-
-  TestCase(std::string name, std::vector<u8> code, ArchState initial,
-           u64 flags_mask = FL_ALL)
-      : name(std::move(name)), code(std::move(code)), initial(initial),
-        flags_mask(flags_mask) {}
-
-  TestCase(std::string name, std::vector<u8> code, ArchState initial,
-           u64 flags_mask, std::vector<u8> init_data, size_t compare_data_len)
-      : name(std::move(name)), code(std::move(code)), initial(initial),
-        flags_mask(flags_mask), init_data(std::move(init_data)),
-        compare_data_len(compare_data_len) {}
 };
 
 // ---- KVM VM ----
@@ -525,11 +515,18 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   char name[256];
   int sizes[] = {8, 16, 32, 64};
   const char *sz_sfx[] = {"8", "16", "32", "64"};
+  std::string cat;
+
+  auto add = [&](const char *n, std::vector<u8> code, ArchState init,
+                 u64 mask) {
+    tests.push_back({n, cat, std::move(code), init, mask});
+  };
 
   // ================================================================
   // 1. ALU reg,reg — 8 ops × 4 sizes × NVALS × NVALS
   //    Tests all flag-setting ALU operations with boundary values.
   // ================================================================
+  cat = "ALU reg,reg";
   struct AluOp { const char *name; u8 base; u64 mask; };
   AluOp alu_ops[] = {
     {"add", 0x00, FL_ALL}, {"or",  0x08, FL_ALL},
@@ -548,9 +545,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rbx = VALS[j];
           snprintf(name, sizeof(name), "S %s%s %d,%d",
                    op.name, sz_sfx[si], i, j);
-          tests.emplace_back(name,
-                             encode_alu_rr(op.base, sizes[si], 0, 3),
-                             init, op.mask);
+          add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
+              init, op.mask);
         }
       }
     }
@@ -568,9 +564,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rbx = VALS[j];
           snprintf(name, sizeof(name), "S %s%s cf %d,%d",
                    op.name, sz_sfx[si], i, j);
-          tests.emplace_back(name,
-                             encode_alu_rr(op.base, sizes[si], 0, 3),
-                             init, op.mask);
+          add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
+              init, op.mask);
         }
       }
     }
@@ -585,9 +580,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rax = VALS[i];
         init.rbx = VALS[j];
         snprintf(name, sizeof(name), "S test%s %d,%d", sz_sfx[si], i, j);
-        tests.emplace_back(name,
-                           encode_alu_rr(0x84, sizes[si], 0, 3),
-                           init, FL_ALL);
+        add(name, encode_alu_rr(0x84, sizes[si], 0, 3),
+            init, FL_ALL);
       }
     }
   }
@@ -597,6 +591,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   //    Tests shift/rotate with boundary counts and values.
   //    Flag masks are conservative (AF and OF may be undefined).
   // ================================================================
+  cat = "Shifts";
   struct ShiftOp { const char *name; int digit; u64 mask; bool needs_cf; };
   ShiftOp shift_ops[] = {
     {"shl", 4, FL_NO_AF_OF, false},
@@ -618,9 +613,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rcx = SHIFT_COUNTS[ci];
           snprintf(name, sizeof(name), "S %s%s c%d %d",
                    op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
-          tests.emplace_back(name,
-                             encode_shift_cl(op.digit, sizes[si], 0),
-                             init, op.mask);
+          add(name, encode_shift_cl(op.digit, sizes[si], 0),
+              init, op.mask);
         }
       }
     }
@@ -636,9 +630,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
             init.rcx = SHIFT_COUNTS[ci];
             snprintf(name, sizeof(name), "S %s%s cf c%d %d",
                      op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
-            tests.emplace_back(name,
-                               encode_shift_cl(op.digit, sizes[si], 0),
-                               init, op.mask);
+            add(name, encode_shift_cl(op.digit, sizes[si], 0),
+                init, op.mask);
           }
         }
       }
@@ -649,6 +642,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 3. Unary ops — INC/DEC/NEG/NOT × 4 sizes × NVALS
   //    CF=1 initially to verify INC/DEC preserve carry flag.
   // ================================================================
+  cat = "Unary ops";
   struct UnaryOp { const char *name; u8 op8; u8 op; int digit; u64 mask; };
   UnaryOp unary_ops[] = {
     {"inc", 0xFE, 0xFF, 0, FL_ALL},
@@ -665,9 +659,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rax = VALS[vi];
         snprintf(name, sizeof(name), "S %s%s %d",
                  op.name, sz_sfx[si], vi);
-        tests.emplace_back(name,
-                           encode_unary(op.op8, op.op, op.digit, sizes[si], 0),
-                           init, op.mask);
+        add(name, encode_unary(op.op8, op.op, op.digit, sizes[si], 0),
+            init, op.mask);
       }
     }
   }
@@ -676,6 +669,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 4. MUL/IMUL 1-operand (64-bit) — NVALS × NVALS
   //    RAX * RBX -> RDX:RAX. Only CF and OF are defined.
   // ================================================================
+  cat = "MUL/IMUL";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
       ArchState init = {};
@@ -684,12 +678,10 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
       init.rbx = VALS[j];
 
       snprintf(name, sizeof(name), "S mul64 %d,%d", i, j);
-      tests.emplace_back(name, std::vector<u8>{0x48, 0xF7, 0xE3},
-                          init, FL_CF_OF);
+      add(name, {0x48, 0xF7, 0xE3}, init, FL_CF_OF);
 
       snprintf(name, sizeof(name), "S imul64 %d,%d", i, j);
-      tests.emplace_back(name, std::vector<u8>{0x48, 0xF7, 0xEB},
-                          init, FL_CF_OF);
+      add(name, {0x48, 0xF7, 0xEB}, init, FL_CF_OF);
     }
   }
 
@@ -697,6 +689,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 5. DIV/IDIV (64-bit) — NVALS × NVALS (skip div-by-zero / overflow)
   //    RDX:RAX / RBX -> RAX=quot, RDX=rem. All flags undefined.
   // ================================================================
+  cat = "DIV/IDIV";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
       if (VALS[j] == 0) continue;
@@ -709,8 +702,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rdx = 0;
         init.rbx = VALS[j];
         snprintf(name, sizeof(name), "S div64 %d,%d", i, j);
-        tests.emplace_back(name, std::vector<u8>{0x48, 0xF7, 0xF3},
-                            init, FL_NONE);
+        add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
       }
 
       // IDIV: sign-extend RAX into RDX:RAX.
@@ -727,8 +719,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0;
         init.rbx = VALS[j];
         snprintf(name, sizeof(name), "S idiv64 %d,%d", i, j);
-        tests.emplace_back(name, std::vector<u8>{0x48, 0xF7, 0xFB},
-                            init, FL_NONE);
+        add(name, {0x48, 0xF7, 0xFB}, init, FL_NONE);
       }
     }
   }
@@ -737,6 +728,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 6. Register variation — ADD r64,r64 with all non-RSP register pairs
   //    Catches REX.R / REX.B encoding bugs.
   // ================================================================
+  cat = "Register variation";
   for (int dst = 0; dst < 16; dst++) {
     if (dst == 4) continue;  // skip RSP
     for (int src = 0; src < 16; src++) {
@@ -747,8 +739,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
       set_gpr(init, src, 0x0FEDCBA987654321);
       snprintf(name, sizeof(name), "S add %s,%s",
                GPR_NAMES[dst], GPR_NAMES[src]);
-      tests.emplace_back(name, encode_alu_rr(0x00, 64, dst, src),
-                          init, FL_ALL);
+      add(name, encode_alu_rr(0x00, 64, dst, src), init, FL_ALL);
     }
   }
 
@@ -756,6 +747,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 7. Random testing — supplement stratified tests with randomized
   //    inputs biased 75% toward interesting values.
   // ================================================================
+  cat = "Random";
   std::mt19937_64 rng(12345);  // fixed seed for reproducibility
   for (int t = 0; t < 1000; t++) {
     int oi = rng() % 8;
@@ -769,21 +761,21 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
     snprintf(name, sizeof(name), "S rand %s%s %d",
              op.name, sz_sfx[si], t);
-    tests.emplace_back(name, encode_alu_rr(op.base, sizes[si], 0, 3),
-                        init, op.mask);
+    add(name, encode_alu_rr(op.base, sizes[si], 0, 3), init, op.mask);
   }
 }
 std::vector<TestCase> build_tests() {
   std::vector<TestCase> tests;
+  std::string cat;
 
   auto add = [&](const char *name, std::vector<u8> code, ArchState init,
                  u64 mask = FL_ALL) {
-    tests.emplace_back(name, std::move(code), init, mask);
+    tests.push_back({name, cat, std::move(code), init, mask});
   };
 
   auto add_mem = [&](const char *name, std::vector<u8> code, ArchState init,
                      u64 mask, std::vector<u8> data, size_t cmp_len) {
-    tests.emplace_back(name, std::move(code), init, mask, std::move(data), cmp_len);
+    tests.push_back({name, cat, std::move(code), init, mask, std::move(data), cmp_len});
   };
 
   // =====================================================================
@@ -791,6 +783,7 @@ std::vector<TestCase> build_tests() {
   //    Exercises: exec_add_reg_reg, exec_or, exec_adc_reg_reg, exec_sbb_reg_reg,
   //    exec_and, exec_sub, exec_xor, exec_cmp through decode_alu.sail
   // =====================================================================
+  cat = "ALU reg,reg";
   ArchState alu = {};
   alu.rax = 0x0000000000000037;  // 55
   alu.rbx = 0x000000000000001E;  // 30
@@ -820,6 +813,7 @@ std::vector<TestCase> build_tests() {
   //    32-bit should zero-extend upper 32 bits of dest.
   //    16-bit and 8-bit should preserve upper bits.
   // =====================================================================
+  cat = "ALU operand sizes";
   ArchState sz = {};
   sz.rax = 0xFFFFFFFF00000005;
   sz.rbx = 0xFFFFFFFF00000003;
@@ -846,6 +840,7 @@ std::vector<TestCase> build_tests() {
   // 3. ALU reg,imm — exercises immediate operand fetch paths
   //    Group 1: 83 /op imm8 (sign-extended), 81 /op imm32
   // =====================================================================
+  cat = "ALU reg,imm";
   ArchState imm = {};
   imm.rax = 100;
   imm.rflags = 0x2;
@@ -876,6 +871,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 4. ALU corner cases — overflow, zero, MAX/MIN
   // =====================================================================
+  cat = "ALU corner cases";
   ArchState ov = {};
   ov.rflags = 0x2;
 
@@ -921,6 +917,7 @@ std::vector<TestCase> build_tests() {
   //    Group 2: D1 /op (by 1), D3 /op (by CL), C1 /op imm8
   //    ModRM reg field: 0=ROL,1=ROR,2=RCL,3=RCR,4=SHL,5=SHR,7=SAR
   // =====================================================================
+  cat = "Shift operations";
   ArchState sh = {};
   sh.rax = 0x123456789ABCDEF0;
   sh.rcx = 7;
@@ -980,6 +977,7 @@ std::vector<TestCase> build_tests() {
   //    MUL/IMUL 1-op: SF, ZF, AF, PF undefined; only CF, OF defined
   //    IMUL 2/3-op: SF, ZF, AF, PF undefined; only CF, OF defined
   // =====================================================================
+  cat = "Multiply";
   ArchState mul = {};
   mul.rflags = 0x2;
 
@@ -1027,6 +1025,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 7. Divide — DIV, IDIV (all flags undefined)
   // =====================================================================
+  cat = "Divide";
   ArchState dv = {};
   dv.rflags = 0x2;
 
@@ -1070,6 +1069,7 @@ std::vector<TestCase> build_tests() {
   // 8. INC/DEC/NEG/NOT — unary operations
   //    INC/DEC: all flags except CF. NEG: all flags. NOT: no flags.
   // =====================================================================
+  cat = "INC/DEC/NEG/NOT";
   ArchState un = {};
   un.rflags = 0x3;  // CF=1 (INC/DEC should preserve CF)
 
@@ -1101,6 +1101,7 @@ std::vector<TestCase> build_tests() {
   // 9. Conditional operations — SETcc, CMOVcc
   //    Tests all 16 condition codes via eval_cc
   // =====================================================================
+  cat = "SETcc/CMOVcc";
 
   // Set up flags to create interesting condition states.
   // State A: CF=1, ZF=0, SF=0, OF=0, PF=0 (carry set, positive nonzero)
@@ -1164,6 +1165,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 10. Branch — Jcc (tests decode_pos + offset calculation)
   // =====================================================================
+  cat = "Branch";
 
   // JE rel8: 74 xx. If taken, skip a MOV instruction.
   // Layout: JE +3 (skip 3 bytes) | MOV EAX,1 (B8 01 00 00 00 = 5 bytes, but
@@ -1193,6 +1195,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 11. Data movement — MOVSX, MOVZX, MOVSXD, BSWAP, CBW, CWD, XCHG
   // =====================================================================
+  cat = "Data movement";
   ArchState mv = {};
   mv.rflags = 0x2;
 
@@ -1270,6 +1273,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 12. Bit operations — BT, BTS, BTR, BTC, BSF, BSR, POPCNT, LZCNT, TZCNT
   // =====================================================================
+  cat = "Bit operations";
   ArchState bt = {};
   bt.rflags = 0x2;
 
@@ -1339,6 +1343,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 13. Stack operations — PUSH, POP, CALL+RET
   // =====================================================================
+  cat = "Stack operations";
 
   // PUSH RBX (53) + POP RAX (58): RAX should get RBX's value
   ArchState stk = {};
@@ -1381,6 +1386,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 14. LEA — exercises addressing mode computation without memory access
   // =====================================================================
+  cat = "LEA";
   ArchState lea = {};
   lea.rbx = 100;
   lea.rcx = 7;
@@ -1404,6 +1410,7 @@ std::vector<TestCase> build_tests() {
   // 15. Memory operands — exercises RM_mem paths in read_rm_val/write_rm_val
   //     RDI = DATA_ADDR, initial data placed there
   // =====================================================================
+  cat = "Memory operands";
 
   // MOV RAX, [RDI]: 48 8B 07 (load 8 bytes)
   {
@@ -1498,6 +1505,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 16. Double-precision shifts — SHLD, SHRD
   // =====================================================================
+  cat = "SHLD/SHRD";
   ArchState ds = {};
   ds.rax = 0x123456789ABCDEF0;
   ds.rbx = 0xFEDCBA9876543210;
@@ -1525,6 +1533,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 17. MOV reg,imm — tests fetch_imm_v paths
   // =====================================================================
+  cat = "MOV reg,imm";
   ArchState mi = {};
   mi.rflags = 0x2;
 
@@ -1543,6 +1552,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 18. XADD — exchange and add
   // =====================================================================
+  cat = "XADD";
   ArchState xa = {};
   xa.rax = 10;
   xa.rbx = 20;
@@ -1554,6 +1564,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 19. CMPXCHG — compare and exchange
   // =====================================================================
+  cat = "CMPXCHG";
   // CMPXCHG RBX, RCX: 48 0F B1 CB (reg=rcx, rm=rbx)
   // If RAX == RBX: ZF=1, RBX := RCX
   // If RAX != RBX: ZF=0, RAX := RBX
@@ -1575,6 +1586,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 20. Multi-instruction sequences — tests instruction interaction
   // =====================================================================
+  cat = "Multi-instruction";
 
   // ADD + ADC chain (tests carry propagation across instructions)
   // ADD RAX, RBX; ADC RDX, RCX
@@ -1614,6 +1626,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 21. REX prefix variations — tests REX.R, REX.B for upper registers
   // =====================================================================
+  cat = "REX prefix";
   ArchState rex = {};
   rex.r8  = 0x1111111111111111;
   rex.r9  = 0x2222222222222222;
@@ -1633,6 +1646,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   // 22. Flag manipulation — CLC, STC, CLD, STD, CMC, LAHF, SAHF
   // =====================================================================
+  cat = "Flag manipulation";
 
   // CLC: F8
   ArchState fl = {};
@@ -1677,10 +1691,13 @@ int main() {
 
   auto tests = build_tests();
   int passed = 0, failed = 0;
+  std::string last_cat;
 
   for (const auto &tc : tests) {
-    fprintf(stderr, "TEST: %s\n", tc.name.c_str());
-
+    if (tc.category != last_cat) {
+      last_cat = tc.category;
+      fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
+    }
     // Run on KVM.
     vm.load_test(tc);
     ArchState kvm_state = vm.run_test();
@@ -1698,30 +1715,31 @@ int main() {
     // Compare memory.
     if (tc.compare_data_len > 0 &&
         memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
-      fprintf(stderr, "  MISMATCH DATA at DATA_ADDR (%zu bytes):\n",
-              tc.compare_data_len);
-      fprintf(stderr, "    KVM: ");
-      for (size_t i = 0; i < tc.compare_data_len; i++)
-        fprintf(stderr, "%02x", kvm_data[i]);
-      fprintf(stderr, "\n    Sail:");
-      for (size_t i = 0; i < tc.compare_data_len; i++)
-        fprintf(stderr, "%02x", sail_data[i]);
-      fprintf(stderr, "\n");
       ok = false;
     }
 
     if (ok) {
-      fprintf(stderr, "  PASS\n");
       passed++;
     } else {
-      fprintf(stderr, "  FAIL\n");
+      fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
       kvm_state.print("KVM");
       sail_state.print("Sail");
+      if (tc.compare_data_len > 0 &&
+          memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
+        fprintf(stderr, "  DATA MISMATCH (%zu bytes):\n", tc.compare_data_len);
+        fprintf(stderr, "    KVM: ");
+        for (size_t i = 0; i < tc.compare_data_len; i++)
+          fprintf(stderr, "%02x", kvm_data[i]);
+        fprintf(stderr, "\n    Sail:");
+        for (size_t i = 0; i < tc.compare_data_len; i++)
+          fprintf(stderr, "%02x", sail_data[i]);
+        fprintf(stderr, "\n");
+      }
       failed++;
     }
   }
 
-  fprintf(stderr, "\n%d passed, %d failed out of %d tests\n",
+  fprintf(stderr, "%d passed, %d failed out of %d tests\n",
           passed, failed, passed + failed);
   return failed > 0 ? 1 : 0;
 }
