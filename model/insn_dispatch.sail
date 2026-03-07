@@ -395,6 +395,63 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPS
       } else if op3 == 21 then {
         dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPD
+      } else if (op3 == 240 | op3 == 241) then {
+        // CRC32 (F2 0F 38 F0/F1)
+        let mp = get_mandatory_prefix(pfx);
+        if mp != MP_F2 then {
+          raise_UD()
+        } else {
+          let modrm = fetch_byte();
+          let reg = modrm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          let crc : bits(32) = read_gpr(reg, OS32)[31..0];
+          if op3 == 240 then {
+            // CRC32 r32/r64, r/m8
+            let src : byte = match rm {
+              RM_reg(_) => read_rm_val(rm, OS8, pfx.has_rex)[7..0],
+              RM_mem(addr) => mem_read8(addr),
+            };
+            let result : bits(32) = crc32c_byte(crc, src);
+            if pfx.rex_w then {
+              write_gpr(reg, OS64, zero_extend(result))
+            } else {
+              write_gpr(reg, OS32, zero_extend(result))
+            };
+            Ok()
+          } else {
+            // CRC32 r32/r64, r/m16/r/m32/r/m64
+            let os = get_operand_size(pfx);
+            let result : bits(32) = match os {
+              OS16 => {
+                let src : bits(16) = match rm {
+                  RM_reg(_) => read_rm_val(rm, OS16, pfx.has_rex)[15..0],
+                  RM_mem(addr) => mem_read16(addr),
+                };
+                crc32c_16(crc, src)
+              },
+              OS64 => {
+                let src : bits(64) = match rm {
+                  RM_reg(_) => read_rm_val(rm, OS64, pfx.has_rex),
+                  RM_mem(addr) => mem_read64(addr),
+                };
+                crc32c_64(crc, src)
+              },
+              _ => {
+                let src : bits(32) = match rm {
+                  RM_reg(_) => read_rm_val(rm, OS32, pfx.has_rex)[31..0],
+                  RM_mem(addr) => mem_read32(addr),
+                };
+                crc32c_32(crc, src)
+              },
+            };
+            if pfx.rex_w then {
+              write_gpr(reg, OS64, zero_extend(result))
+            } else {
+              write_gpr(reg, OS32, zero_extend(result))
+            };
+            Ok()
+          }
+        }
       } else {
         dispatch_3byte_38_sse_int(opcode3, pfx)
       }
