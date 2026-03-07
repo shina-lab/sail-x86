@@ -1,21 +1,3 @@
-// RET — Return from Procedure
-//
-// Pops a return address from the stack into RIP.
-// No flags are affected (near return).
-
-val exec_ret : OperandSize -> ExecutionResult
-function exec_ret(os) = {
-  let target : qword = match os {
-    OS64 => pop64(),
-    OS32 => zero_extend(pop64()[31..0]),
-    OS16 => zero_extend(pop16()),
-    OS8 => zeros(),
-  };
-  RIP = target;
-  decode_pos = target;
-  Ok()
-}
-
 // Jcc — Jump if Condition Is Met
 //
 // Checks status flags and jumps if condition is satisfied.
@@ -94,9 +76,6 @@ function exec_loop(rel8, variant, asz) = {
 // implementation-dependent, so we model them as external calls.
 
 val __software_interrupt : byte -> ExecutionResult
-
-val exec_int : byte -> ExecutionResult
-function exec_int(imm8) = __software_interrupt(imm8)
 
 // PUSH imm
 val exec_push_imm : (qword, OperandSize) -> ExecutionResult

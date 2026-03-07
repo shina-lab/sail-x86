@@ -9,6 +9,134 @@ val __fxsave64 : qword -> ExecutionResult
 val __fxrstor : qword -> ExecutionResult
 val __fxrstor64 : qword -> ExecutionResult
 
+// SHLD — Double Precision Shift Left
+//
+// Shifts dst left by count, filling vacated bits from src (high bits).
+// Equivalent to: result = upper_half(dst:src << count)
+// If count=0, no operation. If count > operand_size, undefined.
+// CF = last bit shifted out. SF, ZF, PF set from result.
+// OF defined for count=1 (sign change). AF undefined.
+
+val exec_shld : (qword, qword, byte, OperandSize) -> (ExecutionResult, qword)
+function exec_shld(d, s, count_raw, os) = {
+  let count : range(0, 63) = match os {
+    OS64 => unsigned(count_raw) % 64,
+    _    => unsigned(count_raw) % 32,
+  };
+  if count == 0 then (Ok(), d)
+  else {
+    let result : qword = match os {
+      OS16 => {
+        if count > 16 then {
+          // SDM: result and flags undefined when count > operand size
+          CF = undefined; OF = undefined;
+          SF = undefined; ZF = undefined; PF = undefined; AF = undefined;
+          undefined
+        } else {
+          let wide : dword = d[15..0] @ s[15..0];
+          let shifted : dword = wide << count;
+          let r : word = shifted[31..16];
+          CF = wide[32 - count];
+          update_SF_ZF_PF(r);
+          if count == 1 then
+            OF = bool_to_bit(r[15] != d[15])
+          else OF = undefined;
+          zero_extend(r)
+        }
+      },
+      OS32 => {
+        let wide : qword = d[31..0] @ s[31..0];
+        let shifted : qword = wide << count;
+        let r : dword = shifted[63..32];
+        CF = wide[64 - count];
+        update_SF_ZF_PF(r);
+        if count == 1 then
+          OF = bool_to_bit(r[31] != d[31])
+        else OF = undefined;
+        zero_extend(r)
+      },
+      OS64 => {
+        let wide : xmmword = d @ s;
+        let shifted : xmmword = wide << count;
+        let r : qword = shifted[127..64];
+        CF = wide[128 - count];
+        update_SF_ZF_PF(r);
+        if count == 1 then
+          OF = bool_to_bit(r[63] != d[63])
+        else OF = undefined;
+        r
+      },
+      _ => d,
+    };
+    AF = undefined;
+    (Ok(), result)
+  }
+}
+
+// SHRD — Double Precision Shift Right
+//
+// Shifts dst right by count, filling vacated bits from src (low bits).
+// Equivalent to: result = lower_half(src:dst >> count)
+// If count=0, no operation. If count > operand_size, undefined.
+// CF = last bit shifted out. SF, ZF, PF set from result.
+// OF defined for count=1 (sign change). AF undefined.
+
+val exec_shrd : (qword, qword, byte, OperandSize) -> (ExecutionResult, qword)
+function exec_shrd(d, s, count_raw, os) = {
+  let count : range(0, 63) = match os {
+    OS64 => unsigned(count_raw) % 64,
+    _    => unsigned(count_raw) % 32,
+  };
+  if count == 0 then (Ok(), d)
+  else {
+    let result : qword = match os {
+      OS16 => {
+        if count > 16 then {
+          // SDM: result and flags undefined when count > operand size
+          CF = undefined; OF = undefined;
+          SF = undefined; ZF = undefined; PF = undefined; AF = undefined;
+          undefined
+        } else {
+          let wide : dword = s[15..0] @ d[15..0];
+          let shifted : dword = wide >> count;
+          let r : word = shifted[15..0];
+          CF = d[count - 1];
+          update_SF_ZF_PF(r);
+          if count == 1 then
+            OF = bool_to_bit(r[15] != d[15])
+          else OF = undefined;
+          zero_extend(r)
+        }
+      },
+      OS32 => {
+        let wide : qword = s[31..0] @ d[31..0];
+        let shifted : qword = wide >> count;
+        let r : dword = shifted[31..0];
+        CF = d[count - 1];
+        update_SF_ZF_PF(r);
+        if count == 1 then
+          OF = bool_to_bit(r[31] != d[31])
+        else OF = undefined;
+        zero_extend(r)
+      },
+      OS64 => {
+        let wide : xmmword = s @ d;
+        let shifted : xmmword = wide >> count;
+        let r : qword = shifted[63..0];
+        CF = d[count - 1];
+        update_SF_ZF_PF(r);
+        if count == 1 then
+          OF = bool_to_bit(r[63] != d[63])
+        else OF = undefined;
+        r
+      },
+      _ => d,
+    };
+    AF = undefined;
+    (Ok(), result)
+  }
+}
+
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> ExecutionResult
 function dispatch_2byte_gpr(op, pfx) = {
   match op {
@@ -119,7 +247,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /3: STMXCSR m32
         match rm {
           RM_mem(addr) => {
-            mem_write32(addr, exec_stmxcsr());
+            mem_write32(addr, __stmxcsr());
             Ok()
           },
           RM_reg(_) => raise_UD(),
@@ -566,7 +694,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           OS8  => popcount8(src_val[7..0]),
           OS16 => popcount16(src_val[15..0]),
           OS32 => popcount32(src_val[31..0]),
-          OS64 => popcount64(src_val),
+          OS64 => popcount32(src_val[31..0]) + popcount32(src_val[63..32]),
         };
         OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
         ZF = bool_to_bit(count == 0);

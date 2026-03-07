@@ -630,7 +630,15 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     // C3: RET near
     195 => {
       let os = get_operand_size_d64(pfx);
-      exec_ret(os)
+      let target : qword = match os {
+        OS64 => pop64(),
+        OS32 => zero_extend(pop64()[31..0]),
+        OS16 => zero_extend(pop16()),
+        OS8 => zeros(),
+      };
+      RIP = target;
+      decode_pos = target;
+      Ok()
     },
 
     // C6 /0: MOV r/m8, imm8
@@ -726,7 +734,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     // CD: INT imm8
     205 => {
       let imm = fetch_byte();
-      exec_int(imm)
+      __software_interrupt(imm)
     },
 
     // D0: Group 2 — shift r/m8 by 1

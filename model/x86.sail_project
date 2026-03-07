@@ -25,7 +25,6 @@ helpers {
     helpers/gpr.sail,
     helpers/control.sail,
     helpers/string.sail,
-    helpers/shift.sail,
     helpers/avx.sail,
 }
 

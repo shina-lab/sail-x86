@@ -75,5 +75,3 @@ function exec_movsldup(dst, src) = {
 val __ldmxcsr : dword -> unit
 val __stmxcsr : unit -> dword
 
-val exec_stmxcsr : unit -> dword
-function exec_stmxcsr() = __stmxcsr()

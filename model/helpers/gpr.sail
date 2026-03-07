@@ -322,10 +322,6 @@ val popcount32 : dword -> range(0, 32)
 function popcount32(v) =
   popcount16(v[15..0]) + popcount16(v[31..16])
 
-val popcount64 : qword -> range(0, 64)
-function popcount64(v) =
-  popcount32(v[31..0]) + popcount32(v[63..32])
-
 // LZCNT helper
 
 val lzcnt64 : (qword, range(0, 63)) -> range(0, 64)

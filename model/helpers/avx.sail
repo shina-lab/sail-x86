@@ -83,69 +83,8 @@ function vsqrtpd_xmm(a) =
   __f64_sqrt(a[127..64]) @ __f64_sqrt(a[63..0])
 
 // =========================================================================
-// 256-bit (YMM) packed FP helpers
-// Implemented as: high_128 @ low_128 using XMM helpers.
-// =========================================================================
-
-val vaddps_ymm : (ymmword, ymmword) -> ymmword
-function vaddps_ymm(a, b) =
-  vaddps_xmm(a[255..128], b[255..128]) @ vaddps_xmm(a[127..0], b[127..0])
-
-val vsubps_ymm : (ymmword, ymmword) -> ymmword
-function vsubps_ymm(a, b) =
-  vsubps_xmm(a[255..128], b[255..128]) @ vsubps_xmm(a[127..0], b[127..0])
-
-val vmulps_ymm : (ymmword, ymmword) -> ymmword
-function vmulps_ymm(a, b) =
-  vmulps_xmm(a[255..128], b[255..128]) @ vmulps_xmm(a[127..0], b[127..0])
-
-val vdivps_ymm : (ymmword, ymmword) -> ymmword
-function vdivps_ymm(a, b) =
-  vdivps_xmm(a[255..128], b[255..128]) @ vdivps_xmm(a[127..0], b[127..0])
-
-val vminps_ymm : (ymmword, ymmword) -> ymmword
-function vminps_ymm(a, b) =
-  vminps_xmm(a[255..128], b[255..128]) @ vminps_xmm(a[127..0], b[127..0])
-
-val vmaxps_ymm : (ymmword, ymmword) -> ymmword
-function vmaxps_ymm(a, b) =
-  vmaxps_xmm(a[255..128], b[255..128]) @ vmaxps_xmm(a[127..0], b[127..0])
-
-val vsqrtps_ymm : ymmword -> ymmword
-function vsqrtps_ymm(a) =
-  vsqrtps_xmm(a[255..128]) @ vsqrtps_xmm(a[127..0])
-
-val vaddpd_ymm : (ymmword, ymmword) -> ymmword
-function vaddpd_ymm(a, b) =
-  vaddpd_xmm(a[255..128], b[255..128]) @ vaddpd_xmm(a[127..0], b[127..0])
-
-val vsubpd_ymm : (ymmword, ymmword) -> ymmword
-function vsubpd_ymm(a, b) =
-  vsubpd_xmm(a[255..128], b[255..128]) @ vsubpd_xmm(a[127..0], b[127..0])
-
-val vmulpd_ymm : (ymmword, ymmword) -> ymmword
-function vmulpd_ymm(a, b) =
-  vmulpd_xmm(a[255..128], b[255..128]) @ vmulpd_xmm(a[127..0], b[127..0])
-
-val vdivpd_ymm : (ymmword, ymmword) -> ymmword
-function vdivpd_ymm(a, b) =
-  vdivpd_xmm(a[255..128], b[255..128]) @ vdivpd_xmm(a[127..0], b[127..0])
-
-val vminpd_ymm : (ymmword, ymmword) -> ymmword
-function vminpd_ymm(a, b) =
-  vminpd_xmm(a[255..128], b[255..128]) @ vminpd_xmm(a[127..0], b[127..0])
-
-val vmaxpd_ymm : (ymmword, ymmword) -> ymmword
-function vmaxpd_ymm(a, b) =
-  vmaxpd_xmm(a[255..128], b[255..128]) @ vmaxpd_xmm(a[127..0], b[127..0])
-
-val vsqrtpd_ymm : ymmword -> ymmword
-function vsqrtpd_ymm(a) =
-  vsqrtpd_xmm(a[255..128]) @ vsqrtpd_xmm(a[127..0])
-
-// =========================================================================
 // Packed integer add/sub helpers (byte/word/dword/qword)
-// 128-bit: manually unrolled. 256-bit: split into two 128-bit halves.
+// 128-bit: manually unrolled.
 // =========================================================================
 
 val avx_paddb_128 : (xmmword, xmmword) -> xmmword
@@ -159,11 +98,6 @@ function avx_paddb_128(a, b) =
   (a[31..24]   + b[31..24])   @ (a[23..16]   + b[23..16])   @
   (a[15..8]    + b[15..8])    @ (a[7..0]     + b[7..0])
 
-val avx_paddb_256 : (ymmword, ymmword) -> ymmword
-function avx_paddb_256(a, b) =
-  avx_paddb_128(a[255..128], b[255..128]) @
-  avx_paddb_128(a[127..0],   b[127..0])
-
 val avx_paddw_128 : (xmmword, xmmword) -> xmmword
 function avx_paddw_128(a, b) =
   (a[127..112] + b[127..112]) @ (a[111..96] + b[111..96]) @
@@ -171,29 +105,14 @@ function avx_paddw_128(a, b) =
   (a[63..48]   + b[63..48])   @ (a[47..32]  + b[47..32])  @
   (a[31..16]   + b[31..16])   @ (a[15..0]   + b[15..0])
 
-val avx_paddw_256 : (ymmword, ymmword) -> ymmword
-function avx_paddw_256(a, b) =
-  avx_paddw_128(a[255..128], b[255..128]) @
-  avx_paddw_128(a[127..0],   b[127..0])
-
 val avx_paddd_128 : (xmmword, xmmword) -> xmmword
 function avx_paddd_128(a, b) =
   (a[127..96] + b[127..96]) @ (a[95..64] + b[95..64]) @
   (a[63..32]  + b[63..32])  @ (a[31..0]  + b[31..0])
 
-val avx_paddd_256 : (ymmword, ymmword) -> ymmword
-function avx_paddd_256(a, b) =
-  avx_paddd_128(a[255..128], b[255..128]) @
-  avx_paddd_128(a[127..0],   b[127..0])
-
 val avx_paddq_128 : (xmmword, xmmword) -> xmmword
 function avx_paddq_128(a, b) =
   (a[127..64] + b[127..64]) @ (a[63..0] + b[63..0])
-
-val avx_paddq_256 : (ymmword, ymmword) -> ymmword
-function avx_paddq_256(a, b) =
-  avx_paddq_128(a[255..128], b[255..128]) @
-  avx_paddq_128(a[127..0],   b[127..0])
 
 val avx_psubb_128 : (xmmword, xmmword) -> xmmword
 function avx_psubb_128(a, b) =
@@ -206,11 +125,6 @@ function avx_psubb_128(a, b) =
   (a[31..24]   - b[31..24])   @ (a[23..16]   - b[23..16])   @
   (a[15..8]    - b[15..8])    @ (a[7..0]     - b[7..0])
 
-val avx_psubb_256 : (ymmword, ymmword) -> ymmword
-function avx_psubb_256(a, b) =
-  avx_psubb_128(a[255..128], b[255..128]) @
-  avx_psubb_128(a[127..0],   b[127..0])
-
 val avx_psubw_128 : (xmmword, xmmword) -> xmmword
 function avx_psubw_128(a, b) =
   (a[127..112] - b[127..112]) @ (a[111..96] - b[111..96]) @
@@ -218,26 +132,12 @@ function avx_psubw_128(a, b) =
   (a[63..48]   - b[63..48])   @ (a[47..32]  - b[47..32])  @
   (a[31..16]   - b[31..16])   @ (a[15..0]   - b[15..0])
 
-val avx_psubw_256 : (ymmword, ymmword) -> ymmword
-function avx_psubw_256(a, b) =
-  avx_psubw_128(a[255..128], b[255..128]) @
-  avx_psubw_128(a[127..0],   b[127..0])
-
 val avx_psubd_128 : (xmmword, xmmword) -> xmmword
 function avx_psubd_128(a, b) =
   (a[127..96] - b[127..96]) @ (a[95..64] - b[95..64]) @
   (a[63..32]  - b[63..32])  @ (a[31..0]  - b[31..0])
 
-val avx_psubd_256 : (ymmword, ymmword) -> ymmword
-function avx_psubd_256(a, b) =
-  avx_psubd_128(a[255..128], b[255..128]) @
-  avx_psubd_128(a[127..0],   b[127..0])
-
 val avx_psubq_128 : (xmmword, xmmword) -> xmmword
 function avx_psubq_128(a, b) =
   (a[127..64] - b[127..64]) @ (a[63..0] - b[63..0])
 
-val avx_psubq_256 : (ymmword, ymmword) -> ymmword
-function avx_psubq_256(a, b) =
-  avx_psubq_128(a[255..128], b[255..128]) @
-  avx_psubq_128(a[127..0],   b[127..0])

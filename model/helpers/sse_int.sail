@@ -319,18 +319,16 @@ function exec_paddq(dst, src) = {
 // Concatenates dst:src, shifts right by imm8 bytes, takes low 128 bits.
 // No flags affected.
 
-val palignr_shift : (ymmword, int) -> xmmword
-function palignr_shift(concat, shift_bytes) = {
-  if shift_bytes <= 0 then concat[127..0]
-  else if shift_bytes >= 32 then zeros()
-  else (concat >> (shift_bytes * 8))[127..0]
-}
-
 val exec_palignr : (simd_idx, xmmword, byte) -> ExecutionResult
 function exec_palignr(dst, src, imm8) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
-  let r : xmmword = palignr_shift(d @ s, unsigned(imm8));
+  let concat : ymmword = d @ s;
+  let shift_bytes : int = unsigned(imm8);
+  let r : xmmword =
+    if shift_bytes <= 0 then concat[127..0]
+    else if shift_bytes >= 32 then zeros()
+    else (concat >> (shift_bytes * 8))[127..0];
   write_xmm_legacy(dst, r);
   Ok()
 }
@@ -1105,17 +1103,8 @@ function sx8_16(v) = sign_extend(v)
 val sx8_32 : byte -> dword
 function sx8_32(v) = sign_extend(v)
 
-val sx8_64 : byte -> qword
-function sx8_64(v) = sign_extend(v)
-
 val sx16_32 : word -> dword
 function sx16_32(v) = sign_extend(v)
-
-val sx16_64 : word -> qword
-function sx16_64(v) = sign_extend(v)
-
-val sx32_64 : dword -> qword
-function sx32_64(v) = sign_extend(v)
 
 // PMOVSXBW: 8 x i8 -> 8 x i16
 val exec_pmovsxbw : (simd_idx, xmmword) -> ExecutionResult
@@ -1145,9 +1134,9 @@ function exec_pmovsxbd(dst, src) = {
 val exec_pmovsxbq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovsxbq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    sx8_64(s[15..8]) @ sx8_64(s[7..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = sign_extend(s[15..8]);
+  let lo : qword = sign_extend(s[7..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 
@@ -1166,9 +1155,9 @@ function exec_pmovsxwd(dst, src) = {
 val exec_pmovsxwq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovsxwq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    sx16_64(s[31..16]) @ sx16_64(s[15..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = sign_extend(s[31..16]);
+  let lo : qword = sign_extend(s[15..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 
@@ -1176,9 +1165,9 @@ function exec_pmovsxwq(dst, src) = {
 val exec_pmovsxdq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovsxdq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    sx32_64(s[63..32]) @ sx32_64(s[31..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = sign_extend(s[63..32]);
+  let lo : qword = sign_extend(s[31..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 // PMOVZX — Packed Move with Zero Extend (SSE4.1)
@@ -1191,17 +1180,8 @@ function zx8_16(v) = zero_extend(v)
 val zx8_32 : byte -> dword
 function zx8_32(v) = zero_extend(v)
 
-val zx8_64 : byte -> qword
-function zx8_64(v) = zero_extend(v)
-
 val zx16_32 : word -> dword
 function zx16_32(v) = zero_extend(v)
-
-val zx16_64 : word -> qword
-function zx16_64(v) = zero_extend(v)
-
-val zx32_64 : dword -> qword
-function zx32_64(v) = zero_extend(v)
 
 // PMOVZXBW: 8 x u8 -> 8 x u16
 val exec_pmovzxbw : (simd_idx, xmmword) -> ExecutionResult
@@ -1231,9 +1211,9 @@ function exec_pmovzxbd(dst, src) = {
 val exec_pmovzxbq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovzxbq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    zx8_64(s[15..8]) @ zx8_64(s[7..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = zero_extend(s[15..8]);
+  let lo : qword = zero_extend(s[7..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 
@@ -1252,9 +1232,9 @@ function exec_pmovzxwd(dst, src) = {
 val exec_pmovzxwq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovzxwq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    zx16_64(s[31..16]) @ zx16_64(s[15..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = zero_extend(s[31..16]);
+  let lo : qword = zero_extend(s[15..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 
@@ -1262,9 +1242,9 @@ function exec_pmovzxwq(dst, src) = {
 val exec_pmovzxdq : (simd_idx, xmmword) -> ExecutionResult
 function exec_pmovzxdq(dst, src) = {
   let s : xmmword = src;
-  let r : xmmword =
-    zx32_64(s[63..32]) @ zx32_64(s[31..0]);
-  write_xmm_legacy(dst, r);
+  let hi : qword = zero_extend(s[63..32]);
+  let lo : qword = zero_extend(s[31..0]);
+  write_xmm_legacy(dst, hi @ lo);
   Ok()
 }
 // PMULDQ — Multiply Packed Signed Doubleword Integers (SSE4.1)
@@ -1607,28 +1587,24 @@ function exec_psignd(dst, src) = {
 // Shifts entire 128-bit value left/right by imm8 bytes, filling with zeros.
 // No flags affected.
 
-val sll128 : (xmmword, int) -> xmmword
-function sll128(v, count) = if count > 127 | count < 0 then zeros() else v << count
-
-val srl128 : (xmmword, int) -> xmmword
-function srl128(v, count) = if count > 127 | count < 0 then zeros() else v >> count
-
 val exec_pslldq : (simd_idx, byte) -> ExecutionResult
 function exec_pslldq(dst, imm8) = {
-  let c : int = unsigned(imm8);
-  let byte_count : int = if c > 15 then 16 else c;
+  let c : range(0, 255) = unsigned(imm8);
+  let byte_count : range(0, 16) = if c > 15 then 16 else c;
   let a : xmmword = read_xmm(dst);
-  let r : xmmword = sll128(a, byte_count * 8);
+  let shift : range(0, 128) = byte_count * 8;
+  let r : xmmword = if shift > 127 then zeros() else a << shift;
   write_xmm_legacy(dst, r);
   Ok()
 }
 
 val exec_psrldq : (simd_idx, byte) -> ExecutionResult
 function exec_psrldq(dst, imm8) = {
-  let c : int = unsigned(imm8);
-  let byte_count : int = if c > 15 then 16 else c;
+  let c : range(0, 255) = unsigned(imm8);
+  let byte_count : range(0, 16) = if c > 15 then 16 else c;
   let a : xmmword = read_xmm(dst);
-  let r : xmmword = srl128(a, byte_count * 8);
+  let shift : range(0, 128) = byte_count * 8;
+  let r : xmmword = if shift > 127 then zeros() else a >> shift;
   write_xmm_legacy(dst, r);
   Ok()
 }
