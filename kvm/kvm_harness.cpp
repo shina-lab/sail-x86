@@ -4741,7 +4741,60 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 69. VEX VFMADDSUB / VFMSUBADD
+  // 69. EVEX immediate instructions (0F3A map)
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // VPALIGNR xmm0, xmm1, xmm2, 4: EVEX.128.66.0F3A.WIG 0F /r ib
+    // 62 F3 75 08 0F C2 04
+    add_xmm("evex vpalignr xmm0,xmm1,xmm2,4",
+            {0x62, 0xF3, 0x75, 0x08, 0x0F, 0xC2, 0x04}, s, 0x7);
+
+    // VPEXTRB ecx, xmm1, 3: EVEX.128.66.0F3A.WIG 14 /r ib
+    // 62 F3 7D 08 14 C9 03 (reg=xmm1, r/m=ecx)
+    add_xmm("evex vpextrb ecx,xmm1,3",
+            {0x62, 0xF3, 0x7D, 0x08, 0x14, 0xC9, 0x03}, s, 0x3);
+
+    // VPEXTRD ecx, xmm1, 2: EVEX.128.66.0F3A.W0 16 /r ib
+    // 62 F3 7D 08 16 C9 02
+    add_xmm("evex vpextrd ecx,xmm1,2",
+            {0x62, 0xF3, 0x7D, 0x08, 0x16, 0xC9, 0x02}, s, 0x3);
+
+    // VPINSRB xmm0, xmm1, ecx, 5: EVEX.128.66.0F3A.WIG 20 /r ib
+    // 62 F3 75 08 20 C1 05
+    s.rcx = 0x42;
+    add_xmm("evex vpinsrb xmm0,xmm1,ecx,5",
+            {0x62, 0xF3, 0x75, 0x08, 0x20, 0xC1, 0x05}, s, 0x7);
+
+    // VPINSRD xmm0, xmm1, ecx, 1: EVEX.128.66.0F3A.W0 22 /r ib
+    // 62 F3 75 08 22 C1 01
+    s.rcx = 0xDEADBEEF;
+    add_xmm("evex vpinsrd xmm0,xmm1,ecx,1",
+            {0x62, 0xF3, 0x75, 0x08, 0x22, 0xC1, 0x01}, s, 0x7);
+
+    // VPSHUFD xmm0, xmm1, 0x1B: EVEX.128.66.0F.W0 70 /r ib
+    // 62 F1 7D 08 70 C1 1B
+    add_xmm("evex vpshufd xmm0,xmm1,0x1B",
+            {0x62, 0xF1, 0x7D, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+
+    // VPSHUFHW xmm0, xmm1, 0x1B: EVEX.128.F3.0F.WIG 70 /r ib
+    // 62 F1 7E 08 70 C1 1B
+    add_xmm("evex vpshufhw xmm0,xmm1,0x1B",
+            {0x62, 0xF1, 0x7E, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+
+    // VPSHUFLW xmm0, xmm1, 0x1B: EVEX.128.F2.0F.WIG 70 /r ib
+    // 62 F1 7F 08 70 C1 1B
+    add_xmm("evex vpshuflw xmm0,xmm1,0x1B",
+            {0x62, 0xF1, 0x7F, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 70. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
   cat = "AVX";
   {
