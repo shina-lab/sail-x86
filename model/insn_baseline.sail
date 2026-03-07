@@ -268,8 +268,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel32();
       if eval_cc(cc) then {
-        RIP = decode_pos + offset;
-        decode_pos = RIP;
+        next_rip = Some(decode_pos + offset);
       };
       Ok()
     },

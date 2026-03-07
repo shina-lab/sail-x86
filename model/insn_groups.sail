@@ -420,15 +420,13 @@ function dispatch_group5(reg_field, rm, pfx) = {
         OS16 => push16(return_addr[15..0]),
         _ => (),
       };
-      RIP = target;
-      decode_pos = target;
+      next_rip = Some(target);
       Ok()
     },
     4 => {
       // JMP near indirect (f64)
       let target = read_rm_val(rm, OS64, pfx.has_rex);
-      RIP = target;
-      decode_pos = target;
+      next_rip = Some(target);
       Ok()
     },
     6 => {

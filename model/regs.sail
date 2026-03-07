@@ -6,6 +6,10 @@
 
 register RIP : qword
 
+// Branch target set by control-flow instructions (JMP, CALL, RET, Jcc).
+// When Some, step() uses this instead of decode_pos to update RIP.
+register next_rip : option(qword) = None()
+
 // =========================================================================
 // General-purpose registers
 //

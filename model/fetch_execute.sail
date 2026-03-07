@@ -11,6 +11,7 @@ function step() = {
   // Set decode position to current RIP
   decode_pos = RIP;
   rip_rel_pending = false;
+  next_rip = None();
 
   // Phase 1: Scan prefixes and get opcode byte
   let (pfx, opcode) = scan_prefixes();
@@ -18,13 +19,11 @@ function step() = {
   // Phase 2-5: Dispatch opcode (handles ModR/M, SIB, disp, imm internally)
   let result = dispatch_opcode_1byte(opcode, pfx);
 
-  // Advance RIP past the instruction (decode_pos tracks how far we read).
-  // Control-flow instructions (JMP, CALL, RET, Jcc) set RIP themselves
-  // and return Ok(). We detect this by checking if RIP was modified.
-  // If RIP still equals the original value, advance it.
+  // Advance RIP. Control-flow instructions set next_rip to the branch
+  // target; otherwise we fall through to the next instruction.
   match result {
-    Ok(_) => RIP = decode_pos,
-    Fault(_, _) => (),  // fault: don't advance RIP
+    Ok(_) => RIP = match next_rip { Some(t) => t, None() => decode_pos },
+    Fault(_, _) => (),
     Halt(_) => (),
   };
 

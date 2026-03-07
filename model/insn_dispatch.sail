@@ -87,8 +87,7 @@ function exec_loop(rel8, variant, asz) = {
     LOOP_ne     => if count_nonzero then ZF == bitzero else false,
   };
   if take_branch then {
-    RIP = decode_pos + sign_extend(rel8);
-    decode_pos = RIP;
+    next_rip = Some(decode_pos + sign_extend(rel8));
   };
   Ok()
 }
@@ -1066,8 +1065,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS16 => zero_extend(pop16()),
         OS8 => zeros(),
       };
-      RIP = target;
-      decode_pos = target;
+      next_rip = Some(target);
       GPR[RSP] = GPR[RSP] + zero_extend(imm);
       Ok()
     },
@@ -1081,8 +1079,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS16 => zero_extend(pop16()),
         OS8 => zeros(),
       };
-      RIP = target;
-      decode_pos = target;
+      next_rip = Some(target);
       Ok()
     },
 
@@ -1266,8 +1263,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let count_reg : qword = if asz == AS32 then zero_extend(read_gpr32(RCX)) else read_gpr64(RCX);
       if count_reg == zeros() then {
         let target = decode_pos + rel;
-        RIP = target;
-        decode_pos = target;
+        next_rip = Some(target);
         Ok()
       } else {
         Ok()
@@ -1311,22 +1307,19 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS16 => push16(return_addr[15..0]),
         _ => (),
       };
-      RIP = return_addr + offset;
-      decode_pos = RIP;
+      next_rip = Some(return_addr + offset);
       Ok()
     },
 
     // E9: JMP rel32 (f64)
     233 => {
-      RIP = decode_pos + fetch_rel32();
-      decode_pos = RIP;
+      next_rip = Some(decode_pos + fetch_rel32());
       Ok()
     },
 
     // EB: JMP rel8 (f64)
     235 => {
-      RIP = decode_pos + fetch_rel8();
-      decode_pos = RIP;
+      next_rip = Some(decode_pos + fetch_rel8());
       Ok()
     },
 
@@ -1444,8 +1437,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let cc : cc_idx = op - 112;
       let offset = fetch_rel8();
       if eval_cc(cc) then {
-        RIP = decode_pos + offset;
-        decode_pos = RIP;
+        next_rip = Some(decode_pos + offset);
       };
       Ok()
     },
