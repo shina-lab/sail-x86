@@ -221,7 +221,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         208 => {
           let ecx_val : dword = read_gpr32(RCX);
           if ecx_val == 0x00000000 then {
-            write_gpr32(RAX, 0x00000007);
+            // bit 0=x87, 1=SSE, 2=AVX, 5=opmask, 6=ZMM_Hi256, 7=Hi16_ZMM
+            write_gpr32(RAX, 0x000000E7);
             write_gpr32(RDX, 0x00000000);
             Ok()
           } else {

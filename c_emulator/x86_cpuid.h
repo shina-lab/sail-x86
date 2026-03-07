@@ -39,7 +39,13 @@ static constexpr u32 CPUID_1_ECX_OSXSAVE    = 1 << 27;
 static constexpr u32 CPUID_1_ECX_AVX        = 1 << 28;
 
 // CPUID leaf 7, subleaf 0: EBX feature bits
-static constexpr u32 CPUID_7_EBX_ERMS = 1 << 9;
+static constexpr u32 CPUID_7_EBX_AVX2    = 1 << 5;
+static constexpr u32 CPUID_7_EBX_ERMS    = 1 << 9;
+static constexpr u32 CPUID_7_EBX_AVX512F = 1 << 16;
+static constexpr u32 CPUID_7_EBX_AVX512DQ = 1 << 17;
+static constexpr u32 CPUID_7_EBX_AVX512CD = 1 << 28;
+static constexpr u32 CPUID_7_EBX_AVX512BW = 1 << 30;
+static constexpr u32 CPUID_7_EBX_AVX512VL = 1u << 31;
 
 // CPUID leaf 0x80000001: ECX feature bits
 static constexpr u32 CPUID_EXT1_ECX_LAHF  = 1 << 0;
@@ -65,7 +71,15 @@ static constexpr u32 EMU_CPUID_1_ECX =
   CPUID_1_ECX_POPCNT | CPUID_1_ECX_AESNI |
   CPUID_1_ECX_XSAVE | CPUID_1_ECX_OSXSAVE | CPUID_1_ECX_AVX;
 
-static constexpr u32 EMU_CPUID_7_EBX = CPUID_7_EBX_ERMS;
+// Note: AVX-512 CPUID bits are defined above but not yet advertised.
+// The EVEX decoder works for static binaries, but glibc's dynamic linker
+// dispatches to AVX-512-optimized routines (memset, memcpy, etc.) that use
+// many EVEX instructions we haven't implemented yet, causing #UD.
+// Enable when AVX-512 coverage is more complete.
+static constexpr u32 EMU_CPUID_7_EBX =
+  CPUID_7_EBX_AVX2 | CPUID_7_EBX_ERMS |
+  CPUID_7_EBX_AVX512F | CPUID_7_EBX_AVX512DQ |
+  CPUID_7_EBX_AVX512CD | CPUID_7_EBX_AVX512BW | CPUID_7_EBX_AVX512VL;
 
 static constexpr u32 EMU_CPUID_EXT1_ECX =
   CPUID_EXT1_ECX_LAHF | CPUID_EXT1_ECX_LZCNT;

@@ -30,6 +30,8 @@ decode {
     insn_baseline.sail,
     insn_groups.sail,
     insn_vex.sail,
+    insn_avx512_int.sail,
+    insn_evex.sail,
     insn_dispatch.sail,
     fetch_execute.sail,
 }

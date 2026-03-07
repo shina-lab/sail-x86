@@ -102,6 +102,15 @@ int main(int argc, char *argv[], char *envp[]) {
       u32 err = result.variants.zFault.ztup1;
       fprintf(stderr, "sail-x86: fault #%ld (error code 0x%x) at RIP=0x%lx after %lu instructions\n",
               vec, err, model.zRIP, insn_count);
+      // Dump instruction bytes at fault address for debugging
+      if (debug) {
+        fprintf(stderr, "  bytes:");
+        u8 insn_bytes[16];
+        model.memory.read(model.zRIP, insn_bytes, 16);
+        for (int i = 0; i < 16; i++)
+          fprintf(stderr, " %02x", insn_bytes[i]);
+        fprintf(stderr, "\n");
+      }
       model.model_fini();
       return 128 + (int)vec;
     }

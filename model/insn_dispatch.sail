@@ -461,6 +461,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       dispatch_opcode_2byte(opcode2, pfx)
     },
 
+    // 62: EVEX prefix (in 64-bit mode; BOUND in 32-bit mode)
+    98 => dispatch_evex(),
+
     // 63: MOVSXD r64, r/m32 (in 64-bit mode)
     99 => {
       let modrm = fetch_byte();

@@ -285,6 +285,18 @@ enum zFPCompareResult Model::z__compare_sd(u64 a, u64 b) {
     return zFP_EQ;
 }
 
+enum zFPCompareResult Model::z__compare_sh(u64 a, u64 b) {
+    // Convert FP16 to FP32 for comparison
+    _Float16 ha, hb;
+    uint16_t ua = (uint16_t)a, ub = (uint16_t)b;
+    memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2);
+    float fa = (float)ha, fb = (float)hb;
+    if (__builtin_isnan(fa) || __builtin_isnan(fb)) return zFP_UNORDERED;
+    if (fa < fb) return zFP_LT;
+    if (fa > fb) return zFP_GT;
+    return zFP_EQ;
+}
+
 // =========================================================================
 // Int <-> Float conversions
 // =========================================================================
@@ -656,20 +668,29 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
         break;
     case 0xD:
         if (subleaf == 0) {
-            // XSAVE: x87 (bit 0) + SSE (bit 1) + AVX (bit 2)
-            result.ztup0 = 0x00000007;  // XCR0 supported bits
-            result.ztup1 = 0x00000340;  // max size for enabled features (832 bytes with AVX)
-            result.ztup2 = 0x00000340;  // max size for all features
+            // XSAVE: x87(0) + SSE(1) + AVX(2) + opmask(5) + ZMM_Hi256(6) + Hi16_ZMM(7)
+            result.ztup0 = 0x000000E7;  // XCR0 supported bits
+            result.ztup1 = 0x00000980;  // max size (2432 bytes)
+            result.ztup2 = 0x00000980;
             result.ztup3 = 0x00000000;
         } else if (subleaf == 1) {
-            // XSAVE sub-features: none
             result.ztup0 = 0x00000000;
         } else if (subleaf == 2) {
-            // AVX state component: 256 bytes at offset 576
-            result.ztup0 = 0x00000100;  // size = 256 bytes
-            result.ztup1 = 0x00000240;  // offset = 576
-            result.ztup2 = 0x00000000;
-            result.ztup3 = 0x00000000;
+            // AVX state (component 2): 256 bytes at offset 576
+            result.ztup0 = 0x00000100;
+            result.ztup1 = 0x00000240;
+        } else if (subleaf == 5) {
+            // Opmask state (component 5): 64 bytes at offset 832
+            result.ztup0 = 0x00000040;
+            result.ztup1 = 0x00000340;
+        } else if (subleaf == 6) {
+            // ZMM_Hi256 (component 6): 512 bytes at offset 896
+            result.ztup0 = 0x00000200;
+            result.ztup1 = 0x00000380;
+        } else if (subleaf == 7) {
+            // Hi16_ZMM (component 7): 1024 bytes at offset 1408
+            result.ztup0 = 0x00000400;
+            result.ztup1 = 0x00000580;
         }
         break;
     case 0x80000000:
@@ -1289,6 +1310,361 @@ void Model::z__fxrstor64(zExecutionResult *rop, u64 addr) {
   fxrstor_common(*this, addr);
   rop->kind = Kind_zOk;
   rop->variants.zOk = UNIT;
+}
+
+// =========================================================================
+// FMA (fused multiply-add) primitives
+// =========================================================================
+
+u64 Model::z__f32_fmadd(u64 a, u64 b, u64 c) {
+    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    float fr = fmaf(fa, fb, fc);
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__f32_fmsub(u64 a, u64 b, u64 c) {
+    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    float fr = fmaf(fa, fb, -fc);
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__f32_fnmadd(u64 a, u64 b, u64 c) {
+    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    float fr = fmaf(-fa, fb, fc);
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__f32_fnmsub(u64 a, u64 b, u64 c) {
+    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    float fr = fmaf(-fa, fb, -fc);
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__f64_fmadd(u64 a, u64 b, u64 c) {
+    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    double fr = fma(fa, fb, fc);
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+u64 Model::z__f64_fmsub(u64 a, u64 b, u64 c) {
+    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    double fr = fma(fa, fb, -fc);
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+u64 Model::z__f64_fnmadd(u64 a, u64 b, u64 c) {
+    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    double fr = fma(-fa, fb, fc);
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
+    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    double fr = fma(-fa, fb, -fc);
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+
+// =========================================================================
+// Unsigned integer ↔ float conversions
+// =========================================================================
+
+u64 Model::z__f32_to_uint32_trunc(u64 a) {
+    float fa; memcpy(&fa, &a, 4);
+    return (u32)fa;
+}
+u64 Model::z__f32_to_uint32(u64 a) {
+    float fa; memcpy(&fa, &a, 4);
+    return (u32)rintf(fa);
+}
+u64 Model::z__f32_to_uint64_trunc(u64 a) {
+    float fa; memcpy(&fa, &a, 4);
+    return (u64)fa;
+}
+u64 Model::z__f32_to_uint64(u64 a) {
+    float fa; memcpy(&fa, &a, 4);
+    return (u64)rintf(fa);
+}
+u64 Model::z__f64_to_uint32_trunc(u64 a) {
+    double fa; memcpy(&fa, &a, 8);
+    return (u32)fa;
+}
+u64 Model::z__f64_to_uint32(u64 a) {
+    double fa; memcpy(&fa, &a, 8);
+    return (u32)rint(fa);
+}
+u64 Model::z__f64_to_uint64_trunc(u64 a) {
+    double fa; memcpy(&fa, &a, 8);
+    return (u64)fa;
+}
+u64 Model::z__f64_to_uint64(u64 a) {
+    double fa; memcpy(&fa, &a, 8);
+    return (u64)rint(fa);
+}
+u64 Model::z__uint32_to_f32(u64 a) {
+    float fr = (float)(u32)a;
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__uint64_to_f32(u64 a) {
+    float fr = (float)(u64)a;
+    u32 r; memcpy(&r, &fr, 4); return r;
+}
+u64 Model::z__uint32_to_f64(u64 a) {
+    double fr = (double)(u32)a;
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+u64 Model::z__uint64_to_f64(u64 a) {
+    double fr = (double)(u64)a;
+    u64 r; memcpy(&r, &fr, 8); return r;
+}
+
+// =========================================================================
+// AVX-512 FP math: VSCALEF, VGETEXP, VRCP14, VRSQRT14
+// =========================================================================
+
+// VSCALEF: result = src1 * 2^(floor(src2))
+u64 Model::z__f32_scalef(u64 a, u64 b) {
+    float fa, fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
+    float result = fa * powf(2.0f, floorf(fb));
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_scalef(u64 a, u64 b) {
+    double da, db;
+    memcpy(&da, &a, 8);
+    memcpy(&db, &b, 8);
+    double result = da * pow(2.0, floor(db));
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VGETEXP: extract unbiased exponent as FP value
+u64 Model::z__f32_getexp(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    if (fa == 0.0f || fa == -0.0f) {
+        float r = -INFINITY; u32 rr; memcpy(&rr, &r, 4); return rr;
+    }
+    if (std::isinf(fa)) {
+        float r = INFINITY; u32 rr; memcpy(&rr, &r, 4); return rr;
+    }
+    if (std::isnan(fa)) {
+        u32 rr; memcpy(&rr, &fa, 4); return rr;
+    }
+    int exp;
+    frexpf(fabsf(fa), &exp);
+    float result = (float)(exp - 1);  // frexp returns [0.5, 1.0) so exp is biased by 1
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_getexp(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    if (da == 0.0 || da == -0.0) {
+        double r = -INFINITY; memcpy(&a, &r, 8); return a;
+    }
+    if (std::isinf(da)) {
+        double r = INFINITY; memcpy(&a, &r, 8); return a;
+    }
+    if (std::isnan(da)) {
+        return a;  // NaN passthrough
+    }
+    int exp;
+    frexp(fabs(da), &exp);
+    double result = (double)(exp - 1);
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VRCP14: approximate reciprocal (host FPU gives better than 14-bit precision)
+u64 Model::z__f32_rcp14(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    float result = 1.0f / fa;
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_rcp14(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    double result = 1.0 / da;
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VRSQRT14: approximate reciprocal square root
+u64 Model::z__f32_rsqrt14(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    float result = 1.0f / sqrtf(fa);
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_rsqrt14(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    double result = 1.0 / sqrt(da);
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VRCP28: approximate reciprocal (28-bit precision, same as host FPU)
+u64 Model::z__f32_rcp28(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    float result = 1.0f / fa;
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_rcp28(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    double result = 1.0 / da;
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VRSQRT28: approximate reciprocal square root (28-bit precision)
+u64 Model::z__f32_rsqrt28(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    float result = 1.0f / sqrtf(fa);
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_rsqrt28(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    double result = 1.0 / sqrt(da);
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VEXP2: approximate 2^x
+u64 Model::z__f32_exp2(u64 a) {
+    float fa;
+    memcpy(&fa, &a, 4);
+    float result = exp2f(fa);
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_exp2(u64 a) {
+    double da;
+    memcpy(&da, &a, 8);
+    double result = exp2(da);
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VRNDSCALE: round to number of fraction bits specified by imm8
+// imm8[3:0] = M (number of fraction bits), imm8[7:4] = rounding control
+u64 Model::z__f32_rndscale(u64 a, u64 imm) {
+    float fa; memcpy(&fa, &a, 4);
+    int rc = (imm >> 2) & 3;
+    // Use host rounding for now (simplified)
+    float result;
+    switch (rc) {
+    case 0: result = nearbyintf(fa); break;  // round to nearest
+    case 1: result = floorf(fa); break;      // round down
+    case 2: result = ceilf(fa); break;       // round up
+    case 3: result = truncf(fa); break;      // round toward zero
+    default: result = nearbyintf(fa); break;
+    }
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_rndscale(u64 a, u64 imm) {
+    double da; memcpy(&da, &a, 8);
+    int rc = (imm >> 2) & 3;
+    double result;
+    switch (rc) {
+    case 0: result = nearbyint(da); break;
+    case 1: result = floor(da); break;
+    case 2: result = ceil(da); break;
+    case 3: result = trunc(da); break;
+    default: result = nearbyint(da); break;
+    }
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VGETMANT: extract normalized mantissa
+// imm8[1:0] = sign control, imm8[3:2] = interval
+u64 Model::z__f32_getmant(u64 a, u64 imm) {
+    float fa; memcpy(&fa, &a, 4);
+    if (std::isnan(fa) || std::isinf(fa) || fa == 0.0f) {
+        // Simplified: return input for special cases
+        u32 r; memcpy(&r, &fa, 4);
+        return r;
+    }
+    int exp;
+    float mantissa = frexpf(fabsf(fa), &exp);
+    // frexp returns [0.5, 1.0), we want [1.0, 2.0) by default
+    mantissa *= 2.0f;
+    // Sign control: imm[1:0]
+    int sc = imm & 3;
+    if (sc == 0) {
+        // src sign
+        if (fa < 0) mantissa = -mantissa;
+    }
+    // else sc=1: positive, sc=2: negative, sc=3: positive
+    u32 r; memcpy(&r, &mantissa, 4);
+    return r;
+}
+
+u64 Model::z__f64_getmant(u64 a, u64 imm) {
+    double da; memcpy(&da, &a, 8);
+    if (std::isnan(da) || std::isinf(da) || da == 0.0) {
+        return a;
+    }
+    int exp;
+    double mantissa = frexp(fabs(da), &exp);
+    mantissa *= 2.0;
+    int sc = imm & 3;
+    if (sc == 0) {
+        if (da < 0) mantissa = -mantissa;
+    }
+    memcpy(&a, &mantissa, 8);
+    return a;
+}
+
+// VREDUCE: reduce = src - round(src) * 2^(-M)
+// Simplified: return src - rndscale(src, imm)
+u64 Model::z__f32_reduce(u64 a, u64 imm) {
+    float fa; memcpy(&fa, &a, 4);
+    u64 rounded = z__f32_rndscale(a, imm);
+    float fr; memcpy(&fr, &rounded, 4);
+    float result = fa - fr;
+    u32 r; memcpy(&r, &result, 4);
+    return r;
+}
+
+u64 Model::z__f64_reduce(u64 a, u64 imm) {
+    double da; memcpy(&da, &a, 8);
+    u64 rounded = z__f64_rndscale(a, imm);
+    double dr; memcpy(&dr, &rounded, 8);
+    double result = da - dr;
+    memcpy(&a, &result, 8);
+    return a;
+}
+
+// VFIXUPIMM: fix up special FP values based on lookup table
+// dst = destination, src1 = first source, src2 = lookup table (int32/int64), imm = control
+u64 Model::z__f32_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
+    // Simplified: for normal cases, return src1 unchanged
+    // A full implementation would classify src1 and dst, then use src2 as a lookup table
+    float fs; memcpy(&fs, &src1, 4);
+    u32 r; memcpy(&r, &fs, 4);
+    return r;
+}
+
+u64 Model::z__f64_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
+    // Simplified: return src1 unchanged for normal values
+    double ds; memcpy(&ds, &src1, 8);
+    memcpy(&dst, &ds, 8);
+    return dst;
 }
 
 } // namespace x86

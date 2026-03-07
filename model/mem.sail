@@ -45,6 +45,11 @@ val mem_write256 : (qword, ymmword) -> unit
 function mem_read256(addr) = mem_read(addr, 32)
 function mem_write256(addr, v) = mem_write(addr, 32, v)
 
+val mem_read512 : qword -> zmmword
+val mem_write512 : (qword, zmmword) -> unit
+function mem_read512(addr) = mem_read(addr, 64)
+function mem_write512(addr, v) = mem_write(addr, 64, v)
+
 // Stack operations using RSP.
 val push64 : qword -> unit
 function push64(v) = {

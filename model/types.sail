@@ -21,6 +21,14 @@ struct Prefixes = {
   vex_l : bool,       // vector length: false=128, true=256
   vex_vvvv : simd_idx,// extra register operand (already complemented)
   vex_w : bool,       // VEX.W (like REX.W for some instructions)
+  // EVEX prefix fields
+  evex_present : bool,  // EVEX prefix was decoded
+  evex_ll : range(0, 3),// vector length: 0=128, 1=256, 2=512
+  evex_vvvvv : simd_idx,// 5-bit source register (vvvv + V')
+  evex_aaa : kreg_idx,  // opmask register index (k0-k7)
+  evex_z : bool,        // zeroing (true) vs merging (false)
+  evex_b : bool,        // broadcast / rounding control
+  evex_rr : bool,       // R' (extends reg to 5 bits)
 }
 
 val default_prefixes : unit -> Prefixes
@@ -40,6 +48,13 @@ function default_prefixes() = struct {
   vex_l = false,
   vex_vvvv = 0,
   vex_w = false,
+  evex_present = false,
+  evex_ll = 0,
+  evex_vvvvv = 0,
+  evex_aaa = 0,
+  evex_z = false,
+  evex_b = false,
+  evex_rr = false,
 }
 
 // =========================================================================

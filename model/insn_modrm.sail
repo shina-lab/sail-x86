@@ -85,6 +85,165 @@ function apply_segment(addr, pfx) = match pfx.seg_override {
   None() => addr,
 }
 
+// Compute EVEX compressed displacement scale factor for "Full" tuple type.
+// Without broadcast: N = vector size in bytes. With broadcast: N = element size.
+val evex_full_disp_n : Prefixes -> range(4, 64)
+function evex_full_disp_n(pfx) =
+  if pfx.evex_b then
+    (if pfx.vex_w then 8 else 4)
+  else match pfx.evex_ll {
+    0 => 16,
+    1 => 32,
+    _ => 64,
+  }
+
+// Decode SIB with EVEX compressed disp8.
+val decode_sib_evex : (byte, range(0, 2), Prefixes, range(1, 64)) -> qword
+function decode_sib_evex(sib, modbits, pfx, disp_n) = {
+  let scale : range(0, 3) = unsigned(sib[7..6]);
+  let index_raw : range(0, 7) = unsigned(sib[5..3]);
+  let base_raw : range(0, 7) = unsigned(sib[2..0]);
+
+  let base_idx : gpr_idx = extend_reg(base_raw, pfx.rex_b);
+  let index_idx : gpr_idx = extend_reg(index_raw, pfx.rex_x);
+
+  let base_val : qword =
+    if base_raw == 5 & modbits == 0 then {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      sign_extend(b3 @ b2 @ b1 @ b0)
+    } else if base_raw == 5 & modbits == 1 then {
+      let d8 = fetch_byte();
+      let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
+      read_gpr64(base_idx) + scaled_disp
+    } else if base_raw == 5 & modbits == 2 then {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      read_gpr64(base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+    } else {
+      if modbits == 0 then
+        read_gpr64(base_idx)
+      else if modbits == 1 then {
+        let d8 = fetch_byte();
+        let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
+        read_gpr64(base_idx) + scaled_disp
+      } else {
+        let b0 = fetch_byte();
+        let b1 = fetch_byte();
+        let b2 = fetch_byte();
+        let b3 = fetch_byte();
+        read_gpr64(base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+      }
+    };
+
+  let index_val : qword =
+    if index_raw == 4 & not_bool(pfx.rex_x) then
+      0x0000000000000000
+    else {
+      let idx_reg = read_gpr64(index_idx);
+      match scale {
+        0 => idx_reg,
+        1 => idx_reg << 1,
+        2 => idx_reg << 2,
+        3 => idx_reg << 3,
+      }
+    };
+
+  base_val + index_val
+}
+
+// Decode VSIB for gather/scatter instructions.
+// Returns base address (GPR + displacement) and vector index register + scale.
+// The SIB byte's index field references a vector register (extended by EVEX.V'/X).
+val decode_vsib_evex : (byte, Prefixes, range(1, 64)) -> VSIB
+function decode_vsib_evex(modrm, pfx, disp_n) = {
+  let modbits : range(0, 3) = unsigned(modrm[7..6]);
+  // VSIB always has rm=100 (SIB present), mod != 11
+  let sib = fetch_byte();
+  let scale : range(0, 3) = unsigned(sib[7..6]);
+  let index_raw : range(0, 7) = unsigned(sib[5..3]);
+  let base_raw : range(0, 7) = unsigned(sib[2..0]);
+
+  // Base register uses EVEX.B extension (same as normal SIB)
+  let base_idx : gpr_idx = extend_reg(base_raw, pfx.rex_b);
+
+  // Index is a vector register: {EVEX.V', EVEX.X, SIB.index[2:0]} = 5-bit simd_idx
+  // EVEX.V' is the inverted V' bit stored in evex byte3[3]
+  // For VSIB, the index register is {V', X, index[2:0]}
+  let rr_bit : bits(1) = if pfx.evex_rr then 0b1 else 0b0;
+  let x_bit : bits(1) = if pfx.rex_x then 0b1 else 0b0;
+  let vidx : simd_idx = unsigned(rr_bit @ x_bit @ sib[5..3]);
+
+  let base_val : qword =
+    if base_raw == 5 & modbits == 0 then {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      sign_extend(b3 @ b2 @ b1 @ b0)
+    } else if modbits == 0 then {
+      read_gpr64(base_idx)
+    } else if modbits == 1 then {
+      let d8 = fetch_byte();
+      let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
+      read_gpr64(base_idx) + scaled_disp
+    } else {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      read_gpr64(base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+    };
+
+  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }
+}
+
+// Decode ModR/M with EVEX compressed disp8. disp_n is the scale factor.
+val decode_rm_evex : (byte, Prefixes, range(1, 64)) -> RM
+function decode_rm_evex(modrm, pfx, disp_n) = {
+  let modbits : range(0, 3) = unsigned(modrm[7..6]);
+  let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
+
+  if modbits == 3 then {
+    RM_reg(extend_reg(rm_raw, pfx.rex_b))
+  } else if modbits == 0 & rm_raw == 5 then {
+    // RIP-relative: [RIP + disp32] (no compression for disp32)
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    let b2 = fetch_byte();
+    let b3 = fetch_byte();
+    let disp : qword = sign_extend(b3 @ b2 @ b1 @ b0);
+    rip_rel_pending = true;
+    rip_rel_disp = disp;
+    RM_mem(apply_segment(decode_pos + disp, pfx))
+  } else {
+    let addr : qword =
+      if rm_raw == 4 then {
+        let sib = fetch_byte();
+        decode_sib_evex(sib, modbits, pfx, disp_n)
+      } else if modbits == 0 then {
+        read_gpr64(extend_reg(rm_raw, pfx.rex_b))
+      } else if modbits == 1 then {
+        // disp8 * N
+        let d8 = fetch_byte();
+        let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
+        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + scaled_disp
+      } else {
+        // disp32 (no compression)
+        let b0 = fetch_byte();
+        let b1 = fetch_byte();
+        let b2 = fetch_byte();
+        let b3 = fetch_byte();
+        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
+      };
+    RM_mem(apply_segment(addr, pfx))
+  }
+}
+
 // Decode ModR/M byte and return the r/m operand (register or memory address).
 // The reg field is decoded separately by the caller via modrm_reg().
 // The modrm byte has already been fetched by the caller.

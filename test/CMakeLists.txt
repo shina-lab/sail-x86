@@ -43,6 +43,13 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/x87_test.c
 )
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/avx512_test
+  COMMAND gcc -static -nostdlib -mavx512f -o ${CMAKE_CURRENT_BINARY_DIR}/avx512_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/avx512_test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/avx512_test.c
+)
+
 add_custom_target(test_binaries ALL
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/hello
@@ -51,6 +58,7 @@ add_custom_target(test_binaries ALL
     ${CMAKE_CURRENT_BINARY_DIR}/avx_test
     ${CMAKE_CURRENT_BINARY_DIR}/auxv_test
     ${CMAKE_CURRENT_BINARY_DIR}/x87_test
+    ${CMAKE_CURRENT_BINARY_DIR}/avx512_test
 )
 
 # Test: hello (raw syscall, no libc)
@@ -99,6 +107,12 @@ add_test(
 add_test(
   NAME x87_test
   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/x87_test
+)
+
+# Test: AVX-512 instructions
+add_test(
+  NAME avx512_test
+  COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/avx512_test
 )
 
 # Test: /usr/bin/wc (dynamic binary)

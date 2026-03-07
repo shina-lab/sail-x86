@@ -154,6 +154,23 @@ function write_xmm_legacy(idx, v) = {
 }
 
 // =========================================================================
+// AVX-512 Opmask registers (k0-k7)
+//
+// k0 is special: when used as a writemask, it means "no masking" (all 1s).
+// k1-k7 are general-purpose mask registers.
+// =========================================================================
+
+type kreg_idx = range(0, 7)
+
+register KREG : vector(8, qword)
+
+val read_kreg : kreg_idx -> qword
+function read_kreg(idx) = KREG[idx]
+
+val write_kreg : (kreg_idx, qword) -> unit
+function write_kreg(idx, v) = KREG[idx] = v
+
+// =========================================================================
 // Segment registers
 // =========================================================================
 
@@ -236,4 +253,11 @@ val write_index_dst : (AddressSize, qword) -> unit
 function write_index_dst(asz, v) = match asz {
   AS32 => write_gpr32(RDI, v[31..0]),
   _    => write_gpr64(RDI, v),
+}
+
+// VSIB (Vector SIB) addressing info for gather/scatter
+struct VSIB = {
+  vsib_base : qword,        // base address (GPR + displacement)
+  vsib_vidx : simd_idx,     // vector register containing indices
+  vsib_scale : range(0, 3), // scale factor (0=1, 1=2, 2=4, 3=8)
 }
