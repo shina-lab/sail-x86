@@ -326,7 +326,7 @@ struct KvmVm {
     struct kvm_xcrs xcrs = {};
     xcrs.nr_xcrs = 1;
     xcrs.xcrs[0].xcr = 0;  // XCR0
-    xcrs.xcrs[0].value = 0x7;  // x87 + SSE + AVX
+    xcrs.xcrs[0].value = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
     int xcr_ret = ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs);
     if (xcr_ret < 0)
       fprintf(stderr, "KVM_SET_XCRS failed: %s\n", strerror(errno));
@@ -3884,6 +3884,84 @@ std::vector<TestCase> build_tests() {
     // AF (SCASD)
     tests.push_back({"scasd (match)", cat, {0xAF},
                       s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+  }
+
+  // =====================================================================
+  // 51. AVX-512 (EVEX-encoded 128-bit) — basic tests
+  //
+  // EVEX 4-byte prefix: 62 [P0] [P1] [P2] opcode ModRM
+  // P0 = R̄.X̄.B̄.R̄'.00.mm  (mm=01 for 0F map)
+  // P1 = W.vvvv.1.pp      (pp=01 for 66 prefix)
+  // P2 = z.L'L.b.V̄'.aaa   (L'L=00 for 128, aaa=000 for no mask)
+  //
+  // For xmm0 = xmm1 op xmm2: R̄=X̄=B̄=R̄'=1, vvvv=~1=1110, V̄'=1
+  //   P0 = 0xF1, P1 = 0x75 (W=0,66), P2 = 0x08 (128,no mask)
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // VPADDD xmm0, xmm1, xmm2: 62 F1 75 08 FE C2
+    add_xmm("evex vpaddd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFE, 0xC2}, s, 0x7);
+
+    // VPSUBD xmm0, xmm1, xmm2: 62 F1 75 08 FA C2
+    add_xmm("evex vpsubd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFA, 0xC2}, s, 0x7);
+
+    // VPAND xmm0, xmm1, xmm2 (VPANDD): 62 F1 75 08 DB C2
+    add_xmm("evex vpandd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDB, 0xC2}, s, 0x7);
+
+    // VPOR xmm0, xmm1, xmm2 (VPORD): 62 F1 75 08 EB C2
+    add_xmm("evex vpord xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEB, 0xC2}, s, 0x7);
+
+    // VPXOR xmm0, xmm1, xmm2 (VPXORD): 62 F1 75 08 EF C2
+    add_xmm("evex vpxord xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x7);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // VADDPS xmm0, xmm1, xmm2 (EVEX.128.NP.0F W0):
+    // P0=0xF1, P1=0x70 (W=0,vvvv=1110,1,pp=00), P2=0x08
+    add_xmm("evex vaddps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x58, 0xC2}, s, 0x7);
+
+    // VSUBPS xmm0, xmm1, xmm2
+    add_xmm("evex vsubps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x5C, 0xC2}, s, 0x7);
+
+    // VMULPS xmm0, xmm1, xmm2
+    add_xmm("evex vmulps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x59, 0xC2}, s, 0x7);
+
+    // VMOVAPS xmm0, xmm1 (EVEX.128.NP.0F W0):
+    // P0=0xF1, P1=0x7C (vvvv=1111,1,pp=00), P2=0x08
+    add_xmm("evex vmovaps xmm0,xmm1",
+            {0x62, 0xF1, 0x7C, 0x08, 0x28, 0xC1}, s, 0x3);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(3.0, 4.0);
+
+    // VADDPD xmm0, xmm1, xmm2 (EVEX.128.66.0F W1):
+    // P0=0xF1, P1=0xF5 (W=1,vvvv=1110,1,pp=01), P2=0x08
+    add_xmm("evex vaddpd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x58, 0xC2}, s, 0x7);
+
+    // VMULPD xmm0, xmm1, xmm2
+    add_xmm("evex vmulpd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x59, 0xC2}, s, 0x7);
   }
 
   add_systematic_tests(tests);

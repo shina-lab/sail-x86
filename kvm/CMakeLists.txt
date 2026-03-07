@@ -40,6 +40,7 @@ set(KVM_CATEGORIES
   ENTER
   CMPXCHG16B
   AVX
+  EVEX
 )
 
 foreach(cat ${KVM_CATEGORIES})
