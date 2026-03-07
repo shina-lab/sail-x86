@@ -478,6 +478,9 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len) {
   model.zDF = (flags >> 10) & 1;
   model.zOF = (flags >> 11) & 1;
 
+  // Initialize x87 FPU to default state (CW=0x037F, etc.)
+  model.zx87_init(UNIT);
+
   // Set XMM registers and MXCSR
   model.mxcsr_state.mxcsr = tc.initial.mxcsr;
   for (int i = 0; i < 16; i++) {
@@ -3325,7 +3328,108 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 43. AVX (VEX-encoded 128-bit) — packed/scalar FP and integer
+  // 43. x87 FPU — tests using memory store to verify results
+  //     We use FILD/FLD to load values, operate, then FISTP/FSTP to store
+  //     results back to memory for comparison.
+  // =====================================================================
+  cat = "x87";
+  {
+    // FLDZ + FSTP m64fp: push 0.0 then store to [RDI]
+    // D9 EE (FLDZ) + DD 1F (FSTP m64fp [RDI])
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    tests.push_back({"fldz; fstp [rdi]", cat, {0xD9, 0xEE, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLD1 + FSTP m64fp: push 1.0 then store
+    // D9 E8 (FLD1) + DD 1F (FSTP m64fp [RDI])
+    tests.push_back({"fld1; fstp [rdi]", cat, {0xD9, 0xE8, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLDPI + FSTP m64fp: push pi then store
+    // D9 EB (FLDPI) + DD 1F (FSTP m64fp [RDI])
+    tests.push_back({"fldpi; fstp [rdi]", cat, {0xD9, 0xEB, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLDL2E + FSTP m64fp: push log2(e) then store
+    // D9 EA (FLDL2E) + DD 1F (FSTP m64fp)
+    tests.push_back({"fldl2e; fstp [rdi]", cat, {0xD9, 0xEA, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLDLN2 + FSTP m64fp: push ln(2) then store
+    // D9 ED (FLDLN2) + DD 1F
+    tests.push_back({"fldln2; fstp [rdi]", cat, {0xD9, 0xED, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FILD m32int + FISTP m32int: load int, store int back
+    // DB 07 (FILD m32 [RDI]) + DB 1F (FISTP m32 [RDI])
+    u8 int_val[] = {42, 0, 0, 0};
+    tests.push_back({"fild [rdi]; fistp [rdi]", cat,
+                      {0xDB, 0x07, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {int_val, int_val + 4}, 4});
+
+    // FADD: FILD 10 + FILD 32 + FADDP + FISTP → 42
+    // Load 10 at [RDI], 32 at [RDI+4]
+    u8 add_data[] = {10, 0, 0, 0, 32, 0, 0, 0};
+    // FILD [RDI] (DB 07) + FILD [RDI+4] (DB 47 04) + FADDP (DE C1) + FISTP [RDI] (DB 1F)
+    tests.push_back({"fild+fild+faddp+fistp", cat,
+                      {0xDB, 0x07, 0xDB, 0x47, 0x04, 0xDE, 0xC1, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {add_data, add_data + 8}, 4});
+
+    // FSUB: FILD 42 + FILD 10 + FSUBRP + FISTP → 32
+    // FILD [RDI] (DB 07) + FILD [RDI+4] (DB 47 04) + FSUBRP (DE E1) + FISTP [RDI] (DB 1F)
+    u8 sub_data[] = {42, 0, 0, 0, 10, 0, 0, 0};
+    tests.push_back({"fild+fild+fsubrp+fistp", cat,
+                      {0xDB, 0x07, 0xDB, 0x47, 0x04, 0xDE, 0xE1, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {sub_data, sub_data + 8}, 4});
+
+    // FMUL: FILD 6 + FILD 7 + FMULP + FISTP → 42
+    u8 mul_data[] = {6, 0, 0, 0, 7, 0, 0, 0};
+    // FILD [RDI] (DB 07) + FILD [RDI+4] (DB 47 04) + FMULP (DE C9) + FISTP [RDI] (DB 1F)
+    tests.push_back({"fild+fild+fmulp+fistp", cat,
+                      {0xDB, 0x07, 0xDB, 0x47, 0x04, 0xDE, 0xC9, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {mul_data, mul_data + 8}, 4});
+
+    // FCHS: FILD 42 + FCHS + FISTP → -42
+    u8 chs_data[] = {42, 0, 0, 0};
+    // FILD [RDI] (DB 07) + FCHS (D9 E0) + FISTP [RDI] (DB 1F)
+    tests.push_back({"fild+fchs+fistp", cat,
+                      {0xDB, 0x07, 0xD9, 0xE0, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {chs_data, chs_data + 4}, 4});
+
+    // FABS: FILD -5 + FABS + FISTP → 5
+    u8 abs_data[] = {0xFB, 0xFF, 0xFF, 0xFF};  // -5 as int32
+    // FILD [RDI] (DB 07) + FABS (D9 E1) + FISTP [RDI] (DB 1F)
+    tests.push_back({"fild+fabs+fistp", cat,
+                      {0xDB, 0x07, 0xD9, 0xE1, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {abs_data, abs_data + 4}, 4});
+
+    // FXCH: FLD1 + FLDZ + FXCH + FSTP m64fp → should store 1.0 (was on top after FXCH)
+    // D9 E8 (FLD1) + D9 EE (FLDZ) + D9 C9 (FXCH ST(1)) + DD 1F (FSTP [RDI])
+    tests.push_back({"fld1+fldz+fxch+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xD9, 0xC9, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FSTCW/FLDCW: store control word, load it back
+    // D9 3F (FSTCW [RDI]) — stores the FPU control word
+    tests.push_back({"fstcw [rdi]", cat, {0xD9, 0x3F},
+                      s, FL_ALL, 0, false, {}, 2});
+
+    // FINIT + FSTSW AX: initialize FPU, store status word to AX
+    // DB E3 (FNINIT) + DF E0 (FNSTSW AX)
+    tests.push_back({"finit+fstsw ax", cat, {0xDB, 0xE3, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FUCOMI: compare ST(0) with ST(1), set EFLAGS
+    // FLD1 + FLDZ + DB E9 (FUCOMI ST,ST(1)) — compares 0.0 vs 1.0
+    tests.push_back({"fld1+fldz+fucomi", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xDB, 0xE9},
+                      s, FL_ALL, 0, false, {}, 0});
+  }
+
+  // =====================================================================
+  // 44. AVX (VEX-encoded 128-bit) — packed/scalar FP and integer
   //
   // VEX 2-byte encoding: C5 [R̄.vvvv.L.pp] opcode ModRM
   //   R̄=1 for xmm0-7, vvvv = ~src1 (inverted), L=0 for 128-bit

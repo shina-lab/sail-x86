@@ -36,6 +36,7 @@ set(KVM_CATEGORIES
   MOVxPS
   String
   EMMS
+  x87
   AVX
 )
 
