@@ -250,12 +250,20 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] VCVTPS2DQ, VCVTTPS2DQ, VCVTDQ2PS
 - [x] VPMINSB/VPMINSD/VPMINUD, VPMAXSB/VPMAXSD/VPMAXUD
 - [x] VPACKUSDW, VPMULLD, VPMULUDQ, VPMULLW
-- [x] VPABSB/VPABSD
+- [x] VPABSB/VPABSD/VPABSW/VPABSQ
+- [x] VPMADDUBSW/VPMULHRSW/VPMADDWD/VPSADBW
+- [x] VPMULHUW/VPMULHW/VPAVGB/VPAVGW/VPMAXUW
+- [x] VMOVDQA32/VMOVD/VMOVQ
+- [x] VPADDB/VPADDW/VPSUBW/VPANDND
+- [x] VPADDSB/VPADDUSB/VPSUBSB/VPSUBUSB
+- [x] VUCOMISS/VUCOMISD
+- [x] VPALIGNR/VPEXTRB/VPEXTRD/VPINSRB/VPINSRD
+- [x] VPSHUFD/VPSHUFHW/VPSHUFLW
+- [x] VPERMILPS (register + immediate), VPSHUFB
 - [x] 256-bit forms (VPADDD, VADDPS, VPXORD, VMULPS)
 - [ ] 512-bit forms (need ZMM harness support)
 - [ ] Masking (k registers)
 - [ ] Gather/scatter
-- [x] VPERMILPS (register + immediate), VPSHUFB
 
 ## x87 FPU
 
@@ -344,7 +352,7 @@ Tested instructions are marked with [x], untested with [ ].
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
 | AVX (VEX)                 | 55+    | 55+   | 100%     |
-| AVX-512 (EVEX)            | 98     | 110+  | 89%      |
+| AVX-512 (EVEX)            | 111    | 120+  | 93%      |
 | x87 FPU                   | 47     | 48    | 98%      |
 | String Instructions        | 13     | 13    | 100%     |
-| **Total**                 | **~510**| **~550+** | **~93%** |
+| **Total**                 | **~530**| **~560+** | **~95%** |
