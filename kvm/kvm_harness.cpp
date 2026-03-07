@@ -4642,7 +4642,69 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 67. VEX VFMADDSUB / VFMSUBADD
+  // 67. EVEX 0F38 arithmetic/comparison
+  // EVEX.128.66.0F38: P0=0xF2 (mm=10), P1=0x75 (W=0,66), P2=0x08
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x0807060504030201, 0x100F0E0D0C0B0A09);
+
+    // VPMINSB xmm0, xmm1, xmm2: 62 F2 75 08 38 C2
+    add_xmm("evex vpminsb xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x38, 0xC2}, s, 0x7);
+
+    // VPMINSD xmm0, xmm1, xmm2: 62 F2 75 08 39 C2
+    add_xmm("evex vpminsd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x39, 0xC2}, s, 0x7);
+
+    // VPMAXSB xmm0, xmm1, xmm2: 62 F2 75 08 3C C2
+    add_xmm("evex vpmaxsb xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3C, 0xC2}, s, 0x7);
+
+    // VPMAXSD xmm0, xmm1, xmm2: 62 F2 75 08 3D C2
+    add_xmm("evex vpmaxsd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3D, 0xC2}, s, 0x7);
+
+    // VPMINUD xmm0, xmm1, xmm2: 62 F2 75 08 3B C2
+    add_xmm("evex vpminud xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3B, 0xC2}, s, 0x7);
+
+    // VPMAXUD xmm0, xmm1, xmm2: 62 F2 75 08 3F C2
+    add_xmm("evex vpmaxud xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3F, 0xC2}, s, 0x7);
+
+    // VPACKUSDW xmm0, xmm1, xmm2: 62 F2 75 08 2B C2
+    add_xmm("evex vpackusdw xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x2B, 0xC2}, s, 0x7);
+
+    // VPMULLD xmm0, xmm1, xmm2: 62 F2 75 08 40 C2
+    add_xmm("evex vpmulld xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x40, 0xC2}, s, 0x7);
+
+    // VPMULUDQ xmm0, xmm1, xmm2: 62 F1 F5 08 F4 C2 (66,W=1)
+    add_xmm("evex vpmuludq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xF4, 0xC2}, s, 0x7);
+
+    // VPMULLW xmm0, xmm1, xmm2: 62 F1 75 08 D5 C2 (0F map)
+    add_xmm("evex vpmullw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD5, 0xC2}, s, 0x7);
+
+    // VPABSB xmm0, xmm1: EVEX.128.66.0F38.W0 1C /r
+    // 62 F2 7D 08 1C C1 (vvvv=1111 unused)
+    s.xmm[1] = xmm_from_u64(0x80FF01027F00FE03, 0x0405060708090A0B);
+    add_xmm("evex vpabsb xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x1C, 0xC1}, s, 0x3);
+
+    // VPABSD xmm0, xmm1: 62 F2 7D 08 1E C1
+    add_xmm("evex vpabsd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x1E, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 68. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
   cat = "AVX";
   {

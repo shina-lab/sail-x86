@@ -245,10 +245,17 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] VFNMADD132/213/231 PS
 - [x] VFNMSUB132/213/231 PS
 - [x] VFMADDSUB/VFMSUBADD
-- [ ] 256-bit and 512-bit forms
+- [x] VSHUFPS, VUNPCKLPS/VUNPCKHPS
+- [x] VPUNPCKLDQ, VPUNPCKLQDQ
+- [x] VCVTPS2DQ, VCVTTPS2DQ, VCVTDQ2PS
+- [x] VPMINSB/VPMINSD/VPMINUD, VPMAXSB/VPMAXSD/VPMAXUD
+- [x] VPACKUSDW, VPMULLD, VPMULUDQ, VPMULLW
+- [x] VPABSB/VPABSD
+- [x] 256-bit forms (VPADDD, VADDPS, VPXORD, VMULPS)
+- [ ] 512-bit forms (need ZMM harness support)
 - [ ] Masking (k registers)
 - [ ] Gather/scatter
-- [ ] VPERM/VSHUF variants
+- [ ] VPERM variants
 
 ## x87 FPU
 
@@ -337,7 +344,7 @@ Tested instructions are marked with [x], untested with [ ].
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
 | AVX (VEX)                 | 55+    | 55+   | 100%     |
-| AVX-512 (EVEX)            | 45     | 60+   | 75%      |
+| AVX-512 (EVEX)            | 75     | 80+   | 94%      |
 | x87 FPU                   | 47     | 48    | 98%      |
 | String Instructions        | 13     | 13    | 100%     |
-| **Total**                 | **~460**| **~510+** | **~90%** |
+| **Total**                 | **~490**| **~530+** | **~92%** |
