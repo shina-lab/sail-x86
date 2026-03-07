@@ -21,7 +21,6 @@ helpers {
 
   files
     helpers/sse_int.sail,
-    helpers/sse_mov.sail,
     helpers/string.sail,
     helpers/avx.sail,
 }

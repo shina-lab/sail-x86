@@ -2,7 +2,6 @@
 //
 // SSE/SSE2 packed integer arithmetic, logical, shift, pack/unpack, compare.
 
-
 val dispatch_2byte_sse_int : (range(0, 255), Prefixes) -> ExecutionResult
 function dispatch_2byte_sse_int(op, pfx) = {
   match op {
