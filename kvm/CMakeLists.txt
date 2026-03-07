@@ -1,0 +1,5 @@
+add_executable(kvm_harness kvm_harness.cpp)
+target_link_libraries(kvm_harness PRIVATE x86_model)
+add_dependencies(kvm_harness generated_sail_x86_model)
+
+add_test(NAME kvm_differential_test COMMAND kvm_harness)

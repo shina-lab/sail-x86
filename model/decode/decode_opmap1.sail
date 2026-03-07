@@ -847,22 +847,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       if reg_field == 0 then {
         let v = read_rm_val(rm, OS8, pfx.has_rex);
-        let one : qword = 0x0000000000000001;
-        let result = v + one;
-        let saved_cf = CF;
-        update_flags_add(result[7..0], v[7..0], one[7..0]);
-        CF = saved_cf;
+        let (res, result) = exec_inc(v, OS8);
         write_rm_val(rm, OS8, pfx.has_rex, result);
-        Ok(())
+        res
       } else if reg_field == 1 then {
         let v = read_rm_val(rm, OS8, pfx.has_rex);
-        let one : qword = 0x0000000000000001;
-        let result = v - one;
-        let saved_cf = CF;
-        update_flags_sub(result[7..0], v[7..0], one[7..0]);
-        CF = saved_cf;
+        let (res, result) = exec_dec(v, OS8);
         write_rm_val(rm, OS8, pfx.has_rex, result);
-        Ok(())
+        res
       } else raise_UD()
     },
 

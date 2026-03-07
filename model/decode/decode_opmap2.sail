@@ -1205,21 +1205,28 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let src_val = read_rm_val(rm, os, pfx.has_rex);
-      let is_zero : bool = match os {
-        OS8  => src_val[7..0] == zeros(),
-        OS16 => src_val[15..0] == zeros(),
-        OS32 => src_val[31..0] == zeros(),
-        OS64 => src_val == zeros(),
-      };
-      if is_zero then {
-        ZF = bitone;
+      if pfx.has_rep then {
+        // TZCNT
+        let src = modrm_rm_reg(modrm, pfx);
+        exec_tzcnt(reg, src, os)
       } else {
-        ZF = bitzero;
-        let idx : range(0, 63) = bsf64(src_val, 0);
-        write_gpr(reg, os, to_bits_truncate(idx));
-      };
-      Ok(())
+        // BSF
+        let src_val = read_rm_val(rm, os, pfx.has_rex);
+        let is_zero : bool = match os {
+          OS8  => src_val[7..0] == zeros(),
+          OS16 => src_val[15..0] == zeros(),
+          OS32 => src_val[31..0] == zeros(),
+          OS64 => src_val == zeros(),
+        };
+        if is_zero then {
+          ZF = bitone;
+        } else {
+          ZF = bitzero;
+          let idx : range(0, 63) = bsf64(src_val, 0);
+          write_gpr(reg, os, to_bits_truncate(idx));
+        };
+        Ok(())
+      }
     },
 
     // 0F BD: BSR r, r/m (or LZCNT with F3 prefix)
@@ -1228,27 +1235,34 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let src_val = read_rm_val(rm, os, pfx.has_rex);
-      let is_zero : bool = match os {
-        OS8  => src_val[7..0] == zeros(),
-        OS16 => src_val[15..0] == zeros(),
-        OS32 => src_val[31..0] == zeros(),
-        OS64 => src_val == zeros(),
-      };
-      if is_zero then {
-        ZF = bitone;
+      if pfx.has_rep then {
+        // LZCNT
+        let src = modrm_rm_reg(modrm, pfx);
+        exec_lzcnt(reg, src, os)
       } else {
-        ZF = bitzero;
-        let top : range(0, 63) = match os {
-          OS8  => 7,
-          OS16 => 15,
-          OS32 => 31,
-          OS64 => 63,
+        // BSR
+        let src_val = read_rm_val(rm, os, pfx.has_rex);
+        let is_zero : bool = match os {
+          OS8  => src_val[7..0] == zeros(),
+          OS16 => src_val[15..0] == zeros(),
+          OS32 => src_val[31..0] == zeros(),
+          OS64 => src_val == zeros(),
         };
-        let idx : range(0, 63) = bsr64(src_val, top);
-        write_gpr(reg, os, to_bits_truncate(idx));
-      };
-      Ok(())
+        if is_zero then {
+          ZF = bitone;
+        } else {
+          ZF = bitzero;
+          let top : range(0, 63) = match os {
+            OS8  => 7,
+            OS16 => 15,
+            OS32 => 31,
+            OS64 => 63,
+          };
+          let idx : range(0, 63) = bsr64(src_val, top);
+          write_gpr(reg, os, to_bits_truncate(idx));
+        };
+        Ok(())
+      }
     },
 
     // 0F BE: MOVSX r, r/m8

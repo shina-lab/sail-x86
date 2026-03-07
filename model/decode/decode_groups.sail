@@ -101,35 +101,17 @@ function dispatch_group5(reg_field, rm, pfx) = {
       // INC r/m
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
-      let one : qword = 0x0000000000000001;
-      let result = v + one;
-      let saved_cf = CF;
-      match os {
-        OS8  => update_flags_add(result[7..0], v[7..0], one[7..0]),
-        OS16 => update_flags_add(result[15..0], v[15..0], one[15..0]),
-        OS32 => update_flags_add(result[31..0], v[31..0], one[31..0]),
-        OS64 => update_flags_add(result, v, one),
-      };
-      CF = saved_cf;
+      let (res, result) = exec_inc(v, os);
       write_rm_val(rm, os, pfx.has_rex, result);
-      Ok(())
+      res
     },
     1 => {
       // DEC r/m
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
-      let one : qword = 0x0000000000000001;
-      let result = v - one;
-      let saved_cf = CF;
-      match os {
-        OS8  => update_flags_sub(result[7..0], v[7..0], one[7..0]),
-        OS16 => update_flags_sub(result[15..0], v[15..0], one[15..0]),
-        OS32 => update_flags_sub(result[31..0], v[31..0], one[31..0]),
-        OS64 => update_flags_sub(result, v, one),
-      };
-      CF = saved_cf;
+      let (res, result) = exec_dec(v, os);
       write_rm_val(rm, os, pfx.has_rex, result);
-      Ok(())
+      res
     },
     2 => {
       // CALL near indirect (f64 — defaults to 64-bit)

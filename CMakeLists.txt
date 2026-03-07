@@ -64,3 +64,6 @@ add_subdirectory("c_emulator")
 # Tests.
 enable_testing()
 add_subdirectory("test")
+
+# KVM differential test harness.
+add_subdirectory("kvm")

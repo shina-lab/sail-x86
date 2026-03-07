@@ -52,6 +52,26 @@ function update_SF_ZF_PF(result) = {
   PF = compute_PF(result[7..0])
 }
 
+// Compute OF, AF, SF, ZF, PF for addition without modifying CF.
+// Used by INC which must preserve CF.
+val update_flags_add_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
+function update_flags_add_no_cf(result, a, b) = {
+  OF = if ((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]))
+       then bitone else bitzero;
+  AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]));
+  update_SF_ZF_PF(result)
+}
+
+// Compute OF, AF, SF, ZF, PF for subtraction without modifying CF.
+// Used by DEC which must preserve CF.
+val update_flags_sub_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
+function update_flags_sub_no_cf(result, a, b) = {
+  OF = if ((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]))
+       then bitone else bitzero;
+  AF = if (unsigned(a[3..0]) < unsigned(b[3..0])) then bitone else bitzero;
+  update_SF_ZF_PF(result)
+}
+
 // Compute CF and OF for addition: dest = a + b.
 val update_flags_add : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_add(result, a, b) = {
