@@ -4487,6 +4487,111 @@ std::vector<TestCase> build_tests() {
                       {bcd_data, bcd_data + 10}, 26});
   }
 
+  // =====================================================================
+  // 63. EVEX 256-bit (YMM) operations
+  //
+  // P2: z=0, L'L=01 (256-bit), b=0, V'=1, aaa=000
+  //   → P2 = 0b_0_01_0_1_000 = 0x28
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    // YMM upper halves (xmm indices 17, 18 in our model — but KVM uses
+    // xsave area). For register-to-register, we set initial YMM state.
+    // Our harness only sets XMM[0..15], not YMM upper halves.
+    // Let's use 128-bit tests that are already well-covered and add
+    // a few 256-bit integer tests.
+
+    // VPADDD ymm0, ymm1, ymm2 (EVEX.256.66.0F.W0):
+    // P0=0xF1 (mm=01), P1=0x75, P2=0x28 (L'L=01)
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+    add_xmm("evex vpaddd ymm0,ymm1,ymm2 (256)",
+            {0x62, 0xF1, 0x75, 0x28, 0xFE, 0xC2}, s, 0x7);
+
+    // VADDPS ymm0, ymm1, ymm2 (EVEX.256.NP.0F.W0):
+    // P1=0x74 (vvvv=1110,pp=00), P2=0x28
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    add_xmm("evex vaddps ymm0,ymm1,ymm2 (256)",
+            {0x62, 0xF1, 0x74, 0x28, 0x58, 0xC2}, s, 0x7);
+
+    // VPXORD ymm0, ymm1, ymm2 (EVEX.256.66.0F.W0):
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFF00000000, 0x12345678ABCDEF01);
+    s.xmm[2] = xmm_from_u64(0x0F0F0F0FF0F0F0F0, 0xFEDCBA9876543210);
+    add_xmm("evex vpxord ymm0,ymm1,ymm2 (256)",
+            {0x62, 0xF1, 0x75, 0x28, 0xEF, 0xC2}, s, 0x7);
+
+    // VMULPS ymm0, ymm1, ymm2 (EVEX.256.NP.0F.W0):
+    s.xmm[1] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[2] = xmm_from_f32(10.0f, 10.0f, 10.0f, 10.0f);
+    add_xmm("evex vmulps ymm0,ymm1,ymm2 (256)",
+            {0x62, 0xF1, 0x74, 0x28, 0x59, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 64. EVEX shuffle/permutation
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // VSHUFPS xmm0, xmm1, xmm2, imm8: EVEX.128.NP.0F.W0 C6 /r ib
+    // 62 F1 74 08 C6 C2 0x1B (select 3,2,1,0 → reverse)
+    add_xmm("evex vshufps xmm0,xmm1,xmm2,0x1B",
+            {0x62, 0xF1, 0x74, 0x08, 0xC6, 0xC2, 0x1B}, s, 0x7);
+
+    // VUNPCKLPS xmm0, xmm1, xmm2: EVEX.128.NP.0F.W0 14 /r
+    add_xmm("evex vunpcklps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x14, 0xC2}, s, 0x7);
+
+    // VUNPCKHPS xmm0, xmm1, xmm2: EVEX.128.NP.0F.W0 15 /r
+    add_xmm("evex vunpckhps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x15, 0xC2}, s, 0x7);
+
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // VPUNPCKLDQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W0 62 /r
+    add_xmm("evex vpunpckldq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x62, 0xC2}, s, 0x7);
+
+    // VPUNPCKLQDQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 6C /r
+    add_xmm("evex vpunpcklqdq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x6C, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 65. EVEX conversion instructions
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
+
+    // VCVTPS2DQ xmm0, xmm1: EVEX.128.66.0F.W0 5B /r
+    // 62 F1 7D 08 5B C1 (vvvv=1111 unused)
+    add_xmm("evex vcvtps2dq xmm0,xmm1",
+            {0x62, 0xF1, 0x7D, 0x08, 0x5B, 0xC1}, s, 0x3);
+
+    // VCVTTPS2DQ xmm0, xmm1: EVEX.128.F3.0F.W0 5B /r
+    // 62 F1 7E 08 5B C1
+    add_xmm("evex vcvttps2dq xmm0,xmm1",
+            {0x62, 0xF1, 0x7E, 0x08, 0x5B, 0xC1}, s, 0x3);
+
+    // VCVTDQ2PS xmm0, xmm1: EVEX.128.NP.0F.W0 5B /r
+    s.xmm[1] = xmm_from_u64(0x0000000100000002, 0x00000003FFFFFFFE);
+    add_xmm("evex vcvtdq2ps xmm0,xmm1",
+            {0x62, 0xF1, 0x7C, 0x08, 0x5B, 0xC1}, s, 0x3);
+  }
+
   add_systematic_tests(tests);
 
   return tests;
