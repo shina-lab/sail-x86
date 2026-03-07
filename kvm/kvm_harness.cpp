@@ -3964,6 +3964,136 @@ std::vector<TestCase> build_tests() {
             {0x62, 0xF1, 0xF5, 0x08, 0x59, 0xC2}, s, 0x7);
   }
 
+  // =====================================================================
+  // 52. VEX FMA instructions
+  // VEX.128.66.0F38.W0: 3-byte VEX C4 E2 71 xx C2
+  //   P0: R̄=1,X̄=1,B̄=1, mmmmm=00010 (0F38) → 0xE2
+  //   P1: W=0, vvvv=~1=1110, L=0, pp=01 (66) → 0x71
+  // =====================================================================
+  cat = "AVX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // VFMADD132PS xmm0, xmm1, xmm2: C4 E2 71 98 C2
+    add_xmm("vex vfmadd132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x98, 0xC2}, s, 0x7);
+
+    // VFMADD213PS xmm0, xmm1, xmm2: C4 E2 71 A8 C2
+    add_xmm("vex vfmadd213ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xA8, 0xC2}, s, 0x7);
+
+    // VFMADD231PS xmm0, xmm1, xmm2: C4 E2 71 B8 C2
+    s.xmm[0] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    add_xmm("vex vfmadd231ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xB8, 0xC2}, s, 0x7);
+
+    // VFMSUB132PS xmm0, xmm1, xmm2: C4 E2 71 9A C2
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    add_xmm("vex vfmsub132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x9A, 0xC2}, s, 0x7);
+
+    // VFNMADD132PS xmm0, xmm1, xmm2: C4 E2 71 9C C2
+    add_xmm("vex vfnmadd132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x9C, 0xC2}, s, 0x7);
+
+    // VFNMSUB132PS xmm0, xmm1, xmm2: C4 E2 71 9E C2
+    add_xmm("vex vfnmsub132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x9E, 0xC2}, s, 0x7);
+
+    // VFMADD132SS xmm0, xmm1, xmm2: C4 E2 71 99 C2
+    add_xmm("vex vfmadd132ss xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x99, 0xC2}, s, 0x7);
+
+    // VFMADD213SS xmm0, xmm1, xmm2: C4 E2 71 A9 C2
+    add_xmm("vex vfmadd213ss xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xA9, 0xC2}, s, 0x7);
+
+    // VFMADD231SS xmm0, xmm1, xmm2: C4 E2 71 B9 C2
+    add_xmm("vex vfmadd231ss xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xB9, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 53. VINSERTF128 / VEXTRACTF128
+  // VINSERTF128 ymm, ymm, xmm, imm8: VEX.256.66.0F3A.W0 18 /r ib
+  //   C4 E3 75 18 C2 01 → insert xmm2 into upper 128 of ymm0 (vvvv=ymm1)
+  // VEXTRACTF128 xmm, ymm, imm8: VEX.256.66.0F3A.W0 19 /r ib
+  //   C4 E3 7D 19 C2 01 → extract upper 128 of ymm0 into xmm2
+  // =====================================================================
+  cat = "AVX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
+    s.xmm[2] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
+
+    // VINSERTF128 ymm0, ymm1, xmm2, 0 (insert into lower 128)
+    // C4 E3 [R̄.X̄.B̄.mmmmm=11.00011] [W.vvvv.L.pp = 0.1110.1.01] 18 C2 00
+    // P0=0xE3, P1=0x75 (vvvv=1110,L=1,pp=01), opcode=0x18, ModRM=0xC2, imm=0x00
+    add_xmm("vinsertf128 ymm0,ymm1,xmm2,0",
+            {0xC4, 0xE3, 0x75, 0x18, 0xC2, 0x00}, s, 0x7);
+
+    // VINSERTF128 ymm0, ymm1, xmm2, 1 (insert into upper 128)
+    add_xmm("vinsertf128 ymm0,ymm1,xmm2,1",
+            {0xC4, 0xE3, 0x75, 0x18, 0xC2, 0x01}, s, 0x7);
+
+    // VEXTRACTF128 xmm2, ymm0, 0 (extract lower 128)
+    // VEX.256.66.0F3A.W0 19 /r ib
+    // C4 E3 7D 19 C2 00 → vvvv=1111 (unused), L=1
+    add_xmm("vextractf128 xmm2,ymm0,0",
+            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x00}, s, 0x7);
+
+    // VEXTRACTF128 xmm2, ymm0, 1 (extract upper 128)
+    add_xmm("vextractf128 xmm2,ymm0,1",
+            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x01}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 54. EVEX FMA instructions
+  //
+  // VFMADD132PS: dst = dst * src3 + vvvv
+  // EVEX.128.66.0F38.W0: P0=0xF2 (mm=10), P1=0x75, P2=0x08
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);   // dst (a)
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f); // vvvv (c)
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);    // src3 (b)
+    // Result: a*b + c = {12, 23, 34, 45}
+
+    // VFMADD132PS xmm0, xmm1, xmm2: 62 F2 75 08 98 C2
+    add_xmm("evex vfmadd132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x98, 0xC2}, s, 0x7);
+
+    // VFMADD213PS: dst = vvvv * dst + src3 → xmm1 * xmm0 + xmm2
+    // Opcode 0xA8: 62 F2 75 08 A8 C2
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    // Result: xmm1 * xmm0 + xmm2 = {21, 61, 121, 201}
+    add_xmm("evex vfmadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA8, 0xC2}, s, 0x7);
+
+    // VFMADD231PS: dst = vvvv * src3 + dst → xmm1 * xmm2 + xmm0
+    // Opcode 0xB8: 62 F2 75 08 B8 C2
+    s.xmm[0] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    // Result: xmm1 * xmm2 + xmm0 = {21, 61, 121, 201}
+    add_xmm("evex vfmadd231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xB8, 0xC2}, s, 0x7);
+  }
+
   add_systematic_tests(tests);
 
   return tests;
