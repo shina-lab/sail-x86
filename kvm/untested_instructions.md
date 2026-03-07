@@ -344,7 +344,7 @@ Tested instructions are marked with [x], untested with [ ].
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
 | AVX (VEX)                 | 55+    | 55+   | 100%     |
-| AVX-512 (EVEX)            | 75     | 80+   | 94%      |
+| AVX-512 (EVEX)            | 98     | 110+  | 89%      |
 | x87 FPU                   | 47     | 48    | 98%      |
 | String Instructions        | 13     | 13    | 100%     |
-| **Total**                 | **~490**| **~530+** | **~92%** |
+| **Total**                 | **~510**| **~550+** | **~93%** |
