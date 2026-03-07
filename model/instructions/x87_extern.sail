@@ -1,44 +1,36 @@
 // x87 FPU External Functions
 //
-// The x87 stack and control state are managed externally.
-// The x87 FPU has an 8-register stack (ST(0) through ST(7)) of 80-bit
-// extended precision values. The full x87 state includes the stack pointer,
-// status word, control word, and tag word.
+// Only 80-bit extended precision arithmetic remains external, since Sail
+// has no native float80 type. The x87 register state (stack, control/status
+// words, tag word) is now modeled natively in core/x87_regs.sail.
 
-// =========================================================================
-// Stack access
-// =========================================================================
-
-// Read ST(i) — the i-th register from the top of the x87 stack.
+// Backward-compatible wrappers so existing instruction files don't change.
 val __x87_read_st : int -> fp80
+function __x87_read_st(i) = x87_read_st(i)
 
-// Write a value to ST(i).
 val __x87_write_st : (int, fp80) -> unit
+function __x87_write_st(i, v) = x87_write_st(i, v)
 
-// Push a value onto the x87 stack (decrement TOP, write to new ST(0)).
 val __x87_push : fp80 -> unit
+function __x87_push(v) = x87_push(v)
 
-// Pop the top of the x87 stack (read ST(0), increment TOP).
 val __x87_pop : unit -> fp80
+function __x87_pop() = x87_pop()
 
-// =========================================================================
-// Status/control word access
-// =========================================================================
-
-// Read the x87 status word.
 val __x87_get_sw : unit -> word
+function __x87_get_sw() = x87_sw
 
-// Write the x87 status word.
 val __x87_set_sw : word -> unit
+function __x87_set_sw(v) = { x87_sw = v }
 
-// Read the x87 control word.
 val __x87_get_cw : unit -> word
+function __x87_get_cw() = x87_cw
 
-// Write the x87 control word.
 val __x87_set_cw : word -> unit
+function __x87_set_cw(v) = { x87_cw = v }
 
 // =========================================================================
-// 80-bit extended precision arithmetic
+// 80-bit extended precision arithmetic (external — no native float80 in Sail)
 // =========================================================================
 
 val __f80_add : (fp80, fp80) -> fp80
@@ -69,7 +61,6 @@ val __f80_to_int64_trunc : fp80 -> qword
 // Constants
 // =========================================================================
 
-// Returns 0.0 in 80-bit extended precision.
 val __f80_zero : unit -> fp80
 
 // =========================================================================
@@ -92,18 +83,12 @@ val __f80_classify : fp80 -> FPClass
 // Decomposition (used by FXTRACT)
 // =========================================================================
 
-// Extract the unbiased exponent as an 80-bit FP value.
 val __f80_extract_exponent : fp80 -> fp80
-
-// Extract the significand with exponent 0 (biased 3FFF) (used by FXTRACT).
 val __f80_extract_significand : fp80 -> fp80
 
 // =========================================================================
 // Transcendental operations
 // =========================================================================
 
-// Compute y * log2(x) (used by FYL2X). Takes (y, x).
 val __f80_yl2x : (fp80, fp80) -> fp80
-
-// Compute y * log2(x + 1) (used by FYL2XP1). Takes (y, x).
 val __f80_yl2xp1 : (fp80, fp80) -> fp80

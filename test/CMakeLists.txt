@@ -36,6 +36,13 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/auxv_test.c
 )
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/x87_test
+  COMMAND gcc -static -nostdlib -mno-sse -mfpmath=387 -o ${CMAKE_CURRENT_BINARY_DIR}/x87_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/x87_test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/x87_test.c
+)
+
 add_custom_target(test_binaries ALL
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/hello
@@ -43,6 +50,7 @@ add_custom_target(test_binaries ALL
     ${CMAKE_CURRENT_BINARY_DIR}/syscall_test
     ${CMAKE_CURRENT_BINARY_DIR}/avx_test
     ${CMAKE_CURRENT_BINARY_DIR}/auxv_test
+    ${CMAKE_CURRENT_BINARY_DIR}/x87_test
 )
 
 # Test: hello (raw syscall, no libc)
@@ -85,6 +93,12 @@ add_test(
 add_test(
   NAME auxv_test
   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/auxv_test
+)
+
+# Test: x87 FPU
+add_test(
+  NAME x87_test
+  COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/x87_test
 )
 
 # Test: /usr/bin/wc (dynamic binary)

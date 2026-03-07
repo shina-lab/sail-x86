@@ -13,6 +13,7 @@ core {
     core/mem.sail,
     core/exceptions.sail,
     core/fp_extern.sail,
+    core/x87_regs.sail,
 }
 
 instructions {

@@ -379,114 +379,9 @@ u64 Model::z__f32_to_f64(u64 a) {
     return r;
 }
 
-// =========================================================================
-// x87 FPU state management
-// =========================================================================
-
-void Model::z__x87_read_st(lbits *rop, sail_int i) {
-    int idx = (int)mpz_get_si(i);
-    long double val = x87.st[x87.physical(idx)];
-    f80_to_lbits(rop, val);
-}
-
-unit Model::z__x87_write_st(sail_int i, lbits val) {
-    int idx = (int)mpz_get_si(i);
-    x87.st[x87.physical(idx)] = lbits_to_f80(val);
-    return UNIT;
-}
-
-unit Model::z__x87_push(lbits val) {
-    int new_top = (x87.top() - 1) & 7;
-    x87.set_top(new_top);
-    x87.st[new_top] = lbits_to_f80(val);
-    // Mark tag as valid
-    int tag_idx = new_top * 2;
-    x87.tw &= ~(3 << tag_idx);
-    return UNIT;
-}
-
-void Model::z__x87_pop(lbits *rop, unit) {
-    int cur_top = x87.top();
-    long double val = x87.st[cur_top];
-    // Mark tag as empty
-    int tag_idx = cur_top * 2;
-    x87.tw |= (3 << tag_idx);
-    x87.set_top((cur_top + 1) & 7);
-    f80_to_lbits(rop, val);
-}
-
-u64 Model::z__x87_get_sw(unit) { return x87.sw; }
-unit Model::z__x87_set_sw(u64 v) { x87.sw = (u16)v; return UNIT; }
-u64 Model::z__x87_get_cw(unit) { return x87.cw; }
-unit Model::z__x87_set_cw(u64 v) { x87.cw = (u16)v; return UNIT; }
-
-unit Model::z__x87_init(unit) {
-    x87 = X87State{};
-    return UNIT;
-}
-
-unit Model::z__x87_free(sail_int i) {
-    int idx = (int)mpz_get_si(i);
-    int phys = x87.physical(idx);
-    int tag_idx = phys * 2;
-    x87.tw |= (3 << tag_idx);  // mark empty
-    return UNIT;
-}
-
-unit Model::z__x87_dec_top(unit) {
-    x87.set_top((x87.top() - 1) & 7);
-    return UNIT;
-}
-
-unit Model::z__x87_inc_top(unit) {
-    x87.set_top((x87.top() + 1) & 7);
-    return UNIT;
-}
-
-void Model::z__x87_save_env(lbits *rop, unit) {
-    // 28 bytes (224 bits) of x87 environment: CW, SW, TW, etc.
-    u8 buf[28] = {};
-    // 32-bit protected mode format (simplified)
-    buf[0] = x87.cw & 0xFF; buf[1] = (x87.cw >> 8) & 0xFF;
-    buf[4] = x87.sw & 0xFF; buf[5] = (x87.sw >> 8) & 0xFF;
-    buf[8] = x87.tw & 0xFF; buf[9] = (x87.tw >> 8) & 0xFF;
-    bytes_to_bits(rop, buf, 28, 224);
-}
-
-unit Model::z__x87_load_env(lbits val) {
-    u8 buf[28];
-    bits_to_bytes(val, buf, 28);
-    x87.cw = buf[0] | (buf[1] << 8);
-    x87.sw = buf[4] | (buf[5] << 8);
-    x87.tw = buf[8] | (buf[9] << 8);
-    return UNIT;
-}
-
-void Model::z__x87_save_state(lbits *rop, unit) {
-    // 108 bytes (864 bits): 28 bytes env + 80 bytes (8 x 10-byte FP regs)
-    u8 buf[108] = {};
-    // Environment
-    buf[0] = x87.cw & 0xFF; buf[1] = (x87.cw >> 8) & 0xFF;
-    buf[4] = x87.sw & 0xFF; buf[5] = (x87.sw >> 8) & 0xFF;
-    buf[8] = x87.tw & 0xFF; buf[9] = (x87.tw >> 8) & 0xFF;
-    // FP registers (ST(0) through ST(7))
-    for (int i = 0; i < 8; i++) {
-        memcpy(&buf[28 + i * 10], &x87.st[i], 10);
-    }
-    bytes_to_bits(rop, buf, 108, 864);
-}
-
-unit Model::z__x87_load_state(lbits val) {
-    u8 buf[108];
-    bits_to_bytes(val, buf, 108);
-    x87.cw = buf[0] | (buf[1] << 8);
-    x87.sw = buf[4] | (buf[5] << 8);
-    x87.tw = buf[8] | (buf[9] << 8);
-    for (int i = 0; i < 8; i++) {
-        memcpy(&x87.st[i], &buf[28 + i * 10], 10);
-    }
-    return UNIT;
-}
+// x87 FPU state is now managed in Sail (core/x87_regs.sail).
+// The Sail registers zx87_ST, zx87_cw, zx87_sw, zx87_tw are accessed
+// directly by the generated C++ code.
 
 // =========================================================================
 // x87 80-bit FP arithmetic (using host long double)
@@ -563,13 +458,26 @@ void Model::z__f80_from_int16(lbits *rop, u64 a) {
     f80_to_lbits(rop, (long double)(i16)a);
 }
 
+// Set the host FPU rounding mode based on the x87 control word RC field.
+static void sync_rounding_mode(u64 cw) {
+    int rc = (cw >> 10) & 3;
+    switch (rc) {
+    case 0: fesetround(FE_TONEAREST); break;
+    case 1: fesetround(FE_DOWNWARD); break;
+    case 2: fesetround(FE_UPWARD); break;
+    case 3: fesetround(FE_TOWARDZERO); break;
+    }
+}
+
 u64 Model::z__f80_to_int32(lbits a) {
     long double v = lbits_to_f80(a);
+    sync_rounding_mode(zx87_cw);
     return (u32)(i32)llrintl(v);
 }
 
 u64 Model::z__f80_to_int64(lbits a) {
     long double v = lbits_to_f80(a);
+    sync_rounding_mode(zx87_cw);
     return (u64)llrintl(v);
 }
 
@@ -583,6 +491,7 @@ u64 Model::z__f80_to_int64_trunc(lbits a) {
 
 u64 Model::z__f80_to_int16(lbits a) {
     long double v = lbits_to_f80(a);
+    sync_rounding_mode(zx87_cw);
     return (u16)(i16)llrintl(v);
 }
 
@@ -1269,14 +1178,6 @@ void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
 }
 
 // =========================================================================
-// x87 tag word (get/set are in x87_extern2.sail but may be DCE'd)
-// We implement them anyway in case they're needed.
-// =========================================================================
-
-// Note: z__x87_get_tag and z__x87_set_tag may not be in the generated code
-// if they were DCE'd. That's fine.
-
-// =========================================================================
 // FXSAVE / FXRSTOR — save/restore FPU+SSE state to/from 512-byte area
 // =========================================================================
 //
@@ -1290,17 +1191,35 @@ void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
 //   0x0A0-0x19F: XMM0-XMM15 (16 x 16 bytes) [64-bit mode]
 //   0x1A0-0x1FF: reserved
 
-// Helper to save XMM and MXCSR state (common to 32-bit and 64-bit forms).
 static void fxsave_common(Model &m, u64 addr) {
-  // Zero the 512-byte area first.
   m.memory.map_range(addr, 512);
   m.memory.zero_range(addr, 512);
+
+  // FCW at offset 0x00, FSW at offset 0x02
+  u16 cw = (u16)m.zx87_cw;
+  u16 sw = (u16)m.zx87_sw;
+  m.memory.write(addr + 0x00, &cw, 2);
+  m.memory.write(addr + 0x02, &sw, 2);
+
+  // Abridged FTW at offset 0x04 (1 bit per register: 0=empty, 1=valid)
+  u16 tw = (u16)m.zx87_tw;
+  u8 ftw_abridged = 0;
+  for (int i = 0; i < 8; i++)
+    if (((tw >> (i * 2)) & 3) != 3) ftw_abridged |= (1 << i);
+  m.memory.write(addr + 0x04, &ftw_abridged, 1);
 
   // MXCSR at offset 0x18
   u32 mxcsr = m.mxcsr_state.mxcsr;
   m.memory.write(addr + 0x18, &mxcsr, 4);
   u32 mxcsr_mask = 0x0000FFFF;
   m.memory.write(addr + 0x1C, &mxcsr_mask, 4);
+
+  // ST0-ST7 at offset 0x20 (16 bytes each, only 10 used)
+  for (int i = 0; i < 8; i++) {
+    u8 bytes[10];
+    bits_to_bytes(m.zx87_ST.data[i], bytes, 10);
+    m.memory.write(addr + 0x20 + i * 16, bytes, 10);
+  }
 
   // XMM0-XMM15 at offset 0xA0 (16 bytes each)
   for (int i = 0; i < 16; i++) {
@@ -1311,10 +1230,33 @@ static void fxsave_common(Model &m, u64 addr) {
 }
 
 static void fxrstor_common(Model &m, u64 addr) {
+  // FCW at offset 0x00, FSW at offset 0x02
+  u16 cw, sw;
+  m.memory.read(addr + 0x00, &cw, 2);
+  m.memory.read(addr + 0x02, &sw, 2);
+  m.zx87_cw = cw;
+  m.zx87_sw = sw;
+
+  // Abridged FTW at offset 0x04 — expand to full tag word
+  u8 ftw_abridged;
+  m.memory.read(addr + 0x04, &ftw_abridged, 1);
+  u16 tw = 0;
+  for (int i = 0; i < 8; i++)
+    tw |= ((ftw_abridged & (1 << i)) ? 0 : 3) << (i * 2);
+  m.zx87_tw = tw;
+
   // MXCSR at offset 0x18
   u32 mxcsr;
   m.memory.read(addr + 0x18, &mxcsr, 4);
   m.mxcsr_state.mxcsr = mxcsr;
+
+  // ST0-ST7 at offset 0x20
+  for (int i = 0; i < 8; i++) {
+    u8 bytes[10];
+    m.memory.read(addr + 0x20 + i * 16, bytes, 10);
+    RECREATE(lbits)(&m.zx87_ST.data[i]);
+    bytes_to_bits(&m.zx87_ST.data[i], bytes, 10, 80);
+  }
 
   // XMM0-XMM15 at offset 0xA0
   for (int i = 0; i < 16; i++) {

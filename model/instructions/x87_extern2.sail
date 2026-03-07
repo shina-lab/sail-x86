@@ -1,6 +1,6 @@
 // x87 FPU External Functions — Extended
 //
-// Additional external functions for x87 instructions not covered
+// Additional external functions for 80-bit arithmetic not covered
 // by the base x87_extern.sail.
 
 // =========================================================================
@@ -44,21 +44,36 @@ val __f80_log10_2 : unit -> fp80
 val __f80_ln_2 : unit -> fp80
 
 // =========================================================================
-// FPU state management (for FINIT, FLDENV, FSTENV, FSAVE, FRSTOR, etc.)
+// Backward-compatible wrappers for state management
+// (now implemented natively in core/x87_regs.sail)
 // =========================================================================
 
 val __x87_init : unit -> unit
-val __x87_free : int -> unit
-val __x87_get_tag : unit -> word
-val __x87_set_tag : word -> unit
-val __x87_save_env : unit -> bits(224)
-val __x87_load_env : bits(224) -> unit
-val __x87_save_state : unit -> bits(864)
-val __x87_load_state : bits(864) -> unit
+function __x87_init() = x87_init()
 
-// =========================================================================
-// Stack pointer manipulation
-// =========================================================================
+val __x87_free : int -> unit
+function __x87_free(i) = x87_free(i)
+
+val __x87_get_tag : unit -> word
+function __x87_get_tag() = x87_tw
+
+val __x87_set_tag : word -> unit
+function __x87_set_tag(v) = { x87_tw = v }
+
+val __x87_save_env : unit -> bits(224)
+function __x87_save_env() = x87_save_env()
+
+val __x87_load_env : bits(224) -> unit
+function __x87_load_env(v) = x87_load_env(v)
+
+val __x87_save_state : unit -> bits(864)
+function __x87_save_state() = x87_save_state()
+
+val __x87_load_state : bits(864) -> unit
+function __x87_load_state(v) = x87_load_state(v)
 
 val __x87_dec_top : unit -> unit
+function __x87_dec_top() = x87_dec_top()
+
 val __x87_inc_top : unit -> unit
+function __x87_inc_top() = x87_inc_top()
