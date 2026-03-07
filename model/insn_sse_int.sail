@@ -7,6 +7,42 @@
 // SSE integer helper functions
 // =========================================================================
 
+// CRC32 — Accumulate CRC32C (Castagnoli) value
+// Polynomial: 0x1EDC6F41 (reflected: 0x82F63B78)
+// Processes one byte at a time using the reflected algorithm.
+val crc32c_byte : (bits(32), byte) -> bits(32)
+function crc32c_byte(crc, data) = {
+  var c : bits(32) = crc ^ zero_extend(data);
+  foreach (i from 0 to 7) {
+    if c[0] == bitone then {
+      c = (0b0 @ c[31..1]) ^ 0x82F63B78
+    } else {
+      c = 0b0 @ c[31..1]
+    }
+  };
+  c
+}
+
+val crc32c_16 : (bits(32), bits(16)) -> bits(32)
+function crc32c_16(crc, data) = {
+  let c1 = crc32c_byte(crc, data[7..0]);
+  crc32c_byte(c1, data[15..8])
+}
+
+val crc32c_32 : (bits(32), bits(32)) -> bits(32)
+function crc32c_32(crc, data) = {
+  let c1 = crc32c_byte(crc, data[7..0]);
+  let c2 = crc32c_byte(c1, data[15..8]);
+  let c3 = crc32c_byte(c2, data[23..16]);
+  crc32c_byte(c3, data[31..24])
+}
+
+val crc32c_64 : (bits(32), bits(64)) -> bits(32)
+function crc32c_64(crc, data) = {
+  let c1 = crc32c_32(crc, data[31..0]);
+  crc32c_32(c1, data[63..32])
+}
+
 // PABSB/PABSW/PABSD — Packed Absolute Value (SSSE3)
 // No flags affected.
 val abs8 : byte -> byte
@@ -2276,10 +2312,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          (b[127..112] - b[111..96]) @ (b[95..80] - b[79..64]) @
-          (b[63..48] - b[47..32]) @ (b[31..16] - b[15..0]) @
-          (a[127..112] - a[111..96]) @ (a[95..80] - a[79..64]) @
-          (a[63..48] - a[47..32]) @ (a[31..16] - a[15..0]);
+          (b[111..96] - b[127..112]) @ (b[79..64] - b[95..80]) @
+          (b[47..32] - b[63..48]) @ (b[15..0] - b[31..16]) @
+          (a[111..96] - a[127..112]) @ (a[79..64] - a[95..80]) @
+          (a[47..32] - a[63..48]) @ (a[15..0] - a[31..16]);
         write_xmm_legacy(xreg, r);
         Ok()
       },
@@ -2288,8 +2324,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          (b[127..96] - b[95..64]) @ (b[63..32] - b[31..0]) @
-          (a[127..96] - a[95..64]) @ (a[63..32] - a[31..0]);
+          (b[95..64] - b[127..96]) @ (b[31..0] - b[63..32]) @
+          (a[95..64] - a[127..96]) @ (a[31..0] - a[63..32]);
         write_xmm_legacy(xreg, r);
         Ok()
       },
@@ -2298,10 +2334,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_sub_s16(b[127..112], b[111..96]) @ sat_sub_s16(b[95..80], b[79..64]) @
-          sat_sub_s16(b[63..48], b[47..32]) @ sat_sub_s16(b[31..16], b[15..0]) @
-          sat_sub_s16(a[127..112], a[111..96]) @ sat_sub_s16(a[95..80], a[79..64]) @
-          sat_sub_s16(a[63..48], a[47..32]) @ sat_sub_s16(a[31..16], a[15..0]);
+          sat_sub_s16(b[111..96], b[127..112]) @ sat_sub_s16(b[79..64], b[95..80]) @
+          sat_sub_s16(b[47..32], b[63..48]) @ sat_sub_s16(b[15..0], b[31..16]) @
+          sat_sub_s16(a[111..96], a[127..112]) @ sat_sub_s16(a[79..64], a[95..80]) @
+          sat_sub_s16(a[47..32], a[63..48]) @ sat_sub_s16(a[15..0], a[31..16]);
         write_xmm_legacy(xreg, r);
         Ok()
       },
@@ -2742,18 +2778,18 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
         write_xmm_legacy(xreg, __aesenc(state, roundkey));
         Ok()
       },
-      // AES-NI — AESDEC
+      // AES-NI — AESENCLAST (0F 38 DD)
       221 => {
         let state : xmmword = read_xmm(xreg);
         let roundkey : xmmword = src_xmm;
-        write_xmm_legacy(xreg, __aesdec(state, roundkey));
+        write_xmm_legacy(xreg, __aesenclast(state, roundkey));
         Ok()
       },
-      // AES-NI — AESENCLAST
+      // AES-NI — AESDEC (0F 38 DE)
       222 => {
         let state : xmmword = read_xmm(xreg);
         let roundkey : xmmword = src_xmm;
-        write_xmm_legacy(xreg, __aesenclast(state, roundkey));
+        write_xmm_legacy(xreg, __aesdec(state, roundkey));
         Ok()
       },
       // AES-NI — AESDECLAST
