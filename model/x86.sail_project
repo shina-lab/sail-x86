@@ -1,35 +1,35 @@
 prelude {
   files
-    prelude/prelude.sail,
+    prelude.sail,
 }
 
 core {
   requires prelude
 
   files
-    core/types.sail,
-    core/regs.sail,
-    core/rflags.sail,
-    core/mem.sail,
-    core/exceptions.sail,
-    core/fp_extern.sail,
-    core/x87_regs.sail,
+    core_types.sail,
+    regs.sail,
+    rflags.sail,
+    mem.sail,
+    exceptions.sail,
+    fp_extern.sail,
+    x87_regs.sail,
 }
 
 decode {
   requires prelude, core
 
   files
-    decode/types.sail,
-    decode/decode_prefixes.sail,
-    decode/decode_modrm.sail,
-    decode/decode_alu.sail,
-    decode/decode_x87.sail,
-    decode/decode_sse_fp.sail,
-    decode/decode_sse_int.sail,
-    decode/decode_baseline.sail,
-    decode/decode_groups.sail,
-    decode/decode_vex.sail,
-    decode/decode_dispatch.sail,
-    decode/fetch_execute.sail,
+    types.sail,
+    insn_prefixes.sail,
+    insn_modrm.sail,
+    insn_alu.sail,
+    insn_x87.sail,
+    insn_sse_fp.sail,
+    insn_sse_int.sail,
+    insn_baseline.sail,
+    insn_groups.sail,
+    insn_vex.sail,
+    insn_dispatch.sail,
+    fetch_execute.sail,
 }
