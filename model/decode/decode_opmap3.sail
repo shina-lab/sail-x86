@@ -53,10 +53,12 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
       };
       write_gpr(reg, os, result);
       Ok()
+    } else {
+      raise_UD()
     }
-    else raise_UD()
-  } else if mp != MP_66 then raise_UD()
-  else {
+  } else if mp != MP_66 then {
+    raise_UD()
+  } else {
     // 66-prefixed 0F 38 opcodes (XMM operations)
     let modrm = fetch_byte();
     let xreg = modrm_xmm_reg(modrm, pfx);
@@ -198,8 +200,9 @@ val dispatch_opcode_3byte_3a : (byte, Prefixes) -> ExecutionResult
 function dispatch_opcode_3byte_3a(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
-  if mp != MP_66 then raise_UD()
-  else {
+  if mp != MP_66 then {
+    raise_UD()
+  } else {
     let modrm = fetch_byte();
     let xreg = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);

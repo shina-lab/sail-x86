@@ -84,13 +84,15 @@ function exec_div(src, os) = {
   match os {
     OS8 => {
       let divisor = unsigned(src[7..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = unsigned(read_gpr16(RAX));
         let quotient = dividend / divisor;
         let remainder = dividend - quotient * divisor;
-        if quotient > 255 then raise_DE()
-        else {
+        if quotient > 255 then {
+          raise_DE()
+        } else {
           write_gpr8l(RAX, to_bits_truncate(quotient));
           write_gpr8h(RAX, to_bits_truncate(remainder));
           Ok()
@@ -99,13 +101,15 @@ function exec_div(src, os) = {
     },
     OS16 => {
       let divisor = unsigned(src[15..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = unsigned(read_gpr16(RDX) @ read_gpr16(RAX));
         let quotient = dividend / divisor;
         let remainder = dividend - quotient * divisor;
-        if quotient > 65535 then raise_DE()
-        else {
+        if quotient > 65535 then {
+          raise_DE()
+        } else {
           write_gpr16(RAX, to_bits_truncate(quotient));
           write_gpr16(RDX, to_bits_truncate(remainder));
           Ok()
@@ -114,13 +118,15 @@ function exec_div(src, os) = {
     },
     OS32 => {
       let divisor = unsigned(src[31..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = unsigned(read_gpr32(RDX) @ read_gpr32(RAX));
         let quotient = dividend / divisor;
         let remainder = dividend - quotient * divisor;
-        if quotient > (pow2(32) - 1) then raise_DE()
-        else {
+        if quotient > (pow2(32) - 1) then {
+          raise_DE()
+        } else {
           write_gpr32(RAX, to_bits_truncate(quotient));
           write_gpr32(RDX, to_bits_truncate(remainder));
           Ok()
@@ -129,13 +135,15 @@ function exec_div(src, os) = {
     },
     OS64 => {
       let divisor = unsigned(src);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = unsigned(read_gpr64(RDX) @ read_gpr64(RAX));
         let quotient = dividend / divisor;
         let remainder = dividend - quotient * divisor;
-        if quotient > (pow2(64) - 1) then raise_DE()
-        else {
+        if quotient > (pow2(64) - 1) then {
+          raise_DE()
+        } else {
           write_gpr64(RAX, to_bits_truncate(quotient));
           write_gpr64(RDX, to_bits_truncate(remainder));
           Ok()
@@ -152,13 +160,15 @@ function exec_idiv(src, os) = {
   match os {
     OS8 => {
       let divisor = signed(src[7..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = signed(read_gpr16(RAX));
         let quotient = quot_round_zero(dividend, divisor);
         let remainder = rem_round_zero(dividend, divisor);
-        if quotient > 127 | quotient < negate(128) then raise_DE()
-        else {
+        if quotient > 127 | quotient < negate(128) then {
+          raise_DE()
+        } else {
           write_gpr8l(RAX, to_bits_truncate(quotient));
           write_gpr8h(RAX, to_bits_truncate(remainder));
           Ok()
@@ -167,13 +177,15 @@ function exec_idiv(src, os) = {
     },
     OS16 => {
       let divisor = signed(src[15..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = signed(read_gpr16(RDX) @ read_gpr16(RAX));
         let quotient = quot_round_zero(dividend, divisor);
         let remainder = rem_round_zero(dividend, divisor);
-        if quotient > 32767 | quotient < negate(32768) then raise_DE()
-        else {
+        if quotient > 32767 | quotient < negate(32768) then {
+          raise_DE()
+        } else {
           write_gpr16(RAX, to_bits_truncate(quotient));
           write_gpr16(RDX, to_bits_truncate(remainder));
           Ok()
@@ -182,13 +194,15 @@ function exec_idiv(src, os) = {
     },
     OS32 => {
       let divisor = signed(src[31..0]);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = signed(read_gpr32(RDX) @ read_gpr32(RAX));
         let quotient = quot_round_zero(dividend, divisor);
         let remainder = rem_round_zero(dividend, divisor);
-        if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then raise_DE()
-        else {
+        if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then {
+          raise_DE()
+        } else {
           write_gpr32(RAX, to_bits_truncate(quotient));
           write_gpr32(RDX, to_bits_truncate(remainder));
           Ok()
@@ -197,13 +211,15 @@ function exec_idiv(src, os) = {
     },
     OS64 => {
       let divisor = signed(src);
-      if divisor == 0 then raise_DE()
-      else {
+      if divisor == 0 then {
+        raise_DE()
+      } else {
         let dividend = signed(read_gpr64(RDX) @ read_gpr64(RAX));
         let quotient = quot_round_zero(dividend, divisor);
         let remainder = rem_round_zero(dividend, divisor);
-        if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then raise_DE()
-        else {
+        if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then {
+          raise_DE()
+        } else {
           write_gpr64(RAX, to_bits_truncate(quotient));
           write_gpr64(RDX, to_bits_truncate(remainder));
           Ok()
@@ -437,22 +453,29 @@ function exec_shl(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(), a)
-  else {
+  if count == 0 then {
+    (Ok(), a)
+  } else {
     let result : qword = a << count;
     match os {
       OS8 => {
         CF = if count <= 8 then a[8 - count] else undefined;
-        if count <= 8 then update_SF_ZF_PF(result[7..0])
-        else { SF = undefined; ZF = undefined; PF = undefined };
+        if count <= 8 then {
+          update_SF_ZF_PF(result[7..0])
+        } else {
+          SF = undefined; ZF = undefined; PF = undefined
+        };
         if count == 1 then
           OF = bool_to_bit(result[7] != CF)
         else OF = undefined
       },
       OS16 => {
         CF = if count <= 16 then a[16 - count] else undefined;
-        if count <= 16 then update_SF_ZF_PF(result[15..0])
-        else { SF = undefined; ZF = undefined; PF = undefined };
+        if count <= 16 then {
+          update_SF_ZF_PF(result[15..0])
+        } else {
+          SF = undefined; ZF = undefined; PF = undefined
+        };
         if count == 1 then
           OF = bool_to_bit(result[15] != CF)
         else OF = undefined
@@ -491,21 +514,28 @@ val exec_shr : (qword, byte, OperandSize) -> (ExecutionResult, qword)
 function exec_shr(a, count_raw, os) = {
   let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then (Ok(), a)
-  else {
+  if count == 0 then {
+    (Ok(), a)
+  } else {
     let result : qword = a >> count;
     match os {
       OS8 => {
         CF = if count <= 8 then a[count - 1] else undefined;
-        if count <= 8 then update_SF_ZF_PF(result[7..0])
-        else { SF = undefined; ZF = undefined; PF = undefined };
+        if count <= 8 then {
+          update_SF_ZF_PF(result[7..0])
+        } else {
+          SF = undefined; ZF = undefined; PF = undefined
+        };
         if count == 1 then OF = a[7]
         else OF = undefined
       },
       OS16 => {
         CF = if count <= 16 then a[count - 1] else undefined;
-        if count <= 16 then update_SF_ZF_PF(result[15..0])
-        else { SF = undefined; ZF = undefined; PF = undefined };
+        if count <= 16 then {
+          update_SF_ZF_PF(result[15..0])
+        } else {
+          SF = undefined; ZF = undefined; PF = undefined
+        };
         if count == 1 then OF = a[15]
         else OF = undefined
       },
@@ -541,8 +571,9 @@ val exec_sar : (qword, byte, OperandSize) -> (ExecutionResult, qword)
 function exec_sar(a, count_raw, os) = {
   let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then (Ok(), a)
-  else {
+  if count == 0 then {
+    (Ok(), a)
+  } else {
     // CF = last bit shifted out. For SAR, when count >= operand width,
     // the result is all-sign-bits, so CF = sign bit of the original value.
     // SDM pseudocode iterates: CF := LSB(DEST) each step with signed divide.
@@ -586,8 +617,9 @@ function exec_rol(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(), a)
-  else {
+  if count == 0 then {
+    (Ok(), a)
+  } else {
     let result : qword = match os {
       OS8 => {
         let c : range(0, 7) = count % 8;
@@ -620,8 +652,9 @@ function exec_ror(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(), a)
-  else {
+  if count == 0 then {
+    (Ok(), a)
+  } else {
     let result : qword = match os {
       OS8 => {
         let c : range(0, 7) = count % 8;
@@ -672,8 +705,9 @@ function exec_rcl(a, count_raw, os) = {
     OS32 => masked,
     OS64 => masked,
   };
-  if tempcount == 0 then (Ok(), a)
-  else {
+  if tempcount == 0 then {
+    (Ok(), a)
+  } else {
     var cf_bit : bit = CF;
     var val8  : byte  = a[7..0];
     var val16 : word = a[15..0];
@@ -734,8 +768,9 @@ function exec_rcr(a, count_raw, os) = {
     OS32 => masked,
     OS64 => masked,
   };
-  if tempcount == 0 then (Ok(), a)
-  else {
+  if tempcount == 0 then {
+    (Ok(), a)
+  } else {
     var cf_bit : bit = CF;
     var val8  : byte  = a[7..0];
     var val16 : word = a[15..0];
@@ -800,8 +835,9 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if masked == 0 then Ok()
-  else {
+  if masked == 0 then {
+    Ok()
+  } else {
     let src_val = read_rm_val(rm, os, pfx.has_rex);
     let (result, new_val) : (ExecutionResult, qword) = match shift_op {
       0 => exec_rol(src_val, count_raw, os),

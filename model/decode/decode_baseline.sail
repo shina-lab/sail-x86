@@ -224,7 +224,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             write_gpr32(RAX, 0x00000007);
             write_gpr32(RDX, 0x00000000);
             Ok()
-          } else raise_GP0()
+          } else {
+            raise_GP0()
+          }
         },
         _ => raise_UD(),
       }
@@ -329,7 +331,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else if reg_field == 7 then {
         // /7 mod=11: SFENCE
         Ok()
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
     // 0F A2: CPUID
     162 => {
@@ -573,7 +577,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         result[bit_num] = ~(v[bit_num]);
         write_rm_val(rm, os, pfx.has_rex, result);
         Ok()
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
     // 0F BB: BTC r/m, r
     187 => {
@@ -751,8 +757,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B8: POPCNT r, r/m (F3 prefix)
     184 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_F3 then raise_UD()
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
@@ -827,7 +834,9 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => raise_UD(),
         }
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
     // 0F C8-CF: BSWAP r32/r64 (register in opcode)
     op if 200 <= op & op <= 207 => {

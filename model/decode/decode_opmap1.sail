@@ -393,8 +393,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     140 => {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      if reg_field > 5 then raise_UD()
-      else {
+      if reg_field > 5 then {
+        raise_UD()
+      } else {
         let seg : segreg_idx = reg_field;
         let rm = decode_rm(modrm, pfx);
         match rm {
@@ -412,16 +413,20 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     142 => {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      if reg_field > 5 then raise_UD()
-      else {
+      if reg_field > 5 then {
+        raise_UD()
+      } else {
         let seg : segreg_idx = reg_field;
         let rm = decode_rm(modrm, pfx);
         let v : word = match rm {
           RM_reg(idx) => read_gpr16(idx),
           RM_mem(addr) => mem_read16(addr),
         };
-        if seg == CS then raise_UD()
-        else { write_segreg(seg, v); Ok() }
+        if seg == CS then {
+          raise_UD()
+        } else {
+          write_segreg(seg, v); Ok()
+        }
       }
     },
 
@@ -455,17 +460,21 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             Ok()
           },
         }
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
 
     // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
     144 => {
-      if pfx.has_rep then Ok()
-      else if pfx.rex_b then {
+      if pfx.has_rep then {
+        Ok()
+      } else if pfx.rex_b then {
         let os = get_operand_size(pfx);
         exec_xchg_reg_reg(RAX, R8, os)
-      } else
+      } else {
         Ok()
+      }
     },
 
     // 98: CBW/CWDE/CDQE
@@ -740,7 +749,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let imm : qword = zero_extend(fetch_byte());
         write_rm_val(rm, OS8, pfx.has_rex, imm);
         Ok()
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
 
     // C7 /0: MOV r/m, imm (Iz)
@@ -753,7 +764,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let imm = fetch_imm_z(os);
         write_rm_val(rm, os, pfx.has_rex, imm);
         Ok()
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
 
     // C8: ENTER imm16, imm8
@@ -910,7 +923,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         RIP = target;
         decode_pos = target;
         Ok()
-      } else Ok()
+      } else {
+        Ok()
+      }
     },
 
     // E4: IN AL, imm8
@@ -1043,7 +1058,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let (res, result) = exec_dec(v, OS8);
         write_rm_val(rm, OS8, pfx.has_rex, result);
         res
-      } else raise_UD()
+      } else {
+        raise_UD()
+      }
     },
 
     // FF: Group 5 — INC/DEC/CALL/JMP/PUSH r/m

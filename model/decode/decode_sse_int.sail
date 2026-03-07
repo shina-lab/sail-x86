@@ -9,8 +9,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 60-6B: PUNPCK*/PACKSSWB/PCMPGT*/PUNPCK*/PACKSSDW/PCMPEQ*
     op if 96 <= op & op <= 107 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -39,8 +40,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 6C: PUNPCKLQDQ
     108 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -54,8 +56,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 6D: PUNPCKHQDQ
     109 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -130,8 +133,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 71: Group 12 — PSRLW/PSRAW/PSLLW imm8 (66 prefix)
     113 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = decode_rm(modrm, pfx);
@@ -146,8 +150,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 72: Group 13 — PSRLD/PSRAD/PSLLD imm8 (66 prefix)
     114 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = decode_rm(modrm, pfx);
@@ -162,8 +167,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 73: Group 14 — PSRLQ/PSRLDQ/PSLLQ/PSLLDQ imm8 (66 prefix)
     115 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = decode_rm(modrm, pfx);
@@ -179,8 +185,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F 74-76: PCMPEQB/PCMPEQW/PCMPEQD (66 prefix)
     op if 116 <= op & op <= 118 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -261,8 +268,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D7: PMOVMSKB r, xmm (66 prefix)
     215 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let _ = decode_rm(modrm, pfx);
@@ -273,8 +281,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DB: PAND xmm, xmm/m128 (66 prefix)
     219 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -288,8 +297,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DF: PANDN xmm, xmm/m128 (66 prefix)
     223 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -303,8 +313,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E5: PMULLW xmm, xmm/m128 (66 prefix)
     229 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -318,8 +329,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EB: POR xmm, xmm/m128 (66 prefix)
     235 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -333,8 +345,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EF: PXOR xmm, xmm/m128 (66 prefix)
     239 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -348,8 +361,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D4: PADDQ (66 prefix)
     212 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -363,8 +377,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F4: PMULUDQ (66 prefix)
     244 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -378,8 +393,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F8: PSUBB (66 prefix)
     248 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -393,8 +409,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F9: PSUBW (66 prefix)
     249 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -408,8 +425,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F FA: PSUBD (66 prefix)
     250 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -423,8 +441,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F FB: PSUBQ (66 prefix)
     251 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -438,8 +457,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F FC: PADDB (66 prefix)
     252 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -453,8 +473,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F FD: PADDW (66 prefix)
     253 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -468,8 +489,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F FE: PADDD (66 prefix)
     254 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -483,8 +505,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E0: PAVGB (66 prefix)
     224 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -498,8 +521,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DA: PMINUB (66 prefix)
     218 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -513,8 +537,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DE: PMAXUB (66 prefix)
     222 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -528,8 +553,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F6: PSADBW (66 prefix)
     246 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -551,7 +577,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
           if mp == MP_66 then {
             mem_write128(addr, read_xmm(xreg));
             Ok()
-          } else raise_UD()
+          } else {
+            raise_UD()
+          }
         },
         RM_reg(_) => raise_UD(),
       }
@@ -559,8 +587,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F C4: PINSRW xmm, r32/m16, imm8 (66 prefix)
     196 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -575,8 +604,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F C5: PEXTRW r32, xmm, imm8 (66 prefix)
     197 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let _ = decode_rm(modrm, pfx);
@@ -588,8 +618,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D1: PSRLW xmm, xmm/m128 (66 prefix)
     209 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -600,8 +631,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D2: PSRLD xmm, xmm/m128 (66 prefix)
     210 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -612,8 +644,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D3: PSRLQ xmm, xmm/m128 (66 prefix)
     211 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -624,8 +657,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D5: PMULHW (66 prefix)
     213 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -636,8 +670,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D8: PSUBUSB (66 prefix)
     216 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -648,8 +683,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D9: PSUBUSW (66 prefix)
     217 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -660,8 +696,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DC: PADDUSB (66 prefix)
     220 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -672,8 +709,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DD: PADDUSW (66 prefix)
     221 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -684,8 +722,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E1: PSRAW xmm, xmm/m128 (66 prefix)
     225 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -696,8 +735,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E2: PSRAD xmm, xmm/m128 (66 prefix)
     226 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -708,8 +748,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E3: PAVGW (66 prefix)
     227 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -720,8 +761,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E4: PMULHUW (66 prefix)
     228 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -732,8 +774,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E8: PSUBSB (66 prefix)
     232 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -744,8 +787,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F E9: PSUBSW (66 prefix)
     233 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -756,8 +800,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EC: PADDSB (66 prefix)
     236 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -768,8 +813,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F ED: PADDSW (66 prefix)
     237 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -780,8 +826,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F0: LDDQU xmm, m128 (F2 prefix)
     240 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_F2 then raise_UD()
-      else {
+      if mp != MP_F2 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -797,8 +844,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F1: PSLLW xmm, xmm/m128 (66 prefix)
     241 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -809,8 +857,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F2: PSLLD xmm, xmm/m128 (66 prefix)
     242 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -821,8 +870,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F3: PSLLQ xmm, xmm/m128 (66 prefix)
     243 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -833,8 +883,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F5: PMADDWD (66 prefix)
     245 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -845,8 +896,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F7: MASKMOVDQU xmm, xmm (66 prefix)
     247 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let _ = decode_rm(modrm, pfx);
@@ -858,8 +910,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EE: PMAXSW (66 prefix)
     238 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -870,8 +923,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EA: PMINSW (66 prefix)
     234 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);

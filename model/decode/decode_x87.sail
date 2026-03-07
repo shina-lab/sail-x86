@@ -327,7 +327,9 @@ function dispatch_x87_da(modrm, rm, _) = {
             let _ = x87_pop();
             let _ = x87_pop();
             Ok()
-          } else raise_UD()
+          } else {
+            raise_UD()
+          }
         },
         _ => raise_UD(),
       }
@@ -374,7 +376,9 @@ function dispatch_x87_db(modrm, rm, _) = {
             // FNINIT
             x87_init();
             Ok()
-          } else raise_UD()
+          } else {
+            raise_UD()
+          }
         },
         5 => { x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))); Ok() },
         6 => { x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))); Ok() },
@@ -512,7 +516,9 @@ function dispatch_x87_de(modrm, rm, _) = {
             let _ = x87_pop();
             let _ = x87_pop();
             Ok()
-          } else raise_UD()
+          } else {
+            raise_UD()
+          }
         },
         4 => {
           // FSUBRP — ST(i) = ST(0) - ST(i), pop
@@ -578,7 +584,9 @@ function dispatch_x87_df(modrm, rm, _) = {
           if modrm_val == 224 then {
             write_gpr16(RAX, x87_sw);
             Ok()
-          } else raise_UD()
+          } else {
+            raise_UD()
+          }
         },
         5 => {
           // FUCOMIP — unordered compare, set RFLAGS, pop

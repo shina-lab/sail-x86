@@ -975,8 +975,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F D6: MOVQ xmm/m64, xmm (66 prefix)
     214 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD()
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
