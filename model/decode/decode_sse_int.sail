@@ -935,3 +935,265 @@ function dispatch_2byte_sse_int(op, pfx) = {
     _ => raise_UD(),
   }
 }
+
+// =========================================================================
+// 3-Byte Opcode Map: SSE Integer Operations
+// =========================================================================
+
+val blend_byte : (byte, byte, bit) -> byte
+function blend_byte(a, b, sel) = if sel == bitone then b else a
+
+// 0F 38 xx — SSE integer operations (SSSE3, SSE4.1, SSE4.2, AES-NI)
+val dispatch_3byte_38_sse_int : (byte, Prefixes) -> ExecutionResult
+function dispatch_3byte_38_sse_int(opcode, pfx) = {
+  let op : range(0, 255) = unsigned(opcode);
+  let mp = get_mandatory_prefix(pfx);
+  if mp != MP_66 then {
+    raise_UD()
+  } else {
+    let modrm = fetch_byte();
+    let xreg = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+    match op {
+      // SSSE3
+      0  => exec_pshufb(xreg, src_xmm),
+      1  => exec_phaddw(xreg, src_xmm),
+      2  => exec_phaddd(xreg, src_xmm),
+      3  => exec_phaddsw(xreg, src_xmm),
+      4  => exec_pmaddubsw(xreg, src_xmm),
+      5  => exec_phsubw(xreg, src_xmm),
+      6  => exec_phsubd(xreg, src_xmm),
+      7  => exec_phsubsw(xreg, src_xmm),
+      8  => exec_psignb(xreg, src_xmm),
+      9  => exec_psignw(xreg, src_xmm),
+      10 => exec_psignd(xreg, src_xmm),
+      11 => exec_pmulhrsw(xreg, src_xmm),
+
+      // SSE4.1 — PBLENDVB (implicit XMM0 mask)
+      16 => {
+        let a : xmmword = read_xmm(xreg);
+        let m : xmmword = read_xmm(0);
+        let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7]);
+        let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15]);
+        let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23]);
+        let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31]);
+        let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39]);
+        let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47]);
+        let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55]);
+        let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63]);
+        let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71]);
+        let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79]);
+        let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87]);
+        let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95]);
+        let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103]);
+        let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111]);
+        let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119]);
+        let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127]);
+        write_xmm_legacy(xreg, r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0);
+        Ok()
+      },
+
+      // SSE4.1 — PTEST
+      23 => exec_ptest(read_xmm(xreg), src_xmm),
+
+      // SSSE3
+      28 => exec_pabsb(xreg, src_xmm),
+      29 => exec_pabsw(xreg, src_xmm),
+      30 => exec_pabsd(xreg, src_xmm),
+
+      // SSE4.1 — sign/zero extend
+      32 => exec_pmovsxbw(xreg, src_xmm),
+      33 => exec_pmovsxbd(xreg, src_xmm),
+      34 => exec_pmovsxbq(xreg, src_xmm),
+      35 => exec_pmovsxwd(xreg, src_xmm),
+      36 => exec_pmovsxwq(xreg, src_xmm),
+      37 => exec_pmovsxdq(xreg, src_xmm),
+
+      // SSE4.1
+      40 => exec_pmuldq(xreg, src_xmm),
+      41 => exec_pcmpeqq(xreg, src_xmm),
+      42 => {
+        // MOVNTDQA xmm, m128
+        match rm {
+          RM_mem(addr) => {
+            write_xmm_legacy(xreg, mem_read128(addr));
+            Ok()
+          },
+          RM_reg(_) => raise_UD(),
+        }
+      },
+      43 => exec_packusdw(xreg, src_xmm),
+
+      // SSE4.1 — zero extend
+      48 => exec_pmovzxbw(xreg, src_xmm),
+      49 => exec_pmovzxbd(xreg, src_xmm),
+      50 => exec_pmovzxbq(xreg, src_xmm),
+      51 => exec_pmovzxwd(xreg, src_xmm),
+      52 => exec_pmovzxwq(xreg, src_xmm),
+      53 => exec_pmovzxdq(xreg, src_xmm),
+
+      // SSE4.2
+      55 => exec_pcmpgtq(xreg, src_xmm),
+
+      // SSE4.1 — min/max
+      56 => exec_pminsb(xreg, src_xmm),
+      57 => exec_pminsd(xreg, src_xmm),
+      58 => exec_pminuw(xreg, src_xmm),
+      59 => exec_pminud(xreg, src_xmm),
+      60 => exec_pmaxsb(xreg, src_xmm),
+      61 => exec_pmaxsd(xreg, src_xmm),
+      62 => exec_pmaxuw(xreg, src_xmm),
+      63 => exec_pmaxud(xreg, src_xmm),
+
+      // SSE4.1
+      64 => exec_pmulld(xreg, src_xmm),
+      65 => exec_phminposuw(xreg, src_xmm),
+
+      // AES-NI
+      219 => exec_aesimc(xreg, src_xmm),
+      220 => exec_aesenc(xreg, src_xmm),
+      221 => exec_aesdec(xreg, src_xmm),
+      222 => exec_aesenclast(xreg, src_xmm),
+      223 => exec_aesdeclast(xreg, src_xmm),
+
+      _ => raise_UD(),
+    }
+  }
+}
+
+// 0F 3A xx — SSE integer operations (PBLENDW, PALIGNR, PEXTR*, PINSR*,
+//            MPSADBW, PCLMULQDQ, PCMPxSTRx, AESKEYGENASSIST)
+val dispatch_3byte_3a_sse_int : (byte, Prefixes) -> ExecutionResult
+function dispatch_3byte_3a_sse_int(opcode, pfx) = {
+  let op : range(0, 255) = unsigned(opcode);
+  let mp = get_mandatory_prefix(pfx);
+  if mp != MP_66 then {
+    raise_UD()
+  } else {
+    let modrm = fetch_byte();
+    let xreg = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match op {
+      // SSE4.1 — PBLENDW
+      14 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pblendw(xreg, src_xmm, imm)
+      },
+
+      // SSSE3 — PALIGNR
+      15 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_palignr(xreg, src_xmm, imm)
+      },
+
+      // SSE4.1 — PEXTRB r/m8, xmm, imm8
+      20 => {
+        let imm = fetch_byte();
+        let v = extract_byte_from_xmm(read_xmm(xreg), imm);
+        match rm {
+          RM_reg(_) => {
+            let dst_reg = modrm_rm_reg(modrm, pfx);
+            write_gpr32(dst_reg, zero_extend(v));
+          },
+          RM_mem(addr) => mem_write8(fixup_addr(addr), v),
+        };
+        Ok()
+      },
+
+      // SSE4.1 — PEXTRD/PEXTRQ r/m, xmm, imm8
+      22 => {
+        let imm = fetch_byte();
+        let src = read_xmm(xreg);
+        match rm {
+          RM_reg(_) => {
+            let dst_reg = modrm_rm_reg(modrm, pfx);
+            if pfx.rex_w then write_gpr64(dst_reg, extract_qword_from_xmm(src, imm))
+            else write_gpr32(dst_reg, extract_dword_from_xmm(src, imm))
+          },
+          RM_mem(addr) => {
+            let a = fixup_addr(addr);
+            if pfx.rex_w then mem_write64(a, extract_qword_from_xmm(src, imm))
+            else mem_write32(a, extract_dword_from_xmm(src, imm))
+          },
+        };
+        Ok()
+      },
+
+      // SSE4.1 — PINSRB xmm, r/m8, imm8
+      32 => {
+        let imm = fetch_byte();
+        let v : byte = match rm {
+          RM_reg(idx) => read_gpr8l(idx),
+          RM_mem(addr) => mem_read8(addr),
+        };
+        exec_pinsrb(xreg, v, imm)
+      },
+
+      // SSE4.1 — PINSRD/PINSRQ xmm, r/m, imm8
+      34 => {
+        let imm = fetch_byte();
+        if pfx.rex_w then {
+          let v : qword = match rm {
+            RM_reg(idx) => read_gpr64(idx),
+            RM_mem(addr) => mem_read64(addr),
+          };
+          exec_pinsrq(xreg, v, imm)
+        } else {
+          let v : dword = match rm {
+            RM_reg(idx) => read_gpr32(idx),
+            RM_mem(addr) => mem_read32(addr),
+          };
+          exec_pinsrd(xreg, v, imm)
+        }
+      },
+
+      // SSE4.1 — MPSADBW
+      66 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_mpsadbw(xreg, src_xmm, imm)
+      },
+
+      // PCLMULQDQ
+      68 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pclmulqdq(xreg, src_xmm, imm)
+      },
+
+      // SSE4.2 — string compare
+      96 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pcmpestrm(xreg, src_xmm, imm)
+      },
+      97 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pcmpestri(xreg, src_xmm, imm)
+      },
+      98 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pcmpistrm(xreg, src_xmm, imm)
+      },
+      99 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_pcmpistri(xreg, src_xmm, imm)
+      },
+
+      // AES-NI — AESKEYGENASSIST
+      223 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        exec_aeskeygenassist(xreg, src_xmm, imm)
+      },
+
+      _ => raise_UD(),
+    }
+  }
+}

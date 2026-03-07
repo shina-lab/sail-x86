@@ -33,7 +33,6 @@ decode {
     decode/decode_prefixes.sail,
     decode/decode_modrm.sail,
     decode/decode_alu.sail,
-    decode/decode_opmap3.sail,
     decode/decode_x87.sail,
     decode/decode_sse_fp.sail,
     decode/decode_sse_int.sail,
