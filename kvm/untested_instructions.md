@@ -99,7 +99,7 @@ Tested instructions are marked with [x], untested with [ ].
 - [ ] SYSCALL
 - [ ] CPUID
 - [ ] RDTSC
-- [ ] XGETBV
+- [x] XGETBV
 - [ ] UD2
 - [ ] FXSAVE
 - [ ] FXRSTOR
@@ -244,7 +244,7 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] VFMSUB132/213/231 PS
 - [x] VFNMADD132/213/231 PS
 - [x] VFNMSUB132/213/231 PS
-- [ ] VFMADDSUB/VFMSUBADD
+- [x] VFMADDSUB/VFMSUBADD
 - [ ] 256-bit and 512-bit forms
 - [ ] Masking (k registers)
 - [ ] Gather/scatter

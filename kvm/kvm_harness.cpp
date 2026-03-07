@@ -4592,6 +4592,83 @@ std::vector<TestCase> build_tests() {
             {0x62, 0xF1, 0x7C, 0x08, 0x5B, 0xC1}, s, 0x3);
   }
 
+  // =====================================================================
+  // 66. EVEX VFMADDSUB / VFMSUBADD
+  //
+  // VFMADDSUB132PS: even elements use subtract, odd use add
+  // (result[i] = a*b+c for odd i, a*b-c for even i)
+  // EVEX.128.66.0F38.W0: opcode 0x96
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // VFMADDSUB132PS: 62 F2 75 08 96 C2
+    add_xmm("evex vfmaddsub132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x96, 0xC2}, s, 0x7);
+
+    // VFMADDSUB213PS: 62 F2 75 08 A6 C2
+    add_xmm("evex vfmaddsub213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA6, 0xC2}, s, 0x7);
+
+    // VFMADDSUB231PS: 62 F2 75 08 B6 C2
+    s.xmm[0] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    add_xmm("evex vfmaddsub231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xB6, 0xC2}, s, 0x7);
+
+    // VFMSUBADD132PS: 62 F2 75 08 97 C2
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    add_xmm("evex vfmsubadd132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x97, 0xC2}, s, 0x7);
+
+    // VFMSUBADD213PS: 62 F2 75 08 A7 C2
+    add_xmm("evex vfmsubadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA7, 0xC2}, s, 0x7);
+
+    // VFMSUBADD231PS: 62 F2 75 08 B7 C2
+    s.xmm[0] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    add_xmm("evex vfmsubadd231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xB7, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 67. VEX VFMADDSUB / VFMSUBADD
+  // =====================================================================
+  cat = "AVX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // VFMADDSUB132PS: C4 E2 71 96 C2
+    add_xmm("vex vfmaddsub132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x96, 0xC2}, s, 0x7);
+
+    // VFMADDSUB213PS: C4 E2 71 A6 C2
+    add_xmm("vex vfmaddsub213ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xA6, 0xC2}, s, 0x7);
+
+    // VFMSUBADD132PS: C4 E2 71 97 C2
+    add_xmm("vex vfmsubadd132ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0x97, 0xC2}, s, 0x7);
+
+    // VFMSUBADD213PS: C4 E2 71 A7 C2
+    add_xmm("vex vfmsubadd213ps xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xA7, 0xC2}, s, 0x7);
+  }
+
   add_systematic_tests(tests);
 
   return tests;
