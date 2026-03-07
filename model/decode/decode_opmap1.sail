@@ -131,7 +131,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS32 => product != signed(result[31..0]),
         OS64 => product != signed(result),
       };
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
       write_gpr(reg, os, result);
       Ok()
@@ -166,7 +166,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS32 => product != signed(result[31..0]),
         OS64 => product != signed(result),
       };
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
       write_gpr(reg, os, result);
       Ok()
@@ -313,10 +313,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             write_gpr(idx, os, zero_extend(read_segreg(seg)));
             Ok()
           },
-          RM_mem(addr) => {
-            mem_write16(addr, read_segreg(seg));
-            Ok()
-          },
+          RM_mem(addr) => { mem_write16(addr, read_segreg(seg)); Ok() },
         }
       }
     },
@@ -334,10 +331,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
           RM_mem(addr) => mem_read16(addr),
         };
         if seg == CS then raise_UD()
-        else {
-          write_segreg(seg, v);
-          Ok()
-        }
+        else { write_segreg(seg, v); Ok() }
       }
     },
 
@@ -348,10 +342,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       match rm {
-        RM_mem(addr) => {
-          write_gpr(reg, os, addr);
-          Ok()
-        },
+        RM_mem(addr) => { write_gpr(reg, os, addr); Ok() },
         RM_reg(_) => raise_UD(),
       }
     },
@@ -465,11 +456,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // A0: MOV AL, moffs8
-    160 => {
-      let addr = fetch_moffs(pfx);
-      write_gpr8l(RAX, mem_read8(addr));
-      Ok()
-    },
+    160 => { let addr = fetch_moffs(pfx); write_gpr8l(RAX, mem_read8(addr)); Ok() },
 
     // A1: MOV rAX, moffs
     161 => {
@@ -486,11 +473,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // A2: MOV moffs8, AL
-    162 => {
-      let addr = fetch_moffs(pfx);
-      mem_write8(addr, read_gpr8l(RAX));
-      Ok()
-    },
+    162 => { let addr = fetch_moffs(pfx); mem_write8(addr, read_gpr8l(RAX)); Ok() },
 
     // A3: MOV moffs, rAX
     163 => {
@@ -907,10 +890,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     244 => Halt(()),
 
     // F5: CMC
-    245 => {
-      CF = if CF == bitone then bitzero else bitone;
-      Ok()
-    },
+    245 => { CF = ~(CF); Ok() },
 
     // F6: Group 3 — unary byte operations
     246 => {
@@ -930,40 +910,22 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // F8: CLC
-    248 => {
-      CF = bitzero;
-      Ok()
-    },
+    248 => { CF = bitzero; Ok() },
 
     // F9: STC
-    249 => {
-      CF = bitone;
-      Ok()
-    },
+    249 => { CF = bitone; Ok() },
 
     // FA: CLI
-    250 => {
-      IF_flag = bitzero;
-      Ok()
-    },
+    250 => { IF_flag = bitzero; Ok() },
 
     // FB: STI
-    251 => {
-      IF_flag = bitone;
-      Ok()
-    },
+    251 => { IF_flag = bitone; Ok() },
 
     // FC: CLD
-    252 => {
-      DF = bitzero;
-      Ok()
-    },
+    252 => { DF = bitzero; Ok() },
 
     // FD: STD
-    253 => {
-      DF = bitone;
-      Ok()
-    },
+    253 => { DF = bitone; Ok() },
 
     // FE: Group 4 — INC/DEC r/m8
     254 => {

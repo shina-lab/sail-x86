@@ -40,8 +40,7 @@ function exec_mul(src, os) = {
       let b : int = unsigned(src[7..0]);
       let result : word = to_bits_truncate(a * b);
       write_gpr16(RAX, result);
-      let hi_zero : bool = result[15..8] == zeros();
-      CF = if hi_zero then bitzero else bitone;
+      CF = bool_to_bit(result[15..8] != zeros());
       OF = CF;
     },
     OS16 => {
@@ -50,8 +49,7 @@ function exec_mul(src, os) = {
       let result : dword = to_bits_truncate(a * b);
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
-      let hi_zero : bool = result[31..16] == zeros();
-      CF = if hi_zero then bitzero else bitone;
+      CF = bool_to_bit(result[31..16] != zeros());
       OF = CF;
     },
     OS32 => {
@@ -60,8 +58,7 @@ function exec_mul(src, os) = {
       let result : qword = to_bits_truncate(a * b);
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
-      let hi_zero : bool = result[63..32] == zeros();
-      CF = if hi_zero then bitzero else bitone;
+      CF = bool_to_bit(result[63..32] != zeros());
       OF = CF;
     },
     OS64 => {
@@ -71,8 +68,7 @@ function exec_mul(src, os) = {
       let result : xmmword = to_bits_truncate(product);
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
-      let hi_zero : bool = result[127..64] == zeros();
-      CF = if hi_zero then bitzero else bitone;
+      CF = bool_to_bit(result[127..64] != zeros());
       OF = CF;
     },
   };
@@ -224,7 +220,7 @@ function exec_imul_1(src, os) = {
       let result : word = to_bits_truncate(product);
       write_gpr16(RAX, result);
       let truncated : bool = product != signed(result[7..0]);
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
     },
     OS16 => {
@@ -235,7 +231,7 @@ function exec_imul_1(src, os) = {
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
       let truncated : bool = product != signed(result[15..0]);
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
     },
     OS32 => {
@@ -246,7 +242,7 @@ function exec_imul_1(src, os) = {
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
       let truncated : bool = product != signed(result[31..0]);
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
     },
     OS64 => {
@@ -257,7 +253,7 @@ function exec_imul_1(src, os) = {
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
       let truncated : bool = product != signed(result[63..0]);
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
     },
   };

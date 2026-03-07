@@ -40,7 +40,7 @@ function compute_PF(val8) = {
   let p = val8[0] ^ val8[1] ^ val8[2] ^ val8[3] ^
           val8[4] ^ val8[5] ^ val8[6] ^ val8[7];
   // PF=1 means even parity, so invert
-  if p == bitzero then bitone else bitzero
+  bool_to_bit(p == bitzero)
 }
 
 // Update SF, ZF, PF based on a result value.
@@ -48,7 +48,7 @@ function compute_PF(val8) = {
 val update_SF_ZF_PF : forall 'n, 'n >= 8. bits('n) -> unit
 function update_SF_ZF_PF(result) = {
   SF = result['n - 1];
-  ZF = if result == zeros() then bitone else bitzero;
+  ZF = bool_to_bit(result == zeros());
   PF = compute_PF(result[7..0])
 }
 
@@ -56,8 +56,7 @@ function update_SF_ZF_PF(result) = {
 // Used by INC which must preserve CF.
 val update_flags_add_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_add_no_cf(result, a, b) = {
-  OF = if ((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]))
-       then bitone else bitzero;
+  OF = bool_to_bit((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]));
   AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]));
   update_SF_ZF_PF(result)
 }
@@ -66,9 +65,8 @@ function update_flags_add_no_cf(result, a, b) = {
 // Used by DEC which must preserve CF.
 val update_flags_sub_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_sub_no_cf(result, a, b) = {
-  OF = if ((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]))
-       then bitone else bitzero;
-  AF = if (unsigned(a[3..0]) < unsigned(b[3..0])) then bitone else bitzero;
+  OF = bool_to_bit((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]));
+  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]));
   update_SF_ZF_PF(result)
 }
 
@@ -76,12 +74,10 @@ function update_flags_sub_no_cf(result, a, b) = {
 val update_flags_add : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_add(result, a, b) = {
   // CF: unsigned overflow
-  CF = if (unsigned(result) != unsigned(a) + unsigned(b))
-       then bitone else bitzero;
+  CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(b));
   // OF: signed overflow — occurs when both operands have the same sign
   // but the result has a different sign
-  OF = if ((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]))
-       then bitone else bitzero;
+  OF = bool_to_bit((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]));
   // AF: carry out of bit 3
   AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]));
   update_SF_ZF_PF(result)
@@ -91,13 +87,12 @@ function update_flags_add(result, a, b) = {
 val update_flags_sub : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_sub(result, a, b) = {
   // CF: borrow (unsigned underflow)
-  CF = if (unsigned(a) < unsigned(b)) then bitone else bitzero;
+  CF = bool_to_bit(unsigned(a) < unsigned(b));
   // OF: signed overflow — occurs when operands have different signs
   // and result sign differs from first operand
-  OF = if ((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]))
-       then bitone else bitzero;
+  OF = bool_to_bit((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]));
   // AF: borrow out of bit 3
-  AF = if (unsigned(a[3..0]) < unsigned(b[3..0])) then bitone else bitzero;
+  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]));
   update_SF_ZF_PF(result)
 }
 
@@ -105,10 +100,8 @@ function update_flags_sub(result, a, b) = {
 val update_flags_adc : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_adc(result, a, b, carry_in) = {
   let c : int = if carry_in == bitone then 1 else 0;
-  CF = if (unsigned(result) != unsigned(a) + unsigned(b) + c)
-       then bitone else bitzero;
-  OF = if (signed(result) != signed(a) + signed(b) + c)
-       then bitone else bitzero;
+  CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(b) + c);
+  OF = bool_to_bit(signed(result) != signed(a) + signed(b) + c);
   AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]) + c);
   update_SF_ZF_PF(result)
 }
@@ -117,11 +110,9 @@ function update_flags_adc(result, a, b, carry_in) = {
 val update_flags_sbb : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_sbb(result, a, b, borrow_in) = {
   let bw : int = if borrow_in == bitone then 1 else 0;
-  CF = if (unsigned(a) < unsigned(b) + bw)
-       then bitone else bitzero;
-  OF = if (signed(result) != signed(a) - signed(b) - bw)
-       then bitone else bitzero;
-  AF = if (unsigned(a[3..0]) < unsigned(b[3..0]) + bw) then bitone else bitzero;
+  CF = bool_to_bit(unsigned(a) < unsigned(b) + bw);
+  OF = bool_to_bit(signed(result) != signed(a) - signed(b) - bw);
+  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]) + bw);
   update_SF_ZF_PF(result)
 }
 

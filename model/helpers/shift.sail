@@ -19,7 +19,7 @@ function exec_shl(a, count_raw, os) = {
         if count <= 8 then update_SF_ZF_PF(result[7..0])
         else { SF = undefined; ZF = undefined; PF = undefined };
         if count == 1 then
-          OF = if result[7] != CF then bitone else bitzero
+          OF = bool_to_bit(result[7] != CF)
         else OF = undefined
       },
       OS16 => {
@@ -27,7 +27,7 @@ function exec_shl(a, count_raw, os) = {
         if count <= 16 then update_SF_ZF_PF(result[15..0])
         else { SF = undefined; ZF = undefined; PF = undefined };
         if count == 1 then
-          OF = if result[15] != CF then bitone else bitzero
+          OF = bool_to_bit(result[15] != CF)
         else OF = undefined
       },
       OS32 => {
@@ -36,7 +36,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[32 - c];
         update_SF_ZF_PF(result[31..0]);
         if count == 1 then
-          OF = if result[31] != CF then bitone else bitzero
+          OF = bool_to_bit(result[31] != CF)
         else OF = undefined
       },
       OS64 => {
@@ -45,7 +45,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[64 - c];
         update_SF_ZF_PF(result);
         if count == 1 then
-          OF = if result[63] != CF then bitone else bitzero
+          OF = bool_to_bit(result[63] != CF)
         else OF = undefined
       },
     };
@@ -175,10 +175,10 @@ function exec_rol(a, count_raw, os) = {
     };
     CF = result[0];
     if count == 1 then match os {
-      OS8  => OF = if result[7] != CF then bitone else bitzero,
-      OS16 => OF = if result[15] != CF then bitone else bitzero,
-      OS32 => OF = if result[31] != CF then bitone else bitzero,
-      OS64 => OF = if result[63] != CF then bitone else bitzero,
+      OS8  => OF = bool_to_bit(result[7] != CF),
+      OS16 => OF = bool_to_bit(result[15] != CF),
+      OS32 => OF = bool_to_bit(result[31] != CF),
+      OS64 => OF = bool_to_bit(result[63] != CF),
     } else OF = undefined;
     (Ok(), result)
   }
@@ -214,10 +214,10 @@ function exec_ror(a, count_raw, os) = {
       OS64 => CF = result[63],
     };
     if count == 1 then match os {
-      OS8  => OF = if result[7] != result[6] then bitone else bitzero,
-      OS16 => OF = if result[15] != result[14] then bitone else bitzero,
-      OS32 => OF = if result[31] != result[30] then bitone else bitzero,
-      OS64 => OF = if result[63] != result[62] then bitone else bitzero,
+      OS8  => OF = bool_to_bit(result[7] != result[6]),
+      OS16 => OF = bool_to_bit(result[15] != result[14]),
+      OS32 => OF = bool_to_bit(result[31] != result[30]),
+      OS64 => OF = bool_to_bit(result[63] != result[62]),
     } else OF = undefined;
     (Ok(), result)
   }
@@ -276,10 +276,10 @@ function exec_rcl(a, count_raw, os) = {
     };
     CF = cf_bit;
     if masked == 1 then match os {
-      OS8  => OF = if val8[7] != CF then bitone else bitzero,
-      OS16 => OF = if val16[15] != CF then bitone else bitzero,
-      OS32 => OF = if val32[31] != CF then bitone else bitzero,
-      OS64 => OF = if val64[63] != CF then bitone else bitzero,
+      OS8  => OF = bool_to_bit(val8[7] != CF),
+      OS16 => OF = bool_to_bit(val16[15] != CF),
+      OS32 => OF = bool_to_bit(val32[31] != CF),
+      OS64 => OF = bool_to_bit(val64[63] != CF),
     } else OF = undefined;
     let result : qword = match os {
       OS8  => zero_extend(val8),
@@ -312,10 +312,10 @@ function exec_rcr(a, count_raw, os) = {
     var val64 : qword = a;
     // OF is set before the rotate for RCR
     if masked == 1 then match os {
-      OS8  => OF = if val8[7] != CF then bitone else bitzero,
-      OS16 => OF = if val16[15] != CF then bitone else bitzero,
-      OS32 => OF = if val32[31] != CF then bitone else bitzero,
-      OS64 => OF = if val64[63] != CF then bitone else bitzero,
+      OS8  => OF = bool_to_bit(val8[7] != CF),
+      OS16 => OF = bool_to_bit(val16[15] != CF),
+      OS32 => OF = bool_to_bit(val32[31] != CF),
+      OS64 => OF = bool_to_bit(val64[63] != CF),
     } else OF = undefined;
     var i : int = tempcount;
     while i > 0 do {
@@ -383,7 +383,7 @@ function exec_shld(d, s, count_raw, os) = {
           CF = wide[32 - count];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = if r[15] != d[15] then bitone else bitzero
+            OF = bool_to_bit(r[15] != d[15])
           else OF = undefined;
           zero_extend(r)
         }
@@ -395,7 +395,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[64 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = if r[31] != d[31] then bitone else bitzero
+          OF = bool_to_bit(r[31] != d[31])
         else OF = undefined;
         zero_extend(r)
       },
@@ -406,7 +406,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[128 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = if r[63] != d[63] then bitone else bitzero
+          OF = bool_to_bit(r[63] != d[63])
         else OF = undefined;
         r
       },
@@ -446,7 +446,7 @@ function exec_shrd(d, s, count_raw, os) = {
           CF = d[count - 1];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = if r[15] != d[15] then bitone else bitzero
+            OF = bool_to_bit(r[15] != d[15])
           else OF = undefined;
           zero_extend(r)
         }
@@ -458,7 +458,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = if r[31] != d[31] then bitone else bitzero
+          OF = bool_to_bit(r[31] != d[31])
         else OF = undefined;
         zero_extend(r)
       },
@@ -469,7 +469,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = if r[63] != d[63] then bitone else bitzero
+          OF = bool_to_bit(r[63] != d[63])
         else OF = undefined;
         r
       },

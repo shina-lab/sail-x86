@@ -30,10 +30,8 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
       let c : int = if CF == bitone then 1 else 0;
       let result : qword = a + src_val + zero_extend(CF);
       match os {
-        OS32 => CF = if (unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c)
-                     then bitone else bitzero,
-        OS64 => CF = if (unsigned(result) != unsigned(a) + unsigned(src_val) + c)
-                     then bitone else bitzero,
+        OS32 => CF = bool_to_bit(unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c),
+        OS64 => CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(src_val) + c),
         _ => (),
       };
       write_gpr(reg, os, result);
@@ -43,10 +41,8 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
       let c : int = if OF == bitone then 1 else 0;
       let result : qword = a + src_val + zero_extend(OF);
       match os {
-        OS32 => OF = if (unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c)
-                     then bitone else bitzero,
-        OS64 => OF = if (unsigned(result) != unsigned(a) + unsigned(src_val) + c)
-                     then bitone else bitzero,
+        OS32 => OF = bool_to_bit(unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c),
+        OS64 => OF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(src_val) + c),
         _ => (),
       };
       write_gpr(reg, os, result);

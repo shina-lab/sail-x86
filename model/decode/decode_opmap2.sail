@@ -1198,7 +1198,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         OS32 => product != signed(result[31..0]),
         OS64 => product != signed(result),
       };
-      CF = if truncated then bitone else bitzero;
+      CF = bool_to_bit(truncated);
       OF = CF;
       write_gpr(reg, os, result);
       Ok()
@@ -1322,7 +1322,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if reg_field == 7 then {
         // BTC — complement bit
         var result : qword = v;
-        result[bit_num] = if v[bit_num] == bitone then bitzero else bitone;
+        result[bit_num] = ~(v[bit_num]);
         write_rm_val(rm, os, pfx.has_rex, result);
         Ok()
       } else raise_UD()
@@ -1344,7 +1344,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       };
       CF = v[bit_num];
       var result : qword = v;
-      result[bit_num] = if v[bit_num] == bitone then bitzero else bitone;
+      result[bit_num] = ~(v[bit_num]);
       write_rm_val(rm, os, pfx.has_rex, result);
       Ok()
     },
@@ -1369,8 +1369,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let count : int = if is_zero then os_bits
                           else bsf64(src_val, 0);
         write_gpr(reg, os, to_bits_truncate(count));
-        CF = if is_zero then bitone else bitzero;
-        ZF = if count == 0 then bitone else bitzero;
+        CF = bool_to_bit(is_zero);
+        ZF = bool_to_bit(count == 0);
         Ok()
       } else {
         // BSF
@@ -1410,8 +1410,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           OS64 => lzcnt64(src_val, 63),
         };
         write_gpr(reg, os, to_bits_truncate(count));
-        CF = if count == os_bits then bitone else bitzero;
-        ZF = if count == 0 then bitone else bitzero;
+        CF = bool_to_bit(count == os_bits);
+        ZF = bool_to_bit(count == 0);
         Ok()
       } else {
         // BSR
@@ -1525,7 +1525,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           OS64 => popcount64(src_val),
         };
         OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
-        ZF = if count == 0 then bitone else bitzero;
+        ZF = bool_to_bit(count == 0);
         write_gpr(reg, os, to_bits_truncate(count));
         Ok()
       }

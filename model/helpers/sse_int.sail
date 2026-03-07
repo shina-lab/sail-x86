@@ -2012,8 +2012,8 @@ function exec_ptest(src1, src2) = {
   let b : xmmword = src2;
   let temp1 : xmmword = a & b;
   let temp2 : xmmword = (not_vec(a)) & b;
-  ZF = if temp1 == zeros() then bitone else bitzero;
-  CF = if temp2 == zeros() then bitone else bitzero;
+  ZF = bool_to_bit(temp1 == zeros());
+  CF = bool_to_bit(temp2 == zeros());
   OF = bitzero;
   AF = bitzero;
   PF = bitzero;
