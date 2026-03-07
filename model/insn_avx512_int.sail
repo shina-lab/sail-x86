@@ -6141,7 +6141,7 @@ val avx_lzcnt32 : dword -> dword
 function avx_lzcnt32(v) = {
   if v == zeros() then 0x00000020
   else {
-    var count : range(0, 32) = 0;
+    let count : range(0, 32) = 0;
     foreach (i from 31 downto 0) {
       if v[i] == bitone then return to_bits(32, 31 - i)
     };
@@ -6794,7 +6794,7 @@ function gather_addr_q(base, idx64, scale) = {
 // ZMM: 16 elements, mask is 16 bits
 val exec_gather_d32_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d32_512(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : zmmword = read_zmm(dst);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 15) {
@@ -6813,7 +6813,7 @@ function exec_gather_d32_512(dst, vsib, k_idx) = {
 
 val exec_gather_d32_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d32_256(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : ymmword = read_ymm(dst);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -6832,7 +6832,7 @@ function exec_gather_d32_256(dst, vsib, k_idx) = {
 
 val exec_gather_d32_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d32_128(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : xmmword = read_xmm(dst);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -6853,7 +6853,7 @@ function exec_gather_d32_128(dst, vsib, k_idx) = {
 // ZMM: 8 qword elements, indices from YMM (8 dwords)
 val exec_gather_d64_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d64_512(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : zmmword = read_zmm(dst);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -6873,7 +6873,7 @@ function exec_gather_d64_512(dst, vsib, k_idx) = {
 
 val exec_gather_d64_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d64_256(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : ymmword = read_ymm(dst);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -6893,7 +6893,7 @@ function exec_gather_d64_256(dst, vsib, k_idx) = {
 
 val exec_gather_d64_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_d64_128(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : xmmword = read_xmm(dst);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
@@ -6915,7 +6915,7 @@ function exec_gather_d64_128(dst, vsib, k_idx) = {
 // ZMM index: 8 qwords → 8 dword results in YMM
 val exec_gather_q32_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q32_512(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : ymmword = read_ymm(dst);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -6935,7 +6935,7 @@ function exec_gather_q32_512(dst, vsib, k_idx) = {
 
 val exec_gather_q32_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q32_256(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : xmmword = read_xmm(dst);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -6956,7 +6956,7 @@ function exec_gather_q32_256(dst, vsib, k_idx) = {
 
 val exec_gather_q32_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q32_128(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : xmmword = read_xmm(dst);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
@@ -6977,7 +6977,7 @@ function exec_gather_q32_128(dst, vsib, k_idx) = {
 // VPGATHERQQ / VGATHERQPD: 64-bit indices, 64-bit elements
 val exec_gather_q64_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q64_512(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : zmmword = read_zmm(dst);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -6996,7 +6996,7 @@ function exec_gather_q64_512(dst, vsib, k_idx) = {
 
 val exec_gather_q64_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q64_256(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : ymmword = read_ymm(dst);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -7015,7 +7015,7 @@ function exec_gather_q64_256(dst, vsib, k_idx) = {
 
 val exec_gather_q64_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_gather_q64_128(dst, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   var result : xmmword = read_xmm(dst);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
@@ -7038,7 +7038,7 @@ function exec_gather_q64_128(dst, vsib, k_idx) = {
 // VPSCATTERDD / VSCATTERDPS: 32-bit indices, 32-bit elements
 val exec_scatter_d32_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d32_512(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : zmmword = read_zmm(src);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 15) {
@@ -7055,7 +7055,7 @@ function exec_scatter_d32_512(src, vsib, k_idx) = {
 
 val exec_scatter_d32_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d32_256(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : ymmword = read_ymm(src);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -7072,7 +7072,7 @@ function exec_scatter_d32_256(src, vsib, k_idx) = {
 
 val exec_scatter_d32_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d32_128(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : xmmword = read_xmm(src);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -7090,7 +7090,7 @@ function exec_scatter_d32_128(src, vsib, k_idx) = {
 // VPSCATTERDQ / VSCATTERDPD: 32-bit indices, 64-bit elements
 val exec_scatter_d64_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d64_512(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : zmmword = read_zmm(src);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -7108,7 +7108,7 @@ function exec_scatter_d64_512(src, vsib, k_idx) = {
 
 val exec_scatter_d64_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d64_256(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : ymmword = read_ymm(src);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -7126,7 +7126,7 @@ function exec_scatter_d64_256(src, vsib, k_idx) = {
 
 val exec_scatter_d64_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_d64_128(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : xmmword = read_xmm(src);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
@@ -7145,7 +7145,7 @@ function exec_scatter_d64_128(src, vsib, k_idx) = {
 // VPSCATTERQD / VSCATTERQPS: 64-bit indices, 32-bit elements
 val exec_scatter_q32_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q32_512(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : ymmword = read_ymm(src);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -7163,7 +7163,7 @@ function exec_scatter_q32_512(src, vsib, k_idx) = {
 
 val exec_scatter_q32_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q32_256(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : xmmword = read_xmm(src);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -7181,7 +7181,7 @@ function exec_scatter_q32_256(src, vsib, k_idx) = {
 
 val exec_scatter_q32_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q32_128(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : xmmword = read_xmm(src);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
@@ -7200,7 +7200,7 @@ function exec_scatter_q32_128(src, vsib, k_idx) = {
 // VPSCATTERQQ / VSCATTERQPD: 64-bit indices, 64-bit elements
 val exec_scatter_q64_512 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q64_512(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : zmmword = read_zmm(src);
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
@@ -7217,7 +7217,7 @@ function exec_scatter_q64_512(src, vsib, k_idx) = {
 
 val exec_scatter_q64_256 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q64_256(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : ymmword = read_ymm(src);
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
@@ -7234,7 +7234,7 @@ function exec_scatter_q64_256(src, vsib, k_idx) = {
 
 val exec_scatter_q64_128 : (simd_idx, VSIB, kreg_idx) -> ExecutionResult
 function exec_scatter_q64_128(src, vsib, k_idx) = {
-  var mask : qword = read_kreg(k_idx);
+  let mask : qword = read_kreg(k_idx);
   let data : xmmword = read_xmm(src);
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {

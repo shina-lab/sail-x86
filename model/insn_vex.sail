@@ -222,7 +222,7 @@ function fp16_to_fp32(h) = {
       sign @ 0x00000000[30..0]
     } else {
       var shift : int = 0;
-      var f : bits(10) = frac10;
+      let f : bits(10) = frac10;
       var done : bool = false;
       foreach (i from 9 downto 0) {
         if not_bool(done) & f[i] == bitzero then shift = shift + 1
