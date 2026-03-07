@@ -25,8 +25,33 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
     let reg = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let src_val = read_rm_val(rm, os, pfx.has_rex);
-    if mp == MP_66 then exec_adcx(reg, src_val, os)
-    else if mp == MP_F3 then exec_adox(reg, src_val, os)
+    if mp == MP_66 then {
+      let a : qword = read_gpr(reg, os);
+      let c : int = if CF == bitone then 1 else 0;
+      let result : qword = a + src_val + zero_extend(CF);
+      match os {
+        OS32 => CF = if (unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c)
+                     then bitone else bitzero,
+        OS64 => CF = if (unsigned(result) != unsigned(a) + unsigned(src_val) + c)
+                     then bitone else bitzero,
+        _ => (),
+      };
+      write_gpr(reg, os, result);
+      Ok(())
+    } else if mp == MP_F3 then {
+      let a : qword = read_gpr(reg, os);
+      let c : int = if OF == bitone then 1 else 0;
+      let result : qword = a + src_val + zero_extend(OF);
+      match os {
+        OS32 => OF = if (unsigned(result[31..0]) != unsigned(a[31..0]) + unsigned(src_val[31..0]) + c)
+                     then bitone else bitzero,
+        OS64 => OF = if (unsigned(result) != unsigned(a) + unsigned(src_val) + c)
+                     then bitone else bitzero,
+        _ => (),
+      };
+      write_gpr(reg, os, result);
+      Ok(())
+    }
     else raise_UD()
   } else if mp != MP_66 then raise_UD()
   else {

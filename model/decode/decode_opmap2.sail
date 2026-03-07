@@ -3,15 +3,20 @@
 // Phase 2: CMOVcc, SETcc, Jcc rel32, MOVZX/SX, BSF/BSR, CMPXCHG, BT*,
 // SHLD/SHRD, IMUL 2-op, BSWAP, XADD, etc.
 
+// External system functions
+val __syscall : (qword, qword) -> ExecutionResult
+val __fxsave : qword -> ExecutionResult
+val __fxsave64 : qword -> ExecutionResult
+val __fxrstor : qword -> ExecutionResult
+val __fxrstor64 : qword -> ExecutionResult
+
 val dispatch_opcode_2byte : (byte, Prefixes) -> ExecutionResult
 function dispatch_opcode_2byte(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   match op {
 
     // 0F 05: SYSCALL
-    5 => {
-      exec_syscall()
-    },
+    5 => __syscall(RIP, read_rflags()),
 
     // 0F 1F: Multi-byte NOP r/m (prefetch hint)
     31 => {
@@ -26,7 +31,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match modrm_val {
         // 0F 01 D0: XGETBV
-        208 => exec_xgetbv(),
+        208 => {
+          let ecx_val : dword = read_gpr32(RCX);
+          if ecx_val == 0x00000000 then {
+            write_gpr32(RAX, 0x00000007);
+            write_gpr32(RDX, 0x00000000);
+            Ok(())
+          } else raise_GP0()
+        },
         _ => raise_UD(),
       }
     },
@@ -435,7 +447,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
 
     // 0F 31: RDTSC
     49 => {
-      exec_rdtsc()
+      let tsc : qword = __rdtsc();
+      write_gpr32(RAX, tsc[31..0]);
+      write_gpr32(RDX, tsc[63..32]);
+      Ok(())
     },
 
     // 0F 40-4F: CMOVcc r, r/m
@@ -886,8 +901,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // /0: FXSAVE m512byte
         match rm {
           RM_mem(addr) => {
-            if pfx.rex_w then exec_fxsave64(fixup_addr(addr))
-            else exec_fxsave(fixup_addr(addr))
+            if pfx.rex_w then __fxsave64(fixup_addr(addr))
+            else __fxsave(fixup_addr(addr))
           },
           RM_reg(_) => raise_UD(),
         }
@@ -895,8 +910,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // /1: FXRSTOR m512byte
         match rm {
           RM_mem(addr) => {
-            if pfx.rex_w then exec_fxrstor64(fixup_addr(addr))
-            else exec_fxrstor(fixup_addr(addr))
+            if pfx.rex_w then __fxrstor64(fixup_addr(addr))
+            else __fxrstor(fixup_addr(addr))
           },
           RM_reg(_) => raise_UD(),
         }
@@ -929,7 +944,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
 
     // 0F A2: CPUID
     162 => {
-      exec_cpuid()
+      let leaf : dword = read_gpr32(RAX);
+      let subleaf : dword = read_gpr32(RCX);
+      let (out_eax, out_ebx, out_ecx, out_edx) = __cpuid(leaf, subleaf);
+      write_gpr32(RAX, out_eax);
+      write_gpr32(RBX, out_ebx);
+      write_gpr32(RCX, out_ecx);
+      write_gpr32(RDX, out_edx);
+      Ok(())
     },
 
     // 0F A3: BT r/m, r
@@ -1208,7 +1230,20 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       if pfx.has_rep then {
         // TZCNT
         let src = modrm_rm_reg(modrm, pfx);
-        exec_tzcnt(reg, src, os)
+        let src_val : qword = read_gpr(src, os);
+        let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
+        let is_zero : bool = match os {
+          OS8  => src_val[7..0] == zeros(),
+          OS16 => src_val[15..0] == zeros(),
+          OS32 => src_val[31..0] == zeros(),
+          OS64 => src_val == zeros(),
+        };
+        let count : int = if is_zero then os_bits
+                          else bsf64(src_val, 0);
+        write_gpr(reg, os, to_bits_truncate(count));
+        CF = if is_zero then bitone else bitzero;
+        ZF = if count == 0 then bitone else bitzero;
+        Ok(())
       } else {
         // BSF
         let src_val = read_rm_val(rm, os, pfx.has_rex);
@@ -1238,7 +1273,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       if pfx.has_rep then {
         // LZCNT
         let src = modrm_rm_reg(modrm, pfx);
-        exec_lzcnt(reg, src, os)
+        let src_val : qword = read_gpr(src, os);
+        let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
+        let count : range(0, 64) = match os {
+          OS8  => lzcnt64(zero_extend(src_val[7..0]), 7),
+          OS16 => lzcnt64(zero_extend(src_val[15..0]), 15),
+          OS32 => lzcnt64(zero_extend(src_val[31..0]), 31),
+          OS64 => lzcnt64(src_val, 63),
+        };
+        write_gpr(reg, os, to_bits_truncate(count));
+        CF = if count == os_bits then bitone else bitzero;
+        ZF = if count == 0 then bitone else bitzero;
+        Ok(())
       } else {
         // BSR
         let src_val = read_rm_val(rm, os, pfx.has_rex);
@@ -1344,7 +1390,16 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        exec_popcnt(reg, src_val, os)
+        let count : range(0, 64) = match os {
+          OS8  => popcount8(src_val[7..0]),
+          OS16 => popcount16(src_val[15..0]),
+          OS32 => popcount32(src_val[31..0]),
+          OS64 => popcount64(src_val),
+        };
+        OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
+        ZF = if count == 0 then bitone else bitzero;
+        write_gpr(reg, os, to_bits_truncate(count));
+        Ok(())
       }
     },
 
@@ -1394,8 +1449,33 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       if reg_field == 1 then {
         match rm {
           RM_mem(addr) => {
-            if pfx.rex_w then exec_cmpxchg16b(addr)
-            else exec_cmpxchg8b(addr)
+            if pfx.rex_w then {
+              let mem_lo : qword = mem_read64(addr);
+              let mem_hi : qword = mem_read64(addr + 0x0000000000000008);
+              if read_gpr64(RAX) == mem_lo & read_gpr64(RDX) == mem_hi then {
+                ZF = bitone;
+                mem_write64(addr, read_gpr64(RBX));
+                mem_write64(addr + 0x0000000000000008, read_gpr64(RCX));
+              } else {
+                ZF = bitzero;
+                write_gpr64(RAX, mem_lo);
+                write_gpr64(RDX, mem_hi);
+              };
+              Ok(())
+            } else {
+              let mem_lo : dword = mem_read32(addr);
+              let mem_hi : dword = mem_read32(addr + 0x0000000000000004);
+              if read_gpr32(RAX) == mem_lo & read_gpr32(RDX) == mem_hi then {
+                ZF = bitone;
+                mem_write32(addr, read_gpr32(RBX));
+                mem_write32(addr + 0x0000000000000004, read_gpr32(RCX));
+              } else {
+                ZF = bitzero;
+                write_gpr32(RAX, mem_lo);
+                write_gpr32(RDX, mem_hi);
+              };
+              Ok(())
+            }
           },
           RM_reg(_) => raise_UD(),
         }
@@ -1407,7 +1487,19 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let reg_field : range(0, 7) = op - 200;
       let reg = extend_reg(reg_field, pfx.rex_b);
       let os = get_operand_size(pfx);
-      exec_bswap(reg, os)
+      match os {
+        OS32 => {
+          let v : dword = read_gpr32(reg);
+          write_gpr32(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
+        },
+        OS64 => {
+          let v : qword = read_gpr64(reg);
+          write_gpr64(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
+                           v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
+        },
+        _ => (),
+      };
+      Ok(())
     },
 
     // 0F D6: MOVQ xmm/m64, xmm (66 prefix)

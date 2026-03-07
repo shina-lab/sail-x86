@@ -310,9 +310,13 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         match rm {
           RM_reg(idx) => {
             let os = get_operand_size(pfx);
-            exec_mov_rm_from_segreg(idx, seg, os)
+            write_gpr(idx, os, zero_extend(read_segreg(seg)));
+            Ok(())
           },
-          RM_mem(addr) => exec_mov_mem_from_segreg(addr, seg),
+          RM_mem(addr) => {
+            mem_write16(addr, read_segreg(seg));
+            Ok(())
+          },
         }
       }
     },
@@ -329,7 +333,11 @@ function dispatch_opcode_1byte(opcode, pfx) = {
           RM_reg(idx) => read_gpr16(idx),
           RM_mem(addr) => mem_read16(addr),
         };
-        exec_mov_segreg_from_rm(seg, v)
+        if seg == CS then raise_UD()
+        else {
+          write_segreg(seg, v);
+          Ok(())
+        }
       }
     },
 
@@ -340,7 +348,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       match rm {
-        RM_mem(addr) => exec_lea(reg, addr, os),
+        RM_mem(addr) => { write_gpr(reg, os, addr); Ok(()) },
         RM_reg(_) => raise_UD(),
       }
     },
@@ -368,7 +376,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
 
     // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
     144 => {
-      if pfx.has_rep then exec_pause()
+      if pfx.has_rep then Ok(())
       else if pfx.rex_b then {
         let os = get_operand_size(pfx);
         exec_xchg_reg_reg(RAX, R8, os)
@@ -422,14 +430,36 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     // 9D: POPF (d64)
     157 => {
       let os = get_operand_size_d64(pfx);
-      exec_popf(os)
+      match os {
+        OS16 => {
+          let v : word = pop16();
+          CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
+          TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
+        },
+        OS64 => {
+          let v : qword = pop64();
+          CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
+          TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
+          IOPL = v[13..12];
+        },
+        _ => (),
+      };
+      Ok(())
     },
 
     // 9E: SAHF
-    158 => exec_sahf(),
+    158 => {
+      let ah : byte = read_gpr8h(RAX);
+      CF = ah[0]; PF = ah[2]; AF = ah[4]; ZF = ah[6]; SF = ah[7];
+      Ok(())
+    },
 
     // 9F: LAHF
-    159 => exec_lahf(),
+    159 => {
+      let v : byte = CF @ bitone @ PF @ bitzero @ AF @ bitzero @ ZF @ SF;
+      write_gpr8h(RAX, v);
+      Ok(())
+    },
 
     // A0: MOV AL, moffs8
     160 => {
@@ -599,7 +629,16 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     194 => {
       let imm = fetch_imm16();
       let os = get_operand_size_d64(pfx);
-      exec_ret_imm(imm, os)
+      let target : qword = match os {
+        OS64 => pop64(),
+        OS32 => zero_extend(pop64()[31..0]),
+        OS16 => zero_extend(pop16()),
+        OS8 => zeros(),
+      };
+      RIP = target;
+      decode_pos = target;
+      GPR[RSP] = GPR[RSP] + zero_extend(imm);
+      Ok(())
     },
 
     // C3: RET near
@@ -638,17 +677,65 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let size = fetch_imm16();
       let level = fetch_byte();
       let os = get_operand_size_d64(pfx);
-      exec_enter(size, level, os)
+      let nesting : range(0, 31) = unsigned(level) % 32;
+      match os {
+        OS64 => {
+          push64(read_gpr64(RBP));
+          let frame_temp : qword = read_gpr64(RSP);
+          if nesting > 1 then {
+            foreach (i from 1 to (nesting - 1)) {
+              write_gpr64(RBP, read_gpr64(RBP) - 8);
+              push64(mem_read64(read_gpr64(RBP)));
+            };
+          };
+          if nesting >= 1 then
+            push64(frame_temp);
+          write_gpr64(RBP, frame_temp);
+          write_gpr64(RSP, read_gpr64(RSP) - zero_extend(size));
+        },
+        OS16 => {
+          push16(read_gpr16(RBP));
+          let frame_temp : word = read_gpr16(RSP);
+          if nesting > 1 then {
+            foreach (i from 1 to (nesting - 1)) {
+              write_gpr16(RBP, read_gpr16(RBP) - 2);
+              push16(mem_read16(zero_extend(read_gpr16(RBP))));
+            };
+          };
+          if nesting >= 1 then
+            push16(frame_temp);
+          write_gpr16(RBP, frame_temp);
+          write_gpr64(RSP, read_gpr64(RSP) - zero_extend(size));
+        },
+        _ => (),
+      };
+      Ok(())
     },
 
     // C9: LEAVE
     201 => {
       let os = get_operand_size_d64(pfx);
-      exec_leave(os)
+      match os {
+        OS64 => {
+          write_gpr64(RSP, read_gpr64(RBP));
+          write_gpr64(RBP, pop64());
+        },
+        OS32 => {
+          write_gpr64(RSP, zero_extend(read_gpr32(RBP)));
+          let v : qword = pop64();
+          write_gpr32(RBP, v[31..0]);
+        },
+        OS16 => {
+          write_gpr16(RSP, read_gpr16(RBP));
+          write_gpr16(RBP, pop16());
+        },
+        _ => (),
+      };
+      Ok(())
     },
 
     // CC: INT 3
-    204 => exec_int3(),
+    204 => __software_interrupt(0x03),
 
     // CD: INT imm8
     205 => {
@@ -695,7 +782,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     // D7: XLAT/XLATB
     215 => {
       let asz = get_address_size(pfx);
-      exec_xlat(asz)
+      let al : qword = zero_extend(read_gpr8l(RAX));
+      let addr : qword = match asz {
+        AS64 => read_gpr64(RBX) + al,
+        AS32 => zero_extend(read_gpr32(RBX)) + al,
+        AS16 => zero_extend(read_gpr16(RBX)) + al,
+      };
+      write_gpr8l(RAX, mem_read8(addr));
+      Ok(())
     },
 
     // D8-DF: x87 FPU
@@ -763,7 +857,17 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     232 => {
       let offset = fetch_rel32();
       let os = get_operand_size_f64(pfx);
-      exec_call_rel(offset, os)
+      let return_addr = decode_pos;
+      match os {
+        OS64 => push64(return_addr),
+        OS32 => push64(zero_extend(return_addr[31..0])),
+        OS16 => push16(return_addr[15..0]),
+        _ => (),
+      };
+      let new_rip = return_addr + offset;
+      RIP = new_rip;
+      decode_pos = new_rip;
+      Ok(())
     },
 
     // E9: JMP rel32 (f64)
@@ -797,7 +901,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // F4: HLT
-    244 => exec_hlt(),
+    244 => Halt(()),
 
     // F5: CMC
     245 => {
@@ -829,10 +933,10 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     249 => { CF = bitone; Ok(()) },
 
     // FA: CLI
-    250 => exec_cli(),
+    250 => { IF_flag = bitzero; Ok(()) },
 
     // FB: STI
-    251 => exec_sti(),
+    251 => { IF_flag = bitone; Ok(()) },
 
     // FC: CLD
     252 => { DF = bitzero; Ok(()) },
@@ -871,7 +975,13 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg_field : range(0, 7) = op - 80;
       let reg = extend_reg(reg_field, pfx.rex_b);
       let os = get_operand_size_d64(pfx);
-      exec_push_reg(reg, os)
+      match os {
+        OS64 => push64(read_gpr64(reg)),
+        OS32 => push64(zero_extend(read_gpr32(reg))),
+        OS16 => push16(read_gpr16(reg)),
+        _ => (),
+      };
+      Ok(())
     },
 
     // 58-5F: POP reg (d64)

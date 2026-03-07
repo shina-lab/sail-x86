@@ -117,7 +117,16 @@ function dispatch_group5(reg_field, rm, pfx) = {
       // CALL near indirect (f64 — defaults to 64-bit)
       let os = get_operand_size_d64(pfx);
       let target = read_rm_val(rm, os, pfx.has_rex);
-      exec_call_abs(target, os)
+      let return_addr = decode_pos;
+      match os {
+        OS64 => push64(return_addr),
+        OS32 => push64(zero_extend(return_addr[31..0])),
+        OS16 => push16(return_addr[15..0]),
+        _ => (),
+      };
+      RIP = target;
+      decode_pos = target;
+      Ok(())
     },
     4 => {
       // JMP near indirect (f64)
