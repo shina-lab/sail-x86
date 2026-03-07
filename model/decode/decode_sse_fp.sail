@@ -1263,6 +1263,74 @@ function dispatch_2byte_sse_fp(op, pfx) = {
   }
 }
 
+// XMM element extraction helpers (shared by decode_sse_fp and decode_sse_int)
+
+val extract_byte_from_xmm : (xmmword, byte) -> byte
+function extract_byte_from_xmm(s, imm8) = {
+  let sel : range(0, 15) = unsigned(imm8[3..0]);
+  match sel {
+    0  => s[7..0],
+    1  => s[15..8],
+    2  => s[23..16],
+    3  => s[31..24],
+    4  => s[39..32],
+    5  => s[47..40],
+    6  => s[55..48],
+    7  => s[63..56],
+    8  => s[71..64],
+    9  => s[79..72],
+    10 => s[87..80],
+    11 => s[95..88],
+    12 => s[103..96],
+    13 => s[111..104],
+    14 => s[119..112],
+    15 => s[127..120]
+  }
+}
+
+val extract_dword_from_xmm : (xmmword, byte) -> dword
+function extract_dword_from_xmm(s, imm8) = {
+  let sel : range(0, 3) = unsigned(imm8[1..0]);
+  match sel {
+    0 => s[31..0],
+    1 => s[63..32],
+    2 => s[95..64],
+    3 => s[127..96]
+  }
+}
+
+val extract_qword_from_xmm : (xmmword, byte) -> qword
+function extract_qword_from_xmm(s, imm8) = {
+  let sel : range(0, 1) = unsigned(imm8[0..0]);
+  match sel {
+    0 => s[63..0],
+    1 => s[127..64]
+  }
+}
+
+// INSERTPS — Insert Scalar Single-Precision FP Value (SSE4.1)
+val exec_insertps : (simd_idx, xmmword, byte) -> ExecutionResult
+function exec_insertps(dst, src, imm8) = {
+  let a : xmmword = read_xmm(dst);
+  let b : xmmword = src;
+  // Select source float using imm8[7:6]
+  let src_sel : range(0, 3) = unsigned(imm8[7..6]);
+  let src_float : dword = b[(src_sel * 32 + 31) .. (src_sel * 32)];
+  // Insert at destination position using imm8[5:4]
+  let dst_sel : range(0, 3) = unsigned(imm8[5..4]);
+  let t0 : dword = if dst_sel == 0 then src_float else a[31..0];
+  let t1 : dword = if dst_sel == 1 then src_float else a[63..32];
+  let t2 : dword = if dst_sel == 2 then src_float else a[95..64];
+  let t3 : dword = if dst_sel == 3 then src_float else a[127..96];
+  // Zero lanes indicated by imm8[3:0]
+  let d0 : dword = if imm8[0] == bitone then 0x00000000 else t0;
+  let d1 : dword = if imm8[1] == bitone then 0x00000000 else t1;
+  let d2 : dword = if imm8[2] == bitone then 0x00000000 else t2;
+  let d3 : dword = if imm8[3] == bitone then 0x00000000 else t3;
+  write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
+  Ok()
+}
+
 // =========================================================================
 // 3-Byte Opcode Map: SSE Floating-Point Operations
 // =========================================================================

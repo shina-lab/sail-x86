@@ -16,15 +16,8 @@ core {
     core/x87_regs.sail,
 }
 
-helpers {
-  requires prelude, core
-
-  files
-    helpers/sse_int.sail,
-}
-
 decode {
-  requires prelude, core, helpers
+  requires prelude, core
 
   files
     decode/types.sail,
