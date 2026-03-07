@@ -4704,7 +4704,44 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 68. VEX VFMADDSUB / VFMSUBADD
+  // 68. EVEX permutation/shuffle
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    // Control: element i selects src[ctrl[i][1:0]]
+    // 0x03020100 → select [0,1,2,3] (identity)
+    // 0x00010203 → select [3,2,1,0] (reverse)
+    s.xmm[2] = xmm_from_u64(0x0000000300000002, 0x0000000100000000);
+
+    // VPERMILPS xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 0C /r
+    // 62 F2 75 08 0C C2
+    add_xmm("evex vpermilps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x0C, 0xC2}, s, 0x7);
+
+    // Reverse: ctrl=[3,2,1,0]
+    s.xmm[2] = xmm_from_u64(0x0000000000000001, 0x0000000200000003);
+    add_xmm("evex vpermilps rev xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x0C, 0xC2}, s, 0x7);
+
+    // VPERMILPS with immediate: EVEX.128.66.0F3A.W0 04 /r ib
+    // 62 F3 7D 08 04 C1 1B → VPERMILPS xmm0, xmm1, 0x1B (reverse)
+    add_xmm("evex vpermilps xmm0,xmm1,0x1B",
+            {0x62, 0xF3, 0x7D, 0x08, 0x04, 0xC1, 0x1B}, s, 0x3);
+
+    // VPSHUFB xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 00 /r
+    // 62 F2 75 08 00 C2
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    // Control: byte shuffle. High bit = zero out, otherwise idx&0xF selects byte.
+    s.xmm[2] = xmm_from_u64(0x0001020380040506, 0x0708090A0B0C0D0E);
+    add_xmm("evex vpshufb xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x00, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 69. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
   cat = "AVX";
   {

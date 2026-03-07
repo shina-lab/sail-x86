@@ -28,8 +28,8 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] MOVSXD
 - [x] ENTER
 - [x] LEAVE
-- [ ] IN
-- [ ] OUT
+- [-] IN (needs I/O port handler)
+- [-] OUT (needs I/O port handler)
 
 ## Control Flow
 
@@ -96,13 +96,13 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] MFENCE
 - [x] SFENCE
 - [x] EMMS
-- [ ] SYSCALL
-- [ ] CPUID
-- [ ] RDTSC
+- [-] SYSCALL (needs kernel-mode handler)
+- [-] CPUID (hardcoded in model)
+- [-] RDTSC (non-deterministic)
 - [x] XGETBV
-- [ ] UD2
-- [ ] FXSAVE
-- [ ] FXRSTOR
+- [-] UD2 (deliberately causes exception)
+- [-] FXSAVE (external C function)
+- [-] FXRSTOR (external C function)
 
 ## SSE/SSE2 Floating-Point Arithmetic
 
@@ -255,7 +255,7 @@ Tested instructions are marked with [x], untested with [ ].
 - [ ] 512-bit forms (need ZMM harness support)
 - [ ] Masking (k registers)
 - [ ] Gather/scatter
-- [ ] VPERM variants
+- [x] VPERMILPS (register + immediate), VPSHUFB
 
 ## x87 FPU
 
