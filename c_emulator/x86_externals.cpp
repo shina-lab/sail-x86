@@ -747,14 +747,20 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
         break;
     case 0xD:
         if (subleaf == 0) {
-            // XSAVE: only x87 + SSE state (no AVX)
-            result.ztup0 = 0x00000003;  // XCR0 supported bits
-            result.ztup1 = 0x00000240;  // max size for enabled features
-            result.ztup2 = 0x00000240;  // max size for all features
+            // XSAVE: x87 (bit 0) + SSE (bit 1) + AVX (bit 2)
+            result.ztup0 = 0x00000007;  // XCR0 supported bits
+            result.ztup1 = 0x00000340;  // max size for enabled features (832 bytes with AVX)
+            result.ztup2 = 0x00000340;  // max size for all features
             result.ztup3 = 0x00000000;
         } else if (subleaf == 1) {
             // XSAVE sub-features: none
             result.ztup0 = 0x00000000;
+        } else if (subleaf == 2) {
+            // AVX state component: 256 bytes at offset 576
+            result.ztup0 = 0x00000100;  // size = 256 bytes
+            result.ztup1 = 0x00000240;  // offset = 576
+            result.ztup2 = 0x00000000;
+            result.ztup3 = 0x00000000;
         }
         break;
     case 0x80000000:

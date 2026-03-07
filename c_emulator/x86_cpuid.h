@@ -34,6 +34,9 @@ static constexpr u32 CPUID_1_ECX_SSE4_1     = 1 << 19;
 static constexpr u32 CPUID_1_ECX_SSE4_2     = 1 << 20;
 static constexpr u32 CPUID_1_ECX_POPCNT     = 1 << 23;
 static constexpr u32 CPUID_1_ECX_AESNI      = 1 << 25;
+static constexpr u32 CPUID_1_ECX_XSAVE      = 1 << 26;
+static constexpr u32 CPUID_1_ECX_OSXSAVE    = 1 << 27;
+static constexpr u32 CPUID_1_ECX_AVX        = 1 << 28;
 
 // CPUID leaf 7, subleaf 0: EBX feature bits
 static constexpr u32 CPUID_7_EBX_ERMS = 1 << 9;
@@ -59,7 +62,8 @@ static constexpr u32 EMU_CPUID_1_EDX =
 static constexpr u32 EMU_CPUID_1_ECX =
   CPUID_1_ECX_SSE3 | CPUID_1_ECX_PCLMULQDQ | CPUID_1_ECX_SSSE3 |
   CPUID_1_ECX_CX16 | CPUID_1_ECX_SSE4_1 | CPUID_1_ECX_SSE4_2 |
-  CPUID_1_ECX_POPCNT | CPUID_1_ECX_AESNI;
+  CPUID_1_ECX_POPCNT | CPUID_1_ECX_AESNI |
+  CPUID_1_ECX_XSAVE | CPUID_1_ECX_OSXSAVE | CPUID_1_ECX_AVX;
 
 static constexpr u32 EMU_CPUID_7_EBX = CPUID_7_EBX_ERMS;
 

@@ -22,11 +22,19 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/syscall_test.c
 )
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/avx_test
+  COMMAND gcc -static -nostdlib -mavx -o ${CMAKE_CURRENT_BINARY_DIR}/avx_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/avx_test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/avx_test.c
+)
+
 add_custom_target(test_binaries ALL
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/hello
     ${CMAKE_CURRENT_BINARY_DIR}/hello_libc
     ${CMAKE_CURRENT_BINARY_DIR}/syscall_test
+    ${CMAKE_CURRENT_BINARY_DIR}/avx_test
 )
 
 # Test: hello (raw syscall, no libc)
@@ -57,6 +65,12 @@ add_test(
 add_test(
   NAME syscall_test
   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/syscall_test
+)
+
+# Test: AVX instructions
+add_test(
+  NAME avx_test
+  COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/avx_test
 )
 
 # Test: /usr/bin/wc (dynamic binary)

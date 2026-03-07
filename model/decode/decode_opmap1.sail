@@ -924,6 +924,12 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       Ok(())
     },
 
+    // C4: 3-byte VEX prefix (in 64-bit mode)
+    196 => dispatch_vex(0xC4),
+
+    // C5: 2-byte VEX prefix (in 64-bit mode)
+    197 => dispatch_vex(0xC5),
+
     // Unhandled opcode
     _ => raise_UD(),
   }

@@ -16,6 +16,11 @@ struct Prefixes = {
   rex_x : bool,
   rex_b : bool,
   has_rex : bool,     // any REX present (changes byte reg encoding)
+  // VEX prefix fields
+  vex_present : bool, // VEX prefix was decoded
+  vex_l : bool,       // vector length: false=128, true=256
+  vex_vvvv : simd_idx,// extra register operand (already complemented)
+  vex_w : bool,       // VEX.W (like REX.W for some instructions)
 }
 
 val default_prefixes : unit -> Prefixes
@@ -31,6 +36,10 @@ function default_prefixes() = struct {
   rex_x = false,
   rex_b = false,
   has_rex = false,
+  vex_present = false,
+  vex_l = false,
+  vex_vvvv = 0,
+  vex_w = false,
 }
 
 // =========================================================================

@@ -404,6 +404,7 @@ instructions {
     instructions/vpdp.sail,
     instructions/vperm.sail,
     instructions/movq2dq.sail,
+    instructions/avx.sail,
 }
 
 decode {
@@ -418,6 +419,7 @@ decode {
     decode/decode_x87.sail,
     decode/decode_opmap2.sail,
     decode/decode_groups.sail,
+    decode/decode_vex.sail,
     decode/decode_opmap1.sail,
     decode/fetch_execute.sail,
 }

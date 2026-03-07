@@ -14,11 +14,11 @@ says results are undefined (e.g., flags after certain shift counts).
 ## Status
 
 The specification covers the general-purpose, SSE, SSE2, SSE3, SSSE3,
-SSE4.1, SSE4.2, AES-NI, and x87 FPU instruction sets — enough to run
-real-world programs including coreutils, Python, and Clang through the
-emulator. AVX/AVX-512, VEX/EVEX-encoded instructions, and
-system-level instructions (VMX, SGX, etc.) are defined as stubs that
-raise #UD.
+SSE4.1, SSE4.2, AES-NI, AVX/AVX2 (128-bit and 256-bit VEX-encoded),
+and x87 FPU instruction sets — enough to run real-world programs
+including coreutils, Python, and Clang through the emulator. AVX-512,
+EVEX-encoded instructions, and system-level instructions (VMX, SGX,
+etc.) are defined as stubs that raise #UD.
 
 ## Building
 
