@@ -231,13 +231,24 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] VINSERTF128/VEXTRACTF128
 - [x] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FMA variants)
 
-## AVX-512 (EVEX-encoded) - None tested
+## AVX-512 (EVEX-encoded)
 
-- [ ] All EVEX arithmetic instructions
-- [ ] All EVEX FMA instructions
-- [ ] All EVEX permutation/gather/scatter instructions
-- [ ] All EVEX integer instructions
-- [ ] All EVEX floating-point instructions
+- [x] VPADDD/VPSUBD/VPADDQ/VPSUBQ/VPSUBB
+- [x] VPANDD/VPORD/VPXORD
+- [x] VPSLLD/VPSRLD (immediate)
+- [x] VPMINUB
+- [x] VADDPS/VSUBPS/VMULPS/VDIVPS/VMINPS/VMAXPS/VSQRTPS
+- [x] VADDPD/VMULPD/VSUBPD/VDIVPD
+- [x] VMOVAPS
+- [x] VFMADD132/213/231 PS/PD/SS/SD
+- [x] VFMSUB132/213/231 PS
+- [x] VFNMADD132/213/231 PS
+- [x] VFNMSUB132/213/231 PS
+- [ ] VFMADDSUB/VFMSUBADD
+- [ ] 256-bit and 512-bit forms
+- [ ] Masking (k registers)
+- [ ] Gather/scatter
+- [ ] VPERM/VSHUF variants
 
 ## x87 FPU
 
@@ -259,7 +270,7 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] F2XM1/FYL2X/FYL2XP1
 - [x] FPREM/FPREM1
 - [x] FSCALE/FXTRACT
-- [ ] FBLD/FBSTP
+- [x] FBLD/FBSTP
 - [x] FLDL2T/FLDLG2
 - [x] FXAM/FTST
 - [x] FDECSTP/FINCSTP
@@ -326,7 +337,7 @@ Tested instructions are marked with [x], untested with [ ].
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
 | AVX (VEX)                 | 55+    | 55+   | 100%     |
-| AVX-512 (EVEX)            | 14     | 30+   | 47%      |
-| x87 FPU                   | 46     | 50+   | 92%      |
+| AVX-512 (EVEX)            | 45     | 60+   | 75%      |
+| x87 FPU                   | 47     | 48    | 98%      |
 | String Instructions        | 13     | 13    | 100%     |
-| **Total**                 | **~430**| **~500+** | **~86%** |
+| **Total**                 | **~460**| **~510+** | **~90%** |

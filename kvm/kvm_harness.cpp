@@ -4216,7 +4216,152 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 56. EVEX FMA instructions
+  // 56. XGETBV test
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rcx = 0; // XCR0
+    // XGETBV: 0F 01 D0
+    add_xmm("xgetbv ecx=0", {0x0F, 0x01, 0xD0}, s, 0x0);
+  }
+
+  // =====================================================================
+  // 57. More EVEX integer operations
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // VPADDQ xmm0, xmm1, xmm2: 62 F1 F5 08 D4 C2 (66,W=1)
+    add_xmm("evex vpaddq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xD4, 0xC2}, s, 0x7);
+
+    // VPSUBQ xmm0, xmm1, xmm2: 62 F1 F5 08 FB C2
+    add_xmm("evex vpsubq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xFB, 0xC2}, s, 0x7);
+
+    // VPSUBB xmm0, xmm1, xmm2: 62 F1 75 08 F8 C2 (66,W=0)
+    add_xmm("evex vpsubb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF8, 0xC2}, s, 0x7);
+
+    // VPMINUB xmm0, xmm1, xmm2: 62 F1 75 08 DA C2
+    add_xmm("evex vpminub xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDA, 0xC2}, s, 0x7);
+
+    // VPSLLD xmm0, xmm1, imm8(4): EVEX.128.66.0F W0 72 /6 ib
+    // 62 F1 75 08 72 F1 04
+    // Here reg=xmm1 (in vvvv for shift-imm), rm=xmm1, dst written to vvvv
+    // Actually for VPSLLD by immediate, encoding is:
+    // EVEX prefix + 72 + ModRM(/6=reg field 6, r/m=src) + imm8
+    // dst = vvvv, src = r/m
+    // 62 [F1] [75] [08] 72 [mod=11,reg=6,rm=1=0xF1] 04
+    add_xmm("evex vpslld xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xF1, 0x04}, s, 0x7);
+
+    // VPSRLD xmm0, xmm1, imm8(4): 62 F1 7D 08 72 D1 04 (/2)
+    add_xmm("evex vpsrld xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xD1, 0x04}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 58. More EVEX FP operations
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 4.0f, 9.0f, 16.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+
+    // VDIVPS xmm0, xmm1, xmm2: 62 F1 74 08 5E C2
+    add_xmm("evex vdivps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x5E, 0xC2}, s, 0x7);
+
+    // VMINPS xmm0, xmm1, xmm2: 62 F1 74 08 5D C2
+    add_xmm("evex vminps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x5D, 0xC2}, s, 0x7);
+
+    // VMAXPS xmm0, xmm1, xmm2: 62 F1 74 08 5F C2
+    add_xmm("evex vmaxps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x5F, 0xC2}, s, 0x7);
+
+    // VSQRTPS xmm0, xmm1: 62 F1 7C 08 51 C1 (NP,W=0,vvvv=1111)
+    add_xmm("evex vsqrtps xmm0,xmm1",
+            {0x62, 0xF1, 0x7C, 0x08, 0x51, 0xC1}, s, 0x3);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f64(1.5, 4.0);
+    s.xmm[2] = xmm_from_f64(3.0, 2.0);
+
+    // VSUBPD xmm0, xmm1, xmm2: 62 F1 F5 08 5C C2 (66,W=1)
+    add_xmm("evex vsubpd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x5C, 0xC2}, s, 0x7);
+
+    // VDIVPD xmm0, xmm1, xmm2: 62 F1 F5 08 5E C2
+    add_xmm("evex vdivpd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x5E, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 59. EVEX FMA (more variants)
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+
+    // VFMSUB132PS: 62 F2 75 08 9A C2
+    add_xmm("evex vfmsub132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x9A, 0xC2}, s, 0x7);
+
+    // VFNMADD132PS: 62 F2 75 08 9C C2
+    add_xmm("evex vfnmadd132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x9C, 0xC2}, s, 0x7);
+
+    // VFNMSUB132PS: 62 F2 75 08 9E C2
+    add_xmm("evex vfnmsub132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x9E, 0xC2}, s, 0x7);
+
+    // VFMSUB213PS: 62 F2 75 08 AA C2
+    add_xmm("evex vfmsub213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xAA, 0xC2}, s, 0x7);
+
+    // VFNMADD213PS: 62 F2 75 08 AC C2
+    add_xmm("evex vfnmadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xAC, 0xC2}, s, 0x7);
+
+    // VFNMSUB213PS: 62 F2 75 08 AE C2
+    add_xmm("evex vfnmsub213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xAE, 0xC2}, s, 0x7);
+
+    // VFMSUB231PS: 62 F2 75 08 BA C2
+    s.xmm[0] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+    add_xmm("evex vfmsub231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xBA, 0xC2}, s, 0x7);
+
+    // VFNMADD231PS: 62 F2 75 08 BC C2
+    add_xmm("evex vfnmadd231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xBC, 0xC2}, s, 0x7);
+
+    // VFNMSUB231PS: 62 F2 75 08 BE C2
+    add_xmm("evex vfnmsub231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xBE, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 60. EVEX FMA instructions (PD and scalar)
   //
   // VFMADD132PS: dst = dst * src3 + vvvv
   // EVEX.128.66.0F38.W0: P0=0xF2 (mm=10), P1=0x75, P2=0x08
@@ -4251,6 +4396,95 @@ std::vector<TestCase> build_tests() {
     // Result: xmm1 * xmm2 + xmm0 = {21, 61, 121, 201}
     add_xmm("evex vfmadd231ps xmm0,xmm1,xmm2",
             {0x62, 0xF2, 0x75, 0x08, 0xB8, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 61. EVEX FMA PD and scalar SS/SD
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f64(2.0, 3.0);
+    s.xmm[1] = xmm_from_f64(10.0, 20.0);
+    s.xmm[2] = xmm_from_f64(1.0, 1.0);
+
+    // VFMADD132PD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W1
+    // P0=0xF2 (mm=10), P1=0xF5 (W=1,vvvv=1110,1,pp=01), P2=0x08
+    add_xmm("evex vfmadd132pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x98, 0xC2}, s, 0x7);
+
+    // VFMADD213PD: 62 F2 F5 08 A8 C2
+    add_xmm("evex vfmadd213pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xA8, 0xC2}, s, 0x7);
+
+    // VFMADD231PD: 62 F2 F5 08 B8 C2
+    s.xmm[0] = xmm_from_f64(1.0, 1.0);
+    s.xmm[1] = xmm_from_f64(10.0, 20.0);
+    s.xmm[2] = xmm_from_f64(2.0, 3.0);
+    add_xmm("evex vfmadd231pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB8, 0xC2}, s, 0x7);
+  }
+  {
+    // Scalar FMA: VFMADD132SS, VFMADD132SD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(2.0f, 99.0f, 99.0f, 99.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 88.0f, 88.0f, 88.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 77.0f, 77.0f, 77.0f);
+
+    // VFMADD132SS: EVEX.LIG.66.0F38.W0 99 /r
+    // 62 F2 75 08 99 C2
+    add_xmm("evex vfmadd132ss xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x99, 0xC2}, s, 0x7);
+
+    // VFMADD213SS: 62 F2 75 08 A9 C2
+    add_xmm("evex vfmadd213ss xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA9, 0xC2}, s, 0x7);
+
+    // VFMADD231SS: 62 F2 75 08 B9 C2
+    add_xmm("evex vfmadd231ss xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xB9, 0xC2}, s, 0x7);
+
+    s.xmm[0] = xmm_from_f64(2.0, 99.0);
+    s.xmm[1] = xmm_from_f64(10.0, 88.0);
+    s.xmm[2] = xmm_from_f64(1.0, 77.0);
+
+    // VFMADD132SD: EVEX.LIG.66.0F38.W1 99 /r
+    // 62 F2 F5 08 99 C2
+    add_xmm("evex vfmadd132sd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x99, 0xC2}, s, 0x7);
+
+    // VFMADD213SD: 62 F2 F5 08 A9 C2
+    add_xmm("evex vfmadd213sd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xA9, 0xC2}, s, 0x7);
+
+    // VFMADD231SD: 62 F2 F5 08 B9 C2
+    add_xmm("evex vfmadd231sd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB9, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 62. FBLD/FBSTP (BCD load/store)
+  // =====================================================================
+  cat = "x87";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FBLD loads a 10-byte packed BCD from memory
+    // FBSTP stores to 10-byte packed BCD and pops
+    // BCD encoding: 10 bytes, each nibble is a digit, byte 9 bit 7 = sign
+    // Value 12345: stored as 45 23 01 00 00 00 00 00 00 00
+    u8 bcd_data[10] = {0x45, 0x23, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    // FBLD [RDI]: DF /4 → DF 27 (mod=00, reg=4, rm=7=RDI)
+    // then FBSTP [RDI+16]: DF /6 → DF 6F 10
+    tests.push_back({"fbld+fbstp", cat,
+                      {0xDF, 0x27, 0xDF, 0x6F, 0x10},
+                      s, FL_ALL, 0, false,
+                      {bcd_data, bcd_data + 10}, 26});
   }
 
   add_systematic_tests(tests);
