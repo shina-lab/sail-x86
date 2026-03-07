@@ -460,22 +460,14 @@ function exec_shl(a, count_raw, os) = {
     match os {
       OS8 => {
         CF = if count <= 8 then a[8 - count] else undefined;
-        if count <= 8 then {
-          update_SF_ZF_PF(result[7..0])
-        } else {
-          SF = undefined; ZF = undefined; PF = undefined
-        };
+        update_SF_ZF_PF(result[7..0]);
         if count == 1 then
           OF = bool_to_bit(result[7] != CF)
         else OF = undefined
       },
       OS16 => {
         CF = if count <= 16 then a[16 - count] else undefined;
-        if count <= 16 then {
-          update_SF_ZF_PF(result[15..0])
-        } else {
-          SF = undefined; ZF = undefined; PF = undefined
-        };
+        update_SF_ZF_PF(result[15..0]);
         if count == 1 then
           OF = bool_to_bit(result[15] != CF)
         else OF = undefined
@@ -521,21 +513,13 @@ function exec_shr(a, count_raw, os) = {
     match os {
       OS8 => {
         CF = if count <= 8 then a[count - 1] else undefined;
-        if count <= 8 then {
-          update_SF_ZF_PF(result[7..0])
-        } else {
-          SF = undefined; ZF = undefined; PF = undefined
-        };
+        update_SF_ZF_PF(result[7..0]);
         if count == 1 then OF = a[7]
         else OF = undefined
       },
       OS16 => {
         CF = if count <= 16 then a[count - 1] else undefined;
-        if count <= 16 then {
-          update_SF_ZF_PF(result[15..0])
-        } else {
-          SF = undefined; ZF = undefined; PF = undefined
-        };
+        update_SF_ZF_PF(result[15..0]);
         if count == 1 then OF = a[15]
         else OF = undefined
       },
@@ -836,6 +820,11 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
     _    => unsigned(count_raw) % 32,
   };
   if masked == 0 then {
+    // Even with count=0, 32-bit operations zero-extend the upper 32 bits.
+    if os == OS32 then {
+      let src_val = read_rm_val(rm, os, pfx.has_rex);
+      write_rm_val(rm, os, pfx.has_rex, src_val)
+    };
     Ok()
   } else {
     let src_val = read_rm_val(rm, os, pfx.has_rex);
