@@ -3429,7 +3429,142 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 44. AVX (VEX-encoded 128-bit) — packed/scalar FP and integer
+  // 44. ENTER
+  // =====================================================================
+  cat = "ENTER";
+  {
+    ArchState s = {};
+    s.rsp = 0x20000;
+    s.rbp = 0x1F000;
+    s.rflags = 0x2;
+
+    // ENTER 0x10, 0: C8 10 00 00 (allocate 16 bytes, nesting=0)
+    // Then LEAVE to restore: C9
+    add("enter 0x10,0; leave", {0xC8, 0x10, 0x00, 0x00, 0xC9}, s, FL_ALL);
+
+    // ENTER 0x00, 0: C8 00 00 00 (allocate 0 bytes, nesting=0)
+    add("enter 0x00,0; leave", {0xC8, 0x00, 0x00, 0x00, 0xC9}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 45. More x87 — transcendental/rounding ops
+  // =====================================================================
+  cat = "x87";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FSQRT: FLD1 + FLD1 + FADDP (=2.0) + FSQRT + FSTP
+    // D9 E8 (FLD1) + D9 E8 (FLD1) + DE C1 (FADDP) + D9 FA (FSQRT) + DD 1F (FSTP [RDI])
+    tests.push_back({"fld1+fld1+faddp+fsqrt+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE8, 0xDE, 0xC1, 0xD9, 0xFA, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FRNDINT: FLD constant + FRNDINT + FISTP
+    // Load 3.7 via FILD 37 / FILD 10 / FDIVP
+    u8 rnd_data[] = {37, 0, 0, 0, 10, 0, 0, 0};
+    // FILD [RDI] (DB 07) + FILD [RDI+4] (DB 47 04) + DE F9 (FDIVRP) + D9 FC (FRNDINT) + DB 1F (FISTP [RDI])
+    tests.push_back({"fild 37/fild 10/fdivrp/frndint/fistp", cat,
+                      {0xDB, 0x07, 0xDB, 0x47, 0x04, 0xDE, 0xF9, 0xD9, 0xFC, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {rnd_data, rnd_data + 8}, 4});
+
+    // FSIN: FLD PI/2 ≈ push PI, divide by FILD 2
+    // Rather than complex setup, just test FLDZ + FSIN + FSTP (sin(0)=0)
+    // D9 EE (FLDZ) + D9 FE (FSIN) + DD 1F (FSTP [RDI])
+    tests.push_back({"fldz+fsin+fstp", cat,
+                      {0xD9, 0xEE, 0xD9, 0xFE, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FCOS: cos(0)=1
+    // D9 EE (FLDZ) + D9 FF (FCOS) + DD 1F (FSTP [RDI])
+    tests.push_back({"fldz+fcos+fstp", cat,
+                      {0xD9, 0xEE, 0xD9, 0xFF, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FLD m64fp + FSTP m64fp: load double, store back
+    // DD 07 (FLD m64fp [RDI]) + DD 1F (FSTP m64fp [RDI])
+    u8 dbl_val[8];
+    double dv = 3.14159;
+    memcpy(dbl_val, &dv, 8);
+    tests.push_back({"fld m64; fstp m64", cat,
+                      {0xDD, 0x07, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {dbl_val, dbl_val + 8}, 8});
+
+    // FLD m32fp + FSTP m32fp: load float, store back
+    // D9 07 (FLD m32fp [RDI]) + D9 1F (FSTP m32fp [RDI])
+    u8 flt_val[4];
+    float fv = 2.71828f;
+    memcpy(flt_val, &fv, 4);
+    tests.push_back({"fld m32; fstp m32", cat,
+                      {0xD9, 0x07, 0xD9, 0x1F},
+                      s, FL_ALL, 0, false, {flt_val, flt_val + 4}, 4});
+
+    // FIST m16: FILD 100 + FIST m16 [RDI]
+    u8 i100[] = {100, 0, 0, 0};
+    // DB 07 (FILD m32 [RDI]) + DF 17 (FIST m16 [RDI])
+    tests.push_back({"fild+fist m16", cat,
+                      {0xDB, 0x07, 0xDF, 0x17},
+                      s, FL_ALL, 0, false, {i100, i100 + 4}, 2});
+
+    // FISTP m64: FILD 12345 + FISTP m64 [RDI]
+    u8 i12345[] = {0x39, 0x30, 0, 0};  // 12345
+    // DB 07 (FILD m32 [RDI]) + DF 3F (FISTP m64 [RDI])
+    tests.push_back({"fild+fistp m64", cat,
+                      {0xDB, 0x07, 0xDF, 0x3F},
+                      s, FL_ALL, 0, false, {i12345, i12345 + 4}, 8});
+
+    // FILD m64int + FISTP m64int
+    u8 i64_val[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    // DF 2F (FILD m64 [RDI]) + DF 3F (FISTP m64 [RDI])
+    tests.push_back({"fild m64; fistp m64", cat,
+                      {0xDF, 0x2F, 0xDF, 0x3F},
+                      s, FL_ALL, 0, false, {i64_val, i64_val + 8}, 8});
+
+    // FILD m16int + FISTP m32int
+    u8 i16_val[] = {0x0A, 0x00};  // 10
+    // DF 07 (FILD m16 [RDI]) + DB 1F (FISTP m32 [RDI])
+    tests.push_back({"fild m16; fistp m32", cat,
+                      {0xDF, 0x07, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {i16_val, i16_val + 2}, 4});
+
+    // FUCOMIP: compare and set EFLAGS, pop
+    // FLD1 + FLDZ + DF E9 (FUCOMIP ST, ST(1)) — compares 0.0 vs 1.0
+    tests.push_back({"fld1+fldz+fucomip", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xDF, 0xE9},
+                      s, FL_ALL, 0, false, {}, 0});
+  }
+
+  // =====================================================================
+  // 46. CMPXCHG16B
+  // =====================================================================
+  cat = "CMPXCHG16B";
+  {
+    // CMPXCHG16B [RDI]: REX.W 0F C7 0F (mod=00, reg=1, rm=rdi)
+    // Compare RDX:RAX with m128. If equal, set ZF and store RCX:RBX.
+
+    // Case 1: match
+    ArchState s = {};
+    s.rdi = DATA_ADDR;  // DATA_ADDR is 0x11000, 4K-aligned
+    s.rax = 0x44332211AABBCCDD;
+    s.rdx = 0x88776655EEFF0011;
+    s.rbx = 0xDDCCBBAA11223344;
+    s.rcx = 0x1122334455667788;
+    s.rflags = 0x2;
+    u8 val[] = {0xDD, 0xCC, 0xBB, 0xAA, 0x11, 0x22, 0x33, 0x44,
+                0x11, 0x00, 0xFF, 0xEE, 0x55, 0x66, 0x77, 0x88};
+    add_mem("cmpxchg16b match", {0x48, 0x0F, 0xC7, 0x0F}, s, FL_ALL,
+            {val, val + 16}, 16);
+
+    // Case 2: no match
+    s.rax = 0x0000000000000000;
+    s.rdx = 0x0000000000000000;
+    add_mem("cmpxchg16b no match", {0x48, 0x0F, 0xC7, 0x0F}, s, FL_ALL,
+            {val, val + 16}, 16);
+  }
+
+  // =====================================================================
+  // 47. AVX (VEX-encoded 128-bit) — packed/scalar FP and integer
   //
   // VEX 2-byte encoding: C5 [R̄.vvvv.L.pp] opcode ModRM
   //   R̄=1 for xmm0-7, vvvv = ~src1 (inverted), L=0 for 128-bit

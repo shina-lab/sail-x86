@@ -37,6 +37,8 @@ set(KVM_CATEGORIES
   String
   EMMS
   x87
+  ENTER
+  CMPXCHG16B
   AVX
 )
 
