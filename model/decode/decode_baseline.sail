@@ -3,6 +3,70 @@
 // CMOVcc, Jcc, SETcc, BT/BTS/BTR/BTC, SHLD/SHRD, IMUL, MOVZX/MOVSX,
 // BSF/BSR, POPCNT, CMPXCHG, XADD, BSWAP, CPUID, RDTSC, and more.
 
+val bsf64 : (qword, range(0, 63)) -> range(0, 63)
+function bsf64(v, idx) =
+  if idx >= 63 then 63
+  else if bit_to_bool(v[idx]) then idx
+  else bsf64(v, idx + 1)
+
+val bsr64 : (qword, range(0, 63)) -> range(0, 63)
+function bsr64(v, idx) =
+  if idx <= 0 then 0
+  else if bit_to_bool(v[idx]) then idx
+  else bsr64(v, idx - 1)
+
+// XADD — Exchange and Add
+
+val exec_xadd : (gpr_idx, gpr_idx, OperandSize) -> ExecutionResult
+function exec_xadd(dst, src, os) = {
+  let a : qword = read_gpr(dst, os);
+  let b : qword = read_gpr(src, os);
+  let sum : qword = a + b;
+  match os {
+    OS8  => update_flags_add(sum[7..0], a[7..0], b[7..0]),
+    OS16 => update_flags_add(sum[15..0], a[15..0], b[15..0]),
+    OS32 => update_flags_add(sum[31..0], a[31..0], b[31..0]),
+    OS64 => update_flags_add(sum, a, b),
+  };
+  write_gpr(src, os, a);
+  write_gpr(dst, os, sum);
+  Ok()
+}
+
+// POPCNT helpers
+
+val popcount8 : byte -> range(0, 8)
+function popcount8(v) = {
+  let b0 : range(0, 1) = if bit_to_bool(v[0]) then 1 else 0;
+  let b1 : range(0, 1) = if bit_to_bool(v[1]) then 1 else 0;
+  let b2 : range(0, 1) = if bit_to_bool(v[2]) then 1 else 0;
+  let b3 : range(0, 1) = if bit_to_bool(v[3]) then 1 else 0;
+  let b4 : range(0, 1) = if bit_to_bool(v[4]) then 1 else 0;
+  let b5 : range(0, 1) = if bit_to_bool(v[5]) then 1 else 0;
+  let b6 : range(0, 1) = if bit_to_bool(v[6]) then 1 else 0;
+  let b7 : range(0, 1) = if bit_to_bool(v[7]) then 1 else 0;
+  b0 + b1 + b2 + b3 + b4 + b5 + b6 + b7
+}
+
+val popcount16 : word -> range(0, 16)
+function popcount16(v) =
+  popcount8(v[7..0]) + popcount8(v[15..8])
+
+val popcount32 : dword -> range(0, 32)
+function popcount32(v) =
+  popcount16(v[15..0]) + popcount16(v[31..16])
+
+// LZCNT helper
+
+val lzcnt64 : (qword, range(0, 63)) -> range(0, 64)
+function lzcnt64(v, idx) =
+  if idx == 0 then (if bit_to_bool(v[idx]) then 0 else 64)
+  else if bit_to_bool(v[idx]) then 63 - idx
+  else lzcnt64(v, idx - 1)
+
+val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
+val __rdtsc : unit -> qword
+
 val __syscall : (qword, qword) -> ExecutionResult
 val __fxsave : qword -> ExecutionResult
 val __fxsave64 : qword -> ExecutionResult
@@ -146,7 +210,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     31 => {
       let modrm = fetch_byte();
       let _ = decode_rm(modrm, pfx);  // consume ModR/M + SIB + disp
-      exec_nop()
+      Ok()
     },
     // 0F 01: Group 7 (privileged/system instructions)
     1 => {
@@ -174,7 +238,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     op if 24 <= op & op <= 30 => {
       let modrm = fetch_byte();
       let _ = decode_rm(modrm, pfx);
-      exec_nop()
+      Ok()
     },
     // 0F 31: RDTSC
     49 => {

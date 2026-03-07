@@ -1,3 +1,270 @@
+// INC — Increment by 1
+//
+// Computes dest := dest + 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
+
+val exec_inc : (qword, OperandSize) -> (ExecutionResult, qword)
+function exec_inc(a, os) = {
+  let one : qword = zero_extend(0b1 : bits(1));
+  let result : qword = a + one;
+  match os {
+    OS8  => update_flags_add_no_cf(result[7..0], a[7..0], one[7..0]),
+    OS16 => update_flags_add_no_cf(result[15..0], a[15..0], one[15..0]),
+    OS32 => update_flags_add_no_cf(result[31..0], a[31..0], one[31..0]),
+    OS64 => update_flags_add_no_cf(result, a, one),
+  };
+  (Ok(), result)
+}
+
+// DEC — Decrement by 1
+//
+// Computes dest := dest - 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
+
+val exec_dec : (qword, OperandSize) -> (ExecutionResult, qword)
+function exec_dec(a, os) = {
+  let one : qword = zero_extend(0b1 : bits(1));
+  let result : qword = a - one;
+  match os {
+    OS8  => update_flags_sub_no_cf(result[7..0], a[7..0], one[7..0]),
+    OS16 => update_flags_sub_no_cf(result[15..0], a[15..0], one[15..0]),
+    OS32 => update_flags_sub_no_cf(result[31..0], a[31..0], one[31..0]),
+    OS64 => update_flags_sub_no_cf(result, a, one),
+  };
+  (Ok(), result)
+}
+
+// MUL — Unsigned Multiply
+
+val exec_mul : (qword, OperandSize) -> ExecutionResult
+function exec_mul(src, os) = {
+  match os {
+    OS8 => {
+      let a : int = unsigned(read_gpr8l(RAX));
+      let b : int = unsigned(src[7..0]);
+      let result : word = to_bits_truncate(a * b);
+      write_gpr16(RAX, result);
+      CF = bool_to_bit(result[15..8] != zeros());
+      OF = CF;
+    },
+    OS16 => {
+      let a : int = unsigned(read_gpr16(RAX));
+      let b : int = unsigned(src[15..0]);
+      let result : dword = to_bits_truncate(a * b);
+      write_gpr16(RAX, result[15..0]);
+      write_gpr16(RDX, result[31..16]);
+      CF = bool_to_bit(result[31..16] != zeros());
+      OF = CF;
+    },
+    OS32 => {
+      let a : int = unsigned(read_gpr32(RAX));
+      let b : int = unsigned(src[31..0]);
+      let result : qword = to_bits_truncate(a * b);
+      write_gpr32(RAX, result[31..0]);
+      write_gpr32(RDX, result[63..32]);
+      CF = bool_to_bit(result[63..32] != zeros());
+      OF = CF;
+    },
+    OS64 => {
+      let a : int = unsigned(read_gpr64(RAX));
+      let b : int = unsigned(src);
+      let product : int = a * b;
+      let result : xmmword = to_bits_truncate(product);
+      write_gpr64(RAX, result[63..0]);
+      write_gpr64(RDX, result[127..64]);
+      CF = bool_to_bit(result[127..64] != zeros());
+      OF = CF;
+    },
+  };
+  Ok()
+}
+
+// DIV — Unsigned Divide
+
+val exec_div : (qword, OperandSize) -> ExecutionResult
+function exec_div(src, os) = {
+  match os {
+    OS8 => {
+      let divisor = unsigned(src[7..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = unsigned(read_gpr16(RAX));
+        let quotient = dividend / divisor;
+        let remainder = dividend - quotient * divisor;
+        if quotient > 255 then raise_DE()
+        else {
+          write_gpr8l(RAX, to_bits_truncate(quotient));
+          write_gpr8h(RAX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS16 => {
+      let divisor = unsigned(src[15..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = unsigned(read_gpr16(RDX) @ read_gpr16(RAX));
+        let quotient = dividend / divisor;
+        let remainder = dividend - quotient * divisor;
+        if quotient > 65535 then raise_DE()
+        else {
+          write_gpr16(RAX, to_bits_truncate(quotient));
+          write_gpr16(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS32 => {
+      let divisor = unsigned(src[31..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = unsigned(read_gpr32(RDX) @ read_gpr32(RAX));
+        let quotient = dividend / divisor;
+        let remainder = dividend - quotient * divisor;
+        if quotient > (pow2(32) - 1) then raise_DE()
+        else {
+          write_gpr32(RAX, to_bits_truncate(quotient));
+          write_gpr32(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS64 => {
+      let divisor = unsigned(src);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = unsigned(read_gpr64(RDX) @ read_gpr64(RAX));
+        let quotient = dividend / divisor;
+        let remainder = dividend - quotient * divisor;
+        if quotient > (pow2(64) - 1) then raise_DE()
+        else {
+          write_gpr64(RAX, to_bits_truncate(quotient));
+          write_gpr64(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+  }
+}
+
+// IDIV — Signed Divide
+
+val exec_idiv : (qword, OperandSize) -> ExecutionResult
+function exec_idiv(src, os) = {
+  match os {
+    OS8 => {
+      let divisor = signed(src[7..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = signed(read_gpr16(RAX));
+        let quotient = quot_round_zero(dividend, divisor);
+        let remainder = rem_round_zero(dividend, divisor);
+        if quotient > 127 | quotient < negate(128) then raise_DE()
+        else {
+          write_gpr8l(RAX, to_bits_truncate(quotient));
+          write_gpr8h(RAX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS16 => {
+      let divisor = signed(src[15..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = signed(read_gpr16(RDX) @ read_gpr16(RAX));
+        let quotient = quot_round_zero(dividend, divisor);
+        let remainder = rem_round_zero(dividend, divisor);
+        if quotient > 32767 | quotient < negate(32768) then raise_DE()
+        else {
+          write_gpr16(RAX, to_bits_truncate(quotient));
+          write_gpr16(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS32 => {
+      let divisor = signed(src[31..0]);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = signed(read_gpr32(RDX) @ read_gpr32(RAX));
+        let quotient = quot_round_zero(dividend, divisor);
+        let remainder = rem_round_zero(dividend, divisor);
+        if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then raise_DE()
+        else {
+          write_gpr32(RAX, to_bits_truncate(quotient));
+          write_gpr32(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+    OS64 => {
+      let divisor = signed(src);
+      if divisor == 0 then raise_DE()
+      else {
+        let dividend = signed(read_gpr64(RDX) @ read_gpr64(RAX));
+        let quotient = quot_round_zero(dividend, divisor);
+        let remainder = rem_round_zero(dividend, divisor);
+        if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then raise_DE()
+        else {
+          write_gpr64(RAX, to_bits_truncate(quotient));
+          write_gpr64(RDX, to_bits_truncate(remainder));
+          Ok()
+        }
+      }
+    },
+  }
+}
+
+// IMUL — Signed Multiply (one-operand form)
+
+val exec_imul_1 : (qword, OperandSize) -> ExecutionResult
+function exec_imul_1(src, os) = {
+  match os {
+    OS8 => {
+      let a : int = signed(read_gpr8l(RAX));
+      let b : int = signed(src[7..0]);
+      let product : int = a * b;
+      let result : word = to_bits_truncate(product);
+      write_gpr16(RAX, result);
+      let truncated : bool = product != signed(result[7..0]);
+      CF = bool_to_bit(truncated);
+      OF = CF;
+    },
+    OS16 => {
+      let a : int = signed(read_gpr16(RAX));
+      let b : int = signed(src[15..0]);
+      let product : int = a * b;
+      let result : dword = to_bits_truncate(product);
+      write_gpr16(RAX, result[15..0]);
+      write_gpr16(RDX, result[31..16]);
+      let truncated : bool = product != signed(result[15..0]);
+      CF = bool_to_bit(truncated);
+      OF = CF;
+    },
+    OS32 => {
+      let a : int = signed(read_gpr32(RAX));
+      let b : int = signed(src[31..0]);
+      let product : int = a * b;
+      let result : qword = to_bits_truncate(product);
+      write_gpr32(RAX, result[31..0]);
+      write_gpr32(RDX, result[63..32]);
+      let truncated : bool = product != signed(result[31..0]);
+      CF = bool_to_bit(truncated);
+      OF = CF;
+    },
+    OS64 => {
+      let a : int = signed(read_gpr64(RAX));
+      let b : int = signed(src);
+      let product : int = a * b;
+      let result : xmmword = to_bits_truncate(product);
+      write_gpr64(RAX, result[63..0]);
+      write_gpr64(RDX, result[127..64]);
+      let truncated : bool = product != signed(result[63..0]);
+      CF = bool_to_bit(truncated);
+      OF = CF;
+    },
+  };
+  Ok()
+}
+
 // PUSH imm
 
 val exec_push_imm : (qword, OperandSize) -> ExecutionResult

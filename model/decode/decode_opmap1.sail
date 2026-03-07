@@ -5,6 +5,51 @@
 
 val __software_interrupt : byte -> ExecutionResult
 
+// XCHG — Exchange Register/Memory with Register
+
+val exec_xchg_reg_reg : (gpr_idx, gpr_idx, OperandSize) -> ExecutionResult
+function exec_xchg_reg_reg(a, b, os) = {
+  let va : qword = read_gpr(a, os);
+  let vb : qword = read_gpr(b, os);
+  write_gpr(a, os, vb);
+  write_gpr(b, os, va);
+  Ok()
+}
+
+// IN — Input from Port
+
+val __port_in8  : word -> byte
+val __port_in16 : word -> word
+val __port_in32 : word -> dword
+
+val exec_in : (word, OperandSize) -> ExecutionResult
+function exec_in(port, os) = {
+  match os {
+    OS8  => write_gpr8l(RAX, __port_in8(port)),
+    OS16 => write_gpr16(RAX, __port_in16(port)),
+    OS32 => write_gpr32(RAX, __port_in32(port)),
+    OS64 => (),
+  };
+  Ok()
+}
+
+// OUT — Output to Port
+
+val __port_out8  : (word, byte)  -> unit
+val __port_out16 : (word, word) -> unit
+val __port_out32 : (word, dword) -> unit
+
+val exec_out : (word, OperandSize) -> ExecutionResult
+function exec_out(port, os) = {
+  match os {
+    OS8  => __port_out8(port, read_gpr8l(RAX)),
+    OS16 => __port_out16(port, read_gpr16(RAX)),
+    OS32 => __port_out32(port, read_gpr32(RAX)),
+    OS64 => (),
+  };
+  Ok()
+}
+
 // JMP near relative: RIP := decode_pos + sign-extended offset
 
 // POP — Pop a Value from the Stack
@@ -420,7 +465,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let os = get_operand_size(pfx);
         exec_xchg_reg_reg(RAX, R8, os)
       } else
-        exec_nop()
+        Ok()
     },
 
     // 98: CBW/CWDE/CDQE
