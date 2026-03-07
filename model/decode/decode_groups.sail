@@ -11,17 +11,17 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
     let v = read_rm_val(rm, OS8, pfx.has_rex);
     let result = v & imm;
     update_flags_logic(result[7..0]);
-    Ok(())
+    Ok()
   } else {
     let v = read_rm_val(rm, OS8, pfx.has_rex);
     match reg_field {
-      0 => Ok(()),  // unreachable, handled above
-      1 => Ok(()),  // unreachable, handled above
+      0 => Ok(),  // unreachable, handled above
+      1 => Ok(),  // unreachable, handled above
       2 => {
         // NOT r/m8
         let result = v ^ 0x00000000000000FF;
         write_rm_val(rm, OS8, pfx.has_rex, result);
-        Ok(())
+        Ok()
       },
       3 => {
         // NEG r/m8
@@ -29,7 +29,7 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
         let result = zero - v;
         update_flags_sub(result[7..0], zero[7..0], v[7..0]);
         write_rm_val(rm, OS8, pfx.has_rex, result);
-        Ok(())
+        Ok()
       },
       4 => exec_mul(v, OS8),
       5 => exec_imul_1(v, OS8),
@@ -57,17 +57,17 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
       OS32 => update_flags_logic(result[31..0]),
       OS64 => update_flags_logic(result),
     };
-    Ok(())
+    Ok()
   } else {
     let v = read_rm_val(rm, os, pfx.has_rex);
     match reg_field {
-      0 => Ok(()),  // unreachable
-      1 => Ok(()),  // unreachable
+      0 => Ok(),  // unreachable
+      1 => Ok(),  // unreachable
       2 => {
         // NOT r/m
         let result = ~(v);
         write_rm_val(rm, os, pfx.has_rex, result);
-        Ok(())
+        Ok()
       },
       3 => {
         // NEG r/m
@@ -80,7 +80,7 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
           OS64 => update_flags_sub(result, zero, v),
         };
         write_rm_val(rm, os, pfx.has_rex, result);
-        Ok(())
+        Ok()
       },
       4 => exec_mul(v, os),
       5 => exec_imul_1(v, os),
@@ -126,7 +126,7 @@ function dispatch_group5(reg_field, rm, pfx) = {
       };
       RIP = target;
       decode_pos = target;
-      Ok(())
+      Ok()
     },
     4 => {
       // JMP near indirect (f64)
@@ -158,7 +158,7 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if masked == 0 then Ok(())
+  if masked == 0 then Ok()
   else {
     let src_val = read_rm_val(rm, os, pfx.has_rex);
     let (result, new_val) : (ExecutionResult, qword) = match shift_op {

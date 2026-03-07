@@ -28,7 +28,7 @@ function exec_movs(os, asz) = {
     write_index_src(asz, src_addr - delta);
     write_index_dst(asz, dst_addr - delta);
   };
-  Ok(())
+  Ok()
 }
 // STOS/STOSB/STOSW/STOSD/STOSQ — Store String
 //
@@ -56,7 +56,7 @@ function exec_stos(os, asz) = {
     write_index_dst(asz, addr + delta)
   else
     write_index_dst(asz, addr - delta);
-  Ok(())
+  Ok()
 }
 // LODS/LODSB/LODSW/LODSD/LODSQ — Load String
 //
@@ -84,7 +84,7 @@ function exec_lods(os, asz) = {
     write_index_src(asz, addr + delta)
   else
     write_index_src(asz, addr - delta);
-  Ok(())
+  Ok()
 }
 // SCAS/SCASB/SCASW/SCASD/SCASQ — Scan String
 //
@@ -127,7 +127,7 @@ function exec_scas(os, asz) = {
     write_index_dst(asz, addr + delta)
   else
     write_index_dst(asz, addr - delta);
-  Ok(())
+  Ok()
 }
 // CMPS/CMPSB/CMPSW/CMPSD/CMPSQ — Compare String Operands
 //
@@ -174,7 +174,7 @@ function exec_cmps(os, asz) = {
     write_index_src(asz, src_addr - delta);
     write_index_dst(asz, dst_addr - delta);
   };
-  Ok(())
+  Ok()
 }
 // REP/REPE/REPZ/REPNE/REPNZ — Repeat String Operation Prefix
 //
@@ -212,5 +212,5 @@ function exec_rep(prefix, op, os, asz) = {
       };
     };
   };
-  Ok(())
+  Ok()
 }

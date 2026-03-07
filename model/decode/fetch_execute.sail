@@ -20,7 +20,7 @@ function step() = {
 
   // Advance RIP past the instruction (decode_pos tracks how far we read).
   // Control-flow instructions (JMP, CALL, RET, Jcc) set RIP themselves
-  // and return Ok(()). We detect this by checking if RIP was modified.
+  // and return Ok(). We detect this by checking if RIP was modified.
   // If RIP still equals the original value, advance it.
   match result {
     Ok(_) => RIP = decode_pos,
@@ -35,7 +35,7 @@ function step() = {
 val run : int -> ExecutionResult
 function run(max_steps) = {
   var remaining : int = max_steps;
-  var last_result : ExecutionResult = Ok(());
+  var last_result : ExecutionResult = Ok();
   var done : bool = false;
 
   while not_bool(done) & remaining > 0 do {

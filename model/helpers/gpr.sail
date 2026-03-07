@@ -12,7 +12,7 @@ function exec_inc(a, os) = {
     OS32 => update_flags_add_no_cf(result[31..0], a[31..0], one[31..0]),
     OS64 => update_flags_add_no_cf(result, a, one),
   };
-  (Ok(()), result)
+  (Ok(), result)
 }
 // DEC — Decrement by 1
 //
@@ -28,7 +28,7 @@ function exec_dec(a, os) = {
     OS32 => update_flags_sub_no_cf(result[31..0], a[31..0], one[31..0]),
     OS64 => update_flags_sub_no_cf(result, a, one),
   };
-  (Ok(()), result)
+  (Ok(), result)
 }
 // MUL — Unsigned Multiply
 
@@ -76,7 +76,7 @@ function exec_mul(src, os) = {
       OF = CF;
     },
   };
-  Ok(())
+  Ok()
 }
 // DIV — Unsigned Divide
 
@@ -94,7 +94,7 @@ function exec_div(src, os) = {
         else {
           write_gpr8l(RAX, to_bits_truncate(quotient));
           write_gpr8h(RAX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -109,7 +109,7 @@ function exec_div(src, os) = {
         else {
           write_gpr16(RAX, to_bits_truncate(quotient));
           write_gpr16(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -124,7 +124,7 @@ function exec_div(src, os) = {
         else {
           write_gpr32(RAX, to_bits_truncate(quotient));
           write_gpr32(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -139,7 +139,7 @@ function exec_div(src, os) = {
         else {
           write_gpr64(RAX, to_bits_truncate(quotient));
           write_gpr64(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -161,7 +161,7 @@ function exec_idiv(src, os) = {
         else {
           write_gpr8l(RAX, to_bits_truncate(quotient));
           write_gpr8h(RAX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -176,7 +176,7 @@ function exec_idiv(src, os) = {
         else {
           write_gpr16(RAX, to_bits_truncate(quotient));
           write_gpr16(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -191,7 +191,7 @@ function exec_idiv(src, os) = {
         else {
           write_gpr32(RAX, to_bits_truncate(quotient));
           write_gpr32(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -206,7 +206,7 @@ function exec_idiv(src, os) = {
         else {
           write_gpr64(RAX, to_bits_truncate(quotient));
           write_gpr64(RDX, to_bits_truncate(remainder));
-          Ok(())
+          Ok()
         }
       }
     },
@@ -261,7 +261,7 @@ function exec_imul_1(src, os) = {
       OF = CF;
     },
   };
-  Ok(())
+  Ok()
 }
 
 val bsf64 : (qword, range(0, 63)) -> range(0, 63)
@@ -284,7 +284,7 @@ function exec_xchg_reg_reg(a, b, os) = {
   let vb : qword = read_gpr(b, os);
   write_gpr(a, os, vb);
   write_gpr(b, os, va);
-  Ok(())
+  Ok()
 }
 // XADD — Exchange and Add
 
@@ -301,7 +301,7 @@ function exec_xadd(dst, src, os) = {
   };
   write_gpr(src, os, a);
   write_gpr(dst, os, sum);
-  Ok(())
+  Ok()
 }
 // POPCNT helpers
 
@@ -349,7 +349,7 @@ val __rdtsc : unit -> qword
 // NOP — No Operation
 
 val exec_nop : unit -> ExecutionResult
-function exec_nop() = Ok(())
+function exec_nop() = Ok()
 
 // IN — Input From Port
 
@@ -365,7 +365,7 @@ function exec_in(port, os) = {
     OS32 => write_gpr32(RAX, __port_in32(port)),
     OS64 => (),
   };
-  Ok(())
+  Ok()
 }
 // OUT — Output to Port
 
@@ -381,5 +381,5 @@ function exec_out(port, os) = {
     OS32 => __port_out32(port, read_gpr32(RAX)),
     OS64 => (),
   };
-  Ok(())
+  Ok()
 }

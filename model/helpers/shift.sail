@@ -10,7 +10,7 @@ function exec_shl(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(()), a)
+  if count == 0 then (Ok(), a)
   else {
       let result : qword = a << count;
     match os {
@@ -50,7 +50,7 @@ function exec_shl(a, count_raw, os) = {
       },
     };
     AF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // SHR — Shift Right (Logical)
@@ -63,7 +63,7 @@ val exec_shr : (qword, byte, OperandSize) -> (ExecutionResult, qword)
 function exec_shr(a, count_raw, os) = {
   let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then (Ok(()), a)
+  if count == 0 then (Ok(), a)
   else {
     let result : qword = a >> count;
     match os {
@@ -99,7 +99,7 @@ function exec_shr(a, count_raw, os) = {
       },
     };
     AF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // SAR — Shift Right (Arithmetic)
@@ -112,7 +112,7 @@ val exec_sar : (qword, byte, OperandSize) -> (ExecutionResult, qword)
 function exec_sar(a, count_raw, os) = {
   let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then (Ok(()), a)
+  if count == 0 then (Ok(), a)
   else {
       // CF = last bit shifted out. For SAR, when count >= operand width,
     // the result is all-sign-bits, so CF = sign bit of the original value.
@@ -139,7 +139,7 @@ function exec_sar(a, count_raw, os) = {
     if count == 1 then OF = bitzero
     else OF = undefined;
     AF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // ROL — Rotate Left
@@ -156,7 +156,7 @@ function exec_rol(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(()), a)
+  if count == 0 then (Ok(), a)
   else {
       let result : qword = match os {
       OS8 => {
@@ -180,7 +180,7 @@ function exec_rol(a, count_raw, os) = {
       OS32 => OF = if result[31] != CF then bitone else bitzero,
       OS64 => OF = if result[63] != CF then bitone else bitzero,
     } else OF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 
@@ -190,7 +190,7 @@ function exec_ror(a, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(()), a)
+  if count == 0 then (Ok(), a)
   else {
       let result : qword = match os {
       OS8 => {
@@ -219,7 +219,7 @@ function exec_ror(a, count_raw, os) = {
       OS32 => OF = if result[31] != result[30] then bitone else bitzero,
       OS64 => OF = if result[63] != result[62] then bitone else bitzero,
     } else OF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // RCL — Rotate Through Carry Left
@@ -241,7 +241,7 @@ function exec_rcl(a, count_raw, os) = {
     OS32 => masked,
     OS64 => masked,
   };
-  if tempcount == 0 then (Ok(()), a)
+  if tempcount == 0 then (Ok(), a)
   else {
       var cf_bit : bit = CF;
     var val8  : byte  = a[7..0];
@@ -287,7 +287,7 @@ function exec_rcl(a, count_raw, os) = {
       OS32 => zero_extend(val32),
       OS64 => val64,
     };
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 
@@ -303,7 +303,7 @@ function exec_rcr(a, count_raw, os) = {
     OS32 => masked,
     OS64 => masked,
   };
-  if tempcount == 0 then (Ok(()), a)
+  if tempcount == 0 then (Ok(), a)
   else {
       var cf_bit : bit = CF;
     var val8  : byte  = a[7..0];
@@ -350,7 +350,7 @@ function exec_rcr(a, count_raw, os) = {
       OS32 => zero_extend(val32),
       OS64 => val64,
     };
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // SHLD — Double Precision Shift Left
@@ -367,7 +367,7 @@ function exec_shld(d, s, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(()), d)
+  if count == 0 then (Ok(), d)
   else {
     let result : qword = match os {
       OS16 => {
@@ -413,7 +413,7 @@ function exec_shld(d, s, count_raw, os) = {
       _ => d,
     };
     AF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }
 // SHRD — Double Precision Shift Right
@@ -430,7 +430,7 @@ function exec_shrd(d, s, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then (Ok(()), d)
+  if count == 0 then (Ok(), d)
   else {
     let result : qword = match os {
       OS16 => {
@@ -476,6 +476,6 @@ function exec_shrd(d, s, count_raw, os) = {
       _ => d,
     };
     AF = undefined;
-    (Ok(()), result)
+    (Ok(), result)
   }
 }

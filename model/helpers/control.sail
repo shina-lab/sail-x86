@@ -13,7 +13,7 @@ function exec_ret(os) = {
   };
   RIP = target;
   decode_pos = target;
-  Ok(())
+  Ok()
 }
 
 // Jcc — Jump if Condition Is Met
@@ -30,7 +30,7 @@ function exec_jcc(cc, offset) = {
     RIP = new_rip;
     decode_pos = new_rip;
   };
-  Ok(())
+  Ok()
 }
 // JMP — Jump
 //
@@ -45,7 +45,7 @@ function exec_jmp_rel(offset) = {
   let new_rip = decode_pos + offset;
   RIP = new_rip;
   decode_pos = new_rip;
-  Ok(())
+  Ok()
 }
 
 // JMP near absolute indirect: RIP := value from register
@@ -53,7 +53,7 @@ val exec_jmp_abs : qword -> ExecutionResult
 function exec_jmp_abs(target) = {
   RIP = target;
   decode_pos = target;
-  Ok(())
+  Ok()
 }
 // LOOP/LOOPcc — Loop According to ECX Counter
 //
@@ -86,7 +86,7 @@ function exec_loop(rel8, variant, asz) = {
     RIP = new_rip;
     decode_pos = new_rip;
   };
-  Ok(())
+  Ok()
 }
 // INT imm8 — Software Interrupt
 //
@@ -107,7 +107,7 @@ function exec_push_imm(imm, os) = {
     OS16 => push16(imm[15..0]),
     _ => (),
   };
-  Ok(())
+  Ok()
 }
 // POP — Pop a Value from the Stack
 //
@@ -123,5 +123,5 @@ function exec_pop_reg(dst, os) = {
     OS16 => write_gpr16(dst, pop16()),
     _ => (),
   };
-  Ok(())
+  Ok()
 }

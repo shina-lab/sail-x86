@@ -10,7 +10,7 @@ function exec_addps(dst, src) = {
                        __f32_add(a[63..32], b[63..32]) @
                        __f32_add(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_subps : (simd_idx, xmmword) -> ExecutionResult
@@ -22,7 +22,7 @@ function exec_subps(dst, src) = {
                        __f32_sub(a[63..32], b[63..32]) @
                        __f32_sub(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_mulps : (simd_idx, xmmword) -> ExecutionResult
@@ -34,7 +34,7 @@ function exec_mulps(dst, src) = {
                        __f32_mul(a[63..32], b[63..32]) @
                        __f32_mul(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_divps : (simd_idx, xmmword) -> ExecutionResult
@@ -46,7 +46,7 @@ function exec_divps(dst, src) = {
                        __f32_div(a[63..32], b[63..32]) @
                        __f32_div(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_sqrtps : (simd_idx, xmmword) -> ExecutionResult
@@ -57,7 +57,7 @@ function exec_sqrtps(dst, src) = {
                        __f32_sqrt(b[63..32]) @
                        __f32_sqrt(b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_minps : (simd_idx, xmmword) -> ExecutionResult
@@ -69,7 +69,7 @@ function exec_minps(dst, src) = {
                        __f32_min(a[63..32], b[63..32]) @
                        __f32_min(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_maxps : (simd_idx, xmmword) -> ExecutionResult
@@ -81,7 +81,7 @@ function exec_maxps(dst, src) = {
                        __f32_max(a[63..32], b[63..32]) @
                        __f32_max(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // Packed Double Precision FP Arithmetic: ADDPD, SUBPD, MULPD, DIVPD, SQRTPD, MINPD, MAXPD
 // Operates on both 64-bit lanes of XMM. No flags affected.
@@ -93,7 +93,7 @@ function exec_addpd(dst, src) = {
   let lo : qword = __f64_add(a[63..0], b[63..0]);
   let hi : qword = __f64_add(a[127..64], b[127..64]);
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 
 val exec_subpd : (simd_idx, xmmword) -> ExecutionResult
@@ -101,7 +101,7 @@ function exec_subpd(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_sub(a[127..64], b[127..64]) @ __f64_sub(a[63..0], b[63..0]));
-  Ok(())
+  Ok()
 }
 
 val exec_mulpd : (simd_idx, xmmword) -> ExecutionResult
@@ -109,7 +109,7 @@ function exec_mulpd(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_mul(a[127..64], b[127..64]) @ __f64_mul(a[63..0], b[63..0]));
-  Ok(())
+  Ok()
 }
 
 val exec_divpd : (simd_idx, xmmword) -> ExecutionResult
@@ -117,14 +117,14 @@ function exec_divpd(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_div(a[127..64], b[127..64]) @ __f64_div(a[63..0], b[63..0]));
-  Ok(())
+  Ok()
 }
 
 val exec_sqrtpd : (simd_idx, xmmword) -> ExecutionResult
 function exec_sqrtpd(dst, src) = {
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_sqrt(b[127..64]) @ __f64_sqrt(b[63..0]));
-  Ok(())
+  Ok()
 }
 
 val exec_minpd : (simd_idx, xmmword) -> ExecutionResult
@@ -132,7 +132,7 @@ function exec_minpd(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_min(a[127..64], b[127..64]) @ __f64_min(a[63..0], b[63..0]));
-  Ok(())
+  Ok()
 }
 
 val exec_maxpd : (simd_idx, xmmword) -> ExecutionResult
@@ -140,7 +140,7 @@ function exec_maxpd(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __f64_max(a[127..64], b[127..64]) @ __f64_max(a[63..0], b[63..0]));
-  Ok(())
+  Ok()
 }
 // Scalar Single Precision FP Arithmetic: ADDSS, SUBSS, MULSS, DIVSS
 // Each operates on XMM[31:0], preserving XMM[127:32]. No flags affected.
@@ -150,7 +150,7 @@ function exec_addss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_add(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_subss : (simd_idx, xmmword) -> ExecutionResult
@@ -158,7 +158,7 @@ function exec_subss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_sub(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_mulss : (simd_idx, xmmword) -> ExecutionResult
@@ -166,7 +166,7 @@ function exec_mulss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_mul(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_divss : (simd_idx, xmmword) -> ExecutionResult
@@ -174,7 +174,7 @@ function exec_divss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_div(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_sqrtss : (simd_idx, xmmword) -> ExecutionResult
@@ -182,7 +182,7 @@ function exec_sqrtss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_sqrt(src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_minss : (simd_idx, xmmword) -> ExecutionResult
@@ -190,7 +190,7 @@ function exec_minss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_min(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_maxss : (simd_idx, xmmword) -> ExecutionResult
@@ -198,7 +198,7 @@ function exec_maxss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_max(xmm[31..0], src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 // Scalar Double Precision FP Arithmetic: ADDSD, SUBSD, MULSD, DIVSD
 // Each operates on XMM[63:0], preserving XMM[127:64]. No flags affected.
@@ -208,7 +208,7 @@ function exec_addsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_add(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_subsd : (simd_idx, xmmword) -> ExecutionResult
@@ -216,7 +216,7 @@ function exec_subsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_sub(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_mulsd : (simd_idx, xmmword) -> ExecutionResult
@@ -224,7 +224,7 @@ function exec_mulsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_mul(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_divsd : (simd_idx, xmmword) -> ExecutionResult
@@ -232,7 +232,7 @@ function exec_divsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_div(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_sqrtsd : (simd_idx, xmmword) -> ExecutionResult
@@ -240,7 +240,7 @@ function exec_sqrtsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_sqrt(src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_minsd : (simd_idx, xmmword) -> ExecutionResult
@@ -248,7 +248,7 @@ function exec_minsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_min(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_maxsd : (simd_idx, xmmword) -> ExecutionResult
@@ -256,7 +256,7 @@ function exec_maxsd(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[63..0] = __f64_max(xmm[63..0], src[63..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 // ADDSUBPS — Packed Single-FP Add/Subtract (SSE3)
 // Lanes 0,2: subtract; Lanes 1,3: add. No flags affected.
@@ -270,7 +270,7 @@ function exec_addsubps(dst, src) = {
   let d2 : dword = __f32_sub(a[95..64], b[95..64]);
   let d3 : dword = __f32_add(a[127..96], b[127..96]);
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // ADDSUBPD — Packed Double-FP Add/Subtract (SSE3)
 // Lane 0: subtract, Lane 1: add. No flags affected.
@@ -282,7 +282,7 @@ function exec_addsubpd(dst, src) = {
   let lo : qword = __f64_sub(a[63..0], b[63..0]);
   let hi : qword = __f64_add(a[127..64], b[127..64]);
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 // CMPPS — Compare Packed Single Precision Floating-Point Values
 //
@@ -317,7 +317,7 @@ function exec_cmpps(dst, src, imm8) = {
     cmp_pred_f32(a[63..32], b[63..32], pred) @
     cmp_pred_f32(a[31..0], b[31..0], pred);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // CMPPD — Compare Packed Double Precision Floating-Point Values
 //
@@ -350,7 +350,7 @@ function exec_cmppd(dst, src, imm8) = {
     cmp_pred_f64(a[127..64], b[127..64], pred) @
     cmp_pred_f64(a[63..0], b[63..0], pred);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // CMPSS — Compare Scalar Single Precision Floating-Point Value
 //
@@ -367,7 +367,7 @@ function exec_cmpss2(dst, src, imm8) = {
   let low : dword = cmp_pred_f32(a[31..0], b[31..0], pred);
   let r : xmmword = a[127..32] @ low;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // CMPSD — Compare Scalar Double Precision Floating-Point Value
 //
@@ -384,7 +384,7 @@ function exec_cmpsd2(dst, src, imm8) = {
   let low : qword = cmp_pred_f64(a[63..0], b[63..0], pred);
   let r : xmmword = a[127..64] @ low;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // COMISS — Compare Scalar Ordered Single Precision FP Values and Set EFLAGS
 //
@@ -405,7 +405,7 @@ function exec_comiss(dst, src) = {
   OF = bitzero;
   AF = bitzero;
   SF = bitzero;
-  Ok(())
+  Ok()
 }
 // COMISD — Compare Scalar Ordered Double Precision FP Values and Set EFLAGS
 
@@ -422,7 +422,7 @@ function exec_comisd(dst, src) = {
   OF = bitzero;
   AF = bitzero;
   SF = bitzero;
-  Ok(())
+  Ok()
 }
 // UCOMISD — Unordered Compare Scalar Double Precision FP Values and Set EFLAGS
 //
@@ -442,7 +442,7 @@ function exec_ucomisd(dst, src) = {
   OF = bitzero;
   AF = bitzero;
   SF = bitzero;
-  Ok(())
+  Ok()
 }
 // UCOMISS — Unordered Compare Scalar Single Precision FP Values and Set EFLAGS
 //
@@ -462,7 +462,7 @@ function exec_ucomiss(dst, src) = {
   OF = bitzero;
   AF = bitzero;
   SF = bitzero;
-  Ok(())
+  Ok()
 }
 // HADDPS — Horizontal Add Packed Singles (SSE3)
 // HSUBPS — Horizontal Subtract Packed Singles (SSE3)
@@ -477,7 +477,7 @@ function exec_haddps(dst, src) = {
   let d2 : dword = __f32_add(b[31..0], b[63..32]);
   let d3 : dword = __f32_add(b[95..64], b[127..96]);
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 
 val exec_hsubps : (simd_idx, xmmword) -> ExecutionResult
@@ -489,7 +489,7 @@ function exec_hsubps(dst, src) = {
   let d2 : dword = __f32_sub(b[31..0], b[63..32]);
   let d3 : dword = __f32_sub(b[95..64], b[127..96]);
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 
 // HADDPD — Horizontal Add Packed Doubles (SSE3)
@@ -503,7 +503,7 @@ function exec_haddpd(dst, src) = {
   let lo : qword = __f64_add(a[63..0], a[127..64]);
   let hi : qword = __f64_add(b[63..0], b[127..64]);
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 
 val exec_hsubpd : (simd_idx, xmmword) -> ExecutionResult
@@ -513,7 +513,7 @@ function exec_hsubpd(dst, src) = {
   let lo : qword = __f64_sub(a[63..0], a[127..64]);
   let hi : qword = __f64_sub(b[63..0], b[127..64]);
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 
 // DPPS — Dot Product of Packed Single-FP (SSE4.1)
@@ -537,7 +537,7 @@ function exec_dpps(dst, src, imm8) = {
   let d2 : dword = if imm8[2] == bitone then sum else zero;
   let d3 : dword = if imm8[3] == bitone then sum else zero;
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // DPPD — Dot Product of Packed Double-FP (SSE4.1)
 // imm8[5:4] selects which products to include, imm8[1:0] selects output lanes.
@@ -554,7 +554,7 @@ function exec_dppd(dst, src, imm8) = {
   let lo : qword = if imm8[0] == bitone then sum else zero;
   let hi : qword = if imm8[1] == bitone then sum else zero;
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 // ROUNDPD — Round Packed Double-FP (SSE4.1)
 // ROUNDPS — Round Packed Single-FP (SSE4.1)
@@ -571,7 +571,7 @@ function exec_roundpd(dst, src, imm8) = {
   let lo : qword = __f64_round(s[63..0], imm8);
   let hi : qword = __f64_round(s[127..64], imm8);
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 
 val exec_roundps : (simd_idx, xmmword, byte) -> ExecutionResult
@@ -582,7 +582,7 @@ function exec_roundps(dst, src, imm8) = {
   let d2 : dword = __f32_round(s[95..64], imm8);
   let d3 : dword = __f32_round(s[127..96], imm8);
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 
 val exec_roundsd : (simd_idx, xmmword, byte) -> ExecutionResult
@@ -591,7 +591,7 @@ function exec_roundsd(dst, src, imm8) = {
   let b : xmmword = src;
   let lo : qword = __f64_round(b[63..0], imm8);
   write_xmm_legacy(dst, a[127..64] @ lo);
-  Ok(())
+  Ok()
 }
 
 val exec_roundss : (simd_idx, xmmword, byte) -> ExecutionResult
@@ -600,7 +600,7 @@ function exec_roundss(dst, src, imm8) = {
   let b : xmmword = src;
   let lo : dword = __f32_round(b[31..0], imm8);
   write_xmm_legacy(dst, a[127..32] @ lo);
-  Ok(())
+  Ok()
 }
 // RSQRTSS/RSQRTPS: Reciprocal Square Root Approximation of Scalar/Packed Single-Precision FP
 // No flags affected.
@@ -612,7 +612,7 @@ function exec_rsqrtss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_rsqrt(src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_rsqrtps : (simd_idx, xmmword) -> ExecutionResult
@@ -624,7 +624,7 @@ function exec_rsqrtps(dst, src) = {
   xmm[95..64]  = __f32_rsqrt(src_xmm[95..64]);
   xmm[127..96] = __f32_rsqrt(src_xmm[127..96]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 // RCPSS/RCPPS: Reciprocal Approximation of Scalar/Packed Single-Precision FP
 // No flags affected.
@@ -636,7 +636,7 @@ function exec_rcpss(dst, src) = {
   var xmm : xmmword = read_xmm(dst);
   xmm[31..0] = __f32_rcp(src[31..0]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 
 val exec_rcpps : (simd_idx, xmmword) -> ExecutionResult
@@ -648,7 +648,7 @@ function exec_rcpps(dst, src) = {
   xmm[95..64]  = __f32_rcp(src_xmm[95..64]);
   xmm[127..96] = __f32_rcp(src_xmm[127..96]);
   write_xmm_legacy(dst, xmm);
-  Ok(())
+  Ok()
 }
 // ANDPS/ANDNPS/ORPS/XORPS — Packed Single Precision FP Bitwise Logical
 // Pure bitwise operations on 128-bit XMM registers. No flags affected.
@@ -656,25 +656,25 @@ function exec_rcpps(dst, src) = {
 val exec_andps : (simd_idx, xmmword) -> ExecutionResult
 function exec_andps(dst, src) = {
   write_xmm_legacy(dst, read_xmm(dst) & src);
-  Ok(())
+  Ok()
 }
 
 val exec_andnps : (simd_idx, xmmword) -> ExecutionResult
 function exec_andnps(dst, src) = {
   write_xmm_legacy(dst, ~(read_xmm(dst)) & src);
-  Ok(())
+  Ok()
 }
 
 val exec_orps : (simd_idx, xmmword) -> ExecutionResult
 function exec_orps(dst, src) = {
   write_xmm_legacy(dst, read_xmm(dst) | src);
-  Ok(())
+  Ok()
 }
 
 val exec_xorps : (simd_idx, xmmword) -> ExecutionResult
 function exec_xorps(dst, src) = {
   write_xmm_legacy(dst, xor_vec(read_xmm(dst), src));
-  Ok(())
+  Ok()
 }
 // ANDPD/ANDNPD/ORPD/XORPD — Packed Double Precision FP Bitwise Logical
 // These are pure bitwise operations on 128-bit XMM registers. No flags affected.
@@ -682,25 +682,25 @@ function exec_xorps(dst, src) = {
 val exec_andpd : (simd_idx, xmmword) -> ExecutionResult
 function exec_andpd(dst, src) = {
   write_xmm_legacy(dst, read_xmm(dst) & src);
-  Ok(())
+  Ok()
 }
 
 val exec_andnpd : (simd_idx, xmmword) -> ExecutionResult
 function exec_andnpd(dst, src) = {
   write_xmm_legacy(dst, ~(read_xmm(dst)) & src);
-  Ok(())
+  Ok()
 }
 
 val exec_orpd : (simd_idx, xmmword) -> ExecutionResult
 function exec_orpd(dst, src) = {
   write_xmm_legacy(dst, read_xmm(dst) | src);
-  Ok(())
+  Ok()
 }
 
 val exec_xorpd : (simd_idx, xmmword) -> ExecutionResult
 function exec_xorpd(dst, src) = {
   write_xmm_legacy(dst, xor_vec(read_xmm(dst), src));
-  Ok(())
+  Ok()
 }
 // SHUFPS — Shuffle Packed Single-Precision FP Values
 // imm8[1:0] selects result[31:0] from dst's 4 dwords.
@@ -724,7 +724,7 @@ function exec_shufps(dst, src, imm8) = {
   let d2 : dword = select_dword(s, imm8[5..4]);
   let d3 : dword = select_dword(s, imm8[7..6]);
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // SHUFPD — Shuffle Packed Double-Precision FP Values
 // Bit 0 of imm8 selects result[63:0] from dst's low or high qword.
@@ -738,7 +738,7 @@ function exec_shufpd(dst, src, imm8) = {
   let low : qword = if imm8[0] == bitone then d[127..64] else d[63..0];
   let high : qword = if imm8[1] == bitone then s[127..64] else s[63..0];
   write_xmm_legacy(dst, high @ low);
-  Ok(())
+  Ok()
 }
 // UNPCKLPS — Unpack and Interleave Low Packed Single-Precision FP
 //
@@ -759,7 +759,7 @@ function exec_unpckhps(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[127..96] @ d[127..96] @ s[95..64] @ d[95..64]);
-  Ok(())
+  Ok()
 }
 
 val exec_unpcklps : (simd_idx, xmmword) -> ExecutionResult
@@ -767,7 +767,7 @@ function exec_unpcklps(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[63..32] @ d[63..32] @ s[31..0] @ d[31..0]);
-  Ok(())
+  Ok()
 }
 // UNPCKHPD — Unpack and Interleave High Packed Double-Precision FP
 // UNPCKLPD — Unpack and Interleave Low Packed Double-Precision FP
@@ -778,7 +778,7 @@ function exec_unpckhpd(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[127..64] @ d[127..64]);
-  Ok(())
+  Ok()
 }
 
 val exec_unpcklpd : (simd_idx, xmmword) -> ExecutionResult
@@ -786,7 +786,7 @@ function exec_unpcklpd(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[63..0] @ d[63..0]);
-  Ok(())
+  Ok()
 }
 // BLENDPS — Blend Packed Single-FP (SSE4.1)
 // imm8[0..3] each select the corresponding lane: 0=dst, 1=src.
@@ -801,7 +801,7 @@ function exec_blendps(dst, src, imm8) = {
   let d2 : dword = if imm8[2] == bitone then b[95..64] else a[95..64];
   let d3 : dword = if imm8[3] == bitone then b[127..96] else a[127..96];
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // BLENDPD — Blend Packed Double-FP (SSE4.1)
 // imm8[0] selects lane 0: 0=dst, 1=src. imm8[1] selects lane 1.
@@ -814,7 +814,7 @@ function exec_blendpd(dst, src, imm8) = {
   let lo : qword = if imm8[0] == bitone then b[63..0] else a[63..0];
   let hi : qword = if imm8[1] == bitone then b[127..64] else a[127..64];
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 // BLENDVPD — Variable Blend Packed Double-FP (SSE4.1)
 // BLENDVPS — Variable Blend Packed Single-FP (SSE4.1)
@@ -830,7 +830,7 @@ function exec_blendvpd(dst, src, mask_xmm) = {
   let lo : qword = if m[63] == bitone then b[63..0] else a[63..0];
   let hi : qword = if m[127] == bitone then b[127..64] else a[127..64];
   write_xmm_legacy(dst, hi @ lo);
-  Ok(())
+  Ok()
 }
 
 val exec_blendvps : (simd_idx, xmmword, xmmword) -> ExecutionResult
@@ -843,7 +843,7 @@ function exec_blendvps(dst, src, mask_xmm) = {
   let d2 : dword = if m[95] == bitone then b[95..64] else a[95..64];
   let d3 : dword = if m[127] == bitone then b[127..96] else a[127..96];
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 
 val blend_byte : (byte, byte, bit) -> byte
@@ -871,5 +871,5 @@ function exec_pblendvb(dst, src, mask_xmm) = {
   let r14 : byte = blend_byte(a[119..112], b[119..112], m[119]);
   let r15 : byte = blend_byte(a[127..120], b[127..120], m[127]);
   write_xmm_legacy(dst, r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0);
-  Ok(())
+  Ok()
 }

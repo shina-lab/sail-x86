@@ -37,7 +37,7 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
         _ => (),
       };
       write_gpr(reg, os, result);
-      Ok(())
+      Ok()
     } else if mp == MP_F3 then {
       let a : qword = read_gpr(reg, os);
       let c : int = if OF == bitone then 1 else 0;
@@ -50,7 +50,7 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
         _ => (),
       };
       write_gpr(reg, os, result);
-      Ok(())
+      Ok()
     }
     else raise_UD()
   } else if mp != MP_66 then raise_UD()
@@ -102,7 +102,10 @@ function dispatch_opcode_3byte_38(opcode, pfx) = {
       42 => {
         // MOVNTDQA xmm, m128
         match rm {
-          RM_mem(addr) => { write_xmm_legacy(xreg, mem_read128(addr)); Ok(()) },
+          RM_mem(addr) => {
+            write_xmm_legacy(xreg, mem_read128(addr));
+            Ok()
+          },
           RM_reg(_) => raise_UD(),
         }
       },
@@ -217,7 +220,7 @@ function dispatch_opcode_3byte_3a(opcode, pfx) = {
           },
           RM_mem(addr) => mem_write8(fixup_addr(addr), v),
         };
-        Ok(())
+        Ok()
       },
       22 => {
         // PEXTRD/PEXTRQ r/m, xmm, imm8
@@ -235,7 +238,7 @@ function dispatch_opcode_3byte_3a(opcode, pfx) = {
             else mem_write32(a, extract_dword_from_xmm(src, imm))
           },
         };
-        Ok(())
+        Ok()
       },
       23 => {
         // EXTRACTPS r/m32, xmm, imm8
@@ -248,7 +251,7 @@ function dispatch_opcode_3byte_3a(opcode, pfx) = {
           },
           RM_mem(addr) => mem_write32(fixup_addr(addr), v),
         };
-        Ok(())
+        Ok()
       },
 
       32 => {

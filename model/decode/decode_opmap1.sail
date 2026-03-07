@@ -93,12 +93,12 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       if pfx.rex_w then {
         let src = read_rm_val(rm, OS32, pfx.has_rex);
         write_gpr64(reg, sign_extend(src[31..0]));
-        Ok(())
+        Ok()
       } else {
         let os = get_operand_size(pfx);
         let src = read_rm_val(rm, os, pfx.has_rex);
         write_gpr(reg, os, src);
-        Ok(())
+        Ok()
       }
     },
 
@@ -134,7 +134,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       CF = if truncated then bitone else bitzero;
       OF = CF;
       write_gpr(reg, os, result);
-      Ok(())
+      Ok()
     },
 
     // 6A: PUSH imm8 (d64, sign-extended)
@@ -169,7 +169,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       CF = if truncated then bitone else bitzero;
       OF = CF;
       write_gpr(reg, os, result);
-      Ok(())
+      Ok()
     },
 
     // 80: Group 1 — ALU r/m8, imm8
@@ -213,7 +213,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let b : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
       let result = a & b;
       update_flags_logic(result[7..0]);
-      Ok(())
+      Ok()
     },
 
     // 85: TEST r/m, r
@@ -231,7 +231,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS32 => update_flags_logic(result[31..0]),
         OS64 => update_flags_logic(result),
       };
-      Ok(())
+      Ok()
     },
 
     // 86: XCHG r/m8, r8
@@ -243,7 +243,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let b : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
       write_rm_val(rm, OS8, pfx.has_rex, b);
       write_byte_reg(reg, pfx.has_rex, a[7..0]);
-      Ok(())
+      Ok()
     },
 
     // 87: XCHG r/m, r
@@ -256,7 +256,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let b = read_gpr(reg, os);
       write_rm_val(rm, os, pfx.has_rex, b);
       write_gpr(reg, os, a);
-      Ok(())
+      Ok()
     },
 
     // 88: MOV r/m8, r8
@@ -266,7 +266,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let v : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
       write_rm_val(rm, OS8, pfx.has_rex, v);
-      Ok(())
+      Ok()
     },
 
     // 89: MOV r/m, r
@@ -276,7 +276,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       write_rm_val(rm, os, pfx.has_rex, read_gpr(reg, os));
-      Ok(())
+      Ok()
     },
 
     // 8A: MOV r8, r/m8
@@ -286,7 +286,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let v = read_rm_val(rm, OS8, pfx.has_rex);
       write_byte_reg(reg, pfx.has_rex, v[7..0]);
-      Ok(())
+      Ok()
     },
 
     // 8B: MOV r, r/m
@@ -296,7 +296,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       write_gpr(reg, os, read_rm_val(rm, os, pfx.has_rex));
-      Ok(())
+      Ok()
     },
 
     // 8C: MOV r/m16, sreg
@@ -311,11 +311,11 @@ function dispatch_opcode_1byte(opcode, pfx) = {
           RM_reg(idx) => {
             let os = get_operand_size(pfx);
             write_gpr(idx, os, zero_extend(read_segreg(seg)));
-            Ok(())
+            Ok()
           },
           RM_mem(addr) => {
             mem_write16(addr, read_segreg(seg));
-            Ok(())
+            Ok()
           },
         }
       }
@@ -336,7 +336,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         if seg == CS then raise_UD()
         else {
           write_segreg(seg, v);
-          Ok(())
+          Ok()
         }
       }
     },
@@ -348,7 +348,10 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       match rm {
-        RM_mem(addr) => { write_gpr(reg, os, addr); Ok(()) },
+        RM_mem(addr) => {
+          write_gpr(reg, os, addr);
+          Ok()
+        },
         RM_reg(_) => raise_UD(),
       }
     },
@@ -368,7 +371,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
               OS16 => mem_write16(addr, pop16()),
               _ => (),
             };
-            Ok(())
+            Ok()
           },
         }
       } else raise_UD()
@@ -376,7 +379,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
 
     // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
     144 => {
-      if pfx.has_rep then Ok(())
+      if pfx.has_rep then Ok()
       else if pfx.rex_b then {
         let os = get_operand_size(pfx);
         exec_xchg_reg_reg(RAX, R8, os)
@@ -393,7 +396,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS64 => { let v : qword = sign_extend(read_gpr32(RAX)); write_gpr64(RAX, v) },
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // 99: CWD/CDQ/CQO
@@ -414,7 +417,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         },
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // 9B: FWAIT/WAIT
@@ -444,28 +447,28 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         },
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // 9E: SAHF
     158 => {
       let ah : byte = read_gpr8h(RAX);
       CF = ah[0]; PF = ah[2]; AF = ah[4]; ZF = ah[6]; SF = ah[7];
-      Ok(())
+      Ok()
     },
 
     // 9F: LAHF
     159 => {
       let v : byte = CF @ bitone @ PF @ bitzero @ AF @ bitzero @ ZF @ SF;
       write_gpr8h(RAX, v);
-      Ok(())
+      Ok()
     },
 
     // A0: MOV AL, moffs8
     160 => {
       let addr = fetch_moffs(pfx);
       write_gpr8l(RAX, mem_read8(addr));
-      Ok(())
+      Ok()
     },
 
     // A1: MOV rAX, moffs
@@ -479,14 +482,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS64 => mem_read64(addr),
       };
       write_gpr(RAX, os, v);
-      Ok(())
+      Ok()
     },
 
     // A2: MOV moffs8, AL
     162 => {
       let addr = fetch_moffs(pfx);
       mem_write8(addr, read_gpr8l(RAX));
-      Ok(())
+      Ok()
     },
 
     // A3: MOV moffs, rAX
@@ -500,7 +503,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS32 => mem_write32(addr, v[31..0]),
         OS64 => mem_write64(addr, v),
       };
-      Ok(())
+      Ok()
     },
 
     // A4: MOVSB
@@ -541,7 +544,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let a : qword = zero_extend(read_gpr8l(RAX));
       let result = a & imm;
       update_flags_logic(result[7..0]);
-      Ok(())
+      Ok()
     },
 
     // A9: TEST rAX, imm (Iz)
@@ -556,7 +559,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS32 => update_flags_logic(result[31..0]),
         OS64 => update_flags_logic(result),
       };
-      Ok(())
+      Ok()
     },
 
     // AA: STOSB
@@ -638,7 +641,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       RIP = target;
       decode_pos = target;
       GPR[RSP] = GPR[RSP] + zero_extend(imm);
-      Ok(())
+      Ok()
     },
 
     // C3: RET near
@@ -655,7 +658,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let rm = decode_rm(modrm, pfx);
         let imm : qword = zero_extend(fetch_byte());
         write_rm_val(rm, OS8, pfx.has_rex, imm);
-        Ok(())
+        Ok()
       } else raise_UD()
     },
 
@@ -668,7 +671,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let rm = decode_rm(modrm, pfx);
         let imm = fetch_imm_z(os);
         write_rm_val(rm, os, pfx.has_rex, imm);
-        Ok(())
+        Ok()
       } else raise_UD()
     },
 
@@ -709,7 +712,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         },
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // C9: LEAVE
@@ -731,7 +734,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         },
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // CC: INT 3
@@ -789,7 +792,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         AS16 => zero_extend(read_gpr16(RBX)) + al,
       };
       write_gpr8l(RAX, mem_read8(addr));
-      Ok(())
+      Ok()
     },
 
     // D8-DF: x87 FPU
@@ -824,7 +827,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       if count_reg == zeros() then {
         let target = decode_pos + rel;
         exec_jmp_abs(target)
-      } else Ok(())
+      } else Ok()
     },
 
     // E4: IN AL, imm8
@@ -867,7 +870,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let new_rip = return_addr + offset;
       RIP = new_rip;
       decode_pos = new_rip;
-      Ok(())
+      Ok()
     },
 
     // E9: JMP rel32 (f64)
@@ -906,7 +909,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     // F5: CMC
     245 => {
       CF = if CF == bitone then bitzero else bitone;
-      Ok(())
+      Ok()
     },
 
     // F6: Group 3 — unary byte operations
@@ -927,22 +930,40 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // F8: CLC
-    248 => { CF = bitzero; Ok(()) },
+    248 => {
+      CF = bitzero;
+      Ok()
+    },
 
     // F9: STC
-    249 => { CF = bitone; Ok(()) },
+    249 => {
+      CF = bitone;
+      Ok()
+    },
 
     // FA: CLI
-    250 => { IF_flag = bitzero; Ok(()) },
+    250 => {
+      IF_flag = bitzero;
+      Ok()
+    },
 
     // FB: STI
-    251 => { IF_flag = bitone; Ok(()) },
+    251 => {
+      IF_flag = bitone;
+      Ok()
+    },
 
     // FC: CLD
-    252 => { DF = bitzero; Ok(()) },
+    252 => {
+      DF = bitzero;
+      Ok()
+    },
 
     // FD: STD
-    253 => { DF = bitone; Ok(()) },
+    253 => {
+      DF = bitone;
+      Ok()
+    },
 
     // FE: Group 4 — INC/DEC r/m8
     254 => {
@@ -981,7 +1002,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         OS16 => push16(read_gpr16(reg)),
         _ => (),
       };
-      Ok(())
+      Ok()
     },
 
     // 58-5F: POP reg (d64)
@@ -1013,7 +1034,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg = extend_reg(reg_field, pfx.rex_b);
       let imm = fetch_byte();
       write_byte_reg(reg, pfx.has_rex, imm);
-      Ok(())
+      Ok()
     },
 
     // B8-BF: MOV r, imm (Iv)
@@ -1023,7 +1044,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let os = get_operand_size(pfx);
       let imm = fetch_imm_v(os);
       write_gpr(reg, os, imm);
-      Ok(())
+      Ok()
     },
 
     // C4: 3-byte VEX prefix (in 64-bit mode)

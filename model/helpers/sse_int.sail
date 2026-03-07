@@ -23,7 +23,7 @@ function exec_pabsb(dst, src) = {
     abs8(b[31..24]) @ abs8(b[23..16]) @
     abs8(b[15..8]) @ abs8(b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pabsw : (simd_idx, xmmword) -> ExecutionResult
@@ -35,7 +35,7 @@ function exec_pabsw(dst, src) = {
     abs16(b[63..48]) @ abs16(b[47..32]) @
     abs16(b[31..16]) @ abs16(b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pabsd : (simd_idx, xmmword) -> ExecutionResult
@@ -45,7 +45,7 @@ function exec_pabsd(dst, src) = {
     abs32(b[127..96]) @ abs32(b[95..64]) @
     abs32(b[63..32]) @ abs32(b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PACKSSWB — Pack with Signed Saturation (words to bytes)
 // PACKSSDW — Pack with Signed Saturation (dwords to words)
@@ -81,7 +81,7 @@ function exec_packsswb(dst, src) = {
     sat_s16_to_s8(d[63..48])   @ sat_s16_to_s8(d[47..32]) @
     sat_s16_to_s8(d[31..16])   @ sat_s16_to_s8(d[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_packssdw : (simd_idx, xmmword) -> ExecutionResult
@@ -94,7 +94,7 @@ function exec_packssdw(dst, src) = {
     sat_s32_to_s16(d[127..96]) @ sat_s32_to_s16(d[95..64]) @
     sat_s32_to_s16(d[63..32])  @ sat_s32_to_s16(d[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PACKUSDW — Pack Dwords to Words with Unsigned Saturation (SSE4.1)
 // Packs 4 signed dwords from dst and 4 from src into 8 unsigned words.
@@ -121,7 +121,7 @@ function exec_packusdw(dst, src) = {
   let w6 : word = sat_s32_to_u16(b[95..64]);
   let w7 : word = sat_s32_to_u16(b[127..96]);
   write_xmm_legacy(dst, w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0);
-  Ok(())
+  Ok()
 }
 // PACKUSWB — Pack with Unsigned Saturation (words to bytes)
 // No flags affected.
@@ -148,7 +148,7 @@ function exec_packuswb(dst, src) = {
     sat_s16_to_u8(d[63..48])   @ sat_s16_to_u8(d[47..32]) @
     sat_s16_to_u8(d[31..16])   @ sat_s16_to_u8(d[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PADDB — Add Packed Byte Integers
 //
@@ -178,7 +178,7 @@ function exec_paddb_xmm(dst, src) = {
   result[119..112] = a[119..112] + b[119..112];
   result[127..120] = a[127..120] + b[127..120];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 // PADDSB/PADDSW — Add Packed Signed Integers with Signed Saturation
@@ -231,7 +231,7 @@ function exec_paddsb(dst, src) = {
     sat_add_s8(a[31..24], b[31..24]) @ sat_add_s8(a[23..16], b[23..16]) @
     sat_add_s8(a[15..8], b[15..8]) @ sat_add_s8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_paddsw : (simd_idx, xmmword) -> ExecutionResult
@@ -244,7 +244,7 @@ function exec_paddsw(dst, src) = {
     sat_add_s16(a[63..48], b[63..48]) @ sat_add_s16(a[47..32], b[47..32]) @
     sat_add_s16(a[31..16], b[31..16]) @ sat_add_s16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_paddusb : (simd_idx, xmmword) -> ExecutionResult
@@ -261,7 +261,7 @@ function exec_paddusb(dst, src) = {
     sat_add_u8(a[31..24], b[31..24]) @ sat_add_u8(a[23..16], b[23..16]) @
     sat_add_u8(a[15..8], b[15..8]) @ sat_add_u8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_paddusw : (simd_idx, xmmword) -> ExecutionResult
@@ -274,7 +274,7 @@ function exec_paddusw(dst, src) = {
     sat_add_u16(a[63..48], b[63..48]) @ sat_add_u16(a[47..32], b[47..32]) @
     sat_add_u16(a[31..16], b[31..16]) @ sat_add_u16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PADDW/PADDD/PADDQ — Add Packed Integers (16/32/64-bit lanes)
 // Wrapping addition per lane. No flags affected.
@@ -292,7 +292,7 @@ function exec_paddw(dst, src) = {
                        (a[31..16] + b[31..16]) @
                        (a[15..0] + b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_paddd : (simd_idx, xmmword) -> ExecutionResult
@@ -304,7 +304,7 @@ function exec_paddd(dst, src) = {
                        (a[63..32] + b[63..32]) @
                        (a[31..0] + b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_paddq : (simd_idx, xmmword) -> ExecutionResult
@@ -313,7 +313,7 @@ function exec_paddq(dst, src) = {
   let b : xmmword = src;
   let r : xmmword = (a[127..64] + b[127..64]) @ (a[63..0] + b[63..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PALIGNR — Packed Align Right (SSSE3)
 // Concatenates dst:src, shifts right by imm8 bytes, takes low 128 bits.
@@ -332,7 +332,7 @@ function exec_palignr(dst, src, imm8) = {
   let s : xmmword = src;
   let r : xmmword = palignr_shift(d @ s, unsigned(imm8));
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PAND — Logical AND (packed)
 //
@@ -346,7 +346,7 @@ function exec_pand_xmm(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, a & b);
-  Ok(())
+  Ok()
 }
 
 // PANDN — Bitwise Logical AND NOT of Packed Integers
@@ -356,13 +356,13 @@ function exec_pand_xmm(dst, src) = {
 val exec_pandn : (simd_idx, xmmword) -> ExecutionResult
 function exec_pandn(dst, src) = {
   write_xmm_legacy(dst, ~(read_xmm(dst)) & src);
-  Ok(())
+  Ok()
 }
 
 val exec_por : (simd_idx, xmmword) -> ExecutionResult
 function exec_por(dst, src) = {
   write_xmm_legacy(dst, read_xmm(dst) | src);
-  Ok(())
+  Ok()
 }
 // PAVGB/PAVGW — Average Packed Integers with Rounding
 // No flags affected.
@@ -393,7 +393,7 @@ function exec_pavgb(dst, src) = {
     avg8(a[31..24], b[31..24]) @ avg8(a[23..16], b[23..16]) @
     avg8(a[15..8], b[15..8]) @ avg8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pavgw : (simd_idx, xmmword) -> ExecutionResult
@@ -406,7 +406,7 @@ function exec_pavgw(dst, src) = {
     avg16(a[63..48], b[63..48]) @ avg16(a[47..32], b[47..32]) @
     avg16(a[31..16], b[31..16]) @ avg16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PBLENDW — Blend Packed Words (SSE4.1)
 // imm8[0..7] each select the corresponding word lane: 0=dst, 1=src.
@@ -425,7 +425,7 @@ function exec_pblendw(dst, src, imm8) = {
   let w6 : word = if imm8[6] == bitone then b[111..96]  else a[111..96];
   let w7 : word = if imm8[7] == bitone then b[127..112] else a[127..112];
   write_xmm_legacy(dst, w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0);
-  Ok(())
+  Ok()
 }
 // PCMPEQB/PCMPEQW/PCMPEQD — Compare Packed Integers for Equal
 // PCMPGTB/PCMPGTW/PCMPGTD — Compare Packed Signed Integers for Greater Than
@@ -451,7 +451,7 @@ function exec_pcmpeqb(dst, src) = {
     cmp_eq8(a[31..24], b[31..24]) @ cmp_eq8(a[23..16], b[23..16]) @
     cmp_eq8(a[15..8], b[15..8]) @ cmp_eq8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val cmp_eq16 : (word, word) -> word
@@ -467,7 +467,7 @@ function exec_pcmpeqw(dst, src) = {
     cmp_eq16(a[63..48], b[63..48]) @ cmp_eq16(a[47..32], b[47..32]) @
     cmp_eq16(a[31..16], b[31..16]) @ cmp_eq16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pcmpeqd : (simd_idx, xmmword) -> ExecutionResult
@@ -480,7 +480,7 @@ function exec_pcmpeqd(dst, src) = {
     (if a[63..32] == b[63..32] then ones() else zeros() : dword) @
     (if a[31..0] == b[31..0] then ones() else zeros() : dword);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pcmpgtb : (simd_idx, xmmword) -> ExecutionResult
@@ -497,7 +497,7 @@ function exec_pcmpgtb(dst, src) = {
     cmp_gt8(a[31..24], b[31..24]) @ cmp_gt8(a[23..16], b[23..16]) @
     cmp_gt8(a[15..8], b[15..8]) @ cmp_gt8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val cmp_gt16 : (word, word) -> word
@@ -513,7 +513,7 @@ function exec_pcmpgtw(dst, src) = {
     cmp_gt16(a[63..48], b[63..48]) @ cmp_gt16(a[47..32], b[47..32]) @
     cmp_gt16(a[31..16], b[31..16]) @ cmp_gt16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pcmpgtd : (simd_idx, xmmword) -> ExecutionResult
@@ -526,7 +526,7 @@ function exec_pcmpgtd(dst, src) = {
     (if signed(a[63..32]) > signed(b[63..32]) then ones() else zeros() : dword) @
     (if signed(a[31..0]) > signed(b[31..0]) then ones() else zeros() : dword);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PCMPEQQ — Compare Packed Qword Data for Equal (SSE4.1)
 //
@@ -541,7 +541,7 @@ function exec_pcmpeqq(dst, src) = {
     (if a[127..64] == b[127..64] then ones() else zeros() : qword) @
     (if a[63..0] == b[63..0] then ones() else zeros() : qword);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
 //
@@ -568,7 +568,7 @@ function exec_pcmpestri(dst, src, imm8) = {
   OF = of_val;
   AF = bitzero;
   PF = bitzero;
-  Ok(())
+  Ok()
 }
 // PCMPESTRM — Packed Compare Explicit Length Strings, Return Mask (SSE4.2)
 //
@@ -594,7 +594,7 @@ function exec_pcmpestrm(dst, src, imm8) = {
   OF = of_val;
   AF = bitzero;
   PF = bitzero;
-  Ok(())
+  Ok()
 }
 // PCMPGTQ — Compare Packed Signed Qword Data for Greater Than (SSE4.2)
 //
@@ -609,7 +609,7 @@ function exec_pcmpgtq(dst, src) = {
     (if signed(a[127..64]) > signed(b[127..64]) then ones() else zeros() : qword) @
     (if signed(a[63..0]) > signed(b[63..0]) then ones() else zeros() : qword);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PCMPISTRI — Packed Compare Implicit Length Strings, Return Index (SSE4.2)
 //
@@ -634,7 +634,7 @@ function exec_pcmpistri(dst, src, imm8) = {
   OF = of_val;
   AF = bitzero;
   PF = bitzero;
-  Ok(())
+  Ok()
 }
 // PCMPISTRM — Packed Compare Implicit Length Strings, Return Mask (SSE4.2)
 //
@@ -659,7 +659,7 @@ function exec_pcmpistrm(dst, src, imm8) = {
   OF = of_val;
   AF = bitzero;
   PF = bitzero;
-  Ok(())
+  Ok()
 }
 // PEXTRB — Extract Byte (SSE4.1)
 // PEXTRD — Extract Dword (SSE4.1)
@@ -726,7 +726,7 @@ function exec_pextrw(dst, s, imm8) = {
     7 => s[127..112]
   };
   write_gpr32(dst, zero_extend(word));
-  Ok(())
+  Ok()
 }
 // PINSRB — Insert Byte (SSE4.1)
 // PINSRD — Insert Dword (SSE4.1)
@@ -761,7 +761,7 @@ function exec_pinsrb(dst, val8, imm8) = {
   let sel : range(0, 15) = unsigned(imm8[3..0]);
   let r : xmmword = insert_byte(v, val8, sel);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val insert_dword : (xmmword, dword, range(0, 3)) -> xmmword
@@ -780,7 +780,7 @@ function exec_pinsrd(dst, val32, imm8) = {
   let sel : range(0, 3) = unsigned(imm8[1..0]);
   let r : xmmword = insert_dword(v, val32, sel);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pinsrq : (simd_idx, qword, byte) -> ExecutionResult
@@ -792,7 +792,7 @@ function exec_pinsrq(dst, val64, imm8) = {
     1 => val64 @ v[63..0]
   };
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PINSRW — Insert Word
 // Insert a 16-bit value into XMM at position selected by imm8[2..0].
@@ -818,7 +818,7 @@ function exec_pinsrw(dst, val16, imm8) = {
   let sel : range(0, 7) = unsigned(imm8[2..0]);
   let r : xmmword = insert_word(v, val16, sel);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMADDUBSW — Multiply and Add Packed Signed and Unsigned Bytes (SSSE3)
 // Multiplies unsigned bytes from src1 with signed bytes from src2,
@@ -849,7 +849,7 @@ function exec_pmaddubsw(dst, src) = {
     pmaddubsw_pair(a[31..24], b[31..24], a[23..16], b[23..16]) @
     pmaddubsw_pair(a[15..8], b[15..8], a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMADDWD — Multiply and Add Packed Integers
 // Multiplies pairs of signed 16-bit integers, then adds adjacent 32-bit products.
@@ -869,7 +869,7 @@ function exec_pmaddwd(dst, src) = {
                                         signed(a[15..0]) * signed(b[15..0]));
   let r : xmmword = d3 @ d2 @ d1 @ d0;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMAXSB/PMAXSW/PMAXSD — Packed Maximum Signed Integers
 // PMAXSB and PMAXSD are SSE4.1; PMAXSW is SSE2.
@@ -898,7 +898,7 @@ function exec_pmaxsb(dst, src) = {
     max_s8(a[31..24], b[31..24]) @ max_s8(a[23..16], b[23..16]) @
     max_s8(a[15..8], b[15..8]) @ max_s8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmaxsw : (simd_idx, xmmword) -> ExecutionResult
@@ -911,7 +911,7 @@ function exec_pmaxsw(dst, src) = {
     max_s16(a[63..48], b[63..48]) @ max_s16(a[47..32], b[47..32]) @
     max_s16(a[31..16], b[31..16]) @ max_s16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmaxsd : (simd_idx, xmmword) -> ExecutionResult
@@ -922,7 +922,7 @@ function exec_pmaxsd(dst, src) = {
     max_s32(a[127..96], b[127..96]) @ max_s32(a[95..64], b[95..64]) @
     max_s32(a[63..32], b[63..32]) @ max_s32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMAXUB/PMAXUW/PMAXUD — Packed Maximum Unsigned Integers
 // PMAXUB is SSE2; PMAXUW and PMAXUD are SSE4.1.
@@ -951,7 +951,7 @@ function exec_pmaxub(dst, src) = {
     max_u8(a[31..24], b[31..24]) @ max_u8(a[23..16], b[23..16]) @
     max_u8(a[15..8], b[15..8]) @ max_u8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmaxuw : (simd_idx, xmmword) -> ExecutionResult
@@ -964,7 +964,7 @@ function exec_pmaxuw(dst, src) = {
     max_u16(a[63..48], b[63..48]) @ max_u16(a[47..32], b[47..32]) @
     max_u16(a[31..16], b[31..16]) @ max_u16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmaxud : (simd_idx, xmmword) -> ExecutionResult
@@ -975,7 +975,7 @@ function exec_pmaxud(dst, src) = {
     max_u32(a[127..96], b[127..96]) @ max_u32(a[95..64], b[95..64]) @
     max_u32(a[63..32], b[63..32]) @ max_u32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMINSB/PMINSW/PMINSD — Packed Minimum Signed Integers
 // PMINSB and PMINSD are SSE4.1; PMINSW is SSE2.
@@ -1004,7 +1004,7 @@ function exec_pminsb(dst, src) = {
     min_s8(a[31..24], b[31..24]) @ min_s8(a[23..16], b[23..16]) @
     min_s8(a[15..8], b[15..8]) @ min_s8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pminsw : (simd_idx, xmmword) -> ExecutionResult
@@ -1017,7 +1017,7 @@ function exec_pminsw(dst, src) = {
     min_s16(a[63..48], b[63..48]) @ min_s16(a[47..32], b[47..32]) @
     min_s16(a[31..16], b[31..16]) @ min_s16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pminsd : (simd_idx, xmmword) -> ExecutionResult
@@ -1028,7 +1028,7 @@ function exec_pminsd(dst, src) = {
     min_s32(a[127..96], b[127..96]) @ min_s32(a[95..64], b[95..64]) @
     min_s32(a[63..32], b[63..32]) @ min_s32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMINUB/PMINUW/PMINUD — Packed Minimum Unsigned Integers
 // PMINUB is SSE2; PMINUW and PMINUD are SSE4.1.
@@ -1057,7 +1057,7 @@ function exec_pminub(dst, src) = {
     min_u8(a[31..24], b[31..24]) @ min_u8(a[23..16], b[23..16]) @
     min_u8(a[15..8], b[15..8]) @ min_u8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pminuw : (simd_idx, xmmword) -> ExecutionResult
@@ -1070,7 +1070,7 @@ function exec_pminuw(dst, src) = {
     min_u16(a[63..48], b[63..48]) @ min_u16(a[47..32], b[47..32]) @
     min_u16(a[31..16], b[31..16]) @ min_u16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pminud : (simd_idx, xmmword) -> ExecutionResult
@@ -1081,7 +1081,7 @@ function exec_pminud(dst, src) = {
     min_u32(a[127..96], b[127..96]) @ min_u32(a[95..64], b[95..64]) @
     min_u32(a[63..32], b[63..32]) @ min_u32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMOVMSKB — Move Byte Mask
 // Creates a 16-bit mask from the MSB of each byte in XMM. No flags affected.
@@ -1093,7 +1093,7 @@ function exec_pmovmskb(dst, s) = {
                          s[63]  @ s[55]  @ s[47]  @ s[39] @
                          s[31]  @ s[23]  @ s[15]  @ s[7];
   write_gpr32(dst, zero_extend(mask));
-  Ok(())
+  Ok()
 }
 // PMOVSX — Packed Move with Sign Extend (SSE4.1)
 // Sign-extends packed integers from smaller to larger element sizes.
@@ -1127,7 +1127,7 @@ function exec_pmovsxbw(dst, src) = {
     sx8_16(s[31..24]) @ sx8_16(s[23..16]) @
     sx8_16(s[15..8])  @ sx8_16(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVSXBD: 4 x i8 -> 4 x i32
@@ -1138,7 +1138,7 @@ function exec_pmovsxbd(dst, src) = {
     sx8_32(s[31..24]) @ sx8_32(s[23..16]) @
     sx8_32(s[15..8])  @ sx8_32(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVSXBQ: 2 x i8 -> 2 x i64
@@ -1148,7 +1148,7 @@ function exec_pmovsxbq(dst, src) = {
   let r : xmmword =
     sx8_64(s[15..8]) @ sx8_64(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVSXWD: 4 x i16 -> 4 x i32
@@ -1159,7 +1159,7 @@ function exec_pmovsxwd(dst, src) = {
     sx16_32(s[63..48]) @ sx16_32(s[47..32]) @
     sx16_32(s[31..16]) @ sx16_32(s[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVSXWQ: 2 x i16 -> 2 x i64
@@ -1169,7 +1169,7 @@ function exec_pmovsxwq(dst, src) = {
   let r : xmmword =
     sx16_64(s[31..16]) @ sx16_64(s[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVSXDQ: 2 x i32 -> 2 x i64
@@ -1179,7 +1179,7 @@ function exec_pmovsxdq(dst, src) = {
   let r : xmmword =
     sx32_64(s[63..32]) @ sx32_64(s[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMOVZX — Packed Move with Zero Extend (SSE4.1)
 // Zero-extends packed integers from smaller to larger element sizes.
@@ -1213,7 +1213,7 @@ function exec_pmovzxbw(dst, src) = {
     zx8_16(s[31..24]) @ zx8_16(s[23..16]) @
     zx8_16(s[15..8])  @ zx8_16(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVZXBD: 4 x u8 -> 4 x u32
@@ -1224,7 +1224,7 @@ function exec_pmovzxbd(dst, src) = {
     zx8_32(s[31..24]) @ zx8_32(s[23..16]) @
     zx8_32(s[15..8])  @ zx8_32(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVZXBQ: 2 x u8 -> 2 x u64
@@ -1234,7 +1234,7 @@ function exec_pmovzxbq(dst, src) = {
   let r : xmmword =
     zx8_64(s[15..8]) @ zx8_64(s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVZXWD: 4 x u16 -> 4 x u32
@@ -1245,7 +1245,7 @@ function exec_pmovzxwd(dst, src) = {
     zx16_32(s[63..48]) @ zx16_32(s[47..32]) @
     zx16_32(s[31..16]) @ zx16_32(s[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVZXWQ: 2 x u16 -> 2 x u64
@@ -1255,7 +1255,7 @@ function exec_pmovzxwq(dst, src) = {
   let r : xmmword =
     zx16_64(s[31..16]) @ zx16_64(s[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // PMOVZXDQ: 2 x u32 -> 2 x u64
@@ -1265,7 +1265,7 @@ function exec_pmovzxdq(dst, src) = {
   let r : xmmword =
     zx32_64(s[63..32]) @ zx32_64(s[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMULDQ — Multiply Packed Signed Doubleword Integers (SSE4.1)
 // Multiplies signed 32-bit integers from even-numbered dword lanes,
@@ -1279,7 +1279,7 @@ function exec_pmuldq(dst, src) = {
   let lo : qword = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
   let r : xmmword = hi @ lo;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMULHRSW — Packed Multiply High with Round and Scale (SSSE3)
 // No flags affected.
@@ -1302,7 +1302,7 @@ function exec_pmulhrsw(dst, src) = {
     mulhrsw(a[63..48], b[63..48]) @ mulhrsw(a[47..32], b[47..32]) @
     mulhrsw(a[31..16], b[31..16]) @ mulhrsw(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMULLD — Multiply Packed Signed Dword Integers and Store Low Result (SSE4.1)
 // No flags affected.
@@ -1321,7 +1321,7 @@ function exec_pmulld(dst, src) = {
     mul_lo32(a[127..96], b[127..96]) @ mul_lo32(a[95..64], b[95..64]) @
     mul_lo32(a[63..32], b[63..32]) @ mul_lo32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMULLW — Multiply Packed Signed Integers and Store Low Result (16-bit)
 // PMULHW — Multiply Packed Signed Integers and Store High Result (16-bit)
@@ -1356,7 +1356,7 @@ function exec_pmullw(dst, src) = {
     mul_lo16(a[63..48], b[63..48]) @ mul_lo16(a[47..32], b[47..32]) @
     mul_lo16(a[31..16], b[31..16]) @ mul_lo16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmulhw : (simd_idx, xmmword) -> ExecutionResult
@@ -1369,7 +1369,7 @@ function exec_pmulhw(dst, src) = {
     mul_hi16s(a[63..48], b[63..48]) @ mul_hi16s(a[47..32], b[47..32]) @
     mul_hi16s(a[31..16], b[31..16]) @ mul_hi16s(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pmulhuw : (simd_idx, xmmword) -> ExecutionResult
@@ -1382,7 +1382,7 @@ function exec_pmulhuw(dst, src) = {
     mul_hi16u(a[63..48], b[63..48]) @ mul_hi16u(a[47..32], b[47..32]) @
     mul_hi16u(a[31..16], b[31..16]) @ mul_hi16u(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PMULUDQ — Multiply Packed Unsigned Doubleword Integers
 // Multiplies unsigned 32-bit integers from even dword lanes, producing 64-bit results.
@@ -1396,7 +1396,7 @@ function exec_pmuludq(dst, src) = {
   let lo : qword = to_bits_truncate(unsigned(a[31..0]) * unsigned(b[31..0]));
   let r : xmmword = hi @ lo;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSADBW — Compute Sum of Absolute Differences
 // Computes absolute differences of unsigned byte pairs, then sums each 8-byte group.
@@ -1432,7 +1432,7 @@ function exec_psadbw(dst, src) = {
   let lo : qword = to_bits_truncate(sum_lo);
   let r : xmmword = hi @ lo;
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSHUFB — Packed Shuffle Bytes (SSSE3)
 // Each byte in result is selected from dst by the low 4 bits of the corresponding
@@ -1479,7 +1479,7 @@ function exec_pshufb(dst, src) = {
     pshufb_byte(d, s[31..24])   @ pshufb_byte(d, s[23..16]) @
     pshufb_byte(d, s[15..8])    @ pshufb_byte(d, s[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSHUFD — Shuffle Packed Doublewords
 // Selects dwords from src based on imm8 control. No flags affected.
@@ -1496,7 +1496,7 @@ function exec_pshufd(dst, src, imm8) = {
   let d2 : dword = s[(sel2 * 32 + 31) .. (sel2 * 32)];
   let d3 : dword = s[(sel3 * 32 + 31) .. (sel3 * 32)];
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // PSHUFHW — Shuffle Packed High Words
 // Low qword copied unchanged from src. High qword: 4 words selected
@@ -1517,7 +1517,7 @@ function exec_pshufhw(dst, src, imm8) = {
   let w2 : word = select_high_word(s, imm8[5..4]);
   let w3 : word = select_high_word(s, imm8[7..6]);
   write_xmm_legacy(dst, w3 @ w2 @ w1 @ w0 @ low);
-  Ok(())
+  Ok()
 }
 // PSHUFLW — Shuffle Packed Low Words
 // High qword copied unchanged from src. Low qword: 4 words selected
@@ -1538,7 +1538,7 @@ function exec_pshuflw(dst, src, imm8) = {
   let w2 : word = select_low_word(s, imm8[5..4]);
   let w3 : word = select_low_word(s, imm8[7..6]);
   write_xmm_legacy(dst, high @ w3 @ w2 @ w1 @ w0);
-  Ok(())
+  Ok()
 }
 // PSIGNB/PSIGNW/PSIGND — Packed Sign (SSSE3)
 // For each lane: if src < 0, negate dst; if src == 0, zero; if src > 0, keep dst.
@@ -1576,7 +1576,7 @@ function exec_psignb(dst, src) = {
     psign8(a[31..24], b[31..24]) @ psign8(a[23..16], b[23..16]) @
     psign8(a[15..8], b[15..8]) @ psign8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psignw : (simd_idx, xmmword) -> ExecutionResult
@@ -1589,7 +1589,7 @@ function exec_psignw(dst, src) = {
     psign16(a[63..48], b[63..48]) @ psign16(a[47..32], b[47..32]) @
     psign16(a[31..16], b[31..16]) @ psign16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psignd : (simd_idx, xmmword) -> ExecutionResult
@@ -1600,7 +1600,7 @@ function exec_psignd(dst, src) = {
     psign32(a[127..96], b[127..96]) @ psign32(a[95..64], b[95..64]) @
     psign32(a[63..32], b[63..32]) @ psign32(a[31..0], b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSLLDQ — Shift Double Quadword Left Logical (byte granularity)
 // PSRLDQ — Shift Double Quadword Right Logical (byte granularity)
@@ -1620,7 +1620,7 @@ function exec_pslldq(dst, imm8) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = sll128(a, byte_count * 8);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrldq : (simd_idx, byte) -> ExecutionResult
@@ -1630,7 +1630,7 @@ function exec_psrldq(dst, imm8) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = srl128(a, byte_count * 8);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
 // PSRLW/PSRLD/PSRLQ — Shift Packed Data Right Logical
@@ -1679,7 +1679,7 @@ function exec_psllw_imm(dst, imm8) = {
     sll16(a[63..48], c) @ sll16(a[47..32], c) @
     sll16(a[31..16], c) @ sll16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pslld_imm : (simd_idx, byte) -> ExecutionResult
@@ -1690,7 +1690,7 @@ function exec_pslld_imm(dst, imm8) = {
     sll32(a[127..96], c) @ sll32(a[95..64], c) @
     sll32(a[63..32], c) @ sll32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psllq_imm : (simd_idx, byte) -> ExecutionResult
@@ -1699,7 +1699,7 @@ function exec_psllq_imm(dst, imm8) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrlw_imm : (simd_idx, byte) -> ExecutionResult
@@ -1712,7 +1712,7 @@ function exec_psrlw_imm(dst, imm8) = {
     srl16(a[63..48], c) @ srl16(a[47..32], c) @
     srl16(a[31..16], c) @ srl16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrld_imm : (simd_idx, byte) -> ExecutionResult
@@ -1723,7 +1723,7 @@ function exec_psrld_imm(dst, imm8) = {
     srl32(a[127..96], c) @ srl32(a[95..64], c) @
     srl32(a[63..32], c) @ srl32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrlq_imm : (simd_idx, byte) -> ExecutionResult
@@ -1732,7 +1732,7 @@ function exec_psrlq_imm(dst, imm8) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psraw_imm : (simd_idx, byte) -> ExecutionResult
@@ -1745,7 +1745,7 @@ function exec_psraw_imm(dst, imm8) = {
     sra16(a[63..48], c) @ sra16(a[47..32], c) @
     sra16(a[31..16], c) @ sra16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrad_imm : (simd_idx, byte) -> ExecutionResult
@@ -1756,7 +1756,7 @@ function exec_psrad_imm(dst, imm8) = {
     sra32(a[127..96], c) @ sra32(a[95..64], c) @
     sra32(a[63..32], c) @ sra32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 // Shift-by-XMM variants: count comes from low 64 bits of source XMM.
@@ -1771,7 +1771,7 @@ function exec_psllw_xmm(dst, src) = {
     sll16(a[63..48], c) @ sll16(a[47..32], c) @
     sll16(a[31..16], c) @ sll16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_pslld_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1782,7 +1782,7 @@ function exec_pslld_xmm(dst, src) = {
     sll32(a[127..96], c) @ sll32(a[95..64], c) @
     sll32(a[63..32], c) @ sll32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psllq_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1791,7 +1791,7 @@ function exec_psllq_xmm(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrlw_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1804,7 +1804,7 @@ function exec_psrlw_xmm(dst, src) = {
     srl16(a[63..48], c) @ srl16(a[47..32], c) @
     srl16(a[31..16], c) @ srl16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrld_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1815,7 +1815,7 @@ function exec_psrld_xmm(dst, src) = {
     srl32(a[127..96], c) @ srl32(a[95..64], c) @
     srl32(a[63..32], c) @ srl32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrlq_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1824,7 +1824,7 @@ function exec_psrlq_xmm(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psraw_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1837,7 +1837,7 @@ function exec_psraw_xmm(dst, src) = {
     sra16(a[63..48], c) @ sra16(a[47..32], c) @
     sra16(a[31..16], c) @ sra16(a[15..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psrad_xmm : (simd_idx, xmmword) -> ExecutionResult
@@ -1848,7 +1848,7 @@ function exec_psrad_xmm(dst, src) = {
     sra32(a[127..96], c) @ sra32(a[95..64], c) @
     sra32(a[63..32], c) @ sra32(a[31..0], c);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSUBB/PSUBW/PSUBD/PSUBQ — Subtract Packed Integers
 // Wrapping subtraction per lane. No flags affected.
@@ -1867,7 +1867,7 @@ function exec_psubb(dst, src) = {
     (a[31..24] - b[31..24]) @ (a[23..16] - b[23..16]) @
     (a[15..8] - b[15..8]) @ (a[7..0] - b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubw : (simd_idx, xmmword) -> ExecutionResult
@@ -1883,7 +1883,7 @@ function exec_psubw(dst, src) = {
                        (a[31..16] - b[31..16]) @
                        (a[15..0] - b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubd : (simd_idx, xmmword) -> ExecutionResult
@@ -1895,7 +1895,7 @@ function exec_psubd(dst, src) = {
                        (a[63..32] - b[63..32]) @
                        (a[31..0] - b[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubq : (simd_idx, xmmword) -> ExecutionResult
@@ -1904,7 +1904,7 @@ function exec_psubq(dst, src) = {
   let b : xmmword = src;
   let r : xmmword = (a[127..64] - b[127..64]) @ (a[63..0] - b[63..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PSUBSB/PSUBSW — Subtract Packed Signed Integers with Signed Saturation
 // PSUBUSB/PSUBUSW — Subtract Packed Unsigned Integers with Unsigned Saturation
@@ -1956,7 +1956,7 @@ function exec_psubsb(dst, src) = {
     sat_sub_s8(a[31..24], b[31..24]) @ sat_sub_s8(a[23..16], b[23..16]) @
     sat_sub_s8(a[15..8], b[15..8]) @ sat_sub_s8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubsw : (simd_idx, xmmword) -> ExecutionResult
@@ -1969,7 +1969,7 @@ function exec_psubsw(dst, src) = {
     sat_sub_s16(a[63..48], b[63..48]) @ sat_sub_s16(a[47..32], b[47..32]) @
     sat_sub_s16(a[31..16], b[31..16]) @ sat_sub_s16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubusb : (simd_idx, xmmword) -> ExecutionResult
@@ -1986,7 +1986,7 @@ function exec_psubusb(dst, src) = {
     sat_sub_u8(a[31..24], b[31..24]) @ sat_sub_u8(a[23..16], b[23..16]) @
     sat_sub_u8(a[15..8], b[15..8]) @ sat_sub_u8(a[7..0], b[7..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_psubusw : (simd_idx, xmmword) -> ExecutionResult
@@ -1999,7 +1999,7 @@ function exec_psubusw(dst, src) = {
     sat_sub_u16(a[63..48], b[63..48]) @ sat_sub_u16(a[47..32], b[47..32]) @
     sat_sub_u16(a[31..16], b[31..16]) @ sat_sub_u16(a[15..0], b[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PTEST — Logical Compare (SSE4.1)
 // Sets ZF if (src1 AND src2) is all zeros.
@@ -2018,7 +2018,7 @@ function exec_ptest(src1, src2) = {
   AF = bitzero;
   PF = bitzero;
   SF = bitzero;
-  Ok(())
+  Ok()
 }
 // PUNPCKHBW — Unpack High Data (Bytes to Words)
 // PUNPCKHWD — Unpack High Data (Words to Doublewords)
@@ -2040,7 +2040,7 @@ function exec_punpckhbw(dst, src) = {
     s[79..72]   @ d[79..72]   @
     s[71..64]   @ d[71..64];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpckhwd : (simd_idx, xmmword) -> ExecutionResult
@@ -2053,7 +2053,7 @@ function exec_punpckhwd(dst, src) = {
     s[95..80]   @ d[95..80]   @
     s[79..64]   @ d[79..64];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpckhdq : (simd_idx, xmmword) -> ExecutionResult
@@ -2064,7 +2064,7 @@ function exec_punpckhdq(dst, src) = {
     s[127..96] @ d[127..96] @
     s[95..64]  @ d[95..64];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpckhqdq : (simd_idx, xmmword) -> ExecutionResult
@@ -2072,7 +2072,7 @@ function exec_punpckhqdq(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[127..64] @ d[127..64]);
-  Ok(())
+  Ok()
 }
 // PUNPCKLBW — Unpack Low Data (Bytes to Words)
 // PUNPCKLWD — Unpack Low Data (Words to Doublewords)
@@ -2094,7 +2094,7 @@ function exec_punpcklbw(dst, src) = {
     s[15..8]  @ d[15..8]  @
     s[7..0]   @ d[7..0];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpcklwd : (simd_idx, xmmword) -> ExecutionResult
@@ -2107,7 +2107,7 @@ function exec_punpcklwd(dst, src) = {
     s[31..16] @ d[31..16] @
     s[15..0]  @ d[15..0];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpckldq : (simd_idx, xmmword) -> ExecutionResult
@@ -2118,7 +2118,7 @@ function exec_punpckldq(dst, src) = {
     s[63..32] @ d[63..32] @
     s[31..0]  @ d[31..0];
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
 
 val exec_punpcklqdq : (simd_idx, xmmword) -> ExecutionResult
@@ -2126,7 +2126,7 @@ function exec_punpcklqdq(dst, src) = {
   let d : xmmword = read_xmm(dst);
   let s : xmmword = src;
   write_xmm_legacy(dst, s[63..0] @ d[63..0]);
-  Ok(())
+  Ok()
 }
 // PXOR — Logical Exclusive OR (packed)
 //
@@ -2138,7 +2138,7 @@ function exec_pxor_xmm(dst, src) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, a ^ b);
-  Ok(())
+  Ok()
 }
 
 // PHADDSW — Packed Horizontal Add with Saturation (SSSE3)
@@ -2155,7 +2155,7 @@ function exec_phaddsw(dst, src) = {
     sat_add_s16(a[127..112], a[111..96]) @ sat_add_s16(a[95..80], a[79..64]) @
     sat_add_s16(a[63..48], a[47..32]) @ sat_add_s16(a[31..16], a[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PHADDW/PHADDD — Packed Horizontal Add (SSSE3)
 // No flags affected.
@@ -2170,7 +2170,7 @@ function exec_phaddw(dst, src) = {
     (a[127..112] + a[111..96]) @ (a[95..80] + a[79..64]) @
     (a[63..48] + a[47..32]) @ (a[31..16] + a[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_phaddd : (simd_idx, xmmword) -> ExecutionResult
@@ -2181,7 +2181,7 @@ function exec_phaddd(dst, src) = {
     (b[127..96] + b[95..64]) @ (b[63..32] + b[31..0]) @
     (a[127..96] + a[95..64]) @ (a[63..32] + a[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PHMINPOSUW — Packed Horizontal Minimum of Unsigned Words (SSE4.1)
 // Finds the minimum unsigned word and its index. No flags affected.
@@ -2208,7 +2208,7 @@ function exec_phminposuw(dst, src) = {
   let (min_val, min_idx) = if unsigned(w6) < unsigned(min_val) then (w6, 0x0006) else (min_val, min_idx);
   let (min_val, min_idx) = if unsigned(w7) < unsigned(min_val) then (w7, 0x0007) else (min_val, min_idx);
   write_xmm_legacy(dst, zeros(96) @ min_idx @ min_val);
-  Ok(())
+  Ok()
 }
 // PHSUBSW — Packed Horizontal Subtract with Saturation (SSSE3)
 // Subtracts adjacent signed 16-bit integers horizontally with signed saturation.
@@ -2224,7 +2224,7 @@ function exec_phsubsw(dst, src) = {
     sat_sub_s16(a[127..112], a[111..96]) @ sat_sub_s16(a[95..80], a[79..64]) @
     sat_sub_s16(a[63..48], a[47..32]) @ sat_sub_s16(a[31..16], a[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // PHSUBW/PHSUBD — Packed Horizontal Subtract (SSSE3)
 // No flags affected.
@@ -2239,7 +2239,7 @@ function exec_phsubw(dst, src) = {
     (a[127..112] - a[111..96]) @ (a[95..80] - a[79..64]) @
     (a[63..48] - a[47..32]) @ (a[31..16] - a[15..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 
 val exec_phsubd : (simd_idx, xmmword) -> ExecutionResult
@@ -2250,7 +2250,7 @@ function exec_phsubd(dst, src) = {
     (b[127..96] - b[95..64]) @ (b[63..32] - b[31..0]) @
     (a[127..96] - a[95..64]) @ (a[63..32] - a[31..0]);
   write_xmm_legacy(dst, r);
-  Ok(())
+  Ok()
 }
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
 //
@@ -2283,7 +2283,7 @@ function exec_insertps(dst, src, imm8) = {
   let d2 : dword = if imm8[2] == bitone then 0x00000000 else t2;
   let d3 : dword = if imm8[3] == bitone then 0x00000000 else t3;
   write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0);
-  Ok(())
+  Ok()
 }
 // MPSADBW — Multiple Sum of Absolute Differences (SSE4.1)
 // Complex operation modeled as external. No flags affected.
@@ -2295,7 +2295,7 @@ function exec_mpsadbw(dst, src, imm8) = {
   let a : xmmword = read_xmm(dst);
   let b : xmmword = src;
   write_xmm_legacy(dst, __mpsadbw(a, b, imm8));
-  Ok(())
+  Ok()
 }
 // MASKMOVDQU -- Store Selected Bytes of Double Quadword
 //
@@ -2309,7 +2309,7 @@ val __maskmovdqu : (xmmword, xmmword, qword) -> unit
 val exec_maskmovdqu : (xmmword, xmmword, qword) -> ExecutionResult
 function exec_maskmovdqu(data, mask, addr) = {
   __maskmovdqu(data, mask, addr);
-  Ok(())
+  Ok()
 }
 // AES-NI Instructions
 // AESENC, AESDEC, AESENCLAST, AESDECLAST — AES round operations
@@ -2335,7 +2335,7 @@ function exec_aesenc(dst, src) = {
   let state : xmmword = read_xmm(dst);
   let roundkey : xmmword = src;
   write_xmm_legacy(dst, __aesenc(state, roundkey));
-  Ok(())
+  Ok()
 }
 
 // AESDEC — Perform One Round of an AES Decryption Flow
@@ -2345,7 +2345,7 @@ function exec_aesdec(dst, src) = {
   let state : xmmword = read_xmm(dst);
   let roundkey : xmmword = src;
   write_xmm_legacy(dst, __aesdec(state, roundkey));
-  Ok(())
+  Ok()
 }
 
 // AESENCLAST — Perform Last Round of an AES Encryption Flow
@@ -2355,7 +2355,7 @@ function exec_aesenclast(dst, src) = {
   let state : xmmword = read_xmm(dst);
   let roundkey : xmmword = src;
   write_xmm_legacy(dst, __aesenclast(state, roundkey));
-  Ok(())
+  Ok()
 }
 
 // AESDECLAST — Perform Last Round of an AES Decryption Flow
@@ -2365,7 +2365,7 @@ function exec_aesdeclast(dst, src) = {
   let state : xmmword = read_xmm(dst);
   let roundkey : xmmword = src;
   write_xmm_legacy(dst, __aesdeclast(state, roundkey));
-  Ok(())
+  Ok()
 }
 
 // AESIMC — Perform the AES InvMixColumns Transformation
@@ -2374,7 +2374,7 @@ val exec_aesimc : (simd_idx, xmmword) -> ExecutionResult
 function exec_aesimc(dst, src) = {
   let s : xmmword = src;
   write_xmm_legacy(dst, __aesimc(s));
-  Ok(())
+  Ok()
 }
 
 // AESKEYGENASSIST — AES Round Key Generation Assist
@@ -2383,7 +2383,7 @@ val exec_aeskeygenassist : (simd_idx, xmmword, byte) -> ExecutionResult
 function exec_aeskeygenassist(dst, src, imm8) = {
   let s : xmmword = src;
   write_xmm_legacy(dst, __aeskeygenassist(s, imm8));
-  Ok(())
+  Ok()
 }
 // PCLMULQDQ — Carry-Less Multiplication Quadword
 //
@@ -2404,5 +2404,5 @@ function exec_pclmulqdq(dst, src, imm8) = {
   let sel_b : qword = if imm8[4] == bitone then b[127..64] else b[63..0];
   let result : xmmword = __pclmulqdq(sel_a, sel_b);
   write_xmm_legacy(dst, result);
-  Ok(())
+  Ok()
 }
