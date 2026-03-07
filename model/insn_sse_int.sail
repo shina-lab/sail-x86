@@ -1165,7 +1165,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F E5: PMULLW xmm, xmm/m128 (66 prefix)
+    // 0F E5: PMULHW xmm, xmm/m128 (66 prefix)
     229 => {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_66 then {
@@ -1181,10 +1181,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          mul_lo16(a[127..112], b[127..112]) @ mul_lo16(a[111..96], b[111..96]) @
-          mul_lo16(a[95..80], b[95..80]) @ mul_lo16(a[79..64], b[79..64]) @
-          mul_lo16(a[63..48], b[63..48]) @ mul_lo16(a[47..32], b[47..32]) @
-          mul_lo16(a[31..16], b[31..16]) @ mul_lo16(a[15..0], b[15..0]);
+          mul_hi16s(a[127..112], b[127..112]) @ mul_hi16s(a[111..96], b[111..96]) @
+          mul_hi16s(a[95..80], b[95..80]) @ mul_hi16s(a[79..64], b[79..64]) @
+          mul_hi16s(a[63..48], b[63..48]) @ mul_hi16s(a[47..32], b[47..32]) @
+          mul_hi16s(a[31..16], b[31..16]) @ mul_hi16s(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r);
         Ok()
       }
@@ -1717,7 +1717,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F D5: PMULHW (66 prefix)
+    // 0F D5: PMULLW (66 prefix)
     213 => {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_66 then {
@@ -1730,10 +1730,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          mul_hi16s(a[127..112], b[127..112]) @ mul_hi16s(a[111..96], b[111..96]) @
-          mul_hi16s(a[95..80], b[95..80]) @ mul_hi16s(a[79..64], b[79..64]) @
-          mul_hi16s(a[63..48], b[63..48]) @ mul_hi16s(a[47..32], b[47..32]) @
-          mul_hi16s(a[31..16], b[31..16]) @ mul_hi16s(a[15..0], b[15..0]);
+          mul_lo16(a[127..112], b[127..112]) @ mul_lo16(a[111..96], b[111..96]) @
+          mul_lo16(a[95..80], b[95..80]) @ mul_lo16(a[79..64], b[79..64]) @
+          mul_lo16(a[63..48], b[63..48]) @ mul_lo16(a[47..32], b[47..32]) @
+          mul_lo16(a[31..16], b[31..16]) @ mul_lo16(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r);
         Ok()
       }
