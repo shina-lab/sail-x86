@@ -22,6 +22,21 @@ set(KVM_CATEGORIES
   SSE4.1
   SSE4.2
   AES
+  SETcc
+  CMOVcc
+  POP
+  LEAVE
+  LOOP
+  CMPXCHG8B
+  MOVNTI
+  LDMXCSR
+  Fences
+  SSE3
+  SSE4.1v
+  MOVxPS
+  String
+  EMMS
+  AVX
 )
 
 foreach(cat ${KVM_CATEGORIES})

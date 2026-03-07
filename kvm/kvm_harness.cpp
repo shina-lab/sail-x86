@@ -245,6 +245,18 @@ struct KvmVm {
                                  MAP_SHARED, vcpu_fd, 0);
     if (run == MAP_FAILED) { perror("mmap vcpu"); return false; }
 
+    // Set up CPUID with host-supported features (needed for AVX, XSAVE, etc.)
+    {
+      size_t buf_size = sizeof(struct kvm_cpuid2) + 256 * sizeof(struct kvm_cpuid_entry2);
+      auto buf = std::vector<u8>(buf_size, 0);
+      auto *cpuid = (struct kvm_cpuid2 *)buf.data();
+      cpuid->nent = 256;
+      if (ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid) < 0)
+        perror("KVM_GET_SUPPORTED_CPUID");
+      else if (ioctl(vcpu_fd, KVM_SET_CPUID2, cpuid) < 0)
+        perror("KVM_SET_CPUID2");
+    }
+
     setup_long_mode();
     return true;
   }
@@ -272,7 +284,7 @@ struct KvmVm {
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
 
     sregs.cr0 = 0x80000011;  // PE + PG + ET (EM=0, TS=0 for SSE)
-    sregs.cr4 = 0x620;       // PAE + OSFXSR + OSXMMEXCPT
+    sregs.cr4 = 0x40620;     // PAE + OSFXSR + OSXMMEXCPT + OSXSAVE
     sregs.efer = 0x500;      // LME + LMA
     sregs.cr3 = PML4_ADDR;
 
@@ -309,6 +321,15 @@ struct KvmVm {
     setup_ds(sregs.ss);
 
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
+
+    // Enable AVX in XCR0: bit 0 (x87), bit 1 (SSE), bit 2 (AVX)
+    struct kvm_xcrs xcrs = {};
+    xcrs.nr_xcrs = 1;
+    xcrs.xcrs[0].xcr = 0;  // XCR0
+    xcrs.xcrs[0].value = 0x7;  // x87 + SSE + AVX
+    int xcr_ret = ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs);
+    if (xcr_ret < 0)
+      fprintf(stderr, "KVM_SET_XCRS failed: %s\n", strerror(errno));
 
   }
 
@@ -479,8 +500,13 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len) {
     case x86::Kind_zFault: {
       i64 vec = result.variants.zFault.ztup0;
       u32 err = result.variants.zFault.ztup1;
-      fprintf(stderr, "Sail: fault #%ld (error 0x%x) at RIP=0x%lx\n",
-              vec, err, model.zRIP);
+      fprintf(stderr, "Sail: fault #%ld (error 0x%x) at RIP=0x%lx [%s]\n",
+              vec, err, model.zRIP, tc.name.c_str());
+      // Print code bytes for debugging
+      fprintf(stderr, "  code bytes:");
+      for (size_t j = 0; j < tc.code.size(); j++)
+        fprintf(stderr, " %02x", tc.code[j]);
+      fprintf(stderr, "\n");
       abort();
     }
     }
@@ -2896,6 +2922,599 @@ std::vector<TestCase> build_tests() {
     add_xmm("aeskeygenassist xmm1,xmm0,0x01", {0x66, 0x0F, 0x3A, 0xDF, 0xC8, 0x01}, s, 0x2);
     // PCLMULQDQ XMM0, XMM1, 0x00: 66 0F 3A 44 C1 00
     add_xmm("pclmulqdq xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 28. SETcc — all condition codes
+  // =====================================================================
+  cat = "SETcc";
+  {
+    // Test with flags: CF=0, ZF=1, SF=1, OF=0, PF=1
+    ArchState s = {};
+    s.rax = 0xFFFFFFFFFFFFFFFF;  // pre-fill so we see zero-extension
+    s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
+
+    // SETcc AL: 0F 9x C0 (mod=11, rm=rax)
+    add("seto al",   {0x0F, 0x90, 0xC0}, s, FL_ALL);  // OF=0 → 0
+    add("setno al",  {0x0F, 0x91, 0xC0}, s, FL_ALL);  // !OF → 1
+    add("setb al",   {0x0F, 0x92, 0xC0}, s, FL_ALL);  // CF=0 → 0
+    add("setnb al",  {0x0F, 0x93, 0xC0}, s, FL_ALL);  // !CF → 1
+    add("sete al",   {0x0F, 0x94, 0xC0}, s, FL_ALL);  // ZF=1 → 1
+    add("setne al",  {0x0F, 0x95, 0xC0}, s, FL_ALL);  // !ZF → 0
+    add("setbe al",  {0x0F, 0x96, 0xC0}, s, FL_ALL);  // CF|ZF → 1
+    add("setnbe al", {0x0F, 0x97, 0xC0}, s, FL_ALL);  // !CF&!ZF → 0
+    add("sets al",   {0x0F, 0x98, 0xC0}, s, FL_ALL);  // SF=1 → 1
+    add("setns al",  {0x0F, 0x99, 0xC0}, s, FL_ALL);  // !SF → 0
+    add("setp al",   {0x0F, 0x9A, 0xC0}, s, FL_ALL);  // PF=1 → 1
+    add("setnp al",  {0x0F, 0x9B, 0xC0}, s, FL_ALL);  // !PF → 0
+    add("setl al",   {0x0F, 0x9C, 0xC0}, s, FL_ALL);  // SF!=OF → 1
+    add("setnl al",  {0x0F, 0x9D, 0xC0}, s, FL_ALL);  // SF==OF → 0
+    add("setle al",  {0x0F, 0x9E, 0xC0}, s, FL_ALL);  // ZF|(SF!=OF) → 1
+    add("setnle al", {0x0F, 0x9F, 0xC0}, s, FL_ALL);  // !ZF&(SF==OF) → 0
+
+    // Second set with different flags: CF=1, ZF=0, SF=0, OF=1
+    s.rflags = 0x2 | FL_CF | FL_OF;
+    add("seto al (OF=1)",  {0x0F, 0x90, 0xC0}, s, FL_ALL);
+    add("setb al (CF=1)",  {0x0F, 0x92, 0xC0}, s, FL_ALL);
+    add("setl al (SF=OF)", {0x0F, 0x9C, 0xC0}, s, FL_ALL);  // SF=0,OF=1 → 1
+  }
+
+  // =====================================================================
+  // 29. Remaining CMOVcc variants
+  // =====================================================================
+  cat = "CMOVcc";
+  {
+    ArchState s = {};
+    s.rax = 0x1111111111111111;
+    s.rbx = 0x2222222222222222;
+    s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
+
+    // CMOVcc RAX, RBX: 48 0F 4x C3
+    add("cmovnb rax,rbx",  {0x48, 0x0F, 0x43, 0xC3}, s, FL_ALL);  // !CF → taken
+    add("cmovne rax,rbx",  {0x48, 0x0F, 0x45, 0xC3}, s, FL_ALL);  // !ZF → not taken
+    add("cmovbe rax,rbx",  {0x48, 0x0F, 0x46, 0xC3}, s, FL_ALL);  // CF|ZF → taken
+    add("cmova rax,rbx",   {0x48, 0x0F, 0x47, 0xC3}, s, FL_ALL);  // !CF&!ZF → not taken
+    add("cmovs rax,rbx",   {0x48, 0x0F, 0x48, 0xC3}, s, FL_ALL);  // SF → taken
+    add("cmovns rax,rbx",  {0x48, 0x0F, 0x49, 0xC3}, s, FL_ALL);  // !SF → not taken
+    add("cmovp rax,rbx",   {0x48, 0x0F, 0x4A, 0xC3}, s, FL_ALL);  // PF → taken
+    add("cmovnp rax,rbx",  {0x48, 0x0F, 0x4B, 0xC3}, s, FL_ALL);  // !PF → not taken
+    add("cmovge rax,rbx",  {0x48, 0x0F, 0x4D, 0xC3}, s, FL_ALL);  // SF==OF → not taken
+    add("cmovle rax,rbx",  {0x48, 0x0F, 0x4E, 0xC3}, s, FL_ALL);  // ZF|(SF!=OF) → taken
+  }
+
+  // =====================================================================
+  // 30. POP register
+  // =====================================================================
+  cat = "POP";
+  {
+    // PUSH RAX; POP RBX — tests POP reg
+    ArchState s = {};
+    s.rax = 0xDEADBEEFCAFEBABE;
+    s.rbx = 0;
+    s.rsp = 0x20000;
+    s.rflags = 0x2;
+    // PUSH RAX (50); POP RBX (5B)
+    add("push rax; pop rbx", {0x50, 0x5B}, s, FL_ALL);
+
+    // PUSH imm32; POP RAX — tests POP with sign-extended immediate
+    s.rax = 0;
+    // PUSH 0x42 (6A 42); POP RAX (58)
+    add("push 0x42; pop rax", {0x6A, 0x42, 0x58}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 31. LEAVE
+  // =====================================================================
+  cat = "LEAVE";
+  {
+    // Set up: RSP=0x1FF00, RBP=0x1FFF0 with a value at [RBP]
+    // LEAVE does: RSP = RBP; POP RBP
+    ArchState s = {};
+    s.rsp = 0x1FF00;
+    s.rbp = 0x1FFF0;
+    s.rflags = 0x2;
+    // Use PUSH/LEAVE sequence: PUSH saves RBP on stack, then LEAVE restores it.
+    // PUSH RBP (55); MOV RBP,RSP (48 89 E5); LEAVE (C9)
+    add("push rbp; mov rbp,rsp; leave", {0x55, 0x48, 0x89, 0xE5, 0xC9}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 32. LOOP/LOOPcc
+  // =====================================================================
+  cat = "LOOP";
+  {
+    // LOOP with RCX=3: loop back to add 1 to RAX three times
+    // Layout: INC RAX (48 FF C0) + LOOP -5 (E2 FB)
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 3;
+    s.rflags = 0x2;
+    // INC RAX; LOOP -5 (back to INC)
+    add("loop rcx=3", {0x48, 0xFF, 0xC0, 0xE2, 0xFB}, s, FL_ALL);
+
+    // LOOP with RCX=1: loop body executes once then falls through
+    s.rcx = 1;
+    add("loop rcx=1", {0x48, 0xFF, 0xC0, 0xE2, 0xFB}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 33. CMPXCHG8B/CMPXCHG16B
+  // =====================================================================
+  cat = "CMPXCHG8B";
+  {
+    // CMPXCHG8B [RDI]: 0F C7 0F (mod=00, reg=1, rm=rdi)
+    // Compare EDX:EAX with m64. If equal, set ZF and store ECX:EBX.
+    // Otherwise, load m64 into EDX:EAX.
+
+    // Case 1: match (EDX:EAX == m64)
+    ArchState s = {};
+    s.rdi = DATA_ADDR;
+    s.rax = 0x44332211;
+    s.rdx = 0x88776655;
+    s.rbx = 0xDDCCBBAA;
+    s.rcx = 0x11223344;
+    s.rflags = 0x2;
+    u8 val[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    add_mem("cmpxchg8b match", {0x0F, 0xC7, 0x0F}, s, FL_ALL,
+            {val, val + 8}, 8);
+
+    // Case 2: no match
+    s.rax = 0x00000000;
+    s.rdx = 0x00000000;
+    add_mem("cmpxchg8b no match", {0x0F, 0xC7, 0x0F}, s, FL_ALL,
+            {val, val + 8}, 8);
+  }
+
+  // =====================================================================
+  // 34. MOVNTI
+  // =====================================================================
+  cat = "MOVNTI";
+  {
+    // MOVNTI [RDI], EAX: 0F C3 07
+    ArchState s = {};
+    s.rdi = DATA_ADDR;
+    s.rax = 0xDEADBEEF12345678;
+    s.rflags = 0x2;
+    add_mem("movnti [rdi],eax", {0x0F, 0xC3, 0x07}, s, FL_ALL, {}, 4);
+
+    // MOVNTI [RDI], RAX: 48 0F C3 07
+    add_mem("movnti [rdi],rax", {0x48, 0x0F, 0xC3, 0x07}, s, FL_ALL, {}, 8);
+  }
+
+  // =====================================================================
+  // 35. LDMXCSR/STMXCSR
+  // =====================================================================
+  cat = "LDMXCSR";
+  {
+    // STMXCSR [RDI]: 0F AE 1F (mod=00, reg=3, rm=rdi)
+    ArchState s = {};
+    s.rdi = DATA_ADDR;
+    s.rflags = 0x2;
+    add_mem("stmxcsr [rdi]", {0x0F, 0xAE, 0x1F}, s, FL_ALL, {}, 4);
+
+    // LDMXCSR [RDI]: 0F AE 17 (mod=00, reg=2, rm=rdi)
+    // Load MXCSR with default value 0x1F80
+    u8 mxcsr[] = {0x80, 0x1F, 0x00, 0x00};
+    add_mem("ldmxcsr [rdi]", {0x0F, 0xAE, 0x17}, s, FL_ALL,
+            {mxcsr, mxcsr + 4}, 0);
+  }
+
+  // =====================================================================
+  // 36. Fences (LFENCE/MFENCE/SFENCE) — these are NOPs for our model
+  // =====================================================================
+  cat = "Fences";
+  {
+    ArchState s = {};
+    s.rax = 42;
+    s.rflags = 0x2;
+    // LFENCE: 0F AE E8
+    add("lfence", {0x0F, 0xAE, 0xE8}, s, FL_ALL);
+    // MFENCE: 0F AE F0
+    add("mfence", {0x0F, 0xAE, 0xF0}, s, FL_ALL);
+    // SFENCE: 0F AE F8
+    add("sfence", {0x0F, 0xAE, 0xF8}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 37. SSE3 FP — MOVSLDUP, MOVSHDUP, MOVDDUP, HADDPS/PD, HSUBPS/PD,
+  //     ADDSUBPS/PD
+  // =====================================================================
+  cat = "SSE3";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // MOVSLDUP XMM2, XMM0: F3 0F 12 D0 — duplicates even-indexed floats
+    add_xmm("movsldup xmm2,xmm0", {0xF3, 0x0F, 0x12, 0xD0}, s, 0x4);
+
+    // MOVSHDUP XMM2, XMM0: F3 0F 16 D0 — duplicates odd-indexed floats
+    add_xmm("movshdup xmm2,xmm0", {0xF3, 0x0F, 0x16, 0xD0}, s, 0x4);
+
+    // HADDPS XMM0, XMM1: F2 0F 7C C1
+    add_xmm("haddps xmm0,xmm1", {0xF2, 0x0F, 0x7C, 0xC1}, s, 0x3);
+
+    // HSUBPS XMM0, XMM1: F2 0F 7D C1
+    add_xmm("hsubps xmm0,xmm1", {0xF2, 0x0F, 0x7D, 0xC1}, s, 0x3);
+
+    // ADDSUBPS XMM0, XMM1: F2 0F D0 C1
+    add_xmm("addsubps xmm0,xmm1", {0xF2, 0x0F, 0xD0, 0xC1}, s, 0x3);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f64(1.5, 2.5);
+    s.xmm[1] = xmm_from_f64(3.0, 4.0);
+
+    // MOVDDUP XMM2, XMM0: F2 0F 12 D0 — duplicate low double
+    add_xmm("movddup xmm2,xmm0", {0xF2, 0x0F, 0x12, 0xD0}, s, 0x4);
+
+    // HADDPD XMM0, XMM1: 66 0F 7C C1
+    add_xmm("haddpd xmm0,xmm1", {0x66, 0x0F, 0x7C, 0xC1}, s, 0x3);
+
+    // HSUBPD XMM0, XMM1: 66 0F 7D C1
+    add_xmm("hsubpd xmm0,xmm1", {0x66, 0x0F, 0x7D, 0xC1}, s, 0x3);
+
+    // ADDSUBPD XMM0, XMM1: 66 0F D0 C1
+    add_xmm("addsubpd xmm0,xmm1", {0x66, 0x0F, 0xD0, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 38. SSE4.1 remaining — BLENDVPS, BLENDVPD, PBLENDVB, PHMINPOSUW
+  // =====================================================================
+  cat = "SSE4.1v";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+    // XMM0 is implicit mask for BLENDVPS
+    // Use a mask where high bit of each dword selects from xmm1
+    // Mask in xmm0: float with sign bit set = select from src2
+    // We need xmm0 as both dest and mask, so we use different regs:
+    // BLENDVPS XMM2, XMM1, <XMM0>: 66 0F 38 14 D1
+    s.xmm[2] = xmm_from_f32(100.0f, 200.0f, 300.0f, 400.0f);
+    // Set mask: element 0 and 2 have sign bit set (negative)
+    s.xmm[0] = xmm_from_f32(-1.0f, 1.0f, -1.0f, 1.0f);
+    add_xmm("blendvps xmm2,xmm1,xmm0", {0x66, 0x0F, 0x38, 0x14, 0xD1}, s, 0x7);
+
+    // BLENDVPD XMM2, XMM1, <XMM0>: 66 0F 38 15 D1
+    s.xmm[0] = xmm_from_f64(-1.0, 1.0);  // mask: select low from src2
+    s.xmm[1] = xmm_from_f64(10.0, 20.0);
+    s.xmm[2] = xmm_from_f64(100.0, 200.0);
+    add_xmm("blendvpd xmm2,xmm1,xmm0", {0x66, 0x0F, 0x38, 0x15, 0xD1}, s, 0x7);
+
+    // PBLENDVB XMM2, XMM1, <XMM0>: 66 0F 38 10 D1
+    s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
+    s.xmm[1] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
+    s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+    add_xmm("pblendvb xmm2,xmm1,xmm0", {0x66, 0x0F, 0x38, 0x10, 0xD1}, s, 0x7);
+  }
+  {
+    // PHMINPOSUW XMM0, XMM1: 66 0F 38 41 C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0005000300070001, 0x0009000200040008);
+    add_xmm("phminposuw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x41, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 39. MOVLPS/MOVHPS memory forms
+  // =====================================================================
+  cat = "MOVxPS";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+
+    // MOVLPS [RDI], XMM0: 0F 13 07 — store low 64 bits to memory
+    tests.push_back({"movlps [rdi],xmm0", cat, {0x0F, 0x13, 0x07},
+                      s, FL_ALL, 0x0, false, {}, 8});
+
+    // MOVHPS [RDI], XMM0: 0F 17 07 — store high 64 bits to memory
+    tests.push_back({"movhps [rdi],xmm0", cat, {0x0F, 0x17, 0x07},
+                      s, FL_ALL, 0x0, false, {}, 8});
+
+    // MOVLPS XMM0, [RDI]: 0F 12 07 — load 64 bits into low half
+    u8 data[] = {0x00, 0x00, 0x80, 0x41, 0x00, 0x00, 0x00, 0x42};  // 16.0f, 32.0f
+    tests.push_back({"movlps xmm0,[rdi]", cat, {0x0F, 0x12, 0x07},
+                      s, FL_ALL, 0x1, false, {data, data + 8}, 0});
+
+    // MOVHPS XMM0, [RDI]: 0F 16 07 — load 64 bits into high half
+    tests.push_back({"movhps xmm0,[rdi]", cat, {0x0F, 0x16, 0x07},
+                      s, FL_ALL, 0x1, false, {data, data + 8}, 0});
+
+    // MOVLPD [RDI], XMM0: 66 0F 13 07
+    s.xmm[0] = xmm_from_f64(1.5, 2.5);
+    tests.push_back({"movlpd [rdi],xmm0", cat, {0x66, 0x0F, 0x13, 0x07},
+                      s, FL_ALL, 0x0, false, {}, 8});
+
+    // MOVHPD [RDI], XMM0: 66 0F 17 07
+    tests.push_back({"movhpd [rdi],xmm0", cat, {0x66, 0x0F, 0x17, 0x07},
+                      s, FL_ALL, 0x0, false, {}, 8});
+  }
+
+  // =====================================================================
+  // 40. String instructions with REP
+  // =====================================================================
+  cat = "String";
+  {
+    // REP STOSB: fill RCX bytes at [RDI] with AL
+    ArchState s = {};
+    s.rflags = 0x2;  // DF=0 (forward)
+    s.rdi = DATA_ADDR;
+    s.rax = 0x42;
+    s.rcx = 8;
+    tests.push_back({"rep stosb", cat, {0xF3, 0xAA},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // REP STOSD: fill RCX dwords at [RDI] with EAX
+    s.rax = 0xDEADBEEF;
+    s.rcx = 2;
+    tests.push_back({"rep stosd", cat, {0xF3, 0xAB},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // REP STOSQ: fill RCX qwords at [RDI] with RAX
+    s.rax = 0x123456789ABCDEF0;
+    s.rcx = 1;
+    tests.push_back({"rep stosq", cat, {0xF3, 0x48, 0xAB},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // REP MOVSB: copy RCX bytes from [RSI] to [RDI]
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR + 32;
+    s.rcx = 8;
+    u8 src_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    // We put src data at DATA_ADDR, copy to DATA_ADDR+32
+    tests.push_back({"rep movsb", cat, {0xF3, 0xA4},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 40});
+
+    // LODSQ: load [RSI] into RAX
+    s.rsi = DATA_ADDR;
+    s.rdi = 0;
+    s.rcx = 0;
+    s.rax = 0;
+    tests.push_back({"lodsq", cat, {0x48, 0xAD},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+
+    // SCASB: compare AL with [RDI], set flags
+    s.rdi = DATA_ADDR;
+    s.rax = 0x11;
+    tests.push_back({"scasb (match)", cat, {0xAE},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+
+    s.rax = 0xFF;
+    tests.push_back({"scasb (no match)", cat, {0xAE},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+
+    // CMPSB: compare [RSI] with [RDI]
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR;
+    s.rax = 0;
+    tests.push_back({"cmpsb (equal)", cat, {0xA6},
+                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+  }
+
+  // =====================================================================
+  // 41. EMMS
+  // =====================================================================
+  cat = "EMMS";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // EMMS: 0F 77
+    add("emms", {0x0F, 0x77}, s, FL_ALL);
+  }
+
+  // =====================================================================
+  // 42. MOVNTDQA (SSE4.1 streaming load)
+  // =====================================================================
+  cat = "SSE4.1v";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    // 16 bytes of test data (aligned)
+    u8 data[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
+    // MOVNTDQA XMM0, [RDI]: 66 0F 38 2A 07
+    tests.push_back({"movntdqa xmm0,[rdi]", cat, {0x66, 0x0F, 0x38, 0x2A, 0x07},
+                      s, FL_ALL, 0x1, false, {data, data + 16}, 0});
+  }
+
+  // =====================================================================
+  // 43. AVX (VEX-encoded 128-bit) — packed/scalar FP and integer
+  //
+  // VEX 2-byte encoding: C5 [R̄.vvvv.L.pp] opcode ModRM
+  //   R̄=1 for xmm0-7, vvvv = ~src1 (inverted), L=0 for 128-bit
+  //   pp: 00=NP, 01=66, 10=F3, 11=F2
+  //
+  // Example: VADDPS xmm0, xmm1, xmm2 → C5 F0 58 C2
+  //   R̄=1, vvvv=~1=1110=0xE, L=0, pp=00 → byte = 0xF0
+  //   opcode=0x58, ModRM=0xC2 (mod=11, reg=0, rm=2)
+  // =====================================================================
+  cat = "AVX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // VEX 2-byte: C5 [R̄.vvvv.L.pp]
+    // For xmm0 = xmm1 op xmm2: vvvv=~1=0xE, L=0, pp=00 → 0xF0
+    // ModRM: mod=11, reg=xmm0=0, rm=xmm2=2 → 0xC2
+
+    // VADDPS xmm0, xmm1, xmm2: C5 F0 58 C2
+    add_xmm("vaddps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
+    // VSUBPS xmm0, xmm1, xmm2: C5 F0 5C C2
+    add_xmm("vsubps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x5C, 0xC2}, s, 0x7);
+    // VMULPS xmm0, xmm1, xmm2: C5 F0 59 C2
+    add_xmm("vmulps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x59, 0xC2}, s, 0x7);
+    // VDIVPS xmm0, xmm1, xmm2: C5 F0 5E C2
+    add_xmm("vdivps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x5E, 0xC2}, s, 0x7);
+    // VMINPS xmm0, xmm1, xmm2: C5 F0 5D C2
+    add_xmm("vminps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x5D, 0xC2}, s, 0x7);
+    // VMAXPS xmm0, xmm1, xmm2: C5 F0 5F C2
+    add_xmm("vmaxps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x5F, 0xC2}, s, 0x7);
+
+    // VSQRTPS xmm0, xmm1: C5 F8 51 C1  (vvvv=1111=unused, pp=00)
+    add_xmm("vsqrtps xmm0,xmm1", {0xC5, 0xF8, 0x51, 0xC1}, s, 0x3);
+
+    // VANDPS xmm0, xmm1, xmm2: C5 F0 54 C2
+    add_xmm("vandps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x54, 0xC2}, s, 0x7);
+    // VANDNPS xmm0, xmm1, xmm2: C5 F0 55 C2
+    add_xmm("vandnps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x55, 0xC2}, s, 0x7);
+    // VORPS xmm0, xmm1, xmm2: C5 F0 56 C2
+    add_xmm("vorps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x56, 0xC2}, s, 0x7);
+    // VXORPS xmm0, xmm1, xmm2: C5 F0 57 C2
+    add_xmm("vxorps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x57, 0xC2}, s, 0x7);
+
+    // VSHUFPS xmm0, xmm1, xmm2, 0x1B: C5 F0 C6 C2 1B
+    add_xmm("vshufps xmm0,xmm1,xmm2,0x1B", {0xC5, 0xF0, 0xC6, 0xC2, 0x1B}, s, 0x7);
+
+    // VUNPCKLPS xmm0, xmm1, xmm2: C5 F0 14 C2
+    add_xmm("vunpcklps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x14, 0xC2}, s, 0x7);
+    // VUNPCKHPS xmm0, xmm1, xmm2: C5 F0 15 C2
+    add_xmm("vunpckhps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x15, 0xC2}, s, 0x7);
+  }
+
+  // AVX packed double
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(3.0, 4.0);
+
+    // pp=01 (66 prefix): vvvv=~1=0xE, L=0, pp=01 → 0xF1
+    // VADDPD xmm0, xmm1, xmm2: C5 F1 58 C2
+    add_xmm("vaddpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x58, 0xC2}, s, 0x7);
+    // VSUBPD xmm0, xmm1, xmm2: C5 F1 5C C2
+    add_xmm("vsubpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x5C, 0xC2}, s, 0x7);
+    // VMULPD xmm0, xmm1, xmm2: C5 F1 59 C2
+    add_xmm("vmulpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x59, 0xC2}, s, 0x7);
+    // VDIVPD xmm0, xmm1, xmm2: C5 F1 5E C2
+    add_xmm("vdivpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x5E, 0xC2}, s, 0x7);
+
+    // VANDPD xmm0, xmm1, xmm2: C5 F1 54 C2
+    add_xmm("vandpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x54, 0xC2}, s, 0x7);
+    // VXORPD xmm0, xmm1, xmm2: C5 F1 57 C2
+    add_xmm("vxorpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x57, 0xC2}, s, 0x7);
+
+    // VSHUFPD xmm0, xmm1, xmm2, 0x01: C5 F1 C6 C2 01
+    add_xmm("vshufpd xmm0,xmm1,xmm2,0x01", {0xC5, 0xF1, 0xC6, 0xC2, 0x01}, s, 0x7);
+
+    // VUNPCKLPD xmm0, xmm1, xmm2: C5 F1 14 C2
+    add_xmm("vunpcklpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x14, 0xC2}, s, 0x7);
+    // VUNPCKHPD xmm0, xmm1, xmm2: C5 F1 15 C2
+    add_xmm("vunpckhpd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0x15, 0xC2}, s, 0x7);
+  }
+
+  // AVX scalar
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // pp=10 (F3 prefix): vvvv=~1=0xE, L=0, pp=10 → 0xF2
+    // VADDSS xmm0, xmm1, xmm2: C5 F2 58 C2
+    add_xmm("vaddss xmm0,xmm1,xmm2", {0xC5, 0xF2, 0x58, 0xC2}, s, 0x7);
+    // VSUBSS xmm0, xmm1, xmm2: C5 F2 5C C2
+    add_xmm("vsubss xmm0,xmm1,xmm2", {0xC5, 0xF2, 0x5C, 0xC2}, s, 0x7);
+    // VMULSS xmm0, xmm1, xmm2: C5 F2 59 C2
+    add_xmm("vmulss xmm0,xmm1,xmm2", {0xC5, 0xF2, 0x59, 0xC2}, s, 0x7);
+    // VDIVSS xmm0, xmm1, xmm2: C5 F2 5E C2
+    add_xmm("vdivss xmm0,xmm1,xmm2", {0xC5, 0xF2, 0x5E, 0xC2}, s, 0x7);
+
+    // pp=11 (F2 prefix): vvvv=~1=0xE, L=0, pp=11 → 0xF3
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(3.0, 4.0);
+    // VADDSD xmm0, xmm1, xmm2: C5 F3 58 C2
+    add_xmm("vaddsd xmm0,xmm1,xmm2", {0xC5, 0xF3, 0x58, 0xC2}, s, 0x7);
+    // VSUBSD xmm0, xmm1, xmm2: C5 F3 5C C2
+    add_xmm("vsubsd xmm0,xmm1,xmm2", {0xC5, 0xF3, 0x5C, 0xC2}, s, 0x7);
+    // VMULSD xmm0, xmm1, xmm2: C5 F3 59 C2
+    add_xmm("vmulsd xmm0,xmm1,xmm2", {0xC5, 0xF3, 0x59, 0xC2}, s, 0x7);
+    // VDIVSD xmm0, xmm1, xmm2: C5 F3 5E C2
+    add_xmm("vdivsd xmm0,xmm1,xmm2", {0xC5, 0xF3, 0x5E, 0xC2}, s, 0x7);
+  }
+
+  // AVX data movement
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+
+    // VMOVAPS xmm0, xmm1: C5 F8 28 C1  (vvvv=1111, pp=00)
+    add_xmm("vmovaps xmm0,xmm1", {0xC5, 0xF8, 0x28, 0xC1}, s, 0x3);
+    // VMOVUPS xmm0, xmm1: C5 F8 10 C1
+    add_xmm("vmovups xmm0,xmm1", {0xC5, 0xF8, 0x10, 0xC1}, s, 0x3);
+    // VMOVAPD xmm0, xmm1: C5 F9 28 C1  (pp=01)
+    add_xmm("vmovapd xmm0,xmm1", {0xC5, 0xF9, 0x28, 0xC1}, s, 0x3);
+    // VMOVDQA xmm0, xmm1: C5 F9 6F C1  (pp=01)
+    add_xmm("vmovdqa xmm0,xmm1", {0xC5, 0xF9, 0x6F, 0xC1}, s, 0x3);
+    // VMOVDQU xmm0, xmm1: C5 FA 6F C1  (pp=10)
+    add_xmm("vmovdqu xmm0,xmm1", {0xC5, 0xFA, 0x6F, 0xC1}, s, 0x3);
+  }
+
+  // AVX packed integer
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // pp=01 (66), vvvv=~1=0xE, L=0 → 0xF1
+    // VPADDB xmm0, xmm1, xmm2: C5 F1 FC C2
+    add_xmm("vpaddb xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xFC, 0xC2}, s, 0x7);
+    // VPADDW xmm0, xmm1, xmm2: C5 F1 FD C2
+    add_xmm("vpaddw xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xFD, 0xC2}, s, 0x7);
+    // VPADDD xmm0, xmm1, xmm2: C5 F1 FE C2
+    add_xmm("vpaddd xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xFE, 0xC2}, s, 0x7);
+    // VPADDQ xmm0, xmm1, xmm2: C5 F1 D4 C2
+    add_xmm("vpaddq xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xD4, 0xC2}, s, 0x7);
+    // VPSUBB xmm0, xmm1, xmm2: C5 F1 F8 C2
+    add_xmm("vpsubb xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xF8, 0xC2}, s, 0x7);
+
+    // VPAND xmm0, xmm1, xmm2: C5 F1 DB C2
+    add_xmm("vpand xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xDB, 0xC2}, s, 0x7);
+    // VPOR xmm0, xmm1, xmm2: C5 F1 EB C2
+    add_xmm("vpor xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xEB, 0xC2}, s, 0x7);
+    // VPXOR xmm0, xmm1, xmm2: C5 F1 EF C2
+    add_xmm("vpxor xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xEF, 0xC2}, s, 0x7);
+    // VPANDN xmm0, xmm1, xmm2: C5 F1 DF C2
+    add_xmm("vpandn xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xDF, 0xC2}, s, 0x7);
+  }
+
+  // AVX VCMPPS/VCMPPD
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
+
+    // VCMPPS xmm0, xmm1, xmm2, 0 (EQ): C5 F0 C2 C2 00
+    add_xmm("vcmpps eq", {0xC5, 0xF0, 0xC2, 0xC2, 0x00}, s, 0x7);
+    // VCMPPS xmm0, xmm1, xmm2, 1 (LT): C5 F0 C2 C2 01
+    add_xmm("vcmpps lt", {0xC5, 0xF0, 0xC2, 0xC2, 0x01}, s, 0x7);
+  }
+
+  // AVX conversion: VCVTDQ2PS, VCVTPS2DQ
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u32(1, 2, 0xFFFFFFFF, 100);  // ints: 1, 2, -1, 100
+
+    // VCVTDQ2PS xmm0, xmm1: C5 F8 5B C1 (NP)
+    add_xmm("vcvtdq2ps xmm0,xmm1", {0xC5, 0xF8, 0x5B, 0xC1}, s, 0x3);
+
+    s.xmm[1] = xmm_from_f32(1.7f, -2.3f, 100.5f, 0.0f);
+    // VCVTPS2DQ xmm0, xmm1: C5 F9 5B C1 (66)
+    add_xmm("vcvtps2dq xmm0,xmm1", {0xC5, 0xF9, 0x5B, 0xC1}, s, 0x3);
+    // VCVTTPS2DQ xmm0, xmm1: C5 FA 5B C1 (F3)
+    add_xmm("vcvttps2dq xmm0,xmm1", {0xC5, 0xFA, 0x5B, 0xC1}, s, 0x3);
   }
 
   add_systematic_tests(tests);
