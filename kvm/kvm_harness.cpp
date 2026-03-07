@@ -4057,7 +4057,166 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 54. EVEX FMA instructions
+  // 54. More x87 transcendental/special
+  // =====================================================================
+  cat = "x87";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FPTAN: tan(ST(0)), push 1.0
+    // FLD1 (D9 E8) + FPTAN (D9 F2) + FSTP [RDI] (DD 1F) + FSTP [RDI+8] (DD 5F 08)
+    // ST(0) = 1.0, FPTAN pushes result: ST(0)=1.0, ST(1)=tan(1.0)
+    tests.push_back({"fld1+fptan+fstp+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xF2, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FPATAN: atan2(ST(1), ST(0)), pop
+    // FLD1 (D9 E8) + FLD1 (D9 E8) + FPATAN (D9 F3) + FSTP [RDI] (DD 1F)
+    // atan2(1.0, 1.0) = pi/4
+    tests.push_back({"fld1+fld1+fpatan+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE8, 0xD9, 0xF3, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // F2XM1: 2^ST(0) - 1
+    // FLDZ (D9 EE) + F2XM1 (D9 F0) + FSTP [RDI] (DD 1F)
+    // 2^0 - 1 = 0.0
+    tests.push_back({"fldz+f2xm1+fstp", cat,
+                      {0xD9, 0xEE, 0xD9, 0xF0, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FYL2X: ST(1) * log2(ST(0)), pop
+    // FLD1 (D9 E8) + FLD1 (D9 E8) + FYL2X (D9 F1) + FSTP [RDI]
+    // 1.0 * log2(1.0) = 0.0
+    tests.push_back({"fld1+fld1+fyl2x+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE8, 0xD9, 0xF1, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FYL2XP1: ST(1) * log2(ST(0) + 1), pop
+    // FLDZ (D9 EE) + FLD1 (D9 E8) + FYL2XP1 (D9 F9) + FSTP [RDI]
+    // log2(0 + 1) = 0 → 1.0 * 0 = 0.0
+    // Note: ST(1)=FLDZ=0, ST(0)=FLD1=1, but fyl2xp1: ST(1)*log2(ST(0)+1)
+    // Actually: push 0, push 1 → ST(0)=1, ST(1)=0 → 0*log2(1+1)=0
+    tests.push_back({"fldz+fld1+fyl2xp1+fstp", cat,
+                      {0xD9, 0xEE, 0xD9, 0xE8, 0xD9, 0xF9, 0xDD, 0x1F},
+                      s, FL_ALL, 0, false, {}, 8});
+
+    // FPREM: ST(0) = ST(0) mod ST(1)
+    // Push 3.0 then push 10.0: FILD [mem(3)] + FILD [mem(10)]
+    // Use constants: FLD1 + FLD1 + FADDP → 2.0, then FPREM
+    // Actually simpler: use FLDPI + FLD1 + FPREM + FSTP
+    // pi mod 1.0
+    tests.push_back({"fldpi+fld1+fprem+fstp+fstp", cat,
+                      {0xD9, 0xEB, 0xD9, 0xE8, 0xD9, 0xF8, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FPREM1: IEEE remainder
+    tests.push_back({"fldpi+fld1+fprem1+fstp+fstp", cat,
+                      {0xD9, 0xEB, 0xD9, 0xE8, 0xD9, 0xF5, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FSCALE: ST(0) = ST(0) * 2^trunc(ST(1))
+    // FLD1 + FLD1 + FSCALE + FSTP → 1.0 * 2^1 = 2.0
+    tests.push_back({"fld1+fld1+fscale+fstp+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE8, 0xD9, 0xFD, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FXTRACT: split into exponent + significand
+    // FLDPI + FXTRACT + FSTP + FSTP → exponent and significand of pi
+    tests.push_back({"fldpi+fxtract+fstp+fstp", cat,
+                      {0xD9, 0xEB, 0xD9, 0xF4, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FUCOM ST(1): compare ST(0) and ST(1) without pop
+    // FLD1 + FLDPI + DD E1 (FUCOM ST(1)) + DF E0 (FNSTSW AX)
+    tests.push_back({"fld1+fldpi+fucom+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEB, 0xDD, 0xE1, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+
+    // FUCOMP ST(1): compare ST(0) and ST(1), pop
+    tests.push_back({"fld1+fldpi+fucomp+fstsw", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEB, 0xDD, 0xE9, 0xDF, 0xE0},
+                      s, FL_ALL, 0, false, {}, 0});
+  }
+
+  // =====================================================================
+  // 55. More string instruction sizes
+  // =====================================================================
+  cat = "String";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // LODSW: load word from [RSI] into AX (66 prefix)
+    u8 src_data2[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+    s.rsi = DATA_ADDR;
+    s.rax = 0;
+    // 66 AD (LODSW)
+    tests.push_back({"lodsw", cat, {0x66, 0xAD},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+
+    // REP MOVSD: copy 4-byte units
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR + 32;
+    s.rcx = 2;
+    // F3 A5 (REP MOVSD — no REX.W so 32-bit)
+    tests.push_back({"rep movsd", cat, {0xF3, 0xA5},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 40});
+
+    // REP MOVSW: copy 2-byte units
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR + 32;
+    s.rcx = 4;
+    // F3 66 A5 (REP MOVSW)
+    tests.push_back({"rep movsw", cat, {0x66, 0xF3, 0xA5},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 40});
+
+    // SCASW: compare AX with [RDI]
+    s.rdi = DATA_ADDR;
+    s.rax = 0x2211;
+    s.rcx = 0;
+    s.rsi = 0;
+    // 66 AF (SCASW)
+    tests.push_back({"scasw (match)", cat, {0x66, 0xAF},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+
+    // SCASQ: compare RAX with [RDI]
+    s.rax = 0x8877665544332211;
+    // 48 AF (SCASQ)
+    tests.push_back({"scasq (match)", cat, {0x48, 0xAF},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+
+    // CMPSW: compare [RSI] with [RDI]
+    s.rsi = DATA_ADDR;
+    s.rdi = DATA_ADDR;
+    s.rax = 0;
+    // 66 A7 (CMPSW)
+    tests.push_back({"cmpsw (equal)", cat, {0x66, 0xA7},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+
+    // CMPSD (string): compare [RSI] dword with [RDI] dword
+    // A7 (CMPSD)
+    tests.push_back({"cmpsd (equal)", cat, {0xA7},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+
+    // CMPSQ: compare [RSI] qword with [RDI] qword
+    // 48 A7 (CMPSQ)
+    tests.push_back({"cmpsq (equal)", cat, {0x48, 0xA7},
+                      s, FL_ALL, 0, false,
+                      {src_data2, src_data2 + 8}, 0});
+  }
+
+  // =====================================================================
+  // 56. EVEX FMA instructions
   //
   // VFMADD132PS: dst = dst * src3 + vvvv
   // EVEX.128.66.0F38.W0: P0=0xF2 (mm=10), P1=0x75, P2=0x08

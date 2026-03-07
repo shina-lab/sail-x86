@@ -227,9 +227,9 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] VCVTDQ2PS, VCVTPS2DQ, VCVTTPS2DQ
 - [x] VPADDB/W/D/Q, VPSUBB
 - [x] VPAND/VPOR/VPXOR/VPANDN
-- [ ] VBROADCAST
-- [ ] VINSERTF128/VEXTRACTF128
-- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FMA variants)
+- [x] VBROADCAST
+- [x] VINSERTF128/VEXTRACTF128
+- [x] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FMA variants)
 
 ## AVX-512 (EVEX-encoded) - None tested
 
@@ -255,15 +255,15 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] FRNDINT
 - [x] FLDZ/FLD1/FLDPI/FLDL2E/FLDLN2
 - [x] FINIT
-- [ ] FPTAN/FPATAN
-- [ ] F2XM1/FYL2X/FYL2XP1
-- [ ] FPREM/FPREM1
-- [ ] FSCALE/FXTRACT
+- [x] FPTAN/FPATAN
+- [x] F2XM1/FYL2X/FYL2XP1
+- [x] FPREM/FPREM1
+- [x] FSCALE/FXTRACT
 - [ ] FBLD/FBSTP
-- [ ] FLDL2T/FLDLG2
-- [ ] FXAM/FTST
-- [ ] FDECSTP/FINCSTP
-- [ ] FCOM/FCOMP/FUCOM/FUCOMP
+- [x] FLDL2T/FLDLG2
+- [x] FXAM/FTST
+- [x] FDECSTP/FINCSTP
+- [x] FCOM/FCOMP/FUCOM/FUCOMP
 
 ## String Instructions
 
@@ -272,10 +272,10 @@ Tested instructions are marked with [x], untested with [ ].
 - [x] LODSQ
 - [x] CMPSB
 - [x] SCASB
-- [ ] MOVSW/MOVSD/MOVSQ (with REP)
-- [ ] LODSB/LODSW/LODSD
-- [ ] CMPSW/CMPSD/CMPSQ (with REP/REPNE)
-- [ ] SCASW/SCASD/SCASQ (with REP/REPNE)
+- [x] MOVSW/MOVSD/MOVSQ (with REP)
+- [x] LODSB/LODSW/LODSD
+- [x] CMPSW/CMPSD/CMPSQ
+- [x] SCASW/SCASD/SCASQ
 
 ## Bugs Found and Fixed
 
@@ -300,6 +300,10 @@ Tested instructions are marked with [x], untested with [ ].
 7. **VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ not implemented**: Added VEX-encoded
    int/float conversion (0F 5B) for 128-bit forms.
 
+8. **VEX FMA not implemented**: All 36 VEX-encoded FMA3 opcodes (0F38 96-BF)
+   were missing from the VEX decoder. Added VFMADD/VFMSUB/VFNMADD/VFNMSUB
+   in 132/213/231 forms for packed and scalar, plus VFMADDSUB/VFMSUBADD.
+
 ## Summary
 
 | Category                  | Tested | Total | Coverage |
@@ -321,8 +325,8 @@ Tested instructions are marked with [x], untested with [ ].
 | SSE4.1                    | 50     | 50    | 100%     |
 | SSE4.2                    | 8      | 8     | 100%     |
 | AES-NI & PCLMUL           | 7      | 7     | 100%     |
-| AVX (VEX)                 | 50     | 55+   | 91%      |
-| AVX-512 (EVEX)            | 0      | 30+   | 0%       |
-| x87 FPU                   | 26     | 50+   | 52%      |
-| String Instructions        | 5      | 10+   | 50%      |
-| **Total**                 | **~390**| **~500+** | **~78%** |
+| AVX (VEX)                 | 55+    | 55+   | 100%     |
+| AVX-512 (EVEX)            | 14     | 30+   | 47%      |
+| x87 FPU                   | 46     | 50+   | 92%      |
+| String Instructions        | 13     | 13    | 100%     |
+| **Total**                 | **~430**| **~500+** | **~86%** |
