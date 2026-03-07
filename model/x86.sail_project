@@ -37,9 +37,8 @@ decode {
     decode/decode_sse_fp.sail,
     decode/decode_sse_int.sail,
     decode/decode_baseline.sail,
-    decode/decode_opmap2.sail,
     decode/decode_groups.sail,
     decode/decode_vex.sail,
-    decode/decode_opmap1.sail,
+    decode/decode_dispatch.sail,
     decode/fetch_execute.sail,
 }
