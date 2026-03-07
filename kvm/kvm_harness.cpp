@@ -4859,7 +4859,96 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
-  // 71. VEX VFMADDSUB / VFMSUBADD
+  // 71. EVEX data movement and more integer
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+
+    // VMOVDQA32 xmm0, xmm1: EVEX.128.66.0F.W0 6F /r
+    // 62 F1 7D 08 6F C1
+    add_xmm("evex vmovdqa32 xmm0,xmm1",
+            {0x62, 0xF1, 0x7D, 0x08, 0x6F, 0xC1}, s, 0x3);
+
+    // VMOVD xmm0, ecx: EVEX.128.66.0F.W0 6E /r
+    // 62 F1 7D 08 6E C1 (reg=xmm0, r/m=ecx)
+    s.rcx = 0xDEADBEEF;
+    add_xmm("evex vmovd xmm0,ecx",
+            {0x62, 0xF1, 0x7D, 0x08, 0x6E, 0xC1}, s, 0x3);
+
+    // VMOVQ xmm0, rcx: EVEX.128.66.0F.W1 6E /r
+    // 62 F1 FD 08 6E C1
+    s.rcx = 0x123456789ABCDEF0;
+    add_xmm("evex vmovq xmm0,rcx",
+            {0x62, 0xF1, 0xFD, 0x08, 0x6E, 0xC1}, s, 0x3);
+
+    // VPADDB xmm0, xmm1, xmm2: 62 F1 75 08 FC C2
+    add_xmm("evex vpaddb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFC, 0xC2}, s, 0x7);
+
+    // VPADDW xmm0, xmm1, xmm2: 62 F1 75 08 FD C2
+    add_xmm("evex vpaddw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFD, 0xC2}, s, 0x7);
+
+    // VPSUBW xmm0, xmm1, xmm2: 62 F1 75 08 F9 C2
+    add_xmm("evex vpsubw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF9, 0xC2}, s, 0x7);
+
+    // VPANDND xmm0, xmm1, xmm2: 62 F1 75 08 DF C2
+    add_xmm("evex vpandnd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDF, 0xC2}, s, 0x7);
+
+    // VPADDSB xmm0, xmm1, xmm2: 62 F1 75 08 EC C2
+    add_xmm("evex vpaddsb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEC, 0xC2}, s, 0x7);
+
+    // VPADDUSB xmm0, xmm1, xmm2: 62 F1 75 08 DC C2
+    add_xmm("evex vpaddusb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDC, 0xC2}, s, 0x7);
+
+    // VPSUBSB xmm0, xmm1, xmm2: 62 F1 75 08 E8 C2
+    add_xmm("evex vpsubsb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE8, 0xC2}, s, 0x7);
+
+    // VPSUBUSB xmm0, xmm1, xmm2: 62 F1 75 08 D8 C2
+    add_xmm("evex vpsubusb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD8, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // 72. EVEX FP comparison
+  // =====================================================================
+  cat = "EVEX";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(4.0f, 2.0f, 1.0f, 5.0f);
+
+    // VCMPPS xmm0, xmm1, xmm2, 0 (EQ): EVEX.128.NP.0F.W0 C2 /r ib
+    // Result goes to k register in AVX-512, but if no masking, still
+    // writes to register. Actually VCMPPS in EVEX writes to k register.
+    // Let me use VUCOMISS instead which writes to RFLAGS.
+
+    // VUCOMISS xmm1, xmm2: EVEX.LIG.NP.0F.W0 2E /r
+    // 62 F1 7C 08 2E CA (reg=xmm1, r/m=xmm2)
+    add_xmm("evex vucomiss xmm1,xmm2",
+            {0x62, 0xF1, 0x7C, 0x08, 0x2E, 0xCA}, s, 0x3);
+
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(3.0, 2.5);
+
+    // VUCOMISD xmm1, xmm2: EVEX.LIG.66.0F.W1 2E /r
+    // 62 F1 FD 08 2E CA
+    add_xmm("evex vucomisd xmm1,xmm2",
+            {0x62, 0xF1, 0xFD, 0x08, 0x2E, 0xCA}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 73. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
   cat = "AVX";
   {
