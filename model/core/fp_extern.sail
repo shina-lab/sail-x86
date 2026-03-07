@@ -21,6 +21,17 @@ val __f64_max  : (qword, qword) -> qword
 
 // Comparison
 enum FPCompareResult = { FP_GT, FP_LT, FP_EQ, FP_UNORDERED }
+
+// x87 classification
+enum FPClass = {
+  FP_Unsupported,
+  FP_NaN,
+  FP_Normal,
+  FP_Infinity,
+  FP_Zero,
+  FP_Empty,
+  FP_Denormal
+}
 val __compare_ss : (dword, dword) -> FPCompareResult
 val __compare_sd : (qword, qword) -> FPCompareResult
 

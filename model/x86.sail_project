@@ -20,7 +20,6 @@ helpers {
   requires prelude, core
 
   files
-    helpers/x87.sail,
     helpers/sse_arith.sail,
     helpers/sse_convert.sail,
     helpers/sse_int.sail,

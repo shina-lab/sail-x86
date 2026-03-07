@@ -410,7 +410,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
     },
 
     // 9B: FWAIT/WAIT
-    155 => exec_fwait(),
+    155 => __wait(),
 
     // 9C: PUSHF (d64)
     156 => {
