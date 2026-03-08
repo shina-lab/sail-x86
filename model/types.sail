@@ -133,6 +133,10 @@ enum MandatoryPrefix = {
 
 val fetch_byte : unit -> byte
 function fetch_byte() = {
+  // x86 instructions are at most 15 bytes. Raise #GP(0) if exceeded.
+  if unsigned(decode_pos) - unsigned(insn_start) >= 15 then {
+    throw(X86Fault(EXN_GP, 0x00000000))
+  };
   let b = mem_read8(decode_pos);
   decode_pos = decode_pos + 1;
   b

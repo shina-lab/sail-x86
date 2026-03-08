@@ -10,14 +10,20 @@ val step : unit -> ExecutionResult
 function step() = {
   // Set decode position to current RIP
   decode_pos = RIP;
+  insn_start = RIP;
   rip_rel_pending = false;
   next_rip = None();
 
-  // Phase 1: Scan prefixes and get opcode byte
-  let (pfx, opcode) = scan_prefixes();
+  let result : ExecutionResult =
+    try {
+      // Phase 1: Scan prefixes and get opcode byte
+      let (pfx, opcode) = scan_prefixes();
 
-  // Phase 2-5: Dispatch opcode (handles ModR/M, SIB, disp, imm internally)
-  let result = dispatch_opcode_1byte(opcode, pfx);
+      // Phase 2-5: Dispatch opcode (handles ModR/M, SIB, disp, imm internally)
+      dispatch_opcode_1byte(opcode, pfx)
+    } catch {
+      X86Fault(vec, err) => Fault(vec, err),
+    };
 
   // Advance RIP. Control-flow instructions set next_rip to the branch
   // target; otherwise we fall through to the next instruction.

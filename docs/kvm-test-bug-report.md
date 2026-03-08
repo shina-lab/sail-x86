@@ -510,6 +510,26 @@ underdocumented.
 
 ---
 
+### 20. 15-byte instruction length limit not enforced
+
+**Bug:** The Sail model did not enforce the x86 15-byte maximum instruction
+length. Instructions with more than 14 prefix bytes (e.g., 15 redundant `66`
+prefixes + `NOP`) would execute successfully in the model while real hardware
+raises #GP(0). The prefix scanner looped indefinitely on pathological inputs.
+
+Fixed by adding a length check in `fetch_byte()`: if `decode_pos - insn_start
+>= 15`, throw #GP(0). This covers all instruction bytes (prefixes, opcode,
+ModR/M, SIB, displacement, and immediates) with a single check point. Also
+added `insn_start` register to track instruction start position.
+
+**SDM (Section 2.3.11, "AVX Instruction Length"):** "The instruction length,
+including all prefixes, is limited to 15 bytes." Also SDM Vol. 3A Section
+6.15: exceeding the limit causes #GP(0).
+
+**Verdict:** SDM is clear. No SDM issue.
+
+---
+
 ## Missing Features (discovered via KVM test coverage gaps)
 
 The following instructions or instruction variants were not implemented in
@@ -553,6 +573,7 @@ the Sail model and were added after KVM testing revealed the gaps:
 | 17 | MOVAPS/VMOVAPS missing alignment #GP | Decoder | Yes | No |
 | 18 | VEX.vvvv reserved not checked (~25 insns) | Decoder | Yes | No |
 | 19 | VEX.L not checked on 128-bit-only insns | Decoder | Yes | No |
+| 20 | 15-byte instruction length limit not enforced | Decoder | Yes | No |
 
 **One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
 pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
@@ -639,7 +660,8 @@ the Sail model.
 - **Exception #DE**: DIV/IDIV divide-by-zero and quotient overflow
 - **Exception #UD**: UD2, UD1, LOCK violations, VEX.L/vvvv checks,
   memory-only register form, 256-only L=0 checks
-- **Exception #GP**: MOVAPS/VMOVAPS/VMOVAPD alignment checks (128/256-bit)
+- **Exception #GP**: MOVAPS/VMOVAPS/VMOVAPD alignment checks (128/256-bit),
+  15-byte instruction length limit violations
 
 ### Boundary value test set (30 values)
 
@@ -681,7 +703,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 75 tests across 3 exception categories.**
+**Tests implemented: 78 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -704,6 +726,8 @@ fault-expecting tests. Changes made:
   VCVTPS2PD/VCVTPD2PS, VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ, VSQRTPS/VSQRTPD,
   VZEROUPPER/VZEROALL, VBROADCASTSS/VBROADCASTSD/VBROADCASTF128,
   VPBROADCASTB/VPBROADCASTW/VPBROADCASTD/VPBROADCASTQ, VCVTPH2PS
+- 15-byte instruction length limit: model didn't enforce max instruction
+  length → added #GP(0) check in fetch_byte() with insn_start tracking
 
 **Known gaps:**
 - EVEX VMOVAPS/VMOVAPD alignment checks not yet added.
@@ -848,7 +872,7 @@ Note: MOVAPS/MOVAPD always require alignment regardless of CR0.AM.
 The #GP (not #AC) is raised for these — verify the correct exception
 vector.
 
-#### 5. General Protection Fault (#GP, vector 13) — DONE (12 tests)
+#### 5. General Protection Fault (#GP, vector 13) — DONE (15 tests)
 
 | Test case | Notes | Status |
 |-----------|-------|--------|
@@ -864,6 +888,9 @@ vector.
 | `VMOVAPD YMM0, [RDI]` | VEX 256, 16-aligned not 32 → #GP(0) | DONE |
 | `VMOVAPS [RDI], YMM0` | VEX 256 store, 16-aligned not 32 → #GP(0) | DONE |
 | `VMOVAPD [RDI], YMM0` | VEX 256 store, 16-aligned not 32 → #GP(0) | DONE |
+| 15×66 + NOP (16 bytes) | Exceeds 15-byte instruction length limit → #GP(0) | DONE |
+| 14×66 + 3-byte NOP (17 bytes) | Exceeds limit with multi-byte opcode → #GP(0) | DONE |
+| 15×F3 + NOP (16 bytes) | Exceeds limit with REP prefix → #GP(0) | DONE |
 | Write to a read-only segment | (if segment limits are enforced) | N/A |
 
 #### 6. Stack-Segment Fault (#SS, vector 12)
@@ -904,8 +931,9 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    system changes. Essential for the munmap/SIGSEGV emulator changes.
 3. **#UD (invalid opcode)** — DONE (45 tests: UD2, UD1, LOCK violations,
    VEX.L checks, VEX.vvvv reserved, memory-only reg form, 256-only L=0)
-4. **#GP (alignment)** — DONE (12 tests; alignment checks added to
-   MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store, 128-bit and 256-bit)
+4. **#GP (alignment + length)** — DONE (15 tests; alignment checks for
+   MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store 128/256-bit, plus
+   15-byte instruction length limit enforcement)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check
    MXCSR exception mask bits or raise #XM. Requires touching all FP ops.
 6. **#AC, #SS** — Edge cases, lowest priority.

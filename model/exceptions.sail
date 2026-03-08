@@ -7,6 +7,12 @@ union ExecutionResult = {
   Halt     : unit,
 }
 
+// Sail exception type for faults raised mid-decode (e.g. 15-byte length limit).
+// Caught by step() and converted to ExecutionResult.Fault.
+union exception = {
+  X86Fault : (exception_vector, dword),
+}
+
 // Raise a fault with an error code.
 val raise_fault : (exception_vector, dword) -> ExecutionResult
 function raise_fault(vec, err) = Fault(vec, err)

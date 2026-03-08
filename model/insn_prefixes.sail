@@ -4,21 +4,17 @@
 // In 64-bit mode, bytes 40-4F are REX prefixes (not INC/DEC).
 // REX must be the last prefix before the opcode byte.
 
-// Maximum number of prefix bytes to scan before giving up.
-// x86 instructions are at most 15 bytes total.
-let MAX_PREFIX_BYTES : int = 15
-
 val scan_prefixes : unit -> (Prefixes, byte)
 function scan_prefixes() = {
   var pfx : Prefixes = default_prefixes();
   var opcode : byte = 0x00;
   var done : bool = false;
-  var count : int = 0;
 
-  while not_bool(done) & count < MAX_PREFIX_BYTES do {
+  // Loop scanning prefix bytes. The 15-byte instruction length limit is
+  // enforced by fetch_byte(), which raises #GP(0) if exceeded.
+  while not_bool(done) do {
     let b = fetch_byte();
     let bv : range(0, 255) = unsigned(b);
-    count = count + 1;
 
     // Clear REX state on any legacy prefix (REX must be last)
     if bv == 240 then {

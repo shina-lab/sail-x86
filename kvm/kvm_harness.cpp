@@ -8804,6 +8804,33 @@ std::vector<TestCase> build_tests() {
     add_fault("vinsertf128 L=0 (256-only → #UD)", {0xC4, 0xE3, 0x79, 0x18, 0xC1, 0x00}, s, 6);
   }
 
+  // ---- Instruction length limit (>15 bytes → #GP(0)) ----
+  cat = "Exception #GP";
+  {
+    // 15 redundant 66 prefixes + NOP (0x90) = 16 bytes total → #GP(0)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("16-byte insn (15x 66 + NOP) → #GP",
+              {0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+               0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x90}, s, 13);
+  }
+  {
+    // 14x 66 + 3-byte NOP (0F 1F 00) = 17 bytes → #GP(0)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("17-byte insn (14x 66 + 3-byte NOP) → #GP",
+              {0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+               0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x0F, 0x1F, 0x00}, s, 13);
+  }
+  {
+    // 15x F3 + 90 = 16 bytes → #GP(0)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("16-byte insn (15x F3 + NOP) → #GP",
+              {0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3,
+               0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0x90}, s, 13);
+  }
+
   return tests;
 }
 

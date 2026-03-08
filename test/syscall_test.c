@@ -1101,6 +1101,7 @@ static void test_renameat2(void) {
   syscall1(SYS_unlink, (u64)new_);
 }
 
+__attribute__((force_align_arg_pointer))
 void _start(void) {
   print("# syscall tests\n");
 

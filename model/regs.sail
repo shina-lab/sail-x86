@@ -208,6 +208,10 @@ register cur_cpl : cpl_t
 
 register decode_pos : qword
 
+// Start of current instruction (set to RIP at beginning of step()).
+// Used to enforce the 15-byte maximum instruction length.
+register insn_start : qword
+
 // RIP-relative fixup state: when decode_rm sees mod=00 rm=101 (RIP+disp32),
 // it saves decode_pos after consuming the displacement bytes. If the
 // instruction has trailing bytes (imm8, imm32), decode_pos will advance
