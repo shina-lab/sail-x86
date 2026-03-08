@@ -419,7 +419,7 @@ simply failed to check these MXCSR bits. No SDM issue.
 
 ---
 
-## Decoder Bug
+## Decoder Bugs
 
 ### 15. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
 
@@ -430,22 +430,90 @@ always decoded as BSR/BSF.
 - LZCNT = `F3 0F BD /r`; BSR = `0F BD /r` (no F3 prefix)
 - TZCNT = `F3 0F BC /r`; BSF = `0F BC /r` (no F3 prefix)
 
-**SDM (LZCNT description):** "on processors that do not support LZCNT, the
-instruction byte encoding is executed as BSR."
-
-**SDM (TZCNT description):** "TZCNT is an extension of the BSF instruction.
-On processors that do not support TZCNT, the instruction byte encoding is
-executed as BSF."
-
-**Verdict:** SDM is clear. The F3 prefix distinguishes these instructions.
-Our decoder simply failed to check for it. No SDM issue.
+**Verdict:** SDM is clear. No SDM issue.
 
 ---
 
-## Missing Instructions (discovered via KVM test coverage gaps)
+### 16. LOCK prefix not validated (commit 78ae1f1, ae40ee3)
 
-The following instructions were not implemented in the Sail model and were
-added after KVM testing revealed the gaps:
+**Bug:** The Sail model did not check the LOCK prefix (`has_lock`) at all.
+Any instruction could be prefixed with LOCK without raising #UD. Fixed by
+adding comprehensive LOCK validation:
+
+- 1-byte opcodes: check `is_lockable_1byte` (ADD/OR/ADC/SBB/AND/SUB/XOR
+  in Groups 1/3/4/5, but NOT CMP/TEST/MUL/DIV/PUSH)
+- 2-byte opcodes: check `is_lockable_2byte` (BTS/BTR/BTC/CMPXCHG/XADD,
+  but NOT BT)
+- Both require memory destination (`check_lock_rm`)
+
+**SDM:** "The LOCK prefix can be prepended only to the following
+instructions and only to those forms of the instructions where the
+destination operand is a memory operand."
+
+**Verdict:** SDM is clear. No SDM issue.
+
+---
+
+### 17. MOVAPS/VMOVAPS: Missing alignment checks (commit 78ae1f1)
+
+**Bug:** The Sail model did not check alignment for MOVAPS/MOVAPD (SSE,
+16-byte) or VMOVAPS/VMOVAPD (VEX 128-bit: 16-byte, VEX 256-bit: 32-byte).
+Unaligned accesses executed without raising #GP(0). Fixed by adding
+alignment checks before memory reads/writes.
+
+**SDM (MOVAPS):** "When the source or destination operand is a memory
+operand, the operand must be aligned on a 16-byte boundary or a
+general-protection exception (#GP) will be generated."
+
+**Verdict:** SDM is clear. No SDM issue.
+
+---
+
+### 18. VEX.vvvv reserved field not checked (~25 instructions) (commits 60a1691, 4c3f36a)
+
+**Bug:** Many 2-operand VEX instructions that don't use the vvvv field as a
+source/destination did not check that vvvv == 1111b (reserved). A non-zero
+vvvv was silently ignored instead of raising #UD. Affected instructions:
+
+- VMOVAPS/VMOVAPD/VMOVUPS/VMOVUPD load and store
+- VMOVDQA/VMOVDQU load and store
+- VUCOMISS/VUCOMISD, VCOMISS/VCOMISD
+- VCVTPS2PD/VCVTPD2PS (packed variants only; scalar uses vvvv)
+- VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ
+- VSQRTPS/VSQRTPD (packed variants only; scalar uses vvvv)
+- VZEROUPPER/VZEROALL
+- VBROADCASTSS/VBROADCASTSD/VBROADCASTF128
+- VPBROADCASTB/VPBROADCASTW/VPBROADCASTD/VPBROADCASTQ
+- VCVTPH2PS
+
+**SDM:** Each instruction page states "VEX.vvvv is reserved and must be
+1111b, otherwise instructions will #UD."
+
+**Verdict:** SDM is clear. No SDM issue.
+
+---
+
+### 19. VEX.L not checked on 128-bit-only instructions (commit 633a11f)
+
+**Bug:** VPINSRW, VPEXTRW, VMOVD, and VMOVQ did not check VEX.L and
+allowed VEX.L=1 (256-bit) encoding without raising #UD.
+
+Note: Scalar VEX instructions (VUCOMISS, VCVTSI2SS, etc.) do NOT #UD with
+VEX.L=1 on real hardware — the L bit is silently ignored. This is not
+documented clearly in the SDM.
+
+**SDM:** Each instruction page states "VEX.L must be 0, otherwise
+instructions will #UD."
+
+**Verdict:** SDM is clear for packed/integer instructions. Scalar behavior
+underdocumented.
+
+---
+
+## Missing Features (discovered via KVM test coverage gaps)
+
+The following instructions or instruction variants were not implemented in
+the Sail model and were added after KVM testing revealed the gaps:
 
 - CRC32 (all r32/r64 x r/m8/16/32/64 variants) — commit 29ecde4
 - VUNPCKLPS/VUNPCKHPS/VUNPCKLPD/VUNPCKHPD — commit 57017c5
@@ -456,6 +524,8 @@ added after KVM testing revealed the gaps:
 - VPADDSB, VPADDUSB, VPSUBSB, VPSUBUSB, VUCOMISS, VUCOMISD — commit 8000fea
 - BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR — commit 4117d9e
 - MOVBE (0F 38 F0/F1): byte-swap load/store, 16/32/64-bit
+- VCMPPS/VCMPPD 256-bit paths (8 f32 / 4 f64 element comparison)
+- VSHUFPS/VSHUFPD 256-bit paths (independent lane shuffles)
 
 ---
 
@@ -479,6 +549,10 @@ added after KVM testing revealed the gaps:
 | 13 | ADCX mandatory prefix as opsize | Sail model | Yes | No |
 | 14 | DAZ/FTZ denormal modes missing | C emulator | Yes | No |
 | 15 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
+| 16 | LOCK prefix not validated | Decoder | Yes | No |
+| 17 | MOVAPS/VMOVAPS missing alignment #GP | Decoder | Yes | No |
+| 18 | VEX.vvvv reserved not checked (~25 insns) | Decoder | Yes | No |
+| 19 | VEX.L not checked on 128-bit-only insns | Decoder | Yes | No |
 
 **One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
 pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
@@ -503,8 +577,8 @@ explicit about this.
 
 ## Test Coverage Summary
 
-The KVM differential test suite currently runs **59,070 tests** across
-**65 ctest categories**. Tests compare architectural state (GPRs, flags,
+The KVM differential test suite currently runs **59,000+ tests** across
+**68 ctest categories**. Tests compare architectural state (GPRs, flags,
 XMM registers, MXCSR, memory) between KVM execution on real hardware and
 the Sail model.
 
@@ -562,6 +636,10 @@ the Sail model.
 - **DAZ/FTZ**: MXCSR denormal flush modes
 - **OpSize Edge**: 16-bit operations, upper register preservation
 - **FP Edge**: Rounding modes, NaN handling, denormals, precision
+- **Exception #DE**: DIV/IDIV divide-by-zero and quotient overflow
+- **Exception #UD**: UD2, UD1, LOCK violations, VEX.L/vvvv checks,
+  memory-only register form, 256-only L=0 checks
+- **Exception #GP**: MOVAPS/VMOVAPS/VMOVAPD alignment checks (128/256-bit)
 
 ### Boundary value test set (30 values)
 
@@ -579,10 +657,9 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
 - **x87 transcendentals**: FSIN, FCOS, FPTAN precision matching is fragile
 - **BT/BTS/BTR/BTC with memory**: Bit offset extending beyond addressed
   byte (requires memory-form tests with large bit indices)
-- **LOCK prefix**: Atomic memory operations
+- **LOCK prefix**: Atomic memory operations (LOCK validation is tested,
+  but actual atomic semantics require multi-threaded tests)
 - **Segment overrides**: Not applicable in 64-bit flat memory model
-- **Exception/fault behavior**: No tests verify that instructions raise the
-  correct exceptions — see test plan below
 
 ---
 
@@ -604,7 +681,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 70 tests across 3 exception categories.**
+**Tests implemented: 75 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -728,7 +805,7 @@ Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
 large for the designated register."
 
-#### 3. Invalid Opcode (#UD, vector 6) — DONE (19 tests)
+#### 3. Invalid Opcode (#UD, vector 6) — DONE (45 tests)
 
 Triggered by undefined or invalid instruction encodings.
 
@@ -744,14 +821,14 @@ Triggered by undefined or invalid instruction encodings.
 | LOCK on lockable 2-byte with reg dest | `LOCK CMPXCHG`, `LOCK XADD` | DONE |
 | LOCK INC/NEG with reg dest | Group 4/5 and Group 3 | DONE |
 | LOCK MUL/DIV | Not lockable even within Group 3 | DONE |
-| VEX.vvvv reserved on move instructions | VMOVAPS/VMOVAPD/VMOVDQA/VMOVDQU load/store | DONE |
+| VEX.vvvv reserved on move instructions | VMOVAPS/VMOVAPD/VMOVUPS/VMOVUPD/VMOVDQA/VMOVDQU | DONE |
 | VEX.vvvv reserved on compare/convert | VUCOMISS/VUCOMISD/VCOMISS/VCOMISD, VCVTPS2PD/VCVTPD2PS | DONE |
-| VEX.vvvv reserved on VZEROUPPER/broadcasts | VZEROUPPER, VBROADCASTSS/SD/F128, VPBROADCAST* | DONE |
-| VEX.vvvv reserved on VMOVUPS/VMOVUPD | load/store forms | DONE |
-| VEX.vvvv reserved on VCVTDQ2PS/etc | VCVTDQ2PS, VCVTPS2DQ, VCVTTPS2DQ, VCVTPH2PS | DONE |
-| SSE instruction with mismatched prefix | F2/F3 on legacy SSE are silently ignored, not #UD | N/A |
+| VEX.vvvv reserved on unary ops | VSQRTPS/VSQRTPD, VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ, VCVTPH2PS | DONE |
+| VEX.vvvv reserved on broadcasts | VBROADCASTSS/SD/F128, VPBROADCASTB/W/D/Q | DONE |
+| VEX.vvvv reserved on VZEROUPPER | VZEROUPPER/VZEROALL | DONE |
 | VEX memory-only reg form | VBROADCASTF128 reg form → #UD | DONE |
 | VEX.L=0 on 256-only instructions | VBROADCASTSD, VEXTRACTF128, VINSERTF128 | DONE |
+| SSE instruction with mismatched prefix | F2/F3 on legacy SSE silently ignored, not #UD | N/A |
 
 Note: Scalar VEX instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
 do NOT #UD with VEX.L=1 on real hardware — the L bit is silently ignored.
