@@ -1573,6 +1573,190 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
+  // 0F38 64: VPBLENDMD (66,W0) / VPBLENDMQ (66,W1) — mask-controlled blend
+  100 => {
+    if mp != MP_66 then { raise_UD() } else {
+      let modrm = fetch_byte();
+      let dst = evex_reg_idx(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+      let src1_idx = pfx.evex_vvvvv;
+      let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+      if pfx.rex_w then {
+        // VPBLENDMQ: qword blend
+        match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(src1_idx);
+            let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
+            var result : zmmword = if pfx.evex_z then zeros() else read_zmm(dst);
+            foreach (i from 0 to 7) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_zmm(dst, result); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(src1_idx);
+            let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
+            var result : ymmword = if pfx.evex_z then zeros() else read_ymm(dst);
+            foreach (i from 0 to 3) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_ymm(dst, result); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(src1_idx);
+            let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
+            var result : xmmword = if pfx.evex_z then zeros() else read_xmm(dst);
+            foreach (i from 0 to 1) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_xmm(dst, result); Ok()
+          },
+        }
+      } else {
+        // VPBLENDMD: dword blend
+        match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(src1_idx);
+            let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
+            var result : zmmword = if pfx.evex_z then zeros() else read_zmm(dst);
+            foreach (i from 0 to 15) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_zmm(dst, result); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(src1_idx);
+            let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
+            var result : ymmword = if pfx.evex_z then zeros() else read_ymm(dst);
+            foreach (i from 0 to 7) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_ymm(dst, result); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(src1_idx);
+            let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
+            var result : xmmword = if pfx.evex_z then zeros() else read_xmm(dst);
+            foreach (i from 0 to 3) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_xmm(dst, result); Ok()
+          },
+        }
+      }
+    }
+  },
+
+  // 0F38 65: VBLENDMPS (66,W0) / VBLENDMPD (66,W1) — mask-controlled FP blend
+  101 => {
+    if mp != MP_66 then { raise_UD() } else {
+      let modrm = fetch_byte();
+      let dst = evex_reg_idx(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+      let src1_idx = pfx.evex_vvvvv;
+      let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+      if pfx.rex_w then {
+        // VBLENDMPD: qword blend
+        match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(src1_idx);
+            let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
+            var result : zmmword = if pfx.evex_z then zeros() else read_zmm(dst);
+            foreach (i from 0 to 7) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_zmm(dst, result); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(src1_idx);
+            let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
+            var result : ymmword = if pfx.evex_z then zeros() else read_ymm(dst);
+            foreach (i from 0 to 3) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_ymm(dst, result); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(src1_idx);
+            let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
+            var result : xmmword = if pfx.evex_z then zeros() else read_xmm(dst);
+            foreach (i from 0 to 1) {
+              if k[i] == bitone then
+                result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            };
+            write_xmm(dst, result); Ok()
+          },
+        }
+      } else {
+        // VBLENDMPS: dword blend
+        match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(src1_idx);
+            let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
+            var result : zmmword = if pfx.evex_z then zeros() else read_zmm(dst);
+            foreach (i from 0 to 15) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_zmm(dst, result); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(src1_idx);
+            let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
+            var result : ymmword = if pfx.evex_z then zeros() else read_ymm(dst);
+            foreach (i from 0 to 7) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_ymm(dst, result); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(src1_idx);
+            let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
+            var result : xmmword = if pfx.evex_z then zeros() else read_xmm(dst);
+            foreach (i from 0 to 3) {
+              if k[i] == bitone then
+                result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
+              else if pfx.evex_aaa == 0 then
+                result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            };
+            write_xmm(dst, result); Ok()
+          },
+        }
+      }
+    }
+  },
+
   _ => raise_UD(),
   }
 }

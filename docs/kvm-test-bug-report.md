@@ -592,6 +592,34 @@ the Sail model and were added after KVM testing revealed the gaps:
 - **VEX AES-NI**: VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST, VAESIMC,
   VAESKEYGENASSIST
 
+**VEX 0F gap closure — remaining opcodes added:**
+
+- **VEX 0F stores**: VMOVLPS store (0F 13), VMOVHPS store (0F 17),
+  VMOVNTPS/VMOVNTPD (0F 2B)
+- **VEX 0F conversions**: VCVTSS2SI/VCVTSD2SI (0F 2D), VCVTDQ2PD (0F E6 F3),
+  VCVTPD2DQ (0F E6 F2), VCVTTPD2DQ (0F E6 66)
+- **VEX 0F misc**: VMOVMSKPS/VMOVMSKPD (0F 50), VPMOVMSKB (0F D7),
+  VPMAXSW (0F EE), VLDDQU (0F F0)
+- **VEX gather (AVX2)**: VPGATHERDD/DQ (0F38 90/91), VGATHERDPS/DPD (0F38 92/93),
+  VPGATHERQD/QQ (0F38 90/91 with W), VGATHERQPS/QPD (0F38 92/93 with W)
+- **K-register ops**: KANDNW (0F 42), KORW (0F 45), KXNORW (0F 46),
+  KUNPCKBW (0F 4B), KORTESTW (0F 98), KTESTW (0F 99),
+  KMOV k,k/m16 (0F 90), KMOV m16,k (0F 91)
+- **EVEX blend**: VPBLENDMD/Q (0F38 64), VBLENDMPS/PD (0F38 65),
+  VPBLENDMB/W (0F38 66)
+
+**VEX 0F remaining gap closure:**
+
+- **VEX 0F SSE3**: VHADDPS/PD (0F 7C), VHSUBPS/PD (0F 7D),
+  VADDSUBPS/PD (0F D0) — 128/256-bit
+- **VEX 0F store**: VMOVNTDQ (0F E7), VMASKMOVDQU (0F F7)
+- **VEX 0F38 permute**: VPERMILPS register (0F38 0C), VPERMILPD register (0F38 0D)
+- **VEX 0F38 compare**: VPTEST (0F38 17), VPCMPGTQ (0F38 37)
+- **VEX 0F38 masked**: VPMASKMOVD/Q load (0F38 8C), VPMASKMOVD/Q store (0F38 8E)
+- **VEX 0F3A permute**: VPERMILPS imm (0F3A 04), VPERMILPD imm (0F3A 05),
+  VPERM2F128 (0F3A 06), VPERM2I128 (0F3A 46)
+- **VEX 0F3A AVX2**: VINSERTI128 (0F3A 38), VEXTRACTI128 (0F3A 39)
+
 ---
 
 ## Summary Table
@@ -644,8 +672,7 @@ explicit about this.
 
 ## Test Coverage Summary
 
-The KVM differential test suite currently runs **59,304 tests** across
-**80 ctest categories**. Tests compare architectural state (GPRs, flags,
+The KVM differential test suite currently runs **122 ctest categories**. Tests compare architectural state (GPRs, flags,
 XMM registers, MXCSR, memory) between KVM execution on real hardware and
 the Sail model.
 
@@ -698,6 +725,20 @@ the Sail model.
 - **BMI2**: BZHI, PDEP, PEXT, MULX, SARX, SHLX, SHRX, RORX
 - **VEX AES-NI**: VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST, VAESIMC,
   VAESKEYGENASSIST
+- **VEX 0F misc**: VMOVMSKPS, VMOVMSKPD, VPMOVMSKB, VCVTSS2SI, VCVTSD2SI,
+  VCVTDQ2PD, VCVTPD2DQ, VCVTTPD2DQ, VPMAXSW, VMOVLPS store, VMOVHPS store
+- **VEX gather**: VPGATHERDD (full mask, partial mask), VGATHERDPS
+- **K-register ops**: KORTESTW (full/zero), KTESTW
+- **EVEX blend**: VPBLENDMD, VBLENDMPS (no mask)
+- **VLDDQU**: Unaligned 128-bit load
+- **VEX horiz FP**: VHADDPS, VHSUBPS, VADDSUBPS, VHADDPD
+- **VPTEST**: All-ones, zero+ones, ones+zero flag cases
+- **VPCMPGTQ**: Signed qword comparison
+- **VPERMIL**: VPERMILPS imm (reverse, broadcast), VPERMILPD imm (swap)
+- **VMOVNTDQ**: Non-temporal store 128-bit, memory verification
+- **VPERM2F128**: 256-bit lane permute with VINSERTF128 setup
+- **VEX insert/extract i128**: VINSERTI128 (hi/lo), VEXTRACTI128 (hi/lo)
+- **VPMASKMOVD**: Partial masked dword load
 - **EVEX**: EVEX-encoded operations including VPADDD, VPXORD
 - **XSAVE/XRSTOR**: Round-trip save/restore with various masks (x87,
   SSE, both), XRSTOR from pre-built XSAVE area, init path
@@ -745,13 +786,15 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
 
 ### Known test coverage gaps
 
-- **AVX2 gather**: VGATHERDPS/DPD/QPS/QPD (complex, not yet implemented)
-- **VMASKMOV memory tests**: VMASKMOVPS/PD only tested at Sail level,
-  need KVM memory-operand tests
+- **AVX2 gather 256-bit**: Only 128-bit VPGATHERDD/VGATHERDPS tested;
+  256-bit and qword-index variants need tests
+- **VPMASKMOVD/Q store**: Only load direction tested; store tests needed
 - **256-bit tests**: Most new VEX tests are 128-bit only; 256-bit
   variants should be added
-- **EVEX masking/zeroing**: Harness lacks k (opmask) register support
-- **EVEX blend/mask ops**: VPBLENDMB/W/D/Q, KMOV/KAND/KOR/KXOR/KNOT
+- **EVEX masking/zeroing**: Only no-mask EVEX blend tested; writemask
+  and zeroing-mask KVM tests needed
+- **K-register full set**: Only KORTESTW/KTESTW tested; KANDW/KORW/KNOTW/
+  KXORW/KANDNW/KXNORW/KUNPCKBW/KMOV need KVM tests
 - **EVEX conflict detection**: VPCONFLICTD/Q, VPLZCNTD/Q
 - **512-bit EVEX**: Requires host AVX-512 support
 - **x87 transcendentals**: FSIN, FCOS, FPTAN precision matching is fragile

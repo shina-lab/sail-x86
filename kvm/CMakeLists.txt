@@ -109,6 +109,14 @@ set(KVM_CATEGORIES
   "Exception #DE"
   "Exception #UD"
   "Exception #GP"
+  "VEX horiz FP"
+  VPTEST
+  VPCMPGTQ
+  VPERMIL
+  VMOVNTDQ
+  VPERM2F128
+  "VEX insert/extract i128"
+  VPMASKMOVD
 )
 
 foreach(cat ${KVM_CATEGORIES})

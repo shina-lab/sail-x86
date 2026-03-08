@@ -1,25 +1,6 @@
 /* ---- 2-source word permute (VPERMI2W/VPERMT2W) ---- */
 
-val gather_addr : (qword, dword, range(0, 3)) -> qword
-function gather_addr(base, idx32, scale) = {
-  let offset : qword = sign_extend(idx32);
-  match scale {
-    0 => base + offset,
-    1 => base + (offset << 1),
-    2 => base + (offset << 2),
-    3 => base + (offset << 3),
-  }
-}
-
-val gather_addr_q : (qword, qword, range(0, 3)) -> qword
-function gather_addr_q(base, idx64, scale) = {
-  match scale {
-    0 => base + idx64,
-    1 => base + (idx64 << 1),
-    2 => base + (idx64 << 2),
-    3 => base + (idx64 << 3),
-  }
-}
+// gather_addr and gather_addr_q are defined in insn_sse4_helpers.sail
 
 // VPGATHERDD / VGATHERDPS: 32-bit indices, 32-bit elements
 // ZMM: 16 elements, mask is 16 bits

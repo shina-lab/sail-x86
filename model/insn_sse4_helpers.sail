@@ -322,3 +322,65 @@ val avx_packusdw_256 : (ymmword, ymmword) -> ymmword
 function avx_packusdw_256(a, b) =
   avx_packusdw_128(a[255..128], b[255..128]) @ avx_packusdw_128(a[127..0], b[127..0])
 
+// =========================================================================
+// Gather address computation (shared by VEX and EVEX gather instructions)
+// =========================================================================
+
+val gather_addr : (qword, dword, range(0, 3)) -> qword
+function gather_addr(base, idx32, scale) = {
+  let offset : qword = sign_extend(idx32);
+  match scale {
+    0 => base + offset,
+    1 => base + (offset << 1),
+    2 => base + (offset << 2),
+    3 => base + (offset << 3),
+  }
+}
+
+val gather_addr_q : (qword, qword, range(0, 3)) -> qword
+function gather_addr_q(base, idx64, scale) = {
+  match scale {
+    0 => base + idx64,
+    1 => base + (idx64 << 1),
+    2 => base + (idx64 << 2),
+    3 => base + (idx64 << 3),
+  }
+}
+
+// VEX VSIB decoder: decode SIB for VEX gather instructions.
+// Returns (base_addr, vector_index_reg, scale).
+// Unlike EVEX, index register is only 4-bit (REX.X extends it).
+val decode_vsib_vex : (byte, Prefixes) -> VSIB
+function decode_vsib_vex(modrm, pfx) = {
+  let modbits : range(0, 3) = unsigned(modrm[7..6]);
+  let sib = fetch_byte();
+  let scale : range(0, 3) = unsigned(sib[7..6]);
+  let index_raw : range(0, 7) = unsigned(sib[5..3]);
+  let base_raw : range(0, 7) = unsigned(sib[2..0]);
+
+  let base_idx : gpr_idx = extend_reg(base_raw, pfx.rex_b);
+  let vidx : simd_idx = extend_reg(index_raw, pfx.rex_x);
+
+  let base_val : qword =
+    if base_raw == 5 & modbits == 0 then {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      sign_extend(b3 @ b2 @ b1 @ b0)
+    } else if modbits == 0 then {
+      read_gpr64(base_idx)
+    } else if modbits == 1 then {
+      let d8 = fetch_byte();
+      read_gpr64(base_idx) + sign_extend(d8)
+    } else {
+      let b0 = fetch_byte();
+      let b1 = fetch_byte();
+      let b2 = fetch_byte();
+      let b3 = fetch_byte();
+      read_gpr64(base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+    };
+
+  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }
+}
+

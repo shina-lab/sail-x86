@@ -9062,6 +9062,16 @@ static void add_exception_tests(std::vector<TestCase> &tests) {
 
 std::vector<TestCase> build_tests() {
   std::vector<TestCase> tests;
+  std::string cat;
+
+  auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+  };
+  auto add_gpr = [&](const char *name, std::vector<u8> code, ArchState init,
+                      u64 flags_mask = FL_NONE) {
+    tests.push_back({name, cat, std::move(code), init, flags_mask});
+  };
 
   add_baseline_tests(tests);
   add_sse_tests(tests);
@@ -9970,6 +9980,501 @@ std::vector<TestCase> build_tests() {
     s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x8000000000000000);
     s.xmm[2] = xmm_from_u64(0x8000000000000000, 0x8000000000000000);
     add_test("vtestpd all match", {0xC4, 0xE2, 0x79, 0x0F, 0xCA}, s, FL_ZF | FL_CF);
+  }
+
+  // =====================================================================
+  // VEX 0F misc — VMOVMSKPS/PD, VPMOVMSKB, VCVT*, VRSQRTPS, VRCPPS, etc.
+  // =====================================================================
+  cat = "VEX 0F misc";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+    auto add_gpr = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u64 flags_mask = FL_NONE) {
+      tests.push_back({name, cat, std::move(code), init, flags_mask});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    // VMOVMSKPS: C5 F8 50 C1 = vmovmskps eax, xmm1 (NP, L=0)
+    s.xmm[1] = xmm_from_u64(0x80000000FF000000, 0x00000000F0000000);
+    add_gpr("vmovmskps eax,xmm1", {0xC5, 0xF8, 0x50, 0xC1}, s);
+
+    // VMOVMSKPD: C5 F9 50 C1 = vmovmskpd eax, xmm1 (66, L=0)
+    s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x0000000000000001);
+    add_gpr("vmovmskpd eax,xmm1", {0xC5, 0xF9, 0x50, 0xC1}, s);
+
+    // VPMOVMSKB: C5 F9 D7 C1 = vpmovmskb eax, xmm1 (66, L=0)
+    s.xmm[1] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
+    add_gpr("vpmovmskb eax,xmm1", {0xC5, 0xF9, 0xD7, 0xC1}, s);
+
+    // VCVTSS2SI: C5 FA 2D C1 = vcvtss2si eax, xmm1 (F3, L=0)
+    // xmm1[31:0] = 0x41200000 = 10.0f
+    s.xmm[1] = xmm_from_u64(0, 0x0000000041200000);
+    add_gpr("vcvtss2si eax,xmm1", {0xC5, 0xFA, 0x2D, 0xC1}, s);
+
+    // VCVTSD2SI: C5 FB 2D C1 = vcvtsd2si eax, xmm1 (F2, L=0)
+    // xmm1[63:0] = 0x4024000000000000 = 10.0
+    s.xmm[1] = xmm_from_u64(0, 0x4024000000000000);
+    add_gpr("vcvtsd2si eax,xmm1", {0xC5, 0xFB, 0x2D, 0xC1}, s);
+
+    // VCVTDQ2PD: C5 FA E6 C1 = vcvtdq2pd xmm0, xmm1 (F3, L=0)
+    s.xmm[1] = xmm_from_u64(0, 0x0000000A00000005); // 10, 5
+    add_xmm("vcvtdq2pd xmm0,xmm1", {0xC5, 0xFA, 0xE6, 0xC1}, s, 0x3);
+
+    // VCVTPD2DQ: C5 FB E6 C1 = vcvtpd2dq xmm0, xmm1 (F2, L=0)
+    // xmm1 = 3.0 (0x4008000000000000), 7.0 (0x401C000000000000)
+    s.xmm[1] = xmm_from_u64(0x401C000000000000, 0x4008000000000000);
+    add_xmm("vcvtpd2dq xmm0,xmm1", {0xC5, 0xFB, 0xE6, 0xC1}, s, 0x3);
+
+    // VCVTTPD2DQ: C5 F9 E6 C1 = vcvttpd2dq xmm0, xmm1 (66, L=0)
+    s.xmm[1] = xmm_from_u64(0x401C000000000000, 0x4008000000000000);
+    add_xmm("vcvttpd2dq xmm0,xmm1", {0xC5, 0xF9, 0xE6, 0xC1}, s, 0x3);
+
+    // VPMAXSW: C5 F1 EE C2 = vpmaxsw xmm0, xmm1, xmm2 (66, L=0)
+    s.xmm[1] = xmm_from_u64(0x0001FFFF00038000, 0x7FFF00050003FFFE);
+    s.xmm[2] = xmm_from_u64(0xFFFF0002800000FF, 0x0006FFFF7FFF0001);
+    add_xmm("vpmaxsw xmm0,xmm1,xmm2", {0xC5, 0xF1, 0xEE, 0xC2}, s, 0x7);
+
+    // Note: VRSQRTPS, VRCPPS, VRSQRTSS, VRCPSS are approximate instructions.
+    // Real hardware returns approximations (within 1.5*2^-12 relative error)
+    // while our Sail model returns exact results, so we skip exact-match KVM tests.
+
+    // VMOVLPS store: C5 F8 13 07 = vmovlps [rdi], xmm0 (NP, L=0)
+    s.xmm[0] = xmm_from_u64(0xAAAABBBBCCCCDDDD, 0x1234567890ABCDEF);
+    s.rdi = DATA_ADDR;
+    {
+      TestCase tc;
+      tc.name = "vmovlps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x13, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 8;
+      tc.init_data = std::vector<u8>(16, 0);
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVHPS store: C5 F8 17 07 = vmovhps [rdi], xmm0 (NP, L=0)
+    {
+      TestCase tc;
+      tc.name = "vmovhps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x17, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 8;
+      tc.init_data = std::vector<u8>(16, 0);
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // VEX gather — AVX2 VGATHER instructions
+  // =====================================================================
+  cat = "VEX gather";
+  {
+    // Set up a data array at DATA_ADDR with known 32-bit values
+    // data[0..31] = 0x10, 0x20, 0x30, 0x40 at dword offsets
+    std::vector<u8> gather_data(64, 0);
+    for (int i = 0; i < 8; i++) {
+      uint32_t val = (uint32_t)(i + 1) * 0x11111111u;
+      memcpy(&gather_data[i * 4], &val, 4);
+    }
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR; // base address
+
+    // VPGATHERDD xmm0, [rdi + xmm2*1], xmm1
+    // Indices: xmm2 = {0, 4, 8, 12} (dword offsets 0,1,2,3)
+    // Mask: xmm1 = all sign bits set (all active)
+    s.xmm[0] = xmm_from_u64(0, 0);
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF); // mask all set
+    s.xmm[2] = xmm_from_u64(0x0000000C00000008, 0x0000000400000000); // indices
+
+    // VEX.128.66.0F38.W0 90: C4 E2 71 90 04 17
+    // But VSIB encoding: modrm=04 (mod=00, reg=0, rm=100=SIB), SIB=17 (scale=0, idx=2, base=7=rdi)
+    // Actually: C4 E2 71 90 04 17
+    {
+      TestCase tc;
+      tc.name = "vpgatherdd xmm0,[rdi+xmm2*1],xmm1";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE2, 0x71, 0x90, 0x04, 0x17};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7; // xmm0, xmm1 (zeroed), xmm2
+      tc.init_data = gather_data;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPGATHERDD with partial mask: only gather elements 0 and 2
+    s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x0000000080000000); // mask bits 0,2
+    {
+      TestCase tc;
+      tc.name = "vpgatherdd partial mask";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE2, 0x71, 0x90, 0x04, 0x17};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = gather_data;
+      tests.push_back(std::move(tc));
+    }
+
+    // VGATHERDPS (same encoding as VPGATHERDD but FP interpretation)
+    // C4 E2 71 92 04 17
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+    s.xmm[0] = xmm_from_u64(0, 0);
+    {
+      TestCase tc;
+      tc.name = "vgatherdps xmm0,[rdi+xmm2*1],xmm1";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE2, 0x71, 0x92, 0x04, 0x17};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = gather_data;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // K-register ops — KANDNW, KORW, KXNORW, KUNPCKBW, KORTESTW, KTESTW
+  // =====================================================================
+  cat = "K-register ops";
+  {
+    auto add_flags = [&](const char *name, std::vector<u8> code, ArchState init) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    // Set up k1=0xAAAA, k2=0x5555 via KMOVW from GPR
+    // We pre-load k-registers using KMOV r32->k then do the operation and read back with KMOV k->r32
+    // Since KVM runs all code together, we encode a sequence.
+
+    // Test KORW k3, k1, k2 then KMOVW eax, k3
+    // Load k1=0xAAAA: mov eax, 0xAAAA / kmovw k1, eax
+    // Load k2=0x5555: mov eax, 0x5555 / kmovw k2, eax
+    // KORW k3, k1, k2: C5 EC 45 DB (VEX.256.NP.0F 45: k3=modrm.reg(011), k1=vvvv(001), k2=rm(011))
+    // Actually: VEX.NDS.LZ.0F. Let me encode properly.
+    // KORW uses VEX.L1.NP.0F.W0 45 /r
+    // k3, k1, k2: modrm = 0xCB (mod=11, reg=001(k1), rm=011(k3)) wait...
+    // Encoding: KORW k1, k2, k3: reg=dst, vvvv=src1, rm=src2
+    // VEX byte1: R̄=1, vvvv=~k1, L=1, pp=00 → 1.1100.1.00 = 0xE4
+    // C5 E4 45 D9 = KORW k3, k3, k1? No, need to be more careful.
+
+    // Let me use a simpler approach: just test KORTESTW since it sets flags
+    // Load k1=0x5555 via mov eax, 0x5555 / C5 F8 92 C8 (kmovw k1, eax)
+    // Load k2=0xAAAA via mov eax, 0xAAAA / C5 F8 92 D0 (kmovw k2, eax)
+    // KORTESTW k1, k2: C5 F8 98 CA (VEX.LZ.NP.0F.W0 98, modrm=CA: reg=k1(001), rm=k2(010))
+    s.rax = 0x5555;
+    s.rdx = 0xAAAA;
+    // mov eax, 0x5555 already set. Use: C5 F8 92 C8 = kmovw k1, eax
+    // C5 F8 92 D2 = kmovw k2, edx
+    // C5 F8 98 CA = kortestw k1, k2
+    add_flags("kortestw k1(5555),k2(AAAA) -> k1|k2=FFFF",
+      {0xC5, 0xF8, 0x92, 0xC8,  // kmovw k1, eax (0x5555)
+       0xC5, 0xF8, 0x92, 0xD2,  // kmovw k2, edx (0xAAAA)
+       0xC5, 0xF8, 0x98, 0xCA}, // kortestw k1, k2
+      s);
+
+    // KORTESTW with zero result
+    s.rax = 0;
+    s.rdx = 0;
+    add_flags("kortestw k1(0),k2(0) -> ZF=1",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x98, 0xCA},
+      s);
+
+    // KTESTW: k1&k2 and ~k1&k2
+    s.rax = 0xFFFF;
+    s.rdx = 0x00FF;
+    add_flags("ktestw k1(FFFF),k2(00FF)",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x99, 0xCA},
+      s);
+
+    s.rax = 0x0000;
+    s.rdx = 0xFFFF;
+    add_flags("ktestw k1(0),k2(FFFF) -> ZF=1",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x99, 0xCA},
+      s);
+  }
+
+  // =====================================================================
+  // EVEX blend — VPBLENDMD/Q, VBLENDMPS/PD
+  // =====================================================================
+  cat = "EVEX blend";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
+    s.xmm[2] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
+
+    // VPBLENDMD xmm0, xmm1, xmm2 (no mask = blend all from src2)
+    // EVEX.128.66.0F38.W0 64 /r, aaa=000 (no mask)
+    // EVEX: 62 [P0][P1][P2] 64 modrm
+    // P0: R̄=1, X̄=1, B̄=1, R'̄=1, 00, mm=10 → 0xF2
+    // P1: W=0, vvvv=~1=1110, 1, pp=01 → 0.1110.1.01 = 0x75
+    // Wait, vvvv is inverted. xmm1 = 0001, inverted = 1110
+    // P1: W=0, ~vvvv=1110, 1, pp=01 → 0111.0101 = 0x75
+    // P2: z=0, L'L=00, b=0, V'̄=1, aaa=000 → 0.00.0.1.000 = 0x08
+    // modrm: mod=11, reg=000(xmm0), rm=010(xmm2) → 0xC2
+    add_xmm("vpblendmd xmm0,xmm1,xmm2 (no mask)",
+      {0x62, 0xF2, 0x75, 0x08, 0x64, 0xC2}, s, 0x7);
+
+    // VBLENDMPS xmm0, xmm1, xmm2 (no mask) — same as above but opcode 65
+    add_xmm("vblendmps xmm0,xmm1,xmm2 (no mask)",
+      {0x62, 0xF2, 0x75, 0x08, 0x65, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // VLDDQU — VEX 0F F0 unaligned load
+  // =====================================================================
+  cat = "VLDDQU";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // VLDDQU xmm0, [rdi]: C5 FB F0 07 (VEX.128.F2.0F F0, modrm=[rdi])
+    std::vector<u8> lddqu_data(32, 0);
+    for (int i = 0; i < 16; i++) lddqu_data[i] = 0x10 + i;
+    {
+      TestCase tc;
+      tc.name = "vlddqu xmm0,[rdi]";
+      tc.category = cat;
+      tc.code = {0xC5, 0xFB, 0xF0, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.init_data = lddqu_data;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // VHADDPS/VHSUBPS/VADDSUBPS — VEX horizontal FP
+  // =====================================================================
+  cat = "VEX horiz FP";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
+    // VHADDPS xmm2, xmm0, xmm1: C5 FB 7C D1
+    add_test("vhaddps xmm", {0xC5, 0xFB, 0x7C, 0xD1}, s, FL_NONE);
+
+    // VHSUBPS xmm3, xmm0, xmm1: C5 FB 7D D9
+    add_test("vhsubps xmm", {0xC5, 0xFB, 0x7D, 0xD9}, s, FL_NONE);
+
+    // VADDSUBPS xmm4, xmm0, xmm1: C5 FB D0 E1
+    add_test("vaddsubps xmm", {0xC5, 0xFB, 0xD0, 0xE1}, s, FL_NONE);
+
+    // VHADDPD xmm5, xmm0, xmm1 (66.0F 7C)
+    s.xmm[0] = xmm_from_f64(1.0, 3.0);
+    s.xmm[1] = xmm_from_f64(5.0, 7.0);
+    add_test("vhaddpd xmm", {0xC5, 0xF9, 0x7C, 0xE9}, s, FL_NONE);
+  }
+
+  // =====================================================================
+  // VPTEST — VEX 0F38 17
+  // =====================================================================
+  cat = "VPTEST";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
+    // VPTEST xmm0, xmm1: C4 E2 79 17 C1
+    add_test("vptest all-ones", {0xC4, 0xE2, 0x79, 0x17, 0xC1}, s, FL_ZF | FL_CF);
+
+    s.xmm[0] = xmm_from_u64(0, 0);
+    add_test("vptest zero,ones", {0xC4, 0xE2, 0x79, 0x17, 0xC1}, s, FL_ZF | FL_CF);
+
+    s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
+    s.xmm[1] = xmm_from_u64(0, 0);
+    add_test("vptest ones,zero", {0xC4, 0xE2, 0x79, 0x17, 0xC1}, s, FL_ZF | FL_CF);
+  }
+
+  // =====================================================================
+  // VPCMPGTQ — VEX 0F38 37
+  // =====================================================================
+  cat = "VPCMPGTQ";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(10, 5);
+    s.xmm[1] = xmm_from_u64(3, 8);
+    // VPCMPGTQ xmm2, xmm0, xmm1: C4 E2 79 37 D1
+    add_test("vpcmpgtq", {0xC4, 0xE2, 0x79, 0x37, 0xD1}, s, FL_NONE);
+  }
+
+  // =====================================================================
+  // VPERMILPS/PD — VEX permute
+  // =====================================================================
+  cat = "VPERMIL";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+
+    // VPERMILPS xmm1, xmm0, imm8=0x1B (reverse)
+    // VEX.128.66.0F3A 04 /r ib: C4 E3 79 04 C8 1B
+    add_test("vpermilps imm reverse", {0xC4, 0xE3, 0x79, 0x04, 0xC8, 0x1B}, s, FL_NONE);
+
+    // VPERMILPS xmm1, xmm0, imm8=0x00 (broadcast element 0)
+    add_test("vpermilps imm bcast", {0xC4, 0xE3, 0x79, 0x04, 0xC8, 0x00}, s, FL_NONE);
+
+    // VPERMILPD xmm1, xmm0, imm8=0x01 (swap qwords)
+    s.xmm[0] = xmm_from_f64(1.0, 2.0);
+    add_test("vpermilpd imm swap", {0xC4, 0xE3, 0x79, 0x05, 0xC8, 0x01}, s, FL_NONE);
+  }
+
+  // =====================================================================
+  // VMOVNTDQ — VEX non-temporal store
+  // =====================================================================
+  cat = "VMOVNTDQ";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.xmm[0] = xmm_from_u64(0x8877665544332211ULL, 0x01FFEEDDCCBBAA99ULL);
+
+    // VMOVNTDQ [rdi], xmm0: C5 F9 E7 07
+    {
+      TestCase tc;
+      tc.name = "vmovntdq [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF9, 0xE7, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // VPERM2F128 — 256-bit lane permute (use VINSERTF128 to set up YMM state)
+  // =====================================================================
+  cat = "VPERM2F128";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    s.xmm[2] = xmm_from_f32(9.0f, 10.0f, 11.0f, 12.0f);
+    // Use VINSERTF128 to set up ymm0 = {hi:xmm1, lo:xmm0}, then VPERM2F128
+    // VINSERTF128 ymm0, ymm0, xmm1, 1: C4 E3 7D 18 C1 01
+    // Then VPERM2F128 ymm3, ymm0, ymm0, 0x01: swap halves
+    // C4 E3 7D 06 D8 01 (dst=ymm3, vvvv=ymm0, src2=ymm0, imm=0x01)
+    {
+      TestCase tc;
+      tc.name = "vperm2f128 swap";
+      tc.category = cat;
+      // Setup: vinsertf128 ymm0, ymm0, xmm1, 1
+      // Then: vperm2f128 ymm3, ymm0, ymm0, 0x01
+      tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,   // vinsertf128
+                 0xC4, 0xE3, 0x7D, 0x06, 0xD8, 0x01};  // vperm2f128
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0xFFFF;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // VINSERTI128/VEXTRACTI128 — AVX2 lane insert/extract
+  // =====================================================================
+  cat = "VEX insert/extract i128";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x1111111111111111ULL, 0x2222222222222222ULL);
+    s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAAULL, 0xBBBBBBBBBBBBBBBBULL);
+
+    // VINSERTI128 ymm2, ymm0, xmm1, 1
+    add_test("vinserti128 hi", {0xC4, 0xE3, 0x7D, 0x38, 0xD1, 0x01}, s, FL_NONE);
+
+    // VINSERTI128 ymm2, ymm0, xmm1, 0
+    add_test("vinserti128 lo", {0xC4, 0xE3, 0x7D, 0x38, 0xD1, 0x00}, s, FL_NONE);
+
+    // VEXTRACTI128 xmm3, ymm0, 1
+    add_test("vextracti128 hi", {0xC4, 0xE3, 0x7D, 0x39, 0xC3, 0x01}, s, FL_NONE);
+
+    // VEXTRACTI128 xmm3, ymm0, 0
+    add_test("vextracti128 lo", {0xC4, 0xE3, 0x7D, 0x39, 0xC3, 0x00}, s, FL_NONE);
+  }
+
+  // =====================================================================
+  // VPMASKMOVD — VEX masked load/store
+  // =====================================================================
+  cat = "VPMASKMOVD";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // Set mask in xmm1: sign bits set for elements 0 and 2
+    s.xmm[1] = xmm_from_u32(0x80000000u, 0x00000000u, 0x80000000u, 0x00000000u);
+
+    // Memory data: 0x11111111, 0x22222222, 0x33333333, 0x44444444
+    std::vector<u8> data(16);
+    for (int i = 0; i < 4; i++) {
+      uint32_t v = (uint32_t)(i + 1) * 0x11111111u;
+      memcpy(data.data() + i * 4, &v, 4);
+    }
+
+    // VPMASKMOVD xmm0, xmm1, [rdi]: VEX.NDS.128.66.0F38 8C /r
+    // C4 E2 71 8C 07 (vvvv=xmm1=~0001=1110 → 0111_0001 = 0x71, modrm=07=[rdi])
+    {
+      TestCase tc;
+      tc.name = "vpmaskmovd load partial";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE2, 0x71, 0x8C, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.init_data = data;
+      tests.push_back(std::move(tc));
+    }
   }
 
   return tests;
