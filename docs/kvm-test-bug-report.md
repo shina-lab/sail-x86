@@ -581,3 +581,227 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
   byte (requires memory-form tests with large bit indices)
 - **LOCK prefix**: Atomic memory operations
 - **Segment overrides**: Not applicable in 64-bit flat memory model
+- **Exception/fault behavior**: No tests verify that instructions raise the
+  correct exceptions — see test plan below
+
+---
+
+## Exception/Fault Test Plan
+
+### Implementation status
+
+**Harness infrastructure: DONE.** The KVM test harness now supports
+fault-expecting tests. Changes made:
+
+1. **IDT with exception handlers**: 32 exception handler stubs at
+   `HANDLER_ADDR` (0x05000), each storing vector + error code + faulting
+   RIP to `FAULT_INFO_ADDR` (0x12000), then HLTing.
+2. **`FaultInfo` struct and `expect_fault` field** on `TestCase`.
+3. **KVM fault capture**: After `KVM_EXIT_HLT`, checks if RIP is in the
+   handler area and reads stored fault info from guest memory.
+4. **Sail fault capture**: On `Kind_zFault`, extracts vector and error
+   code instead of aborting.
+5. **Comparison**: Verifies both sides produce the same exception vector
+   and error code.
+
+**Tests implemented: 21 tests across 3 exception categories.**
+
+**Bugs found and fixed:**
+- MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
+- VMOVAPS/VMOVAPD (VEX 128): missing 16-byte alignment check → added #GP(0)
+- VMOVAPS/VMOVAPD (VEX 256): missing 32-byte alignment check → added #GP(0)
+- VMOVAPS/VMOVAPD store (VEX): missing alignment checks → added #GP(0)
+- avx_test `_start`: missing `force_align_arg_pointer` attribute
+
+**Known gaps:**
+- LOCK prefix on non-memory instructions should raise #UD, but the Sail
+  model doesn't check `has_lock` yet.
+- EVEX VMOVAPS/VMOVAPD alignment checks not yet added.
+- #PF tests require page table changes (unmapped/read-only pages).
+
+### Remaining harness work
+
+5. **Page table setup**: Add a second 2MB region that is either unmapped
+   (not-present) or read-only in the guest page tables, so tests can
+   point memory operands at inaccessible addresses.
+
+### Exception categories to test
+
+#### 1. Page Fault (#PF, vector 14)
+
+Triggered when an instruction accesses an unmapped or protected page.
+Error code encodes: P (present), W/R (write), U/S (user/supervisor).
+
+**Memory read instructions** — point source operand at unmapped page:
+
+| Instruction | Encoding example | Notes |
+|-------------|-----------------|-------|
+| `MOV RAX, [RDI]` | `48 8B 07` | Basic load |
+| `MOVZX EAX, byte [RDI]` | `0F B6 07` | Zero-extending load |
+| `MOVSX RAX, byte [RDI]` | `48 0F BE 07` | Sign-extending load |
+| `ADD RAX, [RDI]` | `48 03 07` | ALU with memory source |
+| `CMP RAX, [RDI]` | `48 3B 07` | Compare (read-only) |
+| `TEST [RDI], RAX` | `48 85 07` | Test (read-only) |
+| `MOVAPS XMM0, [RDI]` | `0F 28 07` | SSE aligned load |
+| `MOVUPS XMM0, [RDI]` | `0F 10 07` | SSE unaligned load |
+| `MOVDQU XMM0, [RDI]` | `F3 0F 6F 07` | SSE integer load |
+| `VMOVAPS XMM0, [RDI]` | `C5 F8 28 07` | VEX load |
+| `LEA RAX, [RDI]` | `48 8D 07` | Should NOT fault (no memory access) |
+| `PUSH [RDI]` | `FF 37` | Stack push from memory |
+| `POP [RDI]` | `8F 07` | Stack pop to memory (reads stack) |
+
+**Memory write instructions** — point destination at unmapped page:
+
+| Instruction | Encoding example | Notes |
+|-------------|-----------------|-------|
+| `MOV [RDI], RAX` | `48 89 07` | Basic store |
+| `MOV [RDI], imm32` | `C7 07 ...` | Immediate store |
+| `ADD [RDI], RAX` | `48 01 07` | Read-modify-write |
+| `INC [RDI]` | `FF 07` | Read-modify-write |
+| `XCHG [RDI], RAX` | `48 87 07` | Atomic exchange |
+| `CMPXCHG [RDI], RAX` | `48 0F B1 07` | Conditional store |
+| `MOVAPS [RDI], XMM0` | `0F 29 07` | SSE aligned store |
+| `MOVNTI [RDI], RAX` | `0F C3 07` | Non-temporal store |
+
+**String instructions** — source or destination at unmapped page:
+
+| Instruction | Notes |
+|-------------|-------|
+| `REP MOVSB` | RSI or RDI at unmapped page |
+| `REP STOSB` | RDI at unmapped page |
+| `LODSB` | RSI at unmapped page |
+| `CMPSB` | RSI or RDI at unmapped page |
+| `SCASB` | RDI at unmapped page |
+
+**Stack instructions** — RSP at unmapped page:
+
+| Instruction | Notes |
+|-------------|-------|
+| `PUSH RAX` | RSP-8 at unmapped page |
+| `POP RAX` | RSP at unmapped page |
+| `CALL rel32` | RSP-8 at unmapped page |
+| `RET` | RSP at unmapped page |
+| `ENTER 0, 0` | RSP-16 at unmapped page |
+| `LEAVE` | RBP at unmapped page |
+
+**Additional #PF scenarios:**
+
+- Write to a read-only page (error code has P=1, W=1)
+- Instruction fetch from unmapped page (RIP points to unmapped memory)
+- Multi-byte instruction spanning a page boundary where second page is
+  unmapped (fault during instruction fetch)
+
+#### 2. Division Error (#DE, vector 0) — DONE (13 tests)
+
+Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
+
+| Instruction | Setup | Notes |
+|-------------|-------|-------|
+| `DIV RCX` | RCX=0 | Divide by zero (64-bit) |
+| `DIV ECX` | ECX=0 | Divide by zero (32-bit) |
+| `DIV CX` | CX=0 | Divide by zero (16-bit) |
+| `DIV CL` | CL=0 | Divide by zero (8-bit) |
+| `IDIV RCX` | RCX=0 | Signed divide by zero |
+| `IDIV ECX` | ECX=0 | Signed divide by zero |
+| `IDIV CX` | CX=0 | Signed divide by zero |
+| `IDIV CL` | CL=0 | Signed divide by zero |
+| `DIV CL` | AX=0x100, CL=1 | Quotient overflow (256 > 255 for AL) |
+| `IDIV CL` | AX=0x80, CL=1 | Signed quotient overflow (128 > 127 for AL) |
+| `DIV ECX` | RDX:RAX large, ECX=1 | Quotient overflow (32-bit) |
+| `IDIV ECX` | RDX:RAX large, ECX=1 | Signed quotient overflow (32-bit) |
+| `DIV RCX` | RDX:RAX large, RCX=1 | Quotient overflow (64-bit) |
+
+SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
+large for the designated register."
+
+#### 3. Invalid Opcode (#UD, vector 6) — PARTIAL (1 test)
+
+Triggered by undefined or invalid instruction encodings.
+
+| Test case | Notes | Status |
+|-----------|-------|--------|
+| `UD2` (`0F 0B`) | Explicit undefined instruction | DONE |
+| `UD1` (`0F B9`) | Explicit undefined instruction | TODO |
+| Invalid VEX prefix combinations | e.g., VEX.L=1 for 128-bit-only instructions | TODO |
+| LOCK prefix on non-lockable instruction | e.g., `LOCK ADD RAX, RBX` | BLOCKED (Sail doesn't check has_lock) |
+| SSE instruction with mismatched prefix | | TODO |
+
+#### 4. Alignment Check (#AC, vector 17)
+
+Triggered when an unaligned memory access occurs with AC flag enabled
+(CR0.AM=1, RFLAGS.AC=1, CPL=3).
+
+| Instruction | Setup | Notes |
+|-------------|-------|-------|
+| `MOVAPS XMM0, [RDI]` | RDI not 16-aligned | SSE alignment requirement |
+| `MOVAPD XMM0, [RDI]` | RDI not 16-aligned | SSE alignment requirement |
+| `VMOVAPS YMM0, [RDI]` | RDI not 32-aligned | AVX alignment requirement |
+
+Note: MOVAPS/MOVAPD always require alignment regardless of CR0.AM.
+The #GP (not #AC) is raised for these — verify the correct exception
+vector.
+
+#### 5. General Protection Fault (#GP, vector 13) — DONE (7 tests)
+
+| Test case | Notes | Status |
+|-----------|-------|--------|
+| `MOVAPS XMM0, [RDI]` | Unaligned load → #GP(0) | DONE |
+| `MOVAPD XMM0, [RDI]` | Unaligned load → #GP(0) | DONE |
+| `MOVAPS [RDI], XMM0` | Unaligned store → #GP(0) | DONE |
+| `MOVAPD [RDI], XMM0` | Unaligned store → #GP(0) | DONE |
+| `VMOVAPS XMM0, [RDI]` | VEX 128 unaligned → #GP(0) | DONE |
+| `VMOVAPS [RDI], XMM0` | VEX 128 store unaligned → #GP(0) | DONE |
+| `VMOVAPD XMM0, [RDI]` | VEX 128 unaligned → #GP(0) | DONE |
+| `VMOVAPS YMM0, [RDI]` | VEX 256, 16-aligned not 32 → #GP(0) | DONE |
+| Write to a read-only segment | (if segment limits are enforced) | N/A |
+
+#### 6. Stack-Segment Fault (#SS, vector 12)
+
+Rare in 64-bit mode with flat memory model, but could occur if RSP
+points to a non-canonical address.
+
+| Test case | Notes |
+|-----------|-------|
+| `PUSH RAX` | RSP = non-canonical address |
+| `POP RAX` | RSP = non-canonical address |
+
+#### 7. x87 Floating-Point Exception (#MF, vector 16)
+
+Triggered when x87 instructions encounter unmasked FP exceptions.
+
+| Test case | Notes |
+|-----------|-------|
+| `FDIV` with divisor=0 | If divide-by-zero exception unmasked |
+| `FADD` with SNaN input | If invalid-operation exception unmasked |
+| `WAIT`/`FWAIT` after pending x87 exception | Checks pending FPE |
+
+#### 8. SIMD Floating-Point Exception (#XM, vector 19)
+
+Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
+
+| Test case | Notes |
+|-----------|-------|
+| `DIVPS` with divisor=0 | If MXCSR divide-by-zero mask cleared |
+| `ADDPS` with SNaN input | If MXCSR invalid-operation mask cleared |
+| `CVTPS2DQ` with overflow | If MXCSR invalid-operation mask cleared |
+
+### Test implementation priority
+
+1. **#DE (division by zero)** — DONE (13 tests)
+2. **#PF (page fault)** — Requires page table modification + Sail memory
+   system changes. Essential for the munmap/SIGSEGV emulator changes.
+3. **#UD (invalid opcode)** — PARTIAL (1 test; LOCK prefix needs model fix)
+4. **#GP (alignment)** — DONE (7 tests; alignment checks added to
+   MOVAPS/MOVAPD/VMOVAPS/VMOVAPD in Sail model)
+5. **#MF/#XM (FP exceptions)** — TODO. Lower priority but useful.
+6. **#AC, #SS** — Edge cases, lowest priority.
+
+### State to compare on fault
+
+For fault-expecting tests, compare:
+
+- Exception vector number (must match)
+- Error code (must match; #PF encodes P/W/U/RSVD/I bits)
+- RIP (should point at faulting instruction, not past it)
+- For #PF: CR2 (faulting linear address) — requires reading CR2 from
+  KVM vcpu state and from Sail model

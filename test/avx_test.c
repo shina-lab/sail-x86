@@ -529,7 +529,7 @@ static void test_vmulps_256(void) {
         "vmulps ymm");
 }
 
-void _start(void) {
+void __attribute__((force_align_arg_pointer)) _start(void) {
   // FP arithmetic 128-bit
   test_vaddps_128();
   test_vsubps_128();

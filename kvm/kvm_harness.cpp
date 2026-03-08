@@ -50,8 +50,12 @@ static constexpr u64 PML4_ADDR      = 0x00000;
 static constexpr u64 PDPT_ADDR      = 0x01000;
 static constexpr u64 PD_ADDR        = 0x02000;
 static constexpr u64 GDT_ADDR       = 0x03000;
+static constexpr u64 IDT_ADDR        = 0x04000;
+static constexpr u64 HANDLER_ADDR    = 0x05000;
+static constexpr u64 COMMON_HANDLER  = HANDLER_ADDR + 32 * 16;  // 0x05200
 static constexpr u64 CODE_ADDR      = 0x10000;
 static constexpr u64 DATA_ADDR      = 0x11000;
+static constexpr u64 FAULT_INFO_ADDR = 0x12000;
 static constexpr u64 STACK_TOP      = 0x20000;
 
 // RFLAGS bit positions
@@ -179,6 +183,14 @@ struct ArchState {
   }
 };
 
+// Fault information captured from exception handlers.
+struct FaultInfo {
+  bool faulted = false;
+  int vector = -1;
+  u64 error_code = 0;
+  u64 faulting_rip = 0;
+};
+
 struct TestCase {
   std::string name;
   std::string category;
@@ -189,6 +201,8 @@ struct TestCase {
   bool cmp_mxcsr = false;
   std::vector<u8> init_data;       // placed at DATA_ADDR
   size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
+  bool expect_fault = false;       // test expects an exception, not normal HLT
+  int expected_vector = -1;        // expected exception vector (-1 = any)
 };
 
 // ---- KVM VM ----
@@ -274,6 +288,69 @@ struct KvmVm {
     u64 *pd = (u64 *)(guest_mem + PD_ADDR);
     pd[0] = 0x0 | 0x83;  // 2MB page, present + writable + PS
 
+    // IDT: exception handlers for vectors 0-31
+    {
+      // Vectors with error codes pushed by CPU
+      auto has_error_code = [](int v) {
+        return v == 8 || v == 10 || v == 11 || v == 12 ||
+               v == 13 || v == 14 || v == 17 || v == 21 || v == 30;
+      };
+
+      // Write handler stubs at HANDLER_ADDR, 16 bytes each
+      for (int v = 0; v < 32; v++) {
+        u8 stub[16];
+        memset(stub, 0xCC, sizeof(stub));  // fill with INT3
+        int off = 0;
+        if (!has_error_code(v)) {
+          stub[off++] = 0x6A; stub[off++] = 0x00;  // push 0 (dummy error code)
+        } else {
+          stub[off++] = 0x90; stub[off++] = 0x90;  // nop nop (error code on stack)
+        }
+        stub[off++] = 0x6A; stub[off++] = (u8)v;   // push <vector>
+        stub[off++] = 0xE9;                          // jmp rel32
+        u64 stub_addr = HANDLER_ADDR + v * 16;
+        i32 rel = (i32)(COMMON_HANDLER - (stub_addr + off + 4));
+        memcpy(stub + off, &rel, 4);
+        memcpy(guest_mem + stub_addr, stub, 16);
+      }
+
+      // Common handler: pop vector + error code, store at FAULT_INFO_ADDR, HLT
+      u8 common[] = {
+        0x58,                                                     // pop rax (vector)
+        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR], rax
+          (u8)(FAULT_INFO_ADDR), (u8)(FAULT_INFO_ADDR >> 8),
+          (u8)(FAULT_INFO_ADDR >> 16), (u8)(FAULT_INFO_ADDR >> 24),
+        0x58,                                                     // pop rax (error code)
+        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+8], rax
+          (u8)(FAULT_INFO_ADDR + 8), (u8)((FAULT_INFO_ADDR + 8) >> 8),
+          (u8)((FAULT_INFO_ADDR + 8) >> 16), (u8)((FAULT_INFO_ADDR + 8) >> 24),
+        0x48, 0x8B, 0x04, 0x24,                                   // mov rax, [rsp]
+        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+16], rax
+          (u8)(FAULT_INFO_ADDR + 16), (u8)((FAULT_INFO_ADDR + 16) >> 8),
+          (u8)((FAULT_INFO_ADDR + 16) >> 16), (u8)((FAULT_INFO_ADDR + 16) >> 24),
+        0xF4,                                                     // hlt
+      };
+      memcpy(guest_mem + COMMON_HANDLER, common, sizeof(common));
+
+      // Write IDT entries (16-bit interrupt gate descriptors)
+      for (int v = 0; v < 32; v++) {
+        u64 handler = HANDLER_ADDR + v * 16;
+        u8 entry[16] = {};
+        u16 offset_lo = handler & 0xFFFF;
+        u16 selector = 0x08;  // code segment
+        u8 type_attr = 0x8E;  // present, DPL=0, 64-bit interrupt gate
+        u16 offset_mid = (handler >> 16) & 0xFFFF;
+        u32 offset_hi = (handler >> 32) & 0xFFFFFFFF;
+        memcpy(entry + 0, &offset_lo, 2);
+        memcpy(entry + 2, &selector, 2);
+        entry[4] = 0;  // IST = 0
+        entry[5] = type_attr;
+        memcpy(entry + 6, &offset_mid, 2);
+        memcpy(entry + 8, &offset_hi, 4);
+        memcpy(guest_mem + IDT_ADDR + v * 16, entry, 16);
+      }
+    }
+
     // GDT: null, 64-bit code, data
     u64 *gdt = (u64 *)(guest_mem + GDT_ADDR);
     gdt[0] = 0;
@@ -290,6 +367,9 @@ struct KvmVm {
 
     sregs.gdt.base = GDT_ADDR;
     sregs.gdt.limit = 3 * 8 - 1;
+
+    sregs.idt.base = IDT_ADDR;
+    sregs.idt.limit = 32 * 16 - 1;
 
     // Code segment
     sregs.cs = {};
@@ -336,6 +416,7 @@ struct KvmVm {
   void load_test(const TestCase &tc) {
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
     memset(guest_mem + DATA_ADDR, 0, 0x1000);
+    memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
 
     memcpy(guest_mem + CODE_ADDR, tc.code.data(), tc.code.size());
     guest_mem[CODE_ADDR + tc.code.size()] = 0xF4;  // HLT
@@ -389,6 +470,46 @@ struct KvmVm {
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
   }
 
+  // Check if a KVM run resulted in a fault (HLT in exception handler area).
+  bool check_kvm_fault(FaultInfo &fi) {
+    struct kvm_regs regs;
+    ioctl(vcpu_fd, KVM_GET_REGS, &regs);
+    if (regs.rip > COMMON_HANDLER && regs.rip <= COMMON_HANDLER + 0x100) {
+      fi.faulted = true;
+      u64 vec_val, err_val, rip_val;
+      memcpy(&vec_val, guest_mem + FAULT_INFO_ADDR, 8);
+      memcpy(&err_val, guest_mem + FAULT_INFO_ADDR + 8, 8);
+      memcpy(&rip_val, guest_mem + FAULT_INFO_ADDR + 16, 8);
+      fi.vector = (int)vec_val;
+      fi.error_code = err_val;
+      fi.faulting_rip = rip_val;
+      return true;
+    }
+    return false;
+  }
+
+  // Run test expecting a fault. Returns fault info.
+  FaultInfo run_test_fault() {
+    if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
+      perror("KVM_RUN");
+      abort();
+    }
+
+    FaultInfo fi;
+    if (run->exit_reason == KVM_EXIT_HLT) {
+      if (check_kvm_fault(fi))
+        return fi;
+      fprintf(stderr, "KVM: expected fault but got normal HLT\n");
+      abort();
+    }
+    if (run->exit_reason == KVM_EXIT_SHUTDOWN) {
+      fprintf(stderr, "KVM: triple fault (shutdown) — IDT setup problem?\n");
+      abort();
+    }
+    fprintf(stderr, "KVM: unexpected exit reason %d\n", run->exit_reason);
+    abort();
+  }
+
   ArchState run_test() {
     if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
       perror("KVM_RUN");
@@ -402,6 +523,14 @@ struct KvmVm {
                 run->fail_entry.hardware_entry_failure_reason);
       if (run->exit_reason == KVM_EXIT_INTERNAL_ERROR)
         fprintf(stderr, "  suberror: %d\n", run->internal.suberror);
+      abort();
+    }
+
+    // Check for unexpected fault
+    FaultInfo fi;
+    if (check_kvm_fault(fi)) {
+      fprintf(stderr, "KVM: unexpected fault #%d (error 0x%lx) at RIP=0x%lx\n",
+              fi.vector, fi.error_code, fi.faulting_rip);
       abort();
     }
 
@@ -436,7 +565,8 @@ struct KvmVm {
 
 // ---- Sail model execution ----
 
-ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len) {
+ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
+                   FaultInfo *fault_out = nullptr) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
@@ -510,6 +640,14 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len) {
     case x86::Kind_zFault: {
       i64 vec = result.variants.zFault.ztup0;
       u32 err = result.variants.zFault.ztup1;
+      if (fault_out) {
+        fault_out->faulted = true;
+        fault_out->vector = (int)vec;
+        fault_out->error_code = err;
+        fault_out->faulting_rip = model.zRIP;
+        model.model_fini();
+        return {};
+      }
       fprintf(stderr, "Sail: fault #%ld (error 0x%x) at RIP=0x%lx [%s]\n",
               vec, err, model.zRIP, tc.name.c_str());
       // Print code bytes for debugging
@@ -8068,6 +8206,185 @@ std::vector<TestCase> build_tests() {
 
   add_systematic_tests(tests);
 
+  // =====================================================================
+  // Exception/Fault tests
+  // =====================================================================
+
+  auto add_fault = [&](const char *name, std::vector<u8> code, ArchState init,
+                       int vec) {
+    TestCase tc;
+    tc.name = name;
+    tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = init;
+    tc.flags_mask = 0;
+    tc.expect_fault = true;
+    tc.expected_vector = vec;
+    tests.push_back(std::move(tc));
+  };
+
+  // ---- #DE (vector 0): Division error ----
+  cat = "Exception #DE";
+
+  // DIV by zero — all sizes
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("div rcx (div by zero, 64-bit)", {0x48, 0xF7, 0xF1}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("div ecx (div by zero, 32-bit)", {0xF7, 0xF1}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("div cx (div by zero, 16-bit)", {0x66, 0xF7, 0xF1}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rcx = 0;
+    add_fault("div cl (div by zero, 8-bit)", {0xF6, 0xF1}, s, 0);
+  }
+
+  // IDIV by zero — all sizes
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("idiv rcx (div by zero, 64-bit)", {0x48, 0xF7, 0xF9}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("idiv ecx (div by zero, 32-bit)", {0xF7, 0xF9}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 0;
+    add_fault("idiv cx (div by zero, 16-bit)", {0x66, 0xF7, 0xF9}, s, 0);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rcx = 0;
+    add_fault("idiv cl (div by zero, 8-bit)", {0xF6, 0xF9}, s, 0);
+  }
+
+  // DIV quotient overflow
+  {
+    // 8-bit: AX=0x100, CL=1 → quotient 256 doesn't fit in AL
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x100; s.rcx = 1;
+    add_fault("div cl (quotient overflow, 8-bit)", {0xF6, 0xF1}, s, 0);
+  }
+  {
+    // 32-bit: EDX:EAX = 0x1_00000000, ECX=1 → quotient overflows 32 bits
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0; s.rdx = 1; s.rcx = 1;
+    add_fault("div ecx (quotient overflow, 32-bit)", {0xF7, 0xF1}, s, 0);
+  }
+  {
+    // 64-bit: RDX:RAX = 2^64, RCX=1 → quotient overflows 64 bits
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0; s.rdx = 1; s.rcx = 1;
+    add_fault("div rcx (quotient overflow, 64-bit)", {0x48, 0xF7, 0xF1}, s, 0);
+  }
+
+  // IDIV quotient overflow
+  {
+    // 8-bit: AX=0x80, CL=1 → quotient 128 > INT8_MAX (127)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x80; s.rcx = 1;
+    add_fault("idiv cl (quotient overflow, 8-bit)", {0xF6, 0xF9}, s, 0);
+  }
+
+  // ---- #UD (vector 6): Invalid opcode ----
+  cat = "Exception #UD";
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("ud2", {0x0F, 0x0B}, s, 6);
+  }
+  // TODO: LOCK prefix on register-register instructions should raise #UD
+  // but the Sail model doesn't check has_lock yet. Requires decoder changes.
+
+  // ---- #GP (vector 13): General protection fault ----
+  cat = "Exception #GP";
+
+  // SSE MOVAPS/MOVAPD load unaligned
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 1;
+    add_fault("movaps xmm0,[rdi] load (unaligned → #GP)", {0x0F, 0x28, 0x07}, s, 13);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 3;
+    add_fault("movapd xmm0,[rdi] load (unaligned → #GP)", {0x66, 0x0F, 0x28, 0x07}, s, 13);
+  }
+  // SSE MOVAPS/MOVAPD store unaligned
+  {
+    // MOVAPS [RDI], XMM0: 0F 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 1;
+    add_fault("movaps [rdi],xmm0 store (unaligned → #GP)", {0x0F, 0x29, 0x07}, s, 13);
+  }
+  {
+    // MOVAPD [RDI], XMM0: 66 0F 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 5;
+    add_fault("movapd [rdi],xmm0 store (unaligned → #GP)", {0x66, 0x0F, 0x29, 0x07}, s, 13);
+  }
+  // VEX VMOVAPS load unaligned (128-bit)
+  {
+    // VMOVAPS XMM0, [RDI]: C5 F8 28 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 1;
+    add_fault("vmovaps xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF8, 0x28, 0x07}, s, 13);
+  }
+  // VEX VMOVAPS store unaligned (128-bit)
+  {
+    // VMOVAPS [RDI], XMM0: C5 F8 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 7;
+    add_fault("vmovaps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x29, 0x07}, s, 13);
+  }
+  // VEX VMOVAPD load unaligned (128-bit)
+  {
+    // VMOVAPD XMM0, [RDI]: C5 F9 28 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 2;
+    add_fault("vmovapd xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x28, 0x07}, s, 13);
+  }
+  // VEX VMOVAPS load unaligned (256-bit, 32-byte alignment required)
+  {
+    // VMOVAPS YMM0, [RDI]: C5 FC 28 07 (VEX.256.NP)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 16;  // 16-byte aligned but not 32-byte aligned
+    add_fault("vmovaps ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x28, 0x07}, s, 13);
+  }
+
   return tests;
 }
 
@@ -8092,45 +8409,87 @@ int main(int argc, char **argv) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
     }
-    // Run on KVM.
     vm.load_test(tc);
-    ArchState kvm_state = vm.run_test();
 
-    // Run on Sail.
-    u8 kvm_data[4096] = {}, sail_data[4096] = {};
-    if (tc.compare_data_len > 0)
-      vm.read_data(kvm_data, tc.compare_data_len);
+    if (tc.expect_fault) {
+      // Fault-expecting test: compare exception vector and error code.
+      FaultInfo kvm_fault = vm.run_test_fault();
+      FaultInfo sail_fault;
+      run_sail(tc, nullptr, 0, &sail_fault);
 
-    ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
+      bool ok = true;
+      if (!kvm_fault.faulted) {
+        fprintf(stderr, "  KVM: expected fault but none occurred\n");
+        ok = false;
+      }
+      if (!sail_fault.faulted) {
+        fprintf(stderr, "  Sail: expected fault but none occurred\n");
+        ok = false;
+      }
+      if (kvm_fault.faulted && sail_fault.faulted) {
+        if (kvm_fault.vector != sail_fault.vector) {
+          fprintf(stderr, "  MISMATCH vector: kvm=%d sail=%d\n",
+                  kvm_fault.vector, sail_fault.vector);
+          ok = false;
+        }
+        if (kvm_fault.error_code != sail_fault.error_code) {
+          fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.error_code, sail_fault.error_code);
+          ok = false;
+        }
+        if (tc.expected_vector >= 0 && kvm_fault.vector != tc.expected_vector) {
+          fprintf(stderr, "  UNEXPECTED vector: got %d expected %d\n",
+                  kvm_fault.vector, tc.expected_vector);
+          ok = false;
+        }
+      }
 
-    // Compare registers.
-    bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
-                                tc.cmp_mxcsr);
-
-    // Compare memory.
-    if (tc.compare_data_len > 0 &&
-        memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
-      ok = false;
-    }
-
-    if (ok) {
-      passed++;
+      if (ok) {
+        passed++;
+      } else {
+        fprintf(stderr, "FAIL: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
+                tc.name.c_str(),
+                kvm_fault.vector, kvm_fault.error_code, kvm_fault.faulting_rip,
+                sail_fault.vector, sail_fault.error_code, sail_fault.faulting_rip);
+        failed++;
+      }
     } else {
-      fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
-      kvm_state.print("KVM");
-      sail_state.print("Sail");
+      // Normal test: compare architectural state.
+      ArchState kvm_state = vm.run_test();
+
+      u8 kvm_data[4096] = {}, sail_data[4096] = {};
+      if (tc.compare_data_len > 0)
+        vm.read_data(kvm_data, tc.compare_data_len);
+
+      ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
+
+      bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
+                                  tc.cmp_mxcsr);
+
       if (tc.compare_data_len > 0 &&
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
-        fprintf(stderr, "  DATA MISMATCH (%zu bytes):\n", tc.compare_data_len);
-        fprintf(stderr, "    KVM: ");
-        for (size_t i = 0; i < tc.compare_data_len; i++)
-          fprintf(stderr, "%02x", kvm_data[i]);
-        fprintf(stderr, "\n    Sail:");
-        for (size_t i = 0; i < tc.compare_data_len; i++)
-          fprintf(stderr, "%02x", sail_data[i]);
-        fprintf(stderr, "\n");
+        ok = false;
       }
-      failed++;
+
+      if (ok) {
+        passed++;
+      } else {
+        fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
+        kvm_state.print("KVM");
+        sail_state.print("Sail");
+        if (tc.compare_data_len > 0 &&
+            memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
+          fprintf(stderr, "  DATA MISMATCH (%zu bytes):\n", tc.compare_data_len);
+          fprintf(stderr, "    KVM: ");
+          for (size_t i = 0; i < tc.compare_data_len; i++)
+            fprintf(stderr, "%02x", kvm_data[i]);
+          fprintf(stderr, "\n    Sail:");
+          for (size_t i = 0; i < tc.compare_data_len; i++)
+            fprintf(stderr, "%02x", sail_data[i]);
+          fprintf(stderr, "\n");
+        }
+        failed++;
+      }
     }
   }
 

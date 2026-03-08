@@ -412,11 +412,33 @@ function dispatch_vex_0f(opcode, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src_ymm(modrm, rm, pfx);
-      write_ymm(dst, src);
-      Ok()
-    } else { let src = decode_vex_src_xmm(modrm, rm, pfx); write_xmm(dst, src); Ok() }
+    match rm {
+      RM_reg(_) => {
+        if pfx.vex_l then {
+          write_ymm(dst, read_ymm(modrm_xmm_rm(modrm, pfx)));
+        } else {
+          write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx)));
+        };
+        Ok()
+      },
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
+        if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0()
+          else {
+            write_ymm(dst, mem_read256(a));
+            Ok()
+          }
+        } else {
+          if unsigned(a) % 16 != 0 then raise_GP0()
+          else {
+            write_xmm(dst, mem_read128(a));
+            Ok()
+          }
+        }
+      },
+    }
   },
 
   // 0F 29: VMOVAPS/VMOVAPD (store)
@@ -427,13 +449,26 @@ function dispatch_vex_0f(opcode, pfx) = {
     match rm {
       RM_reg(_) => {
         let dst = modrm_xmm_rm(modrm, pfx);
-        if pfx.vex_l then { write_ymm(dst, read_ymm(src)); Ok() }
-        else { write_xmm(dst, read_xmm(src)); Ok() }
+        if pfx.vex_l then {
+          write_ymm(dst, read_ymm(src)); Ok()
+        } else {
+          write_xmm(dst, read_xmm(src)); Ok()
+        }
       },
       RM_mem(addr) => {
         let a = fixup_addr(addr);
-        if pfx.vex_l then { mem_write256(a, read_ymm(src)); Ok() }
-        else { mem_write128(a, read_xmm(src)); Ok() }
+        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
+        if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0()
+          else {
+            mem_write256(a, read_ymm(src)); Ok()
+          }
+        } else {
+          if unsigned(a) % 16 != 0 then raise_GP0()
+          else {
+            mem_write128(a, read_xmm(src)); Ok()
+          }
+        }
       },
     }
   },
