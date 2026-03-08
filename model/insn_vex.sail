@@ -2253,6 +2253,107 @@ function dispatch_vex_0f38(opcode, pfx) = {
     }
   },
 
+  // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src
+  242 => {
+    if mp != MP_NONE then raise_UD()
+    else {
+      let modrm = fetch_byte();
+      let dst = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let os : OperandSize = if pfx.vex_w then OS64 else OS32;
+      let src = read_rm_val(rm, os, true);
+      let v : gpr_idx = pfx.vex_vvvv % 16;
+      let vval : qword = read_gpr(v, os);
+      let result : qword = ~(vval) & src;
+      write_gpr(dst, os, result);
+      SF = bool_to_bit(if pfx.vex_w then result[63] == bitone else result[31] == bitone);
+      ZF = bool_to_bit(if pfx.vex_w then result == zeros() else result[31..0] == zeros());
+      OF = bitzero;
+      CF = bitzero;
+      Ok()
+    }
+  },
+
+  // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg
+  243 => {
+    if mp != MP_NONE then raise_UD()
+    else {
+      let modrm = fetch_byte();
+      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+      let rm = decode_rm(modrm, pfx);
+      let os : OperandSize = if pfx.vex_w then OS64 else OS32;
+      let src : qword = read_rm_val(rm, os, true);
+      let dst : gpr_idx = pfx.vex_vvvv % 16;
+      match reg_field {
+        1 => {
+          // BLSR: dest = (src - 1) & src
+          let result : qword = (src - 1) & src;
+          write_gpr(dst, os, result);
+          SF = bool_to_bit(if pfx.vex_w then result[63] == bitone else result[31] == bitone);
+          ZF = bool_to_bit(if pfx.vex_w then result == zeros() else result[31..0] == zeros());
+          CF = bool_to_bit(if pfx.vex_w then src == zeros() else src[31..0] == zeros());
+          OF = bitzero;
+          Ok()
+        },
+        2 => {
+          // BLSMSK: dest = (src - 1) ^ src
+          let result : qword = (src - 1) ^ src;
+          write_gpr(dst, os, result);
+          SF = bool_to_bit(if pfx.vex_w then result[63] == bitone else result[31] == bitone);
+          ZF = bitzero;
+          CF = bool_to_bit(if pfx.vex_w then src == zeros() else src[31..0] == zeros());
+          OF = bitzero;
+          Ok()
+        },
+        3 => {
+          // BLSI: dest = (-src) & src (isolate lowest set bit)
+          let neg_src : qword = ~(src) + 1;
+          let result : qword = neg_src & src;
+          write_gpr(dst, os, result);
+          SF = bool_to_bit(if pfx.vex_w then result[63] == bitone else result[31] == bitone);
+          ZF = bool_to_bit(if pfx.vex_w then result == zeros() else result[31..0] == zeros());
+          CF = bool_to_bit(if pfx.vex_w then src != zeros() else src[31..0] != zeros());
+          OF = bitzero;
+          Ok()
+        },
+        _ => raise_UD(),
+      }
+    }
+  },
+
+  // 0F38 F7: BEXTR (NP, VEX.NDS.LZ) — bit field extract
+  247 => {
+    if mp != MP_NONE then raise_UD()
+    else {
+      let modrm = fetch_byte();
+      let dst = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let os : OperandSize = if pfx.vex_w then OS64 else OS32;
+      let src : qword = read_rm_val(rm, os, true);
+      let v : gpr_idx = pfx.vex_vvvv % 16;
+      let ctrl : qword = read_gpr(v, os);
+      let start : range(0, 255) = unsigned(ctrl[7..0]);
+      let len : range(0, 255) = unsigned(ctrl[15..8]);
+      let os_bits : {32, 64} = if pfx.vex_w then 64 else 32;
+      var result : qword = zeros();
+      if start < os_bits then {
+        let shifted : qword = src >> start;
+        if len >= os_bits then {
+          result = shifted
+        } else {
+          // Create mask with len low bits set
+          let shift_amt : range(0, 255) = 64 - len;
+          result = (shifted << shift_amt) >> shift_amt
+        }
+      };
+      write_gpr(dst, os, result);
+      ZF = bool_to_bit(if pfx.vex_w then result == zeros() else result[31..0] == zeros());
+      OF = bitzero;
+      CF = bitzero;
+      Ok()
+    }
+  },
+
   _ => raise_UD(),
   }
 }
