@@ -319,7 +319,7 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
     u64 val = host_auxv[i + 1];
     switch (type) {
     case AT_SYSINFO_EHDR: continue;  // host vDSO, not applicable
-    case AT_EXECFN:       val = argv_ptrs[0]; break;
+    case AT_EXECFN:   val = argv_ptrs[0]; break;
     case AT_PHDR:     val = elf.phdr_addr; break;
     case AT_PHENT:    val = elf.phdr_size; break;
     case AT_PHNUM:    val = elf.phdr_num; break;

@@ -20,8 +20,6 @@ static constexpr int R10 = 10;
 static constexpr int R8 = 8;
 static constexpr int R9 = 9;
 
-
-
 void emulate_syscall(x86::Model &model) {
   u64 syscall_nr = model.zGPR.data[RAX];
   u64 arg1 = model.zGPR.data[RDI];
