@@ -374,6 +374,22 @@ function dispatch_2byte_gpr(op, pfx) = {
             raise_GP0()
           }
         },
+        // 0F 01 CA: CLAC — Clear AC flag (SMAP)
+        202 => { AC_flag = bitzero; Ok() },
+        // 0F 01 CB: STAC — Set AC flag (SMAP)
+        203 => { AC_flag = bitone; Ok() },
+        // 0F 01 E8: SERIALIZE — NOP in sequential interpreter
+        232 => Ok(),
+        // 0F 01 EE: RDPKRU — Read Protection Key Rights (ECX must be 0)
+        // Returns PKRU in EAX, 0 in EDX.  We don't implement PKU, so
+        // return 0 (all access allowed).
+        238 => {
+          write_gpr32(RAX, 0x00000000);
+          write_gpr32(RDX, 0x00000000);
+          Ok()
+        },
+        // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
+        239 => Ok(),
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
           if cur_cpl != 0 then raise_GP0()

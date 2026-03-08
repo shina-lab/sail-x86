@@ -986,22 +986,41 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       },
 
       // 8F /0: POP r/m (d64)
+      // SDM: "If the RSP register is used as a base register for addressing
+      // a destination operand in memory, the POP instruction computes the
+      // effective address of the operand after it increments the RSP register."
       143 => {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         if reg_field == 0 then {
-          let rm = decode_rm(modrm, pfx);
           let os = get_operand_size_d64(pfx);
-          match rm {
-            RM_reg(idx) => exec_pop_reg(idx, os),
-            RM_mem(addr) => {
-              match os {
-                OS64 => mem_write64(addr, pop64()),
-                OS16 => mem_write16(addr, pop16()),
-                _ => (),
-              };
-              Ok()
-            },
+          let mod_field : range(0, 3) = unsigned(modrm[7..6]);
+          let rm_field : range(0, 7) = unsigned(modrm[2..0]);
+          if mod_field == 3 then {
+            // Register destination — no address computation issue
+            let idx = extend_reg(rm_field, pfx.rex_b);
+            exec_pop_reg(idx, os)
+          } else {
+            // Memory destination: pop first, THEN compute effective address
+            // (SDM requires RSP-relative addresses use the post-pop RSP).
+            // We pop first so that decode_rm sees the updated RSP.
+            let v : qword = match os {
+              OS64 => pop64(),
+              OS16 => zero_extend(pop16()),
+              _ => zeros(),
+            };
+            let rm = decode_rm(modrm, pfx);
+            match rm {
+              RM_mem(addr) => {
+                match os {
+                  OS64 => mem_write64(addr, v),
+                  OS16 => mem_write16(addr, v[15..0]),
+                  _ => (),
+                };
+                Ok()
+              },
+              _ => raise_UD(),
+            }
           }
         } else {
           raise_UD()
