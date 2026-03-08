@@ -5247,6 +5247,75 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // FP Edge — MXCSR rounding mode tests
+  // =====================================================================
+  // CVTPS2DQ uses MXCSR rounding mode (bits 14:13).
+  // Test with values where rounding mode matters: 1.5, 2.5, -1.5, -0.5, 0.7
+  {
+    const char *rc_names[] = {"RN", "RD", "RU", "RZ"};
+    // MXCSR: default 0x1F80, RC bits at 14:13
+    for (int rc = 0; rc < 4; rc++) {
+      u32 mxcsr = 0x1F80 | (rc << 13);
+      float test_vals[] = {1.5f, 2.5f, -1.5f, -2.5f, -0.5f, 0.7f, 3.3f, -3.7f};
+      for (int i = 0; i < 8; i++) {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = mxcsr;
+        s.xmm[0] = xmm_from_f32(test_vals[i], test_vals[i],
+                                  test_vals[i], test_vals[i]);
+        char n[128];
+        snprintf(n, sizeof(n), "cvtps2dq RC=%s %.1f", rc_names[rc], test_vals[i]);
+        // CVTPS2DQ xmm0, xmm0: 66 0F 5B C0
+        add_xmm(n, {0x66, 0x0F, 0x5B, 0xC0}, s, 0x1);
+      }
+
+      // Also test CVTSS2SI (scalar f32 -> i32 with rounding)
+      for (int i = 0; i < 8; i++) {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = mxcsr;
+        s.xmm[0] = xmm_from_f32(test_vals[i], 0.0f, 0.0f, 0.0f);
+        char n[128];
+        snprintf(n, sizeof(n), "cvtss2si RC=%s %.1f", rc_names[rc], test_vals[i]);
+        // CVTSS2SI eax, xmm0: F3 0F 2D C0
+        add_xmm(n, {0xF3, 0x0F, 0x2D, 0xC0}, s, 0x0);
+      }
+    }
+
+    // CVTPD2DQ with rounding modes
+    for (int rc = 0; rc < 4; rc++) {
+      u32 mxcsr = 0x1F80 | (rc << 13);
+      double dvals[] = {1.5, 2.5, -1.5, -2.5};
+      for (int i = 0; i < 4; i++) {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = mxcsr;
+        s.xmm[0] = xmm_from_f64(dvals[i], dvals[i]);
+        char n[128];
+        snprintf(n, sizeof(n), "cvtpd2dq RC=%s %.1f", rc_names[rc], dvals[i]);
+        // CVTPD2DQ xmm0, xmm0: F2 0F E6 C0
+        add_xmm(n, {0xF2, 0x0F, 0xE6, 0xC0}, s, 0x1);
+      }
+    }
+
+    // ADDPS with rounding modes (test with values that produce different results)
+    for (int rc = 0; rc < 4; rc++) {
+      u32 mxcsr = 0x1F80 | (rc << 13);
+      // 1.0f + 2^-24 = 1.0000000596... — depends on rounding
+      u32 one = 0x3F800000;       // 1.0f
+      u32 tiny = 0x33800000;      // 2^-24
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.mxcsr = mxcsr;
+      s.xmm[0] = xmm_from_u32(one, one, one, one);
+      s.xmm[1] = xmm_from_u32(tiny, tiny, tiny, tiny);
+      char n[128];
+      snprintf(n, sizeof(n), "addps RC=%s 1+ulp", rc_names[rc]);
+      add_xmm(n, {0x0F, 0x58, 0xC1}, s, 0x3);
+    }
+  }
+
   add_systematic_tests(tests);
 
   return tests;
