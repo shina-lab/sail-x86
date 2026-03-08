@@ -349,6 +349,7 @@ u64 Model::z__int32_to_f64(u64 a) {
 
 u64 Model::z__int64_to_f64(u64 a) {
     i64 ia = (i64)a;
+    SYNC_MXCSR_RC();
     double fr = (double)ia;
     u64 r; memcpy(&r, &fr, 8);
     return r;
@@ -356,6 +357,7 @@ u64 Model::z__int64_to_f64(u64 a) {
 
 u64 Model::z__int32_to_f32(u64 a) {
     i32 ia = (i32)a;
+    SYNC_MXCSR_RC();
     float fr = (float)ia;
     u32 r; memcpy(&r, &fr, 4);
     return r;
@@ -363,6 +365,7 @@ u64 Model::z__int32_to_f32(u64 a) {
 
 u64 Model::z__int64_to_f32(u64 a) {
     i64 ia = (i64)a;
+    SYNC_MXCSR_RC();
     float fr = (float)ia;
     u32 r; memcpy(&r, &fr, 4);
     return r;
@@ -1456,10 +1459,12 @@ u64 Model::z__f64_to_uint64(u64 a) {
     return (u64)rint(fa);
 }
 u64 Model::z__uint32_to_f32(u64 a) {
+    SYNC_MXCSR_RC();
     float fr = (float)(u32)a;
     u32 r; memcpy(&r, &fr, 4); return r;
 }
 u64 Model::z__uint64_to_f32(u64 a) {
+    SYNC_MXCSR_RC();
     float fr = (float)(u64)a;
     u32 r; memcpy(&r, &fr, 4); return r;
 }
@@ -1468,6 +1473,7 @@ u64 Model::z__uint32_to_f64(u64 a) {
     u64 r; memcpy(&r, &fr, 8); return r;
 }
 u64 Model::z__uint64_to_f64(u64 a) {
+    SYNC_MXCSR_RC();
     double fr = (double)(u64)a;
     u64 r; memcpy(&r, &fr, 8); return r;
 }
