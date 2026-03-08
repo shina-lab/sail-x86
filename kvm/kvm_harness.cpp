@@ -581,9 +581,9 @@ done:
 // boundary values that trigger flag transitions, overflow, sign changes,
 // and operand-size edge cases.
 
-// 22 values chosen to hit: zero, one, -1, signed min/max at each operand
-// size (8/16/32/64), unsigned max at each size, alternating bit patterns,
-// the 32/64-bit boundary, and near-boundary values.
+// 30 values chosen to hit: zero, one, -1, signed min/max at each operand
+// size (8/16/32/64), unsigned max at each size, just-past-boundary values,
+// near-boundary ±1 values, alternating bit patterns, and sign-extension edges.
 static const u64 VALS[] = {
     0x0000000000000000,  // zero
     0x0000000000000001,  // one
@@ -607,6 +607,15 @@ static const u64 VALS[] = {
     0x7FFFFFFFFFFFFFFE,  // INT64_MAX - 1
     0x8000000000000001,  // INT64_MIN + 1
     0x123456789ABCDEF0,  // non-trivial mixed pattern
+    // --- off-by-one / cross-boundary additions ---
+    0x0000000000000100,  // UINT8_MAX + 1 (256): 8→16 bit overflow boundary
+    0x0000000000010000,  // UINT16_MAX + 1 (65536): 16→32 bit overflow boundary
+    0x00000000FFFFFFFE,  // UINT32_MAX - 1: near 32-bit unsigned wrap
+    0x00000000000000FE,  // UINT8_MAX - 1: near 8-bit unsigned wrap
+    0x000000000000FFFE,  // UINT16_MAX - 1: near 16-bit unsigned wrap
+    0xFFFFFFFF00000000,  // upper dword set: sign-extension edge (32-bit ops see 0)
+    0x000000007FFFFFFE,  // INT32_MAX - 1: near 32-bit signed overflow
+    0x0000000080000001,  // INT32_MIN + 1: near 32-bit signed underflow
 };
 constexpr int NVALS = sizeof(VALS) / sizeof(u64);
 
