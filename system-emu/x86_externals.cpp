@@ -1053,12 +1053,16 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
     CPUID_1_ECX_SSE3 | CPUID_1_ECX_SSSE3 | CPUID_1_ECX_CX16 |
     CPUID_1_ECX_SSE4_1 | CPUID_1_ECX_SSE4_2 | CPUID_1_ECX_POPCNT;
 
+  auto pack = [](const char *p) -> u32 {
+    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+  };
+
   switch (leaf) {
   case 0:
     result.ztup0 = 0x07;    // max basic leaf
-    result.ztup1 = 0x756E6547;  // "Genu"
-    result.ztup2 = 0x6C65746E;  // "ntel"
-    result.ztup3 = 0x49656E69;  // "ineI"
+    result.ztup1 = pack("Genu");
+    result.ztup2 = pack("ntel");
+    result.ztup3 = pack("ineI");
     break;
   case 1:
     // EAX: Family 6, Model 0x5E, Stepping 3
@@ -1091,16 +1095,15 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
     result.ztup3 = EMU_CPUID_EXT1_EDX;
     break;
   case 0x80000002:
-    // Processor brand string part 1: "Sail"
-    result.ztup0 = 0x6C696153;  // "Sail"
-    result.ztup1 = 0x38782D20;  // " x8"
-    result.ztup2 = 0x34362D36;  // "6-64"
-    result.ztup3 = 0x6F724520;  // " Emu"
+    // Processor brand string part 1
+    result.ztup0 = pack("Sail");
+    result.ztup1 = pack(" x86");
+    result.ztup2 = pack("-64 ");
+    result.ztup3 = pack("Emul");
     break;
   case 0x80000003:
-    // Processor brand string part 2: "lato"
-    result.ztup0 = 0x6F74616C;  // "lato"
-    result.ztup1 = 0x00000072;  // "r\0"
+    // Processor brand string part 2
+    result.ztup0 = pack("ator");
     break;
   case 0x80000004:
     // Processor brand string part 3 (empty)
