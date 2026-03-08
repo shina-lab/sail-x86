@@ -10798,6 +10798,177 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // Vector memory stores — verify memory output
+  // =====================================================================
+  cat = "Vec stores";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.xmm[0] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+    s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL);
+
+    // MOVAPS [rdi], xmm0: 0F 29 07
+    {
+      TestCase tc;
+      tc.name = "movaps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x29, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVUPS [rdi], xmm0: 0F 11 07
+    {
+      TestCase tc;
+      tc.name = "movups [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVDQU [rdi], xmm0: F3 0F 7F 07
+    {
+      TestCase tc;
+      tc.name = "movdqu [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF3, 0x0F, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVDQA [rdi], xmm0: 66 0F 7F 07
+    {
+      TestCase tc;
+      tc.name = "movdqa [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x66, 0x0F, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVLPS [rdi], xmm0: 0F 13 07 (store low 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movlps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x13, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVHPS [rdi], xmm0: 0F 17 07 (store high 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movhps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x17, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVSS [rdi], xmm0: F3 0F 11 07 (store 32 bits)
+    {
+      TestCase tc;
+      tc.name = "movss [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF3, 0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVSD [rdi], xmm0: F2 0F 11 07 (store 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movsd [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF2, 0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVAPS [rdi], xmm0: C5 F8 29 07
+    {
+      TestCase tc;
+      tc.name = "vmovaps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x29, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVDQU [rdi], xmm0: C5 FA 7F 07
+    {
+      TestCase tc;
+      tc.name = "vmovdqu [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xFA, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVAPS [rdi], ymm0: need to set up ymm0 first
+    // Use VINSERTF128 ymm0, ymm0, xmm1, 1 (C4 E3 7D 18 C1 01) to set hi half
+    {
+      TestCase tc;
+      tc.name = "vmovaps [rdi],ymm0 (32 bytes)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
+                 0xC5, 0xFC, 0x29, 0x07};               // vmovaps [rdi], ymm0
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 32;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVDQU [rdi], ymm0: C5 FE 7F 07
+    {
+      TestCase tc;
+      tc.name = "vmovdqu [rdi],ymm0 (32 bytes)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
+                 0xC5, 0xFE, 0x7F, 0x07};               // vmovdqu [rdi], ymm0
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 32;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
   // VPERM2F128 — 256-bit lane permute (use VINSERTF128 to set up YMM state)
   // =====================================================================
   cat = "VPERM2F128";

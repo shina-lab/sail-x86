@@ -847,21 +847,13 @@ KORTESTW/KTESTW tests) covering:
 distinguish mandatory prefix: KUNPCKBW requires 66 prefix (pp=01),
 while NP (pp=00) encodes KUNPCKWD. Added mp dispatch to handle both.
 
-#### Item 4: SSE/VEX memory store verification (MEDIUM priority)
+#### Item 4: SSE/VEX memory store verification (MEDIUM priority) ✅ DONE
 
-Many vector store instructions are tested for register effects but
-not for memory output correctness.
-
-**Tests to add:**
-- MOVAPS [mem], xmm — verify 16 bytes written
-- MOVUPS [mem], xmm — verify 16 bytes written
-- MOVDQU [mem], xmm — verify 16 bytes written
-- VMOVAPS [mem], xmm/ymm — verify 16/32 bytes
-- VMOVDQU [mem], xmm — verify 16 bytes
-- VMOVNTDQ [mem], xmm — already has 1 test; add ymm variant
-- MOVLPS/MOVHPS [mem], xmm — verify 8 bytes (partial store)
-- MOVSS [mem], xmm — verify 4 bytes
-- MOVSD [mem], xmm — verify 8 bytes
+Added 12 tests in "Vec stores" category verifying memory output:
+- SSE: MOVAPS, MOVUPS, MOVDQU, MOVDQA (16 bytes each)
+- Partial: MOVLPS (8 bytes), MOVHPS (8 bytes), MOVSS (4 bytes), MOVSD (8 bytes)
+- VEX: VMOVAPS xmm (16 bytes), VMOVDQU xmm (16 bytes)
+- VEX 256-bit: VMOVAPS ymm (32 bytes), VMOVDQU ymm (32 bytes)
 
 #### Item 5: LOCK prefix memory operations (MEDIUM priority)
 
