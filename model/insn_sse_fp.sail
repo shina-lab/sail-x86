@@ -91,7 +91,7 @@ function cmp_pred_f32(a, b, pred) = {
     0b011 => result == FP_UNORDERED,
     0b100 => result != FP_EQ,
     0b101 => result != FP_LT,
-    0b110 => result == FP_GT,
+    0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
     0b111 => result != FP_UNORDERED,
   };
   if cond then ones() else zeros()
@@ -107,7 +107,7 @@ function cmp_pred_f64(a, b, pred) = {
     0b011 => result == FP_UNORDERED,
     0b100 => result != FP_EQ,
     0b101 => result != FP_LT,
-    0b110 => result == FP_GT,
+    0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
     0b111 => result != FP_UNORDERED,
   };
   if cond then ones() else zeros()
