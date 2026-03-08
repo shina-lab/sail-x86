@@ -146,6 +146,7 @@ set(KVM_CATEGORIES
   VPERM2F128
   "VEX insert/extract i128"
   VPMASKMOVD
+  "x87 mem"
 )
 
 foreach(cat ${KVM_CATEGORIES})

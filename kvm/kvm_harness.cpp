@@ -4721,6 +4721,216 @@ static void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // x87 expanded: D8 memory forms (FADD/FSUB/FMUL/FDIV m32fp)
+  // =====================================================================
+  cat = "x87 mem";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FADD m32fp: FILD 10 + FADD [RDI+4] (m32fp 3.0) + FISTP [RDI]
+    // D8 07 = FADD m32fp [RDI]
+    float f3 = 3.0f;
+    u8 fadd_data[8] = {};
+    // [RDI+0..3] = int 10, [RDI+4..7] = float 3.0
+    fadd_data[0] = 10; fadd_data[1] = 0; fadd_data[2] = 0; fadd_data[3] = 0;
+    memcpy(fadd_data + 4, &f3, 4);
+    // FILD m32 [RDI] (DB 07) + FADD m32fp [RDI+4] (D8 47 04) + FISTP m32 [RDI] (DB 1F)
+    // 10 + 3.0 = 13.0 → FISTP → 13
+    tests.push_back({"fild+fadd m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x47, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fadd_data, fadd_data + 8}, 4});
+
+    // FSUB m32fp: FILD 10 + FSUB [RDI+4] (m32fp 3.0) + FISTP [RDI]
+    // D8 27 = FSUB m32fp [RDI], D8 67 04 = FSUB m32fp [RDI+4]
+    // 10 - 3.0 = 7.0 → 7
+    tests.push_back({"fild+fsub m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x67, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fadd_data, fadd_data + 8}, 4});
+
+    // FMUL m32fp: FILD 10 + FMUL [RDI+4] (m32fp 3.0) + FISTP [RDI]
+    // D8 0F = FMUL m32fp [RDI], D8 4F 04 = FMUL m32fp [RDI+4]
+    // 10 * 3.0 = 30.0 → 30
+    tests.push_back({"fild+fmul m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x4F, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fadd_data, fadd_data + 8}, 4});
+
+    // FDIV m32fp: FILD 10 + FDIV [RDI+4] (m32fp 2.0) + FISTP [RDI]
+    float f2 = 2.0f;
+    u8 fdiv_data[8] = {};
+    fdiv_data[0] = 10; fdiv_data[1] = 0; fdiv_data[2] = 0; fdiv_data[3] = 0;
+    memcpy(fdiv_data + 4, &f2, 4);
+    // D8 77 04 = FDIV m32fp [RDI+4]
+    // 10 / 2.0 = 5.0 → 5
+    tests.push_back({"fild+fdiv m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x77, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fdiv_data, fdiv_data + 8}, 4});
+
+    // DC memory forms (m64fp): FADD/FSUB/FMUL/FDIV
+    double d5 = 5.0;
+    u8 dc_data[16] = {};
+    // [RDI+0..3] = int 20, [RDI+8..15] = double 5.0
+    dc_data[0] = 20; dc_data[1] = 0; dc_data[2] = 0; dc_data[3] = 0;
+    memcpy(dc_data + 8, &d5, 8);
+
+    // FILD m32 [RDI] + FADD m64fp [RDI+8] + FISTP m32 [RDI]
+    // DC 47 08 = FADD m64fp [RDI+8], 20+5=25
+    tests.push_back({"fild+fadd m64fp+fistp", cat,
+                      {0xDB, 0x07, 0xDC, 0x47, 0x08, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {dc_data, dc_data + 16}, 4});
+
+    // FILD m32 [RDI] + FSUB m64fp [RDI+8] + FISTP m32 [RDI]
+    // DC 67 08 = FSUB m64fp [RDI+8], 20-5=15
+    tests.push_back({"fild+fsub m64fp+fistp", cat,
+                      {0xDB, 0x07, 0xDC, 0x67, 0x08, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {dc_data, dc_data + 16}, 4});
+
+    // FILD m32 [RDI] + FMUL m64fp [RDI+8] + FISTP m32 [RDI]
+    // DC 4F 08 = FMUL m64fp [RDI+8], 20*5=100
+    tests.push_back({"fild+fmul m64fp+fistp", cat,
+                      {0xDB, 0x07, 0xDC, 0x4F, 0x08, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {dc_data, dc_data + 16}, 4});
+
+    // FILD m32 [RDI] + FDIV m64fp [RDI+8] + FISTP m32 [RDI]
+    // DC 77 08 = FDIV m64fp [RDI+8], 20/5=4
+    tests.push_back({"fild+fdiv m64fp+fistp", cat,
+                      {0xDB, 0x07, 0xDC, 0x77, 0x08, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {dc_data, dc_data + 16}, 4});
+
+    // DA integer ops (FIADD/FISUB/FIMUL/FIDIV m32int)
+    u8 ia_data[8] = {};
+    ia_data[0] = 10; ia_data[1] = 0; ia_data[2] = 0; ia_data[3] = 0;
+    ia_data[4] = 3;  ia_data[5] = 0; ia_data[6] = 0; ia_data[7] = 0;
+
+    // FILD m32 [RDI] + FIADD m32 [RDI+4] + FISTP m32 [RDI]
+    // DA 47 04 = FIADD m32int [RDI+4], 10+3=13
+    tests.push_back({"fild+fiadd m32+fistp", cat,
+                      {0xDB, 0x07, 0xDA, 0x47, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {ia_data, ia_data + 8}, 4});
+
+    // DA 67 04 = FISUB m32int [RDI+4], 10-3=7
+    tests.push_back({"fild+fisub m32+fistp", cat,
+                      {0xDB, 0x07, 0xDA, 0x67, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {ia_data, ia_data + 8}, 4});
+
+    // DA 4F 04 = FIMUL m32int [RDI+4], 10*3=30
+    tests.push_back({"fild+fimul m32+fistp", cat,
+                      {0xDB, 0x07, 0xDA, 0x4F, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {ia_data, ia_data + 8}, 4});
+
+    // FIDIV: use 10 / 2 = 5
+    u8 idiv_data[8] = {};
+    idiv_data[0] = 10; idiv_data[1] = 0; idiv_data[2] = 0; idiv_data[3] = 0;
+    idiv_data[4] = 2;  idiv_data[5] = 0; idiv_data[6] = 0; idiv_data[7] = 0;
+    // DA 77 04 = FIDIV m32int [RDI+4], 10/2=5
+    tests.push_back({"fild+fidiv m32+fistp", cat,
+                      {0xDB, 0x07, 0xDA, 0x77, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {idiv_data, idiv_data + 8}, 4});
+
+    // DE integer ops with pop (i16): FIADD/FISUB/FIMUL/FIDIV m16int
+    u8 de_data[4] = {};
+    de_data[0] = 10; de_data[1] = 0;  // int16 = 10
+    de_data[2] = 3;  de_data[3] = 0;  // int16 = 3
+
+    // FILD m16 [RDI+2] + FILD m16 [RDI] + DE 47 02 (FIADD m16 [RDI+2]) + FISTP m32 [RDI]
+    // Actually simpler: FILD m16 [RDI] → 10 on stack, FIADD m16 [RDI+2] → 10+3=13
+    // DF 07 (FILD m16 [RDI]) + DE 47 02 (FIADD m16 [RDI+2]) + DB 1F (FISTP m32)
+    tests.push_back({"fild m16+fiadd m16+fistp", cat,
+                      {0xDF, 0x07, 0xDE, 0x47, 0x02, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {de_data, de_data + 4}, 4});
+
+    // FSINCOS: push sin and cos simultaneously
+    // D9 EE (FLDZ) + D9 FB (FSINCOS) + DD 1F (FSTP [RDI]) + DD 5F 08 (FSTP [RDI+8])
+    // sin(0)=0, cos(0)=1 → FSINCOS pushes: ST(0)=cos(0)=1.0, ST(1)=sin(0)=0.0
+    // FSTP [RDI] stores cos=1.0, FSTP [RDI+8] stores sin=0.0
+    tests.push_back({"fldz+fsincos+fstp+fstp", cat,
+                      {0xD9, 0xEE, 0xD9, 0xFB, 0xDD, 0x1F, 0xDD, 0x5F, 0x08},
+                      s, FL_ALL, 0, false, {}, 16});
+
+    // FCMOVB: conditional move if CF=1
+    // Set CF via STC (F9), then FLD1 + FLDZ + FCMOVB ST(0),ST(1) + FSTP
+    // FLDZ → ST(0)=0, FLD1 → ST(0)=1, ST(1)=0
+    // Wait, FCMOVB moves ST(i) to ST(0) if below (CF=1)
+    // FLD1 + FLDZ → ST(0)=0, ST(1)=1
+    // STC sets CF, FCMOVB ST(0),ST(1) → ST(0) = ST(1) = 1.0
+    // DA C1 = FCMOVB ST(0), ST(1)
+    ArchState sc = {};
+    sc.rflags = 0x2;
+    sc.rdi = DATA_ADDR;
+    tests.push_back({"fld1+fldz+stc+fcmovb+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xF9, 0xDA, 0xC1, 0xDD, 0x1F},
+                      sc, FL_ALL, 0, false, {}, 8});
+
+    // FCMOVNB: conditional move if CF=0 (no carry)
+    // CLC (F8), FLD1 + FLDZ + FCMOVNB ST(0),ST(1) + FSTP
+    // DB C1 = FCMOVNB ST(0), ST(1)
+    tests.push_back({"fld1+fldz+clc+fcmovnb+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0xF8, 0xDB, 0xC1, 0xDD, 0x1F},
+                      sc, FL_ALL, 0, false, {}, 8});
+
+    // FCMOVE: conditional move if ZF=1
+    // Set ZF: XOR EAX,EAX (31 C0), then FLD1 + FLDZ + FCMOVE + FSTP
+    // DA C9 = FCMOVE ST(0), ST(1)
+    tests.push_back({"fld1+fldz+xor eax+fcmove+fstp", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEE, 0x31, 0xC0, 0xDA, 0xC9, 0xDD, 0x1F},
+                      sc, FL_ALL, 0, false, {}, 8});
+
+    // FISTTP (SSE3 truncation store): FLDPI + FISTTP m32 [RDI]
+    // DB 0F = FISTTP m32int [RDI]
+    // pi truncated = 3
+    tests.push_back({"fldpi+fisttp m32", cat,
+                      {0xD9, 0xEB, 0xDB, 0x0F},
+                      sc, FL_ALL, 0, false, {}, 4});
+
+    // FISTTP m64: FLDPI + FISTTP m64int [RDI]
+    // DD 0F = FISTTP m64int [RDI]
+    tests.push_back({"fldpi+fisttp m64", cat,
+                      {0xD9, 0xEB, 0xDD, 0x0F},
+                      sc, FL_ALL, 0, false, {}, 8});
+
+    // FISTTP m16: FLDPI + FISTTP m16int [RDI]
+    // DF 0F = FISTTP m16int [RDI]
+    tests.push_back({"fldpi+fisttp m16", cat,
+                      {0xD9, 0xEB, 0xDF, 0x0F},
+                      sc, FL_ALL, 0, false, {}, 2});
+
+    // FCOMIP: compare and pop, setting EFLAGS
+    // FLD1 + FLDPI + DF F1 (FCOMIP ST, ST(1)) — pi > 1, so CF=0, ZF=0
+    tests.push_back({"fld1+fldpi+fcomip", cat,
+                      {0xD9, 0xE8, 0xD9, 0xEB, 0xDF, 0xF1},
+                      sc, FL_ALL, 0, false, {}, 0});
+
+    // FCOMIP equal case
+    // FLD1 + FLD1 + FCOMIP → equal, ZF=1, CF=0, PF=0
+    tests.push_back({"fld1+fld1+fcomip eq", cat,
+                      {0xD9, 0xE8, 0xD9, 0xE8, 0xDF, 0xF1},
+                      sc, FL_ALL, 0, false, {}, 0});
+
+    // FSUBR m32fp: FILD 3 + FSUBR [RDI+4] (m32fp 10.0) + FISTP [RDI]
+    // D8 2F = FSUBR m32fp [RDI], D8 6F 04 = FSUBR m32fp [RDI+4]
+    // FSUBR: ST(0) = mem - ST(0) = 10.0 - 3.0 = 7.0
+    float f10 = 10.0f;
+    u8 fsubr_data[8] = {};
+    fsubr_data[0] = 3; fsubr_data[1] = 0; fsubr_data[2] = 0; fsubr_data[3] = 0;
+    memcpy(fsubr_data + 4, &f10, 4);
+    tests.push_back({"fild+fsubr m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x6F, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fsubr_data, fsubr_data + 8}, 4});
+
+    // FDIVR m32fp: FILD 3 + FDIVR [RDI+4] (m32fp 12.0) + FISTP [RDI]
+    // D8 3F = FDIVR m32fp [RDI], D8 7F 04 = FDIVR m32fp [RDI+4]
+    // FDIVR: ST(0) = mem / ST(0) = 12.0 / 3.0 = 4.0
+    float f12 = 12.0f;
+    u8 fdivr_data[8] = {};
+    fdivr_data[0] = 3; fdivr_data[1] = 0; fdivr_data[2] = 0; fdivr_data[3] = 0;
+    memcpy(fdivr_data + 4, &f12, 4);
+    tests.push_back({"fild+fdivr m32fp+fistp", cat,
+                      {0xDB, 0x07, 0xD8, 0x7F, 0x04, 0xDB, 0x1F},
+                      s, FL_ALL, 0, false, {fdivr_data, fdivr_data + 8}, 4});
+  }
+
+  // =====================================================================
   // 63. EVEX 256-bit (YMM) operations
   //
   // P2: z=0, L'L=01 (256-bit), b=0, V'=1, aaa=000

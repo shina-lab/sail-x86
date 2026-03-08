@@ -804,6 +804,114 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
   but actual atomic semantics require multi-threaded tests)
 - **Segment overrides**: Not applicable in 64-bit flat memory model
 
+### Implementation Roadmap
+
+Prioritized list of test coverage improvements to implement. Each item
+is self-contained and should be committed separately.
+
+#### Item 1: x87 FPU — expand coverage (HIGH priority)
+
+The Sail model fully implements all x87 opcodes (D8-DF), including
+transcendentals, BCD, comparisons, and conditional moves. Current KVM
+tests only verify ~20 instructions via memory output (FSTP/FISTP).
+
+**Tests to add:**
+- **D8 memory forms**: FADD/FSUB/FMUL/FDIV m32fp (load from memory, store result)
+- **DC memory forms**: FADD/FSUB/FMUL/FDIV m64fp
+- **DA integer ops**: FIADD/FISUB/FIMUL/FIDIV m32int
+- **DE integer ops with pop**: FADDP/FSUBP/FMULP/FDIVP (already partially covered)
+- **FCMOVcc**: FCMOVB, FCMOVE, FCMOVBE, FCMOVU (DA C0-DF range)
+- **FCOMIP**: DB F1 (compare and set EFLAGS, pop) — already partial
+- **FSINCOS**: D9 FB (push sin and cos simultaneously)
+- **FLD m80**: DB /5 + FSTP m80 (extended precision round-trip)
+- **FRSTOR/FNSAVE**: DD /4, DD /6 (full FPU state save/restore)
+- **FISTTP**: DF /1 (truncation store, SSE3)
+
+**Approach:** All tests use the "load → compute → store to memory"
+pattern since the harness doesn't track x87 stack state. Compare via
+`compare_data_len`.
+
+#### Item 2: EVEX writemask (k-register masking) tests (HIGH priority)
+
+EVEX instructions support per-element masking via k1-k7 registers.
+Two modes: merge-masking (preserve dest elements) and zero-masking
+(zero out masked elements). Current tests use aaa=000 (no mask).
+
+**Tests to add:**
+- **Merge masking**: VPADDD xmm0{k1}, xmm1, xmm2 with k1 = partial mask
+- **Zero masking**: VPADDD xmm0{k1}{z}, xmm1, xmm2 (z-bit set)
+- **Full mask**: k1 = all-ones (should behave like no mask)
+- **Empty mask**: k1 = 0 (all elements masked — merge preserves dest,
+  zero produces all-zeros)
+- **FP with mask**: VADDPS xmm0{k1}, xmm1, xmm2
+- **256-bit masked**: VPADDD ymm0{k1}, ymm1, ymm2
+
+**Requires:** Setting k-register state. Check if KVM XSAVE area
+supports opmask state (XSTATE component 5, offset 0x440, 64 bytes
+for k0-k7).
+
+#### Item 3: K-register operations (MEDIUM priority)
+
+Only KORTESTW and KTESTW are tested. The following need coverage:
+- KANDW k1, k2, k3 (VEX.L1.0F.W0 41)
+- KORW k1, k2, k3 (VEX.L1.0F.W0 45)
+- KNOTW k1, k2 (VEX.L0.0F.W0 44)
+- KXORW k1, k2, k3 (VEX.L1.0F.W0 47)
+- KANDNW k1, k2, k3 (VEX.L1.0F.W0 42)
+- KXNORW k1, k2, k3 (VEX.L1.0F.W0 46)
+- KUNPCKBW k1, k2, k3 (VEX.L1.0F.W0 4B)
+- KMOVW k, k/m16 (VEX.L0.0F.W0 90/91/92/93)
+
+#### Item 4: SSE/VEX memory store verification (MEDIUM priority)
+
+Many vector store instructions are tested for register effects but
+not for memory output correctness.
+
+**Tests to add:**
+- MOVAPS [mem], xmm — verify 16 bytes written
+- MOVUPS [mem], xmm — verify 16 bytes written
+- MOVDQU [mem], xmm — verify 16 bytes written
+- VMOVAPS [mem], xmm/ymm — verify 16/32 bytes
+- VMOVDQU [mem], xmm — verify 16 bytes
+- VMOVNTDQ [mem], xmm — already has 1 test; add ymm variant
+- MOVLPS/MOVHPS [mem], xmm — verify 8 bytes (partial store)
+- MOVSS [mem], xmm — verify 4 bytes
+- MOVSD [mem], xmm — verify 8 bytes
+
+#### Item 5: LOCK prefix memory operations (MEDIUM priority)
+
+LOCK validation (#UD) is tested, but actual LOCK'd memory semantics
+are not.
+
+**Tests to add:**
+- LOCK ADD [mem], reg (all sizes)
+- LOCK SUB [mem], reg
+- LOCK INC [mem] / LOCK DEC [mem]
+- LOCK BTS [mem], reg / LOCK BTR [mem], reg / LOCK BTC [mem], reg
+- LOCK XADD [mem], reg (verify both memory and register results)
+- LOCK OR [mem], imm / LOCK AND [mem], imm
+
+#### Item 6: Indirect JMP/CALL (LOW priority)
+
+Only direct JMP/CALL tested. Need:
+- JMP rax (FF /4 reg)
+- JMP [mem] (FF /4 mem)
+- CALL rax (FF /2 reg)
+- CALL [mem] (FF /2 mem)
+
+#### Item 7: PUSH/POP memory operands (LOW priority)
+
+- PUSH [mem] (FF /6)
+- POP [mem] (8F /0)
+- PUSH imm16 (66 68 imm16)
+
+#### Item 8: FP conversion edge cases (LOW priority)
+
+- CVTPS2PD with denormals, NaN, Inf, -0
+- CVTPD2PS with precision loss (large doubles)
+- CVTSD2SS round-trip precision
+- CVTSI2SS with large integers (rounding)
+
 ---
 
 ## Exception/Fault Test Plan
