@@ -619,15 +619,19 @@ int main(int argc, char *argv[]) {
   result.kind = x86::Kind_zOk;
   result.variants.zOk = UNIT;
 
-  // PIT timer: tick every N instructions to generate periodic interrupts
-  const u64 PIT_TICK_INTERVAL = 100000; // Tick PIT every 100K instructions
+  // PIT timer: tick every N instructions to generate periodic interrupts.
+  // The PIT runs at 1.193182 MHz. At ~1M interpreted instructions/sec,
+  // 10K instructions ≈ 10ms ≈ 11932 PIT cycles. We tick aggressively
+  // so timer-dependent code (calibrate_delay, jiffies) doesn't stall.
+  const u64 PIT_TICK_INTERVAL = 10000;  // Tick PIT every 10K instructions
+  const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
   while (!model.should_exit) {
-    // Print progress every 10M instructions
-    if (insn_count % 10000000 == 0 && insn_count > 0) {
-      fprintf(stderr, "[progress] %lu Minsns, RIP=0x%lx CR0=0x%lx\n",
-              insn_count / 1000000, (u64)model.zRIP, (u64)model.zCR0);
+    // Print progress every 5M instructions
+    if (insn_count % 5000000 == 0 && insn_count > 0) {
+      fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
+              insn_count / 1000000, (u64)model.zRIP);
     }
     if (debug && !trampoline_dumped && (u64)model.zRIP < 0x100000 && (u64)model.zRIP >= 0x9e000) {
       trampoline_dumped = true;
@@ -648,6 +652,7 @@ int main(int argc, char *argv[]) {
               (u64)model.zCR0, (u64)model.zCR3);
     }
 
+    u64 prev_rip = model.zRIP;
     model.zstep(&result, UNIT);
 
     switch (result.kind) {
@@ -659,7 +664,7 @@ int main(int argc, char *argv[]) {
       // HLT: in system mode, wait for interrupt then continue
       if (model.zsystem_mode) {
         // Tick the PIT to generate a timer interrupt
-        if (model.pit.tick(1000)) {
+        if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
           model.pic_master.raise_irq(0); // IRQ 0 = timer
         }
         insn_count++;
@@ -708,7 +713,7 @@ int main(int argc, char *argv[]) {
 
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
-      if (model.pit.tick(100)) {
+      if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
         model.pic_master.raise_irq(0);
       }
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;

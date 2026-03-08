@@ -208,6 +208,11 @@ public:
   static constexpr u16 BASE = 0x40;
   static constexpr u16 SIZE = 4;
 
+  PIT() {
+    // Channel 2 gate is controlled by port 0x61 bit 0, default off
+    channels[2].gate = false;
+  }
+
   u8 read(u16 port) {
     if (port == 0x43) return 0; // Mode/command (write-only, return 0)
 
@@ -276,25 +281,55 @@ public:
     return port >= BASE && port < BASE + SIZE;
   }
 
-  // Tick the timer by a number of PIT cycles.
+  // Tick all channels by a number of PIT cycles.
   // Returns true if channel 0 generated an IRQ.
   bool tick(u64 cycles) {
-    Channel &c = channels[0];
-    if (c.reload == 0 && c.count == 0) return false;
-
     bool irq = false;
-    for (u64 i = 0; i < cycles; i++) {
-      if (c.count > 0) c.count--;
-      if (c.count == 0) {
-        irq = true;
-        // Mode 2 (rate generator) or Mode 3 (square wave): auto-reload
-        if (c.mode == 2 || c.mode == 3) {
-          c.count = c.reload;
-          if (c.count == 0) c.count = 65536;
+    for (int ch = 0; ch < 3; ch++) {
+      Channel &c = channels[ch];
+      if (!c.gate && ch == 2) continue; // Channel 2 needs gate enabled
+      if (c.reload == 0 && c.count == 0) continue;
+
+      for (u64 i = 0; i < cycles; i++) {
+        if (c.count > 0) c.count--;
+        if (c.count == 0) {
+          c.output = true;
+          if (ch == 0) irq = true;
+          // Mode 2 (rate generator) or Mode 3 (square wave): auto-reload
+          if (c.mode == 2 || c.mode == 3) {
+            c.output = false;
+            c.count = c.reload;
+            if (c.count == 0) c.count = 65536;
+          }
+          // Mode 0 (one-shot): output stays high, count stays 0
         }
       }
     }
     return irq;
+  }
+
+  // Port 0x61 (System Control Port B) state
+  u8 port_b = 0;
+
+  // Read port 0x61: bit 0 = ch2 gate, bit 5 = ch2 output
+  u8 read_port_b() {
+    u8 val = port_b & 0x03; // Preserve gate/speaker bits
+    if (channels[2].output) val |= 0x20; // Bit 5 = timer 2 output
+    return val;
+  }
+
+  // Write port 0x61: bit 0 = ch2 gate enable
+  void write_port_b(u8 val) {
+    bool old_gate = channels[2].gate;
+    bool new_gate = (val & 0x01) != 0;
+    port_b = val;
+    channels[2].gate = new_gate;
+    // Rising edge on gate reloads count and clears output (mode 0)
+    if (!old_gate && new_gate) {
+      channels[2].count = channels[2].reload;
+      if (channels[2].count == 0) channels[2].count = 65536;
+      channels[2].output = false;
+    }
   }
 
 private:
@@ -307,6 +342,8 @@ private:
     bool latched = false;
     u32 latch_val = 0;
     bool latch_low = true;
+    bool gate = true;  // Gate input (channels 0,1 default on; ch2 controlled by port 0x61)
+    bool output = false; // Output pin state
   };
   Channel channels[3];
 };

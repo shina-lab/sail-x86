@@ -993,11 +993,26 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
   struct ztuple_z8z5bv32zCz0z5bv32zCz0z5bv32zCz0z5bv32z9 result;
   result.ztup0 = 0; result.ztup1 = 0; result.ztup2 = 0; result.ztup3 = 0;
 
-  // Return a baseline x86-64 CPU description (no host CPUID).
-  // Roughly x86-64-v2: SSE4.2, POPCNT, CMPXCHG16B, but no AVX/FMA/BMI.
+  // Return x86-64 CPU description for Linux boot.
+  // Stripped-down: no XSAVE/AVX/AVX-512 to avoid XSAVE init issues.
+  // Leaf 1 EDX: FPU DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA
+  //             CMOV PAT CLFSH MMX FXSR SSE SSE2 (no PSE36)
+  // Leaf 1 ECX: SSE3 SSSE3 CX16 SSE4.1 SSE4.2 POPCNT
+  // No APIC bit: we don't emulate local APIC MMIO, so kernel uses PIC-only.
+  constexpr u32 SYS_CPUID_1_EDX =
+    CPUID_1_EDX_FPU | CPUID_1_EDX_DE | CPUID_1_EDX_PSE | CPUID_1_EDX_TSC |
+    CPUID_1_EDX_MSR | CPUID_1_EDX_PAE | CPUID_1_EDX_MCE | CPUID_1_EDX_CX8 |
+    CPUID_1_EDX_SEP | CPUID_1_EDX_MTRR | CPUID_1_EDX_PGE |
+    CPUID_1_EDX_MCA | CPUID_1_EDX_CMOV | CPUID_1_EDX_PAT |
+    CPUID_1_EDX_CLFSH | CPUID_1_EDX_MMX | CPUID_1_EDX_FXSR |
+    CPUID_1_EDX_SSE | CPUID_1_EDX_SSE2;
+  constexpr u32 SYS_CPUID_1_ECX =
+    CPUID_1_ECX_SSE3 | CPUID_1_ECX_SSSE3 | CPUID_1_ECX_CX16 |
+    CPUID_1_ECX_SSE4_1 | CPUID_1_ECX_SSE4_2 | CPUID_1_ECX_POPCNT;
+
   switch (leaf) {
   case 0:
-    result.ztup0 = 0x0D;    // max basic leaf
+    result.ztup0 = 0x07;    // max basic leaf
     result.ztup1 = 0x756E6547;  // "Genu"
     result.ztup2 = 0x6C65746E;  // "ntel"
     result.ztup3 = 0x49656E69;  // "ineI"
@@ -1007,8 +1022,8 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
     result.ztup0 = 0x000506E3;
     // EBX: CLFLUSH=8, max logical=1, initial APIC=0
     result.ztup1 = 0x00010800;
-    result.ztup2 = EMU_CPUID_1_ECX;
-    result.ztup3 = EMU_CPUID_1_EDX;
+    result.ztup2 = SYS_CPUID_1_ECX;
+    result.ztup3 = SYS_CPUID_1_EDX;
     break;
   case 2:
     // Cache/TLB descriptors — return a plausible single descriptor
@@ -1023,34 +1038,7 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
     break;
   case 7:
     if (subleaf == 0)
-      result.ztup1 = EMU_CPUID_7_EBX;
-    break;
-  case 0xD:
-    if (subleaf == 0) {
-      // XSAVE: x87(0) + SSE(1) + AVX(2) + opmask(5) + ZMM_Hi256(6) + Hi16_ZMM(7)
-      result.ztup0 = 0x000000E7;  // XCR0 supported bits
-      result.ztup1 = 0x00000980;  // max size (2432 bytes)
-      result.ztup2 = 0x00000980;
-      result.ztup3 = 0x00000000;
-    } else if (subleaf == 1) {
-      result.ztup0 = 0x00000000;
-    } else if (subleaf == 2) {
-      // AVX state (component 2): 256 bytes at offset 576
-      result.ztup0 = 0x00000100;
-      result.ztup1 = 0x00000240;
-    } else if (subleaf == 5) {
-      // Opmask state (component 5): 64 bytes at offset 832
-      result.ztup0 = 0x00000040;
-      result.ztup1 = 0x00000340;
-    } else if (subleaf == 6) {
-      // ZMM_Hi256 (component 6): 512 bytes at offset 896
-      result.ztup0 = 0x00000200;
-      result.ztup1 = 0x00000380;
-    } else if (subleaf == 7) {
-      // Hi16_ZMM (component 7): 1024 bytes at offset 1408
-      result.ztup0 = 0x00000400;
-      result.ztup1 = 0x00000580;
-    }
+      result.ztup1 = CPUID_7_EBX_ERMS;  // only ERMS, no AVX2/AVX-512
     break;
   case 0x80000000:
     result.ztup0 = 0x80000008;  // max extended leaf
@@ -1083,6 +1071,7 @@ Model::z__cpuid(u64 leaf, u64 subleaf) {
     result.ztup0 = 0x00003027;
     break;
   }
+  // CPUID trace disabled for performance
   return result;
 }
 
@@ -1114,10 +1103,13 @@ u64 Model::z__rdmsr(u64 addr) {
   case 0x1B:   return 0xFEE00900;  // IA32_APIC_BASE (APIC enabled, BSP)
   case 0x10:   return __rdtsc();   // IA32_TSC
   case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
-  case 0x1A0:  return 0;           // IA32_MISC_ENABLE
+  case 0x1A0:  return 1;           // IA32_MISC_ENABLE (bit 0 = FAST_STRING)
   case 0xC0000103: return 0;       // IA32_TSC_AUX
   default:
-    fprintf(stderr, "RDMSR: unhandled MSR 0x%x, returning 0\n", msr);
+    { static int rdmsr_warn = 0;
+      if (rdmsr_warn++ < 10)
+        fprintf(stderr, "RDMSR: unhandled MSR 0x%x, returning 0\n", msr);
+    }
     return 0;
   }
 }
@@ -1140,7 +1132,7 @@ u64 Model::z__port_in8(u64 port) {
   if (pit.handles(p))        return pit.read(p);
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
-  if (p == 0x61)             return 0x00; // Port B (speaker/timer status)
+  if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A (A20 enabled)
   if (p == 0x3DA)            return 0x00; // VGA status (not retrace)
   if (p == 0xCF8 || p == 0xCFC) return 0xFF; // PCI config (no devices)
@@ -1171,6 +1163,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (pit.handles(p))        pit.write(p, v);
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
+  else if (p == 0x61)             pit.write_port_b(v);
   // else: ignore writes to unknown ports
   return UNIT;
 }
