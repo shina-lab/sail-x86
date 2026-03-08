@@ -84,8 +84,10 @@ struct XmmVal {
 static XmmVal xmm_from_f32(float a, float b, float c, float d) {
   XmmVal v;
   u32 parts[4];
-  memcpy(&parts[0], &a, 4); memcpy(&parts[1], &b, 4);
-  memcpy(&parts[2], &c, 4); memcpy(&parts[3], &d, 4);
+  memcpy(&parts[0], &a, 4);
+  memcpy(&parts[1], &b, 4);
+  memcpy(&parts[2], &c, 4);
+  memcpy(&parts[3], &d, 4);
   v.lo = (u64)parts[0] | ((u64)parts[1] << 32);
   v.hi = (u64)parts[2] | ((u64)parts[3] << 32);
   return v;
@@ -111,8 +113,22 @@ static XmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
 
 // Architectural state we compare between KVM and Sail.
 struct ArchState {
-  u64 rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp;
-  u64 r8, r9, r10, r11, r12, r13, r14, r15;
+  u64 rax;
+  u64 rbx;
+  u64 rcx;
+  u64 rdx;
+  u64 rsi;
+  u64 rdi;
+  u64 rbp;
+  u64 rsp;
+  u64 r8;
+  u64 r9;
+  u64 r10;
+  u64 r11;
+  u64 r12;
+  u64 r13;
+  u64 r14;
+  u64 r15;
   u64 rip;
   u64 rflags;
   XmmVal xmm[16];
@@ -476,7 +492,9 @@ struct KvmVm {
     ioctl(vcpu_fd, KVM_GET_REGS, &regs);
     if (regs.rip > COMMON_HANDLER && regs.rip <= COMMON_HANDLER + 0x100) {
       fi.faulted = true;
-      u64 vec_val, err_val, rip_val;
+      u64 vec_val;
+      u64 err_val;
+      u64 rip_val;
       memcpy(&vec_val, guest_mem + FAULT_INFO_ADDR, 8);
       memcpy(&err_val, guest_mem + FAULT_INFO_ADDR + 8, 8);
       memcpy(&rip_val, guest_mem + FAULT_INFO_ADDR + 16, 8);
@@ -6097,7 +6115,8 @@ std::vector<TestCase> build_tests() {
       ArchState s = {};
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, -1.0f, 0.0f, 1.0f);
-      u32 pz = 0x00000000, nz = 0x80000000;
+      u32 pz = 0x00000000;
+      u32 nz = 0x80000000;
       s.xmm[1] = xmm_from_u32(pz, pz, pz, nz);
       add_xmm("divps by zero", {0x0F, 0x5E, 0xC1}, s, 0x3);
     }
@@ -6151,8 +6170,10 @@ std::vector<TestCase> build_tests() {
     {
       ArchState s = {};
       s.rflags = 0x2;
-      u32 pinf = 0x7F800000, ninf = 0xFF800000;
-      u32 pz = 0x00000000, nz = 0x80000000;
+      u32 pinf = 0x7F800000;
+      u32 ninf = 0xFF800000;
+      u32 pz = 0x00000000;
+      u32 nz = 0x80000000;
       s.xmm[0] = xmm_from_u32(pinf, ninf, pz, nz);
       s.xmm[1] = xmm_from_u32(pinf, ninf, pz, nz);
       add_xmm("subps self", {0x0F, 0x5C, 0xC1}, s, 0x3);
@@ -6162,7 +6183,8 @@ std::vector<TestCase> build_tests() {
     {
       ArchState s = {};
       s.rflags = 0x2;
-      u32 pz = 0x00000000, pinf = 0x7F800000;
+      u32 pz = 0x00000000;
+      u32 pinf = 0x7F800000;
       s.xmm[0] = xmm_from_u32(pz, pinf, pz, pinf);
       s.xmm[1] = xmm_from_u32(pinf, pz, pinf, pz);
       add_xmm("mulps 0*inf", {0x0F, 0x59, 0xC1}, s, 0x3);
@@ -9046,7 +9068,8 @@ int main(int argc, char **argv) {
   }
 
   auto tests = build_tests();
-  int passed = 0, failed = 0;
+  int passed = 0;
+  int failed = 0;
   std::string last_cat;
 
   for (const auto &tc : tests) {

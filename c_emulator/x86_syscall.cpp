@@ -33,186 +33,195 @@
 #include <utime.h>
 
 // Linux x86-64 syscall numbers
-#define SYS_READ            0
-#define SYS_WRITE           1
-#define SYS_OPEN            2
-#define SYS_CLOSE           3
-#define SYS_STAT            4
-#define SYS_FSTAT           5
-#define SYS_LSTAT           6
-#define SYS_POLL            7
-#define SYS_LSEEK           8
-#define SYS_MMAP            9
-#define SYS_MPROTECT        10
-#define SYS_MUNMAP          11
-#define SYS_BRK             12
-#define SYS_RT_SIGACTION    13
-#define SYS_RT_SIGPROCMASK  14
-#define SYS_IOCTL           16
-#define SYS_PREAD64         17
-#define SYS_PWRITE64        18
-#define SYS_READV           19
-#define SYS_WRITEV          20
-#define SYS_ACCESS          21
-#define SYS_PIPE            22
-#define SYS_SELECT          23
-#define SYS_SCHED_YIELD     24
-#define SYS_MREMAP          25
-#define SYS_MSYNC           26
-#define SYS_ALARM           27
-#define SYS_MADVISE         28
-#define SYS_DUP             32
-#define SYS_DUP2            33
-#define SYS_NANOSLEEP       35
-#define SYS_GETITIMER       36
-#define SYS_SETITIMER       38
-#define SYS_GETPID          39
-#define SYS_SENDFILE        40
-#define SYS_SOCKET          41
-#define SYS_CONNECT         42
-#define SYS_ACCEPT          43
-#define SYS_SENDTO          44
-#define SYS_RECVFROM        45
-#define SYS_SENDMSG         46
-#define SYS_RECVMSG         47
-#define SYS_SHUTDOWN        48
-#define SYS_BIND            49
-#define SYS_LISTEN          50
-#define SYS_GETSOCKNAME     51
-#define SYS_GETPEERNAME     52
-#define SYS_SOCKETPAIR      53
-#define SYS_SETSOCKOPT      54
-#define SYS_GETSOCKOPT      55
-#define SYS_CLONE           56
-#define SYS_FORK            57
-#define SYS_EXECVE          59
-#define SYS_EXIT            60
-#define SYS_WAIT4           61
-#define SYS_KILL            62
-#define SYS_UNAME           63
-#define SYS_FCNTL           72
-#define SYS_FLOCK           73
-#define SYS_FSYNC           74
-#define SYS_FDATASYNC       75
-#define SYS_TRUNCATE        76
-#define SYS_FTRUNCATE       77
-#define SYS_GETDENTS        78
-#define SYS_GETCWD          79
-#define SYS_CHDIR           80
-#define SYS_FCHDIR          81
-#define SYS_RENAME          82
-#define SYS_MKDIR           83
-#define SYS_RMDIR           84
-#define SYS_CREAT           85
-#define SYS_LINK            86
-#define SYS_UNLINK          87
-#define SYS_SYMLINK         88
-#define SYS_READLINK        89
-#define SYS_CHMOD           90
-#define SYS_FCHMOD          91
-#define SYS_CHOWN           92
-#define SYS_FCHOWN          93
-#define SYS_LCHOWN          94
-#define SYS_UMASK           95
-#define SYS_GETTIMEOFDAY    96
-#define SYS_GETRLIMIT       97
-#define SYS_GETRUSAGE       98
-#define SYS_SYSINFO         99
-#define SYS_TIMES           100
-#define SYS_GETUID          102
-#define SYS_GETGID          104
-#define SYS_SETUID          105
-#define SYS_SETGID          106
-#define SYS_GETEUID         107
-#define SYS_GETEGID         108
-#define SYS_SETPGID         109
-#define SYS_GETPPID         110
-#define SYS_GETPGRP         111
-#define SYS_SETSID          112
-#define SYS_SETREUID        113
-#define SYS_SETREGID        114
-#define SYS_GETGROUPS       115
-#define SYS_SETGROUPS       116
-#define SYS_SETRESUID       117
-#define SYS_GETRESUID       118
-#define SYS_SETRESGID       119
-#define SYS_GETRESGID       120
-#define SYS_GETPGID         121
-#define SYS_SETFSUID        122
-#define SYS_SETFSGID        123
-#define SYS_GETSID          124
-#define SYS_SIGALTSTACK     131
-#define SYS_UTIME           132
-#define SYS_MKNOD           133
-#define SYS_STATFS          137
-#define SYS_FSTATFS         138
-#define SYS_SETRLIMIT       160
-#define SYS_PRCTL           157
-#define SYS_ARCH_PRCTL      158
-#define SYS_GETTID          186
-#define SYS_TKILL           200
-#define SYS_TIME            201
-#define SYS_FUTEX           202
-#define SYS_SCHED_SETAFFINITY 203
-#define SYS_SCHED_GETAFFINITY 204
-#define SYS_EPOLL_CREATE    213
-#define SYS_GETDENTS64      217
-#define SYS_SET_TID_ADDRESS 218
-#define SYS_FADVISE64       221
-#define SYS_CLOCK_GETTIME   228
-#define SYS_CLOCK_GETRES    229
-#define SYS_CLOCK_NANOSLEEP 230
-#define SYS_EXIT_GROUP      231
-#define SYS_EPOLL_WAIT      232
-#define SYS_EPOLL_CTL       233
-#define SYS_TGKILL          234
-#define SYS_UTIMES          235
-#define SYS_OPENAT          257
-#define SYS_MKDIRAT         258
-#define SYS_MKNODAT         259
-#define SYS_FCHOWNAT        260
-#define SYS_NEWFSTATAT      262
-#define SYS_UNLINKAT        263
-#define SYS_RENAMEAT        264
-#define SYS_LINKAT          265
-#define SYS_SYMLINKAT       266
-#define SYS_READLINKAT      267
-#define SYS_FCHMODAT        268
-#define SYS_FACCESSAT       269
-#define SYS_PSELECT6        270
-#define SYS_PPOLL           271
-#define SYS_SET_ROBUST_LIST 273
-#define SYS_SPLICE          275
-#define SYS_TEE             276
-#define SYS_UTIMENSAT       280
-#define SYS_EPOLL_PWAIT     281
-#define SYS_TIMERFD_CREATE  283
-#define SYS_FALLOCATE       285
-#define SYS_TIMERFD_SETTIME 286
-#define SYS_TIMERFD_GETTIME 287
-#define SYS_ACCEPT4         288
-#define SYS_SIGNALFD4       289
-#define SYS_EVENTFD2        290
-#define SYS_EPOLL_CREATE1   291
-#define SYS_DUP3            292
-#define SYS_PIPE2           293
-#define SYS_INOTIFY_INIT1   294
-#define SYS_INOTIFY_ADD_WATCH 254
-#define SYS_INOTIFY_RM_WATCH 255
-#define SYS_PRLIMIT64       302
-#define SYS_RENAMEAT2       316
-#define SYS_GETRANDOM       318
-#define SYS_MEMBARRIER      324
-#define SYS_COPY_FILE_RANGE 326
-#define SYS_STATX           332
-#define SYS_RSEQ            334
-#define SYS_CLOSE_RANGE     436
-#define SYS_FACCESSAT2      439
+static constexpr int SYS_READ = 0;
+static constexpr int SYS_WRITE = 1;
+static constexpr int SYS_OPEN = 2;
+static constexpr int SYS_CLOSE = 3;
+static constexpr int SYS_STAT = 4;
+static constexpr int SYS_FSTAT = 5;
+static constexpr int SYS_LSTAT = 6;
+static constexpr int SYS_POLL = 7;
+static constexpr int SYS_LSEEK = 8;
+static constexpr int SYS_MMAP = 9;
+static constexpr int SYS_MPROTECT = 10;
+static constexpr int SYS_MUNMAP = 11;
+static constexpr int SYS_BRK = 12;
+static constexpr int SYS_RT_SIGACTION = 13;
+static constexpr int SYS_RT_SIGPROCMASK = 14;
+static constexpr int SYS_IOCTL = 16;
+static constexpr int SYS_PREAD64 = 17;
+static constexpr int SYS_PWRITE64 = 18;
+static constexpr int SYS_READV = 19;
+static constexpr int SYS_WRITEV = 20;
+static constexpr int SYS_ACCESS = 21;
+static constexpr int SYS_PIPE = 22;
+static constexpr int SYS_SELECT = 23;
+static constexpr int SYS_SCHED_YIELD = 24;
+static constexpr int SYS_MREMAP = 25;
+static constexpr int SYS_MSYNC = 26;
+static constexpr int SYS_ALARM = 27;
+static constexpr int SYS_MADVISE = 28;
+static constexpr int SYS_DUP = 32;
+static constexpr int SYS_DUP2 = 33;
+static constexpr int SYS_NANOSLEEP = 35;
+static constexpr int SYS_GETITIMER = 36;
+static constexpr int SYS_SETITIMER = 38;
+static constexpr int SYS_GETPID = 39;
+static constexpr int SYS_SENDFILE = 40;
+static constexpr int SYS_SOCKET = 41;
+static constexpr int SYS_CONNECT = 42;
+static constexpr int SYS_ACCEPT = 43;
+static constexpr int SYS_SENDTO = 44;
+static constexpr int SYS_RECVFROM = 45;
+static constexpr int SYS_SENDMSG = 46;
+static constexpr int SYS_RECVMSG = 47;
+static constexpr int SYS_SHUTDOWN = 48;
+static constexpr int SYS_BIND = 49;
+static constexpr int SYS_LISTEN = 50;
+static constexpr int SYS_GETSOCKNAME = 51;
+static constexpr int SYS_GETPEERNAME = 52;
+static constexpr int SYS_SOCKETPAIR = 53;
+static constexpr int SYS_SETSOCKOPT = 54;
+static constexpr int SYS_GETSOCKOPT = 55;
+static constexpr int SYS_CLONE = 56;
+static constexpr int SYS_FORK = 57;
+static constexpr int SYS_EXECVE = 59;
+static constexpr int SYS_EXIT = 60;
+static constexpr int SYS_WAIT4 = 61;
+static constexpr int SYS_KILL = 62;
+static constexpr int SYS_UNAME = 63;
+static constexpr int SYS_FCNTL = 72;
+static constexpr int SYS_FLOCK = 73;
+static constexpr int SYS_FSYNC = 74;
+static constexpr int SYS_FDATASYNC = 75;
+static constexpr int SYS_TRUNCATE = 76;
+static constexpr int SYS_FTRUNCATE = 77;
+static constexpr int SYS_GETDENTS = 78;
+static constexpr int SYS_GETCWD = 79;
+static constexpr int SYS_CHDIR = 80;
+static constexpr int SYS_FCHDIR = 81;
+static constexpr int SYS_RENAME = 82;
+static constexpr int SYS_MKDIR = 83;
+static constexpr int SYS_RMDIR = 84;
+static constexpr int SYS_CREAT = 85;
+static constexpr int SYS_LINK = 86;
+static constexpr int SYS_UNLINK = 87;
+static constexpr int SYS_SYMLINK = 88;
+static constexpr int SYS_READLINK = 89;
+static constexpr int SYS_CHMOD = 90;
+static constexpr int SYS_FCHMOD = 91;
+static constexpr int SYS_CHOWN = 92;
+static constexpr int SYS_FCHOWN = 93;
+static constexpr int SYS_LCHOWN = 94;
+static constexpr int SYS_UMASK = 95;
+static constexpr int SYS_GETTIMEOFDAY = 96;
+static constexpr int SYS_GETRLIMIT = 97;
+static constexpr int SYS_GETRUSAGE = 98;
+static constexpr int SYS_SYSINFO = 99;
+static constexpr int SYS_TIMES = 100;
+static constexpr int SYS_GETUID = 102;
+static constexpr int SYS_GETGID = 104;
+static constexpr int SYS_SETUID = 105;
+static constexpr int SYS_SETGID = 106;
+static constexpr int SYS_GETEUID = 107;
+static constexpr int SYS_GETEGID = 108;
+static constexpr int SYS_SETPGID = 109;
+static constexpr int SYS_GETPPID = 110;
+static constexpr int SYS_GETPGRP = 111;
+static constexpr int SYS_SETSID = 112;
+static constexpr int SYS_SETREUID = 113;
+static constexpr int SYS_SETREGID = 114;
+static constexpr int SYS_GETGROUPS = 115;
+static constexpr int SYS_SETGROUPS = 116;
+static constexpr int SYS_SETRESUID = 117;
+static constexpr int SYS_GETRESUID = 118;
+static constexpr int SYS_SETRESGID = 119;
+static constexpr int SYS_GETRESGID = 120;
+static constexpr int SYS_GETPGID = 121;
+static constexpr int SYS_SETFSUID = 122;
+static constexpr int SYS_SETFSGID = 123;
+static constexpr int SYS_GETSID = 124;
+static constexpr int SYS_SIGALTSTACK = 131;
+static constexpr int SYS_UTIME = 132;
+static constexpr int SYS_MKNOD = 133;
+static constexpr int SYS_STATFS = 137;
+static constexpr int SYS_FSTATFS = 138;
+static constexpr int SYS_SETRLIMIT = 160;
+static constexpr int SYS_PRCTL = 157;
+static constexpr int SYS_ARCH_PRCTL = 158;
+static constexpr int SYS_GETTID = 186;
+static constexpr int SYS_TKILL = 200;
+static constexpr int SYS_TIME = 201;
+static constexpr int SYS_FUTEX = 202;
+static constexpr int SYS_SCHED_SETAFFINITY = 203;
+static constexpr int SYS_SCHED_GETAFFINITY = 204;
+static constexpr int SYS_EPOLL_CREATE = 213;
+static constexpr int SYS_GETDENTS64 = 217;
+static constexpr int SYS_SET_TID_ADDRESS = 218;
+static constexpr int SYS_FADVISE64 = 221;
+static constexpr int SYS_CLOCK_GETTIME = 228;
+static constexpr int SYS_CLOCK_GETRES = 229;
+static constexpr int SYS_CLOCK_NANOSLEEP = 230;
+static constexpr int SYS_EXIT_GROUP = 231;
+static constexpr int SYS_EPOLL_WAIT = 232;
+static constexpr int SYS_EPOLL_CTL = 233;
+static constexpr int SYS_TGKILL = 234;
+static constexpr int SYS_UTIMES = 235;
+static constexpr int SYS_OPENAT = 257;
+static constexpr int SYS_MKDIRAT = 258;
+static constexpr int SYS_MKNODAT = 259;
+static constexpr int SYS_FCHOWNAT = 260;
+static constexpr int SYS_NEWFSTATAT = 262;
+static constexpr int SYS_UNLINKAT = 263;
+static constexpr int SYS_RENAMEAT = 264;
+static constexpr int SYS_LINKAT = 265;
+static constexpr int SYS_SYMLINKAT = 266;
+static constexpr int SYS_READLINKAT = 267;
+static constexpr int SYS_FCHMODAT = 268;
+static constexpr int SYS_FACCESSAT = 269;
+static constexpr int SYS_PSELECT6 = 270;
+static constexpr int SYS_PPOLL = 271;
+static constexpr int SYS_SET_ROBUST_LIST = 273;
+static constexpr int SYS_SPLICE = 275;
+static constexpr int SYS_TEE = 276;
+static constexpr int SYS_UTIMENSAT = 280;
+static constexpr int SYS_EPOLL_PWAIT = 281;
+static constexpr int SYS_TIMERFD_CREATE = 283;
+static constexpr int SYS_FALLOCATE = 285;
+static constexpr int SYS_TIMERFD_SETTIME = 286;
+static constexpr int SYS_TIMERFD_GETTIME = 287;
+static constexpr int SYS_ACCEPT4 = 288;
+static constexpr int SYS_SIGNALFD4 = 289;
+static constexpr int SYS_EVENTFD2 = 290;
+static constexpr int SYS_EPOLL_CREATE1 = 291;
+static constexpr int SYS_DUP3 = 292;
+static constexpr int SYS_PIPE2 = 293;
+static constexpr int SYS_INOTIFY_INIT1 = 294;
+static constexpr int SYS_INOTIFY_ADD_WATCH = 254;
+static constexpr int SYS_INOTIFY_RM_WATCH = 255;
+static constexpr int SYS_PRLIMIT64 = 302;
+static constexpr int SYS_RENAMEAT2 = 316;
+static constexpr int SYS_GETRANDOM = 318;
+static constexpr int SYS_MEMBARRIER = 324;
+static constexpr int SYS_COPY_FILE_RANGE = 326;
+static constexpr int SYS_STATX = 332;
+static constexpr int SYS_RSEQ = 334;
+static constexpr int SYS_CLOSE_RANGE = 436;
+static constexpr int SYS_FACCESSAT2 = 439;
 
 // GPR indices matching the Sail model
-static constexpr int RAX = 0, RCX = 1, RDX = 2, RBX = 3;
-static constexpr int RSP = 4, RBP = 5, RSI = 6, RDI = 7;
-static constexpr int R8 = 8, R9 = 9, R10 = 10, R11 = 11;
+static constexpr int RAX = 0;
+static constexpr int RCX = 1;
+static constexpr int RDX = 2;
+static constexpr int RBX = 3;
+static constexpr int RSP = 4;
+static constexpr int RBP = 5;
+static constexpr int RSI = 6;
+static constexpr int RDI = 7;
+static constexpr int R8 = 8;
+static constexpr int R9 = 9;
+static constexpr int R10 = 10;
+static constexpr int R11 = 11;
 
 static u64 read_gpr(x86::Model &m, int idx) {
   return m.zGPR.data[idx];
@@ -236,20 +245,6 @@ static i64 do_brk(x86::Model &m, u64 addr) {
   }
   m.brk_current = addr;
   return (i64)m.brk_current;
-}
-
-static i64 do_mmap(x86::Model &m, u64 addr, u64 length,
-                   u64 prot, u64 flags, u64 fd, u64 offset) {
-  if (length == 0) return -EINVAL;
-  length = (length + 4095) & ~4095ULL;
-
-  // Pass through to real mmap. The kernel handles address selection,
-  // MAP_FIXED, MAP_ANONYMOUS, file-backed mappings, etc.
-  void *p = mmap((void *)addr, length, (int)prot, (int)flags,
-                 (int)(i32)fd, (off_t)offset);
-  if (p == MAP_FAILED)
-    return -(i64)errno;
-  return (i64)(u64)p;
 }
 
 void emulate_syscall(x86::Model &model) {
@@ -460,9 +455,12 @@ void emulate_syscall(x86::Model &model) {
 
   // ---- Memory management ----
 
-  case SYS_MMAP:
-    result = do_mmap(model, arg1, arg2, arg3, arg4, arg5, arg6);
+  case SYS_MMAP: {
+    void *p = mmap((void *)arg1, (size_t)arg2, (int)arg3, (int)arg4,
+                   (int)(i32)arg5, (off_t)arg6);
+    result = (p == MAP_FAILED) ? -(i64)errno : (i64)(u64)p;
     break;
+  }
   case SYS_MPROTECT:
     // No-op: passing through mprotect would make code pages unwritable,
     // which breaks the Sail model's memory access pattern.

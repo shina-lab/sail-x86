@@ -30,7 +30,8 @@ static void set_rounding(int rc) {
 // DAZ: Denormals-Are-Zeros (MXCSR bit 6) — flush denormal inputs to ±0
 static inline float f32_daz(float f, u32 mxcsr) {
     if (!(mxcsr & 0x0040)) return f;
-    u32 bits; memcpy(&bits, &f, 4);
+    u32 bits;
+    memcpy(&bits, &f, 4);
     if ((bits & 0x7F800000) == 0 && (bits & 0x007FFFFF) != 0) {
         bits &= 0x80000000;  // preserve sign, zero out mantissa
         memcpy(&f, &bits, 4);
@@ -40,7 +41,8 @@ static inline float f32_daz(float f, u32 mxcsr) {
 
 static inline double f64_daz(double f, u32 mxcsr) {
     if (!(mxcsr & 0x0040)) return f;
-    u64 bits; memcpy(&bits, &f, 8);
+    u64 bits;
+    memcpy(&bits, &f, 8);
     if ((bits & 0x7FF0000000000000ULL) == 0 && (bits & 0x000FFFFFFFFFFFFFULL) != 0) {
         bits &= 0x8000000000000000ULL;
         memcpy(&f, &bits, 8);
@@ -51,7 +53,8 @@ static inline double f64_daz(double f, u32 mxcsr) {
 // FTZ: Flush-To-Zero (MXCSR bit 15) — flush denormal results to ±0
 static inline float f32_ftz(float f, u32 mxcsr) {
     if (!(mxcsr & 0x8000)) return f;
-    u32 bits; memcpy(&bits, &f, 4);
+    u32 bits;
+    memcpy(&bits, &f, 4);
     if ((bits & 0x7F800000) == 0 && (bits & 0x007FFFFF) != 0) {
         bits &= 0x80000000;
         memcpy(&f, &bits, 4);
@@ -61,7 +64,8 @@ static inline float f32_ftz(float f, u32 mxcsr) {
 
 static inline double f64_ftz(double f, u32 mxcsr) {
     if (!(mxcsr & 0x8000)) return f;
-    u64 bits; memcpy(&bits, &f, 8);
+    u64 bits;
+    memcpy(&bits, &f, 8);
     if ((bits & 0x7FF0000000000000ULL) == 0 && (bits & 0x000FFFFFFFFFFFFFULL) != 0) {
         bits &= 0x8000000000000000ULL;
         memcpy(&f, &bits, 8);
@@ -162,7 +166,8 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 // Intel NaN propagation for f32: if both NaN, return SRC1 (a) as QNaN;
 // if only one is NaN, return that NaN as QNaN. Returns true if handled.
 static bool f32_nan_prop(u64 a, u64 b, u64 *out) {
-    u32 ua = (u32)a, ub = (u32)b;
+    u32 ua = (u32)a;
+    u32 ub = (u32)b;
     bool a_nan = __builtin_isnan(*(float*)&ua);
     bool b_nan = __builtin_isnan(*(float*)&ub);
     if (!a_nan && !b_nan) return false;
@@ -173,8 +178,10 @@ static bool f32_nan_prop(u64 a, u64 b, u64 *out) {
 
 // Intel NaN propagation for f64.
 static bool f64_nan_prop(u64 a, u64 b, u64 *out) {
-    double fa, fb;
-    memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     bool a_nan = __builtin_isnan(fa);
     bool b_nan = __builtin_isnan(fb);
     if (!a_nan && !b_nan) return false;
@@ -183,72 +190,111 @@ static bool f64_nan_prop(u64 a, u64 b, u64 *out) {
 }
 
 u64 Model::z__f32_add(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f32_nan_prop(a, b, &nr)) return nr;
-    float fa, fb; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f32_nan_prop(a, b, &nr)) return nr;
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fa + fb, mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 
 u64 Model::z__f32_sub(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f32_nan_prop(a, b, &nr)) return nr;
-    float fa, fb; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f32_nan_prop(a, b, &nr)) return nr;
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fa - fb, mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 
 u64 Model::z__f32_mul(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f32_nan_prop(a, b, &nr)) return nr;
-    float fa, fb; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f32_nan_prop(a, b, &nr)) return nr;
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fa * fb, mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 
 u64 Model::z__f32_div(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f32_nan_prop(a, b, &nr)) return nr;
-    float fa, fb; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f32_nan_prop(a, b, &nr)) return nr;
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fa / fb, mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 
 u64 Model::z__f32_sqrt(u64 a) {
     a = f32_daz_bits(a, mxcsr_state.mxcsr);
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(sqrtf(fa), mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 
 u64 Model::z__f32_min(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    float fa, fb;
-    memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     float fr;
     // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
     else if (fa == 0.0f && fb == 0.0f) fr = fb;
     else fr = fa < fb ? fa : fb;
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
 u64 Model::z__f32_max(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    float fa, fb;
-    memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     float fr;
     // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
     else if (fa == 0.0f && fb == 0.0f) fr = fb;
     else fr = fa > fb ? fa : fb;
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
@@ -257,7 +303,8 @@ u64 Model::z__f32_rcp(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float fr = 1.0f / fa;
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
@@ -266,7 +313,8 @@ u64 Model::z__f32_rsqrt(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float fr = 1.0f / sqrtf(fa);
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
@@ -283,7 +331,8 @@ u64 Model::z__f32_round(u64 a, u64 imm8) {
         case 3: fr = truncf(fa); break;      // truncate
         default: fr = fa; break;
     }
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
@@ -292,72 +341,111 @@ u64 Model::z__f32_round(u64 a, u64 imm8) {
 // =========================================================================
 
 u64 Model::z__f64_add(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f64_nan_prop(a, b, &nr)) return nr;
-    double fa, fb; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f64_nan_prop(a, b, &nr)) return nr;
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fa + fb, mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 u64 Model::z__f64_sub(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f64_nan_prop(a, b, &nr)) return nr;
-    double fa, fb; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f64_nan_prop(a, b, &nr)) return nr;
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fa - fb, mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 u64 Model::z__f64_mul(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f64_nan_prop(a, b, &nr)) return nr;
-    double fa, fb; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f64_nan_prop(a, b, &nr)) return nr;
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fa * fb, mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 u64 Model::z__f64_div(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    u64 nr; if (f64_nan_prop(a, b, &nr)) return nr;
-    double fa, fb; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    u64 nr;
+    if (f64_nan_prop(a, b, &nr)) return nr;
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fa / fb, mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 u64 Model::z__f64_sqrt(u64 a) {
     a = f64_daz_bits(a, mxcsr_state.mxcsr);
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(sqrt(fa), mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 u64 Model::z__f64_min(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    double fa, fb;
-    memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     double fr;
     // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
     else if (fa == 0.0 && fb == 0.0) fr = fb;
     else fr = fa < fb ? fa : fb;
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
 u64 Model::z__f64_max(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    double fa, fb;
-    memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     double fr;
     // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
     else if (fa == 0.0 && fb == 0.0) fr = fb;
     else fr = fa > fb ? fa : fb;
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -374,7 +462,8 @@ u64 Model::z__f64_round(u64 a, u64 imm8) {
         case 3: fr = trunc(fa); break;
         default: fr = fa; break;
     }
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -383,9 +472,12 @@ u64 Model::z__f64_round(u64 a, u64 imm8) {
 // =========================================================================
 
 enum zFPCompareResult Model::z__compare_ss(u64 a, u64 b) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr);
-    float fa, fb;
-    memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) return zFP_UNORDERED;
     if (fa < fb) return zFP_LT;
     if (fa > fb) return zFP_GT;
@@ -393,9 +485,12 @@ enum zFPCompareResult Model::z__compare_ss(u64 a, u64 b) {
 }
 
 enum zFPCompareResult Model::z__compare_sd(u64 a, u64 b) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr);
-    double fa, fb;
-    memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) return zFP_UNORDERED;
     if (fa < fb) return zFP_LT;
     if (fa > fb) return zFP_GT;
@@ -404,10 +499,14 @@ enum zFPCompareResult Model::z__compare_sd(u64 a, u64 b) {
 
 enum zFPCompareResult Model::z__compare_sh(u64 a, u64 b) {
     // Convert FP16 to FP32 for comparison
-    _Float16 ha, hb;
-    uint16_t ua = (uint16_t)a, ub = (uint16_t)b;
-    memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2);
-    float fa = (float)ha, fb = (float)hb;
+    _Float16 ha;
+    _Float16 hb;
+    uint16_t ua = (uint16_t)a;
+    uint16_t ub = (uint16_t)b;
+    memcpy(&ha, &ua, 2);
+    memcpy(&hb, &ub, 2);
+    float fa = (float)ha;
+    float fb = (float)hb;
     if (__builtin_isnan(fa) || __builtin_isnan(fb)) return zFP_UNORDERED;
     if (fa < fb) return zFP_LT;
     if (fa > fb) return zFP_GT;
@@ -421,7 +520,8 @@ enum zFPCompareResult Model::z__compare_sh(u64 a, u64 b) {
 u64 Model::z__int32_to_f64(u64 a) {
     i32 ia = (i32)a;
     double fr = (double)ia;
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -429,7 +529,8 @@ u64 Model::z__int64_to_f64(u64 a) {
     i64 ia = (i64)a;
     SYNC_MXCSR_RC();
     double fr = (double)ia;
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -437,7 +538,8 @@ u64 Model::z__int32_to_f32(u64 a) {
     i32 ia = (i32)a;
     SYNC_MXCSR_RC();
     float fr = (float)ia;
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
@@ -445,13 +547,15 @@ u64 Model::z__int64_to_f32(u64 a) {
     i64 ia = (i64)a;
     SYNC_MXCSR_RC();
     float fr = (float)ia;
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
 u64 Model::z__f64_to_int32(u64 a) {
     a = f64_daz_bits(a, mxcsr_state.mxcsr);
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
     set_rounding((mxcsr_state.mxcsr >> 13) & 3);
     long long r = llrint(fa);
@@ -461,7 +565,8 @@ u64 Model::z__f64_to_int32(u64 a) {
 
 u64 Model::z__f64_to_int64(u64 a) {
     a = f64_daz_bits(a, mxcsr_state.mxcsr);
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
     set_rounding((mxcsr_state.mxcsr >> 13) & 3);
     long long r = llrint(fa);
@@ -470,7 +575,8 @@ u64 Model::z__f64_to_int64(u64 a) {
 
 u64 Model::z__f32_to_int32(u64 a) {
     a = f32_daz_bits(a, mxcsr_state.mxcsr);
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
     set_rounding((mxcsr_state.mxcsr >> 13) & 3);
     long long r = llrintf(fa);
@@ -480,7 +586,8 @@ u64 Model::z__f32_to_int32(u64 a) {
 
 u64 Model::z__f32_to_int64(u64 a) {
     a = f32_daz_bits(a, mxcsr_state.mxcsr);
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
     set_rounding((mxcsr_state.mxcsr >> 13) & 3);
     long long r = llrintf(fa);
@@ -488,7 +595,8 @@ u64 Model::z__f32_to_int64(u64 a) {
 }
 
 u64 Model::z__f64_to_int32_trunc(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
     long long r = (long long)fa;
     if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
@@ -496,7 +604,8 @@ u64 Model::z__f64_to_int32_trunc(u64 a) {
 }
 
 u64 Model::z__f64_to_int64_trunc(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
     // Use long double to avoid UB for values near INT64 boundary
     long double ld = (long double)fa;
@@ -505,7 +614,8 @@ u64 Model::z__f64_to_int64_trunc(u64 a) {
 }
 
 u64 Model::z__f32_to_int32_trunc(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
     long long r = (long long)fa;
     if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
@@ -513,7 +623,8 @@ u64 Model::z__f32_to_int32_trunc(u64 a) {
 }
 
 u64 Model::z__f32_to_int64_trunc(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
     // float can't represent values > 2^63, so no overflow possible for in-range values
     long double ld = (long double)fa;
@@ -523,18 +634,22 @@ u64 Model::z__f32_to_int64_trunc(u64 a) {
 
 u64 Model::z__f64_to_f32(u64 a) {
     a = f64_daz_bits(a, mxcsr_state.mxcsr);
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     SYNC_MXCSR_RC();
     float fr = f32_ftz((float)fa, mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
 u64 Model::z__f32_to_f64(u64 a) {
     a = f32_daz_bits(a, mxcsr_state.mxcsr);
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     double fr = (double)fa;
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -584,24 +699,28 @@ enum zFPCompareResult Model::z__f80_compare(lbits a, lbits b) {
 
 // x87 conversions
 void Model::z__f80_from_f32(lbits *rop, u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     f80_to_lbits(rop, (long double)fa);
 }
 
 void Model::z__f80_from_f64(lbits *rop, u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     f80_to_lbits(rop, (long double)fa);
 }
 
 u64 Model::z__f80_to_f32(lbits a) {
     float fr = (float)lbits_to_f80(a);
-    u32 r; memcpy(&r, &fr, 4);
+    u32 r;
+    memcpy(&r, &fr, 4);
     return r;
 }
 
 u64 Model::z__f80_to_f64(lbits a) {
     double fr = (double)lbits_to_f80(a);
-    u64 r; memcpy(&r, &fr, 8);
+    u64 r;
+    memcpy(&r, &fr, 8);
     return r;
 }
 
@@ -913,7 +1032,8 @@ void Model::z__wait(struct zExecutionResult *rop, unit) {
 // =========================================================================
 
 unit Model::z__maskmovdqu(lbits data, lbits mask, u64 addr) {
-    u8 d[16], m[16];
+    u8 d[16];
+    u8 m[16];
     bits_to_bytes(data, d, 16);
     bits_to_bytes(mask, m, 16);
     for (int i = 0; i < 16; i++) {
@@ -929,7 +1049,9 @@ unit Model::z__maskmovdqu(lbits data, lbits mask, u64 addr) {
 // =========================================================================
 
 void Model::z__aesenc(lbits *rop, lbits state, lbits key) {
-    u8 s[16], k[16], r[16];
+    u8 s[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(state, s, 16);
     bits_to_bytes(key, k, 16);
     __m128i si = _mm_loadu_si128((__m128i *)s);
@@ -940,7 +1062,9 @@ void Model::z__aesenc(lbits *rop, lbits state, lbits key) {
 }
 
 void Model::z__aesenclast(lbits *rop, lbits state, lbits key) {
-    u8 s[16], k[16], r[16];
+    u8 s[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(state, s, 16);
     bits_to_bytes(key, k, 16);
     __m128i si = _mm_loadu_si128((__m128i *)s);
@@ -951,7 +1075,9 @@ void Model::z__aesenclast(lbits *rop, lbits state, lbits key) {
 }
 
 void Model::z__aesdec(lbits *rop, lbits state, lbits key) {
-    u8 s[16], k[16], r[16];
+    u8 s[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(state, s, 16);
     bits_to_bytes(key, k, 16);
     __m128i si = _mm_loadu_si128((__m128i *)s);
@@ -962,7 +1088,9 @@ void Model::z__aesdec(lbits *rop, lbits state, lbits key) {
 }
 
 void Model::z__aesdeclast(lbits *rop, lbits state, lbits key) {
-    u8 s[16], k[16], r[16];
+    u8 s[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(state, s, 16);
     bits_to_bytes(key, k, 16);
     __m128i si = _mm_loadu_si128((__m128i *)s);
@@ -973,7 +1101,8 @@ void Model::z__aesdeclast(lbits *rop, lbits state, lbits key) {
 }
 
 void Model::z__aesimc(lbits *rop, lbits key) {
-    u8 k[16], r[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(key, k, 16);
     __m128i ki = _mm_loadu_si128((__m128i *)k);
     __m128i ri = _mm_aesimc_si128(ki);
@@ -982,7 +1111,8 @@ void Model::z__aesimc(lbits *rop, lbits key) {
 }
 
 void Model::z__aeskeygenassist(lbits *rop, lbits key, u64 rcon) {
-    u8 k[16], r[16];
+    u8 k[16];
+    u8 r[16];
     bits_to_bytes(key, k, 16);
     __m128i ki = _mm_loadu_si128((__m128i *)k);
     // _mm_aeskeygenassist_si128 requires compile-time constant for rcon,
@@ -1024,7 +1154,9 @@ void Model::z__pclmulqdq(lbits *rop, u64 a, u64 b) {
 // =========================================================================
 
 void Model::z__mpsadbw(lbits *rop, lbits src1, lbits src2, u64 imm8) {
-    u8 s1[16], s2[16], r[16];
+    u8 s1[16];
+    u8 s2[16];
+    u8 r[16];
     bits_to_bytes(src1, s1, 16);
     bits_to_bytes(src2, s2, 16);
     __m128i v1 = _mm_loadu_si128((__m128i *)s1);
@@ -1271,52 +1403,84 @@ static void pcmestrm_dispatch(const u8 *s1, int la, const u8 *s2, int lb,
 
 struct ztuple_z8z5bv32zCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9
 Model::z__pcmpestri(lbits src1, u64 len1, lbits src2, u64 len2, u64 imm8) {
-  u8 s1[16], s2[16];
+  u8 s1[16];
+  u8 s2[16];
   bits_to_bytes(src1, s1, 16);
   bits_to_bytes(src2, s2, 16);
-  u32 idx; u8 cf, zf, sf, of;
+  u32 idx;
+  u8 cf;
+  u8 zf;
+  u8 sf;
+  u8 of;
   pcmpestri_dispatch(s1, (int)len1, s2, (int)len2, (int)imm8, idx, cf, zf, sf, of);
   struct ztuple_z8z5bv32zCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9 result;
   result.ztup0 = idx;
-  result.ztup1 = cf; result.ztup2 = zf; result.ztup3 = sf; result.ztup4 = of;
+  result.ztup1 = cf;
+  result.ztup2 = zf;
+  result.ztup3 = sf;
+  result.ztup4 = of;
   return result;
 }
 
 struct ztuple_z8z5bv32zCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9
 Model::z__pcmpistri(lbits src1, lbits src2, u64 imm8) {
-  u8 s1[16], s2[16];
+  u8 s1[16];
+  u8 s2[16];
   bits_to_bytes(src1, s1, 16);
   bits_to_bytes(src2, s2, 16);
-  u32 idx; u8 cf, zf, sf, of;
+  u32 idx;
+  u8 cf;
+  u8 zf;
+  u8 sf;
+  u8 of;
   pcmpistri_dispatch(s1, s2, (int)imm8, idx, cf, zf, sf, of);
   struct ztuple_z8z5bv32zCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9 result;
   result.ztup0 = idx;
-  result.ztup1 = cf; result.ztup2 = zf; result.ztup3 = sf; result.ztup4 = of;
+  result.ztup1 = cf;
+  result.ztup2 = zf;
+  result.ztup3 = sf;
+  result.ztup4 = of;
   return result;
 }
 
 void Model::z__pcmpestrm(struct ztuple_z8z5bvzCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9 *rop,
                           lbits src1, u64 len1, lbits src2, u64 len2, u64 imm8) {
-  u8 s1[16], s2[16], r[16];
+  u8 s1[16];
+  u8 s2[16];
+  u8 r[16];
   bits_to_bytes(src1, s1, 16);
   bits_to_bytes(src2, s2, 16);
-  u8 cf, zf, sf, of;
+  u8 cf;
+  u8 zf;
+  u8 sf;
+  u8 of;
   pcmestrm_dispatch(s1, (int)len1, s2, (int)len2, (int)imm8, r, cf, zf, sf, of);
   RECREATE(lbits)(&rop->ztup0);
   bytes_to_bits(&rop->ztup0, r, 16, 128);
-  rop->ztup1 = cf; rop->ztup2 = zf; rop->ztup3 = sf; rop->ztup4 = of;
+  rop->ztup1 = cf;
+  rop->ztup2 = zf;
+  rop->ztup3 = sf;
+  rop->ztup4 = of;
 }
 
 void Model::z__pcmpistrm(struct ztuple_z8z5bvzCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv1z9 *rop,
                           lbits src1, lbits src2, u64 imm8) {
-  u8 s1[16], s2[16], r[16];
+  u8 s1[16];
+  u8 s2[16];
+  u8 r[16];
   bits_to_bytes(src1, s1, 16);
   bits_to_bytes(src2, s2, 16);
-  u8 cf, zf, sf, of;
+  u8 cf;
+  u8 zf;
+  u8 sf;
+  u8 of;
   pcmpistrm_dispatch(s1, s2, (int)imm8, r, cf, zf, sf, of);
   RECREATE(lbits)(&rop->ztup0);
   bytes_to_bits(&rop->ztup0, r, 16, 128);
-  rop->ztup1 = cf; rop->ztup2 = zf; rop->ztup3 = sf; rop->ztup4 = of;
+  rop->ztup1 = cf;
+  rop->ztup2 = zf;
+  rop->ztup3 = sf;
+  rop->ztup4 = of;
 }
 
 // =========================================================================
@@ -1392,7 +1556,8 @@ static void fxsave_common(Model &m, u64 addr) {
 
 static void fxrstor_common(Model &m, u64 addr) {
   // FCW at offset 0x00, FSW at offset 0x02
-  u16 cw, sw;
+  u16 cw;
+  u16 sw;
   memcpy(&cw, (void *)(addr + 0x00), 2);
   memcpy(&sw, (void *)(addr + 0x02), 2);
   m.zx87_cw = cw;
@@ -1535,60 +1700,132 @@ void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
 // =========================================================================
 
 u64 Model::z__f32_fmadd(u64 a, u64 b, u64 c) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr); c = f32_daz_bits(c, mxcsr_state.mxcsr);
-    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    c = f32_daz_bits(c, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    float fc;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
+    memcpy(&fc, &c, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fmaf(fa, fb, fc), mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__f32_fmsub(u64 a, u64 b, u64 c) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr); c = f32_daz_bits(c, mxcsr_state.mxcsr);
-    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    c = f32_daz_bits(c, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    float fc;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
+    memcpy(&fc, &c, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fmaf(fa, fb, -fc), mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__f32_fnmadd(u64 a, u64 b, u64 c) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr); c = f32_daz_bits(c, mxcsr_state.mxcsr);
-    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    c = f32_daz_bits(c, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    float fc;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
+    memcpy(&fc, &c, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fmaf(-fa, fb, fc), mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__f32_fnmsub(u64 a, u64 b, u64 c) {
-    a = f32_daz_bits(a, mxcsr_state.mxcsr); b = f32_daz_bits(b, mxcsr_state.mxcsr); c = f32_daz_bits(c, mxcsr_state.mxcsr);
-    float fa, fb, fc; memcpy(&fa, &a, 4); memcpy(&fb, &b, 4); memcpy(&fc, &c, 4);
+    a = f32_daz_bits(a, mxcsr_state.mxcsr);
+    b = f32_daz_bits(b, mxcsr_state.mxcsr);
+    c = f32_daz_bits(c, mxcsr_state.mxcsr);
+    float fa;
+    float fb;
+    float fc;
+    memcpy(&fa, &a, 4);
+    memcpy(&fb, &b, 4);
+    memcpy(&fc, &c, 4);
     SYNC_MXCSR_RC();
     float fr = f32_ftz(fmaf(-fa, fb, -fc), mxcsr_state.mxcsr);
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__f64_fmadd(u64 a, u64 b, u64 c) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr); c = f64_daz_bits(c, mxcsr_state.mxcsr);
-    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    c = f64_daz_bits(c, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    double fc;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
+    memcpy(&fc, &c, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fma(fa, fb, fc), mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 u64 Model::z__f64_fmsub(u64 a, u64 b, u64 c) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr); c = f64_daz_bits(c, mxcsr_state.mxcsr);
-    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    c = f64_daz_bits(c, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    double fc;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
+    memcpy(&fc, &c, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fma(fa, fb, -fc), mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 u64 Model::z__f64_fnmadd(u64 a, u64 b, u64 c) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr); c = f64_daz_bits(c, mxcsr_state.mxcsr);
-    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    c = f64_daz_bits(c, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    double fc;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
+    memcpy(&fc, &c, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fma(-fa, fb, fc), mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
-    a = f64_daz_bits(a, mxcsr_state.mxcsr); b = f64_daz_bits(b, mxcsr_state.mxcsr); c = f64_daz_bits(c, mxcsr_state.mxcsr);
-    double fa, fb, fc; memcpy(&fa, &a, 8); memcpy(&fb, &b, 8); memcpy(&fc, &c, 8);
+    a = f64_daz_bits(a, mxcsr_state.mxcsr);
+    b = f64_daz_bits(b, mxcsr_state.mxcsr);
+    c = f64_daz_bits(c, mxcsr_state.mxcsr);
+    double fa;
+    double fb;
+    double fc;
+    memcpy(&fa, &a, 8);
+    memcpy(&fb, &b, 8);
+    memcpy(&fc, &c, 8);
     SYNC_MXCSR_RC();
     double fr = f64_ftz(fma(-fa, fb, -fc), mxcsr_state.mxcsr);
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 // =========================================================================
@@ -1596,55 +1833,71 @@ u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
 // =========================================================================
 
 u64 Model::z__f32_to_uint32_trunc(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     return (u32)fa;
 }
 u64 Model::z__f32_to_uint32(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     return (u32)rintf(fa);
 }
 u64 Model::z__f32_to_uint64_trunc(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     return (u64)fa;
 }
 u64 Model::z__f32_to_uint64(u64 a) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     return (u64)rintf(fa);
 }
 u64 Model::z__f64_to_uint32_trunc(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     return (u32)fa;
 }
 u64 Model::z__f64_to_uint32(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     return (u32)rint(fa);
 }
 u64 Model::z__f64_to_uint64_trunc(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     return (u64)fa;
 }
 u64 Model::z__f64_to_uint64(u64 a) {
-    double fa; memcpy(&fa, &a, 8);
+    double fa;
+    memcpy(&fa, &a, 8);
     return (u64)rint(fa);
 }
 u64 Model::z__uint32_to_f32(u64 a) {
     SYNC_MXCSR_RC();
     float fr = (float)(u32)a;
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__uint64_to_f32(u64 a) {
     SYNC_MXCSR_RC();
     float fr = (float)(u64)a;
-    u32 r; memcpy(&r, &fr, 4); return r;
+    u32 r;
+    memcpy(&r, &fr, 4);
+    return r;
 }
 u64 Model::z__uint32_to_f64(u64 a) {
     double fr = (double)(u32)a;
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 u64 Model::z__uint64_to_f64(u64 a) {
     SYNC_MXCSR_RC();
     double fr = (double)(u64)a;
-    u64 r; memcpy(&r, &fr, 8); return r;
+    u64 r;
+    memcpy(&r, &fr, 8);
+    return r;
 }
 
 // =========================================================================
@@ -1653,16 +1906,19 @@ u64 Model::z__uint64_to_f64(u64 a) {
 
 // VSCALEF: result = src1 * 2^(floor(src2))
 u64 Model::z__f32_scalef(u64 a, u64 b) {
-    float fa, fb;
+    float fa;
+    float fb;
     memcpy(&fa, &a, 4);
     memcpy(&fb, &b, 4);
     float result = fa * powf(2.0f, floorf(fb));
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
 u64 Model::z__f64_scalef(u64 a, u64 b) {
-    double da, db;
+    double da;
+    double db;
     memcpy(&da, &a, 8);
     memcpy(&db, &b, 8);
     double result = da * pow(2.0, floor(db));
@@ -1675,18 +1931,27 @@ u64 Model::z__f32_getexp(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     if (fa == 0.0f || fa == -0.0f) {
-        float r = -INFINITY; u32 rr; memcpy(&rr, &r, 4); return rr;
+        float r = -INFINITY;
+        u32 rr;
+        memcpy(&rr, &r, 4);
+        return rr;
     }
     if (std::isinf(fa)) {
-        float r = INFINITY; u32 rr; memcpy(&rr, &r, 4); return rr;
+        float r = INFINITY;
+        u32 rr;
+        memcpy(&rr, &r, 4);
+        return rr;
     }
     if (std::isnan(fa)) {
-        u32 rr; memcpy(&rr, &fa, 4); return rr;
+        u32 rr;
+        memcpy(&rr, &fa, 4);
+        return rr;
     }
     int exp;
     frexpf(fabsf(fa), &exp);
     float result = (float)(exp - 1);  // frexp returns [0.5, 1.0) so exp is biased by 1
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1694,10 +1959,14 @@ u64 Model::z__f64_getexp(u64 a) {
     double da;
     memcpy(&da, &a, 8);
     if (da == 0.0 || da == -0.0) {
-        double r = -INFINITY; memcpy(&a, &r, 8); return a;
+        double r = -INFINITY;
+        memcpy(&a, &r, 8);
+        return a;
     }
     if (std::isinf(da)) {
-        double r = INFINITY; memcpy(&a, &r, 8); return a;
+        double r = INFINITY;
+        memcpy(&a, &r, 8);
+        return a;
     }
     if (std::isnan(da)) {
         return a;  // NaN passthrough
@@ -1714,7 +1983,8 @@ u64 Model::z__f32_rcp14(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float result = 1.0f / fa;
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1731,7 +2001,8 @@ u64 Model::z__f32_rsqrt14(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float result = 1.0f / sqrtf(fa);
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1748,7 +2019,8 @@ u64 Model::z__f32_rcp28(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float result = 1.0f / fa;
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1765,7 +2037,8 @@ u64 Model::z__f32_rsqrt28(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float result = 1.0f / sqrtf(fa);
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1782,7 +2055,8 @@ u64 Model::z__f32_exp2(u64 a) {
     float fa;
     memcpy(&fa, &a, 4);
     float result = exp2f(fa);
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
@@ -1797,7 +2071,8 @@ u64 Model::z__f64_exp2(u64 a) {
 // VRNDSCALE: round to number of fraction bits specified by imm8
 // imm8[3:0] = M (number of fraction bits), imm8[7:4] = rounding control
 u64 Model::z__f32_rndscale(u64 a, u64 imm) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     int rc = (imm >> 2) & 3;
     // Use host rounding for now (simplified)
     float result;
@@ -1808,12 +2083,14 @@ u64 Model::z__f32_rndscale(u64 a, u64 imm) {
     case 3: result = truncf(fa); break;      // round toward zero
     default: result = nearbyintf(fa); break;
     }
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
 u64 Model::z__f64_rndscale(u64 a, u64 imm) {
-    double da; memcpy(&da, &a, 8);
+    double da;
+    memcpy(&da, &a, 8);
     int rc = (imm >> 2) & 3;
     double result;
     switch (rc) {
@@ -1830,10 +2107,12 @@ u64 Model::z__f64_rndscale(u64 a, u64 imm) {
 // VGETMANT: extract normalized mantissa
 // imm8[1:0] = sign control, imm8[3:2] = interval
 u64 Model::z__f32_getmant(u64 a, u64 imm) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     if (std::isnan(fa) || std::isinf(fa) || fa == 0.0f) {
         // Simplified: return input for special cases
-        u32 r; memcpy(&r, &fa, 4);
+        u32 r;
+        memcpy(&r, &fa, 4);
         return r;
     }
     int exp;
@@ -1847,12 +2126,14 @@ u64 Model::z__f32_getmant(u64 a, u64 imm) {
         if (fa < 0) mantissa = -mantissa;
     }
     // else sc=1: positive, sc=2: negative, sc=3: positive
-    u32 r; memcpy(&r, &mantissa, 4);
+    u32 r;
+    memcpy(&r, &mantissa, 4);
     return r;
 }
 
 u64 Model::z__f64_getmant(u64 a, u64 imm) {
-    double da; memcpy(&da, &a, 8);
+    double da;
+    memcpy(&da, &a, 8);
     if (std::isnan(da) || std::isinf(da) || da == 0.0) {
         return a;
     }
@@ -1870,18 +2151,23 @@ u64 Model::z__f64_getmant(u64 a, u64 imm) {
 // VREDUCE: reduce = src - round(src) * 2^(-M)
 // Simplified: return src - rndscale(src, imm)
 u64 Model::z__f32_reduce(u64 a, u64 imm) {
-    float fa; memcpy(&fa, &a, 4);
+    float fa;
+    memcpy(&fa, &a, 4);
     u64 rounded = z__f32_rndscale(a, imm);
-    float fr; memcpy(&fr, &rounded, 4);
+    float fr;
+    memcpy(&fr, &rounded, 4);
     float result = fa - fr;
-    u32 r; memcpy(&r, &result, 4);
+    u32 r;
+    memcpy(&r, &result, 4);
     return r;
 }
 
 u64 Model::z__f64_reduce(u64 a, u64 imm) {
-    double da; memcpy(&da, &a, 8);
+    double da;
+    memcpy(&da, &a, 8);
     u64 rounded = z__f64_rndscale(a, imm);
-    double dr; memcpy(&dr, &rounded, 8);
+    double dr;
+    memcpy(&dr, &rounded, 8);
     double result = da - dr;
     memcpy(&a, &result, 8);
     return a;
@@ -1892,14 +2178,17 @@ u64 Model::z__f64_reduce(u64 a, u64 imm) {
 u64 Model::z__f32_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
     // Simplified: for normal cases, return src1 unchanged
     // A full implementation would classify src1 and dst, then use src2 as a lookup table
-    float fs; memcpy(&fs, &src1, 4);
-    u32 r; memcpy(&r, &fs, 4);
+    float fs;
+    memcpy(&fs, &src1, 4);
+    u32 r;
+    memcpy(&r, &fs, 4);
     return r;
 }
 
 u64 Model::z__f64_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
     // Simplified: return src1 unchanged for normal values
-    double ds; memcpy(&ds, &src1, 8);
+    double ds;
+    memcpy(&ds, &src1, 8);
     memcpy(&dst, &ds, 8);
     return dst;
 }

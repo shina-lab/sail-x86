@@ -182,7 +182,8 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
   u64 prog_bias = 0;
 
   {
-    u64 lo, hi;
+    u64 lo;
+    u64 hi;
     elf_load_span(mf, lo, hi);
     u64 span = hi - lo;
     if (is_pie) {
@@ -232,7 +233,8 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
     }
 
     // Let the kernel choose where to place the interpreter.
-    u64 lo, hi;
+    u64 lo;
+    u64 hi;
     elf_load_span(interp_elf, lo, hi);
     u64 span = hi - lo;
     u64 interp_map = guest_map_anywhere(span);
