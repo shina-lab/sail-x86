@@ -10,6 +10,7 @@
 #include <wmmintrin.h>
 #include <x86intrin.h>
 #include <cstdlib>
+#include <climits>
 
 namespace x86 {
 
@@ -131,8 +132,9 @@ u64 Model::z__f32_min(u64 a, u64 b) {
     float fa, fb;
     memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
     float fr;
-    if (__builtin_isnan(fa)) fr = fb;
-    else if (__builtin_isnan(fb)) fr = fa;
+    // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
+    if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
+    else if (fa == 0.0f && fb == 0.0f) fr = fb;
     else fr = fa < fb ? fa : fb;
     u32 r; memcpy(&r, &fr, 4);
     return r;
@@ -142,8 +144,9 @@ u64 Model::z__f32_max(u64 a, u64 b) {
     float fa, fb;
     memcpy(&fa, &a, 4); memcpy(&fb, &b, 4);
     float fr;
-    if (__builtin_isnan(fa)) fr = fb;
-    else if (__builtin_isnan(fb)) fr = fa;
+    // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
+    if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
+    else if (fa == 0.0f && fb == 0.0f) fr = fb;
     else fr = fa > fb ? fa : fb;
     u32 r; memcpy(&r, &fr, 4);
     return r;
@@ -229,8 +232,9 @@ u64 Model::z__f64_min(u64 a, u64 b) {
     double fa, fb;
     memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
     double fr;
-    if (__builtin_isnan(fa)) fr = fb;
-    else if (__builtin_isnan(fb)) fr = fa;
+    // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
+    if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
+    else if (fa == 0.0 && fb == 0.0) fr = fb;
     else fr = fa < fb ? fa : fb;
     u64 r; memcpy(&r, &fr, 8);
     return r;
@@ -240,8 +244,9 @@ u64 Model::z__f64_max(u64 a, u64 b) {
     double fa, fb;
     memcpy(&fa, &a, 8); memcpy(&fb, &b, 8);
     double fr;
-    if (__builtin_isnan(fa)) fr = fb;
-    else if (__builtin_isnan(fb)) fr = fa;
+    // Per Intel SDM: if either source is NaN or both are zero, return SRC2 (b)
+    if (__builtin_isnan(fa) || __builtin_isnan(fb)) fr = fb;
+    else if (fa == 0.0 && fb == 0.0) fr = fb;
     else fr = fa > fb ? fa : fb;
     u64 r; memcpy(&r, &fr, 8);
     return r;
@@ -331,50 +336,67 @@ u64 Model::z__int64_to_f32(u64 a) {
 
 u64 Model::z__f64_to_int32(u64 a) {
     double fa; memcpy(&fa, &a, 8);
-    i32 r = (i32)llrint(fa);
-    return (u32)r;
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
+    long long r = llrint(fa);
+    if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
+    return (u32)(i32)r;
 }
 
 u64 Model::z__f64_to_int64(u64 a) {
     double fa; memcpy(&fa, &a, 8);
-    i64 r = llrint(fa);
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
+    long long r = llrint(fa);
     return (u64)r;
 }
 
 u64 Model::z__f32_to_int32(u64 a) {
     float fa; memcpy(&fa, &a, 4);
-    i32 r = (i32)llrintf(fa);
-    return (u32)r;
+    // Per Intel SDM: NaN, Inf, or out-of-range → 0x80000000 (integer indefinite)
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
+    long long r = llrintf(fa);
+    if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
+    return (u32)(i32)r;
 }
 
 u64 Model::z__f32_to_int64(u64 a) {
     float fa; memcpy(&fa, &a, 4);
-    i64 r = llrintf(fa);
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
+    long long r = llrintf(fa);
     return (u64)r;
 }
 
 u64 Model::z__f64_to_int32_trunc(u64 a) {
     double fa; memcpy(&fa, &a, 8);
-    i32 r = (i32)fa;
-    return (u32)r;
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
+    long long r = (long long)fa;
+    if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
+    return (u32)(i32)r;
 }
 
 u64 Model::z__f64_to_int64_trunc(u64 a) {
     double fa; memcpy(&fa, &a, 8);
-    i64 r = (i64)fa;
-    return (u64)r;
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
+    // Use long double to avoid UB for values near INT64 boundary
+    long double ld = (long double)fa;
+    if (ld > (long double)INT64_MAX || ld < (long double)INT64_MIN) return (u64)INT64_MIN;
+    return (u64)(i64)fa;
 }
 
 u64 Model::z__f32_to_int32_trunc(u64 a) {
     float fa; memcpy(&fa, &a, 4);
-    i32 r = (i32)fa;
-    return (u32)r;
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u32)INT32_MIN;
+    long long r = (long long)fa;
+    if (r > INT32_MAX || r < INT32_MIN) return (u32)INT32_MIN;
+    return (u32)(i32)r;
 }
 
 u64 Model::z__f32_to_int64_trunc(u64 a) {
     float fa; memcpy(&fa, &a, 4);
-    i64 r = (i64)fa;
-    return (u64)r;
+    if (__builtin_isnan(fa) || __builtin_isinf(fa)) return (u64)INT64_MIN;
+    // float can't represent values > 2^63, so no overflow possible for in-range values
+    long double ld = (long double)fa;
+    if (ld > (long double)INT64_MAX || ld < (long double)INT64_MIN) return (u64)INT64_MIN;
+    return (u64)(i64)fa;
 }
 
 u64 Model::z__f64_to_f32(u64 a) {
