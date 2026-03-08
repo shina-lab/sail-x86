@@ -8301,6 +8301,15 @@ std::vector<TestCase> build_tests() {
     add_fault("div rcx (quotient overflow, 64-bit)", {0x48, 0xF7, 0xF1}, s, 0);
   }
 
+  // DIV quotient overflow — 16-bit
+  {
+    // DX:AX = 0x10000, CX=1 → quotient 65536 > UINT16_MAX
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0; s.rdx = 1; s.rcx = 1;
+    add_fault("div cx (quotient overflow, 16-bit)", {0x66, 0xF7, 0xF1}, s, 0);
+  }
+
   // IDIV quotient overflow
   {
     // 8-bit: AX=0x80, CL=1 → quotient 128 > INT8_MAX (127)
@@ -8308,6 +8317,30 @@ std::vector<TestCase> build_tests() {
     s.rflags = 0x2;
     s.rax = 0x80; s.rcx = 1;
     add_fault("idiv cl (quotient overflow, 8-bit)", {0xF6, 0xF9}, s, 0);
+  }
+  {
+    // 32-bit: EDX:EAX where quotient > INT32_MAX
+    // EDX=0, EAX=0x80000000, ECX=1 → quotient 0x80000000 > INT32_MAX
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x80000000; s.rdx = 0; s.rcx = 1;
+    add_fault("idiv ecx (quotient overflow, 32-bit)", {0xF7, 0xF9}, s, 0);
+  }
+  {
+    // 64-bit: RDX=0, RAX=0x8000000000000000, RCX=1
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x8000000000000000ULL; s.rdx = 0; s.rcx = 1;
+    add_fault("idiv rcx (quotient overflow, 64-bit)", {0x48, 0xF7, 0xF9}, s, 0);
+  }
+  {
+    // IDIV by -1 overflow: most negative / -1 overflows
+    // 32-bit: EDX:EAX = 0xFFFFFFFF:80000000 (-2147483648), ECX=0xFFFFFFFF (-1)
+    // quotient would be INT32_MIN / -1 = 2147483648 > INT32_MAX
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x80000000; s.rdx = 0xFFFFFFFF; s.rcx = 0xFFFFFFFF;
+    add_fault("idiv ecx (INT32_MIN / -1 overflow)", {0xF7, 0xF9}, s, 0);
   }
 
   // ---- #UD (vector 6): Invalid opcode ----
@@ -8317,6 +8350,12 @@ std::vector<TestCase> build_tests() {
     ArchState s = {};
     s.rflags = 0x2;
     add_fault("ud2", {0x0F, 0x0B}, s, 6);
+  }
+  {
+    // UD1 (0F B9): explicit undefined instruction with ModRM
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("ud1 (0F B9)", {0x0F, 0xB9, 0xC0}, s, 6);
   }
   // TODO: LOCK prefix on register-register instructions should raise #UD
   // but the Sail model doesn't check has_lock yet. Requires decoder changes.

@@ -604,7 +604,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 21 tests across 3 exception categories.**
+**Tests implemented: 26 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -691,7 +691,7 @@ Error code encodes: P (present), W/R (write), U/S (user/supervisor).
 - Multi-byte instruction spanning a page boundary where second page is
   unmapped (fault during instruction fetch)
 
-#### 2. Division Error (#DE, vector 0) — DONE (13 tests)
+#### 2. Division Error (#DE, vector 0) — DONE (18 tests)
 
 Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 
@@ -714,14 +714,14 @@ Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
 large for the designated register."
 
-#### 3. Invalid Opcode (#UD, vector 6) — PARTIAL (1 test)
+#### 3. Invalid Opcode (#UD, vector 6) — PARTIAL (2 tests)
 
 Triggered by undefined or invalid instruction encodings.
 
 | Test case | Notes | Status |
 |-----------|-------|--------|
 | `UD2` (`0F 0B`) | Explicit undefined instruction | DONE |
-| `UD1` (`0F B9`) | Explicit undefined instruction | TODO |
+| `UD1` (`0F B9`) | Explicit undefined instruction | DONE |
 | Invalid VEX prefix combinations | e.g., VEX.L=1 for 128-bit-only instructions | TODO |
 | LOCK prefix on non-lockable instruction | e.g., `LOCK ADD RAX, RBX` | BLOCKED (Sail doesn't check has_lock) |
 | SSE instruction with mismatched prefix | | TODO |
@@ -787,13 +787,15 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
 
 ### Test implementation priority
 
-1. **#DE (division by zero)** — DONE (13 tests)
+1. **#DE (division by zero)** — DONE (18 tests: div-by-zero all sizes,
+   quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — PARTIAL (1 test; LOCK prefix needs model fix)
+3. **#UD (invalid opcode)** — PARTIAL (2 tests: UD2 + UD1; LOCK needs model fix)
 4. **#GP (alignment)** — DONE (7 tests; alignment checks added to
    MOVAPS/MOVAPD/VMOVAPS/VMOVAPD in Sail model)
-5. **#MF/#XM (FP exceptions)** — TODO. Lower priority but useful.
+5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check
+   MXCSR exception mask bits or raise #XM. Requires touching all FP ops.
 6. **#AC, #SS** — Edge cases, lowest priority.
 
 ### State to compare on fault
