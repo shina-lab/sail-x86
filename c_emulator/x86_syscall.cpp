@@ -26,6 +26,15 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <signal.h>
+#include <grp.h>
+#include <sys/times.h>
+#include <sys/select.h>
+#include <sys/eventfd.h>
+#include <sys/timerfd.h>
+#include <sys/signalfd.h>
+#include <sys/inotify.h>
+#include <sys/sendfile.h>
+#include <utime.h>
 
 // Linux x86-64 syscall numbers
 #define SYS_READ            0
@@ -40,26 +49,32 @@
 #define SYS_MMAP            9
 #define SYS_MPROTECT        10
 #define SYS_MUNMAP          11
-#define SYS_MREMAP          25
 #define SYS_BRK             12
 #define SYS_RT_SIGACTION    13
 #define SYS_RT_SIGPROCMASK  14
 #define SYS_IOCTL           16
 #define SYS_PREAD64         17
 #define SYS_PWRITE64        18
+#define SYS_READV           19
 #define SYS_WRITEV          20
 #define SYS_ACCESS          21
 #define SYS_PIPE            22
-#define SYS_PIPE2           293
+#define SYS_SELECT          23
+#define SYS_SCHED_YIELD     24
+#define SYS_MREMAP          25
+#define SYS_MSYNC           26
 #define SYS_ALARM           27
 #define SYS_MADVISE         28
 #define SYS_DUP             32
 #define SYS_DUP2            33
-#define SYS_DUP3            292
 #define SYS_NANOSLEEP       35
+#define SYS_GETITIMER       36
+#define SYS_SETITIMER       38
 #define SYS_GETPID          39
+#define SYS_SENDFILE        40
 #define SYS_SOCKET          41
 #define SYS_CONNECT         42
+#define SYS_ACCEPT          43
 #define SYS_SENDTO          44
 #define SYS_RECVFROM        45
 #define SYS_SENDMSG         46
@@ -69,6 +84,7 @@
 #define SYS_LISTEN          50
 #define SYS_GETSOCKNAME     51
 #define SYS_GETPEERNAME     52
+#define SYS_SOCKETPAIR      53
 #define SYS_SETSOCKOPT      54
 #define SYS_GETSOCKOPT      55
 #define SYS_CLONE           56
@@ -81,66 +97,121 @@
 #define SYS_FCNTL           72
 #define SYS_FLOCK           73
 #define SYS_FSYNC           74
+#define SYS_FDATASYNC       75
+#define SYS_TRUNCATE        76
 #define SYS_FTRUNCATE       77
+#define SYS_GETDENTS        78
 #define SYS_GETCWD          79
 #define SYS_CHDIR           80
+#define SYS_FCHDIR          81
 #define SYS_RENAME          82
 #define SYS_MKDIR           83
 #define SYS_RMDIR           84
+#define SYS_CREAT           85
+#define SYS_LINK            86
 #define SYS_UNLINK          87
+#define SYS_SYMLINK         88
 #define SYS_READLINK        89
 #define SYS_CHMOD           90
 #define SYS_FCHMOD          91
 #define SYS_CHOWN           92
 #define SYS_FCHOWN          93
+#define SYS_LCHOWN          94
 #define SYS_UMASK           95
 #define SYS_GETTIMEOFDAY    96
 #define SYS_GETRLIMIT       97
 #define SYS_GETRUSAGE       98
 #define SYS_SYSINFO         99
+#define SYS_TIMES           100
 #define SYS_GETUID          102
 #define SYS_GETGID          104
+#define SYS_SETUID          105
+#define SYS_SETGID          106
 #define SYS_GETEUID         107
 #define SYS_GETEGID         108
+#define SYS_SETPGID         109
 #define SYS_GETPPID         110
 #define SYS_GETPGRP         111
 #define SYS_SETSID          112
+#define SYS_SETREUID        113
+#define SYS_SETREGID        114
 #define SYS_GETGROUPS       115
+#define SYS_SETGROUPS       116
+#define SYS_SETRESUID       117
+#define SYS_GETRESUID       118
+#define SYS_SETRESGID       119
+#define SYS_GETRESGID       120
+#define SYS_GETPGID         121
 #define SYS_SETFSUID        122
 #define SYS_SETFSGID        123
+#define SYS_GETSID          124
 #define SYS_SIGALTSTACK     131
+#define SYS_UTIME           132
+#define SYS_MKNOD           133
 #define SYS_STATFS          137
 #define SYS_FSTATFS         138
+#define SYS_SETRLIMIT       160
 #define SYS_PRCTL           157
 #define SYS_ARCH_PRCTL      158
 #define SYS_GETTID          186
+#define SYS_TKILL           200
 #define SYS_TIME            201
-#define SYS_FADVISE64       221
 #define SYS_FUTEX           202
+#define SYS_SCHED_SETAFFINITY 203
 #define SYS_SCHED_GETAFFINITY 204
+#define SYS_EPOLL_CREATE    213
 #define SYS_GETDENTS64      217
 #define SYS_SET_TID_ADDRESS 218
+#define SYS_FADVISE64       221
 #define SYS_CLOCK_GETTIME   228
+#define SYS_CLOCK_GETRES    229
+#define SYS_CLOCK_NANOSLEEP 230
 #define SYS_EXIT_GROUP      231
 #define SYS_EPOLL_WAIT      232
 #define SYS_EPOLL_CTL       233
 #define SYS_TGKILL          234
+#define SYS_UTIMES          235
 #define SYS_OPENAT          257
+#define SYS_MKDIRAT         258
+#define SYS_MKNODAT         259
+#define SYS_FCHOWNAT        260
 #define SYS_NEWFSTATAT      262
 #define SYS_UNLINKAT        263
 #define SYS_RENAMEAT        264
-#define SYS_FACCESSAT       269
-#define SYS_SET_ROBUST_LIST 273
+#define SYS_LINKAT          265
+#define SYS_SYMLINKAT       266
 #define SYS_READLINKAT      267
-#define SYS_PIPE2_ALT       293
+#define SYS_FCHMODAT        268
+#define SYS_FACCESSAT       269
+#define SYS_PSELECT6        270
+#define SYS_PPOLL           271
+#define SYS_SET_ROBUST_LIST 273
+#define SYS_SPLICE          275
+#define SYS_TEE             276
+#define SYS_UTIMENSAT       280
+#define SYS_EPOLL_PWAIT     281
+#define SYS_TIMERFD_CREATE  283
+#define SYS_FALLOCATE       285
+#define SYS_TIMERFD_SETTIME 286
+#define SYS_TIMERFD_GETTIME 287
+#define SYS_ACCEPT4         288
+#define SYS_SIGNALFD4       289
+#define SYS_EVENTFD2        290
+#define SYS_EPOLL_CREATE1   291
+#define SYS_DUP3            292
+#define SYS_PIPE2           293
+#define SYS_INOTIFY_INIT1   294
+#define SYS_INOTIFY_ADD_WATCH 254
+#define SYS_INOTIFY_RM_WATCH 255
 #define SYS_PRLIMIT64       302
+#define SYS_RENAMEAT2       316
 #define SYS_GETRANDOM       318
 #define SYS_MEMBARRIER      324
+#define SYS_COPY_FILE_RANGE 326
 #define SYS_STATX           332
 #define SYS_RSEQ            334
+#define SYS_CLOSE_RANGE     436
 #define SYS_FACCESSAT2      439
-#define SYS_EPOLL_CREATE1   291
-#define SYS_EVENTFD2        290
 
 // GPR indices matching the Sail model
 static constexpr int RAX = 0, RCX = 1, RDX = 2, RBX = 3;
@@ -305,6 +376,29 @@ void emulate_syscall(x86::Model &model) {
     result = (n < 0) ? -errno : n;
     break;
   }
+  case SYS_READV: {
+    int fd = (int)arg1;
+    u64 iov_addr = arg2;
+    int iovcnt = (int)arg3;
+    ssize_t total = 0;
+    for (int i = 0; i < iovcnt; i++) {
+      u64 base, len;
+      model.memory.read(iov_addr + i * 16, &base, 8);
+      model.memory.read(iov_addr + i * 16 + 8, &len, 8);
+      if (len > 0 && base != 0) {
+        model.memory.map_range(base, len);
+        ssize_t n = host_read_to_guest(model, fd, base, len);
+        if (n < 0) {
+          if (total == 0) total = -errno;
+          break;
+        }
+        total += n;
+        if ((size_t)n < len) break;
+      }
+    }
+    result = total;
+    break;
+  }
   case SYS_WRITEV: {
     int fd = (int)arg1;
     u64 iov_addr = arg2;
@@ -316,7 +410,10 @@ void emulate_syscall(x86::Model &model) {
       model.memory.read(iov_addr + i * 16 + 8, &len, 8);
       if (len > 0 && base != 0) {
         ssize_t n = guest_write_to_host(model, fd, base, len);
-        if (n < 0) { total = -errno; break; }
+        if (n < 0) {
+          if (total == 0) total = -errno;
+          break;
+        }
         total += n;
         if ((size_t)n < len) break;
       }
@@ -400,8 +497,97 @@ void emulate_syscall(x86::Model &model) {
     if (result < 0) result = -errno;
     break;
   }
+  case SYS_FDATASYNC: {
+    result = ::fdatasync((int)arg1);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_TRUNCATE: {
+    std::string path = read_guest_string(model, arg1);
+    result = ::truncate(path.c_str(), (off_t)arg2);
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_FTRUNCATE: {
     result = ::ftruncate((int)arg1, (off_t)arg2);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_CREAT: {
+    std::string path = read_guest_string(model, arg1);
+    result = ::creat(path.c_str(), (mode_t)arg2);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_FALLOCATE: {
+    result = ::fallocate((int)arg1, (int)arg2, (off_t)arg3, (off_t)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_SENDFILE: {
+    off_t offset;
+    off_t *offp = nullptr;
+    if (arg3 != 0) {
+      model.memory.read(arg3, &offset, sizeof(offset));
+      offp = &offset;
+    }
+    result = ::sendfile((int)arg1, (int)arg2, offp, (size_t)arg4);
+    if (result >= 0 && arg3 != 0) {
+      model.memory.write(arg3, &offset, sizeof(offset));
+    } else if (result < 0) {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_COPY_FILE_RANGE: {
+    off_t off_in, off_out;
+    off_t *p_in = nullptr, *p_out = nullptr;
+    if (arg2 != 0) {
+      model.memory.read(arg2, &off_in, sizeof(off_in));
+      p_in = &off_in;
+    }
+    if (arg4 != 0) {
+      model.memory.read(arg4, &off_out, sizeof(off_out));
+      p_out = &off_out;
+    }
+    result = syscall(SYS_copy_file_range, (int)arg1, p_in,
+                     (int)arg3, p_out, (size_t)arg5, (unsigned)arg6);
+    if (result >= 0) {
+      if (arg2 != 0) model.memory.write(arg2, &off_in, sizeof(off_in));
+      if (arg4 != 0) model.memory.write(arg4, &off_out, sizeof(off_out));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SPLICE: {
+    off_t off_in, off_out;
+    off_t *p_in = nullptr, *p_out = nullptr;
+    if (arg2 != 0) {
+      model.memory.read(arg2, &off_in, sizeof(off_in));
+      p_in = &off_in;
+    }
+    if (arg4 != 0) {
+      model.memory.read(arg4, &off_out, sizeof(off_out));
+      p_out = &off_out;
+    }
+    result = ::splice((int)arg1, p_in, (int)arg3, p_out,
+                      (size_t)arg5, (unsigned)arg6);
+    if (result >= 0) {
+      if (arg2 != 0) model.memory.write(arg2, &off_in, sizeof(off_in));
+      if (arg4 != 0) model.memory.write(arg4, &off_out, sizeof(off_out));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_TEE: {
+    result = ::tee((int)arg1, (int)arg2, (size_t)arg3, (unsigned)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_CLOSE_RANGE: {
+    result = syscall(SYS_close_range, (unsigned)arg1, (unsigned)arg2, (int)arg3);
     if (result < 0) result = -errno;
     break;
   }
@@ -557,6 +743,11 @@ void emulate_syscall(x86::Model &model) {
     if (result < 0) result = -errno;
     break;
   }
+  case SYS_FCHDIR: {
+    result = ::fchdir((int)arg1);
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_ACCESS: {
     std::string path = read_guest_string(model, arg1);
     result = ::access(path.c_str(), (int)arg2);
@@ -662,6 +853,132 @@ void emulate_syscall(x86::Model &model) {
     result = ::umask((mode_t)arg1);
     break;
   }
+  case SYS_LINK: {
+    std::string oldpath = read_guest_string(model, arg1);
+    std::string newpath = read_guest_string(model, arg2);
+    result = ::link(oldpath.c_str(), newpath.c_str());
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_LINKAT: {
+    std::string oldpath = read_guest_string(model, arg2);
+    std::string newpath = read_guest_string(model, arg4);
+    result = ::linkat((int)(i32)arg1, oldpath.c_str(),
+                      (int)(i32)arg3, newpath.c_str(), (int)arg5);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_SYMLINK: {
+    std::string target = read_guest_string(model, arg1);
+    std::string linkpath = read_guest_string(model, arg2);
+    result = ::symlink(target.c_str(), linkpath.c_str());
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_SYMLINKAT: {
+    std::string target = read_guest_string(model, arg1);
+    std::string linkpath = read_guest_string(model, arg3);
+    result = ::symlinkat(target.c_str(), (int)(i32)arg2, linkpath.c_str());
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_LCHOWN: {
+    std::string path = read_guest_string(model, arg1);
+    result = ::lchown(path.c_str(), (uid_t)arg2, (gid_t)arg3);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_MKDIRAT: {
+    std::string path = read_guest_string(model, arg2);
+    result = ::mkdirat((int)(i32)arg1, path.c_str(), (mode_t)arg3);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_FCHMODAT: {
+    std::string path = read_guest_string(model, arg2);
+    result = ::fchmodat((int)(i32)arg1, path.c_str(), (mode_t)arg3, (int)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_FCHOWNAT: {
+    std::string path = read_guest_string(model, arg2);
+    result = ::fchownat((int)(i32)arg1, path.c_str(),
+                        (uid_t)arg3, (gid_t)arg4, (int)arg5);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_RENAMEAT2: {
+    std::string old_path = read_guest_string(model, arg2);
+    std::string new_path = read_guest_string(model, arg4);
+    result = syscall(SYS_renameat2, (int)(i32)arg1, old_path.c_str(),
+                     (int)(i32)arg3, new_path.c_str(), (unsigned)arg5);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_MKNOD: {
+    std::string path = read_guest_string(model, arg1);
+    result = ::mknod(path.c_str(), (mode_t)arg2, (dev_t)arg3);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_MKNODAT: {
+    std::string path = read_guest_string(model, arg2);
+    result = ::mknodat((int)(i32)arg1, path.c_str(), (mode_t)arg3, (dev_t)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_GETDENTS: {
+    size_t count = arg3;
+    std::vector<u8> tmp(count);
+    result = syscall(SYS_getdents, (int)arg1, tmp.data(), count);
+    if (result > 0) {
+      model.memory.write(arg2, tmp.data(), result);
+    } else if (result < 0) {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_UTIMENSAT: {
+    std::string path;
+    const char *pathp = nullptr;
+    if (arg2 != 0) {
+      path = read_guest_string(model, arg2);
+      pathp = path.c_str();
+    }
+    struct timespec times[2];
+    struct timespec *timesp = nullptr;
+    if (arg3 != 0) {
+      model.memory.read(arg3, times, sizeof(times));
+      timesp = times;
+    }
+    result = ::utimensat((int)(i32)arg1, pathp, timesp, (int)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_UTIME: {
+    std::string path = read_guest_string(model, arg1);
+    if (arg2 == 0) {
+      result = ::utime(path.c_str(), nullptr);
+    } else {
+      struct utimbuf ut;
+      model.memory.read(arg2, &ut, sizeof(ut));
+      result = ::utime(path.c_str(), &ut);
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_UTIMES: {
+    std::string path = read_guest_string(model, arg1);
+    if (arg2 == 0) {
+      result = ::utimes(path.c_str(), nullptr);
+    } else {
+      struct timeval tvs[2];
+      model.memory.read(arg2, tvs, sizeof(tvs));
+      result = ::utimes(path.c_str(), tvs);
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
 
   // ---- Process control ----
 
@@ -739,7 +1056,48 @@ void emulate_syscall(x86::Model &model) {
   case SYS_SETFSGID: result = syscall(SYS_setfsgid, (gid_t)arg1); break;
   case SYS_GETPPID: result = ::getppid(); break;
   case SYS_GETTID: result = ::getpid(); break;
+  case SYS_SETPGID: result = ::setpgid((pid_t)arg1, (pid_t)arg2); if (result < 0) result = -errno; break;
   case SYS_GETPGRP: result = ::getpgrp(); break;
+  case SYS_GETPGID: result = ::getpgid((pid_t)arg1); if (result < 0) result = -errno; break;
+  case SYS_GETSID: result = ::getsid((pid_t)arg1); if (result < 0) result = -errno; break;
+  case SYS_SETUID: result = ::setuid((uid_t)arg1); if (result < 0) result = -errno; break;
+  case SYS_SETGID: result = ::setgid((gid_t)arg1); if (result < 0) result = -errno; break;
+  case SYS_SETREUID: result = ::setreuid((uid_t)arg1, (uid_t)arg2); if (result < 0) result = -errno; break;
+  case SYS_SETREGID: result = ::setregid((gid_t)arg1, (gid_t)arg2); if (result < 0) result = -errno; break;
+  case SYS_SETRESUID: result = ::setresuid((uid_t)arg1, (uid_t)arg2, (uid_t)arg3); if (result < 0) result = -errno; break;
+  case SYS_GETRESUID: {
+    uid_t r, e, s;
+    result = ::getresuid(&r, &e, &s);
+    if (result == 0) {
+      model.memory.write(arg1, &r, sizeof(r));
+      model.memory.write(arg2, &e, sizeof(e));
+      model.memory.write(arg3, &s, sizeof(s));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SETRESGID: result = ::setresgid((gid_t)arg1, (gid_t)arg2, (gid_t)arg3); if (result < 0) result = -errno; break;
+  case SYS_GETRESGID: {
+    gid_t r, e, s;
+    result = ::getresgid(&r, &e, &s);
+    if (result == 0) {
+      model.memory.write(arg1, &r, sizeof(r));
+      model.memory.write(arg2, &e, sizeof(e));
+      model.memory.write(arg3, &s, sizeof(s));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SETGROUPS: {
+    int size = (int)arg1;
+    std::vector<gid_t> groups(size);
+    if (size > 0) model.memory.read(arg2, groups.data(), size * sizeof(gid_t));
+    result = ::setgroups(size, groups.data());
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_GETGROUPS: {
     int size = (int)arg1;
     if (size == 0) {
@@ -788,8 +1146,69 @@ void emulate_syscall(x86::Model &model) {
   case SYS_NANOSLEEP: {
     struct timespec req;
     model.memory.read(arg1, &req, sizeof(req));
-    result = ::nanosleep(&req, nullptr);
-    if (result < 0) result = -errno;
+    struct timespec rem;
+    result = ::nanosleep(&req, &rem);
+    if (result < 0) {
+      if (errno == EINTR && arg2 != 0) {
+        model.memory.write(arg2, &rem, sizeof(rem));
+      }
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_CLOCK_GETRES: {
+    struct timespec ts;
+    result = ::clock_getres((clockid_t)arg1, arg2 ? &ts : nullptr);
+    if (result == 0 && arg2 != 0) {
+      model.memory.write(arg2, &ts, sizeof(ts));
+    } else if (result < 0) {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_CLOCK_NANOSLEEP: {
+    struct timespec req;
+    model.memory.read(arg3, &req, sizeof(req));
+    struct timespec rem;
+    result = ::clock_nanosleep((clockid_t)arg1, (int)arg2, &req, &rem);
+    if (result == EINTR && arg4 != 0) {
+      model.memory.write(arg4, &rem, sizeof(rem));
+    }
+    // clock_nanosleep returns error code directly (not -1/errno)
+    if (result != 0) result = -result;
+    break;
+  }
+  case SYS_GETITIMER: {
+    struct itimerval val;
+    result = ::getitimer((int)arg1, &val);
+    if (result == 0) {
+      model.memory.write(arg2, &val, sizeof(val));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SETITIMER: {
+    struct itimerval newval;
+    model.memory.read(arg2, &newval, sizeof(newval));
+    struct itimerval oldval;
+    result = ::setitimer((int)arg1, &newval, arg3 ? &oldval : nullptr);
+    if (result == 0 && arg3 != 0) {
+      model.memory.write(arg3, &oldval, sizeof(oldval));
+    } else if (result < 0) {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_TIMES: {
+    struct tms buf;
+    clock_t t = ::times(&buf);
+    if (t == (clock_t)-1) {
+      result = -errno;
+    } else {
+      model.memory.write(arg1, &buf, sizeof(buf));
+      result = (i64)t;
+    }
     break;
   }
 
@@ -801,8 +1220,10 @@ void emulate_syscall(x86::Model &model) {
     result = 0;
     break;
   case SYS_TGKILL:
+  case SYS_TKILL:
   case SYS_KILL: {
-    int sig = (syscall_nr == SYS_TGKILL) ? (int)arg3 : (int)arg2;
+    int sig = (syscall_nr == SYS_TGKILL) ? (int)arg3 :
+              (syscall_nr == SYS_TKILL) ? (int)arg2 : (int)arg2;
     if (sig == SIGABRT || sig == SIGKILL || sig == SIGTERM) {
       model.should_exit = true;
       model.exit_code = 128 + sig;
@@ -840,6 +1261,13 @@ void emulate_syscall(x86::Model &model) {
       model.memory.write(arg3, &rl, sizeof(rl));
     }
     result = 0;
+    break;
+  }
+  case SYS_SETRLIMIT: {
+    struct rlimit rl;
+    model.memory.read(arg2, &rl, sizeof(rl));
+    result = ::setrlimit((int)arg1, &rl);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_GETRLIMIT: {
@@ -908,6 +1336,17 @@ void emulate_syscall(x86::Model &model) {
   case SYS_MEMBARRIER:
     result = 0;
     break;
+  case SYS_SCHED_YIELD:
+    result = ::sched_yield();
+    break;
+  case SYS_SCHED_SETAFFINITY: {
+    size_t cpusetsize = arg3;
+    std::vector<u8> tmp(cpusetsize);
+    model.memory.read(arg3, tmp.data(), cpusetsize);
+    result = syscall(SYS_sched_setaffinity, (pid_t)arg1, cpusetsize, tmp.data());
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_SCHED_GETAFFINITY: {
     size_t cpusetsize = arg2;
     std::vector<u8> tmp(cpusetsize, 0);
@@ -921,7 +1360,6 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_POLL: {
-    // poll(fds, nfds, timeout)
     u64 nfds = arg2;
     size_t sz = nfds * sizeof(struct pollfd);
     std::vector<struct pollfd> fds(nfds);
@@ -934,9 +1372,73 @@ void emulate_syscall(x86::Model &model) {
     }
     break;
   }
+  case SYS_PPOLL: {
+    u64 nfds = arg2;
+    size_t sz = nfds * sizeof(struct pollfd);
+    std::vector<struct pollfd> fds(nfds);
+    model.memory.read(arg1, fds.data(), sz);
+    struct timespec ts, *tsp = nullptr;
+    if (arg3 != 0) {
+      model.memory.read(arg3, &ts, sizeof(ts));
+      tsp = &ts;
+    }
+    // Ignore sigmask (arg4/arg5) — signals are stubbed
+    result = ::ppoll(fds.data(), nfds, tsp, nullptr);
+    if (result >= 0) {
+      model.memory.write(arg1, fds.data(), sz);
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SELECT: {
+    int nfds = (int)arg1;
+    fd_set rfds, wfds, efds;
+    fd_set *rp = nullptr, *wp = nullptr, *ep = nullptr;
+    if (arg2 != 0) { model.memory.read(arg2, &rfds, sizeof(rfds)); rp = &rfds; }
+    if (arg3 != 0) { model.memory.read(arg3, &wfds, sizeof(wfds)); wp = &wfds; }
+    if (arg4 != 0) { model.memory.read(arg4, &efds, sizeof(efds)); ep = &efds; }
+    struct timeval tv, *tvp = nullptr;
+    if (arg5 != 0) { model.memory.read(arg5, &tv, sizeof(tv)); tvp = &tv; }
+    result = ::select(nfds, rp, wp, ep, tvp);
+    if (result >= 0) {
+      if (arg2 != 0) model.memory.write(arg2, &rfds, sizeof(rfds));
+      if (arg3 != 0) model.memory.write(arg3, &wfds, sizeof(wfds));
+      if (arg4 != 0) model.memory.write(arg4, &efds, sizeof(efds));
+      if (arg5 != 0) model.memory.write(arg5, &tv, sizeof(tv));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_PSELECT6: {
+    int nfds = (int)arg1;
+    fd_set rfds, wfds, efds;
+    fd_set *rp = nullptr, *wp = nullptr, *ep = nullptr;
+    if (arg2 != 0) { model.memory.read(arg2, &rfds, sizeof(rfds)); rp = &rfds; }
+    if (arg3 != 0) { model.memory.read(arg3, &wfds, sizeof(wfds)); wp = &wfds; }
+    if (arg4 != 0) { model.memory.read(arg4, &efds, sizeof(efds)); ep = &efds; }
+    struct timespec ts, *tsp = nullptr;
+    if (arg5 != 0) { model.memory.read(arg5, &ts, sizeof(ts)); tsp = &ts; }
+    // Ignore sigmask (arg6) — signals are stubbed
+    result = ::pselect(nfds, rp, wp, ep, tsp, nullptr);
+    if (result >= 0) {
+      if (arg2 != 0) model.memory.write(arg2, &rfds, sizeof(rfds));
+      if (arg3 != 0) model.memory.write(arg3, &wfds, sizeof(wfds));
+      if (arg4 != 0) model.memory.write(arg4, &efds, sizeof(efds));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
   case SYS_SETSID: {
     result = ::setsid();
     if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_MSYNC: {
+    // No-op — guest memory isn't real mmap'd memory
+    result = 0;
     break;
   }
 
@@ -993,6 +1495,181 @@ void emulate_syscall(x86::Model &model) {
     }
     break;
   }
+  case SYS_ACCEPT:
+  case SYS_ACCEPT4: {
+    u8 addr[128];
+    socklen_t addrlen = sizeof(addr);
+    if (arg2 != 0 && arg3 != 0) {
+      model.memory.read(arg3, &addrlen, sizeof(addrlen));
+      if (addrlen > sizeof(addr)) addrlen = sizeof(addr);
+    }
+    int flags = (syscall_nr == SYS_ACCEPT4) ? (int)arg4 : 0;
+    if (arg2 != 0 && arg3 != 0) {
+      result = (syscall_nr == SYS_ACCEPT4)
+        ? ::accept4((int)arg1, (struct sockaddr *)addr, &addrlen, flags)
+        : ::accept((int)arg1, (struct sockaddr *)addr, &addrlen);
+      if (result >= 0) {
+        model.memory.write(arg2, addr, addrlen);
+        model.memory.write(arg3, &addrlen, sizeof(addrlen));
+      }
+    } else {
+      result = (syscall_nr == SYS_ACCEPT4)
+        ? ::accept4((int)arg1, nullptr, nullptr, flags)
+        : ::accept((int)arg1, nullptr, nullptr);
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_SOCKETPAIR: {
+    int sv[2];
+    result = ::socketpair((int)arg1, (int)arg2, (int)arg3, sv);
+    if (result == 0) {
+      model.memory.write(arg4, sv, sizeof(sv));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SENDTO: {
+    std::vector<u8> buf(arg3);
+    model.memory.read(arg2, buf.data(), arg3);
+    if (arg5 != 0 && arg6 != 0) {
+      std::vector<u8> addr(arg6);
+      model.memory.read(arg5, addr.data(), arg6);
+      result = ::sendto((int)arg1, buf.data(), arg3, (int)arg4,
+                        (struct sockaddr *)addr.data(), (socklen_t)arg6);
+    } else {
+      result = ::sendto((int)arg1, buf.data(), arg3, (int)arg4, nullptr, 0);
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_RECVFROM: {
+    std::vector<u8> buf(arg3);
+    u8 addr[128];
+    socklen_t addrlen = sizeof(addr);
+    if (arg5 != 0 && arg6 != 0) {
+      model.memory.read(arg6, &addrlen, sizeof(addrlen));
+      if (addrlen > sizeof(addr)) addrlen = sizeof(addr);
+      result = ::recvfrom((int)arg1, buf.data(), arg3, (int)arg4,
+                          (struct sockaddr *)addr, &addrlen);
+      if (result >= 0) {
+        model.memory.write(arg2, buf.data(), result);
+        model.memory.write(arg5, addr, addrlen);
+        model.memory.write(arg6, &addrlen, sizeof(addrlen));
+      }
+    } else {
+      result = ::recvfrom((int)arg1, buf.data(), arg3, (int)arg4, nullptr, nullptr);
+      if (result >= 0) {
+        model.memory.write(arg2, buf.data(), result);
+      }
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_SENDMSG: {
+    // Read msghdr from guest
+    u64 hdr[7]; // name, namelen, iov, iovlen, control, controllen, flags
+    model.memory.read(arg2, hdr, sizeof(hdr));
+    u64 g_name = hdr[0], g_namelen = hdr[1];
+    u64 g_iov = hdr[2], g_iovlen = hdr[3];
+    int flags = (int)arg3;
+
+    // Gather iovec data from guest
+    std::vector<u8> flat_buf;
+    for (u64 i = 0; i < g_iovlen; i++) {
+      u64 base, len;
+      model.memory.read(g_iov + i * 16, &base, 8);
+      model.memory.read(g_iov + i * 16 + 8, &len, 8);
+      size_t old_sz = flat_buf.size();
+      flat_buf.resize(old_sz + len);
+      if (len > 0) model.memory.read(base, flat_buf.data() + old_sz, len);
+    }
+
+    struct iovec iov;
+    iov.iov_base = flat_buf.data();
+    iov.iov_len = flat_buf.size();
+
+    struct msghdr msg = {};
+    std::vector<u8> name_buf;
+    if (g_name != 0 && g_namelen > 0) {
+      name_buf.resize(g_namelen);
+      model.memory.read(g_name, name_buf.data(), g_namelen);
+      msg.msg_name = name_buf.data();
+      msg.msg_namelen = g_namelen;
+    }
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+
+    result = ::sendmsg((int)arg1, &msg, flags);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_RECVMSG: {
+    u64 hdr[7];
+    model.memory.read(arg2, hdr, sizeof(hdr));
+    u64 g_name = hdr[0], g_namelen = hdr[1];
+    u64 g_iov = hdr[2], g_iovlen = hdr[3];
+    u64 g_control = hdr[4], g_controllen = hdr[5];
+    int flags = (int)arg3;
+
+    // Calculate total iovec size
+    size_t total_len = 0;
+    for (u64 i = 0; i < g_iovlen; i++) {
+      u64 len;
+      model.memory.read(g_iov + i * 16 + 8, &len, 8);
+      total_len += len;
+    }
+
+    std::vector<u8> flat_buf(total_len);
+    struct iovec iov;
+    iov.iov_base = flat_buf.data();
+    iov.iov_len = total_len;
+
+    u8 name_buf[128] = {};
+    std::vector<u8> ctrl_buf(g_controllen ? g_controllen : 1);
+    struct msghdr msg = {};
+    if (g_name != 0) {
+      msg.msg_name = name_buf;
+      msg.msg_namelen = sizeof(name_buf);
+    }
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    if (g_control != 0 && g_controllen > 0) {
+      msg.msg_control = ctrl_buf.data();
+      msg.msg_controllen = g_controllen;
+    }
+
+    result = ::recvmsg((int)arg1, &msg, flags);
+    if (result >= 0) {
+      // Scatter data back into guest iovec
+      size_t offset = 0;
+      for (u64 i = 0; i < g_iovlen && offset < (size_t)result; i++) {
+        u64 base, len;
+        model.memory.read(g_iov + i * 16, &base, 8);
+        model.memory.read(g_iov + i * 16 + 8, &len, 8);
+        size_t to_copy = ((size_t)result - offset < len) ? (size_t)result - offset : len;
+        if (to_copy > 0) model.memory.write(base, flat_buf.data() + offset, to_copy);
+        offset += to_copy;
+      }
+      if (g_name != 0 && msg.msg_namelen > 0) {
+        size_t wlen = msg.msg_namelen < g_namelen ? msg.msg_namelen : g_namelen;
+        model.memory.write(g_name, name_buf, wlen);
+      }
+      if (g_control != 0 && msg.msg_controllen > 0) {
+        model.memory.write(g_control, ctrl_buf.data(), msg.msg_controllen);
+      }
+      // Write back updated msghdr fields
+      u64 new_namelen = msg.msg_namelen;
+      u64 new_controllen = msg.msg_controllen;
+      u64 new_flags = msg.msg_flags;
+      model.memory.write(arg2 + 8, &new_namelen, 8);
+      model.memory.write(arg2 + 40, &new_controllen, 8);
+      model.memory.write(arg2 + 48, &new_flags, 8);
+    }
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_GETSOCKNAME:
   case SYS_GETPEERNAME: {
     u8 addr[128];
@@ -1011,19 +1688,121 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
 
-  // ---- epoll (stubs) ----
+  // ---- xattr (stubs: pretend no xattrs exist) ----
 
-  case SYS_EPOLL_CREATE1:
+  case SYS_setxattr:
+  case SYS_lsetxattr:
+  case SYS_fsetxattr:
+  case SYS_removexattr:
+  case SYS_lremovexattr:
+  case SYS_fremovexattr:
+    result = -ENOTSUP;
+    break;
+  case SYS_getxattr:
+  case SYS_lgetxattr:
+  case SYS_fgetxattr:
+    result = -ENODATA;
+    break;
+  case SYS_listxattr:
+  case SYS_llistxattr:
+  case SYS_flistxattr:
+    result = 0;  // empty list
+    break;
+
+  // ---- epoll ----
+
+  case SYS_EPOLL_CREATE: {
+    result = ::epoll_create((int)arg1);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_EPOLL_CREATE1: {
     result = ::epoll_create1((int)arg1);
     if (result < 0) result = -errno;
     break;
-  case SYS_EPOLL_CTL:
+  }
+  case SYS_EPOLL_CTL: {
+    struct epoll_event ev;
+    if (arg4 != 0) {
+      model.memory.read(arg4, &ev, sizeof(ev));
+    }
+    result = ::epoll_ctl((int)arg1, (int)arg2, (int)arg3,
+                         arg4 ? &ev : nullptr);
+    if (result < 0) result = -errno;
+    break;
+  }
   case SYS_EPOLL_WAIT:
-    result = -ENOSYS;
+  case SYS_EPOLL_PWAIT: {
+    int maxevents = (int)arg3;
+    std::vector<struct epoll_event> events(maxevents);
+    // Ignore sigmask for EPOLL_PWAIT — signals are stubbed
+    result = ::epoll_wait((int)arg1, events.data(), maxevents, (int)arg4);
+    if (result > 0) {
+      model.memory.write(arg2, events.data(), result * sizeof(struct epoll_event));
+    } else if (result < 0) {
+      result = -errno;
+    }
     break;
-  case SYS_EVENTFD2:
-    result = -ENOSYS;
+  }
+
+  // ---- eventfd / timerfd / signalfd / inotify ----
+
+  case SYS_EVENTFD2: {
+    result = ::eventfd((unsigned)arg1, (int)arg2);
+    if (result < 0) result = -errno;
     break;
+  }
+  case SYS_TIMERFD_CREATE: {
+    result = ::timerfd_create((int)arg1, (int)arg2);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_TIMERFD_SETTIME: {
+    struct itimerspec newval, oldval;
+    model.memory.read(arg3, &newval, sizeof(newval));
+    result = ::timerfd_settime((int)arg1, (int)arg2, &newval,
+                               arg4 ? &oldval : nullptr);
+    if (result == 0 && arg4 != 0) {
+      model.memory.write(arg4, &oldval, sizeof(oldval));
+    } else if (result < 0) {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_TIMERFD_GETTIME: {
+    struct itimerspec cur;
+    result = ::timerfd_gettime((int)arg1, &cur);
+    if (result == 0) {
+      model.memory.write(arg2, &cur, sizeof(cur));
+    } else {
+      result = -errno;
+    }
+    break;
+  }
+  case SYS_SIGNALFD4: {
+    // signalfd4(fd, mask, sizemask, flags)
+    sigset_t mask;
+    model.memory.read(arg2, &mask, arg3);
+    result = ::signalfd((int)arg1, &mask, (int)arg4);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_INOTIFY_INIT1: {
+    result = ::inotify_init1((int)arg1);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_INOTIFY_ADD_WATCH: {
+    std::string path = read_guest_string(model, arg2);
+    result = ::inotify_add_watch((int)arg1, path.c_str(), (uint32_t)arg3);
+    if (result < 0) result = -errno;
+    break;
+  }
+  case SYS_INOTIFY_RM_WATCH: {
+    result = ::inotify_rm_watch((int)arg1, (int)arg2);
+    if (result < 0) result = -errno;
+    break;
+  }
 
   default: {
     static std::set<u64> warned;
