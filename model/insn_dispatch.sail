@@ -1389,7 +1389,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       // CC: INT 3 — trap (saved RIP points past the INT3 byte)
       204 => {
         if system_mode then {
-          RIP = decode_pos;  // Advance past INT3 before delivery
+          sw_return_rip = Some(decode_pos);
           deliver_exception(3, 0x00000000);
           next_rip = Some(RIP);  // deliver_exception set RIP to handler
           Ok()
@@ -1400,7 +1400,7 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       205 => {
         let imm = fetch_byte();
         if system_mode then {
-          RIP = decode_pos;  // Advance past INT imm8 before delivery
+          sw_return_rip = Some(decode_pos);
           deliver_exception(unsigned(imm), 0x00000000);
           next_rip = Some(RIP);  // deliver_exception set RIP to handler
           Ok()

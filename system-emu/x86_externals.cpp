@@ -167,6 +167,48 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 }
 
 // =========================================================================
+// Software TLB
+// =========================================================================
+
+void Model::z__tlb_lookup(struct zoptionzIbzK *rop, u64 linear, bool is_write) {
+  u64 vpn = (u64)linear >> 12;
+  int idx = vpn & (TLB_SIZE - 1);
+  auto &e = tlb[idx];
+  if (e.valid && e.vpn == vpn && (!is_write || e.writable)) {
+    u64 paddr = (e.ppn << 12) | ((u64)linear & 0xFFF);
+    // Clean up previous Some value if present
+    if (rop->kind == Kind_zSomezIbzK) {
+      KILL(lbits)(&rop->variants.zSomezIbzK);
+    }
+    rop->kind = Kind_zSomezIbzK;
+    CREATE_OF(lbits, fbits)(&rop->variants.zSomezIbzK, paddr, 64, true);
+    return;
+  }
+  if (rop->kind == Kind_zSomezIbzK) {
+    KILL(lbits)(&rop->variants.zSomezIbzK);
+  }
+  rop->kind = Kind_zNonezIbzK;
+}
+
+unit Model::z__tlb_insert(u64 linear, u64 paddr, bool is_write) {
+  u64 vpn = (u64)linear >> 12;
+  u64 ppn = (u64)paddr >> 12;
+  int idx = vpn & (TLB_SIZE - 1);
+  auto &e = tlb[idx];
+  e.vpn = vpn;
+  e.ppn = ppn;
+  e.valid = true;
+  e.writable = is_write;
+  return UNIT;
+}
+
+unit Model::z__tlb_flush(unit) {
+  for (int i = 0; i < TLB_SIZE; i++)
+    tlb[i].valid = false;
+  return UNIT;
+}
+
+// =========================================================================
 // IEEE 754 single-precision (f32) operations
 // =========================================================================
 

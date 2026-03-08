@@ -166,6 +166,16 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 }
 
 // =========================================================================
+// Software TLB — no-op stubs for user mode (paging is disabled)
+// =========================================================================
+
+void Model::z__tlb_lookup(struct zoptionzIbzK *rop, u64, bool) {
+  rop->kind = Kind_zNonezIbzK;
+}
+unit Model::z__tlb_insert(u64, u64, bool) { return UNIT; }
+unit Model::z__tlb_flush(unit) { return UNIT; }
+
+// =========================================================================
 // IEEE 754 single-precision (f32) operations
 // =========================================================================
 

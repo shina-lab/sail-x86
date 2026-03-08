@@ -76,4 +76,15 @@ public:
   // Pending external interrupt (checked by Sail model)
   bool pending_irq = false;
   u8 pending_irq_vector = 0;
+
+  // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].
+  // Each entry caches a 4KB page translation.
+  static constexpr int TLB_SIZE = 1024;
+  struct TLBEntry {
+    u64 vpn;       // Virtual page number (addr >> 12)
+    u64 ppn;       // Physical page number (paddr >> 12)
+    bool valid;
+    bool writable; // Can satisfy write accesses
+  };
+  TLBEntry tlb[TLB_SIZE] = {};
 };

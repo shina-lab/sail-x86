@@ -463,7 +463,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 if cur_cpl != 0 then raise_GP0()
                 else {
                   let rm = decode_rm(modrm, pfx);
-                  // TLB not yet implemented — this is a NOP for now.
+                  __tlb_flush();
                   Ok()
                 }
               },
@@ -572,7 +572,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               cur_mode = RealMode
           },
           2 => CR2 = cr_val,
-          3 => CR3 = cr_val,
+          3 => { CR3 = cr_val; __tlb_flush() },
           4 => CR4 = cr_val,
           _ => { throw X86Fault(EXN_UD, 0x00000000) },
         };

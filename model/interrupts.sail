@@ -110,6 +110,11 @@ function push_to_stack(rsp, value) = {
   new_rsp
 }
 
+// Optional return address override for software interrupts (INT n, INT3).
+// When Some(addr), deliver_exception_inner pushes addr instead of RIP.
+// Reset to None() after each use.
+register sw_return_rip : option(qword) = None()
+
 // Inner delivery: read IDT gate, push interrupt frame, update CPU state.
 // May throw X86Fault if gate is not present or stack push faults.
 val deliver_exception_inner : (exception_vector, dword) -> unit
@@ -118,11 +123,18 @@ function deliver_exception_inner(vec, err_code) = {
 
   // 1. Check gate present — #GP if not
   if not_bool(gate.gate_present) then {
+    sw_return_rip = None();  // Clear override on failure
     throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
   };
 
   // 2. Save old state
-  let old_rip : qword = RIP;
+  // For software interrupts, use the override return address (points past
+  // the INT instruction).  For hardware exceptions, use current RIP.
+  let old_rip : qword = match sw_return_rip {
+    Some(addr) => addr,
+    None() => RIP,
+  };
+  sw_return_rip = None();
   let old_cs  : word  = read_segreg(CS);
   let old_rflags : qword = read_rflags();
   let old_rsp : qword = read_gpr64(RSP);

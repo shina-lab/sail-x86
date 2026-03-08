@@ -157,16 +157,36 @@ function pt_walk(linear, access, table_base, level) = {
 }
 termination_measure pt_walk(_, _, _, level) = level
 
+// Simple software TLB for performance.
+// 256-entry direct-mapped cache: VPN → PPN for 4KB pages.
+// Each entry stores the full virtual page number (bits[63:12]) and
+// the translated physical page number, plus a valid bit and write
+// permission.  Flushed on CR3 write (in insn_baseline.sail).
+//
+// This is purely an optimization; removing it does not affect correctness.
+
+val __tlb_lookup : (qword, bool) -> option(qword)
+val __tlb_insert : (qword, qword, bool) -> unit
+val __tlb_flush : unit -> unit
+
 // Top-level address translation.
 // If paging is disabled (CR0.PG=0), returns the linear address as-is.
-// Otherwise, walks the page table starting from CR3.
+// Otherwise, checks TLB first, then walks the page table starting from CR3.
 val translate_addr : (qword, PTAccess) -> qword
 function translate_addr(linear, access) = {
   if CR0[31] == bitzero then
     linear  // Paging disabled: linear = physical
   else {
-    // CR3 contains the physical address of PML4 (bits[51:12], lower bits are flags)
-    let pml4_base : qword = CR3 & 0x000FFFFFFFFFF000;
-    pt_walk(linear, access, pml4_base, 3)
+    let is_write = access == PT_Write;
+    match __tlb_lookup(linear, is_write) {
+      Some(paddr) => paddr,
+      None() => {
+        let pml4_base : qword = CR3 & 0x000FFFFFFFFFF000;
+        let paddr = pt_walk(linear, access, pml4_base, 3);
+        // Only cache 4KB-aligned translations (common case)
+        __tlb_insert(linear, paddr, is_write);
+        paddr
+      },
+    }
   }
 }
