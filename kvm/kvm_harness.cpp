@@ -10969,6 +10969,105 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // Indirect JMP/CALL — register and memory operands
+  // =====================================================================
+  cat = "Indirect JMP";
+  {
+    // JMP rax: FF E0 — jump to rax (CODE_ADDR + 2 = right after the JMP)
+    {
+      TestCase tc;
+      tc.name = "jmp rax";
+      tc.category = cat;
+      tc.code = {0xFF, 0xE0};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 2;  // target = after JMP
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // JMP rax skipping bytes: FF E0 CC CC (jump over INT3s)
+    {
+      TestCase tc;
+      tc.name = "jmp rax (skip INT3)";
+      tc.category = cat;
+      tc.code = {0xFF, 0xE0, 0xCC, 0xCC};  // JMP rax, INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 4;  // skip the INT3 bytes
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // JMP [rdi]: FF 27 — indirect through memory
+    {
+      TestCase tc;
+      tc.name = "jmp [rdi]";
+      tc.category = cat;
+      tc.code = {0xFF, 0x27, 0xCC, 0xCC};  // JMP [rdi], INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      // [DATA_ADDR] = CODE_ADDR + 4 (skip JMP and INT3s)
+      u64 target = CODE_ADDR + 4;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &target, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL rax: FF D0 — push return addr, jump to rax
+    // target = CODE_ADDR + 2 (right after CALL), so RET addr = CODE_ADDR+2
+    // RSP should decrease by 8
+    {
+      TestCase tc;
+      tc.name = "call rax";
+      tc.category = cat;
+      tc.code = {0xFF, 0xD0};  // CALL rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 2;  // target = right after CALL (then HLT)
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL [rdi]: FF 17 — indirect call through memory
+    {
+      TestCase tc;
+      tc.name = "call [rdi]";
+      tc.category = cat;
+      tc.code = {0xFF, 0x17, 0xCC, 0xCC};  // CALL [rdi], INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      u64 target2 = CODE_ADDR + 4;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &target2, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL rax + RET: call to a RET instruction, verify round-trip.
+    // Layout: CALL rax; NOP; NOP; NOP; HLT; RET
+    // CALL pushes CODE_ADDR+2, jumps to CODE_ADDR+6 (RET).
+    // RET pops CODE_ADDR+2, jumps there. NOPs then HLT.
+    {
+      TestCase tc;
+      tc.name = "call rax + ret";
+      tc.category = cat;
+      tc.code = {0xFF, 0xD0,           // 0: CALL rax (2 bytes)
+                 0x90, 0x90, 0x90,     // 2: NOP NOP NOP (landing pad)
+                 0xF4,                 // 5: HLT (stop after return)
+                 0xC3};                // 6: RET (target of CALL)
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 6;  // point to the RET
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
   // LOCK prefix memory operations — read-modify-write on memory
   // =====================================================================
   cat = "LOCK mem";

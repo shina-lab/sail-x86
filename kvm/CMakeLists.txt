@@ -151,6 +151,7 @@ set(KVM_CATEGORIES
   "K-register ops"
   "Vec stores"
   "LOCK mem"
+  "Indirect JMP"
 )
 
 foreach(cat ${KVM_CATEGORIES})

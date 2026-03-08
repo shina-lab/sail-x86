@@ -863,13 +863,13 @@ Added 12 tests in "LOCK mem" category verifying LOCK'd memory RMW:
 - LOCK XADD (swap + add, verify both memory and register)
 - LOCK BTS, LOCK BTR, LOCK BTC (bit test and set/reset/complement)
 
-#### Item 6: Indirect JMP/CALL (LOW priority)
+#### Item 6: Indirect JMP/CALL (LOW priority) ✅ DONE
 
-Only direct JMP/CALL tested. Need:
-- JMP rax (FF /4 reg)
-- JMP [mem] (FF /4 mem)
-- CALL rax (FF /2 reg)
-- CALL [mem] (FF /2 mem)
+Added 6 tests in "Indirect JMP" category:
+- JMP rax (register indirect), JMP rax skipping INT3 bytes
+- JMP [rdi] (memory indirect)
+- CALL rax, CALL [rdi] (verify stack push)
+- CALL rax + RET round-trip
 
 #### Item 7: PUSH/POP memory operands (LOW priority)
 
