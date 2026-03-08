@@ -23,7 +23,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   {
     // FLDZ + FSTP m64fp: push 0.0 then store to [RDI]
     // D9 EE (FLDZ) + DD 1F (FSTP m64fp [RDI])
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     tests.push_back({"fldz; fstp [rdi]", cat, {0xD9, 0xEE, 0xDD, 0x1F},
@@ -120,10 +120,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "ENTER";
   {
-    ArchState s = {};
-    s.rsp = 0x20000;
-    s.rbp = 0x1F000;
-    s.rflags = 0x2;
+    ArchState s = {.rbp = 0x1F000, .rsp = 0x20000, .rflags = 0x2};
 
     // ENTER 0x10, 0: C8 10 00 00 (allocate 16 bytes, nesting=0)
     // Then LEAVE to restore: C9
@@ -138,7 +135,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "x87";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -231,7 +228,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // Compare RDX:RAX with m128. If equal, set ZF and store RCX:RBX.
 
     // Case 1: match
-    ArchState s = {};
+    ArchState s;
     s.rdi = DATA_ADDR;  // DATA_ADDR is 0x11000, 4K-aligned
     s.rax = 0x44332211AABBCCDD;
     s.rdx = 0x88776655EEFF0011;
@@ -263,7 +260,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AVX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -308,7 +305,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX packed double
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -339,7 +336,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX scalar
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -369,7 +366,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX data movement
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -387,7 +384,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX packed integer
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -416,7 +413,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX VCMPPS/VCMPPD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
@@ -429,7 +426,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
   // AVX conversion: VCVTDQ2PS, VCVTPS2DQ
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u32(1, 2, 0xFFFFFFFF, 100);  // ints: 1, 2, -1, 100
 
@@ -448,7 +445,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AVX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -465,7 +462,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "x87";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -524,7 +521,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "String";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -579,7 +576,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -605,7 +602,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
             {0x62, 0xF1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x7);
   }
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -629,7 +626,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
             {0x62, 0xF1, 0x7C, 0x08, 0x28, 0xC1}, s, 0x3);
   }
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -652,7 +649,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AVX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -710,7 +707,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AVX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
@@ -741,7 +738,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "x87";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -825,7 +822,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "String";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -900,9 +897,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
-    s.rflags = 0x2;
-    s.rcx = 0; // XCR0
+    ArchState s = {.rflags = 0x2};  // rcx = 0 (XCR0) by zero-init
     // XGETBV: 0F 01 D0
     add_xmm("xgetbv ecx=0", {0x0F, 0x01, 0xD0}, s, 0x0);
   }
@@ -912,7 +907,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -953,7 +948,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 4.0f, 9.0f, 16.0f);
     s.xmm[2] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
@@ -975,7 +970,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
             {0x62, 0xF1, 0x7C, 0x08, 0x51, 0xC1}, s, 0x3);
   }
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f64(1.5, 4.0);
     s.xmm[2] = xmm_from_f64(3.0, 2.0);
@@ -994,7 +989,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1048,7 +1043,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);   // dst (a)
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f); // vvvv (c)
@@ -1083,7 +1078,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(2.0, 3.0);
     s.xmm[1] = xmm_from_f64(10.0, 20.0);
@@ -1107,7 +1102,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
   {
     // Scalar FMA: VFMADD132SS, VFMADD132SD
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 99.0f, 99.0f, 99.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 88.0f, 88.0f, 88.0f);
@@ -1149,7 +1144,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "x87";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -1172,7 +1167,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "x87 mem";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
@@ -1181,7 +1176,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     float f3 = 3.0f;
     u8 fadd_data[8] = {};
     // [RDI+0..3] = int 10, [RDI+4..7] = float 3.0
-    fadd_data[0] = 10; fadd_data[1] = 0; fadd_data[2] = 0; fadd_data[3] = 0;
+    fadd_data[0] = 10;
     memcpy(fadd_data + 4, &f3, 4);
     // FILD m32 [RDI] (DB 07) + FADD m32fp [RDI+4] (D8 47 04) + FISTP m32 [RDI] (DB 1F)
     // 10 + 3.0 = 13.0 → FISTP → 13
@@ -1206,7 +1201,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FDIV m32fp: FILD 10 + FDIV [RDI+4] (m32fp 2.0) + FISTP [RDI]
     float f2 = 2.0f;
     u8 fdiv_data[8] = {};
-    fdiv_data[0] = 10; fdiv_data[1] = 0; fdiv_data[2] = 0; fdiv_data[3] = 0;
+    fdiv_data[0] = 10;
     memcpy(fdiv_data + 4, &f2, 4);
     // D8 77 04 = FDIV m32fp [RDI+4]
     // 10 / 2.0 = 5.0 → 5
@@ -1218,7 +1213,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     double d5 = 5.0;
     u8 dc_data[16] = {};
     // [RDI+0..3] = int 20, [RDI+8..15] = double 5.0
-    dc_data[0] = 20; dc_data[1] = 0; dc_data[2] = 0; dc_data[3] = 0;
+    dc_data[0] = 20;
     memcpy(dc_data + 8, &d5, 8);
 
     // FILD m32 [RDI] + FADD m64fp [RDI+8] + FISTP m32 [RDI]
@@ -1247,8 +1242,8 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
     // DA integer ops (FIADD/FISUB/FIMUL/FIDIV m32int)
     u8 ia_data[8] = {};
-    ia_data[0] = 10; ia_data[1] = 0; ia_data[2] = 0; ia_data[3] = 0;
-    ia_data[4] = 3;  ia_data[5] = 0; ia_data[6] = 0; ia_data[7] = 0;
+    ia_data[0] = 10;
+    ia_data[4] = 3;
 
     // FILD m32 [RDI] + FIADD m32 [RDI+4] + FISTP m32 [RDI]
     // DA 47 04 = FIADD m32int [RDI+4], 10+3=13
@@ -1268,8 +1263,8 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
     // FIDIV: use 10 / 2 = 5
     u8 idiv_data[8] = {};
-    idiv_data[0] = 10; idiv_data[1] = 0; idiv_data[2] = 0; idiv_data[3] = 0;
-    idiv_data[4] = 2;  idiv_data[5] = 0; idiv_data[6] = 0; idiv_data[7] = 0;
+    idiv_data[0] = 10;
+    idiv_data[4] = 2;
     // DA 77 04 = FIDIV m32int [RDI+4], 10/2=5
     tests.push_back({"fild+fidiv m32+fistp", cat,
                       {0xDB, 0x07, 0xDA, 0x77, 0x04, 0xDB, 0x1F},
@@ -1277,8 +1272,8 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
     // DE integer ops with pop (i16): FIADD/FISUB/FIMUL/FIDIV m16int
     u8 de_data[4] = {};
-    de_data[0] = 10; de_data[1] = 0;  // int16 = 10
-    de_data[2] = 3;  de_data[3] = 0;  // int16 = 3
+    de_data[0] = 10;  // int16 = 10
+    de_data[2] = 3;   // int16 = 3
 
     // FILD m16 [RDI+2] + FILD m16 [RDI] + DE 47 02 (FIADD m16 [RDI+2]) + FISTP m32 [RDI]
     // Actually simpler: FILD m16 [RDI] → 10 on stack, FIADD m16 [RDI+2] → 10+3=13
@@ -1359,7 +1354,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FSUBR: ST(0) = mem - ST(0) = 10.0 - 3.0 = 7.0
     float f10 = 10.0f;
     u8 fsubr_data[8] = {};
-    fsubr_data[0] = 3; fsubr_data[1] = 0; fsubr_data[2] = 0; fsubr_data[3] = 0;
+    fsubr_data[0] = 3;
     memcpy(fsubr_data + 4, &f10, 4);
     tests.push_back({"fild+fsubr m32fp+fistp", cat,
                       {0xDB, 0x07, 0xD8, 0x6F, 0x04, 0xDB, 0x1F},
@@ -1370,7 +1365,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FDIVR: ST(0) = mem / ST(0) = 12.0 / 3.0 = 4.0
     float f12 = 12.0f;
     u8 fdivr_data[8] = {};
-    fdivr_data[0] = 3; fdivr_data[1] = 0; fdivr_data[2] = 0; fdivr_data[3] = 0;
+    fdivr_data[0] = 3;
     memcpy(fdivr_data + 4, &f12, 4);
     tests.push_back({"fild+fdivr m32fp+fistp", cat,
                       {0xDB, 0x07, 0xD8, 0x7F, 0x04, 0xDB, 0x1F},
@@ -1385,10 +1380,11 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+
     // YMM upper halves (xmm indices 17, 18 in our model — but KVM uses
     // xsave area). For register-to-register, we set initial YMM state.
     // Our harness only sets XMM[0..15], not YMM upper halves.
@@ -1427,7 +1423,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1462,7 +1458,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
 
@@ -1491,7 +1487,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1537,7 +1533,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x0807060504030201, 0x100F0E0D0C0B0A09);
@@ -1598,7 +1594,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
     // Control: element i selects src[ctrl[i][1:0]]
@@ -1635,7 +1631,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -1688,7 +1684,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x0807060504030201, 0x100F0E0D0C0B0A09);
@@ -1753,7 +1749,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -1813,7 +1809,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(4.0f, 2.0f, 1.0f, 5.0f);
@@ -1842,7 +1838,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AVX";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);

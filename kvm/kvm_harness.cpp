@@ -24,7 +24,10 @@ struct KvmVm {
 
   bool init() {
     kvm_fd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
-    if (kvm_fd < 0) { perror("/dev/kvm"); return false; }
+    if (kvm_fd < 0) {
+      perror("/dev/kvm");
+      return false;
+    }
 
     int api_ver = ioctl(kvm_fd, KVM_GET_API_VERSION, 0);
     if (api_ver != 12) {
@@ -33,12 +36,18 @@ struct KvmVm {
     }
 
     vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, 0UL);
-    if (vm_fd < 0) { perror("KVM_CREATE_VM"); return false; }
+    if (vm_fd < 0) {
+      perror("KVM_CREATE_VM");
+      return false;
+    }
 
     guest_mem = (u8 *)mmap(nullptr, GUEST_MEM_SIZE,
                            PROT_READ | PROT_WRITE,
                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (guest_mem == MAP_FAILED) { perror("mmap guest"); return false; }
+    if (guest_mem == MAP_FAILED) {
+      perror("mmap guest");
+      return false;
+    }
 
     struct kvm_userspace_memory_region region = {};
     region.slot = 0;
@@ -51,13 +60,22 @@ struct KvmVm {
     }
 
     vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0UL);
-    if (vcpu_fd < 0) { perror("KVM_CREATE_VCPU"); return false; }
+    if (vcpu_fd < 0) {
+      perror("KVM_CREATE_VCPU");
+      return false;
+    }
 
     int mmap_size = ioctl(kvm_fd, KVM_GET_VCPU_MMAP_SIZE, 0);
-    if (mmap_size < 0) { perror("KVM_GET_VCPU_MMAP_SIZE"); return false; }
+    if (mmap_size < 0) {
+      perror("KVM_GET_VCPU_MMAP_SIZE");
+      return false;
+    }
     run = (struct kvm_run *)mmap(nullptr, mmap_size, PROT_READ | PROT_WRITE,
                                  MAP_SHARED, vcpu_fd, 0);
-    if (run == MAP_FAILED) { perror("mmap vcpu"); return false; }
+    if (run == MAP_FAILED) {
+      perror("mmap vcpu");
+      return false;
+    }
 
     // Set up CPUID with host-supported features (needed for AVX, XSAVE, etc.)
     {
@@ -102,11 +120,14 @@ struct KvmVm {
         memset(stub, 0xCC, sizeof(stub));  // fill with INT3
         int off = 0;
         if (!has_error_code(v)) {
-          stub[off++] = 0x6A; stub[off++] = 0x00;  // push 0 (dummy error code)
+          stub[off++] = 0x6A;  // push 0 (dummy error code)
+          stub[off++] = 0x00;
         } else {
-          stub[off++] = 0x90; stub[off++] = 0x90;  // nop nop (error code on stack)
+          stub[off++] = 0x90;  // nop nop (error code on stack)
+          stub[off++] = 0x90;
         }
-        stub[off++] = 0x6A; stub[off++] = (u8)v;   // push <vector>
+        stub[off++] = 0x6A;   // push <vector>
+        stub[off++] = (u8)v;
         stub[off++] = 0xE9;                          // jmp rel32
         u64 stub_addr = HANDLER_ADDR + v * 16;
         i32 rel = (i32)(COMMON_HANDLER - (stub_addr + off + 4));
@@ -566,7 +587,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
 
@@ -596,7 +617,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 0C /r ib — C4 E3 71 0C C2 05
     // imm=0x05: select elements 0,2 from src2(xmm2), 1,3 from src1(xmm1)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -608,7 +629,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 0D /r ib — C4 E3 71 0D C2 01
     // imm=0x01: select element 0 from src2(xmm2), element 1 from src1(xmm1)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_f64(1.0, 2.0);
       s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -620,7 +641,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 0E /r ib — C4 E3 71 0E C2 AA
     // imm=0xAA: alternating words from src2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
       s.xmm[2] = xmm_from_u64(0x1011101210131014, 0x1015101610171018);
@@ -632,7 +653,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 0F /r ib — C4 E3 71 0F C2 04
     // Shift right 4 bytes: concatenate xmm1:xmm2 and extract 16 bytes at offset 4
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
       s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -645,7 +666,7 @@ std::vector<TestCase> build_tests() {
     // ModRM: mod=11, reg=1(xmm1 src), rm=0(eax dest) → 0xC8
     // vvvv=1111 (unused), byte2=0x79 (W=0,vvvv=1111,L=0,pp=01)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFE0102, 0x1234567890ABCDEF);
       tests.push_back({"vpextrb eax,xmm1,2", cat,
@@ -655,7 +676,7 @@ std::vector<TestCase> build_tests() {
     // VPEXTRD eax, xmm1, 1
     // VEX.128.66.0F3A 16 /r ib — C4 E3 79 16 C8 01
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       tests.push_back({"vpextrd eax,xmm1,1", cat,
@@ -665,7 +686,7 @@ std::vector<TestCase> build_tests() {
     // VEXTRACTPS eax, xmm1, 2
     // VEX.128.66.0F3A 17 /r ib — C4 E3 79 17 C8 02
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       tests.push_back({"vextractps eax,xmm1,2", cat,
@@ -677,7 +698,7 @@ std::vector<TestCase> build_tests() {
     // ModRM: mod=11, reg=0(xmm0 dest), rm=0(eax src) → 0xC0
     // vvvv=~1=1110, byte2=0x71
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 0x42;
       s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -688,7 +709,7 @@ std::vector<TestCase> build_tests() {
     // VPINSRD xmm0, xmm1, eax, 2
     // VEX.128.66.0F3A 22 /r ib — C4 E3 71 22 C0 02
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 0xDEADBEEF;
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
@@ -700,7 +721,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 44 /r ib — C4 E3 71 44 C2 00
     // Carry-less multiply low qwords
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0x0000000000000007, 0x0000000000000000);
       s.xmm[2] = xmm_from_u64(0x000000000000000B, 0x0000000000000000);
@@ -711,7 +732,7 @@ std::vector<TestCase> build_tests() {
     // VPCLMULQDQ xmm0, xmm1, xmm2, 0x11
     // Carry-less multiply high qwords
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0x0000000000000000, 0x0123456789ABCDEF);
       s.xmm[2] = xmm_from_u64(0x0000000000000000, 0x00000000000000FF);
@@ -723,7 +744,7 @@ std::vector<TestCase> build_tests() {
     // VEX.128.66.0F3A 02 /r ib — C4 E3 71 02 C2 05
     // imm=0x05: select dwords 0,2 from src2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       s.xmm[2] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
@@ -742,7 +763,7 @@ std::vector<TestCase> build_tests() {
     // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx index)
     // byte2: W=0,vvvv=1101,L=0,pp=00 → 0x68
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0xDEADBEEF12345678;
       s.rdx = 16;
@@ -753,7 +774,7 @@ std::vector<TestCase> build_tests() {
     }
     // BZHI with zero index → result=0, ZF=1
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0xFFFFFFFF;
       s.rdx = 0;
@@ -764,7 +785,7 @@ std::vector<TestCase> build_tests() {
     // BZHI 64-bit: rax, rcx, rdx
     // W=1: byte2 = 0b1_1101_0_00 = 0xE8
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0xFFFFFFFFFFFFFFFF;
       s.rdx = 32;
@@ -774,7 +795,7 @@ std::vector<TestCase> build_tests() {
     }
     // BZHI with index >= operand size → CF=1, result unchanged
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 40;  // >= 32 for W0
@@ -788,7 +809,7 @@ std::vector<TestCase> build_tests() {
     // reg=0(eax dest), vvvv=~1=1110(ecx src), rm=2(edx mask)
     // byte2: W=0,vvvv=1110,L=0,pp=11(F2) → 0x73
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x000000FF;  // source bits
       s.rdx = 0x55555555;  // mask: every other bit
@@ -797,7 +818,7 @@ std::vector<TestCase> build_tests() {
     }
     // PDEP 64-bit
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x00000000000000FF;
       s.rdx = 0x5555555555555555;
@@ -810,7 +831,7 @@ std::vector<TestCase> build_tests() {
     // VEX.NDS.LZ.F3.0F38.W0 F5 /r — C4 E2 72 F5 C2
     // byte2: W=0,vvvv=1110,L=0,pp=10(F3) → 0x72
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0xAAAAAAAA;  // source
       s.rdx = 0x55555555;  // mask: every other bit
@@ -819,7 +840,7 @@ std::vector<TestCase> build_tests() {
     }
     // PEXT 64-bit
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0xAAAAAAAAAAAAAAAA;
       s.rdx = 0x5555555555555555;
@@ -835,7 +856,7 @@ std::vector<TestCase> build_tests() {
     // ModRM: mod=11, reg=011, rm=001 → 0xD9
     // Implicit src1 = EDX
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rdx = 100;
       s.rcx = 200;
@@ -844,7 +865,7 @@ std::vector<TestCase> build_tests() {
     }
     // MULX with large values to produce high part
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rdx = 0xFFFFFFFF;
       s.rcx = 0xFFFFFFFF;
@@ -853,7 +874,7 @@ std::vector<TestCase> build_tests() {
     }
     // MULX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rdx = 0x100000000;
       s.rcx = 0x100000000;
@@ -866,7 +887,7 @@ std::vector<TestCase> build_tests() {
     // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx count)
     // byte2: W=0,vvvv=1101,L=0,pp=10(F3) → 0x6A
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x80000000;  // negative when treated as signed 32-bit
       s.rdx = 4;
@@ -878,7 +899,7 @@ std::vector<TestCase> build_tests() {
     // VEX.NDS.LZ.66.0F38.W0 F7 /r — C4 E2 69 F7 C1
     // byte2: W=0,vvvv=1101,L=0,pp=01(66) → 0x69
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 8;
@@ -890,7 +911,7 @@ std::vector<TestCase> build_tests() {
     // VEX.NDS.LZ.F2.0F38.W0 F7 /r — C4 E2 6B F7 C1
     // byte2: W=0,vvvv=1101,L=0,pp=11(F2) → 0x6B
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 8;
@@ -900,7 +921,7 @@ std::vector<TestCase> build_tests() {
 
     // SARX 64-bit: W=1, byte2 = 0b1_1101_0_10 = 0xEA
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x8000000000000000;
       s.rdx = 16;
@@ -910,7 +931,7 @@ std::vector<TestCase> build_tests() {
 
     // SHLX 64-bit: W=1, byte2 = 0b1_1101_0_01 = 0xE9
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x0000000000000001;
       s.rdx = 63;
@@ -920,7 +941,7 @@ std::vector<TestCase> build_tests() {
 
     // SHRX 64-bit: W=1, byte2 = 0b1_1101_0_11 = 0xEB
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x8000000000000000;
       s.rdx = 32;
@@ -933,7 +954,7 @@ std::vector<TestCase> build_tests() {
     // byte1=0xE3 (mmmmm=00011=0F3A), byte2: W=0,vvvv=1111,L=0,pp=11(F2) → 0x7B
     // reg=0(eax dest), rm=1(ecx src), imm=4
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x12345678;
       tests.push_back({"rorx eax,ecx,4", cat,
@@ -941,7 +962,7 @@ std::vector<TestCase> build_tests() {
     }
     // RORX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0x123456789ABCDEF0;
       tests.push_back({"rorx rax,rcx,8 64", cat,
@@ -1028,7 +1049,7 @@ std::vector<TestCase> build_tests() {
   //   E2 = R̄=1,X̄=1,B̄=1,mmmmm=00010(0F38)
   //   71 = W=0,vvvv=1110(~xmm1),L=0,pp=01(66)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Shuffle source: bytes 0x00..0x0F
     s.xmm[1] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
@@ -1040,7 +1061,7 @@ std::vector<TestCase> build_tests() {
   }
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Words for horizontal add/sub: distinct values to verify lane pairing
     s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
@@ -1066,7 +1087,7 @@ std::vector<TestCase> build_tests() {
 
   // VPSIGN — sign/zero/negate paths
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Mix of positive, negative, zero values
     s.xmm[1] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
@@ -1084,7 +1105,7 @@ std::vector<TestCase> build_tests() {
   // VPABS — unary, vvvv=1111b → byte2=0x79
   // VEX.128.66.0F38 with vvvv=1111: C4 E2 79 <op> C1
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Values with negative/positive/zero/min to exercise abs paths
     s.xmm[1] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
@@ -1105,7 +1126,7 @@ std::vector<TestCase> build_tests() {
   // Sign-extend instructions (unary, vvvv=1111b → byte2=0x79)
   // Use data with bit 7 set to verify sign extension
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Bytes with mix of positive (0x07, 0x03, 0x05, 0x04, 0x02, 0x7F)
     // and negative (0x80, 0xFF, 0xFB, 0xFA, 0xFC, 0xFE) to test sign extension
@@ -1127,7 +1148,7 @@ std::vector<TestCase> build_tests() {
 
   // Zero-extend instructions (unary, vvvv=1111b → byte2=0x79)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Same data as sign-extend to cross-check
     s.xmm[1] = xmm_from_u64(0x0180FF7F02FE0300, 0x04FC0580FB06FA07);
@@ -1149,7 +1170,7 @@ std::vector<TestCase> build_tests() {
   // 3-operand SSE4.1: dst=xmm0, src1=xmm1, src2=xmm2
   // VEX.128.66.0F38 with vvvv=xmm1: C4 E2 71 <op> C2
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Values where signed and unsigned orderings differ
     // Signed: 0x80=-128 < 0x7F=127; Unsigned: 0x80=128 > 0x7F=127
@@ -1188,7 +1209,7 @@ std::vector<TestCase> build_tests() {
 
   // VPHMINPOSUW — unary, 128-bit only (vvvv=1111b → byte2=0x79)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // 8 unsigned words: find the minimum and its index
     // Words: 0x0040, 0x0003, 0x0080, 0x0001, 0x00FF, 0x0002, 0x0050, 0x0010
@@ -1200,7 +1221,7 @@ std::vector<TestCase> build_tests() {
 
   // VPMULDQ with interesting dword positions 0 and 2
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // dword[0]=0xFFFFFFFE (-2), dword[1]=junk, dword[2]=0x7FFFFFFF (INT_MAX), dword[3]=junk
     s.xmm[1] = xmm_from_u64(0xDEAD7FFFFFFFDEAD, 0xFFFFFFFE);
@@ -1213,7 +1234,7 @@ std::vector<TestCase> build_tests() {
 
   // VPCMPEQQ with equal and unequal qwords
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x0123456789ABCDEF);
     s.xmm[2] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0xFEDCBA9876543210);
@@ -1230,7 +1251,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[2] = xmm_from_u64(0x000A000B000C000D, 0x000E000F00100011);
@@ -1278,7 +1299,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0064FFCE00050003, 0x7FFF80000002FFFE);
     s.xmm[2] = xmm_from_u64(0x000AFFEC00020004, 0x0001FFFF00037FFF);
@@ -1309,7 +1330,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x7F80FF00FE01F0E0, 0x7FFF8000FFFE0001);
     s.xmm[2] = xmm_from_u64(0x0180FF007F01F0E0, 0x0001FFFF00020001);
@@ -1346,7 +1367,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xFF00FF00ABCD1234, 0x8000000012345678);
     s.xmm[2] = xmm_from_u64(0x0000000000000004, 0x0000000000000000); // shift count = 4
@@ -1377,7 +1398,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xFF00FF00ABCD1234, 0x8000000012345678);
 
@@ -1411,7 +1432,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xFF000000ABCD1234, 0x8000000012345678);
     s.xmm[2] = xmm_from_u64(0x0000000400000008, 0x0000001000000001); // shift counts per dword
@@ -1437,7 +1458,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Use values where AND and ANDNOT give different zero/non-zero results
     s.xmm[1] = xmm_from_u64(0x8000000080000000, 0x0000000000000000); // sign bits set in low half
@@ -1470,7 +1491,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, flags_mask});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
 
     // VMOVMSKPS: C5 F8 50 C1 = vmovmskps eax, xmm1 (NP, L=0)
@@ -1559,7 +1580,7 @@ std::vector<TestCase> build_tests() {
       memcpy(&gather_data[i * 4], &val, 4);
     }
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR; // base address
 
@@ -1625,7 +1646,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_ALL});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
 
     // Set up k1=0xAAAA, k2=0x5555 via KMOVW from GPR
@@ -1859,7 +1880,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
@@ -1886,13 +1907,14 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "VLDDQU";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 
     // VLDDQU xmm0, [rdi]: C5 FB F0 07 (VEX.128.F2.0F F0, modrm=[rdi])
     std::vector<u8> lddqu_data(32, 0);
-    for (int i = 0; i < 16; i++) lddqu_data[i] = 0x10 + i;
+    for (int i = 0; i < 16; i++)
+      lddqu_data[i] = 0x10 + i;
     {
       TestCase tc;
       tc.name = "vlddqu xmm0,[rdi]";
@@ -1915,7 +1937,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1944,7 +1966,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
     s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
@@ -1968,7 +1990,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(10, 5);
     s.xmm[1] = xmm_from_u64(3, 8);
@@ -1985,7 +2007,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -2006,7 +2028,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "VMOVNTDQ";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x8877665544332211ULL, 0x01FFEEDDCCBBAA99ULL);
@@ -2030,7 +2052,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "Vec stores";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
@@ -2305,7 +2327,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.mxcsr = 0x1F80;  // default MXCSR
 
@@ -2667,7 +2689,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "VPERM2F128";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -2700,7 +2722,7 @@ std::vector<TestCase> build_tests() {
       tests.push_back({name, cat, std::move(code), init, mask, 0xFFFF});
     };
 
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x1111111111111111ULL, 0x2222222222222222ULL);
     s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAAULL, 0xBBBBBBBBBBBBBBBBULL);
@@ -2723,7 +2745,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "VPMASKMOVD";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
 

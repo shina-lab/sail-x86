@@ -64,7 +64,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VADDPS xmm0, xmm1, xmm2: C5 F0 58 C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -74,7 +74,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VSUBPS xmm0, xmm1, xmm2: C5 F0 5C C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -84,7 +84,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VMULPS xmm0, xmm1, xmm2: C5 F0 59 C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -94,7 +94,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VDIVPS xmm0, xmm1, xmm2: C5 F0 5E C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -104,7 +104,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VMINPS xmm0, xmm1, xmm2: C5 F0 5D C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -114,7 +114,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VMAXPS xmm0, xmm1, xmm2: C5 F0 5F C2
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -124,7 +124,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VCMPPS with all 8 predicates: C5 F0 C2 C2 imm8
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -137,7 +137,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // --- C (part 1). VEX scalar FP edge cases (f32) ---
     // VADDSS xmm0, xmm1, xmm2: C5 F2 58 C2 (pp=10 for F3 prefix)
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -145,7 +145,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF2, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -153,7 +153,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF2, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -161,7 +161,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF2, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -169,7 +169,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF2, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -177,7 +177,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF2, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
@@ -226,7 +226,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VADDPD xmm0, xmm1, xmm2: C5 F1 58 C2 (pp=01 for 66 prefix)
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -234,7 +234,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF1, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -242,7 +242,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF1, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -250,7 +250,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF1, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -258,7 +258,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF1, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -266,7 +266,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF1, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -277,7 +277,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // --- C (part 2). VEX scalar FP edge cases (f64) ---
     // VADDSD xmm0, xmm1, xmm2: C5 F3 58 C2 (pp=11 for F2 prefix)
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -285,7 +285,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF3, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -293,7 +293,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF3, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -301,7 +301,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF3, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -309,7 +309,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF3, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -317,7 +317,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm(n, {0xC5, 0xF3, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
@@ -328,7 +328,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
   // --- D. VEX upper-128 clearing verification ---
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // Pre-load xmm0 with all-ones (simulating dirty YMM upper half)
     s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
@@ -350,7 +350,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   // --- E. VEX 256-bit arithmetic ---
   // 256-bit packed float
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -374,7 +374,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
   // 256-bit packed double
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -392,7 +392,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
   // 256-bit packed integer
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -430,7 +430,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VPADDD xmm0, xmm1, xmm2: C5 F1 FE C2 (66 prefix)
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -441,7 +441,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VPSUBD: C5 F1 FA C2
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -452,7 +452,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VPADDB: C5 F1 FC C2
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -463,7 +463,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VPSUBB: C5 F1 F8 C2
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -474,7 +474,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VPADDW: C5 F1 FD C2
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -485,7 +485,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VPSUBW: C5 F1 F9 C2
     for (int i = 0; i < nint_pairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
                                 int_pairs[i].a, int_pairs[i].a);
@@ -504,7 +504,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     const u32 THREE = 0x40400000;
     const u32 QNAN = 0x7FC00000;
     // Elements: 1.0==1.0 (EQ), 2.0<3.0 (LT), 4.0>3.0 (GT), NaN (unordered)
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u32(ONE, TWO, FOUR, QNAN);
     s.xmm[2] = xmm_from_u32(ONE, THREE, THREE, ONE);
@@ -516,7 +516,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
   // --- 256-bit VCMPPS/VCMPPD ---
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
@@ -528,7 +528,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     add_xmm("vcmpps ymm nle", {0xC5, 0xF4, 0xC2, 0xC2, 0x06}, s, 0x7);
   }
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(1.5, 3.0);
@@ -546,7 +546,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // VCVTDQ2PS with boundary integers
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(0x7FFFFFFF, 0x80000000, 0x00000000, 0xFFFFFFFF);
       // VCVTDQ2PS xmm0, xmm1: C5 F8 5B C1 (NP, 0F 5B)
@@ -554,7 +554,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VCVTPS2DQ with FP edge cases
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(POS_INF, NEG_INF, QNAN, MAX_NORM);
       // VCVTPS2DQ xmm0, xmm1: C5 F9 5B C1 (66, 0F 5B)
@@ -562,7 +562,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VCVTTPS2DQ with FP edge cases
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(POS_INF, NEG_INF, QNAN, MAX_NORM);
       // VCVTTPS2DQ xmm0, xmm1: C5 FA 5B C1 (F3, 0F 5B)
@@ -570,7 +570,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // VCVTDQ2PS with small values and powers of 2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(1, 0xFFFFFFFF, 0x01000000, 0x00FFFFFF);
       add_xmm("vcvtdq2ps small", {0xC5, 0xF8, 0x5B, 0xC1}, s, 0x3);
@@ -633,7 +633,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // ADDPS with edge cases
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -644,7 +644,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // SUBPS with edge cases
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -655,7 +655,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MULPS with edge cases
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -666,7 +666,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // DIVPS with edge cases
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -677,7 +677,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MINPS with edge cases — particularly interesting for signed zero
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -688,7 +688,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MAXPS with edge cases
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -701,7 +701,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     u8 cmppreds[] = {0, 1, 2, 3, 4, 5, 6, 7}; // EQ,LT,LE,UNORD,NEQ,NLT,NLE,ORD
     for (int p = 0; p < 8; p++) {
       for (int i = 0; i < npairs; i++) {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
         s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
@@ -713,7 +713,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // UCOMISS with edge cases — tests flag setting with NaN/Inf
     for (int i = 0; i < npairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, 0, 0, 0);
       s.xmm[1] = xmm_from_u32(pairs[i].b, 0, 0, 0);
@@ -726,7 +726,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     u32 sqrt_vals[] = {POS_ZERO, NEG_ZERO, POS_INF, NEG_INF, QNAN, F32_SNAN,
                        DENORM, NEG_ONE, ONE, TWO, MAX_NORM};
     for (auto v : sqrt_vals) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
       std::string n = std::format("sqrtps 0x{:08x}", v);
@@ -739,7 +739,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
                       ONE, NEG_ONE, MAX_NORM, DENORM, 0x4F000000 /*2^31*/,
                       0xCF000000 /*-2^31*/, 0x4F800000 /*2^32*/};
     for (auto v : cvt_vals) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
       std::string n = std::format("cvtps2dq 0x{:08x}", v);
@@ -749,7 +749,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // CVTTPS2DQ — truncation conversion
     for (auto v : cvt_vals) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
       std::string n = std::format("cvttps2dq 0x{:08x}", v);
@@ -789,7 +789,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // ADDPD with edge cases
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -800,7 +800,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MINPD — signed zero ordering
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -811,7 +811,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MAXPD
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
@@ -822,7 +822,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // UCOMISD
     for (int i = 0; i < ndpairs; i++) {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, 0);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, 0);
@@ -844,7 +844,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       u32 mxcsr = 0x1F80 | (rc << 13);
       float test_vals[] = {1.5f, 2.5f, -1.5f, -2.5f, -0.5f, 0.7f, 3.3f, -3.7f};
       for (int i = 0; i < 8; i++) {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f32(test_vals[i], test_vals[i],
@@ -856,7 +856,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Also test CVTSS2SI (scalar f32 -> i32 with rounding)
       for (int i = 0; i < 8; i++) {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f32(test_vals[i], 0.0f, 0.0f, 0.0f);
@@ -871,7 +871,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       u32 mxcsr = 0x1F80 | (rc << 13);
       double dvals[] = {1.5, 2.5, -1.5, -2.5};
       for (int i = 0; i < 4; i++) {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f64(dvals[i], dvals[i]);
@@ -887,7 +887,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // 1.0f + 2^-24 = 1.0000000596... — depends on rounding
       u32 one = 0x3F800000;       // 1.0f
       u32 tiny = 0x33800000;      // 2^-24
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_u32(one, one, one, one);
@@ -904,7 +904,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // SNaN should be quieted to QNaN in arithmetic output
     // SNaN + 0 → QNaN (SNaN with quiet bit set)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       u32 snan = 0x7F800042;  // custom SNaN payload
       s.xmm[0] = xmm_from_u32(snan, snan, snan, snan);
@@ -914,7 +914,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // Division by zero: 1.0 / 0.0 → +Inf, -1.0 / 0.0 → -Inf
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, -1.0f, 0.0f, 1.0f);
       u32 pz = 0x00000000;
@@ -925,7 +925,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MINSS/MAXSS scalar — only lowest element, upper 3 preserved from dst
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(5.0f, 11.0f, 22.0f, 33.0f);
       s.xmm[1] = xmm_from_f32(3.0f, 99.0f, 88.0f, 77.0f);
@@ -937,7 +937,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MINSS/MAXSS with NaN in scalar position
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       u32 qnan = 0x7FC00000;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -948,7 +948,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // COMISS vs UCOMISS with QNaN — COMISS raises #IE (masked → sets flags same way)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 0.0f, 0.0f, 0.0f);
       u32 qnan = 0x7FC00000;
@@ -961,7 +961,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // COMISS with equal values and signed zeros
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x80000000, 0, 0, 0);  // -0.0
       s.xmm[1] = xmm_from_u32(0x00000000, 0, 0, 0);  // +0.0
@@ -970,7 +970,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // SUBPS: Inf - Inf → NaN, 0 - 0 with same sign → +0.0 (not -0.0)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       u32 pinf = 0x7F800000;
       u32 ninf = 0xFF800000;
@@ -983,7 +983,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MULPS: 0 * Inf → NaN
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       u32 pz = 0x00000000;
       u32 pinf = 0x7F800000;
@@ -995,7 +995,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // ROUNDPS with imm8 bit 2 = 0 → use MXCSR rounding
     for (int rc = 0; rc < 4; rc++) {
       u32 mxcsr = 0x1F80 | (rc << 13);
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_f32(1.5f, 2.5f, -1.5f, -2.5f);
@@ -1010,7 +1010,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // CVTDQ2PS: int→float (exact for small values, rounding for large)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       // INT32_MAX = 2147483647, not exactly representable as f32
       s.xmm[0] = xmm_from_u32(0x7FFFFFFF, 0x80000001, 0x01000001, 0xFEFFFFFF);
@@ -1021,7 +1021,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // CVTDQ2PS with MXCSR rounding modes for large values
     for (int rc = 0; rc < 4; rc++) {
       u32 mxcsr = 0x1F80 | (rc << 13);
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_u32(0x7FFFFFFF, 0x80000001, 0x01000001, 0xFEFFFFFF);
@@ -1037,7 +1037,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   {
     // SHUFPS with all-same source (broadcast-like): imm8=0x00
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1050,7 +1050,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // SHUFPD: 2 bits select from 2 sources
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f64(1.0, 2.0);
       s.xmm[1] = xmm_from_f64(3.0, 4.0);
@@ -1063,7 +1063,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PSHUFD with various immediates
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
       // PSHUFD xmm0, xmm0, imm: 66 0F 70 C0 imm
@@ -1076,7 +1076,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PSHUFB with high-bit-set control (zeros the element)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x04030201, 0x08070605, 0x0C0B0A09, 0x100F0E0D);
       // Control: 0x80 = zero, 0x00 = byte 0, 0x0F = byte 15
@@ -1087,7 +1087,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // BLENDVPS: XMM0 as implicit mask (high bit of each dword selects)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x80000000, 0x00000000, 0x80000000, 0x00000000);
       s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1098,7 +1098,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // DPPS (dot product) with various masks
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1111,7 +1111,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // DPPD (dot product double)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f64(3.0, 4.0);
       s.xmm[1] = xmm_from_f64(5.0, 6.0);
@@ -1122,7 +1122,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // INSERTPS — insert from xmm, zero selected positions
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1137,7 +1137,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // EXTRACTPS — extract f32 element to GPR
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       // EXTRACTPS eax, xmm0, imm: 66 0F 3A 17 C0 imm
@@ -1149,7 +1149,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // MOVHLPS / MOVLHPS — move high/low between registers
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       s.xmm[1] = xmm_from_u32(0x55555555, 0x66666666, 0x77777777, 0x88888888);
@@ -1161,7 +1161,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // UNPCKLPS / UNPCKHPS — interleave elements
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0xAA, 0xBB, 0xCC, 0xDD);
       s.xmm[1] = xmm_from_u32(0x11, 0x22, 0x33, 0x44);
@@ -1173,7 +1173,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // UNPCKLPD / UNPCKHPD
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       s.xmm[1] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
@@ -1185,7 +1185,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // HADDPS / HSUBPS — horizontal add/subtract
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1197,7 +1197,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // HADDPD / HSUBPD
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f64(1.0, 2.0);
       s.xmm[1] = xmm_from_f64(3.0, 4.0);
@@ -1209,7 +1209,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // ADDSUBPS / ADDSUBPD — alternating add/subtract
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
       s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -1217,7 +1217,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm("addsubps", {0xF2, 0x0F, 0xD0, 0xC1}, s, 0x3);
     }
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f64(10.0, 20.0);
       s.xmm[1] = xmm_from_f64(1.0, 2.0);
@@ -1232,7 +1232,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   {
     // POPCNT with edge values
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 0;
       // POPCNT eax, ecx: F3 0F B8 C1
@@ -1257,7 +1257,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // LZCNT with edge values
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0;
       // LZCNT eax, ecx: F3 0F BD C1
@@ -1282,7 +1282,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // TZCNT with edge values
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rcx = 0;
       // TZCNT eax, ecx: F3 0F BC C1
@@ -1304,7 +1304,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PCLMULQDQ — carry-less multiplication
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000000000001, 0x0000000000000003);
       s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000007);
@@ -1318,7 +1318,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
     // PCLMULQDQ with larger values
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x8000000000000000, 0xFFFFFFFFFFFFFFFF);
       s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x0000000000000002);
@@ -1328,7 +1328,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI — implicit-length string comparison, result in ECX
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       // "ABCD" (null-terminated in bytes)
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
@@ -1343,7 +1343,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI — equal strings
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
       s.xmm[1] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
@@ -1352,7 +1352,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRM — result in XMM0 as bitmask
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
       s.xmm[1] = xmm_from_u32(0x41414141, 0x42424242, 0x00000000, 0x00000000);
@@ -1364,7 +1364,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // MOVBE — byte-swap load/store (test via register encoding)
     // We'll test BSWAP instead which is simpler
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 0x0102030405060708;
       // BSWAP eax: 0F C8
@@ -1379,7 +1379,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     {
       const u64 FL_BMI = FL_SF | FL_ZF | FL_OF | FL_CF;
       const u64 FL_BEXTR = FL_ZF | FL_OF | FL_CF;
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 0xAAAAAAAA55555555;
       s.rcx = 0x5555555500FF00FF;
@@ -1426,7 +1426,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 1: simple add without carry, no overflow
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;  // CF=0, OF=0
         s.rax = 100;
         s.rcx = 200;
@@ -1438,7 +1438,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 2: carry-in = 1 for ADCX (set CF)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_CF;  // CF=1
         s.rax = 100;
         s.rcx = 200;
@@ -1448,7 +1448,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 3: carry-in = 1 for ADOX (set OF)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_OF;  // OF=1
         s.rax = 100;
         s.rcx = 200;
@@ -1458,7 +1458,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 4: 32-bit overflow (produces carry-out)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xFFFFFFFF;
         s.rcx = 1;
@@ -1470,7 +1470,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 5: 32-bit overflow with carry-in = 1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_CF | FL_OF;  // both CF=1, OF=1
         s.rax = 0xFFFFFFFF;
         s.rcx = 0xFFFFFFFF;
@@ -1484,7 +1484,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // ADCX rax, rcx: 66 48 0F 38 F6 C1
       // ADOX rax, rcx: F3 48 0F 38 F6 C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xFFFFFFFFFFFFFFFF;
         s.rcx = 1;
@@ -1496,7 +1496,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // Test 7: ADCX preserves OF, ADOX preserves CF
       // Set both CF and OF, then run ADCX (should modify CF, preserve OF)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_CF | FL_OF;  // CF=1, OF=1
         s.rax = 100;
         s.rcx = 200;
@@ -1508,7 +1508,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 8: ADCX/ADOX preserve SF, ZF, PF (set them before, check after)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_SF | FL_ZF | FL_PF;  // SF=1, ZF=1, PF=1
         s.rax = 100;
         s.rcx = 200;
@@ -1519,7 +1519,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // Test 9: chain ADCX then ADOX (both in one sequence)
       // ADCX eax, ecx; ADOX ebx, edx
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_CF;  // CF=1, OF=0
         s.rax = 0xFFFFFFFF;
         s.rcx = 0xFFFFFFFF;
@@ -1535,7 +1535,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Test 10: 64-bit no overflow
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0x123456789ABCDEF0;
         s.rcx = 0x0000000000000001;
@@ -1577,7 +1577,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // Instead: smallest_normal * 0.5 → denormal result → flushed to zero
       // MULPS xmm0, xmm1: 0F 59 C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
         // smallest normal * 0.5 = denormal → should flush to +0
@@ -1590,7 +1590,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // SUBPS with FTZ: two close normals → denormal result → flushed
       // SUBPS xmm0, xmm1: 0F 5C C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
         // Two very close small normals, difference is denormal
@@ -1602,7 +1602,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Without FTZ, same operation should produce a denormal
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT;  // FTZ=0
         const u32 F32_SMALL_PLUS1 = F32_SMALL + 1;
@@ -1616,7 +1616,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // ADDPS with DAZ: denormal + 1.0 → should produce 1.0 (denormal treated as 0)
       // ADDPS xmm0, xmm1: 0F 58 C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
@@ -1626,7 +1626,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // Without DAZ, denormal + 1.0 → 1.0 + tiny (slightly more than 1.0)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT;  // DAZ=0
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
@@ -1636,7 +1636,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // MULPS with DAZ: denormal * 2.0 → should produce 0 (denormal treated as 0)
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MAX);
@@ -1647,7 +1647,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // MINPS with DAZ: denormal vs 0 → both treated as 0
       // MINPS xmm0, xmm1: 0F 5D C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_ZERO, F32_NEG_DENORM, F32_DENORM_MAX);
@@ -1657,7 +1657,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // MAXPS with DAZ
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
@@ -1668,7 +1668,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // CMPPS with DAZ: denormal == 0? (both treated as zero → true)
       // CMPPS xmm0, xmm1, 0 (EQ): 0F C2 C1 00
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ZERO);
@@ -1679,7 +1679,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // SQRTPS with DAZ: sqrt(denormal) → sqrt(0) = 0
       // SQRTPS xmm0, xmm1: 0F 51 C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_ZERO, F32_ONE);
@@ -1689,7 +1689,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // CVTPS2DQ with DAZ: denormal → treated as 0 → converts to integer 0
       // CVTPS2DQ xmm0, xmm1: 66 0F 5B C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ONE);
@@ -1698,7 +1698,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // DAZ + FTZ combined
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ | MXCSR_FTZ;
         const u32 F32_HALF = 0x3F000000;
@@ -1712,7 +1712,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // UCOMISS with DAZ: denormal vs 0 → equal (both treated as 0)
       // UCOMISS xmm0, xmm1: 0F 2E C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MAX, 0, 0, 0);
@@ -1723,7 +1723,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // DIVPS with FTZ: very small / very large → denormal → flush to 0
       // DIVPS xmm0, xmm1: 0F 5E C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
         s.xmm[0] = xmm_raw(F32_SMALL, F32_SMALL, F32_ONE, F32_ONE);
@@ -1735,7 +1735,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       // f64 denormals with DAZ
       // ADDPD xmm0, xmm1: 66 0F 58 C1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         const u64 F64_DENORM = 0x0000000000000001;  // smallest positive denormal
@@ -1752,7 +1752,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit ADD: 66 01 C8 = ADD AX, CX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF7FFF;
         s.rcx = 0x1234567800000001;
@@ -1762,7 +1762,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit SUB: 66 29 C8 = SUB AX, CX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF0000;
         s.rcx = 0x1234567800000001;
@@ -1772,7 +1772,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit IMUL r16, r/m16: 66 0F AF C1 = IMUL AX, CX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF0100;  // AX=0x0100 (256)
         s.rcx = 0x1234567800000100;  // CX=0x0100 (256)
@@ -1782,7 +1782,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit MOVZX r16, r/m8: 66 0F B6 C1 = MOVZX AX, CL
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEFAAAA;
         s.rcx = 0x00000000000000FF;
@@ -1792,7 +1792,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit SHL: 66 D1 E0 = SHL AX, 1
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEFC000;  // AX=0xC000
         // SHL AX, 1: AX = 0x8000, CF=1 (bit 15 shifted out), OF=1 (sign changed)
@@ -1802,7 +1802,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit CMP: 66 39 C8 = CMP AX, CX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF8000;  // AX=0x8000 (-32768 signed)
         s.rcx = 0x1234567800007FFF;  // CX=0x7FFF (+32767 signed)
@@ -1812,7 +1812,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit INC/DEC: 66 FF C0 = INC AX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2 | FL_CF;  // CF=1, should be preserved
         s.rax = 0xDEAD0000BEEFFFFF;  // AX=0xFFFF
         // INC AX: 0xFFFF+1=0x0000 (16-bit wrap), CF preserved
@@ -1821,7 +1821,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
       // 16-bit XCHG: 66 91 = XCHG AX, CX
       {
-        ArchState s = {};
+        ArchState s;
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF1234;  // AX=0x1234
         s.rcx = 0x1234567800005678;  // CX=0x5678

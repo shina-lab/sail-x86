@@ -15,7 +15,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -41,7 +41,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // ADDPD/SUBPD/MULPD/DIVPD — packed double
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 2.5);
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
@@ -58,7 +58,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // ADDSS/SUBSS/MULSS/DIVSS — scalar single
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -75,7 +75,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // ADDSD/SUBSD/MULSD/DIVSD — scalar double
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 100.0);
     s.xmm[1] = xmm_from_f64(2.5, 200.0);
@@ -92,7 +92,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 integer — PADDB/PADDW/PADDD/PADDQ, PSUBB, PAND/POR/PXOR
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1011121314151617, 0x18191A1B1C1D1E1F);
@@ -117,7 +117,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 shuffle/unpack
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -132,7 +132,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE conversions
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
 
@@ -151,7 +151,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // MOVD/MOVQ — GPR ↔ XMM
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 0x123456789ABCDEF0;
 
@@ -172,7 +172,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE compare — UCOMISS sets EFLAGS
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
 
     // Equal
@@ -203,7 +203,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // Upper registers (XMM8+) via REX prefix
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[8]  = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[9]  = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -214,7 +214,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE logical — ANDPS/ANDNPS/ORPS/XORPS
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x0F0F0F0F0F0F0F0F);
     s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xF0F0F0F0F0F0F0F0);
@@ -240,7 +240,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE SQRT — SQRTPS/SQRTPD/SQRTSS/SQRTSD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(4.0f, 9.0f, 16.0f, 25.0f);
 
@@ -261,7 +261,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE MIN/MAX — remaining variants (MINPD/MAXPD/MINSS/MAXSS/MINSD/MAXSD)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 8.0f, 3.0f, 6.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 2.0f, 7.0f, 4.0f);
@@ -288,7 +288,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE comparison — CMPPS/CMPPD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 5.0f, 3.0f, 3.0f);
     s.xmm[1] = xmm_from_f32(2.0f, 5.0f, 1.0f, 4.0f);
@@ -318,7 +318,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 integer — PSUBW/PSUBD/PSUBQ, PANDN, PCMPEQB/PCMPEQW/PCMPEQD, PCMPGTB
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
@@ -348,7 +348,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 shuffle — PSHUFD, SHUFPD, UNPCKLPD, UNPCKHPD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
 
@@ -372,7 +372,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 data movement — MOVAPD/MOVUPD/MOVDQA/MOVDQU
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x123456789ABCDEF0);
 
@@ -388,7 +388,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 pack/unpack integer
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u32(0x00010002, 0x00030004, 0x00050006, 0x00070008);
     s.xmm[1] = xmm_from_u32(0x000A000B, 0x000C000D, 0x000E000F, 0x00100011);
@@ -420,7 +420,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 shift — PSLLW/PSLLD/PSLLQ/PSRLW/PSRLD/PSRLQ/PSRAW/PSRAD (imm8)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
 
@@ -444,7 +444,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 multiply — PMULLW/PMULHW/PMULHUW/PMULUDQ/PMADDWD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
@@ -463,7 +463,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 saturating arithmetic — PADDSB/PADDSW/PADDUSB/PADDUSW/PSUBSB/PSUBSW/PSUBUSB/PSUBUSW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x7F80FF01FE027E81, 0x7FFF800100FEFF01);
     s.xmm[1] = xmm_from_u64(0x0180017F01FE8001, 0x00017FFF01010101);
@@ -488,7 +488,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 average/SAD — PAVGB/PAVGW/PSADBW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1011121314151617, 0x18191A1B1C1D1E1F);
@@ -579,7 +579,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // COMISS/COMISD — ordered compare, set EFLAGS
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
 
     s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
@@ -600,7 +600,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PSLLDQ/PSRLDQ — byte shift
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
 
@@ -612,7 +612,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // MOVHLPS/MOVLHPS — reg-reg forms
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -625,7 +625,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // MOVSS/MOVSD — reg-reg forms (merge into low element)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -644,7 +644,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PINSRW/PEXTRW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 0x1234;
     s.xmm[0] = xmm_from_u64(0, 0);
@@ -662,7 +662,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // SSE2 PSHUFHW/PSHUFLW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
 
@@ -678,7 +678,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   cat = "SSSE3";
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0003020100070605, 0x0403020108070605);
@@ -688,7 +688,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
@@ -713,7 +713,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
 
@@ -726,7 +726,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x0001000100010001, 0xFFFF0000FFFF0000);
@@ -740,7 +740,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -755,7 +755,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   cat = "SSE4.1";
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x02FE027E04806183, 0x80000000FFFFFFFF);
@@ -799,7 +799,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PINSRB/PINSRD/PEXTRB/PEXTRD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 0x42;
     s.xmm[0] = xmm_from_u64(0, 0);
@@ -823,7 +823,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // EXTRACTPS/INSERTPS
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -838,7 +838,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // BLENDPS/BLENDPD/PBLENDW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -865,7 +865,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.3f, 2.7f, -1.5f, -2.5f);
 
@@ -895,7 +895,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PTEST — sets ZF and CF in EFLAGS
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
     s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00);
@@ -910,7 +910,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PMOVZX — zero-extend packed integers
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0);
 
@@ -930,7 +930,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // PMOVSX — sign-extend packed integers
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0);
 
@@ -950,7 +950,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // DPPS/DPPD — dot product
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -971,7 +971,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // MPSADBW
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);

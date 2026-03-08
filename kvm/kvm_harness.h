@@ -112,25 +112,25 @@ inline XmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
 
 // Architectural state we compare between KVM and Sail.
 struct ArchState {
-  u64 rax;
-  u64 rbx;
-  u64 rcx;
-  u64 rdx;
-  u64 rsi;
-  u64 rdi;
-  u64 rbp;
-  u64 rsp;
-  u64 r8;
-  u64 r9;
-  u64 r10;
-  u64 r11;
-  u64 r12;
-  u64 r13;
-  u64 r14;
-  u64 r15;
-  u64 rip;
-  u64 rflags;
-  XmmVal xmm[16];
+  u64 rax = 0;
+  u64 rbx = 0;
+  u64 rcx = 0;
+  u64 rdx = 0;
+  u64 rsi = 0;
+  u64 rdi = 0;
+  u64 rbp = 0;
+  u64 rsp = 0;
+  u64 r8 = 0;
+  u64 r9 = 0;
+  u64 r10 = 0;
+  u64 r11 = 0;
+  u64 r12 = 0;
+  u64 r13 = 0;
+  u64 r14 = 0;
+  u64 r15 = 0;
+  u64 rip = 0;
+  u64 rflags = 0;
+  XmmVal xmm[16] = {};
   u32 mxcsr = 0x1F80;  // default MXCSR
   u64 kregs[8] = {};    // AVX-512 opmask registers k0-k7
 

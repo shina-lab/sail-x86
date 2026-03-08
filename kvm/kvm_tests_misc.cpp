@@ -24,7 +24,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "SSE4.2";
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
@@ -35,7 +35,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   // PCMPISTRI — implicit-length string compare
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // "Hello\0\0..." in xmm0
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -55,7 +55,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   // PCMPISTRM — implicit-length string compare, result in XMM0
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
     s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -66,7 +66,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   // PCMPESTRI — explicit-length string compare (length in EAX/EDX)
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 5;  // length of string in xmm0
     s.rdx = 5;  // length of string in xmm1
@@ -80,7 +80,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   // PCMPESTRM — explicit-length, result in XMM0
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 5;
     s.rdx = 5;
@@ -93,7 +93,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   // CRC32
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rax = 0;         // initial CRC
     s.rcx = 0x12345678;
@@ -112,7 +112,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "AES";
 
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -139,7 +139,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "SETcc";
   {
     // Test with flags: CF=0, ZF=1, SF=1, OF=0, PF=1
-    ArchState s = {};
+    ArchState s;
     s.rax = 0xFFFFFFFFFFFFFFFF;  // pre-fill so we see zero-extension
     s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
 
@@ -173,7 +173,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "CMOVcc";
   {
-    ArchState s = {};
+    ArchState s;
     s.rax = 0x1111111111111111;
     s.rbx = 0x2222222222222222;
     s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
@@ -197,7 +197,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "POP";
   {
     // PUSH RAX; POP RBX — tests POP reg
-    ArchState s = {};
+    ArchState s;
     s.rax = 0xDEADBEEFCAFEBABE;
     s.rbx = 0;
     s.rsp = 0x20000;
@@ -218,7 +218,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   {
     // Set up: RSP=0x1FF00, RBP=0x1FFF0 with a value at [RBP]
     // LEAVE does: RSP = RBP; POP RBP
-    ArchState s = {};
+    ArchState s;
     s.rsp = 0x1FF00;
     s.rbp = 0x1FFF0;
     s.rflags = 0x2;
@@ -234,7 +234,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   {
     // LOOP with RCX=3: loop back to add 1 to RAX three times
     // Layout: INC RAX (48 FF C0) + LOOP -5 (E2 FB)
-    ArchState s = {};
+    ArchState s;
     s.rax = 0;
     s.rcx = 3;
     s.rflags = 0x2;
@@ -256,7 +256,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Otherwise, load m64 into EDX:EAX.
 
     // Case 1: match (EDX:EAX == m64)
-    ArchState s = {};
+    ArchState s;
     s.rdi = DATA_ADDR;
     s.rax = 0x44332211;
     s.rdx = 0x88776655;
@@ -280,7 +280,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "MOVNTI";
   {
     // MOVNTI [RDI], EAX: 0F C3 07
-    ArchState s = {};
+    ArchState s;
     s.rdi = DATA_ADDR;
     s.rax = 0xDEADBEEF12345678;
     s.rflags = 0x2;
@@ -296,7 +296,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "LDMXCSR";
   {
     // STMXCSR [RDI]: 0F AE 1F (mod=00, reg=3, rm=rdi)
-    ArchState s = {};
+    ArchState s;
     s.rdi = DATA_ADDR;
     s.rflags = 0x2;
     add_mem("stmxcsr [rdi]", {0x0F, 0xAE, 0x1F}, s, FL_ALL, {}, 4);
@@ -313,7 +313,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Fences";
   {
-    ArchState s = {};
+    ArchState s;
     s.rax = 42;
     s.rflags = 0x2;
     // LFENCE: 0F AE E8
@@ -330,7 +330,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE3";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -351,7 +351,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     add_xmm("addsubps xmm0,xmm1", {0xF2, 0x0F, 0xD0, 0xC1}, s, 0x3);
   }
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 2.5);
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
@@ -374,7 +374,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE4.1v";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -402,7 +402,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
   {
     // PHMINPOSUW XMM0, XMM1: 66 0F 38 41 C1
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0005000300070001, 0x0009000200040008);
     add_xmm("phminposuw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x41, 0xC1}, s, 0x3);
@@ -413,7 +413,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "MOVxPS";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -451,7 +451,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "String";
   {
     // REP STOSB: fill RCX bytes at [RDI] with AL
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;  // DF=0 (forward)
     s.rdi = DATA_ADDR;
     s.rax = 0x42;
@@ -511,7 +511,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EMMS";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     // EMMS: 0F 77
     add("emms", {0x0F, 0x77}, s, FL_ALL);
@@ -522,7 +522,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE4.1v";
   {
-    ArchState s = {};
+    ArchState s;
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     // 16 bytes of test data (aligned)

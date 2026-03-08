@@ -48,14 +48,22 @@ static const char *GPR_NAMES[] = {
 
 static void set_gpr(ArchState &s, int reg, u64 val) {
   switch (reg) {
-  case 0:  s.rax = val; break;  case 1:  s.rcx = val; break;
-  case 2:  s.rdx = val; break;  case 3:  s.rbx = val; break;
-  case 4:  s.rsp = val; break;  case 5:  s.rbp = val; break;
-  case 6:  s.rsi = val; break;  case 7:  s.rdi = val; break;
-  case 8:  s.r8  = val; break;  case 9:  s.r9  = val; break;
-  case 10: s.r10 = val; break;  case 11: s.r11 = val; break;
-  case 12: s.r12 = val; break;  case 13: s.r13 = val; break;
-  case 14: s.r14 = val; break;  case 15: s.r15 = val; break;
+  case 0:  s.rax = val; break;
+  case 1:  s.rcx = val; break;
+  case 2:  s.rdx = val; break;
+  case 3:  s.rbx = val; break;
+  case 4:  s.rsp = val; break;
+  case 5:  s.rbp = val; break;
+  case 6:  s.rsi = val; break;
+  case 7:  s.rdi = val; break;
+  case 8:  s.r8  = val; break;
+  case 9:  s.r9  = val; break;
+  case 10: s.r10 = val; break;
+  case 11: s.r11 = val; break;
+  case 12: s.r12 = val; break;
+  case 13: s.r13 = val; break;
+  case 14: s.r14 = val; break;
+  case 15: s.r15 = val; break;
   }
 }
 
@@ -132,10 +140,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
-          ArchState init = {};
-          init.rflags = 0x2;
-          init.rax = VALS[i];
-          init.rbx = VALS[j];
+          ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
           name = std::format("S {}{} {},{}", op.name, sz_sfx[si], i, j);
           add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
               init, op.mask);
@@ -152,10 +157,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
-          ArchState init = {};
-          init.rflags = 0x3;  // CF=1
-          init.rax = VALS[i];
-          init.rbx = VALS[j];
+          ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x3};  // CF=1
           name = std::format("S {}{} cf {},{}", op.name, sz_sfx[si], i, j);
           add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
               init, op.mask);
@@ -170,10 +172,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
     cat = name;
     for (int i = 0; i < NVALS; i++) {
       for (int j = 0; j < NVALS; j++) {
-        ArchState init = {};
-        init.rflags = 0x2;
-        init.rax = VALS[i];
-        init.rbx = VALS[j];
+        ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
         name = std::format("S test{} {},{}", sz_sfx[si], i, j);
         add(name, encode_alu_rr(0x84, sizes[si], 0, 3),
             init, FL_ALL);
@@ -202,10 +201,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       cat = std::format("Shift {} {}", op.name, sz_sfx[si]);
       for (int ci = 0; ci < NSHIFTS; ci++) {
         for (int vi = 0; vi < NVALS; vi++) {
-          ArchState init = {};
-          init.rflags = 0x2;
-          init.rax = VALS[vi];
-          init.rcx = SHIFT_COUNTS[ci];
+          ArchState init = {.rax = VALS[vi], .rcx = SHIFT_COUNTS[ci], .rflags = 0x2};
           name = std::format("S {}{} c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
           add(name, encode_shift_cl(op.digit, sizes[si], 0),
               init, op.mask);
@@ -219,10 +215,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
         cat = std::format("Shift {} CF=1 {}", op.name, sz_sfx[si]);
         for (int ci = 0; ci < NSHIFTS; ci++) {
           for (int vi = 0; vi < NVALS; vi++) {
-            ArchState init = {};
-            init.rflags = 0x3;  // CF=1
-            init.rax = VALS[vi];
-            init.rcx = SHIFT_COUNTS[ci];
+            ArchState init = {.rax = VALS[vi], .rcx = SHIFT_COUNTS[ci], .rflags = 0x3};  // CF=1
             name = std::format("S {}{} cf c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
             add(name, encode_shift_cl(op.digit, sizes[si], 0),
                 init, op.mask);
@@ -248,9 +241,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
   for (auto &op : unary_ops) {
     for (int si = 0; si < 4; si++) {
       for (int vi = 0; vi < NVALS; vi++) {
-        ArchState init = {};
-        init.rflags = 0x3;  // CF=1
-        init.rax = VALS[vi];
+        ArchState init = {.rax = VALS[vi], .rflags = 0x3};  // CF=1
         name = std::format("S {}{} {}", op.name, sz_sfx[si], vi);
         add(name, encode_unary(op.op8, op.op, op.digit, sizes[si], 0),
             init, op.mask);
@@ -265,11 +256,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
   cat = "MUL";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
-      ArchState init = {};
-      init.rflags = 0x2;
-      init.rax = VALS[i];
-      init.rbx = VALS[j];
-
+      ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
       name = std::format("S mul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xE3}, init, FL_CF_OF);
     }
@@ -278,11 +265,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
   cat = "IMUL";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
-      ArchState init = {};
-      init.rflags = 0x2;
-      init.rax = VALS[i];
-      init.rbx = VALS[j];
-
+      ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
       name = std::format("S imul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xEB}, init, FL_CF_OF);
     }
@@ -298,11 +281,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       if (VALS[j] == 0) continue;
 
       // DIV: RDX=0 so quotient always fits (dividend < 2^64, divisor > 0)
-      ArchState init = {};
-      init.rflags = 0x2;
-      init.rax = VALS[i];
-      init.rdx = 0;
-      init.rbx = VALS[j];
+      ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
       name = std::format("S div64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
     }
@@ -320,11 +299,12 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       if (dividend == (i64)0x8000000000000000 && divisor == -1)
         continue;
 
-      ArchState init = {};
-      init.rflags = 0x2;
-      init.rax = VALS[i];
-      init.rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0;
-      init.rbx = VALS[j];
+      ArchState init = {
+        .rax = VALS[i],
+        .rbx = VALS[j],
+        .rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0ULL,
+        .rflags = 0x2,
+      };
       name = std::format("S idiv64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xFB}, init, FL_NONE);
     }
@@ -339,8 +319,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
     if (dst == 4) continue;  // skip RSP
     for (int src = 0; src < 16; src++) {
       if (src == 4 || src == dst) continue;
-      ArchState init = {};
-      init.rflags = 0x2;
+      ArchState init = {.rflags = 0x2};
       set_gpr(init, dst, 0x123456789ABCDEF0);
       set_gpr(init, src, 0x0FEDCBA987654321);
       name = std::format("S add {},{}", GPR_NAMES[dst], GPR_NAMES[src]);
@@ -359,10 +338,10 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
     int si = rng() % 4;
     auto &op = alu_ops[oi];
 
-    ArchState init = {};
-    init.rax = (rng() % 4) ? VALS[rng() % NVALS] : rng();
-    init.rbx = (rng() % 4) ? VALS[rng() % NVALS] : rng();
-    init.rflags = 0x2 | ((rng() & 1) ? FL_CF : 0);
+    u64 a = (rng() % 4) ? VALS[rng() % NVALS] : rng();
+    u64 b = (rng() % 4) ? VALS[rng() % NVALS] : rng();
+    u64 fl = 0x2 | ((rng() & 1) ? FL_CF : 0ULL);
+    ArchState init = {.rax = a, .rbx = b, .rflags = fl};
 
     name = std::format("S rand {}{} {}", op.name, sz_sfx[si], t);
     add(name, encode_alu_rr(op.base, sizes[si], 0, 3), init, op.mask);

@@ -12,63 +12,37 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // REX.B selects R8 as rm: ADD R8, RAX
     // 49 01 C0: REX.W+B(49), ADD r/m64,r64(01), ModRM C0(mod=11,reg=rax=0,rm=0+B=r8)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x100;
-      s.r8  = 0x200;
-      tests.push_back({"add r8,rax (REX.B)", cat, {0x49, 0x01, 0xC0}, s, FL_ALL});
-    }
+    tests.push_back({"add r8,rax (REX.B)", cat, {0x49, 0x01, 0xC0},
+                      {.rax = 0x100, .r8 = 0x200, .rflags = 0x2}, FL_ALL});
 
     // REX.R selects R8 as reg: ADD RAX, R8
     // 4C 01 C0: REX.W+R(4C), ADD r/m64,r64(01), ModRM C0(mod=11,reg=0+R=r8,rm=rax=0)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x100;
-      s.r8  = 0x200;
-      tests.push_back({"add rax,r8 (REX.R)", cat, {0x4C, 0x01, 0xC0}, s, FL_ALL});
-    }
+    tests.push_back({"add rax,r8 (REX.R)", cat, {0x4C, 0x01, 0xC0},
+                      {.rax = 0x100, .r8 = 0x200, .rflags = 0x2}, FL_ALL});
 
     // REX.R+B: ADD R9, R10
     // 4D 01 D1: REX.W+R+B(4D), ADD r/m64,r64(01), ModRM D1(mod=11,reg=2+R=r10,rm=1+B=r9)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r9  = 0xAAAAAAAAAAAAAAAA;
-      s.r10 = 0x5555555555555555;
-      tests.push_back({"add r9,r10 (REX.R+B)", cat, {0x4D, 0x01, 0xD1}, s, FL_ALL});
-    }
+    tests.push_back({"add r9,r10 (REX.R+B)", cat, {0x4D, 0x01, 0xD1},
+                      {.r9 = 0xAAAAAAAAAAAAAAAA, .r10 = 0x5555555555555555, .rflags = 0x2}, FL_ALL});
 
     // REX.B with 32-bit op: ADD R8D, EAX (should zero-extend into R8)
     // 41 01 C0: REX.B(41), ADD r/m32,r32(01), ModRM C0
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 1;
-      s.r8  = 0xFFFFFFFF00000001;
+      ArchState s = {.rax = 1, .r8 = 0xFFFFFFFF00000001, .rflags = 0x2};
       tests.push_back({"add r8d,eax (32b REX.B)", cat, {0x41, 0x01, 0xC0}, s, FL_ALL});
     }
 
     // REX.R with 32-bit op: ADD EAX, R8D (should zero-extend into RAX)
     // 44 01 C0: REX.R(44), ADD r/m32,r32(01), ModRM C0(reg=0+R=r8d,rm=eax=0)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFF00000001;
-      s.r8  = 1;
-      tests.push_back({"add eax,r8d (32b REX.R)", cat, {0x44, 0x01, 0xC0}, s, FL_ALL});
-    }
+    tests.push_back({"add eax,r8d (32b REX.R)", cat, {0x44, 0x01, 0xC0},
+                      {.rax = 0xFFFFFFFF00000001, .r8 = 1, .rflags = 0x2}, FL_ALL});
 
     // REX.B with memory base: MOV RAX, [R8]
     // 49 8B 00: REX.W+B(49), MOV r64,r/m64(8B), ModRM 00(mod=00,reg=rax=0,rm=0+B=r8)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.r8  = DATA_ADDR;
       std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0xAA, 0xBB, 0xCC, 0xDD};
-      tests.push_back({"mov rax,[r8] (REX.B base)", cat, {0x49, 0x8B, 0x00}, s,
+      tests.push_back({"mov rax,[r8] (REX.B base)", cat, {0x49, 0x8B, 0x00},
+                        {.rax = 0xDEADDEADDEADDEAD, .r8 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -76,15 +50,17 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // 4A 8B 04 47: REX.W+X(4A), MOV(8B), ModRM 04(mod=00,reg=rax,rm=100=SIB),
     //              SIB 47(scale=01=*2,index=0+X=r8,base=rdi=7)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rdi = DATA_ADDR;
-      s.r8  = 4;  // offset 4*2=8 bytes into data
       std::vector<u8> data(16, 0);
-      data[8]  = 0x11; data[9]  = 0x22; data[10] = 0x33; data[11] = 0x44;
-      data[12] = 0x55; data[13] = 0x66; data[14] = 0x77; data[15] = 0x88;
-      tests.push_back({"mov rax,[rdi+r8*2] (REX.X)", cat, {0x4A, 0x8B, 0x04, 0x47}, s,
+      data[8]  = 0x11;
+      data[9]  = 0x22;
+      data[10] = 0x33;
+      data[11] = 0x44;
+      data[12] = 0x55;
+      data[13] = 0x66;
+      data[14] = 0x77;
+      data[15] = 0x88;
+      tests.push_back({"mov rax,[rdi+r8*2] (REX.X)", cat, {0x4A, 0x8B, 0x04, 0x47},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .r8 = 4, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -93,16 +69,18 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     //                 SIB 0D(scale=00,index=rcx=1,base=5+B=r13), disp8=0
     // Note: R13 as SIB base requires mod!=00, using mod=01 with disp8=0
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.r13 = DATA_ADDR;
-      s.rcx = 8;
       std::vector<u8> data(16, 0);
-      data[8]  = 0xAA; data[9]  = 0xBB; data[10] = 0xCC; data[11] = 0xDD;
-      data[12] = 0xEE; data[13] = 0xFF; data[14] = 0x11; data[15] = 0x22;
+      data[8]  = 0xAA;
+      data[9]  = 0xBB;
+      data[10] = 0xCC;
+      data[11] = 0xDD;
+      data[12] = 0xEE;
+      data[13] = 0xFF;
+      data[14] = 0x11;
+      data[15] = 0x22;
       tests.push_back({"mov rax,[r13+rcx] (REX.B SIB base)", cat,
-                        {0x49, 0x8B, 0x44, 0x0D, 0x00}, s,
+                        {0x49, 0x8B, 0x44, 0x0D, 0x00},
+                        {.rax = 0xDEADDEADDEADDEAD, .rcx = 8, .r13 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -110,16 +88,18 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // 4B 8B 44 85 00: REX.W+X+B(4B), MOV(8B), ModRM 44(mod=01,reg=rax,rm=100=SIB),
     //                 SIB 85(scale=10=*4,index=0+X=r8,base=5+B=r13), disp8=0
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.r13 = DATA_ADDR;
-      s.r8  = 2;  // offset 2*4=8 bytes
       std::vector<u8> data(16, 0);
-      data[8]  = 0x12; data[9]  = 0x34; data[10] = 0x56; data[11] = 0x78;
-      data[12] = 0x9A; data[13] = 0xBC; data[14] = 0xDE; data[15] = 0xF0;
+      data[8]  = 0x12;
+      data[9]  = 0x34;
+      data[10] = 0x56;
+      data[11] = 0x78;
+      data[12] = 0x9A;
+      data[13] = 0xBC;
+      data[14] = 0xDE;
+      data[15] = 0xF0;
       tests.push_back({"mov rax,[r13+r8*4] (REX.X+B)", cat,
-                        {0x4B, 0x8B, 0x44, 0x85, 0x00}, s,
+                        {0x4B, 0x8B, 0x44, 0x85, 0x00},
+                        {.rax = 0xDEADDEADDEADDEAD, .r8 = 2, .r13 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -127,50 +107,32 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // 4F 01 4C 05 00: REX.W+R+X+B(4F), ADD(01), ModRM 4C(mod=01,reg=1+R=r9,rm=100=SIB),
     //                 SIB 05(scale=00,index=0+X=r8,base=5+B=r13), disp8=0
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r8  = 8;
-      s.r9  = 0x100;
-      s.r13 = DATA_ADDR;
       std::vector<u8> data(16, 0);
       data[8] = 0x42;
       tests.push_back({"add [r13+r8],r9 (REX.R+X+B)", cat,
-                        {0x4F, 0x01, 0x4C, 0x05, 0x00}, s,
+                        {0x4F, 0x01, 0x4C, 0x05, 0x00},
+                        {.r8 = 8, .r9 = 0x100, .r13 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 16});
     }
 
     // REX prefix 0x40 (no R/W/B/X) — should not change operand size
     // 40 01 D8: REX(40), ADD r/m32,r32(01), ModRM D8(reg=ebx,rm=eax)
     // This is a 32-bit ADD, not 64-bit
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFF00000001;
-      s.rbx = 1;
-      tests.push_back({"add eax,ebx (bare REX 0x40)", cat, {0x40, 0x01, 0xD8}, s, FL_ALL});
-    }
+    tests.push_back({"add eax,ebx (bare REX 0x40)", cat, {0x40, 0x01, 0xD8},
+                      {.rax = 0xFFFFFFFF00000001, .rbx = 1, .rflags = 0x2}, FL_ALL});
 
     // REX.B with opcode-register: MOV R8, imm64
     // 49 B8 ...: REX.W+B(49), MOV r64,imm64 (B8+0=B8, but B extends to R8)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r8  = 0;
-      tests.push_back({"mov r8,imm64 (REX.B opcode reg)", cat,
-                        {0x49, 0xB8, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01}, s, FL_ALL});
-    }
+    tests.push_back({"mov r8,imm64 (REX.B opcode reg)", cat,
+                      {0x49, 0xB8, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01},
+                      {.rflags = 0x2}, FL_ALL});
 
     // REX.B with PUSH/POP opcode-register: PUSH R8; POP R9
     // 41 50: REX.B(41), PUSH r64 (50+0, B extends to R8)
     // 41 59: REX.B(41), POP r64 (58+1, B extends to R9)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r8  = 0x123456789ABCDEF0;
-      s.r9  = 0;
-      tests.push_back({"push r8; pop r9 (REX.B)", cat,
-                        {0x41, 0x50, 0x41, 0x59}, s, FL_ALL});
-    }
+    tests.push_back({"push r8; pop r9 (REX.B)", cat,
+                      {0x41, 0x50, 0x41, 0x59},
+                      {.r8 = 0x123456789ABCDEF0, .rflags = 0x2}, FL_ALL});
 
     // MOV R12, [RIP+disp32] — REX.R with RIP-relative addressing
     // 4C 8B 25 00 00 00 00: REX.W+R(4C), MOV(8B), ModRM 25(mod=00,reg=4+R=r12,rm=101=RIP)
@@ -184,15 +146,16 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
   {
     cat = "NOP";
 
-    ArchState s = {};
-    s.rflags = 0x2;
-    s.rax = 0x123456789ABCDEF0;
-    s.rbx = 0xFEDCBA9876543210;
-    s.rcx = 0xAAAAAAAABBBBBBBB;
-    s.rdx = 0xCCCCCCCCDDDDDDDD;
-    s.rdi = DATA_ADDR;  // safe base for SIB addressing in NOP
-    s.r8  = 0x1111111122222222;
-    s.r9  = 0x3333333344444444;
+    ArchState s = {
+      .rax = 0x123456789ABCDEF0,
+      .rbx = 0xFEDCBA9876543210,
+      .rcx = 0xAAAAAAAABBBBBBBB,
+      .rdx = 0xCCCCCCCCDDDDDDDD,
+      .rdi = DATA_ADDR,  // safe base for SIB addressing in NOP
+      .r8  = 0x1111111122222222,
+      .r9  = 0x3333333344444444,
+      .rflags = 0x2,
+    };
 
     // 1-byte NOP: 90
     tests.push_back({"nop (1B)", cat, {0x90}, s, FL_ALL});
@@ -238,78 +201,55 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // 66 + REX.W: REX.W overrides the 66 operand-size prefix for non-mandatory-prefix insns
     // 66 48 01 D8: 66, REX.W(48), ADD r/m64,r64(01), ModRM D8(reg=rbx,rm=rax)
     // Should be 64-bit ADD (REX.W wins over 66)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x100000000;
-      s.rbx = 0x200000000;
-      tests.push_back({"add rax,rbx (66+REX.W)", cat, {0x66, 0x48, 0x01, 0xD8}, s, FL_ALL});
-    }
+    tests.push_back({"add rax,rbx (66+REX.W)", cat, {0x66, 0x48, 0x01, 0xD8},
+                      {.rax = 0x100000000, .rbx = 0x200000000, .rflags = 0x2}, FL_ALL});
 
     // Double 66 prefix: 66 66 01 D8 = ADD AX, BX (redundant 66 should behave same as single)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD0000BEEF7FFF;  // AX=0x7FFF
-      s.rbx = 0x1234567800000001;  // BX=0x0001
-      tests.push_back({"add ax,bx (double 66)", cat, {0x66, 0x66, 0x01, 0xD8}, s, FL_ALL});
-    }
+    tests.push_back({"add ax,bx (double 66)", cat, {0x66, 0x66, 0x01, 0xD8},
+                      {.rax = 0xDEAD0000BEEF7FFF, .rbx = 0x1234567800000001, .rflags = 0x2},
+                      FL_ALL});
 
     // Address-size override (67) with memory operand: MOV EAX, [EDI]
     // 67 8B 07: 67 prefix, MOV r32,r/m32(8B), ModRM 07(mod=00,reg=eax,rm=edi)
     // Uses 32-bit address (truncates RDI to EDI)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rdi = DATA_ADDR;  // DATA_ADDR fits in 32 bits
       std::vector<u8> data = {0x42, 0x43, 0x44, 0x45, 0, 0, 0, 0};
-      tests.push_back({"mov eax,[edi] (67 prefix)", cat, {0x67, 0x8B, 0x07}, s,
+      tests.push_back({"mov eax,[edi] (67 prefix)", cat, {0x67, 0x8B, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
     // 67 + REX.W: 64-bit operand with 32-bit address
     // 67 48 8B 07: 67, REX.W(48), MOV r64,r/m64(8B), ModRM 07
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rdi = DATA_ADDR;
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
-      tests.push_back({"mov rax,[edi] (67+REX.W)", cat, {0x67, 0x48, 0x8B, 0x07}, s,
+      tests.push_back({"mov rax,[edi] (67+REX.W)", cat, {0x67, 0x48, 0x8B, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
     // REX prefix (no bits set) with byte register encoding:
-    // 40 88 E0: REX(40), MOV r/m8,r8(88), ModRM E0(reg=ah→spl, rm=al→al)
+    // 40 88 E0: REX(40), MOV r/m8,r8(88), ModRM E0(reg=ah->spl, rm=al->al)
     // Without REX: reg=4 means AH. With REX: reg=4 means SPL.
     // This tests that bare REX changes byte register mapping.
-    // MOV AL, SPL — copies low byte of RSP into AL
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD0000BEEF0000;
-      // RSP is set by the harness, but we need a known value.
-      // Instead, test with MOV to a register we control.
-      // Use: 40 0F B6 C4 = REX MOVZX EAX, SPL
-      // Actually, MOVZX is better: 40 0F B6 C4 (REX, MOVZX r32,r/m8, ModRM C4=reg=eax,rm=4=spl)
-      // Hmm, SPL value depends on stack setup. Let's use BPL instead.
-      // 40 0F B6 C5: REX MOVZX EAX, BPL (rm=5=bpl with REX)
-      s.rbp = 0xABCDEF0123456789;
-      tests.push_back({"movzx eax,bpl (REX byte reg)", cat,
-                        {0x40, 0x0F, 0xB6, 0xC5}, s, FL_ALL});
-    }
+    // MOV AL, SPL -- copies low byte of RSP into AL
+    // RSP is set by the harness, but we need a known value.
+    // Instead, test with MOV to a register we control.
+    // Use: 40 0F B6 C4 = REX MOVZX EAX, SPL
+    // Actually, MOVZX is better: 40 0F B6 C4 (REX, MOVZX r32,r/m8, ModRM C4=reg=eax,rm=4=spl)
+    // Hmm, SPL value depends on stack setup. Let's use BPL instead.
+    // 40 0F B6 C5: REX MOVZX EAX, BPL (rm=5=bpl with REX)
+    tests.push_back({"movzx eax,bpl (REX byte reg)", cat,
+                      {0x40, 0x0F, 0xB6, 0xC5},
+                      {.rax = 0xDEAD0000BEEF0000, .rbp = 0xABCDEF0123456789, .rflags = 0x2},
+                      FL_ALL});
 
     // Without REX, same ModRM accesses CH:
     // 0F B6 C5: MOVZX EAX, CH (rm=5=ch without REX)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD0000BEEF0000;
-      s.rcx = 0x123456789ABC00DE;  // CH = 0x00
-      tests.push_back({"movzx eax,ch (no REX byte reg)", cat,
-                        {0x0F, 0xB6, 0xC5}, s, FL_ALL});
-    }
+    tests.push_back({"movzx eax,ch (no REX byte reg)", cat,
+                      {0x0F, 0xB6, 0xC5},
+                      {.rax = 0xDEAD0000BEEF0000, .rcx = 0x123456789ABC00DE, .rflags = 0x2},
+                      FL_ALL});
   }
 
   // =====================================================================
@@ -321,104 +261,66 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // LZCNT: F3 0F BD /r
     // CF=1 if source is zero, ZF=1 if result is zero (i.e., MSB is set)
 
-    // LZCNT 32-bit: value with MSB set → result=0, ZF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x80000000;
-      // F3 0F BD C0: LZCNT EAX, EAX
-      tests.push_back({"lzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // LZCNT 32-bit: zero → result=32, CF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      tests.push_back({"lzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // LZCNT 32-bit: 1 → result=31
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 1;
-      tests.push_back({"lzcnt eax,eax one", cat, {0xF3, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
+    // LZCNT 32-bit: value with MSB set -> result=0, ZF=1
+    // F3 0F BD C0: LZCNT EAX, EAX
+    tests.push_back({"lzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+                      {.rax = 0x80000000, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // LZCNT 32-bit: zero -> result=32, CF=1
+    tests.push_back({"lzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+                      {.rflags = 0x2}, FL_CF | FL_ZF});
+
+    // LZCNT 32-bit: 1 -> result=31
+    tests.push_back({"lzcnt eax,eax one", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+                      {.rax = 1, .rflags = 0x2}, FL_CF | FL_ZF});
+
     // LZCNT 64-bit: F3 REX.W 0F BD C0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0000000100000000;  // bit 32 set → lzcnt=31
-      tests.push_back({"lzcnt rax,rax bit32", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // LZCNT 64-bit: zero → result=64, CF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      tests.push_back({"lzcnt rax,rax zero", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
+    // bit 32 set -> lzcnt=31
+    tests.push_back({"lzcnt rax,rax bit32", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
+                      {.rax = 0x0000000100000000, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // LZCNT 64-bit: zero -> result=64, CF=1
+    tests.push_back({"lzcnt rax,rax zero", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
+                      {.rflags = 0x2}, FL_CF | FL_ZF});
+
     // LZCNT 16-bit: 66 F3 0F BD C0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD000000000001;  // AX=0x0001, lzcnt16=15
-      tests.push_back({"lzcnt ax,ax one", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // LZCNT 16-bit: zero → result=16, CF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD000000000000;  // AX=0x0000
-      tests.push_back({"lzcnt ax,ax zero", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0}, s, FL_CF | FL_ZF});
-    }
+    // AX=0x0001, lzcnt16=15
+    tests.push_back({"lzcnt ax,ax one", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
+                      {.rax = 0xDEAD000000000001, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // LZCNT 16-bit: zero -> result=16, CF=1
+    // AX=0x0000
+    tests.push_back({"lzcnt ax,ax zero", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
+                      {.rax = 0xDEAD000000000000, .rflags = 0x2}, FL_CF | FL_ZF});
 
     // TZCNT: F3 0F BC /r
     // CF=1 if source is zero, ZF=1 if result is zero (i.e., LSB is set)
 
-    // TZCNT 32-bit: LSB set → result=0, ZF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 1;
-      tests.push_back({"tzcnt eax,eax lsb", cat, {0xF3, 0x0F, 0xBC, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // TZCNT 32-bit: zero → result=32, CF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      tests.push_back({"tzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBC, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // TZCNT 32-bit: 0x80000000 → result=31
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x80000000;
-      tests.push_back({"tzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBC, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // TZCNT 64-bit: bit 63 only → result=63
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x8000000000000000;
-      tests.push_back({"tzcnt rax,rax bit63", cat, {0xF3, 0x48, 0x0F, 0xBC, 0xC0}, s, FL_CF | FL_ZF});
-    }
-    // TZCNT 16-bit: AX=0x8000 → result=15
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD000000008000;
-      tests.push_back({"tzcnt ax,ax msb16", cat, {0x66, 0xF3, 0x0F, 0xBC, 0xC0}, s, FL_CF | FL_ZF});
-    }
+    // TZCNT 32-bit: LSB set -> result=0, ZF=1
+    tests.push_back({"tzcnt eax,eax lsb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+                      {.rax = 1, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // TZCNT 32-bit: zero -> result=32, CF=1
+    tests.push_back({"tzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+                      {.rflags = 0x2}, FL_CF | FL_ZF});
+
+    // TZCNT 32-bit: 0x80000000 -> result=31
+    tests.push_back({"tzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+                      {.rax = 0x80000000, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // TZCNT 64-bit: bit 63 only -> result=63
+    tests.push_back({"tzcnt rax,rax bit63", cat, {0xF3, 0x48, 0x0F, 0xBC, 0xC0},
+                      {.rax = 0x8000000000000000, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // TZCNT 16-bit: AX=0x8000 -> result=15
+    tests.push_back({"tzcnt ax,ax msb16", cat, {0x66, 0xF3, 0x0F, 0xBC, 0xC0},
+                      {.rax = 0xDEAD000000008000, .rflags = 0x2}, FL_CF | FL_ZF});
+
     // TZCNT with different src/dst regs: TZCNT EAX, EBX
     // F3 0F BC C3: TZCNT EAX, EBX (reg=eax, rm=ebx)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFFFFFFFFFF;
-      s.rbx = 0x100;  // tzcnt=8
-      tests.push_back({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3}, s, FL_CF | FL_ZF});
-    }
+    // tzcnt=8
+    tests.push_back({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3},
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 0x100, .rflags = 0x2}, FL_CF | FL_ZF});
   }
 
   // =====================================================================
@@ -430,56 +332,33 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // POPCNT clears OF, SF, AF, CF, PF and sets ZF=1 if count==0
     // F3 0F B8 C0: POPCNT EAX, EAX
 
-    // Zero input → count=0, ZF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2 | FL_CF | FL_SF | FL_OF;  // pre-set flags that should be cleared
-      s.rax = 0;
-      tests.push_back({"popcnt eax,eax zero", cat, {0xF3, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // All bits set (32-bit) → count=32
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFF;
-      tests.push_back({"popcnt eax,eax allones", cat, {0xF3, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // Single bit → count=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x80000000;
-      tests.push_back({"popcnt eax,eax msb", cat, {0xF3, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // Alternating bits (32-bit) → count=16
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x55555555;
-      tests.push_back({"popcnt eax,eax alt", cat, {0xF3, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // 64-bit: F3 REX.W 0F B8 C0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFFFFFFFFFF;  // count=64
-      tests.push_back({"popcnt rax,rax allones64", cat, {0xF3, 0x48, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // 16-bit: 66 F3 0F B8 C0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD00000000FFFF;  // AX=0xFFFF, count=16
-      tests.push_back({"popcnt ax,ax allones16", cat, {0x66, 0xF3, 0x0F, 0xB8, 0xC0}, s, FL_ALL});
-    }
-    // Different src/dst: POPCNT EAX, EBX
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x7;  // 3 bits set → count=3
-      tests.push_back({"popcnt eax,ebx 0x7", cat, {0xF3, 0x0F, 0xB8, 0xC3}, s, FL_ALL});
-    }
+    // Zero input -> count=0, ZF=1
+    tests.push_back({"popcnt eax,eax zero", cat, {0xF3, 0x0F, 0xB8, 0xC0},
+                      {.rflags = 0x2 | FL_CF | FL_SF | FL_OF}, FL_ALL});
+
+    // All bits set (32-bit) -> count=32
+    tests.push_back({"popcnt eax,eax allones", cat, {0xF3, 0x0F, 0xB8, 0xC0},
+                      {.rax = 0xFFFFFFFF, .rflags = 0x2}, FL_ALL});
+
+    // Single bit -> count=1
+    tests.push_back({"popcnt eax,eax msb", cat, {0xF3, 0x0F, 0xB8, 0xC0},
+                      {.rax = 0x80000000, .rflags = 0x2}, FL_ALL});
+
+    // Alternating bits (32-bit) -> count=16
+    tests.push_back({"popcnt eax,eax alt", cat, {0xF3, 0x0F, 0xB8, 0xC0},
+                      {.rax = 0x55555555, .rflags = 0x2}, FL_ALL});
+
+    // 64-bit: F3 REX.W 0F B8 C0, count=64
+    tests.push_back({"popcnt rax,rax allones64", cat, {0xF3, 0x48, 0x0F, 0xB8, 0xC0},
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rflags = 0x2}, FL_ALL});
+
+    // 16-bit: 66 F3 0F B8 C0, AX=0xFFFF, count=16
+    tests.push_back({"popcnt ax,ax allones16", cat, {0x66, 0xF3, 0x0F, 0xB8, 0xC0},
+                      {.rax = 0xDEAD00000000FFFF, .rflags = 0x2}, FL_ALL});
+
+    // Different src/dst: POPCNT EAX, EBX, 3 bits set -> count=3
+    tests.push_back({"popcnt eax,ebx 0x7", cat, {0xF3, 0x0F, 0xB8, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x7, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -488,89 +367,55 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
   {
     cat = "BSF/BSR";
 
-    // BSF: 0F BC /r — scan forward (LSB to MSB)
+    // BSF: 0F BC /r -- scan forward (LSB to MSB)
     // ZF=1 if source is zero, dest is undefined
     // Other flags (OF,SF,AF,CF,PF) are undefined
 
-    // BSF 32-bit: value=1 → result=0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 1;
-      // 0F BC C3: BSF EAX, EBX
-      tests.push_back({"bsf eax,ebx lsb", cat, {0x0F, 0xBC, 0xC3}, s, FL_ZF});
-    }
-    // BSF 32-bit: value=0x80000000 → result=31
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0x80000000;
-      tests.push_back({"bsf eax,ebx msb", cat, {0x0F, 0xBC, 0xC3}, s, FL_ZF});
-    }
-    // BSF 32-bit: zero → ZF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEAD;  // dest should be unchanged
-      s.rbx = 0;
-      tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3}, s, FL_ZF});
-    }
-    // BSF 64-bit: bit 32 only
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0x0000000100000000;
-      // 48 0F BC C3: BSF RAX, RBX
-      tests.push_back({"bsf rax,rbx bit32", cat, {0x48, 0x0F, 0xBC, 0xC3}, s, FL_ZF});
-    }
-    // BSF 16-bit: 66 0F BC C3
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0xDEAD000000000100;  // BX=0x0100, bsf=8
-      tests.push_back({"bsf ax,bx 0x100", cat, {0x66, 0x0F, 0xBC, 0xC3}, s, FL_ZF});
-    }
+    // BSF 32-bit: value=1 -> result=0
+    // 0F BC C3: BSF EAX, EBX
+    tests.push_back({"bsf eax,ebx lsb", cat, {0x0F, 0xBC, 0xC3},
+                      {.rbx = 1, .rflags = 0x2}, FL_ZF});
 
-    // BSR: 0F BD /r — scan reverse (MSB to LSB)
+    // BSF 32-bit: value=0x80000000 -> result=31
+    tests.push_back({"bsf eax,ebx msb", cat, {0x0F, 0xBC, 0xC3},
+                      {.rbx = 0x80000000, .rflags = 0x2}, FL_ZF});
+
+    // BSF 32-bit: zero -> ZF=1, dest should be unchanged
+    tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3},
+                      {.rax = 0xDEADDEAD, .rflags = 0x2}, FL_ZF});
+
+    // BSF 64-bit: bit 32 only
+    // 48 0F BC C3: BSF RAX, RBX
+    tests.push_back({"bsf rax,rbx bit32", cat, {0x48, 0x0F, 0xBC, 0xC3},
+                      {.rbx = 0x0000000100000000, .rflags = 0x2}, FL_ZF});
+
+    // BSF 16-bit: 66 0F BC C3, BX=0x0100, bsf=8
+    tests.push_back({"bsf ax,bx 0x100", cat, {0x66, 0x0F, 0xBC, 0xC3},
+                      {.rbx = 0xDEAD000000000100, .rflags = 0x2}, FL_ZF});
+
+    // BSR: 0F BD /r -- scan reverse (MSB to LSB)
     // ZF=1 if source is zero, dest is undefined
 
-    // BSR 32-bit: value=1 → result=0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 1;
-      // 0F BD C3: BSR EAX, EBX
-      tests.push_back({"bsr eax,ebx lsb", cat, {0x0F, 0xBD, 0xC3}, s, FL_ZF});
-    }
-    // BSR 32-bit: value=0x80000000 → result=31
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0x80000000;
-      tests.push_back({"bsr eax,ebx msb", cat, {0x0F, 0xBD, 0xC3}, s, FL_ZF});
-    }
-    // BSR 32-bit: zero → ZF=1
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEAD;
-      s.rbx = 0;
-      tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3}, s, FL_ZF});
-    }
+    // BSR 32-bit: value=1 -> result=0
+    // 0F BD C3: BSR EAX, EBX
+    tests.push_back({"bsr eax,ebx lsb", cat, {0x0F, 0xBD, 0xC3},
+                      {.rbx = 1, .rflags = 0x2}, FL_ZF});
+
+    // BSR 32-bit: value=0x80000000 -> result=31
+    tests.push_back({"bsr eax,ebx msb", cat, {0x0F, 0xBD, 0xC3},
+                      {.rbx = 0x80000000, .rflags = 0x2}, FL_ZF});
+
+    // BSR 32-bit: zero -> ZF=1
+    tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3},
+                      {.rax = 0xDEADDEAD, .rflags = 0x2}, FL_ZF});
+
     // BSR 64-bit
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0x8000000000000000;
-      tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3}, s, FL_ZF});
-    }
-    // BSR 32-bit: 0xFF → result=7
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbx = 0xFF;
-      tests.push_back({"bsr eax,ebx 0xFF", cat, {0x0F, 0xBD, 0xC3}, s, FL_ZF});
-    }
+    tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3},
+                      {.rbx = 0x8000000000000000, .rflags = 0x2}, FL_ZF});
+
+    // BSR 32-bit: 0xFF -> result=7
+    tests.push_back({"bsr eax,ebx 0xFF", cat, {0x0F, 0xBD, 0xC3},
+                      {.rbx = 0xFF, .rflags = 0x2}, FL_ZF});
   }
 
   // =====================================================================
@@ -580,49 +425,30 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     cat = "BSWAP";
 
     // BSWAP EAX: 0F C8
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEAD12345678;
-      // 32-bit BSWAP: 12345678 → 78563412, zero-extended to 64-bit
-      tests.push_back({"bswap eax", cat, {0x0F, 0xC8}, s, FL_NONE});
-    }
+    // 32-bit BSWAP: 12345678 -> 78563412, zero-extended to 64-bit
+    tests.push_back({"bswap eax", cat, {0x0F, 0xC8},
+                      {.rax = 0xDEADDEAD12345678, .rflags = 0x2}, FL_NONE});
+
     // BSWAP RAX: 48 0F C8
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0102030405060708;
-      tests.push_back({"bswap rax", cat, {0x48, 0x0F, 0xC8}, s, FL_NONE});
-    }
+    tests.push_back({"bswap rax", cat, {0x48, 0x0F, 0xC8},
+                      {.rax = 0x0102030405060708, .rflags = 0x2}, FL_NONE});
+
     // BSWAP with extended register R8: 49 0F C8 (REX.W+B, 0F C8+0=R8)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r8 = 0xAABBCCDDEEFF0011;
-      tests.push_back({"bswap r8", cat, {0x49, 0x0F, 0xC8}, s, FL_NONE});
-    }
+    tests.push_back({"bswap r8", cat, {0x49, 0x0F, 0xC8},
+                      {.r8 = 0xAABBCCDDEEFF0011, .rflags = 0x2}, FL_NONE});
+
     // BSWAP R15D: 41 0F CF (REX.B, 0F C8+7)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.r15 = 0xDEADDEADAABBCCDD;
-      // 32-bit swap AABBCCDD → DDCCBBAA, zero-extended
-      tests.push_back({"bswap r15d", cat, {0x41, 0x0F, 0xCF}, s, FL_NONE});
-    }
-    // BSWAP EAX where value is 0 → stays 0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEAD00000000;
-      tests.push_back({"bswap eax zero", cat, {0x0F, 0xC8}, s, FL_NONE});
-    }
-    // BSWAP with value 0x01000000 → 0x00000001
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x01000000;
-      tests.push_back({"bswap eax endian", cat, {0x0F, 0xC8}, s, FL_NONE});
-    }
+    // 32-bit swap AABBCCDD -> DDCCBBAA, zero-extended
+    tests.push_back({"bswap r15d", cat, {0x41, 0x0F, 0xCF},
+                      {.r15 = 0xDEADDEADAABBCCDD, .rflags = 0x2}, FL_NONE});
+
+    // BSWAP EAX where value is 0 -> stays 0
+    tests.push_back({"bswap eax zero", cat, {0x0F, 0xC8},
+                      {.rax = 0xDEADDEAD00000000, .rflags = 0x2}, FL_NONE});
+
+    // BSWAP with value 0x01000000 -> 0x00000001
+    tests.push_back({"bswap eax endian", cat, {0x0F, 0xC8},
+                      {.rax = 0x01000000, .rflags = 0x2}, FL_NONE});
   }
 
   // =====================================================================
@@ -632,63 +458,34 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     cat = "XCHG";
 
     // XCHG EAX, EBX: 93 (opcode 90+3)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD000011111111;
-      s.rbx = 0xBEEF000022222222;
-      // 32-bit: swaps and zero-extends both
-      tests.push_back({"xchg eax,ebx", cat, {0x93}, s, FL_NONE});
-    }
+    // 32-bit: swaps and zero-extends both
+    tests.push_back({"xchg eax,ebx", cat, {0x93},
+                      {.rax = 0xDEAD000011111111, .rbx = 0xBEEF000022222222, .rflags = 0x2}, FL_NONE});
+
     // XCHG RAX, RBX: 48 93 (REX.W + 90+3)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x1111111111111111;
-      s.rbx = 0x2222222222222222;
-      tests.push_back({"xchg rax,rbx", cat, {0x48, 0x93}, s, FL_NONE});
-    }
+    tests.push_back({"xchg rax,rbx", cat, {0x48, 0x93},
+                      {.rax = 0x1111111111111111, .rbx = 0x2222222222222222, .rflags = 0x2}, FL_NONE});
+
     // XCHG AX, BX: 66 93
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD0000BEEF1111;
-      s.rbx = 0x1234567800002222;
-      // 16-bit: only swaps low 16 bits
-      tests.push_back({"xchg ax,bx", cat, {0x66, 0x93}, s, FL_NONE});
-    }
+    // 16-bit: only swaps low 16 bits
+    tests.push_back({"xchg ax,bx", cat, {0x66, 0x93},
+                      {.rax = 0xDEAD0000BEEF1111, .rbx = 0x1234567800002222, .rflags = 0x2}, FL_NONE});
+
     // XCHG R8D, EAX: 41 90 (REX.B extends opcode register)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD000011111111;
-      s.r8  = 0xBEEF000022222222;
-      tests.push_back({"xchg r8d,eax", cat, {0x41, 0x90}, s, FL_NONE});
-    }
+    tests.push_back({"xchg r8d,eax", cat, {0x41, 0x90},
+                      {.rax = 0xDEAD000011111111, .r8 = 0xBEEF000022222222, .rflags = 0x2}, FL_NONE});
+
     // XCHG RAX, R8: 49 90 (REX.W+B)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xAAAAAAAAAAAAAAAA;
-      s.r8  = 0xBBBBBBBBBBBBBBBB;
-      tests.push_back({"xchg rax,r8", cat, {0x49, 0x90}, s, FL_NONE});
-    }
+    tests.push_back({"xchg rax,r8", cat, {0x49, 0x90},
+                      {.rax = 0xAAAAAAAAAAAAAAAA, .r8 = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_NONE});
+
     // XCHG r/m form: 87 C3 = XCHG EBX, EAX (ModRM)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x11111111;
-      s.rbx = 0x22222222;
-      tests.push_back({"xchg ebx,eax modrm", cat, {0x87, 0xC3}, s, FL_NONE});
-    }
+    tests.push_back({"xchg ebx,eax modrm", cat, {0x87, 0xC3},
+                      {.rax = 0x11111111, .rbx = 0x22222222, .rflags = 0x2}, FL_NONE});
+
     // XCHG r/m8: 86 D8 = XCHG AL, BL
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEAD0000BEEF00AA;
-      s.rbx = 0x1234567800000055;
-      tests.push_back({"xchg al,bl", cat, {0x86, 0xD8}, s, FL_NONE});
-    }
+    tests.push_back({"xchg al,bl", cat, {0x86, 0xD8},
+                      {.rax = 0xDEAD0000BEEF00AA, .rbx = 0x1234567800000055, .rflags = 0x2}, FL_NONE});
   }
 
   // =====================================================================
@@ -698,80 +495,46 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     cat = "MOVSX/MOVSXD";
 
     // MOVSX EAX, BL: 0F BE C3 (sign-extend byte to dword)
-    // BL=0x80 → EAX=0xFFFFFF80, zero-extended to 64-bit
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x0000000000000080;
-      tests.push_back({"movsx eax,bl neg", cat, {0x0F, 0xBE, 0xC3}, s, FL_NONE});
-    }
-    // MOVSX EAX, BL: BL=0x7F → EAX=0x0000007F
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x000000000000007F;
-      tests.push_back({"movsx eax,bl pos", cat, {0x0F, 0xBE, 0xC3}, s, FL_NONE});
-    }
+    // BL=0x80 -> EAX=0xFFFFFF80, zero-extended to 64-bit
+    tests.push_back({"movsx eax,bl neg", cat, {0x0F, 0xBE, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000000080, .rflags = 0x2}, FL_NONE});
+
+    // MOVSX EAX, BL: BL=0x7F -> EAX=0x0000007F
+    tests.push_back({"movsx eax,bl pos", cat, {0x0F, 0xBE, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000000000007F, .rflags = 0x2}, FL_NONE});
+
     // MOVSX RAX, BL: 48 0F BE C3 (sign-extend byte to qword)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x00000000000000FF;  // -1 signed byte
-      tests.push_back({"movsx rax,bl neg", cat, {0x48, 0x0F, 0xBE, 0xC3}, s, FL_NONE});
-    }
+    // -1 signed byte
+    tests.push_back({"movsx rax,bl neg", cat, {0x48, 0x0F, 0xBE, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x00000000000000FF, .rflags = 0x2}, FL_NONE});
+
     // MOVSX EAX, BX: 0F BF C3 (sign-extend word to dword)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x0000000000008000;  // -32768 signed word
-      tests.push_back({"movsx eax,bx neg", cat, {0x0F, 0xBF, 0xC3}, s, FL_NONE});
-    }
+    // -32768 signed word
+    tests.push_back({"movsx eax,bx neg", cat, {0x0F, 0xBF, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_NONE});
+
     // MOVSX RAX, BX: 48 0F BF C3 (sign-extend word to qword)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x0000000000008000;
-      tests.push_back({"movsx rax,bx neg", cat, {0x48, 0x0F, 0xBF, 0xC3}, s, FL_NONE});
-    }
+    tests.push_back({"movsx rax,bx neg", cat, {0x48, 0x0F, 0xBF, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_NONE});
+
     // MOVSXD RAX, EBX: 48 63 C3 (sign-extend dword to qword)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x0000000080000000;  // -2147483648 signed dword
-      tests.push_back({"movsxd rax,ebx neg", cat, {0x48, 0x63, 0xC3}, s, FL_NONE});
-    }
+    // -2147483648 signed dword
+    tests.push_back({"movsxd rax,ebx neg", cat, {0x48, 0x63, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_NONE});
+
     // MOVSXD RAX, EBX: positive value
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x000000007FFFFFFF;
-      tests.push_back({"movsxd rax,ebx pos", cat, {0x48, 0x63, 0xC3}, s, FL_NONE});
-    }
+    tests.push_back({"movsxd rax,ebx pos", cat, {0x48, 0x63, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000007FFFFFFF, .rflags = 0x2}, FL_NONE});
+
     // MOVSXD without REX.W (63 C3): acts as MOV EBX, EBX (no sign extend)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rbx = 0x0000000080000000;
-      tests.push_back({"movsxd eax,ebx no-rex.w", cat, {0x63, 0xC3}, s, FL_NONE});
-    }
+    tests.push_back({"movsxd eax,ebx no-rex.w", cat, {0x63, 0xC3},
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_NONE});
+
     // MOVSX with R8-R15: 41 0F BE C0 = MOVSX EAX, R8B
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.r8  = 0x00000000000000FE;  // -2 signed byte
-      // 44 0F BE C0: REX.R, MOVSX r32,r/m8, ModRM C0(reg=0+R=r8? no...)
-      // Actually: 41 0F BE C0: REX.B, MOVSX EAX, r/m8 where rm=0+B=R8B
-      tests.push_back({"movsx eax,r8b neg", cat, {0x41, 0x0F, 0xBE, 0xC0}, s, FL_NONE});
-    }
+    // -2 signed byte
+    // Actually: 41 0F BE C0: REX.B, MOVSX EAX, r/m8 where rm=0+B=R8B
+    tests.push_back({"movsx eax,r8b neg", cat, {0x41, 0x0F, 0xBE, 0xC0},
+                      {.rax = 0xDEADDEADDEADDEAD, .r8 = 0x00000000000000FE, .rflags = 0x2}, FL_NONE});
   }
 
   // =====================================================================
@@ -782,93 +545,50 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // BT r64, r64: 48 0F A3 D8 = BT RAX, RBX (test bit RBX in RAX)
     // Sets CF = bit at position (RBX mod 64)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0000000000000001;  // bit 0 set
-      s.rbx = 0;  // test bit 0
-      tests.push_back({"bt rax,rbx bit0 set", cat, {0x48, 0x0F, 0xA3, 0xD8}, s, FL_CF});
-    }
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0000000000000001;
-      s.rbx = 1;  // test bit 1 (not set)
-      tests.push_back({"bt rax,rbx bit1 clear", cat, {0x48, 0x0F, 0xA3, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"bt rax,rbx bit0 set", cat, {0x48, 0x0F, 0xA3, 0xD8},
+                      {.rax = 0x0000000000000001, .rflags = 0x2}, FL_CF});
+
+    // test bit 1 (not set)
+    tests.push_back({"bt rax,rbx bit1 clear", cat, {0x48, 0x0F, 0xA3, 0xD8},
+                      {.rax = 0x0000000000000001, .rbx = 1, .rflags = 0x2}, FL_CF});
+
     // BT r32, r32: 0F A3 D8 = BT EAX, EBX (bit index mod 32)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x80000000;
-      s.rbx = 31;
-      tests.push_back({"bt eax,ebx bit31 set", cat, {0x0F, 0xA3, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"bt eax,ebx bit31 set", cat, {0x0F, 0xA3, 0xD8},
+                      {.rax = 0x80000000, .rbx = 31, .rflags = 0x2}, FL_CF});
 
     // BTS r64, r64: 48 0F AB D8 = BTS RAX, RBX (set bit)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      s.rbx = 5;
-      tests.push_back({"bts rax,rbx bit5", cat, {0x48, 0x0F, 0xAB, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"bts rax,rbx bit5", cat, {0x48, 0x0F, 0xAB, 0xD8},
+                      {.rbx = 5, .rflags = 0x2}, FL_CF});
+
     // BTR r64, r64: 48 0F B3 D8 = BTR RAX, RBX (reset bit)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFFFFFFFFFF;
-      s.rbx = 63;
-      tests.push_back({"btr rax,rbx bit63", cat, {0x48, 0x0F, 0xB3, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"btr rax,rbx bit63", cat, {0x48, 0x0F, 0xB3, 0xD8},
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 63, .rflags = 0x2}, FL_CF});
+
     // BTC r64, r64: 48 0F BB D8 = BTC RAX, RBX (complement bit)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      s.rbx = 10;
-      tests.push_back({"btc rax,rbx bit10", cat, {0x48, 0x0F, 0xBB, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"btc rax,rbx bit10", cat, {0x48, 0x0F, 0xBB, 0xD8},
+                      {.rbx = 10, .rflags = 0x2}, FL_CF});
 
     // BT r/m, imm8 (Group 8): 0F BA /4 ib
     // 48 0F BA E0 3F: BT RAX, 63
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x8000000000000000;
-      tests.push_back({"bt rax,63 imm", cat, {0x48, 0x0F, 0xBA, 0xE0, 0x3F}, s, FL_CF});
-    }
+    tests.push_back({"bt rax,63 imm", cat, {0x48, 0x0F, 0xBA, 0xE0, 0x3F},
+                      {.rax = 0x8000000000000000, .rflags = 0x2}, FL_CF});
+
     // BTS r/m, imm8: 48 0F BA E8 00 = BTS RAX, 0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      tests.push_back({"bts rax,0 imm", cat, {0x48, 0x0F, 0xBA, 0xE8, 0x00}, s, FL_CF});
-    }
+    tests.push_back({"bts rax,0 imm", cat, {0x48, 0x0F, 0xBA, 0xE8, 0x00},
+                      {.rflags = 0x2}, FL_CF});
+
     // BTR r/m, imm8: 48 0F BA F0 1F = BTR RAX, 31
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFFFFFFFFFFFFFFFF;
-      tests.push_back({"btr rax,31 imm", cat, {0x48, 0x0F, 0xBA, 0xF0, 0x1F}, s, FL_CF});
-    }
+    tests.push_back({"btr rax,31 imm", cat, {0x48, 0x0F, 0xBA, 0xF0, 0x1F},
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rflags = 0x2}, FL_CF});
+
     // BTC r/m, imm8: 0F BA F8 07 = BTC EAX, 7
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x80;  // bit 7 set
-      tests.push_back({"btc eax,7 imm", cat, {0x0F, 0xBA, 0xF8, 0x07}, s, FL_CF});
-    }
+    tests.push_back({"btc eax,7 imm", cat, {0x0F, 0xBA, 0xF8, 0x07},
+                      {.rax = 0x80, .rflags = 0x2}, FL_CF});
 
     // BT with bit index >= operand size (wraps via mod): BT EAX, EBX where EBX=32
     // Should test bit 32 mod 32 = bit 0
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x00000001;  // bit 0 set
-      s.rbx = 32;  // wraps to bit 0
-      tests.push_back({"bt eax,ebx wrap32", cat, {0x0F, 0xA3, 0xD8}, s, FL_CF});
-    }
+    tests.push_back({"bt eax,ebx wrap32", cat, {0x0F, 0xA3, 0xD8},
+                      {.rax = 0x00000001, .rbx = 32, .rflags = 0x2}, FL_CF});
   }
 
   // =====================================================================
@@ -878,64 +598,45 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     cat = "MOVBE";
 
     // MOVBE EAX, [RDI]: 0F 38 F0 07 (load 32-bit, byte-swap)
+    // Memory: 01 02 03 04 -> EAX = 0x01020304 (big-endian to little-endian)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rdi = DATA_ADDR;
-      // Memory: 01 02 03 04 → EAX = 0x01020304 (big-endian to little-endian)
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0, 0, 0, 0};
-      tests.push_back({"movbe eax,[rdi]", cat, {0x0F, 0x38, 0xF0, 0x07}, s,
+      tests.push_back({"movbe eax,[rdi]", cat, {0x0F, 0x38, 0xF0, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
                         FL_NONE, 0, false, data, 0});
     }
+
     // MOVBE RAX, [RDI]: 48 0F 38 F0 07 (load 64-bit, byte-swap)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      s.rdi = DATA_ADDR;
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-      tests.push_back({"movbe rax,[rdi]", cat, {0x48, 0x0F, 0x38, 0xF0, 0x07}, s,
+      tests.push_back({"movbe rax,[rdi]", cat, {0x48, 0x0F, 0x38, 0xF0, 0x07},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
                         FL_NONE, 0, false, data, 0});
     }
+
     // MOVBE AX, [RDI]: 66 0F 38 F0 07 (load 16-bit, byte-swap)
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rdi = DATA_ADDR;
       std::vector<u8> data = {0xAB, 0xCD, 0, 0, 0, 0, 0, 0};
-      tests.push_back({"movbe ax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF0, 0x07}, s,
+      tests.push_back({"movbe ax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF0, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
                         FL_NONE, 0, false, data, 0});
     }
+
     // MOVBE [RDI], EAX: 0F 38 F1 07 (store 32-bit, byte-swap)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x01020304;
-      s.rdi = DATA_ADDR;
-      // Should store 04 03 02 01
-      tests.push_back({"movbe [rdi],eax", cat, {0x0F, 0x38, 0xF1, 0x07}, s,
-                        FL_NONE, 0, false, {}, 4});
-    }
+    // Should store 04 03 02 01
+    tests.push_back({"movbe [rdi],eax", cat, {0x0F, 0x38, 0xF1, 0x07},
+                      {.rax = 0x01020304, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_NONE, 0, false, {}, 4});
+
     // MOVBE [RDI], RAX: 48 0F 38 F1 07 (store 64-bit, byte-swap)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0102030405060708;
-      s.rdi = DATA_ADDR;
-      tests.push_back({"movbe [rdi],rax", cat, {0x48, 0x0F, 0x38, 0xF1, 0x07}, s,
-                        FL_NONE, 0, false, {}, 8});
-    }
+    tests.push_back({"movbe [rdi],rax", cat, {0x48, 0x0F, 0x38, 0xF1, 0x07},
+                      {.rax = 0x0102030405060708, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_NONE, 0, false, {}, 8});
+
     // MOVBE [RDI], AX: 66 0F 38 F1 07 (store 16-bit, byte-swap)
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEAD0000ABCD;
-      s.rdi = DATA_ADDR;
-      tests.push_back({"movbe [rdi],ax", cat, {0x66, 0x0F, 0x38, 0xF1, 0x07}, s,
-                        FL_NONE, 0, false, {}, 2});
-    }
+    tests.push_back({"movbe [rdi],ax", cat, {0x66, 0x0F, 0x38, 0xF1, 0x07},
+                      {.rax = 0xDEADDEAD0000ABCD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_NONE, 0, false, {}, 2});
   }
 
   // =====================================================================
@@ -944,156 +645,126 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
   {
     cat = "String ops";
 
-    // REP MOVSB: F3 A4 — copy RCX bytes from [RSI] to [RDI]
+    // REP MOVSB: F3 A4 -- copy RCX bytes from [RSI] to [RDI]
     // Forward (DF=0), 8 bytes
     {
-      ArchState s = {};
-      s.rflags = 0x2;  // DF=0
-      s.rcx = 8;
-      s.rsi = DATA_ADDR;
-      s.rdi = DATA_ADDR + 256;
       std::vector<u8> data(512, 0);
-      for (int i = 0; i < 8; i++) data[i] = 0x10 + i;
-      tests.push_back({"rep movsb fwd 8", cat, {0xF3, 0xA4}, s,
+      for (int i = 0; i < 8; i++)
+        data[i] = 0x10 + i;
+      tests.push_back({"rep movsb fwd 8", cat, {0xF3, 0xA4},
+                        {.rcx = 8, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
                         FL_ALL, 0, false, data, 512});
     }
-    // REP MOVSB: backward (DF=1), 4 bytes — start pointers at end
+
+    // REP MOVSB: backward (DF=1), 4 bytes -- start pointers at end
     {
-      ArchState s = {};
-      s.rflags = 0x2 | FL_DF;  // DF=1
-      s.rcx = 4;
-      s.rsi = DATA_ADDR + 3;      // point to last byte to copy
-      s.rdi = DATA_ADDR + 256 + 3;
       std::vector<u8> data(512, 0);
-      data[0] = 0xAA; data[1] = 0xBB; data[2] = 0xCC; data[3] = 0xDD;
-      tests.push_back({"rep movsb bwd 4", cat, {0xF3, 0xA4}, s,
+      data[0] = 0xAA;
+      data[1] = 0xBB;
+      data[2] = 0xCC;
+      data[3] = 0xDD;
+      tests.push_back({"rep movsb bwd 4", cat, {0xF3, 0xA4},
+                        {.rcx = 4, .rsi = DATA_ADDR + 3, .rdi = DATA_ADDR + 256 + 3,
+                         .rflags = 0x2 | FL_DF},
                         FL_ALL, 0, false, data, 512});
     }
-    // REP MOVSB: zero count — no-op
+
+    // REP MOVSB: zero count -- no-op
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rcx = 0;
-      s.rsi = DATA_ADDR;
-      s.rdi = DATA_ADDR + 256;
       std::vector<u8> data(512, 0);
       data[0] = 0xFF;  // should not be copied
-      tests.push_back({"rep movsb zero", cat, {0xF3, 0xA4}, s,
+      tests.push_back({"rep movsb zero", cat, {0xF3, 0xA4},
+                        {.rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
                         FL_ALL, 0, false, data, 512});
     }
-    // REP MOVSQ: F3 48 A5 — copy 2 qwords
+
+    // REP MOVSQ: F3 48 A5 -- copy 2 qwords
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rcx = 2;
-      s.rsi = DATA_ADDR;
-      s.rdi = DATA_ADDR + 256;
       std::vector<u8> data(512, 0);
-      for (int i = 0; i < 16; i++) data[i] = 0x10 + i;
-      tests.push_back({"rep movsq fwd 2", cat, {0xF3, 0x48, 0xA5}, s,
+      for (int i = 0; i < 16; i++)
+        data[i] = 0x10 + i;
+      tests.push_back({"rep movsq fwd 2", cat, {0xF3, 0x48, 0xA5},
+                        {.rcx = 2, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
                         FL_ALL, 0, false, data, 512});
     }
 
-    // REP STOSB: F3 AA — fill RCX bytes at [RDI] with AL
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x42;
-      s.rcx = 8;
-      s.rdi = DATA_ADDR;
-      tests.push_back({"rep stosb 8", cat, {0xF3, 0xAA}, s,
-                        FL_ALL, 0, false, {}, 8});
-    }
-    // REP STOSD: F3 AB — fill with EAX
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADBEEF;
-      s.rcx = 2;
-      s.rdi = DATA_ADDR;
-      tests.push_back({"rep stosd 2", cat, {0xF3, 0xAB}, s,
-                        FL_ALL, 0, false, {}, 8});
-    }
+    // REP STOSB: F3 AA -- fill RCX bytes at [RDI] with AL
+    tests.push_back({"rep stosb 8", cat, {0xF3, 0xAA},
+                      {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
+
+    // REP STOSD: F3 AB -- fill with EAX
+    tests.push_back({"rep stosd 2", cat, {0xF3, 0xAB},
+                      {.rax = 0xDEADBEEF, .rcx = 2, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
+
     // REP STOSQ: F3 48 AB
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x0102030405060708;
-      s.rcx = 1;
-      s.rdi = DATA_ADDR;
-      tests.push_back({"rep stosq 1", cat, {0xF3, 0x48, 0xAB}, s,
-                        FL_ALL, 0, false, {}, 8});
-    }
+    tests.push_back({"rep stosq 1", cat, {0xF3, 0x48, 0xAB},
+                      {.rax = 0x0102030405060708, .rcx = 1, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
 
-    // LODSB: AC — load byte from [RSI] into AL
+    // LODSB: AC -- load byte from [RSI] into AL
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xDEADDEADDEADDEAD;
-      s.rsi = DATA_ADDR;
       std::vector<u8> data = {0x42};
-      tests.push_back({"lodsb", cat, {0xAC}, s,
-                        FL_ALL, 0, false, data, 0});
-    }
-    // LODSQ: 48 AD — load qword from [RSI] into RAX
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0;
-      s.rsi = DATA_ADDR;
-      std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-      tests.push_back({"lodsq", cat, {0x48, 0xAD}, s,
+      tests.push_back({"lodsb", cat, {0xAC},
+                        {.rax = 0xDEADDEADDEADDEAD, .rsi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
-    // REPE CMPSB: F3 A6 — compare while equal
+    // LODSQ: 48 AD -- load qword from [RSI] into RAX
+    {
+      std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+      tests.push_back({"lodsq", cat, {0x48, 0xAD},
+                        {.rsi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REPE CMPSB: F3 A6 -- compare while equal
     // Equal strings of length 4
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rcx = 4;
-      s.rsi = DATA_ADDR;
-      s.rdi = DATA_ADDR + 256;
       std::vector<u8> data(512, 0);
-      data[0] = 0x11; data[1] = 0x22; data[2] = 0x33; data[3] = 0x44;
-      data[256] = 0x11; data[257] = 0x22; data[258] = 0x33; data[259] = 0x44;
-      tests.push_back({"repe cmpsb equal", cat, {0xF3, 0xA6}, s,
-                        FL_ALL, 0, false, data, 0});
-    }
-    // REPE CMPSB: differ at byte 2
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rcx = 4;
-      s.rsi = DATA_ADDR;
-      s.rdi = DATA_ADDR + 256;
-      std::vector<u8> data(512, 0);
-      data[0] = 0x11; data[1] = 0x22; data[2] = 0x33; data[3] = 0x44;
-      data[256] = 0x11; data[257] = 0x22; data[258] = 0xFF; data[259] = 0x44;
-      tests.push_back({"repe cmpsb diff@2", cat, {0xF3, 0xA6}, s,
+      data[0]   = 0x11;
+      data[1]   = 0x22;
+      data[2]   = 0x33;
+      data[3]   = 0x44;
+      data[256] = 0x11;
+      data[257] = 0x22;
+      data[258] = 0x33;
+      data[259] = 0x44;
+      tests.push_back({"repe cmpsb equal", cat, {0xF3, 0xA6},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
-    // REPNE SCASB: F2 AE — scan for AL in [RDI]
+    // REPE CMPSB: differ at byte 2
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0x42;  // looking for 0x42
-      s.rcx = 8;
-      s.rdi = DATA_ADDR;
-      std::vector<u8> data = {0x00, 0x01, 0x02, 0x42, 0x04, 0x05, 0x06, 0x07};
-      tests.push_back({"repne scasb found", cat, {0xF2, 0xAE}, s,
+      std::vector<u8> data(512, 0);
+      data[0]   = 0x11;
+      data[1]   = 0x22;
+      data[2]   = 0x33;
+      data[3]   = 0x44;
+      data[256] = 0x11;
+      data[257] = 0x22;
+      data[258] = 0xFF;
+      data[259] = 0x44;
+      tests.push_back({"repe cmpsb diff@2", cat, {0xF3, 0xA6},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
+
+    // REPNE SCASB: F2 AE -- scan for AL in [RDI]
+    {
+      std::vector<u8> data = {0x00, 0x01, 0x02, 0x42, 0x04, 0x05, 0x06, 0x07};
+      tests.push_back({"repne scasb found", cat, {0xF2, 0xAE},
+                        {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
     // REPNE SCASB: not found
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rax = 0xFF;  // not in data
-      s.rcx = 4;
-      s.rdi = DATA_ADDR;
       std::vector<u8> data = {0x00, 0x01, 0x02, 0x03};
-      tests.push_back({"repne scasb notfound", cat, {0xF2, 0xAE}, s,
+      tests.push_back({"repne scasb notfound", cat, {0xF2, 0xAE},
+                        {.rax = 0xFF, .rcx = 4, .rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
   }
@@ -1106,34 +777,21 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // ENTER 0, 0: just push RBP and set RBP=RSP (like push rbp; mov rbp,rsp)
     // C8 00 00 00
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbp = 0xAAAAAAAAAAAAAAAA;
-      tests.push_back({"enter 0,0", cat, {0xC8, 0x00, 0x00, 0x00}, s, FL_NONE});
-    }
+    tests.push_back({"enter 0,0", cat, {0xC8, 0x00, 0x00, 0x00},
+                      {.rbp = 0xAAAAAAAAAAAAAAAA, .rflags = 0x2}, FL_NONE});
+
     // ENTER 16, 0: allocate 16 bytes of local space
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbp = 0xBBBBBBBBBBBBBBBB;
-      tests.push_back({"enter 16,0", cat, {0xC8, 0x10, 0x00, 0x00}, s, FL_NONE});
-    }
-    // ENTER 0, 1: nesting level 1 — pushes old RBP, then pushes frame_temp
+    tests.push_back({"enter 16,0", cat, {0xC8, 0x10, 0x00, 0x00},
+                      {.rbp = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_NONE});
+
+    // ENTER 0, 1: nesting level 1 -- pushes old RBP, then pushes frame_temp
     // RBP must point to valid stack memory since nesting copies prior frames
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbp = STACK_TOP - 64;  // valid stack address
-      tests.push_back({"enter 0,1", cat, {0xC8, 0x00, 0x00, 0x01}, s, FL_NONE});
-    }
-    // ENTER 8, 2: nesting level 2 — pushes old RBP, copies 1 prior frame ptr, pushes frame_temp
-    {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rbp = STACK_TOP - 64;  // valid stack address
-      tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02}, s, FL_NONE});
-    }
+    tests.push_back({"enter 0,1", cat, {0xC8, 0x00, 0x00, 0x01},
+                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_NONE});
+
+    // ENTER 8, 2: nesting level 2 -- pushes old RBP, copies 1 prior frame ptr, pushes frame_temp
+    tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02},
+                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_NONE});
   }
 
   // =====================================================================
@@ -1151,7 +809,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // Mode 0x00: unsigned bytes, equal any, LSB index
     // XMM0 = "abcd\0...", XMM1 = "xxbx\0..." → find 'b' at index 2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
@@ -1161,7 +819,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI: equal each (mode 0x08) — byte-by-byte compare
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
       s.xmm[1] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
@@ -1170,7 +828,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI: equal each with difference at byte 2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044584241, 0);  // "AB\x58D\0..."
@@ -1180,7 +838,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // PCMPISTRM: equal each (mode 0x08), returns mask in XMM0
     // 66 0F 3A 62 C1 08: PCMPISTRM XMM0, XMM1, 0x08
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x00000000FF43FF41, 0);  // "A\xffC\xff\0..."
@@ -1190,7 +848,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // PCMPESTRI: explicit length — 66 0F 3A 61 C1 imm8
     // EAX=length of xmm0 string, EDX=length of xmm1 string
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.rax = 3;  // length of needle
       s.rdx = 4;  // length of haystack
@@ -1215,7 +873,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // EVEX.128.66.0F.W0 FE /r
     // 62 F1 75 08 FE C2: L'L=00(128)
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
       s.xmm[2] = xmm_from_u32(10, 20, 30, 40);
@@ -1225,7 +883,7 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // VPXORD XMM0, XMM1, XMM2 (EVEX 128-bit XOR)
     // EVEX.128.66.0F.W0 EF /r: 62 F1 75 08 EF C2
     {
-      ArchState s = {};
+      ArchState s;
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
       s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA);
@@ -1244,12 +902,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // Round-trip: XSAVE then PXOR to clear XMMs, then XRSTOR to restore.
     // Verifies XMM0 and XMM1 survive the round-trip.
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 3;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
       s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDD, 0xEEEEFFFF00001111);
       std::vector<u8> code = {
@@ -1272,12 +928,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // Round-trip with mask=2 (SSE only): XMM regs should survive.
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 2;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0xCAFEBABE12345678, 0x9876543210FEDCBA);
       s.xmm[5] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xFACEFACEFACEFACE);
       std::vector<u8> code = {
@@ -1300,13 +954,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // XRSTOR with XSTATE_BV=3: load XMM0 from pre-built XSAVE area.
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 3;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
-      s.xmm[0] = xmm_from_u64(0, 0);
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       std::vector<u8> init_data(576, 0);
       // FCW = 0x037F
       init_data[0] = 0x7F;
@@ -1339,12 +990,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // XRSTOR with XSTATE_BV=0: SSE init path should zero XMM regs.
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 3;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xDEADBEEFDEADBEEF);
       std::vector<u8> init_data(576, 0);
       // XSTATE_BV = 0 (all init)
@@ -1361,12 +1010,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // XRSTOR with XSTATE_BV=1 (x87 only): SSE init, XMMs zeroed.
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 3;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
       std::vector<u8> init_data(576, 0);
       init_data[0] = 0x7F;
@@ -1391,12 +1038,10 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
 
     // Round-trip with high XMM registers (XMM8-XMM15, needs REX).
     {
-      ArchState s = {};
-      s.rflags = 0x2;
-      s.rdi = DATA_ADDR;
+      ArchState s;
       s.rax = 3;
-      s.rdx = 0;
-      s.mxcsr = 0x1F80;
+      s.rdi = DATA_ADDR;
+      s.rflags = 0x2;
       s.xmm[8] = xmm_from_u64(0x8888888888888888, 0x9999999999999999);
       s.xmm[15] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       // PXOR XMM8,XMM8: 66 45 0F EF C0
