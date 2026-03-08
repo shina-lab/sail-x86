@@ -5643,6 +5643,158 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // FP Edge — bit manipulation and misc edge cases
+  // =====================================================================
+  {
+    // POPCNT with edge values
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0;
+      // POPCNT eax, ecx: F3 0F B8 C1
+      add_xmm("popcnt 0", {0xF3, 0x0F, 0xB8, 0xC1}, s, 0x0);
+
+      s.rcx = 0xFFFFFFFF;
+      add_xmm("popcnt -1", {0xF3, 0x0F, 0xB8, 0xC1}, s, 0x0);
+
+      s.rcx = 0x80000000;
+      add_xmm("popcnt 0x80000000", {0xF3, 0x0F, 0xB8, 0xC1}, s, 0x0);
+
+      s.rcx = 1;
+      add_xmm("popcnt 1", {0xF3, 0x0F, 0xB8, 0xC1}, s, 0x0);
+
+      // POPCNT rax, rcx (64-bit): F3 48 0F B8 C1
+      s.rcx = 0xFFFFFFFFFFFFFFFF;
+      add_xmm("popcnt64 -1", {0xF3, 0x48, 0x0F, 0xB8, 0xC1}, s, 0x0);
+
+      s.rcx = 0x8000000000000000;
+      add_xmm("popcnt64 msb", {0xF3, 0x48, 0x0F, 0xB8, 0xC1}, s, 0x0);
+    }
+
+    // LZCNT with edge values
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0;
+      // LZCNT eax, ecx: F3 0F BD C1
+      add_xmm("lzcnt 0", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+
+      s.rcx = 1;
+      add_xmm("lzcnt 1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+
+      s.rcx = 0x80000000;
+      add_xmm("lzcnt msb", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+
+      s.rcx = 0xFFFFFFFF;
+      add_xmm("lzcnt -1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+
+      // LZCNT rax, rcx (64-bit): F3 48 0F BD C1
+      s.rcx = 0;
+      add_xmm("lzcnt64 0", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0);
+
+      s.rcx = 1;
+      add_xmm("lzcnt64 1", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0);
+    }
+
+    // TZCNT with edge values
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0;
+      // TZCNT eax, ecx: F3 0F BC C1
+      add_xmm("tzcnt 0", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+
+      s.rcx = 0x80000000;
+      add_xmm("tzcnt msb", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+
+      s.rcx = 1;
+      add_xmm("tzcnt 1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+
+      s.rcx = 0xFFFFFFFF;
+      add_xmm("tzcnt -1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+
+      // TZCNT rax, rcx (64-bit): F3 48 0F BC C1
+      s.rcx = 0x8000000000000000;
+      add_xmm("tzcnt64 msb", {0xF3, 0x48, 0x0F, 0xBC, 0xC1}, s, 0x0);
+    }
+
+    // PCLMULQDQ — carry-less multiplication
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000000000001, 0x0000000000000003);
+      s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000007);
+      // PCLMULQDQ xmm0, xmm1, imm8: 66 0F 3A 44 C1 imm
+      // imm8[0] selects xmm0 qword (0=low, 1=high)
+      // imm8[4] selects xmm1 qword (0=low, 1=high)
+      add_xmm("pclmulqdq 0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3); // low×low
+      add_xmm("pclmulqdq 0x01", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x01}, s, 0x3); // high×low
+      add_xmm("pclmulqdq 0x10", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x10}, s, 0x3); // low×high
+      add_xmm("pclmulqdq 0x11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3); // high×high
+    }
+    // PCLMULQDQ with larger values
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x8000000000000000, 0xFFFFFFFFFFFFFFFF);
+      s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x0000000000000002);
+      add_xmm("pclmulqdq big 0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+      add_xmm("pclmulqdq big 0x11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3);
+    }
+
+    // PCMPISTRI — implicit-length string comparison, result in ECX
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      // "ABCD" (null-terminated in bytes)
+      s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
+      // "ABCE" (differs at byte 3)
+      s.xmm[1] = xmm_from_u32(0x45434241, 0x00000000, 0x00000000, 0x00000000);
+      // PCMPISTRI xmm0, xmm1, imm8: 66 0F 3A 63 C1 imm8
+      // imm8=0x18: unsigned bytes, equal each, polarity positive, LSB index
+      add_xmm("pcmpistri eq_each", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x18}, s, 0x0);
+      // imm8=0x0C: unsigned bytes, equal ordered (substring search), LSB index
+      add_xmm("pcmpistri eq_ord", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, s, 0x0);
+    }
+
+    // PCMPISTRI — equal strings
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
+      s.xmm[1] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
+      add_xmm("pcmpistri equal", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x18}, s, 0x0);
+    }
+
+    // PCMPISTRM — result in XMM0 as bitmask
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
+      s.xmm[1] = xmm_from_u32(0x41414141, 0x42424242, 0x00000000, 0x00000000);
+      // PCMPISTRM xmm0, xmm1, imm8: 66 0F 3A 62 C1 imm8
+      // imm8=0x00: unsigned bytes, equal any, positive polarity, bitmask in xmm0
+      add_xmm("pcmpistrm eq_any", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x00}, s, 0x3);
+    }
+
+    // MOVBE — byte-swap load/store (test via register encoding)
+    // We'll test BSWAP instead which is simpler
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0x0102030405060708;
+      // BSWAP eax: 0F C8
+      add_xmm("bswap eax", {0x0F, 0xC8}, s, 0x0);
+      // BSWAP rax: 48 0F C8
+      s.rax = 0x0102030405060708;
+      add_xmm("bswap rax", {0x48, 0x0F, 0xC8}, s, 0x0);
+    }
+
+    // BMI1 (ANDN, BLSI, BLSMSK, BLSR) — not yet implemented in Sail model
+    // TODO: implement BMI1 instructions in VEX decoder
+  }
+
   add_systematic_tests(tests);
 
   return tests;
