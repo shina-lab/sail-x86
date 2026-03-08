@@ -58,11 +58,18 @@ function popcount32(v) =
 
 // LZCNT helper
 
+// Count leading zeros in v from bit idx downward. Returns 0..idx+1.
 val lzcnt64 : (qword, range(0, 63)) -> range(0, 64)
 function lzcnt64(v, idx) =
-  if idx == 0 then (if bit_to_bool(v[idx]) then 0 else 64)
-  else if bit_to_bool(v[idx]) then 63 - idx
-  else lzcnt64(v, idx - 1)
+  if idx == 0 then (if bit_to_bool(v[0]) then 0 else 1)
+  else if bit_to_bool(v[idx]) then 0
+  else {
+    let rest = lzcnt64(v, idx - 1);
+    // rest is count of zeros in [idx-1..0], add 1 for bit idx being 0
+    let total : range(0, 65) = rest + 1;
+    // Clamp — total can never exceed 64 in practice
+    if total > 64 then 64 else total
+  }
 
 val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
 val __rdtsc : unit -> qword
