@@ -604,20 +604,22 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 26 tests across 3 exception categories.**
+**Tests implemented: 30 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
 - VMOVAPS/VMOVAPD (VEX 128): missing 16-byte alignment check → added #GP(0)
 - VMOVAPS/VMOVAPD (VEX 256): missing 32-byte alignment check → added #GP(0)
 - VMOVAPS/VMOVAPD store (VEX): missing alignment checks → added #GP(0)
+- LOCK prefix: model didn't check `has_lock` at all → added comprehensive
+  LOCK validation for 1-byte and 2-byte opcodes (lockable opcode check +
+  register-vs-memory check + CMP exclusion)
 - avx_test `_start`: missing `force_align_arg_pointer` attribute
 
 **Known gaps:**
-- LOCK prefix on non-memory instructions should raise #UD, but the Sail
-  model doesn't check `has_lock` yet.
 - EVEX VMOVAPS/VMOVAPD alignment checks not yet added.
 - #PF tests require page table changes (unmapped/read-only pages).
+- #MF/#XM: Sail model doesn't check MXCSR exception masks.
 
 ### Remaining harness work
 
@@ -714,7 +716,7 @@ Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
 large for the designated register."
 
-#### 3. Invalid Opcode (#UD, vector 6) — PARTIAL (2 tests)
+#### 3. Invalid Opcode (#UD, vector 6) — DONE (6 tests)
 
 Triggered by undefined or invalid instruction encodings.
 
@@ -723,7 +725,9 @@ Triggered by undefined or invalid instruction encodings.
 | `UD2` (`0F 0B`) | Explicit undefined instruction | DONE |
 | `UD1` (`0F B9`) | Explicit undefined instruction | DONE |
 | Invalid VEX prefix combinations | e.g., VEX.L=1 for 128-bit-only instructions | TODO |
-| LOCK prefix on non-lockable instruction | e.g., `LOCK ADD RAX, RBX` | BLOCKED (Sail doesn't check has_lock) |
+| LOCK prefix on non-lockable instruction | e.g., `LOCK MOV`, `LOCK NOP` | DONE |
+| LOCK with register dest on lockable op | e.g., `LOCK ADD RAX, RBX` | DONE |
+| LOCK CMP with memory dest | CMP doesn't write, LOCK invalid | DONE |
 | SSE instruction with mismatched prefix | | TODO |
 
 #### 4. Alignment Check (#AC, vector 17)
@@ -791,7 +795,8 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — PARTIAL (2 tests: UD2 + UD1; LOCK needs model fix)
+3. **#UD (invalid opcode)** — DONE (6 tests: UD2, UD1, LOCK on reg dest,
+   LOCK on non-lockable, LOCK CMP, LOCK NOP)
 4. **#GP (alignment)** — DONE (7 tests; alignment checks added to
    MOVAPS/MOVAPD/VMOVAPS/VMOVAPD in Sail model)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check

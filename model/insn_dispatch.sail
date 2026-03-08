@@ -108,18 +108,37 @@ function opcode_to_alu(op) = {
   }
 }
 
+// Check LOCK prefix validity: requires memory destination on a lockable instruction.
+// LOCK with register operand or on CMP (which doesn't write) raises #UD.
+val check_lock_rm : (Prefixes, RM, bool) -> ExecutionResult
+function check_lock_rm(pfx, rm, is_cmp) = {
+  if pfx.has_lock then {
+    match rm {
+      RM_reg(_) => raise_UD(),
+      RM_mem(_) => if is_cmp then raise_UD() else Ok(),
+    }
+  } else {
+    Ok()
+  }
+}
+
 // ALU dispatch for opcodes 00-3F (columns 0-5).
 val dispatch_alu_opcode : (range(0, 63), Prefixes) -> ExecutionResult
 function dispatch_alu_opcode(op, pfx) = {
   let alu_op = opcode_to_alu(op);
   let col : range(0, 7) = op % 8;
-  match col {
+  // LOCK is only valid on columns 0-1 (r/m destination), not CMP, and only with memory
+  if pfx.has_lock & col >= 2 then raise_UD()
+  else match col {
     0 => {
       // OP r/m8, r8
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      exec_alu_rm_reg_byte(alu_op, rm, reg, pfx)
+      match check_lock_rm(pfx, rm, alu_op == ALU_CMP) {
+        Fault(v, e) => Fault(v, e),
+        _ => exec_alu_rm_reg_byte(alu_op, rm, reg, pfx),
+      }
     },
     1 => {
       // OP r/m, r (word/dword/qword)
@@ -127,7 +146,10 @@ function dispatch_alu_opcode(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      exec_alu_rm_reg(alu_op, rm, reg, os, pfx)
+      match check_lock_rm(pfx, rm, alu_op == ALU_CMP) {
+        Fault(v, e) => Fault(v, e),
+        _ => exec_alu_rm_reg(alu_op, rm, reg, os, pfx),
+      }
     },
     2 => {
       // OP r8, r/m8
@@ -349,10 +371,26 @@ function exec_rep(prefix, op, os, asz) = {
 // 2-Byte Opcode Map (0F xx) Dispatch
 // =========================================================================
 
+// Check if a 2-byte opcode (0F xx) is lockable.
+// Lockable: BTS (0F AB), BTR (0F B3), BTC (0F BB),
+// CMPXCHG (0F B0, 0F B1), XADD (0F C0, 0F C1), CMPXCHG8B/16B (0F C7)
+val is_lockable_2byte : range(0, 255) -> bool
+function is_lockable_2byte(op) = match op {
+  171 => true,  // 0F AB: BTS
+  176 => true, 177 => true,  // 0F B0-B1: CMPXCHG
+  179 => true,  // 0F B3: BTR
+  187 => true,  // 0F BB: BTC
+  192 => true, 193 => true,  // 0F C0-C1: XADD
+  199 => true,  // 0F C7: CMPXCHG8B/16B
+  _ => false,
+}
+
 val dispatch_opcode_2byte : (byte, Prefixes) -> ExecutionResult
 function dispatch_opcode_2byte(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
-  match op {
+  // LOCK prefix is only valid on specific 2-byte opcodes; #UD otherwise.
+  if pfx.has_lock & not_bool(is_lockable_2byte(op)) then raise_UD()
+  else match op {
     // 0F 38: 3-byte escape (SSSE3/SSE4/AES-NI)
     56 => {
       let opcode3 = fetch_byte();
@@ -558,12 +596,30 @@ function dispatch_opcode_2byte(opcode, pfx) = {
 // 1-Byte Opcode Map Dispatch
 // =========================================================================
 
+// Check if a 1-byte opcode is lockable (LOCK prefix valid with memory dest).
+// Lockable: ALU cols 0-1 (00-3F), 80-83 (ALU imm), 86-87 (XCHG),
+// F6/F7 (NOT /2, NEG /3), FE/FF (INC /0, DEC /1)
+val is_lockable_1byte : range(0, 255) -> bool
+function is_lockable_1byte(op) = {
+  if op <= 63 & (op % 8 == 0 | op % 8 == 1) then true   // ALU r/m, r
+  else match op {
+    128 => true, 129 => true, 130 => true, 131 => true,  // 80-83: ALU r/m, imm
+    134 => true, 135 => true,                             // 86-87: XCHG
+    246 => true, 247 => true,                             // F6-F7: TEST/NOT/NEG/MUL/DIV
+    254 => true, 255 => true,                             // FE-FF: INC/DEC
+    _ => false,
+  }
+}
+
 val dispatch_opcode_1byte : (byte, Prefixes) -> ExecutionResult
 function dispatch_opcode_1byte(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
+  // LOCK prefix is only valid on specific opcodes; #UD otherwise.
+  // (Per-instruction checks for register vs memory are done later.)
+  if pfx.has_lock & not_bool(is_lockable_1byte(op)) & op != 15 then raise_UD()
   // ALU instructions 00-3F (regular pattern, columns 0-5 only)
-  if op <= 63 & op % 8 <= 5 then dispatch_alu_opcode(op, pfx)
+  else if op <= 63 & op % 8 <= 5 then dispatch_alu_opcode(op, pfx)
   else match op {
 
     // 0F: Two-byte escape
@@ -669,7 +725,10 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let imm : qword = zero_extend(fetch_byte());
       let alu_op = group1_op(reg_field);
-      exec_alu_rm_imm(alu_op, rm, imm, OS8, pfx)
+      match check_lock_rm(pfx, rm, alu_op == ALU_CMP) {
+        Fault(v, e) => Fault(v, e),
+        _ => exec_alu_rm_imm(alu_op, rm, imm, OS8, pfx),
+      }
     },
 
     // 81: Group 1 — ALU r/m, imm (Iz)
@@ -680,7 +739,10 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let imm = fetch_imm_z(os);
       let alu_op = group1_op(reg_field);
-      exec_alu_rm_imm(alu_op, rm, imm, os, pfx)
+      match check_lock_rm(pfx, rm, alu_op == ALU_CMP) {
+        Fault(v, e) => Fault(v, e),
+        _ => exec_alu_rm_imm(alu_op, rm, imm, os, pfx),
+      }
     },
 
     // 83: Group 1 — ALU r/m, imm8 (sign-extended)
@@ -691,7 +753,10 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let imm = fetch_imm8_sx();
       let alu_op = group1_op(reg_field);
-      exec_alu_rm_imm(alu_op, rm, imm, os, pfx)
+      match check_lock_rm(pfx, rm, alu_op == ALU_CMP) {
+        Fault(v, e) => Fault(v, e),
+        _ => exec_alu_rm_imm(alu_op, rm, imm, os, pfx),
+      }
     },
 
     // 84: TEST r/m8, r8
@@ -1407,7 +1472,12 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      dispatch_group3_byte(reg_field, rm, pfx)
+      // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
+      if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD()
+      else match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => dispatch_group3_byte(reg_field, rm, pfx),
+      }
     },
 
     // F7: Group 3 — unary word/dword/qword operations
@@ -1416,7 +1486,12 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      dispatch_group3(reg_field, rm, os, pfx)
+      // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
+      if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD()
+      else match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => dispatch_group3(reg_field, rm, os, pfx),
+      }
     },
 
     // F8: CLC
@@ -1442,18 +1517,25 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      if reg_field == 0 then {
-        let v = read_rm_val(rm, OS8, pfx.has_rex);
-        let (res, result) = exec_inc(v, OS8);
-        write_rm_val(rm, OS8, pfx.has_rex, result);
-        res
-      } else if reg_field == 1 then {
-        let v = read_rm_val(rm, OS8, pfx.has_rex);
-        let (res, result) = exec_dec(v, OS8);
-        write_rm_val(rm, OS8, pfx.has_rex, result);
-        res
-      } else {
-        raise_UD()
+      // LOCK valid only for INC (/0) and DEC (/1) with memory
+      if pfx.has_lock & reg_field >= 2 then raise_UD()
+      else match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          if reg_field == 0 then {
+            let v = read_rm_val(rm, OS8, pfx.has_rex);
+            let (res, result) = exec_inc(v, OS8);
+            write_rm_val(rm, OS8, pfx.has_rex, result);
+            res
+          } else if reg_field == 1 then {
+            let v = read_rm_val(rm, OS8, pfx.has_rex);
+            let (res, result) = exec_dec(v, OS8);
+            write_rm_val(rm, OS8, pfx.has_rex, result);
+            res
+          } else {
+            raise_UD()
+          }
+        },
       }
     },
 
@@ -1462,7 +1544,12 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      dispatch_group5(reg_field, rm, pfx)
+      // LOCK valid only for INC (/0) and DEC (/1) with memory
+      if pfx.has_lock & reg_field >= 2 then raise_UD()
+      else match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => dispatch_group5(reg_field, rm, pfx),
+      }
     },
 
     // 50-57: PUSH reg (d64)

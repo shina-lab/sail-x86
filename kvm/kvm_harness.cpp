@@ -8357,8 +8357,32 @@ std::vector<TestCase> build_tests() {
     s.rflags = 0x2;
     add_fault("ud1 (0F B9)", {0x0F, 0xB9, 0xC0}, s, 6);
   }
-  // TODO: LOCK prefix on register-register instructions should raise #UD
-  // but the Sail model doesn't check has_lock yet. Requires decoder changes.
+  {
+    // LOCK ADD RAX, RBX: F0 48 01 D8 — register destination, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 1; s.rbx = 2;
+    add_fault("lock add rax,rbx (reg dest → #UD)", {0xF0, 0x48, 0x01, 0xD8}, s, 6);
+  }
+  {
+    // LOCK CMP [RDI], RAX: F0 48 39 07 — CMP doesn't write, #UD even with mem
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("lock cmp [rdi],rax (CMP not lockable → #UD)", {0xF0, 0x48, 0x39, 0x07}, s, 6);
+  }
+  {
+    // LOCK MOV RAX, RBX: F0 48 89 D8 — MOV is not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("lock mov rax,rbx (non-lockable → #UD)", {0xF0, 0x48, 0x89, 0xD8}, s, 6);
+  }
+  {
+    // LOCK NOP: F0 90 — NOP is not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("lock nop (non-lockable → #UD)", {0xF0, 0x90}, s, 6);
+  }
 
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
