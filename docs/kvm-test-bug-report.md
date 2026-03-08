@@ -455,6 +455,7 @@ added after KVM testing revealed the gaps:
 - VBROADCASTSS — commit fbf968d
 - VPADDSB, VPADDUSB, VPSUBSB, VPSUBUSB, VUCOMISS, VUCOMISD — commit 8000fea
 - BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR — commit 4117d9e
+- MOVBE (0F 38 F0/F1): byte-swap load/store, 16/32/64-bit
 
 ---
 
@@ -497,3 +498,81 @@ conversions can be inexact (e.g., large 32-bit integers lose precision in
 float32), the rounding mode matters. IEEE 754 mandates that rounding mode
 applies to all inexact operations, but the SDM pseudocode could be more
 explicit about this.
+
+---
+
+## Test Coverage Summary
+
+The KVM differential test suite currently runs **58,239 tests** across
+**64 ctest categories**. Tests compare architectural state (GPRs, flags,
+XMM registers, MXCSR, memory) between KVM execution on real hardware and
+the Sail model.
+
+### Instruction categories with dedicated tests
+
+- **ALU**: ADD, OR, ADC, SBB, AND, SUB, XOR, CMP — all 8 ops × 4 sizes
+  (8/16/32/64) × 30×30 boundary value matrix, plus ADC/SBB with CF=1
+- **TEST reg,reg**: All sizes × boundary value matrix
+- **Shifts**: SHL, SHR, SAR, ROL, ROR, RCL, RCR — 7 ops × 4 sizes ×
+  11 shift counts × boundary values
+- **Unary ops**: INC, DEC, NEG, NOT — all sizes × boundary values
+- **MUL/IMUL, DIV/IDIV**: All sizes × boundary values
+- **Register variation**: ADD r64,r64 for all 15×14 non-RSP register pairs
+- **Random**: 1000 randomized ALU tests with biased boundary inputs
+- **Baseline**: ALU corner cases, operand sizes, reg/imm forms, shift
+  operations, multiply, divide, INC/DEC/NEG/NOT, SETcc/CMOVcc, branches,
+  data movement, bit operations (BT/BTS/BTR/BTC/BSF/BSR), stack ops,
+  LEA, memory operands, SHLD/SHRD, MOV reg/imm, XADD, CMPXCHG,
+  multi-instruction, REX prefix, flag manipulation
+- **SSE**: Packed/scalar float arithmetic, comparisons, conversions,
+  shuffles, logical, data movement (MOVAPS/MOVUPS/MOVSS/MOVSD etc.)
+- **SSE3/SSSE3/SSE4.1/SSE4.2**: HADDPS, PSHUFB, PALIGNR, PBLENDW,
+  PMULDQ, PCMPGTQ, PCMPISTRI/PCMPISTRM/PCMPESTRI, CRC32
+- **AES-NI**: AESENC, AESDEC, AESIMC, AESKEYGENASSIST
+- **AVX**: VEX-encoded arithmetic, data movement, shuffles, conversions
+- **EVEX**: EVEX-encoded operations including VPADDD, VPXORD
+- **x87**: Basic x87 FPU operations
+- **String ops**: REP MOVS/STOS/LODS/CMPS/SCAS with direction flag,
+  zero-length, forward/backward
+- **SETcc/CMOVcc**: All 16 condition codes
+- **Stack**: POP, PUSH, LEAVE, ENTER (nesting levels 0-2)
+- **CMPXCHG8B/16B**: Compare-and-exchange
+- **MOVNTI**: Non-temporal store
+- **LDMXCSR/Fences/EMMS**: Control operations
+- **LZCNT/TZCNT**: All sizes, zero input, flag semantics (CF, ZF)
+- **POPCNT**: All sizes, flag clearing, boundary values
+- **BSF/BSR**: All sizes, zero input, boundary bits
+- **BSWAP**: 32/64-bit, zero-extension, extended registers
+- **MOVBE**: Byte-swap load/store, 16/32/64-bit
+- **XCHG**: Opcode register and ModRM forms, 8/16/32/64-bit
+- **MOVSX/MOVSXD**: Sign-extension 8→32, 8→64, 16→32, 16→64, 32→64
+- **BT/BTS/BTR/BTC**: Register and immediate forms, bit index wrapping
+- **SSE4.2 string ops**: PCMPISTRI, PCMPISTRM, PCMPESTRI
+- **NOP**: Multi-byte NOPs (1-9 bytes), chained sequences
+- **Prefix**: 66+REX.W interaction, double 66, address-size override (67),
+  REX byte register remapping
+- **REX R/B/X**: REX.R/B/X register extension, SIB base/index, 32-bit
+  zero-extension, opcode-register encoding, bare REX (0x40)
+- **ADCX/ADOX**: Flag semantics, mandatory prefix, carry/overflow
+- **DAZ/FTZ**: MXCSR denormal flush modes
+- **OpSize Edge**: 16-bit operations, upper register preservation
+- **FP Edge**: Rounding modes, NaN handling, denormals, precision
+
+### Boundary value test set (30 values)
+
+The ALU stratified tests use a 30-value boundary set generating 900 input
+pairs per operation/size. Values include: zero, ±1, ±2, signed min/max at
+8/16/32/64-bit widths, unsigned max at all widths, MAX-1 and MIN+1 for
+off-by-one detection, size-boundary crossings (UINT8_MAX+1, UINT16_MAX+1),
+alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
+(0xFFFFFFFF00000000), and a non-trivial mixed pattern.
+
+### Known test coverage gaps
+
+- **EVEX masking/zeroing**: Harness lacks k (opmask) register support
+- **512-bit EVEX**: Requires host AVX-512 support
+- **x87 transcendentals**: FSIN, FCOS, FPTAN precision matching is fragile
+- **BT/BTS/BTR/BTC with memory**: Bit offset extending beyond addressed
+  byte (requires memory-form tests with large bit indices)
+- **LOCK prefix**: Atomic memory operations
+- **Segment overrides**: Not applicable in 64-bit flat memory model

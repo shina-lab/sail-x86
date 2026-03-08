@@ -397,11 +397,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if op3 == 21 then {
         dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPD
       } else if (op3 == 240 | op3 == 241) then {
-        // CRC32 (F2 0F 38 F0/F1)
+        // MOVBE (0F 38 F0/F1) or CRC32 (F2 0F 38 F0/F1)
         let mp = get_mandatory_prefix(pfx);
-        if mp != MP_F2 then {
-          raise_UD()
-        } else {
+        if mp == MP_F2 then {
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
@@ -451,6 +449,61 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               write_gpr(reg, OS32, zero_extend(result))
             };
             Ok()
+          }
+        } else {
+          // MOVBE (0F 38 F0/F1) — load/store with byte swap
+          let os = get_operand_size(pfx);
+          let modrm = fetch_byte();
+          let reg = modrm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          if op3 == 240 then {
+            // MOVBE r, m — load from memory and byte-swap
+            match rm {
+              RM_mem(addr) => {
+                match os {
+                  OS16 => {
+                    let v = mem_read16(addr);
+                    write_gpr(reg, OS16, zero_extend(v[7..0] @ v[15..8]))
+                  },
+                  OS32 => {
+                    let v = mem_read32(addr);
+                    write_gpr(reg, OS32, zero_extend(v[7..0] @ v[15..8] @ v[23..16] @ v[31..24]))
+                  },
+                  OS64 => {
+                    let v = mem_read64(addr);
+                    write_gpr(reg, OS64, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
+                                         v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
+                  },
+                  _ => (),
+                };
+                Ok()
+              },
+              RM_reg(_) => raise_UD(),
+            }
+          } else {
+            // MOVBE m, r — byte-swap register and store to memory
+            match rm {
+              RM_mem(addr) => {
+                match os {
+                  OS16 => {
+                    let v : word = read_gpr(reg, OS16)[15..0];
+                    mem_write16(addr, v[7..0] @ v[15..8])
+                  },
+                  OS32 => {
+                    let v : dword = read_gpr(reg, OS32)[31..0];
+                    mem_write32(addr, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
+                  },
+                  OS64 => {
+                    let v : qword = read_gpr(reg, OS64);
+                    mem_write64(addr, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
+                                      v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
+                  },
+                  _ => (),
+                };
+                Ok()
+              },
+              RM_reg(_) => raise_UD(),
+            }
           }
         }
       } else {

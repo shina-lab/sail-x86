@@ -48,6 +48,16 @@ set(KVM_CATEGORIES
   "REX R/B/X"
   NOP
   Prefix
+  LZCNT/TZCNT
+  POPCNT
+  BSF/BSR
+  BSWAP
+  XCHG
+  MOVSX/MOVSXD
+  BT/BTC
+  MOVBE
+  "String ops"
+  "SSE4.2 str"
 )
 
 foreach(cat ${KVM_CATEGORIES})
