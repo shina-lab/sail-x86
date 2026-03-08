@@ -26,7 +26,13 @@
 | IDT/TSS virtual address fix | **Done** | IDT gate reads and TSS reads go through virtual translation (kernel uses virt IDTR) |
 | Debug registers (DR0-DR7) | **Done** | MOV DRn,r64 (0F 23) and MOV r64,DRn (0F 21) |
 | Kernel virtual address mapping | **Done** | PML4[511] maps 0xFFFFFFFF80000000+ for vmlinux |
-| Early boot (kernel init) | **In progress** | Kernel prints through console init, SLUB, IRQ setup, bootconsole→ttyS0 transition |
+| BT RIP-relative fix | **Done** | bt_adjust applied fixup_addr before byte displacement; fixed alternatives patching |
+| Exception delivery CPL | **Done** | Switch to CPL 0 before IDT/TSS reads; user-mode faults now work |
+| SYSCALL/SYSRET | **Done** | Full hardware SYSCALL via STAR/LSTAR/FMASK MSRs; SYSRET restores CS/SS/CPL |
+| ELF initramfs loading | **Done** | load_elf_kernel passes initrd to boot_params (ramdisk_image/size) |
+| Spin loop / panic detection | **Done** | Detect tight loops (10M insns in 16-byte window) and HLT+IF=0 |
+| Early boot (kernel init) | **Done** | Kernel prints through console init, SLUB, IRQ setup, serial driver |
+| Initramfs unpack + exec /init | **In progress** | Kernel unpacks initramfs, execves busybox; running but slow |
 
 ## Current State
 

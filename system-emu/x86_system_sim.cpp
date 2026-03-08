@@ -777,6 +777,11 @@ int main(int argc, char *argv[]) {
       }
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;
     }
+
+    // UART transmit-empty interrupt (IRQ 4)
+    if (model.uart.has_irq()) {
+      model.pic_master.raise_irq(4);
+    }
   }
 
   fprintf(stderr, "sail-x86-system: exited after %lu instructions\n", insn_count);

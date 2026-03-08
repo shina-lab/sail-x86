@@ -27,6 +27,10 @@ public:
     case 1: // IER — Interrupt Enable
       return ier;
     case 2: // IIR — Interrupt Identification
+      if (thre_pending) {
+        thre_pending = false;  // Reading IIR clears THRE interrupt
+        return 0x02;  // THRE interrupt (priority 3)
+      }
       return 0x01; // No interrupt pending
     case 3: // LCR — Line Control
       return lcr;
@@ -56,9 +60,13 @@ public:
         output_fn(val);
       else
         fputc(val, stderr);
+      // After transmit, THR is empty again → THRE interrupt if enabled
+      if (ier & 0x02) thre_pending = true;
       break;
     case 1: // IER
       ier = val;
+      // Setting IER with THRE enabled and THR already empty → immediate interrupt
+      if (val & 0x02) thre_pending = true;
       break;
     case 3: // LCR
       lcr = val;
@@ -82,10 +90,14 @@ public:
   // Optional: redirect output to a callback
   void (*output_fn)(u8 ch) = nullptr;
 
+  // Returns true if the UART has a pending interrupt (for PIC IRQ 4)
+  bool has_irq() const { return thre_pending && (ier & 0x02); }
+
 private:
   u8 ier = 0, lcr = 0, mcr = 0, scr = 0;
   u8 dll = 0, dlm = 0;
   bool dlab = false;
+  bool thre_pending = false;
 };
 
 // =========================================================================
