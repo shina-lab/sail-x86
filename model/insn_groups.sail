@@ -287,7 +287,7 @@ val exec_push_imm : (qword, OperandSize) -> ExecutionResult
 function exec_push_imm(imm, os) = {
   match os {
     OS64 => push64(imm),
-    OS32 => push64(imm),
+    OS32 => if cur_mode == LongMode then push64(imm) else push32(imm[31..0]),
     OS16 => push16(imm[15..0]),
     _ => (),
   };

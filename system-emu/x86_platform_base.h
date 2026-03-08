@@ -1,6 +1,7 @@
 #pragma once
 
 #include "integers.h"
+#include "devices.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -63,4 +64,16 @@ public:
   u64 brk_limit = 0;
 
   PhysicalMemory phys_mem;
+
+  // Devices
+  UART uart;
+  PIC pic_master{0x20, true};
+  PIC pic_slave{0xA0, false};
+  PIT pit;
+  KeyboardController kbd;
+  CMOS cmos;
+
+  // Pending external interrupt (checked by Sail model)
+  bool pending_irq = false;
+  u8 pending_irq_vector = 0;
 };

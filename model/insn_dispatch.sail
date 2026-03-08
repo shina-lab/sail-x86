@@ -58,7 +58,8 @@ val exec_pop_reg : (gpr_idx, OperandSize) -> ExecutionResult
 function exec_pop_reg(dst, os) = {
   match os {
     OS64 => write_gpr64(dst, pop64()),
-    OS32 => write_gpr32(dst, pop64()[31..0]),
+    OS32 => if cur_mode == LongMode then write_gpr32(dst, pop64()[31..0])
+            else write_gpr32(dst, pop32()),
     OS16 => write_gpr16(dst, pop16()),
     _ => (),
   };
@@ -606,6 +607,83 @@ function is_lockable_1byte(op) = {
       _ => false,
     }
   }
+}
+
+// RETF — Far return (opcodes CA, CB).
+// In 64-bit mode, default operand size is 32; REX.W makes it 64.
+// Same-privilege: pop RIP, CS.
+// Outer-privilege (RPL > CPL): also pop RSP, SS, then set CPL = RPL.
+// SDM Vol.2 RET — IA-32e Mode Operation.
+val exec_retf : (Prefixes, option(word)) -> ExecutionResult
+function exec_retf(pfx, maybe_imm) = {
+  // Far RET default is 32-bit in 64-bit mode; REX.W promotes to 64-bit.
+  let os : OperandSize = if pfx.rex_w then OS64
+    else if pfx.has_opsize then OS16
+    else OS32;
+
+  // Pop return RIP and CS
+  let new_rip : qword = match os {
+    OS64 => pop64(),
+    OS32 => zero_extend(pop32()),
+    _    => zero_extend(pop16()),
+  };
+  let new_cs_raw : qword = match os {
+    OS64 => pop64(),
+    OS32 => zero_extend(pop32()),
+    _    => zero_extend(pop16()),
+  };
+  let new_cs : word = new_cs_raw[15..0];
+
+  // Check for null CS selector
+  if new_cs == 0x0000 then {
+    throw X86Fault(EXN_GP, 0x00000000)
+  };
+
+  let return_rpl : cpl_t = unsigned(new_cs[1..0]);
+
+  // RPL must not be less than current CPL
+  if return_rpl < cur_cpl then {
+    throw X86Fault(EXN_GP, zero_extend(new_cs))
+  };
+
+  if return_rpl > cur_cpl then {
+    // Outer-privilege return: also pop RSP and SS
+    let new_rsp : qword = match os {
+      OS64 => pop64(),
+      OS32 => zero_extend(pop32()),
+      _    => zero_extend(pop16()),
+    };
+    let new_ss_raw : qword = match os {
+      OS64 => pop64(),
+      OS32 => zero_extend(pop32()),
+      _    => zero_extend(pop16()),
+    };
+    let new_ss : word = new_ss_raw[15..0];
+    write_gpr64(RSP, new_rsp);
+    write_segreg(SS, new_ss);
+  } else {
+    // Same-privilege: adjust RSP for imm16 if present
+    match maybe_imm {
+      Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
+      None()    => (),
+    }
+  };
+
+  // For outer-privilege return with imm16, adjust new RSP
+  if return_rpl > cur_cpl then {
+    match maybe_imm {
+      Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
+      None()    => (),
+    }
+  };
+
+  // Load new CS and set CPL
+  write_segreg(CS, new_cs);
+  cur_cpl = return_rpl;
+
+  // Set RIP to return address
+  next_rip = Some(new_rip);
+  Ok()
 }
 
 val dispatch_opcode_1byte : (byte, Prefixes) -> ExecutionResult
@@ -1298,6 +1376,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         Ok()
       },
 
+      // CA: RETF imm16 — Far return with stack adjustment
+      // CB: RETF — Far return
+      // In 64-bit mode, default operand size for far RET is 32; REX.W makes it 64.
+      // Same-privilege: pop RIP, CS only.
+      // Outer-privilege (RPL of new CS > CPL): also pop RSP, SS. (SDM Vol.2 RET)
+      202 => exec_retf(pfx, Some(fetch_imm16())),
+      203 => exec_retf(pfx, None()),
+
       // CC: INT 3
       204 => __software_interrupt(0x03),
 
@@ -1646,7 +1732,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         let os = get_operand_size_d64(pfx);
         match os {
           OS64 => push64(read_gpr64(reg)),
-          OS32 => push64(zero_extend(read_gpr32(reg))),
+          OS32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
+                  else push32(read_gpr32(reg)),
           OS16 => push16(read_gpr16(reg)),
           _ => (),
         };

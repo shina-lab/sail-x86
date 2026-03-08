@@ -340,3 +340,10 @@ register TR_limit : dword
 // =========================================================================
 
 register system_mode : bool
+
+// Exception delivery nesting depth (0 = normal, 1 = delivering, 2 = double fault)
+// Used to detect double fault and triple fault conditions.
+register exception_depth : range(0, 3)
+
+// Class of the exception currently being delivered (for escalation decisions).
+register delivering_exc_class : ExceptionClass

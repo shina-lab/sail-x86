@@ -4,10 +4,30 @@
 // Fetches and decodes one instruction from RIP, executes it,
 // and advances RIP past the instruction bytes.
 
+// Check for and acknowledge a pending external interrupt.
+// Returns the vector number, or -1 if no interrupt pending.
+// Implemented in C++ — checks device state.
+val __check_pending_irq : unit -> int
+
 // Decode and execute one instruction.
 // Returns the execution result (Ok, Fault, or Halt).
 val step : unit -> ExecutionResult
 function step() = {
+  // Check for pending external interrupts before fetching.
+  // Only deliver if IF=1 (interrupts enabled) and in system mode.
+  if system_mode & IF_flag == bitone then {
+    let irq_vec = __check_pending_irq();
+    if 0 <= irq_vec & irq_vec <= 255 then {
+      let vec : exception_vector = irq_vec;
+      try {
+        deliver_exception(vec, 0x00000000);
+        return Ok()
+      } catch {
+        X86Fault(vec2, err2) => return Fault(vec2, err2),
+      }
+    }
+  };
+
   // Set decode position to current RIP
   decode_pos = RIP;
   insn_start = RIP;

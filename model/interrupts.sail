@@ -7,6 +7,12 @@
 //   4. Set RIP to gate handler, CS to gate selector, CPL to 0
 //   5. If interrupt gate (not trap gate), clear IF
 //
+// Double-fault escalation follows SDM Vol.3 Table 7-5:
+//   - Contributory during contributory → #DF
+//   - Contributory or #PF during #PF → #DF
+//   - Contributory or #PF during #DF → Triple fault (shutdown)
+//   - All other combinations → handle serially
+//
 // This mirrors sail-riscv's trap_handler() but is more complex because
 // x86 pushes a stack frame through memory (which can itself fault).
 
@@ -19,6 +25,17 @@ struct IDTGate = {
   gate_dpl     : range(0, 3),  // gate DPL
   gate_present : bool,
 }
+
+// Classify an exception vector for double-fault escalation.
+// SDM Vol.3 Table 7-4.
+val classify_exception : exception_vector -> ExceptionClass
+function classify_exception(vec) =
+  if vec == 0 | vec == 10 | vec == 11 | vec == 12 | vec == 13 then
+    EC_Contributory
+  else if vec == 14 then
+    EC_PageFault
+  else
+    EC_Benign
 
 // Read and parse a 16-byte IDT gate descriptor.
 val read_idt_gate : exception_vector -> IDTGate
@@ -85,29 +102,19 @@ function has_error_code(vec) =
 val push_to_stack : (qword, qword) -> qword
 function push_to_stack(rsp, value) = {
   let new_rsp = rsp - 8;
-  // Write through paging (can itself fault — handled as double fault)
   mem_write64(new_rsp, value);
   new_rsp
 }
 
-// Deliver an exception/interrupt through the IDT.
-// On success, updates RIP, RSP, CS, CPL, and IF as needed.
-// On failure (e.g. gate not present), signals triple fault via should_exit.
-val deliver_exception : (exception_vector, dword) -> unit
-function deliver_exception(vec, err_code) = {
+// Inner delivery: read IDT gate, push interrupt frame, update CPU state.
+// May throw X86Fault if gate is not present or stack push faults.
+val deliver_exception_inner : (exception_vector, dword) -> unit
+function deliver_exception_inner(vec, err_code) = {
   let gate = read_idt_gate(vec);
 
-  // 1. Check gate present
+  // 1. Check gate present — #GP if not
   if not_bool(gate.gate_present) then {
-    // Gate not present — if this is already #DF, it's a triple fault
-    if vec == EXN_DF then {
-      // Triple fault: halt the CPU (handled by C++ loop)
-      throw X86Fault(EXN_MC, 0x00000000)  // Use #MC as "triple fault" signal
-    } else {
-      // Try to deliver #GP instead
-      deliver_exception(EXN_GP, to_bits(32, vec * 8 + 2));
-      return ()
-    }
+    throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
   };
 
   // 2. Save old state
@@ -149,7 +156,7 @@ function deliver_exception(vec, err_code) = {
   // 7. Set SS to NULL selector with RPL = new CPL on privilege change
   //    or IST switch (SDM Vol.3 §7.14.4).
   if privilege_change | gate.gate_ist != 0 then {
-    write_segreg(SS, 0x0000)  // NULL selector, RPL = 0 (target is ring 0)
+    write_segreg(SS, 0x0000)
   };
 
   // 8. Load new CS (simplified: just set the selector, don't load full descriptor)
@@ -171,4 +178,67 @@ function deliver_exception(vec, err_code) = {
   TF = bitzero;
   NT = bitzero;
   RF = bitzero;
+}
+
+// Deliver an exception/interrupt through the IDT.
+//
+// Handles double-fault escalation per SDM Vol.3 Table 7-5:
+//   exception_depth 0: normal delivery
+//   exception_depth 1: delivering an exception (class tracked in delivering_exc_class)
+//   exception_depth 2: delivering #DF
+//
+// If delivery itself faults, the fault is caught and re-entered through
+// this function, which applies the escalation rules before retrying.
+// Triple fault throws X86Fault(EXN_MC, 0) as an unrecoverable signal.
+val deliver_exception : (exception_vector, dword) -> unit
+function deliver_exception(vec, err_code) = {
+  let second_class = classify_exception(vec);
+
+  // === Double-fault escalation (SDM Vol.3 Table 7-5) ===
+  if exception_depth >= 2 then {
+    // Currently delivering #DF
+    match second_class {
+      EC_Benign => (),  // Handle serially: deliver benign exception normally
+      _ => {
+        // Contributory or page fault during #DF → shutdown (triple fault)
+        exception_depth = 0;
+        throw X86Fault(EXN_MC, 0x00000000)
+      },
+    }
+  } else if exception_depth == 1 then {
+    // Currently delivering another exception — check escalation
+    let escalate : bool = match delivering_exc_class {
+      EC_Contributory => second_class == EC_Contributory,
+      EC_PageFault    => second_class == EC_Contributory | second_class == EC_PageFault,
+      EC_Benign       => false,
+    };
+    if escalate then {
+      // Escalate to #DF
+      exception_depth = 2;
+      deliver_exception(EXN_DF, 0x00000000);
+      return ()
+    };
+    // Handle serially: update class for further nesting checks
+    delivering_exc_class = second_class;
+  };
+
+  // Set nesting state for the duration of this delivery
+  if exception_depth == 0 then {
+    exception_depth = 1;
+    delivering_exc_class = second_class;
+  };
+
+  // Attempt delivery — catch faults and re-enter with escalation
+  try {
+    deliver_exception_inner(vec, err_code)
+  } catch {
+    X86Fault(vec2, err2) => {
+      // Fault during delivery — re-enter with escalation logic
+      deliver_exception(vec2, err2);
+      return ()
+    }
+  };
+
+  // Successful delivery — reset nesting
+  exception_depth = 0;
 }

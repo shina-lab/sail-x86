@@ -1111,6 +1111,9 @@ unit Model::z__port_out8(u64, u64) { return UNIT; }
 unit Model::z__port_out16(u64, u64) { return UNIT; }
 unit Model::z__port_out32(u64, u64) { return UNIT; }
 
+// External interrupt check — not used in user mode
+void Model::z__check_pending_irq(sail_int *rop, unit) { mpz_set_si(*rop, -1); }
+
 // =========================================================================
 // Software interrupt (INT n) — stub for user mode
 // =========================================================================

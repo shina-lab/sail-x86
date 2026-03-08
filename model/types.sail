@@ -166,13 +166,20 @@ function get_operand_size(pfx) =
 // REX.W or default -> 64, 66h -> 16. 32-bit is NOT encodable.
 val get_operand_size_d64 : Prefixes -> OperandSize
 function get_operand_size_d64(pfx) =
-  if pfx.has_opsize then OS16
-  else OS64
+  if cur_mode != LongMode then {
+    // In 32-bit mode: default 32, 66h prefix → 16
+    if pfx.has_opsize then OS16 else OS32
+  } else {
+    // In 64-bit mode: default 64, 66h prefix → 16
+    if pfx.has_opsize then OS16 else OS64
+  }
 
 // Operand size for instructions forced to 64-bit (JMP rel, CALL rel, Jcc rel).
-// Always 64-bit, 66h ignored.
+// In 64-bit mode: always 64-bit, 66h ignored.
+// In 32-bit mode: always 32-bit.
 val get_operand_size_f64 : Prefixes -> OperandSize
-function get_operand_size_f64(_pfx) = OS64
+function get_operand_size_f64(_pfx) =
+  if cur_mode == LongMode then OS64 else OS32
 
 // =========================================================================
 // Register index helpers (extending 3-bit fields with REX bits)

@@ -69,6 +69,14 @@ function push64(v) = {
   write_gpr64(RSP, new_rsp)
 }
 
+val push32 : dword -> unit
+function push32(v) = {
+  let rsp = read_gpr64(RSP);
+  let new_rsp = rsp - 4;
+  mem_write32(new_rsp, v);
+  write_gpr64(RSP, new_rsp)
+}
+
 val pop64 : unit -> qword
 function pop64() = {
   let rsp = read_gpr64(RSP);

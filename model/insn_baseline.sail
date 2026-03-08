@@ -503,7 +503,19 @@ function dispatch_2byte_gpr(op, pfx) = {
           else unsigned(bitzero @ modrm[2..0]);
         let cr_val : qword = read_gpr64(rm_idx);
         match cr_idx {
-          0 => CR0 = cr_val,
+          0 => {
+            CR0 = cr_val;
+            // EFER.LMA = EFER.LME & CR0.PG (SDM Vol.3 §4.1.1)
+            let lme = EFER[8];
+            let pg  = cr_val[31];
+            EFER[10] = lme & pg;  // Update LMA
+            if lme == bitone & pg == bitone then
+              cur_mode = LongMode
+            else if cr_val[0] == bitone then
+              cur_mode = ProtectedMode
+            else
+              cur_mode = RealMode
+          },
           2 => CR2 = cr_val,
           3 => CR3 = cr_val,
           4 => CR4 = cr_val,

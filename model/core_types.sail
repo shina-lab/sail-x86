@@ -53,6 +53,9 @@ let DS : segreg_idx = 3
 let FS : segreg_idx = 4
 let GS : segreg_idx = 5
 
+// Exception class for double-fault escalation (SDM Vol.3 Table 7-4).
+enum ExceptionClass = { EC_Benign, EC_Contributory, EC_PageFault }
+
 // Exception/interrupt vector numbers.
 type exception_vector = range(0, 255)
 

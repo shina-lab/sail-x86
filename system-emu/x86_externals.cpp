@@ -1129,15 +1129,78 @@ unit Model::z__wrmsr(u64 addr, u64 val) {
 }
 
 // =========================================================================
-// I/O ports (stub for now — device emulation will be added later)
+// I/O port dispatch — routes to device emulation
 // =========================================================================
 
-u64 Model::z__port_in8(u64) { return 0xFF; }
-u64 Model::z__port_in16(u64) { return 0xFFFF; }
-u64 Model::z__port_in32(u64) { return 0xFFFFFFFF; }
-unit Model::z__port_out8(u64, u64) { return UNIT; }
-unit Model::z__port_out16(u64, u64) { return UNIT; }
-unit Model::z__port_out32(u64, u64) { return UNIT; }
+u64 Model::z__port_in8(u64 port) {
+  u16 p = (u16)port;
+  if (uart.handles(p))       return uart.read(p);
+  if (pic_master.handles(p)) return pic_master.read(p);
+  if (pic_slave.handles(p))  return pic_slave.read(p);
+  if (pit.handles(p))        return pit.read(p);
+  if (kbd.handles(p))        return kbd.read(p);
+  if (cmos.handles(p))       return cmos.read(p);
+  if (p == 0x61)             return 0x00; // Port B (speaker/timer status)
+  if (p == 0x92)             return 0x02; // System Control Port A (A20 enabled)
+  if (p == 0x3DA)            return 0x00; // VGA status (not retrace)
+  if (p == 0xCF8 || p == 0xCFC) return 0xFF; // PCI config (no devices)
+  if (0xCF9 <= p && p <= 0xCFF) return 0xFF; // PCI config data
+  return 0xFF; // Default: empty bus
+}
+
+u64 Model::z__port_in16(u64 port) {
+  u16 lo = z__port_in8(port);
+  u16 hi = z__port_in8(port + 1);
+  return (hi << 8) | lo;
+}
+
+u64 Model::z__port_in32(u64 port) {
+  u32 b0 = z__port_in8(port);
+  u32 b1 = z__port_in8(port + 1);
+  u32 b2 = z__port_in8(port + 2);
+  u32 b3 = z__port_in8(port + 3);
+  return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+}
+
+unit Model::z__port_out8(u64 port, u64 val) {
+  u16 p = (u16)port;
+  u8 v = (u8)val;
+  if (uart.handles(p))       uart.write(p, v);
+  else if (pic_master.handles(p)) pic_master.write(p, v);
+  else if (pic_slave.handles(p))  pic_slave.write(p, v);
+  else if (pit.handles(p))        pit.write(p, v);
+  else if (kbd.handles(p))        kbd.write(p, v);
+  else if (cmos.handles(p))       cmos.write(p, v);
+  // else: ignore writes to unknown ports
+  return UNIT;
+}
+
+unit Model::z__port_out16(u64 port, u64 val) {
+  z__port_out8(port, val & 0xFF);
+  z__port_out8(port + 1, (val >> 8) & 0xFF);
+  return UNIT;
+}
+
+unit Model::z__port_out32(u64 port, u64 val) {
+  z__port_out8(port, val & 0xFF);
+  z__port_out8(port + 1, (val >> 8) & 0xFF);
+  z__port_out8(port + 2, (val >> 16) & 0xFF);
+  z__port_out8(port + 3, (val >> 24) & 0xFF);
+  return UNIT;
+}
+
+// =========================================================================
+// External interrupt check — called by Sail model at start of step()
+// =========================================================================
+
+void Model::z__check_pending_irq(sail_int *rop, unit) {
+  // Check master PIC for pending, unmasked interrupts
+  if (pic_master.has_pending()) {
+    int vec = pic_master.acknowledge();
+    if (vec >= 0) { mpz_set_si(*rop, vec); return; }
+  }
+  mpz_set_si(*rop, -1); // No interrupt pending
+}
 
 // =========================================================================
 // Software interrupt (INT n) — stub for user mode
