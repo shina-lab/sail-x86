@@ -8719,6 +8719,58 @@ std::vector<TestCase> build_tests() {
     s.rdi = DATA_ADDR;
     add_fault("vbroadcastss vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x18, 0x07}, s, 6);
   }
+  {
+    // VMOVUPS xmm0,[mem] with vvvv!=1111: C5 F0 10 07
+    // Normal: C5 F8 10 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovups load vvvv!=0 → #UD", {0xC5, 0xF0, 0x10, 0x07}, s, 6);
+  }
+  {
+    // VMOVUPS [mem],xmm0 with vvvv!=1111: C5 F0 11 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovups store vvvv!=0 → #UD", {0xC5, 0xF0, 0x11, 0x07}, s, 6);
+  }
+  {
+    // VCVTDQ2PS xmm0,xmm1 with vvvv!=1111: C5 F0 5B C1
+    // Normal: C5 F8 5B C1 (NP = VCVTDQ2PS)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcvtdq2ps vvvv!=0 → #UD", {0xC5, 0xF0, 0x5B, 0xC1}, s, 6);
+  }
+  {
+    // VCVTPS2DQ xmm0,xmm1 with vvvv!=1111: C5 F1 5B C1
+    // Normal: C5 F9 5B C1 (66 = VCVTPS2DQ)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcvtps2dq vvvv!=0 → #UD", {0xC5, 0xF1, 0x5B, 0xC1}, s, 6);
+  }
+  {
+    // VBROADCASTSD ymm0,[mem] with vvvv!=1111: C4 E2 71 19 07
+    // Normal: C4 E2 7D 19 07 (W=0 vvvv=1111 L=1 pp=01)
+    // Bad:    C4 E2 75 19 07 (W=0 vvvv=1110 L=1 pp=01)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vbroadcastsd vvvv!=0 → #UD", {0xC4, 0xE2, 0x75, 0x19, 0x07}, s, 6);
+  }
+  {
+    // VPBROADCASTD xmm0,xmm1 with vvvv!=1111: C4 E2 71 58 C1
+    // Normal: C4 E2 79 58 C1 (W=0 vvvv=1111 L=0 pp=01)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vpbroadcastd vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x58, 0xC1}, s, 6);
+  }
+  {
+    // VCVTPH2PS xmm0,xmm1 with vvvv!=1111: C4 E2 71 13 C1
+    // Normal: C4 E2 79 13 C1 (W=0 vvvv=1111 L=0 pp=01)
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcvtph2ps vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x13, 0xC1}, s, 6);
+  }
 
   return tests;
 }
