@@ -42,6 +42,9 @@ set(KVM_CATEGORIES
   AVX
   EVEX
   "FP Edge"
+  ADCX/ADOX
+  DAZ/FTZ
+  "OpSize Edge"
 )
 
 foreach(cat ${KVM_CATEGORIES})

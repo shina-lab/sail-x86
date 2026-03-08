@@ -5828,6 +5828,423 @@ std::vector<TestCase> build_tests() {
       s.rax = 0x0400;  // start=0, len=4 → extract bits 3:0 = 0xF
       tests.push_back({"bextr 0:4", cat, {0xC4, 0xE2, 0x78, 0xF7, 0xC1}, s, FL_BEXTR, 0x0, false});
     }
+
+    // ADCX/ADOX: multi-precision add instructions
+    // ADCX only modifies CF (preserves OF, SF, ZF, PF, AF)
+    // ADOX only modifies OF (preserves CF, SF, ZF, PF, AF)
+    // Encoding: 66 0F 38 F6 /r = ADCX; F3 0F 38 F6 /r = ADOX
+    {
+      cat = "ADCX/ADOX";
+
+      // ADCX r32, r32: 66 0F 38 F6 modrm
+      // ADCX eax, ecx: modrm = C1 (reg=0, rm=1)
+      // ADOX r32, r32: F3 0F 38 F6 modrm
+      // ADOX eax, ecx: modrm = C1
+
+      // Test 1: simple add without carry, no overflow
+      {
+        ArchState s = {};
+        s.rflags = 0x2;  // CF=0, OF=0
+        s.rax = 100;
+        s.rcx = 200;
+        // ADCX eax, ecx (CF=0 in, result=300, CF=0 out)
+        tests.push_back({"adcx eax no carry", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        // ADOX eax, ecx (OF=0 in, result=300, OF=0 out)
+        tests.push_back({"adox eax no carry", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+
+      // Test 2: carry-in = 1 for ADCX (set CF)
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_CF;  // CF=1
+        s.rax = 100;
+        s.rcx = 200;
+        // ADCX eax, ecx (CF=1 in, result=301, CF=0 out)
+        tests.push_back({"adcx eax CF=1 in", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+      }
+
+      // Test 3: carry-in = 1 for ADOX (set OF)
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_OF;  // OF=1
+        s.rax = 100;
+        s.rcx = 200;
+        // ADOX eax, ecx (OF=1 in, result=301, OF=0 out)
+        tests.push_back({"adox eax OF=1 in", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+
+      // Test 4: 32-bit overflow (produces carry-out)
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xFFFFFFFF;
+        s.rcx = 1;
+        // ADCX eax, ecx: 0xFFFFFFFF + 1 + 0 = 0x100000000 → eax=0, CF=1
+        tests.push_back({"adcx eax overflow", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        // ADOX eax, ecx: same math but OF=1 out
+        tests.push_back({"adox eax overflow", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+
+      // Test 5: 32-bit overflow with carry-in = 1
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_CF | FL_OF;  // both CF=1, OF=1
+        s.rax = 0xFFFFFFFF;
+        s.rcx = 0xFFFFFFFF;
+        // ADCX eax, ecx: 0xFFFFFFFF + 0xFFFFFFFF + 1(CF) = 0x1FFFFFFFF → eax=0xFFFFFFFF, CF=1
+        tests.push_back({"adcx eax max+max+1", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        // ADOX eax, ecx: same but uses OF
+        tests.push_back({"adox eax max+max+1", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+
+      // Test 6: 64-bit ADCX/ADOX (REX.W)
+      // ADCX rax, rcx: 66 48 0F 38 F6 C1
+      // ADOX rax, rcx: F3 48 0F 38 F6 C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xFFFFFFFFFFFFFFFF;
+        s.rcx = 1;
+        // 64-bit overflow
+        tests.push_back({"adcx rax overflow", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adox rax overflow", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+
+      // Test 7: ADCX preserves OF, ADOX preserves CF
+      // Set both CF and OF, then run ADCX (should modify CF, preserve OF)
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_CF | FL_OF;  // CF=1, OF=1
+        s.rax = 100;
+        s.rcx = 200;
+        // ADCX: CF=1 in → 100+200+1=301, CF=0 out; OF should stay 1
+        tests.push_back({"adcx preserves OF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_OF, 0x0, false});
+        // ADOX: OF=1 in → 100+200+1=301, OF=0 out; CF should stay 1
+        tests.push_back({"adox preserves CF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_OF, 0x0, false});
+      }
+
+      // Test 8: ADCX/ADOX preserve SF, ZF, PF (set them before, check after)
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_SF | FL_ZF | FL_PF;  // SF=1, ZF=1, PF=1
+        s.rax = 100;
+        s.rcx = 200;
+        tests.push_back({"adcx preserves SZPF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_SF | FL_ZF | FL_PF, 0x0, false});
+        tests.push_back({"adox preserves SZPF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF | FL_SF | FL_ZF | FL_PF, 0x0, false});
+      }
+
+      // Test 9: chain ADCX then ADOX (both in one sequence)
+      // ADCX eax, ecx; ADOX ebx, edx
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_CF;  // CF=1, OF=0
+        s.rax = 0xFFFFFFFF;
+        s.rcx = 0xFFFFFFFF;
+        s.rbx = 100;
+        s.rdx = 200;
+        // ADCX: 0xFFFFFFFF + 0xFFFFFFFF + 1 → eax=0xFFFFFFFF, CF=1
+        // ADOX: 100 + 200 + 0(OF) → ebx=300, OF=0
+        tests.push_back({"adcx+adox chain", cat,
+          {0x66, 0x0F, 0x38, 0xF6, 0xC1,   // ADCX eax, ecx
+           0xF3, 0x0F, 0x38, 0xF6, 0xDA},  // ADOX ebx, edx
+          s, FL_CF | FL_OF, 0x0, false});
+      }
+
+      // Test 10: 64-bit no overflow
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0x123456789ABCDEF0;
+        s.rcx = 0x0000000000000001;
+        tests.push_back({"adcx rax simple", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adox rax simple", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+      }
+    }
+
+    // DAZ/FTZ: MXCSR Denormals-Are-Zeros and Flush-To-Zero modes
+    {
+      cat = "DAZ/FTZ";
+
+      const u32 MXCSR_DAZ = 0x0040;  // bit 6: Denormals-Are-Zeros
+      const u32 MXCSR_FTZ = 0x8000;  // bit 15: Flush-To-Zero
+      const u32 MXCSR_DEFAULT = 0x1F80;  // default: all exceptions masked
+
+      // Denormal f32 values
+      const u32 F32_DENORM_MIN = 0x00000001;  // smallest positive denormal
+      const u32 F32_DENORM_MAX = 0x007FFFFF;  // largest positive denormal
+      const u32 F32_NEG_DENORM = 0x80000001;  // smallest negative denormal
+      const u32 F32_ZERO = 0x00000000;         // +0.0f
+      const u32 F32_NEG_ZERO = 0x80000000;    // -0.0f
+      const u32 F32_ONE = 0x3F800000;         // 1.0f
+      const u32 F32_TWO = 0x40000000;         // 2.0f
+      const u32 F32_SMALL = 0x00800000;       // smallest positive normal (1.17549435e-38)
+
+      // Helper: create XMM from raw u32 values
+      auto xmm_raw = [](u32 a, u32 b, u32 c, u32 d) -> XmmVal {
+        XmmVal v;
+        v.lo = (u64)a | ((u64)b << 32);
+        v.hi = (u64)c | ((u64)d << 32);
+        return v;
+      };
+
+      // --- FTZ mode: denormal results get flushed to zero ---
+
+      // ADDPS with FTZ: normal + normal that produces denormal result → flushed to ±0
+      // smallest_normal - smallest_normal = 0 (exact), not a good test
+      // Instead: smallest_normal * 0.5 → denormal result → flushed to zero
+      // MULPS xmm0, xmm1: 0F 59 C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
+        // smallest normal * 0.5 = denormal → should flush to +0
+        const u32 F32_HALF = 0x3F000000;  // 0.5f
+        s.xmm[0] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
+        s.xmm[1] = xmm_raw(F32_HALF, F32_HALF, F32_HALF, F32_HALF);
+        tests.push_back({"mulps FTZ flush", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // SUBPS with FTZ: two close normals → denormal result → flushed
+      // SUBPS xmm0, xmm1: 0F 5C C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
+        // Two very close small normals, difference is denormal
+        const u32 F32_SMALL_PLUS1 = F32_SMALL + 1;  // next representable after smallest normal
+        s.xmm[0] = xmm_raw(F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1);
+        s.xmm[1] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
+        tests.push_back({"subps FTZ flush", cat, {0x0F, 0x5C, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // Without FTZ, same operation should produce a denormal
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT;  // FTZ=0
+        const u32 F32_SMALL_PLUS1 = F32_SMALL + 1;
+        s.xmm[0] = xmm_raw(F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1);
+        s.xmm[1] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
+        tests.push_back({"subps no FTZ denorm", cat, {0x0F, 0x5C, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // --- DAZ mode: denormal inputs treated as zero ---
+
+      // ADDPS with DAZ: denormal + 1.0 → should produce 1.0 (denormal treated as 0)
+      // ADDPS xmm0, xmm1: 0F 58 C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
+        s.xmm[1] = xmm_raw(F32_ONE, F32_ONE, F32_ONE, F32_TWO);
+        tests.push_back({"addps DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // Without DAZ, denormal + 1.0 → 1.0 + tiny (slightly more than 1.0)
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT;  // DAZ=0
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
+        s.xmm[1] = xmm_raw(F32_ONE, F32_ONE, F32_ONE, F32_TWO);
+        tests.push_back({"addps no DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // MULPS with DAZ: denormal * 2.0 → should produce 0 (denormal treated as 0)
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MAX);
+        s.xmm[1] = xmm_raw(F32_TWO, F32_TWO, F32_TWO, F32_TWO);
+        tests.push_back({"mulps DAZ denorm*2", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // MINPS with DAZ: denormal vs 0 → both treated as 0
+      // MINPS xmm0, xmm1: 0F 5D C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_ZERO, F32_NEG_DENORM, F32_DENORM_MAX);
+        s.xmm[1] = xmm_raw(F32_ZERO, F32_DENORM_MIN, F32_ZERO, F32_NEG_ZERO);
+        tests.push_back({"minps DAZ denorm vs 0", cat, {0x0F, 0x5D, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // MAXPS with DAZ
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
+        s.xmm[1] = xmm_raw(F32_ZERO, F32_ZERO, F32_ZERO, F32_ONE);
+        tests.push_back({"maxps DAZ denorm vs 0", cat, {0x0F, 0x5F, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // CMPPS with DAZ: denormal == 0? (both treated as zero → true)
+      // CMPPS xmm0, xmm1, 0 (EQ): 0F C2 C1 00
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ZERO);
+        s.xmm[1] = xmm_raw(F32_ZERO, F32_ZERO, F32_ZERO, F32_DENORM_MIN);
+        tests.push_back({"cmpps DAZ eq denorm==0", cat, {0x0F, 0xC2, 0xC1, 0x00}, s, FL_NONE, 0x3, true});
+      }
+
+      // SQRTPS with DAZ: sqrt(denormal) → sqrt(0) = 0
+      // SQRTPS xmm0, xmm1: 0F 51 C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_ZERO, F32_ONE);
+        tests.push_back({"sqrtps DAZ denorm", cat, {0x0F, 0x51, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // CVTPS2DQ with DAZ: denormal → treated as 0 → converts to integer 0
+      // CVTPS2DQ xmm0, xmm1: 66 0F 5B C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ONE);
+        tests.push_back({"cvtps2dq DAZ denorm", cat, {0x66, 0x0F, 0x5B, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // DAZ + FTZ combined
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ | MXCSR_FTZ;
+        const u32 F32_HALF = 0x3F000000;
+        s.xmm[0] = xmm_raw(F32_DENORM_MAX, F32_SMALL, F32_DENORM_MIN, F32_ONE);
+        s.xmm[1] = xmm_raw(F32_TWO, F32_HALF, F32_ONE, F32_HALF);
+        // lane 0: denorm(→0)*2=0, lane 1: smallest_normal*0.5=denorm→flush to 0
+        // lane 2: denorm(→0)*1=0, lane 3: 1.0*0.5=0.5 (normal, no flush)
+        tests.push_back({"mulps DAZ+FTZ", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // UCOMISS with DAZ: denormal vs 0 → equal (both treated as 0)
+      // UCOMISS xmm0, xmm1: 0F 2E C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        s.xmm[0] = xmm_raw(F32_DENORM_MAX, 0, 0, 0);
+        s.xmm[1] = xmm_raw(F32_ZERO, 0, 0, 0);
+        tests.push_back({"ucomiss DAZ denorm==0", cat, {0x0F, 0x2E, 0xC1}, s, FL_CF | FL_ZF | FL_PF, 0x0, true});
+      }
+
+      // DIVPS with FTZ: very small / very large → denormal → flush to 0
+      // DIVPS xmm0, xmm1: 0F 5E C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_FTZ;
+        s.xmm[0] = xmm_raw(F32_SMALL, F32_SMALL, F32_ONE, F32_ONE);
+        const u32 F32_LARGE = 0x7E800000;  // 8.507059e37 (large normal)
+        s.xmm[1] = xmm_raw(F32_LARGE, F32_LARGE, F32_ONE, F32_TWO);
+        tests.push_back({"divps FTZ flush", cat, {0x0F, 0x5E, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+
+      // f64 denormals with DAZ
+      // ADDPD xmm0, xmm1: 66 0F 58 C1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
+        const u64 F64_DENORM = 0x0000000000000001;  // smallest positive denormal
+        const u64 F64_ONE    = 0x3FF0000000000000;   // 1.0
+        s.xmm[0] = xmm_from_u64(F64_DENORM, F64_DENORM);
+        s.xmm[1] = xmm_from_u64(F64_ONE, F64_ONE);
+        tests.push_back({"addpd DAZ denorm+1", cat, {0x66, 0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+      }
+    }
+
+    // Operand size edge cases: 16-bit operand size prefix (0x66)
+    {
+      cat = "OpSize Edge";
+
+      // 16-bit ADD: 66 01 C8 = ADD AX, CX
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEF7FFF;
+        s.rcx = 0x1234567800000001;
+        // ADD AX, CX: AX=0x7FFF+0x0001=0x8000 (16-bit overflow), upper bits of RAX preserved
+        tests.push_back({"add ax,cx overflow", cat, {0x66, 0x01, 0xC8}, s, FL_ALL, 0x0, false});
+      }
+
+      // 16-bit SUB: 66 29 C8 = SUB AX, CX
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEF0000;
+        s.rcx = 0x1234567800000001;
+        // SUB AX, CX: AX=0x0000-0x0001=0xFFFF (borrow), upper bits preserved
+        tests.push_back({"sub ax,cx borrow", cat, {0x66, 0x29, 0xC8}, s, FL_ALL, 0x0, false});
+      }
+
+      // 16-bit IMUL r16, r/m16: 66 0F AF C1 = IMUL AX, CX
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEF0100;  // AX=0x0100 (256)
+        s.rcx = 0x1234567800000100;  // CX=0x0100 (256)
+        // IMUL AX, CX: 256*256=65536 → AX=0x0000 (low 16 bits), CF=OF=1
+        tests.push_back({"imul ax,cx 16b ovfl", cat, {0x66, 0x0F, 0xAF, 0xC1}, s, FL_CF | FL_OF, 0x0, false});
+      }
+
+      // 16-bit MOVZX r16, r/m8: 66 0F B6 C1 = MOVZX AX, CL
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEFAAAA;
+        s.rcx = 0x00000000000000FF;
+        // MOVZX AX, CL: AX=0x00FF, upper bits of RAX preserved
+        tests.push_back({"movzx ax,cl 16b", cat, {0x66, 0x0F, 0xB6, 0xC1}, s, FL_NONE, 0x0, false});
+      }
+
+      // 16-bit SHL: 66 D1 E0 = SHL AX, 1
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEFC000;  // AX=0xC000
+        // SHL AX, 1: AX = 0x8000, CF=1 (bit 15 shifted out), OF=1 (sign changed)
+        // AF is undefined for SHL
+        tests.push_back({"shl ax,1 16b", cat, {0x66, 0xD1, 0xE0}, s, FL_NO_AF, 0x0, false});
+      }
+
+      // 16-bit CMP: 66 39 C8 = CMP AX, CX
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEF8000;  // AX=0x8000 (-32768 signed)
+        s.rcx = 0x1234567800007FFF;  // CX=0x7FFF (+32767 signed)
+        // CMP AX, CX: 0x8000-0x7FFF → flags from 16-bit comparison
+        tests.push_back({"cmp ax,cx 16b sign", cat, {0x66, 0x39, 0xC8}, s, FL_ALL, 0x0, false});
+      }
+
+      // 16-bit INC/DEC: 66 FF C0 = INC AX
+      {
+        ArchState s = {};
+        s.rflags = 0x2 | FL_CF;  // CF=1, should be preserved
+        s.rax = 0xDEAD0000BEEFFFFF;  // AX=0xFFFF
+        // INC AX: 0xFFFF+1=0x0000 (16-bit wrap), CF preserved
+        tests.push_back({"inc ax 16b wrap", cat, {0x66, 0xFF, 0xC0}, s, FL_ALL, 0x0, false});
+      }
+
+      // 16-bit XCHG: 66 91 = XCHG AX, CX
+      {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.rax = 0xDEAD0000BEEF1234;  // AX=0x1234
+        s.rcx = 0x1234567800005678;  // CX=0x5678
+        tests.push_back({"xchg ax,cx 16b", cat, {0x66, 0x91}, s, FL_NONE, 0x0, false});
+      }
+    }
   }
 
   add_systematic_tests(tests);
