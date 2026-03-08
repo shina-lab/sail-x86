@@ -4975,6 +4975,278 @@ std::vector<TestCase> build_tests() {
             {0xC4, 0xE2, 0x71, 0xA7, 0xC2}, s, 0x7);
   }
 
+  // =====================================================================
+  // FP Edge Cases — NaN, Inf, denormals, signed zeros
+  //
+  // These test corner cases that are often incorrectly implemented.
+  // Hardware is ground truth. Any mismatch reveals a model bug.
+  // =====================================================================
+  cat = "FP Edge";
+  {
+    // Special f32 bit patterns
+    const u32 POS_ZERO  = 0x00000000;
+    const u32 NEG_ZERO  = 0x80000000;
+    const u32 POS_INF   = 0x7F800000;
+    const u32 NEG_INF   = 0xFF800000;
+    const u32 QNAN      = 0x7FC00000;  // quiet NaN
+    const u32 F32_SNAN      = u32(0x7F800001);  // signaling NaN
+    const u32 QNAN2     = 0x7FC00042;  // different QNaN payload
+    const u32 NEG_QNAN  = 0xFFC00000;  // negative quiet NaN
+    const u32 DENORM    = 0x00000001;  // smallest positive denormal
+    const u32 DENORM2   = 0x007FFFFF;  // largest denormal
+    const u32 NEG_DENORM = 0x80000001; // smallest negative denormal
+    const u32 ONE       = 0x3F800000;  // 1.0f
+    const u32 NEG_ONE   = 0xBF800000;  // -1.0f
+    const u32 TWO       = 0x40000000;  // 2.0f
+    const u32 MAX_NORM  = 0x7F7FFFFF;  // largest finite f32
+
+    // Test pairs: each pair {src1_elem, src2_elem}
+    struct FPPair { u32 a; u32 b; const char *desc; };
+    FPPair pairs[] = {
+      {POS_ZERO, NEG_ZERO, "pz_nz"},
+      {NEG_ZERO, POS_ZERO, "nz_pz"},
+      {POS_INF, ONE, "pinf_1"},
+      {NEG_INF, ONE, "ninf_1"},
+      {POS_INF, NEG_INF, "pinf_ninf"},
+      {POS_INF, POS_INF, "pinf_pinf"},
+      {QNAN, ONE, "qnan_1"},
+      {ONE, QNAN, "1_qnan"},
+      {QNAN, QNAN2, "qnan_qnan2"},
+      {F32_SNAN, ONE, "snan_1"},
+      {ONE, F32_SNAN, "1_snan"},
+      {F32_SNAN, QNAN, "snan_qnan"},
+      {DENORM, ONE, "denorm_1"},
+      {ONE, DENORM, "1_denorm"},
+      {DENORM, DENORM, "denorm_denorm"},
+      {NEG_DENORM, ONE, "ndenorm_1"},
+      {DENORM2, DENORM2, "maxdenorm2"},
+      {MAX_NORM, ONE, "maxnorm_1"},
+      {MAX_NORM, MAX_NORM, "maxnorm2"},
+      {NEG_ONE, POS_ZERO, "n1_pz"},
+      {POS_ZERO, POS_ZERO, "pz_pz"},
+      {NEG_ZERO, NEG_ZERO, "nz_nz"},
+      {POS_INF, QNAN, "pinf_qnan"},
+      {QNAN, POS_INF, "qnan_pinf"},
+    };
+    int npairs = sizeof(pairs) / sizeof(pairs[0]);
+
+    // ADDPS with edge cases
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "addps %s", pairs[i].desc);
+      // ADDPS xmm0, xmm1: 0F 58 C1
+      add_xmm(n, {0x0F, 0x58, 0xC1}, s, 0x3);
+    }
+
+    // SUBPS with edge cases
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "subps %s", pairs[i].desc);
+      // SUBPS xmm0, xmm1: 0F 5C C1
+      add_xmm(n, {0x0F, 0x5C, 0xC1}, s, 0x3);
+    }
+
+    // MULPS with edge cases
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "mulps %s", pairs[i].desc);
+      // MULPS xmm0, xmm1: 0F 59 C1
+      add_xmm(n, {0x0F, 0x59, 0xC1}, s, 0x3);
+    }
+
+    // DIVPS with edge cases
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "divps %s", pairs[i].desc);
+      // DIVPS xmm0, xmm1: 0F 5E C1
+      add_xmm(n, {0x0F, 0x5E, 0xC1}, s, 0x3);
+    }
+
+    // MINPS with edge cases — particularly interesting for signed zero
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "minps %s", pairs[i].desc);
+      // MINPS xmm0, xmm1: 0F 5D C1
+      add_xmm(n, {0x0F, 0x5D, 0xC1}, s, 0x3);
+    }
+
+    // MAXPS with edge cases
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "maxps %s", pairs[i].desc);
+      // MAXPS xmm0, xmm1: 0F 5F C1
+      add_xmm(n, {0x0F, 0x5F, 0xC1}, s, 0x3);
+    }
+
+    // CMPPS with edge cases — test various predicates
+    u8 cmppreds[] = {0, 1, 2, 3, 4, 5, 6, 7}; // EQ,LT,LE,UNORD,NEQ,NLT,NLE,ORD
+    for (int p = 0; p < 8; p++) {
+      for (int i = 0; i < npairs; i++) {
+        ArchState s = {};
+        s.rflags = 0x2;
+        s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+        s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+        char n[128];
+        snprintf(n, sizeof(n), "cmpps p%d %s", p, pairs[i].desc);
+        // CMPPS xmm0, xmm1, imm8: 0F C2 C1 pp
+        add_xmm(n, {0x0F, 0xC2, 0xC1, cmppreds[p]}, s, 0x3);
+      }
+    }
+
+    // UCOMISS with edge cases — tests flag setting with NaN/Inf
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(pairs[i].a, 0, 0, 0);
+      s.xmm[1] = xmm_from_u32(pairs[i].b, 0, 0, 0);
+      char n[128];
+      snprintf(n, sizeof(n), "ucomiss %s", pairs[i].desc);
+      // UCOMISS xmm0, xmm1: 0F 2E C1
+      add_xmm(n, {0x0F, 0x2E, 0xC1}, s, 0x3);
+    }
+
+    // SQRTPS with edge cases (single-operand)
+    u32 sqrt_vals[] = {POS_ZERO, NEG_ZERO, POS_INF, NEG_INF, QNAN, F32_SNAN,
+                       DENORM, NEG_ONE, ONE, TWO, MAX_NORM};
+    for (auto v : sqrt_vals) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(v, v, v, v);
+      char n[128];
+      snprintf(n, sizeof(n), "sqrtps 0x%08x", v);
+      // SQRTPS xmm0, xmm0: 0F 51 C0
+      add_xmm(n, {0x0F, 0x51, 0xC0}, s, 0x1);
+    }
+
+    // CVTPS2DQ with edge cases — float to int conversion
+    u32 cvt_vals[] = {POS_ZERO, NEG_ZERO, POS_INF, NEG_INF, QNAN, F32_SNAN,
+                      ONE, NEG_ONE, MAX_NORM, DENORM, 0x4F000000 /*2^31*/,
+                      0xCF000000 /*-2^31*/, 0x4F800000 /*2^32*/};
+    for (auto v : cvt_vals) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(v, v, v, v);
+      char n[128];
+      snprintf(n, sizeof(n), "cvtps2dq 0x%08x", v);
+      // CVTPS2DQ xmm0, xmm0: 66 0F 5B C0
+      add_xmm(n, {0x66, 0x0F, 0x5B, 0xC0}, s, 0x1);
+    }
+
+    // CVTTPS2DQ — truncation conversion
+    for (auto v : cvt_vals) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(v, v, v, v);
+      char n[128];
+      snprintf(n, sizeof(n), "cvttps2dq 0x%08x", v);
+      // CVTTPS2DQ xmm0, xmm0: F3 0F 5B C0
+      add_xmm(n, {0xF3, 0x0F, 0x5B, 0xC0}, s, 0x1);
+    }
+  }
+
+  // =====================================================================
+  // FP Edge f64 — NaN, Inf, signed zeros in double precision
+  // =====================================================================
+  cat = "FP Edge";
+  {
+    const u64 POS_ZERO_D = 0x0000000000000000;
+    const u64 NEG_ZERO_D = 0x8000000000000000;
+    const u64 POS_INF_D  = 0x7FF0000000000000;
+    const u64 NEG_INF_D  = 0xFFF0000000000000;
+    const u64 QNAN_D     = 0x7FF8000000000000;
+    const u64 SNAN_D     = 0x7FF0000000000001;
+    const u64 DENORM_D   = 0x0000000000000001;
+    const u64 ONE_D      = 0x3FF0000000000000;
+    const u64 NEG_ONE_D  = 0xBFF0000000000000;
+
+    struct FPPairD { u64 a; u64 b; const char *desc; };
+    FPPairD dpairs[] = {
+      {POS_ZERO_D, NEG_ZERO_D, "pz_nz"},
+      {NEG_ZERO_D, POS_ZERO_D, "nz_pz"},
+      {POS_INF_D, ONE_D, "pinf_1"},
+      {NEG_INF_D, ONE_D, "ninf_1"},
+      {POS_INF_D, NEG_INF_D, "pinf_ninf"},
+      {QNAN_D, ONE_D, "qnan_1"},
+      {ONE_D, QNAN_D, "1_qnan"},
+      {SNAN_D, ONE_D, "snan_1"},
+      {DENORM_D, ONE_D, "denorm_1"},
+      {DENORM_D, DENORM_D, "denorm2"},
+    };
+    int ndpairs = sizeof(dpairs) / sizeof(dpairs[0]);
+
+    // ADDPD with edge cases
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "addpd %s", dpairs[i].desc);
+      // ADDPD xmm0, xmm1: 66 0F 58 C1
+      add_xmm(n, {0x66, 0x0F, 0x58, 0xC1}, s, 0x3);
+    }
+
+    // MINPD — signed zero ordering
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "minpd %s", dpairs[i].desc);
+      // MINPD xmm0, xmm1: 66 0F 5D C1
+      add_xmm(n, {0x66, 0x0F, 0x5D, 0xC1}, s, 0x3);
+    }
+
+    // MAXPD
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "maxpd %s", dpairs[i].desc);
+      // MAXPD xmm0, xmm1: 66 0F 5F C1
+      add_xmm(n, {0x66, 0x0F, 0x5F, 0xC1}, s, 0x3);
+    }
+
+    // UCOMISD
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(dpairs[i].a, 0);
+      s.xmm[1] = xmm_from_u64(dpairs[i].b, 0);
+      char n[128];
+      snprintf(n, sizeof(n), "ucomisd %s", dpairs[i].desc);
+      // UCOMISD xmm0, xmm1: 66 0F 2E C1
+      add_xmm(n, {0x66, 0x0F, 0x2E, 0xC1}, s, 0x3);
+    }
+  }
+
   add_systematic_tests(tests);
 
   return tests;

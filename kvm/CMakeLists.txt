@@ -41,6 +41,7 @@ set(KVM_CATEGORIES
   CMPXCHG16B
   AVX
   EVEX
+  "FP Edge"
 )
 
 foreach(cat ${KVM_CATEGORIES})
