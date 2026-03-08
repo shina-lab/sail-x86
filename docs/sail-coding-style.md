@@ -52,6 +52,71 @@ if cond then { foo }
 else { bar }
 ```
 
+### `then match` as braces
+
+`if ... then match ... { ... }` visually acts like `if ... then { ... }`,
+so we treat the match braces as if-braces. This means the else branch
+must also be braced:
+
+```sail
+// OK: then-match + braced else
+if count == 1 then match os {
+  OS8  => OF = bool_to_bit(result[7] != CF),
+  OS16 => OF = bool_to_bit(result[15] != CF),
+  OS32 => OF = bool_to_bit(result[31] != CF),
+  OS64 => OF = bool_to_bit(result[63] != CF),
+} else {
+  OF = undefined;
+}
+
+// OK: then-match + else-match (both visually braced)
+if pfx.rex_w then match pfx.evex_ll {
+  2 => ...,
+  1 => ...,
+  _ => ...,
+} else match pfx.evex_ll {
+  2 => ...,
+  1 => ...,
+  _ => ...,
+}
+
+// BAD: then-match + bare else
+if count == 1 then match os {
+  ...
+} else OF = undefined;
+
+// BAD: over-wrapped (unnecessary nesting)
+if count == 1 then {
+  match os {
+    ...
+  }
+} else {
+  OF = undefined;
+}
+```
+
+### Multi-line bare branches
+
+When either branch of an if/else is multi-line (e.g., a braced block),
+do NOT leave the other branch bare.
+
+```sail
+// BAD: bare then + braced else
+if cond then raise_UD()
+else {
+  do_stuff();
+  Ok()
+}
+
+// OK: braces on both branches
+if cond then {
+  raise_UD()
+} else {
+  do_stuff();
+  Ok()
+}
+```
+
 ### Short single-expression branches
 
 When both branches are single expressions and the whole thing fits on one

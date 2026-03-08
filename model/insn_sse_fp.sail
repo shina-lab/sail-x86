@@ -425,8 +425,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         RM_mem(addr) => {
           // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(addr) % 16 != 0 then raise_GP0()
-          else {
+          if unsigned(addr) % 16 != 0 then {
+            raise_GP0()
+          } else {
             write_xmm(xreg, mem_read128(addr));
             Ok()
           }
@@ -449,8 +450,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         RM_mem(addr) => {
           // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(addr) % 16 != 0 then raise_GP0()
-          else {
+          if unsigned(addr) % 16 != 0 then {
+            raise_GP0()
+          } else {
             mem_write128(addr, read_xmm(xreg));
             Ok()
           }

@@ -623,7 +623,9 @@ function exec_rol(a, count_raw, os) = {
       OS16 => OF = bool_to_bit(result[15] != CF),
       OS32 => OF = bool_to_bit(result[31] != CF),
       OS64 => OF = bool_to_bit(result[63] != CF),
-    } else OF = undefined;
+    } else {
+      OF = undefined;
+    };
     (Ok(), result)
   }
 }
@@ -663,7 +665,9 @@ function exec_ror(a, count_raw, os) = {
       OS16 => OF = bool_to_bit(result[15] != result[14]),
       OS32 => OF = bool_to_bit(result[31] != result[30]),
       OS64 => OF = bool_to_bit(result[63] != result[62]),
-    } else OF = undefined;
+    } else {
+      OF = undefined;
+    };
     (Ok(), result)
   }
 }
@@ -727,7 +731,9 @@ function exec_rcl(a, count_raw, os) = {
       OS16 => OF = bool_to_bit(val16[15] != CF),
       OS32 => OF = bool_to_bit(val32[31] != CF),
       OS64 => OF = bool_to_bit(val64[63] != CF),
-    } else OF = undefined;
+    } else {
+      OF = undefined;
+    };
     let result : qword = match os {
       OS8  => zero_extend(val8),
       OS16 => zero_extend(val16),
@@ -764,7 +770,9 @@ function exec_rcr(a, count_raw, os) = {
       OS16 => OF = bool_to_bit(val16[15] != CF),
       OS32 => OF = bool_to_bit(val32[31] != CF),
       OS64 => OF = bool_to_bit(val64[63] != CF),
-    } else OF = undefined;
+    } else {
+      OF = undefined;
+    };
     var i : int = tempcount;
     while i > 0 do {
       match os {
