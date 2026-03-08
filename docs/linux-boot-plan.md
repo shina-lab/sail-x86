@@ -12,9 +12,9 @@
 | system_mode flag | **Done** | Selects fault delivery mode |
 | Identity-mapped page tables | **Done** | 2MB pages, set up by C++ loader |
 | Basic instruction execution on phys mem | **Done** | 10 tests passing |
-| MSR register file | Not started | |
-| Privileged instructions (MOV CR, LGDT, etc.) | Not started | |
-| Paging (page table walk in Sail) | Not started | |
+| MSR register file | **Done** | EFER/FS_BASE/GS_BASE in Sail, rest in C++ map |
+| Privileged instructions (MOV CR, LGDT, etc.) | **Done** | 12 instructions, 20 tests passing |
+| Paging (page table walk in Sail) | **Done** | 4-level walk, A/D bits, WP, 4KB/2MB/1GB pages |
 | Exception delivery via IDT | Not started | |
 | Device emulation (UART, PIC, PIT) | Not started | |
 | Linux boot protocol loader | Not started | |

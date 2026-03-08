@@ -300,6 +300,14 @@ TEST(mov_cr3_write) {
   x86::Model model;
   init_model(model);
 
+  // Set up valid page tables at 0x5000 before switching CR3
+  // PML4 at 0x5000 -> PDPT at 0x6000 -> PD at 0x7000
+  model.phys_mem.write64(0x5000, 0x6000 | 0x03);
+  model.phys_mem.write64(0x6000, 0x7000 | 0x03);
+  // Identity map first 8MB with 2MB pages
+  for (u64 j = 0; j < 4; j++)
+    model.phys_mem.write64(0x7000 + j * 8, (j << 21) | 0x83);
+
   // mov rax, 0x5000; mov cr3, rax; mov rbx, cr3; hlt
   u8 code[] = {
     0x48, 0xC7, 0xC0, 0x00, 0x50, 0x00, 0x00,  // mov rax, 0x5000

@@ -38,3 +38,8 @@ add_executable(system_test_basic tests/test_basic.cpp)
 target_link_libraries(system_test_basic PRIVATE x86_system_model)
 add_dependencies(system_test_basic generated_sail_x86_model)
 add_test(NAME system_basic COMMAND system_test_basic)
+
+add_executable(system_test_paging tests/test_paging.cpp)
+target_link_libraries(system_test_paging PRIVATE x86_system_model)
+add_dependencies(system_test_paging generated_sail_x86_model)
+add_test(NAME system_paging COMMAND system_test_paging)

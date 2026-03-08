@@ -78,11 +78,13 @@ add_subdirectory("model")
 # User-mode emulator binary.
 add_subdirectory("usermode-emu")
 
+# Enable testing before any subdirectory that defines tests.
+enable_testing()
+
 # System-level emulator binary.
 add_subdirectory("system-emu")
 
 # Tests.
-enable_testing()
 add_subdirectory("test")
 
 # KVM differential test harness.

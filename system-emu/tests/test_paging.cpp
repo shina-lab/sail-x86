@@ -1,0 +1,345 @@
+// Tests for 4-level paging (page table walk, permission checks, A/D bits).
+
+#include "sail_x86_model.h"
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+
+static void init_model(x86::Model &model, u64 ram_size = 16 * 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+
+  model.zsystem_mode = true;
+  model.zcur_mode = x86::zLongMode;
+  model.zcur_cpl = 0;
+
+  model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
+  model.zCR4 = (1UL << 5) | (1UL << 9);
+  model.zEFER = (1UL << 0) | (1UL << 8) | (1UL << 10) | (1UL << 11);
+
+  assert(model.phys_mem.init(ram_size));
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = 0x80000;
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zIDTR_base = 0;
+  model.zIDTR_limit = 0;
+  model.zFS_BASE = 0;
+  model.zGS_BASE = 0;
+  model.zKERNEL_GS_BASE = 0;
+}
+
+// Set up a basic identity-mapped page table covering ram_size using 4KB pages.
+// PML4 at pml4_addr, allocating subsequent tables from alloc_addr.
+static u64 setup_4kb_pages(PhysicalMemory &mem, u64 pml4_addr, u64 alloc_base,
+                           u64 vaddr, u64 paddr, u64 flags) {
+  u64 alloc = alloc_base;
+
+  // PML4 entry
+  u64 pdpt_addr = alloc; alloc += 0x1000;
+  mem.write64(pml4_addr + ((vaddr >> 39) & 0x1FF) * 8,
+              pdpt_addr | 0x03); // Present + R/W
+
+  // PDPT entry
+  u64 pd_addr = alloc; alloc += 0x1000;
+  mem.write64(pdpt_addr + ((vaddr >> 30) & 0x1FF) * 8,
+              pd_addr | 0x03);
+
+  // PD entry
+  u64 pt_addr = alloc; alloc += 0x1000;
+  mem.write64(pd_addr + ((vaddr >> 21) & 0x1FF) * 8,
+              pt_addr | 0x03);
+
+  // PT entry — map vaddr to paddr with given flags
+  mem.write64(pt_addr + ((vaddr >> 12) & 0x1FF) * 8,
+              (paddr & 0x000FFFFFFFFFF000ULL) | flags);
+
+  return alloc;
+}
+
+static int run_code(x86::Model &model, u64 code_addr, const u8 *code, size_t len,
+                    u64 max_insns = 1000) {
+  model.phys_mem.write_bytes(code_addr, code, len);
+  model.zRIP = code_addr;
+
+  x86::zExecutionResult result = {};
+  result.kind = x86::Kind_zOk;
+
+  u64 count = 0;
+  while (count < max_insns) {
+    model.zstep(&result, UNIT);
+    if (result.kind != x86::Kind_zOk)
+      break;
+    count++;
+  }
+  return result.kind;
+}
+
+static int tests_passed = 0;
+static int tests_failed = 0;
+
+#define TEST(name) \
+  static void test_##name(); \
+  static void run_test_##name() { \
+    printf("  %-50s", #name); \
+    test_##name(); \
+    printf("PASS\n"); \
+    tests_passed++; \
+  } \
+  static void test_##name()
+
+#define ASSERT_EQ(a, b) do { \
+  auto _a = (a); auto _b = (b); \
+  if (_a != _b) { \
+    printf("FAIL\n    %s:%d: %s == 0x%lx, expected 0x%lx\n", \
+           __FILE__, __LINE__, #a, (u64)_a, (u64)_b); \
+    tests_failed++; \
+    return; \
+  } \
+} while(0)
+
+// =========================================================================
+// Paging tests
+// =========================================================================
+
+TEST(identity_map_2mb) {
+  // Test that identity-mapped 2MB pages work (same setup as system_sim)
+  x86::Model model;
+  init_model(model);
+
+  // Set up 2MB identity mapping
+  u64 pml4_addr = 0x10000;
+  model.phys_mem.write64(pml4_addr, 0x11000 | 0x03);
+  model.phys_mem.write64(0x11000,   0x12000 | 0x03);
+  for (u64 j = 0; j < 8; j++)
+    model.phys_mem.write64(0x12000 + j * 8, (j << 21) | 0x83); // 2MB, P+RW+PS
+  model.zCR3 = pml4_addr;
+
+  // mov rax, 0x42; hlt
+  u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
+
+  model.model_fini();
+}
+
+TEST(non_identity_4kb_mapping) {
+  // Map virtual address 0x400000 to physical address 0x200000 using 4KB pages
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  model.zCR3 = pml4_addr;
+
+  // First set up identity mapping for code area (0x100000)
+  u64 alloc = setup_4kb_pages(model.phys_mem, pml4_addr, 0x20000,
+                              0x100000, 0x100000, 0x03); // P+RW
+
+  // Map virtual 0x400000 to physical 0x200000
+  // Need a separate PDPT/PD/PT since it's a different PML4 region
+  // Actually both are in PML4[0], PDPT[0] — need different PD entry
+  // 0x100000 >> 21 = 0 (PD index 0), 0x400000 >> 21 = 2 (PD index 2)
+  // They share the same PML4[0] and PDPT[0], so add a PD entry
+  // The PD was created by setup_4kb_pages at alloc-0x1000
+  u64 pt_for_data = alloc; alloc += 0x1000;
+  // Get PD address: PML4[0] -> PDPT[0] -> PD
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  model.phys_mem.write64(pd_addr + 2 * 8, pt_for_data | 0x03); // PD[2] -> new PT
+  // PT entry: map page at 0x400000 to phys 0x200000
+  model.phys_mem.write64(pt_for_data + 0 * 8, 0x200000 | 0x03); // P+RW
+
+  // Write data at physical 0x200000
+  model.phys_mem.write64(0x200000, 0xDEADBEEFCAFEBABEULL);
+
+  // Code: mov rax, [0x400000]; hlt
+  // Use RDI to hold the address
+  model.zGPR.data[7] = 0x400000;
+  u8 code[] = {
+    0x48, 0x8B, 0x07,  // mov rax, [rdi]
+    0xF4,              // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0xDEADBEEFCAFEBABEULL);
+
+  model.model_fini();
+}
+
+TEST(page_fault_not_present) {
+  // Access an unmapped page → should get #PF
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  model.zCR3 = pml4_addr;
+
+  // Set up identity map for code at 0x100000
+  setup_4kb_pages(model.phys_mem, pml4_addr, 0x20000,
+                  0x100000, 0x100000, 0x03);
+
+  // Also identity map 0x80000 for stack
+  // PD[0] already exists (covers 0-2MB), just add a PT entry
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_addr = model.phys_mem.read64(pd_addr) & ~0xFFFULL;
+  // 0x80000 >> 12 = 0x80, so PT[0x80]
+  model.phys_mem.write64(pt_addr + 0x80 * 8, 0x80000 | 0x03);
+
+  // Try to read from 0x500000 which has no mapping (PD[2] not present)
+  model.zGPR.data[7] = 0x500000;
+  u8 code[] = {
+    0x48, 0x8B, 0x07,  // mov rax, [rdi]
+    0xF4,              // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zFault);
+  // CR2 should contain the faulting address
+  ASSERT_EQ((u64)model.zCR2, 0x500000UL);
+
+  model.model_fini();
+}
+
+TEST(accessed_dirty_bits) {
+  // Verify that A and D bits are set after read/write
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  model.zCR3 = pml4_addr;
+
+  // Identity map code at 0x100000
+  u64 alloc = setup_4kb_pages(model.phys_mem, pml4_addr, 0x20000,
+                              0x100000, 0x100000, 0x03);
+
+  // Map 0x300000 to itself with P+RW but no A/D bits
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_for_data = alloc;
+  model.phys_mem.write64(pd_addr + 1 * 8, pt_for_data | 0x03); // PD[1] -> PT
+  // Map 0x300000 page — note A=0, D=0
+  u64 pte_addr = pt_for_data + ((0x300000 >> 12) & 0x1FF) * 8;
+  model.phys_mem.write64(pte_addr, 0x300000 | 0x03); // P+RW, A=0, D=0
+
+  // Write something to 0x300000
+  model.zGPR.data[7] = 0x300000;
+  u8 code[] = {
+    0x48, 0xC7, 0x07, 0x42, 0x00, 0x00, 0x00,  // mov qword [rdi], 0x42
+    0xF4,                                        // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+
+  // Check that A (bit 5) and D (bit 6) are now set in the PTE
+  u64 updated_pte = model.phys_mem.read64(pte_addr);
+  ASSERT_EQ((updated_pte >> 5) & 1, 1UL); // Accessed
+  ASSERT_EQ((updated_pte >> 6) & 1, 1UL); // Dirty
+
+  model.model_fini();
+}
+
+TEST(write_protect) {
+  // With CR0.WP=1, kernel write to read-only page should fault
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  model.zCR3 = pml4_addr;
+
+  // Identity map code at 0x100000 (RW)
+  u64 alloc = setup_4kb_pages(model.phys_mem, pml4_addr, 0x20000,
+                              0x100000, 0x100000, 0x03);
+
+  // Map 0x300000 as read-only (P, no RW bit)
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_for_data = alloc;
+  model.phys_mem.write64(pd_addr + 1 * 8, pt_for_data | 0x03);
+  u64 pte_addr = pt_for_data + ((0x300000 >> 12) & 0x1FF) * 8;
+  model.phys_mem.write64(pte_addr, 0x300000 | 0x01); // P only, no RW
+
+  // Try to write to read-only page
+  model.zGPR.data[7] = 0x300000;
+  u8 code[] = {
+    0x48, 0xC7, 0x07, 0x42, 0x00, 0x00, 0x00,  // mov qword [rdi], 0x42
+    0xF4,
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zFault);
+  ASSERT_EQ((u64)model.zCR2, 0x300000UL);
+
+  model.model_fini();
+}
+
+TEST(huge_page_1gb) {
+  // Test 1GB huge pages (PS=1 at PDPT level)
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  u64 pdpt_addr = 0x11000;
+  model.zCR3 = pml4_addr;
+
+  // PML4[0] -> PDPT
+  model.phys_mem.write64(pml4_addr, pdpt_addr | 0x03);
+  // PDPT[0] = 1GB page mapping physical 0 (PS=1, P+RW)
+  model.phys_mem.write64(pdpt_addr, 0x00000000 | 0x83); // PS=1, P+RW
+
+  // mov rax, 0x42; hlt (code at 0x100000, which is within the 1GB page)
+  u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
+
+  model.model_fini();
+}
+
+TEST(store_through_paging) {
+  // Write through paging and verify physical memory is updated
+  x86::Model model;
+  init_model(model);
+
+  u64 pml4_addr = 0x10000;
+  u64 pdpt_addr = 0x11000;
+  model.zCR3 = pml4_addr;
+
+  // 1GB identity map
+  model.phys_mem.write64(pml4_addr, pdpt_addr | 0x03);
+  model.phys_mem.write64(pdpt_addr, 0x00000000 | 0x83);
+
+  model.zGPR.data[7] = 0x200000;
+  u8 code[] = {
+    0x48, 0xC7, 0x07, 0xBE, 0xBA, 0xFE, 0xCA,  // mov qword [rdi], 0xCAFEBABE (sign-ext)
+    0xF4,
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+
+  // Verify physical memory
+  u64 stored = model.phys_mem.read64(0x200000);
+  // mov qword [rdi], imm32 sign-extends: 0xCAFEBABE → 0xFFFFFFFFCAFEBABE
+  ASSERT_EQ(stored, 0xFFFFFFFFCAFEBABEULL);
+
+  model.model_fini();
+}
+
+// =========================================================================
+
+int main() {
+  printf("Paging tests:\n");
+
+  run_test_identity_map_2mb();
+  run_test_non_identity_4kb_mapping();
+  run_test_page_fault_not_present();
+  run_test_accessed_dirty_bits();
+  run_test_write_protect();
+  run_test_huge_page_1gb();
+  run_test_store_through_paging();
+
+  printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
+  return tests_failed > 0 ? 1 : 0;
+}

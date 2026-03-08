@@ -10,8 +10,9 @@ core {
     core_types.sail,
     regs.sail,
     rflags.sail,
-    mem.sail,
     exceptions.sail,
+    paging.sail,
+    mem.sail,
     fp_extern.sail,
     x87_regs.sail,
 }

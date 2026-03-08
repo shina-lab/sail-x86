@@ -1,20 +1,30 @@
 // x86-64 Sail Model — Memory Interface
 //
-// Simplified memory model. We model a flat 64-bit address space for now.
-// Segmentation and paging can be layered on top later.
-
-// Raw physical memory read/write primitives.
-// These are external functions provided by the execution environment.
-val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
+// Two-layer memory model following the sail-riscv pattern:
+//   mem_read/mem_write (virtual) → translate_addr → phys_read/phys_write
+//
+// When paging is disabled (CR0.PG=0, user-mode emulation), translate_addr
+// returns the address unchanged, so all existing instruction code works
+// without modification.
+//
+// Physical memory primitives (__read_mem, __write_mem, phys_read, phys_write)
+// and the address translation function (translate_addr) are defined in
+// paging.sail, which is compiled before this file.
 
 // Read 'n bytes from memory at the given virtual address.
+// Goes through address translation when paging is enabled.
 val mem_read : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-function mem_read(addr, n) = __read_mem(addr, n)
+function mem_read(addr, n) = {
+  let paddr = translate_addr(addr, PT_Read);
+  phys_read(paddr, n)
+}
 
 // Write 'n bytes to memory at the given virtual address.
 val mem_write : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
-function mem_write(addr, n, data) = __write_mem(addr, n, data)
+function mem_write(addr, n, data) = {
+  let paddr = translate_addr(addr, PT_Write);
+  phys_write(paddr, n, data)
+}
 
 // Convenience functions for common access sizes.
 val mem_read8  : qword -> byte
