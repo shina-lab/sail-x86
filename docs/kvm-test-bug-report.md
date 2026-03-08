@@ -392,7 +392,24 @@ for an instruction where the `66` prefix has a different role.
 
 ---
 
-### 14. DAZ/FTZ: MXCSR denormal modes not implemented (commit 3c05739)
+### 14. FXSAVE: MXCSR_MASK missing DAZ bit
+
+**Bug:** The FXSAVE/XSAVE implementation wrote MXCSR_MASK as 0x0000FFFF,
+which omits bit 17 (DAZ support). Real hardware reports 0x0002FFFF,
+indicating that the DAZ bit in MXCSR is supported. Fixed by changing the
+mask to 0x0002FFFF.
+
+**SDM (Section 10.2.3, Table 10-3):** MXCSR_MASK indicates which MXCSR
+bits are supported. Bit 6 (DAZ) is architecturally optional and its
+support is indicated by bit 6 of MXCSR_MASK being set. Our emulator
+already supports DAZ (bug 14 below), so the mask should reflect that.
+
+**Verdict:** SDM is clear. MXCSR_MASK must accurately reflect supported
+MXCSR bits. No SDM issue.
+
+---
+
+### 15. DAZ/FTZ: MXCSR denormal modes not implemented (commit 3c05739)
 
 **Bug:** The C emulator did not implement the MXCSR DAZ (Denormals-Are-
 Zeros, bit 6) or FTZ (Flush-To-Zero, bit 15) modes. When DAZ is set,
@@ -421,7 +438,7 @@ simply failed to check these MXCSR bits. No SDM issue.
 
 ## Decoder Bugs
 
-### 15. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
+### 16. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
 
 **Bug:** The decoder did not check for the F3 prefix, so LZCNT/TZCNT were
 always decoded as BSR/BSF.
@@ -434,7 +451,7 @@ always decoded as BSR/BSF.
 
 ---
 
-### 16. LOCK prefix not validated (commit 78ae1f1, ae40ee3)
+### 17. LOCK prefix not validated (commit 78ae1f1, ae40ee3)
 
 **Bug:** The Sail model did not check the LOCK prefix (`has_lock`) at all.
 Any instruction could be prefixed with LOCK without raising #UD. Fixed by
@@ -454,7 +471,7 @@ destination operand is a memory operand."
 
 ---
 
-### 17. MOVAPS/VMOVAPS: Missing alignment checks (commit 78ae1f1)
+### 18. MOVAPS/VMOVAPS: Missing alignment checks (commit 78ae1f1)
 
 **Bug:** The Sail model did not check alignment for MOVAPS/MOVAPD (SSE,
 16-byte) or VMOVAPS/VMOVAPD (VEX 128-bit: 16-byte, VEX 256-bit: 32-byte).
@@ -469,7 +486,7 @@ general-protection exception (#GP) will be generated."
 
 ---
 
-### 18. VEX.vvvv reserved field not checked (~25 instructions) (commits 60a1691, 4c3f36a)
+### 19. VEX.vvvv reserved field not checked (~25 instructions) (commits 60a1691, 4c3f36a)
 
 **Bug:** Many 2-operand VEX instructions that don't use the vvvv field as a
 source/destination did not check that vvvv == 1111b (reserved). A non-zero
@@ -493,7 +510,7 @@ vvvv was silently ignored instead of raising #UD. Affected instructions:
 
 ---
 
-### 19. VEX.L not checked on 128-bit-only instructions (commit 633a11f)
+### 20. VEX.L not checked on 128-bit-only instructions (commit 633a11f)
 
 **Bug:** VPINSRW, VPEXTRW, VMOVD, and VMOVQ did not check VEX.L and
 allowed VEX.L=1 (256-bit) encoding without raising #UD.
@@ -510,7 +527,7 @@ underdocumented.
 
 ---
 
-### 20. 15-byte instruction length limit not enforced
+### 21. 15-byte instruction length limit not enforced
 
 **Bug:** The Sail model did not enforce the x86 15-byte maximum instruction
 length. Instructions with more than 14 prefix bytes (e.g., 15 redundant `66`
@@ -546,6 +563,7 @@ the Sail model and were added after KVM testing revealed the gaps:
 - MOVBE (0F 38 F0/F1): byte-swap load/store, 16/32/64-bit
 - VCMPPS/VCMPPD 256-bit paths (8 f32 / 4 f64 element comparison)
 - VSHUFPS/VSHUFPD 256-bit paths (independent lane shuffles)
+- XSAVE/XRSTOR (0F AE /4, 0F AE /5): extended state save/restore
 
 ---
 
@@ -567,13 +585,14 @@ the Sail model and were added after KVM testing revealed the gaps:
 | 11 | SSE NaN propagation order wrong | C emulator | Yes | No |
 | 12 | Int→float ignores MXCSR rounding | C emulator | Yes | Minor gap |
 | 13 | ADCX mandatory prefix as opsize | Sail model | Yes | No |
-| 14 | DAZ/FTZ denormal modes missing | C emulator | Yes | No |
-| 15 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
-| 16 | LOCK prefix not validated | Decoder | Yes | No |
-| 17 | MOVAPS/VMOVAPS missing alignment #GP | Decoder | Yes | No |
-| 18 | VEX.vvvv reserved not checked (~25 insns) | Decoder | Yes | No |
-| 19 | VEX.L not checked on 128-bit-only insns | Decoder | Yes | No |
-| 20 | 15-byte instruction length limit not enforced | Decoder | Yes | No |
+| 14 | FXSAVE MXCSR_MASK missing DAZ bit | C emulator | Yes | No |
+| 15 | DAZ/FTZ denormal modes missing | C emulator | Yes | No |
+| 16 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
+| 17 | LOCK prefix not validated | Decoder | Yes | No |
+| 18 | MOVAPS/VMOVAPS missing alignment #GP | Decoder | Yes | No |
+| 19 | VEX.vvvv reserved not checked (~25 insns) | Decoder | Yes | No |
+| 20 | VEX.L not checked on 128-bit-only insns | Decoder | Yes | No |
+| 21 | 15-byte instruction length limit not enforced | Decoder | Yes | No |
 
 **One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
 pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
@@ -598,8 +617,8 @@ explicit about this.
 
 ## Test Coverage Summary
 
-The KVM differential test suite currently runs **59,000+ tests** across
-**68 ctest categories**. Tests compare architectural state (GPRs, flags,
+The KVM differential test suite currently runs **59,119 tests** across
+**69 ctest categories**. Tests compare architectural state (GPRs, flags,
 XMM registers, MXCSR, memory) between KVM execution on real hardware and
 the Sail model.
 
@@ -631,6 +650,9 @@ the Sail model.
   (PS/PD/integer), integer SIMD boundary values (10 pairs × 6 ops),
   conversion edge cases (NaN/Inf/overflow) — 831 tests
 - **EVEX**: EVEX-encoded operations including VPADDD, VPXORD
+- **XSAVE/XRSTOR**: Round-trip save/restore with various masks (x87,
+  SSE, both), XRSTOR from pre-built XSAVE area, init path
+  (XSTATE_BV=0), partial init (XSTATE_BV=1), high XMM registers
 - **x87**: Basic x87 FPU operations
 - **String ops**: REP MOVS/STOS/LODS/CMPS/SCAS with direction flag,
   zero-length, forward/backward

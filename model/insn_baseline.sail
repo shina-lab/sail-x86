@@ -93,6 +93,8 @@ val __fxsave : qword -> ExecutionResult
 val __fxsave64 : qword -> ExecutionResult
 val __fxrstor : qword -> ExecutionResult
 val __fxrstor64 : qword -> ExecutionResult
+val __xsave : (qword, qword) -> ExecutionResult
+val __xrstor : (qword, qword) -> ExecutionResult
 
 // SHLD — Double Precision Shift Left
 //
@@ -343,9 +345,27 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => raise_UD(),
         }
+      } else if reg_field == 4 then {
+        // /4: XSAVE m
+        match rm {
+          RM_mem(addr) => {
+            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            __xsave(fixup_addr(addr), mask)
+          },
+          RM_reg(_) => raise_UD(),
+        }
       } else if reg_field == 5 then {
-        // /5 mod=11: LFENCE
-        Ok()
+        match rm {
+          RM_mem(addr) => {
+            // /5 mem: XRSTOR m
+            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            __xrstor(fixup_addr(addr), mask)
+          },
+          RM_reg(_) => {
+            // /5 mod=11: LFENCE
+            Ok()
+          },
+        }
       } else if reg_field == 6 then {
         // /6 mod=11: MFENCE
         Ok()

@@ -1,6 +1,7 @@
 #include "integers.h"
 #include "x86_cpuid.h"
 #include "x86_elf.h"
+#include "x86_memory.h"
 #include <cstring>
 #include <random>
 #include <vector>
@@ -75,25 +76,33 @@ static const Phdr *phdr(u8 *elf, int i) {
 
 static int phnum(u8 *elf) { return ehdr(elf)->e_phnum; }
 
-static bool load_elf_segments(x86::Model &model, u8 *elf,
-                              u64 bias, u64 &max_addr) {
+// Compute the total virtual address span of all PT_LOAD segments.
+static void elf_load_span(u8 *elf, u64 &lo, u64 &hi) {
+  lo = UINT64_MAX;
+  hi = 0;
+  for (int i = 0; i < phnum(elf); i++) {
+    const Phdr *ph = phdr(elf, i);
+    if (ph->p_type != PT_LOAD) continue;
+    u64 seg_start = ph->p_vaddr & ~(u64)(4096 - 1);
+    u64 seg_end = (ph->p_vaddr + ph->p_memsz + 4095) & ~(u64)(4096 - 1);
+    if (seg_start < lo) lo = seg_start;
+    if (seg_end > hi) hi = seg_end;
+  }
+}
+
+// Copy ELF segments into already-mapped memory at (vaddr + bias).
+static void load_elf_segments(u8 *elf, u64 bias, u64 &max_addr) {
   for (int i = 0; i < phnum(elf); i++) {
     const Phdr *ph = phdr(elf, i);
     if (ph->p_type != PT_LOAD) continue;
 
     u64 vaddr = ph->p_vaddr + bias;
-    u64 memsz = ph->p_memsz;
-    u64 filesz = ph->p_filesz;
+    if (ph->p_filesz > 0)
+      memcpy((void *)vaddr, elf + ph->p_offset, ph->p_filesz);
 
-    model.memory.map_range(vaddr, memsz);
-
-    if (filesz > 0)
-      model.memory.write(vaddr, elf + ph->p_offset, filesz);
-
-    u64 end = vaddr + memsz;
+    u64 end = vaddr + ph->p_memsz;
     if (end > max_addr) max_addr = end;
   }
-  return true;
 }
 
 static std::string find_interp(u8 *elf) {
@@ -134,9 +143,26 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
 
   bool is_pie = (eh->e_type == ET_DYN);
   u64 max_addr = 0;
-  u64 prog_bias = is_pie ? 0x400000ULL : 0;
+  u64 prog_bias = 0;
 
-  load_elf_segments(model, mf, prog_bias, max_addr);
+  {
+    u64 lo, hi;
+    elf_load_span(mf, lo, hi);
+    u64 span = hi - lo;
+    if (is_pie) {
+      u64 base = guest_map_anywhere(span);
+      if ((i64)base < 0) {
+        result.error = "Failed to mmap for PIE binary";
+        return result;
+      }
+      prog_bias = base - lo;
+    } else {
+      // Non-PIE: segments must be at their hardcoded addresses.
+      guest_map_fixed(lo, span);
+    }
+  }
+
+  load_elf_segments(mf, prog_bias, max_addr);
 
   result.prog_entry = eh->e_entry + prog_bias;
 
@@ -169,8 +195,17 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
       return result;
     }
 
-    u64 interp_base = 0x7FFFF7FC0000ULL;
-    load_elf_segments(model, interp_elf, interp_base, max_addr);
+    // Let the kernel choose where to place the interpreter.
+    u64 lo, hi;
+    elf_load_span(interp_elf, lo, hi);
+    u64 span = hi - lo;
+    u64 interp_map = guest_map_anywhere(span);
+    if ((i64)interp_map < 0) {
+      result.error = "Failed to mmap for interpreter";
+      return result;
+    }
+    u64 interp_base = interp_map - lo;
+    load_elf_segments(interp_elf, interp_base, max_addr);
 
     result.interp_base = interp_base;
     result.entry_point = ehdr(interp_elf)->e_entry + interp_base;
@@ -179,9 +214,13 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
     result.entry_point = result.prog_entry;
   }
 
-  u64 brk_start = (max_addr + 4095) & ~4095ULL;
-  model.memory.brk_base = brk_start;
-  model.memory.brk_current = brk_start;
+  // Reserve a large contiguous region for the guest brk heap.
+  // MAP_NORESERVE means pages are only backed on first touch.
+  constexpr u64 BRK_RESERVE = 256 * 1024 * 1024;
+  u64 brk_start = guest_map_noreserve(BRK_RESERVE);
+  model.brk_base = brk_start;
+  model.brk_current = brk_start;
+  model.brk_limit = brk_start + BRK_RESERVE;
 
   result.success = true;
   return result;
@@ -189,13 +228,9 @@ ElfLoadResult load_elf(x86::Model &model, const std::string &filename) {
 
 u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
                 int argc, char **argv, char **envp, char **auxv) {
-  constexpr u64 STACK_TOP = 0x7FFFFFFFE000ULL;
   constexpr u64 STACK_SIZE = 8 * 1024 * 1024;
-  u64 stack_base = STACK_TOP - STACK_SIZE;
-
-  model.memory.map_range(stack_base, STACK_SIZE);
-
-  u64 sp = STACK_TOP;
+  u64 stack_base = guest_map_anywhere(STACK_SIZE);
+  u64 sp = stack_base + STACK_SIZE;
 
   std::vector<u64> argv_ptrs;
   std::vector<u64> envp_ptrs;
@@ -203,7 +238,7 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
   for (int i = 0; i < argc; i++) {
     size_t len = strlen(argv[i]) + 1;
     sp -= len;
-    model.memory.write(sp, argv[i], len);
+    memcpy((void *)sp, argv[i], len);
     argv_ptrs.push_back(sp);
   }
 
@@ -212,7 +247,7 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
     for (int i = 0; envp[i]; i++) {
       size_t len = strlen(envp[i]) + 1;
       sp -= len;
-      model.memory.write(sp, envp[i], len);
+      memcpy((void *)sp, envp[i], len);
       envp_ptrs.push_back(sp);
       envc++;
     }
@@ -227,12 +262,12 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
     u8 random_bytes[16];
     for (int i = 0; i < 16; i++)
       random_bytes[i] = rd();
-    model.memory.write(random_addr, random_bytes, 16);
+    memcpy((void *)random_addr, random_bytes, 16);
   }
 
   sp -= 16;
   u64 platform_addr = sp;
-  model.memory.write(platform_addr, "x86_64", 7);
+  memcpy((void *)platform_addr, "x86_64", 7);
 
   struct AuxEntry { u64 type; u64 val; };
   std::vector<AuxEntry> guest_auxv;
@@ -271,22 +306,29 @@ u64 setup_stack(x86::Model &model, const ElfLoadResult &elf,
   u64 write_sp = sp;
 
   u64 val = (u64)argc;
-  model.memory.write(write_sp, &val, 8); write_sp += 8;
+  memcpy((void *)write_sp, &val, 8);
+  write_sp += 8;
 
   for (auto ptr : argv_ptrs) {
-    model.memory.write(write_sp, &ptr, 8); write_sp += 8;
+    memcpy((void *)write_sp, &ptr, 8);
+    write_sp += 8;
   }
   val = 0;
-  model.memory.write(write_sp, &val, 8); write_sp += 8;
+  memcpy((void *)write_sp, &val, 8);
+  write_sp += 8;
 
   for (auto ptr : envp_ptrs) {
-    model.memory.write(write_sp, &ptr, 8); write_sp += 8;
+    memcpy((void *)write_sp, &ptr, 8);
+    write_sp += 8;
   }
-  model.memory.write(write_sp, &val, 8); write_sp += 8;
+  memcpy((void *)write_sp, &val, 8);
+  write_sp += 8;
 
   for (auto &aux : guest_auxv) {
-    model.memory.write(write_sp, &aux.type, 8); write_sp += 8;
-    model.memory.write(write_sp, &aux.val, 8); write_sp += 8;
+    memcpy((void *)write_sp, &aux.type, 8);
+    write_sp += 8;
+    memcpy((void *)write_sp, &aux.val, 8);
+    write_sp += 8;
   }
 
   return sp;

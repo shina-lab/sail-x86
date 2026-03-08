@@ -1,10 +1,8 @@
+#include "x86_memory.h"
 #include "x86_syscall.h"
 #include <cstdio>
 #include <cstring>
 #include <set>
-#include <string>
-#include <vector>
-#include <cstdlib>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -24,7 +22,6 @@
 #include <sys/sysinfo.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
-#include <termios.h>
 #include <signal.h>
 #include <grp.h>
 #include <sys/times.h>
@@ -226,113 +223,34 @@ static void write_gpr(x86::Model &m, int idx, u64 val) {
   m.zGPR.data[idx] = val;
 }
 
-// Copy a string from guest memory.
-static std::string read_guest_string(x86::Model &m, u64 addr) {
-  std::string s;
-  while (true) {
-    u8 c;
-    m.memory.read(addr++, &c, 1);
-    if (c == 0) break;
-    s += (char)c;
-  }
-  return s;
-}
-
-// Bounce-buffer helpers for syscalls with variable-length I/O buffers.
-// Guest pages are individually mmap'd and non-contiguous in host memory,
-// so we can't pass a guest pointer directly to host syscalls.
-
-// Read from host fd into guest memory.
-static ssize_t host_read_to_guest(x86::Model &m, int fd, u64 guest_buf,
-                                  size_t count) {
-  std::vector<u8> tmp(count);
-  ssize_t n = ::read(fd, tmp.data(), count);
-  if (n > 0) m.memory.write(guest_buf, tmp.data(), n);
-  return n;
-}
-
-// Pread from host fd into guest memory.
-static ssize_t host_pread_to_guest(x86::Model &m, int fd, u64 guest_buf,
-                                   size_t count, off_t offset) {
-  std::vector<u8> tmp(count);
-  ssize_t n = ::pread(fd, tmp.data(), count, offset);
-  if (n > 0) m.memory.write(guest_buf, tmp.data(), n);
-  return n;
-}
-
-// Write from guest memory to host fd.
-static ssize_t guest_write_to_host(x86::Model &m, int fd, u64 guest_buf,
-                                   size_t count) {
-  std::vector<u8> tmp(count);
-  m.memory.read(guest_buf, tmp.data(), count);
-  return ::write(fd, tmp.data(), count);
-}
-
-// Pwrite from guest memory to host fd.
-static ssize_t guest_pwrite_to_host(x86::Model &m, int fd, u64 guest_buf,
-                                    size_t count, off_t offset) {
-  std::vector<u8> tmp(count);
-  m.memory.read(guest_buf, tmp.data(), count);
-  return ::pwrite(fd, tmp.data(), count, offset);
-}
+// With identity-mapped guest memory, guest pointers are valid host pointers.
+static inline void *guest_ptr(u64 addr) { return (void *)addr; }
+static inline const char *guest_str(u64 addr) { return (const char *)addr; }
 
 static i64 do_brk(x86::Model &m, u64 addr) {
-  if (addr == 0 || addr < m.memory.brk_base) {
-    return (i64)m.memory.brk_current;
+  if (addr == 0 || addr < m.brk_base) {
+    return (i64)m.brk_current;
   }
-  if (addr > m.memory.brk_current) {
-    m.memory.map_range(m.memory.brk_current, addr - m.memory.brk_current);
+  if (addr > m.brk_limit) {
+    // Can't grow beyond the pre-allocated region.
+    return (i64)m.brk_current;
   }
-  m.memory.brk_current = addr;
-  return (i64)m.memory.brk_current;
+  m.brk_current = addr;
+  return (i64)m.brk_current;
 }
 
-// Emulated mmap region tracker.
-static u64 mmap_next = 0x7F0000000000ULL;
-
 static i64 do_mmap(x86::Model &m, u64 addr, u64 length,
-                       u64 prot, u64 flags, u64 fd,
-                       u64 offset) {
-  (void)prot;
+                   u64 prot, u64 flags, u64 fd, u64 offset) {
   if (length == 0) return -EINVAL;
-
   length = (length + 4095) & ~4095ULL;
 
-  u64 result_addr;
-  if (addr != 0 && (flags & MAP_FIXED)) {
-    result_addr = addr;
-  } else if (addr != 0 && (flags & MAP_FIXED_NOREPLACE)) {
-    result_addr = addr;
-  } else {
-    result_addr = mmap_next;
-    mmap_next += length;
-  }
-
-  m.memory.map_range(result_addr, length);
-
-  if (flags & MAP_ANONYMOUS) {
-    m.memory.zero_range(result_addr, length);
-  } else if ((i64)fd >= 0) {
-    u8 buf[4096];
-    size_t total_read = 0;
-    u64 dst = result_addr;
-    lseek((int)fd, offset, SEEK_SET);
-    size_t remaining = length;
-    while (remaining > 0) {
-      size_t chunk = remaining > sizeof(buf) ? sizeof(buf) : remaining;
-      ssize_t n = ::read((int)fd, buf, chunk);
-      if (n <= 0) break;
-      m.memory.write(dst, buf, n);
-      dst += n;
-      total_read += n;
-      remaining -= n;
-    }
-    if (total_read < length) {
-      m.memory.zero_range(result_addr + total_read, length - total_read);
-    }
-  }
-
-  return (i64)result_addr;
+  // Pass through to real mmap. The kernel handles address selection,
+  // MAP_FIXED, MAP_ANONYMOUS, file-backed mappings, etc.
+  void *p = mmap((void *)addr, length, (int)prot, (int)flags,
+                 (int)(i32)fd, (off_t)offset);
+  if (p == MAP_FAILED)
+    return -(i64)errno;
+  return (i64)(u64)p;
 }
 
 void emulate_syscall(x86::Model &model) {
@@ -348,91 +266,49 @@ void emulate_syscall(x86::Model &model) {
 
   switch (syscall_nr) {
 
-  // ---- File I/O (bounce buffer for page-safety) ----
+  // ---- File I/O ----
 
   case SYS_READ: {
-    if (arg3 == 0) { result = 0; break; }
-    model.memory.map_range(arg2, arg3);
-    ssize_t n = host_read_to_guest(model, (int)arg1, arg2, arg3);
-    result = (n < 0) ? -errno : n;
+    result = ::read((int)arg1, guest_ptr(arg2), (size_t)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_PREAD64: {
-    if (arg3 == 0) { result = 0; break; }
-    model.memory.map_range(arg2, arg3);
-    ssize_t n = host_pread_to_guest(model, (int)arg1, arg2, arg3, (off_t)arg4);
-    result = (n < 0) ? -errno : n;
+    result = ::pread((int)arg1, guest_ptr(arg2), (size_t)arg3, (off_t)arg4);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_WRITE: {
-    if (arg3 == 0) { result = 0; break; }
-    ssize_t n = guest_write_to_host(model, (int)arg1, arg2, arg3);
-    result = (n < 0) ? -errno : n;
+    result = ::write((int)arg1, guest_ptr(arg2), (size_t)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_PWRITE64: {
-    if (arg3 == 0) { result = 0; break; }
-    ssize_t n = guest_pwrite_to_host(model, (int)arg1, arg2, arg3, (off_t)arg4);
-    result = (n < 0) ? -errno : n;
+    result = ::pwrite((int)arg1, guest_ptr(arg2), (size_t)arg3, (off_t)arg4);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_READV: {
-    int fd = (int)arg1;
-    u64 iov_addr = arg2;
-    int iovcnt = (int)arg3;
-    ssize_t total = 0;
-    for (int i = 0; i < iovcnt; i++) {
-      u64 base, len;
-      model.memory.read(iov_addr + i * 16, &base, 8);
-      model.memory.read(iov_addr + i * 16 + 8, &len, 8);
-      if (len > 0 && base != 0) {
-        model.memory.map_range(base, len);
-        ssize_t n = host_read_to_guest(model, fd, base, len);
-        if (n < 0) {
-          if (total == 0) total = -errno;
-          break;
-        }
-        total += n;
-        if ((size_t)n < len) break;
-      }
-    }
-    result = total;
+    // Guest iovec layout matches host (struct iovec = {void*, size_t})
+    result = ::readv((int)arg1, (struct iovec *)guest_ptr(arg2), (int)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_WRITEV: {
-    int fd = (int)arg1;
-    u64 iov_addr = arg2;
-    int iovcnt = (int)arg3;
-    ssize_t total = 0;
-    for (int i = 0; i < iovcnt; i++) {
-      u64 base, len;
-      model.memory.read(iov_addr + i * 16, &base, 8);
-      model.memory.read(iov_addr + i * 16 + 8, &len, 8);
-      if (len > 0 && base != 0) {
-        ssize_t n = guest_write_to_host(model, fd, base, len);
-        if (n < 0) {
-          if (total == 0) total = -errno;
-          break;
-        }
-        total += n;
-        if ((size_t)n < len) break;
-      }
-    }
-    result = total;
+    result = ::writev((int)arg1, (struct iovec *)guest_ptr(arg2), (int)arg3);
+    if (result < 0) result = -errno;
     break;
   }
 
   // ---- File open/close/seek ----
 
   case SYS_OPEN: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::open(path.c_str(), (int)arg2, (mode_t)arg3);
+    result = ::open(guest_str(arg1), (int)arg2, (mode_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_OPENAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::openat((int)(i32)arg1, path.c_str(), (int)arg3, (mode_t)arg4);
+    result = ::openat((int)(i32)arg1, guest_str(arg2), (int)arg3, (mode_t)arg4);
     if (result < 0) result = -errno;
     break;
   }
@@ -463,23 +339,13 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_PIPE: {
-    int fds[2];
-    result = ::pipe(fds);
-    if (result == 0) {
-      model.memory.write(arg1, fds, sizeof(fds));
-    } else {
-      result = -errno;
-    }
+    result = ::pipe((int *)guest_ptr(arg1));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_PIPE2: {
-    int fds[2];
-    result = ::pipe2(fds, (int)arg2);
-    if (result == 0) {
-      model.memory.write(arg1, fds, sizeof(fds));
-    } else {
-      result = -errno;
-    }
+    result = ::pipe2((int *)guest_ptr(arg1), (int)arg2);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_FCNTL: {
@@ -503,8 +369,7 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_TRUNCATE: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::truncate(path.c_str(), (off_t)arg2);
+    result = ::truncate(guest_str(arg1), (off_t)arg2);
     if (result < 0) result = -errno;
     break;
   }
@@ -514,8 +379,7 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_CREAT: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::creat(path.c_str(), (mode_t)arg2);
+    result = ::creat(guest_str(arg1), (mode_t)arg2);
     if (result < 0) result = -errno;
     break;
   }
@@ -525,60 +389,25 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_SENDFILE: {
-    off_t offset;
-    off_t *offp = nullptr;
-    if (arg3 != 0) {
-      model.memory.read(arg3, &offset, sizeof(offset));
-      offp = &offset;
-    }
-    result = ::sendfile((int)arg1, (int)arg2, offp, (size_t)arg4);
-    if (result >= 0 && arg3 != 0) {
-      model.memory.write(arg3, &offset, sizeof(offset));
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = ::sendfile((int)arg1, (int)arg2,
+                        arg3 ? (off_t *)guest_ptr(arg3) : nullptr, (size_t)arg4);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_COPY_FILE_RANGE: {
-    off_t off_in, off_out;
-    off_t *p_in = nullptr, *p_out = nullptr;
-    if (arg2 != 0) {
-      model.memory.read(arg2, &off_in, sizeof(off_in));
-      p_in = &off_in;
-    }
-    if (arg4 != 0) {
-      model.memory.read(arg4, &off_out, sizeof(off_out));
-      p_out = &off_out;
-    }
-    result = syscall(SYS_copy_file_range, (int)arg1, p_in,
-                     (int)arg3, p_out, (size_t)arg5, (unsigned)arg6);
-    if (result >= 0) {
-      if (arg2 != 0) model.memory.write(arg2, &off_in, sizeof(off_in));
-      if (arg4 != 0) model.memory.write(arg4, &off_out, sizeof(off_out));
-    } else {
-      result = -errno;
-    }
+    result = syscall(SYS_copy_file_range, (int)arg1,
+                     arg2 ? guest_ptr(arg2) : nullptr,
+                     (int)arg3,
+                     arg4 ? guest_ptr(arg4) : nullptr,
+                     (size_t)arg5, (unsigned)arg6);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SPLICE: {
-    off_t off_in, off_out;
-    off_t *p_in = nullptr, *p_out = nullptr;
-    if (arg2 != 0) {
-      model.memory.read(arg2, &off_in, sizeof(off_in));
-      p_in = &off_in;
-    }
-    if (arg4 != 0) {
-      model.memory.read(arg4, &off_out, sizeof(off_out));
-      p_out = &off_out;
-    }
-    result = ::splice((int)arg1, p_in, (int)arg3, p_out,
+    result = ::splice((int)arg1, arg2 ? (off_t *)guest_ptr(arg2) : nullptr,
+                      (int)arg3, arg4 ? (off_t *)guest_ptr(arg4) : nullptr,
                       (size_t)arg5, (unsigned)arg6);
-    if (result >= 0) {
-      if (arg2 != 0) model.memory.write(arg2, &off_in, sizeof(off_in));
-      if (arg4 != 0) model.memory.write(arg4, &off_out, sizeof(off_out));
-    } else {
-      result = -errno;
-    }
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_TEE: {
@@ -596,70 +425,37 @@ void emulate_syscall(x86::Model &model) {
 
   case SYS_STAT:
   case SYS_LSTAT: {
-    std::string path = read_guest_string(model, arg1);
-    struct stat st;
     result = (syscall_nr == SYS_STAT)
-      ? ::stat(path.c_str(), &st) : ::lstat(path.c_str(), &st);
-    if (result == 0) {
-      model.memory.write(arg2, &st, sizeof(st));
-    } else {
-      result = -errno;
-    }
+      ? ::stat(guest_str(arg1), (struct stat *)guest_ptr(arg2))
+      : ::lstat(guest_str(arg1), (struct stat *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_FSTAT: {
-    struct stat st;
-    result = ::fstat((int)arg1, &st);
-    if (result == 0) {
-      model.memory.write(arg2, &st, sizeof(st));
-    } else {
-      result = -errno;
-    }
+    result = ::fstat((int)arg1, (struct stat *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_NEWFSTATAT: {
-    std::string path = read_guest_string(model, arg2);
-    struct stat st;
-    result = ::fstatat((int)(i32)arg1, path.c_str(), &st, (int)arg4);
-    if (result == 0) {
-      model.memory.write(arg3, &st, sizeof(st));
-    } else {
-      result = -errno;
-    }
+    result = ::fstatat((int)(i32)arg1, guest_str(arg2),
+                       (struct stat *)guest_ptr(arg3), (int)arg4);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_STATFS: {
-    std::string path = read_guest_string(model, arg1);
-    struct statfs st;
-    result = ::statfs(path.c_str(), &st);
-    if (result == 0) {
-      model.memory.write(arg2, &st, sizeof(st));
-    } else {
-      result = -errno;
-    }
+    result = ::statfs(guest_str(arg1), (struct statfs *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_FSTATFS: {
-    struct statfs st;
-    result = ::fstatfs((int)arg1, &st);
-    if (result == 0) {
-      model.memory.write(arg2, &st, sizeof(st));
-    } else {
-      result = -errno;
-    }
+    result = ::fstatfs((int)arg1, (struct statfs *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_STATX: {
-    // statx(dirfd, pathname, flags, mask, statxbuf)
-    std::string path = read_guest_string(model, arg2);
-    struct statx stx;
-    result = syscall(SYS_statx, (int)(i32)arg1, path.c_str(),
-                     (int)arg3, (unsigned)arg4, &stx);
-    if (result == 0) {
-      model.memory.write(arg5, &stx, sizeof(stx));
-    } else {
-      result = -errno;
-    }
+    result = syscall(SYS_statx, (int)(i32)arg1, guest_str(arg2),
+                     (int)arg3, (unsigned)arg4, guest_ptr(arg5));
+    if (result < 0) result = -errno;
     break;
   }
 
@@ -669,38 +465,19 @@ void emulate_syscall(x86::Model &model) {
     result = do_mmap(model, arg1, arg2, arg3, arg4, arg5, arg6);
     break;
   case SYS_MPROTECT:
+    // No-op: passing through mprotect would make code pages unwritable,
+    // which breaks the Sail model's memory access pattern.
     result = 0;
     break;
-  case SYS_MUNMAP:
-    result = 0;
+  case SYS_MUNMAP: {
+    result = ::munmap(guest_ptr(arg1), (size_t)arg2);
+    if (result < 0) result = -errno;
     break;
+  }
   case SYS_MREMAP: {
-    u64 old_addr = arg1;
-    u64 old_size = (arg2 + 4095) & ~4095ULL;
-    u64 new_size = (arg3 + 4095) & ~4095ULL;
-    u64 flags = arg4;
-    if (new_size == 0) { result = -EINVAL; break; }
-    if (new_size <= old_size) {
-      result = (i64)old_addr;
-    } else {
-      u64 new_addr;
-      if (flags & 1 /* MREMAP_MAYMOVE */) {
-        new_addr = mmap_next;
-        mmap_next += new_size;
-      } else {
-        new_addr = old_addr;
-      }
-      model.memory.map_range(new_addr, new_size);
-      if (new_addr != old_addr) {
-        for (u64 i = 0; i < old_size; i += 4096) {
-          u8 buf[4096];
-          model.memory.read(old_addr + i, buf, 4096);
-          model.memory.write(new_addr + i, buf, 4096);
-        }
-      }
-      model.memory.zero_range(new_addr + old_size, new_size - old_size);
-      result = (i64)new_addr;
-    }
+    void *p = ::mremap(guest_ptr(arg1), (size_t)arg2, (size_t)arg3,
+                       (int)arg4, guest_ptr(arg5));
+    result = (p == MAP_FAILED) ? -(i64)errno : (i64)(u64)p;
     break;
   }
   case SYS_BRK:
@@ -714,32 +491,21 @@ void emulate_syscall(x86::Model &model) {
   // ---- Directory and path operations ----
 
   case SYS_GETDENTS64: {
-    // Use a bounce buffer — guest pages aren't contiguous.
-    size_t count = arg3;
-    std::vector<u8> tmp(count);
-    result = syscall(SYS_getdents64, (int)arg1, tmp.data(), count);
-    if (result > 0) {
-      model.memory.write(arg2, tmp.data(), result);
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = syscall(SYS_getdents64, (int)arg1, guest_ptr(arg2), (size_t)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_GETCWD: {
-    char cwd[4096];
-    if (getcwd(cwd, sizeof(cwd))) {
-      size_t len = strlen(cwd) + 1;
-      if (len > arg2) { result = -ERANGE; break; }
-      model.memory.write(arg1, cwd, len);
-      result = len;
-    } else {
+    result = (i64)(u64)::getcwd((char *)guest_ptr(arg1), (size_t)arg2);
+    if (result == 0) {
       result = -errno;
+    } else {
+      result = strlen((char *)guest_ptr(arg1)) + 1;
     }
     break;
   }
   case SYS_CHDIR: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::chdir(path.c_str());
+    result = ::chdir(guest_str(arg1));
     if (result < 0) result = -errno;
     break;
   }
@@ -749,87 +515,60 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_ACCESS: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::access(path.c_str(), (int)arg2);
+    result = ::access(guest_str(arg1), (int)arg2);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_FACCESSAT:
   case SYS_FACCESSAT2: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::faccessat((int)(i32)arg1, path.c_str(), (int)arg3, (int)arg4);
+    result = ::faccessat((int)(i32)arg1, guest_str(arg2), (int)arg3, (int)arg4);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_READLINK: {
-    std::string path = read_guest_string(model, arg1);
-    char buf[4096];
-    ssize_t n = ::readlink(path.c_str(), buf, sizeof(buf));
-    if (n >= 0) {
-      if ((u64)n > arg3) n = arg3;
-      model.memory.write(arg2, buf, n);
-      result = n;
-    } else {
-      result = -errno;
-    }
+    result = ::readlink(guest_str(arg1), (char *)guest_ptr(arg2), (size_t)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_READLINKAT: {
-    int dirfd = (int)(i64)arg1;
-    std::string path = read_guest_string(model, arg2);
-    char buf[4096];
-    ssize_t n = ::readlinkat(dirfd, path.c_str(), buf, sizeof(buf));
-    if (n >= 0) {
-      if ((u64)n > arg4) n = arg4;
-      model.memory.write(arg3, buf, n);
-      result = n;
-    } else {
-      result = -errno;
-    }
+    result = ::readlinkat((int)(i32)arg1, guest_str(arg2),
+                          (char *)guest_ptr(arg3), (size_t)arg4);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_MKDIR: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::mkdir(path.c_str(), (mode_t)arg2);
+    result = ::mkdir(guest_str(arg1), (mode_t)arg2);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RMDIR: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::rmdir(path.c_str());
+    result = ::rmdir(guest_str(arg1));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_UNLINK: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::unlink(path.c_str());
+    result = ::unlink(guest_str(arg1));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_UNLINKAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::unlinkat((int)(i32)arg1, path.c_str(), (int)arg3);
+    result = ::unlinkat((int)(i32)arg1, guest_str(arg2), (int)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RENAME: {
-    std::string old_path = read_guest_string(model, arg1);
-    std::string new_path = read_guest_string(model, arg2);
-    result = ::rename(old_path.c_str(), new_path.c_str());
+    result = ::rename(guest_str(arg1), guest_str(arg2));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RENAMEAT: {
-    std::string old_path = read_guest_string(model, arg2);
-    std::string new_path = read_guest_string(model, arg4);
-    result = ::renameat((int)(i32)arg1, old_path.c_str(),
-                        (int)(i32)arg3, new_path.c_str());
+    result = ::renameat((int)(i32)arg1, guest_str(arg2),
+                        (int)(i32)arg3, guest_str(arg4));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_CHMOD: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::chmod(path.c_str(), (mode_t)arg2);
+    result = ::chmod(guest_str(arg1), (mode_t)arg2);
     if (result < 0) result = -errno;
     break;
   }
@@ -839,8 +578,7 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_CHOWN: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::chown(path.c_str(), (uid_t)arg2, (gid_t)arg3);
+    result = ::chown(guest_str(arg1), (uid_t)arg2, (gid_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
@@ -854,128 +592,85 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_LINK: {
-    std::string oldpath = read_guest_string(model, arg1);
-    std::string newpath = read_guest_string(model, arg2);
-    result = ::link(oldpath.c_str(), newpath.c_str());
+    result = ::link(guest_str(arg1), guest_str(arg2));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_LINKAT: {
-    std::string oldpath = read_guest_string(model, arg2);
-    std::string newpath = read_guest_string(model, arg4);
-    result = ::linkat((int)(i32)arg1, oldpath.c_str(),
-                      (int)(i32)arg3, newpath.c_str(), (int)arg5);
+    result = ::linkat((int)(i32)arg1, guest_str(arg2),
+                      (int)(i32)arg3, guest_str(arg4), (int)arg5);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_SYMLINK: {
-    std::string target = read_guest_string(model, arg1);
-    std::string linkpath = read_guest_string(model, arg2);
-    result = ::symlink(target.c_str(), linkpath.c_str());
+    result = ::symlink(guest_str(arg1), guest_str(arg2));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_SYMLINKAT: {
-    std::string target = read_guest_string(model, arg1);
-    std::string linkpath = read_guest_string(model, arg3);
-    result = ::symlinkat(target.c_str(), (int)(i32)arg2, linkpath.c_str());
+    result = ::symlinkat(guest_str(arg1), (int)(i32)arg2, guest_str(arg3));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_LCHOWN: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::lchown(path.c_str(), (uid_t)arg2, (gid_t)arg3);
+    result = ::lchown(guest_str(arg1), (uid_t)arg2, (gid_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_MKDIRAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::mkdirat((int)(i32)arg1, path.c_str(), (mode_t)arg3);
+    result = ::mkdirat((int)(i32)arg1, guest_str(arg2), (mode_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_FCHMODAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::fchmodat((int)(i32)arg1, path.c_str(), (mode_t)arg3, (int)arg4);
+    result = ::fchmodat((int)(i32)arg1, guest_str(arg2), (mode_t)arg3, (int)arg4);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_FCHOWNAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::fchownat((int)(i32)arg1, path.c_str(),
+    result = ::fchownat((int)(i32)arg1, guest_str(arg2),
                         (uid_t)arg3, (gid_t)arg4, (int)arg5);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RENAMEAT2: {
-    std::string old_path = read_guest_string(model, arg2);
-    std::string new_path = read_guest_string(model, arg4);
-    result = syscall(SYS_renameat2, (int)(i32)arg1, old_path.c_str(),
-                     (int)(i32)arg3, new_path.c_str(), (unsigned)arg5);
+    result = syscall(SYS_renameat2, (int)(i32)arg1, guest_str(arg2),
+                     (int)(i32)arg3, guest_str(arg4), (unsigned)arg5);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_MKNOD: {
-    std::string path = read_guest_string(model, arg1);
-    result = ::mknod(path.c_str(), (mode_t)arg2, (dev_t)arg3);
+    result = ::mknod(guest_str(arg1), (mode_t)arg2, (dev_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_MKNODAT: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::mknodat((int)(i32)arg1, path.c_str(), (mode_t)arg3, (dev_t)arg4);
+    result = ::mknodat((int)(i32)arg1, guest_str(arg2), (mode_t)arg3, (dev_t)arg4);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_GETDENTS: {
-    size_t count = arg3;
-    std::vector<u8> tmp(count);
-    result = syscall(SYS_getdents, (int)arg1, tmp.data(), count);
-    if (result > 0) {
-      model.memory.write(arg2, tmp.data(), result);
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = syscall(SYS_getdents, (int)arg1, guest_ptr(arg2), (size_t)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_UTIMENSAT: {
-    std::string path;
-    const char *pathp = nullptr;
-    if (arg2 != 0) {
-      path = read_guest_string(model, arg2);
-      pathp = path.c_str();
-    }
-    struct timespec times[2];
-    struct timespec *timesp = nullptr;
-    if (arg3 != 0) {
-      model.memory.read(arg3, times, sizeof(times));
-      timesp = times;
-    }
-    result = ::utimensat((int)(i32)arg1, pathp, timesp, (int)arg4);
+    result = syscall(SYS_utimensat, (int)(i32)arg1,
+                     arg2 ? guest_str(arg2) : nullptr,
+                     arg3 ? (struct timespec *)guest_ptr(arg3) : nullptr,
+                     (int)arg4);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_UTIME: {
-    std::string path = read_guest_string(model, arg1);
-    if (arg2 == 0) {
-      result = ::utime(path.c_str(), nullptr);
-    } else {
-      struct utimbuf ut;
-      model.memory.read(arg2, &ut, sizeof(ut));
-      result = ::utime(path.c_str(), &ut);
-    }
+    result = ::utime(guest_str(arg1),
+                     arg2 ? (struct utimbuf *)guest_ptr(arg2) : nullptr);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_UTIMES: {
-    std::string path = read_guest_string(model, arg1);
-    if (arg2 == 0) {
-      result = ::utimes(path.c_str(), nullptr);
-    } else {
-      struct timeval tvs[2];
-      model.memory.read(arg2, tvs, sizeof(tvs));
-      result = ::utimes(path.c_str(), tvs);
-    }
+    result = ::utimes(guest_str(arg1),
+                      arg2 ? (struct timeval *)guest_ptr(arg2) : nullptr);
     if (result < 0) result = -errno;
     break;
   }
@@ -1004,14 +699,12 @@ void emulate_syscall(x86::Model &model) {
       result = 0;
       break;
     case ARCH_GET_FS: {
-      u64 val = model.zFS_BASE;
-      model.memory.write(arg2, &val, 8);
+      *(u64 *)guest_ptr(arg2) = model.zFS_BASE;
       result = 0;
       break;
     }
     case ARCH_GET_GS: {
-      u64 val = model.zGS_BASE;
-      model.memory.write(arg2, &val, 8);
+      *(u64 *)guest_ptr(arg2) = model.zGS_BASE;
       result = 0;
       break;
     }
@@ -1023,25 +716,19 @@ void emulate_syscall(x86::Model &model) {
   // ---- System info ----
 
   case SYS_UNAME: {
-    struct utsname uts;
-    memset(&uts, 0, sizeof(uts));
-    strcpy(uts.sysname, "Linux");
-    strcpy(uts.nodename, "sail-x86");
-    strcpy(uts.release, "6.1.0");
-    strcpy(uts.version, "#1");
-    strcpy(uts.machine, "x86_64");
-    model.memory.write(arg1, &uts, sizeof(uts));
+    struct utsname *uts = (struct utsname *)guest_ptr(arg1);
+    memset(uts, 0, sizeof(*uts));
+    strcpy(uts->sysname, "Linux");
+    strcpy(uts->nodename, "sail-x86");
+    strcpy(uts->release, "6.1.0");
+    strcpy(uts->version, "#1");
+    strcpy(uts->machine, "x86_64");
     result = 0;
     break;
   }
   case SYS_SYSINFO: {
-    struct sysinfo si;
-    result = ::sysinfo(&si);
-    if (result == 0) {
-      model.memory.write(arg1, &si, sizeof(si));
-    } else {
-      result = -errno;
-    }
+    result = ::sysinfo((struct sysinfo *)guest_ptr(arg1));
+    if (result < 0) result = -errno;
     break;
   }
 
@@ -1066,49 +753,26 @@ void emulate_syscall(x86::Model &model) {
   case SYS_SETREGID: result = ::setregid((gid_t)arg1, (gid_t)arg2); if (result < 0) result = -errno; break;
   case SYS_SETRESUID: result = ::setresuid((uid_t)arg1, (uid_t)arg2, (uid_t)arg3); if (result < 0) result = -errno; break;
   case SYS_GETRESUID: {
-    uid_t r, e, s;
-    result = ::getresuid(&r, &e, &s);
-    if (result == 0) {
-      model.memory.write(arg1, &r, sizeof(r));
-      model.memory.write(arg2, &e, sizeof(e));
-      model.memory.write(arg3, &s, sizeof(s));
-    } else {
-      result = -errno;
-    }
+    result = ::getresuid((uid_t *)guest_ptr(arg1), (uid_t *)guest_ptr(arg2),
+                         (uid_t *)guest_ptr(arg3));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SETRESGID: result = ::setresgid((gid_t)arg1, (gid_t)arg2, (gid_t)arg3); if (result < 0) result = -errno; break;
   case SYS_GETRESGID: {
-    gid_t r, e, s;
-    result = ::getresgid(&r, &e, &s);
-    if (result == 0) {
-      model.memory.write(arg1, &r, sizeof(r));
-      model.memory.write(arg2, &e, sizeof(e));
-      model.memory.write(arg3, &s, sizeof(s));
-    } else {
-      result = -errno;
-    }
+    result = ::getresgid((gid_t *)guest_ptr(arg1), (gid_t *)guest_ptr(arg2),
+                         (gid_t *)guest_ptr(arg3));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SETGROUPS: {
-    int size = (int)arg1;
-    std::vector<gid_t> groups(size);
-    if (size > 0) model.memory.read(arg2, groups.data(), size * sizeof(gid_t));
-    result = ::setgroups(size, groups.data());
+    result = ::setgroups((int)arg1, (gid_t *)guest_ptr(arg2));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_GETGROUPS: {
-    int size = (int)arg1;
-    if (size == 0) {
-      result = ::getgroups(0, nullptr);
-    } else {
-      std::vector<gid_t> groups(size);
-      result = ::getgroups(size, groups.data());
-      if (result > 0) {
-        model.memory.write(arg2, groups.data(), result * sizeof(gid_t));
-      }
-    }
+    result = ::getgroups((int)arg1,
+                         arg1 ? (gid_t *)guest_ptr(arg2) : nullptr);
     if (result < 0) result = -errno;
     break;
   }
@@ -1116,99 +780,53 @@ void emulate_syscall(x86::Model &model) {
   // ---- Time ----
 
   case SYS_CLOCK_GETTIME: {
-    struct timespec ts;
-    result = ::clock_gettime((clockid_t)arg1, &ts);
-    if (result == 0) {
-      model.memory.write(arg2, &ts, sizeof(ts));
-    } else {
-      result = -errno;
-    }
+    result = ::clock_gettime((clockid_t)arg1, (struct timespec *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_GETTIMEOFDAY: {
-    struct timeval tv;
-    result = ::gettimeofday(&tv, nullptr);
-    if (result == 0) {
-      model.memory.write(arg1, &tv, sizeof(tv));
-    } else {
-      result = -errno;
-    }
+    result = ::gettimeofday((struct timeval *)guest_ptr(arg1), nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_TIME: {
-    time_t t = ::time(nullptr);
-    if (arg1 != 0) {
-      model.memory.write(arg1, &t, sizeof(t));
-    }
-    result = (i64)t;
+    result = (i64)::time(arg1 ? (time_t *)guest_ptr(arg1) : nullptr);
     break;
   }
   case SYS_NANOSLEEP: {
-    struct timespec req;
-    model.memory.read(arg1, &req, sizeof(req));
-    struct timespec rem;
-    result = ::nanosleep(&req, &rem);
-    if (result < 0) {
-      if (errno == EINTR && arg2 != 0) {
-        model.memory.write(arg2, &rem, sizeof(rem));
-      }
-      result = -errno;
-    }
+    result = ::nanosleep((struct timespec *)guest_ptr(arg1),
+                         arg2 ? (struct timespec *)guest_ptr(arg2) : nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_CLOCK_GETRES: {
-    struct timespec ts;
-    result = ::clock_getres((clockid_t)arg1, arg2 ? &ts : nullptr);
-    if (result == 0 && arg2 != 0) {
-      model.memory.write(arg2, &ts, sizeof(ts));
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = ::clock_getres((clockid_t)arg1,
+                            arg2 ? (struct timespec *)guest_ptr(arg2) : nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_CLOCK_NANOSLEEP: {
-    struct timespec req;
-    model.memory.read(arg3, &req, sizeof(req));
-    struct timespec rem;
-    result = ::clock_nanosleep((clockid_t)arg1, (int)arg2, &req, &rem);
-    if (result == EINTR && arg4 != 0) {
-      model.memory.write(arg4, &rem, sizeof(rem));
-    }
+    result = ::clock_nanosleep((clockid_t)arg1, (int)arg2,
+                               (struct timespec *)guest_ptr(arg3),
+                               arg4 ? (struct timespec *)guest_ptr(arg4) : nullptr);
     // clock_nanosleep returns error code directly (not -1/errno)
     if (result != 0) result = -result;
     break;
   }
   case SYS_GETITIMER: {
-    struct itimerval val;
-    result = ::getitimer((int)arg1, &val);
-    if (result == 0) {
-      model.memory.write(arg2, &val, sizeof(val));
-    } else {
-      result = -errno;
-    }
+    result = ::getitimer((int)arg1, (struct itimerval *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SETITIMER: {
-    struct itimerval newval;
-    model.memory.read(arg2, &newval, sizeof(newval));
-    struct itimerval oldval;
-    result = ::setitimer((int)arg1, &newval, arg3 ? &oldval : nullptr);
-    if (result == 0 && arg3 != 0) {
-      model.memory.write(arg3, &oldval, sizeof(oldval));
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = ::setitimer((int)arg1, (struct itimerval *)guest_ptr(arg2),
+                         arg3 ? (struct itimerval *)guest_ptr(arg3) : nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_TIMES: {
-    struct tms buf;
-    clock_t t = ::times(&buf);
-    if (t == (clock_t)-1) {
-      result = -errno;
-    } else {
-      model.memory.write(arg1, &buf, sizeof(buf));
-      result = (i64)t;
-    }
+    clock_t t = ::times((struct tms *)guest_ptr(arg1));
+    result = (t == (clock_t)-1) ? -errno : (i64)t;
     break;
   }
 
@@ -1245,8 +863,7 @@ void emulate_syscall(x86::Model &model) {
     result = 0;
     break;
   case SYS_FUTEX: {
-    u32 *host_addr = (u32 *)model.memory.host_ptr(arg1);
-    result = syscall(SYS_futex, host_addr, arg2, arg3, arg4, arg5, arg6);
+    result = syscall(SYS_futex, guest_ptr(arg1), arg2, arg3, arg4, arg5, arg6);
     if (result < 0) result = -errno;
     break;
   }
@@ -1255,74 +872,53 @@ void emulate_syscall(x86::Model &model) {
 
   case SYS_PRLIMIT64: {
     if (arg3 != 0) {
-      struct rlimit rl;
-      rl.rlim_cur = RLIM_INFINITY;
-      rl.rlim_max = RLIM_INFINITY;
-      model.memory.write(arg3, &rl, sizeof(rl));
+      struct rlimit *rl = (struct rlimit *)guest_ptr(arg3);
+      rl->rlim_cur = RLIM_INFINITY;
+      rl->rlim_max = RLIM_INFINITY;
     }
     result = 0;
     break;
   }
   case SYS_SETRLIMIT: {
-    struct rlimit rl;
-    model.memory.read(arg2, &rl, sizeof(rl));
-    result = ::setrlimit((int)arg1, &rl);
+    result = ::setrlimit((int)arg1, (struct rlimit *)guest_ptr(arg2));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_GETRLIMIT: {
-    struct rlimit rl;
-    result = ::getrlimit((int)arg1, &rl);
-    if (result == 0) {
-      model.memory.write(arg2, &rl, sizeof(rl));
-    } else {
-      result = -errno;
-    }
+    result = ::getrlimit((int)arg1, (struct rlimit *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_GETRUSAGE: {
-    struct rusage ru;
-    result = ::getrusage((int)arg1, &ru);
-    if (result == 0) {
-      model.memory.write(arg2, &ru, sizeof(ru));
-    } else {
-      result = -errno;
-    }
+    result = ::getrusage((int)arg1, (struct rusage *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
 
   // ---- Random ----
 
   case SYS_GETRANDOM: {
-    size_t count = arg2;
-    if (count == 0) { result = 0; break; }
-    std::vector<u8> tmp(count);
-    result = syscall(SYS_getrandom, tmp.data(), count, (unsigned)arg3);
-    if (result > 0) {
-      model.memory.write(arg1, tmp.data(), result);
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = syscall(SYS_getrandom, guest_ptr(arg1), (size_t)arg2, (unsigned)arg3);
+    if (result < 0) result = -errno;
     break;
   }
 
   // ---- Misc ----
 
   case SYS_IOCTL: {
-    int fd = arg1;
+    int fd = (int)arg1;
     u64 request = arg2;
-    u64 argp = arg3;
-    // Pass through terminal ioctls to the host.
-    if (request == TCGETS || request == TIOCGWINSZ ||
-        request == TIOCGPGRP || request == TIOCSPGRP) {
+    // Terminal ioctls: use host buffer to avoid size mismatches.
+    if (request == 0x5401 /*TCGETS*/ || request == 0x5413 /*TIOCGWINSZ*/ ||
+        request == 0x540F /*TIOCGPGRP*/ || request == 0x5410 /*TIOCSPGRP*/) {
       u8 buf[256] = {};
-      size_t sz = (request == TCGETS) ? 36 :
-                  (request == TIOCGWINSZ) ? 8 : 4;
-      int r = ::ioctl(fd, request, buf);
+      size_t sz = (request == 0x5401) ? 36 :
+                  (request == 0x5413) ? 8 : 4;
+      int r = syscall(SYS_ioctl, fd, request, buf);
       if (r < 0) {
         result = -errno;
       } else {
-        model.memory.write(argp, buf, sz);
+        memcpy(guest_ptr(arg3), buf, sz);
         result = 0;
       }
     } else {
@@ -1340,95 +936,46 @@ void emulate_syscall(x86::Model &model) {
     result = ::sched_yield();
     break;
   case SYS_SCHED_SETAFFINITY: {
-    size_t cpusetsize = arg3;
-    std::vector<u8> tmp(cpusetsize);
-    model.memory.read(arg3, tmp.data(), cpusetsize);
-    result = syscall(SYS_sched_setaffinity, (pid_t)arg1, cpusetsize, tmp.data());
+    result = syscall(SYS_sched_setaffinity, (pid_t)arg1, (size_t)arg2,
+                     guest_ptr(arg3));
     if (result < 0) result = -errno;
     break;
   }
   case SYS_SCHED_GETAFFINITY: {
-    size_t cpusetsize = arg2;
-    std::vector<u8> tmp(cpusetsize, 0);
-    result = syscall(SYS_sched_getaffinity, (pid_t)arg1, cpusetsize,
-                     tmp.data());
-    if (result >= 0) {
-      model.memory.write(arg3, tmp.data(), cpusetsize);
-    } else {
-      result = -errno;
-    }
+    result = syscall(SYS_sched_getaffinity, (pid_t)arg1, (size_t)arg2,
+                     guest_ptr(arg3));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_POLL: {
-    u64 nfds = arg2;
-    size_t sz = nfds * sizeof(struct pollfd);
-    std::vector<struct pollfd> fds(nfds);
-    model.memory.read(arg1, fds.data(), sz);
-    result = ::poll(fds.data(), nfds, (int)arg3);
-    if (result >= 0) {
-      model.memory.write(arg1, fds.data(), sz);
-    } else {
-      result = -errno;
-    }
+    result = ::poll((struct pollfd *)guest_ptr(arg1), (nfds_t)arg2, (int)arg3);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_PPOLL: {
-    u64 nfds = arg2;
-    size_t sz = nfds * sizeof(struct pollfd);
-    std::vector<struct pollfd> fds(nfds);
-    model.memory.read(arg1, fds.data(), sz);
-    struct timespec ts, *tsp = nullptr;
-    if (arg3 != 0) {
-      model.memory.read(arg3, &ts, sizeof(ts));
-      tsp = &ts;
-    }
-    // Ignore sigmask (arg4/arg5) — signals are stubbed
-    result = ::ppoll(fds.data(), nfds, tsp, nullptr);
-    if (result >= 0) {
-      model.memory.write(arg1, fds.data(), sz);
-    } else {
-      result = -errno;
-    }
+    result = ::ppoll((struct pollfd *)guest_ptr(arg1), (nfds_t)arg2,
+                     arg3 ? (struct timespec *)guest_ptr(arg3) : nullptr,
+                     nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SELECT: {
-    int nfds = (int)arg1;
-    fd_set rfds, wfds, efds;
-    fd_set *rp = nullptr, *wp = nullptr, *ep = nullptr;
-    if (arg2 != 0) { model.memory.read(arg2, &rfds, sizeof(rfds)); rp = &rfds; }
-    if (arg3 != 0) { model.memory.read(arg3, &wfds, sizeof(wfds)); wp = &wfds; }
-    if (arg4 != 0) { model.memory.read(arg4, &efds, sizeof(efds)); ep = &efds; }
-    struct timeval tv, *tvp = nullptr;
-    if (arg5 != 0) { model.memory.read(arg5, &tv, sizeof(tv)); tvp = &tv; }
-    result = ::select(nfds, rp, wp, ep, tvp);
-    if (result >= 0) {
-      if (arg2 != 0) model.memory.write(arg2, &rfds, sizeof(rfds));
-      if (arg3 != 0) model.memory.write(arg3, &wfds, sizeof(wfds));
-      if (arg4 != 0) model.memory.write(arg4, &efds, sizeof(efds));
-      if (arg5 != 0) model.memory.write(arg5, &tv, sizeof(tv));
-    } else {
-      result = -errno;
-    }
+    result = ::select((int)arg1,
+                      arg2 ? (fd_set *)guest_ptr(arg2) : nullptr,
+                      arg3 ? (fd_set *)guest_ptr(arg3) : nullptr,
+                      arg4 ? (fd_set *)guest_ptr(arg4) : nullptr,
+                      arg5 ? (struct timeval *)guest_ptr(arg5) : nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_PSELECT6: {
-    int nfds = (int)arg1;
-    fd_set rfds, wfds, efds;
-    fd_set *rp = nullptr, *wp = nullptr, *ep = nullptr;
-    if (arg2 != 0) { model.memory.read(arg2, &rfds, sizeof(rfds)); rp = &rfds; }
-    if (arg3 != 0) { model.memory.read(arg3, &wfds, sizeof(wfds)); wp = &wfds; }
-    if (arg4 != 0) { model.memory.read(arg4, &efds, sizeof(efds)); ep = &efds; }
-    struct timespec ts, *tsp = nullptr;
-    if (arg5 != 0) { model.memory.read(arg5, &ts, sizeof(ts)); tsp = &ts; }
-    // Ignore sigmask (arg6) — signals are stubbed
-    result = ::pselect(nfds, rp, wp, ep, tsp, nullptr);
-    if (result >= 0) {
-      if (arg2 != 0) model.memory.write(arg2, &rfds, sizeof(rfds));
-      if (arg3 != 0) model.memory.write(arg3, &wfds, sizeof(wfds));
-      if (arg4 != 0) model.memory.write(arg4, &efds, sizeof(efds));
-    } else {
-      result = -errno;
-    }
+    result = ::pselect((int)arg1,
+                       arg2 ? (fd_set *)guest_ptr(arg2) : nullptr,
+                       arg3 ? (fd_set *)guest_ptr(arg3) : nullptr,
+                       arg4 ? (fd_set *)guest_ptr(arg4) : nullptr,
+                       arg5 ? (struct timespec *)guest_ptr(arg5) : nullptr,
+                       nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SETSID: {
@@ -1437,8 +984,8 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_MSYNC: {
-    // No-op — guest memory isn't real mmap'd memory
-    result = 0;
+    result = ::msync(guest_ptr(arg1), (size_t)arg2, (int)arg3);
+    if (result < 0) result = -errno;
     break;
   }
 
@@ -1450,16 +997,12 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_CONNECT: {
-    std::vector<u8> addr(arg3);
-    model.memory.read(arg2, addr.data(), arg3);
-    result = ::connect((int)arg1, (struct sockaddr *)addr.data(), (socklen_t)arg3);
+    result = ::connect((int)arg1, (struct sockaddr *)guest_ptr(arg2), (socklen_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_BIND: {
-    std::vector<u8> addr(arg3);
-    model.memory.read(arg2, addr.data(), arg3);
-    result = ::bind((int)arg1, (struct sockaddr *)addr.data(), (socklen_t)arg3);
+    result = ::bind((int)arg1, (struct sockaddr *)guest_ptr(arg2), (socklen_t)arg3);
     if (result < 0) result = -errno;
     break;
   }
@@ -1474,217 +1017,65 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_SETSOCKOPT: {
-    std::vector<u8> optval(arg5);
-    model.memory.read(arg4, optval.data(), arg5);
     result = ::setsockopt((int)arg1, (int)arg2, (int)arg3,
-                          optval.data(), (socklen_t)arg5);
+                          guest_ptr(arg4), (socklen_t)arg5);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_GETSOCKOPT: {
-    u8 optval[256];
-    socklen_t optlen = sizeof(optval);
-    model.memory.read(arg5, &optlen, sizeof(optlen));
-    if (optlen > sizeof(optval)) optlen = sizeof(optval);
-    result = ::getsockopt((int)arg1, (int)arg2, (int)arg3, optval, &optlen);
-    if (result == 0) {
-      model.memory.write(arg4, optval, optlen);
-      model.memory.write(arg5, &optlen, sizeof(optlen));
-    } else {
-      result = -errno;
-    }
+    result = ::getsockopt((int)arg1, (int)arg2, (int)arg3,
+                          guest_ptr(arg4), (socklen_t *)guest_ptr(arg5));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_ACCEPT:
   case SYS_ACCEPT4: {
-    u8 addr[128];
-    socklen_t addrlen = sizeof(addr);
-    if (arg2 != 0 && arg3 != 0) {
-      model.memory.read(arg3, &addrlen, sizeof(addrlen));
-      if (addrlen > sizeof(addr)) addrlen = sizeof(addr);
-    }
-    int flags = (syscall_nr == SYS_ACCEPT4) ? (int)arg4 : 0;
-    if (arg2 != 0 && arg3 != 0) {
-      result = (syscall_nr == SYS_ACCEPT4)
-        ? ::accept4((int)arg1, (struct sockaddr *)addr, &addrlen, flags)
-        : ::accept((int)arg1, (struct sockaddr *)addr, &addrlen);
-      if (result >= 0) {
-        model.memory.write(arg2, addr, addrlen);
-        model.memory.write(arg3, &addrlen, sizeof(addrlen));
-      }
-    } else {
-      result = (syscall_nr == SYS_ACCEPT4)
-        ? ::accept4((int)arg1, nullptr, nullptr, flags)
-        : ::accept((int)arg1, nullptr, nullptr);
-    }
+    struct sockaddr *addr = arg2 ? (struct sockaddr *)guest_ptr(arg2) : nullptr;
+    socklen_t *lenp = arg3 ? (socklen_t *)guest_ptr(arg3) : nullptr;
+    result = (syscall_nr == SYS_ACCEPT4)
+      ? ::accept4((int)arg1, addr, lenp, (int)arg4)
+      : ::accept((int)arg1, addr, lenp);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_SOCKETPAIR: {
-    int sv[2];
-    result = ::socketpair((int)arg1, (int)arg2, (int)arg3, sv);
-    if (result == 0) {
-      model.memory.write(arg4, sv, sizeof(sv));
-    } else {
-      result = -errno;
-    }
+    result = ::socketpair((int)arg1, (int)arg2, (int)arg3,
+                          (int *)guest_ptr(arg4));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SENDTO: {
-    std::vector<u8> buf(arg3);
-    model.memory.read(arg2, buf.data(), arg3);
-    if (arg5 != 0 && arg6 != 0) {
-      std::vector<u8> addr(arg6);
-      model.memory.read(arg5, addr.data(), arg6);
-      result = ::sendto((int)arg1, buf.data(), arg3, (int)arg4,
-                        (struct sockaddr *)addr.data(), (socklen_t)arg6);
-    } else {
-      result = ::sendto((int)arg1, buf.data(), arg3, (int)arg4, nullptr, 0);
-    }
+    result = ::sendto((int)arg1, guest_ptr(arg2), (size_t)arg3, (int)arg4,
+                      arg5 ? (struct sockaddr *)guest_ptr(arg5) : nullptr,
+                      (socklen_t)arg6);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RECVFROM: {
-    std::vector<u8> buf(arg3);
-    u8 addr[128];
-    socklen_t addrlen = sizeof(addr);
-    if (arg5 != 0 && arg6 != 0) {
-      model.memory.read(arg6, &addrlen, sizeof(addrlen));
-      if (addrlen > sizeof(addr)) addrlen = sizeof(addr);
-      result = ::recvfrom((int)arg1, buf.data(), arg3, (int)arg4,
-                          (struct sockaddr *)addr, &addrlen);
-      if (result >= 0) {
-        model.memory.write(arg2, buf.data(), result);
-        model.memory.write(arg5, addr, addrlen);
-        model.memory.write(arg6, &addrlen, sizeof(addrlen));
-      }
-    } else {
-      result = ::recvfrom((int)arg1, buf.data(), arg3, (int)arg4, nullptr, nullptr);
-      if (result >= 0) {
-        model.memory.write(arg2, buf.data(), result);
-      }
-    }
+    result = ::recvfrom((int)arg1, guest_ptr(arg2), (size_t)arg3, (int)arg4,
+                        arg5 ? (struct sockaddr *)guest_ptr(arg5) : nullptr,
+                        arg6 ? (socklen_t *)guest_ptr(arg6) : nullptr);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_SENDMSG: {
-    // Read msghdr from guest
-    u64 hdr[7]; // name, namelen, iov, iovlen, control, controllen, flags
-    model.memory.read(arg2, hdr, sizeof(hdr));
-    u64 g_name = hdr[0], g_namelen = hdr[1];
-    u64 g_iov = hdr[2], g_iovlen = hdr[3];
-    int flags = (int)arg3;
-
-    // Gather iovec data from guest
-    std::vector<u8> flat_buf;
-    for (u64 i = 0; i < g_iovlen; i++) {
-      u64 base, len;
-      model.memory.read(g_iov + i * 16, &base, 8);
-      model.memory.read(g_iov + i * 16 + 8, &len, 8);
-      size_t old_sz = flat_buf.size();
-      flat_buf.resize(old_sz + len);
-      if (len > 0) model.memory.read(base, flat_buf.data() + old_sz, len);
-    }
-
-    struct iovec iov;
-    iov.iov_base = flat_buf.data();
-    iov.iov_len = flat_buf.size();
-
-    struct msghdr msg = {};
-    std::vector<u8> name_buf;
-    if (g_name != 0 && g_namelen > 0) {
-      name_buf.resize(g_namelen);
-      model.memory.read(g_name, name_buf.data(), g_namelen);
-      msg.msg_name = name_buf.data();
-      msg.msg_namelen = g_namelen;
-    }
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-
-    result = ::sendmsg((int)arg1, &msg, flags);
+    result = ::sendmsg((int)arg1, (struct msghdr *)guest_ptr(arg2), (int)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_RECVMSG: {
-    u64 hdr[7];
-    model.memory.read(arg2, hdr, sizeof(hdr));
-    u64 g_name = hdr[0], g_namelen = hdr[1];
-    u64 g_iov = hdr[2], g_iovlen = hdr[3];
-    u64 g_control = hdr[4], g_controllen = hdr[5];
-    int flags = (int)arg3;
-
-    // Calculate total iovec size
-    size_t total_len = 0;
-    for (u64 i = 0; i < g_iovlen; i++) {
-      u64 len;
-      model.memory.read(g_iov + i * 16 + 8, &len, 8);
-      total_len += len;
-    }
-
-    std::vector<u8> flat_buf(total_len);
-    struct iovec iov;
-    iov.iov_base = flat_buf.data();
-    iov.iov_len = total_len;
-
-    u8 name_buf[128] = {};
-    std::vector<u8> ctrl_buf(g_controllen ? g_controllen : 1);
-    struct msghdr msg = {};
-    if (g_name != 0) {
-      msg.msg_name = name_buf;
-      msg.msg_namelen = sizeof(name_buf);
-    }
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    if (g_control != 0 && g_controllen > 0) {
-      msg.msg_control = ctrl_buf.data();
-      msg.msg_controllen = g_controllen;
-    }
-
-    result = ::recvmsg((int)arg1, &msg, flags);
-    if (result >= 0) {
-      // Scatter data back into guest iovec
-      size_t offset = 0;
-      for (u64 i = 0; i < g_iovlen && offset < (size_t)result; i++) {
-        u64 base, len;
-        model.memory.read(g_iov + i * 16, &base, 8);
-        model.memory.read(g_iov + i * 16 + 8, &len, 8);
-        size_t to_copy = ((size_t)result - offset < len) ? (size_t)result - offset : len;
-        if (to_copy > 0) model.memory.write(base, flat_buf.data() + offset, to_copy);
-        offset += to_copy;
-      }
-      if (g_name != 0 && msg.msg_namelen > 0) {
-        size_t wlen = msg.msg_namelen < g_namelen ? msg.msg_namelen : g_namelen;
-        model.memory.write(g_name, name_buf, wlen);
-      }
-      if (g_control != 0 && msg.msg_controllen > 0) {
-        model.memory.write(g_control, ctrl_buf.data(), msg.msg_controllen);
-      }
-      // Write back updated msghdr fields
-      u64 new_namelen = msg.msg_namelen;
-      u64 new_controllen = msg.msg_controllen;
-      u64 new_flags = msg.msg_flags;
-      model.memory.write(arg2 + 8, &new_namelen, 8);
-      model.memory.write(arg2 + 40, &new_controllen, 8);
-      model.memory.write(arg2 + 48, &new_flags, 8);
-    }
+    result = ::recvmsg((int)arg1, (struct msghdr *)guest_ptr(arg2), (int)arg3);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_GETSOCKNAME:
   case SYS_GETPEERNAME: {
-    u8 addr[128];
-    socklen_t addrlen = sizeof(addr);
-    model.memory.read(arg3, &addrlen, sizeof(addrlen));
-    if (addrlen > sizeof(addr)) addrlen = sizeof(addr);
     result = (syscall_nr == SYS_GETSOCKNAME)
-      ? ::getsockname((int)arg1, (struct sockaddr *)addr, &addrlen)
-      : ::getpeername((int)arg1, (struct sockaddr *)addr, &addrlen);
-    if (result == 0) {
-      model.memory.write(arg2, addr, addrlen);
-      model.memory.write(arg3, &addrlen, sizeof(addrlen));
-    } else {
-      result = -errno;
-    }
+      ? ::getsockname((int)arg1, (struct sockaddr *)guest_ptr(arg2),
+                      (socklen_t *)guest_ptr(arg3))
+      : ::getpeername((int)arg1, (struct sockaddr *)guest_ptr(arg2),
+                      (socklen_t *)guest_ptr(arg3));
+    if (result < 0) result = -errno;
     break;
   }
 
@@ -1722,26 +1113,16 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_EPOLL_CTL: {
-    struct epoll_event ev;
-    if (arg4 != 0) {
-      model.memory.read(arg4, &ev, sizeof(ev));
-    }
     result = ::epoll_ctl((int)arg1, (int)arg2, (int)arg3,
-                         arg4 ? &ev : nullptr);
+                         arg4 ? (struct epoll_event *)guest_ptr(arg4) : nullptr);
     if (result < 0) result = -errno;
     break;
   }
   case SYS_EPOLL_WAIT:
   case SYS_EPOLL_PWAIT: {
-    int maxevents = (int)arg3;
-    std::vector<struct epoll_event> events(maxevents);
-    // Ignore sigmask for EPOLL_PWAIT — signals are stubbed
-    result = ::epoll_wait((int)arg1, events.data(), maxevents, (int)arg4);
-    if (result > 0) {
-      model.memory.write(arg2, events.data(), result * sizeof(struct epoll_event));
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = ::epoll_wait((int)arg1, (struct epoll_event *)guest_ptr(arg2),
+                          (int)arg3, (int)arg4);
+    if (result < 0) result = -errno;
     break;
   }
 
@@ -1758,32 +1139,19 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_TIMERFD_SETTIME: {
-    struct itimerspec newval, oldval;
-    model.memory.read(arg3, &newval, sizeof(newval));
-    result = ::timerfd_settime((int)arg1, (int)arg2, &newval,
-                               arg4 ? &oldval : nullptr);
-    if (result == 0 && arg4 != 0) {
-      model.memory.write(arg4, &oldval, sizeof(oldval));
-    } else if (result < 0) {
-      result = -errno;
-    }
+    result = ::timerfd_settime((int)arg1, (int)arg2,
+                               (struct itimerspec *)guest_ptr(arg3),
+                               arg4 ? (struct itimerspec *)guest_ptr(arg4) : nullptr);
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_TIMERFD_GETTIME: {
-    struct itimerspec cur;
-    result = ::timerfd_gettime((int)arg1, &cur);
-    if (result == 0) {
-      model.memory.write(arg2, &cur, sizeof(cur));
-    } else {
-      result = -errno;
-    }
+    result = ::timerfd_gettime((int)arg1, (struct itimerspec *)guest_ptr(arg2));
+    if (result < 0) result = -errno;
     break;
   }
   case SYS_SIGNALFD4: {
-    // signalfd4(fd, mask, sizemask, flags)
-    sigset_t mask;
-    model.memory.read(arg2, &mask, arg3);
-    result = ::signalfd((int)arg1, &mask, (int)arg4);
+    result = ::signalfd((int)arg1, (sigset_t *)guest_ptr(arg2), (int)arg4);
     if (result < 0) result = -errno;
     break;
   }
@@ -1793,8 +1161,7 @@ void emulate_syscall(x86::Model &model) {
     break;
   }
   case SYS_INOTIFY_ADD_WATCH: {
-    std::string path = read_guest_string(model, arg2);
-    result = ::inotify_add_watch((int)arg1, path.c_str(), (uint32_t)arg3);
+    result = ::inotify_add_watch((int)arg1, guest_str(arg2), (uint32_t)arg3);
     if (result < 0) result = -errno;
     break;
   }

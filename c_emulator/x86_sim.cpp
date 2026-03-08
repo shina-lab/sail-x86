@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <elf-binary> [args...]\n", prog);
@@ -69,7 +70,7 @@ int main(int argc, char *argv[], char *envp[]) {
   if (debug) {
     fprintf(stderr, "sail-x86: loaded %s\n", elf_path);
     fprintf(stderr, "sail-x86: entry=0x%lx rsp=0x%lx brk=0x%lx interp_base=0x%lx\n",
-            elf.entry_point, initial_rsp, model.memory.brk_current, elf.interp_base);
+            elf.entry_point, initial_rsp, model.brk_current, elf.interp_base);
   }
 
   u64 insn_count = 0;
@@ -93,6 +94,11 @@ int main(int argc, char *argv[], char *envp[]) {
       break;
 
     case x86::Kind_zHalt:
+      if (debug) {
+        u64 nr = model.zGPR.data[0];
+        fprintf(stderr, "[%lu] SYSCALL nr=%lu arg1=0x%lx arg2=0x%lx arg3=0x%lx\n",
+                insn_count, nr, model.zGPR.data[7], model.zGPR.data[6], model.zGPR.data[2]);
+      }
       emulate_syscall(model);
       insn_count++;
       break;
@@ -106,7 +112,7 @@ int main(int argc, char *argv[], char *envp[]) {
       if (debug) {
         fprintf(stderr, "  bytes:");
         u8 insn_bytes[16];
-        model.memory.read(model.zRIP, insn_bytes, 16);
+        memcpy(insn_bytes, (void *)model.zRIP, 16);
         for (int i = 0; i < 16; i++)
           fprintf(stderr, " %02x", insn_bytes[i]);
         fprintf(stderr, "\n");
@@ -123,5 +129,5 @@ int main(int argc, char *argv[], char *envp[]) {
   }
 
   model.model_fini();
-  return model.exit_code;
+  _exit(model.exit_code);
 }

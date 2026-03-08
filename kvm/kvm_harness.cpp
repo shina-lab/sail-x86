@@ -565,6 +565,15 @@ struct KvmVm {
 
 // ---- Sail model execution ----
 
+static void map_guest_page(u64 addr, size_t len) {
+  void *p = mmap((void *)addr, len, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+  if (p == MAP_FAILED) {
+    fprintf(stderr, "mmap failed at 0x%lx: %s\n", addr, strerror(errno));
+    abort();
+  }
+}
+
 ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
                    FaultInfo *fault_out = nullptr) {
   x86::Model model;
@@ -573,19 +582,25 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
 
-  // Write test code + HLT
-  model.memory.write(CODE_ADDR, tc.code.data(), tc.code.size());
-  u8 hlt = 0xF4;
-  model.memory.write(CODE_ADDR + tc.code.size(), &hlt, 1);
+  // Ensure guest pages are mapped (idempotent after first call).
+  static bool pages_mapped = false;
+  if (!pages_mapped) {
+    map_guest_page(CODE_ADDR, 0x1000);
+    map_guest_page(DATA_ADDR, 0x1000);
+    map_guest_page(STACK_TOP - 0x1000, 0x1000);
+    pages_mapped = true;
+  }
 
-  // Set up stack
-  model.memory.map_range(STACK_TOP - 0x1000, 0x1000);
+  // Write test code + HLT
+  memset((void *)CODE_ADDR, 0, 0x1000);
+  memcpy((void *)CODE_ADDR, tc.code.data(), tc.code.size());
+  u8 hlt = 0xF4;
+  memcpy((void *)(CODE_ADDR + tc.code.size()), &hlt, 1);
 
   // Set up data area
+  memset((void *)DATA_ADDR, 0, 0x1000);
   if (!tc.init_data.empty())
-    model.memory.write(DATA_ADDR, tc.init_data.data(), tc.init_data.size());
-  else
-    model.memory.map_range(DATA_ADDR, 0x1000);
+    memcpy((void *)DATA_ADDR, tc.init_data.data(), tc.init_data.size());
 
   // GPR order: RAX=0, RCX=1, RDX=2, RBX=3, RSP=4, RBP=5, RSI=6, RDI=7, R8-R15=8-15
   model.zGPR.data[0]  = tc.initial.rax;
@@ -673,7 +688,7 @@ done:
   rflags |= model.zOF << 11;
 
   if (data_len > 0)
-    model.memory.read(DATA_ADDR, data_out, data_len);
+    memcpy(data_out, (void *)DATA_ADDR, data_len);
 
   ArchState state = {
     .rax = model.zGPR.data[0],
@@ -8220,6 +8235,192 @@ std::vector<TestCase> build_tests() {
       s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
       s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA);
       add_xmm("vpxord xmm0,xmm1,xmm2 evex", {0x62, 0xF1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x1);
+    }
+  }
+
+  // =====================================================================
+  // XSAVE / XRSTOR
+  //   XSAVE [RDI]: 0F AE /4 → ModRM 00 100 111 = 0x27
+  //   XRSTOR [RDI]: 0F AE /5 → ModRM 00 101 111 = 0x2F
+  //   EDX:EAX = component mask (bit 0 = x87, bit 1 = SSE)
+  // =====================================================================
+  cat = "XSAVE/XRSTOR";
+  {
+    // Round-trip: XSAVE then PXOR to clear XMMs, then XRSTOR to restore.
+    // Verifies XMM0 and XMM1 survive the round-trip.
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 3;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[0] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
+      s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDD, 0xEEEEFFFF00001111);
+      std::vector<u8> code = {
+        0x0F, 0xAE, 0x27,             // XSAVE [RDI]
+        0x66, 0x0F, 0xEF, 0xC0,       // PXOR XMM0, XMM0
+        0x66, 0x0F, 0xEF, 0xC9,       // PXOR XMM1, XMM1
+        0x0F, 0xAE, 0x2F,             // XRSTOR [RDI]
+      };
+      TestCase tc;
+      tc.name = "xsave+xrstor round-trip (mask=3)";
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x3;
+      tc.cmp_mxcsr = true;
+      tc.init_data = std::vector<u8>(576, 0);
+      tests.push_back(std::move(tc));
+    }
+
+    // Round-trip with mask=2 (SSE only): XMM regs should survive.
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 2;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[0] = xmm_from_u64(0xCAFEBABE12345678, 0x9876543210FEDCBA);
+      s.xmm[5] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xFACEFACEFACEFACE);
+      std::vector<u8> code = {
+        0x0F, 0xAE, 0x27,             // XSAVE [RDI]
+        0x66, 0x0F, 0xEF, 0xC0,       // PXOR XMM0, XMM0
+        0x66, 0x0F, 0xEF, 0xED,       // PXOR XMM5, XMM5
+        0x0F, 0xAE, 0x2F,             // XRSTOR [RDI]
+      };
+      TestCase tc;
+      tc.name = "xsave+xrstor round-trip (mask=2, SSE only)";
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = (1 << 0) | (1 << 5);
+      tc.cmp_mxcsr = true;
+      tc.init_data = std::vector<u8>(576, 0);
+      tests.push_back(std::move(tc));
+    }
+
+    // XRSTOR with XSTATE_BV=3: load XMM0 from pre-built XSAVE area.
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 3;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[0] = xmm_from_u64(0, 0);
+      std::vector<u8> init_data(576, 0);
+      // FCW = 0x037F
+      init_data[0] = 0x7F;
+      init_data[1] = 0x03;
+      // MXCSR = 0x1F80
+      init_data[0x18] = 0x80;
+      init_data[0x19] = 0x1F;
+      // MXCSR_MASK = 0x0002FFFF
+      init_data[0x1C] = 0xFF;
+      init_data[0x1D] = 0xFF;
+      init_data[0x1E] = 0x02;
+      // XMM0 at offset 0xA0
+      u64 xmm0_lo = 0xCAFEBABE12345678;
+      u64 xmm0_hi = 0x9876543210FEDCBA;
+      memcpy(init_data.data() + 0xA0, &xmm0_lo, 8);
+      memcpy(init_data.data() + 0xA8, &xmm0_hi, 8);
+      // XSTATE_BV = 3
+      init_data[0x200] = 3;
+      TestCase tc;
+      tc.name = "xrstor restore (xstate_bv=3)";
+      tc.category = cat;
+      tc.code = {0x0F, 0xAE, 0x2F};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.cmp_mxcsr = true;
+      tc.init_data = std::move(init_data);
+      tests.push_back(std::move(tc));
+    }
+
+    // XRSTOR with XSTATE_BV=0: SSE init path should zero XMM regs.
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 3;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[0] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xDEADBEEFDEADBEEF);
+      std::vector<u8> init_data(576, 0);
+      // XSTATE_BV = 0 (all init)
+      TestCase tc;
+      tc.name = "xrstor init (xstate_bv=0)";
+      tc.category = cat;
+      tc.code = {0x0F, 0xAE, 0x2F};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;  // XMM0 should become zero
+      tc.init_data = std::move(init_data);
+      tests.push_back(std::move(tc));
+    }
+
+    // XRSTOR with XSTATE_BV=1 (x87 only): SSE init, XMMs zeroed.
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 3;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
+      std::vector<u8> init_data(576, 0);
+      init_data[0] = 0x7F;
+      init_data[1] = 0x03;
+      init_data[0x18] = 0x80;
+      init_data[0x19] = 0x1F;
+      init_data[0x1C] = 0xFF;
+      init_data[0x1D] = 0xFF;
+      init_data[0x1E] = 0x02;
+      // XSTATE_BV = 1 (x87 valid, SSE not)
+      init_data[0x200] = 1;
+      TestCase tc;
+      tc.name = "xrstor partial (xstate_bv=1, SSE init)";
+      tc.category = cat;
+      tc.code = {0x0F, 0xAE, 0x2F};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;  // XMM0 should become zero
+      tc.init_data = std::move(init_data);
+      tests.push_back(std::move(tc));
+    }
+
+    // Round-trip with high XMM registers (XMM8-XMM15, needs REX).
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.rax = 3;
+      s.rdx = 0;
+      s.mxcsr = 0x1F80;
+      s.xmm[8] = xmm_from_u64(0x8888888888888888, 0x9999999999999999);
+      s.xmm[15] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+      // PXOR XMM8,XMM8: 66 45 0F EF C0
+      // PXOR XMM15,XMM15: 66 45 0F EF FF
+      std::vector<u8> code = {
+        0x0F, 0xAE, 0x27,                   // XSAVE [RDI]
+        0x66, 0x45, 0x0F, 0xEF, 0xC0,       // PXOR XMM8, XMM8
+        0x66, 0x45, 0x0F, 0xEF, 0xFF,       // PXOR XMM15, XMM15
+        0x0F, 0xAE, 0x2F,                   // XRSTOR [RDI]
+      };
+      TestCase tc;
+      tc.name = "xsave+xrstor round-trip (high XMM regs)";
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = (1 << 8) | (1 << 15);
+      tc.init_data = std::vector<u8>(576, 0);
+      tests.push_back(std::move(tc));
     }
   }
 

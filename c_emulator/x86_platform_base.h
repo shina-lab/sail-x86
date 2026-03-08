@@ -1,6 +1,6 @@
 #pragma once
 
-#include "x86_memory.h"
+#include "integers.h"
 #include <cmath>
 
 struct MXCSRState {
@@ -9,9 +9,13 @@ struct MXCSRState {
 
 class X86PlatformBase {
 public:
-  EmulatorMemory memory;
   MXCSRState mxcsr_state;
 
   bool should_exit = false;
   int exit_code = 0;
+
+  // Guest brk (heap) state, managed by the emulated brk syscall.
+  u64 brk_base = 0;
+  u64 brk_current = 0;
+  u64 brk_limit = 0;  // end of pre-allocated brk region
 };
