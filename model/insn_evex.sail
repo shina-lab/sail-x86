@@ -111,6 +111,56 @@ function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
   r
 }
 
+// Apply 4-bit writemask to a 128-bit XMM result (32-bit elements, 4 lanes).
+
+val apply_writemask_ps_xmm : (xmmword, xmmword, word, bool) -> xmmword
+function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
+  var r : xmmword = if zeroing then zeros() else old_dst;
+  if mask_val[3] == bitone then r[127..96] = result[127..96];
+  if mask_val[2] == bitone then r[95..64]  = result[95..64];
+  if mask_val[1] == bitone then r[63..32]  = result[63..32];
+  if mask_val[0] == bitone then r[31..0]   = result[31..0];
+  r
+}
+
+// Apply 8-bit writemask to a 256-bit YMM result (32-bit elements, 8 lanes).
+
+val apply_writemask_ps_ymm : (ymmword, ymmword, word, bool) -> ymmword
+function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
+  var r : ymmword = if zeroing then zeros() else old_dst;
+  if mask_val[7] == bitone then r[255..224] = result[255..224];
+  if mask_val[6] == bitone then r[223..192] = result[223..192];
+  if mask_val[5] == bitone then r[191..160] = result[191..160];
+  if mask_val[4] == bitone then r[159..128] = result[159..128];
+  if mask_val[3] == bitone then r[127..96]  = result[127..96];
+  if mask_val[2] == bitone then r[95..64]   = result[95..64];
+  if mask_val[1] == bitone then r[63..32]   = result[63..32];
+  if mask_val[0] == bitone then r[31..0]    = result[31..0];
+  r
+}
+
+// Apply 2-bit writemask to a 128-bit XMM result (64-bit elements, 2 lanes).
+
+val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bool) -> xmmword
+function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
+  var r : xmmword = if zeroing then zeros() else old_dst;
+  if mask_val[1] == bitone then r[127..64] = result[127..64];
+  if mask_val[0] == bitone then r[63..0]   = result[63..0];
+  r
+}
+
+// Apply 4-bit writemask to a 256-bit YMM result (64-bit elements, 4 lanes).
+
+val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bool) -> ymmword
+function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
+  var r : ymmword = if zeroing then zeros() else old_dst;
+  if mask_val[3] == bitone then r[255..192] = result[255..192];
+  if mask_val[2] == bitone then r[191..128] = result[191..128];
+  if mask_val[1] == bitone then r[127..64]  = result[127..64];
+  if mask_val[0] == bitone then r[63..0]    = result[63..0];
+  r
+}
+
 // Broadcast a 32-bit value to all 16 dword lanes of a ZMM register.
 
 val broadcast_f32_zmm : dword -> zmmword

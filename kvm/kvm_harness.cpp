@@ -134,6 +134,7 @@ struct ArchState {
   u64 rflags;
   XmmVal xmm[16];
   u32 mxcsr = 0x1F80;  // default MXCSR
+  u64 kregs[8] = {};    // AVX-512 opmask registers k0-k7
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -153,7 +154,7 @@ struct ArchState {
   }
 
   bool compare(const ArchState &other, u64 flags_mask, u32 xmm_mask,
-               bool cmp_mxcsr) const {
+               bool cmp_mxcsr, u8 kreg_mask = 0) const {
     bool ok = true;
     auto cmp = [&](const std::string &name, u64 a, u64 b) {
       if (a != b) {
@@ -196,6 +197,15 @@ struct ArchState {
         ok = false;
       }
     }
+    for (int i = 0; i < 8; i++) {
+      if (kreg_mask & (1u << i)) {
+        if (kregs[i] != other.kregs[i]) {
+          fprintf(stderr, "  MISMATCH K%d: kvm=%016lx sail=%016lx\n",
+                  i, kregs[i], other.kregs[i]);
+          ok = false;
+        }
+      }
+    }
     return ok;
   }
 };
@@ -220,6 +230,7 @@ struct TestCase {
   size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
   bool expect_fault = false;       // test expects an exception, not normal HLT
   int expected_vector = -1;        // expected exception vector (-1 = any)
+  u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
 };
 
 // ---- KVM VM ----
@@ -481,8 +492,13 @@ struct KvmVm {
       memcpy(xs + 0xA0 + i * 16,     &tc.initial.xmm[i].lo, 8);
       memcpy(xs + 0xA0 + i * 16 + 8, &tc.initial.xmm[i].hi, 8);
     }
-    // XSTATE_BV at offset 0x200: set bit 0 (x87) + bit 1 (SSE) so KVM loads state.
-    u64 xstate_bv = 0x3;
+    // Opmask registers (k0-k7) at offset 0x340 (component 5, 8 bytes each)
+    // Offset from CPUID leaf 0xD subleaf 5: EBX=0x340
+    for (int i = 0; i < 8; i++)
+      memcpy(xs + 0x340 + i * 8, &tc.initial.kregs[i], 8);
+
+    // XSTATE_BV at offset 0x200: bits 0(x87) + 1(SSE) + 2(AVX) + 5(opmask)
+    u64 xstate_bv = 0x27;  // bits 0,1,2,5
     memcpy(xs + 0x200, &xstate_bv, 8);
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
   }
@@ -573,6 +589,9 @@ struct KvmVm {
       memcpy(&state.xmm[i].lo, xs + 0xA0 + i * 16,     8);
       memcpy(&state.xmm[i].hi, xs + 0xA0 + i * 16 + 8, 8);
     }
+    // Opmask registers (k0-k7) at offset 0x340 (component 5)
+    for (int i = 0; i < 8; i++)
+      memcpy(&state.kregs[i], xs + 0x340 + i * 8, 8);
     return state;
   }
 
@@ -662,6 +681,10 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     bytes_to_xmm(&model.zZMM.data[i], bytes);
   }
 
+  // Set k-registers (opmask)
+  for (int i = 0; i < 8; i++)
+    model.zKREG.data[i] = tc.initial.kregs[i];
+
   x86::zExecutionResult result = {};
   result.kind = x86::Kind_zOk;
   result.variants.zOk = UNIT;
@@ -737,6 +760,8 @@ done:
     memcpy(&state.xmm[i].lo, bytes,     8);
     memcpy(&state.xmm[i].hi, bytes + 8, 8);
   }
+  for (int i = 0; i < 8; i++)
+    state.kregs[i] = model.zKREG.data[i];
 
   model.model_fini();
   return state;
@@ -10698,6 +10723,184 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // EVEX writemask (k-register masking) tests
+  //
+  // EVEX P2 byte: z.L'L.b.V'.aaa
+  // aaa = mask register index (0=no mask, 1=k1, etc.)
+  // z = 0: merge masking (preserve dest elements), z = 1: zero masking
+  //
+  // For 128-bit with k1 merge: P2 = 0.00.0.1.001 = 0x09
+  // For 128-bit with k1 zero:  P2 = 1.00.0.1.001 = 0x89
+  // =====================================================================
+  cat = "EVEX mask";
+  {
+    // VPADDD xmm0{k1}, xmm1, xmm2 — merge masking, partial mask
+    // k1 = 0b0101 → elements 0,2 updated, elements 1,3 preserved from dest
+    // P2 = 0x09 (z=0, L'L=00, b=0, V'=1, aaa=001)
+    {
+      TestCase tc;
+      tc.name = "vpaddd xmm merge k1=0101b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xFE, 0xC2};  // VPADDD xmm0{k1}, xmm1, xmm2
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      tc.initial.kregs[1] = 0x5;  // k1 = 0101b
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPADDD xmm0{k1}{z}, xmm1, xmm2 — zero masking
+    // k1 = 0b0101 → elements 0,2 get result, elements 1,3 zeroed
+    // P2 = 0x89 (z=1, L'L=00, b=0, V'=1, aaa=001)
+    {
+      TestCase tc;
+      tc.name = "vpaddd xmm zero k1=0101b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x89, 0xFE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      tc.initial.kregs[1] = 0x5;  // k1 = 0101b
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPADDD xmm0{k1}, xmm1, xmm2 — full mask (k1=0xF = all ones for 4 dwords)
+    // Should behave like no masking
+    {
+      TestCase tc;
+      tc.name = "vpaddd xmm merge k1=full";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xFE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      tc.initial.kregs[1] = 0xF;  // all dword elements active
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPADDD xmm0{k1}, xmm1, xmm2 — empty mask (k1=0)
+    // Merge: all elements preserved from dest (no operation)
+    {
+      TestCase tc;
+      tc.name = "vpaddd xmm merge k1=0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xFE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      tc.initial.kregs[1] = 0;  // empty mask
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPADDD xmm0{k1}{z}, xmm1, xmm2 — empty mask, zero masking
+    // All elements zeroed
+    {
+      TestCase tc;
+      tc.name = "vpaddd xmm zero k1=0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x89, 0xFE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      tc.initial.kregs[1] = 0;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VADDPS xmm0{k2}, xmm1, xmm2 — FP with merge mask
+    // k2 = 0b1010 → elements 1,3 updated, elements 0,2 preserved
+    // P2 = 0x0A (z=0, aaa=010=k2)
+    {
+      TestCase tc;
+      tc.name = "vaddps xmm merge k2=1010b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x0A, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_f32(-1.0f, -1.0f, -1.0f, -1.0f);
+      tc.initial.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      tc.initial.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      tc.initial.kregs[2] = 0xA;  // 1010b
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VADDPS xmm0{k2}{z}, xmm1, xmm2 — FP with zero mask
+    // P2 = 0x8A (z=1, aaa=010=k2)
+    {
+      TestCase tc;
+      tc.name = "vaddps xmm zero k2=1010b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x8A, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_f32(-1.0f, -1.0f, -1.0f, -1.0f);
+      tc.initial.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      tc.initial.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      tc.initial.kregs[2] = 0xA;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPXORD xmm0{k1}, xmm1, xmm2 — logical with mask
+    // k1 = 0b0011 → only elements 0,1 updated
+    {
+      TestCase tc;
+      tc.name = "vpxord xmm merge k1=0011b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xEF, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tc.initial.xmm[1] = xmm_from_u32(0xFF00FF00, 0x00FF00FF, 0xAAAAAAAA, 0x55555555);
+      tc.initial.xmm[2] = xmm_from_u32(0x0F0F0F0F, 0xF0F0F0F0, 0x12345678, 0x9ABCDEF0);
+      tc.initial.kregs[1] = 0x3;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // 256-bit EVEX with mask: VPADDD ymm0{k1}, ymm1, ymm2
+    // P2 = 0x29 (z=0, L'L=01=256-bit, b=0, V'=1, aaa=001)
+    // k1 = 0b01010101 → alternate elements
+    {
+      TestCase tc;
+      tc.name = "vpaddd ymm merge k1=55h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x29, 0xFE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEAD0000, 0xDEAD0001, 0xDEAD0002, 0xDEAD0003);
+      tc.initial.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tc.initial.xmm[2] = xmm_from_u32(100, 200, 300, 400);
+      tc.initial.kregs[1] = 0x55;  // 01010101b
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+  }
+
   return tests;
 }
 
@@ -10779,7 +10982,7 @@ int main(int argc, char **argv) {
       ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
 
       bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
-                                  tc.cmp_mxcsr);
+                                  tc.cmp_mxcsr, tc.kreg_mask);
 
       if (tc.compare_data_len > 0 &&
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {

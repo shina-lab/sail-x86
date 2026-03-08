@@ -809,46 +809,31 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
 Prioritized list of test coverage improvements to implement. Each item
 is self-contained and should be committed separately.
 
-#### Item 1: x87 FPU — expand coverage (HIGH priority)
+#### Item 1: x87 FPU — expand coverage (HIGH priority) ✅ DONE
 
-The Sail model fully implements all x87 opcodes (D8-DF), including
-transcendentals, BCD, comparisons, and conditional moves. Current KVM
-tests only verify ~20 instructions via memory output (FSTP/FISTP).
+Added 24 tests in "x87 mem" category covering:
+- D8 memory forms (FADD/FSUB/FMUL/FDIV m32fp)
+- DC memory forms (FADD/FSUB/FMUL/FDIV m64fp)
+- DA integer ops (FIADD/FISUB/FIMUL/FIDIV m32int)
+- DE integer ops with pop (FADDP/FSUBP/FMULP/FDIVP)
+- FCMOVcc (DA C0-DF range), FSINCOS (D9 FB), FISTTP (DF /1)
+- FCOMIP (DB F1), FSUBR/FDIVR reverse operations
 
-**Tests to add:**
-- **D8 memory forms**: FADD/FSUB/FMUL/FDIV m32fp (load from memory, store result)
-- **DC memory forms**: FADD/FSUB/FMUL/FDIV m64fp
-- **DA integer ops**: FIADD/FISUB/FIMUL/FIDIV m32int
-- **DE integer ops with pop**: FADDP/FSUBP/FMULP/FDIVP (already partially covered)
-- **FCMOVcc**: FCMOVB, FCMOVE, FCMOVBE, FCMOVU (DA C0-DF range)
-- **FCOMIP**: DB F1 (compare and set EFLAGS, pop) — already partial
-- **FSINCOS**: D9 FB (push sin and cos simultaneously)
-- **FLD m80**: DB /5 + FSTP m80 (extended precision round-trip)
-- **FRSTOR/FNSAVE**: DD /4, DD /6 (full FPU state save/restore)
-- **FISTTP**: DF /1 (truncation store, SSE3)
+#### Item 2: EVEX writemask (k-register masking) tests (HIGH priority) ✅ DONE
 
-**Approach:** All tests use the "load → compute → store to memory"
-pattern since the harness doesn't track x87 stack state. Compare via
-`compare_data_len`.
+Added 9 tests in "EVEX mask" category covering merge and zero masking
+for VPADDD, VADDPS, VPXORD at 128-bit and 256-bit widths.
 
-#### Item 2: EVEX writemask (k-register masking) tests (HIGH priority)
-
-EVEX instructions support per-element masking via k1-k7 registers.
-Two modes: merge-masking (preserve dest elements) and zero-masking
-(zero out masked elements). Current tests use aaa=000 (no mask).
-
-**Tests to add:**
-- **Merge masking**: VPADDD xmm0{k1}, xmm1, xmm2 with k1 = partial mask
-- **Zero masking**: VPADDD xmm0{k1}{z}, xmm1, xmm2 (z-bit set)
-- **Full mask**: k1 = all-ones (should behave like no mask)
-- **Empty mask**: k1 = 0 (all elements masked — merge preserves dest,
-  zero produces all-zeros)
-- **FP with mask**: VADDPS xmm0{k1}, xmm1, xmm2
-- **256-bit masked**: VPADDD ymm0{k1}, ymm1, ymm2
-
-**Requires:** Setting k-register state. Check if KVM XSAVE area
-supports opmask state (XSTATE component 5, offset 0x440, 64 bytes
-for k0-k7).
+**Bugs found and fixed:**
+1. **Sail model: writemask not applied for 128/256-bit EVEX paths.**
+   Only the 512-bit (ZMM) paths applied the opmask writemask. Added
+   `apply_writemask_ps_xmm`, `apply_writemask_ps_ymm`,
+   `apply_writemask_pd_xmm`, `apply_writemask_pd_ymm` helpers in
+   `insn_evex.sail`, and updated VPADDD, VPSUBD, VPADDQ, VPSUBQ,
+   VPXORD, VPANDD, VPORD, VADDPS in their 128/256-bit paths.
+2. **KVM harness: wrong XSAVE offset for opmask registers.**
+   Was using 0x440; correct offset is 0x340 (CPUID leaf 0xD subleaf 5
+   returns EBX=0x340 on this CPU). Fixed in load_test() and run_test().
 
 #### Item 3: K-register operations (MEDIUM priority)
 

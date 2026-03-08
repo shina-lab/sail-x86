@@ -1474,12 +1474,14 @@ function dispatch_evex_fp(op, pfx) = {
           1 => {
             let src1 = read_ymm(pfx.evex_vvvvv);
             let src2 = evex_src_ymm(modrm, rm, pfx);
-            write_ymm(dst, vaddps_ymm(src1, src2)); Ok()
+            let result = vaddps_ymm(src1, src2);
+            write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), evex_get_mask16(pfx), pfx.evex_z)); Ok()
           },
           _ => {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 = evex_src_xmm(modrm, rm, pfx);
-            write_xmm(dst, vaddps_xmm(src1, src2)); Ok()
+            let result = vaddps_xmm(src1, src2);
+            write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), evex_get_mask16(pfx), pfx.evex_z)); Ok()
           },
         }
       },
