@@ -524,6 +524,53 @@ function dispatch_2byte_gpr(op, pfx) = {
         Ok()
       }
     },
+    // 0F 21: MOV reg, DRn — Read debug register (requires CPL=0)
+    33 => {
+      if cur_cpl != 0 then raise_GP0()
+      else {
+        let modrm = fetch_byte();
+        let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
+        let rm_idx : gpr_idx = if pfx.rex_b
+          then unsigned(bitone @ modrm[2..0])
+          else unsigned(bitzero @ modrm[2..0]);
+        let dr_val : qword = match dr_idx {
+          0 => DR0,
+          1 => DR1,
+          2 => DR2,
+          3 => DR3,
+          // DR4/DR5 alias DR6/DR7 when CR4.DE=0
+          4 => DR6,
+          5 => DR7,
+          6 => DR6,
+          7 => DR7,
+        };
+        write_gpr64(rm_idx, dr_val);
+        Ok()
+      }
+    },
+    // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
+    35 => {
+      if cur_cpl != 0 then raise_GP0()
+      else {
+        let modrm = fetch_byte();
+        let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
+        let rm_idx : gpr_idx = if pfx.rex_b
+          then unsigned(bitone @ modrm[2..0])
+          else unsigned(bitzero @ modrm[2..0]);
+        let dr_val : qword = read_gpr64(rm_idx);
+        match dr_idx {
+          0 => DR0 = dr_val,
+          1 => DR1 = dr_val,
+          2 => DR2 = dr_val,
+          3 => DR3 = dr_val,
+          4 => DR6 = dr_val,
+          5 => DR7 = dr_val,
+          6 => DR6 = dr_val,
+          7 => DR7 = dr_val,
+        };
+        Ok()
+      }
+    },
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
     48 => {
       if cur_cpl != 0 then raise_GP0()

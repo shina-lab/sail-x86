@@ -42,8 +42,10 @@ val read_idt_gate : exception_vector -> IDTGate
 function read_idt_gate(vec) = {
   let vec_offset : qword = to_bits(64, vec * 16);
   let base : qword = IDTR_base + vec_offset;
-  let lo : qword = phys_read64(base);
-  let hi : qword = phys_read64(base + 8);
+  // IDT reads go through virtual address translation because the kernel
+  // stores IDTR_base as a virtual address.
+  let lo : qword = mem_read64(base);
+  let hi : qword = mem_read64(base + 8);
 
   // Offset = hi[31:0] @ lo[63:48] @ lo[15:0]
   let offset_lo  : word  = lo[15..0];
@@ -79,16 +81,18 @@ function read_idt_gate(vec) = {
 // Read RSP0 from the TSS (for privilege-level changes).
 val read_tss_rsp0 : unit -> qword
 function read_tss_rsp0() = {
-  // RSP0 is at offset 4 in the 64-bit TSS
-  phys_read64(TR_base + 4)
+  // RSP0 is at offset 4 in the 64-bit TSS.
+  // TR_base is a linear (virtual) address set by LTR.
+  mem_read64(TR_base + 4)
 }
 
 // Read IST entry from the TSS.
 val read_tss_ist : range(0, 7) -> qword
 function read_tss_ist(ist_idx) = {
-  // IST1 is at offset 36 (0x24) in the 64-bit TSS, each entry is 8 bytes
+  // IST1 is at offset 36 (0x24) in the 64-bit TSS, each entry is 8 bytes.
+  // TR_base is a linear (virtual) address.
   let offset : qword = to_bits(64, 36 + (ist_idx - 1) * 8);
-  phys_read64(TR_base + offset)
+  mem_read64(TR_base + offset)
 }
 
 // Check if an exception vector has an error code.

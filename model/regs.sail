@@ -281,6 +281,14 @@ register CR3  : qword  // Page table base
 register CR4  : qword  // PAE, PSE, OSFXSR, OSXSAVE, etc.
 register EFER : qword  // Extended Feature Enable Register
 
+// Debug registers
+register DR0  : qword  // Linear breakpoint address 0
+register DR1  : qword  // Linear breakpoint address 1
+register DR2  : qword  // Linear breakpoint address 2
+register DR3  : qword  // Linear breakpoint address 3
+register DR6  : qword  // Debug status
+register DR7  : qword  // Debug control
+
 // CR0 bit positions
 let CR0_PE : int = 0    // Protection Enable
 let CR0_MP : int = 1    // Monitor Coprocessor

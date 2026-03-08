@@ -16,8 +16,17 @@
 | Privileged instructions (MOV CR, LGDT, etc.) | **Done** | 12 instructions, 20 tests passing |
 | Paging (page table walk in Sail) | **Done** | 4-level walk, A/D bits, WP, 4KB/2MB/1GB pages |
 | Exception delivery via IDT | **Done** | IDT gate parsing, interrupt frame push, IF/TF/NT/RF clearing, SS←NULL, 7 tests |
-| Device emulation (UART, PIC, PIT) | Not started | |
-| Linux boot protocol loader | Not started | |
+| Double-fault escalation | **Done** | SDM Table 7-5: contributory/PF combos → #DF, fault during #DF → triple fault |
+| RETF/RETFQ (far return) | **Done** | Opcodes CA/CB, same/outer privilege, 16/32/64-bit |
+| Mode-aware operand sizes | **Done** | Track EFER.LMA via CR0.PG, 32-bit defaults in protected mode |
+| Device emulation | **Done** | UART 16550A, 8259 PIC, 8254 PIT, keyboard stub, CMOS/RTC |
+| External interrupt injection | **Done** | __check_pending_irq, PIC acknowledge, PIT timer ticks |
+| Linux boot protocol loader | **Done** | 64-bit boot protocol, bzImage, boot_params, E820, GDT setup |
+| ELF vmlinux loader | **Done** | Direct load bypassing decompressor, ELF LOAD segments at physical addresses |
+| IDT/TSS virtual address fix | **Done** | IDT gate reads and TSS reads go through virtual translation (kernel uses virt IDTR) |
+| Debug registers (DR0-DR7) | **Done** | MOV DRn,r64 (0F 23) and MOV r64,DRn (0F 21) |
+| Kernel virtual address mapping | **Done** | PML4[511] maps 0xFFFFFFFF80000000+ for vmlinux |
+| Early boot (kernel init) | **In progress** | Kernel prints through console init, SLUB, IRQ setup, bootconsole→ttyS0 transition |
 
 ## Current State
 
