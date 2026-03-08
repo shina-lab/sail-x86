@@ -604,7 +604,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 66 tests across 3 exception categories.**
+**Tests implemented: 70 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -749,7 +749,9 @@ Triggered by undefined or invalid instruction encodings.
 | VEX.vvvv reserved on VZEROUPPER/broadcasts | VZEROUPPER, VBROADCASTSS/SD/F128, VPBROADCAST* | DONE |
 | VEX.vvvv reserved on VMOVUPS/VMOVUPD | load/store forms | DONE |
 | VEX.vvvv reserved on VCVTDQ2PS/etc | VCVTDQ2PS, VCVTPS2DQ, VCVTTPS2DQ, VCVTPH2PS | DONE |
-| SSE instruction with mismatched prefix | | TODO |
+| SSE instruction with mismatched prefix | F2/F3 on legacy SSE are silently ignored, not #UD | N/A |
+| VEX memory-only reg form | VBROADCASTF128 reg form → #UD | DONE |
+| VEX.L=0 on 256-only instructions | VBROADCASTSD, VEXTRACTF128, VINSERTF128 | DONE |
 
 Note: Scalar VEX instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
 do NOT #UD with VEX.L=1 on real hardware — the L bit is silently ignored.
@@ -823,8 +825,8 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — DONE (41 tests: UD2, UD1, LOCK violations,
-   VEX.L=1 on 128-bit-only instructions, VEX.vvvv reserved field violations)
+3. **#UD (invalid opcode)** — DONE (45 tests: UD2, UD1, LOCK violations,
+   VEX.L checks, VEX.vvvv reserved, memory-only reg form, 256-only L=0)
 4. **#GP (alignment)** — DONE (12 tests; alignment checks added to
    MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store, 128-bit and 256-bit)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check

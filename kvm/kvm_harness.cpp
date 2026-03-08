@@ -8772,6 +8772,38 @@ std::vector<TestCase> build_tests() {
     add_fault("vcvtph2ps vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x13, 0xC1}, s, 6);
   }
 
+  // ---- Memory-only instructions with register form → #UD ----
+  {
+    // VBROADCASTF128 ymm0,xmm0 (register form): C4 E2 7D 1A C0
+    // 3-byte VEX: C4 [R̃XB=E2] [W=0 vvvv=1111 L=1 pp=01 = 7D]
+    // ModRM C0 = mod=11 (reg), reg=0, rm=0
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vbroadcastf128 reg form → #UD", {0xC4, 0xE2, 0x7D, 0x1A, 0xC0}, s, 6);
+  }
+  {
+    // VBROADCASTSD xmm0,xmm0 (VEX.128, L=0): C4 E2 79 19 C0
+    // VBROADCASTSD requires VEX.256 (L=1); L=0 → #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vbroadcastsd L=0 (256-only → #UD)", {0xC4, 0xE2, 0x79, 0x19, 0xC0}, s, 6);
+  }
+  {
+    // VEXTRACTF128 xmm0,xmm1,0 with VEX.L=0: C4 E3 79 19 C8 00
+    // 3-byte VEX: C4 [R̃XB=E3] [W=0 vvvv=1111 L=0 pp=01 = 79]
+    // VEXTRACTF128 requires VEX.256 (L=1); L=0 → #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vextractf128 L=0 (256-only → #UD)", {0xC4, 0xE3, 0x79, 0x19, 0xC8, 0x00}, s, 6);
+  }
+  {
+    // VINSERTF128 xmm0,xmm0,xmm1,0 with VEX.L=0: C4 E3 79 18 C1 00
+    // VINSERTF128 requires VEX.256 (L=1); L=0 → #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vinsertf128 L=0 (256-only → #UD)", {0xC4, 0xE3, 0x79, 0x18, 0xC1, 0x00}, s, 6);
+  }
+
   return tests;
 }
 
