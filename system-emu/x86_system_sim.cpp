@@ -611,9 +611,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  bool map_kernel_virt = false;
   if (is_elf) {
-    map_kernel_virt = true;
     // Re-create page tables with kernel virtual mapping
     cr3 = setup_identity_page_tables(model.phys_mem, ram_size, true);
     model.zCR3 = cr3;
@@ -681,7 +679,6 @@ int main(int argc, char *argv[]) {
               (u64)model.zCR0, (u64)model.zCR3);
     }
 
-    u64 prev_rip = model.zRIP;
     model.zstep(&result, UNIT);
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
