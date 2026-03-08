@@ -15,9 +15,12 @@ register TF : bit  // Trap Flag
 register IOPL : bits(2)  // I/O Privilege Level
 register NT : bit  // Nested Task
 register RF : bit  // Resume Flag
+register ID : bit  // ID Flag (CPUID available if toggleable)
+register AC_flag : bit // Alignment Check flag
 
 // Pack individual flags into a 64-bit RFLAGS value.
-// Bits: 0=CF, 1=1(reserved), 2=PF, 4=AF, 6=ZF, 7=SF, 8=TF, 9=IF, 10=DF, 11=OF, 13:12=IOPL
+// Bits: 0=CF, 1=1(reserved), 2=PF, 4=AF, 6=ZF, 7=SF, 8=TF, 9=IF, 10=DF,
+//       11=OF, 13:12=IOPL, 14=NT, 16=RF, 17=VM, 18=AC, 21=ID
 val read_rflags : unit -> qword
 function read_rflags() = {
   var r : qword = zeros();
@@ -34,6 +37,8 @@ function read_rflags() = {
   r[13..12] = IOPL;
   r[14] = NT;
   r[16] = RF;
+  r[18] = AC_flag;
+  r[21] = ID;
   r
 }
 

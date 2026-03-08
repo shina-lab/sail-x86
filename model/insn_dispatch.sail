@@ -1081,6 +1081,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
             IOPL = v[13..12];
             NT = v[14];
+            AC_flag = v[18];
+            ID = v[21];
           },
           _ => (),
         };
@@ -1384,13 +1386,25 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       202 => exec_retf(pfx, Some(fetch_imm16())),
       203 => exec_retf(pfx, None()),
 
-      // CC: INT 3
-      204 => __software_interrupt(0x03),
+      // CC: INT 3 — trap (saved RIP points past the INT3 byte)
+      204 => {
+        if system_mode then {
+          RIP = decode_pos;  // Advance past INT3 before delivery
+          deliver_exception(3, 0x00000000);
+          next_rip = Some(RIP);  // deliver_exception set RIP to handler
+          Ok()
+        } else __software_interrupt(0x03)
+      },
 
       // CD: INT imm8
       205 => {
         let imm = fetch_byte();
-        __software_interrupt(imm)
+        if system_mode then {
+          RIP = decode_pos;  // Advance past INT imm8 before delivery
+          deliver_exception(unsigned(imm), 0x00000000);
+          next_rip = Some(RIP);  // deliver_exception set RIP to handler
+          Ok()
+        } else __software_interrupt(imm)
       },
 
       // CF: IRET/IRETD/IRETQ — Interrupt Return
@@ -1434,6 +1448,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             IOPL    = new_rflags[13..12];
             NT      = new_rflags[14];
             RF      = bitzero;  // RF always cleared
+            AC_flag = new_rflags[18];
+            ID      = new_rflags[21];
 
             // Load RSP and SS
             write_gpr64(RSP, new_rsp);
