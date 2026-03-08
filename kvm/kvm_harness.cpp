@@ -10455,6 +10455,170 @@ std::vector<TestCase> build_tests() {
        0xC5, 0xF8, 0x92, 0xD2,
        0xC5, 0xF8, 0x99, 0xCA},
       s);
+
+    // --- K-register logical operations ---
+    // All use k1, k2 as inputs (loaded via XSAVE), k3 as output (read via KMOVW eax, k3).
+    // KMOVW eax, k3 = C5 F8 93 C3
+
+    // KANDW k3, k1, k2: VEX.L1.0F.W0 41 /r
+    // k3=reg(011), vvvv=~k1=1110, k2=rm(010) → C5 EC 41 DA
+    {
+      TestCase tc;
+      tc.name = "kandw k3,k1,k2: AAAA & 5555 = 0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x41, 0xDA,   // kandw k3, k1, k2
+                 0xC5, 0xF8, 0x93, 0xC3};   // kmovw eax, k3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.initial.kregs[2] = 0x5555;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KANDW — overlapping bits
+    {
+      TestCase tc;
+      tc.name = "kandw k3,k1,k2: FF00 & 0FF0 = 0F00";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x41, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x0FF0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KORW k3, k1, k2: VEX.L1.0F.W0 45 /r → C5 EC 45 DA
+    {
+      TestCase tc;
+      tc.name = "korw k3,k1,k2: AAAA | 5555 = FFFF";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x45, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.initial.kregs[2] = 0x5555;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KXORW k3, k1, k2: VEX.L1.0F.W0 47 /r → C5 EC 47 DA
+    {
+      TestCase tc;
+      tc.name = "kxorw k3,k1,k2: FFFF ^ 00FF = FF00";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x47, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFFFF;
+      tc.initial.kregs[2] = 0x00FF;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KANDNW k3, k1, k2: VEX.L1.0F.W0 42 /r → C5 EC 42 DA
+    // result = ~k1 & k2
+    {
+      TestCase tc;
+      tc.name = "kandnw k3,k1,k2: ~FF00 & 0FF0 = 00F0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x42, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x0FF0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KXNORW k3, k1, k2: VEX.L1.0F.W0 46 /r → C5 EC 46 DA
+    // result = ~(k1 ^ k2)
+    {
+      TestCase tc;
+      tc.name = "kxnorw k3,k1,k2: ~(FF00^00FF) = 00FF (lower 16)";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x46, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x00FF;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KNOTW k3, k1: VEX.L0.0F.W0 44 /r → C5 F8 44 D9
+    // dst=k3(011), src=k1(001), vvvv=1111
+    {
+      TestCase tc;
+      tc.name = "knotw k3,k1: ~AAAA = 5555";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x44, 0xD9,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KUNPCKBW k3, k1, k2: VEX.L1.0F.W0 4B /r → C5 F4 4B DA
+    // result = k1[7:0] : k2[7:0] (concatenate low bytes)
+    // Use KMOVW preamble to load k1, k2 (XSAVE may not load reliably for this).
+    {
+      TestCase tc;
+      tc.name = "kunpckbw k3,k1,k2: AB:CD = ABCD";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x92, 0xC8,   // kmovw k1, eax (0xAB)
+                 0xC5, 0xF8, 0x92, 0xD2,   // kmovw k2, edx (0xCD)
+                 0xC5, 0xF5, 0x4B, 0xDA,   // kunpckbw k3, k1, k2 (VEX.L1.66.0F.W0)
+                 0xC5, 0xF8, 0x93, 0xC3};  // kmovw eax, k3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0xAB;
+      tc.initial.rdx = 0xCD;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVW k1, m16: VEX.L0.0F.W0 90 /r (memory load)
+    // Load k1 from [DATA_ADDR] containing 0x1234
+    {
+      TestCase tc;
+      tc.name = "kmovw k1,m16: load 1234h";
+      tc.category = cat;
+      // mov rdi, DATA_ADDR; kmovw k1, [rdi]; kmovw eax, k1
+      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, 0x10000 (DATA_ADDR)
+                 0xC5, 0xF8, 0x90, 0x0F,   // kmovw k1, [rdi]
+                 0xC5, 0xF8, 0x93, 0xC1};  // kmovw eax, k1
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.init_data = {0x34, 0x12};  // 0x1234 in little-endian
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVW m16, k1: VEX.L0.0F.W0 91 /r (memory store)
+    {
+      TestCase tc;
+      tc.name = "kmovw m16,k1: store BEEF to mem";
+      tc.category = cat;
+      // mov rdi, DATA_ADDR; kmovw [rdi], k1
+      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, DATA_ADDR
+                 0xC5, 0xF8, 0x91, 0x0F};  // kmovw [rdi], k1
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xBEEF;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 2;
+      tests.push_back(std::move(tc));
+    }
   }
 
   // =====================================================================

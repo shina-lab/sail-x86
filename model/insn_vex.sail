@@ -1515,15 +1515,27 @@ function dispatch_vex_0f(opcode, pfx) = {
     Ok()
   },
 
-  // 0F 4B: KUNPCKBW k1, k2, k3 (NP, W0) — unpack and interleave low bytes
+  // 0F 4B: KUNPCKBW / KUNPCKWD
   75 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : bits(16) = read_kreg(k2)[7..0] @ read_kreg(k3)[7..0];
-    write_kreg(k1, zero_extend(result));
-    Ok()
+    match mp {
+      MP_66 => {
+        // KUNPCKBW k1, k2, k3 (66, W0) — byte → word
+        let result : bits(16) = read_kreg(k2)[7..0] @ read_kreg(k3)[7..0];
+        write_kreg(k1, zero_extend(result));
+        Ok()
+      },
+      MP_NONE => {
+        // KUNPCKWD k1, k2, k3 (NP, W0) — word → dword
+        let result : bits(32) = read_kreg(k2)[15..0] @ read_kreg(k3)[15..0];
+        write_kreg(k1, zero_extend(result));
+        Ok()
+      },
+      _ => raise_UD()
+    }
   },
 
   // 0F 90: KMOVW k1, k/m16 (NP, W0) — load k-register from k/memory

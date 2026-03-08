@@ -148,6 +148,7 @@ set(KVM_CATEGORIES
   VPMASKMOVD
   "x87 mem"
   "EVEX mask"
+  "K-register ops"
 )
 
 foreach(cat ${KVM_CATEGORIES})

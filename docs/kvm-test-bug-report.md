@@ -835,17 +835,17 @@ for VPADDD, VADDPS, VPXORD at 128-bit and 256-bit widths.
    Was using 0x440; correct offset is 0x340 (CPUID leaf 0xD subleaf 5
    returns EBX=0x340 on this CPU). Fixed in load_test() and run_test().
 
-#### Item 3: K-register operations (MEDIUM priority)
+#### Item 3: K-register operations (MEDIUM priority) ✅ DONE
 
-Only KORTESTW and KTESTW are tested. The following need coverage:
-- KANDW k1, k2, k3 (VEX.L1.0F.W0 41)
-- KORW k1, k2, k3 (VEX.L1.0F.W0 45)
-- KNOTW k1, k2 (VEX.L0.0F.W0 44)
-- KXORW k1, k2, k3 (VEX.L1.0F.W0 47)
-- KANDNW k1, k2, k3 (VEX.L1.0F.W0 42)
-- KXNORW k1, k2, k3 (VEX.L1.0F.W0 46)
-- KUNPCKBW k1, k2, k3 (VEX.L1.0F.W0 4B)
-- KMOVW k, k/m16 (VEX.L0.0F.W0 90/91/92/93)
+Added 10 tests to "K-register ops" category (joining 4 existing
+KORTESTW/KTESTW tests) covering:
+- KANDW, KORW, KXORW, KANDNW, KXNORW, KNOTW logical operations
+- KUNPCKBW byte interleave
+- KMOVW memory load and store
+
+**Bug found and fixed:** Sail model's KUNPCKBW (opcode 0F 4B) did not
+distinguish mandatory prefix: KUNPCKBW requires 66 prefix (pp=01),
+while NP (pp=00) encodes KUNPCKWD. Added mp dispatch to handle both.
 
 #### Item 4: SSE/VEX memory store verification (MEDIUM priority)
 
