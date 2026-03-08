@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <format>
 #include <linux/kvm.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -154,9 +155,9 @@ struct ArchState {
   bool compare(const ArchState &other, u64 flags_mask, u32 xmm_mask,
                bool cmp_mxcsr) const {
     bool ok = true;
-    auto cmp = [&](const char *name, u64 a, u64 b) {
+    auto cmp = [&](const std::string &name, u64 a, u64 b) {
       if (a != b) {
-        fprintf(stderr, "  MISMATCH %s: kvm=%016lx sail=%016lx\n", name, a, b);
+        fprintf(stderr, "  MISMATCH %s: kvm=%016lx sail=%016lx\n", name.c_str(), a, b);
         ok = false;
       }
     };
@@ -855,12 +856,12 @@ static std::vector<u8> encode_unary(u8 op8, u8 op, int digit, int sz, int reg) {
 }
 
 static void add_systematic_tests(std::vector<TestCase> &tests) {
-  char name[256];
+  std::string name;
   int sizes[] = {8, 16, 32, 64};
   const char *sz_sfx[] = {"8", "16", "32", "64"};
   std::string cat;
 
-  auto add = [&](const char *n, std::vector<u8> code, ArchState init,
+  auto add = [&](const std::string &n, std::vector<u8> code, ArchState init,
                  u64 mask) {
     tests.push_back({n, cat, std::move(code), init, mask});
   };
@@ -880,7 +881,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
   for (int si = 0; si < 4; si++) {
     for (auto &op : alu_ops) {
-      snprintf(name, sizeof(name), "ALU %s %s", op.name, sz_sfx[si]);
+      name = std::format("ALU {} {}", op.name, sz_sfx[si]);
       cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
@@ -888,8 +889,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rflags = 0x2;
           init.rax = VALS[i];
           init.rbx = VALS[j];
-          snprintf(name, sizeof(name), "S %s%s %d,%d",
-                   op.name, sz_sfx[si], i, j);
+          name = std::format("S {}{} {},{}", op.name, sz_sfx[si], i, j);
           add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
               init, op.mask);
         }
@@ -901,7 +901,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   for (int oi : {2, 3}) {
     auto &op = alu_ops[oi];
     for (int si = 0; si < 4; si++) {
-      snprintf(name, sizeof(name), "ADC/SBB CF=1 %s %s", op.name, sz_sfx[si]);
+      name = std::format("ADC/SBB CF=1 {} {}", op.name, sz_sfx[si]);
       cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
@@ -909,8 +909,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rflags = 0x3;  // CF=1
           init.rax = VALS[i];
           init.rbx = VALS[j];
-          snprintf(name, sizeof(name), "S %s%s cf %d,%d",
-                   op.name, sz_sfx[si], i, j);
+          name = std::format("S {}{} cf {},{}", op.name, sz_sfx[si], i, j);
           add(name, encode_alu_rr(op.base, sizes[si], 0, 3),
               init, op.mask);
         }
@@ -920,7 +919,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
   // TEST reg,reg — like AND but only sets flags, doesn't write result
   for (int si = 0; si < 4; si++) {
-    snprintf(name, sizeof(name), "TEST %s", sz_sfx[si]);
+    name = std::format("TEST {}", sz_sfx[si]);
     cat = name;
     for (int i = 0; i < NVALS; i++) {
       for (int j = 0; j < NVALS; j++) {
@@ -928,7 +927,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rflags = 0x2;
         init.rax = VALS[i];
         init.rbx = VALS[j];
-        snprintf(name, sizeof(name), "S test%s %d,%d", sz_sfx[si], i, j);
+        name = std::format("S test{} {},{}", sz_sfx[si], i, j);
         add(name, encode_alu_rr(0x84, sizes[si], 0, 3),
             init, FL_ALL);
       }
@@ -952,7 +951,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   };
 
   for (auto &op : shift_ops) {
-    snprintf(name, sizeof(name), "Shift %s", op.name);
+    name = std::format("Shift {}", op.name);
     cat = name;
     for (int si = 0; si < 4; si++) {
       for (int ci = 0; ci < NSHIFTS; ci++) {
@@ -961,8 +960,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
           init.rflags = 0x2;
           init.rax = VALS[vi];
           init.rcx = SHIFT_COUNTS[ci];
-          snprintf(name, sizeof(name), "S %s%s c%d %d",
-                   op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
+          name = std::format("S {}{} c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
           add(name, encode_shift_cl(op.digit, sizes[si], 0),
               init, op.mask);
         }
@@ -971,7 +969,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
     // RCL/RCR with CF=1 — carry is rotated through the value
     if (op.needs_cf) {
-      snprintf(name, sizeof(name), "Shift %s CF=1", op.name);
+      name = std::format("Shift {} CF=1", op.name);
       cat = name;
       for (int si = 0; si < 4; si++) {
         for (int ci = 0; ci < NSHIFTS; ci++) {
@@ -980,8 +978,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
             init.rflags = 0x3;  // CF=1
             init.rax = VALS[vi];
             init.rcx = SHIFT_COUNTS[ci];
-            snprintf(name, sizeof(name), "S %s%s cf c%d %d",
-                     op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
+            name = std::format("S {}{} cf c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
             add(name, encode_shift_cl(op.digit, sizes[si], 0),
                 init, op.mask);
           }
@@ -1009,8 +1006,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         ArchState init = {};
         init.rflags = 0x3;  // CF=1
         init.rax = VALS[vi];
-        snprintf(name, sizeof(name), "S %s%s %d",
-                 op.name, sz_sfx[si], vi);
+        name = std::format("S {}{} {}", op.name, sz_sfx[si], vi);
         add(name, encode_unary(op.op8, op.op, op.digit, sizes[si], 0),
             init, op.mask);
       }
@@ -1029,10 +1025,10 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
       init.rax = VALS[i];
       init.rbx = VALS[j];
 
-      snprintf(name, sizeof(name), "S mul64 %d,%d", i, j);
+      name = std::format("S mul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xE3}, init, FL_CF_OF);
 
-      snprintf(name, sizeof(name), "S imul64 %d,%d", i, j);
+      name = std::format("S imul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xEB}, init, FL_CF_OF);
     }
   }
@@ -1053,7 +1049,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rax = VALS[i];
         init.rdx = 0;
         init.rbx = VALS[j];
-        snprintf(name, sizeof(name), "S div64 %d,%d", i, j);
+        name = std::format("S div64 {},{}", i, j);
         add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
       }
 
@@ -1070,7 +1066,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
         init.rax = VALS[i];
         init.rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0;
         init.rbx = VALS[j];
-        snprintf(name, sizeof(name), "S idiv64 %d,%d", i, j);
+        name = std::format("S idiv64 {},{}", i, j);
         add(name, {0x48, 0xF7, 0xFB}, init, FL_NONE);
       }
     }
@@ -1089,8 +1085,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
       init.rflags = 0x2;
       set_gpr(init, dst, 0x123456789ABCDEF0);
       set_gpr(init, src, 0x0FEDCBA987654321);
-      snprintf(name, sizeof(name), "S add %s,%s",
-               GPR_NAMES[dst], GPR_NAMES[src]);
+      name = std::format("S add {},{}", GPR_NAMES[dst], GPR_NAMES[src]);
       add(name, encode_alu_rr(0x00, 64, dst, src), init, FL_ALL);
     }
   }
@@ -1111,8 +1106,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
     init.rbx = (rng() % 4) ? VALS[rng() % NVALS] : rng();
     init.rflags = 0x2 | ((rng() & 1) ? FL_CF : 0);
 
-    snprintf(name, sizeof(name), "S rand %s%s %d",
-             op.name, sz_sfx[si], t);
+    name = std::format("S rand {}{} {}", op.name, sz_sfx[si], t);
     add(name, encode_alu_rr(op.base, sizes[si], 0, 3), init, op.mask);
   }
 }
@@ -1120,12 +1114,12 @@ std::vector<TestCase> build_tests() {
   std::vector<TestCase> tests;
   std::string cat;
 
-  auto add = [&](const char *name, std::vector<u8> code, ArchState init,
+  auto add = [&](const std::string &name, std::vector<u8> code, ArchState init,
                  u64 mask = FL_ALL) {
     tests.push_back({name, cat, std::move(code), init, mask});
   };
 
-  auto add_mem = [&](const char *name, std::vector<u8> code, ArchState init,
+  auto add_mem = [&](const std::string &name, std::vector<u8> code, ArchState init,
                      u64 mask, std::vector<u8> data, size_t cmp_len) {
     tests.push_back({name, cat, std::move(code), init, mask, 0, false, std::move(data), cmp_len});
   };
@@ -1484,22 +1478,22 @@ std::vector<TestCase> build_tests() {
   // Test all 16 condition codes with state A (CF=1)
   static const char *cc_names[] = {"o","no","b","ae","e","ne","be","a",
                                    "s","ns","p","np","l","ge","le","g"};
-  char ccbuf[64];
+  std::string ccbuf;
 
   for (int cc = 0; cc < 16; cc++) {
-    snprintf(ccbuf, sizeof(ccbuf), "set%s al (cf=1)", cc_names[cc]);
+    ccbuf = std::format("set{} al (cf=1)", cc_names[cc]);
     add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, ccA, FL_ALL);
   }
 
   // Test SETcc with state B (ZF=1)
   for (int cc : {4, 5, 6, 7}) {  // E, NE, BE, A — all involve ZF
-    snprintf(ccbuf, sizeof(ccbuf), "set%s al (zf=1)", cc_names[cc]);
+    ccbuf = std::format("set{} al (zf=1)", cc_names[cc]);
     add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, ccB, FL_ALL);
   }
 
   // Test SETcc with state D (SF=1, OF=1 — GE should be true since SF==OF)
   for (int cc : {12, 13, 14, 15}) {  // L, GE, LE, G
-    snprintf(ccbuf, sizeof(ccbuf), "set%s al (sf=of=1)", cc_names[cc]);
+    ccbuf = std::format("set{} al (sf=of=1)", cc_names[cc]);
     add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, ccD, FL_ALL);
   }
 
@@ -2033,7 +2027,7 @@ std::vector<TestCase> build_tests() {
   // =====================================================================
   cat = "SSE";
 
-  auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
                       u32 xmm_cmp) {
     tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
   };
@@ -5220,8 +5214,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vaddps %s", pairs[i].desc);
+      std::string n = std::format("vaddps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
     }
 
@@ -5231,8 +5224,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vsubps %s", pairs[i].desc);
+      std::string n = std::format("vsubps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x5C, 0xC2}, s, 0x7);
     }
 
@@ -5242,8 +5234,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vmulps %s", pairs[i].desc);
+      std::string n = std::format("vmulps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x59, 0xC2}, s, 0x7);
     }
 
@@ -5253,8 +5244,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vdivps %s", pairs[i].desc);
+      std::string n = std::format("vdivps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x5E, 0xC2}, s, 0x7);
     }
 
@@ -5264,8 +5254,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vminps %s", pairs[i].desc);
+      std::string n = std::format("vminps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x5D, 0xC2}, s, 0x7);
     }
 
@@ -5275,8 +5264,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vmaxps %s", pairs[i].desc);
+      std::string n = std::format("vmaxps {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF0, 0x5F, 0xC2}, s, 0x7);
     }
 
@@ -5287,8 +5275,7 @@ std::vector<TestCase> build_tests() {
       s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
       for (int pred = 0; pred < 8; pred++) {
-        char n[128];
-        snprintf(n, sizeof(n), "vcmpps p%d %s", pred, pairs[i].desc);
+        std::string n = std::format("vcmpps p{} {}", pred, pairs[i].desc);
         add_xmm(n, {0xC5, 0xF0, 0xC2, 0xC2, (u8)pred}, s, 0x7);
       }
     }
@@ -5300,8 +5287,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vaddss %s", pairs[i].desc);
+      std::string n = std::format("vaddss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
@@ -5309,8 +5295,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vsubss %s", pairs[i].desc);
+      std::string n = std::format("vsubss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
@@ -5318,8 +5303,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vmulss %s", pairs[i].desc);
+      std::string n = std::format("vmulss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
@@ -5327,8 +5311,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vdivss %s", pairs[i].desc);
+      std::string n = std::format("vdivss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
@@ -5336,8 +5319,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vminss %s", pairs[i].desc);
+      std::string n = std::format("vminss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < npairs; i++) {
@@ -5345,8 +5327,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
       s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
-      char n[128];
-      snprintf(n, sizeof(n), "vmaxss %s", pairs[i].desc);
+      std::string n = std::format("vmaxss {}", pairs[i].desc);
       add_xmm(n, {0xC5, 0xF2, 0x5F, 0xC2}, s, 0x7);
     }
   }
@@ -5395,8 +5376,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vaddpd %s", dpairs[i].desc);
+      std::string n = std::format("vaddpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5404,8 +5384,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vsubpd %s", dpairs[i].desc);
+      std::string n = std::format("vsubpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5413,8 +5392,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vmulpd %s", dpairs[i].desc);
+      std::string n = std::format("vmulpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5422,8 +5400,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vdivpd %s", dpairs[i].desc);
+      std::string n = std::format("vdivpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5431,8 +5408,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vminpd %s", dpairs[i].desc);
+      std::string n = std::format("vminpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5440,8 +5416,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vmaxpd %s", dpairs[i].desc);
+      std::string n = std::format("vmaxpd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0x5F, 0xC2}, s, 0x7);
     }
 
@@ -5452,8 +5427,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vaddsd %s", dpairs[i].desc);
+      std::string n = std::format("vaddsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x58, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5461,8 +5435,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vsubsd %s", dpairs[i].desc);
+      std::string n = std::format("vsubsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x5C, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5470,8 +5443,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vmulsd %s", dpairs[i].desc);
+      std::string n = std::format("vmulsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x59, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5479,8 +5451,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vdivsd %s", dpairs[i].desc);
+      std::string n = std::format("vdivsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x5E, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5488,8 +5459,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vminsd %s", dpairs[i].desc);
+      std::string n = std::format("vminsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x5D, 0xC2}, s, 0x7);
     }
     for (int i = 0; i < ndpairs; i++) {
@@ -5497,8 +5467,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
       s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
-      char n[128];
-      snprintf(n, sizeof(n), "vmaxsd %s", dpairs[i].desc);
+      std::string n = std::format("vmaxsd {}", dpairs[i].desc);
       add_xmm(n, {0xC5, 0xF3, 0x5F, 0xC2}, s, 0x7);
     }
   }
@@ -5613,8 +5582,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpaddd %s", int_pairs[i].desc);
+      std::string n = std::format("vpaddd {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xFE, 0xC2}, s, 0x7);
     }
     // VPSUBD: C5 F1 FA C2
@@ -5625,8 +5593,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpsubd %s", int_pairs[i].desc);
+      std::string n = std::format("vpsubd {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xFA, 0xC2}, s, 0x7);
     }
     // VPADDB: C5 F1 FC C2
@@ -5637,8 +5604,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpaddb %s", int_pairs[i].desc);
+      std::string n = std::format("vpaddb {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xFC, 0xC2}, s, 0x7);
     }
     // VPSUBB: C5 F1 F8 C2
@@ -5649,8 +5615,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpsubb %s", int_pairs[i].desc);
+      std::string n = std::format("vpsubb {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xF8, 0xC2}, s, 0x7);
     }
     // VPADDW: C5 F1 FD C2
@@ -5661,8 +5626,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpaddw %s", int_pairs[i].desc);
+      std::string n = std::format("vpaddw {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xFD, 0xC2}, s, 0x7);
     }
     // VPSUBW: C5 F1 F9 C2
@@ -5673,8 +5637,7 @@ std::vector<TestCase> build_tests() {
                                 int_pairs[i].a, int_pairs[i].a);
       s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
                                 int_pairs[i].b, int_pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "vpsubw %s", int_pairs[i].desc);
+      std::string n = std::format("vpsubw {}", int_pairs[i].desc);
       add_xmm(n, {0xC5, 0xF1, 0xF9, 0xC2}, s, 0x7);
     }
   }
@@ -5692,8 +5655,7 @@ std::vector<TestCase> build_tests() {
     s.xmm[1] = xmm_from_u32(ONE, TWO, FOUR, QNAN);
     s.xmm[2] = xmm_from_u32(ONE, THREE, THREE, ONE);
     for (int pred = 0; pred < 8; pred++) {
-      char n[128];
-      snprintf(n, sizeof(n), "vcmpps mixed pred%d", pred);
+      std::string n = std::format("vcmpps mixed pred{}", pred);
       add_xmm(n, {0xC5, 0xF0, 0xC2, 0xC2, (u8)pred}, s, 0x7);
     }
   }
@@ -5821,8 +5783,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "addps %s", pairs[i].desc);
+      std::string n = std::format("addps {}", pairs[i].desc);
       // ADDPS xmm0, xmm1: 0F 58 C1
       add_xmm(n, {0x0F, 0x58, 0xC1}, s, 0x3);
     }
@@ -5833,8 +5794,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "subps %s", pairs[i].desc);
+      std::string n = std::format("subps {}", pairs[i].desc);
       // SUBPS xmm0, xmm1: 0F 5C C1
       add_xmm(n, {0x0F, 0x5C, 0xC1}, s, 0x3);
     }
@@ -5845,8 +5805,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "mulps %s", pairs[i].desc);
+      std::string n = std::format("mulps {}", pairs[i].desc);
       // MULPS xmm0, xmm1: 0F 59 C1
       add_xmm(n, {0x0F, 0x59, 0xC1}, s, 0x3);
     }
@@ -5857,8 +5816,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "divps %s", pairs[i].desc);
+      std::string n = std::format("divps {}", pairs[i].desc);
       // DIVPS xmm0, xmm1: 0F 5E C1
       add_xmm(n, {0x0F, 0x5E, 0xC1}, s, 0x3);
     }
@@ -5869,8 +5827,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "minps %s", pairs[i].desc);
+      std::string n = std::format("minps {}", pairs[i].desc);
       // MINPS xmm0, xmm1: 0F 5D C1
       add_xmm(n, {0x0F, 0x5D, 0xC1}, s, 0x3);
     }
@@ -5881,8 +5838,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
       s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "maxps %s", pairs[i].desc);
+      std::string n = std::format("maxps {}", pairs[i].desc);
       // MAXPS xmm0, xmm1: 0F 5F C1
       add_xmm(n, {0x0F, 0x5F, 0xC1}, s, 0x3);
     }
@@ -5895,8 +5851,7 @@ std::vector<TestCase> build_tests() {
         s.rflags = 0x2;
         s.xmm[0] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
         s.xmm[1] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
-        char n[128];
-        snprintf(n, sizeof(n), "cmpps p%d %s", p, pairs[i].desc);
+        std::string n = std::format("cmpps p{} {}", p, pairs[i].desc);
         // CMPPS xmm0, xmm1, imm8: 0F C2 C1 pp
         add_xmm(n, {0x0F, 0xC2, 0xC1, cmppreds[p]}, s, 0x3);
       }
@@ -5908,8 +5863,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(pairs[i].a, 0, 0, 0);
       s.xmm[1] = xmm_from_u32(pairs[i].b, 0, 0, 0);
-      char n[128];
-      snprintf(n, sizeof(n), "ucomiss %s", pairs[i].desc);
+      std::string n = std::format("ucomiss {}", pairs[i].desc);
       // UCOMISS xmm0, xmm1: 0F 2E C1
       add_xmm(n, {0x0F, 0x2E, 0xC1}, s, 0x3);
     }
@@ -5921,8 +5875,7 @@ std::vector<TestCase> build_tests() {
       ArchState s = {};
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
-      char n[128];
-      snprintf(n, sizeof(n), "sqrtps 0x%08x", v);
+      std::string n = std::format("sqrtps 0x{:08x}", v);
       // SQRTPS xmm0, xmm0: 0F 51 C0
       add_xmm(n, {0x0F, 0x51, 0xC0}, s, 0x1);
     }
@@ -5935,8 +5888,7 @@ std::vector<TestCase> build_tests() {
       ArchState s = {};
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
-      char n[128];
-      snprintf(n, sizeof(n), "cvtps2dq 0x%08x", v);
+      std::string n = std::format("cvtps2dq 0x{:08x}", v);
       // CVTPS2DQ xmm0, xmm0: 66 0F 5B C0
       add_xmm(n, {0x66, 0x0F, 0x5B, 0xC0}, s, 0x1);
     }
@@ -5946,8 +5898,7 @@ std::vector<TestCase> build_tests() {
       ArchState s = {};
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u32(v, v, v, v);
-      char n[128];
-      snprintf(n, sizeof(n), "cvttps2dq 0x%08x", v);
+      std::string n = std::format("cvttps2dq 0x{:08x}", v);
       // CVTTPS2DQ xmm0, xmm0: F3 0F 5B C0
       add_xmm(n, {0xF3, 0x0F, 0x5B, 0xC0}, s, 0x1);
     }
@@ -5988,8 +5939,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "addpd %s", dpairs[i].desc);
+      std::string n = std::format("addpd {}", dpairs[i].desc);
       // ADDPD xmm0, xmm1: 66 0F 58 C1
       add_xmm(n, {0x66, 0x0F, 0x58, 0xC1}, s, 0x3);
     }
@@ -6000,8 +5950,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "minpd %s", dpairs[i].desc);
+      std::string n = std::format("minpd {}", dpairs[i].desc);
       // MINPD xmm0, xmm1: 66 0F 5D C1
       add_xmm(n, {0x66, 0x0F, 0x5D, 0xC1}, s, 0x3);
     }
@@ -6012,8 +5961,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
-      char n[128];
-      snprintf(n, sizeof(n), "maxpd %s", dpairs[i].desc);
+      std::string n = std::format("maxpd {}", dpairs[i].desc);
       // MAXPD xmm0, xmm1: 66 0F 5F C1
       add_xmm(n, {0x66, 0x0F, 0x5F, 0xC1}, s, 0x3);
     }
@@ -6024,8 +5972,7 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(dpairs[i].a, 0);
       s.xmm[1] = xmm_from_u64(dpairs[i].b, 0);
-      char n[128];
-      snprintf(n, sizeof(n), "ucomisd %s", dpairs[i].desc);
+      std::string n = std::format("ucomisd {}", dpairs[i].desc);
       // UCOMISD xmm0, xmm1: 66 0F 2E C1
       add_xmm(n, {0x66, 0x0F, 0x2E, 0xC1}, s, 0x3);
     }
@@ -6048,8 +5995,7 @@ std::vector<TestCase> build_tests() {
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f32(test_vals[i], test_vals[i],
                                   test_vals[i], test_vals[i]);
-        char n[128];
-        snprintf(n, sizeof(n), "cvtps2dq RC=%s %.1f", rc_names[rc], test_vals[i]);
+        std::string n = std::format("cvtps2dq RC={} {:.1f}", rc_names[rc], test_vals[i]);
         // CVTPS2DQ xmm0, xmm0: 66 0F 5B C0
         add_xmm(n, {0x66, 0x0F, 0x5B, 0xC0}, s, 0x1);
       }
@@ -6060,8 +6006,7 @@ std::vector<TestCase> build_tests() {
         s.rflags = 0x2;
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f32(test_vals[i], 0.0f, 0.0f, 0.0f);
-        char n[128];
-        snprintf(n, sizeof(n), "cvtss2si RC=%s %.1f", rc_names[rc], test_vals[i]);
+        std::string n = std::format("cvtss2si RC={} {:.1f}", rc_names[rc], test_vals[i]);
         // CVTSS2SI eax, xmm0: F3 0F 2D C0
         add_xmm(n, {0xF3, 0x0F, 0x2D, 0xC0}, s, 0x0);
       }
@@ -6076,8 +6021,7 @@ std::vector<TestCase> build_tests() {
         s.rflags = 0x2;
         s.mxcsr = mxcsr;
         s.xmm[0] = xmm_from_f64(dvals[i], dvals[i]);
-        char n[128];
-        snprintf(n, sizeof(n), "cvtpd2dq RC=%s %.1f", rc_names[rc], dvals[i]);
+        std::string n = std::format("cvtpd2dq RC={} {:.1f}", rc_names[rc], dvals[i]);
         // CVTPD2DQ xmm0, xmm0: F2 0F E6 C0
         add_xmm(n, {0xF2, 0x0F, 0xE6, 0xC0}, s, 0x1);
       }
@@ -6094,8 +6038,7 @@ std::vector<TestCase> build_tests() {
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_u32(one, one, one, one);
       s.xmm[1] = xmm_from_u32(tiny, tiny, tiny, tiny);
-      char n[128];
-      snprintf(n, sizeof(n), "addps RC=%s 1+ulp", rc_names[rc]);
+      std::string n = std::format("addps RC={} 1+ulp", rc_names[rc]);
       add_xmm(n, {0x0F, 0x58, 0xC1}, s, 0x3);
     }
   }
@@ -6202,9 +6145,8 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_f32(1.5f, 2.5f, -1.5f, -2.5f);
-      char n[128];
       const char *rc_names[] = {"RN", "RD", "RU", "RZ"};
-      snprintf(n, sizeof(n), "roundps mxcsr RC=%s", rc_names[rc]);
+      std::string n = std::format("roundps mxcsr RC={}", rc_names[rc]);
       // ROUNDPS xmm0, xmm0, 0x04: 66 0F 3A 08 C0 04
       // imm8=0x04: bit 2=1 means use imm8 RC, bit 1:0=00 means RN
       // Actually for MXCSR test, imm8 bit 2=0: 66 0F 3A 08 C0 00
@@ -6229,9 +6171,8 @@ std::vector<TestCase> build_tests() {
       s.rflags = 0x2;
       s.mxcsr = mxcsr;
       s.xmm[0] = xmm_from_u32(0x7FFFFFFF, 0x80000001, 0x01000001, 0xFEFFFFFF);
-      char n[128];
       const char *rc_names[] = {"RN", "RD", "RU", "RZ"};
-      snprintf(n, sizeof(n), "cvtdq2ps RC=%s large", rc_names[rc]);
+      std::string n = std::format("cvtdq2ps RC={} large", rc_names[rc]);
       add_xmm(n, {0x0F, 0x5B, 0xC0}, s, 0x1);
     }
   }
@@ -8174,7 +8115,7 @@ std::vector<TestCase> build_tests() {
   {
     cat = "SSE4.2 str";
 
-    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+    auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
                         u32 xmm_cmp) {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
@@ -8238,7 +8179,7 @@ std::vector<TestCase> build_tests() {
   {
     cat = "EVEX";
 
-    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+    auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
                         u32 xmm_cmp) {
       tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
@@ -8457,7 +8398,7 @@ std::vector<TestCase> build_tests() {
   // Exception/Fault tests
   // =====================================================================
 
-  auto add_fault = [&](const char *name, std::vector<u8> code, ArchState init,
+  auto add_fault = [&](const std::string &name, std::vector<u8> code, ArchState init,
                        int vec) {
     TestCase tc;
     tc.name = name;
