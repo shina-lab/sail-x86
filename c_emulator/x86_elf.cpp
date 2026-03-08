@@ -1,7 +1,9 @@
 #include "integers.h"
 #include "x86_cpuid.h"
 #include "x86_elf.h"
-#include "x86_memory.h"
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <vector>
@@ -9,6 +11,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static constexpr u64 PAGE_MASK = ~(u64)4095;
 
 static constexpr u64 AT_NULL = 0;
 static constexpr u64 AT_PHDR = 3;
@@ -23,6 +27,11 @@ static constexpr u64 AT_HWCAP2 = 26;
 static constexpr u64 AT_EXECFN = 31;
 static constexpr u64 AT_SYSINFO_EHDR = 33;
 
+static constexpr u32 PT_LOAD = 1;
+static constexpr u32 PT_INTERP = 3;
+static constexpr u32 PT_PHDR = 6;
+static constexpr u16 ET_DYN = 3;
+static constexpr u16 EM_X86_64 = 62;
 
 struct Ehdr {
   u8 e_ident[16];
@@ -52,11 +61,38 @@ struct Phdr {
   u64 p_align;
 };
 
-static constexpr u32 PT_LOAD = 1;
-static constexpr u32 PT_INTERP = 3;
-static constexpr u32 PT_PHDR = 6;
-static constexpr u16 ET_DYN = 3;
-static constexpr u16 EM_X86_64 = 62;
+static void guest_map_fixed(u64 addr, size_t len) {
+  if (len == 0) return;
+  u64 start = addr & PAGE_MASK;
+  u64 end = (addr + len + 4095) & PAGE_MASK;
+  size_t size = end - start;
+  void *p = mmap((void *)start, size, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+  if (p == MAP_FAILED) {
+    fprintf(stderr, "guest_map_fixed failed at 0x%lx len 0x%zx: %s\n",
+            start, size, strerror(errno));
+    abort();
+  }
+}
+
+static u64 guest_map_anywhere(size_t len) {
+  if (len == 0) return (u64)-EINVAL;
+  size_t size = (len + 4095) & PAGE_MASK;
+  void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (p == MAP_FAILED)
+    return (u64)-(i64)errno;
+  return (u64)p;
+}
+
+static u64 guest_map_noreserve(size_t len) {
+  size_t size = (len + 4095) & PAGE_MASK;
+  void *p = mmap(nullptr, size, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+  if (p == MAP_FAILED)
+    return (u64)-(i64)errno;
+  return (u64)p;
+}
 
 static u8 *mmap_file(const std::string &path) {
   int fd = ::open(path.c_str(), O_RDONLY);

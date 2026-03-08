@@ -72,7 +72,6 @@ cd build && ctest
   - `x86_elf.cpp` — ELF loader (static and dynamic)
   - `x86_syscall.cpp` — Linux syscall emulation
   - `x86_externals.cpp` — external function implementations (FP, x87, SSE4.2, AES-NI, FXSAVE/FXRSTOR)
-  - `x86_memory.h` — page-based guest memory model
   - `x86_platform_base.h` — platform state (x87 FPU, MXCSR)
 - `test/` — test programs
 - `sail_runtime/` — build rules for the Sail C runtime library
