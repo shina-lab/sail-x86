@@ -205,7 +205,7 @@ helper unconditionally used 64-bit width. No SDM issue.
 
 ## C Emulator Bugs (external function implementations)
 
-These bugs were in `c_emulator/x86_externals.cpp`, the C implementations of
+These bugs were in `usermode-emu/x86_externals.cpp`, the C implementations of
 floating-point operations called by the Sail model. The Sail specification
 itself was correct — these are bugs in how the external FP functions were
 implemented.

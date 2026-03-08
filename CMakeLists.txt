@@ -59,7 +59,7 @@ add_subdirectory("sail_runtime")
 add_subdirectory("model")
 
 # Emulator binary.
-add_subdirectory("c_emulator")
+add_subdirectory("usermode-emu")
 
 # Tests.
 enable_testing()

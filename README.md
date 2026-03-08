@@ -38,7 +38,7 @@ make -j$(nproc)
 ## Running
 
 ```
-./build/c_emulator/sail_x86_sim <elf-binary> [args...]
+./build/usermode-emu/sail_x86_sim <elf-binary> [args...]
 ```
 
 Both statically and dynamically linked x86-64 ELF binaries are
@@ -46,9 +46,9 @@ supported. The emulator interprets each instruction through the Sail
 model and emulates Linux syscalls.
 
 ```
-$ ./build/c_emulator/sail_x86_sim /bin/ls /
+$ ./build/usermode-emu/sail_x86_sim /bin/ls /
 bin  boot  dev  etc  home  lib  ...
-$ ./build/c_emulator/sail_x86_sim /usr/bin/python3 -c "print('hello')"
+$ ./build/usermode-emu/sail_x86_sim /usr/bin/python3 -c "print('hello')"
 hello
 ```
 
@@ -67,7 +67,7 @@ cd build && ctest
   - `decode/` — instruction decoder (prefix, ModR/M, opcode maps)
   - `instructions/` — per-instruction semantics
   - `prelude/` — Sail prelude
-- `c_emulator/` — user-mode Linux emulator in C++
+- `usermode-emu/` — user-mode Linux emulator in C++
   - `x86_sim.cpp` — main entry point and execution loop
   - `x86_elf.cpp` — ELF loader (static and dynamic)
   - `x86_syscall.cpp` — Linux syscall emulation

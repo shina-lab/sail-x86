@@ -1,7 +1,7 @@
 # Syscall Emulation Coverage Report
 
 **Date:** 2026-03-08
-**Source:** `c_emulator/x86_syscall.cpp`, `test/syscall_test.c`
+**Source:** `usermode-emu/x86_syscall.cpp`, `test/syscall_test.c`
 
 ## Summary
 
