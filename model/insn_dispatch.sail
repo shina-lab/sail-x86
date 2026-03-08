@@ -359,8 +359,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let op3 : range(0, 255) = unsigned(opcode3);
       if op3 == 246 then {
         // ADCX (66) / ADOX (F3)
+        // The 66/F3 prefix is a mandatory prefix, NOT an operand size override.
+        // Operand size is determined by REX.W only: W=1 → 64-bit, else 32-bit.
         let mp = get_mandatory_prefix(pfx);
-        let os = get_operand_size(pfx);
+        let os : OperandSize = if pfx.rex_w then OS64 else OS32;
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
