@@ -25,12 +25,30 @@ function step() = {
       X86Fault(vec, err) => Fault(vec, err),
     };
 
-  // Advance RIP. Control-flow instructions set next_rip to the branch
-  // target; otherwise we fall through to the next instruction.
-  match result {
-    Ok(_) => RIP = match next_rip { Some(t) => t, None() => decode_pos },
-    Fault(_, _) => (),
-    Halt(_) => (),
+  // In system mode, deliver faults through the IDT instead of returning them.
+  // deliver_exception sets RIP to the handler address, so we must not
+  // overwrite it with the normal RIP advance logic.
+  let result : ExecutionResult = match result {
+    Fault(vec, err) if system_mode => {
+      try {
+        deliver_exception(vec, err);
+        // RIP already set to handler by deliver_exception; skip normal advance
+        Ok()
+      } catch {
+        // deliver_exception itself faulted — triple fault
+        X86Fault(vec2, err2) => Fault(vec2, err2),
+      }
+    },
+    _ => {
+      // Advance RIP. Control-flow instructions set next_rip to the branch
+      // target; otherwise we fall through to the next instruction.
+      match result {
+        Ok(_) => RIP = match next_rip { Some(t) => t, None() => decode_pos },
+        Fault(_, _) => (),
+        Halt(_) => (),
+      };
+      result
+    },
   };
 
   result

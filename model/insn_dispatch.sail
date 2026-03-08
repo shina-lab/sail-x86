@@ -986,6 +986,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       },
 
       // 9D: POPF (d64)
+      // At CPL 0: all flags except RF, VIP, VIF, VM modifiable.
+      // RF is always cleared (cleared at start of every instruction).
       157 => {
         let os = get_operand_size_d64(pfx);
         match os {
@@ -993,12 +995,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             let v : word = pop16();
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
             TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
+            NT = v[14];
           },
           OS64 => {
             let v : qword = pop64();
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
             TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
             IOPL = v[13..12];
+            NT = v[14];
           },
           _ => (),
         };

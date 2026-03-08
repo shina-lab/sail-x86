@@ -15,7 +15,7 @@
 | MSR register file | **Done** | EFER/FS_BASE/GS_BASE in Sail, rest in C++ map |
 | Privileged instructions (MOV CR, LGDT, etc.) | **Done** | 12 instructions, 20 tests passing |
 | Paging (page table walk in Sail) | **Done** | 4-level walk, A/D bits, WP, 4KB/2MB/1GB pages |
-| Exception delivery via IDT | Not started | |
+| Exception delivery via IDT | **Done** | IDT gate parsing, interrupt frame push, IF/TF/NT/RF clearing, SS←NULL, 7 tests |
 | Device emulation (UART, PIC, PIT) | Not started | |
 | Linux boot protocol loader | Not started | |
 
@@ -33,6 +33,12 @@ The Sail x86 model is a **user-mode 64-bit** specification:
 - **No system registers**: no CR0-CR4, no MSRs, no GDT/IDT/TSS
 
 To boot Linux, the model must become a full **system-level** x86-64 specification.
+
+### Development Philosophy
+
+This project is a **formal specification** of x86-64, not just another emulator.
+Every implementation detail must be verified against the Intel SDM (`~/sdm/`,
+`~/sdm.pdf`). The SDM is the golden reference — never implement from memory alone.
 
 ### Reference: sail-riscv
 

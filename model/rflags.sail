@@ -13,6 +13,8 @@ register DF : bit  // Direction Flag
 register IF_flag : bit  // Interrupt Enable Flag (IF is a Sail keyword)
 register TF : bit  // Trap Flag
 register IOPL : bits(2)  // I/O Privilege Level
+register NT : bit  // Nested Task
+register RF : bit  // Resume Flag
 
 // Pack individual flags into a 64-bit RFLAGS value.
 // Bits: 0=CF, 1=1(reserved), 2=PF, 4=AF, 6=ZF, 7=SF, 8=TF, 9=IF, 10=DF, 11=OF, 13:12=IOPL
@@ -30,6 +32,8 @@ function read_rflags() = {
   r[10] = DF;
   r[11] = OF;
   r[13..12] = IOPL;
+  r[14] = NT;
+  r[16] = RF;
   r
 }
 

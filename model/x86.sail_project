@@ -13,6 +13,7 @@ core {
     exceptions.sail,
     paging.sail,
     mem.sail,
+    interrupts.sail,
     fp_extern.sail,
     x87_regs.sail,
 }
