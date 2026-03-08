@@ -150,6 +150,7 @@ set(KVM_CATEGORIES
   "EVEX mask"
   "K-register ops"
   "Vec stores"
+  "LOCK mem"
 )
 
 foreach(cat ${KVM_CATEGORIES})

@@ -855,18 +855,13 @@ Added 12 tests in "Vec stores" category verifying memory output:
 - VEX: VMOVAPS xmm (16 bytes), VMOVDQU xmm (16 bytes)
 - VEX 256-bit: VMOVAPS ymm (32 bytes), VMOVDQU ymm (32 bytes)
 
-#### Item 5: LOCK prefix memory operations (MEDIUM priority)
+#### Item 5: LOCK prefix memory operations (MEDIUM priority) ✅ DONE
 
-LOCK validation (#UD) is tested, but actual LOCK'd memory semantics
-are not.
-
-**Tests to add:**
-- LOCK ADD [mem], reg (all sizes)
-- LOCK SUB [mem], reg
-- LOCK INC [mem] / LOCK DEC [mem]
-- LOCK BTS [mem], reg / LOCK BTR [mem], reg / LOCK BTC [mem], reg
-- LOCK XADD [mem], reg (verify both memory and register results)
-- LOCK OR [mem], imm / LOCK AND [mem], imm
+Added 12 tests in "LOCK mem" category verifying LOCK'd memory RMW:
+- LOCK ADD (32-bit, 64-bit), LOCK SUB, LOCK OR, LOCK AND, LOCK XOR
+- LOCK INC (overflow case), LOCK DEC (underflow case)
+- LOCK XADD (swap + add, verify both memory and register)
+- LOCK BTS, LOCK BTR, LOCK BTC (bit test and set/reset/complement)
 
 #### Item 6: Indirect JMP/CALL (LOW priority)
 

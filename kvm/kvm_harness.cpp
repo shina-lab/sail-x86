@@ -10969,6 +10969,206 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // LOCK prefix memory operations — read-modify-write on memory
+  // =====================================================================
+  cat = "LOCK mem";
+  {
+    // LOCK ADD [rdi], eax: F0 01 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock add [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x01, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x100;
+      tc.init_data = {0x34, 0x12, 0x00, 0x00};  // [rdi] = 0x1234
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK ADD [rdi], rax: F0 48 01 07  (64-bit)
+    {
+      TestCase tc;
+      tc.name = "lock add [rdi],rax 64";
+      tc.category = cat;
+      tc.code = {0xF0, 0x48, 0x01, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x1000000000ULL;
+      tc.init_data = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK SUB [rdi], ecx: F0 29 0F  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock sub [rdi],ecx 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x29, 0x0F};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rcx = 1;
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 - 1 = underflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK OR [rdi], eax: F0 09 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock or [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x09, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFF00FF00;
+      tc.init_data = {0x0F, 0x0F, 0x0F, 0x0F};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK AND [rdi], eax: F0 21 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock and [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x21, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFF00FF00;
+      tc.init_data = {0xAB, 0xCD, 0xEF, 0x12};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK XOR [rdi], eax: F0 31 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock xor [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x31, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFFFFFFFF;
+      tc.init_data = {0xAA, 0x55, 0xAA, 0x55};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK INC dword [rdi]: F0 FF 07
+    {
+      TestCase tc;
+      tc.name = "lock inc dword [rdi]";
+      tc.category = cat;
+      tc.code = {0xF0, 0xFF, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.init_data = {0xFF, 0xFF, 0xFF, 0x7F};  // 0x7FFFFFFF → overflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK DEC dword [rdi]: F0 FF 0F
+    {
+      TestCase tc;
+      tc.name = "lock dec dword [rdi]";
+      tc.category = cat;
+      tc.code = {0xF0, 0xFF, 0x0F};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 → underflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK XADD [rdi], eax: F0 0F C1 07
+    // Swaps src and dst, then adds. [rdi] += eax, eax gets old [rdi].
+    {
+      TestCase tc;
+      tc.name = "lock xadd [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xC1, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 10;
+      tc.init_data = {0x05, 0x00, 0x00, 0x00};  // [rdi] = 5
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTS [rdi], eax: F0 0F AB 07
+    // Set bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock bts [rdi],eax (bit 3)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xAB, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 3;  // set bit 3
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // bit 3 was 0
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTR [rdi], eax: F0 0F B3 07
+    // Reset bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock btr [rdi],eax (bit 7)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xB3, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 7;  // reset bit 7
+      tc.init_data = {0xFF, 0x00, 0x00, 0x00};  // bit 7 was 1
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTC [rdi], eax: F0 0F BB 07
+    // Complement bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock btc [rdi],eax (bit 0)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xBB, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0;  // toggle bit 0
+      tc.init_data = {0x01, 0x00, 0x00, 0x00};  // bit 0 was 1 → 0
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
   // VPERM2F128 — 256-bit lane permute (use VINSERTF128 to set up YMM state)
   // =====================================================================
   cat = "VPERM2F128";
