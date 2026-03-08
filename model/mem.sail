@@ -77,6 +77,14 @@ function pop64() = {
   v
 }
 
+val pop32 : unit -> dword
+function pop32() = {
+  let rsp = read_gpr64(RSP);
+  let v = mem_read32(rsp);
+  write_gpr64(RSP, rsp + 4);
+  v
+}
+
 val push16 : word -> unit
 function push16(v) = {
   let rsp = read_gpr64(RSP);

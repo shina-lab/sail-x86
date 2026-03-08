@@ -1307,6 +1307,77 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         __software_interrupt(imm)
       },
 
+      // CF: IRET/IRETD/IRETQ — Interrupt Return
+      // In IA-32e mode (64-bit): pop RIP, CS, RFLAGS, RSP, SS from stack.
+      // RSP and SS are always popped in 64-bit mode (SDM Vol.2 IRET).
+      207 => {
+        let os = get_operand_size(pfx);
+        // NT must be clear in IA-32e mode, else #GP(0)
+        if NT == bitone then {
+          throw X86Fault(EXN_GP, 0x00000000)
+        };
+        match os {
+          OS64 => {
+            let new_rip    = pop64();
+            let new_cs     = pop64();  // High 48 bits discarded
+            let new_rflags = pop64();
+            let new_rsp    = pop64();
+            let new_ss     = pop64();  // High 48 bits discarded
+
+            // Set RIP (via next_rip so step() uses it)
+            next_rip = Some(new_rip);
+
+            // Load CS selector
+            write_segreg(CS, new_cs[15..0]);
+
+            // Determine new CPL from CS.RPL
+            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
+            cur_cpl = new_cpl;
+
+            // Restore RFLAGS. At CPL 0: all flags modifiable except VIP, VIF, VM.
+            // RF is always cleared by instruction execution.
+            CF      = new_rflags[0];
+            PF      = new_rflags[2];
+            AF      = new_rflags[4];
+            ZF      = new_rflags[6];
+            SF      = new_rflags[7];
+            TF      = new_rflags[8];
+            IF_flag = new_rflags[9];
+            DF      = new_rflags[10];
+            OF      = new_rflags[11];
+            IOPL    = new_rflags[13..12];
+            NT      = new_rflags[14];
+            RF      = bitzero;  // RF always cleared
+
+            // Load RSP and SS
+            write_gpr64(RSP, new_rsp);
+            write_segreg(SS, new_ss[15..0]);
+          },
+          OS32 => {
+            let new_eip    = pop32();
+            let new_cs     = pop32();
+            let new_eflags = pop32();
+            let new_esp    = pop32();
+            let new_ss     = pop32();
+
+            next_rip = Some(zero_extend(new_eip));
+            write_segreg(CS, new_cs[15..0]);
+            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
+            cur_cpl = new_cpl;
+            CF = new_eflags[0]; PF = new_eflags[2]; AF = new_eflags[4];
+            ZF = new_eflags[6]; SF = new_eflags[7]; TF = new_eflags[8];
+            IF_flag = new_eflags[9]; DF = new_eflags[10]; OF = new_eflags[11];
+            IOPL = new_eflags[13..12]; NT = new_eflags[14]; RF = bitzero;
+            write_gpr64(RSP, zero_extend(new_esp));
+            write_segreg(SS, new_ss[15..0]);
+          },
+          _ => {
+            throw X86Fault(EXN_GP, 0x00000000)
+          },
+        };
+        Ok()
+      },
+
       // D0: Group 2 — shift r/m8 by 1
       208 => {
         let modrm = fetch_byte();
