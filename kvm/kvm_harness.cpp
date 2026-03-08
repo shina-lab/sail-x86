@@ -5448,6 +5448,201 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // FP Edge — shuffle/blend edge cases and additional SSE corner cases
+  // =====================================================================
+  {
+    // SHUFPS with all-same source (broadcast-like): imm8=0x00
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+      // SHUFPS xmm0, xmm1, 0x00: 0F C6 C1 00
+      add_xmm("shufps 0x00", {0x0F, 0xC6, 0xC1, 0x00}, s, 0x3);
+      add_xmm("shufps 0xFF", {0x0F, 0xC6, 0xC1, 0xFF}, s, 0x3);
+      add_xmm("shufps 0x1B", {0x0F, 0xC6, 0xC1, 0x1B}, s, 0x3);  // reverse
+      add_xmm("shufps 0xE4", {0x0F, 0xC6, 0xC1, 0xE4}, s, 0x3);  // identity
+    }
+
+    // SHUFPD: 2 bits select from 2 sources
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f64(1.0, 2.0);
+      s.xmm[1] = xmm_from_f64(3.0, 4.0);
+      // SHUFPD xmm0, xmm1, imm: 66 0F C6 C1 imm
+      add_xmm("shufpd 0x00", {0x66, 0x0F, 0xC6, 0xC1, 0x00}, s, 0x3);
+      add_xmm("shufpd 0x01", {0x66, 0x0F, 0xC6, 0xC1, 0x01}, s, 0x3);
+      add_xmm("shufpd 0x02", {0x66, 0x0F, 0xC6, 0xC1, 0x02}, s, 0x3);
+      add_xmm("shufpd 0x03", {0x66, 0x0F, 0xC6, 0xC1, 0x03}, s, 0x3);
+    }
+
+    // PSHUFD with various immediates
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      // PSHUFD xmm0, xmm0, imm: 66 0F 70 C0 imm
+      add_xmm("pshufd 0x00", {0x66, 0x0F, 0x70, 0xC0, 0x00}, s, 0x1);  // broadcast [0]
+      add_xmm("pshufd 0xFF", {0x66, 0x0F, 0x70, 0xC0, 0xFF}, s, 0x1);  // broadcast [3]
+      add_xmm("pshufd 0x1B", {0x66, 0x0F, 0x70, 0xC0, 0x1B}, s, 0x1);  // reverse
+      add_xmm("pshufd 0xE4", {0x66, 0x0F, 0x70, 0xC0, 0xE4}, s, 0x1);  // identity
+      add_xmm("pshufd 0x55", {0x66, 0x0F, 0x70, 0xC0, 0x55}, s, 0x1);  // broadcast [1]
+    }
+
+    // PSHUFB with high-bit-set control (zeros the element)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x04030201, 0x08070605, 0x0C0B0A09, 0x100F0E0D);
+      // Control: 0x80 = zero, 0x00 = byte 0, 0x0F = byte 15
+      s.xmm[1] = xmm_from_u32(0x80000180, 0x0F0E0D0C, 0x03020100, 0x80808080);
+      // PSHUFB xmm0, xmm1: 66 0F 38 00 C1
+      add_xmm("pshufb zeros", {0x66, 0x0F, 0x38, 0x00, 0xC1}, s, 0x3);
+    }
+
+    // BLENDVPS: XMM0 as implicit mask (high bit of each dword selects)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x80000000, 0x00000000, 0x80000000, 0x00000000);
+      s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      s.xmm[2] = xmm_from_f32(50.0f, 60.0f, 70.0f, 80.0f);
+      // BLENDVPS xmm1, xmm2: 66 0F 38 14 CA (dst=xmm1, src=xmm2, mask=xmm0)
+      add_xmm("blendvps mask", {0x66, 0x0F, 0x38, 0x14, 0xCA}, s, 0x7);
+    }
+
+    // DPPS (dot product) with various masks
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+      // DPPS xmm0, xmm1, imm: 66 0F 3A 40 C1 imm
+      // imm8 high 4 bits: which elements to multiply. Low 4: which elements to write.
+      add_xmm("dpps 0xFF", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0xFF}, s, 0x3);  // all mul, all write
+      add_xmm("dpps 0xF1", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0xF1}, s, 0x3);  // all mul, write [0] only
+      add_xmm("dpps 0x71", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0x71}, s, 0x3);  // mul [0,1,2], write [0]
+    }
+
+    // DPPD (dot product double)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f64(3.0, 4.0);
+      s.xmm[1] = xmm_from_f64(5.0, 6.0);
+      // DPPD xmm0, xmm1, imm: 66 0F 3A 41 C1 imm
+      add_xmm("dppd 0x33", {0x66, 0x0F, 0x3A, 0x41, 0xC1, 0x33}, s, 0x3);  // both mul, both write
+      add_xmm("dppd 0x31", {0x66, 0x0F, 0x3A, 0x41, 0xC1, 0x31}, s, 0x3);  // both mul, write [0]
+    }
+
+    // INSERTPS — insert from xmm, zero selected positions
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      // INSERTPS xmm0, xmm1, imm: 66 0F 3A 21 C1 imm
+      // imm8[7:6]=count_s (src index), [5:4]=count_d (dst index), [3:0]=zmask
+      add_xmm("insertps 0x00", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0x00}, s, 0x3); // src[0]→dst[0]
+      add_xmm("insertps 0x30", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0x30}, s, 0x3); // src[0]→dst[3]
+      add_xmm("insertps 0xC0", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0xC0}, s, 0x3); // src[3]→dst[0]
+      add_xmm("insertps 0x0D", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0x0D}, s, 0x3); // src[0]→dst[0], zero [0,2,3]
+      add_xmm("insertps 0x0F", {0x66, 0x0F, 0x3A, 0x21, 0xC1, 0x0F}, s, 0x3); // zero all
+    }
+
+    // EXTRACTPS — extract f32 element to GPR
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      // EXTRACTPS eax, xmm0, imm: 66 0F 3A 17 C0 imm
+      add_xmm("extractps 0", {0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x00}, s, 0x0);
+      add_xmm("extractps 1", {0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x01}, s, 0x0);
+      add_xmm("extractps 2", {0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x02}, s, 0x0);
+      add_xmm("extractps 3", {0x66, 0x0F, 0x3A, 0x17, 0xC0, 0x03}, s, 0x0);
+    }
+
+    // MOVHLPS / MOVLHPS — move high/low between registers
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      s.xmm[1] = xmm_from_u32(0x55555555, 0x66666666, 0x77777777, 0x88888888);
+      // MOVHLPS xmm0, xmm1: 0F 12 C1
+      add_xmm("movhlps", {0x0F, 0x12, 0xC1}, s, 0x3);
+      // MOVLHPS xmm0, xmm1: 0F 16 C1
+      add_xmm("movlhps", {0x0F, 0x16, 0xC1}, s, 0x3);
+    }
+
+    // UNPCKLPS / UNPCKHPS — interleave elements
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0xAA, 0xBB, 0xCC, 0xDD);
+      s.xmm[1] = xmm_from_u32(0x11, 0x22, 0x33, 0x44);
+      // UNPCKLPS xmm0, xmm1: 0F 14 C1
+      add_xmm("unpcklps", {0x0F, 0x14, 0xC1}, s, 0x3);
+      // UNPCKHPS xmm0, xmm1: 0F 15 C1
+      add_xmm("unpckhps", {0x0F, 0x15, 0xC1}, s, 0x3);
+    }
+
+    // UNPCKLPD / UNPCKHPD
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+      s.xmm[1] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
+      // UNPCKLPD xmm0, xmm1: 66 0F 14 C1
+      add_xmm("unpcklpd", {0x66, 0x0F, 0x14, 0xC1}, s, 0x3);
+      // UNPCKHPD xmm0, xmm1: 66 0F 15 C1
+      add_xmm("unpckhpd", {0x66, 0x0F, 0x15, 0xC1}, s, 0x3);
+    }
+
+    // HADDPS / HSUBPS — horizontal add/subtract
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+      // HADDPS xmm0, xmm1: F2 0F 7C C1
+      add_xmm("haddps", {0xF2, 0x0F, 0x7C, 0xC1}, s, 0x3);
+      // HSUBPS xmm0, xmm1: F2 0F 7D C1
+      add_xmm("hsubps", {0xF2, 0x0F, 0x7D, 0xC1}, s, 0x3);
+    }
+
+    // HADDPD / HSUBPD
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f64(1.0, 2.0);
+      s.xmm[1] = xmm_from_f64(3.0, 4.0);
+      // HADDPD xmm0, xmm1: 66 0F 7C C1
+      add_xmm("haddpd", {0x66, 0x0F, 0x7C, 0xC1}, s, 0x3);
+      // HSUBPD xmm0, xmm1: 66 0F 7D C1
+      add_xmm("hsubpd", {0x66, 0x0F, 0x7D, 0xC1}, s, 0x3);
+    }
+
+    // ADDSUBPS / ADDSUBPD — alternating add/subtract
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      // ADDSUBPS xmm0, xmm1: F2 0F D0 C1
+      add_xmm("addsubps", {0xF2, 0x0F, 0xD0, 0xC1}, s, 0x3);
+    }
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f64(10.0, 20.0);
+      s.xmm[1] = xmm_from_f64(1.0, 2.0);
+      // ADDSUBPD xmm0, xmm1: 66 0F D0 C1
+      add_xmm("addsubpd", {0x66, 0x0F, 0xD0, 0xC1}, s, 0x3);
+    }
+  }
+
   add_systematic_tests(tests);
 
   return tests;
