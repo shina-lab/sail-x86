@@ -951,9 +951,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   };
 
   for (auto &op : shift_ops) {
-    name = std::format("Shift {}", op.name);
-    cat = name;
     for (int si = 0; si < 4; si++) {
+      cat = std::format("Shift {} {}", op.name, sz_sfx[si]);
       for (int ci = 0; ci < NSHIFTS; ci++) {
         for (int vi = 0; vi < NVALS; vi++) {
           ArchState init = {};
@@ -969,9 +968,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
     // RCL/RCR with CF=1 — carry is rotated through the value
     if (op.needs_cf) {
-      name = std::format("Shift {} CF=1", op.name);
-      cat = name;
       for (int si = 0; si < 4; si++) {
+        cat = std::format("Shift {} CF=1 {}", op.name, sz_sfx[si]);
         for (int ci = 0; ci < NSHIFTS; ci++) {
           for (int vi = 0; vi < NVALS; vi++) {
             ArchState init = {};
@@ -1017,7 +1015,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 4. MUL/IMUL 1-operand (64-bit) — NVALS × NVALS
   //    RAX * RBX -> RDX:RAX. Only CF and OF are defined.
   // ================================================================
-  cat = "MUL/IMUL";
+  cat = "MUL";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
       ArchState init = {};
@@ -1027,6 +1025,16 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
       name = std::format("S mul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xE3}, init, FL_CF_OF);
+    }
+  }
+
+  cat = "IMUL";
+  for (int i = 0; i < NVALS; i++) {
+    for (int j = 0; j < NVALS; j++) {
+      ArchState init = {};
+      init.rflags = 0x2;
+      init.rax = VALS[i];
+      init.rbx = VALS[j];
 
       name = std::format("S imul64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xEB}, init, FL_CF_OF);
@@ -1037,38 +1045,41 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   // 5. DIV/IDIV (64-bit) — NVALS × NVALS (skip div-by-zero / overflow)
   //    RDX:RAX / RBX -> RAX=quot, RDX=rem. All flags undefined.
   // ================================================================
-  cat = "DIV/IDIV";
+  cat = "DIV";
   for (int i = 0; i < NVALS; i++) {
     for (int j = 0; j < NVALS; j++) {
       if (VALS[j] == 0) continue;
 
       // DIV: RDX=0 so quotient always fits (dividend < 2^64, divisor > 0)
-      {
-        ArchState init = {};
-        init.rflags = 0x2;
-        init.rax = VALS[i];
-        init.rdx = 0;
-        init.rbx = VALS[j];
-        name = std::format("S div64 {},{}", i, j);
-        add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
-      }
+      ArchState init = {};
+      init.rflags = 0x2;
+      init.rax = VALS[i];
+      init.rdx = 0;
+      init.rbx = VALS[j];
+      name = std::format("S div64 {},{}", i, j);
+      add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
+    }
+  }
+
+  cat = "IDIV";
+  for (int i = 0; i < NVALS; i++) {
+    for (int j = 0; j < NVALS; j++) {
+      if (VALS[j] == 0) continue;
 
       // IDIV: sign-extend RAX into RDX:RAX.
       // Skip INT64_MIN / -1 (quotient overflow -> #DE).
-      {
-        i64 dividend = (i64)VALS[i];
-        i64 divisor = (i64)VALS[j];
-        if (dividend == (i64)0x8000000000000000 && divisor == -1)
-          continue;
+      i64 dividend = (i64)VALS[i];
+      i64 divisor = (i64)VALS[j];
+      if (dividend == (i64)0x8000000000000000 && divisor == -1)
+        continue;
 
-        ArchState init = {};
-        init.rflags = 0x2;
-        init.rax = VALS[i];
-        init.rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0;
-        init.rbx = VALS[j];
-        name = std::format("S idiv64 {},{}", i, j);
-        add(name, {0x48, 0xF7, 0xFB}, init, FL_NONE);
-      }
+      ArchState init = {};
+      init.rflags = 0x2;
+      init.rax = VALS[i];
+      init.rdx = (dividend < 0) ? 0xFFFFFFFFFFFFFFFF : 0;
+      init.rbx = VALS[j];
+      name = std::format("S idiv64 {},{}", i, j);
+      add(name, {0x48, 0xF7, 0xFB}, init, FL_NONE);
     }
   }
 
