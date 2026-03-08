@@ -190,6 +190,7 @@ function write_segreg(idx, v) = SegReg[idx] = v
 // In 64-bit mode, only FS and GS have non-zero bases.
 register FS_BASE : qword
 register GS_BASE : qword
+register KERNEL_GS_BASE : qword  // Swapped with GS_BASE by SWAPGS
 
 // =========================================================================
 // Processor mode and privilege
@@ -269,3 +270,73 @@ struct VSIB = {
   vsib_vidx : simd_idx,     // vector register containing indices
   vsib_scale : range(0, 3), // scale factor (0=1, 1=2, 2=4, 3=8)
 }
+
+// =========================================================================
+// Control registers (system-level)
+// =========================================================================
+
+register CR0  : qword  // PE, PG, WP, etc.
+register CR2  : qword  // Page Fault Linear Address
+register CR3  : qword  // Page table base
+register CR4  : qword  // PAE, PSE, OSFXSR, OSXSAVE, etc.
+register EFER : qword  // Extended Feature Enable Register
+
+// CR0 bit positions
+let CR0_PE : int = 0    // Protection Enable
+let CR0_MP : int = 1    // Monitor Coprocessor
+let CR0_EM : int = 2    // Emulation
+let CR0_TS : int = 3    // Task Switched
+let CR0_ET : int = 4    // Extension Type
+let CR0_NE : int = 5    // Numeric Error
+let CR0_WP : int = 16   // Write Protect
+let CR0_AM : int = 18   // Alignment Mask
+let CR0_NW : int = 29   // Not Write-through
+let CR0_CD : int = 30   // Cache Disable
+let CR0_PG : int = 31   // Paging
+
+// CR4 bit positions
+let CR4_VME       : int = 0   // Virtual-8086 Mode Extensions
+let CR4_PVI       : int = 1   // Protected-Mode Virtual Interrupts
+let CR4_TSD       : int = 2   // Time Stamp Disable
+let CR4_DE        : int = 3   // Debugging Extensions
+let CR4_PSE       : int = 4   // Page Size Extensions
+let CR4_PAE       : int = 5   // Physical Address Extension
+let CR4_MCE       : int = 6   // Machine-Check Enable
+let CR4_PGE       : int = 7   // Page Global Enable
+let CR4_PCE       : int = 8   // Performance-Monitoring Counter Enable
+let CR4_OSFXSR    : int = 9   // OS Support for FXSAVE/FXRSTOR
+let CR4_OSXMMEXCPT : int = 10 // OS Support for Unmasked SIMD FP Exceptions
+let CR4_LA57      : int = 12  // 5-Level Paging
+let CR4_FSGSBASE  : int = 16  // FSGSBASE Enable
+let CR4_PCIDE     : int = 17  // PCID Enable
+let CR4_OSXSAVE   : int = 18  // XSAVE and Processor Extended States Enable
+
+// EFER bit positions
+let EFER_SCE : int = 0   // SYSCALL Enable
+let EFER_LME : int = 8   // Long Mode Enable
+let EFER_LMA : int = 10  // Long Mode Active
+let EFER_NXE : int = 11  // No-Execute Enable
+
+// =========================================================================
+// Descriptor table registers
+// =========================================================================
+
+register GDTR_base  : qword
+register GDTR_limit : word
+register IDTR_base  : qword
+register IDTR_limit : word
+register LDTR       : word   // LDT selector
+register TR         : word   // Task register selector
+
+// TSS base and limit (loaded from GDT when LTR executes)
+register TR_base  : qword
+register TR_limit : dword
+
+// =========================================================================
+// System mode flag
+//
+// When true, faults are delivered via IDT (system-level emulation).
+// When false, faults return to the C++ harness (user-mode emulation).
+// =========================================================================
+
+register system_mode : bool

@@ -75,8 +75,11 @@ target_link_libraries(sail_runtime PUBLIC GMP::GMP)
 # Sail model generated C++ code.
 add_subdirectory("model")
 
-# Emulator binary.
+# User-mode emulator binary.
 add_subdirectory("usermode-emu")
+
+# System-level emulator binary.
+add_subdirectory("system-emu")
 
 # Tests.
 enable_testing()
