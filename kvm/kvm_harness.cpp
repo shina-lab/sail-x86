@@ -5791,8 +5791,43 @@ std::vector<TestCase> build_tests() {
       add_xmm("bswap rax", {0x48, 0x0F, 0xC8}, s, 0x0);
     }
 
-    // BMI1 (ANDN, BLSI, BLSMSK, BLSR) — not yet implemented in Sail model
-    // TODO: implement BMI1 instructions in VEX decoder
+    // BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR
+    // BMI flags: SF, ZF, CF defined; OF=0; PF, AF undefined
+    {
+      const u64 FL_BMI = FL_SF | FL_ZF | FL_OF | FL_CF;
+      const u64 FL_BEXTR = FL_ZF | FL_OF | FL_CF;
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xAAAAAAAA55555555;
+      s.rcx = 0x5555555500FF00FF;
+
+      // ANDN eax, eax, ecx
+      tests.push_back({"andn eax", cat, {0xC4, 0xE2, 0x78, 0xF2, 0xC1}, s, FL_BMI, 0x0, false});
+      // ANDN rax, rax, rcx
+      tests.push_back({"andn rax", cat, {0xC4, 0xE2, 0xF8, 0xF2, 0xC1}, s, FL_BMI, 0x0, false});
+
+      // BLSI eax, ecx
+      tests.push_back({"blsi eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9}, s, FL_BMI, 0x0, false});
+      // BLSMSK eax, ecx
+      tests.push_back({"blsmsk eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1}, s, FL_BMI, 0x0, false});
+      // BLSR eax, ecx
+      tests.push_back({"blsr eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9}, s, FL_BMI, 0x0, false});
+
+      // Zero input edge cases
+      s.rcx = 0;
+      tests.push_back({"blsi 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsmsk 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsr 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9}, s, FL_BMI, 0x0, false});
+
+      // BEXTR eax, ecx, eax
+      s.rcx = 0xDEADBEEF;
+      s.rax = 0x0810;  // start=16, len=8 → extract bits 23:16 = 0xAD
+      tests.push_back({"bextr 16:8", cat, {0xC4, 0xE2, 0x78, 0xF7, 0xC1}, s, FL_BEXTR, 0x0, false});
+      s.rax = 0x2000;  // start=0, len=32 → extract all 32 bits
+      tests.push_back({"bextr 0:32", cat, {0xC4, 0xE2, 0x78, 0xF7, 0xC1}, s, FL_BEXTR, 0x0, false});
+      s.rax = 0x0400;  // start=0, len=4 → extract bits 3:0 = 0xF
+      tests.push_back({"bextr 0:4", cat, {0xC4, 0xE2, 0x78, 0xF7, 0xC1}, s, FL_BEXTR, 0x0, false});
+    }
   }
 
   add_systematic_tests(tests);
