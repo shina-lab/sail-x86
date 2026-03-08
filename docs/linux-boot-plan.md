@@ -32,7 +32,9 @@
 | ELF initramfs loading | **Done** | load_elf_kernel passes initrd to boot_params (ramdisk_image/size) |
 | Spin loop / panic detection | **Done** | Detect tight loops (10M insns in 16-byte window) and HLT+IF=0 |
 | Early boot (kernel init) | **Done** | Kernel prints through console init, SLUB, IRQ setup, serial driver |
-| Initramfs unpack + exec /init | **In progress** | Kernel unpacks initramfs, execves busybox; running but slow |
+| UART TX interrupts | **Done** | THRE interrupt (IRQ 4) for interrupt-driven tty output from user-space |
+| Initramfs unpack + exec /init | **Done** | Kernel unpacks initramfs, execves init, prints banner, reboots cleanly |
+| **Linux boot to userspace** | **COMPLETE** | 27.5M instructions, ~4 minutes wall-clock |
 
 ## Current State
 
