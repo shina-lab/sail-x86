@@ -5316,6 +5316,138 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // FP Edge — SNaN quieting, div-by-zero, scalar MIN/MAX, COMISS
+  // =====================================================================
+  {
+    // SNaN should be quieted to QNaN in arithmetic output
+    // SNaN + 0 → QNaN (SNaN with quiet bit set)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      u32 snan = 0x7F800042;  // custom SNaN payload
+      s.xmm[0] = xmm_from_u32(snan, snan, snan, snan);
+      s.xmm[1] = xmm_from_u32(0, 0, 0, 0);  // +0.0
+      add_xmm("addps snan+0 quiet", {0x0F, 0x58, 0xC1}, s, 0x3);
+    }
+
+    // Division by zero: 1.0 / 0.0 → +Inf, -1.0 / 0.0 → -Inf
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, -1.0f, 0.0f, 1.0f);
+      u32 pz = 0x00000000, nz = 0x80000000;
+      s.xmm[1] = xmm_from_u32(pz, pz, pz, nz);
+      add_xmm("divps by zero", {0x0F, 0x5E, 0xC1}, s, 0x3);
+    }
+
+    // MINSS/MAXSS scalar — only lowest element, upper 3 preserved from dst
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(5.0f, 11.0f, 22.0f, 33.0f);
+      s.xmm[1] = xmm_from_f32(3.0f, 99.0f, 88.0f, 77.0f);
+      // MINSS xmm0, xmm1: F3 0F 5D C1
+      add_xmm("minss scalar", {0xF3, 0x0F, 0x5D, 0xC1}, s, 0x3);
+      // MAXSS xmm0, xmm1: F3 0F 5F C1
+      add_xmm("maxss scalar", {0xF3, 0x0F, 0x5F, 0xC1}, s, 0x3);
+    }
+
+    // MINSS/MAXSS with NaN in scalar position
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      u32 qnan = 0x7FC00000;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_u32(qnan, 0x41200000, 0x41200000, 0x41200000);
+      add_xmm("minss nan src2", {0xF3, 0x0F, 0x5D, 0xC1}, s, 0x3);
+      add_xmm("maxss nan src2", {0xF3, 0x0F, 0x5F, 0xC1}, s, 0x3);
+    }
+
+    // COMISS vs UCOMISS with QNaN — COMISS raises #IE (masked → sets flags same way)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 0.0f, 0.0f, 0.0f);
+      u32 qnan = 0x7FC00000;
+      s.xmm[1] = xmm_from_u32(qnan, 0, 0, 0);
+      // COMISS xmm0, xmm1: 0F 2F C1
+      add_xmm("comiss 1_qnan", {0x0F, 0x2F, 0xC1}, s, 0x0);
+      // UCOMISS xmm0, xmm1: 0F 2E C1
+      add_xmm("ucomiss 1_qnan", {0x0F, 0x2E, 0xC1}, s, 0x0);
+    }
+
+    // COMISS with equal values and signed zeros
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u32(0x80000000, 0, 0, 0);  // -0.0
+      s.xmm[1] = xmm_from_u32(0x00000000, 0, 0, 0);  // +0.0
+      add_xmm("comiss -0_+0", {0x0F, 0x2F, 0xC1}, s, 0x0);
+    }
+
+    // SUBPS: Inf - Inf → NaN, 0 - 0 with same sign → +0.0 (not -0.0)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      u32 pinf = 0x7F800000, ninf = 0xFF800000;
+      u32 pz = 0x00000000, nz = 0x80000000;
+      s.xmm[0] = xmm_from_u32(pinf, ninf, pz, nz);
+      s.xmm[1] = xmm_from_u32(pinf, ninf, pz, nz);
+      add_xmm("subps self", {0x0F, 0x5C, 0xC1}, s, 0x3);
+    }
+
+    // MULPS: 0 * Inf → NaN
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      u32 pz = 0x00000000, pinf = 0x7F800000;
+      s.xmm[0] = xmm_from_u32(pz, pinf, pz, pinf);
+      s.xmm[1] = xmm_from_u32(pinf, pz, pinf, pz);
+      add_xmm("mulps 0*inf", {0x0F, 0x59, 0xC1}, s, 0x3);
+    }
+
+    // ROUNDPS with imm8 bit 2 = 0 → use MXCSR rounding
+    for (int rc = 0; rc < 4; rc++) {
+      u32 mxcsr = 0x1F80 | (rc << 13);
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.mxcsr = mxcsr;
+      s.xmm[0] = xmm_from_f32(1.5f, 2.5f, -1.5f, -2.5f);
+      char n[128];
+      const char *rc_names[] = {"RN", "RD", "RU", "RZ"};
+      snprintf(n, sizeof(n), "roundps mxcsr RC=%s", rc_names[rc]);
+      // ROUNDPS xmm0, xmm0, 0x04: 66 0F 3A 08 C0 04
+      // imm8=0x04: bit 2=1 means use imm8 RC, bit 1:0=00 means RN
+      // Actually for MXCSR test, imm8 bit 2=0: 66 0F 3A 08 C0 00
+      // Wait: imm8[2]=0 means use MXCSR RC. imm8[1:0] ignored when bit2=0.
+      add_xmm(n, {0x66, 0x0F, 0x3A, 0x08, 0xC0, 0x00}, s, 0x1);
+    }
+
+    // CVTDQ2PS: int→float (exact for small values, rounding for large)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      // INT32_MAX = 2147483647, not exactly representable as f32
+      s.xmm[0] = xmm_from_u32(0x7FFFFFFF, 0x80000001, 0x01000001, 0xFEFFFFFF);
+      // CVTDQ2PS xmm0, xmm0: 0F 5B C0
+      add_xmm("cvtdq2ps large", {0x0F, 0x5B, 0xC0}, s, 0x1);
+    }
+
+    // CVTDQ2PS with MXCSR rounding modes for large values
+    for (int rc = 0; rc < 4; rc++) {
+      u32 mxcsr = 0x1F80 | (rc << 13);
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.mxcsr = mxcsr;
+      s.xmm[0] = xmm_from_u32(0x7FFFFFFF, 0x80000001, 0x01000001, 0xFEFFFFFF);
+      char n[128];
+      const char *rc_names[] = {"RN", "RD", "RU", "RZ"};
+      snprintf(n, sizeof(n), "cvtdq2ps RC=%s large", rc_names[rc]);
+      add_xmm(n, {0x0F, 0x5B, 0xC0}, s, 0x1);
+    }
+  }
+
   add_systematic_tests(tests);
 
   return tests;
