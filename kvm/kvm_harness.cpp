@@ -1110,8 +1110,7 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
     add(name, encode_alu_rr(op.base, sizes[si], 0, 3), init, op.mask);
   }
 }
-std::vector<TestCase> build_tests() {
-  std::vector<TestCase> tests;
+static void add_baseline_tests(std::vector<TestCase> &tests) {
   std::string cat;
 
   auto add = [&](const std::string &name, std::vector<u8> code, ArchState init,
@@ -2021,16 +2020,21 @@ std::vector<TestCase> build_tests() {
   fl.rflags = 0x2 | FL_CF | FL_ZF | FL_SF;
   fl.rax = 0;
   add("lahf", {0x9F}, fl, FL_ALL);
+}
+
+static void add_sse_tests(std::vector<TestCase> &tests) {
+  std::string cat;
+
+  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+  };
 
   // =====================================================================
   // 23. SSE/SSE2 — packed and scalar floating-point operations
   // =====================================================================
   cat = "SSE";
 
-  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
-                      u32 xmm_cmp) {
-    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
-  };
 
   {
     ArchState s = {};
@@ -2997,6 +3001,25 @@ std::vector<TestCase> build_tests() {
     // MPSADBW XMM0, XMM1, 0: 66 0F 3A 42 C1 00
     add_xmm("mpsadbw xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s, 0x3);
   }
+}
+
+static void add_misc_instruction_tests(std::vector<TestCase> &tests) {
+  std::string cat;
+
+  auto add = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                 u64 mask = FL_ALL) {
+    tests.push_back({name, cat, std::move(code), init, mask});
+  };
+
+  auto add_mem = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                     u64 mask, std::vector<u8> data, size_t cmp_len) {
+    tests.push_back({name, cat, std::move(code), init, mask, 0, false, std::move(data), cmp_len});
+  };
+
+  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+  };
 
   // =====================================================================
   // 26. SSE4.2 instructions
@@ -3517,6 +3540,26 @@ std::vector<TestCase> build_tests() {
   // 43. x87 FPU — tests using memory store to verify results
   //     We use FILD/FLD to load values, operate, then FISTP/FSTP to store
   //     results back to memory for comparison.
+}
+
+static void add_x87_avx_tests(std::vector<TestCase> &tests) {
+  std::string cat;
+
+  auto add = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                 u64 mask = FL_ALL) {
+    tests.push_back({name, cat, std::move(code), init, mask});
+  };
+
+  auto add_mem = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                     u64 mask, std::vector<u8> data, size_t cmp_len) {
+    tests.push_back({name, cat, std::move(code), init, mask, 0, false, std::move(data), cmp_len});
+  };
+
+  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+  };
+
   // =====================================================================
   cat = "x87";
   {
@@ -5153,6 +5196,15 @@ std::vector<TestCase> build_tests() {
     add_xmm("vex vfmsubadd213ps xmm0,xmm1,xmm2",
             {0xC4, 0xE2, 0x71, 0xA7, 0xC2}, s, 0x7);
   }
+}
+
+static void add_fp_edge_tests(std::vector<TestCase> &tests) {
+  std::string cat;
+
+  auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                      u32 xmm_cmp) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+  };
 
   // =====================================================================
   // AVX Edge Cases — VEX-encoded FP/integer boundary values
@@ -6975,6 +7027,10 @@ std::vector<TestCase> build_tests() {
       }
     }
   }
+}
+
+static void add_extended_instruction_tests(std::vector<TestCase> &tests) {
+  std::string cat;
 
   // =====================================================================
   // REX R/B/X bit interactions
@@ -8391,12 +8447,10 @@ std::vector<TestCase> build_tests() {
       tests.push_back(std::move(tc));
     }
   }
+}
 
-  add_systematic_tests(tests);
-
-  // =====================================================================
-  // Exception/Fault tests
-  // =====================================================================
+static void add_exception_tests(std::vector<TestCase> &tests) {
+  std::string cat;
 
   auto add_fault = [&](const std::string &name, std::vector<u8> code, ArchState init,
                        int vec) {
@@ -8410,6 +8464,11 @@ std::vector<TestCase> build_tests() {
     tc.expected_vector = vec;
     tests.push_back(std::move(tc));
   };
+
+  // =====================================================================
+  // Exception/Fault tests
+  // =====================================================================
+
 
   // ---- #DE (vector 0): Division error ----
   cat = "Exception #DE";
@@ -8999,9 +9058,23 @@ std::vector<TestCase> build_tests() {
               {0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3,
                0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0x90}, s, 13);
   }
+}
+
+std::vector<TestCase> build_tests() {
+  std::vector<TestCase> tests;
+
+  add_baseline_tests(tests);
+  add_sse_tests(tests);
+  add_misc_instruction_tests(tests);
+  add_x87_avx_tests(tests);
+  add_fp_edge_tests(tests);
+  add_extended_instruction_tests(tests);
+  add_systematic_tests(tests);
+  add_exception_tests(tests);
 
   return tests;
 }
+
 
 
 int main(int argc, char **argv) {
