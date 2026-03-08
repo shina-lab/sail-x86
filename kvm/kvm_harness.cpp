@@ -879,9 +879,9 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   };
 
   for (int si = 0; si < 4; si++) {
-    snprintf(name, sizeof(name), "ALU reg,reg %s", sz_sfx[si]);
-    cat = name;
     for (auto &op : alu_ops) {
+      snprintf(name, sizeof(name), "ALU %s %s", op.name, sz_sfx[si]);
+      cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
           ArchState init = {};
@@ -898,10 +898,11 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   }
 
   // ADC/SBB with CF=1 — exercises carry-in path with all value pairs
-  cat = "ADC/SBB CF=1";
   for (int oi : {2, 3}) {
     auto &op = alu_ops[oi];
     for (int si = 0; si < 4; si++) {
+      snprintf(name, sizeof(name), "ADC/SBB CF=1 %s %s", op.name, sz_sfx[si]);
+      cat = name;
       for (int i = 0; i < NVALS; i++) {
         for (int j = 0; j < NVALS; j++) {
           ArchState init = {};
@@ -918,8 +919,9 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   }
 
   // TEST reg,reg — like AND but only sets flags, doesn't write result
-  cat = "TEST reg,reg";
   for (int si = 0; si < 4; si++) {
+    snprintf(name, sizeof(name), "TEST %s", sz_sfx[si]);
+    cat = name;
     for (int i = 0; i < NVALS; i++) {
       for (int j = 0; j < NVALS; j++) {
         ArchState init = {};
@@ -938,7 +940,6 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   //    Tests shift/rotate with boundary counts and values.
   //    Flag masks are conservative (AF and OF may be undefined).
   // ================================================================
-  cat = "Shifts";
   struct ShiftOp { const char *name; int digit; u64 mask; bool needs_cf; };
   ShiftOp shift_ops[] = {
     {"shl", 4, FL_NO_AF_OF, false},
@@ -951,6 +952,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
   };
 
   for (auto &op : shift_ops) {
+    snprintf(name, sizeof(name), "Shift %s", op.name);
+    cat = name;
     for (int si = 0; si < 4; si++) {
       for (int ci = 0; ci < NSHIFTS; ci++) {
         for (int vi = 0; vi < NVALS; vi++) {
@@ -968,6 +971,8 @@ static void add_systematic_tests(std::vector<TestCase> &tests) {
 
     // RCL/RCR with CF=1 — carry is rotated through the value
     if (op.needs_cf) {
+      snprintf(name, sizeof(name), "Shift %s CF=1", op.name);
+      cat = name;
       for (int si = 0; si < 4; si++) {
         for (int ci = 0; ci < NSHIFTS; ci++) {
           for (int vi = 0; vi < NVALS; vi++) {
