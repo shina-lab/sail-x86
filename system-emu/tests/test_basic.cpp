@@ -278,6 +278,223 @@ TEST(system_regs_initial_values) {
 }
 
 // =========================================================================
+// Privileged instruction tests
+// =========================================================================
+
+TEST(mov_cr0_read_write) {
+  x86::Model model;
+  init_model(model);
+
+  // Read CR0 into RAX, then store it, modify, write back
+  // mov rax, cr0     ; 0F 20 C0
+  // hlt
+  u8 code[] = { 0x0F, 0x20, 0xC0, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGPR.data[0], (u64)model.zCR0);
+
+  model.model_fini();
+}
+
+TEST(mov_cr3_write) {
+  x86::Model model;
+  init_model(model);
+
+  // mov rax, 0x5000; mov cr3, rax; mov rbx, cr3; hlt
+  u8 code[] = {
+    0x48, 0xC7, 0xC0, 0x00, 0x50, 0x00, 0x00,  // mov rax, 0x5000
+    0x0F, 0x22, 0xD8,                            // mov cr3, rax
+    0x0F, 0x20, 0xDB,                            // mov rbx, cr3
+    0xF4,                                        // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zCR3, 0x5000UL);
+  ASSERT_EQ((u64)model.zGPR.data[3], 0x5000UL); // RBX = CR3
+
+  model.model_fini();
+}
+
+TEST(lgdt_sgdt) {
+  x86::Model model;
+  init_model(model);
+
+  // Set up a GDT descriptor in memory at 0x200000
+  // limit = 0x00FF, base = 0x0000000000300000
+  u16 limit = 0x00FF;
+  u64 base = 0x300000;
+  model.phys_mem.write_bytes(0x200000, &limit, 2);
+  model.phys_mem.write_bytes(0x200002, &base, 8);
+
+  // lgdt [rdi]       ; 0F 01 17
+  // sgdt [rsi]       ; 0F 01 06
+  // hlt
+  model.zGPR.data[7] = 0x200000; // RDI
+  model.zGPR.data[6] = 0x200100; // RSI
+
+  u8 code[] = {
+    0x0F, 0x01, 0x17,  // lgdt [rdi]
+    0x0F, 0x01, 0x06,  // sgdt [rsi]
+    0xF4,              // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGDTR_limit, 0x00FFUL);
+  ASSERT_EQ((u64)model.zGDTR_base, 0x300000UL);
+
+  // Verify SGDT wrote to memory correctly
+  u16 stored_limit;
+  u64 stored_base;
+  model.phys_mem.read_bytes(0x200100, &stored_limit, 2);
+  model.phys_mem.read_bytes(0x200102, &stored_base, 8);
+  ASSERT_EQ(stored_limit, 0x00FF);
+  ASSERT_EQ(stored_base, 0x300000UL);
+
+  model.model_fini();
+}
+
+TEST(lidt_sidt) {
+  x86::Model model;
+  init_model(model);
+
+  u16 limit = 0x0FFF;
+  u64 base = 0x400000;
+  model.phys_mem.write_bytes(0x200000, &limit, 2);
+  model.phys_mem.write_bytes(0x200002, &base, 8);
+
+  model.zGPR.data[7] = 0x200000;
+  model.zGPR.data[6] = 0x200100;
+
+  // lidt [rdi]; sidt [rsi]; hlt
+  u8 code[] = {
+    0x0F, 0x01, 0x1F,  // lidt [rdi]
+    0x0F, 0x01, 0x0E,  // sidt [rsi]
+    0xF4,
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zIDTR_limit, 0x0FFFUL);
+  ASSERT_EQ((u64)model.zIDTR_base, 0x400000UL);
+
+  model.model_fini();
+}
+
+TEST(wrmsr_rdmsr_star) {
+  x86::Model model;
+  init_model(model);
+
+  // Write IA32_STAR (0xC0000081) = 0x0023001000000000
+  // wrmsr: ECX = MSR addr, EDX:EAX = value
+  // mov ecx, 0xC0000081; mov edx, 0x00230010; mov eax, 0; wrmsr
+  // mov ecx, 0xC0000081; rdmsr; hlt
+  u8 code[] = {
+    0xB9, 0x81, 0x00, 0x00, 0xC0,              // mov ecx, 0xC0000081
+    0xBA, 0x10, 0x00, 0x23, 0x00,              // mov edx, 0x00230010
+    0xB8, 0x00, 0x00, 0x00, 0x00,              // mov eax, 0
+    0x0F, 0x30,                                 // wrmsr
+    0xB9, 0x81, 0x00, 0x00, 0xC0,              // mov ecx, 0xC0000081
+    0x0F, 0x32,                                 // rdmsr
+    0xF4,                                       // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0UL);          // EAX = low 32
+  ASSERT_EQ((u64)model.zGPR.data[2], 0x00230010UL);  // EDX = high 32
+
+  model.model_fini();
+}
+
+TEST(wrmsr_rdmsr_efer) {
+  x86::Model model;
+  init_model(model);
+
+  // Write EFER (0xC0000080) via WRMSR, then read back via RDMSR
+  u8 code[] = {
+    0xB9, 0x80, 0x00, 0x00, 0xC0,              // mov ecx, 0xC0000080
+    0xBA, 0x00, 0x00, 0x00, 0x00,              // mov edx, 0
+    0xB8, 0x01, 0x0D, 0x00, 0x00,              // mov eax, 0x0D01 (SCE+LME+LMA+NXE)
+    0x0F, 0x30,                                 // wrmsr
+    0xB9, 0x80, 0x00, 0x00, 0xC0,              // mov ecx, 0xC0000080
+    0x0F, 0x32,                                 // rdmsr
+    0xF4,                                       // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zEFER, 0x0D01UL);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x0D01UL);
+
+  model.model_fini();
+}
+
+TEST(swapgs) {
+  x86::Model model;
+  init_model(model);
+
+  model.zGS_BASE = 0xAAAA0000;
+  model.zKERNEL_GS_BASE = 0xBBBB0000;
+
+  // swapgs ; 0F 01 F8
+  // hlt
+  u8 code[] = { 0x0F, 0x01, 0xF8, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zGS_BASE, 0xBBBB0000UL);
+  ASSERT_EQ((u64)model.zKERNEL_GS_BASE, 0xAAAA0000UL);
+
+  model.model_fini();
+}
+
+TEST(cli_sti) {
+  x86::Model model;
+  init_model(model);
+
+  model.zIF_flag = 0b1;  // Start with IF=1
+
+  // cli; hlt  (should clear IF)
+  u8 code[] = { 0xFA, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zIF_flag, 0UL);
+
+  // sti; hlt  (should set IF)
+  u8 code2[] = { 0xFB, 0xF4 };
+  kind = run_code(model, 0x100000, code2, sizeof(code2));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zIF_flag, 1UL);
+
+  model.model_fini();
+}
+
+TEST(wbinvd) {
+  x86::Model model;
+  init_model(model);
+
+  // wbinvd (0F 09) should be a NOP at CPL=0
+  // hlt
+  u8 code[] = { 0x0F, 0x09, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+
+  model.model_fini();
+}
+
+TEST(clts) {
+  x86::Model model;
+  init_model(model);
+
+  // Set TS bit in CR0
+  model.zCR0 = (u64)model.zCR0 | (1UL << 3);
+
+  // clts (0F 06); mov rax, cr0; hlt
+  u8 code[] = { 0x0F, 0x06, 0x0F, 0x20, 0xC0, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(((u64)model.zCR0 >> 3) & 1, 0UL); // TS should be cleared
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -292,6 +509,18 @@ int main() {
   run_test_jmp_forward_hlt();
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
+
+  printf("\nPrivileged instruction tests:\n");
+  run_test_mov_cr0_read_write();
+  run_test_mov_cr3_write();
+  run_test_lgdt_sgdt();
+  run_test_lidt_sidt();
+  run_test_wrmsr_rdmsr_star();
+  run_test_wrmsr_rdmsr_efer();
+  run_test_swapgs();
+  run_test_cli_sti();
+  run_test_wbinvd();
+  run_test_clts();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

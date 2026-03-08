@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cmath>
 #include <cfenv>
+#include <unordered_map>
 #include <immintrin.h>
 #include <wmmintrin.h>
 #include <x86intrin.h>
@@ -1094,7 +1095,41 @@ u64 Model::z__rdtsc(unit) {
 }
 
 // =========================================================================
-// I/O ports (stub — user mode doesn't have port access)
+// MSR register file
+// =========================================================================
+//
+// MSRs that alias Sail registers (EFER, FS_BASE, GS_BASE, KERNEL_GS_BASE)
+// are handled directly in the Sail model. All other MSRs are stored here.
+
+static std::unordered_map<u32, u64> msr_store;
+
+u64 Model::z__rdmsr(u64 addr) {
+  u32 msr = (u32)addr;
+  auto it = msr_store.find(msr);
+  if (it != msr_store.end())
+    return it->second;
+
+  // Default values for common MSRs
+  switch (msr) {
+  case 0x1B:   return 0xFEE00900;  // IA32_APIC_BASE (APIC enabled, BSP)
+  case 0x10:   return __rdtsc();   // IA32_TSC
+  case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
+  case 0x1A0:  return 0;           // IA32_MISC_ENABLE
+  case 0xC0000103: return 0;       // IA32_TSC_AUX
+  default:
+    fprintf(stderr, "RDMSR: unhandled MSR 0x%x, returning 0\n", msr);
+    return 0;
+  }
+}
+
+unit Model::z__wrmsr(u64 addr, u64 val) {
+  u32 msr = (u32)addr;
+  msr_store[msr] = val;
+  return UNIT;
+}
+
+// =========================================================================
+// I/O ports (stub for now — device emulation will be added later)
 // =========================================================================
 
 u64 Model::z__port_in8(u64) { return 0xFF; }
