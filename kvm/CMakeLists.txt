@@ -1,4 +1,14 @@
-add_executable(kvm_harness kvm_harness.cpp)
+add_executable(kvm_harness
+  kvm_harness.cpp
+  kvm_tests_alu.cpp
+  kvm_tests_baseline.cpp
+  kvm_tests_sse.cpp
+  kvm_tests_misc.cpp
+  kvm_tests_x87_avx.cpp
+  kvm_tests_fp_edge.cpp
+  kvm_tests_extended.cpp
+  kvm_tests_exception.cpp
+)
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
 add_dependencies(kvm_harness generated_sail_x86_model)
@@ -154,6 +164,23 @@ set(KVM_CATEGORIES
   "Indirect JMP"
   "PUSH/POP mem"
   "FP conv edge"
+  "MOVQ store"
+  "VEX 0F3A"
+  BMI2
+  "VEX AES-NI"
+  "VEX SSSE3"
+  "VEX SSE4.1"
+  "VEX pack/unpack"
+  "VEX multiply"
+  "VEX saturating arith"
+  "VEX shifts"
+  "VEX imm shifts"
+  "AVX2 var shifts"
+  "VEX test"
+  "VEX 0F misc"
+  "VEX gather"
+  "EVEX blend"
+  VLDDQU
 )
 
 foreach(cat ${KVM_CATEGORIES})
