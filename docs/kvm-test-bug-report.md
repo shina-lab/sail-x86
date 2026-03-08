@@ -147,9 +147,220 @@ No SDM issue.
 
 ---
 
+### 6. CMPPS/CMPPD predicate 6 (NLE): Wrong NaN result (commit d9e737f)
+
+**Bug:** The Sail model implemented predicate 6 (NLE_US, "not-less-than-or-
+equal") as `result == FP_GT`, which returns false when either operand is
+NaN. The correct behavior for an "unordered" predicate is to return true
+when either operand is NaN. Fixed to `result != FP_LT & result != FP_EQ`.
+
+**SDM (Table 3-1, CMPPD/CMPPS Comparison Predicate):**
+
+| Predicate | imm8 | Description | A>B | A<B | A=B | Unordered |
+|-----------|------|-------------|-----|-----|-----|-----------|
+| NLE_US    | 6H   | Not-less-than-or-equal (unordered, signaling) | True | False | False | **True** |
+
+**SDM (CMPPS Description):** "The unordered relationship is true when at
+least one of the two source operands being compared is a NaN; the ordered
+relationship is true when neither source operand is a NaN."
+
+**Verdict:** SDM is completely unambiguous. Table 3-1 explicitly shows that
+predicate 6 (NLE_US) returns True for the unordered case (NaN). The
+"unordered" in the predicate name itself indicates NaN → true. Our
+implementation only checked for the "greater-than" case, missing that
+"not-less-than-or-equal" must also be true when unordered. No SDM issue.
+
+---
+
+### 7. LZCNT: Wrong count for sub-64-bit operand sizes (commit 1a8ce42)
+
+**Bug:** The `lzcnt64` helper always counted leading zeros across all 64
+bits, regardless of operand size. For `LZCNT r32, r/m32`, the helper
+scanned from bit 63 instead of bit 31, producing an incorrect (too large)
+count.
+
+**SDM (LZCNT Operation):**
+```
+temp := OperandSize - 1
+DEST := 0
+WHILE (temp >= 0) AND (Bit(SRC, temp) = 0)
+DO
+    temp := temp - 1
+    DEST := DEST + 1
+OD
+```
+
+The pseudocode starts scanning from `OperandSize - 1`, not from bit 63.
+For a 32-bit operand, scanning starts at bit 31; for 16-bit, at bit 15.
+
+**SDM (LZCNT Description):** "Counts the number of leading most significant
+zero bits in a source operand (second operand) returning the result into a
+destination (first operand)." and "LZCNT will produce the operand size when
+the input operand is zero."
+
+**Verdict:** SDM is clear. The scan range depends on operand size. Our
+helper unconditionally used 64-bit width. No SDM issue.
+
+---
+
+## C Emulator Bugs (external function implementations)
+
+These bugs were in `c_emulator/x86_externals.cpp`, the C implementations of
+floating-point operations called by the Sail model. The Sail specification
+itself was correct — these are bugs in how the external FP functions were
+implemented.
+
+### 8. MINPS/MAXPS: Wrong operand returned for NaN inputs (commit cee48e2)
+
+**Bug:** The C emulator's `_f32_min` / `_f32_max` (and f64 equivalents)
+used standard C `fminf`/`fmaxf`, which return the non-NaN operand when one
+input is NaN. The x86 MIN/MAX instructions have different semantics: when
+either operand is NaN, they return the **second source operand** (SRC2),
+regardless of which operand is the NaN.
+
+The same bug affected the both-zeros case: `MIN(-0, +0)` should return +0
+(SRC2), not -0.
+
+**SDM (MINPS Description):** "If only one value is a NaN (SNaN or QNaN)
+for this instruction, the second operand (source operand), either a NaN or
+a valid floating-point value, is written to the result."
+
+**SDM (MINPS Description, both zeros):** "If the values being compared are
+both 0.0s (of either sign), the value in the second operand (source
+operand) is returned."
+
+**SDM (MINPS Operation):**
+```
+MIN(SRC1, SRC2)
+{
+    IF ((SRC1 = 0.0) and (SRC2 = 0.0)) THEN DEST := SRC2;
+        ELSE IF (SRC1 = NaN) THEN DEST := SRC2; FI;
+        ELSE IF (SRC2 = NaN) THEN DEST := SRC2; FI;
+        ELSE IF (SRC1 < SRC2) THEN DEST := SRC1;
+        ELSE DEST := SRC2;
+    FI;
+}
+```
+
+**Verdict:** SDM is completely unambiguous. The pseudocode explicitly
+returns SRC2 for NaN and both-zero cases. Standard C library functions
+follow IEEE 754-2008 `minNum`/`maxNum` semantics (return non-NaN), which
+differs from x86 MIN/MAX. No SDM issue.
+
+---
+
+### 9. CVTPS2DQ/CVTTPS2DQ: Undefined behavior for NaN/Inf/overflow (commit cee48e2)
+
+**Bug:** The C emulator's `_f32_to_int32` converted float→int using a bare
+C cast `(i32)f`, which is undefined behavior in C/C++ when the float value
+is NaN, Inf, or outside the range of `int32_t`. Real hardware returns the
+"integer indefinite" value `0x80000000` for all these cases. Fixed by
+adding explicit checks for NaN, Inf, and out-of-range values.
+
+**SDM (CVTPS2DQ Description):** "When a conversion is inexact, the value
+returned is rounded according to the rounding control bits in the MXCSR
+register or the embedded rounding control bits. If a converted result
+cannot be represented in the destination format, the floating-point invalid
+exception is raised, and if this exception is masked, the indefinite
+integer value (2^(w-1), where w represents the number of bits in the
+destination format) is returned."
+
+For 32-bit destination, 2^31 = 0x80000000, which is the bit pattern for
+`INT32_MIN` in two's complement.
+
+**Verdict:** SDM is clear. The indefinite integer value is well-specified.
+Our C code relied on undefined behavior instead of implementing the
+explicit overflow check. No SDM issue.
+
+---
+
+### 10. SSE arithmetic: MXCSR rounding mode not synced (commit 21bac43)
+
+**Bug:** The C emulator's SSE arithmetic functions (add, sub, mul, div,
+sqrt) did not call `fesetround()` to synchronize the C library's rounding
+mode with the MXCSR.RC bits before performing operations. This meant all
+SSE arithmetic always used the default round-to-nearest mode, ignoring
+any MXCSR rounding mode changes made by `LDMXCSR`.
+
+**SDM (ADDPS Operation, EVEX version):**
+```
+IF (VL = 512) AND (EVEX.b = 1)
+    THEN SET_ROUNDING_MODE_FOR_THIS_INSTRUCTION(EVEX.RC);
+    ELSE SET_ROUNDING_MODE_FOR_THIS_INSTRUCTION(MXCSR.RC);
+FI;
+```
+
+**SDM (MXCSR, Section 10.2.3):** "Bits 14:13 — Rounding Control... These
+two bits control how the results of floating-point instructions are
+rounded."
+
+**Verdict:** SDM is clear that SSE arithmetic uses MXCSR.RC for rounding.
+Our C emulator simply failed to propagate this setting to the host FPU.
+No SDM issue.
+
+---
+
+### 11. SSE arithmetic: NaN propagation order wrong (commit 21bac43)
+
+**Bug:** When both operands to an SSE arithmetic operation (add, sub, mul,
+div) are NaN, the C emulator returned whichever NaN the C compiler's code
+generation happened to produce, which varied depending on the host
+`fesetround()` state. The x86 architecture specifies that SRC1 (the first
+operand / destination register) should be returned (with the quiet bit
+set).
+
+Fixed by adding explicit `f32_nan_prop` / `f64_nan_prop` checks before
+performing the arithmetic: if either operand is NaN, return SRC1 with the
+quiet bit set; only if SRC1 is not NaN but SRC2 is, return SRC2 with the
+quiet bit set.
+
+**SDM (Section 4.8.3.5, "Operating on NaNs"):** "If both SRC1 and SRC2 are
+NaNs... then SRC1 is converted to a QNaN (if applicable) and written to
+the destination."
+
+This is Intel's NaN propagation rule: SRC1 takes priority over SRC2.
+
+**Verdict:** SDM is clear on NaN propagation order. The bug was caused by
+relying on C compiler behavior, which doesn't guarantee Intel's NaN
+propagation semantics. No SDM issue.
+
+---
+
+### 12. Int→float conversions: MXCSR rounding mode ignored (commit 07facec)
+
+**Bug:** The C emulator's integer-to-float conversion functions
+(`int32_to_f32`, `int64_to_f32`, `int64_to_f64`, etc.) and `f64_to_f32`
+did not call `fesetround()` before performing the conversion. Large integer
+values that cannot be exactly represented in float require rounding, and
+this rounding must respect MXCSR.RC. Without syncing, conversions always
+used round-to-nearest.
+
+**SDM (CVTDQ2PS Description):** "Converts four, eight or sixteen packed
+signed doubleword integers in the source operand to four, eight or sixteen
+packed single precision floating-point values in the destination operand."
+The operation is implicitly subject to MXCSR rounding control for inexact
+conversions.
+
+**SDM (CVTSI2SS Operation):**
+```
+DEST[31:0] := Convert_Integer_To_Single_Precision_Floating_Point(SRC[31:0]);
+```
+
+The SDM's `Convert_Integer_To_Single_Precision_Floating_Point` function
+implicitly uses the current rounding mode from MXCSR.RC.
+
+**Verdict:** SDM implies rounding control applies to int→float conversions
+(since they can be inexact), but does not explicitly call
+`SET_ROUNDING_MODE` in the pseudocode the way ADDPS does. A more explicit
+note about MXCSR.RC applicability would be helpful, though IEEE 754
+mandates that rounding mode applies to all inexact operations. Minor SDM
+clarity gap.
+
+---
+
 ## Decoder Bug
 
-### 6. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
+### 13. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
 
 **Bug:** The decoder did not check for the F3 prefix, so LZCNT/TZCNT were
 always decoded as BSR/BSF.
@@ -182,20 +393,28 @@ added after KVM testing revealed the gaps:
 - VEX FMA3 (all 36 opcodes: 0F38 96-BF) — commit f6bdece
 - VBROADCASTSS — commit fbf968d
 - VPADDSB, VPADDUSB, VPSUBSB, VPSUBUSB, VUCOMISS, VUCOMISD — commit 8000fea
+- BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR — commit 4117d9e
 
 ---
 
 ## Summary Table
 
-| # | Bug | SDM Clear? | SDM Issue? |
-|---|-----|-----------|------------|
-| 1 | SHLD CF wrong bit | Yes | No |
-| 2 | INC/DEC CF not preserved | Yes | No |
-| 3a | SHL r32,0 no zero-extend | **Inconsistent** | **Yes — pseudocode contradicts §3.4.1.1** |
-| 3b | SHL/SHR flags for large counts | Yes | No |
-| 4 | PMULLW/PMULHW swapped | Yes | No |
-| 5 | PHSUBW operand order | Yes | No |
-| 6 | LZCNT/TZCNT vs BSF/BSR | Yes | No |
+| # | Bug | Component | SDM Clear? | SDM Issue? |
+|---|-----|-----------|-----------|------------|
+| 1 | SHLD CF wrong bit | Sail model | Yes | No |
+| 2 | INC/DEC CF not preserved | Sail compiler | Yes | No |
+| 3a | SHL r32,0 no zero-extend | Sail model | **Inconsistent** | **Yes — pseudocode contradicts §3.4.1.1** |
+| 3b | SHL/SHR flags for large counts | Sail model | Yes | No |
+| 4 | PMULLW/PMULHW swapped | Sail model | Yes | No |
+| 5 | PHSUBW operand order | Sail model | Yes | No |
+| 6 | CMPPS NLE NaN handling | Sail model | Yes | No |
+| 7 | LZCNT sub-64-bit operand size | Sail model | Yes | No |
+| 8 | MINPS/MAXPS NaN returns wrong operand | C emulator | Yes | No |
+| 9 | CVTPS2DQ NaN/Inf/overflow UB | C emulator | Yes | No |
+| 10 | SSE arithmetic ignores MXCSR rounding | C emulator | Yes | No |
+| 11 | SSE NaN propagation order wrong | C emulator | Yes | No |
+| 12 | Int→float ignores MXCSR rounding | C emulator | Yes | Minor gap |
+| 13 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
 
 **One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
 pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
@@ -207,3 +426,11 @@ reader mechanically following the pseudocode would conclude no zero-extension
 happens. Real hardware follows the Section 3.4.1.1 rule. The pseudocode
 should be self-contained and mechanically correct — it should explicitly
 write DEST even when count=0.
+
+**One minor SDM clarity gap:** Bug 12 shows that the CVTDQ2PS/CVTSI2SS
+pseudocode does not explicitly reference MXCSR.RC, unlike ADDPS which calls
+`SET_ROUNDING_MODE_FOR_THIS_INSTRUCTION(MXCSR.RC)`. Since int→float
+conversions can be inexact (e.g., large 32-bit integers lose precision in
+float32), the rounding mode matters. IEEE 754 mandates that rounding mode
+applies to all inexact operations, but the SDM pseudocode could be more
+explicit about this.
