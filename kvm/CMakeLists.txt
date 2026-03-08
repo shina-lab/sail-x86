@@ -45,6 +45,9 @@ set(KVM_CATEGORIES
   ADCX/ADOX
   DAZ/FTZ
   "OpSize Edge"
+  "REX R/B/X"
+  NOP
+  Prefix
 )
 
 foreach(cat ${KVM_CATEGORIES})

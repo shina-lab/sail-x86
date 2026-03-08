@@ -6247,6 +6247,315 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // =====================================================================
+  // REX R/B/X bit interactions
+  // Tests that REX.R, REX.B, and REX.X correctly select extended registers.
+  // =====================================================================
+  {
+    cat = "REX R/B/X";
+
+    // REX.B selects R8 as rm: ADD R8, RAX
+    // 49 01 C0: REX.W+B(49), ADD r/m64,r64(01), ModRM C0(mod=11,reg=rax=0,rm=0+B=r8)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0x100;
+      s.r8  = 0x200;
+      tests.push_back({"add r8,rax (REX.B)", cat, {0x49, 0x01, 0xC0}, s, FL_ALL});
+    }
+
+    // REX.R selects R8 as reg: ADD RAX, R8
+    // 4C 01 C0: REX.W+R(4C), ADD r/m64,r64(01), ModRM C0(mod=11,reg=0+R=r8,rm=rax=0)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0x100;
+      s.r8  = 0x200;
+      tests.push_back({"add rax,r8 (REX.R)", cat, {0x4C, 0x01, 0xC0}, s, FL_ALL});
+    }
+
+    // REX.R+B: ADD R9, R10
+    // 4D 01 D1: REX.W+R+B(4D), ADD r/m64,r64(01), ModRM D1(mod=11,reg=2+R=r10,rm=1+B=r9)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.r9  = 0xAAAAAAAAAAAAAAAA;
+      s.r10 = 0x5555555555555555;
+      tests.push_back({"add r9,r10 (REX.R+B)", cat, {0x4D, 0x01, 0xD1}, s, FL_ALL});
+    }
+
+    // REX.B with 32-bit op: ADD R8D, EAX (should zero-extend into R8)
+    // 41 01 C0: REX.B(41), ADD r/m32,r32(01), ModRM C0
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 1;
+      s.r8  = 0xFFFFFFFF00000001;
+      tests.push_back({"add r8d,eax (32b REX.B)", cat, {0x41, 0x01, 0xC0}, s, FL_ALL});
+    }
+
+    // REX.R with 32-bit op: ADD EAX, R8D (should zero-extend into RAX)
+    // 44 01 C0: REX.R(44), ADD r/m32,r32(01), ModRM C0(reg=0+R=r8d,rm=eax=0)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xFFFFFFFF00000001;
+      s.r8  = 1;
+      tests.push_back({"add eax,r8d (32b REX.R)", cat, {0x44, 0x01, 0xC0}, s, FL_ALL});
+    }
+
+    // REX.B with memory base: MOV RAX, [R8]
+    // 49 8B 00: REX.W+B(49), MOV r64,r/m64(8B), ModRM 00(mod=00,reg=rax=0,rm=0+B=r8)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.r8  = DATA_ADDR;
+      std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0xAA, 0xBB, 0xCC, 0xDD};
+      tests.push_back({"mov rax,[r8] (REX.B base)", cat, {0x49, 0x8B, 0x00}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REX.X with SIB index: MOV RAX, [RDI + R8*2]
+    // 4A 8B 04 47: REX.W+X(4A), MOV(8B), ModRM 04(mod=00,reg=rax,rm=100=SIB),
+    //              SIB 47(scale=01=*2,index=0+X=r8,base=rdi=7)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.rdi = DATA_ADDR;
+      s.r8  = 4;  // offset 4*2=8 bytes into data
+      std::vector<u8> data(16, 0);
+      data[8]  = 0x11; data[9]  = 0x22; data[10] = 0x33; data[11] = 0x44;
+      data[12] = 0x55; data[13] = 0x66; data[14] = 0x77; data[15] = 0x88;
+      tests.push_back({"mov rax,[rdi+r8*2] (REX.X)", cat, {0x4A, 0x8B, 0x04, 0x47}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REX.B with SIB base: MOV RAX, [R13 + RCX*1]
+    // 49 8B 44 0D 00: REX.W+B(49), MOV(8B), ModRM 44(mod=01,reg=rax,rm=100=SIB),
+    //                 SIB 0D(scale=00,index=rcx=1,base=5+B=r13), disp8=0
+    // Note: R13 as SIB base requires mod!=00, using mod=01 with disp8=0
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.r13 = DATA_ADDR;
+      s.rcx = 8;
+      std::vector<u8> data(16, 0);
+      data[8]  = 0xAA; data[9]  = 0xBB; data[10] = 0xCC; data[11] = 0xDD;
+      data[12] = 0xEE; data[13] = 0xFF; data[14] = 0x11; data[15] = 0x22;
+      tests.push_back({"mov rax,[r13+rcx] (REX.B SIB base)", cat,
+                        {0x49, 0x8B, 0x44, 0x0D, 0x00}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REX.X+B with SIB: MOV RAX, [R13 + R8*4]
+    // 4B 8B 44 85 00: REX.W+X+B(4B), MOV(8B), ModRM 44(mod=01,reg=rax,rm=100=SIB),
+    //                 SIB 85(scale=10=*4,index=0+X=r8,base=5+B=r13), disp8=0
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.r13 = DATA_ADDR;
+      s.r8  = 2;  // offset 2*4=8 bytes
+      std::vector<u8> data(16, 0);
+      data[8]  = 0x12; data[9]  = 0x34; data[10] = 0x56; data[11] = 0x78;
+      data[12] = 0x9A; data[13] = 0xBC; data[14] = 0xDE; data[15] = 0xF0;
+      tests.push_back({"mov rax,[r13+r8*4] (REX.X+B)", cat,
+                        {0x4B, 0x8B, 0x44, 0x85, 0x00}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REX.R+X+B: ADD [R13 + R8*1], R9
+    // 4F 01 4C 05 00: REX.W+R+X+B(4F), ADD(01), ModRM 4C(mod=01,reg=1+R=r9,rm=100=SIB),
+    //                 SIB 05(scale=00,index=0+X=r8,base=5+B=r13), disp8=0
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.r8  = 8;
+      s.r9  = 0x100;
+      s.r13 = DATA_ADDR;
+      std::vector<u8> data(16, 0);
+      data[8] = 0x42;
+      tests.push_back({"add [r13+r8],r9 (REX.R+X+B)", cat,
+                        {0x4F, 0x01, 0x4C, 0x05, 0x00}, s,
+                        FL_ALL, 0, false, data, 16});
+    }
+
+    // REX prefix 0x40 (no R/W/B/X) — should not change operand size
+    // 40 01 D8: REX(40), ADD r/m32,r32(01), ModRM D8(reg=ebx,rm=eax)
+    // This is a 32-bit ADD, not 64-bit
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xFFFFFFFF00000001;
+      s.rbx = 1;
+      tests.push_back({"add eax,ebx (bare REX 0x40)", cat, {0x40, 0x01, 0xD8}, s, FL_ALL});
+    }
+
+    // REX.B with opcode-register: MOV R8, imm64
+    // 49 B8 ...: REX.W+B(49), MOV r64,imm64 (B8+0=B8, but B extends to R8)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.r8  = 0;
+      tests.push_back({"mov r8,imm64 (REX.B opcode reg)", cat,
+                        {0x49, 0xB8, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01}, s, FL_ALL});
+    }
+
+    // REX.B with PUSH/POP opcode-register: PUSH R8; POP R9
+    // 41 50: REX.B(41), PUSH r64 (50+0, B extends to R8)
+    // 41 59: REX.B(41), POP r64 (58+1, B extends to R9)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.r8  = 0x123456789ABCDEF0;
+      s.r9  = 0;
+      tests.push_back({"push r8; pop r9 (REX.B)", cat,
+                        {0x41, 0x50, 0x41, 0x59}, s, FL_ALL});
+    }
+
+    // MOV R12, [RIP+disp32] — REX.R with RIP-relative addressing
+    // 4C 8B 25 00 00 00 00: REX.W+R(4C), MOV(8B), ModRM 25(mod=00,reg=4+R=r12,rm=101=RIP)
+    // disp32=0 means address is RIP+0, which points to byte after this instruction
+    // Instead use [RDI] to keep it simple
+  }
+
+  // =====================================================================
+  // Multi-byte NOP — verify all lengths leave state unchanged
+  // =====================================================================
+  {
+    cat = "NOP";
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 0x123456789ABCDEF0;
+    s.rbx = 0xFEDCBA9876543210;
+    s.rcx = 0xAAAAAAAABBBBBBBB;
+    s.rdx = 0xCCCCCCCCDDDDDDDD;
+    s.rdi = DATA_ADDR;  // safe base for SIB addressing in NOP
+    s.r8  = 0x1111111122222222;
+    s.r9  = 0x3333333344444444;
+
+    // 1-byte NOP: 90
+    tests.push_back({"nop (1B)", cat, {0x90}, s, FL_ALL});
+
+    // 2-byte NOP: 66 90
+    tests.push_back({"nop (2B)", cat, {0x66, 0x90}, s, FL_ALL});
+
+    // 3-byte NOP: 0F 1F 00
+    tests.push_back({"nop (3B)", cat, {0x0F, 0x1F, 0x00}, s, FL_ALL});
+
+    // 4-byte NOP: 0F 1F 40 00
+    tests.push_back({"nop (4B)", cat, {0x0F, 0x1F, 0x40, 0x00}, s, FL_ALL});
+
+    // 5-byte NOP: 0F 1F 44 00 00
+    tests.push_back({"nop (5B)", cat, {0x0F, 0x1F, 0x44, 0x00, 0x00}, s, FL_ALL});
+
+    // 6-byte NOP: 66 0F 1F 44 00 00
+    tests.push_back({"nop (6B)", cat, {0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00}, s, FL_ALL});
+
+    // 7-byte NOP: 0F 1F 80 00 00 00 00
+    tests.push_back({"nop (7B)", cat, {0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+
+    // 8-byte NOP: 0F 1F 84 00 00 00 00 00
+    tests.push_back({"nop (8B)", cat, {0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+
+    // 9-byte NOP: 66 0F 1F 84 00 00 00 00 00
+    tests.push_back({"nop (9B)", cat, {0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+
+    // Chained: 3B + 5B + 1B NOPs in sequence
+    tests.push_back({"nop chain (3+5+1)", cat,
+                      {0x0F, 0x1F, 0x00,
+                       0x0F, 0x1F, 0x44, 0x00, 0x00,
+                       0x90}, s, FL_ALL});
+  }
+
+  // =====================================================================
+  // Redundant prefix stacking
+  // Tests interactions of multiple/redundant prefixes.
+  // =====================================================================
+  {
+    cat = "Prefix";
+
+    // 66 + REX.W: REX.W overrides the 66 operand-size prefix for non-mandatory-prefix insns
+    // 66 48 01 D8: 66, REX.W(48), ADD r/m64,r64(01), ModRM D8(reg=rbx,rm=rax)
+    // Should be 64-bit ADD (REX.W wins over 66)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0x100000000;
+      s.rbx = 0x200000000;
+      tests.push_back({"add rax,rbx (66+REX.W)", cat, {0x66, 0x48, 0x01, 0xD8}, s, FL_ALL});
+    }
+
+    // Double 66 prefix: 66 66 01 D8 = ADD AX, BX (redundant 66 should behave same as single)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEAD0000BEEF7FFF;  // AX=0x7FFF
+      s.rbx = 0x1234567800000001;  // BX=0x0001
+      tests.push_back({"add ax,bx (double 66)", cat, {0x66, 0x66, 0x01, 0xD8}, s, FL_ALL});
+    }
+
+    // Address-size override (67) with memory operand: MOV EAX, [EDI]
+    // 67 8B 07: 67 prefix, MOV r32,r/m32(8B), ModRM 07(mod=00,reg=eax,rm=edi)
+    // Uses 32-bit address (truncates RDI to EDI)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.rdi = DATA_ADDR;  // DATA_ADDR fits in 32 bits
+      std::vector<u8> data = {0x42, 0x43, 0x44, 0x45, 0, 0, 0, 0};
+      tests.push_back({"mov eax,[edi] (67 prefix)", cat, {0x67, 0x8B, 0x07}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // 67 + REX.W: 64-bit operand with 32-bit address
+    // 67 48 8B 07: 67, REX.W(48), MOV r64,r/m64(8B), ModRM 07
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADDEADDEADDEAD;
+      s.rdi = DATA_ADDR;
+      std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+      tests.push_back({"mov rax,[edi] (67+REX.W)", cat, {0x67, 0x48, 0x8B, 0x07}, s,
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REX prefix (no bits set) with byte register encoding:
+    // 40 88 E0: REX(40), MOV r/m8,r8(88), ModRM E0(reg=ah→spl, rm=al→al)
+    // Without REX: reg=4 means AH. With REX: reg=4 means SPL.
+    // This tests that bare REX changes byte register mapping.
+    // MOV AL, SPL — copies low byte of RSP into AL
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEAD0000BEEF0000;
+      // RSP is set by the harness, but we need a known value.
+      // Instead, test with MOV to a register we control.
+      // Use: 40 0F B6 C4 = REX MOVZX EAX, SPL
+      // Actually, MOVZX is better: 40 0F B6 C4 (REX, MOVZX r32,r/m8, ModRM C4=reg=eax,rm=4=spl)
+      // Hmm, SPL value depends on stack setup. Let's use BPL instead.
+      // 40 0F B6 C5: REX MOVZX EAX, BPL (rm=5=bpl with REX)
+      s.rbp = 0xABCDEF0123456789;
+      tests.push_back({"movzx eax,bpl (REX byte reg)", cat,
+                        {0x40, 0x0F, 0xB6, 0xC5}, s, FL_ALL});
+    }
+
+    // Without REX, same ModRM accesses CH:
+    // 0F B6 C5: MOVZX EAX, CH (rm=5=ch without REX)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEAD0000BEEF0000;
+      s.rcx = 0x123456789ABC00DE;  // CH = 0x00
+      tests.push_back({"movzx eax,ch (no REX byte reg)", cat,
+                        {0x0F, 0xB6, 0xC5}, s, FL_ALL});
+    }
+  }
+
   add_systematic_tests(tests);
 
   return tests;
