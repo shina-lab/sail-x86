@@ -503,8 +503,8 @@ explicit about this.
 
 ## Test Coverage Summary
 
-The KVM differential test suite currently runs **58,239 tests** across
-**64 ctest categories**. Tests compare architectural state (GPRs, flags,
+The KVM differential test suite currently runs **59,070 tests** across
+**65 ctest categories**. Tests compare architectural state (GPRs, flags,
 XMM registers, MXCSR, memory) between KVM execution on real hardware and
 the Sail model.
 
@@ -530,6 +530,11 @@ the Sail model.
   PMULDQ, PCMPGTQ, PCMPISTRI/PCMPISTRM/PCMPESTRI, CRC32
 - **AES-NI**: AESENC, AESDEC, AESIMC, AESKEYGENASSIST
 - **AVX**: VEX-encoded arithmetic, data movement, shuffles, conversions
+- **AVX Edge**: VEX FP boundary-value matrix (f32: 24 pairs × 6 ops +
+  8 VCMPPS predicates; f64: 20 pairs × 6 ops), VEX scalar FP edges
+  (f32 + f64), upper-128 clearing verification, 256-bit arithmetic
+  (PS/PD/integer), integer SIMD boundary values (10 pairs × 6 ops),
+  conversion edge cases (NaN/Inf/overflow) — 831 tests
 - **EVEX**: EVEX-encoded operations including VPADDD, VPXORD
 - **x87**: Basic x87 FPU operations
 - **String ops**: REP MOVS/STOS/LODS/CMPS/SCAS with direction flag,

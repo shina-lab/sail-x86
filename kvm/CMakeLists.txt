@@ -41,6 +41,7 @@ set(KVM_CATEGORIES
   CMPXCHG16B
   AVX
   EVEX
+  "AVX Edge"
   "FP Edge"
   ADCX/ADOX
   DAZ/FTZ

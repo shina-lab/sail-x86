@@ -4985,6 +4985,586 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // AVX Edge Cases — VEX-encoded FP/integer boundary values
+  //
+  // Comprehensive edge-case testing for VEX-encoded instructions:
+  // NaN propagation, Inf arithmetic, denormals, signed zeros,
+  // 256-bit operations, upper-128 clearing, conversion edges.
+  // =====================================================================
+  cat = "AVX Edge";
+
+  // --- A. VEX FP boundary-value matrix (f32) ---
+  {
+    const u32 POS_ZERO  = 0x00000000;
+    const u32 NEG_ZERO  = 0x80000000;
+    const u32 POS_INF   = 0x7F800000;
+    const u32 NEG_INF   = 0xFF800000;
+    const u32 QNAN      = 0x7FC00000;
+    const u32 F32_SNAN  = u32(0x7F800001);
+    const u32 QNAN2     = 0x7FC00042;
+    const u32 NEG_QNAN  = 0xFFC00000;
+    const u32 DENORM    = 0x00000001;
+    const u32 DENORM2   = 0x007FFFFF;
+    const u32 NEG_DENORM = 0x80000001;
+    const u32 ONE       = 0x3F800000;
+    const u32 NEG_ONE   = 0xBF800000;
+    const u32 TWO       = 0x40000000;
+    const u32 MAX_NORM  = 0x7F7FFFFF;
+
+    struct FPPair { u32 a; u32 b; const char *desc; };
+    FPPair pairs[] = {
+      {POS_ZERO, NEG_ZERO, "pz_nz"},
+      {NEG_ZERO, POS_ZERO, "nz_pz"},
+      {POS_INF, ONE, "pinf_1"},
+      {NEG_INF, ONE, "ninf_1"},
+      {POS_INF, NEG_INF, "pinf_ninf"},
+      {POS_INF, POS_INF, "pinf_pinf"},
+      {QNAN, ONE, "qnan_1"},
+      {ONE, QNAN, "1_qnan"},
+      {QNAN, QNAN2, "qnan_qnan2"},
+      {F32_SNAN, ONE, "snan_1"},
+      {ONE, F32_SNAN, "1_snan"},
+      {F32_SNAN, QNAN, "snan_qnan"},
+      {DENORM, ONE, "denorm_1"},
+      {ONE, DENORM, "1_denorm"},
+      {DENORM, DENORM, "denorm_denorm"},
+      {NEG_DENORM, ONE, "ndenorm_1"},
+      {DENORM2, DENORM2, "maxdenorm2"},
+      {MAX_NORM, ONE, "maxnorm_1"},
+      {MAX_NORM, MAX_NORM, "maxnorm2"},
+      {NEG_ONE, POS_ZERO, "n1_pz"},
+      {POS_ZERO, POS_ZERO, "pz_pz"},
+      {NEG_ZERO, NEG_ZERO, "nz_nz"},
+      {POS_INF, QNAN, "pinf_qnan"},
+      {QNAN, POS_INF, "qnan_pinf"},
+    };
+    int npairs = sizeof(pairs) / sizeof(pairs[0]);
+
+    // VADDPS xmm0, xmm1, xmm2: C5 F0 58 C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vaddps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
+    }
+
+    // VSUBPS xmm0, xmm1, xmm2: C5 F0 5C C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vsubps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x5C, 0xC2}, s, 0x7);
+    }
+
+    // VMULPS xmm0, xmm1, xmm2: C5 F0 59 C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vmulps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x59, 0xC2}, s, 0x7);
+    }
+
+    // VDIVPS xmm0, xmm1, xmm2: C5 F0 5E C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vdivps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x5E, 0xC2}, s, 0x7);
+    }
+
+    // VMINPS xmm0, xmm1, xmm2: C5 F0 5D C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vminps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x5D, 0xC2}, s, 0x7);
+    }
+
+    // VMAXPS xmm0, xmm1, xmm2: C5 F0 5F C2
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vmaxps %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF0, 0x5F, 0xC2}, s, 0x7);
+    }
+
+    // VCMPPS with all 8 predicates: C5 F0 C2 C2 imm8
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, pairs[i].a, pairs[i].a, pairs[i].a);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, pairs[i].b, pairs[i].b, pairs[i].b);
+      for (int pred = 0; pred < 8; pred++) {
+        char n[128];
+        snprintf(n, sizeof(n), "vcmpps p%d %s", pred, pairs[i].desc);
+        add_xmm(n, {0xC5, 0xF0, 0xC2, 0xC2, (u8)pred}, s, 0x7);
+      }
+    }
+
+    // --- C (part 1). VEX scalar FP edge cases (f32) ---
+    // VADDSS xmm0, xmm1, xmm2: C5 F2 58 C2 (pp=10 for F3 prefix)
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vaddss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x58, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vsubss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x5C, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vmulss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x59, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vdivss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x5E, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vminss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x5D, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < npairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(pairs[i].a, 0x11111111, 0x22222222, 0x33333333);
+      s.xmm[2] = xmm_from_u32(pairs[i].b, 0x44444444, 0x55555555, 0x66666666);
+      char n[128];
+      snprintf(n, sizeof(n), "vmaxss %s", pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF2, 0x5F, 0xC2}, s, 0x7);
+    }
+  }
+
+  // --- B. VEX FP boundary-value matrix (f64) ---
+  {
+    const u64 POS_ZERO_D  = 0x0000000000000000ULL;
+    const u64 NEG_ZERO_D  = 0x8000000000000000ULL;
+    const u64 POS_INF_D   = 0x7FF0000000000000ULL;
+    const u64 NEG_INF_D   = 0xFFF0000000000000ULL;
+    const u64 QNAN_D      = 0x7FF8000000000000ULL;
+    const u64 SNAN_D      = 0x7FF0000000000001ULL;
+    const u64 DENORM_D    = 0x0000000000000001ULL;
+    const u64 ONE_D       = 0x3FF0000000000000ULL;
+    const u64 NEG_ONE_D   = 0xBFF0000000000000ULL;
+    const u64 MAX_NORM_D  = 0x7FEFFFFFFFFFFFFFULL;
+
+    struct FP64Pair { u64 a; u64 b; const char *desc; };
+    FP64Pair dpairs[] = {
+      {POS_ZERO_D, NEG_ZERO_D, "pz_nz"},
+      {NEG_ZERO_D, POS_ZERO_D, "nz_pz"},
+      {POS_INF_D, ONE_D, "pinf_1"},
+      {NEG_INF_D, ONE_D, "ninf_1"},
+      {POS_INF_D, NEG_INF_D, "pinf_ninf"},
+      {POS_INF_D, POS_INF_D, "pinf_pinf"},
+      {QNAN_D, ONE_D, "qnan_1"},
+      {ONE_D, QNAN_D, "1_qnan"},
+      {SNAN_D, ONE_D, "snan_1"},
+      {ONE_D, SNAN_D, "1_snan"},
+      {SNAN_D, QNAN_D, "snan_qnan"},
+      {DENORM_D, ONE_D, "denorm_1"},
+      {ONE_D, DENORM_D, "1_denorm"},
+      {DENORM_D, DENORM_D, "denorm_denorm"},
+      {MAX_NORM_D, ONE_D, "maxnorm_1"},
+      {MAX_NORM_D, MAX_NORM_D, "maxnorm2"},
+      {NEG_ONE_D, POS_ZERO_D, "n1_pz"},
+      {POS_ZERO_D, POS_ZERO_D, "pz_pz"},
+      {NEG_ZERO_D, NEG_ZERO_D, "nz_nz"},
+      {POS_INF_D, QNAN_D, "pinf_qnan"},
+    };
+    int ndpairs = sizeof(dpairs) / sizeof(dpairs[0]);
+
+    // VADDPD xmm0, xmm1, xmm2: C5 F1 58 C2 (pp=01 for 66 prefix)
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vaddpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x58, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vsubpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x5C, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vmulpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x59, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vdivpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x5E, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vminpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x5D, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, dpairs[i].a);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, dpairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vmaxpd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0x5F, 0xC2}, s, 0x7);
+    }
+
+    // --- C (part 2). VEX scalar FP edge cases (f64) ---
+    // VADDSD xmm0, xmm1, xmm2: C5 F3 58 C2 (pp=11 for F2 prefix)
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vaddsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x58, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vsubsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x5C, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vmulsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x59, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vdivsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x5E, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vminsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x5D, 0xC2}, s, 0x7);
+    }
+    for (int i = 0; i < ndpairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(dpairs[i].a, 0x1111111122222222ULL);
+      s.xmm[2] = xmm_from_u64(dpairs[i].b, 0x3333333344444444ULL);
+      char n[128];
+      snprintf(n, sizeof(n), "vmaxsd %s", dpairs[i].desc);
+      add_xmm(n, {0xC5, 0xF3, 0x5F, 0xC2}, s, 0x7);
+    }
+  }
+
+  // --- D. VEX upper-128 clearing verification ---
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Pre-load xmm0 with all-ones (simulating dirty YMM upper half)
+    s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    // VADDPS xmm0, xmm1, xmm2 should produce clean result
+    add_xmm("vaddps upper clear", {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
+    // VMOVAPS xmm0, xmm1: C5 F8 28 C1 (vvvv=1111, pp=00)
+    add_xmm("vmovaps upper clear", {0xC5, 0xF8, 0x28, 0xC1}, s, 0x3);
+    // VPXOR xmm0, xmm1, xmm2: C5 F1 EF C2 (pp=01 for 66)
+    add_xmm("vpxor upper clear", {0xC5, 0xF1, 0xEF, 0xC2}, s, 0x7);
+    // VMOVDQA xmm0, xmm1: C5 F9 6F C1 (66, 0F 6F)
+    add_xmm("vmovdqa upper clear", {0xC5, 0xF9, 0x6F, 0xC1}, s, 0x3);
+    // VXORPS xmm0, xmm0, xmm0: C5 F8 57 C0 (self-xor = zero)
+    s.xmm[0] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x123456789ABCDEF0);
+    add_xmm("vxorps self upper clear", {0xC5, 0xF8, 0x57, 0xC0}, s, 0x1);
+  }
+
+  // --- E. VEX 256-bit arithmetic ---
+  // 256-bit packed float
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    // VADDPS ymm0, ymm1, ymm2: C5 F4 58 C2 (L=1)
+    add_xmm("vaddps ymm", {0xC5, 0xF4, 0x58, 0xC2}, s, 0x7);
+    add_xmm("vsubps ymm", {0xC5, 0xF4, 0x5C, 0xC2}, s, 0x7);
+    add_xmm("vmulps ymm", {0xC5, 0xF4, 0x59, 0xC2}, s, 0x7);
+    add_xmm("vdivps ymm", {0xC5, 0xF4, 0x5E, 0xC2}, s, 0x7);
+    add_xmm("vminps ymm", {0xC5, 0xF4, 0x5D, 0xC2}, s, 0x7);
+    add_xmm("vmaxps ymm", {0xC5, 0xF4, 0x5F, 0xC2}, s, 0x7);
+    // VSQRTPS ymm0, ymm1: C5 FC 51 C1 (vvvv=1111, L=1, pp=00)
+    add_xmm("vsqrtps ymm", {0xC5, 0xFC, 0x51, 0xC1}, s, 0x3);
+    add_xmm("vandps ymm", {0xC5, 0xF4, 0x54, 0xC2}, s, 0x7);
+    add_xmm("vorps ymm", {0xC5, 0xF4, 0x56, 0xC2}, s, 0x7);
+    add_xmm("vxorps ymm", {0xC5, 0xF4, 0x57, 0xC2}, s, 0x7);
+    // VSHUFPS ymm: C5 F4 C6 C2 1B
+    add_xmm("vshufps ymm", {0xC5, 0xF4, 0xC6, 0xC2, 0x1B}, s, 0x7);
+    add_xmm("vunpcklps ymm", {0xC5, 0xF4, 0x14, 0xC2}, s, 0x7);
+    add_xmm("vunpckhps ymm", {0xC5, 0xF4, 0x15, 0xC2}, s, 0x7);
+  }
+
+  // 256-bit packed double
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(3.0, 4.0);
+    // VADDPD ymm: C5 F5 58 C2 (66, L=1)
+    add_xmm("vaddpd ymm", {0xC5, 0xF5, 0x58, 0xC2}, s, 0x7);
+    add_xmm("vsubpd ymm", {0xC5, 0xF5, 0x5C, 0xC2}, s, 0x7);
+    add_xmm("vmulpd ymm", {0xC5, 0xF5, 0x59, 0xC2}, s, 0x7);
+    add_xmm("vdivpd ymm", {0xC5, 0xF5, 0x5E, 0xC2}, s, 0x7);
+    add_xmm("vminpd ymm", {0xC5, 0xF5, 0x5D, 0xC2}, s, 0x7);
+    add_xmm("vmaxpd ymm", {0xC5, 0xF5, 0x5F, 0xC2}, s, 0x7);
+    add_xmm("vshufpd ymm", {0xC5, 0xF5, 0xC6, 0xC2, 0x05}, s, 0x7);
+    add_xmm("vunpcklpd ymm", {0xC5, 0xF5, 0x14, 0xC2}, s, 0x7);
+    add_xmm("vunpckhpd ymm", {0xC5, 0xF5, 0x15, 0xC2}, s, 0x7);
+  }
+
+  // 256-bit packed integer
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+    // VPADDB ymm: C5 F5 FC C2 (66, L=1)
+    add_xmm("vpaddb ymm", {0xC5, 0xF5, 0xFC, 0xC2}, s, 0x7);
+    add_xmm("vpaddw ymm", {0xC5, 0xF5, 0xFD, 0xC2}, s, 0x7);
+    add_xmm("vpaddd ymm", {0xC5, 0xF5, 0xFE, 0xC2}, s, 0x7);
+    add_xmm("vpaddq ymm", {0xC5, 0xF5, 0xD4, 0xC2}, s, 0x7);
+    add_xmm("vpsubb ymm", {0xC5, 0xF5, 0xF8, 0xC2}, s, 0x7);
+    add_xmm("vpsubw ymm", {0xC5, 0xF5, 0xF9, 0xC2}, s, 0x7);
+    add_xmm("vpsubd ymm", {0xC5, 0xF5, 0xFA, 0xC2}, s, 0x7);
+    add_xmm("vpsubq ymm", {0xC5, 0xF5, 0xFB, 0xC2}, s, 0x7);
+    add_xmm("vpand ymm", {0xC5, 0xF5, 0xDB, 0xC2}, s, 0x7);
+    add_xmm("vpor ymm", {0xC5, 0xF5, 0xEB, 0xC2}, s, 0x7);
+    add_xmm("vpxor ymm", {0xC5, 0xF5, 0xEF, 0xC2}, s, 0x7);
+    add_xmm("vpandn ymm", {0xC5, 0xF5, 0xDF, 0xC2}, s, 0x7);
+  }
+
+  // --- F. VEX integer SIMD boundary values ---
+  {
+    struct IntPair { u32 a; u32 b; const char *desc; };
+    IntPair int_pairs[] = {
+      {0x00000000, 0x00000000, "zero_zero"},
+      {0xFFFFFFFF, 0x00000001, "max_1"},
+      {0x7FFFFFFF, 0x00000001, "smax_1"},
+      {0x80000000, 0xFFFFFFFF, "smin_neg1"},
+      {0x80000000, 0x80000000, "smin_smin"},
+      {0x7FFFFFFF, 0x7FFFFFFF, "smax_smax"},
+      {0x00000001, 0xFFFFFFFF, "1_max"},
+      {0xAAAAAAAA, 0x55555555, "alt_alt"},
+      {0xFF00FF00, 0x00FF00FF, "byte_alt"},
+      {0x0000FFFF, 0x00010000, "boundary16"},
+    };
+    int nint_pairs = sizeof(int_pairs) / sizeof(int_pairs[0]);
+
+    // VPADDD xmm0, xmm1, xmm2: C5 F1 FE C2 (66 prefix)
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpaddd %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xFE, 0xC2}, s, 0x7);
+    }
+    // VPSUBD: C5 F1 FA C2
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpsubd %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xFA, 0xC2}, s, 0x7);
+    }
+    // VPADDB: C5 F1 FC C2
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpaddb %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xFC, 0xC2}, s, 0x7);
+    }
+    // VPSUBB: C5 F1 F8 C2
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpsubb %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xF8, 0xC2}, s, 0x7);
+    }
+    // VPADDW: C5 F1 FD C2
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpaddw %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xFD, 0xC2}, s, 0x7);
+    }
+    // VPSUBW: C5 F1 F9 C2
+    for (int i = 0; i < nint_pairs; i++) {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(int_pairs[i].a, int_pairs[i].a,
+                                int_pairs[i].a, int_pairs[i].a);
+      s.xmm[2] = xmm_from_u32(int_pairs[i].b, int_pairs[i].b,
+                                int_pairs[i].b, int_pairs[i].b);
+      char n[128];
+      snprintf(n, sizeof(n), "vpsubw %s", int_pairs[i].desc);
+      add_xmm(n, {0xC5, 0xF1, 0xF9, 0xC2}, s, 0x7);
+    }
+  }
+
+  // --- G. VCMPPS full predicate coverage with mixed operands ---
+  {
+    const u32 ONE  = 0x3F800000;
+    const u32 TWO  = 0x40000000;
+    const u32 FOUR = 0x40800000;
+    const u32 THREE = 0x40400000;
+    const u32 QNAN = 0x7FC00000;
+    // Elements: 1.0==1.0 (EQ), 2.0<3.0 (LT), 4.0>3.0 (GT), NaN (unordered)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u32(ONE, TWO, FOUR, QNAN);
+    s.xmm[2] = xmm_from_u32(ONE, THREE, THREE, ONE);
+    for (int pred = 0; pred < 8; pred++) {
+      char n[128];
+      snprintf(n, sizeof(n), "vcmpps mixed pred%d", pred);
+      add_xmm(n, {0xC5, 0xF0, 0xC2, 0xC2, (u8)pred}, s, 0x7);
+    }
+  }
+
+  // --- H. VEX conversion edge cases ---
+  {
+    const u32 POS_INF  = 0x7F800000;
+    const u32 NEG_INF  = 0xFF800000;
+    const u32 QNAN     = 0x7FC00000;
+    const u32 MAX_NORM = 0x7F7FFFFF;
+
+    // VCVTDQ2PS with boundary integers
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(0x7FFFFFFF, 0x80000000, 0x00000000, 0xFFFFFFFF);
+      // VCVTDQ2PS xmm0, xmm1: C5 F8 5B C1 (NP, 0F 5B)
+      add_xmm("vcvtdq2ps boundary", {0xC5, 0xF8, 0x5B, 0xC1}, s, 0x3);
+    }
+    // VCVTPS2DQ with FP edge cases
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(POS_INF, NEG_INF, QNAN, MAX_NORM);
+      // VCVTPS2DQ xmm0, xmm1: C5 F9 5B C1 (66, 0F 5B)
+      add_xmm("vcvtps2dq edge", {0xC5, 0xF9, 0x5B, 0xC1}, s, 0x3);
+    }
+    // VCVTTPS2DQ with FP edge cases
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(POS_INF, NEG_INF, QNAN, MAX_NORM);
+      // VCVTTPS2DQ xmm0, xmm1: C5 FA 5B C1 (F3, 0F 5B)
+      add_xmm("vcvttps2dq edge", {0xC5, 0xFA, 0x5B, 0xC1}, s, 0x3);
+    }
+    // VCVTDQ2PS with small values and powers of 2
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(1, 0xFFFFFFFF, 0x01000000, 0x00FFFFFF);
+      add_xmm("vcvtdq2ps small", {0xC5, 0xF8, 0x5B, 0xC1}, s, 0x3);
+    }
+  }
+
+  // =====================================================================
   // FP Edge Cases — NaN, Inf, denormals, signed zeros
   //
   // These test corner cases that are often incorrectly implemented.
