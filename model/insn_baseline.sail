@@ -246,6 +246,11 @@ function bt_adjust(rm, bit_idx, os) = {
       (rm, bit_num)
     },
     RM_mem(addr) => {
+      // Apply RIP-relative fixup first, before adding the bit string
+      // displacement. Otherwise fixup_addr would discard our adjustment.
+      let base_addr : qword = fixup_addr(addr);
+      rip_rel_pending = false;
+
       // For memory operands, the full signed bit offset indexes into a bit
       // string starting at the effective address. Compute the word displacement
       // (Euclidean: bit_num is always in [0, op_bits)).
@@ -275,7 +280,7 @@ function bt_adjust(rm, bit_idx, os) = {
           if r >= 0 then (q * 4, r) else ((q - 1) * 4, r + 32)
         },
       };
-      let new_addr : qword = addr + get_slice_int(64, byte_disp, 0);
+      let new_addr : qword = base_addr + get_slice_int(64, byte_disp, 0);
       // bit_num_int is in [0, 63] by construction; extract as 6-bit value
       let bit_num : range(0, 63) = unsigned(get_slice_int(6, bit_num_int, 0));
       (RM_mem(new_addr), bit_num)
@@ -492,7 +497,46 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
     // 0F 05: SYSCALL
-    5 => __syscall(RIP, read_rflags()),
+    5 => {
+      if system_mode then {
+        // Full hardware SYSCALL per Intel SDM Vol.2.
+        // RCX = return address, R11 = RFLAGS
+        write_gpr64(RCX, decode_pos);
+        let saved_rflags = read_rflags();
+        write_gpr64(R11, saved_rflags);
+
+        // Read MSRs
+        let star  : qword = __rdmsr(0xC0000081);
+        let lstar : qword = __rdmsr(0xC0000082);
+        let fmask : qword = __rdmsr(0xC0000084);
+
+        // Mask RFLAGS: clear bits in FMASK, also clear RF
+        let new_rflags = saved_rflags & ~(fmask) & ~(0x0000000000010000);
+        CF      = new_rflags[0];
+        PF      = new_rflags[2];
+        AF      = new_rflags[4];
+        ZF      = new_rflags[6];
+        SF      = new_rflags[7];
+        TF      = new_rflags[8];
+        IF_flag = new_rflags[9];
+        DF      = new_rflags[10];
+        OF      = new_rflags[11];
+
+        // CS = STAR[47:32] & 0xFFFC, SS = STAR[47:32] + 8
+        let syscall_cs : word = star[47..32] & 0xFFFC;
+        write_segreg(CS, syscall_cs);
+        write_segreg(SS, syscall_cs + 0x0008);
+
+        // CPL = 0
+        cur_cpl = 0;
+
+        // RIP = LSTAR
+        next_rip = Some(lstar);
+        Ok()
+      } else {
+        __syscall(RIP, read_rflags())
+      }
+    },
     // 0F 06: CLTS — Clear TS flag in CR0 (requires CPL=0)
     6 => {
       if cur_cpl != 0 then raise_GP0()
@@ -506,7 +550,6 @@ function dispatch_2byte_gpr(op, pfx) = {
       if cur_cpl != 0 then raise_GP0()
       else {
         // SYSRET: restore RIP from RCX, RFLAGS from R11
-        // CS and SS are loaded from STAR MSR (handled by C++ for now)
         let new_rip = read_gpr64(RCX);
         let new_rflags = read_gpr64(R11);
 
@@ -521,6 +564,20 @@ function dispatch_2byte_gpr(op, pfx) = {
         IF_flag = restored[9];
         DF    = restored[10];
         OF    = restored[11];
+
+        // Load CS and SS from IA32_STAR MSR.
+        // SDM Vol.2: SYSRET with REX.W (64-bit):
+        //   CS.Sel = STAR[63:48] + 16, SS.Sel = STAR[63:48] + 8
+        // SYSRET without REX.W (32-bit compat):
+        //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
+        let star : qword = __rdmsr(0xC0000081);
+        let sysret_base : bits(16) = star[63..48];
+        if pfx.rex_w then {
+          write_segreg(CS, sysret_base + 0x0010);  // + 16
+        } else {
+          write_segreg(CS, sysret_base);
+        };
+        write_segreg(SS, sysret_base + 0x0008);  // + 8
 
         // Return to ring 3
         cur_cpl = 3;

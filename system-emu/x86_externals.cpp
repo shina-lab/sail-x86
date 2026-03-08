@@ -162,6 +162,7 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
+
   phys_mem.write_bytes(addr, buf, nbytes);
   return UNIT;
 }
@@ -1717,18 +1718,12 @@ void Model::z__pcmpistrm(struct ztuple_z8z5bvzCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv
 // =========================================================================
 
 void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
-  // In system mode, SYSCALL is handled by the Sail model using MSRs
-  // (STAR, LSTAR, FMASK). For now, implement the basic SYSCALL mechanism:
-  // RCX = return address, R11 = saved RFLAGS, then jump to LSTAR.
-  // TODO: Full SYSCALL implementation in Sail once MSR support is added.
+  // User-mode emulator: signal syscall to the run loop.
+  // System-mode SYSCALL is handled entirely in Sail (insn_baseline.sail).
   (void)rip;
   zGPR.data[1] = zdecode_pos;  // RCX = next instruction
   zGPR.data[11] = rflags;      // R11 = RFLAGS
-
-  // Advance RIP past the SYSCALL instruction.
   zRIP = zdecode_pos;
-
-  // Signal to the run loop that a syscall happened by returning Halt.
   rop->kind = Kind_zHalt;
   rop->variants.zHalt = UNIT;
 }

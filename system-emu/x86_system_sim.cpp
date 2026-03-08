@@ -198,7 +198,8 @@ static bool is_elf64(const u8 *data, size_t size) {
 }
 
 static bool load_elf_kernel(x86::Model &model, const char *path,
-                            const char *cmdline, bool debug) {
+                            const char *cmdline, const char *initrd_path,
+                            bool debug) {
   size_t file_size;
   u8 *file_data = read_file(path, &file_size);
   if (!file_data) return false;
@@ -290,6 +291,25 @@ static bool load_elf_kernel(x86::Model &model, const char *path,
   model.phys_mem.write8(boot_params_addr + 0x210, 0xFF);
   // Set loadflags: LOADED_HIGH | CAN_USE_HEAP
   model.phys_mem.write8(boot_params_addr + 0x211, 0x81);
+
+  // Load initramfs if provided
+  if (initrd_path) {
+    size_t initrd_size;
+    u8 *initrd = read_file(initrd_path, &initrd_size);
+    if (!initrd) {
+      fprintf(stderr, "Failed to load initramfs: %s\n", initrd_path);
+      free(file_data);
+      return false;
+    }
+    // Place initrd high in memory (page-aligned)
+    u64 initrd_addr = (model.phys_mem.ram_size() - initrd_size) & ~0xFFFULL;
+    model.phys_mem.write_bytes(initrd_addr, initrd, initrd_size);
+    model.phys_mem.write32(boot_params_addr + 0x218, (u32)initrd_addr);
+    model.phys_mem.write32(boot_params_addr + 0x21C, (u32)initrd_size);
+    if (debug)
+      fprintf(stderr, "  initrd at 0x%lx (%zu bytes)\n", initrd_addr, initrd_size);
+    free(initrd);
+  }
 
   // GDT
   u64 gdt_addr = setup_gdt(model.phys_mem);
@@ -598,7 +618,7 @@ int main(int argc, char *argv[]) {
     cr3 = setup_identity_page_tables(model.phys_mem, ram_size, true);
     model.zCR3 = cr3;
 
-    if (!load_elf_kernel(model, bzimage_path, cmdline, debug)) {
+    if (!load_elf_kernel(model, bzimage_path, cmdline, initrd_path, debug)) {
       fprintf(stderr, "Failed to load ELF kernel image\n");
       return 1;
     }
@@ -627,12 +647,21 @@ int main(int argc, char *argv[]) {
   const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
+  // Spin loop detector: if RIP stays within a tiny range for too long,
+  // the kernel is stuck (e.g., panic delay_loop alternating 2 addresses).
+  // PIT interrupts briefly leave the range, so we track cumulative time.
+  u64 spin_base = 0;
+  u64 spin_count = 0;
+  u64 spin_total = 0;  // cumulative count across re-entries
+  const u64 SPIN_THRESHOLD = 10000000; // 10M iterations in tight loop = stuck
+
   while (!model.should_exit) {
     // Print progress every 5M instructions
     if (insn_count % 5000000 == 0 && insn_count > 0) {
       fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
               insn_count / 1000000, (u64)model.zRIP);
     }
+
     if (debug && !trampoline_dumped && (u64)model.zRIP < 0x100000 && (u64)model.zRIP >= 0x9e000) {
       trampoline_dumped = true;
       fprintf(stderr, "Trampoline bytes at 0x9e000 (dumped at insn %lu):\n", insn_count);
@@ -655,6 +684,29 @@ int main(int argc, char *argv[]) {
     u64 prev_rip = model.zRIP;
     model.zstep(&result, UNIT);
 
+    // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
+    // PIT interrupts briefly leave the range; spin_total accumulates.
+    {
+      u64 rip = model.zRIP;
+      if (rip >= spin_base && rip < spin_base + 16) {
+        spin_count++;
+        spin_total++;
+        if (spin_total >= SPIN_THRESHOLD) {
+          fprintf(stderr, "sail-x86-system: spin loop detected at RIP=0x%lx after %lu insns\n",
+                  rip, insn_count);
+          model.model_fini();
+          return 1;
+        }
+      } else if (spin_count > 1000 && rip != spin_base) {
+        // Brief excursion (e.g., interrupt handler) — don't reset total
+        spin_count = 0;
+      } else {
+        spin_base = rip;
+        spin_count = 0;
+        spin_total = 0;
+      }
+    }
+
     switch (result.kind) {
     case x86::Kind_zOk:
       insn_count++;
@@ -663,6 +715,13 @@ int main(int argc, char *argv[]) {
     case x86::Kind_zHalt:
       // HLT: in system mode, wait for interrupt then continue
       if (model.zsystem_mode) {
+        // If IF=0, this is a panic halt loop — exit
+        if (model.zIF_flag == 0) {
+          fprintf(stderr, "sail-x86-system: HLT with IF=0 (panic halt) after %lu insns at RIP=0x%lx\n",
+                  insn_count, (u64)model.zRIP);
+          model.model_fini();
+          return 1;
+        }
         // Tick the PIT to generate a timer interrupt
         if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
           model.pic_master.raise_irq(0); // IRQ 0 = timer

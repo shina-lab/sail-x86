@@ -119,17 +119,7 @@ register sw_return_rip : option(qword) = None()
 // May throw X86Fault if gate is not present or stack push faults.
 val deliver_exception_inner : (exception_vector, dword) -> unit
 function deliver_exception_inner(vec, err_code) = {
-  let gate = read_idt_gate(vec);
-
-  // 1. Check gate present — #GP if not
-  if not_bool(gate.gate_present) then {
-    sw_return_rip = None();  // Clear override on failure
-    throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
-  };
-
-  // 2. Save old state
-  // For software interrupts, use the override return address (points past
-  // the INT instruction).  For hardware exceptions, use current RIP.
+  // Save old state before doing anything.
   let old_rip : qword = match sw_return_rip {
     Some(addr) => addr,
     None() => RIP,
@@ -141,7 +131,22 @@ function deliver_exception_inner(vec, err_code) = {
   let old_ss  : word  = read_segreg(SS);
   let old_cpl : cpl_t = cur_cpl;
 
-  // 3. Determine new stack
+  // Switch to supervisor mode immediately. All exception delivery memory
+  // accesses (IDT gate read, TSS read, stack push) are implicit supervisor-
+  // level accesses, even when the faulting instruction ran at CPL 3.
+  // SDM Vol.3 §7.12.1: "the processor performs the following actions [in
+  // order]: ... reads the interrupt gate, reads the TSS, pushes the frame."
+  // All these accesses bypass U/S checks.
+  cur_cpl = 0;
+
+  let gate = read_idt_gate(vec);
+
+  // 1. Check gate present — #GP if not
+  if not_bool(gate.gate_present) then {
+    throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+  };
+
+  // 2. Determine new stack
   let privilege_change : bool = old_cpl != 0;
   var new_rsp : qword = if gate.gate_ist != 0 then
     read_tss_ist(gate.gate_ist)
@@ -181,15 +186,12 @@ function deliver_exception_inner(vec, err_code) = {
   // 9. Set new RIP to handler address
   RIP = gate.gate_offset;
 
-  // 10. Set CPL to 0 (kernel)
-  cur_cpl = 0;
-
-  // 11. If interrupt gate (type 0xE), clear IF
+  // 10. If interrupt gate (type 0xE), clear IF
   if gate.gate_type == 0xE then {
     IF_flag = bitzero
   };
 
-  // 12. Clear TF, NT, RF (SDM Vol.3 §7.12.1.3: "the processor also
+  // 11. Clear TF, NT, RF (SDM Vol.3 §7.12.1.3: "the processor also
   //     clears the VM, RF, and NT flags after saving RFLAGS on the stack")
   TF = bitzero;
   NT = bitzero;
