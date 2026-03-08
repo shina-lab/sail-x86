@@ -871,11 +871,12 @@ Added 6 tests in "Indirect JMP" category:
 - CALL rax, CALL [rdi] (verify stack push)
 - CALL rax + RET round-trip
 
-#### Item 7: PUSH/POP memory operands (LOW priority)
+#### Item 7: PUSH/POP memory operands (LOW priority) ✅ DONE
 
-- PUSH [mem] (FF /6)
-- POP [mem] (8F /0)
-- PUSH imm16 (66 68 imm16)
+Added 5 tests in "PUSH/POP mem" category:
+- PUSH qword [rdi] (load from memory, push to stack)
+- POP qword [rdi] (pop to memory, verify via compare_data_len)
+- PUSH imm16 (0x1234), PUSH imm8 (-1 sign-extended), PUSH imm32 (0x80000000)
 
 #### Item 8: FP conversion edge cases (LOW priority)
 

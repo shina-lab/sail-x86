@@ -11068,6 +11068,92 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // PUSH/POP memory operands
+  // =====================================================================
+  cat = "PUSH/POP mem";
+  {
+    // PUSH qword [rdi]: FF 37 — push value at [rdi] onto stack
+    // Stack is verified by comparing RSP and the value pushed (read via POP rax)
+    {
+      TestCase tc;
+      tc.name = "push qword [rdi]";
+      tc.category = cat;
+      // push qword [rdi]; pop rax (verify stack content)
+      tc.code = {0xFF, 0x37,  // push qword [rdi]
+                 0x58};        // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      u64 val = 0xDEADBEEFCAFEBABEULL;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &val, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // POP qword [rdi]: 8F 07 — pop from stack into memory
+    {
+      TestCase tc;
+      tc.name = "pop qword [rdi]";
+      tc.category = cat;
+      // push rax; pop qword [rdi]
+      tc.code = {0x50,         // push rax
+                 0x8F, 0x07};  // pop qword [rdi]
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x123456789ABCDEF0ULL;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm16: 66 68 imm16 — push 16-bit immediate
+    // Verify stack content via pop
+    {
+      TestCase tc;
+      tc.name = "push imm16 0x1234";
+      tc.category = cat;
+      // push 0x1234; pop rax
+      tc.code = {0x66, 0x68, 0x34, 0x12,  // push 0x1234
+                 0x66, 0x58};               // pop ax (16-bit)
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm8: 6A imm8 — push sign-extended 8-bit immediate
+    {
+      TestCase tc;
+      tc.name = "push imm8 0xFF (-1)";
+      tc.category = cat;
+      // push -1; pop rax
+      tc.code = {0x6A, 0xFF,  // push -1 (sign-extended to 64-bit)
+                 0x58};        // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm32: 68 imm32 — push sign-extended 32-bit immediate
+    {
+      TestCase tc;
+      tc.name = "push imm32 0x80000000";
+      tc.category = cat;
+      // push 0x80000000; pop rax (sign-extends to 0xFFFFFFFF80000000)
+      tc.code = {0x68, 0x00, 0x00, 0x00, 0x80,  // push 0x80000000
+                 0x58};                            // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
   // LOCK prefix memory operations — read-modify-write on memory
   // =====================================================================
   cat = "LOCK mem";
