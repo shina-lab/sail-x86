@@ -420,7 +420,9 @@ function dispatch_vex_0f(opcode, pfx) = {
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (load)
+  // SDM: VEX.vvvv must be 1111b
   40 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -453,10 +455,13 @@ function dispatch_vex_0f(opcode, pfx) = {
         }
       },
     }
+    }
   },
 
   // 0F 29: VMOVAPS/VMOVAPD (store)
+  // SDM: VEX.vvvv must be 1111b
   41 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -487,10 +492,13 @@ function dispatch_vex_0f(opcode, pfx) = {
         }
       },
     }
+    }
   },
 
   // 0F 2E: VUCOMISS (NP) / VUCOMISD (66) — unordered compare scalars, set EFLAGS
+  // SDM: VEX.vvvv must be 1111b
   46 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let src_reg = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -529,10 +537,13 @@ function dispatch_vex_0f(opcode, pfx) = {
       },
       _ => raise_UD(),
     }
+    }
   },
 
   // 0F 2F: VCOMISS (NP) / VCOMISD (66) — ordered compare scalars, set EFLAGS
+  // SDM: VEX.vvvv must be 1111b
   47 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let src_reg = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -570,6 +581,7 @@ function dispatch_vex_0f(opcode, pfx) = {
         Ok()
       },
       _ => raise_UD(),
+    }
     }
   },
 
@@ -843,7 +855,7 @@ function dispatch_vex_0f(opcode, pfx) = {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       match col {
-        1 => match mp { // VSQRTPS/VSQRTPD (unary)
+        1 => if pfx.vex_vvvv != 0 then { raise_UD() } else match mp { // VSQRTPS/VSQRTPD (unary, vvvv reserved)
           MP_NONE => { write_ymm(dst, vsqrtps_xmm(src2[255..128]) @ vsqrtps_xmm(src2[127..0])); Ok() },
           MP_66   => { write_ymm(dst, vsqrtpd_xmm(src2[255..128]) @ vsqrtpd_xmm(src2[127..0])); Ok() },
           _ => raise_UD(),
@@ -870,7 +882,7 @@ function dispatch_vex_0f(opcode, pfx) = {
           MP_66   => { write_ymm(dst, vmulpd_xmm(src1[255..128], src2[255..128]) @ vmulpd_xmm(src1[127..0], src2[127..0])); Ok() },
           _ => raise_UD(),
         },
-        10 => match mp { // VCVTPS2PD/VCVTPD2PS (256-bit)
+        10 => if pfx.vex_vvvv != 0 then { raise_UD() } else match mp { // VCVTPS2PD/VCVTPD2PS (256-bit, vvvv reserved)
           MP_NONE => { // VCVTPS2PD: 4 floats -> 4 doubles
             let r3 = __f32_to_f64(src2[127..96]);
             let r2 = __f32_to_f64(src2[95..64]);
@@ -917,8 +929,8 @@ function dispatch_vex_0f(opcode, pfx) = {
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       match col {
         1 => match mp { // VSQRTPS/VSQRTPD/VSQRTSS/VSQRTSD
-          MP_NONE => { write_xmm(dst, vsqrtps_xmm(src2)); Ok() },
-          MP_66   => { write_xmm(dst, vsqrtpd_xmm(src2)); Ok() },
+          MP_NONE => if pfx.vex_vvvv != 0 then { raise_UD() } else { write_xmm(dst, vsqrtps_xmm(src2)); Ok() },
+          MP_66   => if pfx.vex_vvvv != 0 then { raise_UD() } else { write_xmm(dst, vsqrtpd_xmm(src2)); Ok() },
           MP_F3   => { write_xmm(dst, src1[127..32] @ __f32_sqrt(src2[31..0])); Ok() },
           MP_F2   => { write_xmm(dst, src1[127..64] @ __f64_sqrt(src2[63..0])); Ok() },
         },
@@ -965,13 +977,15 @@ function dispatch_vex_0f(opcode, pfx) = {
           _ => raise_UD(),
         },
         10 => match mp { // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)
-          MP_NONE => { // VCVTPS2PD: 2 floats -> 2 doubles
+          MP_NONE => // VCVTPS2PD: 2 floats -> 2 doubles (vvvv reserved)
+            if pfx.vex_vvvv != 0 then { raise_UD() } else {
             let r1 = __f32_to_f64(src2[63..32]);
             let r0 = __f32_to_f64(src2[31..0]);
             write_xmm(dst, r1 @ r0);
             Ok()
           },
-          MP_66 => { // VCVTPD2PS: 2 doubles -> 2 floats (in low 64)
+          MP_66 => // VCVTPD2PS: 2 doubles -> 2 floats (vvvv reserved)
+            if pfx.vex_vvvv != 0 then { raise_UD() } else {
             let r1 = __f64_to_f32(src2[127..64]);
             let r0 = __f64_to_f32(src2[63..0]);
             write_xmm(dst, zeros(64) @ r1 @ r0);
@@ -1047,7 +1061,9 @@ function dispatch_vex_0f(opcode, pfx) = {
   },
 
   // 0F 6F: VMOVDQA/VMOVDQU (load)
+  // SDM: VEX.vvvv must be 1111b
   111 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -1063,6 +1079,7 @@ function dispatch_vex_0f(opcode, pfx) = {
           Ok()
         } else { write_xmm(dst, decode_vex_src_xmm(modrm, rm, pfx)); Ok() },
       _ => raise_UD(),
+    }
     }
   },
 
@@ -1113,7 +1130,9 @@ function dispatch_vex_0f(opcode, pfx) = {
   },
 
   // 0F 7F: VMOVDQA/VMOVDQU (store)
+  // SDM: VEX.vvvv must be 1111b
   127 => {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -1134,6 +1153,7 @@ function dispatch_vex_0f(opcode, pfx) = {
           mem_write128(a, read_xmm(src)); Ok()
         }
       },
+    }
     }
   },
 
@@ -1237,8 +1257,9 @@ function dispatch_vex_0f(opcode, pfx) = {
   },
 
   // 0F 77: VZEROUPPER (VEX.128) / VZEROALL (VEX.256)
+  // SDM: VEX.vvvv must be 1111b
   119 => {
-    if pfx.vex_l then {
+    if pfx.vex_vvvv != 0 then { raise_UD() } else if pfx.vex_l then {
       // VZEROALL: zero ZMM0-ZMM15 entirely (in 64-bit mode)
       foreach (i from 0 to 15) {
         ZMM[i] = zeros()
@@ -1693,8 +1714,9 @@ function dispatch_vex_0f38(opcode, pfx) = {
   match op {
 
   // 0F38 18: VBROADCASTSS xmm1, xmm2/m32 (VEX.128/256)
+  // SDM: VEX.vvvv must be 1111b
   24 => {
-    if mp != MP_66 then {
+    if mp != MP_66 | pfx.vex_vvvv != 0 then {
       raise_UD()
     } else {
       let modrm = fetch_byte();

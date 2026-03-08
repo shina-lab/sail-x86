@@ -604,7 +604,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 44 tests across 3 exception categories.**
+**Tests implemented: 59 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -621,6 +621,10 @@ fault-expecting tests. Changes made:
 - VCMPPS/VCMPPD 256-bit: not implemented → added 256-bit paths
 - VSHUFPS/VSHUFPD 256-bit: not implemented → added 256-bit paths
 - avx_test `_start`: missing `force_align_arg_pointer` attribute
+- VEX.vvvv reserved field: 15 instructions missing `vex_vvvv != 0` check →
+  added #UD for VMOVAPS/VMOVAPD load/store, VMOVDQA/VMOVDQU load/store,
+  VUCOMISS/VUCOMISD, VCOMISS/VCOMISD, VCVTPS2PD/VCVTPD2PS, VSQRTPS/VSQRTPD,
+  VZEROUPPER/VZEROALL, VBROADCASTSS
 
 **Known gaps:**
 - EVEX VMOVAPS/VMOVAPD alignment checks not yet added.
@@ -738,6 +742,9 @@ Triggered by undefined or invalid instruction encodings.
 | LOCK on lockable 2-byte with reg dest | `LOCK CMPXCHG`, `LOCK XADD` | DONE |
 | LOCK INC/NEG with reg dest | Group 4/5 and Group 3 | DONE |
 | LOCK MUL/DIV | Not lockable even within Group 3 | DONE |
+| VEX.vvvv reserved on move instructions | VMOVAPS/VMOVAPD/VMOVDQA/VMOVDQU load/store | DONE |
+| VEX.vvvv reserved on compare/convert | VUCOMISS/VUCOMISD/VCOMISS/VCOMISD, VCVTPS2PD/VCVTPD2PS | DONE |
+| VEX.vvvv reserved on VZEROUPPER/VBROADCASTSS | VZEROUPPER, VBROADCASTSS | DONE |
 | SSE instruction with mismatched prefix | | TODO |
 
 Note: Scalar VEX instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
@@ -812,8 +819,8 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — DONE (19 tests: UD2, UD1, LOCK violations,
-   VEX.L=1 on 128-bit-only instructions)
+3. **#UD (invalid opcode)** — DONE (34 tests: UD2, UD1, LOCK violations,
+   VEX.L=1 on 128-bit-only instructions, VEX.vvvv reserved field violations)
 4. **#GP (alignment)** — DONE (12 tests; alignment checks added to
    MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store, 128-bit and 256-bit)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check

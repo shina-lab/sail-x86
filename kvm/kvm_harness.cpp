@@ -8609,6 +8609,117 @@ std::vector<TestCase> build_tests() {
   // NOTE: Scalar instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
   // do NOT #UD with VEX.L=1 on real hardware — the L bit is ignored.
 
+  // ---- VEX.vvvv reserved (must be 1111b) → #UD ----
+  // VEX byte2: R̃ vvvv L pp
+  // vvvv=1111 → reserved OK (byte2 upper nibble F)
+  // vvvv=1110 → register 1, not reserved (byte2 upper nibble E + R̃ bit)
+  // C5 F8 = R̃=1 vvvv=1111 L=0 pp=00(NP)  → valid
+  // C5 F0 = R̃=1 vvvv=1110 L=0 pp=00(NP)  → vvvv not reserved
+  // C5 F1 = R̃=1 vvvv=1110 L=0 pp=01(66)  → vvvv not reserved
+  {
+    // VMOVAPS xmm0,[mem] with vvvv!=1111: C5 F0 28 07 (via [rdi])
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovaps load vvvv!=0 → #UD", {0xC5, 0xF0, 0x28, 0x07}, s, 6);
+  }
+  {
+    // VMOVAPD xmm0,[mem] with vvvv!=1111: C5 F1 28 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovapd load vvvv!=0 → #UD", {0xC5, 0xF1, 0x28, 0x07}, s, 6);
+  }
+  {
+    // VMOVAPS [mem],xmm0 with vvvv!=1111: C5 F0 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovaps store vvvv!=0 → #UD", {0xC5, 0xF0, 0x29, 0x07}, s, 6);
+  }
+  {
+    // VMOVDQA xmm0,[mem] with vvvv!=1111: C5 F1 6F 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovdqa load vvvv!=0 → #UD", {0xC5, 0xF1, 0x6F, 0x07}, s, 6);
+  }
+  {
+    // VMOVDQU xmm0,[mem] with vvvv!=1111: C5 F2 6F 07 (pp=F3)
+    // C5 FA = R̃=1 vvvv=1111 L=0 pp=10(F3); C5 F2 = vvvv=1110
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovdqu load vvvv!=0 → #UD", {0xC5, 0xF2, 0x6F, 0x07}, s, 6);
+  }
+  {
+    // VMOVDQA [mem],xmm0 with vvvv!=1111: C5 F1 7F 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovdqa store vvvv!=0 → #UD", {0xC5, 0xF1, 0x7F, 0x07}, s, 6);
+  }
+  {
+    // VMOVDQU [mem],xmm0 with vvvv!=1111: C5 F2 7F 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vmovdqu store vvvv!=0 → #UD", {0xC5, 0xF2, 0x7F, 0x07}, s, 6);
+  }
+  {
+    // VUCOMISS xmm0,xmm1 with vvvv!=1111: C5 F0 2E C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vucomiss vvvv!=0 → #UD", {0xC5, 0xF0, 0x2E, 0xC1}, s, 6);
+  }
+  {
+    // VUCOMISD xmm0,xmm1 with vvvv!=1111: C5 F1 2E C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vucomisd vvvv!=0 → #UD", {0xC5, 0xF1, 0x2E, 0xC1}, s, 6);
+  }
+  {
+    // VCOMISS xmm0,xmm1 with vvvv!=1111: C5 F0 2F C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcomiss vvvv!=0 → #UD", {0xC5, 0xF0, 0x2F, 0xC1}, s, 6);
+  }
+  {
+    // VCOMISD xmm0,xmm1 with vvvv!=1111: C5 F1 2F C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcomisd vvvv!=0 → #UD", {0xC5, 0xF1, 0x2F, 0xC1}, s, 6);
+  }
+  {
+    // VCVTPS2PD xmm0,xmm1 with vvvv!=1111: C5 F0 5A C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcvtps2pd vvvv!=0 → #UD", {0xC5, 0xF0, 0x5A, 0xC1}, s, 6);
+  }
+  {
+    // VCVTPD2PS xmm0,xmm1 with vvvv!=1111: C5 F1 5A C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vcvtpd2ps vvvv!=0 → #UD", {0xC5, 0xF1, 0x5A, 0xC1}, s, 6);
+  }
+  {
+    // VZEROUPPER with vvvv!=1111: C5 F0 77
+    // Normal: C5 F8 77
+    ArchState s = {};
+    s.rflags = 0x2;
+    add_fault("vzeroupper vvvv!=0 → #UD", {0xC5, 0xF0, 0x77}, s, 6);
+  }
+  {
+    // VBROADCASTSS xmm0,[mem] with vvvv!=1111: C4 E2 F1 18 07
+    // 3-byte VEX: C4 E2 [W vvvv L pp]
+    // Normal: C4 E2 79 18 07 (W=0 vvvv=1111 L=0 pp=01)
+    // Bad:    C4 E2 71 18 07 (W=0 vvvv=1110 L=0 pp=01)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    add_fault("vbroadcastss vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x18, 0x07}, s, 6);
+  }
+
   return tests;
 }
 
