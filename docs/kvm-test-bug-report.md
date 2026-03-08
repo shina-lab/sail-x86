@@ -358,9 +358,70 @@ clarity gap.
 
 ---
 
+### 13. ADCX: Mandatory prefix treated as operand size override (commit 3c05739)
+
+**Bug:** ADCX is encoded as `66 0F 38 F6 /r`, where the `66` prefix is a
+mandatory prefix that distinguishes ADCX from ADOX (`F3 0F 38 F6 /r`).
+The Sail model called `get_operand_size(pfx)`, which checked `pfx.has_opsize`
+and returned OS16 (16-bit operand size) instead of the correct OS32. This
+caused ADCX to read/write only the low 16 bits of the register, producing
+wrong results and wrong CF flags.
+
+Fixed by determining operand size from REX.W only: `if pfx.rex_w then OS64
+else OS32`.
+
+**SDM (ADCX Description):** "The operand size is always 32 bits if not in
+64-bit mode." and "Using REX Prefix in the form of REX.W promotes operation
+to 64 bits."
+
+**SDM (ADCX Operation):**
+```
+IF OperandSize is 64-bit
+    THEN CF:DEST[63:0] := DEST[63:0] + SRC[63:0] + CF;
+    ELSE CF:DEST[31:0] := DEST[31:0] + SRC[31:0] + CF;
+FI;
+```
+
+**SDM (ADCX Flags Affected):** "CF is updated based on result. OF, SF, ZF,
+AF, and PF flags are unmodified."
+
+**Verdict:** SDM is clear. The operand size is 32-bit or 64-bit (with
+REX.W), never 16-bit. The `66` prefix is purely a mandatory opcode prefix.
+No SDM issue — our decoder incorrectly reused generic operand size logic
+for an instruction where the `66` prefix has a different role.
+
+---
+
+### 14. DAZ/FTZ: MXCSR denormal modes not implemented (commit 3c05739)
+
+**Bug:** The C emulator did not implement the MXCSR DAZ (Denormals-Are-
+Zeros, bit 6) or FTZ (Flush-To-Zero, bit 15) modes. When DAZ is set,
+denormal input operands should be treated as ±0.0 (preserving sign).
+When FTZ is set, denormal results should be flushed to ±0.0. Without
+these, all FP operations processed denormals normally regardless of MXCSR.
+
+Fixed by adding `f32_daz`/`f64_daz` (input flushing) and `f32_ftz`/`f64_ftz`
+(output flushing) helpers to all SSE/AVX FP functions: arithmetic (add, sub,
+mul, div), sqrt, min/max, comparison, conversions, round, rcp, rsqrt, and
+all 8 FMA variants.
+
+**SDM (Section 10.2.3.4, "Flush-To-Zero"):** "When the flush-to-zero flag
+is set in the MXCSR register, an SSE/SSE2/SSE3 instruction will return a
+result of zero (with the sign of the true result) when the true result is a
+denormalized number."
+
+**SDM (Section 10.2.3.3, "Denormals-Are-Zeros"):** "When the denormals-
+are-zeros flag is set, the processor treats all denormalized source operands
+as zeros with the sign of the original operand."
+
+**Verdict:** SDM is clear on both DAZ and FTZ semantics. Our C emulator
+simply failed to check these MXCSR bits. No SDM issue.
+
+---
+
 ## Decoder Bug
 
-### 13. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
+### 15. LZCNT/TZCNT: F3 prefix not checked (commit e418806)
 
 **Bug:** The decoder did not check for the F3 prefix, so LZCNT/TZCNT were
 always decoded as BSR/BSF.
@@ -414,7 +475,9 @@ added after KVM testing revealed the gaps:
 | 10 | SSE arithmetic ignores MXCSR rounding | C emulator | Yes | No |
 | 11 | SSE NaN propagation order wrong | C emulator | Yes | No |
 | 12 | Int→float ignores MXCSR rounding | C emulator | Yes | Minor gap |
-| 13 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
+| 13 | ADCX mandatory prefix as opsize | Sail model | Yes | No |
+| 14 | DAZ/FTZ denormal modes missing | C emulator | Yes | No |
+| 15 | LZCNT/TZCNT F3 prefix not checked | Decoder | Yes | No |
 
 **One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
 pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
