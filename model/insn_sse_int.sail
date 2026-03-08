@@ -1775,6 +1775,27 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
+    // 0F D6: MOVQ xmm1/m64, xmm2 (66 prefix)
+    214 => {
+      let mp = get_mandatory_prefix(pfx);
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
+        let modrm = fetch_byte();
+        let src_xmm = modrm_xmm_reg(modrm, pfx);
+        let rm = decode_rm(modrm, pfx);
+        let v : qword = read_xmm(src_xmm)[63..0];
+        match rm {
+          RM_reg(_) => {
+            let dst = modrm_xmm_rm(modrm, pfx);
+            write_xmm_legacy(dst, zero_extend(v));
+            Ok()
+          },
+          RM_mem(addr) => { mem_write64(addr, v); Ok() },
+        }
+      }
+    },
+
     // 0F D8: PSUBUSB (66 prefix)
     216 => {
       let mp = get_mandatory_prefix(pfx);

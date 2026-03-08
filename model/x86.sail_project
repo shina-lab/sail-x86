@@ -30,6 +30,7 @@ decode {
     insn_baseline.sail,
     insn_groups.sail,
     insn_fma.sail,
+    insn_sse4_helpers.sail,
     insn_vex.sail,
     insn_evex.sail,
     insn_evex_fp.sail,

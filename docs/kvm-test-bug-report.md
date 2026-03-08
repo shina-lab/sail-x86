@@ -564,6 +564,33 @@ the Sail model and were added after KVM testing revealed the gaps:
 - VCMPPS/VCMPPD 256-bit paths (8 f32 / 4 f64 element comparison)
 - VSHUFPS/VSHUFPD 256-bit paths (independent lane shuffles)
 - XSAVE/XRSTOR (0F AE /4, 0F AE /5): extended state save/restore
+- 66 0F D6: MOVQ xmm/m64, xmm (store direction) — was blocking clang
+- VEX.128.66.0F D6: VMOVQ store direction
+
+**Systematic opcode audit — ~100 VEX encodings added:**
+
+- **VEX SSSE3** (0F38 00-0B, 1C-1E): VPSHUFB, VPHADDW/D/SW, VPMADDUBSW,
+  VPHSUBW/D/SW, VPSIGNB/W/D, VPMULHRSW, VPABSB/W/D
+- **VEX SSE4.1** (0F38 20-25, 28-2B, 30-35, 38-41): VPMOVSXBW/BD/BQ/WD/WQ/DQ,
+  VPMOVZXBW/BD/BQ/WD/WQ/DQ, VPMULDQ, VPCMPEQQ, VMOVNTDQA, VPACKUSDW,
+  VPMINSB/SD/UW/UD, VPMAXSB/SD/UW/UD, VPMULLD, VPHMINPOSUW
+- **VEX 0F3A SSE4.1**: VROUNDPS/PD/SS/SD, VBLENDPS/PD, VPBLENDW, VPALIGNR,
+  VPEXTRB/W/D/Q, VEXTRACTPS, VPINSRB/D/Q, VINSERTPS, VDPPS, VDPPD,
+  VMPSADBW, VPCLMULQDQ
+- **VEX 0F3A AVX2**: VPERMQ, VPERMPD, VPBLENDD
+- **VEX 0F integer**: VPUNPCKLBW/WD/DQ, VPUNPCKHBW/WD/DQ, VPUNPCKLQDQ,
+  VPUNPCKHQDQ, VPACKSSWB, VPACKUSWB, VPACKSSDW, VPCMPGTB/W/D,
+  VPCMPEQB/W, VPMULLW, VPMULHUW, VPMULHW, VPMULUDQ, VPMADDWD,
+  VPSADBW, VPAVGB/W, VPADDSB/W, VPADDUSB/W, VPSUBSB/W, VPSUBUSB/W,
+  VPMINUB, VPMAXUB, VPMINSW
+- **VEX shifts**: VPSRLW/D/Q, VPSRAW/D, VPSLLW/D/Q (shift-by-XMM),
+  group 71/72/73 immediate shifts (VPSRLW/D/Q, VPSRAW/D, VPSLLW/D/Q,
+  VPSRLDQ, VPSLLDQ)
+- **AVX2**: VPERMPS, VPERMD, VPSRLVD/Q, VPSRAVD, VPSLLVD/Q
+- **AVX FP**: VTESTPS/PD, VMASKMOVPS/PD (load and store)
+- **BMI2**: BZHI, PDEP, PEXT, MULX, SARX, SHLX, SHRX, RORX
+- **VEX AES-NI**: VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST, VAESIMC,
+  VAESKEYGENASSIST
 
 ---
 
@@ -617,8 +644,8 @@ explicit about this.
 
 ## Test Coverage Summary
 
-The KVM differential test suite currently runs **59,119 tests** across
-**69 ctest categories**. Tests compare architectural state (GPRs, flags,
+The KVM differential test suite currently runs **59,304 tests** across
+**80 ctest categories**. Tests compare architectural state (GPRs, flags,
 XMM registers, MXCSR, memory) between KVM execution on real hardware and
 the Sail model.
 
@@ -649,6 +676,28 @@ the Sail model.
   (f32 + f64), upper-128 clearing verification, 256-bit arithmetic
   (PS/PD/integer), integer SIMD boundary values (10 pairs × 6 ops),
   conversion edge cases (NaN/Inf/overflow) — 831 tests
+- **VEX SSSE3**: VPSHUFB, VPHADDW/D/SW, VPMADDUBSW, VPHSUBW/D/SW,
+  VPSIGNB/W/D, VPMULHRSW, VPABSB/W/D
+- **VEX SSE4.1**: VPMOVSXBW/BD/BQ/WD/WQ/DQ, VPMOVZXBW/BD/BQ/WD/WQ/DQ,
+  VPMULDQ, VPCMPEQQ, VPACKUSDW, VPMINSB/SD/UW/UD, VPMAXSB/SD/UW/UD,
+  VPMULLD, VPHMINPOSUW
+- **VEX 0F3A**: VBLENDPS/PD, VPBLENDW, VPALIGNR, VPEXTRB/D, VEXTRACTPS,
+  VPINSRB/D, VPCLMULQDQ, VPBLENDD
+- **VEX pack/unpack**: VPUNPCKLBW/WD/DQ, VPUNPCKHBW/WD/DQ, VPUNPCKLQDQ,
+  VPUNPCKHQDQ, VPACKSSWB/VPACKUSWB/VPACKSSDW, VPCMPGTB/W/D, VPCMPEQB/W
+- **VEX multiply**: VPMULLW, VPMULHUW, VPMULHW, VPMULUDQ, VPMADDWD,
+  VPSADBW, VPAVGB/W
+- **VEX saturating arith**: VPADDSB/W, VPADDUSB/W, VPSUBSB/W, VPSUBUSB/W,
+  VPMINUB, VPMAXUB, VPMINSW
+- **VEX shifts**: Shift-by-XMM (VPSRLW/D/Q, VPSRAW/D, VPSLLW/D/Q)
+- **VEX imm shifts**: Group 71/72/73 immediate shifts (VPSRLW/D/Q,
+  VPSRAW/D, VPSLLW/D/Q, VPSRLDQ, VPSLLDQ)
+- **AVX2 var shifts**: VPSRLVD/Q, VPSRAVD, VPSLLVD/Q
+- **VEX test**: VTESTPS, VTESTPD
+- **MOVQ store**: 66 0F D6 (legacy) and VEX.128.66.0F D6
+- **BMI2**: BZHI, PDEP, PEXT, MULX, SARX, SHLX, SHRX, RORX
+- **VEX AES-NI**: VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST, VAESIMC,
+  VAESKEYGENASSIST
 - **EVEX**: EVEX-encoded operations including VPADDD, VPXORD
 - **XSAVE/XRSTOR**: Round-trip save/restore with various masks (x87,
   SSE, both), XRSTOR from pre-built XSAVE area, init path
@@ -696,7 +745,14 @@ alternating bit patterns, a 32/64-bit boundary value, sign-extension edge
 
 ### Known test coverage gaps
 
+- **AVX2 gather**: VGATHERDPS/DPD/QPS/QPD (complex, not yet implemented)
+- **VMASKMOV memory tests**: VMASKMOVPS/PD only tested at Sail level,
+  need KVM memory-operand tests
+- **256-bit tests**: Most new VEX tests are 128-bit only; 256-bit
+  variants should be added
 - **EVEX masking/zeroing**: Harness lacks k (opmask) register support
+- **EVEX blend/mask ops**: VPBLENDMB/W/D/Q, KMOV/KAND/KOR/KXOR/KNOT
+- **EVEX conflict detection**: VPCONFLICTD/Q, VPLZCNTD/Q
 - **512-bit EVEX**: Requires host AVX-512 support
 - **x87 transcendentals**: FSIN, FCOS, FPTAN precision matching is fragile
 - **BT/BTS/BTR/BTC with memory**: Bit offset extending beyond addressed

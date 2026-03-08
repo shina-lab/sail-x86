@@ -9072,6 +9072,906 @@ std::vector<TestCase> build_tests() {
   add_systematic_tests(tests);
   add_exception_tests(tests);
 
+  // =====================================================================
+  // MOVQ store (66 0F D6) + VMOVQ store (VEX.128.66.0F D6)
+  // =====================================================================
+  cat = "MOVQ store";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
+
+    // 66 0F D6 C8: MOVQ xmm0, xmm1 (reg-reg: store low qword of xmm1 to xmm0, zero upper)
+    // ModRM: mod=11, reg=1(src), rm=0(dst) → 0xC8
+    add_xmm("movq xmm0,xmm1 (66 0F D6)", {0x66, 0x0F, 0xD6, 0xC8}, s, 0x3);
+
+    // VEX.128.66.0F D6: VMOVQ xmm0, xmm1
+    // 2-byte VEX: C5 [R̄.vvvv.L.pp]
+    // R̄=1, vvvv=1111, L=0, pp=01(66) → 0xF9
+    // C5 F9 D6 C8: VMOVQ xmm0, xmm1
+    // reg=xmm1(1), rm=xmm0(0): ModRM = mod=11, reg=001, rm=000 → 0xC8
+    add_xmm("vmovq xmm0,xmm1 (VEX D6)", {0xC5, 0xF9, 0xD6, 0xC8}, s, 0x3);
+  }
+
+  // =====================================================================
+  // VEX 0F3A — blend, extract, insert, align, carry-less multiply
+  // =====================================================================
+  cat = "VEX 0F3A";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    // VBLENDPS xmm0, xmm1, xmm2, 0x05
+    // VEX.128.66.0F3A 0C /r ib — C4 E3 71 0C C2 05
+    // imm=0x05: select elements 0,2 from src2(xmm2), 1,3 from src1(xmm1)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+      add_xmm("vblendps xmm0,xmm1,xmm2,0x05",
+              {0xC4, 0xE3, 0x71, 0x0C, 0xC2, 0x05}, s, 0x7);
+    }
+
+    // VBLENDPD xmm0, xmm1, xmm2, 0x01
+    // VEX.128.66.0F3A 0D /r ib — C4 E3 71 0D C2 01
+    // imm=0x01: select element 0 from src2(xmm2), element 1 from src1(xmm1)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f64(1.0, 2.0);
+      s.xmm[2] = xmm_from_f64(3.0, 4.0);
+      add_xmm("vblendpd xmm0,xmm1,xmm2,0x01",
+              {0xC4, 0xE3, 0x71, 0x0D, 0xC2, 0x01}, s, 0x7);
+    }
+
+    // VPBLENDW xmm0, xmm1, xmm2, 0xAA
+    // VEX.128.66.0F3A 0E /r ib — C4 E3 71 0E C2 AA
+    // imm=0xAA: alternating words from src2
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+      s.xmm[2] = xmm_from_u64(0x1011101210131014, 0x1015101610171018);
+      add_xmm("vpblendw xmm0,xmm1,xmm2,0xAA",
+              {0xC4, 0xE3, 0x71, 0x0E, 0xC2, 0xAA}, s, 0x7);
+    }
+
+    // VPALIGNR xmm0, xmm1, xmm2, 4
+    // VEX.128.66.0F3A 0F /r ib — C4 E3 71 0F C2 04
+    // Shift right 4 bytes: concatenate xmm1:xmm2 and extract 16 bytes at offset 4
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+      s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
+      add_xmm("vpalignr xmm0,xmm1,xmm2,4",
+              {0xC4, 0xE3, 0x71, 0x0F, 0xC2, 0x04}, s, 0x7);
+    }
+
+    // VPEXTRB eax, xmm1, 2
+    // VEX.128.66.0F3A 14 /r ib — C4 E3 79 14 C8 02
+    // ModRM: mod=11, reg=1(xmm1 src), rm=0(eax dest) → 0xC8
+    // vvvv=1111 (unused), byte2=0x79 (W=0,vvvv=1111,L=0,pp=01)
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFE0102, 0x1234567890ABCDEF);
+      tests.push_back({"vpextrb eax,xmm1,2", cat,
+                       {0xC4, 0xE3, 0x79, 0x14, 0xC8, 0x02}, s, FL_ALL, 0x3});
+    }
+
+    // VPEXTRD eax, xmm1, 1
+    // VEX.128.66.0F3A 16 /r ib — C4 E3 79 16 C8 01
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tests.push_back({"vpextrd eax,xmm1,1", cat,
+                       {0xC4, 0xE3, 0x79, 0x16, 0xC8, 0x01}, s, FL_ALL, 0x3});
+    }
+
+    // VEXTRACTPS eax, xmm1, 2
+    // VEX.128.66.0F3A 17 /r ib — C4 E3 79 17 C8 02
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      tests.push_back({"vextractps eax,xmm1,2", cat,
+                       {0xC4, 0xE3, 0x79, 0x17, 0xC8, 0x02}, s, FL_ALL, 0x3});
+    }
+
+    // VPINSRB xmm0, xmm1, eax, 3
+    // VEX.128.66.0F3A 20 /r ib — C4 E3 71 20 C0 03
+    // ModRM: mod=11, reg=0(xmm0 dest), rm=0(eax src) → 0xC0
+    // vvvv=~1=1110, byte2=0x71
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0x42;
+      s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+      add_xmm("vpinsrb xmm0,xmm1,eax,3",
+              {0xC4, 0xE3, 0x71, 0x20, 0xC0, 0x03}, s, 0x3);
+    }
+
+    // VPINSRD xmm0, xmm1, eax, 2
+    // VEX.128.66.0F3A 22 /r ib — C4 E3 71 22 C0 02
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rax = 0xDEADBEEF;
+      s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      add_xmm("vpinsrd xmm0,xmm1,eax,2",
+              {0xC4, 0xE3, 0x71, 0x22, 0xC0, 0x02}, s, 0x3);
+    }
+
+    // VPCLMULQDQ xmm0, xmm1, xmm2, 0x00
+    // VEX.128.66.0F3A 44 /r ib — C4 E3 71 44 C2 00
+    // Carry-less multiply low qwords
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0x0000000000000007, 0x0000000000000000);
+      s.xmm[2] = xmm_from_u64(0x000000000000000B, 0x0000000000000000);
+      add_xmm("vpclmulqdq xmm0,xmm1,xmm2,0x00",
+              {0xC4, 0xE3, 0x71, 0x44, 0xC2, 0x00}, s, 0x7);
+    }
+
+    // VPCLMULQDQ xmm0, xmm1, xmm2, 0x11
+    // Carry-less multiply high qwords
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0x0000000000000000, 0x0123456789ABCDEF);
+      s.xmm[2] = xmm_from_u64(0x0000000000000000, 0x00000000000000FF);
+      add_xmm("vpclmulqdq xmm0,xmm1,xmm2,0x11",
+              {0xC4, 0xE3, 0x71, 0x44, 0xC2, 0x11}, s, 0x7);
+    }
+
+    // VPBLENDD xmm0, xmm1, xmm2, 0x05
+    // VEX.128.66.0F3A 02 /r ib — C4 E3 71 02 C2 05
+    // imm=0x05: select dwords 0,2 from src2
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      s.xmm[2] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      add_xmm("vpblendd xmm0,xmm1,xmm2,0x05",
+              {0xC4, 0xE3, 0x71, 0x02, 0xC2, 0x05}, s, 0x7);
+    }
+  }
+
+  // =====================================================================
+  // BMI2 — bit manipulation instructions (GPR tests)
+  // =====================================================================
+  cat = "BMI2";
+  {
+    // BZHI eax, ecx, edx — zero high bits in ecx starting at bit position in edx
+    // VEX.NDS.LZ.0F38.W0 F5 /r — C4 E2 68 F5 C1
+    // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx index)
+    // byte2: W=0,vvvv=1101,L=0,pp=00 → 0x68
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0xDEADBEEF12345678;
+      s.rdx = 16;
+      // 32-bit: eax = ecx[31:0] with bits above 16 cleared = 0x5678
+      tests.push_back({"bzhi eax,ecx,edx bit16", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI with zero index → result=0, ZF=1
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0xFFFFFFFF;
+      s.rdx = 0;
+      tests.push_back({"bzhi eax,ecx,edx bit0", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI 64-bit: rax, rcx, rdx
+    // W=1: byte2 = 0b1_1101_0_00 = 0xE8
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0xFFFFFFFFFFFFFFFF;
+      s.rdx = 32;
+      tests.push_back({"bzhi rax,rcx,rdx bit32", cat,
+                       {0xC4, 0xE2, 0xE8, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI with index >= operand size → CF=1, result unchanged
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 40;  // >= 32 for W0
+      tests.push_back({"bzhi eax,ecx,edx overflow", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+
+    // PDEP eax, ecx, edx — parallel bit deposit
+    // VEX.NDS.LZ.F2.0F38.W0 F5 /r — C4 E2 73 F5 C2
+    // reg=0(eax dest), vvvv=~1=1110(ecx src), rm=2(edx mask)
+    // byte2: W=0,vvvv=1110,L=0,pp=11(F2) → 0x73
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x000000FF;  // source bits
+      s.rdx = 0x55555555;  // mask: every other bit
+      tests.push_back({"pdep eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x73, 0xF5, 0xC2}, s, FL_NONE});
+    }
+    // PDEP 64-bit
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x00000000000000FF;
+      s.rdx = 0x5555555555555555;
+      // W=1: byte2 = 0b1_1110_0_11 = 0xF3
+      tests.push_back({"pdep rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xF3, 0xF5, 0xC2}, s, FL_NONE});
+    }
+
+    // PEXT eax, ecx, edx — parallel bit extract
+    // VEX.NDS.LZ.F3.0F38.W0 F5 /r — C4 E2 72 F5 C2
+    // byte2: W=0,vvvv=1110,L=0,pp=10(F3) → 0x72
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0xAAAAAAAA;  // source
+      s.rdx = 0x55555555;  // mask: every other bit
+      tests.push_back({"pext eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x72, 0xF5, 0xC2}, s, FL_NONE});
+    }
+    // PEXT 64-bit
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0xAAAAAAAAAAAAAAAA;
+      s.rdx = 0x5555555555555555;
+      // W=1: byte2 = 0b1_1110_0_10 = 0xF2
+      tests.push_back({"pext rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xF2, 0xF5, 0xC2}, s, FL_NONE});
+    }
+
+    // MULX ebx, eax, ecx — unsigned multiply EDX * ECX → EBX:EAX
+    // VEX.NDD.LZ.F2.0F38.W0 F6 /r — C4 E2 7B F6 D9
+    // reg=3(ebx hi), vvvv=~0=1111(eax lo), rm=1(ecx src)
+    // byte2: W=0,vvvv=1111,L=0,pp=11(F2) → 0x7B
+    // ModRM: mod=11, reg=011, rm=001 → 0xD9
+    // Implicit src1 = EDX
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdx = 100;
+      s.rcx = 200;
+      tests.push_back({"mulx ebx,eax,ecx 100*200", cat,
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+    }
+    // MULX with large values to produce high part
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdx = 0xFFFFFFFF;
+      s.rcx = 0xFFFFFFFF;
+      tests.push_back({"mulx ebx,eax,ecx max32", cat,
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+    }
+    // MULX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rdx = 0x100000000;
+      s.rcx = 0x100000000;
+      tests.push_back({"mulx rbx,rax,rcx 64", cat,
+                       {0xC4, 0xE2, 0xFB, 0xF6, 0xD9}, s, FL_NONE});
+    }
+
+    // SARX eax, ecx, edx — arithmetic shift right without flags
+    // VEX.NDS.LZ.F3.0F38.W0 F7 /r — C4 E2 6A F7 C1
+    // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx count)
+    // byte2: W=0,vvvv=1101,L=0,pp=10(F3) → 0x6A
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x80000000;  // negative when treated as signed 32-bit
+      s.rdx = 4;
+      tests.push_back({"sarx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x6A, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHLX eax, ecx, edx — logical shift left without flags
+    // VEX.NDS.LZ.66.0F38.W0 F7 /r — C4 E2 69 F7 C1
+    // byte2: W=0,vvvv=1101,L=0,pp=01(66) → 0x69
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 8;
+      tests.push_back({"shlx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x69, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHRX eax, ecx, edx — logical shift right without flags
+    // VEX.NDS.LZ.F2.0F38.W0 F7 /r — C4 E2 6B F7 C1
+    // byte2: W=0,vvvv=1101,L=0,pp=11(F2) → 0x6B
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 8;
+      tests.push_back({"shrx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x6B, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SARX 64-bit: W=1, byte2 = 0b1_1101_0_10 = 0xEA
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x8000000000000000;
+      s.rdx = 16;
+      tests.push_back({"sarx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xEA, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHLX 64-bit: W=1, byte2 = 0b1_1101_0_01 = 0xE9
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x0000000000000001;
+      s.rdx = 63;
+      tests.push_back({"shlx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xE9, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHRX 64-bit: W=1, byte2 = 0b1_1101_0_11 = 0xEB
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x8000000000000000;
+      s.rdx = 32;
+      tests.push_back({"shrx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xEB, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // RORX eax, ecx, 4 — rotate right without flags
+    // VEX.LZ.F2.0F3A.W0 F0 /r ib — C4 E3 7B F0 C1 04
+    // byte1=0xE3 (mmmmm=00011=0F3A), byte2: W=0,vvvv=1111,L=0,pp=11(F2) → 0x7B
+    // reg=0(eax dest), rm=1(ecx src), imm=4
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      tests.push_back({"rorx eax,ecx,4", cat,
+                       {0xC4, 0xE3, 0x7B, 0xF0, 0xC1, 0x04}, s, FL_NONE});
+    }
+    // RORX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
+    {
+      ArchState s = {};
+      s.rflags = 0x2;
+      s.rcx = 0x123456789ABCDEF0;
+      tests.push_back({"rorx rax,rcx,8 64", cat,
+                       {0xC4, 0xE3, 0xFB, 0xF0, 0xC1, 0x08}, s, FL_NONE});
+    }
+  }
+
+  // =====================================================================
+  // VEX AES-NI — AES encryption/decryption rounds
+  // =====================================================================
+  cat = "VEX AES-NI";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    // Common AES test state — non-trivial data in xmm registers
+    ArchState aes = {};
+    aes.rflags = 0x2;
+    aes.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
+    aes.xmm[2] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
+
+    // VAESENC xmm0, xmm1, xmm2 — one AES encryption round
+    // VEX.128.66.0F38.WIG DC /r — C4 E2 71 DC C2
+    // vvvv=~1=1110, byte2: W=0,vvvv=1110,L=0,pp=01 → 0x71
+    add_xmm("vaesenc xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xDC, 0xC2}, aes, 0x7);
+
+    // VAESENCLAST xmm0, xmm1, xmm2 — last AES encryption round
+    // VEX.128.66.0F38.WIG DD /r — C4 E2 71 DD C2
+    add_xmm("vaesenclast xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xDD, 0xC2}, aes, 0x7);
+
+    // VAESDEC xmm0, xmm1, xmm2 — one AES decryption round
+    // VEX.128.66.0F38.WIG DE /r — C4 E2 71 DE C2
+    add_xmm("vaesdec xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xDE, 0xC2}, aes, 0x7);
+
+    // VAESDECLAST xmm0, xmm1, xmm2 — last AES decryption round
+    // VEX.128.66.0F38.WIG DF /r — C4 E2 71 DF C2
+    add_xmm("vaesdeclast xmm0,xmm1,xmm2",
+            {0xC4, 0xE2, 0x71, 0xDF, 0xC2}, aes, 0x7);
+
+    // VAESIMC xmm0, xmm1 — AES InvMixColumns
+    // VEX.128.66.0F38.WIG DB /r — C4 E2 79 DB C1
+    // vvvv=1111 (unary), byte2=0x79
+    add_xmm("vaesimc xmm0,xmm1",
+            {0xC4, 0xE2, 0x79, 0xDB, 0xC1}, aes, 0x3);
+
+    // VAESKEYGENASSIST xmm0, xmm1, 0x01 — AES key expansion assist
+    // VEX.128.66.0F3A.WIG DF /r ib — C4 E3 79 DF C1 01
+    // vvvv=1111 (unary), byte1=0xE3 (0F3A), byte2=0x79
+    add_xmm("vaeskeygenassist xmm0,xmm1,0x01",
+            {0xC4, 0xE3, 0x79, 0xDF, 0xC1, 0x01}, aes, 0x3);
+
+    // VAESKEYGENASSIST with different round constant
+    add_xmm("vaeskeygenassist xmm0,xmm1,0x02",
+            {0xC4, 0xE3, 0x79, 0xDF, 0xC1, 0x02}, aes, 0x3);
+
+    // Second set of AES data to increase coverage
+    ArchState aes2 = {};
+    aes2.rflags = 0x2;
+    aes2.xmm[1] = xmm_from_u64(0x00112233AABBCCDD, 0xEEFF001122334455);
+    aes2.xmm[2] = xmm_from_u64(0x5A5A5A5A5A5A5A5A, 0xA5A5A5A5A5A5A5A5);
+
+    add_xmm("vaesenc xmm0,xmm1,xmm2 v2",
+            {0xC4, 0xE2, 0x71, 0xDC, 0xC2}, aes2, 0x7);
+    add_xmm("vaesenclast xmm0,xmm1,xmm2 v2",
+            {0xC4, 0xE2, 0x71, 0xDD, 0xC2}, aes2, 0x7);
+    add_xmm("vaesdec xmm0,xmm1,xmm2 v2",
+            {0xC4, 0xE2, 0x71, 0xDE, 0xC2}, aes2, 0x7);
+    add_xmm("vaesdeclast xmm0,xmm1,xmm2 v2",
+            {0xC4, 0xE2, 0x71, 0xDF, 0xC2}, aes2, 0x7);
+  }
+
+  // =====================================================================
+  // 74. VEX SSSE3 — VEX-encoded SSSE3 integer instructions (0F38 map)
+  // =====================================================================
+  cat = "VEX SSSE3";
+
+  // 3-operand VEX SSSE3 tests: dst=xmm0, src1=xmm1, src2=xmm2
+  // VEX.128.66.0F38: C4 E2 71 <op> C2
+  //   E2 = R̄=1,X̄=1,B̄=1,mmmmm=00010(0F38)
+  //   71 = W=0,vvvv=1110(~xmm1),L=0,pp=01(66)
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Shuffle source: bytes 0x00..0x0F
+    s.xmm[1] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
+    // Shuffle control: mix of indices and high-bit-set (zeroing) entries
+    s.xmm[2] = xmm_from_u64(0x830201008F060504, 0x0302010083020100);
+
+    // VPSHUFB xmm0, xmm1, xmm2: C4 E2 71 00 C2
+    add_xmm("vpshufb xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x00, 0xC2}, s, 0x7);
+  }
+
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Words for horizontal add/sub: distinct values to verify lane pairing
+    s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+    s.xmm[2] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
+
+    // VPHADDW xmm0, xmm1, xmm2: C4 E2 71 01 C2
+    add_xmm("vphaddw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x01, 0xC2}, s, 0x7);
+    // VPHADDD xmm0, xmm1, xmm2: C4 E2 71 02 C2
+    add_xmm("vphaddd xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x02, 0xC2}, s, 0x7);
+    // VPHADDSW xmm0, xmm1, xmm2: C4 E2 71 03 C2
+    add_xmm("vphaddsw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x03, 0xC2}, s, 0x7);
+    // VPMADDUBSW xmm0, xmm1, xmm2: C4 E2 71 04 C2
+    add_xmm("vpmaddubsw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x04, 0xC2}, s, 0x7);
+    // VPHSUBW xmm0, xmm1, xmm2: C4 E2 71 05 C2
+    add_xmm("vphsubw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x05, 0xC2}, s, 0x7);
+    // VPHSUBD xmm0, xmm1, xmm2: C4 E2 71 06 C2
+    add_xmm("vphsubd xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x06, 0xC2}, s, 0x7);
+    // VPHSUBSW xmm0, xmm1, xmm2: C4 E2 71 07 C2
+    add_xmm("vphsubsw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x07, 0xC2}, s, 0x7);
+    // VPMULHRSW xmm0, xmm1, xmm2: C4 E2 71 0B C2
+    add_xmm("vpmulhrsw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x0B, 0xC2}, s, 0x7);
+  }
+
+  // VPSIGN — sign/zero/negate paths
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Mix of positive, negative, zero values
+    s.xmm[1] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+    // Control: positive (keep), negative (negate), zero (zero out)
+    s.xmm[2] = xmm_from_u64(0x0001000100010001, 0xFFFF0000FFFF0000);
+
+    // VPSIGNB xmm0, xmm1, xmm2: C4 E2 71 08 C2
+    add_xmm("vpsignb xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x08, 0xC2}, s, 0x7);
+    // VPSIGNW xmm0, xmm1, xmm2: C4 E2 71 09 C2
+    add_xmm("vpsignw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x09, 0xC2}, s, 0x7);
+    // VPSIGND xmm0, xmm1, xmm2: C4 E2 71 0A C2
+    add_xmm("vpsignd xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x0A, 0xC2}, s, 0x7);
+  }
+
+  // VPABS — unary, vvvv=1111b → byte2=0x79
+  // VEX.128.66.0F38 with vvvv=1111: C4 E2 79 <op> C1
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Values with negative/positive/zero/min to exercise abs paths
+    s.xmm[1] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+
+    // VPABSB xmm0, xmm1: C4 E2 79 1C C1
+    add_xmm("vpabsb xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x1C, 0xC1}, s, 0x3);
+    // VPABSW xmm0, xmm1: C4 E2 79 1D C1
+    add_xmm("vpabsw xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x1D, 0xC1}, s, 0x3);
+    // VPABSD xmm0, xmm1: C4 E2 79 1E C1
+    add_xmm("vpabsd xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x1E, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 75. VEX SSE4.1 — VEX-encoded SSE4.1 integer instructions (0F38 map)
+  // =====================================================================
+  cat = "VEX SSE4.1";
+
+  // Sign-extend instructions (unary, vvvv=1111b → byte2=0x79)
+  // Use data with bit 7 set to verify sign extension
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Bytes with mix of positive (0x07, 0x03, 0x05, 0x04, 0x02, 0x7F)
+    // and negative (0x80, 0xFF, 0xFB, 0xFA, 0xFC, 0xFE) to test sign extension
+    s.xmm[1] = xmm_from_u64(0x0180FF7F02FE0300, 0x04FC0580FB06FA07);
+
+    // VPMOVSXBW xmm0, xmm1: C4 E2 79 20 C1
+    add_xmm("vpmovsxbw xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x20, 0xC1}, s, 0x3);
+    // VPMOVSXBD xmm0, xmm1: C4 E2 79 21 C1
+    add_xmm("vpmovsxbd xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x21, 0xC1}, s, 0x3);
+    // VPMOVSXBQ xmm0, xmm1: C4 E2 79 22 C1
+    add_xmm("vpmovsxbq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x22, 0xC1}, s, 0x3);
+    // VPMOVSXWD xmm0, xmm1: C4 E2 79 23 C1
+    add_xmm("vpmovsxwd xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x23, 0xC1}, s, 0x3);
+    // VPMOVSXWQ xmm0, xmm1: C4 E2 79 24 C1
+    add_xmm("vpmovsxwq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x24, 0xC1}, s, 0x3);
+    // VPMOVSXDQ xmm0, xmm1: C4 E2 79 25 C1
+    add_xmm("vpmovsxdq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x25, 0xC1}, s, 0x3);
+  }
+
+  // Zero-extend instructions (unary, vvvv=1111b → byte2=0x79)
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Same data as sign-extend to cross-check
+    s.xmm[1] = xmm_from_u64(0x0180FF7F02FE0300, 0x04FC0580FB06FA07);
+
+    // VPMOVZXBW xmm0, xmm1: C4 E2 79 30 C1
+    add_xmm("vpmovzxbw xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x30, 0xC1}, s, 0x3);
+    // VPMOVZXBD xmm0, xmm1: C4 E2 79 31 C1
+    add_xmm("vpmovzxbd xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x31, 0xC1}, s, 0x3);
+    // VPMOVZXBQ xmm0, xmm1: C4 E2 79 32 C1
+    add_xmm("vpmovzxbq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x32, 0xC1}, s, 0x3);
+    // VPMOVZXWD xmm0, xmm1: C4 E2 79 33 C1
+    add_xmm("vpmovzxwd xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x33, 0xC1}, s, 0x3);
+    // VPMOVZXWQ xmm0, xmm1: C4 E2 79 34 C1
+    add_xmm("vpmovzxwq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x34, 0xC1}, s, 0x3);
+    // VPMOVZXDQ xmm0, xmm1: C4 E2 79 35 C1
+    add_xmm("vpmovzxdq xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x35, 0xC1}, s, 0x3);
+  }
+
+  // 3-operand SSE4.1: dst=xmm0, src1=xmm1, src2=xmm2
+  // VEX.128.66.0F38 with vvvv=xmm1: C4 E2 71 <op> C2
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Values where signed and unsigned orderings differ
+    // Signed: 0x80=-128 < 0x7F=127; Unsigned: 0x80=128 > 0x7F=127
+    s.xmm[1] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
+    s.xmm[2] = xmm_from_u64(0x02FE027E04806183, 0x80000000FFFFFFFF);
+
+    // VPMULDQ xmm0, xmm1, xmm2: C4 E2 71 28 C2
+    // Multiplies dwords at positions 0 and 2 (signed) → qword results
+    add_xmm("vpmuldq xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x28, 0xC2}, s, 0x7);
+    // VPCMPEQQ xmm0, xmm1, xmm2: C4 E2 71 29 C2
+    add_xmm("vpcmpeqq xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x29, 0xC2}, s, 0x7);
+    // VPACKUSDW xmm0, xmm1, xmm2: C4 E2 71 2B C2
+    add_xmm("vpackusdw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x2B, 0xC2}, s, 0x7);
+
+    // VPMINSB xmm0, xmm1, xmm2: C4 E2 71 38 C2
+    add_xmm("vpminsb xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x38, 0xC2}, s, 0x7);
+    // VPMINSD xmm0, xmm1, xmm2: C4 E2 71 39 C2
+    add_xmm("vpminsd xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x39, 0xC2}, s, 0x7);
+    // VPMINUW xmm0, xmm1, xmm2: C4 E2 71 3A C2
+    add_xmm("vpminuw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3A, 0xC2}, s, 0x7);
+    // VPMINUD xmm0, xmm1, xmm2: C4 E2 71 3B C2
+    add_xmm("vpminud xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3B, 0xC2}, s, 0x7);
+
+    // VPMAXSB xmm0, xmm1, xmm2: C4 E2 71 3C C2
+    add_xmm("vpmaxsb xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3C, 0xC2}, s, 0x7);
+    // VPMAXSD xmm0, xmm1, xmm2: C4 E2 71 3D C2
+    add_xmm("vpmaxsd xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3D, 0xC2}, s, 0x7);
+    // VPMAXUW xmm0, xmm1, xmm2: C4 E2 71 3E C2
+    add_xmm("vpmaxuw xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3E, 0xC2}, s, 0x7);
+    // VPMAXUD xmm0, xmm1, xmm2: C4 E2 71 3F C2
+    add_xmm("vpmaxud xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x3F, 0xC2}, s, 0x7);
+
+    // VPMULLD xmm0, xmm1, xmm2: C4 E2 71 40 C2
+    add_xmm("vpmulld xmm0,xmm1,xmm2", {0xC4, 0xE2, 0x71, 0x40, 0xC2}, s, 0x7);
+  }
+
+  // VPHMINPOSUW — unary, 128-bit only (vvvv=1111b → byte2=0x79)
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // 8 unsigned words: find the minimum and its index
+    // Words: 0x0040, 0x0003, 0x0080, 0x0001, 0x00FF, 0x0002, 0x0050, 0x0010
+    s.xmm[1] = xmm_from_u64(0x00100050000200FF, 0x0001008000030040);
+
+    // VPHMINPOSUW xmm0, xmm1: C4 E2 79 41 C1
+    add_xmm("vphminposuw xmm0,xmm1", {0xC4, 0xE2, 0x79, 0x41, 0xC1}, s, 0x3);
+  }
+
+  // VPMULDQ with interesting dword positions 0 and 2
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // dword[0]=0xFFFFFFFE (-2), dword[1]=junk, dword[2]=0x7FFFFFFF (INT_MAX), dword[3]=junk
+    s.xmm[1] = xmm_from_u64(0xDEAD7FFFFFFFDEAD, 0xFFFFFFFE);
+    // dword[0]=0x00000003 (3), dword[1]=junk, dword[2]=0xFFFFFFFF (-1), dword[3]=junk
+    s.xmm[2] = xmm_from_u64(0xBEEFFFFFFFFFBEEF, 0x00000003);
+
+    // VPMULDQ xmm0, xmm1, xmm2: C4 E2 71 28 C2
+    add_xmm("vpmuldq xmm0,xmm1,xmm2 (edge)", {0xC4, 0xE2, 0x71, 0x28, 0xC2}, s, 0x7);
+  }
+
+  // VPCMPEQQ with equal and unequal qwords
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x0123456789ABCDEF);
+    s.xmm[2] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0xFEDCBA9876543210);
+
+    // VPCMPEQQ: qword[0] matches → 0xFFFF..., qword[1] differs → 0x0000...
+    add_xmm("vpcmpeqq xmm0,xmm1,xmm2 (mixed)", {0xC4, 0xE2, 0x71, 0x29, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX pack/unpack/compare (VEX 0F) ──
+  cat = "VEX pack/unpack";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+    s.xmm[2] = xmm_from_u64(0x000A000B000C000D, 0x000E000F00100011);
+
+    // VPUNPCKLBW xmm0,xmm1,xmm2: C5 F1 60 C2
+    add_xmm("vpunpcklbw", {0xC5, 0xF1, 0x60, 0xC2}, s, 0x7);
+    // VPUNPCKLWD: C5 F1 61 C2
+    add_xmm("vpunpcklwd", {0xC5, 0xF1, 0x61, 0xC2}, s, 0x7);
+    // VPUNPCKLDQ: C5 F1 62 C2
+    add_xmm("vpunpckldq", {0xC5, 0xF1, 0x62, 0xC2}, s, 0x7);
+    // VPACKSSWB: C5 F1 63 C2
+    add_xmm("vpacksswb", {0xC5, 0xF1, 0x63, 0xC2}, s, 0x7);
+    // VPCMPGTB: C5 F1 64 C2
+    add_xmm("vpcmpgtb", {0xC5, 0xF1, 0x64, 0xC2}, s, 0x7);
+    // VPCMPGTW: C5 F1 65 C2
+    add_xmm("vpcmpgtw", {0xC5, 0xF1, 0x65, 0xC2}, s, 0x7);
+    // VPCMPGTD: C5 F1 66 C2
+    add_xmm("vpcmpgtd", {0xC5, 0xF1, 0x66, 0xC2}, s, 0x7);
+    // VPACKUSWB: C5 F1 67 C2
+    add_xmm("vpackuswb", {0xC5, 0xF1, 0x67, 0xC2}, s, 0x7);
+    // VPUNPCKHBW: C5 F1 68 C2
+    add_xmm("vpunpckhbw", {0xC5, 0xF1, 0x68, 0xC2}, s, 0x7);
+    // VPUNPCKHWD: C5 F1 69 C2
+    add_xmm("vpunpckhwd", {0xC5, 0xF1, 0x69, 0xC2}, s, 0x7);
+    // VPUNPCKHDQ: C5 F1 6A C2
+    add_xmm("vpunpckhdq", {0xC5, 0xF1, 0x6A, 0xC2}, s, 0x7);
+    // VPACKSSDW: C5 F1 6B C2
+    add_xmm("vpackssdw", {0xC5, 0xF1, 0x6B, 0xC2}, s, 0x7);
+    // VPUNPCKLQDQ: C5 F1 6C C2
+    add_xmm("vpunpcklqdq", {0xC5, 0xF1, 0x6C, 0xC2}, s, 0x7);
+    // VPUNPCKHQDQ: C5 F1 6D C2
+    add_xmm("vpunpckhqdq", {0xC5, 0xF1, 0x6D, 0xC2}, s, 0x7);
+
+    // VPCMPEQB: C5 F1 74 C2
+    add_xmm("vpcmpeqb", {0xC5, 0xF1, 0x74, 0xC2}, s, 0x7);
+    // VPCMPEQW: C5 F1 75 C2
+    add_xmm("vpcmpeqw", {0xC5, 0xF1, 0x75, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX multiply/SAD/avg (VEX 0F) ──
+  cat = "VEX multiply";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0064FFCE00050003, 0x7FFF80000002FFFE);
+    s.xmm[2] = xmm_from_u64(0x000AFFEC00020004, 0x0001FFFF00037FFF);
+
+    // VPMULLW: C5 F1 D5 C2
+    add_xmm("vpmullw", {0xC5, 0xF1, 0xD5, 0xC2}, s, 0x7);
+    // VPMULHUW: C5 F1 E4 C2
+    add_xmm("vpmulhuw", {0xC5, 0xF1, 0xE4, 0xC2}, s, 0x7);
+    // VPMULHW: C5 F1 E5 C2
+    add_xmm("vpmulhw", {0xC5, 0xF1, 0xE5, 0xC2}, s, 0x7);
+    // VPMULUDQ: C5 F1 F4 C2
+    add_xmm("vpmuludq", {0xC5, 0xF1, 0xF4, 0xC2}, s, 0x7);
+    // VPMADDWD: C5 F1 F5 C2
+    add_xmm("vpmaddwd", {0xC5, 0xF1, 0xF5, 0xC2}, s, 0x7);
+    // VPSADBW: C5 F1 F6 C2
+    add_xmm("vpsadbw", {0xC5, 0xF1, 0xF6, 0xC2}, s, 0x7);
+    // VPAVGB: C5 F1 E0 C2
+    add_xmm("vpavgb", {0xC5, 0xF1, 0xE0, 0xC2}, s, 0x7);
+    // VPAVGW: C5 F1 E3 C2
+    add_xmm("vpavgw", {0xC5, 0xF1, 0xE3, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX saturating arithmetic (VEX 0F) ──
+  cat = "VEX saturating arith";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x7F80FF00FE01F0E0, 0x7FFF8000FFFE0001);
+    s.xmm[2] = xmm_from_u64(0x0180FF007F01F0E0, 0x0001FFFF00020001);
+
+    // VPADDSB: C5 F1 EC C2
+    add_xmm("vpaddsb", {0xC5, 0xF1, 0xEC, 0xC2}, s, 0x7);
+    // VPADDSW: C5 F1 ED C2
+    add_xmm("vpaddsw", {0xC5, 0xF1, 0xED, 0xC2}, s, 0x7);
+    // VPADDUSB: C5 F1 DC C2
+    add_xmm("vpaddusb", {0xC5, 0xF1, 0xDC, 0xC2}, s, 0x7);
+    // VPADDUSW: C5 F1 DD C2
+    add_xmm("vpaddusw", {0xC5, 0xF1, 0xDD, 0xC2}, s, 0x7);
+    // VPSUBSB: C5 F1 E8 C2
+    add_xmm("vpsubsb", {0xC5, 0xF1, 0xE8, 0xC2}, s, 0x7);
+    // VPSUBSW: C5 F1 E9 C2
+    add_xmm("vpsubsw", {0xC5, 0xF1, 0xE9, 0xC2}, s, 0x7);
+    // VPSUBUSB: C5 F1 D8 C2
+    add_xmm("vpsubusb", {0xC5, 0xF1, 0xD8, 0xC2}, s, 0x7);
+    // VPSUBUSW: C5 F1 D9 C2
+    add_xmm("vpsubusw", {0xC5, 0xF1, 0xD9, 0xC2}, s, 0x7);
+    // VPMINUB: C5 F1 DA C2
+    add_xmm("vpminub", {0xC5, 0xF1, 0xDA, 0xC2}, s, 0x7);
+    // VPMAXUB: C5 F1 DE C2
+    add_xmm("vpmaxub", {0xC5, 0xF1, 0xDE, 0xC2}, s, 0x7);
+    // VPMINSW: C5 F1 EA C2
+    add_xmm("vpminsw", {0xC5, 0xF1, 0xEA, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX shifts by XMM (VEX 0F) ──
+  cat = "VEX shifts";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFF00FF00ABCD1234, 0x8000000012345678);
+    s.xmm[2] = xmm_from_u64(0x0000000000000004, 0x0000000000000000); // shift count = 4
+
+    // VPSRLW: C5 F1 D1 C2
+    add_xmm("vpsrlw by xmm", {0xC5, 0xF1, 0xD1, 0xC2}, s, 0x7);
+    // VPSRLD: C5 F1 D2 C2
+    add_xmm("vpsrld by xmm", {0xC5, 0xF1, 0xD2, 0xC2}, s, 0x7);
+    // VPSRLQ: C5 F1 D3 C2
+    add_xmm("vpsrlq by xmm", {0xC5, 0xF1, 0xD3, 0xC2}, s, 0x7);
+    // VPSRAW: C5 F1 E1 C2
+    add_xmm("vpsraw by xmm", {0xC5, 0xF1, 0xE1, 0xC2}, s, 0x7);
+    // VPSRAD: C5 F1 E2 C2
+    add_xmm("vpsrad by xmm", {0xC5, 0xF1, 0xE2, 0xC2}, s, 0x7);
+    // VPSLLW: C5 F1 F1 C2
+    add_xmm("vpsllw by xmm", {0xC5, 0xF1, 0xF1, 0xC2}, s, 0x7);
+    // VPSLLD: C5 F1 F2 C2
+    add_xmm("vpslld by xmm", {0xC5, 0xF1, 0xF2, 0xC2}, s, 0x7);
+    // VPSLLQ: C5 F1 F3 C2
+    add_xmm("vpsllq by xmm", {0xC5, 0xF1, 0xF3, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX immediate shifts (VEX 0F groups 71/72/73) ──
+  cat = "VEX imm shifts";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFF00FF00ABCD1234, 0x8000000012345678);
+
+    // VPSRLW xmm0, xmm1, 4: C5 F9 71 D1 04
+    add_xmm("vpsrlw imm", {0xC5, 0xF9, 0x71, 0xD1, 0x04}, s, 0x3);
+    // VPSRAW xmm0, xmm1, 4: C5 F9 71 E1 04 (reg=4)
+    add_xmm("vpsraw imm", {0xC5, 0xF9, 0x71, 0xE1, 0x04}, s, 0x3);
+    // VPSLLW xmm0, xmm1, 4: C5 F9 71 F1 04 (reg=6)
+    add_xmm("vpsllw imm", {0xC5, 0xF9, 0x71, 0xF1, 0x04}, s, 0x3);
+    // VPSRLD xmm0, xmm1, 4: C5 F9 72 D1 04
+    add_xmm("vpsrld imm", {0xC5, 0xF9, 0x72, 0xD1, 0x04}, s, 0x3);
+    // VPSRAD xmm0, xmm1, 4: C5 F9 72 E1 04
+    add_xmm("vpsrad imm", {0xC5, 0xF9, 0x72, 0xE1, 0x04}, s, 0x3);
+    // VPSLLD xmm0, xmm1, 4: C5 F9 72 F1 04
+    add_xmm("vpslld imm", {0xC5, 0xF9, 0x72, 0xF1, 0x04}, s, 0x3);
+    // VPSRLQ xmm0, xmm1, 4: C5 F9 73 D1 04
+    add_xmm("vpsrlq imm", {0xC5, 0xF9, 0x73, 0xD1, 0x04}, s, 0x3);
+    // VPSLLQ xmm0, xmm1, 4: C5 F9 73 F1 04
+    add_xmm("vpsllq imm", {0xC5, 0xF9, 0x73, 0xF1, 0x04}, s, 0x3);
+    // VPSRLDQ xmm0, xmm1, 4: C5 F9 73 D9 04 (reg=3)
+    add_xmm("vpsrldq imm", {0xC5, 0xF9, 0x73, 0xD9, 0x04}, s, 0x3);
+    // VPSLLDQ xmm0, xmm1, 4: C5 F9 73 F9 04 (reg=7)
+    add_xmm("vpslldq imm", {0xC5, 0xF9, 0x73, 0xF9, 0x04}, s, 0x3);
+  }
+
+  // ── AVX2 variable shifts (VEX 0F38) ──
+  cat = "AVX2 var shifts";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFF000000ABCD1234, 0x8000000012345678);
+    s.xmm[2] = xmm_from_u64(0x0000000400000008, 0x0000001000000001); // shift counts per dword
+
+    // VPSRLVD xmm0, xmm1, xmm2: C4 E2 71 45 C2 (VEX.128.66.0F38.W0)
+    add_xmm("vpsrlvd", {0xC4, 0xE2, 0x71, 0x45, 0xC2}, s, 0x7);
+    // VPSRAVD xmm0, xmm1, xmm2: C4 E2 71 46 C2
+    add_xmm("vpsravd", {0xC4, 0xE2, 0x71, 0x46, 0xC2}, s, 0x7);
+    // VPSLLVD xmm0, xmm1, xmm2: C4 E2 71 47 C2
+    add_xmm("vpsllvd", {0xC4, 0xE2, 0x71, 0x47, 0xC2}, s, 0x7);
+
+    // VPSRLVQ xmm0, xmm1, xmm2: C4 E2 F1 45 C2 (W=1 for qword)
+    s.xmm[2] = xmm_from_u64(0x0000000000000004, 0x0000000000000010); // shift counts per qword
+    add_xmm("vpsrlvq", {0xC4, 0xE2, 0xF1, 0x45, 0xC2}, s, 0x7);
+    // VPSLLVQ xmm0, xmm1, xmm2: C4 E2 F1 47 C2
+    add_xmm("vpsllvq", {0xC4, 0xE2, 0xF1, 0x47, 0xC2}, s, 0x7);
+  }
+
+  // ── VEX VTESTPS/VTESTPD (VEX 0F38) ──
+  cat = "VEX test";
+  {
+    auto add_test = [&](const char *name, std::vector<u8> code, ArchState init, u64 mask) {
+      tests.push_back({name, cat, std::move(code), init, mask});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Use values where AND and ANDNOT give different zero/non-zero results
+    s.xmm[1] = xmm_from_u64(0x8000000080000000, 0x0000000000000000); // sign bits set in low half
+    s.xmm[2] = xmm_from_u64(0x8000000080000000, 0x8000000080000000); // all sign bits set
+
+    // VTESTPS xmm1, xmm2: C4 E2 79 0E CA
+    add_test("vtestps", {0xC4, 0xE2, 0x79, 0x0E, 0xCA}, s, FL_ZF | FL_CF);
+
+    s.xmm[1] = xmm_from_u64(0x0000000000000000, 0x0000000000000000);
+    // src1=0, src2=anything → AND=0 → ZF=1; ANDNOT=src2 → CF=0 (if src2 nonzero)
+    add_test("vtestps zf=1", {0xC4, 0xE2, 0x79, 0x0E, 0xCA}, s, FL_ZF | FL_CF);
+
+    // VTESTPD: C4 E2 79 0F CA
+    s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x8000000000000000);
+    s.xmm[2] = xmm_from_u64(0x8000000000000000, 0x8000000000000000);
+    add_test("vtestpd all match", {0xC4, 0xE2, 0x79, 0x0F, 0xCA}, s, FL_ZF | FL_CF);
+  }
+
   return tests;
 }
 

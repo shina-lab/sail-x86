@@ -450,41 +450,6 @@ function avx_vpermilpd_imm_512(src, imm) = {
 
 /* ---- VPALIGNR: byte-align concatenation per 128-bit lane ---- */
 
-val avx_palignr_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_palignr_128(src1, src2, imm) = {
-  let shift : range(0, 255) = unsigned(imm);
-  if shift >= 32 then zeros()
-  else if shift >= 16 then {
-    // Only src2 contributes, shifted right by (shift-16) bytes
-    let s : range(0, 15) = shift - 16;
-    let sbit : range(0, 120) = s * 8;
-    var r : xmmword = zeros();
-    foreach (i from 0 to 15) {
-      let src_byte : range(0, 31) = i + s;
-      let dst_lo : range(0, 120) = i * 8;
-      if src_byte < 16
-      then { let sl : range(0, 120) = src_byte * 8; r[(dst_lo + 7)..dst_lo] = src2[(sl + 7)..sl] }
-      else r[(dst_lo + 7)..dst_lo] = 0x00;
-    };
-    r
-  } else {
-    // Concatenate src2:src1 = 256 bits, shift right by 'shift' bytes, take low 128
-    let s : range(0, 15) = shift;
-    var r : xmmword = zeros();
-    foreach (i from 0 to 15) {
-      let src_byte : range(0, 31) = i + s;
-      let dst_lo : range(0, 120) = i * 8;
-      if src_byte < 16
-      then {
-        let sl : range(0, 120) = src_byte * 8; r[(dst_lo + 7)..dst_lo] = src2[(sl + 7)..sl]
-      } else {
-        let sl : range(0, 120) = (src_byte - 16) * 8; r[(dst_lo + 7)..dst_lo] = src1[(sl + 7)..sl]
-      };
-    };
-    r
-  }
-}
-
 val avx_palignr_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_palignr_256(src1, src2, imm) = {
   let lo : xmmword = avx_palignr_128(src1[127..0], src2[127..0], imm);
