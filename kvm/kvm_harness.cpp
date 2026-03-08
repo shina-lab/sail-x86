@@ -5140,13 +5140,11 @@ std::vector<TestCase> build_tests() {
     const u32 QNAN      = 0x7FC00000;
     const u32 F32_SNAN  = u32(0x7F800001);
     const u32 QNAN2     = 0x7FC00042;
-    const u32 NEG_QNAN  = 0xFFC00000;
     const u32 DENORM    = 0x00000001;
     const u32 DENORM2   = 0x007FFFFF;
     const u32 NEG_DENORM = 0x80000001;
     const u32 ONE       = 0x3F800000;
     const u32 NEG_ONE   = 0xBF800000;
-    const u32 TWO       = 0x40000000;
     const u32 MAX_NORM  = 0x7F7FFFFF;
 
     struct FPPair { u32 a; u32 b; const char *desc; };
@@ -5718,7 +5716,6 @@ std::vector<TestCase> build_tests() {
     const u32 QNAN      = 0x7FC00000;  // quiet NaN
     const u32 F32_SNAN      = u32(0x7F800001);  // signaling NaN
     const u32 QNAN2     = 0x7FC00042;  // different QNaN payload
-    const u32 NEG_QNAN  = 0xFFC00000;  // negative quiet NaN
     const u32 DENORM    = 0x00000001;  // smallest positive denormal
     const u32 DENORM2   = 0x007FFFFF;  // largest denormal
     const u32 NEG_DENORM = 0x80000001; // smallest negative denormal
@@ -5908,7 +5905,6 @@ std::vector<TestCase> build_tests() {
     const u64 SNAN_D     = 0x7FF0000000000001;
     const u64 DENORM_D   = 0x0000000000000001;
     const u64 ONE_D      = 0x3FF0000000000000;
-    const u64 NEG_ONE_D  = 0xBFF0000000000000;
 
     struct FPPairD { u64 a; u64 b; const char *desc; };
     FPPairD dpairs[] = {
@@ -8446,6 +8442,109 @@ std::vector<TestCase> build_tests() {
     s.rflags = 0x2;
     s.rdi = DATA_ADDR + 16;  // 16-byte aligned but not 32-byte aligned
     add_fault("vmovaps ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x28, 0x07}, s, 13);
+  }
+  // VEX VMOVAPD store unaligned (128-bit)
+  {
+    // VMOVAPD [RDI], XMM0: C5 F9 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 3;
+    add_fault("vmovapd [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x29, 0x07}, s, 13);
+  }
+  // VEX VMOVAPD load unaligned (256-bit, 32-byte alignment required)
+  {
+    // VMOVAPD YMM0, [RDI]: C5 FD 28 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 16;  // 16-byte aligned but not 32-byte aligned
+    add_fault("vmovapd ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x28, 0x07}, s, 13);
+  }
+  // VEX VMOVAPS store unaligned (256-bit)
+  {
+    // VMOVAPS [RDI], YMM0: C5 FC 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 16;
+    add_fault("vmovaps [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x29, 0x07}, s, 13);
+  }
+  // VEX VMOVAPD store unaligned (256-bit)
+  {
+    // VMOVAPD [RDI], YMM0: C5 FD 29 07
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR + 16;
+    add_fault("vmovapd [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x29, 0x07}, s, 13);
+  }
+
+  // ---- More #UD tests: LOCK on 2-byte opcodes ----
+  cat = "Exception #UD";
+  {
+    // LOCK MOVZX EAX, BL: F0 0F B6 C3 — MOVZX not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rbx = 0x42;
+    add_fault("lock movzx eax,bl (2-byte non-lockable → #UD)", {0xF0, 0x0F, 0xB6, 0xC3}, s, 6);
+  }
+  {
+    // LOCK BSF EAX, EBX: F0 0F BC C3 — BSF not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rbx = 0x100;
+    add_fault("lock bsf eax,ebx (2-byte non-lockable → #UD)", {0xF0, 0x0F, 0xBC, 0xC3}, s, 6);
+  }
+  {
+    // LOCK CMPXCHG EAX, EBX: F0 0F B1 D8 — reg dest on lockable 2-byte, #UD
+    // ModRM C3 = 11 000 011 = reg, reg=EAX, rm=EBX — wait, CMPXCHG is 0F B1 /r
+    // CMPXCHG r/m, r: ModRM D8 = 11 011 000 = reg, reg=EBX, rm=EAX
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 1; s.rbx = 2;
+    add_fault("lock cmpxchg eax,ebx (reg dest → #UD)", {0xF0, 0x0F, 0xB1, 0xD8}, s, 6);
+  }
+  {
+    // LOCK XADD EAX, EBX: F0 0F C1 D8 — reg dest on lockable 2-byte, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 1; s.rbx = 2;
+    add_fault("lock xadd eax,ebx (reg dest → #UD)", {0xF0, 0x0F, 0xC1, 0xD8}, s, 6);
+  }
+  {
+    // LOCK INC EAX: F0 FF C0 — INC with register dest, #UD
+    // FF C0 = ModRM 11 000 000 = /0, rm=EAX (register)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42;
+    add_fault("lock inc eax (reg dest → #UD)", {0xF0, 0xFF, 0xC0}, s, 6);
+  }
+  {
+    // LOCK NEG EAX: F0 F7 D8 — NEG with register dest, #UD
+    // F7 D8 = ModRM 11 011 000 = /3, rm=EAX (register)
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42;
+    add_fault("lock neg eax (reg dest → #UD)", {0xF0, 0xF7, 0xD8}, s, 6);
+  }
+  {
+    // LOCK MUL EAX: F0 F7 E0 — MUL (/4) not lockable even as Group 3, #UD
+    // F7 E0 = ModRM 11 100 000 = /4, rm=EAX
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 2;
+    add_fault("lock mul eax (MUL not lockable → #UD)", {0xF0, 0xF7, 0xE0}, s, 6);
+  }
+  {
+    // LOCK DIV ECX: F0 F7 F1 — DIV (/6) not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42; s.rdx = 0; s.rcx = 7;
+    add_fault("lock div ecx (DIV not lockable → #UD)", {0xF0, 0xF7, 0xF1}, s, 6);
+  }
+  {
+    // LOCK PUSH RAX: F0 50 — PUSH not lockable, #UD
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rax = 42;
+    add_fault("lock push rax (non-lockable → #UD)", {0xF0, 0x50}, s, 6);
   }
 
   return tests;

@@ -3,6 +3,20 @@
 // CMOVcc, Jcc, SETcc, BT/BTS/BTR/BTC, SHLD/SHRD, IMUL, MOVZX/MOVSX,
 // BSF/BSR, POPCNT, CMPXCHG, XADD, BSWAP, CPUID, RDTSC, and more.
 
+// Check LOCK prefix validity: requires memory destination on a lockable instruction.
+// LOCK with register operand or on CMP (which doesn't write) raises #UD.
+val check_lock_rm : (Prefixes, RM, bool) -> ExecutionResult
+function check_lock_rm(pfx, rm, is_cmp) = {
+  if pfx.has_lock then {
+    match rm {
+      RM_reg(_) => raise_UD(),
+      RM_mem(_) => if is_cmp then raise_UD() else Ok(),
+    }
+  } else {
+    Ok()
+  }
+}
+
 val bsf64 : (qword, range(0, 63)) -> range(0, 63)
 function bsf64(v, idx) =
   if idx >= 63 then 63
@@ -402,19 +416,24 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
-      let bit_idx = read_gpr(reg, os);
-      let bit_num : range(0, 63) = match os {
-        OS16 => unsigned(bit_idx[3..0]),
-        OS32 => unsigned(bit_idx[4..0]),
-        OS64 => unsigned(bit_idx[5..0]),
-        _    => unsigned(bit_idx[4..0]),
-      };
-      CF = v[bit_num];
-      var result : qword = v;
-      result[bit_num] = bitone;
-      write_rm_val(rm, os, pfx.has_rex, result);
-      Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          let v = read_rm_val(rm, os, pfx.has_rex);
+          let bit_idx = read_gpr(reg, os);
+          let bit_num : range(0, 63) = match os {
+            OS16 => unsigned(bit_idx[3..0]),
+            OS32 => unsigned(bit_idx[4..0]),
+            OS64 => unsigned(bit_idx[5..0]),
+            _    => unsigned(bit_idx[4..0]),
+          };
+          CF = v[bit_num];
+          var result : qword = v;
+          result[bit_num] = bitone;
+          write_rm_val(rm, os, pfx.has_rex, result);
+          Ok()
+        },
+      }
     },
     // 0F AC: SHRD r/m, r, imm8
     172 => {
@@ -474,36 +493,46 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
-      let bit_idx = read_gpr(reg, os);
-      let bit_num : range(0, 63) = match os {
-        OS16 => unsigned(bit_idx[3..0]),
-        OS32 => unsigned(bit_idx[4..0]),
-        OS64 => unsigned(bit_idx[5..0]),
-        _    => unsigned(bit_idx[4..0]),
-      };
-      CF = v[bit_num];
-      var result : qword = v;
-      result[bit_num] = bitzero;
-      write_rm_val(rm, os, pfx.has_rex, result);
-      Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          let v = read_rm_val(rm, os, pfx.has_rex);
+          let bit_idx = read_gpr(reg, os);
+          let bit_num : range(0, 63) = match os {
+            OS16 => unsigned(bit_idx[3..0]),
+            OS32 => unsigned(bit_idx[4..0]),
+            OS64 => unsigned(bit_idx[5..0]),
+            _    => unsigned(bit_idx[4..0]),
+          };
+          CF = v[bit_num];
+          var result : qword = v;
+          result[bit_num] = bitzero;
+          write_rm_val(rm, os, pfx.has_rex, result);
+          Ok()
+        },
+      }
     },
     // 0F B0: CMPXCHG r/m8, r8
     176 => {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let dest = read_rm_val(rm, OS8, pfx.has_rex);
-      let acc : qword = zero_extend(read_gpr8l(RAX));
-      let src : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
-      let cmp_result = acc - dest;
-      update_flags_sub(cmp_result[7..0], acc[7..0], dest[7..0]);
-      if ZF == bitone then {
-        write_rm_val(rm, OS8, pfx.has_rex, src);
-      } else {
-        write_gpr8l(RAX, dest[7..0]);
-      };
-      Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          let dest = read_rm_val(rm, OS8, pfx.has_rex);
+          let acc : qword = zero_extend(read_gpr8l(RAX));
+          let src : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
+          let cmp_result = acc - dest;
+          update_flags_sub(cmp_result[7..0], acc[7..0], dest[7..0]);
+          if ZF == bitone then {
+            write_rm_val(rm, OS8, pfx.has_rex, src);
+          } else {
+            write_gpr8l(RAX, dest[7..0]);
+          };
+          Ok()
+        },
+      }
     },
     // 0F B1: CMPXCHG r/m, r
     177 => {
@@ -511,22 +540,27 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let dest = read_rm_val(rm, os, pfx.has_rex);
-      let acc = read_gpr(RAX, os);
-      let src = read_gpr(reg, os);
-      let cmp_result = acc - dest;
-      match os {
-        OS8  => update_flags_sub(cmp_result[7..0], acc[7..0], dest[7..0]),
-        OS16 => update_flags_sub(cmp_result[15..0], acc[15..0], dest[15..0]),
-        OS32 => update_flags_sub(cmp_result[31..0], acc[31..0], dest[31..0]),
-        OS64 => update_flags_sub(cmp_result, acc, dest),
-      };
-      if ZF == bitone then {
-        write_rm_val(rm, os, pfx.has_rex, src);
-      } else {
-        write_gpr(RAX, os, dest);
-      };
-      Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          let dest = read_rm_val(rm, os, pfx.has_rex);
+          let acc = read_gpr(RAX, os);
+          let src = read_gpr(reg, os);
+          let cmp_result = acc - dest;
+          match os {
+            OS8  => update_flags_sub(cmp_result[7..0], acc[7..0], dest[7..0]),
+            OS16 => update_flags_sub(cmp_result[15..0], acc[15..0], dest[15..0]),
+            OS32 => update_flags_sub(cmp_result[31..0], acc[31..0], dest[31..0]),
+            OS64 => update_flags_sub(cmp_result, acc, dest),
+          };
+          if ZF == bitone then {
+            write_rm_val(rm, os, pfx.has_rex, src);
+          } else {
+            write_gpr(RAX, os, dest);
+          };
+          Ok()
+        },
+      }
     },
     // 0F B6: MOVZX r, r/m8
     182 => {
@@ -554,38 +588,48 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      let imm = fetch_byte();
-      let v = read_rm_val(rm, os, pfx.has_rex);
-      let bit_num : range(0, 63) = match os {
-        OS16 => unsigned(imm[3..0]),
-        OS32 => unsigned(imm[4..0]),
-        OS64 => unsigned(imm[5..0]),
-        _    => unsigned(imm[4..0]),
-      };
-      CF = v[bit_num];
-      if reg_field == 4 then {
-        // BT — just test, no modification
-        Ok()
-      } else if reg_field == 5 then {
-        // BTS — set bit
-        var result : qword = v;
-        result[bit_num] = bitone;
-        write_rm_val(rm, os, pfx.has_rex, result);
-        Ok()
-      } else if reg_field == 6 then {
-        // BTR — reset bit
-        var result : qword = v;
-        result[bit_num] = bitzero;
-        write_rm_val(rm, os, pfx.has_rex, result);
-        Ok()
-      } else if reg_field == 7 then {
-        // BTC — complement bit
-        var result : qword = v;
-        result[bit_num] = ~(v[bit_num]);
-        write_rm_val(rm, os, pfx.has_rex, result);
-        Ok()
-      } else {
+      // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
+      if pfx.has_lock & reg_field == 4 then {
         raise_UD()
+      } else {
+        match check_lock_rm(pfx, rm, false) {
+          Fault(v, e) => Fault(v, e),
+          _ => {
+            let imm = fetch_byte();
+            let v = read_rm_val(rm, os, pfx.has_rex);
+            let bit_num : range(0, 63) = match os {
+              OS16 => unsigned(imm[3..0]),
+              OS32 => unsigned(imm[4..0]),
+              OS64 => unsigned(imm[5..0]),
+              _    => unsigned(imm[4..0]),
+            };
+            CF = v[bit_num];
+            if reg_field == 4 then {
+              // BT — just test, no modification
+              Ok()
+            } else if reg_field == 5 then {
+              // BTS — set bit
+              var result : qword = v;
+              result[bit_num] = bitone;
+              write_rm_val(rm, os, pfx.has_rex, result);
+              Ok()
+            } else if reg_field == 6 then {
+              // BTR — reset bit
+              var result : qword = v;
+              result[bit_num] = bitzero;
+              write_rm_val(rm, os, pfx.has_rex, result);
+              Ok()
+            } else if reg_field == 7 then {
+              // BTC — complement bit
+              var result : qword = v;
+              result[bit_num] = ~(v[bit_num]);
+              write_rm_val(rm, os, pfx.has_rex, result);
+              Ok()
+            } else {
+              raise_UD()
+            }
+          },
+        }
       }
     },
     // 0F BB: BTC r/m, r
@@ -594,19 +638,24 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
-      let bit_idx = read_gpr(reg, os);
-      let bit_num : range(0, 63) = match os {
-        OS16 => unsigned(bit_idx[3..0]),
-        OS32 => unsigned(bit_idx[4..0]),
-        OS64 => unsigned(bit_idx[5..0]),
-        _    => unsigned(bit_idx[4..0]),
-      };
-      CF = v[bit_num];
-      var result : qword = v;
-      result[bit_num] = ~(v[bit_num]);
-      write_rm_val(rm, os, pfx.has_rex, result);
-      Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => {
+          let v = read_rm_val(rm, os, pfx.has_rex);
+          let bit_idx = read_gpr(reg, os);
+          let bit_num : range(0, 63) = match os {
+            OS16 => unsigned(bit_idx[3..0]),
+            OS32 => unsigned(bit_idx[4..0]),
+            OS64 => unsigned(bit_idx[5..0]),
+            _    => unsigned(bit_idx[4..0]),
+          };
+          CF = v[bit_num];
+          var result : qword = v;
+          result[bit_num] = ~(v[bit_num]);
+          write_rm_val(rm, os, pfx.has_rex, result);
+          Ok()
+        },
+      }
     },
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)
     188 => {
@@ -723,7 +772,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => match rm {
         RM_reg(dst) => exec_xadd(dst, reg, OS8),
         RM_mem(addr) => {
           // Memory operand: read, exchange, add, write back
@@ -735,6 +786,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           mem_write8(addr, sum[7..0]);
           Ok()
         },
+      },
       }
     },
     // 0F C1: XADD r/m, r
@@ -743,21 +795,24 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_reg(dst) => exec_xadd(dst, reg, os),
-        RM_mem(_) => {
-          let mem_val = read_rm_val(rm, os, pfx.has_rex);
-          let reg_val = read_gpr(reg, os);
-          let sum = mem_val + reg_val;
-          match os {
-            OS8  => update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]),
-            OS16 => update_flags_add(sum[15..0], mem_val[15..0], reg_val[15..0]),
-            OS32 => update_flags_add(sum[31..0], mem_val[31..0], reg_val[31..0]),
-            OS64 => update_flags_add(sum, mem_val, reg_val),
-          };
-          write_gpr(reg, os, mem_val);
-          write_rm_val(rm, os, pfx.has_rex, sum);
-          Ok()
+      match check_lock_rm(pfx, rm, false) {
+        Fault(v, e) => Fault(v, e),
+        _ => match rm {
+          RM_reg(dst) => exec_xadd(dst, reg, os),
+          RM_mem(_) => {
+            let mem_val = read_rm_val(rm, os, pfx.has_rex);
+            let reg_val = read_gpr(reg, os);
+            let sum = mem_val + reg_val;
+            match os {
+              OS8  => update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]),
+              OS16 => update_flags_add(sum[15..0], mem_val[15..0], reg_val[15..0]),
+              OS32 => update_flags_add(sum[31..0], mem_val[31..0], reg_val[31..0]),
+              OS64 => update_flags_add(sum, mem_val, reg_val),
+            };
+            write_gpr(reg, os, mem_val);
+            write_rm_val(rm, os, pfx.has_rex, sum);
+            Ok()
+          },
         },
       }
     },

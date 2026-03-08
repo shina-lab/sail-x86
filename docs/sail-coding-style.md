@@ -136,10 +136,29 @@ if pfx.vex_l then {
 }
 ```
 
+## Indentation
+
+All code must be properly indented. When a block is nested inside another
+(e.g., a `match` inside an `else`), the inner block must be indented relative
+to its enclosing block.
+
 ## Operators
 
 - The `~()` (bitwise NOT) operator requires parens: `~(CF)` not `~CF`
 - Use `bool_to_bit(cond)` instead of `if cond then bitone else bitzero`
+
+## Range Comparisons
+
+When checking if a value is in a range, write comparisons in number-line
+order (ascending left to right):
+
+```sail
+// OK: matches the number line
+if 10 <= x & x <= 20 then ...
+
+// BAD: reversed order
+if x >= 10 & x <= 20 then ...
+```
 
 ## Functions and Declarations
 

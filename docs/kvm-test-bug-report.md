@@ -604,7 +604,7 @@ fault-expecting tests. Changes made:
 5. **Comparison**: Verifies both sides produce the same exception vector
    and error code.
 
-**Tests implemented: 30 tests across 3 exception categories.**
+**Tests implemented: 44 tests across 3 exception categories.**
 
 **Bugs found and fixed:**
 - MOVAPS/MOVAPD (SSE): missing 16-byte alignment check → added #GP(0)
@@ -614,6 +614,9 @@ fault-expecting tests. Changes made:
 - LOCK prefix: model didn't check `has_lock` at all → added comprehensive
   LOCK validation for 1-byte and 2-byte opcodes (lockable opcode check +
   register-vs-memory check + CMP exclusion)
+- LOCK on 2-byte lockable instructions (CMPXCHG, XADD, BTS, BTR, BTC):
+  missing register-vs-memory check → added `check_lock_rm` calls
+- Group 8 (0F BA): BT (/4) incorrectly allowed with LOCK → added #UD
 - avx_test `_start`: missing `force_align_arg_pointer` attribute
 
 **Known gaps:**
@@ -716,7 +719,7 @@ Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
 large for the designated register."
 
-#### 3. Invalid Opcode (#UD, vector 6) — DONE (6 tests)
+#### 3. Invalid Opcode (#UD, vector 6) — DONE (15 tests)
 
 Triggered by undefined or invalid instruction encodings.
 
@@ -725,9 +728,13 @@ Triggered by undefined or invalid instruction encodings.
 | `UD2` (`0F 0B`) | Explicit undefined instruction | DONE |
 | `UD1` (`0F B9`) | Explicit undefined instruction | DONE |
 | Invalid VEX prefix combinations | e.g., VEX.L=1 for 128-bit-only instructions | TODO |
-| LOCK prefix on non-lockable instruction | e.g., `LOCK MOV`, `LOCK NOP` | DONE |
+| LOCK prefix on non-lockable instruction | e.g., `LOCK MOV`, `LOCK NOP`, `LOCK PUSH` | DONE |
 | LOCK with register dest on lockable op | e.g., `LOCK ADD RAX, RBX` | DONE |
 | LOCK CMP with memory dest | CMP doesn't write, LOCK invalid | DONE |
+| LOCK on non-lockable 2-byte | e.g., `LOCK MOVZX`, `LOCK BSF` | DONE |
+| LOCK on lockable 2-byte with reg dest | `LOCK CMPXCHG`, `LOCK XADD` | DONE |
+| LOCK INC/NEG with reg dest | Group 4/5 and Group 3 | DONE |
+| LOCK MUL/DIV | Not lockable even within Group 3 | DONE |
 | SSE instruction with mismatched prefix | | TODO |
 
 #### 4. Alignment Check (#AC, vector 17)
@@ -745,7 +752,7 @@ Note: MOVAPS/MOVAPD always require alignment regardless of CR0.AM.
 The #GP (not #AC) is raised for these — verify the correct exception
 vector.
 
-#### 5. General Protection Fault (#GP, vector 13) — DONE (7 tests)
+#### 5. General Protection Fault (#GP, vector 13) — DONE (12 tests)
 
 | Test case | Notes | Status |
 |-----------|-------|--------|
@@ -756,7 +763,11 @@ vector.
 | `VMOVAPS XMM0, [RDI]` | VEX 128 unaligned → #GP(0) | DONE |
 | `VMOVAPS [RDI], XMM0` | VEX 128 store unaligned → #GP(0) | DONE |
 | `VMOVAPD XMM0, [RDI]` | VEX 128 unaligned → #GP(0) | DONE |
+| `VMOVAPD [RDI], XMM0` | VEX 128 store unaligned → #GP(0) | DONE |
 | `VMOVAPS YMM0, [RDI]` | VEX 256, 16-aligned not 32 → #GP(0) | DONE |
+| `VMOVAPD YMM0, [RDI]` | VEX 256, 16-aligned not 32 → #GP(0) | DONE |
+| `VMOVAPS [RDI], YMM0` | VEX 256 store, 16-aligned not 32 → #GP(0) | DONE |
+| `VMOVAPD [RDI], YMM0` | VEX 256 store, 16-aligned not 32 → #GP(0) | DONE |
 | Write to a read-only segment | (if segment limits are enforced) | N/A |
 
 #### 6. Stack-Segment Fault (#SS, vector 12)
@@ -795,10 +806,11 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — DONE (6 tests: UD2, UD1, LOCK on reg dest,
-   LOCK on non-lockable, LOCK CMP, LOCK NOP)
-4. **#GP (alignment)** — DONE (7 tests; alignment checks added to
-   MOVAPS/MOVAPD/VMOVAPS/VMOVAPD in Sail model)
+3. **#UD (invalid opcode)** — DONE (15 tests: UD2, UD1, LOCK on reg dest,
+   LOCK on non-lockable 1-byte/2-byte, LOCK CMP, LOCK on Group 3/4/5
+   with reg dest, LOCK MUL/DIV)
+4. **#GP (alignment)** — DONE (12 tests; alignment checks added to
+   MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store, 128-bit and 256-bit)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check
    MXCSR exception mask bits or raise #XM. Requires touching all FP ops.
 6. **#AC, #SS** — Edge cases, lowest priority.
