@@ -43,17 +43,40 @@ bug that broke a correctly-written implementation. No SDM ambiguity.
 
 ### 3a. 32-bit shift/rotate with count=0: Missing zero-extension (commit 0dcf209)
 
-SDM reference: https://www.felixcloutier.com/x86/sal:sar:shl:shr
+SDM references:
+- https://www.felixcloutier.com/x86/sal:sar:shl:shr
+- https://www.felixcloutier.com/x86/rcl:rcr:rol:ror
 
 **Bug:** `SHL EAX, CL` with CL=0 should still write EAX (zero-extending
 upper 32 bits per x86-64 semantics), but `exec_shift_rm` returned early
 without writing. Fixed to read and write back the value for OS32 even when
 masked count is 0.
 
-**SDM (Operation):** When `(COUNT AND countMASK) = 0`, the pseudocode says
-"All flags unchanged" — but this refers only to flags. The pseudocode does
-NOT explicitly state whether the destination register is written or not
+**Affected instructions:** This inconsistency affects all Group 2
+shift/rotate instructions — SHL, SHR, SAR (SAL), ROL, ROR, RCL, and RCR —
+because they all share the same pseudocode structure where the WHILE loop
+body never executes when the masked count is 0, and DEST is therefore never
+written. Our implementation uses a single generic handler (`exec_shift_rm`)
+for all of these, so the bug manifested identically for all seven
+instructions. We discovered it via SHL, but the same test with SHR, SAR, or
+any rotate would have failed as well.
+
+**SDM (Operation, SAL/SAR/SHL/SHR):** The pseudocode masks the count, then
+enters a `WHILE (tempCOUNT ≠ 0)` loop that writes DEST on each iteration.
+When `(COUNT AND countMASK) = 0`, the loop body never executes, so DEST is
+never written. The only count=0 handling is in the flags section:
+`IF (COUNT AND countMASK) = 0 THEN All flags unchanged`. The pseudocode
+does not explicitly state whether the destination register is written or not
 when count=0.
+
+**SDM (Operation, RCL/RCR/ROL/ROR):** The rotate pseudocode has the same
+structure: a `WHILE (tempCOUNT ≠ 0)` loop that writes DEST on each
+iteration. When the masked count is 0 (after modular reduction for ROL/ROR),
+the loop body never executes and DEST is never written. The "Flags Affected"
+section says: "For RCL and RCR instructions, a zero-bit rotate does nothing,
+i.e., affects no flags. For ROL and ROR instructions, if the masked count is
+0, the flags are not affected." Neither explicitly addresses the destination
+register.
 
 **SDM (Section 3.4.1.1, "General-Purpose Registers in 64-Bit Mode",
 Vol. 1 p. 3-13):** "32-bit operands generate a 32-bit result, zero-extended
@@ -61,21 +84,24 @@ to a 64-bit result in the destination general-purpose register." This is
 stated as an unconditional, general rule for all instructions with 32-bit
 operand size in 64-bit mode.
 
-**SDM (SHL/SHR/SAR pseudocode):** When `(COUNT AND countMASK) = 0`, the
-pseudocode says "All flags unchanged" and does not write DEST. A mechanical
-reading of the pseudocode implies no destination write occurs, and therefore
-no zero-extension.
-
 **Verdict: SDM inconsistency — the pseudocode contradicts the general rule.**
 Section 3.4.1.1 says 32-bit operands always produce a zero-extended result.
-But the shift pseudocode's early-exit path for count=0 never writes DEST,
-so a reader mechanically following the pseudocode would conclude no
-zero-extension happens. Real hardware follows the Section 3.4.1.1 rule:
-`SHL EAX, 0` does write EAX and zero-extends. The whole point of pseudocode
-is to be mechanically followable — it should be self-contained and correct
-without requiring the reader to cross-reference a general rule from a
-different chapter. The shift pseudocode should explicitly write DEST even
-when count=0, or at minimum include a note referencing the 3.4.1.1 rule.
+But the shift and rotate pseudocode's early-exit paths for count=0 never
+write DEST, so a reader mechanically following the pseudocode would conclude
+no zero-extension happens. Real hardware follows the Section 3.4.1.1 rule:
+`SHL EAX, 0`, `SHR EAX, 0`, `ROL EAX, 0`, etc. all write EAX and
+zero-extend. The whole point of pseudocode is to be mechanically followable
+— it should be self-contained and correct without requiring the reader to
+cross-reference a general rule from a different chapter. The shift and
+rotate pseudocode should explicitly write DEST even when count=0, or at
+minimum include a note referencing the 3.4.1.1 rule.
+
+**Recommended fix for SDM:** Add an explicit `DEST := DEST` assignment (or
+equivalent) in the count=0 path for all eight instructions (SAL, SAR, SHL,
+SHR, ROL, ROR, RCL, RCR), so that the 32-bit → 64-bit zero-extension
+behavior specified in Section 3.4.1.1 is correctly triggered by mechanical
+pseudocode execution. Alternatively, add a note in the count=0 path stating
+that the general rule from Section 3.4.1.1 still applies.
 
 ---
 
@@ -628,7 +654,7 @@ the Sail model and were added after KVM testing revealed the gaps:
 |---|-----|-----------|-----------|------------|
 | 1 | SHLD CF wrong bit | Sail model | Yes | No |
 | 2 | INC/DEC CF not preserved | Sail compiler | Yes | No |
-| 3a | SHL r32,0 no zero-extend | Sail model | **Inconsistent** | **Yes — pseudocode contradicts §3.4.1.1** |
+| 3a | SHL/SHR/SAR/rotate r32,0 no zero-extend | Sail model | **Inconsistent** | **Yes — pseudocode contradicts §3.4.1.1** |
 | 3b | SHL/SHR flags for large counts | Sail model | Yes | No |
 | 4 | PMULLW/PMULHW swapped | Sail model | Yes | No |
 | 5 | PHSUBW operand order | Sail model | Yes | No |
@@ -649,16 +675,19 @@ the Sail model and were added after KVM testing revealed the gaps:
 | 20 | VEX.L not checked on 128-bit-only insns | Decoder | Yes | No |
 | 21 | 15-byte instruction length limit not enforced | Decoder | Yes | No |
 
-**One SDM inconsistency found:** Bug 3a reveals that the SHL/SHR/SAR
-pseudocode contradicts the general rule in Section 3.4.1.1 ("General-Purpose
+**One SDM inconsistency found:** Bug 3a reveals that the pseudocode for all
+eight Group 2 shift/rotate instructions (SAL, SAR, SHL, SHR, ROL, ROR, RCL,
+RCR) contradicts the general rule in Section 3.4.1.1 ("General-Purpose
 Registers in 64-Bit Mode", Vol. 1 p. 3-13). Section 3.4.1.1 unconditionally
 states that "32-bit operands generate a 32-bit result, zero-extended to a
-64-bit result in the destination general-purpose register." However, the
-shift pseudocode's early-exit path for count=0 never writes DEST, so a
-reader mechanically following the pseudocode would conclude no zero-extension
-happens. Real hardware follows the Section 3.4.1.1 rule. The pseudocode
-should be self-contained and mechanically correct — it should explicitly
-write DEST even when count=0.
+64-bit result in the destination general-purpose register." However, when the
+masked count is 0, the pseudocode for all these instructions never writes
+DEST (the WHILE loop body is skipped), so a reader mechanically following the
+pseudocode would conclude no zero-extension happens. Real hardware follows
+the Section 3.4.1.1 rule — e.g., `SHL EAX, 0`, `SHR EAX, 0`, `ROL EAX, 0`
+all zero-extend. The pseudocode should be self-contained and mechanically
+correct — it should explicitly write DEST even when count=0, or include a
+note referencing §3.4.1.1.
 
 **One minor SDM clarity gap:** Bug 12 shows that the CVTDQ2PS/CVTSI2SS
 pseudocode does not explicitly reference MXCSR.RC, unlike ADDPS which calls
