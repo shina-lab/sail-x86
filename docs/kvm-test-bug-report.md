@@ -878,12 +878,13 @@ Added 5 tests in "PUSH/POP mem" category:
 - POP qword [rdi] (pop to memory, verify via compare_data_len)
 - PUSH imm16 (0x1234), PUSH imm8 (-1 sign-extended), PUSH imm32 (0x80000000)
 
-#### Item 8: FP conversion edge cases (LOW priority)
+#### Item 8: FP conversion edge cases (LOW priority) ✅ DONE
 
-- CVTPS2PD with denormals, NaN, Inf, -0
-- CVTPD2PS with precision loss (large doubles)
-- CVTSD2SS round-trip precision
-- CVTSI2SS with large integers (rounding)
+Added 9 tests in "FP conv edge" category:
+- CVTPS2PD with denormals, NaN, Inf, negative zero
+- CVTPD2PS with precision loss, CVTSD2SS overflow to Inf
+- CVTSI2SS with large int32 and int64 (rounding behavior)
+- CVTSD2SS + CVTSS2SD round-trip
 
 ---
 

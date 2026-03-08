@@ -153,6 +153,7 @@ set(KVM_CATEGORIES
   "LOCK mem"
   "Indirect JMP"
   "PUSH/POP mem"
+  "FP conv edge"
 )
 
 foreach(cat ${KVM_CATEGORIES})

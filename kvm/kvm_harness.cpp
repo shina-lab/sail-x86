@@ -11068,6 +11068,87 @@ std::vector<TestCase> build_tests() {
   }
 
   // =====================================================================
+  // FP conversion edge cases
+  // =====================================================================
+  cat = "FP conv edge";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp = 0x1) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.mxcsr = 0x1F80;  // default MXCSR
+
+    // CVTPS2PD xmm0, xmm1: 0F 5A C1 (convert 2 floats → 2 doubles)
+    // Denormal float: 0x00000001 = smallest subnormal
+    s.xmm[1] = xmm_from_u32(0x00000001, 0x80000001, 0, 0);  // +denorm, -denorm
+    add_xmm("cvtps2pd denormals", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with NaN: 0x7FC00000 = quiet NaN, 0x7F800001 = signaling NaN
+    s.xmm[1] = xmm_from_u32(0x7FC00000, 0x7F800001, 0, 0);
+    add_xmm("cvtps2pd NaN", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with Inf: 0x7F800000 = +Inf, 0xFF800000 = -Inf
+    s.xmm[1] = xmm_from_u32(0x7F800000, 0xFF800000, 0, 0);
+    add_xmm("cvtps2pd Inf", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with -0: 0x80000000
+    s.xmm[1] = xmm_from_u32(0x80000000, 0x00000000, 0, 0);  // -0, +0
+    add_xmm("cvtps2pd neg zero", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPD2PS xmm0, xmm1: 66 0F 5A C1 (convert 2 doubles → 2 floats)
+    // Large double that loses precision: 1.0 + 2^-24 (just beyond float precision)
+    {
+      double d1 = 1.0 + ldexp(1.0, -24);  // 1.0000000596... rounds to 1.0f
+      double d2 = 1.0e38;                   // large but representable as float
+      u64 b1, b2;
+      memcpy(&b1, &d1, 8);
+      memcpy(&b2, &d2, 8);
+      s.xmm[1] = xmm_from_u64(b1, b2);
+    }
+    add_xmm("cvtpd2ps precision loss", {0x66, 0x0F, 0x5A, 0xC1}, s);
+
+    // CVTSD2SS xmm0, xmm1: F2 0F 5A C1 (convert scalar double → scalar float)
+    // Double that's too large for float: ~3.5e38 → +Inf
+    {
+      double big = 3.5e38;
+      u64 bbig;
+      memcpy(&bbig, &big, 8);
+      s.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      s.xmm[1] = xmm_from_u64(bbig, 0);
+    }
+    add_xmm("cvtsd2ss overflow to inf", {0xF2, 0x0F, 0x5A, 0xC1}, s);
+
+    // CVTSI2SS xmm0, eax: F3 0F 2A C0 (convert int32 → float)
+    // Large integer that can't be exactly represented: 2^24 + 1 = 16777217
+    s.xmm[0] = {};
+    s.rax = 16777217;  // 2^24+1: rounds to 16777216.0f or 16777218.0f
+    add_xmm("cvtsi2ss large int", {0xF3, 0x0F, 0x2A, 0xC0}, s);
+
+    // CVTSI2SS xmm0, rax: F3 48 0F 2A C0 (convert int64 → float)
+    s.rax = (1ULL << 53) + 1;  // just beyond double precision
+    add_xmm("cvtsi2ss int64 rounding", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, s);
+
+    // CVTSD2SS round-trip: double → float → double
+    // Start with a double that's exactly representable as float
+    {
+      float f = 1.5f;
+      double d = (double)f;
+      u64 bd;
+      memcpy(&bd, &d, 8);
+      s.xmm[1] = xmm_from_u64(bd, 0);
+      s.xmm[0] = {};
+    }
+    // CVTSD2SS xmm0, xmm1; CVTSS2SD xmm0, xmm0
+    add_xmm("cvtsd2ss+cvtss2sd round-trip",
+             {0xF2, 0x0F, 0x5A, 0xC1,   // cvtsd2ss xmm0, xmm1
+              0xF3, 0x0F, 0x5A, 0xC0},  // cvtss2sd xmm0, xmm0
+             s);
+  }
+
+  // =====================================================================
   // PUSH/POP memory operands
   // =====================================================================
   cat = "PUSH/POP mem";
