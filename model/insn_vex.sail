@@ -1018,7 +1018,7 @@ function dispatch_vex_0f(opcode, pfx) = {
   // 0F 6E: VMOVD/VMOVQ gpr/mem -> xmm (66 prefix)
   // SDM: VEX.vvvv must be 1111b
   110 => {
-    if mp != MP_66 then {
+    if mp != MP_66 | pfx.vex_l then {
       raise_UD()
     } else if pfx.vex_vvvv != 0 then {
       raise_UD()
@@ -1067,9 +1067,9 @@ function dispatch_vex_0f(opcode, pfx) = {
   },
 
   // 0F 7E: VMOVD/VMOVQ xmm -> gpr/mem (66 prefix) / VMOVQ xmm,xmm/m64 (F3 prefix)
-  // SDM: VEX.vvvv must be 1111b
+  // SDM: VEX.128 only, VEX.vvvv must be 1111b
   126 => {
-    if pfx.vex_vvvv != 0 then {
+    if pfx.vex_vvvv != 0 | pfx.vex_l then {
       raise_UD()
     } else {
     let modrm = fetch_byte();
@@ -1496,9 +1496,9 @@ function dispatch_vex_0f(opcode, pfx) = {
     }
   },
 
-  // 0F C4: VPINSRW xmm, xmm, r32/m16, imm8 (66 prefix)
+  // 0F C4: VPINSRW xmm, xmm, r32/m16, imm8 (66 prefix, VEX.128 only)
   196 => {
-    if mp != MP_66 then {
+    if mp != MP_66 | pfx.vex_l then {
       raise_UD()
     } else {
       let modrm = fetch_byte();
@@ -1520,9 +1520,9 @@ function dispatch_vex_0f(opcode, pfx) = {
     }
   },
 
-  // 0F C5: VPEXTRW r32, xmm, imm8 (66 prefix)
+  // 0F C5: VPEXTRW r32, xmm, imm8 (66 prefix, VEX.128 only)
   197 => {
-    if mp != MP_66 then {
+    if mp != MP_66 | pfx.vex_l then {
       raise_UD()
     } else {
       let modrm = fetch_byte();
@@ -1544,28 +1544,58 @@ function dispatch_vex_0f(opcode, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-    let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
     let imm = fetch_byte();
     let pred : bits(3) = imm[2..0];
     match mp {
       MP_NONE => { // VCMPPS
-        write_xmm(dst, cmp_pred_f32(src1[127..96], src2[127..96], pred) @
-                        cmp_pred_f32(src1[95..64],  src2[95..64],  pred) @
-                        cmp_pred_f32(src1[63..32],  src2[63..32],  pred) @
-                        cmp_pred_f32(src1[31..0],   src2[31..0],   pred));
-        Ok()
+        if pfx.vex_l then {
+          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          write_ymm(dst, cmp_pred_f32(src1[255..224], src2[255..224], pred) @
+                          cmp_pred_f32(src1[223..192], src2[223..192], pred) @
+                          cmp_pred_f32(src1[191..160], src2[191..160], pred) @
+                          cmp_pred_f32(src1[159..128], src2[159..128], pred) @
+                          cmp_pred_f32(src1[127..96],  src2[127..96],  pred) @
+                          cmp_pred_f32(src1[95..64],   src2[95..64],   pred) @
+                          cmp_pred_f32(src1[63..32],   src2[63..32],   pred) @
+                          cmp_pred_f32(src1[31..0],    src2[31..0],    pred));
+          Ok()
+        } else {
+          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          write_xmm(dst, cmp_pred_f32(src1[127..96], src2[127..96], pred) @
+                          cmp_pred_f32(src1[95..64],  src2[95..64],  pred) @
+                          cmp_pred_f32(src1[63..32],  src2[63..32],  pred) @
+                          cmp_pred_f32(src1[31..0],   src2[31..0],   pred));
+          Ok()
+        }
       },
       MP_66 => { // VCMPPD
-        write_xmm(dst, cmp_pred_f64(src1[127..64], src2[127..64], pred) @
-                        cmp_pred_f64(src1[63..0],   src2[63..0],   pred));
-        Ok()
+        if pfx.vex_l then {
+          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          write_ymm(dst, cmp_pred_f64(src1[255..192], src2[255..192], pred) @
+                          cmp_pred_f64(src1[191..128], src2[191..128], pred) @
+                          cmp_pred_f64(src1[127..64],  src2[127..64],  pred) @
+                          cmp_pred_f64(src1[63..0],    src2[63..0],    pred));
+          Ok()
+        } else {
+          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          write_xmm(dst, cmp_pred_f64(src1[127..64], src2[127..64], pred) @
+                          cmp_pred_f64(src1[63..0],   src2[63..0],   pred));
+          Ok()
+        }
       },
-      MP_F3 => { // VCMPSS
+      MP_F3 => { // VCMPSS (scalar, VEX.L ignored)
+        let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+        let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
         write_xmm(dst, src1[127..32] @ cmp_pred_f32(src1[31..0], src2[31..0], pred));
         Ok()
       },
-      MP_F2 => { // VCMPSD
+      MP_F2 => { // VCMPSD (scalar, VEX.L ignored)
+        let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+        let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
         write_xmm(dst, src1[127..64] @ cmp_pred_f64(src1[63..0], src2[63..0], pred));
         Ok()
       },
@@ -1577,8 +1607,6 @@ function dispatch_vex_0f(opcode, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-    let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
     let imm = fetch_byte();
     match mp {
       MP_NONE => { // VSHUFPS
@@ -1586,24 +1614,64 @@ function dispatch_vex_0f(opcode, pfx) = {
         let s1 : range(0, 3) = unsigned(imm[3..2]);
         let s2 : range(0, 3) = unsigned(imm[5..4]);
         let s3 : range(0, 3) = unsigned(imm[7..6]);
-        var r0 : dword = zeros();
-        var r1 : dword = zeros();
-        var r2 : dword = zeros();
-        var r3 : dword = zeros();
-        foreach (i from 0 to 3) {
-          if i == s0 then r0 = src1[(32*i+31) .. (32*i)];
-          if i == s1 then r1 = src1[(32*i+31) .. (32*i)];
-          if i == s2 then r2 = src2[(32*i+31) .. (32*i)];
-          if i == s3 then r3 = src2[(32*i+31) .. (32*i)];
-        };
-        write_xmm(dst, r3 @ r2 @ r1 @ r0);
-        Ok()
+        if pfx.vex_l then {
+          // 256-bit: two independent 128-bit lane shuffles, same imm8
+          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          // Low lane: select from src1[127..0] and src2[127..0]
+          var r0 : dword = zeros(); var r1 : dword = zeros();
+          var r2 : dword = zeros(); var r3 : dword = zeros();
+          foreach (i from 0 to 3) {
+            if i == s0 then r0 = src1[(32*i+31) .. (32*i)];
+            if i == s1 then r1 = src1[(32*i+31) .. (32*i)];
+            if i == s2 then r2 = src2[(32*i+31) .. (32*i)];
+            if i == s3 then r3 = src2[(32*i+31) .. (32*i)];
+          };
+          // High lane: select from src1[255..128] and src2[255..128]
+          var r4 : dword = zeros(); var r5 : dword = zeros();
+          var r6 : dword = zeros(); var r7 : dword = zeros();
+          foreach (i from 0 to 3) {
+            if i == s0 then r4 = src1[(32*i+159) .. (32*i+128)];
+            if i == s1 then r5 = src1[(32*i+159) .. (32*i+128)];
+            if i == s2 then r6 = src2[(32*i+159) .. (32*i+128)];
+            if i == s3 then r7 = src2[(32*i+159) .. (32*i+128)];
+          };
+          write_ymm(dst, r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0);
+          Ok()
+        } else {
+          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          var r0 : dword = zeros(); var r1 : dword = zeros();
+          var r2 : dword = zeros(); var r3 : dword = zeros();
+          foreach (i from 0 to 3) {
+            if i == s0 then r0 = src1[(32*i+31) .. (32*i)];
+            if i == s1 then r1 = src1[(32*i+31) .. (32*i)];
+            if i == s2 then r2 = src2[(32*i+31) .. (32*i)];
+            if i == s3 then r3 = src2[(32*i+31) .. (32*i)];
+          };
+          write_xmm(dst, r3 @ r2 @ r1 @ r0);
+          Ok()
+        }
       },
       MP_66 => { // VSHUFPD
-        let r0 : qword = if imm[0] == bitone then src1[127..64] else src1[63..0];
-        let r1 : qword = if imm[1] == bitone then src2[127..64] else src2[63..0];
-        write_xmm(dst, r1 @ r0);
-        Ok()
+        if pfx.vex_l then {
+          // 256-bit: 4 qwords, each selected by one imm8 bit
+          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          let r0 : qword = if imm[0] == bitone then src1[127..64] else src1[63..0];
+          let r1 : qword = if imm[1] == bitone then src2[127..64] else src2[63..0];
+          let r2 : qword = if imm[2] == bitone then src1[255..192] else src1[191..128];
+          let r3 : qword = if imm[3] == bitone then src2[255..192] else src2[191..128];
+          write_ymm(dst, r3 @ r2 @ r1 @ r0);
+          Ok()
+        } else {
+          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          let r0 : qword = if imm[0] == bitone then src1[127..64] else src1[63..0];
+          let r1 : qword = if imm[1] == bitone then src2[127..64] else src2[63..0];
+          write_xmm(dst, r1 @ r0);
+          Ok()
+        }
       },
       _ => raise_UD(),
     }

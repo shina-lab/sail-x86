@@ -5660,6 +5660,29 @@ std::vector<TestCase> build_tests() {
     }
   }
 
+  // --- 256-bit VCMPPS/VCMPPD ---
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
+    // VCMPPS ymm0,ymm1,ymm2,0 (EQ): C5 F4 C2 C2 00
+    add_xmm("vcmpps ymm eq", {0xC5, 0xF4, 0xC2, 0xC2, 0x00}, s, 0x7);
+    // VCMPPS ymm0,ymm1,ymm2,1 (LT): C5 F4 C2 C2 01
+    add_xmm("vcmpps ymm lt", {0xC5, 0xF4, 0xC2, 0xC2, 0x01}, s, 0x7);
+    // VCMPPS ymm0,ymm1,ymm2,6 (NLE): C5 F4 C2 C2 06
+    add_xmm("vcmpps ymm nle", {0xC5, 0xF4, 0xC2, 0xC2, 0x06}, s, 0x7);
+  }
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(1.5, 3.0);
+    // VCMPPD ymm0,ymm1,ymm2,0 (EQ): C5 F5 C2 C2 00
+    add_xmm("vcmppd ymm eq", {0xC5, 0xF5, 0xC2, 0xC2, 0x00}, s, 0x7);
+    add_xmm("vcmppd ymm lt", {0xC5, 0xF5, 0xC2, 0xC2, 0x01}, s, 0x7);
+  }
+
   // --- H. VEX conversion edge cases ---
   {
     const u32 POS_INF  = 0x7F800000;
@@ -8546,6 +8569,45 @@ std::vector<TestCase> build_tests() {
     s.rax = 42;
     add_fault("lock push rax (non-lockable → #UD)", {0xF0, 0x50}, s, 6);
   }
+
+  // ---- VEX.L=1 on 128-bit-only instructions → #UD ----
+  // VEX 2-byte prefix byte2: R̃ vvvv L pp
+  // L=0: F8(NP), F9(66), FA(F3), FB(F2)
+  // L=1: FC(NP), FD(66), FE(F3), FF(F2)
+  {
+    // VPINSRW xmm0,xmm0,ecx,0 with VEX.L=1: C5 FD C4 C1 00
+    // Normal (L=0): C5 F9 C4 C1 00
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rcx = 0x1234;
+    add_fault("vpinsrw L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0xC4, 0xC1, 0x00}, s, 6);
+  }
+  {
+    // VPEXTRW eax,xmm1,0 with VEX.L=1: C5 FD C5 C1 00
+    // Normal (L=0): C5 F9 C5 C1 00
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0011223344556677, 0x8899AABBCCDDEEFF);
+    add_fault("vpextrw L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0xC5, 0xC1, 0x00}, s, 6);
+  }
+  {
+    // VMOVD xmm0,ecx with VEX.L=1: C5 FD 6E C1
+    // Normal (L=0): C5 F9 6E C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rcx = 0x12345678;
+    add_fault("vmovd xmm,r32 L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0x6E, 0xC1}, s, 6);
+  }
+  {
+    // VMOVD ecx,xmm0 with VEX.L=1: C5 FD 7E C1
+    // Normal (L=0): C5 F9 7E C1
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x12345678, 0);
+    add_fault("vmovd r32,xmm L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0x7E, 0xC1}, s, 6);
+  }
+  // NOTE: Scalar instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
+  // do NOT #UD with VEX.L=1 on real hardware — the L bit is ignored.
 
   return tests;
 }

@@ -60,6 +60,9 @@ set(KVM_CATEGORIES
   MOVBE
   "String ops"
   "SSE4.2 str"
+  "Exception #DE"
+  "Exception #UD"
+  "Exception #GP"
 )
 
 foreach(cat ${KVM_CATEGORIES})

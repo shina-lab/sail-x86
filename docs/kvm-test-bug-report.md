@@ -617,6 +617,9 @@ fault-expecting tests. Changes made:
 - LOCK on 2-byte lockable instructions (CMPXCHG, XADD, BTS, BTR, BTC):
   missing register-vs-memory check → added `check_lock_rm` calls
 - Group 8 (0F BA): BT (/4) incorrectly allowed with LOCK → added #UD
+- VEX.L=1 on VPINSRW, VPEXTRW, VMOVD/VMOVQ: missing VEX.L check → added #UD
+- VCMPPS/VCMPPD 256-bit: not implemented → added 256-bit paths
+- VSHUFPS/VSHUFPD 256-bit: not implemented → added 256-bit paths
 - avx_test `_start`: missing `force_align_arg_pointer` attribute
 
 **Known gaps:**
@@ -719,7 +722,7 @@ Triggered by DIV/IDIV when the divisor is zero or the quotient overflows.
 SDM: "#DE — If the source operand (divisor) is 0. If the quotient is too
 large for the designated register."
 
-#### 3. Invalid Opcode (#UD, vector 6) — DONE (15 tests)
+#### 3. Invalid Opcode (#UD, vector 6) — DONE (19 tests)
 
 Triggered by undefined or invalid instruction encodings.
 
@@ -727,7 +730,7 @@ Triggered by undefined or invalid instruction encodings.
 |-----------|-------|--------|
 | `UD2` (`0F 0B`) | Explicit undefined instruction | DONE |
 | `UD1` (`0F B9`) | Explicit undefined instruction | DONE |
-| Invalid VEX prefix combinations | e.g., VEX.L=1 for 128-bit-only instructions | TODO |
+| VEX.L=1 on 128-bit-only instructions | VPINSRW, VPEXTRW, VMOVD (both dirs) | DONE |
 | LOCK prefix on non-lockable instruction | e.g., `LOCK MOV`, `LOCK NOP`, `LOCK PUSH` | DONE |
 | LOCK with register dest on lockable op | e.g., `LOCK ADD RAX, RBX` | DONE |
 | LOCK CMP with memory dest | CMP doesn't write, LOCK invalid | DONE |
@@ -736,6 +739,9 @@ Triggered by undefined or invalid instruction encodings.
 | LOCK INC/NEG with reg dest | Group 4/5 and Group 3 | DONE |
 | LOCK MUL/DIV | Not lockable even within Group 3 | DONE |
 | SSE instruction with mismatched prefix | | TODO |
+
+Note: Scalar VEX instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
+do NOT #UD with VEX.L=1 on real hardware — the L bit is silently ignored.
 
 #### 4. Alignment Check (#AC, vector 17)
 
@@ -806,9 +812,8 @@ Triggered when SSE/AVX instructions encounter unmasked SIMD exceptions.
    quotient overflow unsigned/signed all sizes, IDIV MIN/-1 overflow)
 2. **#PF (page fault)** — Requires page table modification + Sail memory
    system changes. Essential for the munmap/SIGSEGV emulator changes.
-3. **#UD (invalid opcode)** — DONE (15 tests: UD2, UD1, LOCK on reg dest,
-   LOCK on non-lockable 1-byte/2-byte, LOCK CMP, LOCK on Group 3/4/5
-   with reg dest, LOCK MUL/DIV)
+3. **#UD (invalid opcode)** — DONE (19 tests: UD2, UD1, LOCK violations,
+   VEX.L=1 on 128-bit-only instructions)
 4. **#GP (alignment)** — DONE (12 tests; alignment checks added to
    MOVAPS/MOVAPD/VMOVAPS/VMOVAPD load and store, 128-bit and 256-bit)
 5. **#MF/#XM (FP exceptions)** — BLOCKED. The Sail model does not check
