@@ -174,12 +174,15 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 static bool f32_nan_prop(u64 a, u64 b, u64 *out) {
   u32 ua = (u32)a;
   u32 ub = (u32)b;
-  bool a_nan = __builtin_isnan(*(float*)&ua);
-  bool b_nan = __builtin_isnan(*(float*)&ub);
+  float fa;
+  float fb;
+  memcpy(&fa, &ua, 4);
+  memcpy(&fb, &ub, 4);
+  bool a_nan = __builtin_isnan(fa);
+  bool b_nan = __builtin_isnan(fb);
   if (!a_nan && !b_nan)
     return false;
-  u32 r = a_nan ? (ua | 0x00400000) : (ub | 0x00400000);  // quiet the NaN
-  *out = r;
+  *out = a_nan ? (ua | 0x00400000) : (ub | 0x00400000);
   return true;
 }
 
