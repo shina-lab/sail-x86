@@ -1,24 +1,28 @@
 # sail-x86
 
-A formal specification of the x86-64 instruction set written in
-[Sail](https://github.com/rems-project/sail), based on the behavior
-described in the
+This repo contains a comprehensive formal specification of the x86-64
+instruction set written in the
+[Sail](https://github.com/rems-project/sail) ISA specification
+language, based on the
 [Intel Software Developer's Manual](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
-(SDM). Includes a user-mode Linux emulator that runs x86-64 ELF
-binaries by interpreting each instruction through the Sail model.
-
-The specification aims to faithfully capture the documented instruction
-semantics, including preserving undefined behavior where the manual
-says results are undefined (e.g., flags after certain shift counts).
+(SDM) and actual hardware behavior. Our goal is to provide an
+authoritative, machine-readable formalization of x86-64 for researchers
+and practitioners who need to formally verify software or hardware
+targeting the architecture.
 
 ## Status
 
 The specification covers the general-purpose, SSE, SSE2, SSE3, SSSE3,
-SSE4.1, SSE4.2, AES-NI, AVX/AVX2 (128-bit and 256-bit VEX-encoded),
-and x87 FPU instruction sets — enough to run real-world programs
-including coreutils, Python, and Clang through the emulator. AVX-512,
-EVEX-encoded instructions, and system-level instructions (VMX, SGX,
-etc.) are defined as stubs that raise #UD.
+SSE4.1, SSE4.2, AES-NI, AVX/AVX2, AVX-512/EVEX, and x87 FPU
+instruction sets. Virtualization (VMX) and enclave (SGX) instructions
+are not yet implemented.
+
+The Sail model can be compiled to C++ using the Sail compiler and serves
+as the CPU core in two emulators: a user-mode emulator that runs real
+Linux x86-64 binaries (coreutils, Python, Clang), and a system-level
+emulator that boots the Linux kernel to an interactive shell. The
+emulators provide the scaffolding not covered by the ISA specification
+itself — memory, peripherals, syscall emulation.
 
 ## Building
 
@@ -35,7 +39,7 @@ cmake ..
 make -j$(nproc)
 ```
 
-## Running
+## User-mode emulator
 
 ```
 ./build/usermode-emu/sail_x86_sim <elf-binary> [args...]
@@ -54,23 +58,47 @@ hello
 
 Pass `-d` for a debug trace of each instruction.
 
+## System emulator (Linux boot)
+
+The system emulator loads an uncompressed vmlinux ELF directly and
+boots Linux with an initramfs to an interactive serial console.
+
+To download the Linux kernel source, build it with a minimal
+configuration, build a BusyBox initramfs, and print the boot command:
+
+```
+cd build
+make linux
+```
+
+This requires `curl`, `busybox-static`, and `fakeroot` in addition to
+the standard kernel build tools. The kernel source is downloaded
+automatically.
+
+To run the emulator manually:
+
+```
+./build/system-emu/sail_x86_system -i initramfs.cpio.gz vmlinux
+```
+
 ## Testing
 
 ```
-cd build && ctest
+cd build && ctest -j$(nproc) --output-on-failure
 ```
 
 ## Project structure
 
-- `model/` — Sail specification (~400 files)
-  - `core/` — types, registers, memory, flags, floating-point externals
-  - `decode/` — instruction decoder (prefix, ModR/M, opcode maps)
-  - `instructions/` — per-instruction semantics
-  - `prelude/` — Sail prelude
+- `model/` — Sail specification (~40 files)
+  - Instruction decoder (prefix, ModR/M, opcode maps)
+  - Per-instruction semantics (ALU, SSE, AVX, x87, system)
+  - Types, registers, memory, flags, floating-point externals
 - `usermode-emu/` — user-mode Linux emulator in C++
-  - `x86_sim.cpp` — main entry point and execution loop
-  - `x86_elf.cpp` — ELF loader (static and dynamic)
-  - `x86_syscall.cpp` — Linux syscall emulation
-  - `x86_externals.cpp` — external function implementations (FP, x87, SSE4.2, AES-NI, FXSAVE/FXRSTOR)
-  - `x86_platform_base.h` — platform state (x87 FPU, MXCSR)
+  - ELF loader, Linux syscall emulation, execution loop
+- `system-emu/` — system-level emulator in C++
+  - Physical memory, device emulation (UART, PIT, PIC)
+  - Paging, interrupt/exception delivery
+  - Scripts to build a minimal Linux kernel and initramfs
+- `emu-shared/` — code shared between both emulators
+- `kvm/` — KVM-based differential tests against real hardware
 - `test/` — test programs

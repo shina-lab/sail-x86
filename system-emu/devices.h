@@ -147,8 +147,7 @@ public:
   u8 read(u16 port) {
     if (port == base) {
       // Read IRR or ISR depending on OCW3
-      if (read_isr) return isr;
-      return irr;
+      return read_isr ? isr : irr;
     } else {
       // IMR
       return imr;
@@ -163,7 +162,8 @@ public:
         icw4_needed = (val & 0x01) != 0;
       } else if (val & 0x08) {
         // OCW3
-        if (val & 0x02) read_isr = (val & 0x01) != 0;
+        if (val & 0x02)
+          read_isr = (val & 0x01) != 0;
       } else {
         // OCW2
         if ((val & 0xE0) == 0x20) {
@@ -291,7 +291,8 @@ public:
     if (port == 0x43) {
       // Mode/command register
       int ch = (val >> 6) & 0x03;
-      if (ch == 3) return; // Read-back (ignore for now)
+      if (ch == 3)
+        return; // Read-back (ignore for now)
 
       int rw = (val >> 4) & 0x03;
       if (rw == 0) {
@@ -332,8 +333,10 @@ public:
     bool irq = false;
     for (int ch = 0; ch < 3; ch++) {
       Channel &c = channels[ch];
-      if (!c.gate && ch == 2) continue; // Channel 2 needs gate enabled
-      if (c.reload == 0 && c.count == 0) continue;
+      if (!c.gate && ch == 2)
+        continue; // Channel 2 needs gate enabled
+      if (c.reload == 0 && c.count == 0)
+        continue;
 
       for (u64 i = 0; i < cycles; i++) {
         if (c.count > 0) c.count--;
@@ -359,7 +362,8 @@ public:
   // Read port 0x61: bit 0 = ch2 gate, bit 5 = ch2 output
   u8 read_port_b() {
     u8 val = port_b & 0x03; // Preserve gate/speaker bits
-    if (channels[2].output) val |= 0x20; // Bit 5 = timer 2 output
+    if (channels[2].output)
+      val |= 0x20; // Bit 5 = timer 2 output
     return val;
   }
 
@@ -372,7 +376,8 @@ public:
     // Rising edge on gate reloads count and clears output (mode 0)
     if (!old_gate && new_gate) {
       channels[2].count = channels[2].reload;
-      if (channels[2].count == 0) channels[2].count = 65536;
+      if (channels[2].count == 0)
+        channels[2].count = 65536;
       channels[2].output = false;
     }
   }
@@ -469,9 +474,8 @@ public:
   }
 
   void write(u16 port, u8 val) {
-    if (port == 0x70) {
+    if (port == 0x70)
       index = val & 0x7F;  // Bit 7 is NMI mask
-    }
     // Ignore writes to 0x71
   }
 
