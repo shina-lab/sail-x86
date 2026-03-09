@@ -598,18 +598,18 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPMOVUSDB/USDW/USQB/USQD/USQW/USWB (unsigned saturation truncate) — verified: implemented in insn_evex_arith.sail
 - [x] VPMOVB2M/W2M/D2M/Q2M (MSB to mask) — verified: all 4 variants in insn_evex_arith.sail
 - [x] VPMOVM2B/W/D/Q (mask to vector) — verified: all 4 variants in insn_evex_arith.sail
-- [x] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA) — verified: insn_evex_fma.sail, 0F38 B4/B5
-- [x] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI) — verified: insn_evex_arith.sail, 0F38 83
-- [x] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ) — verified: insn_evex_arith.sail, 0F38 54/55
-- [x] VPLZCNTD/Q (per-element leading zero count, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 44
-- [x] VPCONFLICTD/Q (conflict detection, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 C4
-- [x] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product) — verified: all 4 variants in insn_evex_arith.sail
+- [x] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA) — verified: insn_evex_fma.sail, 0F38 B4/B5 + 4 KVM tests
+- [x] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI) — verified: insn_evex_arith.sail, 0F38 83 + 2 KVM tests
+- [x] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ) — verified: insn_evex_arith.sail, 0F38 54/55 + 2 KVM tests
+- [x] VPLZCNTD/Q (per-element leading zero count, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 44 + 2 KVM tests
+- [x] VPCONFLICTD/Q (conflict detection, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 C4 + 3 KVM tests
+- [x] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product) — verified: all 4 variants in insn_evex_arith.sail + 5 KVM tests
 - [ ] VP2INTERSECTD/Q (AVX-512VP2INTERSECT)
 - [ ] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW)
 - [ ] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS)
-- [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified: immediate in insn_evex_imm.sail, variable in insn_evex_arith.sail
-- [x] VPSHRDW/D/Q, VPSHRDVW/D/Q (concatenate and shift right, AVX-512VBMI2) — verified: immediate in insn_evex_imm.sail, variable in insn_evex_arith.sail
-- [x] VDBPSADBW (double-block packed SAD, AVX-512BW) — verified: insn_evex_imm.sail, 0F3A 42
+- [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
+- [x] VPSHRDW/D/Q, VPSHRDVW/D/Q (concatenate and shift right, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
+- [x] VDBPSADBW (double-block packed SAD, AVX-512BW) — verified and fixed: insn_evex_imm.sail, 0F3A 42 + 2 KVM tests (algorithm rewritten to match SDM: dword selection + sliding window SAD)
 
 ### 1.16 AVX-512 FP16 (EVEX-encoded, float16)
 
