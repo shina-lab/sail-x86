@@ -2915,4 +2915,81 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // EVEX FMA rounding — VFMADD213PS with {er}
+  // =====================================================================
+  cat = "EVEX FMA rounding";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VFMADD213PS zmm0, zmm1, zmm2: result = zmm1 * zmm0 + zmm2
+    // EVEX.NDS.512.66.0F38.W0 A8 /r
+    //   P0: R̄=1,X̄=1,B̄=1,R'̄=1,0,mmm=010 → 0xF2
+    //   P1: W=0,~vvvv=1110(zmm1),1,pp=01(66) → 0x75
+    //   ModRM: mod=11, reg=000(zmm0), rm=010(zmm2) → 0xC2
+    //
+    // src2(zmm1) = 1.0f, dst(zmm0) = 1.0f, src3(zmm2) = 2^-24 (eps)
+    // FMA: 1.0 * 1.0 + eps = 1.0 + eps (inexact in f32)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float one = 1.0f;
+      float eps = 5.960464477539063e-08f; // 2^-24
+      u32 one_bits, eps_bits;
+      memcpy(&one_bits, &one, 4);
+      memcpy(&eps_bits, &eps, 4);
+      s.xmm[0] = xmm_from_u32(one_bits, one_bits, one_bits, one_bits);
+      s.xmm[1] = xmm_from_u32(one_bits, one_bits, one_bits, one_bits);
+      s.xmm[2] = xmm_from_u32(eps_bits, eps_bits, eps_bits, eps_bits);
+
+      // {rn-sae}: 1+eps → 1.0 (round nearest, ties to even)
+      // P2: LL=00, b=1 → 0x18
+      add_xmm("evex vfmadd213ps {rn-sae}",
+        {0x62, 0xF2, 0x75, 0x18, 0xA8, 0xC2}, s, 0x7);
+
+      // {ru-sae}: 1+eps → nextafter(1.0f) = 1.0000001192...
+      // P2: LL=10, b=1 → 0x58
+      add_xmm("evex vfmadd213ps {ru-sae}",
+        {0x62, 0xF2, 0x75, 0x58, 0xA8, 0xC2}, s, 0x7);
+
+      // {rz-sae}: 1+eps → 1.0 (truncate toward zero)
+      // P2: LL=11, b=1 → 0x78
+      add_xmm("evex vfmadd213ps {rz-sae}",
+        {0x62, 0xF2, 0x75, 0x78, 0xA8, 0xC2}, s, 0x7);
+
+      // {rd-sae}: 1+eps → 1.0 (round down)
+      // P2: LL=01, b=1 → 0x38
+      add_xmm("evex vfmadd213ps {rd-sae}",
+        {0x62, 0xF2, 0x75, 0x38, 0xA8, 0xC2}, s, 0x7);
+    }
+
+    // VFMADD213SS xmm0, xmm1, xmm2: scalar result = xmm1[0] * xmm0[0] + xmm2[0]
+    // EVEX.NDS.LIG.66.0F38.W0 A9 /r
+    //   P0: 0xF2, P1: 0x75, ModRM: 0xC2
+    // Same setup as above but scalar — upper bits preserved from xmm1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float one = 1.0f;
+      float eps = 5.960464477539063e-08f;
+      u32 one_bits, eps_bits;
+      memcpy(&one_bits, &one, 4);
+      memcpy(&eps_bits, &eps, 4);
+      s.xmm[0] = xmm_from_u32(0xDEAD0001, 0xDEAD0002, 0xDEAD0003, one_bits);
+      s.xmm[1] = xmm_from_u32(0xCAFE0001, 0xCAFE0002, 0xCAFE0003, one_bits);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, eps_bits);
+
+      // {ru-sae}: scalar FMA → nextafter(1.0f); upper preserved from xmm1
+      add_xmm("evex vfmadd213ss {ru-sae}",
+        {0x62, 0xF2, 0x75, 0x58, 0xA9, 0xC2}, s, 0x7);
+
+      // {rz-sae}: scalar FMA → 1.0f; upper preserved from xmm1
+      add_xmm("evex vfmadd213ss {rz-sae}",
+        {0x62, 0xF2, 0x75, 0x78, 0xA9, 0xC2}, s, 0x7);
+    }
+  }
 }

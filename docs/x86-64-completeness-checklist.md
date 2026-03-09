@@ -485,7 +485,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] EVEX.z (zeroing vs merging masking) — verified: P2[7], stored directly
 - [x] EVEX.b (broadcast, rounding override, SAE) — verified: P2[4], stored directly
 - [x] EVEX.L'L (vector length: 128/256/512) — verified: P2[6:5], stored directly
-- [x] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae} — implemented via evex_begin_rc/evex_end_rc: overrides MXCSR RC when EVEX.b=1 for reg-reg, forces 512-bit vector length; applied to VADDPS/PD, VSUBPS/PD, VMULPS/PD, VDIVPS/PD, VSQRTPS/PD, VCVTPS2DQ, VCVTDQ2PS, VCVTQQ2PS + 12 KVM tests
+- [x] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae} — implemented via evex_begin_rc/evex_end_rc: overrides MXCSR RC when EVEX.b=1 for reg-reg, forces 512-bit vector length; applied to all EVEX FP arithmetic (VADD/SUB/MUL/DIV/SQRT PS/PD), all FMA (VFMADD/VFMSUB/VFNMADD/VFNMSUB 132/213/231 PS/PD/SS/SD), VFMADDSUB/VFMSUBADD, VSCALEF PS/PD/SS/SD, VGETEXP PS/PD/SS/SD, VCVTPS2DQ, VCVTDQ2PS, VCVTQQ2PS + 18 KVM tests
 - [x] Suppress-all-exceptions (SAE) — implied by embedded rounding control (EVEX.b=1 for reg-reg); sequential model does not generate FP exceptions, so SAE has no behavioral effect
 - [x] Memory broadcast (1-to-4, 1-to-8, 1-to-16) — verified: broadcast_f32/f64/byte functions in insn_evex.sail
 
