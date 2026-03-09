@@ -487,7 +487,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] EVEX.L'L (vector length: 128/256/512) — verified: P2[6:5], stored directly
 - [x] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae} — implemented via evex_begin_rc/evex_end_rc: overrides MXCSR RC when EVEX.b=1 for reg-reg, forces 512-bit vector length; applied to all EVEX FP arithmetic, all FMA, VSCALEF, VGETEXP, and all EVEX conversion instructions (VCVTPS2DQ/UDQ/QQ, VCVTPD2DQ/UDQ/QQ, VCVTDQ2PS, VCVTQQ2PS/PD, VCVTUDQ2PS/PD, VCVTUQQ2PS/PD, VCVTPS2PD, VCVTPD2PS, VCVTSI2SS/SD, VCVTSS2SI/SD, VCVTUSI2SS/SD, VCVTSS2USI, VCVTSD2USI) + 22 KVM tests
 - [x] Suppress-all-exceptions (SAE) — implied by embedded rounding control (EVEX.b=1 for reg-reg); sequential model does not generate FP exceptions, so SAE has no behavioral effect
-- [x] Memory broadcast (1-to-4, 1-to-8, 1-to-16) — verified: broadcast_f32/f64/byte functions in insn_evex.sail
+- [x] Memory broadcast (1-to-4, 1-to-8, 1-to-16) — verified: evex_bcast_src_f32/f64_{zmm,ymm,xmm} helpers in insn_evex.sail; applied to all packed FP (VADD/SUB/MUL/DIV/MIN/MAX/SQRT/CMP/SHUF/UNPCK), FMA (VSCALEF, VGETEXP, VRCP14, VRSQRT14), and core integer (VPADD/SUB D/Q, VPXOR/AND/OR/ANDN D/Q) at all vector lengths (128/256/512) + 11 KVM tests
 
 #### 1.15.2 Opmask (k0-k7) Instructions
 - [x] KMOVW/B/D/Q (move mask) — verified: W forms implemented (0F 90/91/92/93) + KVM tests
