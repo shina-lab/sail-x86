@@ -539,9 +539,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4 (broadcast scalar/lane) — verified: all forms in insn_evex_perm.sail (0F38 18/19/1A/1B)
 - [ ] VMOVSH, VMOVW (AVX-512FP16)
-- [x] VCOMPRESSPD/PS (compress packed float) — verified: insn_evex_perm.sail + 3 KVM tests; memory store form not yet implemented (register-only)
+- [x] VCOMPRESSPD/PS (compress packed float) — verified: insn_evex_perm.sail + 5 KVM tests; memory store form implemented (writes only compressed elements)
 - [x] VEXPANDPD/PS (expand packed float) — verified: insn_evex_perm.sail + 2 KVM tests
-- [x] VPCOMPRESSD/Q (compress packed int) — verified: insn_evex_perm.sail; memory store form not yet implemented (register-only)
+- [x] VPCOMPRESSD/Q (compress packed int) — verified: insn_evex_perm.sail + 1 KVM test; memory store form implemented
 - [x] VPEXPANDD/Q (expand packed int) — verified: insn_evex_perm.sail
 
 #### 1.15.7 AVX-512F Permute/Shuffle

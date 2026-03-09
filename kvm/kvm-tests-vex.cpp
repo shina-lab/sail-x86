@@ -5099,6 +5099,69 @@ void add_vex_tests(std::vector<TestCase> &tests) {
              0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
              0x62, 0xF2, 0x7D, 0x09, 0x88, 0xC1},  // VEXPANDPS xmm0{k1}, xmm1
             s, 0x3);
+
+    // VCOMPRESSPS [rdi]{k1}, xmm1: memory store form, writes only compressed elements
+    // EVEX.128.66.0F38.W0 8A /r: reg=xmm1(src), rm=[rdi](dst)
+    // modrm: mod=00, reg=001, rm=111 → 0x0F
+    // k1=0b0101 → elements 0,2 written contiguously (8 bytes total)
+    // xmm1 = {0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD}
+    // Expected memory: 0xAAAAAAAA, 0xCCCCCCCC at [rdi]
+    {
+      ArchState ms = {};
+      ms.rflags = 0x2;
+      ms.xmm[1] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      ms.rdi = DATA_ADDR;
+      TestCase tc;
+      tc.name = "vcompressps mem: k1=0101b";
+      tc.category = cat;
+      tc.code = {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+                 0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+                 0x62, 0xF2, 0x7D, 0x09, 0x8A, 0x0F};  // VCOMPRESSPS [rdi]{k1}, xmm1
+      tc.initial = ms;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(16, 0xFF);  // fill with 0xFF to detect partial writes
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VCOMPRESSPS [rdi], xmm1: no mask, writes all 4 elements (16 bytes)
+    {
+      ArchState ms = {};
+      ms.rflags = 0x2;
+      ms.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      ms.rdi = DATA_ADDR;
+      TestCase tc;
+      tc.name = "vcompressps mem: no mask";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x08, 0x8A, 0x0F};  // VCOMPRESSPS [rdi], xmm1
+      tc.initial = ms;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(16, 0);
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCOMPRESSD [rdi]{k1}, xmm1: integer dword compress to memory
+    // EVEX.128.66.0F38.W0 8B /r: reg=xmm1(src), rm=[rdi](dst)
+    // modrm: mod=00, reg=001, rm=111 → 0x0F
+    // k1=0b1010 → elements 1,3 written contiguously
+    {
+      ArchState ms = {};
+      ms.rflags = 0x2;
+      ms.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      ms.rdi = DATA_ADDR;
+      TestCase tc;
+      tc.name = "vpcompressd mem: k1=1010b";
+      tc.category = cat;
+      tc.code = {0xB8, 0x0A, 0x00, 0x00, 0x00,        // MOV eax, 0xA
+                 0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+                 0x62, 0xF2, 0x7D, 0x09, 0x8B, 0x0F};  // VPCOMPRESSD [rdi]{k1}, xmm1
+      tc.initial = ms;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(16, 0xFF);
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
   }
 
   // =====================================================================

@@ -647,6 +647,80 @@ function avx_vcompresspd_512(src, mask) = {
 // VPEXPANDD/Q and VPCOMPRESSD/Q use the same logic as the FP variants
 // (dword elements = same as PS, qword elements = same as PD)
 
+// Memory store forms: write only the compressed (contiguous) elements.
+// We extract dword/qword elements by shifting right and truncating.
+val avx_vcompress_dword_mem_512 : (qword, zmmword, word) -> unit
+function avx_vcompress_dword_mem_512(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 15) {
+    if mask[i] == bitone then {
+      let elem : dword = truncate(src >> (i * 32), 32);
+      mem_write32(addr + off, elem);
+      off = off + 4;
+    };
+  };
+}
+
+val avx_vcompress_dword_mem_256 : (qword, ymmword, byte) -> unit
+function avx_vcompress_dword_mem_256(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 7) {
+    if mask[i] == bitone then {
+      let elem : dword = truncate(src >> (i * 32), 32);
+      mem_write32(addr + off, elem);
+      off = off + 4;
+    };
+  };
+}
+
+val avx_vcompress_dword_mem_128 : (qword, xmmword, byte) -> unit
+function avx_vcompress_dword_mem_128(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 3) {
+    if mask[i] == bitone then {
+      let elem : dword = truncate(src >> (i * 32), 32);
+      mem_write32(addr + off, elem);
+      off = off + 4;
+    };
+  };
+}
+
+val avx_vcompress_qword_mem_512 : (qword, zmmword, byte) -> unit
+function avx_vcompress_qword_mem_512(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 7) {
+    if mask[i] == bitone then {
+      let elem : qword = truncate(src >> (i * 64), 64);
+      mem_write64(addr + off, elem);
+      off = off + 8;
+    };
+  };
+}
+
+val avx_vcompress_qword_mem_256 : (qword, ymmword, byte) -> unit
+function avx_vcompress_qword_mem_256(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 3) {
+    if mask[i] == bitone then {
+      let elem : qword = truncate(src >> (i * 64), 64);
+      mem_write64(addr + off, elem);
+      off = off + 8;
+    };
+  };
+}
+
+val avx_vcompress_qword_mem_128 : (qword, xmmword, byte) -> unit
+function avx_vcompress_qword_mem_128(addr, src, mask) = {
+  var off : qword = zeros();
+  foreach (i from 0 to 1) {
+    if mask[i] == bitone then {
+      let elem : qword = truncate(src >> (i * 64), 64);
+      mem_write64(addr + off, elem);
+      off = off + 8;
+    };
+  };
+}
+
 /* ---- VRNDSCALE: round to specified precision ---- */
 
 val avx_vpbroadcastmb2q_128 : byte -> xmmword
@@ -1530,9 +1604,7 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 8A: VCOMPRESSPS (66, W=0) / VCOMPRESSPD (66, W=1) [F]
-  // SDM: reg=src, r/m=dst (register form only for now)
-  // 0F38 8A: VCOMPRESSPS (66, W=0) / VCOMPRESSPD (66, W=1) [F]
-  // SDM: reg=src, r/m=dst (register form only for now)
+  // SDM: reg=src, r/m=dst; memory form writes only compressed elements
   138 => {
     if mp != MP_66 then {
       raise_UD()
@@ -1541,25 +1613,45 @@ function dispatch_evex_perm(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
-      let dst_reg = evex_rm_reg_idx(modrm, pfx);
-      if pfx.rex_w then {
-        match pfx.evex_ll {
-          2 => { write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])); Ok() },
-          1 => { write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])); Ok() },
-          _ => { write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])); Ok() },
-        }
-      } else {
-        match pfx.evex_ll {
-          2 => { write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])); Ok() },
-          1 => { write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])); Ok() },
-          _ => { write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])); Ok() },
-        }
+      match rm {
+        RM_reg(_) => {
+          let dst_reg = evex_rm_reg_idx(modrm, pfx);
+          if pfx.rex_w then {
+            match pfx.evex_ll {
+              2 => { write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])); Ok() },
+              1 => { write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])); Ok() },
+              _ => { write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])); Ok() },
+            }
+          } else {
+            match pfx.evex_ll {
+              2 => { write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])); Ok() },
+              1 => { write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])); Ok() },
+              _ => { write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])); Ok() },
+            }
+          }
+        },
+        RM_mem(addr) => {
+          let a = fixup_addr(addr);
+          if pfx.rex_w then {
+            match pfx.evex_ll {
+              2 => { avx_vcompress_qword_mem_512(a, read_zmm(src), k[7..0]); Ok() },
+              1 => { avx_vcompress_qword_mem_256(a, read_ymm(src), k[7..0]); Ok() },
+              _ => { avx_vcompress_qword_mem_128(a, read_xmm(src), k[7..0]); Ok() },
+            }
+          } else {
+            match pfx.evex_ll {
+              2 => { avx_vcompress_dword_mem_512(a, read_zmm(src), k[15..0]); Ok() },
+              1 => { avx_vcompress_dword_mem_256(a, read_ymm(src), k[7..0]); Ok() },
+              _ => { avx_vcompress_dword_mem_128(a, read_xmm(src), k[7..0]); Ok() },
+            }
+          }
+        },
       }
     }
   },
 
   // 0F38 8B: VPCOMPRESSD (66, W=0) / VPCOMPRESSQ (66, W=1) [F]
-  // 0F38 8B: VPCOMPRESSD (66, W=0) / VPCOMPRESSQ (66, W=1) [F]
+  // SDM: reg=src, r/m=dst; memory form writes only compressed elements
   139 => {
     if mp != MP_66 then {
       raise_UD()
@@ -1568,19 +1660,39 @@ function dispatch_evex_perm(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
-      let dst_reg = evex_rm_reg_idx(modrm, pfx);
-      if pfx.rex_w then {
-        match pfx.evex_ll {
-          2 => { write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])); Ok() },
-          1 => { write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])); Ok() },
-          _ => { write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])); Ok() },
-        }
-      } else {
-        match pfx.evex_ll {
-          2 => { write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])); Ok() },
-          1 => { write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])); Ok() },
-          _ => { write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])); Ok() },
-        }
+      match rm {
+        RM_reg(_) => {
+          let dst_reg = evex_rm_reg_idx(modrm, pfx);
+          if pfx.rex_w then {
+            match pfx.evex_ll {
+              2 => { write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])); Ok() },
+              1 => { write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])); Ok() },
+              _ => { write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])); Ok() },
+            }
+          } else {
+            match pfx.evex_ll {
+              2 => { write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])); Ok() },
+              1 => { write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])); Ok() },
+              _ => { write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])); Ok() },
+            }
+          }
+        },
+        RM_mem(addr) => {
+          let a = fixup_addr(addr);
+          if pfx.rex_w then {
+            match pfx.evex_ll {
+              2 => { avx_vcompress_qword_mem_512(a, read_zmm(src), k[7..0]); Ok() },
+              1 => { avx_vcompress_qword_mem_256(a, read_ymm(src), k[7..0]); Ok() },
+              _ => { avx_vcompress_qword_mem_128(a, read_xmm(src), k[7..0]); Ok() },
+            }
+          } else {
+            match pfx.evex_ll {
+              2 => { avx_vcompress_dword_mem_512(a, read_zmm(src), k[15..0]); Ok() },
+              1 => { avx_vcompress_dword_mem_256(a, read_ymm(src), k[7..0]); Ok() },
+              _ => { avx_vcompress_dword_mem_128(a, read_xmm(src), k[7..0]); Ok() },
+            }
+          }
+        },
       }
     }
   },
