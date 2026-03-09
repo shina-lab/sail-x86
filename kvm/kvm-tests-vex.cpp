@@ -5248,4 +5248,157 @@ void add_vex_tests(std::vector<TestCase> &tests) {
              0x62, 0xF2, 0x6D, 0x09, 0x64, 0xC1},  // VPBLENDMD xmm0{k1}, xmm2, xmm1
             s, 0x3);
   }
+
+  // =====================================================================
+  // EVEX VPALIGNR — byte-granularity concatenate + shift right
+  // EVEX.128.66.0F3A.WIG 0F /r ib
+  // P0: R=1,X=1,B=1,R'=1,mmm=011 → 0xF3
+  // P1: W=0,~vvvv=1110(xmm1),1,pp=01 → 0x7D
+  // P2: z=0,LL=00,b=0,V'=1,aaa=000 → 0x08
+  // modrm: mod=11, reg=000(dst), rm=010(xmm2) → 0xC2
+  // =====================================================================
+  cat = "EVEX VPALIGNR";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm1 = high part, xmm2 = low part in (xmm1:xmm2) >> shift
+    s.xmm[1] = xmm_from_u32(0x04030201, 0x08070605, 0x0C0B0A09, 0x100F0E0D);
+    s.xmm[2] = xmm_from_u32(0x14131211, 0x18171615, 0x1C1B1A19, 0x201F1E1D);
+
+    // VPALIGNR xmm0, xmm1, xmm2, 4: shift right by 4 bytes
+    // Concat xmm1:xmm2 = 256 bits, shift right 4 bytes, take low 128 bits
+    add_xmm("vpalignr xmm0,xmm1,xmm2,4",
+            {0x62, 0xF3, 0x75, 0x08, 0x0F, 0xC2, 0x04}, s, 0x7);
+
+    // VPALIGNR xmm0, xmm1, xmm2, 0: no shift (result = xmm2)
+    add_xmm("vpalignr xmm0,xmm1,xmm2,0",
+            {0x62, 0xF3, 0x75, 0x08, 0x0F, 0xC2, 0x00}, s, 0x7);
+
+    // VPALIGNR xmm0, xmm1, xmm2, 16: shift right 16 bytes (result = xmm1)
+    add_xmm("vpalignr xmm0,xmm1,xmm2,16",
+            {0x62, 0xF3, 0x75, 0x08, 0x0F, 0xC2, 0x10}, s, 0x7);
+
+    // VPALIGNR xmm0, xmm1, xmm2, 32: shift right 32 bytes (result = 0)
+    add_xmm("vpalignr xmm0,xmm1,xmm2,32",
+            {0x62, 0xF3, 0x75, 0x08, 0x0F, 0xC2, 0x20}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPEXTRB/VPEXTRD/VPEXTRQ — extract to GPR/memory
+  // VPEXTRB: EVEX.128.66.0F3A.WIG 14 /r ib (src=reg, dst=r/m)
+  // VPEXTRD: EVEX.128.66.0F3A.W0  16 /r ib
+  // VPEXTRQ: EVEX.128.66.0F3A.W1  16 /r ib
+  // =====================================================================
+  cat = "EVEX VPEXTR";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u32(0xAABBCCDD, 0x11223344, 0x55667788, 0x99AABBCC);
+    s.rdi = DATA_ADDR;
+
+    // VPEXTRB [rdi], xmm1, 0: extract byte 0 to memory
+    // P0=0xF3(mmm=011), P1=0x7D(W=0,vvvv=1111,pp=01), P2=0x08
+    // modrm: mod=00, reg=001(xmm1), rm=111(rdi) → 0x0F
+    {
+      TestCase tc;
+      tc.name = "vpextrb [rdi],xmm1,0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x14, 0x0F, 0x00};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(8, 0xFF);
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPEXTRB [rdi], xmm1, 5: extract byte 5
+    {
+      TestCase tc;
+      tc.name = "vpextrb [rdi],xmm1,5";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x14, 0x0F, 0x05};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(8, 0xFF);
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPEXTRD [rdi], xmm1, 2: extract dword 2 to memory
+    // EVEX.128.66.0F3A.W0 16: reg=xmm1(001), rm=[rdi](111) → modrm=0x0F
+    {
+      TestCase tc;
+      tc.name = "vpextrd [rdi],xmm1,2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x16, 0x0F, 0x02};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(8, 0xFF);
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPEXTRQ [rdi], xmm1, 1: extract qword 1 to memory
+    // EVEX.128.66.0F3A.W1 16: P1 needs W=1 → 0xFD
+    {
+      TestCase tc;
+      tc.name = "vpextrq [rdi],xmm1,1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xFD, 0x08, 0x16, 0x0F, 0x01};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.init_data = std::vector<u8>(16, 0xFF);
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPEXTRD to register: xmm1 dword 0 → eax
+    // modrm: mod=11, reg=001(xmm1), rm=000(eax) → 0xC8
+    {
+      ArchState rs = s;
+      rs.rax = 0;
+      tests.push_back({"vpextrd eax,xmm1,0", cat,
+        {0x62, 0xF3, 0x7D, 0x08, 0x16, 0xC8, 0x00},
+        rs, FL_NONE, 0, false});
+    }
+  }
+
+  // =====================================================================
+  // EVEX VPINSRB/VPINSRD/VPINSRQ — insert from GPR/memory
+  // VPINSRB: EVEX.128.66.0F3A.WIG 20 /r ib
+  // VPINSRD: EVEX.128.66.0F3A.W0  22 /r ib
+  // =====================================================================
+  cat = "EVEX VPINSR";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    s.rax = 0xDEADBEEF;
+
+    // VPINSRD xmm0, xmm1, eax, 2: insert eax into dword 2
+    // EVEX.128.66.0F3A.W0 22: P0=0xF3, P1=0x75(vvvv=~1), P2=0x08
+    // modrm: mod=11, reg=000(dst), rm=000(eax) → 0xC0
+    add_xmm("vpinsrd xmm0,xmm1,eax,2",
+            {0x62, 0xF3, 0x75, 0x08, 0x22, 0xC0, 0x02}, s, 0x3);
+
+    // VPINSRD xmm0, xmm1, eax, 0: insert eax into dword 0
+    add_xmm("vpinsrd xmm0,xmm1,eax,0",
+            {0x62, 0xF3, 0x75, 0x08, 0x22, 0xC0, 0x00}, s, 0x3);
+
+    // VPINSRB xmm0, xmm1, eax, 3: insert low byte of eax into byte 3
+    // EVEX.128.66.0F3A.WIG 20: P0=0xF3, P1=0x75, P2=0x08
+    // modrm: mod=11, reg=000(dst), rm=000(eax) → 0xC0
+    add_xmm("vpinsrb xmm0,xmm1,eax,3",
+            {0x62, 0xF3, 0x75, 0x08, 0x20, 0xC0, 0x03}, s, 0x3);
+  }
 }

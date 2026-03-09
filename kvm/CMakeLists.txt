@@ -228,6 +228,9 @@ set(KVM_CATEGORIES
   "EVEX VPERMI2B"
   "EVEX compress/expand"
   "EVEX VPBLENDMD"
+  "EVEX VPALIGNR"
+  "EVEX VPEXTR"
+  "EVEX VPINSR"
 )
 
 foreach(cat ${KVM_CATEGORIES})
