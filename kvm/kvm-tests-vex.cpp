@@ -2517,4 +2517,122 @@ void add_vex_tests(std::vector<TestCase> &tests) {
         {0x62, 0xF1, 0xFC, 0x28, 0x5B, 0xC2}, s, 0x7);
     }
   }
+
+  // =====================================================================
+  // EVEX Embedded Rounding Control ({rn-sae}, {rd-sae}, {ru-sae}, {rz-sae})
+  // =====================================================================
+  cat = "EVEX rounding";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // Test VCVTPS2DQ with embedded rounding: convert 2.5f to int32
+    // MXCSR is set to default (RN=round nearest even), but the EVEX encoding
+    // overrides the rounding mode via LL when EVEX.b=1 for reg-reg.
+    //
+    // VCVTPS2DQ zmm0, zmm2, {rc-sae}:
+    //   EVEX.512.66.0F.W0 5B /r with EVEX.b=1
+    //   P0: R̄=1,X̄=1,B̄=1,R'̄=1,0,mmm=001 → 0xF1
+    //   P1: W=0,~vvvv=1111,1,pp=01(66) → 0x7D
+    //   P2: z=0, L'L=RC, b=1, V'=1, aaa=000
+    //     {rn-sae}: LL=00 → 0x18
+    //     {rd-sae}: LL=01 → 0x38
+    //     {ru-sae}: LL=10 → 0x58
+    //     {rz-sae}: LL=11 → 0x78
+    //   Opcode: 0x5B
+    //   ModRM: mod=11, reg=000(zmm0), rm=010(zmm2) → 0xC2
+
+    // 2.5f = 0x40200000, with RN → 2 (banker's rounding to even)
+    // 2.5f, with RD → 2
+    // 2.5f, with RU → 3
+    // 2.5f, with RZ → 2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float f = 2.5f;
+      u32 fbits;
+      memcpy(&fbits, &f, 4);
+      s.xmm[2] = xmm_from_u32(fbits, fbits, fbits, fbits);
+
+      // {rn-sae}: 2.5 → 2 (round to nearest even)
+      add_xmm("vcvtps2dq {rn-sae} zmm, 2.5",
+        {0x62, 0xF1, 0x7D, 0x18, 0x5B, 0xC2}, s, 0x7);
+
+      // {rd-sae}: 2.5 → 2 (round down)
+      add_xmm("vcvtps2dq {rd-sae} zmm, 2.5",
+        {0x62, 0xF1, 0x7D, 0x38, 0x5B, 0xC2}, s, 0x7);
+
+      // {ru-sae}: 2.5 → 3 (round up)
+      add_xmm("vcvtps2dq {ru-sae} zmm, 2.5",
+        {0x62, 0xF1, 0x7D, 0x58, 0x5B, 0xC2}, s, 0x7);
+
+      // {rz-sae}: 2.5 → 2 (round toward zero)
+      add_xmm("vcvtps2dq {rz-sae} zmm, 2.5",
+        {0x62, 0xF1, 0x7D, 0x78, 0x5B, 0xC2}, s, 0x7);
+    }
+
+    // Test with -1.7f to differentiate all four modes clearly:
+    // -1.7f, RN → -2, RD → -2, RU → -1, RZ → -1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float f = -1.7f;
+      u32 fbits;
+      memcpy(&fbits, &f, 4);
+      s.xmm[2] = xmm_from_u32(fbits, fbits, fbits, fbits);
+
+      add_xmm("vcvtps2dq {rn-sae} zmm, -1.7",
+        {0x62, 0xF1, 0x7D, 0x18, 0x5B, 0xC2}, s, 0x7);
+
+      add_xmm("vcvtps2dq {rd-sae} zmm, -1.7",
+        {0x62, 0xF1, 0x7D, 0x38, 0x5B, 0xC2}, s, 0x7);
+
+      add_xmm("vcvtps2dq {ru-sae} zmm, -1.7",
+        {0x62, 0xF1, 0x7D, 0x58, 0x5B, 0xC2}, s, 0x7);
+
+      add_xmm("vcvtps2dq {rz-sae} zmm, -1.7",
+        {0x62, 0xF1, 0x7D, 0x78, 0x5B, 0xC2}, s, 0x7);
+    }
+
+    // Test VADDPS with embedded rounding: add values that differ by rounding
+    // 1.0f + 2^-24 (just above 1.0f): exact result is 1 + epsilon
+    // Result in f32 depends on rounding: RN/RD/RZ → 1.0f, RU → nextafter(1.0f)
+    //
+    // VADDPS zmm0, zmm1, zmm2, {rc-sae}:
+    //   EVEX.512.NP.0F.W0 58 /r with EVEX.b=1
+    //   P1: W=0,~vvvv=1110(zmm1),1,pp=00 → 0x7C
+    //   ModRM: mod=11, reg=000, rm=010 → 0xC2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      // 1.0f = 0x3F800000
+      float one = 1.0f;
+      u32 one_bits;
+      memcpy(&one_bits, &one, 4);
+      s.xmm[1] = xmm_from_u32(one_bits, one_bits, one_bits, one_bits);
+      // 2^-24 = 0x33800000 (smallest f32 that, added to 1.0, should round)
+      float eps = 5.960464477539063e-08f; // 2^-24
+      u32 eps_bits;
+      memcpy(&eps_bits, &eps, 4);
+      s.xmm[2] = xmm_from_u32(eps_bits, eps_bits, eps_bits, eps_bits);
+
+      // {rn-sae}: 1.0 + 2^-24 → 1.0 (round to nearest even, ties to even → 1.0)
+      add_xmm("vaddps {rn-sae} zmm, 1+eps",
+        {0x62, 0xF1, 0x7C, 0x18, 0x58, 0xC2}, s, 0x7);
+
+      // {ru-sae}: 1.0 + 2^-24 → nextafter(1.0) = 0x3F800001
+      add_xmm("vaddps {ru-sae} zmm, 1+eps",
+        {0x62, 0xF1, 0x7C, 0x58, 0x58, 0xC2}, s, 0x7);
+
+      // {rd-sae}: 1.0 + 2^-24 → 1.0 (round down)
+      add_xmm("vaddps {rd-sae} zmm, 1+eps",
+        {0x62, 0xF1, 0x7C, 0x38, 0x58, 0xC2}, s, 0x7);
+
+      // {rz-sae}: 1.0 + 2^-24 → 1.0 (round toward zero)
+      add_xmm("vaddps {rz-sae} zmm, 1+eps",
+        {0x62, 0xF1, 0x7C, 0x78, 0x58, 0xC2}, s, 0x7);
+    }
+  }
 }

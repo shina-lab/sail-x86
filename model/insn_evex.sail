@@ -241,3 +241,33 @@ function gf2p8_mul(a, b) = {
   };
   result[7..0]
 }
+
+// =========================================================================
+// EVEX Embedded Rounding Control
+// =========================================================================
+// When EVEX.b=1 and the operand is register-only (ModRM.mod=11), the
+// EVEX.LL field encodes a static rounding mode instead of vector length:
+//   00=RN (round nearest), 01=RD (round down),
+//   02=RU (round up),      03=RZ (round toward zero)
+// The vector length is implicitly 512-bit for packed operations.
+// SAE (suppress all exceptions) is also implied.
+//
+// evex_begin_rc() saves the current MXCSR, overrides bits 14:13 with LL,
+// and returns (effective_ll, saved_mxcsr). Call evex_end_rc() to restore.
+
+val evex_begin_rc : (Prefixes, bool) -> (range(0, 3), dword)
+function evex_begin_rc(pfx, is_reg) = {
+  let saved = __stmxcsr();
+  if pfx.evex_b & is_reg then {
+    // LL encodes rounding control; override MXCSR RC (bits 14:13)
+    let rc : range(0, 3) = pfx.evex_ll;
+    let new_mxcsr : dword = (saved & 0xFFFF9FFF) | to_bits(32, rc * 8192);
+    __ldmxcsr(new_mxcsr);
+    (2, saved)  // force 512-bit vector length
+  } else {
+    (pfx.evex_ll, saved)
+  }
+}
+
+val evex_end_rc : dword -> unit
+function evex_end_rc(saved) = __ldmxcsr(saved)

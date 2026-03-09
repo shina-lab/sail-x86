@@ -1466,16 +1466,16 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F 58: VADDPS/VADDPD (EVEX, 512-bit)
-  // 0F 58: VADDPS/VADDPD (EVEX, 512-bit)
+  // 0F 58: VADDPS/VADDPD (EVEX) — supports {er} at 512-bit
   88 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-    match mp {
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
       MP_NONE => { // VADDPS
-        match pfx.evex_ll {
+        match eff_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
             let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1500,7 +1500,7 @@ function dispatch_evex_fp(op, pfx) = {
         }
       },
       MP_66 => { // VADDPD
-        match pfx.evex_ll {
+        match eff_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
             let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1523,18 +1523,20 @@ function dispatch_evex_fp(op, pfx) = {
         }
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
-  // 0F 59: VMULPS/VMULPD (EVEX)
-  // 0F 59: VMULPS/VMULPD (EVEX)
+  // 0F 59: VMULPS/VMULPD (EVEX) — supports {er} at 512-bit
   89 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-    match mp {
-      MP_NONE => match pfx.evex_ll {
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
+      MP_NONE => match eff_ll {
         2 => {
           let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
           let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1547,7 +1549,7 @@ function dispatch_evex_fp(op, pfx) = {
         1 => { write_ymm(dst, vmulps_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vmulps_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
-      MP_66 => match pfx.evex_ll {
+      MP_66 => match eff_ll {
         2 => {
           let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
           let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1561,7 +1563,9 @@ function dispatch_evex_fp(op, pfx) = {
         _ => { write_xmm(dst, vmulpd_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
   // 0F 5A: VCVTPS2PD (NP,W0) / VCVTPD2PS (66,W1) / VCVTSS2SD (F3) / VCVTSD2SS (F2)
@@ -1638,20 +1642,23 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 5B: VCVTDQ2PS (NP,W0) / VCVTQQ2PS (NP,W1) / VCVTPS2DQ (66,W0) / VCVTTPS2DQ (F3,W0)
+  // VCVTDQ2PS, VCVTQQ2PS, VCVTPS2DQ support {er} at 512-bit
   91 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match mp {
+    let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
       MP_NONE => {
         if pfx.rex_w then { // VCVTQQ2PS: i64→f32 (narrowing, result half-width)
-          match pfx.evex_ll {
+          match eff_ll {
             2 => { write_ymm(dst, avx_cvtqq2ps_8(evex_src_zmm(modrm, rm, pfx))); Ok() },
             1 => { write_xmm(dst, avx_cvtqq2ps_4(evex_src_ymm(modrm, rm, pfx))); Ok() },
             _ => { write_xmm(dst, zero_extend(avx_cvtqq2ps_2(evex_src_xmm(modrm, rm, pfx)))); Ok() },
           }
         } else { // VCVTDQ2PS: i32→f32
-          match pfx.evex_ll {
+          match eff_ll {
             2 => { write_zmm(dst, avx_cvtdq2ps_512(evex_src_zmm(modrm, rm, pfx))); Ok() },
             1 => { write_ymm(dst, avx_cvtdq2ps_256(evex_src_ymm(modrm, rm, pfx))); Ok() },
             _ => { write_xmm(dst, avx_cvtdq2ps_128(evex_src_xmm(modrm, rm, pfx))); Ok() },
@@ -1659,32 +1666,34 @@ function dispatch_evex_fp(op, pfx) = {
         }
       },
       MP_66 => { // VCVTPS2DQ
-        match pfx.evex_ll {
+        match eff_ll {
           2 => { write_zmm(dst, avx_cvtps2dq_512(evex_src_zmm(modrm, rm, pfx))); Ok() },
           1 => { write_ymm(dst, avx_cvtps2dq_256(evex_src_ymm(modrm, rm, pfx))); Ok() },
           _ => { write_xmm(dst, avx_cvtps2dq_128(evex_src_xmm(modrm, rm, pfx))); Ok() },
         }
       },
-      MP_F3 => { // VCVTTPS2DQ
-        match pfx.evex_ll {
+      MP_F3 => { // VCVTTPS2DQ (truncation — no {er} but no harm from the wrapper)
+        match eff_ll {
           2 => { write_zmm(dst, avx_cvttps2dq_512(evex_src_zmm(modrm, rm, pfx))); Ok() },
           1 => { write_ymm(dst, avx_cvttps2dq_256(evex_src_ymm(modrm, rm, pfx))); Ok() },
           _ => { write_xmm(dst, avx_cvttps2dq_128(evex_src_xmm(modrm, rm, pfx))); Ok() },
         }
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
-  // 0F 5C: VSUBPS/VSUBPD (EVEX)
-  // 0F 5C: VSUBPS/VSUBPD (EVEX)
+  // 0F 5C: VSUBPS/VSUBPD (EVEX) — supports {er} at 512-bit
   92 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-    match mp {
-      MP_NONE => match pfx.evex_ll {
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
+      MP_NONE => match eff_ll {
         2 => {
           let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
           let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1697,7 +1706,7 @@ function dispatch_evex_fp(op, pfx) = {
         1 => { write_ymm(dst, vsubps_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vsubps_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
-      MP_66 => match pfx.evex_ll {
+      MP_66 => match eff_ll {
         2 => {
           let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
           let src2 : zmmword = if pfx.evex_b & is_mem
@@ -1711,7 +1720,9 @@ function dispatch_evex_fp(op, pfx) = {
         _ => { write_xmm(dst, vsubpd_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
   // 0F 57: VXORPS / 0F 54: VANDPS / 0F 55: VANDNPS / 0F 56: VORPS (EVEX bitwise)
@@ -2038,24 +2049,28 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 6F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX load)
-  // 0F 51: VSQRTPS (NP) / VSQRTPD (66)
+  // 0F 51: VSQRTPS (NP) / VSQRTPD (66) — supports {er} at 512-bit
   81 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match mp {
-      MP_NONE => match pfx.evex_ll {
+    let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
+      MP_NONE => match eff_ll {
         2 => { write_zmm(dst, vsqrtps_zmm(evex_src_zmm(modrm, rm, pfx))); Ok() },
         1 => { write_ymm(dst, vsqrtps_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vsqrtps_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
-      MP_66 => match pfx.evex_ll {
+      MP_66 => match eff_ll {
         2 => { write_zmm(dst, vsqrtpd_zmm(evex_src_zmm(modrm, rm, pfx))); Ok() },
         1 => { write_ymm(dst, vsqrtpd_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vsqrtpd_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
   // 0F 5D: VMINPS (NP) / VMINPD (66)
@@ -2079,25 +2094,28 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F 5E: VDIVPS (NP) / VDIVPD (66)
-  // 0F 5E: VDIVPS (NP) / VDIVPD (66)
+  // 0F 5E: VDIVPS (NP) / VDIVPD (66) — supports {er} at 512-bit
   94 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match mp {
-      MP_NONE => match pfx.evex_ll {
+    let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let result : ExecutionResult = match mp {
+      MP_NONE => match eff_ll {
         2 => { write_zmm(dst, vdivps_zmm(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))); Ok() },
         1 => { write_ymm(dst, vdivps_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vdivps_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
-      MP_66 => match pfx.evex_ll {
+      MP_66 => match eff_ll {
         2 => { write_zmm(dst, vdivpd_zmm(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))); Ok() },
         1 => { write_ymm(dst, vdivpd_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
         _ => { write_xmm(dst, vdivpd_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
       },
       _ => raise_UD(),
-    }
+    };
+    evex_end_rc(saved_mxcsr);
+    result
   },
 
   // 0F 5F: VMAXPS (NP) / VMAXPD (66)
