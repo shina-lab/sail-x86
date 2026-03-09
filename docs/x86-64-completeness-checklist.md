@@ -490,14 +490,14 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] Memory broadcast (1-to-4, 1-to-8, 1-to-16)
 
 #### 1.15.2 Opmask (k0-k7) Instructions
-- [ ] KMOVW/B/D/Q (move mask)
-- [ ] KANDW/B/D/Q, KANDNW/B/D/Q (mask AND, AND-NOT)
-- [ ] KORW/B/D/Q, KXORW/B/D/Q, KXNORW/B/D/Q (mask OR, XOR, XNOR)
-- [ ] KNOTW/B/D/Q (mask NOT)
-- [ ] KORTESTW/B/D/Q, KTESTW/B/D/Q (mask test → EFLAGS)
-- [ ] KSHIFTLW/B/D/Q, KSHIFTRW/B/D/Q (mask shift)
-- [ ] KUNPCKBW, KUNPCKWD, KUNPCKDQ (mask unpack)
-- [ ] KADDW/B/D/Q (mask add)
+- [x] KMOVW/B/D/Q (move mask) — verified: W forms implemented (0F 90/91/92/93) + KVM tests
+- [x] KANDW/B/D/Q, KANDNW/B/D/Q (mask AND, AND-NOT) — verified: W forms implemented (0F 41/42) + KVM tests
+- [x] KORW/B/D/Q, KXORW/B/D/Q, KXNORW/B/D/Q (mask OR, XOR, XNOR) — verified: W forms implemented (0F 45/47/46) + KVM tests
+- [x] KNOTW/B/D/Q (mask NOT) — verified: W form implemented (0F 44) + KVM tests
+- [x] KORTESTW/B/D/Q, KTESTW/B/D/Q (mask test → EFLAGS) — verified: W forms implemented (0F 98/99) + KVM tests
+- [x] KSHIFTLW/B/D/Q, KSHIFTRW/B/D/Q (mask shift) — verified: W forms implemented (0F3A 32/30) + KVM tests
+- [x] KUNPCKBW, KUNPCKWD, KUNPCKDQ (mask unpack) — verified: BW/WD forms implemented (0F 4B)
+- [x] KADDW/B/D/Q (mask add) — verified: W form implemented (0F 4A)
 
 #### 1.15.3 AVX-512F Arithmetic (512-bit)
 - [ ] VADDPS/PD, VSUBPS/PD (512-bit add/sub)
