@@ -4338,4 +4338,159 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpmadd52huq xmm0,xmm1,xmm2: 2^51*2",
             {0x62, 0xF2, 0xF5, 0x08, 0xB5, 0xC2}, s2, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPOPCNTD/Q (0F38 55) — per-element population count
+  // =====================================================================
+  cat = "EVEX VPOPCNTD/Q";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // VPOPCNTD xmm0, xmm1 (W=0)
+    // 0xFF = 8 bits, 0x01 = 1 bit, 0x00 = 0 bits, 0x80000001 = 2 bits
+    s.xmm[0] = {};
+    s.xmm[1] = xmm_from_u32(0xFF, 0x01, 0x00, 0x80000001);
+    // EVEX.128.66.0F38.W0 55 /r  modrm=C1 (xmm0,xmm1)
+    add_xmm("vpopcntd xmm0,xmm1: basic",
+            {0x62, 0xF2, 0x7D, 0x08, 0x55, 0xC1}, s, 0x3);
+
+    // VPOPCNTQ xmm0, xmm1 (W=1)
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0x0000000100000001ULL);
+    // EVEX.128.66.0F38.W1 55 /r
+    add_xmm("vpopcntq xmm0,xmm1: all-1s and sparse",
+            {0x62, 0xF2, 0xFD, 0x08, 0x55, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VPLZCNTD/Q (0F38 44) — per-element leading zero count
+  // =====================================================================
+  cat = "EVEX VPLZCNTD/Q";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VPLZCNTD xmm0, xmm1 (W=0)
+    // 0x00000001 → 31 leading zeros, 0x80000000 → 0, 0x00000000 → 32, 0x0000FFFF → 16
+    s.xmm[1] = xmm_from_u32(0x00000001, 0x80000000, 0x00000000, 0x0000FFFF);
+    // EVEX.128.66.0F38.W0 44 /r  modrm=C1
+    add_xmm("vplzcntd xmm0,xmm1: basic",
+            {0x62, 0xF2, 0x7D, 0x08, 0x44, 0xC1}, s, 0x3);
+
+    // VPLZCNTQ xmm0, xmm1 (W=1)
+    s.xmm[1] = xmm_from_u64(0x0000000000000001ULL, 0x0000000000000000ULL);
+    // EVEX.128.66.0F38.W1 44 /r
+    add_xmm("vplzcntq xmm0,xmm1: 1 and 0",
+            {0x62, 0xF2, 0xFD, 0x08, 0x44, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VPCONFLICTD/Q (0F38 C4) — conflict detection
+  // =====================================================================
+  cat = "EVEX VPCONFLICTD/Q";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VPCONFLICTD xmm0, xmm1 (W=0)
+    // For each element, result is bitmask of *earlier* elements with same value
+    // {5, 3, 5, 3} → d0=0(no earlier), d1=0(no earlier match), d2=1(matches d0), d3=2(matches d1)
+    s.xmm[1] = xmm_from_u32(5, 3, 5, 3);
+    // EVEX.128.66.0F38.W0 C4 /r  modrm=C1
+    add_xmm("vpconflictd xmm0,xmm1: duplicates",
+            {0x62, 0xF2, 0x7D, 0x08, 0xC4, 0xC1}, s, 0x3);
+
+    // All unique: {1, 2, 3, 4} → all zeros
+    s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+    add_xmm("vpconflictd xmm0,xmm1: all unique",
+            {0x62, 0xF2, 0x7D, 0x08, 0xC4, 0xC1}, s, 0x3);
+
+    // VPCONFLICTQ xmm0, xmm1 (W=1)
+    // {42, 42} → q0=0, q1=1(matches q0)
+    s.xmm[1] = xmm_from_u64(42, 42);
+    // EVEX.128.66.0F38.W1 C4 /r
+    add_xmm("vpconflictq xmm0,xmm1: duplicate pair",
+            {0x62, 0xF2, 0xFD, 0x08, 0xC4, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VPSHLDD/Q (0F3A 71) — immediate concatenate and shift left
+  // =====================================================================
+  cat = "EVEX VPSHLD";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VPSHLDD xmm0, xmm1, xmm2, imm8 (W=0)
+    // Concatenates src1:src2 as 64-bit pairs, shifts left by imm8, takes high 32 bits
+    // For shift=0: result = src1 (identity)
+    s.xmm[1] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+    s.xmm[2] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    // EVEX.NDS.128.66.0F3A.W0 71 /r imm8
+    // P0=0xF3(mm=11), P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08(xmm), modrm=0xC2, imm=0
+    add_xmm("vpshldd xmm0,xmm1,xmm2,0: shift=0",
+            {0x62, 0xF3, 0x75, 0x08, 0x71, 0xC2, 0x00}, s, 0x7);
+
+    // shift=1: shifts the concatenated pair left by 1, so high bit of src2 enters low of result
+    add_xmm("vpshldd xmm0,xmm1,xmm2,1: shift=1",
+            {0x62, 0xF3, 0x75, 0x08, 0x71, 0xC2, 0x01}, s, 0x7);
+
+    // VPSHLDQ xmm0, xmm1, xmm2, imm8 (W=1)
+    // Concatenates src1:src2 as 128-bit pairs, shifts left by imm8, takes high 64 bits
+    s.xmm[1] = xmm_from_u64(0xAAAAAAAABBBBBBBBULL, 0xCCCCCCCCDDDDDDDDULL);
+    s.xmm[2] = xmm_from_u64(0x1111111122222222ULL, 0x3333333344444444ULL);
+    // EVEX.NDS.128.66.0F3A.W1 71 /r imm8
+    add_xmm("vpshldq xmm0,xmm1,xmm2,0: shift=0",
+            {0x62, 0xF3, 0xF5, 0x08, 0x71, 0xC2, 0x00}, s, 0x7);
+    add_xmm("vpshldq xmm0,xmm1,xmm2,4: shift=4",
+            {0x62, 0xF3, 0xF5, 0x08, 0x71, 0xC2, 0x04}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPSHRDD/Q (0F3A 73) — immediate concatenate and shift right
+  // =====================================================================
+  cat = "EVEX VPSHRD";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    s.xmm[1] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+    s.xmm[2] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    // VPSHRDD xmm0, xmm1, xmm2, 0 (W=0)
+    // EVEX.NDS.128.66.0F3A.W0 73 /r imm8
+    add_xmm("vpshrdd xmm0,xmm1,xmm2,0: shift=0",
+            {0x62, 0xF3, 0x75, 0x08, 0x73, 0xC2, 0x00}, s, 0x7);
+    add_xmm("vpshrdd xmm0,xmm1,xmm2,1: shift=1",
+            {0x62, 0xF3, 0x75, 0x08, 0x73, 0xC2, 0x01}, s, 0x7);
+
+    // VPSHRDQ xmm0, xmm1, xmm2, 0 (W=1)
+    s.xmm[1] = xmm_from_u64(0xAAAAAAAABBBBBBBBULL, 0xCCCCCCCCDDDDDDDDULL);
+    s.xmm[2] = xmm_from_u64(0x1111111122222222ULL, 0x3333333344444444ULL);
+    add_xmm("vpshrdq xmm0,xmm1,xmm2,0: shift=0",
+            {0x62, 0xF3, 0xF5, 0x08, 0x73, 0xC2, 0x00}, s, 0x7);
+    add_xmm("vpshrdq xmm0,xmm1,xmm2,4: shift=4",
+            {0x62, 0xF3, 0xF5, 0x08, 0x73, 0xC2, 0x04}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VDBPSADBW (0F3A 42) — double block packed SAD
+  // =====================================================================
+  cat = "EVEX VDBPSADBW";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // All same bytes: SAD = 0 for all words
+    s.xmm[1] = xmm_from_u64(0x0101010101010101ULL, 0x0101010101010101ULL);
+    s.xmm[2] = xmm_from_u64(0x0101010101010101ULL, 0x0101010101010101ULL);
+    // EVEX.NDS.128.66.0F3A.W0 42 /r imm8
+    // P0=0xF3(mm=11), P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08(xmm), modrm=0xC2, imm=0
+    add_xmm("vdbpsadbw xmm0,xmm1,xmm2,0: equal",
+            {0x62, 0xF3, 0x75, 0x08, 0x42, 0xC2, 0x00}, s, 0x7);
+
+    // Different bytes
+    s.xmm[1] = xmm_from_u64(0x0807060504030201ULL, 0x100F0E0D0C0B0A09ULL);
+    s.xmm[2] = xmm_from_u64(0x0102030405060708ULL, 0x090A0B0C0D0E0F10ULL);
+    add_xmm("vdbpsadbw xmm0,xmm1,xmm2,0: sequential",
+            {0x62, 0xF3, 0x75, 0x08, 0x42, 0xC2, 0x00}, s, 0x7);
+  }
 }

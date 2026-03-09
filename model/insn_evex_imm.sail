@@ -742,39 +742,39 @@ function avx_shuf_f32x4_512(src1, src2, imm) = {
 
 /* ---- VDBPSADBW: double-block packed sum of absolute differences ---- */
 
+// Extract byte i (0-15) from a 128-bit vector
+val xmm_byte : (xmmword, range(0, 15)) -> byte
+function xmm_byte(v, i) = v[(i * 8 + 7)..(i * 8)]
+
 val avx_vdbpsadbw_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_vdbpsadbw_128(src1, src2, imm) = {
-  // imm8[1:0] selects src2 starting byte offset within each 128-bit lane's low 4 bytes
-  // imm8[3:2] selects src2 starting byte offset within each 128-bit lane's high 4 bytes
-  // For each 2 adjacent words in the destination:
-  //   dst[i] = sum of |src1_byte[j] - src2_byte[k]| for 4 byte pairs
-  // This is complex. For now, implement the basic algorithm.
-  let sh_lo : range(0, 3) = unsigned(imm[1..0]);
-  let sh_hi : range(0, 3) = unsigned(imm[3..2]);
-  var result : xmmword = zeros();
-  // Lower 4 words: compare src1[3:0] bytes against selected src2 bytes
-  foreach (j from 0 to 3) {
-    var sad : int = 0;
-    foreach (k from 0 to 3) {
-      let s1_byte : byte = src1[((j + k) * 8 + 7)..((j + k) * 8)];
-      let s2_byte : byte = src2[((sh_lo + k) * 8 + 7)..((sh_lo + k) * 8)];
-      let diff : int = unsigned(s1_byte) - unsigned(s2_byte);
-      sad = sad + (if diff < 0 then negate(diff) else diff);
-    };
-    let w : word = get_slice_int(16, sad, 0);
-    result[(j * 16 + 15)..(j * 16)] = w;
+  // Phase 1: Form TMP1 by selecting dwords from src2 per imm8 2-bit fields
+  var tmp1 : xmmword = zeros();
+  foreach (i from 0 to 3) {
+    let sel : range(0, 3) = unsigned(imm[(2 * i + 1)..(2 * i)]);
+    tmp1[((i + 1) * 32 - 1)..(i * 32)] = src2[((sel + 1) * 32 - 1)..(sel * 32)];
   };
-  // Upper 4 words: compare src1[11:8] bytes against selected src2 bytes in upper half
-  foreach (j from 0 to 3) {
-    var sad : int = 0;
-    foreach (k from 0 to 3) {
-      let s1_byte : byte = src1[((8 + j + k) * 8 + 7)..((8 + j + k) * 8)];
-      let s2_byte : byte = src2[((8 + sh_hi + k) * 8 + 7)..((8 + sh_hi + k) * 8)];
-      let diff : int = unsigned(s1_byte) - unsigned(s2_byte);
-      sad = sad + (if diff < 0 then negate(diff) else diff);
+  // Phase 2: SAD with sliding window per 64-bit super block
+  // For each super block, 2 stationary src1 dwords slide against TMP1:
+  //   word[0] = SAD(src1_dw0, tmp1_bytes[0:3])
+  //   word[1] = SAD(src1_dw0, tmp1_bytes[1:4])
+  //   word[2] = SAD(src1_dw1, tmp1_bytes[2:5])
+  //   word[3] = SAD(src1_dw1, tmp1_bytes[3:6])
+  var result : xmmword = zeros();
+  foreach (blk from 0 to 1) {
+    let bb : range(0, 8) = blk * 8;  // base byte index for this super block
+    foreach (w from 0 to 3) {
+      let s1_base : range(0, 12) = bb + (w / 2) * 4;  // stationary dword start byte
+      let t1_base : range(0, 11) = bb + w;  // sliding window start byte
+      var sad : int = 0;
+      foreach (k from 0 to 3) {
+        let diff : int = unsigned(xmm_byte(src1, s1_base + k)) - unsigned(xmm_byte(tmp1, t1_base + k));
+        sad = sad + (if diff < 0 then negate(diff) else diff);
+      };
+      let wrd : word = get_slice_int(16, sad, 0);
+      let dst_bit : range(0, 112) = (blk * 4 + w) * 16;
+      result[(dst_bit + 15)..dst_bit] = wrd;
     };
-    let w : word = get_slice_int(16, sad, 0);
-    result[((4 + j) * 16 + 15)..((4 + j) * 16)] = w;
   };
   result
 }
