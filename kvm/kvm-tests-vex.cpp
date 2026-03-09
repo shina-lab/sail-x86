@@ -4994,4 +4994,115 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vgetmantps: interval [1,2) force+",
             {0x62, 0xF3, 0x7D, 0x08, 0x26, 0xC1, 0x04}, s, 0x3);
   }
+
+  // =====================================================================
+  // EVEX VCOMPRESS/VEXPAND — compress and expand packed dwords
+  // VCOMPRESSPS: EVEX.128.66.0F38.W0 8A /r (reg=src, rm=dst)
+  // VEXPANDPS:   EVEX.128.66.0F38.W0 88 /r (reg=dst, rm=src)
+  // =====================================================================
+  cat = "EVEX compress/expand";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    s.xmm[1] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+
+    // VCOMPRESSPS xmm0, xmm1 (no mask): all 4 elements → contiguous
+    // P2=0x08 (aaa=000, no mask)
+    // modrm: reg=xmm1(001), rm=xmm0(000), mod=11 → 0xC8
+    // Expected: same as src (all elements pass through)
+    add_xmm("vcompressps: no mask",
+            {0x62, 0xF2, 0x7D, 0x08, 0x8A, 0xC8}, s, 0x3);
+
+    // VCOMPRESSPS xmm0{k1}, xmm1 with k1=0b0101 → elements 0,2 compress to positions 0,1
+    // Expected xmm0 = {0xAAAAAAAA, 0xCCCCCCCC, 0, 0}
+    add_xmm("vcompressps: k1=0101b",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0x09, 0x8A, 0xC8},  // VCOMPRESSPS xmm0{k1}, xmm1
+            s, 0x3);
+
+    // VCOMPRESSPS xmm0{k1}, xmm1 with k1=0b1010 → elements 1,3 compress to positions 0,1
+    // Expected xmm0 = {0xBBBBBBBB, 0xDDDDDDDD, 0, 0}
+    add_xmm("vcompressps: k1=1010b",
+            {0xB8, 0x0A, 0x00, 0x00, 0x00,        // MOV eax, 0xA
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0x09, 0x8A, 0xC8},  // VCOMPRESSPS xmm0{k1}, xmm1
+            s, 0x3);
+
+    // VEXPANDPS xmm0{k1}, xmm1 with k1=0b0101 → src[0] → dst[0], src[1] → dst[2]
+    // xmm1 = {0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD}
+    // Expected xmm0 = {0xAAAAAAAA, 0, 0xBBBBBBBB, 0}
+    add_xmm("vexpandps: k1=0101b",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0x09, 0x88, 0xC1},  // VEXPANDPS xmm0{k1}, xmm1
+            s, 0x3);
+
+    // VEXPANDPS xmm0{k1}, xmm1 with k1=0b1010 → src[0] → dst[1], src[1] → dst[3]
+    // Expected xmm0 = {0, 0xAAAAAAAA, 0, 0xBBBBBBBB}
+    add_xmm("vexpandps: k1=1010b",
+            {0xB8, 0x0A, 0x00, 0x00, 0x00,        // MOV eax, 0xA
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0x09, 0x88, 0xC1},  // VEXPANDPS xmm0{k1}, xmm1
+            s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VPBLENDMD — mask-controlled dword blend
+  // VPBLENDMD xmm0{k1}, xmm2, xmm1: EVEX.128.66.0F38.W0 64 /r
+  // P0=0xF2(mmm=010), P1=0x6D(W=0,vvvv=~2,pp=01), P2=0x09(aaa=001)
+  // modrm: mod=11,reg=xmm0(000),rm=xmm1(001) → 0xC1
+  // =====================================================================
+  cat = "EVEX VPBLENDMD";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // dst (xmm0) = sentinel values that should NOT appear in merge result
+    s.xmm[0] = xmm_from_u32(0xDEAD0000, 0xDEAD0001, 0xDEAD0002, 0xDEAD0003);
+    // SRC2 (xmm1)
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    // SRC1/vvvv (xmm2)
+    s.xmm[2] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+
+    // No mask (aaa=0): all elements from SRC2
+    // P2=0x08 (z=0,LL=00,b=0,V'=1,aaa=000)
+    // Expected: {0x11111111, 0x22222222, 0x33333333, 0x44444444}
+    add_xmm("vpblendmd: no mask (all SRC2)",
+            {0x62, 0xF2, 0x6D, 0x08, 0x64, 0xC1}, s, 0x3);
+
+    // Merge masking: k1=0x5 (0101b) → elem 0,2 from SRC2, elem 1,3 from SRC1
+    // MOV eax, 5; KMOVW k1, eax; VPBLENDMD xmm0{k1}, xmm2, xmm1
+    // Expected: {0x11111111, 0xBBBBBBBB, 0x33333333, 0xDDDDDDDD}
+    add_xmm("vpblendmd: merge mask k1=0101b",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x6D, 0x09, 0x64, 0xC1},  // VPBLENDMD xmm0{k1}, xmm2, xmm1
+            s, 0x3);
+
+    // Zero masking: k1=0x5 (0101b), z=1 → elem 0,2 from SRC2, elem 1,3 = 0
+    // P2=0x89 (z=1,LL=00,b=0,V'=1,aaa=001)
+    // Expected: {0x11111111, 0x00000000, 0x33333333, 0x00000000}
+    add_xmm("vpblendmd: zero mask k1=0101b",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x6D, 0x89, 0x64, 0xC1},  // VPBLENDMD xmm0{k1}{z}, xmm2, xmm1
+            s, 0x3);
+
+    // Merge masking: k1=0xA (1010b) → elem 1,3 from SRC2, elem 0,2 from SRC1
+    // Expected: {0xAAAAAAAA, 0x22222222, 0xCCCCCCCC, 0x44444444}
+    add_xmm("vpblendmd: merge mask k1=1010b",
+            {0xB8, 0x0A, 0x00, 0x00, 0x00,        // MOV eax, 0xA
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x6D, 0x09, 0x64, 0xC1},  // VPBLENDMD xmm0{k1}, xmm2, xmm1
+            s, 0x3);
+
+    // All-zeros mask: k1=0x0 → all elements from SRC1
+    // Expected: {0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD}
+    add_xmm("vpblendmd: merge mask k1=0000b",
+            {0xB8, 0x00, 0x00, 0x00, 0x00,        // MOV eax, 0
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x6D, 0x09, 0x64, 0xC1},  // VPBLENDMD xmm0{k1}, xmm2, xmm1
+            s, 0x3);
+  }
 }

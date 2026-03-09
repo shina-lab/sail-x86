@@ -1580,7 +1580,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 7) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_zmm(dst, result); Ok()
@@ -1592,7 +1592,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 3) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_ymm(dst, result); Ok()
@@ -1604,7 +1604,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 1) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_xmm(dst, result); Ok()
@@ -1620,7 +1620,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 15) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_zmm(dst, result); Ok()
@@ -1632,7 +1632,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 7) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_ymm(dst, result); Ok()
@@ -1644,7 +1644,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 3) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_xmm(dst, result); Ok()
@@ -1673,7 +1673,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 7) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_zmm(dst, result); Ok()
@@ -1685,7 +1685,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 3) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_ymm(dst, result); Ok()
@@ -1697,7 +1697,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 1) {
               if k[i] == bitone then
                 result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
             };
             write_xmm(dst, result); Ok()
@@ -1713,7 +1713,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 15) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_zmm(dst, result); Ok()
@@ -1725,7 +1725,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 7) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_ymm(dst, result); Ok()
@@ -1737,7 +1737,7 @@ function dispatch_evex_perm(op, pfx) = {
             foreach (i from 0 to 3) {
               if k[i] == bitone then
                 result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
             };
             write_xmm(dst, result); Ok()

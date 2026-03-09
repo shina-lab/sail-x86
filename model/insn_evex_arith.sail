@@ -4491,7 +4491,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 31) {
               if k[i] == bitone then
                 result[(i * 16 + 15) .. (i * 16)] = src2[(i * 16 + 15) .. (i * 16)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 16 + 15) .. (i * 16)] = src1[(i * 16 + 15) .. (i * 16)]
             };
             write_zmm(dst, result); Ok()
@@ -4503,7 +4503,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 15) {
               if k[i] == bitone then
                 result[(i * 16 + 15) .. (i * 16)] = src2[(i * 16 + 15) .. (i * 16)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 16 + 15) .. (i * 16)] = src1[(i * 16 + 15) .. (i * 16)]
             };
             write_ymm(dst, result); Ok()
@@ -4515,7 +4515,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 7) {
               if k[i] == bitone then
                 result[(i * 16 + 15) .. (i * 16)] = src2[(i * 16 + 15) .. (i * 16)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 16 + 15) .. (i * 16)] = src1[(i * 16 + 15) .. (i * 16)]
             };
             write_xmm(dst, result); Ok()
@@ -4531,7 +4531,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 63) {
               if k[i] == bitone then
                 result[(i * 8 + 7) .. (i * 8)] = src2[(i * 8 + 7) .. (i * 8)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 8 + 7) .. (i * 8)] = src1[(i * 8 + 7) .. (i * 8)]
             };
             write_zmm(dst, result); Ok()
@@ -4543,7 +4543,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 31) {
               if k[i] == bitone then
                 result[(i * 8 + 7) .. (i * 8)] = src2[(i * 8 + 7) .. (i * 8)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 8 + 7) .. (i * 8)] = src1[(i * 8 + 7) .. (i * 8)]
             };
             write_ymm(dst, result); Ok()
@@ -4555,7 +4555,7 @@ function dispatch_evex_arith(op, pfx) = {
             foreach (i from 0 to 15) {
               if k[i] == bitone then
                 result[(i * 8 + 7) .. (i * 8)] = src2[(i * 8 + 7) .. (i * 8)]
-              else if pfx.evex_aaa == 0 then
+              else if ~(pfx.evex_z) then
                 result[(i * 8 + 7) .. (i * 8)] = src1[(i * 8 + 7) .. (i * 8)]
             };
             write_xmm(dst, result); Ok()
