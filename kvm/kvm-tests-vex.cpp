@@ -4566,6 +4566,48 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // EVEX VPMOVDB/DW/QB (0F38 31/33/32) — truncating narrowing stores
+  // =====================================================================
+  cat = "EVEX VPMOV narrow";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};  // destination
+    // VPMOVDB xmm0, xmm1: truncate dwords to bytes (low 8 bits of each dword)
+    // src=xmm1, dst=xmm0: modrm reg=1(src) r/m=0(dst) → 11_001_000 = 0xC8
+    // EVEX.128.F3.0F38.W0: P0=0xF2(mm=10), P1=0x7E(W=0,vvvv=1111,pp=10), P2=0x08
+    s.xmm[1] = xmm_from_u32(0x000000FF, 0x00000100, 0x12345678, 0xDEADBEEF);
+    add_xmm("vpmovdb xmm0,xmm1: truncate",
+            {0x62, 0xF2, 0x7E, 0x08, 0x31, 0xC8}, s, 0x3);
+
+    // VPMOVDW xmm0, xmm1: truncate dwords to words (low 16 bits)
+    // EVEX.128.F3.0F38.W0 33 /r
+    s.xmm[1] = xmm_from_u32(0x0000FFFF, 0x00010000, 0x12345678, 0xDEADBEEF);
+    add_xmm("vpmovdw xmm0,xmm1: truncate",
+            {0x62, 0xF2, 0x7E, 0x08, 0x33, 0xC8}, s, 0x3);
+
+    // VPMOVSDB xmm0, xmm1: signed-saturate dwords to bytes
+    // EVEX.128.F3.0F38.W0 21 /r
+    // 0x50 → 0x50 (within [-128,127]), 0x200 → 0x7F (saturate), -1→0xFF(-1), -200→0x80(-128)
+    s.xmm[1] = xmm_from_u32(0x00000050, 0x00000200, 0xFFFFFFFF, 0xFFFFFF38);
+    add_xmm("vpmovsdb xmm0,xmm1: signed sat",
+            {0x62, 0xF2, 0x7E, 0x08, 0x21, 0xC8}, s, 0x3);
+
+    // VPMOVUSDB xmm0, xmm1: unsigned-saturate dwords to bytes
+    // EVEX.128.F3.0F38.W0 11 /r
+    // 0x50→0x50, 0x200→0xFF(sat), 0→0, 0xFFFFFFFF→0xFF(sat)
+    s.xmm[1] = xmm_from_u32(0x00000050, 0x00000200, 0x00000000, 0xFFFFFFFF);
+    add_xmm("vpmovusdb xmm0,xmm1: unsigned sat",
+            {0x62, 0xF2, 0x7E, 0x08, 0x11, 0xC8}, s, 0x3);
+
+    // VPMOVQD xmm0, xmm1: truncate qwords to dwords
+    // EVEX.128.F3.0F38.W0 35 /r
+    s.xmm[1] = xmm_from_u64(0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL);
+    add_xmm("vpmovqd xmm0,xmm1: truncate",
+            {0x62, 0xF2, 0x7E, 0x08, 0x35, 0xC8}, s, 0x3);
+  }
+
+  // =====================================================================
   // EVEX VPDPBUSD (0F38 50) — unsigned*signed byte dot product → dword
   // =====================================================================
   cat = "EVEX VNNI";
