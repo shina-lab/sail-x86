@@ -4725,6 +4725,41 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // EVEX VFIXUPIMMPS (0F3A 54) — fix up special float32 values
+  // =====================================================================
+  cat = "EVEX VFIXUPIMMPS";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // VFIXUPIMMPS xmm0, xmm1, xmm2, imm8
+    // dst=xmm0, src1(vvvv)=xmm1 (values to classify), src2(r/m)=xmm2 (lookup table)
+    // Table format: each dword has 8 4-bit entries indexed by token type:
+    //   [3:0]=QNAN, [7:4]=SNAN, [11:8]=ZERO, [15:12]=POS_ONE,
+    //   [19:16]=NEG_INF, [23:20]=POS_INF, [27:24]=NEG_VALUE, [31:28]=POS_VALUE
+    // Response 0x1 = pass through src1, 0x5 = +INF, 0xA = +1.0
+
+    // Test: all positive values → token=POS_VALUE(7), response at bits[31:28]
+    // Table = 0x10000000 → POS_VALUE response = 0x1 (pass through)
+    s.xmm[0] = xmm_from_f32(99.0f, 99.0f, 99.0f, 99.0f);  // dst (not used for resp=1)
+    s.xmm[1] = xmm_from_f32(1.5f, 2.5f, 3.5f, 4.5f);  // src1 to classify
+    s.xmm[2] = xmm_from_u32(0x10000000, 0x10000000, 0x10000000, 0x10000000);
+    // EVEX.NDS.128.66.0F3A.W0 54 /r imm8
+    // P0=0xF3(0F3A), P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08, modrm=0xC2, imm=0
+    add_xmm("vfixupimmps: pos values pass-through",
+            {0x62, 0xF3, 0x75, 0x08, 0x54, 0xC2, 0x00}, s, 0x7);
+
+    // Test: zero input → token=ZERO(2), response at bits[11:8]
+    // Table = 0x00000500 → ZERO response = 0x5 (+INF)
+    s.xmm[1] = xmm_from_f32(0.0f, -0.0f, 1.0f, -1.0f);
+    // For 0.0→+INF, -0.0→+INF, 1.0→pass(POS_ONE resp=0x0=preserve dst), -1.0→pass(NEG_VALUE)
+    // Table: ZERO=5(+INF), POS_ONE=0(preserve dst), NEG_VALUE=1(pass src1), POS_VALUE=1(pass src1)
+    s.xmm[2] = xmm_from_u32(0x11010500, 0x11010500, 0x11010500, 0x11010500);
+    s.xmm[0] = xmm_from_f32(42.0f, 42.0f, 42.0f, 42.0f);
+    add_xmm("vfixupimmps: zero→+INF, one→preserve, neg→pass",
+            {0x62, 0xF3, 0x75, 0x08, 0x54, 0xC2, 0x00}, s, 0x7);
+  }
+
+  // =====================================================================
   // EVEX VREDUCEPS (0F3A 56) — reduce float range
   // =====================================================================
   cat = "EVEX VREDUCEPS";

@@ -2211,23 +2211,100 @@ u64 Model::z__f64_reduce(u64 a, u64 imm) {
 }
 
 // VFIXUPIMM: fix up special FP values based on lookup table
-// dst = destination, src1 = first source, src2 = lookup table (int32/int64), imm = control
+// Classify src1 into 8 token types, look up 4-bit response in tbl, apply action.
+static u32 fixupimm_sp_response(u32 dst, u32 src1, u32 tbl, u8 imm) {
+  // Classify src1 into token type (0-7)
+  int exp = (src1 >> 23) & 0xFF;
+  u32 frac = src1 & 0x7FFFFF;
+  bool sign = (src1 >> 31) != 0;
+  int j;
+  if (exp == 0xFF && frac != 0 && (frac & 0x400000))
+    j = 0;  // QNAN
+  else if (exp == 0xFF && frac != 0)
+    j = 1;  // SNAN
+  else if (exp == 0 && frac == 0)
+    j = 2;  // ZERO (includes +0 and -0)
+  else if (src1 == 0x3F800000)
+    j = 3;  // POS_ONE (+1.0)
+  else if (src1 == 0xFF800000)
+    j = 4;  // NEG_INF
+  else if (src1 == 0x7F800000)
+    j = 5;  // POS_INF
+  else if (sign)
+    j = 6;  // NEG_VALUE
+  else
+    j = 7;  // POS_VALUE
+  int resp = (tbl >> (j * 4)) & 0xF;
+  switch (resp) {
+  case 0x0: return dst;
+  case 0x1: return src1;
+  case 0x2: return src1 | 0x00400000;  // QNaN(src1)
+  case 0x3: return 0xFFC00000;         // QNaN indefinite
+  case 0x4: return 0xFF800000;         // -INF
+  case 0x5: return 0x7F800000;         // +INF
+  case 0x6: return sign ? 0xFF800000 : 0x7F800000;  // sign-dependent INF
+  case 0x7: return 0x80000000;         // -0
+  case 0x8: return 0x00000000;         // +0
+  case 0x9: return 0xBF800000;         // -1.0
+  case 0xA: return 0x3F800000;         // +1.0
+  case 0xB: return 0x3F000000;         // 0.5
+  case 0xC: return 0x42B40000;         // 90.0
+  case 0xD: return 0x3FC90FDB;         // pi/2
+  case 0xE: return 0x7F7FFFFF;         // MAX_FLOAT
+  case 0xF: return 0xFF7FFFFF;         // -MAX_FLOAT
+  default: return dst;
+  }
+}
+
 u64 Model::z__f32_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
-  // Simplified: for normal cases, return src1 unchanged
-  // A full implementation would classify src1 and dst, then use src2 as a lookup table
-  float fs;
-  memcpy(&fs, &src1, 4);
-  u32 r;
-  memcpy(&r, &fs, 4);
-  return r;
+  return fixupimm_sp_response((u32)dst, (u32)src1, (u32)src2, (u8)imm);
+}
+
+static u64 fixupimm_dp_response(u64 dst, u64 src1, u64 tbl, u8 imm) {
+  int exp = (src1 >> 52) & 0x7FF;
+  u64 frac = src1 & 0xFFFFFFFFFFFFFULL;
+  bool sign = (src1 >> 63) != 0;
+  int j;
+  if (exp == 0x7FF && frac != 0 && (frac & 0x8000000000000ULL))
+    j = 0;  // QNAN
+  else if (exp == 0x7FF && frac != 0)
+    j = 1;  // SNAN
+  else if (exp == 0 && frac == 0)
+    j = 2;  // ZERO
+  else if (src1 == 0x3FF0000000000000ULL)
+    j = 3;  // POS_ONE
+  else if (src1 == 0xFFF0000000000000ULL)
+    j = 4;  // NEG_INF
+  else if (src1 == 0x7FF0000000000000ULL)
+    j = 5;  // POS_INF
+  else if (sign)
+    j = 6;  // NEG_VALUE
+  else
+    j = 7;  // POS_VALUE
+  int resp = (tbl >> (j * 4)) & 0xF;
+  switch (resp) {
+  case 0x0: return dst;
+  case 0x1: return src1;
+  case 0x2: return src1 | 0x0008000000000000ULL;  // QNaN(src1)
+  case 0x3: return 0xFFF8000000000000ULL;          // QNaN indefinite
+  case 0x4: return 0xFFF0000000000000ULL;          // -INF
+  case 0x5: return 0x7FF0000000000000ULL;          // +INF
+  case 0x6: return sign ? 0xFFF0000000000000ULL : 0x7FF0000000000000ULL;
+  case 0x7: return 0x8000000000000000ULL;          // -0
+  case 0x8: return 0x0000000000000000ULL;          // +0
+  case 0x9: return 0xBFF0000000000000ULL;          // -1.0
+  case 0xA: return 0x3FF0000000000000ULL;          // +1.0
+  case 0xB: return 0x3FE0000000000000ULL;          // 0.5
+  case 0xC: return 0x4056800000000000ULL;          // 90.0
+  case 0xD: return 0x3FF921FB54442D18ULL;          // pi/2
+  case 0xE: return 0x7FEFFFFFFFFFFFFFULL;          // MAX_DOUBLE
+  case 0xF: return 0xFFEFFFFFFFFFFFFFULL;          // -MAX_DOUBLE
+  default: return dst;
+  }
 }
 
 u64 Model::z__f64_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
-  // Simplified: return src1 unchanged for normal values
-  double ds;
-  memcpy(&ds, &src1, 8);
-  memcpy(&dst, &ds, 8);
-  return dst;
+  return fixupimm_dp_response(dst, src1, src2, (u8)imm);
 }
 
 } // namespace x86
