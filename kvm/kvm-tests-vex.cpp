@@ -2440,6 +2440,47 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VEX GFNI — VGF2P8MULB, VGF2P8AFFINEQB, VGF2P8AFFINEINVQB
+  // =====================================================================
+  cat = "VEX GFNI";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[2] = xmm_from_u64(0x1020304050607080, 0x90A0B0C0D0E0F001);
+
+    // VGF2P8MULB xmm0, xmm1, xmm2 (VEX.128.66.0F38.W0 CF /r)
+    // 3-byte VEX: C4 [RXB.mmmmm] [W.vvvv.L.pp]
+    // R̄=1,X̄=1,B̄=1,mmmmm=00010 → E2
+    // W=0, vvvv=~1=1110, L=0, pp=01(66) → 0.1110.0.01 = 0x71
+    // Wait: vvvv is inverted. xmm1=1, ~1=0b1110. P1=0.1110.0.01
+    // Hmm: W.~vvvv.L.pp = 0.1110.0.01 = 0x71
+    // C4 E2 71 CF C2: VGF2P8MULB xmm0, xmm1, xmm2 (modrm=11.000.010=0xC2)
+    add_xmm("vgf2p8mulb xmm0,xmm1,xmm2",
+      {0xC4, 0xE2, 0x71, 0xCF, 0xC2}, s, 0x7);
+
+    // VGF2P8AFFINEQB xmm0, xmm1, xmm2, 0x00 (VEX.128.66.0F3A.W1 CE /r ib)
+    // C4 E3 F1 CE C2 00
+    // mmmmm=00011(0F3A) → P0: 1.1.1.00011 = 0xE3
+    // W=1, vvvv=~1=1110, L=0, pp=01 → 1.1110.0.01 = 0xF1
+    add_xmm("vgf2p8affineqb xmm0,xmm1,xmm2,0x00",
+      {0xC4, 0xE3, 0xF1, 0xCE, 0xC2, 0x00}, s, 0x7);
+
+    // VGF2P8AFFINEINVQB xmm0, xmm1, xmm2, 0x00 (VEX.128.66.0F3A.W1 CF /r ib)
+    add_xmm("vgf2p8affineinvqb xmm0,xmm1,xmm2,0x00",
+      {0xC4, 0xE3, 0xF1, 0xCF, 0xC2, 0x00}, s, 0x7);
+
+    // VGF2P8AFFINEQB with non-zero imm
+    add_xmm("vgf2p8affineqb xmm0,xmm1,xmm2,0x55",
+      {0xC4, 0xE3, 0xF1, 0xCE, 0xC2, 0x55}, s, 0x7);
+  }
+
+  // =====================================================================
   // EVEX FP conv — VCVTQQ2PS (signed int64 → float32, narrowing)
   // EVEX.NP.0F.W1 5B /r
   // =====================================================================

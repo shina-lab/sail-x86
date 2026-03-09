@@ -1075,6 +1075,60 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
+  // VGF2P8AFFINEQB: VEX.128/256.66.0F3A.W1 CE /r ib
+  206 => {
+    if mp != MP_66 then raise_UD()
+    else {
+      let modrm = fetch_byte();
+      let dst = modrm_xmm_reg(modrm, pfx);
+      let src1_idx = pfx.vex_vvvv;
+      let rm = decode_rm(modrm, pfx);
+      if pfx.vex_l then {
+        let src1 : ymmword = read_ymm(src1_idx);
+        let src2 : ymmword = match rm {
+          RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => mem_read256(fixup_addr(addr)),
+        };
+        let imm = fetch_byte();
+        let lo = __gf2p8affineqb(src1[127..0], src2[127..0], imm);
+        let hi = __gf2p8affineqb(src1[255..128], src2[255..128], imm);
+        write_ymm(dst, hi @ lo); Ok()
+      } else {
+        let src1 : xmmword = read_xmm(src1_idx);
+        let src2 : xmmword = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        write_xmm(dst, __gf2p8affineqb(src1, src2, imm)); Ok()
+      }
+    }
+  },
+
+  // VGF2P8AFFINEINVQB: VEX.128/256.66.0F3A.W1 CF /r ib
+  207 => {
+    if mp != MP_66 then raise_UD()
+    else {
+      let modrm = fetch_byte();
+      let dst = modrm_xmm_reg(modrm, pfx);
+      let src1_idx = pfx.vex_vvvv;
+      let rm = decode_rm(modrm, pfx);
+      if pfx.vex_l then {
+        let src1 : ymmword = read_ymm(src1_idx);
+        let src2 : ymmword = match rm {
+          RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => mem_read256(fixup_addr(addr)),
+        };
+        let imm = fetch_byte();
+        let lo = __gf2p8affineinvqb(src1[127..0], src2[127..0], imm);
+        let hi = __gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
+        write_ymm(dst, hi @ lo); Ok()
+      } else {
+        let src1 : xmmword = read_xmm(src1_idx);
+        let src2 : xmmword = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        write_xmm(dst, __gf2p8affineinvqb(src1, src2, imm)); Ok()
+      }
+    }
+  },
+
   _ => raise_UD(),
   }
 }

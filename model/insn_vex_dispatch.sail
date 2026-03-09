@@ -253,6 +253,9 @@ function dispatch_vex_0f38(opcode, pfx) = {
   190 => dispatch_vex_0f38_fma(op, pfx),
   191 => dispatch_vex_0f38_fma(op, pfx),
 
+  // VGF2P8MULB: VEX.128/256.66.0F38.W0 CF /r
+  207 => dispatch_vex_0f38_arith(op, pfx),
+
   _ => raise_UD(),
   }
 }

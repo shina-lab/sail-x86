@@ -185,6 +185,7 @@ set(KVM_CATEGORIES
   CRC32
   GFNI
   SHA
+  "VEX GFNI"
   "EVEX rotate imm"
   "EVEX FP conv"
 )

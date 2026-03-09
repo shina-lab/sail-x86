@@ -656,9 +656,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] TDPBF16PS (BF16 tile dot product)
 
 ### 1.19 Galois Field (GFNI)
-- [x] GF2P8MULB (GF(2^8) byte multiply) — implemented, delegated to hardware intrinsics + KVM tests
-- [x] GF2P8AFFINEINVQB (GF(2^8) affine inverse) — implemented, delegated to hardware intrinsics + KVM tests
-- [x] GF2P8AFFINEQB (GF(2^8) affine transform) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] GF2P8MULB (GF(2^8) byte multiply) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests
+- [x] GF2P8AFFINEINVQB (GF(2^8) affine inverse) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests
+- [x] GF2P8AFFINEQB (GF(2^8) affine transform) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests
 
 ### 1.20 Key Locker
 - [ ] LOADIWKEY (load internal wrapping key)
