@@ -42,6 +42,26 @@ function read_rflags() = {
   r
 }
 
+// Write all individual flags from a packed RFLAGS value.
+// This sets CF, PF, AF, ZF, SF, TF, IF, DF, OF, IOPL, NT, AC, ID.
+// RF and VM are NOT set (they have special handling).
+val write_rflags : qword -> unit
+function write_rflags(v) = {
+  CF      = v[0];
+  PF      = v[2];
+  AF      = v[4];
+  ZF      = v[6];
+  SF      = v[7];
+  TF      = v[8];
+  IF_flag = v[9];
+  DF      = v[10];
+  OF      = v[11];
+  IOPL    = v[13..12];
+  NT      = v[14];
+  AC_flag = v[18];
+  ID      = v[21];
+}
+
 // Compute the parity of the low 8 bits of a value.
 // PF is set if the number of set bits in the low byte is even.
 val compute_PF : byte -> bit

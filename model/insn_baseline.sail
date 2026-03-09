@@ -510,17 +510,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         let lstar : qword = __rdmsr(0xC0000082);
         let fmask : qword = __rdmsr(0xC0000084);
 
-        // Mask RFLAGS: clear bits in FMASK, also clear RF
+        // Mask RFLAGS: clear bits in FMASK, also clear RF (bit 16)
         let new_rflags = saved_rflags & ~(fmask) & ~(0x0000000000010000);
-        CF      = new_rflags[0];
-        PF      = new_rflags[2];
-        AF      = new_rflags[4];
-        ZF      = new_rflags[6];
-        SF      = new_rflags[7];
-        TF      = new_rflags[8];
-        IF_flag = new_rflags[9];
-        DF      = new_rflags[10];
-        OF      = new_rflags[11];
+        write_rflags(new_rflags);
 
         // CS = STAR[47:32] & 0xFFFC, SS = STAR[47:32] + 8
         let syscall_cs : word = star[47..32] & 0xFFFC;
@@ -553,17 +545,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         let new_rip = read_gpr64(RCX);
         let new_rflags = read_gpr64(R11);
 
-        // Restore RFLAGS (mask out reserved bits, keep RF=0, VM=0)
-        let restored = new_rflags & 0x00000000003F7FD5;  // RFLAGS user-settable bits
-        CF    = restored[0];
-        PF    = restored[2];
-        AF    = restored[4];
-        ZF    = restored[6];
-        SF    = restored[7];
-        TF    = restored[8];
-        IF_flag = restored[9];
-        DF    = restored[10];
-        OF    = restored[11];
+        // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
+        // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
+        let restored = (new_rflags & 0x00000000003C7FD7) | 0x0000000000000002;
+        write_rflags(restored);
 
         // Load CS and SS from IA32_STAR MSR.
         // SDM Vol.2: SYSRET with REX.W (64-bit):
