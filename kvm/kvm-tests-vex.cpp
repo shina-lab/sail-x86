@@ -4564,4 +4564,53 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpmultishiftqb xmm0,xmm1,xmm2: all shift=0",
             {0x62, 0xF2, 0xF5, 0x08, 0x83, 0xC2}, s, 0x3);
   }
+
+  // =====================================================================
+  // EVEX VPDPBUSD (0F38 50) — unsigned*signed byte dot product → dword
+  // =====================================================================
+  cat = "EVEX VNNI";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // VPDPBUSD xmm0, xmm1, xmm2: dst += u8(s1)*s8(s2) per dword
+    // dst (xmm0) = accumulator, vvvv (xmm1) = unsigned bytes, r/m (xmm2) = signed bytes
+    s.xmm[0] = xmm_from_u32(0, 0, 0, 0);  // zero accumulator
+    // s1 = {1,2,3,4} per dword (unsigned), s2 = {1,1,1,1} per dword (signed)
+    // Product per dword = 1*1 + 2*1 + 3*1 + 4*1 = 10
+    s.xmm[1] = xmm_from_u32(0x04030201, 0x04030201, 0x04030201, 0x04030201);
+    s.xmm[2] = xmm_from_u32(0x01010101, 0x01010101, 0x01010101, 0x01010101);
+    // EVEX.NDS.128.66.0F38.W0 50 /r
+    add_xmm("vpdpbusd xmm0,xmm1,xmm2: basic",
+            {0x62, 0xF2, 0x75, 0x08, 0x50, 0xC2}, s, 0x7);
+
+    // Test with signed negatives: s2 = {-1,-1,-1,-1}
+    // Product = 1*(-1) + 2*(-1) + 3*(-1) + 4*(-1) = -10
+    s.xmm[2] = xmm_from_u32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+    add_xmm("vpdpbusd xmm0,xmm1,xmm2: signed neg",
+            {0x62, 0xF2, 0x75, 0x08, 0x50, 0xC2}, s, 0x7);
+
+    // VPDPBUSDS (0F38 51) — same but with signed saturation
+    s.xmm[0] = xmm_from_u32(0x7FFFFFF0, 0, 0, 0);  // near INT32_MAX
+    s.xmm[1] = xmm_from_u32(0xFF0A0A0A, 0x04030201, 0x04030201, 0x04030201);
+    s.xmm[2] = xmm_from_u32(0x7F7F7F7F, 0x01010101, 0x01010101, 0x01010101);
+    add_xmm("vpdpbusds xmm0,xmm1,xmm2: near saturation",
+            {0x62, 0xF2, 0x75, 0x08, 0x51, 0xC2}, s, 0x7);
+
+    // VPDPWSSD (0F38 52) — signed word dot product → dword
+    // dst += s16(s1[0])*s16(s2[0]) + s16(s1[1])*s16(s2[1]) per dword
+    s.xmm[0] = xmm_from_u32(0, 0, 0, 0);
+    // s1 = {3, 4} per dword as signed words; s2 = {10, 20}
+    // Product = 3*10 + 4*20 = 30 + 80 = 110
+    s.xmm[1] = xmm_from_u32(0x00040003, 0x00040003, 0x00040003, 0x00040003);
+    s.xmm[2] = xmm_from_u32(0x0014000A, 0x0014000A, 0x00140000, 0x00000000);
+    add_xmm("vpdpwssd xmm0,xmm1,xmm2: basic",
+            {0x62, 0xF2, 0x75, 0x08, 0x52, 0xC2}, s, 0x7);
+
+    // VPDPWSSDS (0F38 53) — word dot product with signed saturation
+    s.xmm[0] = xmm_from_u32(0x7FFFFFF0, 0, 0, 0);  // near INT32_MAX
+    s.xmm[1] = xmm_from_u32(0x7FFF7FFF, 0x00040003, 0x00040003, 0x00040003);
+    s.xmm[2] = xmm_from_u32(0x7FFF7FFF, 0x00140000, 0x00000000, 0x00000000);
+    add_xmm("vpdpwssds xmm0,xmm1,xmm2: saturation",
+            {0x62, 0xF2, 0x75, 0x08, 0x53, 0xC2}, s, 0x7);
+  }
 }
