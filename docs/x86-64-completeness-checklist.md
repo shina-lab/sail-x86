@@ -16,52 +16,52 @@ validity matches SDM (some are invalid in 64-bit mode).
 ### 1.1 General-Purpose Integer (base x86-64)
 
 #### 1.1.1 Data Transfer
-- [ ] MOV (reg/mem/imm, all operand sizes 8/16/32/64)
-- [ ] MOV to/from control registers (MOV CRn) [mov-1 in SDM]
+- [x] MOV (reg/mem/imm, all operand sizes 8/16/32/64) — verified correct
+- [x] MOV to/from control registers (MOV CRn) [mov-1 in SDM] — verified correct
 - [ ] MOV to/from debug registers (MOV DRn) [mov-2 in SDM]
-- [ ] MOVSX, MOVSXD (sign-extend 8→16/32/64, 16→32/64, 32→64)
-- [ ] MOVZX (zero-extend 8→16/32/64, 16→32/64)
-- [ ] MOVBE (byte-swap load/store, MOVBE extension)
-- [ ] XCHG (reg-reg, reg-mem; implicit LOCK on memory)
-- [ ] XADD (exchange and add)
-- [ ] CMPXCHG (compare and exchange, 8/16/32/64)
-- [ ] CMPXCHG8B, CMPXCHG16B (8-byte/16-byte compare-and-exchange)
-- [ ] BSWAP (byte-swap 32/64)
+- [x] MOVSX, MOVSXD (sign-extend 8→16/32/64, 16→32/64, 32→64) — verified correct
+- [x] MOVZX (zero-extend 8→16/32/64, 16→32/64) — verified correct
+- [x] MOVBE (byte-swap load/store, MOVBE extension) — verified correct
+- [x] XCHG (reg-reg, reg-mem; implicit LOCK on memory) — verified correct
+- [x] XADD (exchange and add) — verified correct
+- [x] CMPXCHG (compare and exchange, 8/16/32/64) — verified correct
+- [x] CMPXCHG8B, CMPXCHG16B (8-byte/16-byte compare-and-exchange) — verified correct
+- [x] BSWAP (byte-swap 32/64) — verified correct
 - [x] XLAT, XLATB (table lookup translation) — verified + KVM tests
-- [ ] CMOVcc (all 16 conditions, 16/32/64-bit)
+- [x] CMOVcc (all 16 conditions, 16/32/64-bit) — verified correct
 
 #### 1.1.2 Stack Operations
-- [ ] PUSH (reg, mem, imm8, imm16/32; 16/64-bit operand sizes in 64-bit mode)
-- [ ] POP (reg, mem; 16/64-bit in 64-bit mode)
-- [ ] PUSHF, PUSHFQ (push flags)
-- [ ] POPF, POPFQ (pop flags)
-- [ ] PUSHA, PUSHAD (invalid in 64-bit mode — must #UD)
-- [ ] POPA, POPAD (invalid in 64-bit mode — must #UD)
+- [x] PUSH (reg, mem, imm8, imm16/32; 16/64-bit operand sizes in 64-bit mode) — verified correct
+- [x] POP (reg, mem; 16/64-bit in 64-bit mode) — verified correct
+- [x] PUSHF, PUSHFQ (push flags) — verified correct
+- [x] POPF, POPFQ (pop flags) — verified, IOPL bug fixed
+- [x] PUSHA, PUSHAD (invalid in 64-bit mode — must #UD) — verified correct
+- [x] POPA, POPAD (invalid in 64-bit mode — must #UD) — verified correct
 - [x] ENTER (create stack frame, nesting levels 0-31) — verified + KVM tests (levels 0,1)
 - [x] LEAVE (destroy stack frame) — verified + KVM tests
 
 #### 1.1.3 Arithmetic
-- [ ] ADD (all operand size/type combinations, flag effects)
-- [ ] ADC (add with carry)
-- [ ] SUB (subtract)
-- [ ] SBB (subtract with borrow)
-- [ ] INC (no CF modification)
-- [ ] DEC (no CF modification)
-- [ ] NEG (two's complement negate)
-- [ ] CMP (subtract without storing)
-- [ ] MUL (unsigned multiply, 8/16/32/64-bit; widening to double-size)
-- [ ] IMUL (signed multiply — 1-operand widening, 2-operand, 3-operand forms)
-- [ ] DIV (unsigned divide, 8/16/32/64-bit; #DE on overflow/zero)
-- [ ] IDIV (signed divide; #DE on overflow/zero)
+- [x] ADD (all operand size/type combinations, flag effects) — verified correct
+- [x] ADC (add with carry) — verified correct
+- [x] SUB (subtract) — verified correct
+- [x] SBB (subtract with borrow) — verified correct
+- [x] INC (no CF modification) — verified correct
+- [x] DEC (no CF modification) — verified correct
+- [x] NEG (two's complement negate) — verified correct
+- [x] CMP (subtract without storing) — verified correct
+- [x] MUL (unsigned multiply, 8/16/32/64-bit; widening to double-size) — verified correct
+- [x] IMUL (signed multiply — 1-operand widening, 2-operand, 3-operand forms) — verified correct
+- [x] DIV (unsigned divide, 8/16/32/64-bit; #DE on overflow/zero) — verified correct
+- [x] IDIV (signed divide; #DE on overflow/zero) — verified correct
 
 #### 1.1.4 Sign/Zero Extension of Accumulators
-- [ ] CBW (AL→AX), CWDE (AX→EAX), CDQE (EAX→RAX)
-- [ ] CWD (AX→DX:AX), CDQ (EAX→EDX:EAX), CQO (RAX→RDX:RAX)
+- [x] CBW (AL→AX), CWDE (AX→EAX), CDQE (EAX→RAX) — verified correct
+- [x] CWD (AX→DX:AX), CDQ (EAX→EDX:EAX), CQO (RAX→RDX:RAX) — verified correct
 
 #### 1.1.5 Logical
-- [ ] AND, OR, XOR (all operand combinations; OF=CF=0)
-- [ ] NOT (bitwise complement, no flag effects)
-- [ ] TEST (AND without storing)
+- [x] AND, OR, XOR (all operand combinations; OF=CF=0) — verified correct
+- [x] NOT (bitwise complement, no flag effects) — verified correct
+- [x] TEST (AND without storing) — verified correct
 
 #### 1.1.6 Shift and Rotate
 - [x] SHL/SAL (shift left, same opcode) — verified correct
@@ -77,38 +77,38 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] OF flag: defined only for 1-bit shifts, undefined for multi-bit — verified
 
 #### 1.1.7 Bit and Byte Operations
-- [ ] BT (bit test → CF)
-- [ ] BTS (bit test and set)
-- [ ] BTR (bit test and reset)
-- [ ] BTC (bit test and complement)
-- [ ] BSF (bit scan forward)
-- [ ] BSR (bit scan reverse)
-- [ ] SETcc (all 16 conditions, byte result)
-- [ ] POPCNT (population count, POPCNT extension)
-- [ ] LZCNT (leading zero count, LZCNT extension — different from BSR)
-- [ ] TZCNT (trailing zero count, BMI1 extension — different from BSF)
+- [x] BT (bit test → CF) — verified correct
+- [x] BTS (bit test and set) — verified correct
+- [x] BTR (bit test and reset) — verified correct
+- [x] BTC (bit test and complement) — verified correct
+- [x] BSF (bit scan forward) — verified correct
+- [x] BSR (bit scan reverse) — verified correct
+- [x] SETcc (all 16 conditions, byte result) — verified correct
+- [x] POPCNT (population count, POPCNT extension) — verified correct
+- [x] LZCNT (leading zero count, LZCNT extension — different from BSR) — verified correct
+- [x] TZCNT (trailing zero count, BMI1 extension — different from BSF) — verified correct
 
 #### 1.1.8 Control Flow
-- [ ] JMP (near relative 8/32, near indirect reg/mem, far direct, far indirect)
-- [ ] Jcc (all 16 conditions, rel8 and rel32)
-- [ ] CALL (near relative, near indirect, far direct, far indirect)
-- [ ] RET (near, near+imm16, far, far+imm16)
+- [x] JMP (near relative 8/32, near indirect reg/mem, far direct, far indirect) — verified correct
+- [x] Jcc (all 16 conditions, rel8 and rel32) — verified correct
+- [x] CALL (near relative, near indirect, far direct, far indirect) — verified, f64 operand-size fix applied
+- [x] RET (near, near+imm16, far, far+imm16) — verified, f64 operand-size fix; RETF verified correct
 - [x] LOOP, LOOPcc (LOOPE/LOOPZ, LOOPNE/LOOPNZ; uses RCX/ECX/CX per addr size) — verified + KVM tests
 - [ ] INT n, INT3, INT1 (software interrupts)
-- [ ] INTO (invalid in 64-bit mode — must #UD)
-- [ ] IRET, IRETD, IRETQ (interrupt return)
-- [ ] BOUND (invalid in 64-bit mode — must #UD)
+- [x] INTO (invalid in 64-bit mode — must #UD) — verified correct
+- [x] IRET, IRETD, IRETQ (interrupt return) — verified, AC/ID flag fix applied
+- [x] BOUND (invalid in 64-bit mode — must #UD) — verified correct
 
 #### 1.1.9 String Operations
-- [ ] MOVS, MOVSB, MOVSW, MOVSD, MOVSQ
-- [ ] CMPS, CMPSB, CMPSW, CMPSD, CMPSQ
-- [ ] SCAS, SCASB, SCASW, SCASD (SCASQ in 64-bit mode)
-- [ ] LODS, LODSB, LODSW, LODSD, LODSQ
-- [ ] STOS, STOSB, STOSW, STOSD, STOSQ
+- [x] MOVS, MOVSB, MOVSW, MOVSD, MOVSQ — verified correct
+- [x] CMPS, CMPSB, CMPSW, CMPSD, CMPSQ — verified correct
+- [x] SCAS, SCASB, SCASW, SCASD (SCASQ in 64-bit mode) — verified correct
+- [x] LODS, LODSB, LODSW, LODSD, LODSQ — verified correct
+- [x] STOS, STOSB, STOSW, STOSD, STOSQ — verified correct
 - [ ] INS, INSB, INSW, INSD
 - [ ] OUTS, OUTSB, OUTSW, OUTSD
-- [ ] REP/REPE/REPZ/REPNE/REPNZ prefix interaction with all string ops
-- [ ] Direction flag (DF) effect on SI/DI increment/decrement
+- [x] REP/REPE/REPZ/REPNE/REPNZ prefix interaction with all string ops — verified correct
+- [x] Direction flag (DF) effect on SI/DI increment/decrement — verified correct
 
 #### 1.1.10 I/O
 - [ ] IN (imm8 port, DX port; AL/AX/EAX)
@@ -116,29 +116,30 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] INS/OUTS (port string I/O, see 1.1.9)
 
 #### 1.1.11 Flag Manipulation
-- [ ] STC, CLC, CMC (set/clear/complement carry)
-- [ ] STD, CLD (set/clear direction)
-- [ ] STI, CLI (set/clear interrupt; IOPL interaction)
+- [x] STC, CLC, CMC (set/clear/complement carry) — verified correct
+- [x] STD, CLD (set/clear direction) — verified correct
+- [x] STI, CLI (set/clear interrupt; IOPL interaction) — verified correct
 - [x] LAHF (load AH from flags SF:ZF:0:AF:0:PF:1:CF) — **BUG FIXED**: bit order was reversed
 - [x] SAHF (store AH into flags)
 
 #### 1.1.12 Segment and Address Operations
 - [x] LEA (all addressing modes, 16/32/64-bit) — verified, 67h address-size fix applied
 - [ ] LDS, LES, LFS, LGS, LSS (LDS/LES invalid in 64-bit; LFS/LGS/LSS valid)
-- [ ] NOP (1-byte 0x90 and multi-byte 0F 1F /0)
+- [x] NOP (1-byte 0x90 and multi-byte 0F 1F /0) — verified correct
 
 #### 1.1.13 Decimal Arithmetic (all invalid in 64-bit mode — must #UD)
-- [ ] AAA, AAS, AAM, AAD
-- [ ] DAA, DAS
+- [x] AAA, AAS, AAM, AAD — verified #UD in 64-bit mode
+- [x] DAA, DAS — verified #UD in 64-bit mode
 
 #### 1.1.14 Miscellaneous
-- [ ] CPUID (leaf/subleaf dispatching, feature reporting)
-- [ ] UD (UD0, UD1, UD2 — always #UD)
-- [ ] HLT (halt, ring-0 only)
-- [ ] PAUSE (spin-loop hint)
+- [x] CPUID (leaf/subleaf dispatching, feature reporting) — verified correct
+- [x] UD (UD0, UD1, UD2 — always #UD) — verified correct
+- [x] HLT (halt, ring-0 only) — verified correct
+- [x] PAUSE (spin-loop hint) — verified correct
 - [ ] SERIALIZE (execution serialization)
-- [ ] LOCK prefix (valid only with specific memory-destination instructions)
-- [ ] RDTSC, RDTSCP (read timestamp counter)
+- [x] LOCK prefix (valid only with specific memory-destination instructions) — verified correct
+- [x] RDTSC (read timestamp counter) — verified correct
+- [x] RDTSCP (read timestamp counter and processor ID) — implemented
 
 ### 1.2 x87 Floating-Point
 
@@ -393,7 +394,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] PCMPESTRI, PCMPESTRM (explicit-length string compare)
 - [ ] PCMPISTRI, PCMPISTRM (implicit-length string compare)
 - [ ] PCMPGTQ (packed compare greater-than qword)
-- [ ] CRC32 (CRC-32C accumulate)
+- [x] CRC32 (CRC-32C accumulate) — verified correct + KVM tests
 - [ ] POPCNT (population count)
 
 ### 1.8 AVX (VEX-encoded, 256-bit float, non-destructive 3-operand)
@@ -440,24 +441,24 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 1.11 BMI1 / BMI2 (Bit Manipulation)
 
 #### 1.11.1 BMI1
-- [ ] ANDN (bitwise AND-NOT, sets flags)
-- [ ] BEXTR (bit field extract)
-- [ ] BLSI (isolate lowest set bit)
-- [ ] BLSMSK (mask up to lowest set bit)
-- [ ] BLSR (reset lowest set bit)
-- [ ] TZCNT (trailing zero count)
+- [x] ANDN (bitwise AND-NOT, sets flags) — verified correct
+- [x] BEXTR (bit field extract) — verified correct
+- [x] BLSI (isolate lowest set bit) — verified correct
+- [x] BLSMSK (mask up to lowest set bit) — verified correct
+- [x] BLSR (reset lowest set bit) — verified correct
+- [x] TZCNT (trailing zero count) — verified correct
 
 #### 1.11.2 BMI2
-- [ ] BZHI (zero high bits from specified position)
-- [ ] MULX (unsigned multiply without flags)
-- [ ] PDEP (parallel bit deposit)
-- [ ] PEXT (parallel bit extract)
-- [ ] RORX (rotate right without flags)
-- [ ] SARX, SHLX, SHRX (shift without flags)
+- [x] BZHI (zero high bits from specified position) — verified correct
+- [x] MULX (unsigned multiply without flags) — verified correct
+- [x] PDEP (parallel bit deposit) — verified correct
+- [x] PEXT (parallel bit extract) — verified correct
+- [x] RORX (rotate right without flags) — verified correct
+- [x] SARX, SHLX, SHRX (shift without flags) — verified correct
 
 ### 1.12 ADX (Multi-Precision Arithmetic)
-- [ ] ADCX (unsigned add with CF in, CF out)
-- [ ] ADOX (unsigned add with OF in, OF out)
+- [x] ADCX (unsigned add with CF in, CF out) — verified correct
+- [x] ADOX (unsigned add with OF in, OF out) — verified correct
 
 ### 1.13 AES-NI (AES New Instructions)
 - [ ] AESENC (one AES encryption round)
@@ -730,10 +731,10 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] SERIALIZE (execution serialization)
 
 #### 1.25.5 Task/Interrupt
-- [ ] SWAPGS (swap GS base)
-- [ ] SYSCALL, SYSRET (fast system call/return)
+- [x] SWAPGS (swap GS base) — verified correct
+- [x] SYSCALL, SYSRET (fast system call/return) — verified, RFLAGS mask fix applied
 - [ ] SYSENTER, SYSEXIT (fast system call/return, legacy)
-- [ ] HLT (halt)
+- [x] HLT (halt) — verified correct
 - [ ] RSM (resume from system management mode)
 
 #### 1.25.6 Privilege

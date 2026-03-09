@@ -182,6 +182,7 @@ set(KVM_CATEGORIES
   "VEX gather"
   "EVEX blend"
   VLDDQU
+  CRC32
 )
 
 foreach(cat ${KVM_CATEGORIES})

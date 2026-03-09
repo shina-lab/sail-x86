@@ -1254,5 +1254,72 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     add("call rax indirect + ret", {0xFF, 0xD0, 0xF4, 0xC3}, s, FL_NONE);
     // After: RSP = STACK_TOP (pushed then popped), halts at CODE_ADDR+2
   }
+
+  // =====================================================================
+  // CRC32 — SSE4.2 CRC-32C (Castagnoli) accumulation
+  // Encoding: F2 0F 38 F0 /r = CRC32 r32, r/m8
+  //           F2 0F 38 F1 /r = CRC32 r32, r/m16/32/64
+  // =====================================================================
+  cat = "CRC32";
+  {
+    // CRC32 eax, cl (8-bit source): F2 0F 38 F0 C1
+    // CRC32(0, 0x01) — basic test
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 0x01;
+    add("crc32 eax,cl init=0", {0xF2, 0x0F, 0x38, 0xF0, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 eax, cl with non-zero accumulator
+    ArchState s = {};
+    s.rax = 0xDEADBEEF;
+    s.rcx = 0x42;
+    add("crc32 eax,cl accum", {0xF2, 0x0F, 0x38, 0xF0, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 eax, cx (16-bit source): 66 F2 0F 38 F1 C1
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 0x1234;
+    add("crc32 eax,cx", {0x66, 0xF2, 0x0F, 0x38, 0xF1, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 eax, ecx (32-bit source): F2 0F 38 F1 C1
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 0xDEADBEEF;
+    add("crc32 eax,ecx", {0xF2, 0x0F, 0x38, 0xF1, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 rax, rcx (64-bit source): F2 48 0F 38 F1 C1
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 0x123456789ABCDEF0ULL;
+    add("crc32 rax,rcx 64-bit", {0xF2, 0x48, 0x0F, 0x38, 0xF1, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 rax, cl (8-bit source, 64-bit dest): F2 48 0F 38 F0 C1
+    // REX.W + 8-bit source — upper 32 bits of RAX should be zeroed
+    ArchState s = {};
+    s.rax = 0xFFFFFFFF00000000ULL;
+    s.rcx = 0x55;
+    add("crc32 rax,cl zero-ext", {0xF2, 0x48, 0x0F, 0x38, 0xF0, 0xC1}, s, FL_NONE);
+  }
+  {
+    // CRC32 with known test vector: CRC32C("123456789") = 0xE3069283
+    // Feed bytes one at a time: '1' = 0x31, etc.
+    // CRC32 eax, cl eight times, then CRC32 eax, cl one more
+    ArchState s = {};
+    s.rax = 0;
+    s.rcx = 0x34333231;  // "1234" in little-endian
+    s.rdx = 0x38373635;  // "5678" in little-endian
+    // CRC32 eax, ecx; CRC32 eax, edx; CRC32 eax, bl
+    s.rbx = 0x39;  // '9'
+    add("crc32 known vector",
+        {0xF2, 0x0F, 0x38, 0xF1, 0xC1,        // CRC32 eax, ecx (32-bit)
+         0xF2, 0x0F, 0x38, 0xF1, 0xC2,        // CRC32 eax, edx (32-bit)
+         0xF2, 0x0F, 0x38, 0xF0, 0xC3},       // CRC32 eax, bl (8-bit)
+        s, FL_NONE);
+  }
 }
 

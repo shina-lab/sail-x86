@@ -395,6 +395,15 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
         239 => Ok(),
+        // 0F 01 F9: RDTSCP — Read TSC and IA32_TSC_AUX
+        249 => {
+          let tsc : qword = __rdtsc();
+          write_gpr32(RAX, tsc[31..0]);
+          write_gpr32(RDX, tsc[63..32]);
+          let tsc_aux : qword = __rdmsr(0xC0000103);
+          write_gpr32(RCX, tsc_aux[31..0]);
+          Ok()
+        },
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
           if cur_cpl != 0 then raise_GP0()
