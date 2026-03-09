@@ -233,6 +233,7 @@ set(KVM_CATEGORIES
   "EVEX VPINSR"
   "EVEX VPSRAQ"
   "EVEX VPCOMPRESSB/W"
+  "EVEX FP logical"
 )
 
 foreach(cat ${KVM_CATEGORIES})

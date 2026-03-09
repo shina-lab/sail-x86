@@ -1833,45 +1833,74 @@ function dispatch_evex_fp(op, pfx) = {
     result
   },
 
-  // 0F 57: VXORPS / 0F 54: VANDPS / 0F 55: VANDNPS / 0F 56: VORPS (EVEX bitwise)
+  // 0F 54: VANDPS/PD / 0F 55: VANDNPS/PD / 0F 56: VORPS/PD / 0F 57: VXORPS/PD (EVEX bitwise)
   op if 84 <= op & op <= 87 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match pfx.evex_ll {
-      2 => {
-        let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-        let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
-        let result : zmmword = match op {
-          84 => src1 & src2,
-          85 => ~(src1) & src2,
-          86 => src1 | src2,
-          _  => xor_vec(src1, src2),
-        };
-        write_zmm(dst, result); Ok()
-      },
-      1 => {
-        let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
-        let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
-        let result : ymmword = match op {
-          84 => src1 & src2,
-          85 => ~(src1) & src2,
-          86 => src1 | src2,
-          _  => xor_vec(src1, src2),
-        };
-        write_ymm(dst, result); Ok()
-      },
-      _ => {
-        let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
-        let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
-        let result : xmmword = match op {
-          84 => src1 & src2,
-          85 => ~(src1) & src2,
-          86 => src1 | src2,
-          _  => xor_vec(src1, src2),
-        };
-        write_xmm(dst, result); Ok()
-      },
+    let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+    if pfx.rex_w then {
+      // PD variant (qword broadcast)
+      match pfx.evex_ll {
+        2 => {
+          let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+          let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
+          let result : zmmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_zmm(dst, result); Ok()
+        },
+        1 => {
+          let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+          let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
+          let result : ymmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_ymm(dst, result); Ok()
+        },
+        _ => {
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
+          let result : xmmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_xmm(dst, result); Ok()
+        },
+      }
+    } else {
+      // PS variant (dword broadcast)
+      match pfx.evex_ll {
+        2 => {
+          let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+          let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+          let result : zmmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_zmm(dst, result); Ok()
+        },
+        1 => {
+          let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+          let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+          let result : ymmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_ymm(dst, result); Ok()
+        },
+        _ => {
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+          let result : xmmword = match op {
+            84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
+            _  => xor_vec(src1, src2),
+          };
+          write_xmm(dst, result); Ok()
+        },
+      }
     }
   },
 

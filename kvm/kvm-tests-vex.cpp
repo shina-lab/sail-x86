@@ -5536,4 +5536,47 @@ void add_vex_tests(std::vector<TestCase> &tests) {
               {0x62, 0xF2, 0xFD, 0x09, 0x62, 0xC1}, sk, 0x3);
     }
   }
+
+  // =====================================================================
+  // EVEX VXORPS/VANDPS/VORPS/VANDNPS (EVEX.0F 54-57)
+  // =====================================================================
+  cat = "EVEX FP logical";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFF00000000ULL, 0x0000FFFF0000FFFFULL);
+    s.xmm[2] = xmm_from_u64(0x1234567890ABCDEFULL, 0xFEDCBA9876543210ULL);
+
+    // EVEX.128.0F.W0 57 /r: VXORPS xmm0{k0}, xmm1, xmm2
+    // P0=62, P1=F1(R̄=1,X̄=1,B̄=1,R̄'=1,mmm=001), P2=74(W=0,vvvv=~1=1110,pp=00=NP)
+    // Wait — VXORPS uses NP (no mandatory prefix), not 66.
+    // P2: W=0, vvvv=1110(~1), 1, pp=00(NP) = 0.1110.1.00 = 0x74
+    // P3: z=0, L'L=00, b=0, V'=1, aaa=000 = 0x08
+    // modrm: mod=11, reg=000(dst=xmm0), rm=010(src2=xmm2) → 0xC2
+    add_xmm("vxorps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x57, 0xC2}, s, 0x7);
+
+    // EVEX.128.0F.W0 54 /r: VANDPS xmm0{k0}, xmm1, xmm2
+    add_xmm("vandps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x54, 0xC2}, s, 0x7);
+
+    // EVEX.128.0F.W0 56 /r: VORPS xmm0{k0}, xmm1, xmm2
+    add_xmm("vorps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x56, 0xC2}, s, 0x7);
+
+    // EVEX.128.0F.W0 55 /r: VANDNPS xmm0{k0}, xmm1, xmm2 — NOT(src1) AND src2
+    add_xmm("vandnps xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x74, 0x08, 0x55, 0xC2}, s, 0x7);
+
+    // EVEX.128.66.0F.W1 57 /r: VXORPD xmm0{k0}, xmm1, xmm2
+    // P1=F1(mmm=001), P2=F5(W=1,vvvv=1110,pp=01(66))
+    // W=1 → 0xF5 = 1.1110.1.01
+    add_xmm("vxorpd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0x57, 0xC2}, s, 0x7);
+  }
 }
