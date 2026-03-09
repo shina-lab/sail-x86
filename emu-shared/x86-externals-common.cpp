@@ -2146,7 +2146,8 @@ u64 Model::z__f64_rndscale(u64 a, u64 imm) {
 }
 
 // VGETMANT: extract normalized mantissa
-// imm8[1:0] = sign control, imm8[3:2] = interval
+// imm8[1:0] = normalization interval: 0=[1,2), 1=[1/2,2), 2=[1/2,1), 3=[3/4,3/2)
+// imm8[3:2] = sign control: sc[0]=0 preserve src sign, sc[0]=1 force positive
 u64 Model::z__f32_getmant(u64 a, u64 imm) {
   float fa;
   memcpy(&fa, &a, 4);
@@ -2158,13 +2159,33 @@ u64 Model::z__f32_getmant(u64 a, u64 imm) {
   }
   int exp;
   float mantissa = frexpf(fabsf(fa), &exp);
-  // frexp returns [0.5, 1.0), we want [1.0, 2.0) by default
-  mantissa *= 2.0f;
-  // Sign control: imm[1:0]
-  int sc = imm & 3;
-  if (sc == 0 && fa < 0)
+  // frexp returns [0.5, 1.0), we want [1.0, 2.0) for interval=0 (default)
+  int interval = imm & 3;
+  // Adjust for normalization interval
+  // interval=0: [1,2) — multiply by 2
+  // interval=1: [1/2,2) — if odd exponent, keep [0.5,1); else multiply by 2
+  // interval=2: [1/2,1) — keep as-is
+  // interval=3: [3/4,3/2) — if mantissa MSB set, keep; else multiply by 2
+  if (interval == 0) {
+    mantissa *= 2.0f;
+  } else if (interval == 1) {
+    int unbiased = exp - 1;  // frexp exponent is 1-based
+    if ((unbiased & 1) == 0) mantissa *= 2.0f;
+  } else if (interval == 2) {
+    // Already [0.5, 1.0) from frexp — correct
+  } else {
+    // interval=3: [3/4, 3/2)
+    // If significand bit set (mantissa >= 0.5 in frexp), check position
+    if (mantissa >= 0.75f) {
+      // Already in [3/4, 3/2)
+    } else {
+      mantissa *= 2.0f;
+    }
+  }
+  // Sign control: imm8[3:2], sc[0] (bit 2 of imm) = 0: preserve, 1: force positive
+  int sc = (imm >> 2) & 3;
+  if (!(sc & 1) && fa < 0)
     mantissa = -mantissa;
-  // else sc=1: positive, sc=2: negative, sc=3: positive
   u32 r;
   memcpy(&r, &mantissa, 4);
   return r;
@@ -2177,9 +2198,23 @@ u64 Model::z__f64_getmant(u64 a, u64 imm) {
     return a;
   int exp;
   double mantissa = frexp(fabs(da), &exp);
-  mantissa *= 2.0;
-  int sc = imm & 3;
-  if (sc == 0 && da < 0)
+  int interval = imm & 3;
+  if (interval == 0) {
+    mantissa *= 2.0;
+  } else if (interval == 1) {
+    int unbiased = exp - 1;
+    if ((unbiased & 1) == 0) mantissa *= 2.0;
+  } else if (interval == 2) {
+    // Already [0.5, 1.0) from frexp
+  } else {
+    if (mantissa >= 0.75) {
+      // Already in [3/4, 3/2)
+    } else {
+      mantissa *= 2.0;
+    }
+  }
+  int sc = (imm >> 2) & 3;
+  if (!(sc & 1) && da < 0)
     mantissa = -mantissa;
   memcpy(&a, &mantissa, 8);
   return a;

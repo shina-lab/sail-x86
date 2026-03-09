@@ -1043,34 +1043,67 @@ function avx_vfpclasspd_512(src, imm) = {
 }
 
 /* ---- VRANGEPS/PD: range restriction ---- */
-// VRANGE: for each element pair, select min/max/abs-min/abs-max and optionally set sign
-// imm8[1:0] = operation: 0=min, 1=max, 2=abs_min, 3=abs_max
-// imm8[3:2] = sign control: 0=src1_sign, 1=0, 2=1, 3=sign(compare result)
+// VRANGE: for each element pair, select min/max/abs-min/abs-max then apply sign control
+// imm8[1:0] = operation (CmpOpCtl):
+//   0=min(src1,src2), 1=max(src1,src2), 2=abs_min, 3=abs_max
+//   For abs_min/abs_max: compare |src1| vs |src2| but return the ORIGINAL value
+// imm8[3:2] = sign control (SignSelCtl):
+//   0=preserve src1 sign, 1=preserve compare result sign, 2=force +, 3=force -
+
+// Per-element range for f32 (SDM: RangeSP)
+val avx_range_f32 : (dword, dword, byte) -> dword
+function avx_range_f32(src1, src2, imm) = {
+  let op : range(0, 3) = unsigned(imm[1..0]);
+  let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
+  // Phase 1: select comparison result (TMP)
+  let tmp : dword = match op {
+    0 => __f32_min(src1, src2),
+    1 => __f32_max(src1, src2),
+    2 => { // abs_min: compare |src1| vs |src2|, return original
+      if unsigned(src1[30..0]) <= unsigned(src2[30..0]) then src1 else src2
+    },
+    _ => { // abs_max: compare |src1| vs |src2|, return original
+      if unsigned(src1[30..0]) >= unsigned(src2[30..0]) then src1 else src2
+    },
+  };
+  // Phase 2: apply sign control
+  match sign_ctl {
+    0 => src1[31..31] @ tmp[30..0],  // preserve src1 sign
+    1 => tmp,                          // preserve compare result sign
+    2 => 0b0 @ tmp[30..0],            // force positive
+    _ => 0b1 @ tmp[30..0],            // force negative
+  }
+}
+
+// Per-element range for f64 (SDM: RangeDP)
+val avx_range_f64 : (qword, qword, byte) -> qword
+function avx_range_f64(src1, src2, imm) = {
+  let op : range(0, 3) = unsigned(imm[1..0]);
+  let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
+  let tmp : qword = match op {
+    0 => __f64_min(src1, src2),
+    1 => __f64_max(src1, src2),
+    2 => {
+      if unsigned(src1[62..0]) <= unsigned(src2[62..0]) then src1 else src2
+    },
+    _ => {
+      if unsigned(src1[62..0]) >= unsigned(src2[62..0]) then src1 else src2
+    },
+  };
+  match sign_ctl {
+    0 => src1[63..63] @ tmp[62..0],
+    1 => tmp,
+    2 => 0b0 @ tmp[62..0],
+    _ => 0b1 @ tmp[62..0],
+  }
+}
 
 val avx_vrangeps_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_vrangeps_128(src1, src2, imm) = {
-  // Simplified: use __f32_min/__f32_max based on operation
-  let op : range(0, 3) = unsigned(imm[1..0]);
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    let a : dword = src1[(lo + 31)..lo];
-    let b : dword = src2[(lo + 31)..lo];
-    let r : dword = match op {
-      0 => __f32_min(a, b),
-      1 => __f32_max(a, b),
-      2 => { // abs min
-        let abs_a : dword = 0b0 @ a[30..0];
-        let abs_b : dword = 0b0 @ b[30..0];
-        __f32_min(abs_a, abs_b)
-      },
-      _ => { // abs max
-        let abs_a : dword = 0b0 @ a[30..0];
-        let abs_b : dword = 0b0 @ b[30..0];
-        __f32_max(abs_a, abs_b)
-      },
-    };
-    result[(lo + 31)..lo] = r;
+    result[(lo + 31)..lo] = avx_range_f32(src1[(lo + 31)..lo], src2[(lo + 31)..lo], imm);
   };
   result
 }
@@ -1087,19 +1120,10 @@ function avx_vrangeps_512(src1, src2, imm) = {
 
 val avx_vrangepd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_vrangepd_128(src1, src2, imm) = {
-  let op : range(0, 3) = unsigned(imm[1..0]);
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    let a : qword = src1[(lo + 63)..lo];
-    let b : qword = src2[(lo + 63)..lo];
-    let r : qword = match op {
-      0 => __f64_min(a, b),
-      1 => __f64_max(a, b),
-      2 => { let abs_a : qword = 0b0 @ a[62..0]; let abs_b : qword = 0b0 @ b[62..0]; __f64_min(abs_a, abs_b) },
-      _ => { let abs_a : qword = 0b0 @ a[62..0]; let abs_b : qword = 0b0 @ b[62..0]; __f64_max(abs_a, abs_b) },
-    };
-    result[(lo + 63)..lo] = r;
+    result[(lo + 63)..lo] = avx_range_f64(src1[(lo + 63)..lo], src2[(lo + 63)..lo], imm);
   };
   result
 }

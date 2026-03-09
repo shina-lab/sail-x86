@@ -4778,4 +4778,211 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vreduceps xmm0,xmm1,0x03: truncate frac",
             {0x62, 0xF3, 0x7D, 0x08, 0x56, 0xC1, 0x03}, s, 0x3);
   }
+
+  // =====================================================================
+  // EVEX VRANGEPS (0F3A 50) — range restriction
+  // VRANGEPS xmm0, xmm1, xmm2, imm8
+  // EVEX.128.66.0F3A.W0: P0=0xF3(mm=11), P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08
+  // opcode=0x50, modrm=0xC2 (reg=xmm0, rm=xmm2)
+  // imm8[1:0]=CmpOpCtl: 0=min, 1=max, 2=abs_min, 3=abs_max
+  // imm8[3:2]=SignSelCtl: 0=src1_sign, 1=result_sign, 2=force+, 3=force-
+  // =====================================================================
+  cat = "EVEX VRANGEPS";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // src1 (xmm1): mixed positive/negative values
+    s.xmm[1] = xmm_from_f32(3.0f, -5.0f, 1.0f, -2.0f);
+    // src2 (xmm2): different values for comparison
+    s.xmm[2] = xmm_from_f32(4.0f, 2.0f, -3.0f, 7.0f);
+
+    // imm8=0x00: min, preserve src1 sign
+    add_xmm("vrangeps: min, src1 sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x00}, s, 0x3);
+    // imm8=0x01: max, preserve src1 sign
+    add_xmm("vrangeps: max, src1 sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x01}, s, 0x3);
+    // imm8=0x02: abs_min, preserve src1 sign
+    // |3|=3 vs |4|=4 → src1(3.0); |-5|=5 vs |2|=2 → src2(2.0) but sign=src1=-
+    add_xmm("vrangeps: abs_min, src1 sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x02}, s, 0x3);
+    // imm8=0x03: abs_max, preserve src1 sign
+    add_xmm("vrangeps: abs_max, src1 sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x03}, s, 0x3);
+
+    // imm8=0x05: max, preserve result sign (signCtl=01)
+    add_xmm("vrangeps: max, result sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x05}, s, 0x3);
+    // imm8=0x08: min, force positive (signCtl=10)
+    add_xmm("vrangeps: min, force positive",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x08}, s, 0x3);
+    // imm8=0x0D: max, force negative (signCtl=11)
+    add_xmm("vrangeps: max, force negative",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x0D}, s, 0x3);
+    // imm8=0x0A: abs_min, force positive (signCtl=10)
+    add_xmm("vrangeps: abs_min, force positive",
+            {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x0A}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VFPCLASSPD/PS — classify float → opmask
+  // VFPCLASSPS k1, xmm1, imm8
+  // EVEX.128.66.0F3A.W0 66 /r ib
+  // P0=0xF3, P1=0x7D(W=0,vvvv=1111b,pp=01), P2=0x08
+  // modrm: reg=k1(001), rm=xmm1(001), mod=11 → 0xC9
+  // Then: KMOVW eax, k1: C5 F8 93 C1
+  // =====================================================================
+  cat = "EVEX VFPCLASS";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // Set up test values: +0.0, -0.0, +INF, QNAN
+    uint32_t pos_zero = 0x00000000;
+    uint32_t neg_zero = 0x80000000;
+    uint32_t pos_inf  = 0x7F800000;
+    uint32_t qnan     = 0x7FC00001;
+    s.xmm[1] = xmm_from_u32(pos_zero | (neg_zero << 0),
+                              pos_inf, qnan, 0x3F800000);  // +0, +INF, QNAN, 1.0
+    // Actually use xmm_from_u32 properly: it takes 4 dwords
+    s.xmm[1] = xmm_from_u32(pos_zero, neg_zero, pos_inf, qnan);
+
+    // imm8=0x02: test for +zero (bit 1)
+    // elem0=+0→match, elem1=-0→no, elem2=+INF→no, elem3=QNAN→no → k1=0001b=1
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x02: +zero → k1=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x02,
+                 0xC5, 0xF8, 0x93, 0xC1};  // kmovw eax, k1
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x04: test for -zero (bit 2)
+    // elem0=+0→no, elem1=-0→match, elem2=+INF→no, elem3=QNAN→no → k1=0010b=2
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x04: -zero → k1=2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x04,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x08: test for +INF (bit 3)
+    // elem2=+INF→match → k1=0100b=4
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x08: +INF → k1=4";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x08,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x01: test for QNAN (bit 0)
+    // elem3=QNAN→match → k1=1000b=8
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x01: QNAN → k1=8";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x06: test for any zero (+zero | -zero, bits 1+2)
+    // elem0=+0→match, elem1=-0→match → k1=0011b=3
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x06: any zero → k1=3";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x06,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // Test with negative values and denormals
+    uint32_t neg_val   = 0xBF800000;  // -1.0
+    uint32_t denorm    = 0x00000001;  // smallest positive denormal
+    uint32_t snan      = 0x7F800001;  // SNAN (quiet bit clear)
+    uint32_t pos_val   = 0x40000000;  // 2.0
+    s.xmm[1] = xmm_from_u32(neg_val, denorm, snan, pos_val);
+
+    // imm8=0x40: test for negative finite (bit 6)
+    // elem0=-1.0→match → k1=0001b=1
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x40: neg finite → k1=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x40,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x20: test for denormal (bit 5)
+    // elem1=denorm→match → k1=0010b=2
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x20: denormal → k1=2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x20,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // imm8=0x80: test for SNAN (bit 7)
+    // elem2=SNAN→match → k1=0100b=4
+    {
+      TestCase tc;
+      tc.name = "vfpclassps k1,xmm1,0x80: SNAN → k1=4";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x08, 0x66, 0xC9, 0x80,
+                 0xC5, 0xF8, 0x93, 0xC1};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // EVEX VGETMANTPS (0F3A 26) — extract normalized mantissa
+  // VGETMANTPS xmm0, xmm1, imm8
+  // EVEX.128.66.0F3A.W0: P0=0xF3, P1=0x7D(W=0,vvvv=1111b,pp=01), P2=0x08
+  // opcode=0x26, modrm=0xC1 (reg=xmm0, rm=xmm1)
+  // imm8[1:0]=interval: 0=[1,2), 1=[1/2,2), 2=[1/2,1), 3=[3/4,3/2)
+  // imm8[3:2]=sign control: 0=src sign, 1=force+
+  // =====================================================================
+  cat = "EVEX VGETMANTPS";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // Test values: 4.0 (mantissa=1.0), 6.0 (mantissa=1.5), -8.0 (mantissa=1.0), 0.75
+    s.xmm[1] = xmm_from_f32(4.0f, 6.0f, -8.0f, 0.75f);
+
+    // imm8=0x00: interval [1,2), preserve src sign
+    // 4.0 → 1.0, 6.0 → 1.5, -8.0 → -1.0, 0.75 → 1.5
+    add_xmm("vgetmantps: interval [1,2) src sign",
+            {0x62, 0xF3, 0x7D, 0x08, 0x26, 0xC1, 0x00}, s, 0x3);
+    // imm8=0x04: interval [1,2), force positive (signCtl=01)
+    // Same mantissas but all positive
+    add_xmm("vgetmantps: interval [1,2) force+",
+            {0x62, 0xF3, 0x7D, 0x08, 0x26, 0xC1, 0x04}, s, 0x3);
+  }
 }
