@@ -4155,4 +4155,46 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpminuw xmm0,xmm1,xmm2: equal words",
             {0x62, 0xF2, 0x75, 0x08, 0x3A, 0xC2}, s2, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPMULLD/VPMULLQ (0F38 40) — packed multiply low dword/qword
+  // =====================================================================
+  cat = "EVEX VPMULLD/Q";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // xmm1 = dwords: {7, 0x80000000, 100, 0xFFFFFFFF}
+    s.xmm[1] = xmm_from_u64(0x80000000'00000007ULL, 0xFFFFFFFF'00000064ULL);
+    // xmm2 = dwords: {3, 2, 5, 0xFFFFFFFF}
+    s.xmm[2] = xmm_from_u64(0x00000002'00000003ULL, 0xFFFFFFFF'00000005ULL);
+
+    // EVEX.128.66.0F38.W0 40 /r: VPMULLD xmm0, xmm1, xmm2
+    // P1=0xF2 (mm=10), P2=0x75 (W=0,vvvv=~1,pp=01), P3=0x08 (xmm)
+    // Expected: {7*3=21, 0x80000000*2=0 (low32), 100*5=500, 0xFFFFFFFF*0xFFFFFFFF=1 (low32)}
+    add_xmm("vpmulld xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x40, 0xC2}, s, 0x7);
+
+    // EVEX.128.66.0F38.W1 40 /r: VPMULLQ xmm0, xmm1, xmm2
+    // P2=0xF5 (W=1,vvvv=~1,pp=01)
+    // With same data interpreted as qwords:
+    //   q0 = 0x80000000_00000007 * 0x00000002_00000003 = low64
+    //   q1 = 0xFFFFFFFF_00000064 * 0xFFFFFFFF_00000005 = low64
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(0x0000000000000007ULL, 0x0000000000000064ULL);
+    s2.xmm[2] = xmm_from_u64(0x0000000000000003ULL, 0x0000000000000005ULL);
+    // Expected: q0=7*3=21, q1=100*5=500
+    add_xmm("vpmullq xmm0,xmm1,xmm2: small values",
+            {0x62, 0xF2, 0xF5, 0x08, 0x40, 0xC2}, s2, 0x7);
+
+    // VPMULLQ with large values to test low-64 truncation
+    ArchState s3;
+    s3.rflags = 0x2;
+    s3.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0x0000000100000000ULL);
+    s3.xmm[2] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0x0000000100000000ULL);
+    // q0: (-1)*(-1) = 1 (low 64 bits)
+    // q1: 2^32 * 2^32 = 2^64 → low 64 bits = 0
+    add_xmm("vpmullq xmm0,xmm1,xmm2: overflow",
+            {0x62, 0xF2, 0xF5, 0x08, 0x40, 0xC2}, s3, 0x7);
+  }
 }
