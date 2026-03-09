@@ -231,7 +231,7 @@ struct TestCase {
   u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
 };
 
-// Test registration functions (defined in separate kvm_tests_*.cpp files)
+// Test registration functions (defined in separate kvm-tests-*.cpp files)
 void add_systematic_tests(std::vector<TestCase> &tests);
 void add_baseline_tests(std::vector<TestCase> &tests);
 void add_sse_tests(std::vector<TestCase> &tests);

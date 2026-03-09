@@ -1,6 +1,6 @@
 #include "integers.h"
-#include "x86_cpuid.h"
-#include "x86_elf.h"
+#include "x86-cpuid.h"
+#include "x86-elf.h"
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>

@@ -1,9 +1,9 @@
 // User-mode specific external function implementations.
-// Shared functions are in ../emu-shared/x86_externals_common.cpp.
+// Shared functions are in ../emu-shared/x86-externals-common.cpp.
 
 #include "sail_x86_model.h"
-#include "x86_cpuid.h"
-#include "x86_helpers.h"
+#include "x86-cpuid.h"
+#include "x86-helpers.h"
 #include <cstring>
 #include <cmath>
 #include <cfenv>

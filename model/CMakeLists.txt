@@ -41,8 +41,8 @@ add_custom_command(
         --cpp-namespace x86
         --cpp-derive-from "public X86PlatformBase"
         --c-no-main
-        --c-header-include x86_platform_base.h
-        --c-include x86_platform_impl.h
+        --c-header-include x86-platform-base.h
+        --c-include x86-platform-impl.h
         --c-preserve step
         --c-preserve run
         --all-modules

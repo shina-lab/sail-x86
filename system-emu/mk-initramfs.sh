@@ -2,7 +2,7 @@
 # Build a minimal initramfs with busybox for the Sail x86 system emulator.
 # Usage: ./mk-initramfs.sh [output.cpio.gz]
 #
-# Produces a gzipped cpio archive suitable for -i flag of sail_x86_system.
+# Produces a gzipped cpio archive suitable for -i flag of sail-x86-system.
 
 set -e
 

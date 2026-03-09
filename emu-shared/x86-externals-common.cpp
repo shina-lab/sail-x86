@@ -1,10 +1,10 @@
 // Shared external function implementations used by both user-mode and system-mode emulators.
 // Mode-specific functions (memory access, TLB, CPUID, MSR, I/O ports, etc.)
-// are in the per-mode x86_externals.cpp.
+// are in the per-mode x86-externals.cpp.
 
 #include "sail_x86_model.h"
-#include "x86_cpuid.h"
-#include "x86_helpers.h"
+#include "x86-cpuid.h"
+#include "x86-helpers.h"
 #include <cstring>
 #include <cmath>
 #include <cfenv>
@@ -100,7 +100,7 @@ static inline u64 f64_daz_bits(u64 a, u32 mxcsr) {
 // Helper: convert between lbits (Sail arbitrary-width bitvector) and bytes
 // =========================================================================
 
-// bits_to_bytes and bytes_to_bits are defined in x86_helpers.h
+// bits_to_bytes and bytes_to_bits are defined in x86-helpers.h
 
 // Helper: long double <-> lbits(80) conversion
 static long double lbits_to_f80(lbits val) {

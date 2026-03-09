@@ -1,4 +1,4 @@
-#include "kvm_harness.h"
+#include "kvm-harness.h"
 
 void add_x87_avx_tests(std::vector<TestCase> &tests) {
   std::string cat;

@@ -3,7 +3,7 @@
 // Sets up a KVM VM in 64-bit long mode, runs test instruction sequences,
 // and compares the resulting architectural state against the Sail model.
 
-#include "kvm_harness.h"
+#include "kvm-harness.h"
 
 // ---- KVM VM ----
 

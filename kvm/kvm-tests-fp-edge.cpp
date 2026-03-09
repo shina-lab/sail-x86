@@ -1,4 +1,4 @@
-#include "kvm_harness.h"
+#include "kvm-harness.h"
 
 void add_fp_edge_tests(std::vector<TestCase> &tests) {
   std::string cat;

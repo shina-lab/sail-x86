@@ -1,13 +1,13 @@
 add_executable(kvm_harness
-  kvm_harness.cpp
-  kvm_tests_alu.cpp
-  kvm_tests_baseline.cpp
-  kvm_tests_sse.cpp
-  kvm_tests_misc.cpp
-  kvm_tests_x87_avx.cpp
-  kvm_tests_fp_edge.cpp
-  kvm_tests_extended.cpp
-  kvm_tests_exception.cpp
+  kvm-harness.cpp
+  kvm-tests-alu.cpp
+  kvm-tests-baseline.cpp
+  kvm-tests-sse.cpp
+  kvm-tests-misc.cpp
+  kvm-tests-x87-avx.cpp
+  kvm-tests-fp-edge.cpp
+  kvm-tests-extended.cpp
+  kvm-tests-exception.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)

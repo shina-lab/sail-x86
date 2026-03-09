@@ -1,4 +1,4 @@
-#include "kvm_harness.h"
+#include "kvm-harness.h"
 
 void add_exception_tests(std::vector<TestCase> &tests) {
   std::string cat;

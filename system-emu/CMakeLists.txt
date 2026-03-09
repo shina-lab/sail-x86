@@ -2,9 +2,9 @@
 # platform base (PhysicalMemory instead of raw host memory).
 
 add_library(x86_system_model
-    x86_externals.cpp
-    ../emu-shared/x86_externals_common.cpp
-    x86_phys_mem.cpp
+    x86-externals.cpp
+    ../emu-shared/x86-externals-common.cpp
+    x86-phys-mem.cpp
     "${CMAKE_BINARY_DIR}/sail_x86_model.cpp"
     "${CMAKE_BINARY_DIR}/sail_x86_model.h"
 )
@@ -31,9 +31,9 @@ set_source_files_properties(
 add_dependencies(x86_system_model generated_sail_x86_model)
 
 # System emulator binary.
-add_executable(sail_x86_system x86_system_sim.cpp)
-target_link_libraries(sail_x86_system PRIVATE x86_system_model)
-add_dependencies(sail_x86_system generated_sail_x86_model)
+add_executable(sail-x86-system x86-system-sim.cpp)
+target_link_libraries(sail-x86-system PRIVATE x86_system_model)
+add_dependencies(sail-x86-system generated_sail_x86_model)
 
 # =========================================================================
 # "make linux" — download + build kernel, build initramfs, print boot command.
@@ -60,25 +60,25 @@ add_custom_command(
 )
 
 add_custom_target(linux
-    DEPENDS sail_x86_system "${INITRAMFS}" "${VMLINUX}"
+    DEPENDS sail-x86-system "${INITRAMFS}" "${VMLINUX}"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Run:"
-    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail_x86_system -i initramfs.cpio.gz vmlinux"
+    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio.gz vmlinux"
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 
 # Tests.
-add_executable(system_test_basic tests/test_basic.cpp)
+add_executable(system_test_basic tests/test-basic.cpp)
 target_link_libraries(system_test_basic PRIVATE x86_system_model)
 add_dependencies(system_test_basic generated_sail_x86_model)
 add_test(NAME system_basic COMMAND system_test_basic)
 
-add_executable(system_test_paging tests/test_paging.cpp)
+add_executable(system_test_paging tests/test-paging.cpp)
 target_link_libraries(system_test_paging PRIVATE x86_system_model)
 add_dependencies(system_test_paging generated_sail_x86_model)
 add_test(NAME system_paging COMMAND system_test_paging)
 
-add_executable(system_test_exceptions tests/test_exceptions.cpp)
+add_executable(system_test_exceptions tests/test-exceptions.cpp)
 target_link_libraries(system_test_exceptions PRIVATE x86_system_model)
 add_dependencies(system_test_exceptions generated_sail_x86_model)
 add_test(NAME system_exceptions COMMAND system_test_exceptions)

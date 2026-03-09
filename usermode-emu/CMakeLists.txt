@@ -1,10 +1,10 @@
 # Emulator library: generated model + external implementations.
 
 add_library(x86_model
-    x86_externals.cpp
-    ../emu-shared/x86_externals_common.cpp
-    x86_syscall.cpp
-    x86_elf.cpp
+    x86-externals.cpp
+    ../emu-shared/x86-externals-common.cpp
+    x86-syscall.cpp
+    x86-elf.cpp
     "${CMAKE_BINARY_DIR}/sail_x86_model.cpp"
     "${CMAKE_BINARY_DIR}/sail_x86_model.h"
 )
@@ -31,6 +31,6 @@ set_source_files_properties(
 add_dependencies(x86_model generated_sail_x86_model)
 
 # Emulator binary.
-add_executable(sail_x86_sim x86_sim.cpp)
-target_link_libraries(sail_x86_sim PRIVATE x86_model)
-add_dependencies(sail_x86_sim generated_sail_x86_model)
+add_executable(sail-x86-user x86-sim.cpp)
+target_link_libraries(sail-x86-user PRIVATE x86_model)
+add_dependencies(sail-x86-user generated_sail_x86_model)

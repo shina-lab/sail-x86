@@ -42,7 +42,7 @@ make -j$(nproc)
 ## User-mode emulator
 
 ```
-./build/usermode-emu/sail_x86_sim <elf-binary> [args...]
+./build/usermode-emu/sail-x86-user <elf-binary> [args...]
 ```
 
 Both statically and dynamically linked x86-64 ELF binaries are
@@ -50,9 +50,9 @@ supported. The emulator interprets each instruction through the Sail
 model and emulates Linux syscalls.
 
 ```
-$ ./build/usermode-emu/sail_x86_sim /bin/ls /
+$ ./build/usermode-emu/sail-x86-user /bin/ls /
 bin  boot  dev  etc  home  lib  ...
-$ ./build/usermode-emu/sail_x86_sim /usr/bin/python3 -c "print('hello')"
+$ ./build/usermode-emu/sail-x86-user /usr/bin/python3 -c "print('hello')"
 hello
 ```
 
@@ -78,7 +78,7 @@ automatically.
 To run the emulator manually:
 
 ```
-./build/system-emu/sail_x86_system -i initramfs.cpio.gz vmlinux
+./build/system-emu/sail-x86-system -i initramfs.cpio.gz vmlinux
 ```
 
 ## Testing

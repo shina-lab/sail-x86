@@ -1,6 +1,6 @@
 #include "sail_x86_model.h"
-#include "x86_elf.h"
-#include "x86_syscall.h"
+#include "x86-elf.h"
+#include "x86-syscall.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
