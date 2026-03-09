@@ -128,6 +128,156 @@ function avx_ptestnmd_256(a, b) = {
   r
 }
 
+val avx_ptestmd_128 : (xmmword, xmmword) -> byte
+function avx_ptestmd_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 3) {
+    let lo = i * 32;
+    let hi = lo + 31;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmd_128 : (xmmword, xmmword) -> byte
+function avx_ptestnmd_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 3) {
+    let lo = i * 32;
+    let hi = lo + 31;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+// =========================================================================
+// VPTESTMW/VPTESTNMW: word version
+// =========================================================================
+
+val avx_ptestmw_512 : (zmmword, zmmword) -> dword
+function avx_ptestmw_512(a, b) = {
+  var r : dword = zeros();
+  foreach (i from 0 to 31) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmw_512 : (zmmword, zmmword) -> dword
+function avx_ptestnmw_512(a, b) = {
+  var r : dword = zeros();
+  foreach (i from 0 to 31) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestmw_256 : (ymmword, ymmword) -> word
+function avx_ptestmw_256(a, b) = {
+  var r : word = zeros();
+  foreach (i from 0 to 15) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmw_256 : (ymmword, ymmword) -> word
+function avx_ptestnmw_256(a, b) = {
+  var r : word = zeros();
+  foreach (i from 0 to 15) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestmw_128 : (xmmword, xmmword) -> byte
+function avx_ptestmw_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmw_128 : (xmmword, xmmword) -> byte
+function avx_ptestnmw_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 16; let hi = lo + 15;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+// =========================================================================
+// VPTESTMQ/VPTESTNMQ: qword version
+// =========================================================================
+
+val avx_ptestmq_512 : (zmmword, zmmword) -> byte
+function avx_ptestmq_512(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmq_512 : (zmmword, zmmword) -> byte
+function avx_ptestnmq_512(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestmq_256 : (ymmword, ymmword) -> byte
+function avx_ptestmq_256(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 3) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmq_256 : (ymmword, ymmword) -> byte
+function avx_ptestnmq_256(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 3) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestmq_128 : (xmmword, xmmword) -> byte
+function avx_ptestmq_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 1) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
+  };
+  r
+}
+
+val avx_ptestnmq_128 : (xmmword, xmmword) -> byte
+function avx_ptestnmq_128(a, b) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 1) {
+    let lo = i * 64; let hi = lo + 63;
+    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
+  };
+  r
+}
+
 // =========================================================================
 // VPCMPUB: compare unsigned bytes with imm8 predicate, produce kmask
 // imm8: 0=eq, 1=lt, 2=le, 4=neq, 5=nlt(>=), 6=nle(>)
@@ -2423,7 +2573,7 @@ function dispatch_evex_arith(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
 
   match op {
-  // 0F38 26: VPTESTMB (66, W=0) / VPTESTNMB (F3, W=0)
+  // 0F38 26: VPTESTMB (66, W=0) / VPTESTMW (66, W=1) / VPTESTNMB (F3, W=0) / VPTESTNMW (F3, W=1)
   38 => {
     let modrm = fetch_byte();
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
@@ -2431,33 +2581,61 @@ function dispatch_evex_arith(op, pfx) = {
     let is_negate = mp == MP_F3;
     if mp != MP_66 & mp != MP_F3 then {
       raise_UD()
-    } else match pfx.evex_ll {
-      2 => {
-        let src1 = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_src_zmm(modrm, rm, pfx);
-        let mask : qword = if is_negate then avx_ptestnmb_512(src1, src2) else avx_ptestmb_512(src1, src2);
-        let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
-        write_kreg(dst_k, k_mask); Ok()
-      },
-      1 => {
-        let src1 = read_ymm(pfx.evex_vvvvv);
-        let src2 = evex_src_ymm(modrm, rm, pfx);
-        let mask : dword = if is_negate then avx_ptestnmb_256(src1, src2) else avx_ptestmb_256(src1, src2);
-        let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-        write_kreg(dst_k, k_mask); Ok()
-      },
-      _ => {
-        let src1 = read_xmm(pfx.evex_vvvvv);
-        let src2 = evex_src_xmm(modrm, rm, pfx);
-        let mask : word = if is_negate then avx_ptestnmb_128(src1, src2) else avx_ptestmb_128(src1, src2);
-        let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-        write_kreg(dst_k, k_mask); Ok()
-      },
+    } else if pfx.rex_w then {
+      // VPTESTMW / VPTESTNMW (word)
+      match pfx.evex_ll {
+        2 => {
+          let src1 = read_zmm(pfx.evex_vvvvv);
+          let src2 = evex_src_zmm(modrm, rm, pfx);
+          let mask : dword = if is_negate then avx_ptestnmw_512(src1, src2) else avx_ptestmw_512(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        1 => {
+          let src1 = read_ymm(pfx.evex_vvvvv);
+          let src2 = evex_src_ymm(modrm, rm, pfx);
+          let mask : word = if is_negate then avx_ptestnmw_256(src1, src2) else avx_ptestmw_256(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        _ => {
+          let src1 = read_xmm(pfx.evex_vvvvv);
+          let src2 = evex_src_xmm(modrm, rm, pfx);
+          let mask : byte = if is_negate then avx_ptestnmw_128(src1, src2) else avx_ptestmw_128(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+      }
+    } else {
+      // VPTESTMB / VPTESTNMB (byte)
+      match pfx.evex_ll {
+        2 => {
+          let src1 = read_zmm(pfx.evex_vvvvv);
+          let src2 = evex_src_zmm(modrm, rm, pfx);
+          let mask : qword = if is_negate then avx_ptestnmb_512(src1, src2) else avx_ptestmb_512(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        1 => {
+          let src1 = read_ymm(pfx.evex_vvvvv);
+          let src2 = evex_src_ymm(modrm, rm, pfx);
+          let mask : dword = if is_negate then avx_ptestnmb_256(src1, src2) else avx_ptestmb_256(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        _ => {
+          let src1 = read_xmm(pfx.evex_vvvvv);
+          let src2 = evex_src_xmm(modrm, rm, pfx);
+          let mask : word = if is_negate then avx_ptestnmb_128(src1, src2) else avx_ptestmb_128(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+      }
     }
   },
 
-  // 0F38 27: VPTESTMD (66, W=0) / VPTESTNMD (F3, W=0)
-  // 0F38 27: VPTESTMD (66, W=0) / VPTESTNMD (F3, W=0)
+  // 0F38 27: VPTESTMD (66, W=0) / VPTESTMQ (66, W=1) / VPTESTNMD (F3, W=0) / VPTESTNMQ (F3, W=1)
+  // 0F38 27: VPTESTMD (66, W=0) / VPTESTMQ (66, W=1) / VPTESTNMD (F3, W=0) / VPTESTNMQ (F3, W=1)
   39 => {
     let modrm = fetch_byte();
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
@@ -2466,22 +2644,56 @@ function dispatch_evex_arith(op, pfx) = {
     let is_negate = mp == MP_F3;
     if mp != MP_66 & mp != MP_F3 then {
       raise_UD()
-    } else match pfx.evex_ll {
-      2 => {
-        let src1 = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-        let mask : word = if is_negate then avx_ptestnmd_512(src1, src2) else avx_ptestmd_512(src1, src2);
-        let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-        write_kreg(dst_k, k_mask); Ok()
-      },
-      1 => {
-        let src1 = read_ymm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-        let mask : byte = if is_negate then avx_ptestnmd_256(src1, src2) else avx_ptestmd_256(src1, src2);
-        let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-        write_kreg(dst_k, k_mask); Ok()
-      },
-      _ => raise_UD(),
+    } else if pfx.rex_w then {
+      // VPTESTMQ / VPTESTNMQ (qword, m64bcst)
+      match pfx.evex_ll {
+        2 => {
+          let src1 = read_zmm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
+          let mask : byte = if is_negate then avx_ptestnmq_512(src1, src2) else avx_ptestmq_512(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        1 => {
+          let src1 = read_ymm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
+          let mask : byte = if is_negate then avx_ptestnmq_256(src1, src2) else avx_ptestmq_256(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        _ => {
+          let src1 = read_xmm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
+          let mask : byte = if is_negate then avx_ptestnmq_128(src1, src2) else avx_ptestmq_128(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+      }
+    } else {
+      // VPTESTMD / VPTESTNMD (dword, m32bcst)
+      match pfx.evex_ll {
+        2 => {
+          let src1 = read_zmm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+          let mask : word = if is_negate then avx_ptestnmd_512(src1, src2) else avx_ptestmd_512(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        1 => {
+          let src1 = read_ymm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+          let mask : byte = if is_negate then avx_ptestnmd_256(src1, src2) else avx_ptestmd_256(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+        _ => {
+          let src1 = read_xmm(pfx.evex_vvvvv);
+          let src2 = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+          let mask : byte = if is_negate then avx_ptestnmd_128(src1, src2) else avx_ptestmd_128(src1, src2);
+          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          write_kreg(dst_k, k_mask); Ok()
+        },
+      }
     }
   },
 

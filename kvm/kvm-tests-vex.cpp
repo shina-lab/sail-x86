@@ -3993,4 +3993,80 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // VPTESTMQ/VPTESTMW — test mask (was missing W=1 variants)
+  // =====================================================================
+  cat = "EVEX VPTESTM W1";
+  {
+    // VPTESTMQ k0, xmm1, xmm2 — qword AND test
+    // xmm1 = [qword0=0xFF00FF00FF00FF00, qword1=0x0000000000000000]
+    // xmm2 = [qword0=0x00FF00FF00000000, qword1=0x0000000000000001]
+    // AND q0 = 0x0000000000000000 → 0 (not set), AND q1 = 0 → 0
+    // Wait, let me use better values.
+    // xmm1 = [qword0=0x0000000000000001, qword1=0x0000000000000000]
+    // xmm2 = [qword0=0x0000000000000003, qword1=0x0000000000000002]
+    // AND q0 = 1 (nonzero) → bit set, AND q1 = 0 → bit clear
+    // → k0 = 01b = 1
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000000);
+    s.xmm[2] = xmm_from_u64(0x0000000000000003, 0x0000000000000002);
+
+    // VPTESTMQ k0, xmm1, xmm2
+    // EVEX.128.66.0F38.W1: P1=0xF2(mm=10), P2=0xF5(W=1,vvvv=~1,pp=01), P3=0x08
+    // opcode=0x27, modrm=0xC2(k0,xmm2)
+    // Then KMOVW eax, k0: C5 F8 93 C0
+    {
+      TestCase tc;
+      tc.name = "vptestmq k0,xmm1,xmm2: qword AND test → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x08, 0x27, 0xC2,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPTESTMD k0, xmm1, xmm2 (W=0, same opcode) — dword test
+    // dwords: [1, 0, 0, 0] AND [3, 0, 2, 0] = [1, 0, 0, 0]
+    // → k0 = 0001b = 1
+    {
+      TestCase tc;
+      tc.name = "vptestmd k0,xmm1,xmm2: dword AND test (W=0) → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x08, 0x27, 0xC2,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPTESTMW k0, xmm1, xmm2 — word AND test
+    // xmm1 = [words: 0x00FF, 0x0000, 0xFF00, 0x0000, 0x0001, 0x0000, 0x0000, 0x0000]
+    // xmm2 = [words: 0x00FF, 0x1111, 0x00FF, 0x2222, 0x0002, 0x3333, 0x0000, 0x4444]
+    // AND:     0x00FF  0x0000  0x0000  0x0000  0x0000  0x0000  0x0000  0x0000
+    // Nonzero: w0=yes  w1=no   w2=no   w3=no   w4=no   w5=no   w6=no   w7=no
+    // → k0 = 00000001b = 1
+
+    ArchState sw = {};
+    sw.rflags = 0x2;
+    sw.xmm[1] = xmm_from_u32(0x000000FF, 0x0000FF00, 0x00000001, 0x00000000);
+    sw.xmm[2] = xmm_from_u32(0x111100FF, 0x222200FF, 0x33330002, 0x44440000);
+
+    // VPTESTMW k0, xmm1, xmm2
+    // EVEX.128.66.0F38.W1: P1=0xF2, P2=0xF5(W=1), P3=0x08
+    // opcode=0x26, modrm=0xC2
+    {
+      TestCase tc;
+      tc.name = "vptestmw k0,xmm1,xmm2: word AND test → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x08, 0x26, 0xC2,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sw;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
 }
