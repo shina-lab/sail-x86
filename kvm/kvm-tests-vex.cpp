@@ -4823,6 +4823,15 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     // imm8=0x0A: abs_min, force positive (signCtl=10)
     add_xmm("vrangeps: abs_min, force positive",
             {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x0A}, s, 0x3);
+
+    // VRANGESS xmm0, xmm1, xmm2, imm8 (scalar, W=0, opcode=0x51)
+    // Only element 0 is computed; elements 1-3 come from xmm1 (src1)
+    // imm8=0x01: max, preserve src1 sign
+    add_xmm("vrangess: max, src1 sign",
+            {0x62, 0xF3, 0x75, 0x08, 0x51, 0xC2, 0x01}, s, 0x3);
+    // imm8=0x0A: abs_min, force positive
+    add_xmm("vrangess: abs_min, force positive",
+            {0x62, 0xF3, 0x75, 0x08, 0x51, 0xC2, 0x0A}, s, 0x3);
   }
 
   // =====================================================================

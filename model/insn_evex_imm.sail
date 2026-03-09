@@ -2554,6 +2554,34 @@ function dispatch_evex_imm(op, pfx) = {
     }
   },
 
+  // 0F3A 51: VRANGESS (66, W=0) / VRANGESD (66, W=1) — range restriction scalar [DQ]
+  81 => {
+    if mp != MP_66 then {
+      raise_UD()
+    } else {
+      let modrm = fetch_byte();
+      let dst = evex_reg_idx(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
+      let imm = fetch_byte();
+      let src1 = read_xmm(pfx.evex_vvvvv);
+      if pfx.vex_w then {
+        let src2 : qword = match rm {
+          RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
+          RM_mem(addr) => mem_read64(fixup_addr(addr)),
+        };
+        let r = avx_range_f64(src1[63..0], src2, imm);
+        write_xmm(dst, src1[127..64] @ r); Ok()
+      } else {
+        let src2 : dword = match rm {
+          RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
+          RM_mem(addr) => mem_read32(fixup_addr(addr)),
+        };
+        let r = avx_range_f32(src1[31..0], src2, imm);
+        write_xmm(dst, src1[127..32] @ r); Ok()
+      }
+    }
+  },
+
   // 0F3A 54: VFIXUPIMMPS (66, W=0) / VFIXUPIMMPD (66, W=1) — fixup packed
   // 0F3A 54: VFIXUPIMMPS (66, W=0) / VFIXUPIMMPD (66, W=1) — fixup packed
   84 => {
