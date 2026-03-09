@@ -794,7 +794,7 @@ int main(int argc, char *argv[]) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
                   if (buf[i] == 'x' || buf[i] == 'X') {
-                    fprintf(stderr, "\nsail-x86-system: Ctrl+a x — exiting\n");
+                    fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
                     model.model_fini();
                     return 0;
                   }
@@ -874,7 +874,7 @@ int main(int argc, char *argv[]) {
         if (ctrl_a_pending) {
           ctrl_a_pending = false;
           if (buf[i] == 'x' || buf[i] == 'X') {
-            fprintf(stderr, "\nsail-x86-system: Ctrl+a x — exiting\n");
+            fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
             model.should_exit = true;
             break;
           }

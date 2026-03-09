@@ -60,7 +60,7 @@ echo " Sail x86-64 Emulator - Linux Console"
 echo "========================================"
 echo ""
 echo "Type 'help' for a list of built-in commands."
-echo "Press Ctrl+A X to exit the emulator."
+echo "Press Ctrl-a x to exit the emulator."
 echo ""
 
 export HOME=/
@@ -68,8 +68,10 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export TERM=vt100
 export PS1='sail# '
 
-# Start a getty on ttyS0 which properly opens the port and sets up the tty.
-exec setsid getty -n -l /bin/sh 115200 ttyS0 vt100
+# Respawn getty on ttyS0 so Ctrl-D doesn't kill init (PID 1).
+while true; do
+  setsid getty -n -l /bin/sh 115200 ttyS0 vt100
+done
 INIT
 chmod 755 "$TMPDIR/init"
 
