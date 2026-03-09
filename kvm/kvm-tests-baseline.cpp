@@ -1197,5 +1197,62 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // RSP = RBP = DATA_ADDR, then POP RBP reads [DATA_ADDR] = 0x1234
     // expect RSP = DATA_ADDR + 8, RBP = 0x1234
   }
+
+  // =====================================================================
+  // CALL/RET — verify near call/return in 64-bit mode
+  // =====================================================================
+  cat = "CALL/RET";
+
+  // CALL rel32 then RET: CALL pushes return addr, jumps forward, RET pops and returns
+  // Code: CALL +2 (skip 2 bytes after the 5-byte CALL), NOP, NOP, RET, <fall through to HLT>
+  // Actually simpler: CALL +0 means target = next_insn. So CALL +1 skips 1 byte.
+  // E8 01000000 = CALL +1, then CC (int3, skipped), C3 = RET
+  // After CALL: pushes addr of CC (CODE_ADDR+5), RIP = CODE_ADDR+6 (the C3)
+  // RET: pops CODE_ADDR+5, executes CC... that's not great.
+  // Better: CALL forward to RET, which returns back past the CALL.
+  // E8 00000000 = CALL rel32=0 → target = next_insn (CODE_ADDR+5)
+  // At CODE_ADDR+5: C3 (RET) → pops return addr = CODE_ADDR+5, goes there again...infinite loop
+  // Let me use a different approach: just test that CALL pushes return address correctly
+  // by examining RSP after CALL+RET.
+  //
+  // CALL rel32=+1, INT3 (skipped), RET
+  // E8 01 00 00 00  CC  C3
+  // CALL target = CODE_ADDR+5+1 = CODE_ADDR+6 = the C3 byte
+  // Pushes return addr = CODE_ADDR+5 (addr of CC)
+  // RET pops CODE_ADDR+5, executes CC=INT3... hmm.
+  //
+  // Simplest: CALL +2, followed by 2 bytes of HLT, then RET. RET returns to the first HLT.
+  // E8 02 00 00 00  F4  F4  C3
+  // CALL target = CODE_ADDR+5+2 = CODE_ADDR+7 = the C3 byte
+  // Pushes return addr = CODE_ADDR+5 (first HLT)
+  // RET pops CODE_ADDR+5, executes HLT. Done!
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    // E8 02000000 F4 F4 C3
+    add("call rel32 + ret", {0xE8, 0x02, 0x00, 0x00, 0x00, 0xF4, 0xF4, 0xC3}, s, FL_NONE);
+    // After: RSP = STACK_TOP (pushed then popped 8 bytes), RIP at first HLT
+  }
+
+  // CALL indirect: FF /2 via register
+  // Load target address into RAX, then CALL RAX (FF D0), target code does RET
+  // Sequence: MOV RAX, target_addr; CALL RAX; HLT; <target>: RET
+  // But we can't easily compute target_addr as an immediate since CODE_ADDR is fixed.
+  // Simpler: use LEA to compute target, then CALL.
+  // Actually, let's just use CALL rel32 which we know works, and verify RSP is restored.
+
+  // CALL indirect via register: FF D0 = CALL RAX
+  // RAX = address of a RET (C3) instruction we place after the HLT
+  // Sequence: FF D0 (CALL RAX), F4 (HLT, return here), C3 (RET, the target)
+  // RAX must point to CODE_ADDR+3 (the C3)
+  // CALL pushes return addr CODE_ADDR+2 (the F4), jumps to CODE_ADDR+3
+  // RET pops CODE_ADDR+2, executes F4 (HLT). Done.
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rax = CODE_ADDR + 3;  // address of the C3 (RET) byte
+    add("call rax indirect + ret", {0xFF, 0xD0, 0xF4, 0xC3}, s, FL_NONE);
+    // After: RSP = STACK_TOP (pushed then popped), halts at CODE_ADDR+2
+  }
 }
 

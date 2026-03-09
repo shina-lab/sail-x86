@@ -410,13 +410,15 @@ function dispatch_group5(reg_field, rm, pfx) = {
       res
     },
     2 => {
-      // CALL near indirect (f64 — defaults to 64-bit)
-      let os = get_operand_size_d64(pfx);
+      // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
+      // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
+      // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
+      let os = get_operand_size_f64(pfx);
       let target = read_rm_val(rm, os, pfx.has_rex);
       let return_addr = decode_pos;
       match os {
         OS64 => push64(return_addr),
-        OS32 => push64(zero_extend(return_addr[31..0])),
+        OS32 => push32(return_addr[31..0]),
         OS16 => push16(return_addr[15..0]),
         _ => (),
       };

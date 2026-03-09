@@ -1279,12 +1279,14 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       },
 
       // C2: RET near imm16
+      // SDM: In 64-bit mode, operand size = stack-address size = 64.
+      // 66h prefix is ignored; 16/32-bit forms are not encodable.
       194 => {
         let imm = fetch_imm16();
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_f64(pfx);
         let target : qword = match os {
           OS64 => pop64(),
-          OS32 => zero_extend(pop64()[31..0]),
+          OS32 => zero_extend(pop32()),
           OS16 => zero_extend(pop16()),
           OS8 => zeros(),
         };
@@ -1294,11 +1296,13 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       },
 
       // C3: RET near
+      // SDM: In 64-bit mode, operand size = stack-address size = 64.
+      // 66h prefix is ignored; 16/32-bit forms are not encodable.
       195 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_f64(pfx);
         let target : qword = match os {
           OS64 => pop64(),
-          OS32 => zero_extend(pop64()[31..0]),
+          OS32 => zero_extend(pop32()),
           OS16 => zero_extend(pop16()),
           OS8 => zeros(),
         };
