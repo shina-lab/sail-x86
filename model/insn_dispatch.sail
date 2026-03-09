@@ -538,6 +538,39 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               }
             }
           }
+        } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
+          // SHA extensions (NP 0F 38 C8-CD)
+          let modrm = fetch_byte();
+          let xreg = modrm_xmm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+          match op3 {
+            200 => { // SHA1NEXTE xmm1, xmm2/m128
+              write_xmm_legacy(xreg, __sha1nexte(read_xmm(xreg), src_xmm));
+              Ok()
+            },
+            201 => { // SHA1MSG1 xmm1, xmm2/m128
+              write_xmm_legacy(xreg, __sha1msg1(read_xmm(xreg), src_xmm));
+              Ok()
+            },
+            202 => { // SHA1MSG2 xmm1, xmm2/m128
+              write_xmm_legacy(xreg, __sha1msg2(read_xmm(xreg), src_xmm));
+              Ok()
+            },
+            203 => { // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
+              write_xmm_legacy(xreg, __sha256rnds2(read_xmm(xreg), src_xmm, read_xmm(0)));
+              Ok()
+            },
+            204 => { // SHA256MSG1 xmm1, xmm2/m128
+              write_xmm_legacy(xreg, __sha256msg1(read_xmm(xreg), src_xmm));
+              Ok()
+            },
+            205 => { // SHA256MSG2 xmm1, xmm2/m128
+              write_xmm_legacy(xreg, __sha256msg2(read_xmm(xreg), src_xmm));
+              Ok()
+            },
+            _ => raise_UD(),
+          }
         } else {
           dispatch_3byte_38_sse_int(opcode3, pfx)
         }
@@ -556,6 +589,16 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         else if op3 == 33 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // INSERTPS
         else if op3 == 64 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // DPPS
         else if op3 == 65 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // DPPD
+        else if op3 == 204 & get_mandatory_prefix(pfx) == MP_NONE then {
+          // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
+          let modrm = fetch_byte();
+          let xreg = modrm_xmm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+          let imm : byte = fetch_byte();
+          write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm));
+          Ok()
+        }
         else dispatch_3byte_3a_sse_int(opcode3, pfx)
       },
 

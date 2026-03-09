@@ -470,11 +470,11 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] PCLMULQDQ (carry-less multiplication) — verified, delegated to hardware intrinsics
 
 ### 1.14 SHA (SHA Extensions)
-- [ ] SHA1RNDS4 (SHA-1 4 rounds)
-- [ ] SHA1NEXTE (SHA-1 next E)
-- [ ] SHA1MSG1, SHA1MSG2 (SHA-1 message schedule)
-- [ ] SHA256RNDS2 (SHA-256 2 rounds)
-- [ ] SHA256MSG1, SHA256MSG2 (SHA-256 message schedule)
+- [x] SHA1RNDS4 (SHA-1 4 rounds) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] SHA1NEXTE (SHA-1 next E) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] SHA1MSG1, SHA1MSG2 (SHA-1 message schedule) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] SHA256RNDS2 (SHA-256 2 rounds) — implemented, implicit XMM0 operand + KVM tests
+- [x] SHA256MSG1, SHA256MSG2 (SHA-256 message schedule) — implemented, delegated to hardware intrinsics + KVM tests
 
 ### 1.15 AVX-512 Foundation (EVEX-encoded, 512-bit, opmask)
 

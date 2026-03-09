@@ -1081,6 +1081,95 @@ void Model::z__aeskeygenassist(lbits *rop, lbits key, u64 rcon) {
 }
 
 // =========================================================================
+// SHA Extensions
+// =========================================================================
+
+void Model::z__sha1rnds4(lbits *rop, lbits src1, lbits src2, u64 imm8) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr;
+  switch (imm8 & 3) {
+    case 0: vr = _mm_sha1rnds4_epu32(va, vb, 0); break;
+    case 1: vr = _mm_sha1rnds4_epu32(va, vb, 1); break;
+    case 2: vr = _mm_sha1rnds4_epu32(va, vb, 2); break;
+    case 3: vr = _mm_sha1rnds4_epu32(va, vb, 3); break;
+  }
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha1nexte(lbits *rop, lbits src1, lbits src2) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr = _mm_sha1nexte_epu32(va, vb);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha1msg1(lbits *rop, lbits src1, lbits src2) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr = _mm_sha1msg1_epu32(va, vb);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha1msg2(lbits *rop, lbits src1, lbits src2) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr = _mm_sha1msg2_epu32(va, vb);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha256rnds2(lbits *rop, lbits src1, lbits src2, lbits xmm0) {
+  u8 a[16], b[16], c[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  bits_to_bytes(xmm0, c, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vc = _mm_loadu_si128((__m128i *)c);
+  __m128i vr = _mm_sha256rnds2_epu32(va, vb, vc);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha256msg1(lbits *rop, lbits src1, lbits src2) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr = _mm_sha256msg1_epu32(va, vb);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+void Model::z__sha256msg2(lbits *rop, lbits src1, lbits src2) {
+  u8 a[16], b[16], r[16];
+  bits_to_bytes(src1, a, 16);
+  bits_to_bytes(src2, b, 16);
+  __m128i va = _mm_loadu_si128((__m128i *)a);
+  __m128i vb = _mm_loadu_si128((__m128i *)b);
+  __m128i vr = _mm_sha256msg2_epu32(va, vb);
+  _mm_storeu_si128((__m128i *)r, vr);
+  bytes_to_bits(rop, r, 16, 128);
+}
+
+// =========================================================================
 // PCLMULQDQ
 // =========================================================================
 

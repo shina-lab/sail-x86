@@ -534,8 +534,48 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // 43. x87 FPU — tests using memory store to verify results
-  //     We use FILD/FLD to load values, operate, then FISTP/FSTP to store
-  //     results back to memory for comparison.
+  // 43. SHA extensions
+  // =====================================================================
+  cat = "SHA";
+
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0x6A09E667BB67AE85, 0x3C6EF372A54FF53A);
+    s.xmm[1] = xmm_from_u64(0x510E527F9B05688C, 0x1F83D9AB5BE0CD19);
+    s.xmm[2] = xmm_from_u64(0x428A2F9871374491, 0xB5C0FBCFE9B5DBA5);
+
+    // SHA1RNDS4 XMM0, XMM1, 0: NP 0F 3A CC C1 00
+    add_xmm("sha1rnds4 xmm0,xmm1,0", {0x0F, 0x3A, 0xCC, 0xC1, 0x00}, s, 0x3);
+    // SHA1RNDS4 XMM0, XMM1, 1: NP 0F 3A CC C1 01
+    add_xmm("sha1rnds4 xmm0,xmm1,1", {0x0F, 0x3A, 0xCC, 0xC1, 0x01}, s, 0x3);
+    // SHA1RNDS4 XMM0, XMM1, 2: NP 0F 3A CC C1 02
+    add_xmm("sha1rnds4 xmm0,xmm1,2", {0x0F, 0x3A, 0xCC, 0xC1, 0x02}, s, 0x3);
+    // SHA1RNDS4 XMM0, XMM1, 3: NP 0F 3A CC C1 03
+    add_xmm("sha1rnds4 xmm0,xmm1,3", {0x0F, 0x3A, 0xCC, 0xC1, 0x03}, s, 0x3);
+
+    // SHA1NEXTE XMM0, XMM1: NP 0F 38 C8 C1
+    add_xmm("sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1}, s, 0x3);
+
+    // SHA1MSG1 XMM0, XMM1: NP 0F 38 C9 C1
+    add_xmm("sha1msg1 xmm0,xmm1", {0x0F, 0x38, 0xC9, 0xC1}, s, 0x3);
+
+    // SHA1MSG2 XMM0, XMM1: NP 0F 38 CA C1
+    add_xmm("sha1msg2 xmm0,xmm1", {0x0F, 0x38, 0xCA, 0xC1}, s, 0x3);
+
+    // SHA256RNDS2 XMM0, XMM1, <XMM0>: NP 0F 38 CB C1
+    // Implicit operand is XMM0 (low 64 bits)
+    add_xmm("sha256rnds2 xmm0,xmm1", {0x0F, 0x38, 0xCB, 0xC1}, s, 0x3);
+
+    // SHA256RNDS2 with different XMM0 content: use XMM2 as dest to isolate
+    // SHA256RNDS2 XMM2, XMM1, <XMM0>: NP 0F 38 CB D1
+    add_xmm("sha256rnds2 xmm2,xmm1,<xmm0>", {0x0F, 0x38, 0xCB, 0xD1}, s, 0x7);
+
+    // SHA256MSG1 XMM0, XMM1: NP 0F 38 CC C1
+    add_xmm("sha256msg1 xmm0,xmm1", {0x0F, 0x38, 0xCC, 0xC1}, s, 0x3);
+
+    // SHA256MSG2 XMM0, XMM1: NP 0F 38 CD C1
+    add_xmm("sha256msg2 xmm0,xmm1", {0x0F, 0x38, 0xCD, 0xC1}, s, 0x3);
+  }
 }
 

@@ -567,6 +567,15 @@ val __aesdeclast : (xmmword, xmmword) -> xmmword
 val __aesimc : xmmword -> xmmword
 val __aeskeygenassist : (xmmword, byte) -> xmmword
 
+// External SHA primitives
+val __sha1rnds4 : (xmmword, xmmword, byte) -> xmmword
+val __sha1nexte : (xmmword, xmmword) -> xmmword
+val __sha1msg1 : (xmmword, xmmword) -> xmmword
+val __sha1msg2 : (xmmword, xmmword) -> xmmword
+val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
+val __sha256msg1 : (xmmword, xmmword) -> xmmword
+val __sha256msg2 : (xmmword, xmmword) -> xmmword
+
 // PCLMULQDQ — Carry-Less Multiplication Quadword
 //
 // Performs carry-less (polynomial) multiplication of two 64-bit values
