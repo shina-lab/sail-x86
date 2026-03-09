@@ -506,7 +506,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VFMADD/VFMSUB/VFNMADD/VFNMSUB (512-bit FMA, all forms) — verified: all 132/213/231, PS/PD/SS/SD in insn_evex_fma.sail
 - [x] VFMADDSUB/VFMSUBADD (512-bit alternating) — verified: implemented in insn_evex_fma.sail
 - [x] VMAXPS/PD, VMINPS/PD (512-bit with opmask) — verified: implemented in insn_evex_fp.sail
-- [x] Scalar variants: VADDSS/SD, etc. (EVEX-encoded scalars) — verified: implemented in insn_evex_fp.sail
+- [x] Scalar variants: VADDSS/SD, VMULSS/SD, VSUBSS/SD, VDIVSS/SD, VSQRTSS/SD, VMINSS/SD, VMAXSS/SD (EVEX-encoded scalars) — implemented with {er} support + 13 KVM tests
 - [x] All with merging/zeroing masking — verified: evex_merge helper applies k-mask throughout
 
 #### 1.15.4 AVX-512F Comparison
@@ -725,7 +725,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 #### 1.25.4 Cache/Memory Management
 - [x] INVLPG (invalidate TLB entry) — verified: 0F 01 /7 memory-only, CPL=0
 - [ ] INVPCID (invalidate process-context identifier)
-- [ ] WBINVD, WBNOINVD (write-back and invalidate cache)
+- [x] WBINVD (write-back and invalidate cache) — verified: NOP with CPL=0 check; WBNOINVD not implemented (hint variant)
 - [x] CLFLUSH, CLFLUSHOPT, CLWB (cache-line flush/writeback) — NOP in sequential model (0F AE /7 mem)
 - [ ] CLDEMOTE (cache-line demote)
 - [x] PREFETCHH (prefetch to cache hierarchy) — NOP (0F 18 range, multi-byte NOP)
