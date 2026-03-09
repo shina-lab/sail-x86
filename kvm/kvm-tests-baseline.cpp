@@ -907,8 +907,70 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("std", {0xFD}, fl, FL_ALL);
 
   // LAHF: load AH from flags (9F). AH = SF:ZF:0:AF:0:PF:1:CF
+  // Test all individual flags to catch bit-ordering bugs
   fl.rflags = 0x2 | FL_CF | FL_ZF | FL_SF;
   fl.rax = 0;
-  add("lahf", {0x9F}, fl, FL_ALL);
+  add("lahf all", {0x9F}, fl, FL_ALL);
+
+  // LAHF with only CF set — distinguishes CF (bit 0) from SF (bit 7)
+  fl.rflags = 0x2 | FL_CF;
+  fl.rax = 0;
+  add("lahf cf", {0x9F}, fl, FL_ALL);
+
+  // LAHF with only SF set
+  fl.rflags = 0x2 | FL_SF;
+  fl.rax = 0;
+  add("lahf sf", {0x9F}, fl, FL_ALL);
+
+  // LAHF with only PF set — distinguishes PF (bit 2) from ZF (bit 6)
+  fl.rflags = 0x2 | FL_PF;
+  fl.rax = 0;
+  add("lahf pf", {0x9F}, fl, FL_ALL);
+
+  // LAHF with only ZF set
+  fl.rflags = 0x2 | FL_ZF;
+  fl.rax = 0;
+  add("lahf zf", {0x9F}, fl, FL_ALL);
+
+  // LAHF with only AF set
+  fl.rflags = 0x2 | FL_AF;
+  fl.rax = 0;
+  add("lahf af", {0x9F}, fl, FL_ALL);
+
+  // LAHF with no flags set (reserved bit 1 should be 1 in AH)
+  fl.rflags = 0x2;
+  fl.rax = 0;
+  add("lahf none", {0x9F}, fl, FL_ALL);
+
+  // LAHF with all status flags set
+  fl.rflags = 0x2 | FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF;
+  fl.rax = 0xDEADBEEF00000000;  // non-zero rax to verify only AH changes
+  add("lahf all2", {0x9F}, fl, FL_ALL);
+
+  // SAHF: store AH into flags (9E). Test with various AH values.
+  // AH = 0xD5 = 1101_0101 → SF=1 ZF=1 AF=1 PF=1 CF=1
+  fl.rflags = 0x2;
+  fl.rax = 0x000000000000D500;
+  add("sahf d5", {0x9E}, fl, FL_ALL);
+
+  // AH = 0x00 → SF=0 ZF=0 AF=0 PF=0 CF=0
+  fl.rflags = 0x2 | FL_CF | FL_SF | FL_ZF | FL_PF | FL_AF;
+  fl.rax = 0x0000000000000000;
+  add("sahf 00", {0x9E}, fl, FL_ALL);
+
+  // AH = 0x01 → only CF=1
+  fl.rflags = 0x2;
+  fl.rax = 0x0000000000000100;
+  add("sahf 01", {0x9E}, fl, FL_ALL);
+
+  // AH = 0x80 → only SF=1
+  fl.rflags = 0x2;
+  fl.rax = 0x0000000000008000;
+  add("sahf 80", {0x9E}, fl, FL_ALL);
+
+  // LAHF then SAHF round-trip: LAHF (9F) then SAHF (9E) — flags preserved
+  fl.rflags = 0x2 | FL_CF | FL_PF | FL_SF;
+  fl.rax = 0;
+  add("lahf+sahf", {0x9F, 0x9E}, fl, FL_ALL);
 }
 

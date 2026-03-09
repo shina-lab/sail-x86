@@ -1115,9 +1115,9 @@ function dispatch_opcode_1byte(opcode, pfx) = {
         Ok()
       },
 
-      // 9F: LAHF
+      // 9F: LAHF — AH := RFLAGS[7:0] = SF:ZF:0:AF:0:PF:1:CF
       159 => {
-        let v : byte = CF @ bitone @ PF @ bitzero @ AF @ bitzero @ ZF @ SF;
+        let v : byte = SF @ ZF @ bitzero @ AF @ bitzero @ PF @ bitone @ CF;
         write_gpr8h(RAX, v);
         Ok()
       },
