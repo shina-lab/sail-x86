@@ -136,7 +136,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] UD (UD0, UD1, UD2 — always #UD) — verified correct
 - [x] HLT (halt, ring-0 only) — verified correct
 - [x] PAUSE (spin-loop hint) — verified correct
-- [ ] SERIALIZE (execution serialization)
+- [x] SERIALIZE (execution serialization) — verified (NOP in sequential model)
 - [x] LOCK prefix (valid only with specific memory-destination instructions) — verified correct
 - [x] RDTSC (read timestamp counter) — verified correct
 - [x] RDTSCP (read timestamp counter and processor ID) — implemented
@@ -241,161 +241,161 @@ validity matches SDM (some are invalid in 64-bit mode).
 ### 1.4 SSE (128-bit, single-precision float)
 
 #### 1.4.1 SSE Arithmetic
-- [ ] ADDPS, ADDSS
-- [ ] SUBPS, SUBSS
-- [ ] MULPS, MULSS
-- [ ] DIVPS, DIVSS
-- [ ] SQRTPS, SQRTSS
-- [ ] RCPPS, RCPSS (reciprocal approximation)
-- [ ] RSQRTPS, RSQRTSS (reciprocal sqrt approximation)
-- [ ] MAXPS, MAXSS (NaN handling per SDM)
-- [ ] MINPS, MINSS (NaN handling per SDM)
+- [x] ADDPS, ADDSS — verified + KVM tests
+- [x] SUBPS, SUBSS — verified + KVM tests
+- [x] MULPS, MULSS — verified + KVM tests
+- [x] DIVPS, DIVSS — verified + KVM tests
+- [x] SQRTPS, SQRTSS — verified + KVM tests
+- [x] RCPPS, RCPSS (reciprocal approximation) — verified + KVM tests
+- [x] RSQRTPS, RSQRTSS (reciprocal sqrt approximation) — verified + KVM tests
+- [x] MAXPS, MAXSS (NaN handling per SDM) — verified, NaN bug fixed
+- [x] MINPS, MINSS (NaN handling per SDM) — verified, NaN bug fixed
 
 #### 1.4.2 SSE Comparison
-- [ ] CMPPS (all 8 predicates), CMPSS
-- [ ] COMISS (ordered compare → EFLAGS)
-- [ ] UCOMISS (unordered compare → EFLAGS)
+- [x] CMPPS (all 8 predicates), CMPSS — verified, pred 6 NaN bug fixed
+- [x] COMISS (ordered compare → EFLAGS) — verified + KVM tests
+- [x] UCOMISS (unordered compare → EFLAGS) — verified + KVM tests
 
 #### 1.4.3 SSE Logical
-- [ ] ANDPS, ANDNPS, ORPS, XORPS
+- [x] ANDPS, ANDNPS, ORPS, XORPS — verified + KVM tests
 
 #### 1.4.4 SSE Shuffle/Unpack
-- [ ] SHUFPS (4-element shuffle)
-- [ ] UNPCKHPS, UNPCKLPS (interleave high/low)
-- [ ] MOVHLPS, MOVLHPS (move high-to-low, low-to-high)
+- [x] SHUFPS (4-element shuffle) — verified + KVM tests
+- [x] UNPCKHPS, UNPCKLPS (interleave high/low) — verified + KVM tests
+- [x] MOVHLPS, MOVLHPS (move high-to-low, low-to-high) — verified + KVM tests
 
 #### 1.4.5 SSE Data Transfer
-- [ ] MOVAPS, MOVUPS (aligned/unaligned 128-bit)
-- [ ] MOVSS (scalar single)
-- [ ] MOVHPS, MOVLPS (move high/low 64-bit)
-- [ ] MOVMSKPS (extract sign bits → GPR)
-- [ ] MOVNTPS (non-temporal store)
+- [x] MOVAPS, MOVUPS (aligned/unaligned 128-bit) — verified + KVM tests
+- [x] MOVSS (scalar single) — verified + KVM tests
+- [x] MOVHPS, MOVLPS (move high/low 64-bit) — verified + KVM tests
+- [x] MOVMSKPS (extract sign bits → GPR) — verified + KVM tests
+- [x] MOVNTPS (non-temporal store) — verified + KVM tests
 
 #### 1.4.6 SSE Conversion
-- [ ] CVTPS2PD, CVTPD2PS
-- [ ] CVTSS2SD, CVTSD2SS
-- [ ] CVTSI2SS, CVTSS2SI
-- [ ] CVTTSS2SI (truncating)
-- [ ] CVTDQ2PS, CVTPS2DQ, CVTTPS2DQ
+- [x] CVTPS2PD, CVTPD2PS — verified + KVM tests
+- [x] CVTSS2SD, CVTSD2SS — verified + KVM tests
+- [x] CVTSI2SS, CVTSS2SI — verified + KVM tests
+- [x] CVTTSS2SI (truncating) — verified + KVM tests
+- [x] CVTDQ2PS, CVTPS2DQ, CVTTPS2DQ — verified, overflow bug fixed
 
 #### 1.4.7 SSE State/Control
-- [ ] LDMXCSR, STMXCSR (MXCSR load/store)
-- [ ] Rounding mode control (bits 14:13)
-- [ ] Flush-to-zero (bit 15)
-- [ ] Denormals-are-zeros (bit 6)
-- [ ] Exception mask bits and flag bits
+- [x] LDMXCSR, STMXCSR (MXCSR load/store) — verified + KVM tests
+- [x] Rounding mode control (bits 14:13) — verified + KVM tests (FP Edge)
+- [x] Flush-to-zero (bit 15) — verified + KVM tests (DAZ/FTZ)
+- [x] Denormals-are-zeros (bit 6) — verified + KVM tests (DAZ/FTZ)
+- [x] Exception mask bits and flag bits — verified
 
 ### 1.5 SSE2 (128-bit, double-precision float + 128-bit integer)
 
 #### 1.5.1 SSE2 Float64 Arithmetic
-- [ ] ADDPD, ADDSD
-- [ ] SUBPD, SUBSD
-- [ ] MULPD, MULSD
-- [ ] DIVPD, DIVSD
-- [ ] SQRTPD, SQRTSD
-- [ ] MAXPD, MAXSD
-- [ ] MINPD, MINSD
+- [x] ADDPD, ADDSD — verified + KVM tests
+- [x] SUBPD, SUBSD — verified + KVM tests
+- [x] MULPD, MULSD — verified + KVM tests
+- [x] DIVPD, DIVSD — verified + KVM tests
+- [x] SQRTPD, SQRTSD — verified + KVM tests
+- [x] MAXPD, MAXSD — verified + KVM tests
+- [x] MINPD, MINSD — verified + KVM tests
 
 #### 1.5.2 SSE2 Float64 Comparison
-- [ ] CMPPD, CMPSD (all 8 predicates)
-- [ ] COMISD, UCOMISD
+- [x] CMPPD, CMPSD (all 8 predicates) — verified + KVM tests
+- [x] COMISD, UCOMISD — verified + KVM tests
 
 #### 1.5.3 SSE2 Float64 Logical
-- [ ] ANDPD, ANDNPD, ORPD, XORPD
+- [x] ANDPD, ANDNPD, ORPD, XORPD — verified + KVM tests
 
 #### 1.5.4 SSE2 Float64 Shuffle/Unpack
-- [ ] SHUFPD
-- [ ] UNPCKHPD, UNPCKLPD
+- [x] SHUFPD — verified + KVM tests
+- [x] UNPCKHPD, UNPCKLPD — verified + KVM tests
 
 #### 1.5.5 SSE2 Float64 Data Transfer
-- [ ] MOVAPD, MOVUPD
-- [ ] MOVSD (scalar double)
-- [ ] MOVHPD, MOVLPD
-- [ ] MOVMSKPD
-- [ ] MOVNTPD
+- [x] MOVAPD, MOVUPD — verified + KVM tests
+- [x] MOVSD (scalar double) — verified + KVM tests
+- [x] MOVHPD, MOVLPD — verified + KVM tests
+- [x] MOVMSKPD — verified + KVM tests
+- [x] MOVNTPD — verified + KVM tests
 
 #### 1.5.6 SSE2 Float64 Conversion
-- [ ] CVTSI2SD, CVTSD2SI, CVTTSD2SI
-- [ ] CVTPD2DQ, CVTTPD2DQ, CVTDQ2PD
+- [x] CVTSI2SD, CVTSD2SI, CVTTSD2SI — verified + KVM tests
+- [x] CVTPD2DQ, CVTTPD2DQ, CVTDQ2PD — verified + KVM tests
 
 #### 1.5.7 SSE2 128-bit Integer
-- [ ] PADDB..PADDQ (byte/word/dword/qword add, 128-bit)
-- [ ] PSUBB..PSUBQ (128-bit sub)
-- [ ] PADDSB, PADDSW, PADDUSB, PADDUSW (128-bit saturating add)
-- [ ] PSUBSB, PSUBSW, PSUBUSB, PSUBUSW (128-bit saturating sub)
-- [ ] PMULLW, PMULHW, PMULHUW, PMULUDQ (128-bit multiply variants)
-- [ ] PMADDWD (128-bit multiply-add)
-- [ ] PAND, PANDN, POR, PXOR (128-bit)
-- [ ] PCMPEQB/W/D, PCMPGTB/W/D (128-bit)
-- [ ] PSLLW/D/Q, PSRLW/D/Q, PSRAW/D (128-bit shifts, imm and xmm count)
-- [ ] PSLLDQ, PSRLDQ (byte shift 128-bit)
-- [ ] PACKSSWB, PACKSSDW, PACKUSWB (128-bit pack)
-- [ ] PUNPCKHBW/WD/DQ/QDQ, PUNPCKLBW/WD/DQ/QDQ (128-bit unpack)
-- [ ] PSHUFD, PSHUFHW, PSHUFLW (128-bit shuffle)
-- [ ] MOVDQA, MOVDQU (aligned/unaligned 128-bit integer)
-- [ ] MOVD, MOVQ (GPR↔XMM transfer)
-- [ ] MOVNTDQ (non-temporal 128-bit store)
-- [ ] MASKMOVDQU (byte-masked store)
-- [ ] PEXTRW, PINSRW (128-bit extract/insert word)
-- [ ] PMOVMSKB (128-bit byte-mask to GPR)
-- [ ] PAVGB, PAVGW (128-bit)
-- [ ] PMAXSW, PMAXUB, PMINSW, PMINUB (128-bit)
-- [ ] PSADBW (128-bit)
-- [ ] MOVDDUP (SSE3-era but doubles low qword)
-- [ ] MOVSHDUP, MOVSLDUP (SSE3)
-- [ ] LDDQU (SSE3, unaligned load for video)
-- [ ] PTEST (SSE4.1)
+- [x] PADDB..PADDQ (byte/word/dword/qword add, 128-bit) — verified + KVM tests
+- [x] PSUBB..PSUBQ (128-bit sub) — verified + KVM tests
+- [x] PADDSB, PADDSW, PADDUSB, PADDUSW (128-bit saturating add) — verified + KVM tests
+- [x] PSUBSB, PSUBSW, PSUBUSB, PSUBUSW (128-bit saturating sub) — verified + KVM tests
+- [x] PMULLW, PMULHW, PMULHUW, PMULUDQ (128-bit multiply variants) — verified + KVM tests
+- [x] PMADDWD (128-bit multiply-add) — verified + KVM tests
+- [x] PAND, PANDN, POR, PXOR (128-bit) — verified + KVM tests
+- [x] PCMPEQB/W/D, PCMPGTB/W/D (128-bit) — verified + KVM tests
+- [x] PSLLW/D/Q, PSRLW/D/Q, PSRAW/D (128-bit shifts, imm and xmm count) — verified + KVM tests
+- [x] PSLLDQ, PSRLDQ (byte shift 128-bit) — verified + KVM tests
+- [x] PACKSSWB, PACKSSDW, PACKUSWB (128-bit pack) — verified + KVM tests
+- [x] PUNPCKHBW/WD/DQ/QDQ, PUNPCKLBW/WD/DQ/QDQ (128-bit unpack) — verified + KVM tests
+- [x] PSHUFD, PSHUFHW, PSHUFLW (128-bit shuffle) — verified + KVM tests
+- [x] MOVDQA, MOVDQU (aligned/unaligned 128-bit integer) — verified + KVM tests
+- [x] MOVD, MOVQ (GPR↔XMM transfer) — verified + KVM tests
+- [x] MOVNTDQ (non-temporal 128-bit store) — verified + KVM tests
+- [x] MASKMOVDQU (byte-masked store) — verified
+- [x] PEXTRW, PINSRW (128-bit extract/insert word) — verified + KVM tests
+- [x] PMOVMSKB (128-bit byte-mask to GPR) — verified + KVM tests
+- [x] PAVGB, PAVGW (128-bit) — verified + KVM tests
+- [x] PMAXSW, PMAXUB, PMINSW, PMINUB (128-bit) — verified + KVM tests
+- [x] PSADBW (128-bit) — verified + KVM tests
+- [x] MOVDDUP (SSE3-era but doubles low qword) — verified + KVM tests
+- [x] MOVSHDUP, MOVSLDUP (SSE3) — verified + KVM tests
+- [x] LDDQU (SSE3, unaligned load for video) — verified + KVM tests
+- [x] PTEST (SSE4.1) — verified + KVM tests
 
 ### 1.6 SSE3 / SSSE3
 
 #### 1.6.1 SSE3
-- [ ] ADDSUBPS, ADDSUBPD (alternating add/subtract)
-- [ ] HADDPS, HADDPD (horizontal add)
-- [ ] HSUBPS, HSUBPD (horizontal subtract)
-- [ ] MOVDDUP, MOVSHDUP, MOVSLDUP
-- [ ] LDDQU
+- [x] ADDSUBPS, ADDSUBPD (alternating add/subtract) — verified + KVM tests
+- [x] HADDPS, HADDPD (horizontal add) — verified + KVM tests
+- [x] HSUBPS, HSUBPD (horizontal subtract) — verified + KVM tests
+- [x] MOVDDUP, MOVSHDUP, MOVSLDUP — verified + KVM tests
+- [x] LDDQU — verified + KVM tests
 - [ ] FISTTP (x87 store-integer-with-truncation)
 - [ ] MONITOR, MWAIT (monitor/wait, ring-0)
 
 #### 1.6.2 SSSE3 (Supplemental SSE3)
-- [ ] PSHUFB (shuffle bytes)
-- [ ] PHADDW, PHADDD, PHADDSW (horizontal add)
-- [ ] PHSUBW, PHSUBD, PHSUBSW (horizontal sub)
-- [ ] PMADDUBSW (multiply-add unsigned/signed bytes)
-- [ ] PMULHRSW (multiply high with round and scale)
-- [ ] PALIGNR (byte-align concatenation)
-- [ ] PABSB, PABSW, PABSD (absolute value)
-- [ ] PSIGNB, PSIGNW, PSIGND (conditional negate)
+- [x] PSHUFB (shuffle bytes) — verified + KVM tests
+- [x] PHADDW, PHADDD, PHADDSW (horizontal add) — verified + KVM tests
+- [x] PHSUBW, PHSUBD, PHSUBSW (horizontal sub) — verified + KVM tests
+- [x] PMADDUBSW (multiply-add unsigned/signed bytes) — verified + KVM tests
+- [x] PMULHRSW (multiply high with round and scale) — verified + KVM tests
+- [x] PALIGNR (byte-align concatenation) — verified + KVM tests
+- [x] PABSB, PABSW, PABSD (absolute value) — verified + KVM tests
+- [x] PSIGNB, PSIGNW, PSIGND (conditional negate) — verified + KVM tests
 
 ### 1.7 SSE4.1 / SSE4.2
 
 #### 1.7.1 SSE4.1
-- [ ] PMULLD (packed multiply low dword → dword)
-- [ ] PMULDQ (packed multiply signed dword → qword)
-- [ ] PBLENDW, BLENDPS, BLENDPD (blend with immediate)
-- [ ] PBLENDVB, BLENDVPS, BLENDVPD (variable blend)
-- [ ] DPPD, DPPS (dot product)
-- [ ] ROUNDPS, ROUNDPD, ROUNDSS, ROUNDSD (round with mode)
-- [ ] INSERTPS, EXTRACTPS (single-precision insert/extract)
-- [ ] PINSRB, PINSRD, PINSRQ (insert byte/dword/qword)
-- [ ] PEXTRB, PEXTRD, PEXTRQ (extract byte/dword/qword)
-- [ ] PMOVSX (packed sign-extend: B→W, B→D, B→Q, W→D, W→Q, D→Q)
-- [ ] PMOVZX (packed zero-extend: same variants)
-- [ ] PMINSB, PMINSD, PMINUW, PMINUD (new min variants)
-- [ ] PMAXSB, PMAXSD, PMAXUW, PMAXUD (new max variants)
-- [ ] PACKUSDW (pack dword→word unsigned saturation)
-- [ ] PCMPEQQ (packed compare equal qword)
-- [ ] PHMINPOSUW (horizontal minimum of unsigned words)
-- [ ] MPSADBW (multiple sum of absolute differences)
-- [ ] MOVNTDQA (non-temporal aligned load)
-- [ ] PTEST (128-bit bitwise test → ZF/CF)
+- [x] PMULLD (packed multiply low dword → dword) — verified + KVM tests
+- [x] PMULDQ (packed multiply signed dword → qword) — verified + KVM tests
+- [x] PBLENDW, BLENDPS, BLENDPD (blend with immediate) — verified + KVM tests
+- [x] PBLENDVB, BLENDVPS, BLENDVPD (variable blend) — verified + KVM tests
+- [x] DPPD, DPPS (dot product) — verified + KVM tests
+- [x] ROUNDPS, ROUNDPD, ROUNDSS, ROUNDSD (round with mode) — verified + KVM tests
+- [x] INSERTPS, EXTRACTPS (single-precision insert/extract) — verified + KVM tests
+- [x] PINSRB, PINSRD, PINSRQ (insert byte/dword/qword) — verified + KVM tests
+- [x] PEXTRB, PEXTRD, PEXTRQ (extract byte/dword/qword) — verified + KVM tests
+- [x] PMOVSX (packed sign-extend: B→W, B→D, B→Q, W→D, W→Q, D→Q) — verified + KVM tests
+- [x] PMOVZX (packed zero-extend: same variants) — verified + KVM tests
+- [x] PMINSB, PMINSD, PMINUW, PMINUD (new min variants) — verified + KVM tests
+- [x] PMAXSB, PMAXSD, PMAXUW, PMAXUD (new max variants) — verified + KVM tests
+- [x] PACKUSDW (pack dword→word unsigned saturation) — verified + KVM tests
+- [x] PCMPEQQ (packed compare equal qword) — verified + KVM tests
+- [x] PHMINPOSUW (horizontal minimum of unsigned words) — verified + KVM tests
+- [x] MPSADBW (multiple sum of absolute differences) — verified + KVM tests
+- [x] MOVNTDQA (non-temporal aligned load) — verified + KVM tests
+- [x] PTEST (128-bit bitwise test → ZF/CF) — verified + KVM tests
 
 #### 1.7.2 SSE4.2
-- [ ] PCMPESTRI, PCMPESTRM (explicit-length string compare)
-- [ ] PCMPISTRI, PCMPISTRM (implicit-length string compare)
-- [ ] PCMPGTQ (packed compare greater-than qword)
+- [x] PCMPESTRI, PCMPESTRM (explicit-length string compare) — verified, delegated to hardware intrinsics
+- [x] PCMPISTRI, PCMPISTRM (implicit-length string compare) — verified, delegated to hardware intrinsics
+- [x] PCMPGTQ (packed compare greater-than qword) — verified correct
 - [x] CRC32 (CRC-32C accumulate) — verified correct + KVM tests
-- [ ] POPCNT (population count)
+- [x] POPCNT (population count) — verified correct
 
 ### 1.8 AVX (VEX-encoded, 256-bit float, non-destructive 3-operand)
 
@@ -431,12 +431,12 @@ Note: All SSE integer/float instructions have VEX-encoded equivalents
 ### 1.10 FMA (Fused Multiply-Add, VEX-encoded)
 
 All 132/213/231 forms, scalar and packed, float32 and float64:
-- [ ] VFMADD{132,213,231}{PS,PD,SS,SD} (fused multiply-add)
-- [ ] VFMSUB{132,213,231}{PS,PD,SS,SD} (fused multiply-subtract)
-- [ ] VFNMADD{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-add)
-- [ ] VFNMSUB{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-subtract)
-- [ ] VFMADDSUB{132,213,231}{PS,PD} (alternating add/sub)
-- [ ] VFMSUBADD{132,213,231}{PS,PD} (alternating sub/add)
+- [x] VFMADD{132,213,231}{PS,PD,SS,SD} (fused multiply-add) — verified + KVM tests
+- [x] VFMSUB{132,213,231}{PS,PD,SS,SD} (fused multiply-subtract) — verified + KVM tests
+- [x] VFNMADD{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-add) — verified + KVM tests
+- [x] VFNMSUB{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-subtract) — verified + KVM tests
+- [x] VFMADDSUB{132,213,231}{PS,PD} (alternating add/sub) — verified + KVM tests
+- [x] VFMSUBADD{132,213,231}{PS,PD} (alternating sub/add) — verified + KVM tests
 
 ### 1.11 BMI1 / BMI2 (Bit Manipulation)
 
@@ -461,13 +461,13 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] ADOX (unsigned add with OF in, OF out) — verified correct
 
 ### 1.13 AES-NI (AES New Instructions)
-- [ ] AESENC (one AES encryption round)
-- [ ] AESENCLAST (last AES encryption round)
-- [ ] AESDEC (one AES decryption round)
-- [ ] AESDECLAST (last AES decryption round)
-- [ ] AESIMC (inverse mix columns)
-- [ ] AESKEYGENASSIST (AES key generation assist)
-- [ ] PCLMULQDQ (carry-less multiplication)
+- [x] AESENC (one AES encryption round) — verified, delegated to hardware intrinsics
+- [x] AESENCLAST (last AES encryption round) — verified, delegated to hardware intrinsics
+- [x] AESDEC (one AES decryption round) — verified, delegated to hardware intrinsics
+- [x] AESDECLAST (last AES decryption round) — verified, delegated to hardware intrinsics
+- [x] AESIMC (inverse mix columns) — verified, delegated to hardware intrinsics
+- [x] AESKEYGENASSIST (AES key generation assist) — verified, delegated to hardware intrinsics
+- [x] PCLMULQDQ (carry-less multiplication) — verified, delegated to hardware intrinsics
 
 ### 1.14 SHA (SHA Extensions)
 - [ ] SHA1RNDS4 (SHA-1 4 rounds)
