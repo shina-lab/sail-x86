@@ -534,7 +534,33 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // 43. SHA extensions
+  // 43. GFNI (Galois Field New Instructions)
+  // =====================================================================
+  cat = "GFNI";
+
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // Use an 8x8 identity-like matrix in XMM1 and some data in XMM0
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x8040201008040201, 0x8040201008040201);
+
+    // GF2P8MULB XMM0, XMM1: 66 0F 38 CF C1
+    add_xmm("gf2p8mulb xmm0,xmm1", {0x66, 0x0F, 0x38, 0xCF, 0xC1}, s, 0x3);
+
+    // GF2P8AFFINEQB XMM0, XMM1, 0x00: 66 0F 3A CE C1 00
+    add_xmm("gf2p8affineqb xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0xCE, 0xC1, 0x00}, s, 0x3);
+    // GF2P8AFFINEQB XMM0, XMM1, 0x55: 66 0F 3A CE C1 55
+    add_xmm("gf2p8affineqb xmm0,xmm1,0x55", {0x66, 0x0F, 0x3A, 0xCE, 0xC1, 0x55}, s, 0x3);
+
+    // GF2P8AFFINEINVQB XMM0, XMM1, 0x00: 66 0F 3A CF C1 00
+    add_xmm("gf2p8affineinvqb xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0xCF, 0xC1, 0x00}, s, 0x3);
+    // GF2P8AFFINEINVQB XMM0, XMM1, 0xAA: 66 0F 3A CF C1 AA
+    add_xmm("gf2p8affineinvqb xmm0,xmm1,0xAA", {0x66, 0x0F, 0x3A, 0xCF, 0xC1, 0xAA}, s, 0x3);
+  }
+
+  // =====================================================================
+  // 44. SHA extensions
   // =====================================================================
   cat = "SHA";
 

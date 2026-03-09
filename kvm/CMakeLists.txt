@@ -183,6 +183,7 @@ set(KVM_CATEGORIES
   "EVEX blend"
   VLDDQU
   CRC32
+  GFNI
   SHA
 )
 

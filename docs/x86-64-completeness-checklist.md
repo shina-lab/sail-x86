@@ -418,7 +418,7 @@ Note: All SSE integer/float instructions have VEX-encoded equivalents
 - [x] All SSE2/SSSE3/SSE4.1 integer ops promoted to 256-bit (VPADDB..Q, VPSUBB..Q, etc.) — verified + KVM tests
 - [x] VPBLENDD (blend dwords with immediate) — verified + KVM tests
 - [x] VPBROADCASTB/W/D/Q (broadcast scalar to all elements) — verified + KVM tests
-- [ ] VPBROADCAST from GPR
+- [x] VPBROADCAST from GPR — verified: EVEX-only (7A/7B/7C), implemented in insn_evex_arith.sail and insn_evex_perm.sail
 - [x] VPERMD, VPERMQ (cross-lane dword/qword permute) — verified + KVM tests
 - [x] VPERMPD, VPERMPS (cross-lane float permute) — verified + KVM tests
 - [x] VPERM2I128 (permute 128-bit integer lanes) — verified + KVM tests
@@ -649,9 +649,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] TDPBF16PS (BF16 tile dot product)
 
 ### 1.19 Galois Field (GFNI)
-- [ ] GF2P8MULB (GF(2^8) byte multiply)
-- [ ] GF2P8AFFINEINVQB (GF(2^8) affine inverse)
-- [ ] GF2P8AFFINEQB (GF(2^8) affine transform)
+- [x] GF2P8MULB (GF(2^8) byte multiply) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] GF2P8AFFINEINVQB (GF(2^8) affine inverse) — implemented, delegated to hardware intrinsics + KVM tests
+- [x] GF2P8AFFINEQB (GF(2^8) affine transform) — implemented, delegated to hardware intrinsics + KVM tests
 
 ### 1.20 Key Locker
 - [ ] LOADIWKEY (load internal wrapping key)

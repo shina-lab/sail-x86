@@ -567,6 +567,11 @@ val __aesdeclast : (xmmword, xmmword) -> xmmword
 val __aesimc : xmmword -> xmmword
 val __aeskeygenassist : (xmmword, byte) -> xmmword
 
+// External GFNI primitives
+val __gf2p8mulb : (xmmword, xmmword) -> xmmword
+val __gf2p8affineqb : (xmmword, xmmword, byte) -> xmmword
+val __gf2p8affineinvqb : (xmmword, xmmword, byte) -> xmmword
+
 // External SHA primitives
 val __sha1rnds4 : (xmmword, xmmword, byte) -> xmmword
 val __sha1nexte : (xmmword, xmmword) -> xmmword
@@ -2830,6 +2835,12 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
         Ok()
       },
 
+      // GFNI — GF2P8MULB (66 0F 38 CF)
+      207 => {
+        write_xmm_legacy(xreg, __gf2p8mulb(read_xmm(xreg), src_xmm));
+        Ok()
+      },
+
       _ => raise_UD(),
     }
   }
@@ -3057,6 +3068,22 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         let imm = fetch_byte();
         let s : xmmword = src_xmm;
         write_xmm_legacy(xreg, __aeskeygenassist(s, imm));
+        Ok()
+      },
+
+      // GFNI — GF2P8AFFINEQB (66 0F 3A CE)
+      206 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        write_xmm_legacy(xreg, __gf2p8affineqb(read_xmm(xreg), src_xmm, imm));
+        Ok()
+      },
+
+      // GFNI — GF2P8AFFINEINVQB (66 0F 3A CF)
+      207 => {
+        let src_xmm = decode_xmm_src(modrm, rm, pfx);
+        let imm = fetch_byte();
+        write_xmm_legacy(xreg, __gf2p8affineinvqb(read_xmm(xreg), src_xmm, imm));
         Ok()
       },
 
