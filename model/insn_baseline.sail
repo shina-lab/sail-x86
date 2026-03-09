@@ -775,12 +775,38 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_rm_val(rm, OS8, pfx.has_rex, v);
       Ok()
     },
-    // 0F AE: Group 15 — LDMXCSR/STMXCSR/LFENCE/MFENCE/SFENCE
+    // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
+    //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      if reg_field == 0 then {
+      // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
+      if pfx.has_rep & reg_field <= 3 then {
+        match rm {
+          RM_reg(r) => {
+            if reg_field == 0 then {
+              // F3 0F AE /0 mod=11: RDFSBASE r32/r64
+              if pfx.rex_w then write_gpr64(r, FS_BASE)
+              else write_gpr32(r, FS_BASE[31..0])
+            } else if reg_field == 1 then {
+              // F3 0F AE /1 mod=11: RDGSBASE r32/r64
+              if pfx.rex_w then write_gpr64(r, GS_BASE)
+              else write_gpr32(r, GS_BASE[31..0])
+            } else if reg_field == 2 then {
+              // F3 0F AE /2 mod=11: WRFSBASE r32/r64
+              if pfx.rex_w then FS_BASE = read_gpr64(r)
+              else FS_BASE = zero_extend(read_gpr32(r))
+            } else {
+              // F3 0F AE /3 mod=11: WRGSBASE r32/r64
+              if pfx.rex_w then GS_BASE = read_gpr64(r)
+              else GS_BASE = zero_extend(read_gpr32(r))
+            };
+            Ok()
+          },
+          RM_mem(_) => raise_UD(),
+        }
+      } else if reg_field == 0 then {
         // /0: FXSAVE m512byte
         match rm {
           RM_mem(addr) => {
