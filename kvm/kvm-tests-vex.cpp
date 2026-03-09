@@ -3711,4 +3711,180 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // EVEX VPCMPD/VPCMPUD/VPCMPQ/VPCMPUQ — packed integer compare → kmask
+  // =====================================================================
+  cat = "EVEX VPCMP D/Q";
+  {
+    // Test signed vs unsigned dword compare — they should give different results.
+    // xmm1 = [0xFFFFFFFF(-1), 2, 0x80000000(-2^31), 0x7FFFFFFF(2^31-1)]
+    // xmm2 = [1, 2, 1, 0x80000000(-2^31)]
+    //
+    // VPCMPD (signed LT, pred=1):
+    //   elem0: -1 < 1 = true, elem1: 2 < 2 = false,
+    //   elem2: -2^31 < 1 = true, elem3: 2^31-1 < -2^31 = false
+    //   → k0 = 0101b = 5
+    //
+    // VPCMPUD (unsigned LT, pred=1):
+    //   elem0: 0xFFFFFFFF < 1 = false, elem1: 2 < 2 = false,
+    //   elem2: 0x80000000 < 1 = false, elem3: 0x7FFFFFFF < 0x80000000 = true
+    //   → k0 = 1000b = 8
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm1: dwords [0]=0xFFFFFFFF [1]=2 [2]=0x80000000 [3]=0x7FFFFFFF
+    s.xmm[1] = xmm_from_u32(0xFFFFFFFF, 0x00000002, 0x80000000, 0x7FFFFFFF);
+    // xmm2: dwords [0]=1 [1]=2 [2]=1 [3]=0x80000000
+    s.xmm[2] = xmm_from_u32(0x00000001, 0x00000002, 0x00000001, 0x80000000);
+
+    // VPCMPD k0, xmm1, xmm2, 1 (signed LT)
+    // EVEX.128.66.0F3A.W0: P1=0xF3(mm=11), P2=0x75(W=0,vvvv=~1=1110,pp=01), P3=0x08(xmm)
+    // opcode=0x1F, modrm=0xC2(k0,xmm2), imm=0x01
+    // Then KMOVW eax, k0: C5 F8 93 C0
+    {
+      TestCase tc;
+      tc.name = "vpcmpd k0,xmm1,xmm2,LT: signed dword LT → k0=5";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x1F, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUD k0, xmm1, xmm2, 1 (unsigned LT)
+    // opcode=0x1E, rest same
+    {
+      TestCase tc;
+      tc.name = "vpcmpud k0,xmm1,xmm2,LT: unsigned dword LT → k0=8";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x1E, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPD k0, xmm1, xmm2, 0 (EQ)
+    // Elements 1 are equal → k0 = 0010b = 2
+    {
+      TestCase tc;
+      tc.name = "vpcmpd k0,xmm1,xmm2,EQ: dword equal → k0=2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x1F, 0xC2, 0x00,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPD k0, xmm1, xmm2, 6 (NLE = GT signed)
+    // elem0: -1 > 1 = false, elem1: 2 > 2 = false,
+    // elem2: -2^31 > 1 = false, elem3: 2^31-1 > -2^31 = true
+    // → k0 = 1000b = 8
+    {
+      TestCase tc;
+      tc.name = "vpcmpd k0,xmm1,xmm2,NLE: signed dword GT → k0=8";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x1F, 0xC2, 0x06,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUD k0, xmm1, xmm2, 6 (NLE = GT unsigned)
+    // elem0: 0xFFFFFFFF > 1 = true, elem1: 2 > 2 = false,
+    // elem2: 0x80000000 > 1 = true, elem3: 0x7FFFFFFF > 0x80000000 = false
+    // → k0 = 0101b = 5
+    {
+      TestCase tc;
+      tc.name = "vpcmpud k0,xmm1,xmm2,NLE: unsigned dword GT → k0=5";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x1E, 0xC2, 0x06,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPD with writemask: k1 as writemask, result in k0
+    // VPCMPD k0{k1}, xmm1, xmm2, 1 (signed LT) with k1=0xA (1010b)
+    // Without mask: k0 = 0101b, with mask 1010b: k0 = 0101 & 1010 = 0000b = 0
+    // P3 = 0x09 (aaa=001 → k1 writemask)
+    {
+      TestCase tc;
+      tc.name = "vpcmpd k0{k1},xmm1,xmm2,LT: writemask k1=0xA → k0=0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x09, 0x1F, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.initial.kregs[1] = 0xA;  // mask: 1010b
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // Now test qword compares
+    // xmm1 = [qword0=0xFFFFFFFFFFFFFFFF(-1), qword1=2]
+    // xmm2 = [qword0=1, qword1=2]
+    //
+    // VPCMPQ (signed LT): -1 < 1 = true, 2 < 2 = false → k0 = 01b = 1
+    // VPCMPUQ (unsigned LT): 0xFFFF... < 1 = false, 2 < 2 = false → k0 = 00b = 0
+
+    ArchState sq = {};
+    sq.rflags = 0x2;
+    sq.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0x0000000000000002);
+    sq.xmm[2] = xmm_from_u64(0x0000000000000001, 0x0000000000000002);
+
+    // VPCMPQ k0, xmm1, xmm2, 1 (signed LT)
+    // P2=0xF5 (W=1, vvvv=~1=1110, pp=01)
+    {
+      TestCase tc;
+      tc.name = "vpcmpq k0,xmm1,xmm2,LT: signed qword LT → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x1F, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sq;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUQ k0, xmm1, xmm2, 1 (unsigned LT)
+    {
+      TestCase tc;
+      tc.name = "vpcmpuq k0,xmm1,xmm2,LT: unsigned qword LT → k0=0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x1E, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sq;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPQ k0, xmm1, xmm2, 0 (EQ): only qword1 equal → k0 = 10b = 2
+    {
+      TestCase tc;
+      tc.name = "vpcmpq k0,xmm1,xmm2,EQ: qword equal → k0=2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x1F, 0xC2, 0x00,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sq;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUQ k0, xmm1, xmm2, 6 (NLE = GT unsigned)
+    // elem0: 0xFFFF... > 1 = true, elem1: 2 > 2 = false → k0 = 01b = 1
+    {
+      TestCase tc;
+      tc.name = "vpcmpuq k0,xmm1,xmm2,NLE: unsigned qword GT → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x1E, 0xC2, 0x06,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sq;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
 }

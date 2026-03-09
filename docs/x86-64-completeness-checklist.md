@@ -512,7 +512,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.15.4 AVX-512F Comparison
 - [x] VCMPPS/PD (compare → opmask register, all 32 predicates) — verified: full 5-bit predicate in insn_evex_fp.sail
-- [x] VPCMPD/UD/Q/UQ (integer compare → opmask, 8 predicates) — verified: implemented in insn_evex_imm.sail
+- [x] VPCMPD/UD/Q/UQ (integer compare → opmask, 8 predicates) — fixed: 0x1F was calling unsigned instead of signed; added missing VPCMPQ (W=1) and VPCMPUQ (W=1); opcode 0x1E added for VPCMPUD/UQ. KVM-tested signed vs unsigned results.
 - [x] VPCMPB/UB/W/UW (AVX-512BW, compare bytes/words → opmask) — verified: implemented in insn_evex_imm.sail
 - [x] VPTESTMB/W/D/Q (bitwise test → opmask) — verified: implemented in insn_evex_arith.sail
 - [x] VPTESTNMB/W/D/Q (bitwise test-not → opmask) — verified: implemented in insn_evex_arith.sail
