@@ -1,4 +1,5 @@
 #include "x86_platform_base.h"
+#include <algorithm>
 #include <sys/mman.h>
 #include <cstdlib>
 
@@ -69,23 +70,12 @@ void PhysicalMemory::write64(u64 paddr, u64 val) {
 }
 
 void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
-  if (paddr + len <= size) {
-    memcpy(buf, ram + paddr, len);
-  } else {
-    // Partial read: fill what we can, rest is 0xFF
-    u8 *dst = static_cast<u8 *>(buf);
-    for (u64 i = 0; i < len; i++)
-      dst[i] = (paddr + i < size) ? ram[paddr + i] : 0xFF;
-  }
+  u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
+  memcpy(buf, ram + paddr, avail);
+  memset(static_cast<u8 *>(buf) + avail, 0xFF, len - avail);
 }
 
 void PhysicalMemory::write_bytes(u64 paddr, const void *buf, u64 len) {
-  if (paddr + len <= size) {
-    memcpy(ram + paddr, buf, len);
-  } else {
-    const u8 *src = static_cast<const u8 *>(buf);
-    for (u64 i = 0; i < len; i++)
-      if (paddr + i < size)
-        ram[paddr + i] = src[i];
-  }
+  u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
+  memcpy(ram + paddr, buf, avail);
 }
