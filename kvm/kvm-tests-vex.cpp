@@ -3633,5 +3633,82 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tc.init_data = std::move(data);
       tests.push_back(std::move(tc));
     }
+
+    // VFMADD132PS xmm0, xmm1, [rdi]{1to4} — broadcast f32, FMA
+    // EVEX.NDS.128.66.0F38.W0 98 /r with EVEX.b=1
+    //   P1: mm=10(0F38) → 0xF2
+    //   P2: W=0,~vvvv=1110,1,pp=01(66) → 0x75
+    //   P3: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
+      s.xmm[1] = xmm_from_f32(1.0f, 1.0f, 1.0f, 1.0f);
+      float bcast_val = 10.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vfmadd132ps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x98, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPTERNLOGD xmm0, xmm1, [rdi]{1to4}, 0xFE — broadcast dword, ternary logic (OR)
+    // EVEX.NDS.128.66.0F3A.W0 25 /r ib with EVEX.b=1
+    //   P1: mm=11(0F3A) → 0xF3
+    //   P2: W=0,~vvvv=1110,1,pp=01(66) → 0x75
+    //   P3: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[0] = xmm_from_u32(0xF0F0F0F0, 0x0F0F0F0F, 0x00FF00FF, 0xFF00FF00);
+      s.xmm[1] = xmm_from_u32(0x12345678, 0x9ABCDEF0, 0x11223344, 0x55667788);
+      uint32_t bcast_val = 0xAAAAAAAA;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpternlogd xmm0,xmm1,[rdi]{1to4},0xFE";
+      tc.category = cat;
+      // 0x25=opcode, 0x07=modrm [rdi], 0xFE=imm8 (a|b|c)
+      tc.code = {0x62, 0xF3, 0x75, 0x18, 0x25, 0x07, 0xFE};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VRNDSCALEPS xmm0, [rdi]{1to4}, 0x00 — broadcast f32, round to nearest
+    // EVEX.128.66.0F3A.W0 08 /r ib with EVEX.b=1
+    //   P1: mm=11(0F3A) → 0xF3
+    //   P2: W=0,~vvvv=1111,1,pp=01(66) → 0x7D (no vvvv src)
+    //   P3: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      float bcast_val = 3.7f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vrndscaleps xmm0,[rdi]{1to4},0x00";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x7D, 0x18, 0x08, 0x07, 0x00};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
   }
 }
