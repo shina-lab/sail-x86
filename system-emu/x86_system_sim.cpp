@@ -67,7 +67,8 @@ static bool setup_raw_terminal() {
 
   struct termios raw = orig_termios;
   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-  raw.c_oflag &= ~(OPOST);
+  // Keep OPOST enabled so \n→\r\n translation works for stderr messages.
+  // The kernel's serial output already sends \r\n through the UART.
   raw.c_cflag |= CS8;
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
   raw.c_cc[VMIN] = 0;   // Non-blocking
