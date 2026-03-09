@@ -96,7 +96,95 @@ function avx_pcmpb_128(a, b, pred) = {
   r
 }
 
-// VPCMPEQD producing kmask
+// VPCMPUW: unsigned word compare
+
+val cmp_uw_pred : (word, word, range(0, 7)) -> bool
+function cmp_uw_pred(a, b, pred) = match pred {
+  0 => unsigned(a) == unsigned(b),
+  1 => unsigned(a) < unsigned(b),
+  2 => unsigned(a) <= unsigned(b),
+  3 => false,
+  4 => unsigned(a) != unsigned(b),
+  5 => unsigned(a) >= unsigned(b),
+  6 => unsigned(a) > unsigned(b),
+  _ => true,
+}
+
+val avx_pcmpuw_512 : (zmmword, zmmword, range(0, 7)) -> dword
+function avx_pcmpuw_512(a, b, pred) = {
+  var r : dword = zeros();
+  foreach (i from 0 to 31) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+val avx_pcmpuw_256 : (ymmword, ymmword, range(0, 7)) -> word
+function avx_pcmpuw_256(a, b, pred) = {
+  var r : word = zeros();
+  foreach (i from 0 to 15) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+val avx_pcmpuw_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpuw_128(a, b, pred) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+// VPCMPW: signed word compare
+
+val cmp_sw_pred : (word, word, range(0, 7)) -> bool
+function cmp_sw_pred(a, b, pred) = match pred {
+  0 => signed(a) == signed(b),
+  1 => signed(a) < signed(b),
+  2 => signed(a) <= signed(b),
+  3 => false,
+  4 => signed(a) != signed(b),
+  5 => signed(a) >= signed(b),
+  6 => signed(a) > signed(b),
+  _ => true,
+}
+
+val avx_pcmpw_512 : (zmmword, zmmword, range(0, 7)) -> dword
+function avx_pcmpw_512(a, b, pred) = {
+  var r : dword = zeros();
+  foreach (i from 0 to 31) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+val avx_pcmpw_256 : (ymmword, ymmword, range(0, 7)) -> word
+function avx_pcmpw_256(a, b, pred) = {
+  var r : word = zeros();
+  foreach (i from 0 to 15) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+val avx_pcmpw_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpw_128(a, b, pred) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 16; let hi = lo + 15;
+    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
+  };
+  r
+}
+
+// VPCMPUD: unsigned dword compare producing kmask
 
 val cmp_ud_pred : (dword, dword, range(0, 7)) -> bool
 function cmp_ud_pred(a, b, pred) = match pred {
@@ -2095,8 +2183,8 @@ function dispatch_evex_imm(op, pfx) = {
     }
   },
 
-  // 0F3A 3E: VPCMPUB (66, W=0) — unsigned byte compare → kmask
-  // 0F3A 3E: VPCMPUB (66, W=0) — unsigned byte compare → kmask
+  // 0F3A 3E: VPCMPUB (66, W=0) / VPCMPUW (66, W=1) — unsigned byte/word compare → kmask
+  // 0F3A 3E: VPCMPUB (66, W=0) / VPCMPUW (66, W=1) — unsigned byte/word compare → kmask
   62 => {
     if mp != MP_66 then {
       raise_UD()
@@ -2106,28 +2194,50 @@ function dispatch_evex_imm(op, pfx) = {
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let imm = fetch_byte();
       let pred : range(0, 7) = unsigned(imm[2..0]);
-      match pfx.evex_ll {
-        2 => {
-          let mask = avx_pcmpub_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
-        1 => {
-          let mask : dword = avx_pcmpub_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
-        _ => {
-          let mask : word = avx_pcmpub_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
+      if pfx.rex_w then {
+        // VPCMPUW (word)
+        match pfx.evex_ll {
+          2 => {
+            let mask : dword = avx_pcmpuw_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          1 => {
+            let mask : word = avx_pcmpuw_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          _ => {
+            let mask : byte = avx_pcmpuw_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+        }
+      } else {
+        // VPCMPUB (byte)
+        match pfx.evex_ll {
+          2 => {
+            let mask = avx_pcmpub_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          1 => {
+            let mask : dword = avx_pcmpub_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          _ => {
+            let mask : word = avx_pcmpub_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+        }
       }
     }
   },
 
-  // 0F3A 3F: VPCMPB (66, W=0) — signed byte compare → kmask
-  // 0F3A 3F: VPCMPB (66, W=0) — signed byte compare → kmask
+  // 0F3A 3F: VPCMPB (66, W=0) / VPCMPW (66, W=1) — signed byte/word compare → kmask
+  // 0F3A 3F: VPCMPB (66, W=0) / VPCMPW (66, W=1) — signed byte/word compare → kmask
   63 => {
     if mp != MP_66 then {
       raise_UD()
@@ -2137,22 +2247,44 @@ function dispatch_evex_imm(op, pfx) = {
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let imm = fetch_byte();
       let pred : range(0, 7) = unsigned(imm[2..0]);
-      match pfx.evex_ll {
-        2 => {
-          let mask = avx_pcmpb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
-        1 => {
-          let mask : dword = avx_pcmpb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
-        _ => {
-          let mask : word = avx_pcmpb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
-          write_kreg(dst_k, k_mask); Ok()
-        },
+      if pfx.rex_w then {
+        // VPCMPW (word)
+        match pfx.evex_ll {
+          2 => {
+            let mask : dword = avx_pcmpw_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          1 => {
+            let mask : word = avx_pcmpw_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          _ => {
+            let mask : byte = avx_pcmpw_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+        }
+      } else {
+        // VPCMPB (byte)
+        match pfx.evex_ll {
+          2 => {
+            let mask = avx_pcmpb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          1 => {
+            let mask : dword = avx_pcmpb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+          _ => {
+            let mask : word = avx_pcmpb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
+            let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+            write_kreg(dst_k, k_mask); Ok()
+          },
+        }
       }
     }
   },

@@ -3886,5 +3886,66 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tc.flags_mask = FL_NONE;
       tests.push_back(std::move(tc));
     }
+
+    // Test word compares (VPCMPW / VPCMPUW)
+    // xmm1 words: [0xFFFF(-1), 0x0002, 0x8000(-32768), 0x7FFF(32767), 0x0001, 0x0005, 0x0003, 0x0003]
+    // xmm2 words: [0x0001,     0x0002, 0x0001,          0x8000(-32768),0x0001, 0x0005, 0x0003, 0x0004]
+    //
+    // VPCMPW (signed LT, pred=1):
+    //   w0: -1<1=T, w1: 2<2=F, w2: -32768<1=T, w3: 32767<-32768=F,
+    //   w4: 1<1=F, w5: 5<5=F, w6: 3<3=F, w7: 3<4=T
+    //   → k0 = 10000101b = 0x85
+    //
+    // VPCMPUW (unsigned LT, pred=1):
+    //   w0: 0xFFFF<1=F, w1: 2<2=F, w2: 0x8000<1=F, w3: 0x7FFF<0x8000=T,
+    //   w4: 1<1=F, w5: 5<5=F, w6: 3<3=F, w7: 3<4=T
+    //   → k0 = 10001000b = 0x88
+
+    ArchState sw = {};
+    sw.rflags = 0x2;
+    // xmm1: words [0]=0xFFFF [1]=2 [2]=0x8000 [3]=0x7FFF [4]=1 [5]=5 [6]=3 [7]=3
+    sw.xmm[1] = xmm_from_u32(0x0002FFFF, 0x7FFF8000, 0x00050001, 0x00030003);
+    // xmm2: words [0]=1 [1]=2 [2]=1 [3]=0x8000 [4]=1 [5]=5 [6]=3 [7]=4
+    sw.xmm[2] = xmm_from_u32(0x00020001, 0x80000001, 0x00050001, 0x00040003);
+
+    // VPCMPW k0, xmm1, xmm2, 1 (signed LT)
+    // EVEX.128.66.0F3A.W1: P1=0xF3, P2=0xF5(W=1,vvvv=~1,pp=01), P3=0x08
+    // opcode=0x3F, modrm=0xC2(k0,xmm2), imm=0x01
+    {
+      TestCase tc;
+      tc.name = "vpcmpw k0,xmm1,xmm2,LT: signed word LT → k0=0x85";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x3F, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sw;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUW k0, xmm1, xmm2, 1 (unsigned LT)
+    // opcode=0x3E
+    {
+      TestCase tc;
+      tc.name = "vpcmpuw k0,xmm1,xmm2,LT: unsigned word LT → k0=0x88";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x3E, 0xC2, 0x01,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sw;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPW k0, xmm1, xmm2, 0 (EQ)
+    // Equal words: w1(2=2), w4(1=1), w5(5=5), w6(3=3) → k0 = 01110010b = 0x72
+    {
+      TestCase tc;
+      tc.name = "vpcmpw k0,xmm1,xmm2,EQ: word equal → k0=0x72";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xF5, 0x08, 0x3F, 0xC2, 0x00,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = sw;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
   }
 }
