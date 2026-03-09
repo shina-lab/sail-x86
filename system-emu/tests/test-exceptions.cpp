@@ -374,6 +374,107 @@ TEST(stack_alignment_16byte) {
   model.model_fini();
 }
 
+TEST(int3_software_interrupt) {
+  // INT3 (CC) is a software interrupt (trap).
+  // - Saved RIP points PAST the INT3 byte (trap, not fault).
+  // - No error code is pushed, even though vector 3 normally has none.
+  x86::Model model;
+  init_model(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };  // hlt
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  // Set up IDT gate for #BP (vector 3): trap gate (0xF), DPL 0, present
+  write_idt_gate(model.phys_mem, IDT_BASE, 3, handler_addr, 0x08, 0, 0x0F, 0, true);
+
+  u8 code[] = {
+    0xCC,        // int3
+    0xF4,        // hlt (should not reach)
+  };
+
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zRIP, handler_addr);
+
+  // Stack frame: RIP, CS, RFLAGS, RSP, SS (no error code for software interrupt)
+  u64 rsp = model.zGPR.data[4];
+  u64 frame_rip = model.phys_mem.read64(rsp);         // RIP
+  u64 frame_rsp = model.phys_mem.read64(rsp + 24);    // RSP
+
+  // Saved RIP should point PAST INT3 (CODE_ADDR + 1)
+  ASSERT_EQ(frame_rip, CODE_ADDR + 1);
+  // Old RSP
+  ASSERT_EQ(frame_rsp, STACK_ADDR);
+
+  model.model_fini();
+}
+
+TEST(int_n_no_error_code_for_gp_vector) {
+  // INT 13 (CD 0D) — software interrupt to vector 13 (#GP).
+  // SDM Vol.3 §6.13: software interrupts do NOT push error codes,
+  // even when the vector normally has one.
+  x86::Model model;
+  init_model(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };  // hlt
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  // Set up IDT gate for #GP (vector 13): interrupt gate (0xE), DPL 0, present
+  write_idt_gate(model.phys_mem, IDT_BASE, 13, handler_addr, 0x08, 0, 0x0E, 0, true);
+
+  u8 code[] = {
+    0xCD, 0x0D,  // int 13
+    0xF4,        // hlt (should not reach)
+  };
+
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ((u64)model.zRIP, handler_addr);
+
+  // Stack frame: RIP, CS, RFLAGS, RSP, SS — NO error code
+  // (Unlike a real #GP fault which would push error code)
+  u64 rsp = model.zGPR.data[4];
+  u64 frame_rip = model.phys_mem.read64(rsp);         // RIP (not error code!)
+  u64 frame_rsp = model.phys_mem.read64(rsp + 24);    // RSP
+
+  // Saved RIP should point PAST "INT 13" (CODE_ADDR + 2)
+  ASSERT_EQ(frame_rip, CODE_ADDR + 2);
+  ASSERT_EQ(frame_rsp, STACK_ADDR);
+
+  model.model_fini();
+}
+
+TEST(int_n_saved_rip) {
+  // INT n (CD imm8) is a trap: saved RIP points past the 2-byte instruction.
+  x86::Model model;
+  init_model(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  // Use vector 0x80 (typical Linux syscall vector)
+  write_idt_gate(model.phys_mem, IDT_BASE, 0x80, handler_addr, 0x08, 0, 0x0E, 0, true);
+
+  u8 code[] = {
+    0xCD, 0x80,  // int 0x80
+    0xF4,        // hlt (should not reach)
+  };
+
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, x86::Kind_zHalt);
+
+  u64 rsp = model.zGPR.data[4];
+  u64 frame_rip = model.phys_mem.read64(rsp);
+
+  // Saved RIP should be past the 2-byte INT instruction
+  ASSERT_EQ(frame_rip, CODE_ADDR + 2);
+
+  model.model_fini();
+}
+
 TEST(triple_fault) {
   // No IDT gates set up at all. A fault should cascade:
   //   #DE → deliver_exception(#DE) → gate not present → deliver_exception(#GP)
@@ -405,6 +506,9 @@ int main() {
   run_test_trap_gate_preserves_if();
   run_test_tf_nt_rf_cleared_on_delivery();
   run_test_stack_alignment_16byte();
+  run_test_int3_software_interrupt();
+  run_test_int_n_no_error_code_for_gp_vector();
+  run_test_int_n_saved_rip();
   run_test_triple_fault();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

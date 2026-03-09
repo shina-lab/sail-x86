@@ -20,7 +20,7 @@ function step() = {
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;
       try {
-        deliver_exception(vec, 0x00000000);
+        deliver_exception(vec, 0x00000000, false);
         return Ok()
       } catch {
         X86Fault(vec2, err2) => return Fault(vec2, err2),
@@ -51,7 +51,7 @@ function step() = {
   let result : ExecutionResult = match result {
     Fault(vec, err) if system_mode => {
       try {
-        deliver_exception(vec, err);
+        deliver_exception(vec, err, false);
         // RIP already set to handler by deliver_exception; skip normal advance
         Ok()
       } catch {

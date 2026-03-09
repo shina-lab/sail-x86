@@ -94,7 +94,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] CALL (near relative, near indirect, far direct, far indirect) — verified, f64 operand-size fix applied
 - [x] RET (near, near+imm16, far, far+imm16) — verified, f64 operand-size fix; RETF verified correct
 - [x] LOOP, LOOPcc (LOOPE/LOOPZ, LOOPNE/LOOPNZ; uses RCX/ECX/CX per addr size) — verified + KVM tests
-- [ ] INT n, INT3, INT1 (software interrupts)
+- [x] INT n, INT3 (software interrupts) — verified correct; fixed: no error code push for software ints, gate DPL check added. INT1/ICEBP not implemented (raises #UD)
 - [x] INTO (invalid in 64-bit mode — must #UD) — verified correct
 - [x] IRET, IRETD, IRETQ (interrupt return) — verified, AC/ID flag fix applied
 - [x] BOUND (invalid in 64-bit mode — must #UD) — verified correct
@@ -111,8 +111,8 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] Direction flag (DF) effect on SI/DI increment/decrement — verified correct
 
 #### 1.1.10 I/O
-- [ ] IN (imm8 port, DX port; AL/AX/EAX)
-- [ ] OUT (imm8 port, DX port; AL/AX/EAX)
+- [x] IN (imm8 port, DX port; AL/AX/EAX) — verified correct (E4/E5/EC/ED), all operand sizes
+- [x] OUT (imm8 port, DX port; AL/AX/EAX) — verified correct (E6/E7/EE/EF), all operand sizes
 - [ ] INS/OUTS (port string I/O, see 1.1.9)
 
 #### 1.1.11 Flag Manipulation
@@ -662,7 +662,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 1.21 CET (Control-Flow Enforcement Technology)
 
 #### 1.21.1 Indirect Branch Tracking
-- [ ] ENDBR32, ENDBR64 (end branch markers)
+- [x] ENDBR32, ENDBR64 (end branch markers) — handled as NOP via 0F 1E multi-byte NOP range (correct when CET not enabled)
 
 #### 1.21.2 Shadow Stack
 - [ ] INCSSPD, INCSSPQ (increment shadow stack pointer)
@@ -947,21 +947,21 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ## Part 4: Memory and Addressing
 
 ### 4.1 Addressing Modes (64-bit)
-- [ ] Register direct
-- [ ] [reg] (all 16 GPRs as base)
-- [ ] [reg + disp8/disp32]
-- [ ] [RIP + disp32] (RIP-relative)
-- [ ] [base + index*scale] (scale = 1/2/4/8)
-- [ ] [base + index*scale + disp8/disp32]
-- [ ] [disp32] (absolute, only via SIB; zero-extended to 64-bit)
-- [ ] [index*scale + disp32] (no base, via SIB)
-- [ ] RSP/R12 as base forces SIB byte
-- [ ] RBP/R13 with mod=00 means [disp32] (no base)
+- [x] Register direct — verified in insn_modrm.sail:258-260 (modbits=11)
+- [x] [reg] (all 16 GPRs as base) — verified, REX.B extends to 16 GPRs
+- [x] [reg + disp8/disp32] — verified (mod=01 disp8, mod=10 disp32)
+- [x] [RIP + disp32] (RIP-relative) — verified, with 67h truncation to 32-bit
+- [x] [base + index*scale] (scale = 1/2/4/8) — verified in decode_sib()
+- [x] [base + index*scale + disp8/disp32] — verified
+- [x] [disp32] (absolute, only via SIB; zero-extended to 64-bit) — verified (SIB base=5, mod=00)
+- [x] [index*scale + disp32] (no base, via SIB) — verified
+- [x] RSP/R12 as base forces SIB byte — verified (r/m=100 routes to SIB decode)
+- [x] RBP/R13 with mod=00 means [disp32] (no base) — verified in decode_sib() and decode_rm()
 
 ### 4.2 Segmentation
 - [ ] Segment descriptor loading and caching
-- [ ] Flat model (DS/ES/SS base = 0 in 64-bit long mode)
-- [ ] FS/GS non-zero base in 64-bit mode
+- [x] Flat model (DS/ES/SS base = 0 in 64-bit long mode) — verified in apply_segment(): only FS/GS add base
+- [x] FS/GS non-zero base in 64-bit mode — verified, FS_BASE/GS_BASE added in apply_segment()
 - [ ] Segment limit checking (in compat/legacy mode)
 - [ ] Code segment (conforming vs non-conforming)
 - [ ] Stack segment (SS.DPL = CPL)
@@ -1032,13 +1032,13 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] #SX (30) — security exception
 
 ### 5.2 Interrupt Delivery
-- [ ] IDT lookup (vector × 16 in 64-bit mode)
-- [ ] Interrupt gate vs trap gate (IF clearing)
-- [ ] IST (Interrupt Stack Table) mechanism
-- [ ] Error code pushing (which exceptions push error codes)
-- [ ] RSP alignment to 16 on interrupt stack frame
-- [ ] CPL change: stack switch via TSS
-- [ ] Same-privilege interrupt: no stack switch
+- [x] IDT lookup (vector × 16 in 64-bit mode) — verified in read_idt_gate(), tested
+- [x] Interrupt gate vs trap gate (IF clearing) — verified: type 0xE clears IF, 0xF preserves; tested
+- [x] IST (Interrupt Stack Table) mechanism — verified in deliver_exception_inner(), read_tss_ist()
+- [x] Error code pushing (which exceptions push error codes) — verified; fixed: software ints skip error code (SDM §6.13)
+- [x] RSP alignment to 16 on interrupt stack frame — verified: `new_rsp & 0xFFF...F0`; tested
+- [x] CPL change: stack switch via TSS — verified: reads RSP0 from TSS on privilege change
+- [x] Same-privilege interrupt: no stack switch — verified: uses current RSP when old_cpl==0 and IST==0
 
 ### 5.3 Exception Conditions Per Instruction
 - [ ] Each instruction must raise exactly the exceptions listed in SDM

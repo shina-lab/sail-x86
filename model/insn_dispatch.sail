@@ -1408,21 +1408,23 @@ function dispatch_opcode_1byte(opcode, pfx) = {
       203 => exec_retf(pfx, None()),
 
       // CC: INT 3 — trap (saved RIP points past the INT3 byte)
+      // SDM: software interrupt, no error code pushed, gate DPL check applies.
       204 => {
         if system_mode then {
           sw_return_rip = Some(decode_pos);
-          deliver_exception(3, 0x00000000);
+          deliver_exception(3, 0x00000000, true);
           next_rip = Some(RIP);  // deliver_exception set RIP to handler
           Ok()
         } else __software_interrupt(0x03)
       },
 
       // CD: INT imm8
+      // SDM: software interrupt, no error code pushed, gate DPL check applies.
       205 => {
         let imm = fetch_byte();
         if system_mode then {
           sw_return_rip = Some(decode_pos);
-          deliver_exception(unsigned(imm), 0x00000000);
+          deliver_exception(unsigned(imm), 0x00000000, true);
           next_rip = Some(RIP);  // deliver_exception set RIP to handler
           Ok()
         } else __software_interrupt(imm)
