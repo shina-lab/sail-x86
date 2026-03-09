@@ -402,31 +402,31 @@ validity matches SDM (some are invalid in 64-bit mode).
 Note: All SSE integer/float instructions have VEX-encoded equivalents
 (VADDPS, VMULPD, VPAND, etc.). The tester should verify:
 
-- [ ] VEX 128-bit forms zero the upper 128 bits of YMM
-- [ ] VEX 256-bit forms of all SSE float ops (PS/PD/SS/SD)
-- [ ] VEX 3-operand encoding (dest ≠ src1 for all applicable ops)
-- [ ] VBROADCAST (VBROADCASTSS, VBROADCASTSD, VBROADCASTF128)
-- [ ] VINSERTF128, VEXTRACTF128 (insert/extract 128-bit lane)
-- [ ] VPERM2F128 (permute 256-bit float lanes)
-- [ ] VMASKMOV (conditional float load/store with mask)
-- [ ] VTESTPS, VTESTPD (bitwise test → ZF/CF)
-- [ ] VZEROALL, VZEROUPPER (clear upper YMM state)
-- [ ] VEX.vvvv must be 1111b for instructions that don't use it
+- [x] VEX 128-bit forms zero the upper 128 bits of YMM — verified (write_xmm zeroes ZMM[511:128])
+- [x] VEX 256-bit forms of all SSE float ops (PS/PD/SS/SD) — verified + KVM tests
+- [x] VEX 3-operand encoding (dest ≠ src1 for all applicable ops) — verified + KVM tests
+- [x] VBROADCAST (VBROADCASTSS, VBROADCASTSD, VBROADCASTF128) — verified + KVM tests
+- [x] VINSERTF128, VEXTRACTF128 (insert/extract 128-bit lane) — verified + KVM tests
+- [x] VPERM2F128 (permute 256-bit float lanes) — verified + KVM tests
+- [x] VMASKMOV (conditional float load/store with mask) — verified + KVM tests
+- [x] VTESTPS, VTESTPD (bitwise test → ZF/CF) — verified + KVM tests
+- [x] VZEROALL, VZEROUPPER (clear upper YMM state) — verified correct
+- [x] VEX.vvvv must be 1111b for instructions that don't use it — verified
 
 ### 1.9 AVX2 (VEX-encoded, 256-bit integer)
 
-- [ ] All SSE2/SSSE3/SSE4.1 integer ops promoted to 256-bit (VPADDB..Q, VPSUBB..Q, etc.)
-- [ ] VPBLENDD (blend dwords with immediate)
-- [ ] VPBROADCASTB/W/D/Q (broadcast scalar to all elements)
+- [x] All SSE2/SSSE3/SSE4.1 integer ops promoted to 256-bit (VPADDB..Q, VPSUBB..Q, etc.) — verified + KVM tests
+- [x] VPBLENDD (blend dwords with immediate) — verified + KVM tests
+- [x] VPBROADCASTB/W/D/Q (broadcast scalar to all elements) — verified + KVM tests
 - [ ] VPBROADCAST from GPR
-- [ ] VPERMD, VPERMQ (cross-lane dword/qword permute)
-- [ ] VPERMPD, VPERMPS (cross-lane float permute)
-- [ ] VPERM2I128 (permute 128-bit integer lanes)
-- [ ] VINSERTI128, VEXTRACTI128 (insert/extract 128-bit integer lane)
-- [ ] VPMASKMOV (conditional integer load/store)
-- [ ] VPSLLVD/Q, VPSRLVD/Q, VPSRAVD (per-element variable shift)
-- [ ] VPGATHERDD/DQ/QD/QQ (gather integer with VSIB addressing)
-- [ ] VGATHERDPS/DPD/QPS/QPD (gather float with VSIB addressing)
+- [x] VPERMD, VPERMQ (cross-lane dword/qword permute) — verified + KVM tests
+- [x] VPERMPD, VPERMPS (cross-lane float permute) — verified + KVM tests
+- [x] VPERM2I128 (permute 128-bit integer lanes) — verified + KVM tests
+- [x] VINSERTI128, VEXTRACTI128 (insert/extract 128-bit integer lane) — verified + KVM tests
+- [x] VPMASKMOV (conditional integer load/store) — verified + KVM tests
+- [x] VPSLLVD/Q, VPSRLVD/Q, VPSRAVD (per-element variable shift) — verified + KVM tests
+- [x] VPGATHERDD/DQ/QD/QQ (gather integer with VSIB addressing) — verified + KVM tests
+- [x] VGATHERDPS/DPD/QPS/QPD (gather float with VSIB addressing) — verified + KVM tests
 
 ### 1.10 FMA (Fused Multiply-Add, VEX-encoded)
 
@@ -802,28 +802,28 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ## Part 2: Encoding and Decoding
 
 ### 2.1 Legacy Prefix Handling
-- [ ] Operand-size override (66h)
+- [x] Operand-size override (66h) — verified + KVM tests
 - [x] Address-size override (67h) — decode_rm/decode_rm_evex truncate EA to 32 bits
-- [ ] Segment overrides (26h/2Eh/36h/3Eh/64h/65h)
-- [ ] LOCK prefix (F0h) — must #UD on invalid instructions
-- [ ] REP/REPE/REPNE (F3h/F2h) — correct interaction with string ops
-- [ ] REP as mandatory prefix (SSE opcode disambiguation)
-- [ ] Multiple prefix handling (last one wins for same group)
+- [x] Segment overrides (26h/2Eh/36h/3Eh/64h/65h) — verified (FS/GS functional)
+- [x] LOCK prefix (F0h) — must #UD on invalid instructions — verified
+- [x] REP/REPE/REPNE (F3h/F2h) — correct interaction with string ops — verified
+- [x] REP as mandatory prefix (SSE opcode disambiguation) — verified
+- [x] Multiple prefix handling (last one wins for same group) — verified
 
 ### 2.2 REX Prefix (40h-4Fh)
-- [ ] REX.W (64-bit operand size)
-- [ ] REX.R (ModR/M reg extension)
-- [ ] REX.X (SIB index extension)
-- [ ] REX.B (ModR/M r/m, SIB base, opcode reg extension)
-- [ ] REX access to registers R8-R15, SPL/BPL/SIL/DIL
-- [ ] REX on instructions that already use 64-bit default (PUSH/POP)
+- [x] REX.W (64-bit operand size) — verified + KVM tests
+- [x] REX.R (ModR/M reg extension) — verified + KVM tests
+- [x] REX.X (SIB index extension) — verified + KVM tests
+- [x] REX.B (ModR/M r/m, SIB base, opcode reg extension) — verified + KVM tests
+- [x] REX access to registers R8-R15, SPL/BPL/SIL/DIL — verified + KVM tests
+- [x] REX on instructions that already use 64-bit default (PUSH/POP) — verified
 
 ### 2.3 VEX Prefix (C4h 3-byte, C5h 2-byte)
-- [ ] 2-byte VEX (C5h): R, vvvv, L, pp
-- [ ] 3-byte VEX (C4h): R, X, B, mmmmm, W, vvvv, L, pp
-- [ ] VEX.vvvv field for 3rd operand or must-be-1111b check
-- [ ] VEX.L (128 vs 256)
-- [ ] #UD when VEX used with LOCK/66h/F2h/F3h/REX
+- [x] 2-byte VEX (C5h): R, vvvv, L, pp — verified + KVM tests
+- [x] 3-byte VEX (C4h): R, X, B, mmmmm, W, vvvv, L, pp — verified + KVM tests
+- [x] VEX.vvvv field for 3rd operand or must-be-1111b check — verified
+- [x] VEX.L (128 vs 256) — verified + KVM tests
+- [x] #UD when VEX used with LOCK/66h/F2h/F3h/REX — verified
 
 ### 2.4 EVEX Prefix (62h, 4 bytes)
 - [ ] Full EVEX field decoding (R, X, B, R', mm, W, vvvv, pp, z, L'L, b, V', aaa)
@@ -833,49 +833,49 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] #UD for reserved EVEX field values
 
 ### 2.5 ModR/M and SIB
-- [ ] All 256 ModR/M byte values decoded correctly
-- [ ] SIB byte decoding (scale, index, base)
-- [ ] [RIP+disp32] addressing (ModR/M=00, R/M=101 in 64-bit mode)
-- [ ] SIB with no index (index=100)
-- [ ] SIB with no base (base=101, mod=00)
+- [x] All 256 ModR/M byte values decoded correctly — verified + KVM tests
+- [x] SIB byte decoding (scale, index, base) — verified + KVM tests
+- [x] [RIP+disp32] addressing (ModR/M=00, R/M=101 in 64-bit mode) — verified + KVM tests
+- [x] SIB with no index (index=100) — verified
+- [x] SIB with no base (base=101, mod=00) — verified
 - [ ] 16-bit addressing modes (with 67h in 32-bit mode)
 
 ### 2.6 Immediate and Displacement Sizes
-- [ ] imm8, imm16, imm32 selection per opcode
-- [ ] Sign-extension of imm8 to 16/32/64-bit
-- [ ] No imm64 except MOV r64,imm64 (opcode B8+rd)
-- [ ] disp8, disp16, disp32 per addressing mode
-- [ ] EVEX compressed disp8 (disp8 * element_size * vector_length/8)
+- [x] imm8, imm16, imm32 selection per opcode — verified + KVM tests
+- [x] Sign-extension of imm8 to 16/32/64-bit — verified + KVM tests
+- [x] No imm64 except MOV r64,imm64 (opcode B8+rd) — verified
+- [x] disp8, disp16, disp32 per addressing mode — verified + KVM tests
+- [x] EVEX compressed disp8 (disp8 * element_size * vector_length/8) — verified
 
 ### 2.7 Default Operand/Address Sizes in 64-bit Mode
-- [ ] Default operand size = 32 for most instructions
-- [ ] Default operand size = 64 for PUSH, POP, CALL, RET, JMP near
-- [ ] No 32-bit address/operand for stack operations in 64-bit mode
-- [ ] 16-bit operand override (66h) still valid in 64-bit mode
+- [x] Default operand size = 32 for most instructions — verified + KVM tests
+- [x] Default operand size = 64 for PUSH, POP, CALL, RET, JMP near — verified, d64/f64 fixes applied
+- [x] No 32-bit address/operand for stack operations in 64-bit mode — verified
+- [x] 16-bit operand override (66h) still valid in 64-bit mode — verified + KVM tests
 - [x] 32-bit address override (67h) in 64-bit mode — EA truncation implemented
-- [ ] Instructions with forced 64-bit operand (MOV CRn, SWAPGS, etc.)
+- [x] Instructions with forced 64-bit operand (MOV CRn, SWAPGS, etc.) — verified
 
 ---
 
 ## Part 3: Architectural State and Registers
 
 ### 3.1 General-Purpose Registers
-- [ ] RAX-RSP, RBP, RSI, RDI (64-bit), EAX-EDI (32-bit), AX-DI (16-bit), AL-DIL (8-bit)
-- [ ] R8-R15 (64/32/16/8-bit forms: R8D, R8W, R8B)
-- [ ] SPL, BPL, SIL, DIL (accessible only with REX prefix)
-- [ ] AH, BH, CH, DH (NOT accessible when REX prefix present)
-- [ ] 32-bit writes zero-extend to 64-bit
-- [ ] 8-bit and 16-bit writes do NOT zero-extend
+- [x] RAX-RSP, RBP, RSI, RDI (64-bit), EAX-EDI (32-bit), AX-DI (16-bit), AL-DIL (8-bit) — verified + KVM tests
+- [x] R8-R15 (64/32/16/8-bit forms: R8D, R8W, R8B) — verified + KVM tests
+- [x] SPL, BPL, SIL, DIL (accessible only with REX prefix) — verified + KVM tests
+- [x] AH, BH, CH, DH (NOT accessible when REX prefix present) — verified
+- [x] 32-bit writes zero-extend to 64-bit — verified + KVM tests
+- [x] 8-bit and 16-bit writes do NOT zero-extend — verified + KVM tests
 
 ### 3.2 RFLAGS
-- [ ] CF (bit 0), PF (bit 2), AF (bit 4), ZF (bit 6), SF (bit 7), OF (bit 11)
-- [ ] DF (bit 10), IF (bit 9), TF (bit 8)
-- [ ] IOPL (bits 13:12)
-- [ ] NT (bit 14), RF (bit 16), VM (bit 17)
-- [ ] AC (bit 18), VIF (bit 19), VIP (bit 20), ID (bit 21)
-- [ ] PF set based on low 8 bits of result (even parity)
-- [ ] AF set on carry out of bit 3
-- [ ] Correct "undefined" flag behavior (per SDM per instruction)
+- [x] CF (bit 0), PF (bit 2), AF (bit 4), ZF (bit 6), SF (bit 7), OF (bit 11) — verified + KVM tests
+- [x] DF (bit 10), IF (bit 9), TF (bit 8) — verified
+- [x] IOPL (bits 13:12) — verified, POPF bug fixed
+- [x] NT (bit 14), RF (bit 16), VM (bit 17) — verified
+- [x] AC (bit 18), VIF (bit 19), VIP (bit 20), ID (bit 21) — verified, IRET bug fixed
+- [x] PF set based on low 8 bits of result (even parity) — verified + KVM tests
+- [x] AF set on carry out of bit 3 — verified + KVM tests
+- [x] Correct "undefined" flag behavior (per SDM per instruction) — verified
 
 ### 3.3 Instruction Pointer
 - [ ] RIP (64-bit), EIP (32-bit in compat mode)
