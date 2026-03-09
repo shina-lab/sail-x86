@@ -1034,5 +1034,168 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     add("lea rax,[ebx+ecx*4+0x10] 67h", {0x67, 0x48, 0x8D, 0x44, 0x8B, 0x10}, s, FL_NONE);
     // expect RAX = zero_extend(0x100 + 0x008*4 + 0x10) = 0x130
   }
+
+  // =====================================================================
+  // LOOP / LOOPcc — counter decrement + conditional branch
+  // =====================================================================
+  cat = "LOOP";
+
+  // LOOP with RCX=2: decrements to 1, branches back (but we just execute 1 iteration
+  // by jumping to the HLT). Use rel8=-2 to jump back to the LOOP itself for one iteration.
+  // Actually, simpler: LOOP with RCX=1 → decrement to 0, no branch taken (fall through to HLT)
+  {
+    ArchState s = {};
+    s.rcx = 1;
+    // E2 00 = LOOP +0 (rel8=0, points to next insn = HLT; loop falls through)
+    add("loop rcx=1 fallthru", {0xE2, 0x00}, s, FL_NONE);
+    // expect RCX = 0
+  }
+
+  // LOOP with RCX=2, rel8=0 means branch target is the HLT right after
+  // Decrements to 1, count!=0, but branch target is next insn anyway
+  {
+    ArchState s = {};
+    s.rcx = 2;
+    add("loop rcx=2 branch to hlt", {0xE2, 0x00}, s, FL_NONE);
+    // expect RCX = 1
+  }
+
+  // LOOPE (E1) with RCX=2, ZF=1: decrement to 1, count!=0 and ZF=1 → branch
+  {
+    ArchState s = {};
+    s.rcx = 2;
+    s.rflags = 0x2 | FL_ZF;  // ZF=1
+    add("loope rcx=2 zf=1", {0xE1, 0x00}, s, FL_NONE);
+    // expect RCX = 1
+  }
+
+  // LOOPE (E1) with RCX=2, ZF=0: decrement to 1, count!=0 but ZF=0 → no branch
+  {
+    ArchState s = {};
+    s.rcx = 2;
+    s.rflags = 0x2;  // ZF=0
+    add("loope rcx=2 zf=0", {0xE1, 0x00}, s, FL_NONE);
+    // expect RCX = 1 (decremented regardless of branch)
+  }
+
+  // LOOPNE (E0) with RCX=2, ZF=0: decrement to 1, count!=0 and ZF=0 → branch
+  {
+    ArchState s = {};
+    s.rcx = 2;
+    s.rflags = 0x2;  // ZF=0
+    add("loopne rcx=2 zf=0", {0xE0, 0x00}, s, FL_NONE);
+    // expect RCX = 1
+  }
+
+  // LOOPNE (E0) with RCX=2, ZF=1: decrement to 1, count!=0 but ZF=1 → no branch
+  {
+    ArchState s = {};
+    s.rcx = 2;
+    s.rflags = 0x2 | FL_ZF;  // ZF=1
+    add("loopne rcx=2 zf=1", {0xE0, 0x00}, s, FL_NONE);
+    // expect RCX = 1
+  }
+
+  // LOOP with 67h prefix: uses ECX instead of RCX
+  // RCX=0x100000001, 67h LOOP: ECX=1, decrement to 0, no branch
+  {
+    ArchState s = {};
+    s.rcx = 0x100000001;
+    // 67 E2 00 = LOOP with 32-bit address size
+    add("loop 67h ecx=1", {0x67, 0xE2, 0x00}, s, FL_NONE);
+    // expect RCX = 0x100000000 (ECX becomes 0, upper 32 bits preserved? No — write_gpr32 zeroes upper)
+    // Actually write_gpr32 zero-extends, so RCX = 0x00000000
+  }
+
+  // =====================================================================
+  // XLAT/XLATB — table lookup: AL := [RBX + ZeroExtend(AL)]
+  // =====================================================================
+  cat = "XLAT";
+
+  // XLATB: read byte at [RBX + AL] into AL
+  // Set up RBX = DATA_ADDR, AL = 5, DATA[5] = 0x42
+  {
+    ArchState s = {};
+    s.rbx = DATA_ADDR;
+    s.rax = 5;  // AL = 5
+    std::vector<u8> data(256, 0);
+    data[5] = 0x42;
+    tests.push_back({"xlatb basic", cat,
+      {0xD7},  // XLATB
+      s, FL_NONE, 0, false, std::move(data), 0});
+    // expect AL = 0x42, upper RAX bits preserved (RAX was 5, so RAX becomes 0x42)
+  }
+
+  // XLATB: AL = 0xFF (max index), DATA[255] = 0xAB
+  {
+    ArchState s = {};
+    s.rbx = DATA_ADDR;
+    s.rax = 0xFF00000000FF;  // AL = 0xFF, upper bits should be preserved
+    std::vector<u8> data(256, 0);
+    data[255] = 0xAB;
+    tests.push_back({"xlatb al=0xff", cat,
+      {0xD7},
+      s, FL_NONE, 0, false, std::move(data), 0});
+    // expect RAX = 0xFF000000AB (only AL changed)
+  }
+
+  // =====================================================================
+  // ENTER — create stack frame
+  // =====================================================================
+  cat = "ENTER";
+
+  // ENTER 0, 0: push RBP, mov RBP,RSP (no allocation)
+  // C8 0000 00
+  {
+    ArchState s = {};
+    s.rbp = 0xDEADBEEF;
+    s.rsp = STACK_TOP;
+    add("enter 0,0", {0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+    // expect RSP = STACK_TOP - 8, RBP = STACK_TOP - 8
+  }
+
+  // ENTER 16, 0: push RBP, mov RBP,RSP, sub RSP,16
+  {
+    ArchState s = {};
+    s.rbp = 0xDEADBEEF;
+    s.rsp = STACK_TOP;
+    add("enter 16,0", {0xC8, 0x10, 0x00, 0x00}, s, FL_NONE);
+    // expect RSP = STACK_TOP - 8 - 16 = STACK_TOP - 24, RBP = STACK_TOP - 8
+  }
+
+  // ENTER 0, 1: push RBP, frame_temp=RSP, push frame_temp, RBP=frame_temp
+  {
+    ArchState s = {};
+    s.rbp = 0xDEADBEEF;
+    s.rsp = STACK_TOP;
+    add("enter 0,1", {0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+    // push RBP: RSP = STACK_TOP - 8
+    // frame_temp = STACK_TOP - 8
+    // push frame_temp: RSP = STACK_TOP - 16
+    // RBP = frame_temp = STACK_TOP - 8
+    // expect RSP = STACK_TOP - 16, RBP = STACK_TOP - 8
+  }
+
+  // =====================================================================
+  // LEAVE — destroy stack frame (RSP := RBP, POP RBP)
+  // =====================================================================
+  cat = "LEAVE";
+
+  // LEAVE: RSP = RBP, then POP RBP
+  // We need [RBP] to contain the old RBP value we want to restore
+  // Set RBP = DATA_ADDR, put 0x1234 at DATA_ADDR as the saved RBP
+  {
+    ArchState s = {};
+    s.rbp = DATA_ADDR;
+    s.rsp = 0x1000;  // will be overwritten by LEAVE
+    std::vector<u8> data(16, 0);
+    // Store 0x0000000000001234 at DATA_ADDR (little-endian)
+    data[0] = 0x34; data[1] = 0x12;
+    tests.push_back({"leave basic", cat,
+      {0xC9},  // LEAVE
+      s, FL_NONE, 0, false, std::move(data), 0});
+    // RSP = RBP = DATA_ADDR, then POP RBP reads [DATA_ADDR] = 0x1234
+    // expect RSP = DATA_ADDR + 8, RBP = 0x1234
+  }
 }
 
