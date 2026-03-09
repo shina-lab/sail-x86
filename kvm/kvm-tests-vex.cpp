@@ -3219,8 +3219,7 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // EVEX memory broadcast — EVEX.b=1 for memory operand (FP only)
-  // NOTE: EVEX integer broadcast (VPADDD etc.) not yet implemented
+  // EVEX memory broadcast — EVEX.b=1 for memory operand
   // =====================================================================
   cat = "EVEX bcast mem";
   {
@@ -3470,6 +3469,164 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tc.name = "vpaddq xmm0,xmm1,[rdi]{1to2}";
       tc.category = cat;
       tc.code = {0x62, 0xF1, 0xF5, 0x18, 0xD4, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMINSD xmm0, xmm1, [rdi]{1to4} — broadcast dword, signed min
+    // EVEX.NDS.128.66.0F38.W0 39 /r with EVEX.b=1
+    //   P1: R=1,X=1,B=1,R'=1,00,mm=10(0F38) → 0xF2
+    //   P2: W=0,~vvvv=1110,1,pp=01(66) → 0x75
+    //   P3: z=0,L'L=00,b=1,V'=1,aaa=000 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(5, (uint32_t)-3, 10, 1);
+      int32_t bcast_val = 3;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpminsd xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x39, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMAXUD xmm0, xmm1, [rdi]{1to4} — broadcast dword, unsigned max
+    // EVEX.NDS.128.66.0F38.W0 3F /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(1, 200, 50, 300);
+      uint32_t bcast_val = 100;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpmaxud xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x3F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMULLD xmm0, xmm1, [rdi]{1to4} — broadcast dword, multiply low
+    // EVEX.NDS.128.66.0F38.W0 40 /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(3, 7, 11, 13);
+      uint32_t bcast_val = 5;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpmulld xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x40, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPABSD xmm0, [rdi]{1to4} — broadcast dword, absolute value (unary)
+    // EVEX.128.66.0F38.W0 1E /r with EVEX.b=1
+    //   vvvv=1111 (no src1 for unary) → P2: W=0,~vvvv=1111,1,pp=01 → 0x7D
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      int32_t bcast_val = -42;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpabsd xmm0,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x18, 0x1E, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMULDQ xmm0, xmm1, [rdi]{1to2} — broadcast qword, signed dword multiply
+    // EVEX.NDS.128.66.0F38.W1 28 /r with EVEX.b=1
+    //   P2: W=1,~vvvv=1110,1,pp=01 → 0xF5
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(7, 0, 11, 0); // even dwords: 7, 11
+      int64_t bcast_val = 3;
+      std::vector<u8> data(8);
+      memcpy(data.data(), &bcast_val, 8);
+
+      TestCase tc;
+      tc.name = "vpmuldq xmm0,xmm1,[rdi]{1to2}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x18, 0x28, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPSRLVD xmm0, xmm1, [rdi]{1to4} — broadcast dword shift count, variable right shift
+    // EVEX.NDS.128.66.0F38.W0 45 /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(0xFF00, 0xFF000, 0xFF0000, 0xFF000000);
+      uint32_t bcast_val = 4; // shift all by 4
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpsrlvd xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x45, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMINUD xmm0, xmm1, [rdi]{1to4} — broadcast dword, unsigned min
+    // EVEX.NDS.128.66.0F38.W0 3B /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(50, 200, 10, 500);
+      uint32_t bcast_val = 100;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpminud xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x18, 0x3B, 0x07};
       tc.initial = s;
       tc.flags_mask = FL_NONE;
       tc.xmm_mask = 0x7;
