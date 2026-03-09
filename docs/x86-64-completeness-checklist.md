@@ -485,9 +485,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] EVEX.z (zeroing vs merging masking) — verified: P2[7], stored directly
 - [x] EVEX.b (broadcast, rounding override, SAE) — verified: P2[4], stored directly
 - [x] EVEX.L'L (vector length: 128/256/512) — verified: P2[6:5], stored directly
-- [ ] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae}
+- [ ] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae} — EVEX.b for reg-reg acknowledged but ignored
 - [ ] Suppress-all-exceptions (SAE)
-- [ ] Memory broadcast (1-to-4, 1-to-8, 1-to-16)
+- [x] Memory broadcast (1-to-4, 1-to-8, 1-to-16) — verified: broadcast_f32/f64/byte functions in insn_evex.sail
 
 #### 1.15.2 Opmask (k0-k7) Instructions
 - [x] KMOVW/B/D/Q (move mask) — verified: W forms implemented (0F 90/91/92/93) + KVM tests
@@ -500,27 +500,27 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] KADDW/B/D/Q (mask add) — verified: W form implemented (0F 4A)
 
 #### 1.15.3 AVX-512F Arithmetic (512-bit)
-- [ ] VADDPS/PD, VSUBPS/PD (512-bit add/sub)
-- [ ] VMULPS/PD, VDIVPS/PD (512-bit mul/div)
-- [ ] VSQRTPS/PD (512-bit sqrt)
-- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (512-bit FMA, all forms)
-- [ ] VFMADDSUB/VFMSUBADD (512-bit alternating)
-- [ ] VMAXPS/PD, VMINPS/PD (512-bit with opmask)
-- [ ] Scalar variants: VADDSS/SD, etc. (EVEX-encoded scalars)
-- [ ] All with merging/zeroing masking
+- [x] VADDPS/PD, VSUBPS/PD (512-bit add/sub) — verified: implemented in insn_evex_fp.sail
+- [x] VMULPS/PD, VDIVPS/PD (512-bit mul/div) — verified: implemented in insn_evex_fp.sail
+- [x] VSQRTPS/PD (512-bit sqrt) — verified: implemented in insn_evex_fp.sail
+- [x] VFMADD/VFMSUB/VFNMADD/VFNMSUB (512-bit FMA, all forms) — verified: all 132/213/231, PS/PD/SS/SD in insn_evex_fma.sail
+- [x] VFMADDSUB/VFMSUBADD (512-bit alternating) — verified: implemented in insn_evex_fma.sail
+- [x] VMAXPS/PD, VMINPS/PD (512-bit with opmask) — verified: implemented in insn_evex_fp.sail
+- [x] Scalar variants: VADDSS/SD, etc. (EVEX-encoded scalars) — verified: implemented in insn_evex_fp.sail
+- [x] All with merging/zeroing masking — verified: evex_merge helper applies k-mask throughout
 
 #### 1.15.4 AVX-512F Comparison
-- [ ] VCMPPS/PD (compare → opmask register, all 32 predicates)
-- [ ] VPCMPD/UD/Q/UQ (integer compare → opmask, 8 predicates)
-- [ ] VPCMPB/UB/W/UW (AVX-512BW, compare bytes/words → opmask)
-- [ ] VPTESTMB/W/D/Q (bitwise test → opmask)
-- [ ] VPTESTNMB/W/D/Q (bitwise test-not → opmask)
+- [x] VCMPPS/PD (compare → opmask register, all 32 predicates) — verified: full 5-bit predicate in insn_evex_fp.sail
+- [x] VPCMPD/UD/Q/UQ (integer compare → opmask, 8 predicates) — verified: implemented in insn_evex_imm.sail
+- [x] VPCMPB/UB/W/UW (AVX-512BW, compare bytes/words → opmask) — verified: implemented in insn_evex_imm.sail
+- [x] VPTESTMB/W/D/Q (bitwise test → opmask) — verified: implemented in insn_evex_arith.sail
+- [x] VPTESTNMB/W/D/Q (bitwise test-not → opmask) — verified: implemented in insn_evex_arith.sail
 
 #### 1.15.5 AVX-512F Conversion
-- [ ] VCVTPS2PD, VCVTPD2PS (float widen/narrow, 512-bit)
-- [ ] VCVTPS2DQ, VCVTDQ2PS, VCVTTPD2DQ, etc.
-- [ ] VCVTPS2UDQ, VCVTPD2UDQ (convert to unsigned)
-- [ ] VCVTUDQ2PS, VCVTUDQ2PD (unsigned int → float)
+- [x] VCVTPS2PD, VCVTPD2PS (float widen/narrow, 512-bit) — verified: implemented in insn_evex_fp.sail
+- [x] VCVTPS2DQ, VCVTDQ2PS, VCVTTPD2DQ, etc. — verified: implemented in insn_evex_fp.sail
+- [x] VCVTPS2UDQ, VCVTPD2UDQ (convert to unsigned) — verified: implemented in insn_evex_fp.sail
+- [x] VCVTUDQ2PS, VCVTUDQ2PD (unsigned int → float) — verified: implemented in insn_evex_fp.sail
 - [ ] VCVTPS2QQ, VCVTPD2QQ, VCVTPS2UQQ, VCVTPD2UQQ
 - [ ] VCVTQQ2PS, VCVTQQ2PD, VCVTUQQ2PS, VCVTUQQ2PD
 - [ ] VCVTSD2USI, VCVTSS2USI, VCVTUSI2SD, VCVTUSI2SS
@@ -528,68 +528,68 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] VCVTTPS2UDQ, VCVTTPD2UDQ, VCVTTPS2UQQ, VCVTTPD2UQQ
 
 #### 1.15.6 AVX-512F Data Movement
-- [ ] VMOVDQA32/64, VMOVDQU8/16/32/64 (aligned/unaligned with mask)
-- [ ] VPBROADCASTD/Q (broadcast with EVEX)
-- [ ] VPBROADCASTB/W (AVX-512BW)
-- [ ] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4
+- [x] VMOVDQA32/64, VMOVDQU32/64 (aligned/unaligned with mask) — verified: implemented in insn_evex_fp.sail and insn_evex_int.sail; VMOVDQU8/16 not yet implemented
+- [x] VPBROADCASTD/Q (broadcast with EVEX) — verified: from XMM/mem and GPR in insn_evex_perm.sail
+- [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
+- [x] VBROADCASTSS/SD (broadcast scalar) — verified: implemented in insn_evex_perm.sail; F32X4/F64X2/F32X8/F64X4 not checked
 - [ ] VMOVSH, VMOVW (AVX-512FP16)
-- [ ] VCOMPRESSPD/PS (compress packed float)
-- [ ] VEXPANDPD/PS (expand packed float)
-- [ ] VPCOMPRESSB/W/D/Q (compress packed int)
-- [ ] VPEXPANDB/W/D/Q (expand packed int)
+- [x] VCOMPRESSPD/PS (compress packed float) — verified: implemented in insn_evex_perm.sail
+- [x] VEXPANDPD/PS (expand packed float) — verified: implemented in insn_evex_perm.sail
+- [x] VPCOMPRESSD/Q (compress packed int) — verified: implemented in insn_evex_perm.sail; B/W not implemented
+- [x] VPEXPANDD/Q (expand packed int) — verified: implemented in insn_evex_perm.sail; B/W not implemented
 
 #### 1.15.7 AVX-512F Permute/Shuffle
-- [ ] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute)
+- [x] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute) — verified: implemented in insn_evex_perm.sail
 - [ ] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest)
 - [ ] VPERMT2B/W/D/Q/PS/PD (2-source permute, index in src)
-- [ ] VPERMILPS, VPERMILPD (in-lane permute)
-- [ ] VSHUFF32X4, VSHUFF64X2, VSHUFI32X4, VSHUFI64X2 (cross-lane shuffle)
-- [ ] VINSERTF32X4/64X2/32X8/64X4 (insert 128/256-bit)
-- [ ] VINSERTI32X4/64X2/32X8/64X4
-- [ ] VEXTRACTF32X4/64X2/32X8/64X4 (extract 128/256-bit)
-- [ ] VEXTRACTI32X4/64X2/32X8/64X4
-- [ ] VALIGND, VALIGNQ (byte-granularity concatenate+shift)
+- [x] VPERMILPS, VPERMILPD (in-lane permute) — verified: implemented in insn_evex_perm.sail
+- [x] VSHUFF32X4, VSHUFF64X2, VSHUFI32X4, VSHUFI64X2 (cross-lane shuffle) — verified: implemented in insn_evex_imm.sail
+- [x] VINSERTF32X4/64X2 (insert 128-bit) — verified: implemented in insn_evex_imm.sail; 32X8/64X4 not checked
+- [x] VINSERTI32X4/64X2 (integer insert) — verified: implemented in insn_evex_imm.sail
+- [x] VEXTRACTF32X4/64X2 (extract 128-bit) — verified: implemented in insn_evex_imm.sail; 32X8/64X4 not checked
+- [x] VEXTRACTI32X4/64X2 (integer extract) — verified: implemented in insn_evex_imm.sail
+- [x] VALIGND, VALIGNQ (dword/qword-granularity concatenate+shift) — verified: implemented in insn_evex_imm.sail
 - [ ] VPSHUFBITQMB (AVX-512BITALG, shuffle bit test → mask)
 
 #### 1.15.8 AVX-512F Logic and Blend
-- [ ] VPTERNLOGD, VPTERNLOGQ (ternary logic with imm8 truth table)
-- [ ] VPBLENDMB/W/D/Q (blend with opmask)
-- [ ] VBLENDMPS, VBLENDMPD (blend float with opmask)
+- [x] VPTERNLOGD, VPTERNLOGQ (ternary logic with imm8 truth table) — verified: implemented in insn_evex_imm.sail
+- [x] VPBLENDMD/Q (blend with opmask) — verified: implemented in insn_evex_perm.sail; B/W not implemented
+- [x] VBLENDMPS, VBLENDMPD (blend float with opmask) — verified: implemented in insn_evex_perm.sail
 
 #### 1.15.9 AVX-512F Shift/Rotate
-- [ ] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit)
-- [ ] VPROLD/Q, VPROLVD/Q (rotate left)
-- [ ] VPRORD/Q, VPRORVD/Q (rotate right)
+- [x] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit) — verified: all variants in insn_evex_arith.sail
+- [x] VPROLVD/Q (variable rotate left) — verified: implemented in insn_evex_arith.sail; VPROLD/Q (immediate) not implemented
+- [x] VPRORVD/Q (variable rotate right) — verified: implemented in insn_evex_arith.sail; VPRORD/Q (immediate) not implemented
 
 #### 1.15.10 AVX-512F Gather/Scatter
-- [ ] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask)
-- [ ] VGATHERDPS/DPD/QPS/QPD (EVEX gather float)
-- [ ] VPSCATTERDD/DQ/QD/QQ (scatter integer)
-- [ ] VSCATTERDPS/DPD/QPS/QPD (scatter float)
+- [x] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask) — verified: implemented in insn_evex_perm.sail
+- [x] VGATHERDPS/DPD/QPS/QPD (EVEX gather float) — verified: implemented in insn_evex_perm.sail
+- [x] VPSCATTERDD/DQ/QD/QQ (scatter integer) — verified: implemented in insn_evex_fma.sail
+- [x] VSCATTERDPS/DPD/QPS/QPD (scatter float) — verified: implemented in insn_evex_fma.sail
 - [ ] VGATHERPF0/PF1 (prefetch gather, AVX-512PF)
 - [ ] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF)
 
 #### 1.15.11 AVX-512F Math/Special
-- [ ] VGETEXPPD/PS/SD/SS (extract float exponent)
-- [ ] VGETMANTPD/PS/SD/SS (extract float mantissa)
-- [ ] VRCP14PD/PS/SD/SS (approximate reciprocal)
-- [ ] VRSQRT14PD/PS/SD/SS (approximate reciprocal sqrt)
-- [ ] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER)
-- [ ] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER)
-- [ ] VEXP2PD/PS (base-2 exponential, AVX-512ER)
-- [ ] VSCALEFPD/PS/SD/SS (scale by power of 2)
-- [ ] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits)
-- [ ] VREDUCEPD/PS/SD/SS (reduce float range)
-- [ ] VRANGEPD/PS/SD/SS (range restriction)
-- [ ] VFIXUPIMMPD/PS/SD/SS (fix up special float values)
-- [ ] VFPCLASSPD/PS/SD/SS (classify float → opmask)
+- [x] VGETEXPPD/PS/SD/SS (extract float exponent) — verified: implemented in insn_evex_fma.sail
+- [x] VGETMANTPD/PS/SD/SS (extract float mantissa) — verified: implemented in insn_evex_imm.sail
+- [x] VRCP14PD/PS/SD/SS (approximate reciprocal) — verified: implemented in insn_evex_fma.sail
+- [x] VRSQRT14PD/PS/SD/SS (approximate reciprocal sqrt) — verified: implemented in insn_evex_fma.sail
+- [ ] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER) — ER not targeted
+- [ ] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER) — ER not targeted
+- [ ] VEXP2PD/PS (base-2 exponential, AVX-512ER) — ER not targeted
+- [x] VSCALEFPD/PS/SD/SS (scale by power of 2) — verified: implemented in insn_evex_fma.sail
+- [x] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits) — verified: implemented in insn_evex_imm.sail
+- [x] VREDUCEPD/PS/SD/SS (reduce float range) — verified: implemented in insn_evex_imm.sail
+- [x] VRANGEPD/PS/SD/SS (range restriction) — verified: implemented in insn_evex_imm.sail
+- [x] VFIXUPIMMPD/PS/SD/SS (fix up special float values) — verified: implemented in insn_evex_imm.sail
+- [x] VFPCLASSPD/PS/SD/SS (classify float → opmask) — verified: implemented in insn_evex_imm.sail
 
 #### 1.15.12 AVX-512 Integer Extensions
-- [ ] VPMOVDB/DW/QB/QD/QW/WB (truncate with saturation variants)
-- [ ] VPMOVSDB/SDW/SQB/SQD/SQW/SWB (signed saturation truncate)
-- [ ] VPMOVUSDB/USDW/USQB/USQD/USQW/USWB (unsigned saturation truncate)
-- [ ] VPMOVB2M/W2M/D2M/Q2M (MSB to mask)
-- [ ] VPMOVM2B/W/D/Q (mask to vector)
+- [x] VPMOVDB/DW/QB/QD/QW/WB (truncate) — verified: all variants in insn_evex_arith.sail and insn_evex_imm.sail
+- [x] VPMOVSDB/SDW/SQB/SQD/SQW/SWB (signed saturation truncate) — verified: implemented in insn_evex_arith.sail
+- [x] VPMOVUSDB/USDW/USQB/USQD/USQW/USWB (unsigned saturation truncate) — verified: implemented in insn_evex_arith.sail
+- [x] VPMOVB2M/W2M/D2M/Q2M (MSB to mask) — verified: all 4 variants in insn_evex_arith.sail
+- [x] VPMOVM2B/W/D/Q (mask to vector) — verified: all 4 variants in insn_evex_arith.sail
 - [ ] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA)
 - [ ] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI)
 - [ ] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ)
