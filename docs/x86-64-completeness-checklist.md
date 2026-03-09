@@ -144,60 +144,60 @@ validity matches SDM (some are invalid in 64-bit mode).
 ### 1.2 x87 Floating-Point
 
 #### 1.2.1 Data Transfer
-- [ ] FLD (load float: 32/64/80-bit, ST(i))
-- [ ] FST, FSTP (store float: 32/64-bit, ST(i); FSTP also 80-bit)
-- [ ] FILD (load integer: 16/32/64-bit → ST(0))
-- [ ] FIST, FISTP (store integer from ST(0))
-- [ ] FISTTP (store integer with truncation, SSE3)
-- [ ] FBLD (load BCD)
-- [ ] FBSTP (store BCD and pop)
-- [ ] FXCH (exchange ST(0) with ST(i))
-- [ ] FCMOVcc (conditional float move, 8 conditions)
+- [x] FLD (load float: 32/64/80-bit, ST(i)) — verified: D9/0 mem (f32), DD/0 mem (f64), DB/5 mem (f80), D9/0 reg
+- [x] FST, FSTP (store float: 32/64-bit, ST(i); FSTP also 80-bit) — verified: D9/2,3 (f32), DD/2,3 (f64), DB/7 (f80 FSTP)
+- [x] FILD (load integer: 16/32/64-bit → ST(0)) — verified: DF/0 (i16), DB/0 (i32), DF/5 (i64)
+- [x] FIST, FISTP (store integer from ST(0)) — verified: DF/2,3 (i16), DB/2,3 (i32), DF/7 (i64 FISTP)
+- [x] FISTTP (store integer with truncation, SSE3) — verified: DF/1 (i16), DB/1 (i32), DD/1 (i64)
+- [x] FBLD (load BCD) — verified: DF/4 mem
+- [x] FBSTP (store BCD and pop) — verified: DF/6 mem
+- [x] FXCH (exchange ST(0) with ST(i)) — verified: D9/1 reg
+- [x] FCMOVcc (conditional float move, 8 conditions) — verified: DA/0-3 (B,E,BE,U), DB/0-3 (NB,NE,NBE,NU)
 
 #### 1.2.2 Arithmetic
-- [ ] FADD, FADDP, FIADD
-- [ ] FSUB, FSUBP, FISUB
-- [ ] FSUBR, FSUBRP, FISUBR (reversed subtract)
-- [ ] FMUL, FMULP, FIMUL
-- [ ] FDIV, FDIVP, FIDIV
-- [ ] FDIVR, FDIVRP, FIDIVR (reversed divide)
-- [ ] FABS (absolute value)
-- [ ] FCHS (change sign)
-- [ ] FSQRT (square root)
-- [ ] FPREM (partial remainder, 8087-compatible)
-- [ ] FPREM1 (IEEE partial remainder)
-- [ ] FRNDINT (round to integer)
-- [ ] FSCALE (scale by power of 2)
-- [ ] FXTRACT (extract exponent and significand)
+- [x] FADD, FADDP, FIADD — verified: D8/0 (f32), DC/0 (f64), DA/0 (i32), DE/0 (i16), DE/0 reg (FADDP)
+- [x] FSUB, FSUBP, FISUB — verified: D8/4, DC/5 reg, DA/4, DE/5 reg (FSUBP)
+- [x] FSUBR, FSUBRP, FISUBR (reversed subtract) — verified: D8/5, DC/4 reg, DA/5, DE/4 reg (FSUBRP)
+- [x] FMUL, FMULP, FIMUL — verified: D8/1, DC/1, DA/1, DE/1 reg (FMULP)
+- [x] FDIV, FDIVP, FIDIV — verified: D8/6, DC/7 reg, DA/6, DE/7 reg (FDIVP)
+- [x] FDIVR, FDIVRP, FIDIVR (reversed divide) — verified: D8/7, DC/6 reg, DA/7, DE/6 reg (FDIVRP)
+- [x] FABS (absolute value) — verified: D9 E1
+- [x] FCHS (change sign) — verified: D9 E0
+- [x] FSQRT (square root) — verified: D9 FA
+- [x] FPREM (partial remainder, 8087-compatible) — verified: D9 F8
+- [x] FPREM1 (IEEE partial remainder) — verified: D9 F5
+- [x] FRNDINT (round to integer) — verified: D9 FC
+- [x] FSCALE (scale by power of 2) — verified: D9 FD
+- [x] FXTRACT (extract exponent and significand) — verified: D9 F4; fixed FCOM/FCOMP memory: was comparing with ST(i) instead of memory operand
 
 #### 1.2.3 Transcendental
-- [ ] FSIN, FCOS, FSINCOS
-- [ ] FPTAN, FPATAN
-- [ ] F2XM1 (2^x - 1)
-- [ ] FYL2X, FYL2XP1 (y * log2(x), y * log2(x+1))
+- [x] FSIN, FCOS, FSINCOS — verified: D9 FE (FSIN), D9 FF (FCOS), D9 FB (FSINCOS pushes cos)
+- [x] FPTAN, FPATAN — verified: D9 F2 (FPTAN: tan + push 1.0), D9 F3 (FPATAN: atan2 + pop)
+- [x] F2XM1 (2^x - 1) — verified: D9 F0
+- [x] FYL2X, FYL2XP1 (y * log2(x), y * log2(x+1)) — verified: D9 F1, D9 F9
 
 #### 1.2.4 Comparison
-- [ ] FCOM, FCOMP, FCOMPP
-- [ ] FICOM, FICOMP
-- [ ] FCOMI, FCOMIP, FUCOMI, FUCOMIP (set EFLAGS)
-- [ ] FUCOM, FUCOMP, FUCOMPP (unordered compare)
-- [ ] FTST (compare ST(0) with 0.0)
-- [ ] FXAM (examine ST(0): class/sign)
+- [x] FCOM, FCOMP, FCOMPP — verified: D8/2,3 (f32), DC/2,3 (f64), DE D9 (FCOMPP); fixed memory FCOM bug
+- [x] FICOM, FICOMP — verified: DA/2,3 (i32 mem), DE/2,3 (i16 mem)
+- [x] FCOMI, FCOMIP, FUCOMI, FUCOMIP (set EFLAGS) — verified: DB/5 (FUCOMI), DB/6 (FCOMI), DF/5 (FUCOMIP), DF/6 (FCOMIP)
+- [x] FUCOM, FUCOMP, FUCOMPP (unordered compare) — verified: DD/4 (FUCOM), DD/5 (FUCOMP), DA E9 (FUCOMPP)
+- [x] FTST (compare ST(0) with 0.0) — verified: D9 E4
+- [x] FXAM (examine ST(0): class/sign) — verified: D9 E5, sets C3/C2/C0 for class, C1 for sign
 
 #### 1.2.5 Constants
-- [ ] FLD1, FLDZ, FLDPI, FLDL2E, FLDL2T, FLDLG2, FLDLN2
+- [x] FLD1, FLDZ, FLDPI, FLDL2E, FLDL2T, FLDLG2, FLDLN2 — verified: D9 E8-EE
 
 #### 1.2.6 Control
-- [ ] FINIT, FNINIT (initialize FPU)
-- [ ] FCLEX, FNCLEX (clear exceptions)
-- [ ] FLDCW, FSTCW/FNSTCW (load/store control word)
-- [ ] FSTSW/FNSTSW (store status word — AX or memory)
-- [ ] FLDENV, FSTENV/FNSTENV (load/store environment)
-- [ ] FSAVE/FNSAVE, FRSTOR (save/restore full state)
-- [ ] FFREE (free ST(i) register)
-- [ ] FDECSTP, FINCSTP (decrement/increment stack pointer)
-- [ ] FNOP (x87 no-op)
-- [ ] FWAIT/WAIT (wait for pending FPU exceptions)
+- [x] FINIT, FNINIT (initialize FPU) — verified: DB E3
+- [x] FCLEX, FNCLEX (clear exceptions) — verified: DB E2
+- [x] FLDCW, FSTCW/FNSTCW (load/store control word) — verified: D9/5 (FLDCW), D9/7 (FNSTCW)
+- [x] FSTSW/FNSTSW (store status word — AX or memory) — verified: DF E0 (FNSTSW AX), DD/7 (FNSTSW m16)
+- [x] FLDENV, FSTENV/FNSTENV (load/store environment) — verified: D9/4 (FLDENV), D9/6 (FNSTENV)
+- [x] FSAVE/FNSAVE, FRSTOR (save/restore full state) — verified: DD/6 (FNSAVE), DD/4 (FRSTOR)
+- [x] FFREE (free ST(i) register) — verified: DD/0 reg
+- [x] FDECSTP, FINCSTP (decrement/increment stack pointer) — verified: D9 F6, D9 F7
+- [x] FNOP (x87 no-op) — verified: D9 D0 (reg=2, sti=0)
+- [x] FWAIT/WAIT (wait for pending FPU exceptions) — verified: opcode 9B
 
 #### 1.2.7 x87 State Save/Restore (SSE era)
 - [ ] FXSAVE, FXRSTOR (save/restore x87+SSE state)
@@ -888,10 +888,10 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] CS selects code segment attributes (L/D bits for 64/compat mode)
 
 ### 3.5 x87 FPU Registers
-- [ ] ST(0)-ST(7) (80-bit extended precision)
-- [ ] FPU control word (precision, rounding, exception masks)
-- [ ] FPU status word (TOP, condition codes C0-C3, exception flags)
-- [ ] FPU tag word (valid/zero/special/empty per register)
+- [x] ST(0)-ST(7) (80-bit extended precision) — verified: x87_ST vector, TOP-relative addressing
+- [x] FPU control word (precision, rounding, exception masks) — verified: x87_cw, default 0x037F
+- [x] FPU status word (TOP, condition codes C0-C3, exception flags) — verified: x87_sw, TOP at bits 13:11
+- [x] FPU tag word (valid/zero/special/empty per register) — verified: x87_tw, 2-bit tags
 - [ ] Last instruction/operand pointers
 
 ### 3.6 MMX Registers

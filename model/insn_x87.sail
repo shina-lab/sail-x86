@@ -135,8 +135,8 @@ function dispatch_x87_d8(modrm, rm, _) = {
       match reg {
         0 => { x87_write_st(0, __f80_add(st0, src)); Ok() },
         1 => { x87_write_st(0, __f80_mul(st0, src)); Ok() },
-        2 => { x87_set_sw_cc(__f80_compare(st0, x87_read_st(sti))); Ok() },
-        3 => { x87_set_sw_cc(__f80_compare(st0, x87_read_st(sti))); let _ = x87_pop(); Ok() },
+        2 => { x87_set_sw_cc(__f80_compare(st0, src)); Ok() },
+        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop(); Ok() },
         4 => { x87_write_st(0, __f80_sub(st0, src)); Ok() },
         5 => { x87_write_st(0, __f80_sub(src, st0)); Ok() },
         6 => { x87_write_st(0, __f80_div(st0, src)); Ok() },
@@ -403,8 +403,8 @@ function dispatch_x87_dc(modrm, rm, _) = {
       match reg {
         0 => { x87_write_st(0, __f80_add(st0, src)); Ok() },
         1 => { x87_write_st(0, __f80_mul(st0, src)); Ok() },
-        2 => { x87_set_sw_cc(__f80_compare(st0, x87_read_st(sti))); Ok() },
-        3 => { x87_set_sw_cc(__f80_compare(st0, x87_read_st(sti))); let _ = x87_pop(); Ok() },
+        2 => { x87_set_sw_cc(__f80_compare(st0, src)); Ok() },
+        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop(); Ok() },
         4 => { x87_write_st(0, __f80_sub(st0, src)); Ok() },
         5 => { x87_write_st(0, __f80_sub(src, st0)); Ok() },
         6 => { x87_write_st(0, __f80_div(st0, src)); Ok() },
