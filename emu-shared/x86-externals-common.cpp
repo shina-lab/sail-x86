@@ -946,6 +946,7 @@ u64 Model::z__stmxcsr(unit) {
 u64 Model::z__rdtsc(unit) {
   return __rdtsc();
 }
+
 // =========================================================================
 // Software interrupt (INT n) — stub for user mode
 // =========================================================================
@@ -1105,14 +1106,14 @@ void Model::z__mpsadbw(lbits *rop, lbits src1, lbits src2, u64 imm8) {
 
 // Use intrinsics for pcmpistri. The imm8 must be a compile-time constant
 // for the intrinsic, so we use a macro-based dispatch.
-#define PCMPISTRI_CASE(IMM) \
-  case IMM: { \
-  idx = _mm_cmpistri(v1, v2, IMM); \
-  cf = _mm_cmpistrc(v1, v2, IMM); \
-  zf = _mm_cmpistrz(v1, v2, IMM); \
-  sf = _mm_cmpistrs(v1, v2, IMM); \
-  of = _mm_cmpistro(v1, v2, IMM); \
-  break; \
+#define PCMPISTRI_CASE(IMM)                     \
+  case IMM: {                                   \
+    idx = _mm_cmpistri(v1, v2, IMM);            \
+    cf = _mm_cmpistrc(v1, v2, IMM);             \
+    zf = _mm_cmpistrz(v1, v2, IMM);             \
+    sf = _mm_cmpistrs(v1, v2, IMM);             \
+    of = _mm_cmpistro(v1, v2, IMM);             \
+    break;                                      \
   }
 
 static void pcmpistri_dispatch(const u8 *s1, const u8 *s2, int imm8,
@@ -1159,14 +1160,14 @@ static void pcmpistri_dispatch(const u8 *s1, const u8 *s2, int imm8,
 #undef PCMPISTRI_CASE
 
 // Same approach for pcmpestri
-#define PCMPESTRI_CASE(IMM) \
-  case IMM: { \
-  idx = _mm_cmpestri(v1, la, v2, lb, IMM); \
-  cf = _mm_cmpestrc(v1, la, v2, lb, IMM); \
-  zf = _mm_cmpestrz(v1, la, v2, lb, IMM); \
-  sf = _mm_cmpestrs(v1, la, v2, lb, IMM); \
-  of = _mm_cmpestro(v1, la, v2, lb, IMM); \
-  break; \
+#define PCMPESTRI_CASE(IMM)                     \
+  case IMM: {                                   \
+    idx = _mm_cmpestri(v1, la, v2, lb, IMM);    \
+    cf = _mm_cmpestrc(v1, la, v2, lb, IMM);     \
+    zf = _mm_cmpestrz(v1, la, v2, lb, IMM);     \
+    sf = _mm_cmpestrs(v1, la, v2, lb, IMM);     \
+    of = _mm_cmpestro(v1, la, v2, lb, IMM);     \
+    break;                                      \
   }
 
 static void pcmpestri_dispatch(const u8 *s1, int la, const u8 *s2, int lb,
@@ -1213,14 +1214,14 @@ static void pcmpestri_dispatch(const u8 *s1, int la, const u8 *s2, int lb,
 #undef PCMPESTRI_CASE
 
 // Same approach for pcmpistrm / pcmpestrm
-#define PCMPISTRM_CASE(IMM) \
-  case IMM: { \
-  vr = _mm_cmpistrm(v1, v2, IMM); \
-  cf = _mm_cmpistrc(v1, v2, IMM); \
-  zf = _mm_cmpistrz(v1, v2, IMM); \
-  sf = _mm_cmpistrs(v1, v2, IMM); \
-  of = _mm_cmpistro(v1, v2, IMM); \
-  break; \
+#define PCMPISTRM_CASE(IMM)                     \
+  case IMM: {                                   \
+    vr = _mm_cmpistrm(v1, v2, IMM);             \
+    cf = _mm_cmpistrc(v1, v2, IMM);             \
+    zf = _mm_cmpistrz(v1, v2, IMM);             \
+    sf = _mm_cmpistrs(v1, v2, IMM);             \
+    of = _mm_cmpistro(v1, v2, IMM);             \
+    break;                                      \
   }
 
 static void pcmpistrm_dispatch(const u8 *s1, const u8 *s2, int imm8,
@@ -1268,14 +1269,14 @@ static void pcmpistrm_dispatch(const u8 *s1, const u8 *s2, int imm8,
 }
 #undef PCMPISTRM_CASE
 
-#define PCMESTRM_CASE(IMM) \
-  case IMM: { \
-  vr = _mm_cmpestrm(v1, la, v2, lb, IMM); \
-  cf = _mm_cmpestrc(v1, la, v2, lb, IMM); \
-  zf = _mm_cmpestrz(v1, la, v2, lb, IMM); \
-  sf = _mm_cmpestrs(v1, la, v2, lb, IMM); \
-  of = _mm_cmpestro(v1, la, v2, lb, IMM); \
-  break; \
+#define PCMESTRM_CASE(IMM)                      \
+  case IMM: {                                   \
+    vr = _mm_cmpestrm(v1, la, v2, lb, IMM);     \
+    cf = _mm_cmpestrc(v1, la, v2, lb, IMM);     \
+    zf = _mm_cmpestrz(v1, la, v2, lb, IMM);     \
+    sf = _mm_cmpestrs(v1, la, v2, lb, IMM);     \
+    of = _mm_cmpestro(v1, la, v2, lb, IMM);     \
+    break;                                      \
   }
 
 static void pcmestrm_dispatch(const u8 *s1, int la, const u8 *s2, int lb,
@@ -1404,6 +1405,7 @@ void Model::z__pcmpistrm(struct ztuple_z8z5bvzCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv
   rop->ztup3 = sf;
   rop->ztup4 = of;
 }
+
 // =========================================================================
 // SYSCALL — handled externally by the emulator run loop
 // =========================================================================
@@ -1423,6 +1425,7 @@ void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
   rop->kind = Kind_zHalt;
   rop->variants.zHalt = UNIT;
 }
+
 // =========================================================================
 // FMA (fused multiply-add) primitives
 // =========================================================================
@@ -1443,6 +1446,7 @@ u64 Model::z__f32_fmadd(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__f32_fmsub(u64 a, u64 b, u64 c) {
   a = f32_daz_bits(a, mxcsr_state.mxcsr);
   b = f32_daz_bits(b, mxcsr_state.mxcsr);
@@ -1459,6 +1463,7 @@ u64 Model::z__f32_fmsub(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__f32_fnmadd(u64 a, u64 b, u64 c) {
   a = f32_daz_bits(a, mxcsr_state.mxcsr);
   b = f32_daz_bits(b, mxcsr_state.mxcsr);
@@ -1475,6 +1480,7 @@ u64 Model::z__f32_fnmadd(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__f32_fnmsub(u64 a, u64 b, u64 c) {
   a = f32_daz_bits(a, mxcsr_state.mxcsr);
   b = f32_daz_bits(b, mxcsr_state.mxcsr);
@@ -1491,6 +1497,7 @@ u64 Model::z__f32_fnmsub(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__f64_fmadd(u64 a, u64 b, u64 c) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   b = f64_daz_bits(b, mxcsr_state.mxcsr);
@@ -1507,6 +1514,7 @@ u64 Model::z__f64_fmadd(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 8);
   return r;
 }
+
 u64 Model::z__f64_fmsub(u64 a, u64 b, u64 c) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   b = f64_daz_bits(b, mxcsr_state.mxcsr);
@@ -1523,6 +1531,7 @@ u64 Model::z__f64_fmsub(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 8);
   return r;
 }
+
 u64 Model::z__f64_fnmadd(u64 a, u64 b, u64 c) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   b = f64_daz_bits(b, mxcsr_state.mxcsr);
@@ -1539,6 +1548,7 @@ u64 Model::z__f64_fnmadd(u64 a, u64 b, u64 c) {
   memcpy(&r, &fr, 8);
   return r;
 }
+
 u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   b = f64_daz_bits(b, mxcsr_state.mxcsr);
@@ -1565,41 +1575,49 @@ u64 Model::z__f32_to_uint32_trunc(u64 a) {
   memcpy(&fa, &a, 4);
   return (u32)fa;
 }
+
 u64 Model::z__f32_to_uint32(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
   return (u32)rintf(fa);
 }
+
 u64 Model::z__f32_to_uint64_trunc(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
   return (u64)fa;
 }
+
 u64 Model::z__f32_to_uint64(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
   return (u64)rintf(fa);
 }
+
 u64 Model::z__f64_to_uint32_trunc(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   return (u32)fa;
 }
+
 u64 Model::z__f64_to_uint32(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   return (u32)rint(fa);
 }
+
 u64 Model::z__f64_to_uint64_trunc(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   return (u64)fa;
 }
+
 u64 Model::z__f64_to_uint64(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   return (u64)rint(fa);
 }
+
 u64 Model::z__uint32_to_f32(u64 a) {
   SYNC_MXCSR_RC();
   float fr = (float)(u32)a;
@@ -1607,6 +1625,7 @@ u64 Model::z__uint32_to_f32(u64 a) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__uint64_to_f32(u64 a) {
   SYNC_MXCSR_RC();
   float fr = (float)(u64)a;
@@ -1614,12 +1633,14 @@ u64 Model::z__uint64_to_f32(u64 a) {
   memcpy(&r, &fr, 4);
   return r;
 }
+
 u64 Model::z__uint32_to_f64(u64 a) {
   double fr = (double)(u32)a;
   u64 r;
   memcpy(&r, &fr, 8);
   return r;
 }
+
 u64 Model::z__uint64_to_f64(u64 a) {
   SYNC_MXCSR_RC();
   double fr = (double)(u64)a;

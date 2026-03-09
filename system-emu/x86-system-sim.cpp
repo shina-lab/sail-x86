@@ -646,15 +646,13 @@ int main(int argc, char *argv[]) {
 
   // Auto-detect ELF vs bzImage
   bool is_elf = false;
-  {
-    int fd = open(bzimage_path, O_RDONLY);
-    if (fd >= 0) {
-      u8 magic[5];
-      if (read(fd, magic, 5) == 5)
-        is_elf = (magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L'
-                  && magic[3] == 'F' && magic[4] == 2 /*ELFCLASS64*/);
-      close(fd);
-    }
+  if (int fd = open(bzimage_path, O_RDONLY);
+      fd >= 0) {
+    u8 magic[5];
+    if (read(fd, magic, 5) == 5)
+      is_elf = (magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L'
+                && magic[3] == 'F' && magic[4] == 2 /*ELFCLASS64*/);
+    close(fd);
   }
 
   if (is_elf) {
