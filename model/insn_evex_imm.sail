@@ -1797,25 +1797,26 @@ function dispatch_evex_imm(op, pfx) = {
   },
 
   // 0F3A 1D: VCVTPS2PH (66, W=0) — convert FP32 to FP16 with imm8 rounding
-  // 0F3A 1D: VCVTPS2PH (66, W=0) — convert FP32 to FP16 with imm8 rounding
   29 => {
     if mp != MP_66 | pfx.rex_w then {
       raise_UD()
     } else {
       let modrm = fetch_byte();
       let src = evex_reg_idx(modrm, pfx);
-      let _imm = fetch_byte(); // rounding control (ignored for now, using truncation)
       match pfx.evex_ll {
-        2 => { let res = avx_vcvtps2ph_512(read_zmm(src));
-               let rm = decode_rm_evex(modrm, pfx, 32);
+        2 => { let rm = decode_rm_evex(modrm, pfx, 32);
+               let _imm = fetch_byte();
+               let res = avx_vcvtps2ph_512(read_zmm(src));
                match rm { RM_reg(_) => { write_ymm(evex_rm_reg_idx(modrm, pfx), res); Ok() },
                            RM_mem(addr) => { mem_write256(fixup_addr(addr), res); Ok() } } },
-        1 => { let res = avx_vcvtps2ph_256(read_ymm(src));
-               let rm = decode_rm_evex(modrm, pfx, 16);
+        1 => { let rm = decode_rm_evex(modrm, pfx, 16);
+               let _imm = fetch_byte();
+               let res = avx_vcvtps2ph_256(read_ymm(src));
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), res); Ok() },
                            RM_mem(addr) => { mem_write128(fixup_addr(addr), res); Ok() } } },
-        _ => { let res = avx_vcvtps2ph_128(read_xmm(src));
-               let rm = decode_rm_evex(modrm, pfx, 8);
+        _ => { let rm = decode_rm_evex(modrm, pfx, 8);
+               let _imm = fetch_byte();
+               let res = avx_vcvtps2ph_128(read_xmm(src));
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write64(fixup_addr(addr), res); Ok() } } },
       }

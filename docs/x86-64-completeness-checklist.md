@@ -539,10 +539,10 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4 (broadcast scalar/lane) — verified: all forms in insn_evex_perm.sail (0F38 18/19/1A/1B)
 - [ ] VMOVSH, VMOVW (AVX-512FP16)
-- [x] VCOMPRESSPD/PS (compress packed float) — verified: implemented in insn_evex_perm.sail
-- [x] VEXPANDPD/PS (expand packed float) — verified: implemented in insn_evex_perm.sail
-- [x] VPCOMPRESSD/Q (compress packed int) — verified: implemented in insn_evex_perm.sail
-- [x] VPEXPANDD/Q (expand packed int) — verified: implemented in insn_evex_perm.sail
+- [x] VCOMPRESSPD/PS (compress packed float) — verified: insn_evex_perm.sail + 3 KVM tests; memory store form not yet implemented (register-only)
+- [x] VEXPANDPD/PS (expand packed float) — verified: insn_evex_perm.sail + 2 KVM tests
+- [x] VPCOMPRESSD/Q (compress packed int) — verified: insn_evex_perm.sail; memory store form not yet implemented (register-only)
+- [x] VPEXPANDD/Q (expand packed int) — verified: insn_evex_perm.sail
 
 #### 1.15.7 AVX-512F Permute/Shuffle
 - [x] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute) — verified: implemented in insn_evex_perm.sail
@@ -559,8 +559,8 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.15.8 AVX-512F Logic and Blend
 - [x] VPTERNLOGD, VPTERNLOGQ (ternary logic with imm8 truth table) — verified: implemented in insn_evex_imm.sail + 10 KVM tests (a, b, c, ones, zeros, AND, OR, XOR, 3-way XOR, 3-way AND)
-- [x] VPBLENDMD/Q (blend with opmask) — verified: D/Q in insn_evex_perm.sail; B/W in insn_evex_arith.sail
-- [x] VBLENDMPS, VBLENDMPD (blend float with opmask) — verified: implemented in insn_evex_perm.sail
+- [x] VPBLENDMD/Q (blend with opmask) — verified and fixed: D/Q in insn_evex_perm.sail; B/W in insn_evex_arith.sail; merge masking bug fixed (k[i]=0 gave old_dst instead of SRC1) + 5 KVM tests
+- [x] VBLENDMPS, VBLENDMPD (blend float with opmask) — verified and fixed: insn_evex_perm.sail; same merge masking bug fixed
 
 #### 1.15.9 AVX-512F Shift/Rotate
 - [x] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit) — verified: all variants in insn_evex_arith.sail

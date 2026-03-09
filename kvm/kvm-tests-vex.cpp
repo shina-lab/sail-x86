@@ -3145,6 +3145,22 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       add_xmm("vcvtps2ph xmm1,xmm0,3 (truncate 1.001)",
         {0xC4, 0xE3, 0x79, 0x1D, 0xC1, 0x03}, s, 0x3);
     }
+
+    // EVEX VCVTPS2PH memory form: store to [rdi]
+    // Tests that imm8 is fetched AFTER the memory operand (modrm+disp) not before
+    // EVEX.128.66.0F3A.W0 1D /r ib
+    // 62 F3 7D 08 1D 07 00: VCVTPS2PH [rdi], xmm0, 0
+    // xmm0 = [1.0f, 2.0f, -0.5f, 65504.0f] → fp16: [0x3C00, 0x4000, 0xB800, 0x7BFF]
+    // Memory store = 8 bytes (4 × fp16)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[0] = xmm_from_f32(65504.0f, -0.5f, 2.0f, 1.0f);
+      tests.push_back({"evex vcvtps2ph [rdi],xmm0,0 (mem store)", cat,
+        {0x62, 0xF3, 0x7D, 0x08, 0x1D, 0x07, 0x00},
+        s, FL_NONE, 0, false, {}, 8});
+    }
   }
 
   // =====================================================================
