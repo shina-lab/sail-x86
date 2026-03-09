@@ -2,9 +2,9 @@
 //
 // Decodes 4-byte EVEX prefix (62h) and routes opcodes to sub-dispatchers.
 //
-// EVEX format:
+// EVEX format (SDM Vol.2 §2.6):
 //   Byte 0: 62h (already consumed by caller)
-//   Byte 1 (P0): [R̄][X̄][B̄][R'̄][0][mm]   (mm: opcode map)
+//   Byte 1 (P0): [R̄][X̄][B̄][R'̄][0][mmm]  (mmm: 3-bit opcode map)
 //   Byte 2 (P1): [W][v̄v̄v̄v̄][1][pp]        (pp: mandatory prefix)
 //   Byte 3 (P2): [z][L'L][b][V'̄][aaa]     (masking, length, broadcast)
 //
@@ -14,14 +14,19 @@
 //   r/m field:  EVEX.X : EVEX.B : modrm.rm    (source, reg only; for mem B extends base)
 
 // Decode EVEX prefix (62h already consumed). Reads 3 payload bytes.
-// Returns (Prefixes, opcode_map) where map is mm field (1=0F, 2=0F38, 3=0F3A).
-val decode_evex : unit -> (Prefixes, range(0, 3))
+// Returns (Prefixes, opcode_map) where map is mmm field (1=0F, 2=0F38, 3=0F3A).
+val decode_evex : unit -> (Prefixes, range(0, 7))
 function decode_evex() = {
   let p0 = fetch_byte();
   let p1 = fetch_byte();
   let p2 = fetch_byte();
 
-  let mm : range(0, 3) = unsigned(p0[1..0]);
+  // Reserved field checks (SDM Vol.2 §2.6.1):
+  // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
+  if p0[3] == bitone then throw X86Fault(EXN_UD, 0x00000000);
+  if p1[2] == bitzero then throw X86Fault(EXN_UD, 0x00000000);
+
+  let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
     evex_present = true,
     has_rex = true,
@@ -50,7 +55,7 @@ function decode_evex() = {
     // Also populate VEX fields for compatibility
     vex_present = true,
   };
-  (pfx, mm)
+  (pfx, mmm)
 }
 
 val dispatch_evex_0f : (byte, Prefixes) -> ExecutionResult
@@ -335,12 +340,12 @@ function dispatch_evex_0f3a(opcode, pfx) = {
 
 val dispatch_evex : unit -> ExecutionResult
 function dispatch_evex() = {
-  let (pfx, map) = decode_evex();
+  let (pfx, mmm) = decode_evex();
   let opcode = fetch_byte();
-  match map {
+  match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),
     3 => dispatch_evex_0f3a(opcode, pfx),
-    _ => raise_UD(),
+    _ => raise_UD(),  // mmm=0,4,5,6,7 are reserved (#UD)
   }
 }

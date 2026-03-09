@@ -479,12 +479,12 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 1.15 AVX-512 Foundation (EVEX-encoded, 512-bit, opmask)
 
 #### 1.15.1 EVEX Encoding Mechanics
-- [ ] EVEX prefix decoding (4-byte prefix: P0/P1/P2/P3)
-- [ ] EVEX.R, EVEX.X, EVEX.B, EVEX.R' (register extension to 32 SIMD regs)
-- [ ] EVEX.aaa (opmask register k1-k7; k0 = no masking)
-- [ ] EVEX.z (zeroing vs merging masking)
-- [ ] EVEX.b (broadcast, rounding override, SAE)
-- [ ] EVEX.L'L (vector length: 128/256/512)
+- [x] EVEX prefix decoding (4-byte prefix: P0/P1/P2/P3) — verified and fixed: mmm is 3 bits (was 2), added P[3]=0 and P[10]=1 reserved bit checks
+- [x] EVEX.R, EVEX.X, EVEX.B, EVEX.R' (register extension to 32 SIMD regs) — verified: all inverted, correct bit positions
+- [x] EVEX.aaa (opmask register k1-k7; k0 = no masking) — verified: stored directly from P2[2:0]
+- [x] EVEX.z (zeroing vs merging masking) — verified: P2[7], stored directly
+- [x] EVEX.b (broadcast, rounding override, SAE) — verified: P2[4], stored directly
+- [x] EVEX.L'L (vector length: 128/256/512) — verified: P2[6:5], stored directly
 - [ ] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae}
 - [ ] Suppress-all-exceptions (SAE)
 - [ ] Memory broadcast (1-to-4, 1-to-8, 1-to-16)
@@ -826,11 +826,11 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] #UD when VEX used with LOCK/66h/F2h/F3h/REX — verified
 
 ### 2.4 EVEX Prefix (62h, 4 bytes)
-- [ ] Full EVEX field decoding (R, X, B, R', mm, W, vvvv, pp, z, L'L, b, V', aaa)
+- [x] Full EVEX field decoding (R, X, B, R', mmm, W, vvvv, pp, z, L'L, b, V', aaa) — verified and fixed: mmm 3-bit, reserved bit checks added
 - [ ] EVEX to 32 SIMD registers (ZMM0-ZMM31)
 - [ ] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE)
-- [ ] EVEX compressed displacement (disp8*N)
-- [ ] #UD for reserved EVEX field values
+- [x] EVEX compressed displacement (disp8*N) — verified in decode_sib_evex()
+- [x] #UD for reserved EVEX field values — verified: P[3]!=0 → #UD, P[10]!=1 → #UD, mmm=0/4-7 → #UD
 
 ### 2.5 ModR/M and SIB
 - [x] All 256 ModR/M byte values decoded correctly — verified + KVM tests
