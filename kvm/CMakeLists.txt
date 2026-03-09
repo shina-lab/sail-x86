@@ -192,6 +192,7 @@ set(KVM_CATEGORIES
   "EVEX scalar FP"
   "EVEX VMOVSS/SD"
   "EVEX FMA rounding"
+  VPTERNLOGD
 )
 
 foreach(cat ${KVM_CATEGORIES})

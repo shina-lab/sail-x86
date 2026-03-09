@@ -3022,4 +3022,66 @@ void add_vex_tests(std::vector<TestCase> &tests) {
         {0x62, 0xF1, 0x7C, 0x78, 0x79, 0xC1}, s, 0x7);
     }
   }
+
+  // =====================================================================
+  // VPTERNLOGD — ternary bitwise logic with 8-bit truth table
+  // =====================================================================
+  cat = "VPTERNLOGD";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VPTERNLOGD xmm0, xmm1, xmm2, imm8
+    // EVEX.NDS.128.66.0F3A.W0 25 /r ib
+    //   P0: 0xF3(mmm=011), P1: 0x75(W=0,~vvvv=1110,1,pp=01), P2: 0x08(128)
+    //   ModRM: mod=11, reg=000(xmm0=a), rm=010(xmm2=c) → 0xC2
+    //   vvvv=0001(xmm1=b)
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0xFFFF0000FFFF0000, 0xF0F0F0F00F0F0F0F);
+    s.xmm[1] = xmm_from_u64(0xFF00FF00FF00FF00, 0xCC33CC33CC33CC33);
+    s.xmm[2] = xmm_from_u64(0xF0F0F0F0F0F0F0F0, 0xAAAA5555AAAA5555);
+
+    // imm=0xF0: result = a (pass-through dst)
+    add_xmm("vpternlogd 0xF0 (a)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xF0}, s, 0x7);
+
+    // imm=0xCC: result = b (copy vvvv)
+    add_xmm("vpternlogd 0xCC (b)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xCC}, s, 0x7);
+
+    // imm=0xAA: result = c (copy src)
+    add_xmm("vpternlogd 0xAA (c)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xAA}, s, 0x7);
+
+    // imm=0xFF: all ones
+    add_xmm("vpternlogd 0xFF (ones)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xFF}, s, 0x7);
+
+    // imm=0x00: all zeros
+    add_xmm("vpternlogd 0x00 (zeros)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0x00}, s, 0x7);
+
+    // imm=0xC0: a AND b
+    add_xmm("vpternlogd 0xC0 (a AND b)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xC0}, s, 0x7);
+
+    // imm=0xFC: a OR b
+    add_xmm("vpternlogd 0xFC (a OR b)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0xFC}, s, 0x7);
+
+    // imm=0x3C: a XOR b
+    add_xmm("vpternlogd 0x3C (a XOR b)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0x3C}, s, 0x7);
+
+    // imm=0x96: a XOR b XOR c (3-way XOR — parity)
+    add_xmm("vpternlogd 0x96 (a XOR b XOR c)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0x96}, s, 0x7);
+
+    // imm=0x80: a AND b AND c
+    add_xmm("vpternlogd 0x80 (a AND b AND c)",
+      {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0x80}, s, 0x7);
+  }
 }
