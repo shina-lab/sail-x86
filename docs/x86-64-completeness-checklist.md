@@ -564,16 +564,17 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.15.9 AVX-512F Shift/Rotate
 - [x] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit) — verified: all variants in insn_evex_arith.sail
+- [x] VPSRAQ (arithmetic right shift qwords by imm/xmm, AVX-512 new) — verified: insn_evex_int.sail + 4 KVM tests
 - [x] VPROLVD/Q (variable rotate left) — verified: implemented in insn_evex_arith.sail
 - [x] VPROLD/Q (immediate rotate left) — implemented in insn_evex_int.sail, EVEX.66.0F 72 /1 + KVM tests
 - [x] VPRORVD/Q (variable rotate right) — verified: implemented in insn_evex_arith.sail
 - [x] VPRORD/Q (immediate rotate right) — implemented in insn_evex_int.sail, EVEX.66.0F 72 /0 + KVM tests
 
 #### 1.15.10 AVX-512F Gather/Scatter
-- [x] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask) — verified: implemented in insn_evex_perm.sail
-- [x] VGATHERDPS/DPD/QPS/QPD (EVEX gather float) — verified: implemented in insn_evex_perm.sail
-- [x] VPSCATTERDD/DQ/QD/QQ (scatter integer) — verified: implemented in insn_evex_fma.sail
-- [x] VSCATTERDPS/DPD/QPS/QPD (scatter float) — verified: implemented in insn_evex_fma.sail
+- [x] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask) — verified: implemented in insn_evex_perm.sail; fixed disp_n for W=1 qword variants (was 4, now 8)
+- [x] VGATHERDPS/DPD/QPS/QPD (EVEX gather float) — verified: implemented in insn_evex_perm.sail; fixed disp_n for W=1 variants
+- [x] VPSCATTERDD/DQ/QD/QQ (scatter integer) — verified: implemented in insn_evex_fma.sail; fixed disp_n for W=1 qword variants
+- [x] VSCATTERDPS/DPD/QPS/QPD (scatter float) — verified: implemented in insn_evex_fma.sail; fixed disp_n for W=1 variants
 - [ ] VGATHERPF0/PF1 (prefetch gather, AVX-512PF)
 - [ ] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF)
 
