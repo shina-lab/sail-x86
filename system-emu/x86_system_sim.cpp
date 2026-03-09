@@ -1,4 +1,4 @@
-// System-level x86-64 emulator.
+/// System-level x86-64 emulator.
 // Loads a Linux kernel via the 64-bit boot protocol and executes it
 // using the Sail x86 model with paging and exception delivery.
 
@@ -304,7 +304,7 @@ static bool load_elf_kernel(x86::Model &model, const char *path,
   if (cmdline && strlen(cmdline) > 0) {
     model.phys_mem.write_bytes(cmdline_addr, cmdline, strlen(cmdline) + 1);
   } else {
-    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps";
+    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps noapic nolapic";
     model.phys_mem.write_bytes(cmdline_addr, default_cmdline, strlen(default_cmdline) + 1);
   }
   model.phys_mem.write32(boot_params_addr + 0x228, (u32)cmdline_addr);
@@ -506,7 +506,7 @@ static bool load_bzimage(x86::Model &model, const char *path,
     model.phys_mem.write_bytes(cmdline_addr, cmdline, strlen(cmdline) + 1);
   } else {
     // Default: earlycon for serial output, no quiet
-    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps";
+    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps noapic nolapic";
     model.phys_mem.write_bytes(cmdline_addr, default_cmdline, strlen(default_cmdline) + 1);
   }
   model.phys_mem.write32(boot_params_addr + 0x228, (u32)cmdline_addr);
@@ -681,6 +681,7 @@ int main(int argc, char *argv[]) {
   if (interactive) {
     model.uart.output_fn = uart_output_stdout;
     fprintf(stderr, "sail-x86-system: interactive console on stdin/stdout\n");
+    fprintf(stderr, "Press Ctrl-a x to exit the emulator.\n\n");
   } else {
     // Non-tty stdin: set non-blocking so we can still feed piped input to UART
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
@@ -703,8 +704,8 @@ int main(int argc, char *argv[]) {
   const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
-  // Ctrl+A escape state: when Ctrl+A is pressed, the next key decides the action.
-  // Ctrl+A X = quit. Ctrl+A Ctrl+A = send literal Ctrl+A.
+  // Ctrl-a escape state: when Ctrl-a is pressed, the next key decides the action.
+  // Ctrl-a x = quit. Ctrl-a Ctrl-a = send literal Ctrl-a.
   bool ctrl_a_pending = false;
 
   // Spin loop detector: if RIP stays within a tiny range for too long,
@@ -793,7 +794,7 @@ int main(int argc, char *argv[]) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
                   if (buf[i] == 'x' || buf[i] == 'X') {
-                    fprintf(stderr, "\nsail-x86-system: Ctrl+A X — exiting\n");
+                    fprintf(stderr, "\nsail-x86-system: Ctrl+a x — exiting\n");
                     model.model_fini();
                     return 0;
                   }
@@ -811,6 +812,13 @@ int main(int argc, char *argv[]) {
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pic_master.raise_irq(0);
         }
+        // Advance RIP past the HLT instruction (1 byte, opcode 0xF4).
+        // On real x86, when an interrupt wakes the CPU from HLT, execution
+        // resumes at the instruction AFTER HLT. Our Sail model returns Halt
+        // without advancing RIP, so we must do it here. Without this, the
+        // interrupt's return address would be HLT itself, trapping the CPU
+        // in a HLT loop and preventing the idle loop's need_resched() check.
+        model.zRIP = model.zRIP + 1;
         insn_count++;
         result.kind = x86::Kind_zOk; // Continue execution
         continue;
@@ -866,14 +874,14 @@ int main(int argc, char *argv[]) {
         if (ctrl_a_pending) {
           ctrl_a_pending = false;
           if (buf[i] == 'x' || buf[i] == 'X') {
-            fprintf(stderr, "\nsail-x86-system: Ctrl+A X — exiting\n");
+            fprintf(stderr, "\nsail-x86-system: Ctrl+a x — exiting\n");
             model.should_exit = true;
             break;
           }
-          if (buf[i] == 0x01) { // Ctrl+A Ctrl+A = literal Ctrl+A
+          if (buf[i] == 0x01) { // Ctrl-a Ctrl-a = literal Ctrl-a
             model.uart.rx_push(0x01);
           }
-          // Other Ctrl+A sequences: ignore
+          // Other Ctrl-a sequences: ignore
           continue;
         }
         if (buf[i] == 0x01) {

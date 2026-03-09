@@ -32,14 +32,15 @@ public:
     case 1: // IER — Interrupt Enable
       return ier;
     case 2: // IIR — Interrupt Identification
+      // Bits 7:6 = FIFO status (0xC0 = FIFOs enabled, 16550A)
       // Priority: RDA (0x04) > THRE (0x02)
       if ((ier & 0x01) && !rx_fifo.empty())
-        return 0x04;  // Received Data Available (priority 2)
+        return 0xC4;  // RDA + FIFOs enabled
       if (thre_pending) {
         thre_pending = false;  // Reading IIR clears THRE interrupt
-        return 0x02;  // THRE interrupt (priority 3)
+        return 0xC2;  // THRE + FIFOs enabled
       }
-      return 0x01; // No interrupt pending
+      return 0xC1; // No interrupt pending, FIFOs enabled
     case 3: // LCR — Line Control
       return lcr;
     case 4: // MCR — Modem Control
@@ -74,9 +75,19 @@ public:
       if (ier & 0x02) thre_pending = true;
       break;
     case 1: // IER
+    {
+      u8 old_ier = ier;
       ier = val;
-      // Setting IER with THRE enabled and THR already empty → immediate interrupt
-      if (val & 0x02) thre_pending = true;
+      // THRE interrupt fires only on 0→1 transition of IER THRI bit
+      // (THR is always empty in our instant-write model)
+      if ((val & 0x02) && !(old_ier & 0x02))
+        thre_pending = true;
+      break;
+    }
+    case 2: // FCR — FIFO Control Register (write-only)
+      // Bit 0: enable FIFOs (we always report enabled)
+      // Bit 1: clear RX FIFO
+      if (val & 0x02) while (!rx_fifo.empty()) rx_fifo.pop();
       break;
     case 3: // LCR
       lcr = val;
@@ -101,7 +112,9 @@ public:
   void (*output_fn)(u8 ch) = nullptr;
 
   // Push a character into the receive FIFO (called from host stdin polling)
-  void rx_push(u8 ch) { rx_fifo.push(ch); }
+  void rx_push(u8 ch) {
+    rx_fifo.push(ch);
+  }
 
   // Returns true if the UART has a pending interrupt (for PIC IRQ 4)
   bool has_irq() const {

@@ -43,7 +43,7 @@ for cmd in sh ash cat echo ls mkdir mount umount sleep clear \
            grep sed awk sort uniq tr cut tee \
            env printenv pwd cd basename dirname \
            vi ed hexdump od xxd strings \
-           free uptime date setsid cttyhack getty; do
+           free uptime date setsid cttyhack getty stty; do
   ln -sf busybox "$TMPDIR/bin/$cmd"
 done
 
@@ -54,26 +54,22 @@ mount -t proc proc /proc 2>/dev/null
 mount -t sysfs sysfs /sys 2>/dev/null
 mount -t devtmpfs devtmpfs /dev 2>/dev/null
 
-# Redirect stdio to the serial console
-exec </dev/ttyS0 >/dev/ttyS0 2>/dev/ttyS0
-
-cat <<'BANNER'
-
-========================================
- Sail x86-64 Emulator — Linux Console
-========================================
-
-Type 'help' for a list of built-in commands.
-Press Ctrl+A X to exit the emulator.
-
-BANNER
+echo ""
+echo "========================================"
+echo " Sail x86-64 Emulator - Linux Console"
+echo "========================================"
+echo ""
+echo "Type 'help' for a list of built-in commands."
+echo "Press Ctrl+A X to exit the emulator."
+echo ""
 
 export HOME=/
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export TERM=vt100
 export PS1='sail# '
 
-exec setsid cttyhack /bin/sh
+# Start a getty on ttyS0 which properly opens the port and sets up the tty.
+exec setsid getty -n -l /bin/sh 115200 ttyS0 vt100
 INIT
 chmod 755 "$TMPDIR/init"
 
