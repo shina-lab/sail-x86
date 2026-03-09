@@ -27,7 +27,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] CMPXCHG (compare and exchange, 8/16/32/64)
 - [ ] CMPXCHG8B, CMPXCHG16B (8-byte/16-byte compare-and-exchange)
 - [ ] BSWAP (byte-swap 32/64)
-- [ ] XLAT, XLATB (table lookup translation)
+- [x] XLAT, XLATB (table lookup translation) — verified + KVM tests
 - [ ] CMOVcc (all 16 conditions, 16/32/64-bit)
 
 #### 1.1.2 Stack Operations
@@ -37,8 +37,8 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] POPF, POPFQ (pop flags)
 - [ ] PUSHA, PUSHAD (invalid in 64-bit mode — must #UD)
 - [ ] POPA, POPAD (invalid in 64-bit mode — must #UD)
-- [ ] ENTER (create stack frame, nesting levels 0-31)
-- [ ] LEAVE (destroy stack frame)
+- [x] ENTER (create stack frame, nesting levels 0-31) — verified + KVM tests (levels 0,1)
+- [x] LEAVE (destroy stack frame) — verified + KVM tests
 
 #### 1.1.3 Arithmetic
 - [ ] ADD (all operand size/type combinations, flag effects)
@@ -64,17 +64,17 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] TEST (AND without storing)
 
 #### 1.1.6 Shift and Rotate
-- [ ] SHL/SAL (shift left, same opcode)
-- [ ] SHR (logical shift right)
-- [ ] SAR (arithmetic shift right)
-- [ ] ROL (rotate left)
-- [ ] ROR (rotate right)
-- [ ] RCL (rotate through carry left)
-- [ ] RCR (rotate through carry right)
-- [ ] SHLD (double-precision shift left)
-- [ ] SHRD (double-precision shift right)
-- [ ] Shift/rotate count masking (count & 0x1F for 32-bit, count & 0x3F for 64-bit)
-- [ ] OF flag: defined only for 1-bit shifts, undefined for multi-bit
+- [x] SHL/SAL (shift left, same opcode) — verified correct
+- [x] SHR (logical shift right) — verified correct
+- [x] SAR (arithmetic shift right) — verified correct, OF=0 for count=1
+- [x] ROL (rotate left) — verified correct, SF/ZF/AF/PF unaffected
+- [x] ROR (rotate right) — verified correct
+- [x] RCL (rotate through carry left) — verified correct, MOD 9/17 for 8/16-bit
+- [x] RCR (rotate through carry right) — verified correct, OF set before rotation
+- [x] SHLD (double-precision shift left) — verified correct
+- [x] SHRD (double-precision shift right) — verified correct
+- [x] Shift/rotate count masking (count & 0x1F for 32-bit, count & 0x3F for 64-bit) — verified
+- [x] OF flag: defined only for 1-bit shifts, undefined for multi-bit — verified
 
 #### 1.1.7 Bit and Byte Operations
 - [ ] BT (bit test → CF)
@@ -93,7 +93,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [ ] Jcc (all 16 conditions, rel8 and rel32)
 - [ ] CALL (near relative, near indirect, far direct, far indirect)
 - [ ] RET (near, near+imm16, far, far+imm16)
-- [ ] LOOP, LOOPcc (LOOPE/LOOPZ, LOOPNE/LOOPNZ; uses RCX/ECX/CX per addr size)
+- [x] LOOP, LOOPcc (LOOPE/LOOPZ, LOOPNE/LOOPNZ; uses RCX/ECX/CX per addr size) — verified + KVM tests
 - [ ] INT n, INT3, INT1 (software interrupts)
 - [ ] INTO (invalid in 64-bit mode — must #UD)
 - [ ] IRET, IRETD, IRETQ (interrupt return)
