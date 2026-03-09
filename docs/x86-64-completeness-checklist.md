@@ -656,6 +656,10 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] TDPBSSD, TDPBSUD, TDPBUSD, TDPBUUD (INT8 tile dot product)
 - [ ] TDPBF16PS (BF16 tile dot product)
 
+### 1.18.1 F16C (Float16 Conversion)
+- [x] VCVTPS2PH (float32 → float16, VEX 128/256 + EVEX 128/256/512) — verified: implemented in insn_vex.sail + insn_evex_imm.sail, subnormal fix applied + 4 KVM tests; imm8 rounding control not yet honored (always rounds nearest)
+- [x] VCVTPH2PS (float16 → float32, VEX 128/256 + EVEX 128/256/512) — verified: implemented in insn_vex.sail + insn_evex_arith.sail + KVM tests
+
 ### 1.19 Galois Field (GFNI)
 - [x] GF2P8MULB (GF(2^8) byte multiply) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests
 - [x] GF2P8AFFINEINVQB (GF(2^8) affine inverse) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests

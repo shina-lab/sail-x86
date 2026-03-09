@@ -3084,4 +3084,66 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpternlogd 0x80 (a AND b AND c)",
       {0x62, 0xF3, 0x75, 0x08, 0x25, 0xC2, 0x80}, s, 0x7);
   }
+
+  // =====================================================================
+  // VCVTPS2PH / VCVTPH2PS — F16C float32 ↔ float16 conversion
+  // =====================================================================
+  cat = "F16C";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VCVTPS2PH xmm1, xmm0, 0 (4 × f32 → 4 × f16, round nearest)
+    // VEX.128.66.0F3A.W0 1D /r ib
+    // C4 E3 79 1D C1 00: reg=0(xmm0=src), rm=1(xmm1=dst), imm=0
+    // xmm0 = [1.0f, 2.0f, -0.5f, 65504.0f] → [0x3C00, 0x4000, 0xB800, 0x7BFF] in fp16
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(65504.0f, -0.5f, 2.0f, 1.0f);
+      // Result in xmm1: low 64 bits = 4 fp16 values, upper zeroed
+      add_xmm("vcvtps2ph xmm1,xmm0,0 (4xf32→4xf16)",
+        {0xC4, 0xE3, 0x79, 0x1D, 0xC1, 0x00}, s, 0x3);
+    }
+
+    // VCVTPH2PS xmm0, xmm1 (4 × f16 → 4 × f32)
+    // VEX.128.66.0F38.W0 13 /r
+    // C4 E2 79 13 C1: reg=0(xmm0=dst), rm=1(xmm1=src)
+    // xmm1 low 64 = [0x3C00(1.0), 0x4000(2.0), 0xB800(-0.5), 0x7BFF(65504.0)]
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      // Pack 4 fp16 values into low 64 bits of xmm1
+      u64 fp16_vals = ((u64)0x7BFF << 48) | ((u64)0xB800 << 32) |
+                      ((u64)0x4000 << 16) | (u64)0x3C00;
+      s.xmm[1] = xmm_from_u64(0, fp16_vals);
+      add_xmm("vcvtph2ps xmm0,xmm1 (4xf16→4xf32)",
+        {0xC4, 0xE2, 0x79, 0x13, 0xC1}, s, 0x7);
+    }
+
+    // Round-trip: VCVTPS2PH then VCVTPH2PS for denorm f16 (6.0e-8 ≈ 0x0001 in fp16)
+    // f32 value 5.960464477539063e-08 is the smallest positive fp16 normal = 2^-14
+    // Actually smallest fp16 subnormal = 2^-24 ≈ 5.96e-8
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float val = 5.960464477539063e-08f; // 2^-24 = smallest fp16 subnormal
+      s.xmm[0] = xmm_from_f32(0.0f, 0.0f, 0.0f, val);
+      add_xmm("vcvtps2ph xmm1,xmm0,0 (subnorm f16)",
+        {0xC4, 0xE3, 0x79, 0x1D, 0xC1, 0x00}, s, 0x3);
+    }
+
+    // VCVTPS2PH with imm8=4 (round toward zero/truncation)
+    // Value 1.5f: with round-nearest → 1.5 (exact in fp16)
+    // Value 1.001f: truncation should give 1.0 in fp16 (0x3C00)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(0.0f, 0.0f, 0.0f, 1.001f);
+      add_xmm("vcvtps2ph xmm1,xmm0,3 (truncate 1.001)",
+        {0xC4, 0xE3, 0x79, 0x1D, 0xC1, 0x03}, s, 0x3);
+    }
+  }
 }

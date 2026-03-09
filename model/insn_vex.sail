@@ -255,7 +255,7 @@ function fp32_to_fp16(f) = {
     let shift_amt : int = 113 - exp_val;
     let full_frac : bits(24) = 0b1 @ frac23;
     let shifted : bits(24) = sail_shiftright(full_frac, shift_amt);
-    sign @ 0b00000 @ shifted[9..0]
+    sign @ 0b00000 @ shifted[22..13]
   } else {
     let new_exp : int = exp_val - 112;
     sign @ get_slice_int(5, new_exp, 0) @ frac23[22..13]
