@@ -1384,6 +1384,107 @@ function avx_psrldq_512(a, count) =
   avx_psrldq_256(a[511..256], count) @ avx_psrldq_256(a[255..0], count)
 
 // =========================================================================
+// VPROLD/Q: rotate left dwords/qwords (immediate via broadcast count vector)
+// VPRORD/Q: rotate right dwords/qwords
+// =========================================================================
+
+val evex_vprold_128 : (xmmword, xmmword) -> xmmword
+function evex_vprold_128(src, cnt) = {
+  var r : xmmword = zeros();
+  foreach (i from 0 to 3) {
+    let lo : range(0, 96) = i * 32;
+    let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
+    let elem : bits(32) = src[(lo + 31)..lo];
+    if c == 0 then r[(lo + 31)..lo] = elem
+    else {
+      let rc : range(1, 31) = 32 - c;
+      r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits(5, rc));
+    }
+  };
+  r
+}
+
+val evex_vprold_256 : (ymmword, ymmword) -> ymmword
+function evex_vprold_256(a, b) =
+  evex_vprold_128(a[255..128], b[255..128]) @ evex_vprold_128(a[127..0], b[127..0])
+
+val evex_vprold_512 : (zmmword, zmmword) -> zmmword
+function evex_vprold_512(a, b) =
+  evex_vprold_256(a[511..256], b[511..256]) @ evex_vprold_256(a[255..0], b[255..0])
+
+val evex_vprord_128 : (xmmword, xmmword) -> xmmword
+function evex_vprord_128(src, cnt) = {
+  var r : xmmword = zeros();
+  foreach (i from 0 to 3) {
+    let lo : range(0, 96) = i * 32;
+    let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
+    let elem : bits(32) = src[(lo + 31)..lo];
+    if c == 0 then r[(lo + 31)..lo] = elem
+    else {
+      let rc : range(1, 31) = 32 - c;
+      r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits(5, rc));
+    }
+  };
+  r
+}
+
+val evex_vprord_256 : (ymmword, ymmword) -> ymmword
+function evex_vprord_256(a, b) =
+  evex_vprord_128(a[255..128], b[255..128]) @ evex_vprord_128(a[127..0], b[127..0])
+
+val evex_vprord_512 : (zmmword, zmmword) -> zmmword
+function evex_vprord_512(a, b) =
+  evex_vprord_256(a[511..256], b[511..256]) @ evex_vprord_256(a[255..0], b[255..0])
+
+val evex_vprolq_128 : (xmmword, xmmword) -> xmmword
+function evex_vprolq_128(src, cnt) = {
+  var r : xmmword = zeros();
+  foreach (i from 0 to 1) {
+    let lo : range(0, 64) = i * 64;
+    let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
+    let elem : bits(64) = src[(lo + 63)..lo];
+    if c == 0 then r[(lo + 63)..lo] = elem
+    else {
+      let rc : range(1, 63) = 64 - c;
+      r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits(6, rc));
+    }
+  };
+  r
+}
+
+val evex_vprolq_256 : (ymmword, ymmword) -> ymmword
+function evex_vprolq_256(a, b) =
+  evex_vprolq_128(a[255..128], b[255..128]) @ evex_vprolq_128(a[127..0], b[127..0])
+
+val evex_vprolq_512 : (zmmword, zmmword) -> zmmword
+function evex_vprolq_512(a, b) =
+  evex_vprolq_256(a[511..256], b[511..256]) @ evex_vprolq_256(a[255..0], b[255..0])
+
+val evex_vprorq_128 : (xmmword, xmmword) -> xmmword
+function evex_vprorq_128(src, cnt) = {
+  var r : xmmword = zeros();
+  foreach (i from 0 to 1) {
+    let lo : range(0, 64) = i * 64;
+    let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
+    let elem : bits(64) = src[(lo + 63)..lo];
+    if c == 0 then r[(lo + 63)..lo] = elem
+    else {
+      let rc : range(1, 63) = 64 - c;
+      r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits(6, rc));
+    }
+  };
+  r
+}
+
+val evex_vprorq_256 : (ymmword, ymmword) -> ymmword
+function evex_vprorq_256(a, b) =
+  evex_vprorq_128(a[255..128], b[255..128]) @ evex_vprorq_128(a[127..0], b[127..0])
+
+val evex_vprorq_512 : (zmmword, zmmword) -> zmmword
+function evex_vprorq_512(a, b) =
+  evex_vprorq_256(a[511..256], b[511..256]) @ evex_vprorq_256(a[255..0], b[255..0])
+
+// =========================================================================
 // Shift by XMM count: count comes from low 64 bits of XMM register
 // Same functions as imm but count extracted from xmm src2[63:0]
 // =========================================================================
@@ -2690,9 +2791,8 @@ function dispatch_evex_int(op, pfx) = {
     }
   },
 
-  // 0F 72: Group 13 — shift dword/qword by imm8 (66, EVEX)
-  // /2=VPSRLD(W0)/VPSRLQ(W1), /4=VPSRAD(W0)/VPSRAQ(W1), /6=VPSLLD(W0)/VPSLLQ(W1)
-  // 0F 72: Group 13 — shift dword/qword by imm8 (66, EVEX)
+  // 0F 72: Group 13 — shift/rotate dword/qword by imm8 (66, EVEX)
+  // /0=VPRORD(W0)/VPRORQ(W1), /1=VPROLD(W0)/VPROLQ(W1)
   // /2=VPSRLD(W0)/VPSRLQ(W1), /4=VPSRAD(W0)/VPSRAQ(W1), /6=VPSLLD(W0)/VPSLLQ(W1)
   114 => {
     if mp != MP_66 then {
@@ -2707,6 +2807,24 @@ function dispatch_evex_int(op, pfx) = {
       if pfx.rex_w then {
         // W=1: qword operations
         match digit {
+          0 => { // VPRORQ imm
+            let c : bits(64) = zero_extend(imm);
+            let cv : xmmword = c @ c;
+            match pfx.evex_ll {
+              2 => { let cv512 : zmmword = cv @ cv @ cv @ cv; write_zmm(dst, evex_vprorq_512(read_zmm(src), cv512)); Ok() },
+              1 => { let cv256 : ymmword = cv @ cv; write_ymm(dst, evex_vprorq_256(read_ymm(src), cv256)); Ok() },
+              _ => { write_xmm(dst, evex_vprorq_128(read_xmm(src), cv)); Ok() },
+            }
+          },
+          1 => { // VPROLQ imm
+            let c : bits(64) = zero_extend(imm);
+            let cv : xmmword = c @ c;
+            match pfx.evex_ll {
+              2 => { let cv512 : zmmword = cv @ cv @ cv @ cv; write_zmm(dst, evex_vprolq_512(read_zmm(src), cv512)); Ok() },
+              1 => { let cv256 : ymmword = cv @ cv; write_ymm(dst, evex_vprolq_256(read_ymm(src), cv256)); Ok() },
+              _ => { write_xmm(dst, evex_vprolq_128(read_xmm(src), cv)); Ok() },
+            }
+          },
           2 => match pfx.evex_ll { // VPSRLQ imm
             2 => { write_zmm(dst, avx_psrlq_imm_512(read_zmm(src), count)); Ok() },
             1 => { write_ymm(dst, avx_psrlq_imm_256(read_ymm(src), count)); Ok() },
@@ -2727,6 +2845,24 @@ function dispatch_evex_int(op, pfx) = {
       } else {
         // W=0: dword operations
         match digit {
+          0 => { // VPRORD imm
+            let c : bits(32) = zero_extend(imm);
+            let cv : xmmword = c @ c @ c @ c;
+            match pfx.evex_ll {
+              2 => { let cv512 : zmmword = cv @ cv @ cv @ cv; write_zmm(dst, evex_vprord_512(read_zmm(src), cv512)); Ok() },
+              1 => { let cv256 : ymmword = cv @ cv; write_ymm(dst, evex_vprord_256(read_ymm(src), cv256)); Ok() },
+              _ => { write_xmm(dst, evex_vprord_128(read_xmm(src), cv)); Ok() },
+            }
+          },
+          1 => { // VPROLD imm
+            let c : bits(32) = zero_extend(imm);
+            let cv : xmmword = c @ c @ c @ c;
+            match pfx.evex_ll {
+              2 => { let cv512 : zmmword = cv @ cv @ cv @ cv; write_zmm(dst, evex_vprold_512(read_zmm(src), cv512)); Ok() },
+              1 => { let cv256 : ymmword = cv @ cv; write_ymm(dst, evex_vprold_256(read_ymm(src), cv256)); Ok() },
+              _ => { write_xmm(dst, evex_vprold_128(read_xmm(src), cv)); Ok() },
+            }
+          },
           2 => match pfx.evex_ll { // VPSRLD imm
             2 => { write_zmm(dst, avx_psrld_imm_512(read_zmm(src), count)); Ok() },
             1 => { write_ymm(dst, avx_psrld_imm_256(read_ymm(src), count)); Ok() },

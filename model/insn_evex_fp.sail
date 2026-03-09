@@ -718,6 +718,20 @@ val avx_cvtuqq2ps_8 : zmmword -> ymmword
 function avx_cvtuqq2ps_8(src) =
   avx_cvtuqq2ps_4(src[511..256]) @ avx_cvtuqq2ps_4(src[255..0])
 
+// VCVTQQ2PS: convert N i64 → N f32 (narrowing)
+
+val avx_cvtqq2ps_2 : xmmword -> bits(64)
+function avx_cvtqq2ps_2(src) =
+  __int64_to_f32(src[127..64]) @ __int64_to_f32(src[63..0])
+
+val avx_cvtqq2ps_4 : ymmword -> xmmword
+function avx_cvtqq2ps_4(src) =
+  avx_cvtqq2ps_2(src[255..128]) @ avx_cvtqq2ps_2(src[127..0])
+
+val avx_cvtqq2ps_8 : zmmword -> ymmword
+function avx_cvtqq2ps_8(src) =
+  avx_cvtqq2ps_4(src[511..256]) @ avx_cvtqq2ps_4(src[255..0])
+
 // VCVTUDQ2PD: convert N u32 → N f64 (widening)
 
 val avx_cvtudq2pd_2 : bits(64) -> xmmword
@@ -1623,18 +1637,25 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F 5B: VCVTDQ2PS (NP,W0) / VCVTPS2DQ (66,W0) / VCVTTPS2DQ (F3,W0)
-  // 0F 5B: VCVTDQ2PS (NP,W0) / VCVTPS2DQ (66,W0) / VCVTTPS2DQ (F3,W0)
+  // 0F 5B: VCVTDQ2PS (NP,W0) / VCVTQQ2PS (NP,W1) / VCVTPS2DQ (66,W0) / VCVTTPS2DQ (F3,W0)
   91 => {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match mp {
-      MP_NONE => { // VCVTDQ2PS
-        match pfx.evex_ll {
-          2 => { write_zmm(dst, avx_cvtdq2ps_512(evex_src_zmm(modrm, rm, pfx))); Ok() },
-          1 => { write_ymm(dst, avx_cvtdq2ps_256(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, avx_cvtdq2ps_128(evex_src_xmm(modrm, rm, pfx))); Ok() },
+      MP_NONE => {
+        if pfx.rex_w then { // VCVTQQ2PS: i64→f32 (narrowing, result half-width)
+          match pfx.evex_ll {
+            2 => { write_ymm(dst, avx_cvtqq2ps_8(evex_src_zmm(modrm, rm, pfx))); Ok() },
+            1 => { write_xmm(dst, avx_cvtqq2ps_4(evex_src_ymm(modrm, rm, pfx))); Ok() },
+            _ => { write_xmm(dst, zero_extend(avx_cvtqq2ps_2(evex_src_xmm(modrm, rm, pfx)))); Ok() },
+          }
+        } else { // VCVTDQ2PS: i32→f32
+          match pfx.evex_ll {
+            2 => { write_zmm(dst, avx_cvtdq2ps_512(evex_src_zmm(modrm, rm, pfx))); Ok() },
+            1 => { write_ymm(dst, avx_cvtdq2ps_256(evex_src_ymm(modrm, rm, pfx))); Ok() },
+            _ => { write_xmm(dst, avx_cvtdq2ps_128(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          }
         }
       },
       MP_66 => { // VCVTPS2DQ

@@ -185,6 +185,8 @@ set(KVM_CATEGORIES
   CRC32
   GFNI
   SHA
+  "EVEX rotate imm"
+  "EVEX FP conv"
 )
 
 foreach(cat ${KVM_CATEGORIES})

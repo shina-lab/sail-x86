@@ -2382,4 +2382,98 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // EVEX immediate rotate — VPROLD/Q, VPRORD/Q
+  // EVEX.128.66.0F.W0 72 /1 ib = VPROLD xmm(vvvv), xmm(r/m), imm8
+  // EVEX.128.66.0F.W1 72 /1 ib = VPROLQ xmm(vvvv), xmm(r/m), imm8
+  // EVEX.128.66.0F.W0 72 /0 ib = VPRORD xmm(vvvv), xmm(r/m), imm8
+  // EVEX.128.66.0F.W1 72 /0 ib = VPRORQ xmm(vvvv), xmm(r/m), imm8
+  // =====================================================================
+  cat = "EVEX rotate imm";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[2] = xmm_from_u32(0x12345678, 0x9ABCDEF0, 0x0F0F0F0F, 0x80000001);
+
+    // VPROLD xmm0, xmm2, 4
+    // P0=F1(mm=01), P1=7D(W=0,vvvv=~0=1111,pp=01), P2=08(128,no mask)
+    // ModRM: mod=11, reg=001(/1), rm=010(xmm2) = 0xCA, imm=4
+    add_xmm("vprold xmm0,xmm2,4",
+      {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xCA, 0x04}, s, 0x7);
+
+    // VPROLD xmm0, xmm2, 0 (no rotation)
+    add_xmm("vprold xmm0,xmm2,0",
+      {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xCA, 0x00}, s, 0x7);
+
+    // VPROLD xmm0, xmm2, 16
+    add_xmm("vprold xmm0,xmm2,16",
+      {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xCA, 0x10}, s, 0x7);
+
+    // VPRORD xmm0, xmm2, 4
+    // ModRM: mod=11, reg=000(/0), rm=010(xmm2) = 0xC2
+    add_xmm("vprord xmm0,xmm2,4",
+      {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xC2, 0x04}, s, 0x7);
+
+    // VPRORD xmm0, xmm2, 16
+    add_xmm("vprord xmm0,xmm2,16",
+      {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xC2, 0x10}, s, 0x7);
+
+    // VPROLQ xmm0, xmm2, 7
+    // P1=FD(W=1), same P0/P2
+    s.xmm[2] = xmm_from_u64(0x123456789ABCDEF0, 0x8000000000000001);
+    add_xmm("vprolq xmm0,xmm2,7",
+      {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xCA, 0x07}, s, 0x7);
+
+    // VPRORQ xmm0, xmm2, 7
+    add_xmm("vprorq xmm0,xmm2,7",
+      {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xC2, 0x07}, s, 0x7);
+
+    // VPROLQ xmm0, xmm2, 32 (rotate by half)
+    add_xmm("vprolq xmm0,xmm2,32",
+      {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xCA, 0x20}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX FP conv — VCVTQQ2PS (signed int64 → float32, narrowing)
+  // EVEX.NP.0F.W1 5B /r
+  // =====================================================================
+  cat = "EVEX FP conv";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VCVTQQ2PS xmm0, xmm2 (128-bit: 2 int64 → 2 float32, zero upper)
+    // EVEX: P0=F1(mm=01), P1=FC(W=1,vvvv=1111,pp=00 NP)→11111100, P2=08(128)
+    // Wait: P1 = W.~vvvv.1.pp = 1.1111.1.00 = 0xFC
+    // Opcode 0x5B, ModRM: mod=11, reg=000(xmm0), rm=010(xmm2) = 0xC2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[2] = xmm_from_u64(42, (uint64_t)-100);
+      add_xmm("vcvtqq2ps xmm0,xmm2 (128)",
+        {0x62, 0xF1, 0xFC, 0x08, 0x5B, 0xC2}, s, 0x7);
+    }
+
+    // VCVTQQ2PS xmm0, ymm2 (256-bit: 4 int64 → 4 float32)
+    // P2=28(256-bit: L'L=01) → 0.01.0.1.000 = 0x28
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[2] = xmm_from_u64(1000000, (uint64_t)-999999);
+      // ymm2 upper 128 = xmm[18] in our test infra
+      // Actually, in the KVM harness, we set ymm by writing to xmm[i] for low 128
+      // and the upper 128 is zero by default.
+      // For simplicity, just test 128-bit form (already above) and a basic 256-bit.
+      add_xmm("vcvtqq2ps xmm0,ymm2 (256)",
+        {0x62, 0xF1, 0xFC, 0x28, 0x5B, 0xC2}, s, 0x7);
+    }
+  }
 }

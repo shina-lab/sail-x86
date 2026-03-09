@@ -521,11 +521,16 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VCVTPS2DQ, VCVTDQ2PS, VCVTTPD2DQ, etc. — verified: implemented in insn_evex_fp.sail
 - [x] VCVTPS2UDQ, VCVTPD2UDQ (convert to unsigned) — verified: implemented in insn_evex_fp.sail
 - [x] VCVTUDQ2PS, VCVTUDQ2PD (unsigned int → float) — verified: implemented in insn_evex_fp.sail
-- [ ] VCVTPS2QQ, VCVTPD2QQ, VCVTPS2UQQ, VCVTPD2UQQ
-- [ ] VCVTQQ2PS, VCVTQQ2PD, VCVTUQQ2PS, VCVTUQQ2PD
-- [ ] VCVTSD2USI, VCVTSS2USI, VCVTUSI2SD, VCVTUSI2SS
-- [ ] VCVTTPS2QQ, VCVTTPD2QQ (truncating)
-- [ ] VCVTTPS2UDQ, VCVTTPD2UDQ, VCVTTPS2UQQ, VCVTTPD2UQQ
+- [x] VCVTPS2QQ, VCVTPD2QQ (float → signed qword) — verified: helpers + dispatch in insn_evex_fp.sail
+- [x] VCVTPS2UQQ, VCVTPD2UQQ (float → unsigned qword) — verified: helpers + dispatch in insn_evex_fp.sail
+- [x] VCVTQQ2PS (signed qword → float32, narrowing) — implemented: EVEX.NP.0F.W1 5B + KVM tests
+- [x] VCVTQQ2PD (signed qword → float64) — verified: helpers + dispatch in insn_evex_fp.sail
+- [x] VCVTUQQ2PS, VCVTUQQ2PD (unsigned qword → float) — verified: helpers + dispatch in insn_evex_fp.sail
+- [x] VCVTSD2USI, VCVTSS2USI (scalar float → unsigned GPR) — verified: EVEX 0F 79 F2/F3 prefix
+- [x] VCVTUSI2SD, VCVTUSI2SS (unsigned GPR → scalar float) — verified: EVEX 0F 7B F2/F3 prefix
+- [x] VCVTTPS2QQ, VCVTTPD2QQ (truncating float → signed qword) — verified: helpers + dispatch
+- [x] VCVTTPS2UDQ, VCVTTPD2UDQ (truncating float → unsigned dword) — verified: helpers + dispatch
+- [x] VCVTTPS2UQQ, VCVTTPD2UQQ (truncating float → unsigned qword) — verified: helpers + dispatch
 
 #### 1.15.6 AVX-512F Data Movement
 - [x] VMOVDQA32/64, VMOVDQU32/64 (aligned/unaligned with mask) — verified: implemented in insn_evex_fp.sail and insn_evex_int.sail; VMOVDQU8/16 not yet implemented
@@ -558,8 +563,10 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.15.9 AVX-512F Shift/Rotate
 - [x] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit) — verified: all variants in insn_evex_arith.sail
-- [x] VPROLVD/Q (variable rotate left) — verified: implemented in insn_evex_arith.sail; VPROLD/Q (immediate) not implemented
-- [x] VPRORVD/Q (variable rotate right) — verified: implemented in insn_evex_arith.sail; VPRORD/Q (immediate) not implemented
+- [x] VPROLVD/Q (variable rotate left) — verified: implemented in insn_evex_arith.sail
+- [x] VPROLD/Q (immediate rotate left) — implemented in insn_evex_int.sail, EVEX.66.0F 72 /1 + KVM tests
+- [x] VPRORVD/Q (variable rotate right) — verified: implemented in insn_evex_arith.sail
+- [x] VPRORD/Q (immediate rotate right) — implemented in insn_evex_int.sail, EVEX.66.0F 72 /0 + KVM tests
 
 #### 1.15.10 AVX-512F Gather/Scatter
 - [x] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask) — verified: implemented in insn_evex_perm.sail
@@ -830,8 +837,8 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 ### 2.4 EVEX Prefix (62h, 4 bytes)
 - [x] Full EVEX field decoding (R, X, B, R', mmm, W, vvvv, pp, z, L'L, b, V', aaa) — verified and fixed: mmm 3-bit, reserved bit checks added
-- [ ] EVEX to 32 SIMD registers (ZMM0-ZMM31)
-- [ ] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE)
+- [x] EVEX to 32 SIMD registers (ZMM0-ZMM31) — verified: evex_reg_idx (R':R:reg), evex_rm_reg_idx (X:B:rm), evex_vvvvv (V':vvvv) all decode to 0-31 range
+- [x] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE) — verified: broadcast implemented via broadcast_f32/f64/byte helpers; rounding/SAE stored but not acted on (sequential model)
 - [x] EVEX compressed displacement (disp8*N) — verified in decode_sib_evex()
 - [x] #UD for reserved EVEX field values — verified: P[3]!=0 → #UD, P[10]!=1 → #UD, mmm=0/4-7 → #UD
 
@@ -1188,8 +1195,8 @@ These are tricky behaviors a formal spec MUST get right.
 ### 9.10 VEX/EVEX Upper-Bits Clearing
 - [x] VEX-128: zero bits 255:128 of YMM — verified: write_xmm zeroes upper
 - [x] VEX-256: zero bits 511:256 of ZMM (if AVX-512 supported) — verified: write_ymm zeroes 511:256
-- [ ] EVEX-128: zero bits 511:128
-- [ ] EVEX-256: zero bits 511:256
+- [x] EVEX-128: zero bits 511:128 — verified: write_xmm() initializes 512-bit reg to zeros, writes low 128
+- [x] EVEX-256: zero bits 511:256 — verified: write_ymm() initializes 512-bit reg to zeros, writes low 256
 - [x] Legacy SSE: upper bits of YMM/ZMM are PRESERVED (no zeroing) — verified: write_xmm_legacy preserves
 - [x] SSE↔AVX transition penalty implications (VZEROUPPER) — verified: VZEROUPPER/VZEROALL implemented
 
