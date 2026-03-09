@@ -1,6 +1,6 @@
 #pragma once
 
-#include "integers.h"
+#include "../emu-shared/integers.h"
 #include <cmath>
 
 struct MXCSRState {

@@ -3,6 +3,7 @@
 
 add_library(x86_system_model
     x86_externals.cpp
+    ../emu-shared/x86_externals_common.cpp
     x86_phys_mem.cpp
     "${CMAKE_BINARY_DIR}/sail_x86_model.cpp"
     "${CMAKE_BINARY_DIR}/sail_x86_model.h"
@@ -11,6 +12,7 @@ add_library(x86_system_model
 target_include_directories(x86_system_model
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared"
         "${CMAKE_BINARY_DIR}"
 )
 
