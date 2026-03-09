@@ -3146,4 +3146,79 @@ void add_vex_tests(std::vector<TestCase> &tests) {
         {0xC4, 0xE3, 0x79, 0x1D, 0xC1, 0x03}, s, 0x3);
     }
   }
+
+  // =====================================================================
+  // FP precision conversions — VCVTPD2PS, VCVTPS2PD, VCVTSD2SS, VCVTSS2SD
+  // =====================================================================
+  cat = "FP conv prec";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VCVTPD2PS xmm0, xmm1 (128: 2×f64→2×f32, zero upper)
+    // VEX.128.66.0F.WIG 5A /r: C5 F9 5A C1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f64(2.5, 1.25);
+      add_xmm("vcvtpd2ps xmm0,xmm1 (128)",
+        {0xC5, 0xF9, 0x5A, 0xC1}, s, 0x7);
+    }
+
+    // VCVTPD2PS xmm0, ymm1 (256: 4×f64→4×f32)
+    // VEX.256.66.0F.WIG 5A /r: C5 FD 5A C1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f64(-3.75, 100.0);
+      // upper ymm1 is zero → 0.0f, 0.0f in high floats
+      add_xmm("vcvtpd2ps xmm0,ymm1 (256)",
+        {0xC5, 0xFD, 0x5A, 0xC1}, s, 0x7);
+    }
+
+    // VCVTPS2PD xmm0, xmm1 (128: 2×f32→2×f64)
+    // VEX.128.0F.WIG 5A /r: C5 F8 5A C1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f32(0.0f, 0.0f, -1.5f, 3.25f);
+      add_xmm("vcvtps2pd xmm0,xmm1 (128)",
+        {0xC5, 0xF8, 0x5A, 0xC1}, s, 0x7);
+    }
+
+    // VCVTSD2SS xmm0, xmm1, xmm2 (scalar f64→f32, preserve upper from xmm1)
+    // VEX.LIG.F2.0F.WIG 5A /r: C5 F3 5A C2
+    //   vvvv=0001(xmm1)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      double val = 2.718281828;
+      u64 dbits;
+      memcpy(&dbits, &val, 8);
+      s.xmm[1] = xmm_from_u32(0xDEAD0001, 0xDEAD0002, 0xDEAD0003, 0xDEAD0004);
+      s.xmm[2] = xmm_from_u64(0, dbits);
+      add_xmm("vcvtsd2ss xmm0,xmm1,xmm2",
+        {0xC5, 0xF3, 0x5A, 0xC2}, s, 0x7);
+    }
+
+    // VCVTSS2SD xmm0, xmm1, xmm2 (scalar f32→f64, preserve upper from xmm1)
+    // VEX.LIG.F3.0F.WIG 5A /r: C5 F2 5A C2
+    //   vvvv=0001(xmm1): ~0001 = 1110
+    //   P1 = R̄=1,vvvv=1110,L=0,pp=10(F3)
+    //   Wait, 2-byte VEX: C5 [R̄.vvvv.L.pp]
+    //   R̄=1, vvvv=1110, L=0, pp=10 → 1_1110_0_10 = 0xF2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float val = 3.14159f;
+      u32 fbits;
+      memcpy(&fbits, &val, 4);
+      s.xmm[1] = xmm_from_u64(0xBEEFCAFE12345678, 0x0000000000000000);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, fbits);
+      add_xmm("vcvtss2sd xmm0,xmm1,xmm2",
+        {0xC5, 0xF2, 0x5A, 0xC2}, s, 0x7);
+    }
+  }
 }

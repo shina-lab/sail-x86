@@ -194,6 +194,7 @@ set(KVM_CATEGORIES
   "EVEX FMA rounding"
   VPTERNLOGD
   F16C
+  "FP conv prec"
 )
 
 foreach(cat ${KVM_CATEGORIES})
