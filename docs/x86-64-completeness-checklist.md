@@ -1135,62 +1135,62 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 These are tricky behaviors a formal spec MUST get right.
 
 ### 9.1 Shift/Rotate Count Masking
-- [ ] 32-bit ops: count masked to 5 bits (& 0x1F)
-- [ ] 64-bit ops: count masked to 6 bits (& 0x3F)
-- [ ] OF defined only for count=1 shifts
-- [ ] Count=0 shifts: no flags modified
+- [x] 32-bit ops: count masked to 5 bits (& 0x1F) — verified in shift.sail
+- [x] 64-bit ops: count masked to 6 bits (& 0x3F) — verified in shift.sail
+- [x] OF defined only for count=1 shifts — verified
+- [x] Count=0 shifts: no flags modified — verified
 
 ### 9.2 REP String Operations
-- [ ] RCX=0 → no operation, no flags changed
-- [ ] REPE/REPNE with CMPS/SCAS: early termination on ZF mismatch
+- [x] RCX=0 → no operation, no flags changed — verified in string.sail
+- [x] REPE/REPNE with CMPS/SCAS: early termination on ZF mismatch — verified
 - [ ] Interruptibility between iterations
-- [ ] Address size determines whether CX/ECX/RCX is used
+- [x] Address size determines whether CX/ECX/RCX is used — verified
 
 ### 9.3 PUSH/POP RSP
-- [ ] PUSH RSP pushes the value of RSP before the push
-- [ ] POP RSP: value popped is the new RSP (not incremented after)
+- [x] PUSH RSP pushes the value of RSP before the push — verified + KVM tests
+- [x] POP RSP: value popped is the new RSP (not incremented after) — verified
 
 ### 9.4 MOV to SS
 - [ ] Inhibits interrupts for one instruction after MOV to SS
 
 ### 9.5 Division
-- [ ] DIV: #DE if quotient overflows or divisor=0
-- [ ] IDIV: #DE if quotient overflows or divisor=0
-- [ ] 8-bit DIV: AX / src → AL quotient, AH remainder
-- [ ] 16-bit DIV: DX:AX / src → AX quotient, DX remainder
-- [ ] etc. for 32/64-bit
+- [x] DIV: #DE if quotient overflows or divisor=0 — verified + KVM tests
+- [x] IDIV: #DE if quotient overflows or divisor=0 — verified + KVM tests
+- [x] 8-bit DIV: AX / src → AL quotient, AH remainder — verified
+- [x] 16-bit DIV: DX:AX / src → AX quotient, DX remainder — verified
+- [x] etc. for 32/64-bit — verified
 
 ### 9.6 IMUL Forms
-- [ ] 1-operand: signed widening multiply (same as MUL but signed)
-- [ ] 2-operand: dst = dst × src (truncated, OF/CF set if sign-extended result ≠ full result)
-- [ ] 3-operand: dst = src × imm (truncated, same OF/CF rule)
+- [x] 1-operand: signed widening multiply (same as MUL but signed) — verified + KVM tests
+- [x] 2-operand: dst = dst × src (truncated, OF/CF set if sign-extended result ≠ full result) — verified
+- [x] 3-operand: dst = src × imm (truncated, same OF/CF rule) — verified
 
 ### 9.7 BSF/BSR vs TZCNT/LZCNT
-- [ ] BSF/BSR: ZF=1 if source is 0, destination UNDEFINED
-- [ ] TZCNT/LZCNT: CF=1 if source is 0, result = operand bit size
-- [ ] On CPUs without BMI, TZCNT executes as BSF (F3 prefix ignored)
-- [ ] LZCNT without ABM: executes as BSR
+- [x] BSF/BSR: ZF=1 if source is 0, destination UNDEFINED — verified + KVM tests
+- [x] TZCNT/LZCNT: CF=1 if source is 0, result = operand bit size — verified + KVM tests
+- [x] On CPUs without BMI, TZCNT executes as BSF (F3 prefix ignored) — N/A (we always have BMI)
+- [x] LZCNT without ABM: executes as BSR — N/A (we always have ABM)
 
 ### 9.8 CPUID
-- [ ] Leaf 0: max basic leaf, vendor string
-- [ ] Leaf 1: family/model/stepping, feature flags (ECX, EDX)
-- [ ] Leaf 7: extended feature flags (structured)
-- [ ] Leaf 0x80000000-0x80000008: extended leaves
-- [ ] Must report feature bits consistent with implemented instructions
-- [ ] Invalid/unsupported leaves: return 0 or last valid leaf's data
+- [x] Leaf 0: max basic leaf, vendor string — delegated to __cpuid external
+- [x] Leaf 1: family/model/stepping, feature flags (ECX, EDX) — delegated to __cpuid external
+- [x] Leaf 7: extended feature flags (structured) — delegated to __cpuid external
+- [x] Leaf 0x80000000-0x80000008: extended leaves — delegated to __cpuid external
+- [x] Must report feature bits consistent with implemented instructions — host passthrough via __cpuid
+- [x] Invalid/unsupported leaves: return 0 or last valid leaf's data — handled by host CPUID
 
 ### 9.9 NOP Width
-- [ ] 1-byte NOP (0x90 = XCHG EAX,EAX)
-- [ ] Multi-byte NOP (0F 1F /0, various lengths up to 9 bytes)
-- [ ] In 64-bit mode, 0x90 is NOP (not XCHG EAX,EAX which would zero-extend)
+- [x] 1-byte NOP (0x90 = XCHG EAX,EAX) — verified: special-cased in dispatch, does not zero-extend
+- [x] Multi-byte NOP (0F 1F /0, various lengths up to 9 bytes) — verified: consumes ModR/M + SIB + disp
+- [x] In 64-bit mode, 0x90 is NOP (not XCHG EAX,EAX which would zero-extend) — verified correct
 
 ### 9.10 VEX/EVEX Upper-Bits Clearing
-- [ ] VEX-128: zero bits 255:128 of YMM
-- [ ] VEX-256: zero bits 511:256 of ZMM (if AVX-512 supported)
+- [x] VEX-128: zero bits 255:128 of YMM — verified: write_xmm zeroes upper
+- [x] VEX-256: zero bits 511:256 of ZMM (if AVX-512 supported) — verified: write_ymm zeroes 511:256
 - [ ] EVEX-128: zero bits 511:128
 - [ ] EVEX-256: zero bits 511:256
-- [ ] Legacy SSE: upper bits of YMM/ZMM are PRESERVED (no zeroing)
-- [ ] SSE↔AVX transition penalty implications (VZEROUPPER)
+- [x] Legacy SSE: upper bits of YMM/ZMM are PRESERVED (no zeroing) — verified: write_xmm_legacy preserves
+- [x] SSE↔AVX transition penalty implications (VZEROUPPER) — verified: VZEROUPPER/VZEROALL implemented
 
 ---
 
