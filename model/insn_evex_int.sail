@@ -3008,7 +3008,7 @@ function dispatch_evex_int(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, 2);
       let src1 = read_xmm(pfx.evex_vvvvv);
       let word_val : bits(16) = match rm {
         RM_reg(_) => read_gpr32(modrm_rm_reg(modrm, pfx))[15..0],

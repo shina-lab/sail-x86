@@ -3324,7 +3324,7 @@ function dispatch_evex_arith(op, pfx) = {
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write32(fixup_addr(addr), res); Ok() } } },
         _ => { let res = avx_pmovusqb_128(read_xmm(src));
-               let rm = decode_rm(modrm, pfx);
+               let rm = decode_rm_evex(modrm, pfx, 2);
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write16(fixup_addr(addr), res); Ok() } } },
       }
@@ -3597,8 +3597,7 @@ function dispatch_evex_arith(op, pfx) = {
           write_ymm(dst, avx_pmovsxbq_256(src)); Ok()
         },
         _ => {
-          // disp_n=2 is below decode_rm_evex minimum, use decode_rm
-          let rm = decode_rm(modrm, pfx);
+          let rm = decode_rm_evex(modrm, pfx, 2);
           let src : word = match rm {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(addr) => mem_read16(fixup_addr(addr)),
@@ -3619,7 +3618,7 @@ function dispatch_evex_arith(op, pfx) = {
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write32(fixup_addr(addr), res); Ok() } } },
         _ => { let res = avx_pmovsqb_128(read_xmm(src));
-               let rm = decode_rm(modrm, pfx);
+               let rm = decode_rm_evex(modrm, pfx, 2);
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write16(fixup_addr(addr), res); Ok() } } },
       }
@@ -3922,7 +3921,7 @@ function dispatch_evex_arith(op, pfx) = {
           write_ymm(dst, avx_pmovzxbq_256(src)); Ok()
         },
         _ => {
-          let rm = decode_rm(modrm, pfx);
+          let rm = decode_rm_evex(modrm, pfx, 2);
           let src : word = match rm {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(addr) => mem_read16(fixup_addr(addr)),
@@ -3943,7 +3942,7 @@ function dispatch_evex_arith(op, pfx) = {
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write32(fixup_addr(addr), res); Ok() } } },
         _ => { let res = avx_pmovqb_128(read_xmm(src));
-               let rm = decode_rm(modrm, pfx);
+               let rm = decode_rm_evex(modrm, pfx, 2);
                match rm { RM_reg(_) => { write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)); Ok() },
                            RM_mem(addr) => { mem_write16(fixup_addr(addr), res); Ok() } } },
       }
