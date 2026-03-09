@@ -4295,4 +4295,47 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vprorvq xmm0,xmm1,xmm2",
             {0x62, 0xF2, 0xF5, 0x08, 0x14, 0xC2}, s2, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPMADD52LUQ/HUQ (0F38 B4/B5) — 52-bit integer FMA
+  // =====================================================================
+  cat = "EVEX VPMADD52";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // dst(xmm0) = accumulator: {100, 200}
+    s.xmm[0] = xmm_from_u64(100, 200);
+    // src1(xmm1) = first multiplicand: {3, 7}
+    s.xmm[1] = xmm_from_u64(3, 7);
+    // src2(xmm2) = second multiplicand: {10, 20}
+    s.xmm[2] = xmm_from_u64(10, 20);
+
+    // VPMADD52LUQ xmm0, xmm1, xmm2
+    // EVEX.NDS.128.66.0F38.W1 B4 /r
+    // P1=0xF2(mm=10), P2=0xF5(W=1,vvvv=~1,pp=01), P3=0x08(xmm)
+    // modrm=11_000_010=0xC2 (xmm0,xmm2), vvvv=xmm1
+    // Expected: q0 = 100 + low52(3*10) = 100+30 = 130
+    //           q1 = 200 + low52(7*20) = 200+140 = 340
+    add_xmm("vpmadd52luq xmm0,xmm1,xmm2: small",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB4, 0xC2}, s, 0x7);
+
+    // VPMADD52HUQ xmm0, xmm1, xmm2
+    // Expected: q0 = 100 + high52(3*10) = 100 + 0 = 100 (product < 2^52)
+    //           q1 = 200 + high52(7*20) = 200 + 0 = 200
+    add_xmm("vpmadd52huq xmm0,xmm1,xmm2: small (high=0)",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB5, 0xC2}, s, 0x7);
+
+    // Test with larger values to exercise non-zero high part
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[0] = xmm_from_u64(0, 0);
+    // src1 = {2^51, 1}  src2 = {2, 1}
+    // Product of 2^51 * 2 = 2^52, so low52 = 0, high52 = 1
+    s2.xmm[1] = xmm_from_u64(1ULL << 51, 1);
+    s2.xmm[2] = xmm_from_u64(2, 1);
+    add_xmm("vpmadd52luq xmm0,xmm1,xmm2: 2^51*2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB4, 0xC2}, s2, 0x7);
+    add_xmm("vpmadd52huq xmm0,xmm1,xmm2: 2^51*2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB5, 0xC2}, s2, 0x7);
+  }
 }
