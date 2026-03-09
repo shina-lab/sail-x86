@@ -202,6 +202,9 @@ set(KVM_CATEGORIES
   "EVEX VPCMPEQQ/GTQQ xmm"
   "EVEX VPMINUW"
   "EVEX VPMULLD/Q"
+  "EVEX VPTERNLOGQ"
+  "EVEX VPABSQ"
+  "EVEX variable rotate"
 )
 
 foreach(cat ${KVM_CATEGORIES})

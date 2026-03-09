@@ -4197,4 +4197,102 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpmullq xmm0,xmm1,xmm2: overflow",
             {0x62, 0xF2, 0xF5, 0x08, 0x40, 0xC2}, s3, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPTERNLOGQ (0F3A 25, W=1) — qword ternary logic
+  // Verify W=1 dispatch (VPTERNLOGQ) vs W=0 (VPTERNLOGD, already tested)
+  // =====================================================================
+  cat = "EVEX VPTERNLOGQ";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u64(0xFFFF0000FFFF0000ULL, 0xF0F0F0F00F0F0F0FULL);
+    s.xmm[1] = xmm_from_u64(0xFF00FF00FF00FF00ULL, 0xCC33CC33CC33CC33ULL);
+    s.xmm[2] = xmm_from_u64(0xF0F0F0F0F0F0F0F0ULL, 0xAAAA5555AAAA5555ULL);
+
+    // VPTERNLOGQ xmm0, xmm1, xmm2, imm8
+    // EVEX.NDS.128.66.0F3A.W1 25 /r ib
+    // P0=0xF3(mmm=011), P1=0xF5(W=1,~vvvv=1110,1,pp=01), P2=0x08(128)
+    // modrm=0xC2 (xmm0,xmm2), vvvv=xmm1
+
+    // imm=0xF0: result = a (pass-through dst)
+    add_xmm("vpternlogq 0xF0 (a)",
+      {0x62, 0xF3, 0xF5, 0x08, 0x25, 0xC2, 0xF0}, s, 0x7);
+
+    // imm=0x96: 3-way XOR: a ^ b ^ c
+    add_xmm("vpternlogq 0x96 (a^b^c)",
+      {0x62, 0xF3, 0xF5, 0x08, 0x25, 0xC2, 0x96}, s, 0x7);
+
+    // imm=0x00: all zeros
+    add_xmm("vpternlogq 0x00 (zeros)",
+      {0x62, 0xF3, 0xF5, 0x08, 0x25, 0xC2, 0x00}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPABSQ (0F38 1F, W=1) — absolute value of packed qwords
+  // =====================================================================
+  cat = "EVEX VPABSQ";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // qword0 = -1 (0xFFFFFFFFFFFFFFFF), qword1 = -0x7FFFFFFFFFFFFFFF
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFFULL, 0x8000000000000001ULL);
+
+    // EVEX.128.66.0F38.W1 1F /r: VPABSQ xmm0, xmm1
+    // P1=0xF2(mm=10), P2=0xFD(W=1,vvvv=~0=1111,1,pp=01), P3=0x08(xmm)
+    // modrm=11_000_001=0xC1 (xmm0, xmm1)
+    add_xmm("vpabsq xmm0,xmm1: -1 and near-min",
+            {0x62, 0xF2, 0xFD, 0x08, 0x1F, 0xC1}, s, 0x7);
+
+    // Test with positive values (should be unchanged)
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(42, 0x7FFFFFFFFFFFFFFFULL);
+    add_xmm("vpabsq xmm0,xmm1: positive values",
+            {0x62, 0xF2, 0xFD, 0x08, 0x1F, 0xC1}, s2, 0x7);
+
+    // Test with INT64_MIN (0x8000000000000000) - result should be 0x8000000000000000
+    // (same as PABSD with INT32_MIN, abs overflows)
+    ArchState s3;
+    s3.rflags = 0x2;
+    s3.xmm[1] = xmm_from_u64(0x8000000000000000ULL, 0ULL);
+    add_xmm("vpabsq xmm0,xmm1: INT64_MIN",
+            {0x62, 0xF2, 0xFD, 0x08, 0x1F, 0xC1}, s3, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPROLVD/VPRORVD (0F38 15/14) — variable rotate dwords
+  // =====================================================================
+  cat = "EVEX variable rotate";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // src dwords: {0x12345678, 0x80000001, 0xFF00FF00, 0x00000001}
+    s.xmm[1] = xmm_from_u32(0x12345678, 0x80000001, 0xFF00FF00, 0x00000001);
+    // rotate counts: {4, 1, 8, 0}
+    s.xmm[2] = xmm_from_u32(4, 1, 8, 0);
+
+    // EVEX.NDS.128.66.0F38.W0 15 /r: VPROLVD xmm0, xmm1, xmm2
+    // P1=0xF2(mm=10), P2=0x75(W=0,vvvv=~1,pp=01), P3=0x08(xmm)
+    // modrm=11_000_010=0xC2 (xmm0, xmm2)
+    add_xmm("vprolvd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x15, 0xC2}, s, 0x7);
+
+    // EVEX.NDS.128.66.0F38.W0 14 /r: VPRORVD xmm0, xmm1, xmm2
+    add_xmm("vprorvd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x14, 0xC2}, s, 0x7);
+
+    // VPROLVQ: W=1 variant
+    // P2=0xF5(W=1,vvvv=~1,pp=01)
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(0x123456789ABCDEF0ULL, 0x8000000000000001ULL);
+    s2.xmm[2] = xmm_from_u64(4, 1);
+    add_xmm("vprolvq xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x15, 0xC2}, s2, 0x7);
+
+    // VPRORVQ: W=1 variant
+    add_xmm("vprorvq xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x14, 0xC2}, s2, 0x7);
+  }
 }
