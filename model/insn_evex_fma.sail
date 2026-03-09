@@ -794,7 +794,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then { // VPGATHERDQ: dword indices, qword elements
         match pfx.evex_ll {
           2 => exec_gather_d64_512(dst, vsib, pfx.evex_aaa),
@@ -819,7 +819,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then { // VPGATHERQQ: qword indices, qword elements
         match pfx.evex_ll {
           2 => exec_gather_q64_512(dst, vsib, pfx.evex_aaa),
@@ -844,7 +844,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then { // VGATHERDPD: dword indices, f64 elements
         match pfx.evex_ll {
           2 => exec_gather_d64_512(dst, vsib, pfx.evex_aaa),
@@ -869,7 +869,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then { // VGATHERQPD: qword indices, f64 elements
         match pfx.evex_ll {
           2 => exec_gather_q64_512(dst, vsib, pfx.evex_aaa),
@@ -1138,7 +1138,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let src = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then {
         match pfx.evex_ll {
           2 => exec_scatter_d64_512(src, vsib, pfx.evex_aaa),
@@ -1163,7 +1163,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let src = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then {
         match pfx.evex_ll {
           2 => exec_scatter_q64_512(src, vsib, pfx.evex_aaa),
@@ -1188,7 +1188,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let src = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then {
         match pfx.evex_ll {
           2 => exec_scatter_d64_512(src, vsib, pfx.evex_aaa),
@@ -1213,7 +1213,7 @@ function dispatch_evex_fma(op, pfx) = {
     } else {
       let modrm = fetch_byte();
       let src = evex_reg_idx(modrm, pfx);
-      let vsib = decode_vsib_evex(modrm, pfx, 4);
+      let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       if pfx.rex_w then {
         match pfx.evex_ll {
           2 => exec_scatter_q64_512(src, vsib, pfx.evex_aaa),
