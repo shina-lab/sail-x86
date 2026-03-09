@@ -4655,4 +4655,92 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpdpwssds xmm0,xmm1,xmm2: saturation",
             {0x62, 0xF2, 0x75, 0x08, 0x53, 0xC2}, s, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VGETEXPPS (0F38 42) — extract biased exponent from float32
+  // =====================================================================
+  cat = "EVEX VGETEXPPS";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VGETEXPPS xmm0, xmm1
+    // Returns floor(log2(|src|)) for each float32 element
+    // 1.0 → 0.0, 2.0 → 1.0, 4.0 → 2.0, 0.5 → -1.0
+    s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 4.0f, 0.5f);
+    // EVEX.128.66.0F38.W0 42 /r  modrm=C1 (xmm0,xmm1)
+    // P0=0xF2(0F38), P1=0x7D(W=0,vvvv=~0=1111,pp=01), P2=0x08
+    add_xmm("vgetexpps xmm0,xmm1: 1,2,4,0.5",
+            {0x62, 0xF2, 0x7D, 0x08, 0x42, 0xC1}, s, 0x3);
+
+    // 8.0 → 3.0, 0.25 → -2.0, denormal, inf
+    s.xmm[1] = xmm_from_f32(8.0f, 0.25f, 1.0e-40f, INFINITY);
+    add_xmm("vgetexpps xmm0,xmm1: 8,0.25,denorm,inf",
+            {0x62, 0xF2, 0x7D, 0x08, 0x42, 0xC1}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VSCALEFPS (0F38 2C) — scale float32 by integer power of 2
+  // =====================================================================
+  cat = "EVEX VSCALEFPS";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VSCALEFPS xmm0, xmm1, xmm2: dst = src1 * 2^floor(src2)
+    // 1.0 * 2^2 = 4.0, 3.0 * 2^0 = 3.0, 0.5 * 2^3 = 4.0, 1.0 * 2^(-1) = 0.5
+    s.xmm[1] = xmm_from_f32(1.0f, 3.0f, 0.5f, 1.0f);
+    s.xmm[2] = xmm_from_f32(2.0f, 0.0f, 3.0f, -1.0f);
+    // EVEX.NDS.128.66.0F38.W0 2C /r  modrm=C2 (xmm0,xmm2), vvvv=xmm1
+    add_xmm("vscalefps xmm0,xmm1,xmm2: basic",
+            {0x62, 0xF2, 0x75, 0x08, 0x2C, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VRNDSCALEPS (0F3A 08) — round to fixed fraction bits
+  // =====================================================================
+  cat = "EVEX VRNDSCALEPS";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    s.xmm[1] = xmm_from_f32(1.5f, 2.3f, -1.7f, 3.0f);
+    // VRNDSCALEPS xmm0, xmm1, imm8
+    // imm8[3:0] = rounding mode: 0=nearest, 1=floor, 2=ceil, 3=truncate
+    // (when imm8[2]=0, uses imm8[1:0] for rounding mode)
+    // EVEX.128.66.0F3A.W0 08 /r imm8
+    // P0=0xF3(0F3A), P1=0x7D(W=0,vvvv=~0,pp=01), P2=0x08, modrm=C1, imm8
+    // Round nearest (0x00): 1.5→2.0, 2.3→2.0, -1.7→-2.0, 3.0→3.0
+    add_xmm("vrndscaleps xmm0,xmm1,0: nearest",
+            {0x62, 0xF3, 0x7D, 0x08, 0x08, 0xC1, 0x00}, s, 0x3);
+    // Round floor (0x01): 1.5→1.0, 2.3→2.0, -1.7→-2.0, 3.0→3.0
+    add_xmm("vrndscaleps xmm0,xmm1,1: floor",
+            {0x62, 0xF3, 0x7D, 0x08, 0x08, 0xC1, 0x01}, s, 0x3);
+    // Round ceil (0x02): 1.5→2.0, 2.3→3.0, -1.7→-1.0, 3.0→3.0
+    add_xmm("vrndscaleps xmm0,xmm1,2: ceil",
+            {0x62, 0xF3, 0x7D, 0x08, 0x08, 0xC1, 0x02}, s, 0x3);
+    // Round truncate (0x03): 1.5→1.0, 2.3→2.0, -1.7→-1.0, 3.0→3.0
+    add_xmm("vrndscaleps xmm0,xmm1,3: truncate",
+            {0x62, 0xF3, 0x7D, 0x08, 0x08, 0xC1, 0x03}, s, 0x3);
+  }
+
+  // =====================================================================
+  // EVEX VREDUCEPS (0F3A 56) — reduce float range
+  // =====================================================================
+  cat = "EVEX VREDUCEPS";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // VREDUCEPS: dst = src - round(src) * 2^(-M), where M = imm8[7:4]
+    // For imm8=0x00 (M=0, nearest): reduces to src - round_nearest(src)
+    // This gives the fractional part (nearest rounding)
+    s.xmm[1] = xmm_from_f32(1.5f, 2.3f, -1.7f, 3.0f);
+    // EVEX.128.66.0F3A.W0 56 /r imm8
+    add_xmm("vreduceps xmm0,xmm1,0: basic",
+            {0x62, 0xF3, 0x7D, 0x08, 0x56, 0xC1, 0x00}, s, 0x3);
+    // imm8=0x03 (M=0, RS=0, RC=11=truncate): src - trunc(src) = fractional part
+    add_xmm("vreduceps xmm0,xmm1,0x03: truncate frac",
+            {0x62, 0xF3, 0x7D, 0x08, 0x56, 0xC1, 0x03}, s, 0x3);
+  }
 }

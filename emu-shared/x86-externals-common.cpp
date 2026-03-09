@@ -2113,8 +2113,9 @@ u64 Model::z__f64_exp2(u64 a) {
 u64 Model::z__f32_rndscale(u64 a, u64 imm) {
   float fa;
   memcpy(&fa, &a, 4);
-  int rc = (imm >> 2) & 3;
-  // Use host rounding for now (simplified)
+  // imm8[3] (RS): 0 = use imm8[1:0] for rounding, 1 = use MXCSR.RC
+  // imm8[1:0] (RC): 00=RN, 01=RD, 10=RU, 11=RZ
+  int rc = (imm & 8) ? 0 : (imm & 3);  // TODO: read MXCSR.RC when RS=1
   float result;
   switch (rc) {
   case 0: result = nearbyintf(fa); break;  // round to nearest
@@ -2131,7 +2132,7 @@ u64 Model::z__f32_rndscale(u64 a, u64 imm) {
 u64 Model::z__f64_rndscale(u64 a, u64 imm) {
   double da;
   memcpy(&da, &a, 8);
-  int rc = (imm >> 2) & 3;
+  int rc = (imm & 8) ? 0 : (imm & 3);
   double result;
   switch (rc) {
   case 0: result = nearbyint(da); break;
