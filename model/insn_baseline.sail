@@ -417,92 +417,91 @@ function dispatch_2byte_gpr(op, pfx) = {
           }
         },
         _ => {
-          // Memory-operand forms (mod != 11b)
-          if mod_field != 3 then {
-            match reg_field {
-              // 0F 01 /0: SGDT m — Store GDTR
-              0 => {
-                let rm = decode_rm(modrm, pfx);
-                match rm {
-                  RM_mem(addr) => {
-                    mem_write16(addr, GDTR_limit);
-                    mem_write64(addr + 2, GDTR_base);
-                    Ok()
-                  },
-                  _ => raise_UD(),
-                }
-              },
-              // 0F 01 /1: SIDT m — Store IDTR
-              1 => {
-                let rm = decode_rm(modrm, pfx);
-                match rm {
-                  RM_mem(addr) => {
-                    mem_write16(addr, IDTR_limit);
-                    mem_write64(addr + 2, IDTR_base);
-                    Ok()
-                  },
-                  _ => raise_UD(),
-                }
-              },
-              // 0F 01 /2: LGDT m — Load GDTR (requires CPL=0)
-              2 => {
-                if cur_cpl != 0 then raise_GP0()
-                else {
-                  let rm = decode_rm(modrm, pfx);
-                  match rm {
-                    RM_mem(addr) => {
-                      GDTR_limit = mem_read16(addr);
-                      GDTR_base = mem_read64(addr + 2);
-                      Ok()
-                    },
-                    _ => raise_UD(),
-                  }
-                }
-              },
-              // 0F 01 /3: LIDT m — Load IDTR (requires CPL=0)
-              3 => {
-                if cur_cpl != 0 then raise_GP0()
-                else {
-                  let rm = decode_rm(modrm, pfx);
-                  match rm {
-                    RM_mem(addr) => {
-                      IDTR_limit = mem_read16(addr);
-                      IDTR_base = mem_read64(addr + 2);
-                      Ok()
-                    },
-                    _ => raise_UD(),
-                  }
-                }
-              },
-              // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
-              6 => {
-                if cur_cpl != 0 then raise_GP0()
-                else {
-                  let rm = decode_rm(modrm, pfx);
-                  let msw : word = match rm {
-                    RM_reg(r) => read_gpr16(r),
-                    RM_mem(addr) => mem_read16(addr),
-                  };
-                  // LMSW sets low 4 bits of CR0, cannot clear PE once set
-                  var new_cr0 = CR0;
-                  new_cr0[3..0] = msw[3..0] | CR0[3..0];
-                  CR0 = new_cr0;
-                  Ok()
-                }
-              },
-              // 0F 01 /7: INVLPG m — Invalidate TLB Entry (requires CPL=0)
-              7 => {
-                if cur_cpl != 0 then raise_GP0()
-                else {
-                  let rm = decode_rm(modrm, pfx);
-                  __tlb_flush();
-                  Ok()
-                }
+          // Group 7: dispatch by reg_field, then check memory vs register
+          let rm = decode_rm(modrm, pfx);
+          match reg_field {
+            // 0F 01 /0: SGDT m — Store GDTR (memory only)
+            0 => match rm {
+              RM_mem(addr) => {
+                mem_write16(addr, GDTR_limit);
+                mem_write64(addr + 2, GDTR_base);
+                Ok()
               },
               _ => raise_UD(),
-            }
-          } else {
-            raise_UD()
+            },
+            // 0F 01 /1: SIDT m — Store IDTR (memory only)
+            1 => match rm {
+              RM_mem(addr) => {
+                mem_write16(addr, IDTR_limit);
+                mem_write64(addr + 2, IDTR_base);
+                Ok()
+              },
+              _ => raise_UD(),
+            },
+            // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
+            2 => {
+              if cur_cpl != 0 then raise_GP0()
+              else match rm {
+                RM_mem(addr) => {
+                  GDTR_limit = mem_read16(addr);
+                  GDTR_base = mem_read64(addr + 2);
+                  Ok()
+                },
+                _ => raise_UD(),
+              }
+            },
+            // 0F 01 /3: LIDT m — Load IDTR (memory only, requires CPL=0)
+            3 => {
+              if cur_cpl != 0 then raise_GP0()
+              else match rm {
+                RM_mem(addr) => {
+                  IDTR_limit = mem_read16(addr);
+                  IDTR_base = mem_read64(addr + 2);
+                  Ok()
+                },
+                _ => raise_UD(),
+              }
+            },
+            // 0F 01 /4: SMSW r/m16 — Store Machine Status Word
+            // No privilege check required (accessible from any CPL).
+            // SDM: stores low 16 bits of CR0 to r/m16. With 32-bit
+            // register operand, stores low 32 bits; with 64-bit, all 64.
+            4 => match rm {
+              RM_reg(r) => {
+                let os = get_operand_size(pfx);
+                match os {
+                  OS16 => write_gpr16(r, CR0[15..0]),
+                  OS64 => write_gpr64(r, CR0),
+                  _    => write_gpr32(r, CR0[31..0]),
+                };
+                Ok()
+              },
+              RM_mem(addr) => { mem_write16(addr, CR0[15..0]); Ok() },
+            },
+            // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
+            6 => {
+              if cur_cpl != 0 then raise_GP0()
+              else {
+                let msw : word = match rm {
+                  RM_reg(r) => read_gpr16(r),
+                  RM_mem(addr) => mem_read16(addr),
+                };
+                // LMSW sets low 4 bits of CR0, cannot clear PE once set
+                var new_cr0 = CR0;
+                new_cr0[3..0] = msw[3..0] | CR0[3..0];
+                CR0 = new_cr0;
+                Ok()
+              }
+            },
+            // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
+            7 => {
+              if cur_cpl != 0 then raise_GP0()
+              else match rm {
+                RM_mem(_) => { __tlb_flush(); Ok() },
+                _ => raise_UD(),
+              }
+            },
+            _ => raise_UD(),
           }
         },
       }

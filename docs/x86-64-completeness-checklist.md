@@ -200,7 +200,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] FWAIT/WAIT (wait for pending FPU exceptions) — verified: opcode 9B
 
 #### 1.2.7 x87 State Save/Restore (SSE era)
-- [ ] FXSAVE, FXRSTOR (save/restore x87+SSE state)
+- [x] FXSAVE, FXRSTOR (save/restore x87+SSE state) — verified: 0F AE /0 (FXSAVE), /1 (FXRSTOR), REX.W variants
 
 ### 1.3 MMX (legacy, 64-bit packed integer in mm0-mm7)
 
@@ -688,47 +688,50 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] XACQUIRE, XRELEASE (HLE prefixes)
 
 ### 1.24 XSAVE State Management
-- [ ] XSAVE, XSAVEC, XSAVEOPT, XSAVES
-- [ ] XRSTOR, XRSTORS
-- [ ] XGETBV, XSETBV (get/set extended control register XCR0)
+- [x] XSAVE (0F AE /4), XRSTOR (0F AE /5) — verified: delegates to external C++
+- [ ] XSAVEC, XSAVEOPT, XSAVES (extended XSAVE variants)
+- [ ] XRSTORS
+- [x] XGETBV (get extended control register XCR0) — verified: 0F 01 D0, returns 0xE7 for XCR0
+- [ ] XSETBV (set extended control register XCR0)
 
 ### 1.25 System Instructions
 
 #### 1.25.1 Descriptor Table
-- [ ] LGDT, LIDT (load GDT/IDT register)
-- [ ] SGDT, SIDT (store GDT/IDT register)
-- [ ] LLDT, SLDT (load/store LDT register)
-- [ ] LTR, STR (load/store task register)
+- [x] LGDT, LIDT (load GDT/IDT register) — verified: memory-only, CPL=0 required
+- [x] SGDT, SIDT (store GDT/IDT register) — verified: memory-only, no privilege check
+- [x] LLDT, SLDT (load/store LDT register) — verified: 0F 00 /0 (SLDT), /2 (LLDT)
+- [x] LTR, STR (load/store task register) — verified: 0F 00 /1 (STR), /3 (LTR) with GDT descriptor parsing
 - [ ] ARPL (adjust RPL, invalid in 64-bit mode)
 - [ ] LAR (load access rights)
 - [ ] LSL (load segment limit)
 - [ ] VERR, VERW (verify segment for read/write)
 
 #### 1.25.2 Control Registers
-- [ ] MOV CRn (CR0, CR2, CR3, CR4, CR8)
+- [x] MOV CRn (CR0, CR2, CR3, CR4, CR8) — previously verified
 - [ ] MOV DRn (DR0-DR3, DR6, DR7)
-- [ ] LMSW, SMSW (load/store machine status word — CR0 low 16)
-- [ ] CLTS (clear TS flag in CR0)
+- [x] LMSW, SMSW (load/store machine status word — CR0 low 16) — verified: LMSW CPL=0, SMSW any CPL; implemented SMSW reg/mem forms
+- [x] CLTS (clear TS flag in CR0) — verified: 0F 06, CPL=0 required
 
 #### 1.25.3 MSR
-- [ ] RDMSR, WRMSR (read/write model-specific registers)
+- [x] RDMSR, WRMSR (read/write model-specific registers) — verified: special handling for EFER, FS/GS/KERNEL_GS_BASE
 
 #### 1.25.4 Cache/Memory Management
-- [ ] INVLPG (invalidate TLB entry)
+- [x] INVLPG (invalidate TLB entry) — verified: 0F 01 /7 memory-only, CPL=0
 - [ ] INVPCID (invalidate process-context identifier)
 - [ ] WBINVD, WBNOINVD (write-back and invalidate cache)
-- [ ] CLFLUSH, CLFLUSHOPT, CLWB (cache-line flush/writeback)
+- [x] CLFLUSH, CLFLUSHOPT, CLWB (cache-line flush/writeback) — NOP in sequential model (0F AE /7 mem)
 - [ ] CLDEMOTE (cache-line demote)
-- [ ] PREFETCHH (prefetch to cache hierarchy)
-- [ ] PREFETCHW (prefetch for write, 3DNow!/AMD)
+- [x] PREFETCHH (prefetch to cache hierarchy) — NOP (0F 18 range, multi-byte NOP)
+- [x] PREFETCHW (prefetch for write, 3DNow!/AMD) — NOP
 - [ ] PREFETCHWT1 (prefetch with write intent to L2)
-- [ ] LFENCE, SFENCE, MFENCE (memory fences)
-- [ ] MOVNTI (non-temporal store, 32/64-bit)
-- [ ] MOVNTDQ, MOVNTPD, MOVNTPS, MOVNTQ (non-temporal SIMD stores)
-- [ ] MOVNTDQA (non-temporal aligned load)
+- [x] LFENCE, SFENCE, MFENCE (memory fences) — verified: NOP in sequential model (0F AE /5,/6,/7 mod=11)
+- [x] MOVNTI (non-temporal store, 32/64-bit) — verified: 0F C3
+- [x] MOVNTDQ, MOVNTPD, MOVNTPS (non-temporal SIMD stores) — verified in SSE dispatch
+- [ ] MOVNTQ (MMX non-temporal store)
+- [x] MOVNTDQA (non-temporal aligned load) — verified in SSE dispatch
 - [ ] MOVDIR64B (64-byte direct store)
 - [ ] MOVDIRI (direct store)
-- [ ] SERIALIZE (execution serialization)
+- [x] SERIALIZE (execution serialization) — verified: 0F 01 E8, NOP in sequential model
 
 #### 1.25.5 Task/Interrupt
 - [x] SWAPGS (swap GS base) — verified correct
@@ -738,9 +741,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] RSM (resume from system management mode)
 
 #### 1.25.6 Privilege
-- [ ] STI, CLI (interrupt flag)
-- [ ] STAC, CLAC (alignment check in SMAP)
-- [ ] RDPKRU, WRPKRU (protection key rights)
+- [x] STI, CLI (interrupt flag) — verified: FA (CLI), FB (STI)
+- [x] STAC, CLAC (alignment check in SMAP) — verified: 0F 01 CA (CLAC), 0F 01 CB (STAC)
+- [x] RDPKRU, WRPKRU (protection key rights) — verified: 0F 01 EE/EF, returns 0 (no PKU)
 - [ ] RDPMC (read performance counter)
 - [ ] RDPID (read processor ID)
 
