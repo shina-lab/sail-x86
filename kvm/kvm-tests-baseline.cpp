@@ -972,5 +972,67 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   fl.rflags = 0x2 | FL_CF | FL_PF | FL_SF;
   fl.rax = 0;
   add("lahf+sahf", {0x9F, 0x9E}, fl, FL_ALL);
+
+  // =====================================================================
+  // LEA — basic and address-size override (67h prefix)
+  // =====================================================================
+  cat = "LEA";
+
+  // LEA RAX, [RBX + RCX]  =>  48 8D 04 0B
+  {
+    ArchState s = {};
+    s.rbx = 0x1000;
+    s.rcx = 0x200;
+    add("lea rax,[rbx+rcx]", {0x48, 0x8D, 0x04, 0x0B}, s, FL_NONE);
+    // expect RAX = 0x1200
+  }
+
+  // LEA EAX, [RBX + RCX]  =>  8D 04 0B  (32-bit operand size, 64-bit address)
+  {
+    ArchState s = {};
+    s.rbx = 0x100000000;
+    s.rcx = 0x200000000;
+    add("lea eax,[rbx+rcx]", {0x8D, 0x04, 0x0B}, s, FL_NONE);
+    // expect RAX = low32(0x300000000) = 0x00000000, zero-extended
+  }
+
+  // LEA RAX, [EBX + ECX]  =>  67 48 8D 04 0B  (64-bit operand, 32-bit address)
+  // Address computed using 32-bit registers, truncated to 32 bits, zero-extended
+  {
+    ArchState s = {};
+    s.rbx = 0x0000000100001000;  // EBX = 0x00001000
+    s.rcx = 0x0000000200000200;  // ECX = 0x00000200
+    add("lea rax,[ebx+ecx] 67h", {0x67, 0x48, 0x8D, 0x04, 0x0B}, s, FL_NONE);
+    // expect RAX = zero_extend(EBX + ECX) = 0x00001200
+    // NOT 0x0000000300001200 (which would happen without truncation)
+  }
+
+  // LEA EAX, [EBX + ECX]  =>  67 8D 04 0B  (32-bit operand, 32-bit address)
+  {
+    ArchState s = {};
+    s.rbx = 0xFFFFFFFF00001000;
+    s.rcx = 0xFFFFFFFF00000200;
+    add("lea eax,[ebx+ecx] 67h", {0x67, 0x8D, 0x04, 0x0B}, s, FL_NONE);
+    // expect RAX = zero_extend(0x00001200) = 0x00001200
+  }
+
+  // LEA RAX, [EBX + ECX] with overflow in 32-bit address calculation
+  // EBX=0xFFFFFF00, ECX=0x00000200 => 32-bit sum wraps to 0x00000100
+  {
+    ArchState s = {};
+    s.rbx = 0xFFFFFF00;
+    s.rcx = 0x00000200;
+    add("lea rax,[ebx+ecx] 67h wrap", {0x67, 0x48, 0x8D, 0x04, 0x0B}, s, FL_NONE);
+    // expect RAX = 0x00000100 (wrapped at 32 bits)
+  }
+
+  // LEA RAX, [EBX + ECX*4 + 0x10]  =>  67 48 8D 44 8B 10
+  {
+    ArchState s = {};
+    s.rbx = 0x0000000100000100;  // EBX = 0x00000100
+    s.rcx = 0x0000000200000008;  // ECX = 0x00000008
+    add("lea rax,[ebx+ecx*4+0x10] 67h", {0x67, 0x48, 0x8D, 0x44, 0x8B, 0x10}, s, FL_NONE);
+    // expect RAX = zero_extend(0x100 + 0x008*4 + 0x10) = 0x130
+  }
 }
 

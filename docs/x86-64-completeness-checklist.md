@@ -1,0 +1,1232 @@
+# x86-64 ISA Completeness Checklist
+
+Derived from Intel SDM (835 instruction pages, 1208 unique mnemonics).
+Each item is testable: verify the Sail spec implements it, or explicitly
+documents it as out-of-scope. Refer to the SDM for exact semantics.
+
+---
+
+## Part 1: Instruction Coverage by ISA Extension
+
+For each instruction: verify (a) it decodes correctly for all valid
+opcode/operand-size/addressing-mode combinations listed in SDM, (b) it
+computes the correct result, (c) it sets flags per SDM, (d) 64-bit mode
+validity matches SDM (some are invalid in 64-bit mode).
+
+### 1.1 General-Purpose Integer (base x86-64)
+
+#### 1.1.1 Data Transfer
+- [ ] MOV (reg/mem/imm, all operand sizes 8/16/32/64)
+- [ ] MOV to/from control registers (MOV CRn) [mov-1 in SDM]
+- [ ] MOV to/from debug registers (MOV DRn) [mov-2 in SDM]
+- [ ] MOVSX, MOVSXD (sign-extend 8→16/32/64, 16→32/64, 32→64)
+- [ ] MOVZX (zero-extend 8→16/32/64, 16→32/64)
+- [ ] MOVBE (byte-swap load/store, MOVBE extension)
+- [ ] XCHG (reg-reg, reg-mem; implicit LOCK on memory)
+- [ ] XADD (exchange and add)
+- [ ] CMPXCHG (compare and exchange, 8/16/32/64)
+- [ ] CMPXCHG8B, CMPXCHG16B (8-byte/16-byte compare-and-exchange)
+- [ ] BSWAP (byte-swap 32/64)
+- [ ] XLAT, XLATB (table lookup translation)
+- [ ] CMOVcc (all 16 conditions, 16/32/64-bit)
+
+#### 1.1.2 Stack Operations
+- [ ] PUSH (reg, mem, imm8, imm16/32; 16/64-bit operand sizes in 64-bit mode)
+- [ ] POP (reg, mem; 16/64-bit in 64-bit mode)
+- [ ] PUSHF, PUSHFQ (push flags)
+- [ ] POPF, POPFQ (pop flags)
+- [ ] PUSHA, PUSHAD (invalid in 64-bit mode — must #UD)
+- [ ] POPA, POPAD (invalid in 64-bit mode — must #UD)
+- [ ] ENTER (create stack frame, nesting levels 0-31)
+- [ ] LEAVE (destroy stack frame)
+
+#### 1.1.3 Arithmetic
+- [ ] ADD (all operand size/type combinations, flag effects)
+- [ ] ADC (add with carry)
+- [ ] SUB (subtract)
+- [ ] SBB (subtract with borrow)
+- [ ] INC (no CF modification)
+- [ ] DEC (no CF modification)
+- [ ] NEG (two's complement negate)
+- [ ] CMP (subtract without storing)
+- [ ] MUL (unsigned multiply, 8/16/32/64-bit; widening to double-size)
+- [ ] IMUL (signed multiply — 1-operand widening, 2-operand, 3-operand forms)
+- [ ] DIV (unsigned divide, 8/16/32/64-bit; #DE on overflow/zero)
+- [ ] IDIV (signed divide; #DE on overflow/zero)
+
+#### 1.1.4 Sign/Zero Extension of Accumulators
+- [ ] CBW (AL→AX), CWDE (AX→EAX), CDQE (EAX→RAX)
+- [ ] CWD (AX→DX:AX), CDQ (EAX→EDX:EAX), CQO (RAX→RDX:RAX)
+
+#### 1.1.5 Logical
+- [ ] AND, OR, XOR (all operand combinations; OF=CF=0)
+- [ ] NOT (bitwise complement, no flag effects)
+- [ ] TEST (AND without storing)
+
+#### 1.1.6 Shift and Rotate
+- [ ] SHL/SAL (shift left, same opcode)
+- [ ] SHR (logical shift right)
+- [ ] SAR (arithmetic shift right)
+- [ ] ROL (rotate left)
+- [ ] ROR (rotate right)
+- [ ] RCL (rotate through carry left)
+- [ ] RCR (rotate through carry right)
+- [ ] SHLD (double-precision shift left)
+- [ ] SHRD (double-precision shift right)
+- [ ] Shift/rotate count masking (count & 0x1F for 32-bit, count & 0x3F for 64-bit)
+- [ ] OF flag: defined only for 1-bit shifts, undefined for multi-bit
+
+#### 1.1.7 Bit and Byte Operations
+- [ ] BT (bit test → CF)
+- [ ] BTS (bit test and set)
+- [ ] BTR (bit test and reset)
+- [ ] BTC (bit test and complement)
+- [ ] BSF (bit scan forward)
+- [ ] BSR (bit scan reverse)
+- [ ] SETcc (all 16 conditions, byte result)
+- [ ] POPCNT (population count, POPCNT extension)
+- [ ] LZCNT (leading zero count, LZCNT extension — different from BSR)
+- [ ] TZCNT (trailing zero count, BMI1 extension — different from BSF)
+
+#### 1.1.8 Control Flow
+- [ ] JMP (near relative 8/32, near indirect reg/mem, far direct, far indirect)
+- [ ] Jcc (all 16 conditions, rel8 and rel32)
+- [ ] CALL (near relative, near indirect, far direct, far indirect)
+- [ ] RET (near, near+imm16, far, far+imm16)
+- [ ] LOOP, LOOPcc (LOOPE/LOOPZ, LOOPNE/LOOPNZ; uses RCX/ECX/CX per addr size)
+- [ ] INT n, INT3, INT1 (software interrupts)
+- [ ] INTO (invalid in 64-bit mode — must #UD)
+- [ ] IRET, IRETD, IRETQ (interrupt return)
+- [ ] BOUND (invalid in 64-bit mode — must #UD)
+
+#### 1.1.9 String Operations
+- [ ] MOVS, MOVSB, MOVSW, MOVSD, MOVSQ
+- [ ] CMPS, CMPSB, CMPSW, CMPSD, CMPSQ
+- [ ] SCAS, SCASB, SCASW, SCASD (SCASQ in 64-bit mode)
+- [ ] LODS, LODSB, LODSW, LODSD, LODSQ
+- [ ] STOS, STOSB, STOSW, STOSD, STOSQ
+- [ ] INS, INSB, INSW, INSD
+- [ ] OUTS, OUTSB, OUTSW, OUTSD
+- [ ] REP/REPE/REPZ/REPNE/REPNZ prefix interaction with all string ops
+- [ ] Direction flag (DF) effect on SI/DI increment/decrement
+
+#### 1.1.10 I/O
+- [ ] IN (imm8 port, DX port; AL/AX/EAX)
+- [ ] OUT (imm8 port, DX port; AL/AX/EAX)
+- [ ] INS/OUTS (port string I/O, see 1.1.9)
+
+#### 1.1.11 Flag Manipulation
+- [ ] STC, CLC, CMC (set/clear/complement carry)
+- [ ] STD, CLD (set/clear direction)
+- [ ] STI, CLI (set/clear interrupt; IOPL interaction)
+- [x] LAHF (load AH from flags SF:ZF:0:AF:0:PF:1:CF) — **BUG FIXED**: bit order was reversed
+- [x] SAHF (store AH into flags)
+
+#### 1.1.12 Segment and Address Operations
+- [x] LEA (all addressing modes, 16/32/64-bit) — verified, 67h address-size fix applied
+- [ ] LDS, LES, LFS, LGS, LSS (LDS/LES invalid in 64-bit; LFS/LGS/LSS valid)
+- [ ] NOP (1-byte 0x90 and multi-byte 0F 1F /0)
+
+#### 1.1.13 Decimal Arithmetic (all invalid in 64-bit mode — must #UD)
+- [ ] AAA, AAS, AAM, AAD
+- [ ] DAA, DAS
+
+#### 1.1.14 Miscellaneous
+- [ ] CPUID (leaf/subleaf dispatching, feature reporting)
+- [ ] UD (UD0, UD1, UD2 — always #UD)
+- [ ] HLT (halt, ring-0 only)
+- [ ] PAUSE (spin-loop hint)
+- [ ] SERIALIZE (execution serialization)
+- [ ] LOCK prefix (valid only with specific memory-destination instructions)
+- [ ] RDTSC, RDTSCP (read timestamp counter)
+
+### 1.2 x87 Floating-Point
+
+#### 1.2.1 Data Transfer
+- [ ] FLD (load float: 32/64/80-bit, ST(i))
+- [ ] FST, FSTP (store float: 32/64-bit, ST(i); FSTP also 80-bit)
+- [ ] FILD (load integer: 16/32/64-bit → ST(0))
+- [ ] FIST, FISTP (store integer from ST(0))
+- [ ] FISTTP (store integer with truncation, SSE3)
+- [ ] FBLD (load BCD)
+- [ ] FBSTP (store BCD and pop)
+- [ ] FXCH (exchange ST(0) with ST(i))
+- [ ] FCMOVcc (conditional float move, 8 conditions)
+
+#### 1.2.2 Arithmetic
+- [ ] FADD, FADDP, FIADD
+- [ ] FSUB, FSUBP, FISUB
+- [ ] FSUBR, FSUBRP, FISUBR (reversed subtract)
+- [ ] FMUL, FMULP, FIMUL
+- [ ] FDIV, FDIVP, FIDIV
+- [ ] FDIVR, FDIVRP, FIDIVR (reversed divide)
+- [ ] FABS (absolute value)
+- [ ] FCHS (change sign)
+- [ ] FSQRT (square root)
+- [ ] FPREM (partial remainder, 8087-compatible)
+- [ ] FPREM1 (IEEE partial remainder)
+- [ ] FRNDINT (round to integer)
+- [ ] FSCALE (scale by power of 2)
+- [ ] FXTRACT (extract exponent and significand)
+
+#### 1.2.3 Transcendental
+- [ ] FSIN, FCOS, FSINCOS
+- [ ] FPTAN, FPATAN
+- [ ] F2XM1 (2^x - 1)
+- [ ] FYL2X, FYL2XP1 (y * log2(x), y * log2(x+1))
+
+#### 1.2.4 Comparison
+- [ ] FCOM, FCOMP, FCOMPP
+- [ ] FICOM, FICOMP
+- [ ] FCOMI, FCOMIP, FUCOMI, FUCOMIP (set EFLAGS)
+- [ ] FUCOM, FUCOMP, FUCOMPP (unordered compare)
+- [ ] FTST (compare ST(0) with 0.0)
+- [ ] FXAM (examine ST(0): class/sign)
+
+#### 1.2.5 Constants
+- [ ] FLD1, FLDZ, FLDPI, FLDL2E, FLDL2T, FLDLG2, FLDLN2
+
+#### 1.2.6 Control
+- [ ] FINIT, FNINIT (initialize FPU)
+- [ ] FCLEX, FNCLEX (clear exceptions)
+- [ ] FLDCW, FSTCW/FNSTCW (load/store control word)
+- [ ] FSTSW/FNSTSW (store status word — AX or memory)
+- [ ] FLDENV, FSTENV/FNSTENV (load/store environment)
+- [ ] FSAVE/FNSAVE, FRSTOR (save/restore full state)
+- [ ] FFREE (free ST(i) register)
+- [ ] FDECSTP, FINCSTP (decrement/increment stack pointer)
+- [ ] FNOP (x87 no-op)
+- [ ] FWAIT/WAIT (wait for pending FPU exceptions)
+
+#### 1.2.7 x87 State Save/Restore (SSE era)
+- [ ] FXSAVE, FXRSTOR (save/restore x87+SSE state)
+
+### 1.3 MMX (legacy, 64-bit packed integer in mm0-mm7)
+
+- [ ] EMMS (empty MMX state — required for x87↔MMX transition)
+- [ ] MOVD, MOVQ (MMX data transfer)
+- [ ] PACKSSWB, PACKSSDW, PACKUSWB (MMX pack with saturation)
+- [ ] PADDB, PADDW, PADDD (MMX packed add)
+- [ ] PADDSB, PADDSW (MMX packed add with signed saturation)
+- [ ] PADDUSB, PADDUSW (MMX packed add with unsigned saturation)
+- [ ] PAND, PANDN, POR, PXOR (MMX bitwise)
+- [ ] PCMPEQB, PCMPEQW, PCMPEQD (MMX packed compare equal)
+- [ ] PCMPGTB, PCMPGTW, PCMPGTD (MMX packed compare greater)
+- [ ] PMADDWD (MMX multiply-add)
+- [ ] PMULHW, PMULLW (MMX packed multiply high/low)
+- [ ] PSLLD, PSLLQ, PSLLW (MMX packed shift left)
+- [ ] PSRAD, PSRAW (MMX packed arithmetic shift right)
+- [ ] PSRLD, PSRLQ, PSRLW (MMX packed logical shift right)
+- [ ] PSUBB, PSUBW, PSUBD (MMX packed subtract)
+- [ ] PSUBSB, PSUBSW (MMX packed subtract with signed saturation)
+- [ ] PSUBUSB, PSUBUSW (MMX packed subtract with unsigned saturation)
+- [ ] PUNPCKHBW, PUNPCKHWD, PUNPCKHDQ (MMX unpack high)
+- [ ] PUNPCKLBW, PUNPCKLWD, PUNPCKLDQ (MMX unpack low)
+- [ ] PSHUFW (MMX shuffle word)
+- [ ] MASKMOVQ (MMX non-temporal byte mask store)
+- [ ] MOVNTQ (MMX non-temporal store)
+- [ ] PAVGB, PAVGW (MMX packed average, SSE extension to MMX)
+- [ ] PEXTRW (MMX extract word)
+- [ ] PINSRW (MMX insert word)
+- [ ] PMAXSW, PMAXUB (MMX packed max)
+- [ ] PMINSW, PMINUB (MMX packed min)
+- [ ] PMOVMSKB (MMX move byte mask)
+- [ ] PMULHUW (MMX packed multiply high unsigned)
+- [ ] PSADBW (MMX sum of absolute differences)
+- [ ] MOVDQ2Q, MOVQ2DQ (MMX↔XMM transfer)
+- [ ] CVTPD2PI, CVTPI2PD, CVTPI2PS, CVTPS2PI (MMX↔float conversions)
+- [ ] CVTTPD2PI, CVTTPS2PI (truncating conversions)
+
+### 1.4 SSE (128-bit, single-precision float)
+
+#### 1.4.1 SSE Arithmetic
+- [ ] ADDPS, ADDSS
+- [ ] SUBPS, SUBSS
+- [ ] MULPS, MULSS
+- [ ] DIVPS, DIVSS
+- [ ] SQRTPS, SQRTSS
+- [ ] RCPPS, RCPSS (reciprocal approximation)
+- [ ] RSQRTPS, RSQRTSS (reciprocal sqrt approximation)
+- [ ] MAXPS, MAXSS (NaN handling per SDM)
+- [ ] MINPS, MINSS (NaN handling per SDM)
+
+#### 1.4.2 SSE Comparison
+- [ ] CMPPS (all 8 predicates), CMPSS
+- [ ] COMISS (ordered compare → EFLAGS)
+- [ ] UCOMISS (unordered compare → EFLAGS)
+
+#### 1.4.3 SSE Logical
+- [ ] ANDPS, ANDNPS, ORPS, XORPS
+
+#### 1.4.4 SSE Shuffle/Unpack
+- [ ] SHUFPS (4-element shuffle)
+- [ ] UNPCKHPS, UNPCKLPS (interleave high/low)
+- [ ] MOVHLPS, MOVLHPS (move high-to-low, low-to-high)
+
+#### 1.4.5 SSE Data Transfer
+- [ ] MOVAPS, MOVUPS (aligned/unaligned 128-bit)
+- [ ] MOVSS (scalar single)
+- [ ] MOVHPS, MOVLPS (move high/low 64-bit)
+- [ ] MOVMSKPS (extract sign bits → GPR)
+- [ ] MOVNTPS (non-temporal store)
+
+#### 1.4.6 SSE Conversion
+- [ ] CVTPS2PD, CVTPD2PS
+- [ ] CVTSS2SD, CVTSD2SS
+- [ ] CVTSI2SS, CVTSS2SI
+- [ ] CVTTSS2SI (truncating)
+- [ ] CVTDQ2PS, CVTPS2DQ, CVTTPS2DQ
+
+#### 1.4.7 SSE State/Control
+- [ ] LDMXCSR, STMXCSR (MXCSR load/store)
+- [ ] Rounding mode control (bits 14:13)
+- [ ] Flush-to-zero (bit 15)
+- [ ] Denormals-are-zeros (bit 6)
+- [ ] Exception mask bits and flag bits
+
+### 1.5 SSE2 (128-bit, double-precision float + 128-bit integer)
+
+#### 1.5.1 SSE2 Float64 Arithmetic
+- [ ] ADDPD, ADDSD
+- [ ] SUBPD, SUBSD
+- [ ] MULPD, MULSD
+- [ ] DIVPD, DIVSD
+- [ ] SQRTPD, SQRTSD
+- [ ] MAXPD, MAXSD
+- [ ] MINPD, MINSD
+
+#### 1.5.2 SSE2 Float64 Comparison
+- [ ] CMPPD, CMPSD (all 8 predicates)
+- [ ] COMISD, UCOMISD
+
+#### 1.5.3 SSE2 Float64 Logical
+- [ ] ANDPD, ANDNPD, ORPD, XORPD
+
+#### 1.5.4 SSE2 Float64 Shuffle/Unpack
+- [ ] SHUFPD
+- [ ] UNPCKHPD, UNPCKLPD
+
+#### 1.5.5 SSE2 Float64 Data Transfer
+- [ ] MOVAPD, MOVUPD
+- [ ] MOVSD (scalar double)
+- [ ] MOVHPD, MOVLPD
+- [ ] MOVMSKPD
+- [ ] MOVNTPD
+
+#### 1.5.6 SSE2 Float64 Conversion
+- [ ] CVTSI2SD, CVTSD2SI, CVTTSD2SI
+- [ ] CVTPD2DQ, CVTTPD2DQ, CVTDQ2PD
+
+#### 1.5.7 SSE2 128-bit Integer
+- [ ] PADDB..PADDQ (byte/word/dword/qword add, 128-bit)
+- [ ] PSUBB..PSUBQ (128-bit sub)
+- [ ] PADDSB, PADDSW, PADDUSB, PADDUSW (128-bit saturating add)
+- [ ] PSUBSB, PSUBSW, PSUBUSB, PSUBUSW (128-bit saturating sub)
+- [ ] PMULLW, PMULHW, PMULHUW, PMULUDQ (128-bit multiply variants)
+- [ ] PMADDWD (128-bit multiply-add)
+- [ ] PAND, PANDN, POR, PXOR (128-bit)
+- [ ] PCMPEQB/W/D, PCMPGTB/W/D (128-bit)
+- [ ] PSLLW/D/Q, PSRLW/D/Q, PSRAW/D (128-bit shifts, imm and xmm count)
+- [ ] PSLLDQ, PSRLDQ (byte shift 128-bit)
+- [ ] PACKSSWB, PACKSSDW, PACKUSWB (128-bit pack)
+- [ ] PUNPCKHBW/WD/DQ/QDQ, PUNPCKLBW/WD/DQ/QDQ (128-bit unpack)
+- [ ] PSHUFD, PSHUFHW, PSHUFLW (128-bit shuffle)
+- [ ] MOVDQA, MOVDQU (aligned/unaligned 128-bit integer)
+- [ ] MOVD, MOVQ (GPR↔XMM transfer)
+- [ ] MOVNTDQ (non-temporal 128-bit store)
+- [ ] MASKMOVDQU (byte-masked store)
+- [ ] PEXTRW, PINSRW (128-bit extract/insert word)
+- [ ] PMOVMSKB (128-bit byte-mask to GPR)
+- [ ] PAVGB, PAVGW (128-bit)
+- [ ] PMAXSW, PMAXUB, PMINSW, PMINUB (128-bit)
+- [ ] PSADBW (128-bit)
+- [ ] MOVDDUP (SSE3-era but doubles low qword)
+- [ ] MOVSHDUP, MOVSLDUP (SSE3)
+- [ ] LDDQU (SSE3, unaligned load for video)
+- [ ] PTEST (SSE4.1)
+
+### 1.6 SSE3 / SSSE3
+
+#### 1.6.1 SSE3
+- [ ] ADDSUBPS, ADDSUBPD (alternating add/subtract)
+- [ ] HADDPS, HADDPD (horizontal add)
+- [ ] HSUBPS, HSUBPD (horizontal subtract)
+- [ ] MOVDDUP, MOVSHDUP, MOVSLDUP
+- [ ] LDDQU
+- [ ] FISTTP (x87 store-integer-with-truncation)
+- [ ] MONITOR, MWAIT (monitor/wait, ring-0)
+
+#### 1.6.2 SSSE3 (Supplemental SSE3)
+- [ ] PSHUFB (shuffle bytes)
+- [ ] PHADDW, PHADDD, PHADDSW (horizontal add)
+- [ ] PHSUBW, PHSUBD, PHSUBSW (horizontal sub)
+- [ ] PMADDUBSW (multiply-add unsigned/signed bytes)
+- [ ] PMULHRSW (multiply high with round and scale)
+- [ ] PALIGNR (byte-align concatenation)
+- [ ] PABSB, PABSW, PABSD (absolute value)
+- [ ] PSIGNB, PSIGNW, PSIGND (conditional negate)
+
+### 1.7 SSE4.1 / SSE4.2
+
+#### 1.7.1 SSE4.1
+- [ ] PMULLD (packed multiply low dword → dword)
+- [ ] PMULDQ (packed multiply signed dword → qword)
+- [ ] PBLENDW, BLENDPS, BLENDPD (blend with immediate)
+- [ ] PBLENDVB, BLENDVPS, BLENDVPD (variable blend)
+- [ ] DPPD, DPPS (dot product)
+- [ ] ROUNDPS, ROUNDPD, ROUNDSS, ROUNDSD (round with mode)
+- [ ] INSERTPS, EXTRACTPS (single-precision insert/extract)
+- [ ] PINSRB, PINSRD, PINSRQ (insert byte/dword/qword)
+- [ ] PEXTRB, PEXTRD, PEXTRQ (extract byte/dword/qword)
+- [ ] PMOVSX (packed sign-extend: B→W, B→D, B→Q, W→D, W→Q, D→Q)
+- [ ] PMOVZX (packed zero-extend: same variants)
+- [ ] PMINSB, PMINSD, PMINUW, PMINUD (new min variants)
+- [ ] PMAXSB, PMAXSD, PMAXUW, PMAXUD (new max variants)
+- [ ] PACKUSDW (pack dword→word unsigned saturation)
+- [ ] PCMPEQQ (packed compare equal qword)
+- [ ] PHMINPOSUW (horizontal minimum of unsigned words)
+- [ ] MPSADBW (multiple sum of absolute differences)
+- [ ] MOVNTDQA (non-temporal aligned load)
+- [ ] PTEST (128-bit bitwise test → ZF/CF)
+
+#### 1.7.2 SSE4.2
+- [ ] PCMPESTRI, PCMPESTRM (explicit-length string compare)
+- [ ] PCMPISTRI, PCMPISTRM (implicit-length string compare)
+- [ ] PCMPGTQ (packed compare greater-than qword)
+- [ ] CRC32 (CRC-32C accumulate)
+- [ ] POPCNT (population count)
+
+### 1.8 AVX (VEX-encoded, 256-bit float, non-destructive 3-operand)
+
+Note: All SSE integer/float instructions have VEX-encoded equivalents
+(VADDPS, VMULPD, VPAND, etc.). The tester should verify:
+
+- [ ] VEX 128-bit forms zero the upper 128 bits of YMM
+- [ ] VEX 256-bit forms of all SSE float ops (PS/PD/SS/SD)
+- [ ] VEX 3-operand encoding (dest ≠ src1 for all applicable ops)
+- [ ] VBROADCAST (VBROADCASTSS, VBROADCASTSD, VBROADCASTF128)
+- [ ] VINSERTF128, VEXTRACTF128 (insert/extract 128-bit lane)
+- [ ] VPERM2F128 (permute 256-bit float lanes)
+- [ ] VMASKMOV (conditional float load/store with mask)
+- [ ] VTESTPS, VTESTPD (bitwise test → ZF/CF)
+- [ ] VZEROALL, VZEROUPPER (clear upper YMM state)
+- [ ] VEX.vvvv must be 1111b for instructions that don't use it
+
+### 1.9 AVX2 (VEX-encoded, 256-bit integer)
+
+- [ ] All SSE2/SSSE3/SSE4.1 integer ops promoted to 256-bit (VPADDB..Q, VPSUBB..Q, etc.)
+- [ ] VPBLENDD (blend dwords with immediate)
+- [ ] VPBROADCASTB/W/D/Q (broadcast scalar to all elements)
+- [ ] VPBROADCAST from GPR
+- [ ] VPERMD, VPERMQ (cross-lane dword/qword permute)
+- [ ] VPERMPD, VPERMPS (cross-lane float permute)
+- [ ] VPERM2I128 (permute 128-bit integer lanes)
+- [ ] VINSERTI128, VEXTRACTI128 (insert/extract 128-bit integer lane)
+- [ ] VPMASKMOV (conditional integer load/store)
+- [ ] VPSLLVD/Q, VPSRLVD/Q, VPSRAVD (per-element variable shift)
+- [ ] VPGATHERDD/DQ/QD/QQ (gather integer with VSIB addressing)
+- [ ] VGATHERDPS/DPD/QPS/QPD (gather float with VSIB addressing)
+
+### 1.10 FMA (Fused Multiply-Add, VEX-encoded)
+
+All 132/213/231 forms, scalar and packed, float32 and float64:
+- [ ] VFMADD{132,213,231}{PS,PD,SS,SD} (fused multiply-add)
+- [ ] VFMSUB{132,213,231}{PS,PD,SS,SD} (fused multiply-subtract)
+- [ ] VFNMADD{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-add)
+- [ ] VFNMSUB{132,213,231}{PS,PD,SS,SD} (fused negate-multiply-subtract)
+- [ ] VFMADDSUB{132,213,231}{PS,PD} (alternating add/sub)
+- [ ] VFMSUBADD{132,213,231}{PS,PD} (alternating sub/add)
+
+### 1.11 BMI1 / BMI2 (Bit Manipulation)
+
+#### 1.11.1 BMI1
+- [ ] ANDN (bitwise AND-NOT, sets flags)
+- [ ] BEXTR (bit field extract)
+- [ ] BLSI (isolate lowest set bit)
+- [ ] BLSMSK (mask up to lowest set bit)
+- [ ] BLSR (reset lowest set bit)
+- [ ] TZCNT (trailing zero count)
+
+#### 1.11.2 BMI2
+- [ ] BZHI (zero high bits from specified position)
+- [ ] MULX (unsigned multiply without flags)
+- [ ] PDEP (parallel bit deposit)
+- [ ] PEXT (parallel bit extract)
+- [ ] RORX (rotate right without flags)
+- [ ] SARX, SHLX, SHRX (shift without flags)
+
+### 1.12 ADX (Multi-Precision Arithmetic)
+- [ ] ADCX (unsigned add with CF in, CF out)
+- [ ] ADOX (unsigned add with OF in, OF out)
+
+### 1.13 AES-NI (AES New Instructions)
+- [ ] AESENC (one AES encryption round)
+- [ ] AESENCLAST (last AES encryption round)
+- [ ] AESDEC (one AES decryption round)
+- [ ] AESDECLAST (last AES decryption round)
+- [ ] AESIMC (inverse mix columns)
+- [ ] AESKEYGENASSIST (AES key generation assist)
+- [ ] PCLMULQDQ (carry-less multiplication)
+
+### 1.14 SHA (SHA Extensions)
+- [ ] SHA1RNDS4 (SHA-1 4 rounds)
+- [ ] SHA1NEXTE (SHA-1 next E)
+- [ ] SHA1MSG1, SHA1MSG2 (SHA-1 message schedule)
+- [ ] SHA256RNDS2 (SHA-256 2 rounds)
+- [ ] SHA256MSG1, SHA256MSG2 (SHA-256 message schedule)
+
+### 1.15 AVX-512 Foundation (EVEX-encoded, 512-bit, opmask)
+
+#### 1.15.1 EVEX Encoding Mechanics
+- [ ] EVEX prefix decoding (4-byte prefix: P0/P1/P2/P3)
+- [ ] EVEX.R, EVEX.X, EVEX.B, EVEX.R' (register extension to 32 SIMD regs)
+- [ ] EVEX.aaa (opmask register k1-k7; k0 = no masking)
+- [ ] EVEX.z (zeroing vs merging masking)
+- [ ] EVEX.b (broadcast, rounding override, SAE)
+- [ ] EVEX.L'L (vector length: 128/256/512)
+- [ ] Embedded rounding control {rn-sae, rd-sae, ru-sae, rz-sae}
+- [ ] Suppress-all-exceptions (SAE)
+- [ ] Memory broadcast (1-to-4, 1-to-8, 1-to-16)
+
+#### 1.15.2 Opmask (k0-k7) Instructions
+- [ ] KMOVW/B/D/Q (move mask)
+- [ ] KANDW/B/D/Q, KANDNW/B/D/Q (mask AND, AND-NOT)
+- [ ] KORW/B/D/Q, KXORW/B/D/Q, KXNORW/B/D/Q (mask OR, XOR, XNOR)
+- [ ] KNOTW/B/D/Q (mask NOT)
+- [ ] KORTESTW/B/D/Q, KTESTW/B/D/Q (mask test → EFLAGS)
+- [ ] KSHIFTLW/B/D/Q, KSHIFTRW/B/D/Q (mask shift)
+- [ ] KUNPCKBW, KUNPCKWD, KUNPCKDQ (mask unpack)
+- [ ] KADDW/B/D/Q (mask add)
+
+#### 1.15.3 AVX-512F Arithmetic (512-bit)
+- [ ] VADDPS/PD, VSUBPS/PD (512-bit add/sub)
+- [ ] VMULPS/PD, VDIVPS/PD (512-bit mul/div)
+- [ ] VSQRTPS/PD (512-bit sqrt)
+- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (512-bit FMA, all forms)
+- [ ] VFMADDSUB/VFMSUBADD (512-bit alternating)
+- [ ] VMAXPS/PD, VMINPS/PD (512-bit with opmask)
+- [ ] Scalar variants: VADDSS/SD, etc. (EVEX-encoded scalars)
+- [ ] All with merging/zeroing masking
+
+#### 1.15.4 AVX-512F Comparison
+- [ ] VCMPPS/PD (compare → opmask register, all 32 predicates)
+- [ ] VPCMPD/UD/Q/UQ (integer compare → opmask, 8 predicates)
+- [ ] VPCMPB/UB/W/UW (AVX-512BW, compare bytes/words → opmask)
+- [ ] VPTESTMB/W/D/Q (bitwise test → opmask)
+- [ ] VPTESTNMB/W/D/Q (bitwise test-not → opmask)
+
+#### 1.15.5 AVX-512F Conversion
+- [ ] VCVTPS2PD, VCVTPD2PS (float widen/narrow, 512-bit)
+- [ ] VCVTPS2DQ, VCVTDQ2PS, VCVTTPD2DQ, etc.
+- [ ] VCVTPS2UDQ, VCVTPD2UDQ (convert to unsigned)
+- [ ] VCVTUDQ2PS, VCVTUDQ2PD (unsigned int → float)
+- [ ] VCVTPS2QQ, VCVTPD2QQ, VCVTPS2UQQ, VCVTPD2UQQ
+- [ ] VCVTQQ2PS, VCVTQQ2PD, VCVTUQQ2PS, VCVTUQQ2PD
+- [ ] VCVTSD2USI, VCVTSS2USI, VCVTUSI2SD, VCVTUSI2SS
+- [ ] VCVTTPS2QQ, VCVTTPD2QQ (truncating)
+- [ ] VCVTTPS2UDQ, VCVTTPD2UDQ, VCVTTPS2UQQ, VCVTTPD2UQQ
+
+#### 1.15.6 AVX-512F Data Movement
+- [ ] VMOVDQA32/64, VMOVDQU8/16/32/64 (aligned/unaligned with mask)
+- [ ] VPBROADCASTD/Q (broadcast with EVEX)
+- [ ] VPBROADCASTB/W (AVX-512BW)
+- [ ] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4
+- [ ] VMOVSH, VMOVW (AVX-512FP16)
+- [ ] VCOMPRESSPD/PS (compress packed float)
+- [ ] VEXPANDPD/PS (expand packed float)
+- [ ] VPCOMPRESSB/W/D/Q (compress packed int)
+- [ ] VPEXPANDB/W/D/Q (expand packed int)
+
+#### 1.15.7 AVX-512F Permute/Shuffle
+- [ ] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute)
+- [ ] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest)
+- [ ] VPERMT2B/W/D/Q/PS/PD (2-source permute, index in src)
+- [ ] VPERMILPS, VPERMILPD (in-lane permute)
+- [ ] VSHUFF32X4, VSHUFF64X2, VSHUFI32X4, VSHUFI64X2 (cross-lane shuffle)
+- [ ] VINSERTF32X4/64X2/32X8/64X4 (insert 128/256-bit)
+- [ ] VINSERTI32X4/64X2/32X8/64X4
+- [ ] VEXTRACTF32X4/64X2/32X8/64X4 (extract 128/256-bit)
+- [ ] VEXTRACTI32X4/64X2/32X8/64X4
+- [ ] VALIGND, VALIGNQ (byte-granularity concatenate+shift)
+- [ ] VPSHUFBITQMB (AVX-512BITALG, shuffle bit test → mask)
+
+#### 1.15.8 AVX-512F Logic and Blend
+- [ ] VPTERNLOGD, VPTERNLOGQ (ternary logic with imm8 truth table)
+- [ ] VPBLENDMB/W/D/Q (blend with opmask)
+- [ ] VBLENDMPS, VBLENDMPD (blend float with opmask)
+
+#### 1.15.9 AVX-512F Shift/Rotate
+- [ ] VPSLLVW/D/Q, VPSRLVW/D/Q, VPSRAVW/D/Q (variable shift, 512-bit)
+- [ ] VPROLD/Q, VPROLVD/Q (rotate left)
+- [ ] VPRORD/Q, VPRORVD/Q (rotate right)
+
+#### 1.15.10 AVX-512F Gather/Scatter
+- [ ] VPGATHERDD/DQ/QD/QQ (EVEX gather with opmask)
+- [ ] VGATHERDPS/DPD/QPS/QPD (EVEX gather float)
+- [ ] VPSCATTERDD/DQ/QD/QQ (scatter integer)
+- [ ] VSCATTERDPS/DPD/QPS/QPD (scatter float)
+- [ ] VGATHERPF0/PF1 (prefetch gather, AVX-512PF)
+- [ ] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF)
+
+#### 1.15.11 AVX-512F Math/Special
+- [ ] VGETEXPPD/PS/SD/SS (extract float exponent)
+- [ ] VGETMANTPD/PS/SD/SS (extract float mantissa)
+- [ ] VRCP14PD/PS/SD/SS (approximate reciprocal)
+- [ ] VRSQRT14PD/PS/SD/SS (approximate reciprocal sqrt)
+- [ ] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER)
+- [ ] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER)
+- [ ] VEXP2PD/PS (base-2 exponential, AVX-512ER)
+- [ ] VSCALEFPD/PS/SD/SS (scale by power of 2)
+- [ ] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits)
+- [ ] VREDUCEPD/PS/SD/SS (reduce float range)
+- [ ] VRANGEPD/PS/SD/SS (range restriction)
+- [ ] VFIXUPIMMPD/PS/SD/SS (fix up special float values)
+- [ ] VFPCLASSPD/PS/SD/SS (classify float → opmask)
+
+#### 1.15.12 AVX-512 Integer Extensions
+- [ ] VPMOVDB/DW/QB/QD/QW/WB (truncate with saturation variants)
+- [ ] VPMOVSDB/SDW/SQB/SQD/SQW/SWB (signed saturation truncate)
+- [ ] VPMOVUSDB/USDW/USQB/USQD/USQW/USWB (unsigned saturation truncate)
+- [ ] VPMOVB2M/W2M/D2M/Q2M (MSB to mask)
+- [ ] VPMOVM2B/W/D/Q (mask to vector)
+- [ ] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA)
+- [ ] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI)
+- [ ] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ)
+- [ ] VPLZCNTD/Q (per-element leading zero count, AVX-512CD)
+- [ ] VPCONFLICTD/Q (conflict detection, AVX-512CD)
+- [ ] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product)
+- [ ] VP2INTERSECTD/Q (AVX-512VP2INTERSECT)
+- [ ] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW)
+- [ ] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS)
+- [ ] VPSHLD, VPSHLDV (concatenate and shift left, AVX-512VBMI2)
+- [ ] VPSHRD, VPSHRDV (concatenate and shift right, AVX-512VBMI2)
+- [ ] VDBPSADBW (double-block packed SAD, AVX-512BW)
+
+### 1.16 AVX-512 FP16 (EVEX-encoded, float16)
+
+- [ ] VADDPH, VADDSH (half-precision add)
+- [ ] VSUBPH, VSUBSH
+- [ ] VMULPH, VMULSH
+- [ ] VDIVPH, VDIVSH
+- [ ] VSQRTPH, VSQRTSH
+- [ ] VMAXPH, VMAXSH, VMINPH, VMINSH
+- [ ] VCMPPH, VCMPSH (compare → opmask)
+- [ ] VCOMISH, VUCOMISH (compare → EFLAGS)
+- [ ] VRCPPH, VRCPSH (reciprocal approx)
+- [ ] VRSQRTPH, VRSQRTSH (recip sqrt approx)
+- [ ] VSCALEFPH, VSCALEFSH
+- [ ] VREDUCEPH, VREDUCESH, VRNDSCALEPH, VRNDSCALESH
+- [ ] VGETEXPPH, VGETEXPSH, VGETMANTPH, VGETMANTSH
+- [ ] VFPCLASSPH, VFPCLASSSH
+- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FP16 FMA forms)
+- [ ] VFMADDSUB/VFMSUBADD (FP16 alternating)
+- [ ] VFMADDCPH, VFCMADDCPH, VFMADDCSH, VFCMADDCSH (complex FMA)
+- [ ] VFMULCPH, VFCMULCPH, VFMULCSH, VFCMULCSH (complex multiply)
+- [ ] VCVTPH2PS, VCVTPH2PSX, VCVTPS2PHX (FP16↔FP32)
+- [ ] VCVTPH2PD, VCVTPD2PH (FP16↔FP64)
+- [ ] VCVTPH2DQ, VCVTPH2UDQ, VCVTPH2QQ, VCVTPH2UQQ (FP16→int)
+- [ ] VCVTPH2W, VCVTPH2UW (FP16→int16)
+- [ ] VCVTDQ2PH, VCVTUDQ2PH, VCVTQQ2PH, VCVTUQQ2PH (int→FP16)
+- [ ] VCVTW2PH, VCVTUW2PH (int16→FP16)
+- [ ] VCVTSH2SD, VCVTSD2SH, VCVTSH2SS, VCVTSS2SH (scalar convert)
+- [ ] VCVTSH2SI, VCVTSH2USI, VCVTSI2SH, VCVTUSI2SH
+- [ ] Truncating variants: VCVTTPH2DQ, VCVTTPH2UDQ, VCVTTPH2QQ, etc.
+- [ ] VMOVSH, VMOVW (FP16 scalar/word move)
+
+### 1.17 AVX-512 BFloat16
+- [ ] VCVTNE2PS2BF16 (convert FP32 pair → BF16)
+- [ ] VCVTNEPS2BF16 (convert FP32 → BF16)
+- [ ] VDPBF16PS (BF16 dot product accumulating to FP32)
+
+### 1.18 AMX (Advanced Matrix Extensions)
+- [ ] LDTILECFG, STTILECFG (load/store tile configuration)
+- [ ] TILELOADD, TILELOADDT1 (load tile from memory)
+- [ ] TILESTORED (store tile to memory)
+- [ ] TILEZERO (zero a tile)
+- [ ] TILERELEASE (release tile state)
+- [ ] TDPBSSD, TDPBSUD, TDPBUSD, TDPBUUD (INT8 tile dot product)
+- [ ] TDPBF16PS (BF16 tile dot product)
+
+### 1.19 Galois Field (GFNI)
+- [ ] GF2P8MULB (GF(2^8) byte multiply)
+- [ ] GF2P8AFFINEINVQB (GF(2^8) affine inverse)
+- [ ] GF2P8AFFINEQB (GF(2^8) affine transform)
+
+### 1.20 Key Locker
+- [ ] LOADIWKEY (load internal wrapping key)
+- [ ] ENCODEKEY128, ENCODEKEY256
+- [ ] AESENC128KL, AESENC256KL, AESDEC128KL, AESDEC256KL
+- [ ] AESENCWIDE128KL, AESENCWIDE256KL, AESDECWIDE128KL, AESDECWIDE256KL
+
+### 1.21 CET (Control-Flow Enforcement Technology)
+
+#### 1.21.1 Indirect Branch Tracking
+- [ ] ENDBR32, ENDBR64 (end branch markers)
+
+#### 1.21.2 Shadow Stack
+- [ ] INCSSPD, INCSSPQ (increment shadow stack pointer)
+- [ ] RDSSPD, RDSSPQ (read shadow stack pointer)
+- [ ] SAVEPREVSSP (save previous shadow stack pointer)
+- [ ] RSTORSSP (restore shadow stack pointer)
+- [ ] WRSSD, WRSSQ (write to shadow stack)
+- [ ] WRUSSD, WRUSSQ (write to user shadow stack)
+- [ ] SETSSBSY (set shadow stack busy flag)
+- [ ] CLRSSBSY (clear shadow stack busy flag)
+
+### 1.22 MPX (Memory Protection Extensions) — deprecated
+- [ ] BNDMK (make bounds)
+- [ ] BNDCL, BNDCU, BNDCN (check bounds lower/upper)
+- [ ] BNDMOV (move bounds)
+- [ ] BNDLDX, BNDSTX (load/store bounds using address translation)
+
+### 1.23 TSX (Transactional Synchronization Extensions)
+- [ ] XBEGIN (begin transaction)
+- [ ] XEND (end transaction)
+- [ ] XABORT (abort transaction)
+- [ ] XTEST (test if in transactional region)
+- [ ] XACQUIRE, XRELEASE (HLE prefixes)
+
+### 1.24 XSAVE State Management
+- [ ] XSAVE, XSAVEC, XSAVEOPT, XSAVES
+- [ ] XRSTOR, XRSTORS
+- [ ] XGETBV, XSETBV (get/set extended control register XCR0)
+
+### 1.25 System Instructions
+
+#### 1.25.1 Descriptor Table
+- [ ] LGDT, LIDT (load GDT/IDT register)
+- [ ] SGDT, SIDT (store GDT/IDT register)
+- [ ] LLDT, SLDT (load/store LDT register)
+- [ ] LTR, STR (load/store task register)
+- [ ] ARPL (adjust RPL, invalid in 64-bit mode)
+- [ ] LAR (load access rights)
+- [ ] LSL (load segment limit)
+- [ ] VERR, VERW (verify segment for read/write)
+
+#### 1.25.2 Control Registers
+- [ ] MOV CRn (CR0, CR2, CR3, CR4, CR8)
+- [ ] MOV DRn (DR0-DR3, DR6, DR7)
+- [ ] LMSW, SMSW (load/store machine status word — CR0 low 16)
+- [ ] CLTS (clear TS flag in CR0)
+
+#### 1.25.3 MSR
+- [ ] RDMSR, WRMSR (read/write model-specific registers)
+
+#### 1.25.4 Cache/Memory Management
+- [ ] INVLPG (invalidate TLB entry)
+- [ ] INVPCID (invalidate process-context identifier)
+- [ ] WBINVD, WBNOINVD (write-back and invalidate cache)
+- [ ] CLFLUSH, CLFLUSHOPT, CLWB (cache-line flush/writeback)
+- [ ] CLDEMOTE (cache-line demote)
+- [ ] PREFETCHH (prefetch to cache hierarchy)
+- [ ] PREFETCHW (prefetch for write, 3DNow!/AMD)
+- [ ] PREFETCHWT1 (prefetch with write intent to L2)
+- [ ] LFENCE, SFENCE, MFENCE (memory fences)
+- [ ] MOVNTI (non-temporal store, 32/64-bit)
+- [ ] MOVNTDQ, MOVNTPD, MOVNTPS, MOVNTQ (non-temporal SIMD stores)
+- [ ] MOVNTDQA (non-temporal aligned load)
+- [ ] MOVDIR64B (64-byte direct store)
+- [ ] MOVDIRI (direct store)
+- [ ] SERIALIZE (execution serialization)
+
+#### 1.25.5 Task/Interrupt
+- [ ] SWAPGS (swap GS base)
+- [ ] SYSCALL, SYSRET (fast system call/return)
+- [ ] SYSENTER, SYSEXIT (fast system call/return, legacy)
+- [ ] HLT (halt)
+- [ ] RSM (resume from system management mode)
+
+#### 1.25.6 Privilege
+- [ ] STI, CLI (interrupt flag)
+- [ ] STAC, CLAC (alignment check in SMAP)
+- [ ] RDPKRU, WRPKRU (protection key rights)
+- [ ] RDPMC (read performance counter)
+- [ ] RDPID (read processor ID)
+
+#### 1.25.7 VMX (Virtual Machine Extensions)
+- [ ] VMXON, VMXOFF (enable/disable VMX)
+- [ ] VMLAUNCH, VMRESUME (launch/resume guest)
+- [ ] VMCALL (call VM monitor)
+- [ ] VMCLEAR, VMPTRLD, VMPTRST (manage VMCS)
+- [ ] VMREAD, VMWRITE (read/write VMCS fields)
+- [ ] VMFUNC (VM function)
+- [ ] INVEPT, INVVPID (invalidate EPT/VPID)
+
+#### 1.25.8 SMX (Safer Mode Extensions)
+- [ ] SENTER, SEXIT (measured launch)
+
+#### 1.25.9 SGX (Software Guard Extensions)
+- [ ] ENCLS (ring-0 SGX: ECREATE, EADD, EINIT, EREMOVE, EDBGRD, EDBGWR,
+        EEXTEND, ELDB, ELDU, EBLOCK, EPA, EWB, ETRACK, EAUG, EMODPR,
+        EMODT, ERDINFO, ETRACKC, ELDBC, ELDUC, EMODPE)
+- [ ] ENCLU (ring-3 SGX: EENTER, EEXIT, ERESUME, EGETKEY, EREPORT,
+        EACCEPT, EACCEPTCOPY, EDECCSSA)
+- [ ] ENCLV (EDECVIRTCHILD, EINCVIRTCHILD, ESETCONTEXT)
+
+#### 1.25.10 UINTR (User Interrupts)
+- [ ] SENDUIPI, UIRET, TESTUI, STUI, CLUI, WAKEUP
+
+#### 1.25.11 ENQCMD
+- [ ] ENQCMD, ENQCMDS (enqueue command)
+
+#### 1.25.12 PCONFIG
+- [ ] PCONFIG (platform configuration)
+
+#### 1.25.13 WAITPKG (Timed Pause)
+- [ ] TPAUSE, UMONITOR, UMWAIT
+
+#### 1.25.14 HRESET
+- [ ] HRESET (history reset)
+
+#### 1.25.15 TSX Suspend Tracking
+- [ ] XRESLDTRK, XSUSLDTRK (resume/suspend load tracking)
+
+#### 1.25.16 RDRAND/RDSEED
+- [ ] RDRAND, RDSEED (hardware random number)
+
+#### 1.25.17 PTWRITE
+- [ ] PTWRITE (write to Processor Trace packet)
+
+#### 1.25.18 INVD
+- [ ] INVD (invalidate cache without writeback)
+
+#### 1.25.19 SMCTRL
+- [ ] SMCTRL (system management control)
+
+#### 1.25.20 ENTERACCS, EXITAC
+- [ ] ENTERACCS, EXITAC (authenticated code module)
+
+---
+
+## Part 2: Encoding and Decoding
+
+### 2.1 Legacy Prefix Handling
+- [ ] Operand-size override (66h)
+- [x] Address-size override (67h) — decode_rm/decode_rm_evex truncate EA to 32 bits
+- [ ] Segment overrides (26h/2Eh/36h/3Eh/64h/65h)
+- [ ] LOCK prefix (F0h) — must #UD on invalid instructions
+- [ ] REP/REPE/REPNE (F3h/F2h) — correct interaction with string ops
+- [ ] REP as mandatory prefix (SSE opcode disambiguation)
+- [ ] Multiple prefix handling (last one wins for same group)
+
+### 2.2 REX Prefix (40h-4Fh)
+- [ ] REX.W (64-bit operand size)
+- [ ] REX.R (ModR/M reg extension)
+- [ ] REX.X (SIB index extension)
+- [ ] REX.B (ModR/M r/m, SIB base, opcode reg extension)
+- [ ] REX access to registers R8-R15, SPL/BPL/SIL/DIL
+- [ ] REX on instructions that already use 64-bit default (PUSH/POP)
+
+### 2.3 VEX Prefix (C4h 3-byte, C5h 2-byte)
+- [ ] 2-byte VEX (C5h): R, vvvv, L, pp
+- [ ] 3-byte VEX (C4h): R, X, B, mmmmm, W, vvvv, L, pp
+- [ ] VEX.vvvv field for 3rd operand or must-be-1111b check
+- [ ] VEX.L (128 vs 256)
+- [ ] #UD when VEX used with LOCK/66h/F2h/F3h/REX
+
+### 2.4 EVEX Prefix (62h, 4 bytes)
+- [ ] Full EVEX field decoding (R, X, B, R', mm, W, vvvv, pp, z, L'L, b, V', aaa)
+- [ ] EVEX to 32 SIMD registers (ZMM0-ZMM31)
+- [ ] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE)
+- [ ] EVEX compressed displacement (disp8*N)
+- [ ] #UD for reserved EVEX field values
+
+### 2.5 ModR/M and SIB
+- [ ] All 256 ModR/M byte values decoded correctly
+- [ ] SIB byte decoding (scale, index, base)
+- [ ] [RIP+disp32] addressing (ModR/M=00, R/M=101 in 64-bit mode)
+- [ ] SIB with no index (index=100)
+- [ ] SIB with no base (base=101, mod=00)
+- [ ] 16-bit addressing modes (with 67h in 32-bit mode)
+
+### 2.6 Immediate and Displacement Sizes
+- [ ] imm8, imm16, imm32 selection per opcode
+- [ ] Sign-extension of imm8 to 16/32/64-bit
+- [ ] No imm64 except MOV r64,imm64 (opcode B8+rd)
+- [ ] disp8, disp16, disp32 per addressing mode
+- [ ] EVEX compressed disp8 (disp8 * element_size * vector_length/8)
+
+### 2.7 Default Operand/Address Sizes in 64-bit Mode
+- [ ] Default operand size = 32 for most instructions
+- [ ] Default operand size = 64 for PUSH, POP, CALL, RET, JMP near
+- [ ] No 32-bit address/operand for stack operations in 64-bit mode
+- [ ] 16-bit operand override (66h) still valid in 64-bit mode
+- [x] 32-bit address override (67h) in 64-bit mode — EA truncation implemented
+- [ ] Instructions with forced 64-bit operand (MOV CRn, SWAPGS, etc.)
+
+---
+
+## Part 3: Architectural State and Registers
+
+### 3.1 General-Purpose Registers
+- [ ] RAX-RSP, RBP, RSI, RDI (64-bit), EAX-EDI (32-bit), AX-DI (16-bit), AL-DIL (8-bit)
+- [ ] R8-R15 (64/32/16/8-bit forms: R8D, R8W, R8B)
+- [ ] SPL, BPL, SIL, DIL (accessible only with REX prefix)
+- [ ] AH, BH, CH, DH (NOT accessible when REX prefix present)
+- [ ] 32-bit writes zero-extend to 64-bit
+- [ ] 8-bit and 16-bit writes do NOT zero-extend
+
+### 3.2 RFLAGS
+- [ ] CF (bit 0), PF (bit 2), AF (bit 4), ZF (bit 6), SF (bit 7), OF (bit 11)
+- [ ] DF (bit 10), IF (bit 9), TF (bit 8)
+- [ ] IOPL (bits 13:12)
+- [ ] NT (bit 14), RF (bit 16), VM (bit 17)
+- [ ] AC (bit 18), VIF (bit 19), VIP (bit 20), ID (bit 21)
+- [ ] PF set based on low 8 bits of result (even parity)
+- [ ] AF set on carry out of bit 3
+- [ ] Correct "undefined" flag behavior (per SDM per instruction)
+
+### 3.3 Instruction Pointer
+- [ ] RIP (64-bit), EIP (32-bit in compat mode)
+- [ ] RIP-relative addressing in 64-bit mode
+
+### 3.4 Segment Registers
+- [ ] CS, DS, ES, SS, FS, GS
+- [ ] In 64-bit mode: DS/ES/SS bases forced to 0
+- [x] FS.base, GS.base (from MSRs, WRFSBASE/WRGSBASE) — implemented
+- [ ] CS selects code segment attributes (L/D bits for 64/compat mode)
+
+### 3.5 x87 FPU Registers
+- [ ] ST(0)-ST(7) (80-bit extended precision)
+- [ ] FPU control word (precision, rounding, exception masks)
+- [ ] FPU status word (TOP, condition codes C0-C3, exception flags)
+- [ ] FPU tag word (valid/zero/special/empty per register)
+- [ ] Last instruction/operand pointers
+
+### 3.6 MMX Registers
+- [ ] MM0-MM7 (alias to low 64 bits of ST(0)-ST(7))
+
+### 3.7 SSE/AVX Registers
+- [ ] XMM0-XMM15 (128-bit, base SSE)
+- [ ] YMM0-YMM15 (256-bit, AVX)
+- [ ] XMM16-XMM31, YMM16-YMM31, ZMM0-ZMM31 (512-bit, AVX-512)
+- [ ] MXCSR (SSE control/status register)
+
+### 3.8 Opmask Registers
+- [ ] k0-k7 (64-bit each in AVX-512)
+- [ ] k0 = always-all-ones (cannot be used as writemask)
+
+### 3.9 AMX Tile Registers
+- [ ] TMM0-TMM7 (tile matrix registers, up to 1KB each)
+- [ ] TILECFG (tile configuration)
+
+### 3.10 Control Registers
+- [ ] CR0 (PE, MP, EM, TS, ET, NE, WP, AM, NW, CD, PG)
+- [ ] CR2 (page-fault linear address)
+- [ ] CR3 (page-directory base, PCID)
+- [ ] CR4 (VME, PVI, TSD, DE, PSE, PAE, MCE, PGE, PCE, OSFXSR, OSXMMEXCPT,
+        UMIP, LA57, VMXE, SMXE, FSGSBASE, PCIDE, OSXSAVE, SMEP, SMAP, PKE, CET, PKS)
+- [ ] CR8 (TPR, 64-bit mode only)
+- [ ] XCR0 (XSAVE feature enable)
+
+### 3.11 Debug Registers
+- [ ] DR0-DR3 (breakpoint addresses)
+- [ ] DR6 (debug status)
+- [ ] DR7 (debug control)
+
+### 3.12 Descriptor Table Registers
+- [ ] GDTR (base + limit)
+- [ ] IDTR (base + limit)
+- [ ] LDTR (selector + hidden base/limit/attributes)
+- [ ] TR (selector + hidden base/limit/attributes)
+
+### 3.13 MSRs (Commonly Used)
+- [ ] IA32_EFER (SCE, LME, LMA, NXE)
+- [ ] IA32_STAR, IA32_LSTAR, IA32_CSTAR, IA32_FMASK (SYSCALL/SYSRET)
+- [ ] IA32_FS_BASE, IA32_GS_BASE, IA32_KERNEL_GS_BASE
+- [ ] IA32_SYSENTER_CS/ESP/EIP
+- [ ] IA32_TSC, IA32_TSC_AUX
+- [ ] IA32_PAT (page attribute table)
+- [ ] IA32_APIC_BASE
+- [ ] IA32_MISC_ENABLE
+- [ ] IA32_XSS
+
+---
+
+## Part 4: Memory and Addressing
+
+### 4.1 Addressing Modes (64-bit)
+- [ ] Register direct
+- [ ] [reg] (all 16 GPRs as base)
+- [ ] [reg + disp8/disp32]
+- [ ] [RIP + disp32] (RIP-relative)
+- [ ] [base + index*scale] (scale = 1/2/4/8)
+- [ ] [base + index*scale + disp8/disp32]
+- [ ] [disp32] (absolute, only via SIB; zero-extended to 64-bit)
+- [ ] [index*scale + disp32] (no base, via SIB)
+- [ ] RSP/R12 as base forces SIB byte
+- [ ] RBP/R13 with mod=00 means [disp32] (no base)
+
+### 4.2 Segmentation
+- [ ] Segment descriptor loading and caching
+- [ ] Flat model (DS/ES/SS base = 0 in 64-bit long mode)
+- [ ] FS/GS non-zero base in 64-bit mode
+- [ ] Segment limit checking (in compat/legacy mode)
+- [ ] Code segment (conforming vs non-conforming)
+- [ ] Stack segment (SS.DPL = CPL)
+
+### 4.3 Paging
+- [ ] 4-level paging (PML4 → PDPT → PD → PT)
+- [ ] 5-level paging (PML5, when CR4.LA57 = 1)
+- [ ] 4KB pages
+- [ ] 2MB large pages (PS bit in PDE)
+- [ ] 1GB huge pages (PS bit in PDPTE)
+- [ ] Page table entry format (P, R/W, U/S, PWT, PCD, A, D, PS, G, NX)
+- [ ] CR3 (page-directory base register)
+- [ ] PCID (process-context identifiers, CR4.PCIDE)
+- [ ] NX (no-execute) bit support (IA32_EFER.NXE)
+- [ ] SMEP (CR4.SMEP — supervisor can't execute user pages)
+- [ ] SMAP (CR4.SMAP — supervisor can't access user pages unless AC=1)
+- [ ] PKU (protection keys for user pages)
+- [ ] PKS (protection keys for supervisor pages)
+- [ ] PAT (page attribute table — memory type per page)
+
+### 4.4 Memory Types and Ordering
+- [ ] UC (uncacheable)
+- [ ] WC (write-combining)
+- [ ] WT (write-through)
+- [ ] WB (write-back)
+- [ ] WP (write-protected)
+- [ ] MTRR interaction with PAT
+- [ ] Strong ordering guarantees (loads not reordered with loads, stores not reordered with stores)
+- [ ] Store-buffer forwarding
+- [ ] LOCK'd instruction memory ordering (full barrier)
+- [ ] LFENCE/SFENCE/MFENCE semantics
+
+### 4.5 Alignment
+- [ ] #AC for misaligned access at CPL=3 when CR0.AM=1 and RFLAGS.AC=1
+- [ ] #GP for misaligned LOCK'd instructions
+- [ ] SSE: #GP for misaligned MOVAPS/MOVAPD/MOVDQA (128-bit aligned)
+- [ ] AVX-512: VMOVDQA32/64 require alignment, VMOVDQU do not
+- [ ] FXSAVE/FXRSTOR require 16-byte alignment
+- [ ] XSAVE requires 64-byte alignment
+
+---
+
+## Part 5: Exceptions and Interrupts
+
+### 5.1 Exception Vectors
+- [ ] #DE (0) — divide error (DIV/IDIV)
+- [ ] #DB (1) — debug
+- [ ] NMI (2) — non-maskable interrupt
+- [ ] #BP (3) — breakpoint (INT3)
+- [ ] #OF (4) — overflow (INTO)
+- [ ] #BR (5) — bound range exceeded (BOUND)
+- [ ] #UD (6) — invalid opcode
+- [ ] #NM (7) — device not available (x87/SSE when CR0.EM/TS)
+- [ ] #DF (8) — double fault
+- [ ] #TS (10) — invalid TSS
+- [ ] #NP (11) — segment not present
+- [ ] #SS (12) — stack-segment fault
+- [ ] #GP (13) — general protection
+- [ ] #PF (14) — page fault (error code: P, W/R, U/S, RSVD, I/D, PK, SS, SGX)
+- [ ] #MF (16) — x87 FPU floating-point error
+- [ ] #AC (17) — alignment check
+- [ ] #MC (18) — machine check
+- [ ] #XM (19) — SIMD floating-point exception
+- [ ] #VE (20) — virtualization exception
+- [ ] #CP (21) — control protection exception
+- [ ] #HV (28) — hypervisor injection
+- [ ] #VC (29) — VMM communication
+- [ ] #SX (30) — security exception
+
+### 5.2 Interrupt Delivery
+- [ ] IDT lookup (vector × 16 in 64-bit mode)
+- [ ] Interrupt gate vs trap gate (IF clearing)
+- [ ] IST (Interrupt Stack Table) mechanism
+- [ ] Error code pushing (which exceptions push error codes)
+- [ ] RSP alignment to 16 on interrupt stack frame
+- [ ] CPL change: stack switch via TSS
+- [ ] Same-privilege interrupt: no stack switch
+
+### 5.3 Exception Conditions Per Instruction
+- [ ] Each instruction must raise exactly the exceptions listed in SDM
+- [ ] #UD for invalid opcode in current mode (e.g., ARPL in 64-bit)
+- [ ] #GP for privilege violations
+- [ ] #SS for stack-segment violations
+- [ ] #PF for page faults with correct error code
+- [ ] #NM when CR0.EM=1 or CR0.TS=1 for x87/SSE/AVX
+- [ ] #XM or #UD based on CR4.OSXMMEXCPT for SSE exceptions
+
+---
+
+## Part 6: Processor Modes and Transitions
+
+### 6.1 Long Mode (64-bit)
+- [ ] Enabling: CR0.PG=1, CR4.PAE=1, IA32_EFER.LME=1
+- [ ] 64-bit sub-mode (CS.L=1, CS.D=0)
+- [ ] Compatibility sub-mode (CS.L=0; 32-bit code in long mode)
+- [ ] Default operand/address sizes per mode
+
+### 6.2 Protected Mode (Legacy 32-bit)
+- [ ] GDT/LDT/IDT operation
+- [ ] Privilege levels (CPL, RPL, DPL)
+- [ ] Gate descriptors (call gates, interrupt gates, trap gates, task gates)
+
+### 6.3 Real Mode
+- [ ] Segment:offset addressing (segment << 4 + offset)
+- [ ] IVT at address 0 (256 entries × 4 bytes)
+- [ ] No privilege checking
+
+### 6.4 Mode Transitions
+- [ ] Real → Protected: set CR0.PE
+- [ ] Protected → Long: set CR4.PAE, IA32_EFER.LME, then CR0.PG
+- [ ] Long → Protected: clear CR0.PG, then clear IA32_EFER.LME
+- [ ] Far JMP/CALL to change CS.L (64-bit ↔ compat)
+
+### 6.5 System Management Mode (SMM)
+- [ ] RSM instruction (resume from SMM)
+- [ ] SMRAM save state
+
+---
+
+## Part 7: Floating-Point Semantics (Cross-Cutting)
+
+### 7.1 IEEE 754 Compliance
+- [ ] Rounding modes: round-nearest-even, round-down, round-up, round-toward-zero
+- [ ] Denormal (subnormal) number handling
+- [ ] NaN propagation rules (Intel: src1 priority for SSE MIN/MAX)
+- [ ] Signaling NaN vs quiet NaN behavior
+- [ ] Infinity arithmetic (+∞, -∞)
+- [ ] Signed zero (+0, -0) semantics
+- [ ] Flush-to-zero (MXCSR.FTZ)
+- [ ] Denormals-are-zeros (MXCSR.DAZ)
+
+### 7.2 FP Exception Reporting
+- [ ] Invalid operation (IE)
+- [ ] Denormal operand (DE)
+- [ ] Divide-by-zero (ZE)
+- [ ] Overflow (OE)
+- [ ] Underflow (UE)
+- [ ] Precision (inexact) (PE)
+- [ ] Masked vs unmasked exception behavior
+
+### 7.3 x87 vs SSE FP Differences
+- [ ] x87 uses 80-bit internal precision
+- [ ] SSE uses operand precision (32 or 64-bit)
+- [ ] x87 exception via #MF, SSE via #XM (or #UD)
+- [ ] x87 condition codes (C0-C3) vs SSE EFLAGS setting
+
+---
+
+## Part 8: Concurrency and Atomicity (Cross-Cutting)
+
+### 8.1 LOCK Prefix
+- [ ] Valid only with: ADD, ADC, AND, BTC, BTR, BTS, CMPXCHG, CMPXCHG8B/16B,
+        DEC, INC, NEG, NOT, OR, SBB, SUB, XOR, XADD, XCHG
+- [ ] #UD on LOCK with any other instruction
+- [ ] LOCK'd operations are atomic and act as full memory barriers
+- [ ] XCHG implicitly LOCK'd when memory operand
+
+### 8.2 Alignment and Atomicity
+- [ ] Naturally-aligned loads/stores up to 8 bytes are atomic
+- [ ] 16-byte aligned loads/stores may be atomic (implementation-dependent)
+- [ ] CMPXCHG16B requires 16-byte alignment
+- [ ] Split-lock detection
+
+---
+
+## Part 9: Instruction-Specific Behavioral Details
+
+These are tricky behaviors a formal spec MUST get right.
+
+### 9.1 Shift/Rotate Count Masking
+- [ ] 32-bit ops: count masked to 5 bits (& 0x1F)
+- [ ] 64-bit ops: count masked to 6 bits (& 0x3F)
+- [ ] OF defined only for count=1 shifts
+- [ ] Count=0 shifts: no flags modified
+
+### 9.2 REP String Operations
+- [ ] RCX=0 → no operation, no flags changed
+- [ ] REPE/REPNE with CMPS/SCAS: early termination on ZF mismatch
+- [ ] Interruptibility between iterations
+- [ ] Address size determines whether CX/ECX/RCX is used
+
+### 9.3 PUSH/POP RSP
+- [ ] PUSH RSP pushes the value of RSP before the push
+- [ ] POP RSP: value popped is the new RSP (not incremented after)
+
+### 9.4 MOV to SS
+- [ ] Inhibits interrupts for one instruction after MOV to SS
+
+### 9.5 Division
+- [ ] DIV: #DE if quotient overflows or divisor=0
+- [ ] IDIV: #DE if quotient overflows or divisor=0
+- [ ] 8-bit DIV: AX / src → AL quotient, AH remainder
+- [ ] 16-bit DIV: DX:AX / src → AX quotient, DX remainder
+- [ ] etc. for 32/64-bit
+
+### 9.6 IMUL Forms
+- [ ] 1-operand: signed widening multiply (same as MUL but signed)
+- [ ] 2-operand: dst = dst × src (truncated, OF/CF set if sign-extended result ≠ full result)
+- [ ] 3-operand: dst = src × imm (truncated, same OF/CF rule)
+
+### 9.7 BSF/BSR vs TZCNT/LZCNT
+- [ ] BSF/BSR: ZF=1 if source is 0, destination UNDEFINED
+- [ ] TZCNT/LZCNT: CF=1 if source is 0, result = operand bit size
+- [ ] On CPUs without BMI, TZCNT executes as BSF (F3 prefix ignored)
+- [ ] LZCNT without ABM: executes as BSR
+
+### 9.8 CPUID
+- [ ] Leaf 0: max basic leaf, vendor string
+- [ ] Leaf 1: family/model/stepping, feature flags (ECX, EDX)
+- [ ] Leaf 7: extended feature flags (structured)
+- [ ] Leaf 0x80000000-0x80000008: extended leaves
+- [ ] Must report feature bits consistent with implemented instructions
+- [ ] Invalid/unsupported leaves: return 0 or last valid leaf's data
+
+### 9.9 NOP Width
+- [ ] 1-byte NOP (0x90 = XCHG EAX,EAX)
+- [ ] Multi-byte NOP (0F 1F /0, various lengths up to 9 bytes)
+- [ ] In 64-bit mode, 0x90 is NOP (not XCHG EAX,EAX which would zero-extend)
+
+### 9.10 VEX/EVEX Upper-Bits Clearing
+- [ ] VEX-128: zero bits 255:128 of YMM
+- [ ] VEX-256: zero bits 511:256 of ZMM (if AVX-512 supported)
+- [ ] EVEX-128: zero bits 511:128
+- [ ] EVEX-256: zero bits 511:256
+- [ ] Legacy SSE: upper bits of YMM/ZMM are PRESERVED (no zeroing)
+- [ ] SSE↔AVX transition penalty implications (VZEROUPPER)
+
+---
+
+## Part 10: Summary Statistics
+
+- **Total unique mnemonics in SDM:** 1,208
+- **SDM instruction pages:** 835 (some cover multiple related mnemonics)
+- **ISA extension groups:** ~30+ (from base x86-64 through AMX)
+
+### Rough instruction count by category:
+| Category | Approx. count |
+|---|---|
+| General-purpose integer | ~120 |
+| x87 floating-point | ~90 |
+| MMX | ~50 |
+| SSE (1/2/3/SSSE3/4.1/4.2) | ~200 |
+| AVX/AVX2 (VEX re-encoding of above) | (same ops, VEX form) |
+| FMA | ~96 forms (4 ops × 3 orderings × 2 types × 2 sizes + packed variants) |
+| AVX-512 (F/BW/DQ/CD/VL/VBMI/IFMA/VNNI/BITALG/VP2INTERSECT/etc.) | ~350+ |
+| AVX-512 FP16 | ~80 |
+| BMI1/BMI2/ADX | ~16 |
+| AES-NI/SHA/GFNI/PCLMULQDQ | ~18 |
+| Key Locker | ~10 |
+| CET (shadow stack + IBT) | ~12 |
+| AMX | ~8 |
+| System (VMX/SGX/SMX/descriptors/CR/DR/MSR) | ~60 |
+| TSX/XSAVE/misc | ~20 |
+
+---
+
+## How to Use This Checklist
+
+For each `[ ]` item:
+1. Search the Sail codebase for the instruction mnemonic or opcode
+2. Verify it decodes the correct opcode bytes per SDM
+3. Verify it handles all valid operand-size and addressing-mode variants
+4. Verify flag effects match SDM exactly
+5. Verify exception conditions match SDM (#UD in wrong mode, #GP for privilege, etc.)
+6. Mark as one of:
+   - `[x]` Implemented and correct
+   - `[~]` Partially implemented (note what's missing)
+   - `[ ]` Not implemented
+   - `[N/A]` Explicitly out of scope (document why)

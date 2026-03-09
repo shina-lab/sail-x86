@@ -219,7 +219,9 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
     let disp : qword = sign_extend(b3 @ b2 @ b1 @ b0);
     rip_rel_pending = true;
     rip_rel_disp = disp;
-    RM_mem(apply_segment(decode_pos + disp, pfx))
+    let ea : qword = decode_pos + disp;
+    let ea : qword = if pfx.has_adsize then zero_extend(ea[31..0]) else ea;
+    RM_mem(apply_segment(ea, pfx))
   } else {
     let addr : qword =
       if rm_raw == 4 then {
@@ -240,6 +242,7 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
         let b3 = fetch_byte();
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
+    let addr : qword = if pfx.has_adsize then zero_extend(addr[31..0]) else addr;
     RM_mem(apply_segment(addr, pfx))
   }
 }
@@ -257,6 +260,7 @@ function decode_rm(modrm, pfx) = {
     RM_reg(extend_reg(rm_raw, pfx.rex_b))
   } else if modbits == 0 & rm_raw == 5 then {
     // RIP-relative: [RIP + disp32]
+    // With 67h prefix in 64-bit mode, uses EIP + disp32 (truncated to 32 bits).
     // Compute preliminary address using current decode_pos.
     // If the instruction has trailing bytes (imm8/imm32),
     // fixup_addr() will adjust by the delta at use time.
@@ -267,7 +271,10 @@ function decode_rm(modrm, pfx) = {
     let disp : qword = sign_extend(b3 @ b2 @ b1 @ b0);
     rip_rel_pending = true;
     rip_rel_disp = disp;
-    RM_mem(apply_segment(decode_pos + disp, pfx))
+    let ea : qword = decode_pos + disp;
+    // 67h prefix: truncate effective address to 32 bits, zero-extended
+    let ea : qword = if pfx.has_adsize then zero_extend(ea[31..0]) else ea;
+    RM_mem(apply_segment(ea, pfx))
   } else {
     // Memory operand — compute address then apply segment override
     let addr : qword =
@@ -290,6 +297,8 @@ function decode_rm(modrm, pfx) = {
         let b3 = fetch_byte();
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
+    // 67h prefix: truncate effective address to 32 bits, zero-extended
+    let addr : qword = if pfx.has_adsize then zero_extend(addr[31..0]) else addr;
     RM_mem(apply_segment(addr, pfx))
   }
 }
