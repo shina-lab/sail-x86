@@ -870,12 +870,40 @@ function dispatch_evex_fp(op, pfx) = {
           },
         }
       },
-      _ => raise_UD(),
+      MP_F3 => { // VMOVSS (scalar f32 load/move, EVEX)
+        // Memory: xmm1 = zero_extend(m32)
+        // Register: xmm1 = xmm2[127:32] @ xmm3[31:0]
+        match rm {
+          RM_mem(addr) => {
+            let v : dword = mem_read32(fixup_addr(addr));
+            write_xmm(dst, zero_extend(v)); Ok()
+          },
+          RM_reg(_) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 : dword = read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0];
+            write_xmm(dst, src1[127..32] @ src2); Ok()
+          },
+        }
+      },
+      MP_F2 => { // VMOVSD (scalar f64 load/move, EVEX)
+        // Memory: xmm1 = zero_extend(m64)
+        // Register: xmm1 = xmm2[127:64] @ xmm3[63:0]
+        match rm {
+          RM_mem(addr) => {
+            let v : qword = mem_read64(fixup_addr(addr));
+            write_xmm(dst, zero_extend(v)); Ok()
+          },
+          RM_reg(_) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 : qword = read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0];
+            write_xmm(dst, src1[127..64] @ src2); Ok()
+          },
+        }
+      },
     }
   },
 
-  // 0F 11: VMOVUPS/VMOVUPD (EVEX store)
-  // 0F 11: VMOVUPS/VMOVUPD (EVEX store)
+  // 0F 11: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (EVEX store)
   17 => {
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
@@ -925,7 +953,32 @@ function dispatch_evex_fp(op, pfx) = {
             }
           },
         },
-      _ => raise_UD(),
+      MP_F3 => { // VMOVSS (scalar f32 store/move, EVEX)
+        // Memory: m32 = xmm1[31:0]
+        // Register: xmm1{k1}{z} = xmm2[127:32] @ xmm3[31:0]
+        match rm {
+          RM_mem(addr) => { mem_write32(fixup_addr(addr), read_xmm(src)[31..0]); Ok() },
+          RM_reg(_) => {
+            let dst = evex_rm_reg_idx(modrm, pfx);
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 : dword = read_xmm(src)[31..0];
+            write_xmm(dst, src1[127..32] @ src2); Ok()
+          },
+        }
+      },
+      MP_F2 => { // VMOVSD (scalar f64 store/move, EVEX)
+        // Memory: m64 = xmm1[63:0]
+        // Register: xmm1{k1}{z} = xmm2[127:64] @ xmm3[63:0]
+        match rm {
+          RM_mem(addr) => { mem_write64(fixup_addr(addr), read_xmm(src)[63..0]); Ok() },
+          RM_reg(_) => {
+            let dst = evex_rm_reg_idx(modrm, pfx);
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 : qword = read_xmm(src)[63..0];
+            write_xmm(dst, src1[127..64] @ src2); Ok()
+          },
+        }
+      },
     }
   },
 

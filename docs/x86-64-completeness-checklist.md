@@ -507,6 +507,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VFMADDSUB/VFMSUBADD (512-bit alternating) — verified: implemented in insn_evex_fma.sail
 - [x] VMAXPS/PD, VMINPS/PD (512-bit with opmask) — verified: implemented in insn_evex_fp.sail
 - [x] Scalar variants: VADDSS/SD, VMULSS/SD, VSUBSS/SD, VDIVSS/SD, VSQRTSS/SD, VMINSS/SD, VMAXSS/SD (EVEX-encoded scalars) — implemented with {er} support + 13 KVM tests
+- [x] EVEX VMOVSS/SD (scalar move, load/store/reg-reg merge) — verified: opcode 10 (load) + opcode 11 (store), both memory and 3-operand register forms + 8 KVM tests
 - [x] All with merging/zeroing masking — verified: evex_merge helper applies k-mask throughout
 
 #### 1.15.4 AVX-512F Comparison

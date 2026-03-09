@@ -2751,4 +2751,168 @@ void add_vex_tests(std::vector<TestCase> &tests) {
         {0x62, 0xF1, 0x76, 0x58, 0x58, 0xC2}, s, 0x7);
     }
   }
+
+  // =====================================================================
+  // EVEX VMOVSS/VMOVSD — scalar move (load/store, reg-reg merge)
+  // =====================================================================
+  cat = "EVEX VMOVSS/SD";
+  {
+    // --- VMOVSS reg-reg load (opcode 10, F3) ---
+    // EVEX.NDS.LIG.F3.0F.W0 10 /r: VMOVSS xmm0, xmm1, xmm2
+    //   P0: 0xF1  P1: W=0,~vvvv=1110,1,pp=10 = 0x76  P2: 0x08
+    //   ModRM: mod=11, reg=000(dst=xmm0), rm=010(src=xmm2) → 0xC2
+    // Result: xmm0[31:0]=xmm2[31:0], xmm0[127:32]=xmm1[127:32], upper zeroed
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(0xAABBCCDD, 0x11223344, 0x55667788, 0x00000000);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, 0xDEADBEEF);
+      tests.push_back({"evex vmovss xmm0,xmm1,xmm2 (reg-reg load)",
+        cat, {0x62, 0xF1, 0x76, 0x08, 0x10, 0xC2}, s, FL_NONE, 0x7, false});
+    }
+
+    // --- VMOVSS mem load (opcode 10, F3) ---
+    // EVEX.LIG.F3.0F.W0 10 /r: VMOVSS xmm0, [rdi]
+    //   P1: W=0,~vvvv=1111(no vvvv for mem),1,pp=10 = 0x7E
+    //   ModRM: mod=00, reg=000(dst=xmm0), rm=111(rdi) → 0x07
+    // Result: xmm0 = zero_extend(m32)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      float val = 3.14f;
+      u32 vbits;
+      memcpy(&vbits, &val, 4);
+      std::vector<u8> data(16, 0);
+      memcpy(data.data(), &vbits, 4);
+      // Fill upper bytes with garbage to verify zero-extension
+      data[4] = 0xFF; data[5] = 0xFF; data[6] = 0xFF; data[7] = 0xFF;
+
+      TestCase tc;
+      tc.name = "evex vmovss xmm0,[rdi] (mem load)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x7E, 0x08, 0x10, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // --- VMOVSS reg-reg store (opcode 11, F3) ---
+    // EVEX.NDS.LIG.F3.0F.W0 11 /r: VMOVSS xmm0, xmm1, xmm2
+    //   ModRM: mod=11, reg=010(src=xmm2), rm=000(dst=xmm0) → 0xD0
+    //   P1: W=0,~vvvv=1110(xmm1),1,pp=10 = 0x76
+    // Result: xmm0[31:0]=xmm2[31:0], xmm0[127:32]=xmm1[127:32], upper zeroed
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(0x12345678, 0x9ABCDEF0, 0xFEDCBA98, 0x00000000);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, 0xCAFEBABE);
+      tests.push_back({"evex vmovss xmm0,xmm1,xmm2 (reg-reg store)",
+        cat, {0x62, 0xF1, 0x76, 0x08, 0x11, 0xD0}, s, FL_NONE, 0x7, false});
+    }
+
+    // --- VMOVSS mem store (opcode 11, F3) ---
+    // EVEX.LIG.F3.0F.W0 11 /r: VMOVSS [rdi], xmm1
+    //   P1: W=0,~vvvv=1111,1,pp=10 = 0x7E
+    //   ModRM: mod=00, reg=001(src=xmm1), rm=111(rdi) → 0x0F
+    // Result: m32 = xmm1[31:0]
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      float val = 2.718f;
+      u32 vbits;
+      memcpy(&vbits, &val, 4);
+      s.xmm[1] = xmm_from_u32(0xDEADBEEF, 0xCAFEBABE, 0x12345678, vbits);
+
+      TestCase tc;
+      tc.name = "evex vmovss [rdi],xmm1 (mem store)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x7E, 0x08, 0x11, 0x0F};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // --- VMOVSD reg-reg load (opcode 10, F2, W=1) ---
+    // EVEX.NDS.LIG.F2.0F.W1 10 /r: VMOVSD xmm0, xmm1, xmm2
+    //   P1: W=1,~vvvv=1110,1,pp=11 = 0xF7  P2: 0x08
+    //   ModRM: mod=11, reg=000, rm=010 → 0xC2
+    // Result: xmm0[63:0]=xmm2[63:0], xmm0[127:64]=xmm1[127:64], upper zeroed
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0xAABBCCDDEEFF0011, 0x0000000000000000);
+      s.xmm[2] = xmm_from_u64(0, 0x123456789ABCDEF0);
+      tests.push_back({"evex vmovsd xmm0,xmm1,xmm2 (reg-reg load)",
+        cat, {0x62, 0xF1, 0xF7, 0x08, 0x10, 0xC2}, s, FL_NONE, 0x7, false});
+    }
+
+    // --- VMOVSD mem load (opcode 10, F2, W=1) ---
+    // EVEX.LIG.F2.0F.W1 10 /r: VMOVSD xmm0, [rdi]
+    //   P1: W=1,~vvvv=1111,1,pp=11 = 0xFF  P2: 0x08
+    //   ModRM: mod=00, reg=000, rm=111 → 0x07
+    // Result: xmm0 = zero_extend(m64)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      double val = 1.414;
+      u64 vbits;
+      memcpy(&vbits, &val, 8);
+      std::vector<u8> data(16, 0xFF); // fill with FF
+      memcpy(data.data(), &vbits, 8);
+
+      TestCase tc;
+      tc.name = "evex vmovsd xmm0,[rdi] (mem load)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xFF, 0x08, 0x10, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // --- VMOVSD reg-reg store (opcode 11, F2, W=1) ---
+    // EVEX.NDS.LIG.F2.0F.W1 11 /r: VMOVSD xmm0, xmm1, xmm2
+    //   ModRM: mod=11, reg=010(src=xmm2), rm=000(dst=xmm0) → 0xD0
+    //   P1: W=1,~vvvv=1110,1,pp=11 = 0xF7
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0xFEDCBA9876543210, 0x0000000000000000);
+      s.xmm[2] = xmm_from_u64(0, 0xDEADCAFEBEEF1234);
+      tests.push_back({"evex vmovsd xmm0,xmm1,xmm2 (reg-reg store)",
+        cat, {0x62, 0xF1, 0xF7, 0x08, 0x11, 0xD0}, s, FL_NONE, 0x7, false});
+    }
+
+    // --- VMOVSD mem store (opcode 11, F2, W=1) ---
+    // EVEX.LIG.F2.0F.W1 11 /r: VMOVSD [rdi], xmm1
+    //   P1: W=1,~vvvv=1111,1,pp=11 = 0xFF  P2: 0x08
+    //   ModRM: mod=00, reg=001(src=xmm1), rm=111(rdi) → 0x0F
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      double val = 2.71828;
+      u64 vbits;
+      memcpy(&vbits, &val, 8);
+      s.xmm[1] = xmm_from_u64(0xCAFEBABEDEADBEEF, vbits);
+
+      TestCase tc;
+      tc.name = "evex vmovsd [rdi],xmm1 (mem store)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xFF, 0x08, 0x11, 0x0F};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+  }
 }
