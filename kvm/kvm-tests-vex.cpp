@@ -3406,5 +3406,75 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tc.init_data = std::move(data);
       tests.push_back(std::move(tc));
     }
+
+    // VPADDD xmm0, xmm1, [rdi]{1to4} — broadcast dword, integer add
+    // EVEX.NDS.128.66.0F.W0 FE /r with EVEX.b=1
+    //   P1: W=0,~vvvv=1110,1,pp=01(66) → 0x75
+    //   P2: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      uint32_t bcast_val = 100;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpaddd xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x18, 0xFE, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPXORD xmm0, xmm1, [rdi]{1to4} — broadcast dword, integer XOR
+    // EVEX.NDS.128.66.0F.W0 EF /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u32(0xAAAAAAAA, 0x55555555, 0x12345678, 0xDEADBEEF);
+      uint32_t bcast_val = 0xFF00FF00;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vpxord xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x18, 0xEF, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VPADDQ xmm0, xmm1, [rdi]{1to2} — broadcast qword, integer add
+    // EVEX.NDS.128.66.0F.W1 D4 /r with EVEX.b=1
+    //   P1: W=1,~vvvv=1110,1,pp=01(66) → 0xF5
+    //   P2: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_u64(10, 20);
+      uint64_t bcast_val = 1000;
+      std::vector<u8> data(8);
+      memcpy(data.data(), &bcast_val, 8);
+
+      TestCase tc;
+      tc.name = "vpaddq xmm0,xmm1,[rdi]{1to2}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xF5, 0x18, 0xD4, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
   }
 }
