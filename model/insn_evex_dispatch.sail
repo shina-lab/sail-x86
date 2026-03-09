@@ -308,7 +308,7 @@ function dispatch_evex_0f38(opcode, pfx) = {
     62 => dispatch_evex_arith(op, pfx),
     63 => dispatch_evex_arith(op, pfx),
     64 => dispatch_evex_arith(op, pfx),
-    65 => dispatch_evex_perm(op, pfx),
+    // 65 (0x41): PHMINPOSUW has no EVEX form
     66 => dispatch_evex_arith(op, pfx),
     68 => dispatch_evex_arith(op, pfx),
     100 => dispatch_evex_perm(op, pfx),

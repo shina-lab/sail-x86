@@ -610,6 +610,8 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS)
 - [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
 - [x] VPSHRDW/D/Q, VPSHRDVW/D/Q (concatenate and shift right, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
+- [x] VPCOMPRESSB/W (byte/word compress, AVX-512VBMI2) — **REWRITTEN**: was simplified pass-through (just copy), now implements proper compress semantics with writemask + 8 KVM tests (reg+mem forms)
+- [x] VPEXPANDB/W (byte/word expand, AVX-512VBMI2) — **REWRITTEN**: was simplified pass-through, now implements proper expand semantics with writemask
 - [x] VDBPSADBW (double-block packed SAD, AVX-512BW) — verified and fixed: insn_evex_imm.sail, 0F3A 42 + 2 KVM tests (algorithm rewritten to match SDM: dword selection + sliding window SAD)
 
 ### 1.16 AVX-512 FP16 (EVEX-encoded, float16)

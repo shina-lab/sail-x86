@@ -5445,4 +5445,95 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vpinsrb xmm0,xmm1,eax,3",
             {0x62, 0xF3, 0x75, 0x08, 0x20, 0xC0, 0x03}, s, 0x3);
   }
+
+  // =====================================================================
+  // VPCOMPRESSB / VPEXPANDB (EVEX.66.0F38.W0 63/62)
+  // =====================================================================
+  cat = "EVEX VPCOMPRESSB/W";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+    // Source xmm1 = bytes 0x00,0x11,0x22,...,0xFF
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0F0E0D0C0B0A0908ULL, 0x0706050403020100ULL);
+    s.xmm[0] = {};  // clear dest
+
+    // VPCOMPRESSB xmm0, xmm1, no mask (k0): all 16 bytes written
+    // EVEX.128.66.0F38.W0 63: P0=62, P1=F2, P2=7D(W0,vvvv=1111,pp=01), P3=08
+    // modrm: mod=11, reg=001(src=xmm1), rm=000(dst=xmm0) → 0xC8
+    add_xmm("vpcompressb xmm0,xmm1 no mask",
+            {0x62, 0xF2, 0x7D, 0x08, 0x63, 0xC8}, s, 0x3);
+
+    // VPCOMPRESSB xmm0, xmm1, k1=0xAAAA (even bits 0, odd bits 1)
+    // mask=1010_1010_1010_1010 → compress bytes 1,3,5,7,9,11,13,15
+    // P3: z=0, L'L=00, b=0, V'=1, aaa=001(k1) → 0x09
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0xAAAA;
+      add_xmm("vpcompressb xmm0,xmm1 k1=0xAAAA",
+              {0x62, 0xF2, 0x7D, 0x09, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPCOMPRESSB xmm0, xmm1, k1=0x000F (first 4 bits set)
+    // compress bytes 0,1,2,3 → result: 0x00,0x01,0x02,0x03,0,0,...
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x000F;
+      add_xmm("vpcompressb xmm0,xmm1 k1=0x000F",
+              {0x62, 0xF2, 0x7D, 0x09, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPEXPANDB xmm0, xmm1, k1=0xAAAA
+    // Expand: for each dest byte j where k1[j]=1, copy src[k++]
+    // mask=1010_1010_1010_1010 → 8 active positions at 1,3,5,7,9,11,13,15
+    // modrm: mod=11, reg=000(dst=xmm0), rm=001(src=xmm1) → 0xC1
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0xAAAA;
+      add_xmm("vpexpandb xmm0,xmm1 k1=0xAAAA",
+              {0x62, 0xF2, 0x7D, 0x09, 0x62, 0xC1}, sk, 0x3);
+    }
+
+    // VPEXPANDB xmm0, xmm1, no mask: should be identity
+    // modrm: mod=11, reg=000(dst=xmm0), rm=001(src=xmm1) → 0xC1
+    add_xmm("vpexpandb xmm0,xmm1 no mask",
+            {0x62, 0xF2, 0x7D, 0x08, 0x62, 0xC1}, s, 0x3);
+
+    // VPCOMPRESSW xmm0, xmm1, k1=0x05 (words 0,2 active)
+    // EVEX.128.66.0F38.W1 63: W1 → P2=0xFD
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x05;
+      add_xmm("vpcompressw xmm0,xmm1 k1=0x05",
+              {0x62, 0xF2, 0xFD, 0x09, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPCOMPRESSB to memory: xmm1 → [rdi], k1=0x0F0F
+    // compress bytes 0-3 and 8-11 → 8 bytes written
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0F0F;
+      sk.rdi = DATA_ADDR;
+      TestCase tc = {"vpcompressb [rdi],xmm1 k1=0x0F0F", cat,
+                     {0x62, 0xF2, 0x7D, 0x09, 0x63, 0x0F}, sk,
+                     FL_NONE, 0x0, false};
+      tc.init_data = std::vector<u8>(64, 0xCC);
+      tc.compare_data_len = 16;
+      tests.push_back(tc);
+    }
+
+    // VPEXPANDW xmm0, xmm1, k1=0x0A (words 1,3 active)
+    // expand: dest[1]=src[0], dest[3]=src[1], others=0
+    // EVEX.128.66.0F38.W1 62: P2=0xFD
+    // modrm: mod=11, reg=000(dst=xmm0), rm=001(src=xmm1) → 0xC1
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0A;
+      add_xmm("vpexpandw xmm0,xmm1 k1=0x0A",
+              {0x62, 0xF2, 0xFD, 0x09, 0x62, 0xC1}, sk, 0x3);
+    }
+  }
 }
