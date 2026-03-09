@@ -36,6 +36,39 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
   return UNIT;
 }
 
+// Page-crossing read: translate each byte's virtual address separately.
+// Called when a memory access spans a 4KB page boundary, so the second
+// page may map to a non-contiguous physical address.
+void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n) {
+  i64 nbytes = mpz_get_si(n);
+  u8 buf[64];
+  if (nbytes > 64) {
+    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 64\n", nbytes);
+    abort();
+  }
+  for (i64 i = 0; i < nbytes; i++) {
+    u64 paddr = ztranslate_addr(vaddr + i, zPT_Read);
+    phys_mem.read_bytes(paddr, &buf[i], 1);
+  }
+  bytes_to_bits(rop, buf, nbytes, nbytes * 8);
+}
+
+// Page-crossing write: translate each byte's virtual address separately.
+unit Model::z__mem_write_crossing(u64 vaddr, sail_int n, lbits data) {
+  i64 nbytes = mpz_get_si(n);
+  u8 buf[64];
+  if (nbytes > 64) {
+    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 64\n", nbytes);
+    abort();
+  }
+  bits_to_bytes(data, buf, nbytes);
+  for (i64 i = 0; i < nbytes; i++) {
+    u64 paddr = ztranslate_addr(vaddr + i, zPT_Write);
+    phys_mem.write_bytes(paddr, &buf[i], 1);
+  }
+  return UNIT;
+}
+
 // =========================================================================
 // Software TLB
 // =========================================================================
@@ -288,15 +321,69 @@ void Model::z__check_pending_irq(sail_int *rop, unit) {
 // MASKMOVDQU
 // =========================================================================
 
-unit Model::z__maskmovdqu(lbits data, lbits mask, u64 addr) {
+unit Model::z__maskmovdqu(lbits data, lbits mask, u64 vaddr) {
   u8 d[16];
   u8 m[16];
   bits_to_bytes(data, d, 16);
   bits_to_bytes(mask, m, 16);
   for (int i = 0; i < 16; i++)
-    if (m[i] & 0x80)
-      phys_mem.write8(addr + i, d[i]);
+    if (m[i] & 0x80) {
+      u64 paddr = ztranslate_addr(vaddr + i, zPT_Write);
+      phys_mem.write8(paddr, d[i]);
+    }
   return UNIT;
+}
+
+// =========================================================================
+// Virtual memory helpers for FXSAVE/FXRSTOR/XSAVE/XRSTOR
+// =========================================================================
+//
+// These instructions receive virtual addresses from Sail but need to
+// access physical memory. We must translate each page's worth separately
+// to handle non-contiguous physical pages.
+
+static void virt_write_bytes(Model &m, u64 vaddr, const void *buf, u64 len) {
+  const u8 *src = static_cast<const u8 *>(buf);
+  u64 pos = 0;
+  while (pos < len) {
+    u64 paddr = m.ztranslate_addr(vaddr + pos, zPT_Write);
+    u64 page_remaining = 0x1000 - (paddr & 0xFFF);
+    u64 chunk = std::min(page_remaining, len - pos);
+    m.phys_mem.write_bytes(paddr, src + pos, chunk);
+    pos += chunk;
+  }
+}
+
+static void virt_read_bytes(Model &m, u64 vaddr, void *buf, u64 len) {
+  u8 *dst = static_cast<u8 *>(buf);
+  u64 pos = 0;
+  while (pos < len) {
+    u64 paddr = m.ztranslate_addr(vaddr + pos, zPT_Read);
+    u64 page_remaining = 0x1000 - (paddr & 0xFFF);
+    u64 chunk = std::min(page_remaining, len - pos);
+    m.phys_mem.read_bytes(paddr, dst + pos, chunk);
+    pos += chunk;
+  }
+}
+
+static void virt_write32(Model &m, u64 vaddr, u32 val) {
+  virt_write_bytes(m, vaddr, &val, 4);
+}
+
+static u32 virt_read32(Model &m, u64 vaddr) {
+  u32 val;
+  virt_read_bytes(m, vaddr, &val, 4);
+  return val;
+}
+
+static void virt_write64(Model &m, u64 vaddr, u64 val) {
+  virt_write_bytes(m, vaddr, &val, 8);
+}
+
+static u64 virt_read64(Model &m, u64 vaddr) {
+  u64 val;
+  virt_read_bytes(m, vaddr, &val, 8);
+  return val;
 }
 
 // =========================================================================
@@ -316,13 +403,13 @@ unit Model::z__maskmovdqu(lbits data, lbits mask, u64 addr) {
 static void fxsave_common(Model &m, u64 addr) {
   // Zero the 512-byte area
   u8 zero[512] = {};
-  m.phys_mem.write_bytes(addr, zero, 512);
+  virt_write_bytes(m, addr, zero, 512);
 
   // FCW at offset 0x00, FSW at offset 0x02
   u16 cw = (u16)m.zx87_cw;
   u16 sw = (u16)m.zx87_sw;
-  m.phys_mem.write_bytes(addr + 0x00, &cw, 2);
-  m.phys_mem.write_bytes(addr + 0x02, &sw, 2);
+  virt_write_bytes(m, addr + 0x00, &cw, 2);
+  virt_write_bytes(m, addr + 0x02, &sw, 2);
 
   // Abridged FTW at offset 0x04 (1 bit per register: 0=empty, 1=valid)
   u16 tw = (u16)m.zx87_tw;
@@ -330,51 +417,51 @@ static void fxsave_common(Model &m, u64 addr) {
   for (int i = 0; i < 8; i++)
     if (((tw >> (i * 2)) & 3) != 3)
       ftw_abridged |= (1 << i);
-  m.phys_mem.write_bytes(addr + 0x04, &ftw_abridged, 1);
+  virt_write_bytes(m, addr + 0x04, &ftw_abridged, 1);
 
   // MXCSR at offset 0x18
   u32 mxcsr = m.mxcsr_state.mxcsr;
-  m.phys_mem.write32(addr + 0x18, mxcsr);
-  m.phys_mem.write32(addr + 0x1C, 0x0002FFFF);
+  virt_write32(m, addr + 0x18, mxcsr);
+  virt_write32(m, addr + 0x1C, 0x0002FFFF);
 
   // ST0-ST7 at offset 0x20 (16 bytes each, only 10 used)
   for (int i = 0; i < 8; i++) {
     u8 bytes[10];
     bits_to_bytes(m.zx87_ST.data[i], bytes, 10);
-    m.phys_mem.write_bytes(addr + 0x20 + i * 16, bytes, 10);
+    virt_write_bytes(m, addr + 0x20 + i * 16, bytes, 10);
   }
 
   // XMM0-XMM15 at offset 0xA0 (16 bytes each)
   for (int i = 0; i < 16; i++) {
     u8 bytes[16];
     bits_to_bytes(m.zZMM.data[i], bytes, 16);
-    m.phys_mem.write_bytes(addr + 0xA0 + i * 16, bytes, 16);
+    virt_write_bytes(m, addr + 0xA0 + i * 16, bytes, 16);
   }
 }
 
 static void fxrstor_common(Model &m, u64 addr) {
   // FCW at offset 0x00, FSW at offset 0x02
   u16 cw, sw;
-  m.phys_mem.read_bytes(addr + 0x00, &cw, 2);
-  m.phys_mem.read_bytes(addr + 0x02, &sw, 2);
+  virt_read_bytes(m, addr + 0x00, &cw, 2);
+  virt_read_bytes(m, addr + 0x02, &sw, 2);
   m.zx87_cw = cw;
   m.zx87_sw = sw;
 
   // Abridged FTW at offset 0x04 — expand to full tag word
   u8 ftw_abridged;
-  m.phys_mem.read_bytes(addr + 0x04, &ftw_abridged, 1);
+  virt_read_bytes(m, addr + 0x04, &ftw_abridged, 1);
   u16 tw = 0;
   for (int i = 0; i < 8; i++)
     tw |= ((ftw_abridged & (1 << i)) ? 0 : 3) << (i * 2);
   m.zx87_tw = tw;
 
   // MXCSR at offset 0x18
-  m.mxcsr_state.mxcsr = m.phys_mem.read32(addr + 0x18);
+  m.mxcsr_state.mxcsr = virt_read32(m, addr + 0x18);
 
   // ST0-ST7 at offset 0x20
   for (int i = 0; i < 8; i++) {
     u8 bytes[10];
-    m.phys_mem.read_bytes(addr + 0x20 + i * 16, bytes, 10);
+    virt_read_bytes(m, addr + 0x20 + i * 16, bytes, 10);
     RECREATE(lbits)(&m.zx87_ST.data[i]);
     bytes_to_bits(&m.zx87_ST.data[i], bytes, 10, 80);
   }
@@ -382,7 +469,7 @@ static void fxrstor_common(Model &m, u64 addr) {
   // XMM0-XMM15 at offset 0xA0
   for (int i = 0; i < 16; i++) {
     u8 bytes[16];
-    m.phys_mem.read_bytes(addr + 0xA0 + i * 16, bytes, 16);
+    virt_read_bytes(m, addr + 0xA0 + i * 16, bytes, 16);
     RECREATE(lbits)(&m.zZMM.data[i]);
     bytes_to_bits(&m.zZMM.data[i], bytes, 16, 128);
   }
@@ -431,16 +518,16 @@ void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
 
   // Read old XSTATE_BV (XSAVE merges, not overwrites).
-  u64 old_bv = phys_mem.read64(addr + 0x200);
+  u64 old_bv = virt_read64(*this, addr + 0x200);
 
   if (rfbm & 3)
     fxsave_common(*this, addr);
 
   u64 xstate_bv = (old_bv & ~rfbm) | (XCR0 & rfbm);
-  phys_mem.write64(addr + 0x200, xstate_bv);
+  virt_write64(*this, addr + 0x200, xstate_bv);
   // XCOMP_BV = 0, reserved = 0.
   u8 zero[56] = {};
-  phys_mem.write_bytes(addr + 0x208, zero, 56);
+  virt_write_bytes(*this, addr + 0x208, zero, 56);
 
   rop->kind = Kind_zOk;
   rop->variants.zOk = UNIT;
@@ -448,7 +535,7 @@ void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
 
 void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
-  u64 xstate_bv = phys_mem.read64(addr + 0x200);
+  u64 xstate_bv = virt_read64(*this, addr + 0x200);
 
   u64 to_restore = rfbm & xstate_bv;
   u64 to_init = rfbm & ~xstate_bv;
@@ -469,7 +556,7 @@ void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
   }
 
   if ((rfbm & 6) && (xstate_bv & 2))
-    mxcsr_state.mxcsr = phys_mem.read32(addr + 0x18);
+    mxcsr_state.mxcsr = virt_read32(*this, addr + 0x18);
 
   rop->kind = Kind_zOk;
   rop->variants.zOk = UNIT;

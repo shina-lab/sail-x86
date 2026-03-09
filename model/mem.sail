@@ -11,19 +11,38 @@
 // and the address translation function (translate_addr) are defined in
 // paging.sail, which is compiled before this file.
 
+// Slow-path externals for page-crossing accesses.
+// These translate each byte separately via translate_addr, so accesses
+// that span a 4KB page boundary read/write correct physical memory.
+val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
+val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
+
 // Read 'n bytes from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
+// If the access crosses a 4KB page boundary, each byte is translated
+// separately to handle non-contiguous physical pages.
 val mem_read : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
 function mem_read(addr, n) = {
-  let paddr = translate_addr(addr, PT_Read);
-  phys_read(paddr, n)
+  let page_offset = unsigned(addr & 0x0000000000000FFF);
+  if page_offset + n <= 4096 then {
+    let paddr = translate_addr(addr, PT_Read);
+    phys_read(paddr, n)
+  } else {
+    __mem_read_crossing(addr, n)
+  }
 }
 
 // Write 'n bytes to memory at the given virtual address.
+// Same page-crossing logic as mem_read.
 val mem_write : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
 function mem_write(addr, n, data) = {
-  let paddr = translate_addr(addr, PT_Write);
-  phys_write(paddr, n, data)
+  let page_offset = unsigned(addr & 0x0000000000000FFF);
+  if page_offset + n <= 4096 then {
+    let paddr = translate_addr(addr, PT_Write);
+    phys_write(paddr, n, data)
+  } else {
+    __mem_write_crossing(addr, n, data)
+  }
 }
 
 // Convenience functions for common access sizes.
