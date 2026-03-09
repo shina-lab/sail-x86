@@ -578,19 +578,19 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF)
 
 #### 1.15.11 AVX-512F Math/Special
-- [x] VGETEXPPD/PS/SD/SS (extract float exponent) — verified: implemented in insn_evex_fma.sail
-- [x] VGETMANTPD/PS/SD/SS (extract float mantissa) — verified: implemented in insn_evex_imm.sail
+- [x] VGETEXPPD/PS/SD/SS (extract float exponent) — verified: implemented in insn_evex_fma.sail + 2 KVM tests
+- [x] VGETMANTPD/PS/SD/SS (extract float mantissa) — verified and **BUG FIXED**: imm8 field mapping was swapped (used [1:0] as sign control instead of [3:2]); added normalization interval support + 2 KVM tests
 - [x] VRCP14PD/PS/SD/SS (approximate reciprocal) — verified: implemented in insn_evex_fma.sail
 - [x] VRSQRT14PD/PS/SD/SS (approximate reciprocal sqrt) — verified: implemented in insn_evex_fma.sail
 - [ ] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER) — ER not targeted
 - [ ] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER) — ER not targeted
 - [ ] VEXP2PD/PS (base-2 exponential, AVX-512ER) — ER not targeted
 - [x] VSCALEFPD/PS/SD/SS (scale by power of 2) — verified: implemented in insn_evex_fma.sail
-- [x] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits) — verified: implemented in insn_evex_imm.sail
-- [x] VREDUCEPD/PS/SD/SS (reduce float range) — verified: implemented in insn_evex_imm.sail
-- [x] VRANGEPD/PS/SD/SS (range restriction) — verified: implemented in insn_evex_imm.sail
-- [x] VFIXUPIMMPD/PS/SD/SS (fix up special float values) — verified: implemented in insn_evex_imm.sail
-- [x] VFPCLASSPD/PS/SD/SS (classify float → opmask) — verified: implemented in insn_evex_imm.sail
+- [x] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits) — verified: rounding mode fix applied + 4 KVM tests
+- [x] VREDUCEPD/PS/SD/SS (reduce float range) — verified + 2 KVM tests
+- [x] VRANGEPD/PS/SD/SS (range restriction) — verified and **BUG FIXED**: sign control (imm8[3:2]) was ignored, abs_min/abs_max returned absolute values instead of originals; rewritten to match SDM pseudocode + 8 KVM tests
+- [x] VFIXUPIMMPD/PS/SD/SS (fix up special float values) — verified: full token classification + response table in C emulator + 2 KVM tests
+- [x] VFPCLASSPD/PS/SD/SS (classify float → opmask) — verified: implemented in insn_evex_imm.sail + 8 KVM tests (all 8 token types tested)
 
 #### 1.15.12 AVX-512 Integer Extensions
 - [x] VPMOVDB/DW/QB/QD/QW/WB (truncate) — verified: all variants in insn_evex_arith.sail and insn_evex_imm.sail
