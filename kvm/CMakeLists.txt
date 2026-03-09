@@ -8,6 +8,7 @@ add_executable(kvm_harness
   kvm-tests-fp-edge.cpp
   kvm-tests-extended.cpp
   kvm-tests-exception.cpp
+  kvm-tests-vex.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)

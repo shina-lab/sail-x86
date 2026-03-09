@@ -240,5 +240,6 @@ void add_x87_avx_tests(std::vector<TestCase> &tests);
 void add_fp_edge_tests(std::vector<TestCase> &tests);
 void add_extended_instruction_tests(std::vector<TestCase> &tests);
 void add_exception_tests(std::vector<TestCase> &tests);
+void add_vex_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

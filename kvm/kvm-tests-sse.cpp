@@ -13,7 +13,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE";
 
-
   {
     ArchState s;
     s.rflags = 0x2;
