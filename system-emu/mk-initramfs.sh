@@ -7,6 +7,11 @@
 set -e
 
 OUTPUT="${1:-initramfs.cpio.gz}"
+# Make OUTPUT absolute so it works after cd into TMPDIR.
+case "$OUTPUT" in
+  /*) ;;
+  *)  OUTPUT="$PWD/$OUTPUT" ;;
+esac
 BUSYBOX="/usr/bin/busybox"
 TMPDIR=$(mktemp -d)
 
@@ -87,8 +92,7 @@ fakeroot sh -c '
   mknod dev/null c 1 3
   chmod 666 dev/null
   find . | cpio -o -H newc 2>/dev/null
-' | gzip -9 > "$OLDPWD/$OUTPUT"
-cd "$OLDPWD"
+' | gzip -9 > "$OUTPUT"
 
 SIZE=$(stat -c %s "$OUTPUT")
 echo "Created $OUTPUT ($SIZE bytes)"

@@ -35,6 +35,38 @@ add_executable(sail_x86_system x86_system_sim.cpp)
 target_link_libraries(sail_x86_system PRIVATE x86_system_model)
 add_dependencies(sail_x86_system generated_sail_x86_model)
 
+# =========================================================================
+# "make linux" — download + build kernel, build initramfs, print boot command.
+# =========================================================================
+#
+# Requires: curl, busybox-static, fakeroot, standard build tools.
+# Downloads Linux kernel source automatically if not already present.
+
+set(VMLINUX "${CMAKE_BINARY_DIR}/vmlinux")
+set(INITRAMFS "${CMAKE_BINARY_DIR}/initramfs.cpio.gz")
+
+add_custom_command(
+    OUTPUT "${INITRAMFS}"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-initramfs.sh" "${INITRAMFS}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mk-initramfs.sh"
+    COMMENT "Building initramfs"
+)
+
+add_custom_command(
+    OUTPUT "${VMLINUX}"
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-linux.sh" "${CMAKE_BINARY_DIR}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mk-linux.sh"
+    COMMENT "Building Linux kernel"
+)
+
+add_custom_target(linux
+    DEPENDS sail_x86_system "${INITRAMFS}" "${VMLINUX}"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Run:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail_x86_system -i initramfs.cpio.gz vmlinux"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+)
+
 # Tests.
 add_executable(system_test_basic tests/test_basic.cpp)
 target_link_libraries(system_test_basic PRIVATE x86_system_model)
