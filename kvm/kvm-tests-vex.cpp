@@ -4127,4 +4127,32 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // EVEX VPMINUW (0F38 3A) — packed unsigned word minimum
+  // =====================================================================
+  cat = "EVEX VPMINUW";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // Words (little-endian): lo={0x0010,0xFF00,0x0005,0x8000}, hi={0x0001,0x7FFF,0x1234,0xABCD}
+    s.xmm[1] = xmm_from_u64(0x8000'0005'FF00'0010ULL, 0xABCD'1234'7FFF'0001ULL);
+    // Words: lo={0x0020,0x00FF,0x0003,0x7FFF}, hi={0x0002,0x8000,0x1234,0x5678}
+    s.xmm[2] = xmm_from_u64(0x7FFF'0003'00FF'0020ULL, 0x5678'1234'8000'0002ULL);
+    // Expected min: lo={0x0010,0x00FF,0x0003,0x7FFF}, hi={0x0001,0x7FFF,0x1234,0x5678}
+
+    // EVEX.128.66.0F38.WIG 3A /r: VPMINUW xmm0, xmm1, xmm2
+    // P1=0xF2 (mm=10), P2=0x75 (W=0,vvvv=~1,pp=01), P3=0x08 (xmm)
+    // modrm = 11_000_010 = 0xC2 (xmm0, xmm2)
+    add_xmm("vpminuw xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3A, 0xC2}, s, 0x7);
+
+    // Test with all-equal words to verify equality case picks first operand
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[1] = xmm_from_u64(0x1111222233334444ULL, 0x5555666677778888ULL);
+    s2.xmm[2] = xmm_from_u64(0x1111222233334444ULL, 0x5555666677778888ULL);
+    add_xmm("vpminuw xmm0,xmm1,xmm2: equal words",
+            {0x62, 0xF2, 0x75, 0x08, 0x3A, 0xC2}, s2, 0x7);
+  }
 }

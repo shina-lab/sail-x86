@@ -4141,7 +4141,6 @@ function dispatch_evex_arith(op, pfx) = {
     }
   },
 
-  // 0F38 76: VPERMI2D (66,W0) / VPERMI2Q (66,W1) [F]
   // 0F38 35: VPMOVZXDQ (66) [F] / VPMOVQD (F3) [F]
   53 => {
     let modrm = fetch_byte();

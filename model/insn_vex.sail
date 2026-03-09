@@ -508,6 +508,11 @@ function avx_pminuw_256(a, b) =
   avx_pminuw_128(a[255..128], b[255..128]) @
   avx_pminuw_128(a[127..0], b[127..0])
 
+val avx_pminuw_512 : (zmmword, zmmword) -> zmmword
+function avx_pminuw_512(a, b) =
+  avx_pminuw_256(a[511..256], b[511..256]) @
+  avx_pminuw_256(a[255..0], b[255..0])
+
 val avx_maxuw_128 : (xmmword, xmmword) -> xmmword
 function avx_maxuw_128(a, b) = {
   var r : xmmword = zeros();

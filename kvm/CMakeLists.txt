@@ -196,6 +196,11 @@ set(KVM_CATEGORIES
   F16C
   "FP conv prec"
   "EVEX bcast mem"
+  "EVEX VPCMP D/Q"
+  "EVEX VPMINUQ"
+  "EVEX VPTESTM W1"
+  "EVEX VPCMPEQQ/GTQQ xmm"
+  "EVEX VPMINUW"
 )
 
 foreach(cat ${KVM_CATEGORIES})

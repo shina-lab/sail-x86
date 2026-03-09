@@ -982,10 +982,20 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 26: VPTESTMB (66, W=0) / VPTESTNMB (F3, W=0)
-  // 0F38 3A: VPBROADCASTMW2D (F3,W0) [CD]
+  // 0F38 3A: VPMINUW (66) [BW] / VPBROADCASTMW2D (F3,W0) [CD]
   58 => {
-    if mp == MP_F3 then {
+    if mp == MP_66 then {
+      // VPMINUW: packed minimum of unsigned words
+      let modrm = fetch_byte();
+      let dst = evex_reg_idx(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+      let src1_idx = pfx.evex_vvvvv;
+      match pfx.evex_ll {
+        2 => { write_zmm(dst, avx_pminuw_512(read_zmm(src1_idx), evex_src_zmm(modrm, rm, pfx))); Ok() },
+        1 => { write_ymm(dst, avx_pminuw_256(read_ymm(src1_idx), evex_src_ymm(modrm, rm, pfx))); Ok() },
+        _ => { write_xmm(dst, avx_pminuw_128(read_xmm(src1_idx), evex_src_xmm(modrm, rm, pfx))); Ok() },
+      }
+    } else if mp == MP_F3 then {
       if not_bool(pfx.rex_w) then {
         // VPBROADCASTMW2D: broadcast low word of k-register to all dword elements
         let modrm = fetch_byte();
@@ -1433,24 +1443,6 @@ function dispatch_evex_perm(op, pfx) = {
         2 => { write_zmm(dst, evex_src_zmm(modrm, rm, pfx)); Ok() },
         1 => { write_ymm(dst, evex_src_ymm(modrm, rm, pfx)); Ok() },
         _ => { write_xmm(dst, evex_src_xmm(modrm, rm, pfx)); Ok() },
-      }
-    } else {
-      raise_UD()
-    }
-  },
-
-  // 0F38 3A: VPBROADCASTMW2D (F3, W=0) [CD]
-  // 0F38 3A: VPBROADCASTMW2D (F3, W=0) [CD]
-  58 => {
-    if mp == MP_F3 & not_bool(pfx.rex_w) then {
-      let modrm = fetch_byte();
-      let dst = evex_reg_idx(modrm, pfx);
-      let src_k : range(0, 7) = unsigned(modrm[2..0]);
-      let k_word : word = read_kreg(src_k)[15..0];
-      match pfx.evex_ll {
-        2 => { write_zmm(dst, avx_vpbroadcastmw2d_512(k_word)); Ok() },
-        1 => { write_ymm(dst, avx_vpbroadcastmw2d_256(k_word)); Ok() },
-        _ => { write_xmm(dst, avx_vpbroadcastmw2d_128(k_word)); Ok() },
       }
     } else {
       raise_UD()
