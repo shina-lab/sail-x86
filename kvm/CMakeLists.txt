@@ -195,6 +195,7 @@ set(KVM_CATEGORIES
   VPTERNLOGD
   F16C
   "FP conv prec"
+  "EVEX bcast mem"
 )
 
 foreach(cat ${KVM_CATEGORIES})

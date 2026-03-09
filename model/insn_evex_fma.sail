@@ -1760,26 +1760,22 @@ function dispatch_evex_fma(op, pfx) = {
         match eff_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-            let src2 : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f64_zmm(evex_src_m64(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
+            let src2 = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
             write_zmm(dst, vscalefpd_zmm(src1, src2)); Ok()
           },
-          1 => { write_ymm(dst, vscalefpd_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vscalefpd_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
+          1 => { write_ymm(dst, vscalefpd_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vscalefpd_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       } else {
         // VSCALEFPS
         match eff_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-            let src2 : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
+            let src2 = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
             write_zmm(dst, vscalefps_zmm(src1, src2)); Ok()
           },
-          1 => { write_ymm(dst, vscalefps_ymm(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vscalefps_xmm(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
+          1 => { write_ymm(dst, vscalefps_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vscalefps_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       };
       evex_end_rc(saved_mxcsr);
@@ -1828,26 +1824,16 @@ function dispatch_evex_fma(op, pfx) = {
       let result : ExecutionResult = if pfx.rex_w then {
         // VGETEXPPD
         match eff_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f64_zmm(evex_src_m64(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vgetexppd_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vgetexppd_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vgetexppd_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vgetexppd_zmm(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vgetexppd_ymm(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vgetexppd_xmm(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       } else {
         // VGETEXPPS
         match eff_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vgetexpps_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vgetexpps_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vgetexpps_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vgetexpps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vgetexpps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vgetexpps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       };
       evex_end_rc(saved_mxcsr);
@@ -1895,26 +1881,16 @@ function dispatch_evex_fma(op, pfx) = {
       if pfx.rex_w then {
         // VRCP14PD
         match pfx.evex_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f64_zmm(evex_src_m64(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vrcp14pd_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vrcp14pd_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vrcp14pd_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vrcp14pd_zmm(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vrcp14pd_ymm(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vrcp14pd_xmm(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       } else {
         // VRCP14PS
         match pfx.evex_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vrcp14ps_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vrcp14ps_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vrcp14ps_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vrcp14ps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vrcp14ps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vrcp14ps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       }
     }
@@ -1956,26 +1932,16 @@ function dispatch_evex_fma(op, pfx) = {
       if pfx.rex_w then {
         // VRSQRT14PD
         match pfx.evex_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f64_zmm(evex_src_m64(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vrsqrt14pd_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vrsqrt14pd_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vrsqrt14pd_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vrsqrt14pd_zmm(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vrsqrt14pd_ymm(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vrsqrt14pd_xmm(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       } else {
         // VRSQRT14PS
         match pfx.evex_ll {
-          2 => {
-            let src : zmmword = if pfx.evex_b & is_mem
-              then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
-              else evex_src_zmm(modrm, rm, pfx);
-            write_zmm(dst, vrsqrt14ps_zmm(src)); Ok()
-          },
-          1 => { write_ymm(dst, vrsqrt14ps_ymm(evex_src_ymm(modrm, rm, pfx))); Ok() },
-          _ => { write_xmm(dst, vrsqrt14ps_xmm(evex_src_xmm(modrm, rm, pfx))); Ok() },
+          2 => { write_zmm(dst, vrsqrt14ps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, vrsqrt14ps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, vrsqrt14ps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
         }
       }
     }

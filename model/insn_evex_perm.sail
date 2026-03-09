@@ -3,18 +3,6 @@
 // VBROADCAST, VPERM, VPSHUF, VCOMPRESS, VEXPAND.
 // Called from dispatch_evex_0f38 in insn_evex.sail.
 
-val broadcast_f32_ymm : dword -> ymmword
-function broadcast_f32_ymm(v) =
-  v @ v @ v @ v @ v @ v @ v @ v
-
-val broadcast_f32_xmm : dword -> xmmword
-function broadcast_f32_xmm(v) =
-  v @ v @ v @ v
-
-val broadcast_f64_ymm : qword -> ymmword
-function broadcast_f64_ymm(v) =
-  v @ v @ v @ v
-
 // Broadcast a byte to all lanes
 
 val broadcast_byte_zmm : byte -> zmmword

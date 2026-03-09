@@ -3205,10 +3205,6 @@ void add_vex_tests(std::vector<TestCase> &tests) {
 
     // VCVTSS2SD xmm0, xmm1, xmm2 (scalar f32→f64, preserve upper from xmm1)
     // VEX.LIG.F3.0F.WIG 5A /r: C5 F2 5A C2
-    //   vvvv=0001(xmm1): ~0001 = 1110
-    //   P1 = R̄=1,vvvv=1110,L=0,pp=10(F3)
-    //   Wait, 2-byte VEX: C5 [R̄.vvvv.L.pp]
-    //   R̄=1, vvvv=1110, L=0, pp=10 → 1_1110_0_10 = 0xF2
     {
       ArchState s;
       s.rflags = 0x2;
@@ -3219,6 +3215,196 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       s.xmm[2] = xmm_from_u32(0, 0, 0, fbits);
       add_xmm("vcvtss2sd xmm0,xmm1,xmm2",
         {0xC5, 0xF2, 0x5A, 0xC2}, s, 0x7);
+    }
+  }
+
+  // =====================================================================
+  // EVEX memory broadcast — EVEX.b=1 for memory operand (FP only)
+  // NOTE: EVEX integer broadcast (VPADDD etc.) not yet implemented
+  // =====================================================================
+  cat = "EVEX bcast mem";
+  {
+    // VADDPS xmm0, xmm1, [rdi]{1to4} — broadcast f32 from memory
+    // EVEX.NDS.128.NP.0F.W0 58 /r with EVEX.b=1
+    //   P1: W=0,~vvvv=1110,1,pp=00(NP) → 0x74
+    //   P2: b=1 → 0x18
+    //   Opcode: 0x58 (VADDPS)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      float bcast_val = 10.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vaddps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x18, 0x58, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VADDPD xmm0, xmm1, [rdi]{1to2} — broadcast f64 from memory
+    // EVEX.NDS.128.66.0F.W1 58 /r with EVEX.b=1
+    //   P1: W=1,~vvvv=1110,1,pp=01(66) → 0xF5
+    //   P2: b=1 → 0x18
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f64(1.5, 2.5);
+      double bcast_val = 100.0;
+      std::vector<u8> data(8);
+      memcpy(data.data(), &bcast_val, 8);
+
+      TestCase tc;
+      tc.name = "vaddpd xmm0,xmm1,[rdi]{1to2}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xF5, 0x18, 0x58, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VADDPS ymm0, ymm1, [rdi]{1to8} — broadcast f32 to 256-bit
+    // EVEX.NDS.256.NP.0F.W0 58 /r with EVEX.b=1
+    //   P2: L'L=01(256), b=1 → 0x38
+    // ymm1 lower half set via xmm[1], upper half is zero
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      float bcast_val = 10.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vaddps ymm0,ymm1,[rdi]{1to8}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x38, 0x58, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VMULPS xmm0, xmm1, [rdi]{1to4} — broadcast f32, multiply
+    // EVEX.NDS.128.NP.0F.W0 59 /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      float bcast_val = 3.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vmulps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x18, 0x59, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VSUBPS xmm0, xmm1, [rdi]{1to4} — broadcast f32, subtract
+    // EVEX.NDS.128.NP.0F.W0 5C /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+      float bcast_val = 1.5f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vsubps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x18, 0x5C, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VMINPS xmm0, xmm1, [rdi]{1to4} — broadcast f32, min
+    // EVEX.NDS.128.NP.0F.W0 5D /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(1.0f, 5.0f, 2.0f, 8.0f);
+      float bcast_val = 3.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vminps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x18, 0x5D, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VMAXPS xmm0, xmm1, [rdi]{1to4} — broadcast f32, max
+    // EVEX.NDS.128.NP.0F.W0 5F /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f32(1.0f, 5.0f, 2.0f, 8.0f);
+      float bcast_val = 3.0f;
+      std::vector<u8> data(4);
+      memcpy(data.data(), &bcast_val, 4);
+
+      TestCase tc;
+      tc.name = "vmaxps xmm0,xmm1,[rdi]{1to4}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x18, 0x5F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
+    }
+
+    // VDIVPD xmm0, xmm1, [rdi]{1to2} — broadcast f64, divide
+    // EVEX.NDS.128.66.0F.W1 5E /r with EVEX.b=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      s.xmm[1] = xmm_from_f64(10.0, 20.0);
+      double bcast_val = 4.0;
+      std::vector<u8> data(8);
+      memcpy(data.data(), &bcast_val, 8);
+
+      TestCase tc;
+      tc.name = "vdivpd xmm0,xmm1,[rdi]{1to2}";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xF5, 0x18, 0x5E, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tc.init_data = std::move(data);
+      tests.push_back(std::move(tc));
     }
   }
 }
