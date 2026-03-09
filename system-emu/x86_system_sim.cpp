@@ -71,13 +71,13 @@ static bool setup_raw_terminal() {
   // The kernel's serial output already sends \r\n through the UART.
   raw.c_cflag |= CS8;
   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-  raw.c_cc[VMIN] = 0;   // Non-blocking
+  raw.c_cc[VMIN] = 0;   // Return immediately even if no data
   raw.c_cc[VTIME] = 0;
   tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-  // Also set stdin non-blocking for poll()
-  int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+  // Don't set O_NONBLOCK on TTYs — VMIN=0/VTIME=0 already provides
+  // non-blocking behavior, and O_NONBLOCK causes read() to return 0
+  // (indistinguishable from EOF) when no data is available.
 
   return true;
 }
@@ -860,7 +860,8 @@ int main(int argc, char *argv[]) {
     if (poll_stdin && (insn_count & 0x3FF) == 0) {
       u8 buf[64];
       ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
-      if (n == 0) poll_stdin = false;  // EOF on stdin
+      // For pipes, n==0 means EOF. For TTYs with VMIN=0, n==0 means no data.
+      if (n == 0 && !interactive) poll_stdin = false;
       for (ssize_t i = 0; n > 0 && i < n; i++) {
         if (ctrl_a_pending) {
           ctrl_a_pending = false;

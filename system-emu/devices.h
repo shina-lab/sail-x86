@@ -50,7 +50,8 @@ public:
       // Bit 6: TEMT (Transmitter Empty) — always empty
       return 0x60 | (rx_fifo.empty() ? 0 : 0x01);
     case 6: // MSR — Modem Status
-      return 0;
+      // Report DCD, DSR, CTS active so opens don't block on carrier detect
+      return 0xB0;  // DCD (bit 7) + DSR (bit 5) + CTS (bit 4)
     case 7: // SCR — Scratch
       return scr;
     default:
