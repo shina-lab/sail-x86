@@ -204,7 +204,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 
 ### 1.3 MMX (legacy, 64-bit packed integer in mm0-mm7)
 
-- [ ] EMMS (empty MMX state — required for x87↔MMX transition)
+- [x] EMMS (empty MMX state — required for x87↔MMX transition) — verified: 0F 77, implemented as NOP (MMX state not separately modeled) + KVM tests
 - [ ] MOVD, MOVQ (MMX data transfer)
 - [ ] PACKSSWB, PACKSSDW, PACKUSWB (MMX pack with saturation)
 - [ ] PADDB, PADDW, PADDD (MMX packed add)
@@ -536,29 +536,29 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VMOVDQA32/64, VMOVDQU32/64 (aligned/unaligned with mask) — verified: implemented in insn_evex_fp.sail and insn_evex_int.sail; VMOVDQU8/16 not yet implemented
 - [x] VPBROADCASTD/Q (broadcast with EVEX) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
-- [x] VBROADCASTSS/SD (broadcast scalar) — verified: implemented in insn_evex_perm.sail; F32X4/F64X2/F32X8/F64X4 not checked
+- [x] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4 (broadcast scalar/lane) — verified: all forms in insn_evex_perm.sail (0F38 18/19/1A/1B)
 - [ ] VMOVSH, VMOVW (AVX-512FP16)
 - [x] VCOMPRESSPD/PS (compress packed float) — verified: implemented in insn_evex_perm.sail
 - [x] VEXPANDPD/PS (expand packed float) — verified: implemented in insn_evex_perm.sail
-- [x] VPCOMPRESSD/Q (compress packed int) — verified: implemented in insn_evex_perm.sail; B/W not implemented
-- [x] VPEXPANDD/Q (expand packed int) — verified: implemented in insn_evex_perm.sail; B/W not implemented
+- [x] VPCOMPRESSD/Q (compress packed int) — verified: implemented in insn_evex_perm.sail
+- [x] VPEXPANDD/Q (expand packed int) — verified: implemented in insn_evex_perm.sail
 
 #### 1.15.7 AVX-512F Permute/Shuffle
 - [x] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute) — verified: implemented in insn_evex_perm.sail
-- [ ] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest)
-- [ ] VPERMT2B/W/D/Q/PS/PD (2-source permute, index in src)
+- [x] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest) — verified: D/Q/PS/PD in insn_evex_perm.sail, B in insn_evex_perm.sail, W in insn_evex_fma.sail
+- [x] VPERMT2B/W/D/Q/PS/PD (2-source permute, index in src) — verified: D/Q/PS/PD in insn_evex_perm.sail, B/W in insn_evex_arith.sail
 - [x] VPERMILPS, VPERMILPD (in-lane permute) — verified: implemented in insn_evex_perm.sail
 - [x] VSHUFF32X4, VSHUFF64X2, VSHUFI32X4, VSHUFI64X2 (cross-lane shuffle) — verified: implemented in insn_evex_imm.sail
-- [x] VINSERTF32X4/64X2 (insert 128-bit) — verified: implemented in insn_evex_imm.sail; 32X8/64X4 not checked
-- [x] VINSERTI32X4/64X2 (integer insert) — verified: implemented in insn_evex_imm.sail
-- [x] VEXTRACTF32X4/64X2 (extract 128-bit) — verified: implemented in insn_evex_imm.sail; 32X8/64X4 not checked
-- [x] VEXTRACTI32X4/64X2 (integer extract) — verified: implemented in insn_evex_imm.sail
+- [x] VINSERTF32X4/64X2/32X8/64X4 (insert 128/256-bit) — verified: all forms in insn_evex_imm.sail (0F3A 18/1A)
+- [x] VINSERTI32X4/64X2/32X8/64X4 (integer insert) — verified: all forms in insn_evex_imm.sail
+- [x] VEXTRACTF32X4/64X2/32X8/64X4 (extract 128/256-bit) — verified: all forms in insn_evex_imm.sail (0F3A 19/1B)
+- [x] VEXTRACTI32X4/64X2/32X8/64X4 (integer extract) — verified: all forms in insn_evex_imm.sail
 - [x] VALIGND, VALIGNQ (dword/qword-granularity concatenate+shift) — verified: implemented in insn_evex_imm.sail
-- [ ] VPSHUFBITQMB (AVX-512BITALG, shuffle bit test → mask)
+- [x] VPSHUFBITQMB (AVX-512BITALG, shuffle bit test → mask) — verified: insn_evex_perm.sail, 0F38 8F
 
 #### 1.15.8 AVX-512F Logic and Blend
 - [x] VPTERNLOGD, VPTERNLOGQ (ternary logic with imm8 truth table) — verified: implemented in insn_evex_imm.sail
-- [x] VPBLENDMD/Q (blend with opmask) — verified: implemented in insn_evex_perm.sail; B/W not implemented
+- [x] VPBLENDMD/Q (blend with opmask) — verified: D/Q in insn_evex_perm.sail; B/W in insn_evex_arith.sail
 - [x] VBLENDMPS, VBLENDMPD (blend float with opmask) — verified: implemented in insn_evex_perm.sail
 
 #### 1.15.9 AVX-512F Shift/Rotate
@@ -597,18 +597,18 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPMOVUSDB/USDW/USQB/USQD/USQW/USWB (unsigned saturation truncate) — verified: implemented in insn_evex_arith.sail
 - [x] VPMOVB2M/W2M/D2M/Q2M (MSB to mask) — verified: all 4 variants in insn_evex_arith.sail
 - [x] VPMOVM2B/W/D/Q (mask to vector) — verified: all 4 variants in insn_evex_arith.sail
-- [ ] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA)
-- [ ] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI)
-- [ ] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ)
-- [ ] VPLZCNTD/Q (per-element leading zero count, AVX-512CD)
-- [ ] VPCONFLICTD/Q (conflict detection, AVX-512CD)
-- [ ] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product)
+- [x] VPMADD52HUQ, VPMADD52LUQ (52-bit integer FMA, AVX-512IFMA) — verified: insn_evex_fma.sail, 0F38 B4/B5
+- [x] VPMULTISHIFTQB (multi-shift qword, AVX-512VBMI) — verified: insn_evex_arith.sail, 0F38 83
+- [x] VPOPCNTB/W/D/Q (per-element popcount, AVX-512BITALG/VPOPCNTDQ) — verified: insn_evex_arith.sail, 0F38 54/55
+- [x] VPLZCNTD/Q (per-element leading zero count, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 44
+- [x] VPCONFLICTD/Q (conflict detection, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 C4
+- [x] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product) — verified: all 4 variants in insn_evex_arith.sail
 - [ ] VP2INTERSECTD/Q (AVX-512VP2INTERSECT)
 - [ ] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW)
 - [ ] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS)
-- [ ] VPSHLD, VPSHLDV (concatenate and shift left, AVX-512VBMI2)
-- [ ] VPSHRD, VPSHRDV (concatenate and shift right, AVX-512VBMI2)
-- [ ] VDBPSADBW (double-block packed SAD, AVX-512BW)
+- [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified: immediate in insn_evex_imm.sail, variable in insn_evex_arith.sail
+- [x] VPSHRDW/D/Q, VPSHRDVW/D/Q (concatenate and shift right, AVX-512VBMI2) — verified: immediate in insn_evex_imm.sail, variable in insn_evex_arith.sail
+- [x] VDBPSADBW (double-block packed SAD, AVX-512BW) — verified: insn_evex_imm.sail, 0F3A 42
 
 ### 1.16 AVX-512 FP16 (EVEX-encoded, float16)
 
