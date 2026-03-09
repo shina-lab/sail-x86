@@ -1861,6 +1861,7 @@ u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
 u64 Model::z__f32_to_uint32_trunc(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
+  if (std::isnan(fa) || fa < 0.0f || fa >= 4294967296.0f) return 0xFFFFFFFF;
   return (u32)fa;
 }
 
@@ -1868,12 +1869,15 @@ u64 Model::z__f32_to_uint32(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
   SYNC_MXCSR_RC();
-  return (u32)rintf(fa);
+  float rounded = rintf(fa);
+  if (std::isnan(rounded) || rounded < 0.0f || rounded >= 4294967296.0f) return 0xFFFFFFFF;
+  return (u32)rounded;
 }
 
 u64 Model::z__f32_to_uint64_trunc(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
+  if (std::isnan(fa) || fa < 0.0f || fa >= 18446744073709551616.0f) return 0xFFFFFFFFFFFFFFFF;
   return (u64)fa;
 }
 
@@ -1881,12 +1885,15 @@ u64 Model::z__f32_to_uint64(u64 a) {
   float fa;
   memcpy(&fa, &a, 4);
   SYNC_MXCSR_RC();
-  return (u64)rintf(fa);
+  float rounded = rintf(fa);
+  if (std::isnan(rounded) || rounded < 0.0f || rounded >= 18446744073709551616.0f) return 0xFFFFFFFFFFFFFFFF;
+  return (u64)rounded;
 }
 
 u64 Model::z__f64_to_uint32_trunc(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
+  if (std::isnan(fa) || fa < 0.0 || fa >= 4294967296.0) return 0xFFFFFFFF;
   return (u32)fa;
 }
 
@@ -1894,12 +1901,15 @@ u64 Model::z__f64_to_uint32(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   SYNC_MXCSR_RC();
-  return (u32)rint(fa);
+  double rounded = rint(fa);
+  if (std::isnan(rounded) || rounded < 0.0 || rounded >= 4294967296.0) return 0xFFFFFFFF;
+  return (u32)rounded;
 }
 
 u64 Model::z__f64_to_uint64_trunc(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
+  if (std::isnan(fa) || fa < 0.0 || fa >= 18446744073709551616.0) return 0xFFFFFFFFFFFFFFFF;
   return (u64)fa;
 }
 
@@ -1907,7 +1917,9 @@ u64 Model::z__f64_to_uint64(u64 a) {
   double fa;
   memcpy(&fa, &a, 8);
   SYNC_MXCSR_RC();
-  return (u64)rint(fa);
+  double rounded = rint(fa);
+  if (std::isnan(rounded) || rounded < 0.0 || rounded >= 18446744073709551616.0) return 0xFFFFFFFFFFFFFFFF;
+  return (u64)rounded;
 }
 
 u64 Model::z__uint32_to_f32(u64 a) {

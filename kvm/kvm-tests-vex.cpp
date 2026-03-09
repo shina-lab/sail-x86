@@ -2516,6 +2516,43 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       add_xmm("vcvtqq2ps xmm0,ymm2 (256)",
         {0x62, 0xF1, 0xFC, 0x28, 0x5B, 0xC2}, s, 0x7);
     }
+
+    // VCVTPS2UDQ xmm0, xmm1 — unsigned float→int conversion edge cases
+    // EVEX.128.NP.0F.W0 79 /r (note: NP prefix, not 66!)
+    // P0=0xF1(mmm=001), P1=0x7C(W=0,vvvv=1111,pp=00 NP), P2=0x08
+    // modrm: mod=11,reg=000(xmm0),rm=001(xmm1) → 0xC1
+    {
+      // Positive values: 1.5 → 2 (round nearest), 100.0 → 100
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f32(0.0f, 100.0f, 1.5f, 3000000000.0f);
+      add_xmm("vcvtps2udq: positive values",
+        {0x62, 0xF1, 0x7C, 0x08, 0x79, 0xC1}, s, 0x3);
+    }
+    {
+      // Edge cases: negative (-1.0) → 0xFFFFFFFF per SDM, NaN → 0xFFFFFFFF
+      // UINT_MAX+1 (4294967296.0) → 0xFFFFFFFF
+      ArchState s;
+      s.rflags = 0x2;
+      uint32_t qnan = 0x7FC00000;
+      uint32_t neg1_bits, overflow_bits;
+      float neg1 = -1.0f, overflow = 4294967296.0f;
+      memcpy(&neg1_bits, &neg1, 4);
+      memcpy(&overflow_bits, &overflow, 4);
+      s.xmm[1] = xmm_from_u32(qnan, overflow_bits, neg1_bits, 0);
+      add_xmm("vcvtps2udq: negative/NaN/overflow",
+        {0x62, 0xF1, 0x7C, 0x08, 0x79, 0xC1}, s, 0x3);
+    }
+
+    // VCVTTPS2UDQ xmm0, xmm1 — truncating unsigned conversion
+    // EVEX.128.NP.0F.W0 78 /r
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_f32(0.0f, 2.9f, 1000000.5f, 4294967000.0f);
+      add_xmm("vcvttps2udq: truncation",
+        {0x62, 0xF1, 0x7C, 0x08, 0x78, 0xC1}, s, 0x3);
+    }
   }
 
   // =====================================================================
