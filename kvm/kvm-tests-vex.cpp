@@ -2991,5 +2991,35 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       add_xmm("evex vfmadd213ss {rz-sae}",
         {0x62, 0xF2, 0x75, 0x78, 0xA9, 0xC2}, s, 0x7);
     }
+
+    // VCVTPS2UDQ with {er}: convert f32 → u32 with rounding override
+    // EVEX.512.0F.W0 79 /r — P0: 0xF1(mmm=001), P1: W=0,~vvvv=1111,1,pp=00 = 0x7C
+    //   ModRM: mod=11, reg=000(zmm0), rm=001(zmm1) → 0xC1
+    //
+    // xmm1[0] = 2.7f → {rn}=3, {rd}=2, {ru}=3, {rz}=2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float val = 2.7f;
+      u32 vbits;
+      memcpy(&vbits, &val, 4);
+      s.xmm[1] = xmm_from_u32(vbits, vbits, vbits, vbits);
+
+      // {rn-sae}: 2.7 → 3  (P2: LL=00, b=1 → 0x18)
+      add_xmm("evex vcvtps2udq {rn-sae} 2.7",
+        {0x62, 0xF1, 0x7C, 0x18, 0x79, 0xC1}, s, 0x7);
+
+      // {rd-sae}: 2.7 → 2  (P2: LL=01, b=1 → 0x38)
+      add_xmm("evex vcvtps2udq {rd-sae} 2.7",
+        {0x62, 0xF1, 0x7C, 0x38, 0x79, 0xC1}, s, 0x7);
+
+      // {ru-sae}: 2.7 → 3  (P2: LL=10, b=1 → 0x58)
+      add_xmm("evex vcvtps2udq {ru-sae} 2.7",
+        {0x62, 0xF1, 0x7C, 0x58, 0x79, 0xC1}, s, 0x7);
+
+      // {rz-sae}: 2.7 → 2  (P2: LL=11, b=1 → 0x78)
+      add_xmm("evex vcvtps2udq {rz-sae} 2.7",
+        {0x62, 0xF1, 0x7C, 0x78, 0x79, 0xC1}, s, 0x7);
+    }
   }
 }
