@@ -1459,20 +1459,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
 
             // Restore RFLAGS. At CPL 0: all flags modifiable except VIP, VIF, VM.
             // RF is always cleared by instruction execution.
-            CF      = new_rflags[0];
-            PF      = new_rflags[2];
-            AF      = new_rflags[4];
-            ZF      = new_rflags[6];
-            SF      = new_rflags[7];
-            TF      = new_rflags[8];
-            IF_flag = new_rflags[9];
-            DF      = new_rflags[10];
-            OF      = new_rflags[11];
-            IOPL    = new_rflags[13..12];
-            NT      = new_rflags[14];
-            RF      = bitzero;  // RF always cleared
-            AC_flag = new_rflags[18];
-            ID      = new_rflags[21];
+            write_rflags(new_rflags);
+            RF = bitzero;
 
             // Load RSP and SS
             write_gpr64(RSP, new_rsp);
@@ -1489,10 +1477,8 @@ function dispatch_opcode_1byte(opcode, pfx) = {
             write_segreg(CS, new_cs[15..0]);
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);
             cur_cpl = new_cpl;
-            CF = new_eflags[0]; PF = new_eflags[2]; AF = new_eflags[4];
-            ZF = new_eflags[6]; SF = new_eflags[7]; TF = new_eflags[8];
-            IF_flag = new_eflags[9]; DF = new_eflags[10]; OF = new_eflags[11];
-            IOPL = new_eflags[13..12]; NT = new_eflags[14]; RF = bitzero;
+            write_rflags(zero_extend(new_eflags));
+            RF = bitzero;
             write_gpr64(RSP, zero_extend(new_esp));
             write_segreg(SS, new_ss[15..0]);
           },
