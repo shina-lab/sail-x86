@@ -189,6 +189,7 @@ set(KVM_CATEGORIES
   "EVEX rotate imm"
   "EVEX FP conv"
   "EVEX rounding"
+  "EVEX scalar FP"
 )
 
 foreach(cat ${KVM_CATEGORIES})

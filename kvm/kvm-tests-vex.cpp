@@ -2635,4 +2635,120 @@ void add_vex_tests(std::vector<TestCase> &tests) {
         {0x62, 0xF1, 0x7C, 0x78, 0x58, 0xC2}, s, 0x7);
     }
   }
+
+  // =====================================================================
+  // EVEX Scalar FP operations (VADDSS/SD, VMULSS/SD, etc.)
+  // =====================================================================
+  cat = "EVEX scalar FP";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // EVEX.NDS.LIG.F3.0F.W0 58 /r: VADDSS xmm0, xmm1, xmm2
+    //   P0: 0xF1 (R=1,X=1,B=1,R'=1,mmm=001)
+    //   P1: W=0,~vvvv=1110(xmm1),1,pp=10(F3) → 0.1110.1.10 = 0x7A
+    //   P2: z=0,LL=00,b=0,V'=1,aaa=000 → 0x08
+    //   ModRM: mod=11, reg=000, rm=010 → 0xC2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float a = 1.5f, b = 2.25f;
+      u32 abits, bbits;
+      memcpy(&abits, &a, 4);
+      memcpy(&bbits, &b, 4);
+      s.xmm[1] = xmm_from_u32(0xDEAD0001, 0xDEAD0002, 0xDEAD0003, abits);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, bbits);
+
+      // VADDSS: result[31:0] = 1.5+2.25=3.75, result[127:32] = xmm1[127:32] preserved
+      add_xmm("evex vaddss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x58, 0xC2}, s, 0x7);
+
+      // VMULSS: result[31:0] = 1.5*2.25=3.375
+      // P1 for F3: 0x76 (wait, same encoding as above — the F3 is in pp=10)
+      // Actually, checking: P1 = W.~vvvv.1.pp where pp=10 for F3
+      // W=0, ~vvvv=1110, 1, pp=10 → 01110110 = 0x76
+      add_xmm("evex vmulss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x59, 0xC2}, s, 0x7);
+
+      // VSUBSS: result[31:0] = 1.5-2.25=-0.75
+      add_xmm("evex vsubss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x5C, 0xC2}, s, 0x7);
+
+      // VDIVSS: result[31:0] = 1.5/2.25=0.666...
+      add_xmm("evex vdivss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x5E, 0xC2}, s, 0x7);
+
+      // VSQRTSS: result[31:0] = sqrt(2.25)=1.5
+      // VSQRTSS xmm0, xmm1, xmm2: src1=xmm1(merge upper), src2=xmm2(sqrt input)
+      add_xmm("evex vsqrtss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x51, 0xC2}, s, 0x7);
+
+      // VMINSS: result[31:0] = min(1.5, 2.25) = 1.5
+      add_xmm("evex vminss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x5D, 0xC2}, s, 0x7);
+
+      // VMAXSS: result[31:0] = max(1.5, 2.25) = 2.25
+      add_xmm("evex vmaxss xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0x76, 0x08, 0x5F, 0xC2}, s, 0x7);
+    }
+
+    // EVEX.NDS.LIG.F2.0F.W1 58 /r: VADDSD xmm0, xmm1, xmm2
+    //   P1: W=1,~vvvv=1110,1,pp=11(F2) → 1.1110.1.11 = 0xFB
+    //   P2: 0x08
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      double a = 1.5, b = 2.25;
+      u64 abits, bbits;
+      memcpy(&abits, &a, sizeof(abits));
+      memcpy(&bbits, &b, sizeof(bbits));
+      s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, abits);
+      s.xmm[2] = xmm_from_u64(0, bbits);
+
+      // VADDSD: result[63:0] = 1.5+2.25=3.75, result[127:64] = xmm1[127:64] preserved
+      add_xmm("evex vaddsd xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0xF7, 0x08, 0x58, 0xC2}, s, 0x7);
+
+      // VMULSD: 1.5*2.25=3.375
+      // P1 for F2+W1: W=1,~vvvv=1110,1,pp=11 → 11110111 = 0xF7
+      // Wait, xmm1 is vvvv: ~vvvv = ~0001 = 1110
+      // P1 = 1.1110.1.11 = 0xF7
+      add_xmm("evex vmulsd xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0xF7, 0x08, 0x59, 0xC2}, s, 0x7);
+
+      // VSUBSD: 1.5-2.25=-0.75
+      add_xmm("evex vsubsd xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0xF7, 0x08, 0x5C, 0xC2}, s, 0x7);
+
+      // VDIVSD: 1.5/2.25
+      add_xmm("evex vdivsd xmm0,xmm1,xmm2",
+        {0x62, 0xF1, 0xF7, 0x08, 0x5E, 0xC2}, s, 0x7);
+    }
+
+    // Test EVEX VADDSS with embedded rounding: {rz-sae}
+    // EVEX.NDS.LIG.F3.0F.W0 58 /r with EVEX.b=1, LL=11(RZ)
+    //   P2: z=0, LL=11, b=1, V'=1, aaa=000 → 0.11.1.1.000 = 0x78
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      float one = 1.0f;
+      float eps = 5.960464477539063e-08f; // 2^-24
+      u32 one_bits, eps_bits;
+      memcpy(&one_bits, &one, 4);
+      memcpy(&eps_bits, &eps, 4);
+      s.xmm[1] = xmm_from_u32(0, 0, 0, one_bits);
+      s.xmm[2] = xmm_from_u32(0, 0, 0, eps_bits);
+
+      // {rz-sae}: 1.0 + 2^-24 → 1.0 (truncate toward zero)
+      add_xmm("evex vaddss {rz-sae} xmm, 1+eps",
+        {0x62, 0xF1, 0x76, 0x78, 0x58, 0xC2}, s, 0x7);
+
+      // {ru-sae}: 1.0 + 2^-24 → nextafter(1.0)
+      // P2: LL=10, b=1 → 0.10.1.1.000 = 0x58
+      add_xmm("evex vaddss {ru-sae} xmm, 1+eps",
+        {0x62, 0xF1, 0x76, 0x58, 0x58, 0xC2}, s, 0x7);
+    }
+  }
 }

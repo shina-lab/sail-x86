@@ -838,7 +838,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 2.4 EVEX Prefix (62h, 4 bytes)
 - [x] Full EVEX field decoding (R, X, B, R', mmm, W, vvvv, pp, z, L'L, b, V', aaa) — verified and fixed: mmm 3-bit, reserved bit checks added
 - [x] EVEX to 32 SIMD registers (ZMM0-ZMM31) — verified: evex_reg_idx (R':R:reg), evex_rm_reg_idx (X:B:rm), evex_vvvvv (V':vvvv) all decode to 0-31 range
-- [x] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE) — verified: broadcast implemented via broadcast_f32/f64/byte helpers; rounding/SAE stored but not acted on (sequential model)
+- [x] EVEX.b interpretation per instruction (broadcast vs rounding vs SAE) — verified: broadcast via broadcast_f32/f64/byte helpers; embedded rounding via evex_begin_rc/evex_end_rc for core FP arithmetic + conversions
 - [x] EVEX compressed displacement (disp8*N) — verified in decode_sib_evex()
 - [x] #UD for reserved EVEX field values — verified: P[3]!=0 → #UD, P[10]!=1 → #UD, mmm=0/4-7 → #UD
 
