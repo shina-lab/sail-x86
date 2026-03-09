@@ -5369,6 +5369,50 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // EVEX VPSRAQ — arithmetic right shift qwords (AVX-512 new)
+  // VPSRAQ: EVEX.128.66.0F.W1 72 /4 ib
+  // =====================================================================
+  cat = "EVEX VPSRAQ";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm1: two qwords: one positive (0x7000000000000001), one negative (0x8000000000000004)
+    s.xmm[1] = xmm_from_u64(0x8000000000000004, 0x7000000000000001);
+
+    // VPSRAQ xmm0, xmm1, 4: arithmetic right shift by 4
+    // P0=0xF1, P1=0xFD(W=1,vvvv=~0=1111,pp=01), P2=0x08
+    // modrm: mod=11, reg=100(/4), rm=001(xmm1) → 0xE1
+    // Expected: low qword → 0x0700000000000000, high qword → 0xF800000000000000
+    add_xmm("vpsraq xmm0,xmm1,4",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xE1, 0x04}, s, 0x3);
+
+    // VPSRAQ xmm0, xmm1, 63: shift right by 63 (should leave sign bit only)
+    // Expected: low qword → 0x0, high qword → 0xFFFFFFFFFFFFFFFF
+    add_xmm("vpsraq xmm0,xmm1,63",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xE1, 0x3F}, s, 0x3);
+
+    // VPSRAQ xmm0, xmm1, 0: no shift
+    add_xmm("vpsraq xmm0,xmm1,0",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xE1, 0x00}, s, 0x3);
+
+    // Test VPSRAQ by xmm count: EVEX.128.66.0F.W1 E2 /r
+    // VPSRAQ xmm0, xmm1, xmm2 where xmm2 low qword = shift count
+    // P0=0xF1, P1=0xF5(W=1,vvvv=~1=1110,pp=01), P2=0x08
+    // modrm: mod=11, reg=000(dst), rm=010(xmm2) → 0xC2
+    {
+      ArchState ss = s;
+      ss.xmm[2] = xmm_from_u64(0, 8);  // shift count = 8 (low qword only matters)
+      add_xmm("vpsraq xmm0,xmm1,xmm2 (count=8)",
+              {0x62, 0xF1, 0xF5, 0x08, 0xE2, 0xC2}, ss, 0x7);
+    }
+  }
+
+  // =====================================================================
   // EVEX VPINSRB/VPINSRD/VPINSRQ — insert from GPR/memory
   // VPINSRB: EVEX.128.66.0F3A.WIG 20 /r ib
   // VPINSRD: EVEX.128.66.0F3A.W0  22 /r ib
