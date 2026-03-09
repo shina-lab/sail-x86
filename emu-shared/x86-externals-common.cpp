@@ -948,6 +948,28 @@ u64 Model::z__rdtsc(unit) {
 }
 
 // =========================================================================
+// RDRAND / RDSEED
+// =========================================================================
+
+struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdrand64(unit) {
+  unsigned long long val;
+  int ok = _rdrand64_step(&val);
+  struct ztuple_z8z5bv64zCz0z5bv1z9 result;
+  result.ztup0 = val;
+  result.ztup1 = ok ? 1 : 0;
+  return result;
+}
+
+struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdseed64(unit) {
+  unsigned long long val;
+  int ok = _rdseed64_step(&val);
+  struct ztuple_z8z5bv64zCz0z5bv1z9 result;
+  result.ztup0 = val;
+  result.ztup1 = ok ? 1 : 0;
+  return result;
+}
+
+// =========================================================================
 // Software interrupt (INT n) — stub for user mode
 // =========================================================================
 

@@ -783,7 +783,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [ ] XRESLDTRK, XSUSLDTRK (resume/suspend load tracking)
 
 #### 1.25.16 RDRAND/RDSEED
-- [ ] RDRAND, RDSEED (hardware random number)
+- [x] RDRAND, RDSEED (hardware random number) — implemented, delegates to host intrinsics
 
 #### 1.25.17 PTWRITE
 - [ ] PTWRITE (write to Processor Trace packet)

@@ -20,7 +20,7 @@ target_link_libraries(x86_model
     PUBLIC sail_runtime
 )
 
-target_compile_options(x86_model PRIVATE -maes -mpclmul -msse4.2 -Wno-unused-parameter)
+target_compile_options(x86_model PRIVATE -maes -mpclmul -msse4.2 -mrdrnd -mrdseed -Wno-unused-parameter)
 
 # Silence warnings from generated code.
 set_source_files_properties(

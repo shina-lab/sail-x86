@@ -87,6 +87,8 @@ function lzcnt64(v, idx) =
 
 val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
 val __rdtsc : unit -> qword
+val __rdrand64 : unit -> (qword, bit)
+val __rdseed64 : unit -> (qword, bit)
 
 // MSR read/write — implemented in C++ as a key-value store
 val __rdmsr : dword -> qword
@@ -1386,6 +1388,56 @@ function dispatch_2byte_gpr(op, pfx) = {
             }
           },
           RM_reg(_) => raise_UD(),
+        }
+      } else if reg_field == 6 then {
+        // /6 mod=11: RDRAND r16/r32/r64
+        match rm {
+          RM_reg(r) => {
+            let os = get_operand_size(pfx);
+            let (rnd, cf_val) = __rdrand64();
+            if cf_val == bitone then {
+              match os {
+                OS16 => write_gpr(r, OS16, zero_extend(rnd[15..0])),
+                OS64 => write_gpr(r, OS64, rnd),
+                _    => write_gpr(r, OS32, zero_extend(rnd[31..0])),
+              }
+            } else {
+              match os {
+                OS16 => write_gpr(r, OS16, zeros()),
+                OS64 => write_gpr(r, OS64, zeros()),
+                _    => write_gpr(r, OS32, zeros()),
+              }
+            };
+            CF = cf_val;
+            OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero;
+            Ok()
+          },
+          RM_mem(_) => raise_UD(),
+        }
+      } else if reg_field == 7 then {
+        // /7 mod=11: RDSEED r16/r32/r64
+        match rm {
+          RM_reg(r) => {
+            let os = get_operand_size(pfx);
+            let (rnd, cf_val) = __rdseed64();
+            if cf_val == bitone then {
+              match os {
+                OS16 => write_gpr(r, OS16, zero_extend(rnd[15..0])),
+                OS64 => write_gpr(r, OS64, rnd),
+                _    => write_gpr(r, OS32, zero_extend(rnd[31..0])),
+              }
+            } else {
+              match os {
+                OS16 => write_gpr(r, OS16, zeros()),
+                OS64 => write_gpr(r, OS64, zeros()),
+                _    => write_gpr(r, OS32, zeros()),
+              }
+            };
+            CF = cf_val;
+            OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero;
+            Ok()
+          },
+          RM_mem(_) => raise_UD(),
         }
       } else {
         raise_UD()
