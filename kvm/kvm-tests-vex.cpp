@@ -4493,4 +4493,75 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vdbpsadbw xmm0,xmm1,xmm2,0: sequential",
             {0x62, 0xF3, 0x75, 0x08, 0x42, 0xC2, 0x00}, s, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPSHLDVD/Q (0F38 71) — variable concatenate and shift left
+  // =====================================================================
+  cat = "EVEX VPSHLDV";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // VPSHLDVD xmm0, xmm1, xmm2 (W=0)
+    // dst=xmm0 (accumulator), vvvv=xmm1 (src), r/m=xmm2 (shift counts)
+    // Each dword: result = (dst:src1) << (count % 32), take upper 32 bits
+    s.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    s.xmm[2] = xmm_from_u32(0, 1, 4, 16);
+    // EVEX.NDS.128.66.0F38.W0 71 /r
+    add_xmm("vpshldvd xmm0,xmm1,xmm2: var shifts",
+            {0x62, 0xF2, 0x75, 0x08, 0x71, 0xC2}, s, 0x7);
+
+    // VPSHLDVQ xmm0, xmm1, xmm2 (W=1)
+    s.xmm[0] = xmm_from_u64(0xAAAAAAAABBBBBBBBULL, 0xCCCCCCCCDDDDDDDDULL);
+    s.xmm[1] = xmm_from_u64(0x1111111122222222ULL, 0x3333333344444444ULL);
+    s.xmm[2] = xmm_from_u64(0, 4);
+    add_xmm("vpshldvq xmm0,xmm1,xmm2: var shifts",
+            {0x62, 0xF2, 0xF5, 0x08, 0x71, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPSHRDVD/Q (0F38 73) — variable concatenate and shift right
+  // =====================================================================
+  cat = "EVEX VPSHRDV";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    // VPSHRDVD xmm0, xmm1, xmm2 (W=0)
+    s.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    s.xmm[2] = xmm_from_u32(0, 1, 4, 16);
+    // EVEX.NDS.128.66.0F38.W0 73 /r
+    add_xmm("vpshrdvd xmm0,xmm1,xmm2: var shifts",
+            {0x62, 0xF2, 0x75, 0x08, 0x73, 0xC2}, s, 0x7);
+
+    // VPSHRDVQ xmm0, xmm1, xmm2 (W=1)
+    s.xmm[0] = xmm_from_u64(0xAAAAAAAABBBBBBBBULL, 0xCCCCCCCCDDDDDDDDULL);
+    s.xmm[1] = xmm_from_u64(0x1111111122222222ULL, 0x3333333344444444ULL);
+    s.xmm[2] = xmm_from_u64(0, 4);
+    add_xmm("vpshrdvq xmm0,xmm1,xmm2: var shifts",
+            {0x62, 0xF2, 0xF5, 0x08, 0x73, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VPMULTISHIFTQB (0F38 83) — per-byte multishift within qwords
+  // =====================================================================
+  cat = "EVEX VPMULTISHIFTQB";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = {};
+    // src (xmm2) = data qwords, ctrl (xmm1 via vvvv) = byte shift indices
+    // Each byte in ctrl: take low 6 bits as bit index, extract 8 bits from src qword
+    s.xmm[1] = xmm_from_u64(0x0000000000000000ULL, 0x0808080808080808ULL);  // ctrl: 0s then 8s
+    s.xmm[2] = xmm_from_u64(0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL);  // data
+    // EVEX.NDS.128.66.0F38.W1 83 /r
+    // modrm=C2: dst=xmm0, r/m=xmm2, vvvv=xmm1
+    add_xmm("vpmultishiftqb xmm0,xmm1,xmm2: shift=0,8",
+            {0x62, 0xF2, 0xF5, 0x08, 0x83, 0xC2}, s, 0x3);
+
+    // All shift indices = 0 (extract low byte repeated)
+    s.xmm[1] = xmm_from_u64(0, 0);
+    add_xmm("vpmultishiftqb xmm0,xmm1,xmm2: all shift=0",
+            {0x62, 0xF2, 0xF5, 0x08, 0x83, 0xC2}, s, 0x3);
+  }
 }

@@ -2410,7 +2410,7 @@ function avx_vpshldvw_128(dst, src1, src2) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = avx_vpshldw_elem(src1[(lo + 15)..lo], dst[(lo + 15)..lo], unsigned(src2[(lo + 15)..lo]));
+    r[(lo + 15)..lo] = avx_vpshldw_elem(dst[(lo + 15)..lo], src1[(lo + 15)..lo], unsigned(src2[(lo + 15)..lo]));
   }; r
 }
 
@@ -2431,7 +2431,7 @@ function avx_vpshldvd_128(dst, src1, src2) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = avx_vpshldd_elem(src1[(lo + 31)..lo], dst[(lo + 31)..lo], unsigned(src2[(lo + 31)..lo]));
+    r[(lo + 31)..lo] = avx_vpshldd_elem(dst[(lo + 31)..lo], src1[(lo + 31)..lo], unsigned(src2[(lo + 31)..lo]));
   }; r
 }
 
@@ -2449,8 +2449,8 @@ function avx_vpshldvd_512(dst, src1, src2) = {
 
 val avx_vpshldvq_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vpshldvq_128(dst, src1, src2) = {
-  avx_vpshldq_elem(src1[127..64], dst[127..64], unsigned(src2[127..64])) @
-  avx_vpshldq_elem(src1[63..0], dst[63..0], unsigned(src2[63..0]))
+  avx_vpshldq_elem(dst[127..64], src1[127..64], unsigned(src2[127..64])) @
+  avx_vpshldq_elem(dst[63..0], src1[63..0], unsigned(src2[63..0]))
 }
 
 val avx_vpshldvq_256 : (ymmword, ymmword, ymmword) -> ymmword
@@ -2472,7 +2472,7 @@ function avx_vpshrdvw_128(dst, src1, src2) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = avx_vpshrdw_elem(src1[(lo + 15)..lo], dst[(lo + 15)..lo], unsigned(src2[(lo + 15)..lo]));
+    r[(lo + 15)..lo] = avx_vpshrdw_elem(dst[(lo + 15)..lo], src1[(lo + 15)..lo], unsigned(src2[(lo + 15)..lo]));
   }; r
 }
 
@@ -2493,7 +2493,7 @@ function avx_vpshrdvd_128(dst, src1, src2) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = avx_vpshrdd_elem(src1[(lo + 31)..lo], dst[(lo + 31)..lo], unsigned(src2[(lo + 31)..lo]));
+    r[(lo + 31)..lo] = avx_vpshrdd_elem(dst[(lo + 31)..lo], src1[(lo + 31)..lo], unsigned(src2[(lo + 31)..lo]));
   }; r
 }
 
@@ -2511,8 +2511,8 @@ function avx_vpshrdvd_512(dst, src1, src2) = {
 
 val avx_vpshrdvq_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vpshrdvq_128(dst, src1, src2) = {
-  avx_vpshrdq_elem(src1[127..64], dst[127..64], unsigned(src2[127..64])) @
-  avx_vpshrdq_elem(src1[63..0], dst[63..0], unsigned(src2[63..0]))
+  avx_vpshrdq_elem(dst[127..64], src1[127..64], unsigned(src2[127..64])) @
+  avx_vpshrdq_elem(dst[63..0], src1[63..0], unsigned(src2[63..0]))
 }
 
 val avx_vpshrdvq_256 : (ymmword, ymmword, ymmword) -> ymmword
