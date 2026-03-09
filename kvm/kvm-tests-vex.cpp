@@ -5102,6 +5102,33 @@ void add_vex_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // EVEX VPERMI2B — 2-source byte permute with index in dest
+  // VPERMI2B xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 75 /r
+  // P0=0xF2, P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08
+  // modrm: reg=xmm0(dst/idx), rm=xmm2 → 0xC2
+  // =====================================================================
+  cat = "EVEX VPERMI2B";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm0 = indices (dst, also acts as index register)
+    // Indices: select byte 0 from t1, byte 1 from t2 (idx 16), byte 15 from t1, byte 31 from t2
+    s.xmm[0] = xmm_from_u32(
+      0x1F0F0100,  // bytes: 0x00, 0x01, 0x0F, 0x1F
+      0x10000000,  // bytes: 0x00, 0x00, 0x00, 0x10
+      0x00000000,
+      0x00000000
+    );
+    // xmm1 = table 1 (vvvv) — bytes 0-15
+    s.xmm[1] = xmm_from_u32(0x04030201, 0x08070605, 0x0C0B0A09, 0x100F0E0D);
+    // xmm2 = table 2 (rm) — bytes 16-31
+    s.xmm[2] = xmm_from_u32(0x14131211, 0x18171615, 0x1C1B1A19, 0x201F1E1D);
+
+    add_xmm("vpermi2b: byte permute",
+            {0x62, 0xF2, 0x75, 0x08, 0x75, 0xC2}, s, 0x3);
+  }
+
+  // =====================================================================
   // EVEX VPBLENDMD — mask-controlled dword blend
   // VPBLENDMD xmm0{k1}, xmm2, xmm1: EVEX.128.66.0F38.W0 64 /r
   // P0=0xF2(mmm=010), P1=0x6D(W=0,vvvv=~2,pp=01), P2=0x09(aaa=001)

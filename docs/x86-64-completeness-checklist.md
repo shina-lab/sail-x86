@@ -546,7 +546,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.15.7 AVX-512F Permute/Shuffle
 - [x] VPERMD/W, VPERMQ, VPERMPD, VPERMPS (512-bit permute) — verified: implemented in insn_evex_perm.sail
-- [x] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest) — verified: D/Q/PS/PD in insn_evex_perm.sail, B in insn_evex_perm.sail, W in insn_evex_fma.sail
+- [x] VPERMI2B/W/D/Q/PS/PD (2-source permute, index in dest) — verified and fixed: D/Q/PS/PD in insn_evex_perm.sail; B/W opcode 0F38 75 was missing from dispatch, now implemented + 1 KVM test
 - [x] VPERMT2B/W/D/Q/PS/PD (2-source permute, index in src) — verified: D/Q/PS/PD in insn_evex_perm.sail, B/W in insn_evex_arith.sail
 - [x] VPERMILPS, VPERMILPD (in-lane permute) — verified: implemented in insn_evex_perm.sail
 - [x] VSHUFF32X4, VSHUFF64X2, VSHUFI32X4, VSHUFI64X2 (cross-lane shuffle) — verified: implemented in insn_evex_imm.sail

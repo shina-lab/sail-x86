@@ -1147,7 +1147,31 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 04: VPMADDUBSW (66) [BW]
+  // 0F38 75: VPERMI2B (66,W0) [VBMI] / VPERMI2W (66,W1) [BW]
+  117 => {
+    if mp != MP_66 then {
+      raise_UD()
+    } else {
+      let modrm = fetch_byte();
+      let dst = evex_reg_idx(modrm, pfx);
+      let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+      let src1_idx = pfx.evex_vvvvv;
+      if pfx.rex_w then { // VPERMI2W
+        match pfx.evex_ll {
+          2 => { let idx = read_zmm(dst); write_zmm(dst, avx_vperm2_w_512(read_zmm(src1_idx), evex_src_zmm(modrm, rm, pfx), idx)); Ok() },
+          1 => { let idx = read_ymm(dst); write_ymm(dst, avx_vperm2_w_256(read_ymm(src1_idx), evex_src_ymm(modrm, rm, pfx), idx)); Ok() },
+          _ => { let idx = read_xmm(dst); write_xmm(dst, avx_vperm2_w_128(read_xmm(src1_idx), evex_src_xmm(modrm, rm, pfx), idx)); Ok() },
+        }
+      } else { // VPERMI2B
+        match pfx.evex_ll {
+          2 => { let idx = read_zmm(dst); write_zmm(dst, avx_vperm2_b_512(read_zmm(src1_idx), evex_src_zmm(modrm, rm, pfx), idx)); Ok() },
+          1 => { let idx = read_ymm(dst); write_ymm(dst, avx_vperm2_b_256(read_ymm(src1_idx), evex_src_ymm(modrm, rm, pfx), idx)); Ok() },
+          _ => { let idx = read_xmm(dst); write_xmm(dst, avx_vperm2_b_128(read_xmm(src1_idx), evex_src_xmm(modrm, rm, pfx), idx)); Ok() },
+        }
+      }
+    }
+  },
+
   // 0F38 76: VPERMI2D (66,W0) / VPERMI2Q (66,W1) [F]
   118 => {
     if mp != MP_66 then {

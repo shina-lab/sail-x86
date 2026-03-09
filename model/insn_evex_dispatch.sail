@@ -252,6 +252,7 @@ function dispatch_evex_0f38(opcode, pfx) = {
     91 => dispatch_evex_perm(op, pfx),
     98 => dispatch_evex_perm(op, pfx),
     99 => dispatch_evex_perm(op, pfx),
+    117 => dispatch_evex_perm(op, pfx),
     118 => dispatch_evex_perm(op, pfx),
     119 => dispatch_evex_perm(op, pfx),
     120 => dispatch_evex_perm(op, pfx),
