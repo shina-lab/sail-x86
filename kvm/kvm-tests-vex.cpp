@@ -4069,4 +4069,62 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // VPCMPEQQ/VPCMPGTQ xmm — 128-bit (was raising #UD, now fixed)
+  // =====================================================================
+  cat = "EVEX VPCMPEQQ/GTQQ xmm";
+  {
+    // xmm1 = [qword0=100, qword1=200]
+    // xmm2 = [qword0=100, qword1=300]
+    // VPCMPEQQ k0, xmm1, xmm2: q0 eq → bit0=1, q1 neq → bit1=0 → k0=1
+    // VPCMPGTQ k0, xmm1, xmm2: q0 100>100=F, q1 200>300=F → k0=0
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(100, 200);
+    s.xmm[2] = xmm_from_u64(100, 300);
+
+    // VPCMPEQQ k0, xmm1, xmm2
+    // EVEX.128.66.0F38.W1: P1=0xF2, P2=0xF5(W=1,vvvv=~1,pp=01), P3=0x08
+    // opcode=0x29, modrm=0xC2
+    {
+      TestCase tc;
+      tc.name = "vpcmpeqq k0,xmm1,xmm2: qword equal xmm → k0=1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x08, 0x29, 0xC2,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPGTQ k0, xmm1, xmm2 (q0: 100>100=F, q1: 200>300=F) → k0=0
+    // opcode=0x37
+    {
+      TestCase tc;
+      tc.name = "vpcmpgtq k0,xmm1,xmm2: qword GT xmm → k0=0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x08, 0x37, 0xC2,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPGTQ with reversed operands (vvvv=xmm2, rm=xmm1)
+    // k0, xmm2, xmm1: q0: 100>100=F, q1: 300>200=T → k0=2
+    // P2 = W=1, vvvv=~2=1101, pp=01 = 0b1_1101_1_01 = 0xED
+    // modrm = 11_000_001 = 0xC1 (k0, xmm1)
+    {
+      TestCase tc;
+      tc.name = "vpcmpgtq k0,xmm2,xmm1: qword GT reversed → k0=2";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xED, 0x08, 0x37, 0xC1,
+                 0xC5, 0xF8, 0x93, 0xC0};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
 }
