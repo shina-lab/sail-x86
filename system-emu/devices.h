@@ -8,7 +8,7 @@
 // =========================================================================
 // UART 16550A — Serial port (COM1 at 0x3F8-0x3FF)
 //
-// Minimal implementation: TX output to host stderr, RX stubbed.
+// TX output to host stdout, RX from host stdin (interactive console).
 // =========================================================================
 
 class UART {
@@ -22,11 +22,19 @@ public:
     if (dlab && reg == 1) return dlm;
 
     switch (reg) {
-    case 0: // RBR — Receive Buffer (no data)
+    case 0: // RBR — Receive Buffer
+      if (!rx_fifo.empty()) {
+        u8 ch = rx_fifo.front();
+        rx_fifo.pop();
+        return ch;
+      }
       return 0;
     case 1: // IER — Interrupt Enable
       return ier;
     case 2: // IIR — Interrupt Identification
+      // Priority: RDA (0x04) > THRE (0x02)
+      if ((ier & 0x01) && !rx_fifo.empty())
+        return 0x04;  // Received Data Available (priority 2)
       if (thre_pending) {
         thre_pending = false;  // Reading IIR clears THRE interrupt
         return 0x02;  // THRE interrupt (priority 3)
@@ -37,9 +45,10 @@ public:
     case 4: // MCR — Modem Control
       return mcr;
     case 5: // LSR — Line Status
+      // Bit 0: DR (Data Ready) — set when RX FIFO has data
       // Bit 5: THRE (Transmitter Holding Register Empty) — always ready
       // Bit 6: TEMT (Transmitter Empty) — always empty
-      return 0x60;
+      return 0x60 | (rx_fifo.empty() ? 0 : 0x01);
     case 6: // MSR — Modem Status
       return 0;
     case 7: // SCR — Scratch
@@ -90,14 +99,24 @@ public:
   // Optional: redirect output to a callback
   void (*output_fn)(u8 ch) = nullptr;
 
+  // Push a character into the receive FIFO (called from host stdin polling)
+  void rx_push(u8 ch) { rx_fifo.push(ch); }
+
   // Returns true if the UART has a pending interrupt (for PIC IRQ 4)
-  bool has_irq() const { return thre_pending && (ier & 0x02); }
+  bool has_irq() const {
+    // RDA interrupt: IER bit 0 enabled and data available
+    if ((ier & 0x01) && !rx_fifo.empty()) return true;
+    // THRE interrupt: IER bit 1 enabled and THR empty
+    if ((ier & 0x02) && thre_pending) return true;
+    return false;
+  }
 
 private:
   u8 ier = 0, lcr = 0, mcr = 0, scr = 0;
   u8 dll = 0, dlm = 0;
   bool dlab = false;
   bool thre_pending = false;
+  std::queue<u8> rx_fifo;
 };
 
 // =========================================================================

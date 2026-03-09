@@ -8,7 +8,9 @@
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/stat.h>
+#include <termios.h>
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
@@ -40,6 +42,49 @@ static u8 *read_file(const char *path, size_t *out_size) {
   close(fd);
   *out_size = total;
   return buf;
+}
+
+// =========================================================================
+// Terminal raw mode for interactive console
+// =========================================================================
+
+static struct termios orig_termios;
+static bool termios_saved = false;
+
+static void restore_terminal() {
+  if (termios_saved)
+    tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+}
+
+// Put terminal in raw mode: disable echo, line buffering, and signal chars.
+// Returns true if stdin is a terminal and was configured.
+static bool setup_raw_terminal() {
+  if (!isatty(STDIN_FILENO)) return false;
+
+  if (tcgetattr(STDIN_FILENO, &orig_termios) < 0) return false;
+  termios_saved = true;
+  atexit(restore_terminal);
+
+  struct termios raw = orig_termios;
+  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+  raw.c_oflag &= ~(OPOST);
+  raw.c_cflag |= CS8;
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+  raw.c_cc[VMIN] = 0;   // Non-blocking
+  raw.c_cc[VTIME] = 0;
+  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
+  // Also set stdin non-blocking for poll()
+  int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+
+  return true;
+}
+
+// UART output callback: write TX characters to stdout (not stderr)
+// so that the guest console works as an interactive terminal.
+static void uart_output_stdout(u8 ch) {
+  (void)!write(STDOUT_FILENO, &ch, 1);
 }
 
 // =========================================================================
@@ -630,6 +675,18 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "sail-x86-system: RAM=%luMB, entry=0x%lx\n",
           ram_mb, (u64)model.zRIP);
 
+  // Set up interactive console: raw terminal + UART output to stdout.
+  bool interactive = setup_raw_terminal();
+  if (interactive) {
+    model.uart.output_fn = uart_output_stdout;
+    fprintf(stderr, "sail-x86-system: interactive console on stdin/stdout\n");
+  } else {
+    // Non-tty stdin: set non-blocking so we can still feed piped input to UART
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+  }
+  bool poll_stdin = true;  // Always poll stdin for UART RX data
+
   bool trampoline_dumped = false;
 
   u64 insn_count = 0;
@@ -645,13 +702,17 @@ int main(int argc, char *argv[]) {
   const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
+  // Ctrl+A escape state: when Ctrl+A is pressed, the next key decides the action.
+  // Ctrl+A X = quit. Ctrl+A Ctrl+A = send literal Ctrl+A.
+  bool ctrl_a_pending = false;
+
   // Spin loop detector: if RIP stays within a tiny range for too long,
   // the kernel is stuck (e.g., panic delay_loop alternating 2 addresses).
-  // PIT interrupts briefly leave the range, so we track cumulative time.
+  // Disabled in interactive mode where the idle loop is expected.
   u64 spin_base = 0;
   u64 spin_count = 0;
   u64 spin_total = 0;  // cumulative count across re-entries
-  const u64 SPIN_THRESHOLD = 10000000; // 10M iterations in tight loop = stuck
+  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 10000000;
 
   while (!model.should_exit) {
     // Print progress every 5M instructions
@@ -719,9 +780,35 @@ int main(int argc, char *argv[]) {
           model.model_fini();
           return 1;
         }
-        // Tick the PIT to generate a timer interrupt
-        if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
-          model.pic_master.raise_irq(0); // IRQ 0 = timer
+        // Wait for an interrupt: poll stdin + tick PIT until something fires
+        while (!model.pic_master.has_pending()) {
+          // Poll stdin for input (block briefly with poll())
+          if (poll_stdin) {
+            struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
+            if (poll(&pfd, 1, 10 /*ms*/) > 0) {
+              u8 buf[64];
+              ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+              for (ssize_t i = 0; n > 0 && i < n; i++) {
+                if (ctrl_a_pending) {
+                  ctrl_a_pending = false;
+                  if (buf[i] == 'x' || buf[i] == 'X') {
+                    fprintf(stderr, "\nsail-x86-system: Ctrl+A X — exiting\n");
+                    model.model_fini();
+                    return 0;
+                  }
+                  if (buf[i] == 0x01) model.uart.rx_push(0x01);
+                  continue;
+                }
+                if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
+                model.uart.rx_push(buf[i]);
+              }
+              if (model.uart.has_irq())
+                model.pic_master.raise_irq(4);
+            }
+          }
+          // Tick PIT
+          if (model.pit.tick(PIT_CYCLES_PER_TICK))
+            model.pic_master.raise_irq(0);
         }
         insn_count++;
         result.kind = x86::Kind_zOk; // Continue execution
@@ -767,6 +854,34 @@ int main(int argc, char *argv[]) {
     }
     }
 
+    // Poll stdin for input and feed into UART RX FIFO.
+    // Check every 1K instructions to avoid syscall overhead.
+    if (poll_stdin && (insn_count & 0x3FF) == 0) {
+      u8 buf[64];
+      ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+      if (n == 0) poll_stdin = false;  // EOF on stdin
+      for (ssize_t i = 0; n > 0 && i < n; i++) {
+        if (ctrl_a_pending) {
+          ctrl_a_pending = false;
+          if (buf[i] == 'x' || buf[i] == 'X') {
+            fprintf(stderr, "\nsail-x86-system: Ctrl+A X — exiting\n");
+            model.should_exit = true;
+            break;
+          }
+          if (buf[i] == 0x01) { // Ctrl+A Ctrl+A = literal Ctrl+A
+            model.uart.rx_push(0x01);
+          }
+          // Other Ctrl+A sequences: ignore
+          continue;
+        }
+        if (buf[i] == 0x01) {
+          ctrl_a_pending = true;
+          continue;
+        }
+        model.uart.rx_push(buf[i]);
+      }
+    }
+
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
       if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
@@ -775,7 +890,7 @@ int main(int argc, char *argv[]) {
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;
     }
 
-    // UART transmit-empty interrupt (IRQ 4)
+    // UART interrupt (IRQ 4): RDA or THRE
     if (model.uart.has_irq()) {
       model.pic_master.raise_irq(4);
     }
