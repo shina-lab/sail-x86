@@ -3948,4 +3948,49 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // VPMINUQ — unsigned qword min (was missing, W=1 variant of VPMINUD)
+  // =====================================================================
+  cat = "EVEX VPMINUQ";
+  {
+    // xmm1 = [qword0=0xFFFFFFFFFFFFFFFF, qword1=5]
+    // xmm2 = [qword0=1, qword1=10]
+    // VPMINUQ xmm0, xmm1, xmm2 → [min(0xFFFF...,1)=1, min(5,10)=5]
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0x0000000000000005);
+    s.xmm[2] = xmm_from_u64(0x0000000000000001, 0x000000000000000A);
+
+    // VPMINUQ xmm0, xmm1, xmm2
+    // EVEX.128.66.0F38.W1: P1=0xF2(mm=10), P2=0xF5(W=1,vvvv=~1,pp=01), P3=0x08(xmm)
+    // opcode=0x3B, modrm=0xC2(reg=xmm0,rm=xmm2)
+    {
+      TestCase tc;
+      tc.name = "vpminuq xmm0,xmm1,xmm2: unsigned qword min";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xF5, 0x08, 0x3B, 0xC2};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPMINUD xmm0, xmm1, xmm2 (W=0, same opcode) for comparison
+    // P2=0x75(W=0), same data but treated as dword min
+    // xmm1 dwords: [0xFFFFFFFF, 0xFFFFFFFF, 5, 0]
+    // xmm2 dwords: [1, 0, 10, 0]
+    // → [min(0xFFFFFFFF,1)=1, min(0xFFFFFFFF,0)=0, min(5,10)=5, min(0,0)=0]
+    {
+      TestCase tc;
+      tc.name = "vpminud xmm0,xmm1,xmm2: unsigned dword min (same opcode, W=0)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x08, 0x3B, 0xC2};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x7;
+      tests.push_back(std::move(tc));
+    }
+  }
 }

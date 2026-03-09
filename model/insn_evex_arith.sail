@@ -815,6 +815,26 @@ function avx_pmaxud_512(a, b) =
 // VPMAXUQ: unsigned qword max
 // =========================================================================
 
+val avx_pminuq_128 : (xmmword, xmmword) -> xmmword
+function avx_pminuq_128(a, b) = {
+  var r : xmmword = zeros();
+  foreach (i from 0 to 1) {
+    let lo : range(0, 64) = i * 64;
+    let va = a[(lo + 63)..lo];
+    let vb = b[(lo + 63)..lo];
+    r[(lo + 63)..lo] = if unsigned(va) < unsigned(vb) then va else vb;
+  };
+  r
+}
+
+val avx_pminuq_256 : (ymmword, ymmword) -> ymmword
+function avx_pminuq_256(a, b) =
+  avx_pminuq_128(a[255..128], b[255..128]) @ avx_pminuq_128(a[127..0], b[127..0])
+
+val avx_pminuq_512 : (zmmword, zmmword) -> zmmword
+function avx_pminuq_512(a, b) =
+  avx_pminuq_256(a[511..256], b[511..256]) @ avx_pminuq_256(a[255..0], b[255..0])
+
 val avx_pmaxuq_128 : (xmmword, xmmword) -> xmmword
 function avx_pmaxuq_128(a, b) = {
   var r : xmmword = zeros();
@@ -2648,7 +2668,7 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 3A: VPBROADCASTMW2D (F3,W0) [CD]
-  // 0F38 3B: VPMINUD (66, W=0)
+  // 0F38 3B: VPMINUD (66, W=0) / VPMINUQ (66, W=1)
   59 => {
     if mp != MP_66 then {
       raise_UD()
@@ -2657,10 +2677,20 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        2 => { write_zmm(dst, avx_pminud_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
-        1 => { write_ymm(dst, avx_pminud_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
-        _ => { write_xmm(dst, avx_pminud_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
+      if pfx.rex_w then {
+        // VPMINUQ (m64bcst)
+        match pfx.evex_ll {
+          2 => { write_zmm(dst, avx_pminuq_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, avx_pminuq_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, avx_pminuq_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))); Ok() },
+        }
+      } else {
+        // VPMINUD (m32bcst)
+        match pfx.evex_ll {
+          2 => { write_zmm(dst, avx_pminud_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, avx_pminud_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, avx_pminud_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
+        }
       }
     }
   },
