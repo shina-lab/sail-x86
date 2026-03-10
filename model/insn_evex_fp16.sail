@@ -137,7 +137,7 @@ function apply_writemask_ph_xmm(result, old_dst, mask_val, zeroing) = {
 // Apply 16-bit writemask to 256-bit YMM (16 × 16-bit FP16)
 val apply_writemask_ph_ymm : (ymmword, ymmword, word, bool) -> ymmword
 function apply_writemask_ph_ymm(result, old_dst, mask_val, zeroing) = {
-  var r : ymmword = if zeroing then zeros() else old_dst;
+  let r : ymmword = if zeroing then zeros() else old_dst;
   let hi = apply_writemask_ph_xmm(result[255..128], old_dst[255..128], mask_val[15..8], zeroing);
   let lo = apply_writemask_ph_xmm(result[127..0], old_dst[127..0], mask_val[7..0], zeroing);
   hi @ lo
