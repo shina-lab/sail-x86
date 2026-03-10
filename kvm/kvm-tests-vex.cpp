@@ -6043,4 +6043,59 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("evex vpsllq xmm0,xmm1,xmm2",
             {0x62, 0xF1, 0xF5, 0x08, 0xF3, 0xC2}, s, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VMOVUPS/VMOVUPD writemask test (xmm width)
+  // Tests merge-masking and zero-masking for 128-bit VMOVUPS
+  // =====================================================================
+  cat = "EVEX VMOV mask";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_u32(0xDEAD0000, 0xDEAD0001, 0xDEAD0002, 0xDEAD0003);
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+
+    // VMOVUPS xmm0, xmm1 — no mask (aaa=0): all elements copied
+    // EVEX.128.0F.W0 10 /r: P0=0xF1, P1=0x78(W=0,vvvv=1111,NP), P2=0x08
+    // Wait, NP means pp=00. P1 = 0.1111.1.00 = 0x7C
+    // modrm: mod=11, reg=000(dst), rm=001(src) → 0xC1
+    add_xmm("vmovups xmm0,xmm1 no mask",
+            {0x62, 0xF1, 0x7C, 0x08, 0x10, 0xC1}, s, 0x7);
+
+    // VMOVUPS xmm0{k1}, xmm1 — merge mask k1=0x5 (0101b)
+    // Elements 0,2 from src, elements 1,3 from old dst
+    // P2=0x09(z=0,LL=00,b=0,V'=1,aaa=001)
+    add_xmm("vmovups xmm0{k1},xmm1 merge k1=0x5",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF1, 0x7C, 0x09, 0x10, 0xC1},  // VMOVUPS xmm0{k1}, xmm1
+            s, 0x7);
+
+    // VMOVUPS xmm0{k1}{z}, xmm1 — zero mask k1=0x5 (0101b)
+    // Elements 0,2 from src, elements 1,3 = 0
+    // P2=0x89(z=1,LL=00,b=0,V'=1,aaa=001)
+    add_xmm("vmovups xmm0{k1}{z},xmm1 zero k1=0x5",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF1, 0x7C, 0x89, 0x10, 0xC1},  // VMOVUPS xmm0{k1}{z}, xmm1
+            s, 0x7);
+
+    // VMOVUPD xmm0{k1}, xmm1 — merge mask k1=0x1 (01b)
+    // Element 0 from src, element 1 from old dst
+    // EVEX.128.66.0F.W1 10 /r: P1=0xF9(W=1,vvvv=1111,pp=01(66))
+    // P2=0x09(z=0,LL=00,b=0,V'=1,aaa=001)
+    add_xmm("vmovupd xmm0{k1},xmm1 merge k1=0x1",
+            {0xB8, 0x01, 0x00, 0x00, 0x00,        // MOV eax, 1
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF1, 0xFD, 0x09, 0x10, 0xC1},  // VMOVUPD xmm0{k1}, xmm1
+            s, 0x7);
+
+    // VMOVUPD xmm0{k1}{z}, xmm1 — zero mask k1=0x2 (10b)
+    // Element 0 = 0, element 1 from src
+    add_xmm("vmovupd xmm0{k1}{z},xmm1 zero k1=0x2",
+            {0xB8, 0x02, 0x00, 0x00, 0x00,
+             0xC5, 0xF8, 0x92, 0xC8,
+             0x62, 0xF1, 0xFD, 0x89, 0x10, 0xC1},
+            s, 0x7);
+  }
 }

@@ -833,36 +833,36 @@ function dispatch_evex_fp(op, pfx) = {
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
     match mp {
       MP_NONE => { // VMOVUPS
+        let mask = evex_get_mask16(pfx);
         match pfx.evex_ll {
           2 => {
             let src = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-            let masked = apply_writemask_ps_zmm(src, read_zmm(dst), evex_get_mask16(pfx), pfx.evex_z);
-            write_zmm(dst, masked); Ok()
+            write_zmm(dst, apply_writemask_ps_zmm(src, read_zmm(dst), mask, pfx.evex_z)); Ok()
           },
           1 => {
             let src = evex_src_ymm(modrm, rm, pfx);
-            write_ymm(dst, src); Ok()
+            write_ymm(dst, apply_writemask_ps_ymm(src, read_ymm(dst), mask, pfx.evex_z)); Ok()
           },
           _ => {
             let src = evex_src_xmm(modrm, rm, pfx);
-            write_xmm(dst, src); Ok()
+            write_xmm(dst, apply_writemask_ps_xmm(src, read_xmm(dst), mask, pfx.evex_z)); Ok()
           },
         }
       },
       MP_66 => { // VMOVUPD
+        let mask = evex_get_mask8(pfx);
         match pfx.evex_ll {
           2 => {
             let src = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
-            let masked = apply_writemask_pd_zmm(src, read_zmm(dst), evex_get_mask8(pfx), pfx.evex_z);
-            write_zmm(dst, masked); Ok()
+            write_zmm(dst, apply_writemask_pd_zmm(src, read_zmm(dst), mask, pfx.evex_z)); Ok()
           },
           1 => {
             let src = evex_src_ymm(modrm, rm, pfx);
-            write_ymm(dst, src); Ok()
+            write_ymm(dst, apply_writemask_pd_ymm(src, read_ymm(dst), mask, pfx.evex_z)); Ok()
           },
           _ => {
             let src = evex_src_xmm(modrm, rm, pfx);
-            write_xmm(dst, src); Ok()
+            write_xmm(dst, apply_writemask_pd_xmm(src, read_xmm(dst), mask, pfx.evex_z)); Ok()
           },
         }
       },
@@ -905,17 +905,15 @@ function dispatch_evex_fp(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match mp {
-      MP_NONE => // VMOVUPS store
+      MP_NONE => { // VMOVUPS store
+        let mask = evex_get_mask16(pfx);
         match rm {
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             match pfx.evex_ll {
-              2 => {
-                let masked = apply_writemask_ps_zmm(read_zmm(src), read_zmm(dst), evex_get_mask16(pfx), pfx.evex_z);
-                write_zmm(dst, masked); Ok()
-              },
-              1 => { write_ymm(dst, read_ymm(src)); Ok() },
-              _ => { write_xmm(dst, read_xmm(src)); Ok() },
+              2 => { write_zmm(dst, apply_writemask_ps_zmm(read_zmm(src), read_zmm(dst), mask, pfx.evex_z)); Ok() },
+              1 => { write_ymm(dst, apply_writemask_ps_ymm(read_ymm(src), read_ymm(dst), mask, pfx.evex_z)); Ok() },
+              _ => { write_xmm(dst, apply_writemask_ps_xmm(read_xmm(src), read_xmm(dst), mask, pfx.evex_z)); Ok() },
             }
           },
           RM_mem(addr) => {
@@ -926,18 +924,17 @@ function dispatch_evex_fp(op, pfx) = {
               _ => { mem_write128(a, read_xmm(src)); Ok() },
             }
           },
-        },
-      MP_66 => // VMOVUPD store
+        }
+      },
+      MP_66 => { // VMOVUPD store
+        let mask = evex_get_mask8(pfx);
         match rm {
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             match pfx.evex_ll {
-              2 => {
-                let masked = apply_writemask_pd_zmm(read_zmm(src), read_zmm(dst), evex_get_mask8(pfx), pfx.evex_z);
-                write_zmm(dst, masked); Ok()
-              },
-              1 => { write_ymm(dst, read_ymm(src)); Ok() },
-              _ => { write_xmm(dst, read_xmm(src)); Ok() },
+              2 => { write_zmm(dst, apply_writemask_pd_zmm(read_zmm(src), read_zmm(dst), mask, pfx.evex_z)); Ok() },
+              1 => { write_ymm(dst, apply_writemask_pd_ymm(read_ymm(src), read_ymm(dst), mask, pfx.evex_z)); Ok() },
+              _ => { write_xmm(dst, apply_writemask_pd_xmm(read_xmm(src), read_xmm(dst), mask, pfx.evex_z)); Ok() },
             }
           },
           RM_mem(addr) => {
@@ -948,7 +945,8 @@ function dispatch_evex_fp(op, pfx) = {
               _ => { mem_write128(a, read_xmm(src)); Ok() },
             }
           },
-        },
+        }
+      },
       MP_F3 => { // VMOVSS (scalar f32 store/move, EVEX)
         // Memory: m32 = xmm1[31:0]
         // Register: xmm1{k1}{z} = xmm2[127:32] @ xmm3[31:0]
