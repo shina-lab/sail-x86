@@ -160,8 +160,6 @@ val __f16_rsqrt : word -> word
 val __f16_rndscale : (word, byte) -> word
 val __f16_getmant : (word, byte) -> word
 val __f16_reduce : (word, byte) -> word
-val __f16_fixupimm : (word, word, dword, byte) -> word
-
 // VRCP28/VRSQRT28/VEXP2 (KNL)
 val __f32_rcp28 : dword -> dword
 val __f64_rcp28 : qword -> qword

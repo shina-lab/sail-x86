@@ -511,7 +511,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPBROADCASTD/Q (broadcast with EVEX) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4 (broadcast scalar/lane) — verified: all forms in insn_evex_perm.sail (0F38 18/19/1A/1B)
-- [N/A] VMOVSH, VMOVW (AVX-512FP16) — FP16 extension not targeted
+- [x] VMOVSH, VMOVW (AVX-512FP16) — FP16 move instructions implemented in insn_evex_fp16.sail
 - [x] VCOMPRESSPD/PS (compress packed float) — verified: insn_evex_perm.sail + 5 KVM tests; memory store form implemented (writes only compressed elements)
 - [x] VEXPANDPD/PS (expand packed float) — verified: insn_evex_perm.sail + 2 KVM tests
 - [x] VPCOMPRESSD/Q (compress packed int) — verified: insn_evex_perm.sail + 1 KVM test; memory store form implemented
@@ -589,7 +589,18 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 ### 1.16 AVX-512 FP16 (EVEX-encoded, float16)
 
-- [N/A] All AVX-512 FP16 instructions (VADDPH/SH, VSUBPH/SH, VMULPH/SH, VDIVPH/SH, VSQRTPH/SH, VMIN/VMAX, VCMPPH/SH, VCOM, VRCP/VRSQRT, VSCALEF, VREDUCE/VRNDSCALE, VGETEXP/VGETMANT, VFPCLASS, all FP16 FMA forms, complex FMA/multiply, all FP16 conversions, VMOVSH/VMOVW) — AVX-512 FP16 extension not targeted; requires EVEX map 5/6 decoding and float16 arithmetic infrastructure
+- [x] VADDPH/SH, VSUBPH/SH, VMULPH/SH, VDIVPH/SH, VMINPH/SH, VMAXPH/SH, VSQRTPH — packed/scalar FP16 arithmetic (MAP5, NP W=0)
+- [x] VCVTPH2PD, VCVTDQ2PH, VCVTQQ2PH — FP16 conversions (MAP5)
+- [x] VFMADD132/213/231PH, VFMSUB132/213/231PH, VFNMADD132/213/231PH, VFNMSUB132/213/231PH — all 12 FP16 FMA forms (MAP6, 66 W=0)
+- [x] VCMPPH/SH, VCOMISH, VUCOMISH — FP16 compare (MAP3 0xC2 + MAP5 0x2E/0x2F)
+- [x] VRCPPH/SH, VRSQRTPH/SH — FP16 reciprocal/rsqrt (MAP6 0x4C-0x4F)
+- [x] VSCALEFPH/SH, VGETEXPPH/SH, VGETMANTPH/SH — FP16 special ops (MAP6 0x2C/0x2D/0x42/0x43, MAP3 0x26/0x27)
+- [x] VREDUCEPH/SH, VRNDSCALEPH/SH, VFPCLASSPH/SH — FP16 reduce/round/classify (MAP3 0x56/0x57/0x08/0x0A/0x66/0x67)
+- [x] VFMADDSUBPH, VFMSUBADDPH — FP16 interleaved FMA (MAP6 0x96/0x97/0xA6/0xA7/0xB6/0xB7)
+- [ ] VFCMADDCPH, VFCMULCPH, VFMADDCPH, VFMULCPH — FP16 complex arithmetic (not implemented; requires complex number support)
+- [x] VMOVSH, VMOVW — FP16 move (MAP5 0x10/0x11/0x6E/0x7E)
+- [x] All FP16 conversions (VCVTPH2W/UW/DQ/UDQ/QQ/UQQ, VCVTW2PH/UW2PH, VCVTSH2SS/SD, VCVTSI2SH, VCVTSH2SI, etc.) — MAP5 0x78-0x7D, 0x2A/0x2C/0x2D/0x5A/0x5B/0x1D, MAP6 0x13
+- [x] Scalar FP16 FMA (VFMADD/VFMSUB/VFNMADD/VFNMSUB 132/213/231SH) — MAP6 0x99-0xBF odd opcodes
 
 ### 1.17 AVX-512 BFloat16
 - [x] VCVTNE2PS2BF16, VCVTNEPS2BF16, VDPBF16PS
@@ -1115,7 +1126,7 @@ These are tricky behaviors a formal spec MUST get right.
 | AVX/AVX2 (VEX re-encoding of above) | (same ops, VEX form) |
 | FMA | ~96 forms (4 ops × 3 orderings × 2 types × 2 sizes + packed variants) |
 | AVX-512 (F/BW/DQ/CD/VL/VBMI/IFMA/VNNI/BITALG/VP2INTERSECT/etc.) | ~350+ |
-| AVX-512 FP16 | ~80 |
+| AVX-512 FP16 | ~80 (~76 implemented: all except complex arithmetic) |
 | BMI1/BMI2/ADX | ~16 |
 | AES-NI/SHA/GFNI/PCLMULQDQ | ~18 |
 | Key Locker | ~10 |

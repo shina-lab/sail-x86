@@ -2611,8 +2611,7 @@ u64 Model::z__int64_to_f16(u64 a) {
   _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
 }
 
-// Remaining FP16 conversions and special ops: enabled once Sail instructions call them
-#if 0
+// FP16 conversions
 u64 Model::z__f16_to_f32(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h; u32 r; memcpy(&r, &f, 4); return r;
@@ -2623,6 +2622,7 @@ u64 Model::z__f32_to_f16(u64 a) {
   SYNC_MXCSR_RC();
   _Float16 h = (_Float16)f; u16 r; memcpy(&r, &h, 2); return r;
 }
+
 u64 Model::z__f64_to_f16(u64 a) {
   double d; memcpy(&d, &a, 8);
   SYNC_MXCSR_RC();
@@ -2657,18 +2657,6 @@ u64 Model::z__f16_to_int64_trunc(u64 a) {
   float f = (float)h;
   int64_t r = (int64_t)truncf(f);
   u64 ru; memcpy(&ru, &r, 8); return ru;
-}
-
-u64 Model::z__int32_to_f16(u64 a) {
-  int32_t v; memcpy(&v, &a, 4);
-  SYNC_MXCSR_RC();
-  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
-}
-
-u64 Model::z__int64_to_f16(u64 a) {
-  int64_t v; memcpy(&v, &a, 8);
-  SYNC_MXCSR_RC();
-  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
 }
 
 u64 Model::z__f16_to_uint32(u64 a) {
@@ -2859,41 +2847,5 @@ u64 Model::z__f16_reduce(u64 a, u64 imm) {
   _Float16 hr = (_Float16)fr;
   u16 r; memcpy(&r, &hr, 2); return r;
 }
-
-u64 Model::z__f16_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
-  // Simplified fixup for FP16 — follows same pattern as f32 version
-  u16 udst = (u16)dst, us1 = (u16)src1;
-  u32 tbl = (u32)src2;  // 32-bit table entry
-  _Float16 h1; memcpy(&h1, &us1, 2);
-  float f1 = (float)h1;
-  int j;
-  if (__builtin_isnan(f1)) j = ((us1 & 0x0200) ? 1 : 0);  // QNaN=1, SNaN=0
-  else if (__builtin_isinf(f1)) j = (f1 < 0 ? 4 : 5);
-  else if (f1 == 0.0f) j = (us1 & 0x8000 ? 3 : 2);
-  else if (f1 == 1.0f) j = 6;
-  else j = 7;
-  int resp = (tbl >> (j * 4)) & 0xF;
-  switch (resp) {
-  case 0x0: return udst;
-  case 0x1: return us1;
-  case 0x2: return us1 | 0x0200;
-  case 0x3: return 0xFE00;  // QNaN indefinite
-  case 0x4: return 0xFC00;  // -Inf
-  case 0x5: return 0x7C00;  // +Inf
-  case 0x6: return (us1 & 0x8000) ? 0xFC00 : 0x7C00;
-  case 0x7: return 0x8000;  // -0
-  case 0x8: return 0x0000;  // +0
-  case 0x9: return 0xBC00;  // -1.0
-  case 0xA: return 0x3C00;  // +1.0
-  case 0xB: return 0x3800;  // 0.5
-  case 0xC: return 0x55A0;  // 90.0
-  case 0xD: return 0x4248;  // pi/2 ≈ 1.5703125
-  case 0xE: return 0x7BFF;  // MAX_FP16
-  case 0xF: return 0xFBFF;  // -MAX_FP16
-  default: return udst;
-  }
-}
-
-#endif  // FP16 externals not yet used
 
 } // namespace x86
