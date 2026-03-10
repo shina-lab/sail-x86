@@ -6098,4 +6098,105 @@ void add_vex_tests(std::vector<TestCase> &tests) {
              0x62, 0xF1, 0xFD, 0x89, 0x10, 0xC1},
             s, 0x7);
   }
+
+  // =====================================================================
+  // BF16: VCVTNEPS2BF16, VCVTNE2PS2BF16, VDPBF16PS
+  // =====================================================================
+  cat = "BF16";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    // --- VCVTNEPS2BF16 xmm0, xmm1 (EVEX.128.F3.0F38.W0 72) ---
+    // src: 1.0f (0x3F800000), 2.0f (0x40000000), -1.0f (0xBF800000), 0.5f (0x3F000000)
+    // BF16: 0x3F80, 0x4000, 0xBF80, 0x3F00 → xmm0[63:0], upper qword = 0
+    s.xmm[1] = {0x3F000000BF800000, 0x3F80000040000000};
+    add_xmm("vcvtneps2bf16 xmm0,xmm1 basic",
+            {// P0=0xF2(~R:~X:~B:~R'=1111,0,mmm=010), P1=0x7E(W=0,~vvvv=1111,1,pp=10=F3),
+             // P2=0x08(z=0,LL=00,b=0,V'=1,aaa=000), op=72, modrm=C1(dst=xmm0,src=xmm1)
+             0x62, 0xF2, 0x7E, 0x08, 0x72, 0xC1},
+            s, 0x7);
+
+    // --- VCVTNEPS2BF16 with NaN input ---
+    // NaN (0x7FC00000) → BF16 should be 0x7FC0|0x0040 = 0x7FC0 (already QNaN)
+    // SNaN (0x7F800001) → BF16 should have bit 6 set: 0x7F80|0x0040 = 0x7FC0
+    s.xmm[1] = {0x7F8000017FC00000, 0x0000000000000000};
+    add_xmm("vcvtneps2bf16 xmm0,xmm1 NaN",
+            {0x62, 0xF2, 0x7E, 0x08, 0x72, 0xC1},
+            s, 0x7);
+
+    // --- VCVTNEPS2BF16 with infinity ---
+    // +Inf (0x7F800000) → 0x7F80, -Inf (0xFF800000) → 0xFF80
+    s.xmm[1] = {0xFF8000007F800000, 0x0000000000000000};
+    add_xmm("vcvtneps2bf16 xmm0,xmm1 inf",
+            {0x62, 0xF2, 0x7E, 0x08, 0x72, 0xC1},
+            s, 0x7);
+
+    // --- VCVTNEPS2BF16 rounding test ---
+    // 1.0009765625f = 0x3F800200 → BF16 rounds to 0x3F80 (round down, LSB=0)
+    // 1.0078125f = 0x3F810000 → BF16 = 0x3F81 (exact)
+    s.xmm[1] = {0x3F8100003F800200, 0x0000000000000000};
+    add_xmm("vcvtneps2bf16 xmm0,xmm1 rounding",
+            {0x62, 0xF2, 0x7E, 0x08, 0x72, 0xC1},
+            s, 0x7);
+
+    // --- VCVTNE2PS2BF16 xmm0, xmm1, xmm2 (EVEX.128.F2.0F38.W0 72) ---
+    // src1 (xmm1): 3.0f (0x40400000), 4.0f (0x40800000), 5.0f (0x40A00000), 6.0f (0x40C00000)
+    // src2 (xmm2): 1.0f (0x3F800000), 2.0f (0x40000000), -1.0f (0xBF800000), 0.5f (0x3F000000)
+    // Result: upper half from src1, lower half from src2
+    // [0x4040,0x4080,0x40A0,0x40C0, 0x3F80,0x4000,0xBF80,0x3F00]
+    s.xmm[1] = {0x40A0000040400000, 0x40C0000040800000};  // src1: 3,5,4,6
+    s.xmm[2] = {0xBF8000003F800000, 0x3F00000040000000};  // src2: 1,-1,2,0.5
+    add_xmm("vcvtne2ps2bf16 xmm0,xmm1,xmm2 basic",
+            {// EVEX P0=0xF2(R=1,X=1,B=1,R'=0,mmm=010), wait that's wrong...
+             // F2 prefix: pp=11 in EVEX P1
+             // P0=0xF2(00,mmm=010), P1=0x6F(W=0,vvvv=~1=1101,pp=11), P2=0x08, op=72, modrm=C2
+             // Actually: P0 = R:X:B:R':00:mmm = 1:1:1:1:00:010 = 0xF2? No...
+             // P0[7:4] = ~R:~X:~B:~R' (inverted)
+             // For reg-reg with xmm0-xmm2: R=0,X=0,B=0,R'=0 → ~bits = 1,1,1,1
+             // P0 = 1111:0:mmm = 1111:0:010 = 0xF2
+             // P1 = W:~vvvv:1:pp = 0:~0001:1:11 = 0:1110:1:11 = 0x77
+             // Wait, vvvv encodes src1 (xmm1), so vvvv=0001, ~vvvv=1110
+             // P1 = 0:1110:1:11 = 0111_0111 = 0x77
+             // P2 = z:LL:b:V':aaa = 0:00:0:1:000 = 0x08
+             0x62, 0xF2, 0x77, 0x08, 0x72, 0xC2},
+            s, 0x7);
+
+    // --- VDPBF16PS xmm0, xmm1, xmm2 (EVEX.128.F3.0F38.W0 52) ---
+    // dst (xmm0): all zeros
+    // src1 (xmm1): [1.0_bf16, 2.0_bf16, 3.0_bf16, 4.0_bf16, ...]
+    //   = [0x3F80, 0x4000, 0x4040, 0x4080, ...]
+    // src2 (xmm2): [1.0_bf16, 1.0_bf16, 1.0_bf16, 1.0_bf16, ...]
+    //   = [0x3F80, 0x3F80, 0x3F80, 0x3F80, ...]
+    // Per dword element: dst += bf16_hi*bf16_hi + bf16_lo*bf16_lo
+    // Element 0: (0x3F80→1.0) * (0x3F80→1.0) + (0x4000→2.0) * (0x3F80→1.0) = 1+2 = 3.0
+    //   But wait: lo=bits[15:0], hi=bits[31:16]
+    //   dword[0] of src1 = 0x40003F80 → lo=0x3F80(1.0), hi=0x4000(2.0)
+    //   dword[0] of src2 = 0x3F803F80 → lo=0x3F80(1.0), hi=0x3F80(1.0)
+    //   result = 0 + 2.0*1.0 + 1.0*1.0 = 3.0 (0x40400000)
+    // Element 1: src1 dword[1] = 0x40804040 → lo=0x4040(3.0), hi=0x4080(4.0)
+    //   result = 0 + 4.0*1.0 + 3.0*1.0 = 7.0 (0x40E00000)
+    s.xmm[0] = {0x0000000000000000, 0x0000000000000000};
+    s.xmm[1] = {0x40003F80, 0x40804040};  // [bf16: 1.0,2.0 | 3.0,4.0] as lo,hi pairs
+    s.xmm[2] = {0x3F803F80, 0x3F803F80};  // [bf16: 1.0,1.0 | 1.0,1.0]
+    add_xmm("vdpbf16ps xmm0,xmm1,xmm2 basic",
+            {// EVEX.128.F3.0F38.W0 52
+             // P0=0xF2(mmm=010), P1=0x76(W=0,~vvvv=1110,1,pp=10=F3), P2=0x08
+             0x62, 0xF2, 0x76, 0x08, 0x52, 0xC2},
+            s, 0x7);
+
+    // --- VDPBF16PS with accumulation (nonzero dst) ---
+    // dst = {10.0f, 20.0f, 0, 0}
+    // src1 = {1.0_bf16, 1.0_bf16 | 2.0_bf16, 2.0_bf16 | 0,0 | 0,0}
+    // src2 = {1.0_bf16, 1.0_bf16 | 1.0_bf16, 1.0_bf16 | 0,0 | 0,0}
+    // Element 0: 10.0 + 1.0*1.0 + 1.0*1.0 = 12.0 (0x41400000)
+    // Element 1: 20.0 + 2.0*1.0 + 2.0*1.0 = 24.0 (0x41C00000)
+    s.xmm[0] = {0x41A0000041200000, 0x0000000000000000};  // 10.0f, 20.0f, 0, 0
+    s.xmm[1] = {0x3F803F80, 0x40004000};  // [1.0,1.0 | 2.0,2.0]
+    s.xmm[2] = {0x3F803F80, 0x3F803F80};  // [1.0,1.0 | 1.0,1.0]
+    add_xmm("vdpbf16ps xmm0,xmm1,xmm2 accum",
+            {0x62, 0xF2, 0x76, 0x08, 0x52, 0xC2},
+            s, 0x7);
+
+  }
 }

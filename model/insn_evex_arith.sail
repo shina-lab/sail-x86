@@ -2290,6 +2290,167 @@ function avx_vpdpbusds_512(dst, src1, src2) = {
   avx_vpdpbusds_256(dst[255..0], src1[255..0], src2[255..0])
 }
 
+/* ---- BF16: convert FP32 to BFloat16 ---- */
+// Per SDM: RNE, denormals flush to zero, NaN→QNaN, infinity preserved.
+// This is pure integer arithmetic — no FPU involved.
+val convert_fp32_to_bf16 : dword -> word
+function convert_fp32_to_bf16(x) = {
+  let exp : byte = x[30..23];
+  let mant : bits(23) = x[22..0];
+  if exp == 0x00 then {
+    // Zero or denormal → signed zero
+    x[31..31] @ 0x0000[14..0]
+  } else if exp == 0xFF & mant != zeros() then {
+    // NaN → truncate and force QNaN (set bit 6 of result = MSB of BF16 mantissa)
+    let truncated : word = x[31..16];
+    truncated | 0x0040
+  } else if exp == 0xFF then {
+    // Infinity → preserve
+    x[31..16]
+  } else {
+    // Normal: round to nearest even using integer arithmetic
+    let lsb : bit = x[16];
+    let rounding_bias : dword = 0x00007FFF + zero_extend(lsb);
+    let temp : dword = x + rounding_bias;
+    temp[31..16]
+  }
+}
+
+/* ---- VCVTNEPS2BF16: convert packed FP32 → packed BF16 ---- */
+val avx_vcvtneps2bf16_128 : xmmword -> xmmword
+function avx_vcvtneps2bf16_128(src) = {
+  0x0000000000000000 @
+  convert_fp32_to_bf16(src[127..96]) @
+  convert_fp32_to_bf16(src[95..64]) @
+  convert_fp32_to_bf16(src[63..32]) @
+  convert_fp32_to_bf16(src[31..0])
+}
+
+val avx_vcvtneps2bf16_256 : ymmword -> xmmword
+function avx_vcvtneps2bf16_256(src) = {
+  convert_fp32_to_bf16(src[255..224]) @
+  convert_fp32_to_bf16(src[223..192]) @
+  convert_fp32_to_bf16(src[191..160]) @
+  convert_fp32_to_bf16(src[159..128]) @
+  convert_fp32_to_bf16(src[127..96]) @
+  convert_fp32_to_bf16(src[95..64]) @
+  convert_fp32_to_bf16(src[63..32]) @
+  convert_fp32_to_bf16(src[31..0])
+}
+
+val avx_vcvtneps2bf16_512 : zmmword -> ymmword
+function avx_vcvtneps2bf16_512(src) = {
+  convert_fp32_to_bf16(src[511..480]) @
+  convert_fp32_to_bf16(src[479..448]) @
+  convert_fp32_to_bf16(src[447..416]) @
+  convert_fp32_to_bf16(src[415..384]) @
+  convert_fp32_to_bf16(src[383..352]) @
+  convert_fp32_to_bf16(src[351..320]) @
+  convert_fp32_to_bf16(src[319..288]) @
+  convert_fp32_to_bf16(src[287..256]) @
+  convert_fp32_to_bf16(src[255..224]) @
+  convert_fp32_to_bf16(src[223..192]) @
+  convert_fp32_to_bf16(src[191..160]) @
+  convert_fp32_to_bf16(src[159..128]) @
+  convert_fp32_to_bf16(src[127..96]) @
+  convert_fp32_to_bf16(src[95..64]) @
+  convert_fp32_to_bf16(src[63..32]) @
+  convert_fp32_to_bf16(src[31..0])
+}
+
+/* ---- VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 ---- */
+// Lower half from src2, upper half from src1
+val avx_vcvtne2ps2bf16_128 : (xmmword, xmmword) -> xmmword
+function avx_vcvtne2ps2bf16_128(src1, src2) = {
+  convert_fp32_to_bf16(src1[127..96]) @
+  convert_fp32_to_bf16(src1[95..64]) @
+  convert_fp32_to_bf16(src1[63..32]) @
+  convert_fp32_to_bf16(src1[31..0]) @
+  convert_fp32_to_bf16(src2[127..96]) @
+  convert_fp32_to_bf16(src2[95..64]) @
+  convert_fp32_to_bf16(src2[63..32]) @
+  convert_fp32_to_bf16(src2[31..0])
+}
+
+val avx_vcvtne2ps2bf16_256 : (ymmword, ymmword) -> ymmword
+function avx_vcvtne2ps2bf16_256(src1, src2) = {
+  convert_fp32_to_bf16(src1[255..224]) @
+  convert_fp32_to_bf16(src1[223..192]) @
+  convert_fp32_to_bf16(src1[191..160]) @
+  convert_fp32_to_bf16(src1[159..128]) @
+  convert_fp32_to_bf16(src1[127..96]) @
+  convert_fp32_to_bf16(src1[95..64]) @
+  convert_fp32_to_bf16(src1[63..32]) @
+  convert_fp32_to_bf16(src1[31..0]) @
+  convert_fp32_to_bf16(src2[255..224]) @
+  convert_fp32_to_bf16(src2[223..192]) @
+  convert_fp32_to_bf16(src2[191..160]) @
+  convert_fp32_to_bf16(src2[159..128]) @
+  convert_fp32_to_bf16(src2[127..96]) @
+  convert_fp32_to_bf16(src2[95..64]) @
+  convert_fp32_to_bf16(src2[63..32]) @
+  convert_fp32_to_bf16(src2[31..0])
+}
+
+val avx_vcvtne2ps2bf16_512 : (zmmword, zmmword) -> zmmword
+function avx_vcvtne2ps2bf16_512(src1, src2) = {
+  convert_fp32_to_bf16(src1[511..480]) @
+  convert_fp32_to_bf16(src1[479..448]) @
+  convert_fp32_to_bf16(src1[447..416]) @
+  convert_fp32_to_bf16(src1[415..384]) @
+  convert_fp32_to_bf16(src1[383..352]) @
+  convert_fp32_to_bf16(src1[351..320]) @
+  convert_fp32_to_bf16(src1[319..288]) @
+  convert_fp32_to_bf16(src1[287..256]) @
+  convert_fp32_to_bf16(src1[255..224]) @
+  convert_fp32_to_bf16(src1[223..192]) @
+  convert_fp32_to_bf16(src1[191..160]) @
+  convert_fp32_to_bf16(src1[159..128]) @
+  convert_fp32_to_bf16(src1[127..96]) @
+  convert_fp32_to_bf16(src1[95..64]) @
+  convert_fp32_to_bf16(src1[63..32]) @
+  convert_fp32_to_bf16(src1[31..0]) @
+  convert_fp32_to_bf16(src2[511..480]) @
+  convert_fp32_to_bf16(src2[479..448]) @
+  convert_fp32_to_bf16(src2[447..416]) @
+  convert_fp32_to_bf16(src2[415..384]) @
+  convert_fp32_to_bf16(src2[383..352]) @
+  convert_fp32_to_bf16(src2[351..320]) @
+  convert_fp32_to_bf16(src2[319..288]) @
+  convert_fp32_to_bf16(src2[287..256]) @
+  convert_fp32_to_bf16(src2[255..224]) @
+  convert_fp32_to_bf16(src2[223..192]) @
+  convert_fp32_to_bf16(src2[191..160]) @
+  convert_fp32_to_bf16(src2[159..128]) @
+  convert_fp32_to_bf16(src2[127..96]) @
+  convert_fp32_to_bf16(src2[95..64]) @
+  convert_fp32_to_bf16(src2[63..32]) @
+  convert_fp32_to_bf16(src2[31..0])
+}
+
+/* ---- VDPBF16PS: BF16 dot product accumulating to FP32 ---- */
+// Per dword: dest += make_fp32(src1.bf16[hi]) * make_fp32(src2.bf16[hi])
+//                  + make_fp32(src1.bf16[lo]) * make_fp32(src2.bf16[lo])
+val avx_vdpbf16ps_128 : (xmmword, xmmword, xmmword) -> xmmword
+function avx_vdpbf16ps_128(dst, src1, src2) = {
+  __vdpbf16ps_elem(dst[127..96], src1[127..96], src2[127..96]) @
+  __vdpbf16ps_elem(dst[95..64], src1[95..64], src2[95..64]) @
+  __vdpbf16ps_elem(dst[63..32], src1[63..32], src2[63..32]) @
+  __vdpbf16ps_elem(dst[31..0], src1[31..0], src2[31..0])
+}
+
+val avx_vdpbf16ps_256 : (ymmword, ymmword, ymmword) -> ymmword
+function avx_vdpbf16ps_256(dst, src1, src2) = {
+  avx_vdpbf16ps_128(dst[255..128], src1[255..128], src2[255..128]) @
+  avx_vdpbf16ps_128(dst[127..0], src1[127..0], src2[127..0])
+}
+
+val avx_vdpbf16ps_512 : (zmmword, zmmword, zmmword) -> zmmword
+function avx_vdpbf16ps_512(dst, src1, src2) = {
+  avx_vdpbf16ps_256(dst[511..256], src1[511..256], src2[511..256]) @
+  avx_vdpbf16ps_256(dst[255..0], src1[255..0], src2[255..0])
+}
+
 /* ---- VPOPCNT: population count per element ---- */
 
 val popcnt8 : byte -> byte
@@ -4236,20 +4397,59 @@ function dispatch_evex_arith(op, pfx) = {
     }
   },
 
-  // 0F38 72: VPSHRDVW (66, W=1) [VBMI2]
-  // 0F38 72: VPSHRDVW (66, W=1) [VBMI2]
+  // 0F38 72: VPSHRDVW (66,W1) / VCVTNE2PS2BF16 (F2,W0) / VCVTNEPS2BF16 (F3,W0)
   114 => {
-    if mp != MP_66 | not_bool(pfx.rex_w) then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let dst = evex_reg_idx(modrm, pfx);
-      let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      match pfx.evex_ll {
-        2 => { write_zmm(dst, avx_vpshrdvw_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))); Ok() },
-        1 => { write_ymm(dst, avx_vpshrdvw_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
-        _ => { write_xmm(dst, avx_vpshrdvw_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
-      }
+    let modrm = fetch_byte();
+    let dst = evex_reg_idx(modrm, pfx);
+    match mp {
+      MP_66 => {
+        // VPSHRDVW (W=1 required)
+        if not_bool(pfx.rex_w) then { raise_UD() }
+        else {
+          let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+          match pfx.evex_ll {
+            2 => { write_zmm(dst, avx_vpshrdvw_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))); Ok() },
+            1 => { write_ymm(dst, avx_vpshrdvw_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))); Ok() },
+            _ => { write_xmm(dst, avx_vpshrdvw_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))); Ok() },
+          }
+        }
+      },
+      MP_F2 => {
+        // VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 (W=0)
+        if pfx.rex_w then { raise_UD() }
+        else {
+          let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+          let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+          match pfx.evex_ll {
+            2 => { write_zmm(dst, avx_vcvtne2ps2bf16_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+            1 => { write_ymm(dst, avx_vcvtne2ps2bf16_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+            _ => { write_xmm(dst, avx_vcvtne2ps2bf16_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
+          }
+        }
+      },
+      MP_F3 => {
+        // VCVTNEPS2BF16: convert packed FP32 → packed BF16 (W=0, vvvv must be 1111)
+        if pfx.rex_w then { raise_UD() }
+        else {
+          let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+          let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+          match pfx.evex_ll {
+            2 => {
+              let src = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+              write_ymm(dst, avx_vcvtneps2bf16_512(src)); Ok()
+            },
+            1 => {
+              let src = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+              write_xmm(dst, avx_vcvtneps2bf16_256(src)); Ok()
+            },
+            _ => {
+              let src = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+              write_xmm(dst, avx_vcvtneps2bf16_128(src)); Ok()
+            },
+          }
+        }
+      },
+      _ => raise_UD(),
     }
   },
 
@@ -4359,21 +4559,33 @@ function dispatch_evex_arith(op, pfx) = {
     }
   },
 
-  // 0F38 52: VPDPWSSD (66) [VNNI]
-  // 0F38 52: VPDPWSSD (66) [VNNI]
+  // 0F38 52: VPDPWSSD (66) [VNNI] / VDPBF16PS (F3) [BF16]
   82 => {
-    if mp != MP_66 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let dst = evex_reg_idx(modrm, pfx);
-      let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        2 => { write_zmm(dst, avx_vpdpwssd_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
-        1 => { write_ymm(dst, avx_vpdpwssd_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
-        _ => { write_xmm(dst, avx_vpdpwssd_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
-      }
+    let modrm = fetch_byte();
+    let dst = evex_reg_idx(modrm, pfx);
+    let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+    match mp {
+      MP_66 => {
+        // VPDPWSSD
+        match pfx.evex_ll {
+          2 => { write_zmm(dst, avx_vpdpwssd_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+          1 => { write_ymm(dst, avx_vpdpwssd_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+          _ => { write_xmm(dst, avx_vpdpwssd_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
+        }
+      },
+      MP_F3 => {
+        // VDPBF16PS: BF16 dot product accumulating to FP32 (W=0)
+        if pfx.rex_w then { raise_UD() }
+        else {
+          match pfx.evex_ll {
+            2 => { write_zmm(dst, avx_vdpbf16ps_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
+            1 => { write_ymm(dst, avx_vdpbf16ps_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
+            _ => { write_xmm(dst, avx_vdpbf16ps_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem))); Ok() },
+          }
+        }
+      },
+      _ => raise_UD(),
     }
   },
 

@@ -592,7 +592,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [N/A] All AVX-512 FP16 instructions (VADDPH/SH, VSUBPH/SH, VMULPH/SH, VDIVPH/SH, VSQRTPH/SH, VMIN/VMAX, VCMPPH/SH, VCOM, VRCP/VRSQRT, VSCALEF, VREDUCE/VRNDSCALE, VGETEXP/VGETMANT, VFPCLASS, all FP16 FMA forms, complex FMA/multiply, all FP16 conversions, VMOVSH/VMOVW) — AVX-512 FP16 extension not targeted; requires EVEX map 5/6 decoding and float16 arithmetic infrastructure
 
 ### 1.17 AVX-512 BFloat16
-- [N/A] VCVTNE2PS2BF16, VCVTNEPS2BF16, VDPBF16PS — BFloat16 extension not targeted
+- [x] VCVTNE2PS2BF16, VCVTNEPS2BF16, VDPBF16PS
 
 ### 1.18 AMX (Advanced Matrix Extensions)
 - [N/A] All AMX instructions (LDTILECFG, STTILECFG, TILELOADD/T1, TILESTORED, TILEZERO, TILERELEASE, TDPBSSD/BSUD/BUSD/BUUD, TDPBF16PS) — AMX not targeted; requires tile register file and specialized dot-product microarchitecture

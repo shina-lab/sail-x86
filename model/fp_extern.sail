@@ -110,6 +110,9 @@ val __f64_reduce : (qword, byte) -> qword
 val __f32_fixupimm : (dword, dword, dword, byte) -> dword
 val __f64_fixupimm : (qword, qword, qword, byte) -> qword
 
+// VDPBF16PS: BF16 dot product element (dst += bf16_hi*bf16_hi + bf16_lo*bf16_lo)
+val __vdpbf16ps_elem : (dword, dword, dword) -> dword
+
 // VRCP28/VRSQRT28/VEXP2 (KNL)
 val __f32_rcp28 : dword -> dword
 val __f64_rcp28 : qword -> qword

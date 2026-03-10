@@ -240,6 +240,7 @@ set(KVM_CATEGORIES
   "EVEX FMA packed"
   "EVEX shift reg"
   "EVEX VMOV mask"
+  BF16
 )
 
 foreach(cat ${KVM_CATEGORIES})

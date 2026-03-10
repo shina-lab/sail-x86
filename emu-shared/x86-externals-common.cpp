@@ -1855,6 +1855,56 @@ u64 Model::z__f64_fnmsub(u64 a, u64 b, u64 c) {
 }
 
 // =========================================================================
+// BF16 dot product: dest += make_fp32(src1_hi)*make_fp32(src2_hi)
+//                        + make_fp32(src1_lo)*make_fp32(src2_lo)
+// Per SDM: always RNE, DAZ in, FTZ out, MXCSR not consulted.
+// =========================================================================
+
+u64 Model::z__vdpbf16ps_elem(u64 dst, u64 src1, u64 src2) {
+  // Extract BF16 pairs from dword operands
+  auto make_fp32 = [](u16 bf16) -> float {
+    u32 bits = (u32)bf16 << 16;
+    float f;
+    memcpy(&f, &bits, 4);
+    // DAZ: if denormal, flush to zero (preserve sign)
+    if ((bits & 0x7F800000) == 0 && (bits & 0x007FFFFF) != 0) {
+      bits &= 0x80000000;
+      memcpy(&f, &bits, 4);
+    }
+    return f;
+  };
+
+  u16 s1_lo = (u16)(src1 & 0xFFFF);
+  u16 s1_hi = (u16)((src1 >> 16) & 0xFFFF);
+  u16 s2_lo = (u16)(src2 & 0xFFFF);
+  u16 s2_hi = (u16)((src2 >> 16) & 0xFFFF);
+
+  float fd;
+  memcpy(&fd, &dst, 4);
+  // DAZ on accumulator input
+  u32 dst_bits = (u32)dst;
+  if ((dst_bits & 0x7F800000) == 0 && (dst_bits & 0x007FFFFF) != 0) {
+    dst_bits &= 0x80000000;
+    memcpy(&fd, &dst_bits, 4);
+  }
+
+  // Force RNE rounding
+  fesetround(FE_TONEAREST);
+
+  // Two multiply-accumulates (not fused per SDM — separate mul + add)
+  float p_hi = make_fp32(s1_hi) * make_fp32(s2_hi);
+  float p_lo = make_fp32(s1_lo) * make_fp32(s2_lo);
+  float result = fd + p_hi + p_lo;
+
+  // FTZ on result
+  u32 r;
+  memcpy(&r, &result, 4);
+  if ((r & 0x7F800000) == 0 && (r & 0x007FFFFF) != 0)
+    r &= 0x80000000;
+  return r;
+}
+
+// =========================================================================
 // Unsigned integer ↔ float conversions
 // =========================================================================
 
