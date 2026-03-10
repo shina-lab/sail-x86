@@ -433,6 +433,71 @@ function vfpclassph_zmm(a, imm) =
   vfpclassph_ymm(a[511..256], imm) @ vfpclassph_ymm(a[255..0], imm)
 
 // =========================================================================
+// Complex FP16 multiply/accumulate helpers
+// =========================================================================
+
+// Complex multiply-accumulate one pair: dest += src1 * src2 (or conjugate of src2)
+// conj=true: conjugate (VFCMADDCPH), conj=false: normal (VFMADDCPH)
+val cfmaddcph_pair : (word, word, word, word, word, word, bool) -> (word, word)
+function cfmaddcph_pair(s1_re, s1_im, s2_re, s2_im, a_re, a_im, conj) = {
+  let tmp_re : word = __f16_fmadd(s1_re, s2_re, a_re);
+  let tmp_im : word = __f16_fmadd(s1_im, s2_re, a_im);
+  if conj then
+    (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+  else
+    (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
+}
+
+val cfmaddcph_xmm : (xmmword, xmmword, xmmword, bool) -> xmmword
+function cfmaddcph_xmm(src1, src2, acc, conj) = {
+  let (r0, i0) = cfmaddcph_pair(src1[15..0], src1[31..16], src2[15..0], src2[31..16], acc[15..0], acc[31..16], conj);
+  let (r1, i1) = cfmaddcph_pair(src1[47..32], src1[63..48], src2[47..32], src2[63..48], acc[47..32], acc[63..48], conj);
+  let (r2, i2) = cfmaddcph_pair(src1[79..64], src1[95..80], src2[79..64], src2[95..80], acc[79..64], acc[95..80], conj);
+  let (r3, i3) = cfmaddcph_pair(src1[111..96], src1[127..112], src2[111..96], src2[127..112], acc[111..96], acc[127..112], conj);
+  i3 @ r3 @ i2 @ r2 @ i1 @ r1 @ i0 @ r0
+}
+
+val cfmaddcph_ymm : (ymmword, ymmword, ymmword, bool) -> ymmword
+function cfmaddcph_ymm(src1, src2, acc, conj) =
+  cfmaddcph_xmm(src1[255..128], src2[255..128], acc[255..128], conj) @
+  cfmaddcph_xmm(src1[127..0], src2[127..0], acc[127..0], conj)
+
+val cfmaddcph_zmm : (zmmword, zmmword, zmmword, bool) -> zmmword
+function cfmaddcph_zmm(src1, src2, acc, conj) =
+  cfmaddcph_ymm(src1[511..256], src2[511..256], acc[511..256], conj) @
+  cfmaddcph_ymm(src1[255..0], src2[255..0], acc[255..0], conj)
+
+// Complex multiply one pair: dest = src1 * src2 (or conjugate of src2)
+val cfmulcph_pair : (word, word, word, word, bool) -> (word, word)
+function cfmulcph_pair(s1_re, s1_im, s2_re, s2_im, conj) = {
+  let tmp_re : word = __f16_mul(s1_re, s2_re);
+  let tmp_im : word = __f16_mul(s1_im, s2_re);
+  if conj then
+    (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+  else
+    (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
+}
+
+val cfmulcph_xmm : (xmmword, xmmword, bool) -> xmmword
+function cfmulcph_xmm(src1, src2, conj) = {
+  let (r0, i0) = cfmulcph_pair(src1[15..0], src1[31..16], src2[15..0], src2[31..16], conj);
+  let (r1, i1) = cfmulcph_pair(src1[47..32], src1[63..48], src2[47..32], src2[63..48], conj);
+  let (r2, i2) = cfmulcph_pair(src1[79..64], src1[95..80], src2[79..64], src2[95..80], conj);
+  let (r3, i3) = cfmulcph_pair(src1[111..96], src1[127..112], src2[111..96], src2[127..112], conj);
+  i3 @ r3 @ i2 @ r2 @ i1 @ r1 @ i0 @ r0
+}
+
+val cfmulcph_ymm : (ymmword, ymmword, bool) -> ymmword
+function cfmulcph_ymm(src1, src2, conj) =
+  cfmulcph_xmm(src1[255..128], src2[255..128], conj) @
+  cfmulcph_xmm(src1[127..0], src2[127..0], conj)
+
+val cfmulcph_zmm : (zmmword, zmmword, bool) -> zmmword
+function cfmulcph_zmm(src1, src2, conj) =
+  cfmulcph_ymm(src1[511..256], src2[511..256], conj) @
+  cfmulcph_ymm(src1[255..0], src2[255..0], conj)
+
+// =========================================================================
 // EVEX MAP5 dispatch — FP16 basic arithmetic (NP prefix, W=0)
 // =========================================================================
 
@@ -3216,6 +3281,144 @@ function dispatch_evex_map6(opcode, pfx) = {
         let b : word = read_xmm(dst)[15..0];
         let r : word = __f16_fnmsub(a, c, b);
         write_xmm(dst, src1[127..16] @ r); Ok()
+      }
+    },
+
+    // MAP6 0x56: VFCMADDCPH (F2, W=0) / VFMADDCPH (F3, W=0) — complex multiply-accumulate
+    86 => {
+      if pfx.vex_w then { raise_UD() }
+      else {
+        let modrm = fetch_byte();
+        let dst = evex_reg_idx(modrm, pfx);
+        let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+        let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+        let conj : bool = (mp == MP_F2);
+        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
+        else match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+            let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+            let acc : zmmword = read_zmm(dst);
+            let r = cfmaddcph_zmm(src1, src2, acc, conj);
+            let mask : word = evex_get_mask16(pfx);
+            write_zmm(dst, apply_writemask_ps_zmm(r, acc, mask, pfx.evex_z)); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+            let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+            let acc : ymmword = read_ymm(dst);
+            let r = cfmaddcph_ymm(src1, src2, acc, conj);
+            let mask : byte = evex_get_mask8(pfx);
+            write_ymm(dst, apply_writemask_ps_ymm(r, acc, zero_extend(mask), pfx.evex_z)); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+            let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+            let acc : xmmword = read_xmm(dst);
+            let r = cfmaddcph_xmm(src1, src2, acc, conj);
+            let mask : byte = evex_get_mask8(pfx);
+            write_xmm(dst, apply_writemask_ps_xmm(r, acc, zero_extend(mask), pfx.evex_z)); Ok()
+          },
+        }
+      }
+    },
+
+    // MAP6 0x57: VFCMADDCSH (F2, W=0) / VFMADDCSH (F3, W=0) — scalar complex multiply-accumulate
+    87 => {
+      if pfx.vex_w then { raise_UD() }
+      else {
+        let conj : bool = (mp == MP_F2);
+        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
+        else {
+          let modrm = fetch_byte();
+          let dst = evex_reg_idx(modrm, pfx);
+          let rm = decode_rm_evex(modrm, pfx, 4);
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : dword = match rm {
+            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
+            RM_mem(addr) => mem_read32(fixup_addr(addr)),
+          };
+          let acc : xmmword = read_xmm(dst);
+          let s1_re : word = src1[15..0];
+          let s1_im : word = src1[31..16];
+          let s2_re : word = src2[15..0];
+          let s2_im : word = src2[31..16];
+          let a_re : word = acc[15..0];
+          let a_im : word = acc[31..16];
+          let tmp_re : word = __f16_fmadd(s1_re, s2_re, a_re);
+          let tmp_im : word = __f16_fmadd(s1_im, s2_re, a_im);
+          let (r_re, r_im) : (word, word) = if conj then
+            (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+          else
+            (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im));
+          write_xmm(dst, src1[127..32] @ r_im @ r_re); Ok()
+        }
+      }
+    },
+
+    // MAP6 0xD6: VFCMULCPH (F2, W=0) / VFMULCPH (F3, W=0) — complex multiply
+    214 => {
+      if pfx.vex_w then { raise_UD() }
+      else {
+        let modrm = fetch_byte();
+        let dst = evex_reg_idx(modrm, pfx);
+        let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+        let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+        let conj : bool = (mp == MP_F2);
+        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
+        else match pfx.evex_ll {
+          2 => {
+            let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+            let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+            let r = cfmulcph_zmm(src1, src2, conj);
+            let mask : word = evex_get_mask16(pfx);
+            write_zmm(dst, apply_writemask_ps_zmm(r, read_zmm(dst), mask, pfx.evex_z)); Ok()
+          },
+          1 => {
+            let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+            let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+            let r = cfmulcph_ymm(src1, src2, conj);
+            let mask : byte = evex_get_mask8(pfx);
+            write_ymm(dst, apply_writemask_ps_ymm(r, read_ymm(dst), zero_extend(mask), pfx.evex_z)); Ok()
+          },
+          _ => {
+            let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+            let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+            let r = cfmulcph_xmm(src1, src2, conj);
+            let mask : byte = evex_get_mask8(pfx);
+            write_xmm(dst, apply_writemask_ps_xmm(r, read_xmm(dst), zero_extend(mask), pfx.evex_z)); Ok()
+          },
+        }
+      }
+    },
+
+    // MAP6 0xD7: VFCMULCSH (F2, W=0) / VFMULCSH (F3, W=0) — scalar complex multiply
+    215 => {
+      if pfx.vex_w then { raise_UD() }
+      else {
+        let conj : bool = (mp == MP_F2);
+        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
+        else {
+          let modrm = fetch_byte();
+          let dst = evex_reg_idx(modrm, pfx);
+          let rm = decode_rm_evex(modrm, pfx, 4);
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : dword = match rm {
+            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
+            RM_mem(addr) => mem_read32(fixup_addr(addr)),
+          };
+          let s1_re : word = src1[15..0];
+          let s1_im : word = src1[31..16];
+          let s2_re : word = src2[15..0];
+          let s2_im : word = src2[31..16];
+          let tmp_re : word = __f16_mul(s1_re, s2_re);
+          let tmp_im : word = __f16_mul(s1_im, s2_re);
+          let (r_re, r_im) : (word, word) = if conj then
+            (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+          else
+            (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im));
+          write_xmm(dst, src1[127..32] @ r_im @ r_re); Ok()
+        }
       }
     },
 
