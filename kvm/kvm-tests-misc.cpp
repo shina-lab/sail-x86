@@ -603,5 +603,62 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // SHA256MSG2 XMM0, XMM1: NP 0F 38 CD C1
     add_xmm("sha256msg2 xmm0,xmm1", {0x0F, 0x38, 0xCD, 0xC1}, s, 0x3);
   }
+
+  // =====================================================================
+  // 45. FSGSBASE — RDFSBASE/WRFSBASE/RDGSBASE/WRGSBASE
+  //     Requires CR4.FSGSBASE (bit 16) = 1
+  // =====================================================================
+  cat = "FSGSBASE";
+  {
+    // WRFSBASE RBX; RDFSBASE RAX — 64-bit round-trip
+    // F3 REX.W 0F AE /2 = WRFSBASE r64 (F3 48 0F AE D3: mod=11, reg=010, rm=011=RBX)
+    // F3 REX.W 0F AE /0 = RDFSBASE r64 (F3 48 0F AE C0: mod=11, reg=000, rm=000=RAX)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rbx = 0x00007F0012345678;  // canonical user-space address
+      add("rdfsbase64 round-trip",
+          {0xF3, 0x48, 0x0F, 0xAE, 0xD3,   // WRFSBASE RBX
+           0xF3, 0x48, 0x0F, 0xAE, 0xC0},   // RDFSBASE RAX
+          s, FL_NONE);
+    }
+
+    // WRFSBASE EBX; RDFSBASE EAX — 32-bit round-trip (zero-extends)
+    // F3 0F AE /2 = WRFSBASE r32 (F3 0F AE D3)
+    // F3 0F AE /0 = RDFSBASE r32 (F3 0F AE C0)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rbx = 0xDEADBEEF;  // only low 32 bits used
+      add("rdfsbase32 round-trip",
+          {0xF3, 0x0F, 0xAE, 0xD3,   // WRFSBASE EBX
+           0xF3, 0x0F, 0xAE, 0xC0},   // RDFSBASE EAX
+          s, FL_NONE);
+    }
+
+    // WRGSBASE RBX; RDGSBASE RAX — 64-bit GS round-trip
+    // F3 REX.W 0F AE /3 = WRGSBASE r64 (F3 48 0F AE DB: reg=011, rm=011=RBX)
+    // F3 REX.W 0F AE /1 = RDGSBASE r64 (F3 48 0F AE C8: reg=001, rm=000=RAX)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rbx = 0x00007FFF87654321;
+      add("rdgsbase64 round-trip",
+          {0xF3, 0x48, 0x0F, 0xAE, 0xDB,   // WRGSBASE RBX
+           0xF3, 0x48, 0x0F, 0xAE, 0xC8},   // RDGSBASE RAX
+          s, FL_NONE);
+    }
+
+    // WRGSBASE EBX; RDGSBASE EAX — 32-bit GS round-trip
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rbx = 0xCAFEBABE;
+      add("rdgsbase32 round-trip",
+          {0xF3, 0x0F, 0xAE, 0xDB,   // WRGSBASE EBX
+           0xF3, 0x0F, 0xAE, 0xC8},   // RDGSBASE EAX
+          s, FL_NONE);
+    }
+  }
 }
 

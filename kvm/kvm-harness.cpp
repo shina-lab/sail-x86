@@ -182,7 +182,7 @@ struct KvmVm {
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
 
     sregs.cr0 = 0x80000011;  // PE + PG + ET (EM=0, TS=0 for SSE)
-    sregs.cr4 = 0x40620;     // PAE + OSFXSR + OSXMMEXCPT + OSXSAVE
+    sregs.cr4 = 0x50620;     // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
     sregs.efer = 0x500;      // LME + LMA
     sregs.cr3 = PML4_ADDR;
 
@@ -412,6 +412,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zinitializze_registers(UNIT);
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
+  model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
   // Ensure guest pages are mapped (idempotent after first call).
   static bool pages_mapped = false;
