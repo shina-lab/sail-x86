@@ -2404,4 +2404,496 @@ u64 Model::z__f64_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
   return fixupimm_dp_response(dst, src1, src2, (u8)imm);
 }
 
+// =========================================================================
+// IEEE 754 half-precision (f16) operations — AVX-512 FP16
+// =========================================================================
+
+// FP16 DAZ: flush denormal FP16 inputs to ±0
+static inline u64 f16_daz_bits(u64 a, u32 mxcsr) {
+  if (!(mxcsr & 0x0040))
+    return a;
+  u16 bits = (u16)a;
+  if ((bits & 0x7C00) == 0 && (bits & 0x03FF) != 0)
+    return bits & 0x8000;
+  return a;
+}
+
+// FP16 FTZ: flush denormal FP16 result to ±0
+static inline _Float16 f16_ftz(_Float16 f, u32 mxcsr) {
+  if (!(mxcsr & 0x8000))
+    return f;
+  u16 bits;
+  memcpy(&bits, &f, 2);
+  if ((bits & 0x7C00) == 0 && (bits & 0x03FF) != 0) {
+    bits &= 0x8000;
+    memcpy(&f, &bits, 2);
+  }
+  return f;
+}
+
+// Intel NaN propagation for f16: SRC1 (a) priority
+static bool f16_nan_prop(u64 a, u64 b, u64 *out) {
+  u16 ua = (u16)a;
+  u16 ub = (u16)b;
+  bool a_nan = ((ua & 0x7C00) == 0x7C00) && ((ua & 0x03FF) != 0);
+  bool b_nan = ((ub & 0x7C00) == 0x7C00) && ((ub & 0x03FF) != 0);
+  if (!a_nan && !b_nan)
+    return false;
+  *out = a_nan ? (ua | 0x0200) : (ub | 0x0200);  // quiet NaN bit
+  return true;
+}
+
+static inline u16 f16_arith(u64 a_bits, u64 b_bits, u32 mxcsr,
+                             float (*op)(float, float)) {
+  a_bits = f16_daz_bits(a_bits, mxcsr);
+  b_bits = f16_daz_bits(b_bits, mxcsr);
+  // Convert FP16 to float
+  _Float16 ha, hb;
+  u16 ua = (u16)a_bits, ub = (u16)b_bits;
+  memcpy(&ha, &ua, 2);
+  memcpy(&hb, &ub, 2);
+  float fa = (float)ha, fb = (float)hb;
+  set_rounding((mxcsr >> 13) & 3);
+  float fr = op(fa, fb);
+  // Convert back to FP16
+  _Float16 hr = (_Float16)fr;
+  hr = f16_ftz(hr, mxcsr);
+  u16 r;
+  memcpy(&r, &hr, 2);
+  return r;
+}
+
+u64 Model::z__f16_add(u64 a, u64 b) {
+  u64 nr;
+  if (f16_nan_prop(a, b, &nr)) return nr;
+  return f16_arith(a, b, mxcsr_state.mxcsr,
+                   [](float a, float b) { return a + b; });
+}
+
+u64 Model::z__f16_sub(u64 a, u64 b) {
+  u64 nr;
+  if (f16_nan_prop(a, b, &nr)) return nr;
+  return f16_arith(a, b, mxcsr_state.mxcsr,
+                   [](float a, float b) { return a - b; });
+}
+
+u64 Model::z__f16_mul(u64 a, u64 b) {
+  u64 nr;
+  if (f16_nan_prop(a, b, &nr)) return nr;
+  return f16_arith(a, b, mxcsr_state.mxcsr,
+                   [](float a, float b) { return a * b; });
+}
+
+u64 Model::z__f16_div(u64 a, u64 b) {
+  u64 nr;
+  if (f16_nan_prop(a, b, &nr)) return nr;
+  return f16_arith(a, b, mxcsr_state.mxcsr,
+                   [](float a, float b) { return a / b; });
+}
+
+u64 Model::z__f16_sqrt(u64 a) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  _Float16 ha;
+  u16 ua = (u16)a;
+  memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  SYNC_MXCSR_RC();
+  float fr = sqrtf(fa);
+  _Float16 hr = (_Float16)fr;
+  hr = f16_ftz(hr, mxcsr_state.mxcsr);
+  u16 r;
+  memcpy(&r, &hr, 2);
+  return r;
+}
+
+u64 Model::z__f16_min(u64 a, u64 b) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  u16 ua = (u16)a, ub = (u16)b;
+  _Float16 ha, hb;
+  memcpy(&ha, &ua, 2);
+  memcpy(&hb, &ub, 2);
+  float fa = (float)ha, fb = (float)hb;
+  // MINPH: if either is NaN, return src2 (b); if both zero, return src2
+  if (__builtin_isnan(fa)) { return b; }
+  if (__builtin_isnan(fb)) { return a; }
+  if (fa == 0.0f && fb == 0.0f) { return b; }
+  _Float16 hr = fa < fb ? ha : hb;
+  u16 r;
+  memcpy(&r, &hr, 2);
+  return r;
+}
+
+u64 Model::z__f16_max(u64 a, u64 b) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  u16 ua = (u16)a, ub = (u16)b;
+  _Float16 ha, hb;
+  memcpy(&ha, &ua, 2);
+  memcpy(&hb, &ub, 2);
+  float fa = (float)ha, fb = (float)hb;
+  if (__builtin_isnan(fa)) { return b; }
+  if (__builtin_isnan(fb)) { return a; }
+  if (fa == 0.0f && fb == 0.0f) { return b; }
+  _Float16 hr = fa > fb ? ha : hb;
+  u16 r;
+  memcpy(&r, &hr, 2);
+  return r;
+}
+
+// FP16 FMA
+u64 Model::z__f16_fmadd(u64 a, u64 b, u64 c) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  c = f16_daz_bits(c, mxcsr_state.mxcsr);
+  _Float16 ha, hb, hc;
+  u16 ua = (u16)a, ub = (u16)b, uc = (u16)c;
+  memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2); memcpy(&hc, &uc, 2);
+  SYNC_MXCSR_RC();
+  float fr = fmaf((float)ha, (float)hb, (float)hc);
+  _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_fmsub(u64 a, u64 b, u64 c) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  c = f16_daz_bits(c, mxcsr_state.mxcsr);
+  _Float16 ha, hb, hc;
+  u16 ua = (u16)a, ub = (u16)b, uc = (u16)c;
+  memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2); memcpy(&hc, &uc, 2);
+  SYNC_MXCSR_RC();
+  float fr = fmaf((float)ha, (float)hb, -(float)hc);
+  _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_fnmadd(u64 a, u64 b, u64 c) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  c = f16_daz_bits(c, mxcsr_state.mxcsr);
+  _Float16 ha, hb, hc;
+  u16 ua = (u16)a, ub = (u16)b, uc = (u16)c;
+  memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2); memcpy(&hc, &uc, 2);
+  SYNC_MXCSR_RC();
+  float fr = fmaf(-(float)ha, (float)hb, (float)hc);
+  _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_fnmsub(u64 a, u64 b, u64 c) {
+  a = f16_daz_bits(a, mxcsr_state.mxcsr);
+  b = f16_daz_bits(b, mxcsr_state.mxcsr);
+  c = f16_daz_bits(c, mxcsr_state.mxcsr);
+  _Float16 ha, hb, hc;
+  u16 ua = (u16)a, ub = (u16)b, uc = (u16)c;
+  memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2); memcpy(&hc, &uc, 2);
+  SYNC_MXCSR_RC();
+  float fr = fmaf(-(float)ha, (float)hb, -(float)hc);
+  _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_to_f64(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  double d = (double)h; u64 r; memcpy(&r, &d, 8); return r;
+}
+
+u64 Model::z__int32_to_f16(u64 a) {
+  int32_t v; memcpy(&v, &a, 4);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__int64_to_f16(u64 a) {
+  int64_t v; memcpy(&v, &a, 8);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+// Remaining FP16 conversions and special ops: enabled once Sail instructions call them
+#if 0
+u64 Model::z__f16_to_f32(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h; u32 r; memcpy(&r, &f, 4); return r;
+}
+
+u64 Model::z__f32_to_f16(u64 a) {
+  float f; memcpy(&f, &a, 4);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)f; u16 r; memcpy(&r, &h, 2); return r;
+}
+u64 Model::z__f64_to_f16(u64 a) {
+  double d; memcpy(&d, &a, 8);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)d; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__f16_to_int32(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  int32_t r = (int32_t)nearbyintf(f);
+  u32 ru; memcpy(&ru, &r, 4); return ru;
+}
+
+u64 Model::z__f16_to_int64(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  int64_t r = (int64_t)nearbyintf(f);
+  u64 ru; memcpy(&ru, &r, 8); return ru;
+}
+
+u64 Model::z__f16_to_int32_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  int32_t r = (int32_t)truncf(f);
+  u32 ru; memcpy(&ru, &r, 4); return ru;
+}
+
+u64 Model::z__f16_to_int64_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  int64_t r = (int64_t)truncf(f);
+  u64 ru; memcpy(&ru, &r, 8); return ru;
+}
+
+u64 Model::z__int32_to_f16(u64 a) {
+  int32_t v; memcpy(&v, &a, 4);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__int64_to_f16(u64 a) {
+  int64_t v; memcpy(&v, &a, 8);
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__f16_to_uint32(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  uint32_t r = (uint32_t)nearbyintf(f);
+  return r;
+}
+
+u64 Model::z__f16_to_uint64(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  uint64_t r = (uint64_t)nearbyintf(f);
+  return r;
+}
+
+u64 Model::z__f16_to_uint32_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  uint32_t r = (uint32_t)truncf(f);
+  return r;
+}
+
+u64 Model::z__f16_to_uint64_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  uint64_t r = (uint64_t)truncf(f);
+  return r;
+}
+
+u64 Model::z__uint32_to_f16(u64 a) {
+  uint32_t v = (uint32_t)a;
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__uint64_to_f16(u64 a) {
+  uint64_t v = (uint64_t)a;
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__f16_to_int16(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  int16_t r = (int16_t)nearbyintf(f);
+  u16 ru; memcpy(&ru, &r, 2); return ru;
+}
+
+u64 Model::z__f16_to_int16_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  int16_t r = (int16_t)truncf(f);
+  u16 ru; memcpy(&ru, &r, 2); return ru;
+}
+
+u64 Model::z__int16_to_f16(u64 a) {
+  int16_t v = (int16_t)(u16)a;
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+u64 Model::z__f16_to_uint16(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  SYNC_MXCSR_RC();
+  float f = (float)h;
+  uint16_t r = (uint16_t)nearbyintf(f);
+  return r;
+}
+
+u64 Model::z__f16_to_uint16_trunc(u64 a) {
+  _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
+  float f = (float)h;
+  uint16_t r = (uint16_t)truncf(f);
+  return r;
+}
+
+u64 Model::z__uint16_to_f16(u64 a) {
+  uint16_t v = (uint16_t)a;
+  SYNC_MXCSR_RC();
+  _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
+}
+
+// FP16 special operations
+u64 Model::z__f16_scalef(u64 a, u64 b) {
+  _Float16 ha, hb; u16 ua = (u16)a, ub = (u16)b;
+  memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2);
+  float fa = (float)ha, fb = (float)hb;
+  SYNC_MXCSR_RC();
+  float fr = fa * exp2f(truncf(fb));
+  _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_getexp(u64 a) {
+  u16 ua = (u16)a;
+  _Float16 ha; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  if (__builtin_isnan(fa) || __builtin_isinf(fa)) {
+    u16 r;
+    if (__builtin_isnan(fa)) r = ua | 0x0200;  // QNaN
+    else { r = 0x7C00; }  // +Inf
+    return r;
+  }
+  if (fa == 0.0f) return ua & 0x8000 ? 0xFC00 : 0xFC00;  // -Inf
+  int exp;
+  frexpf(fa, &exp);
+  _Float16 hr = (_Float16)(exp - 1);
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_rcp(u64 a) {
+  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  float fr = 1.0f / fa;
+  _Float16 hr = (_Float16)fr;
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_rsqrt(u64 a) {
+  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  float fr = 1.0f / sqrtf(fa);
+  _Float16 hr = (_Float16)fr;
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_rndscale(u64 a, u64 imm) {
+  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  int rc = (int)((imm >> 2) & 3);
+  int m = (int)(imm & 0xF);
+  float scale = exp2f((float)m);
+  int saved = fegetround();
+  // imm[3:2] = rounding mode (0=RNE,1=DN,2=UP,3=TZ), imm[4]=use-imm-rc
+  if (imm & 0x04) {
+    switch (rc) {
+    case 0: fesetround(FE_TONEAREST); break;
+    case 1: fesetround(FE_DOWNWARD); break;
+    case 2: fesetround(FE_UPWARD); break;
+    case 3: fesetround(FE_TOWARDZERO); break;
+    }
+  } else {
+    SYNC_MXCSR_RC();
+  }
+  float fr = nearbyintf(fa * scale) / scale;
+  fesetround(saved);
+  _Float16 hr = (_Float16)fr;
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_getmant(u64 a, u64 imm) {
+  // Simplified: extract mantissa, return as FP16 in [1,2) or [0.5,1) range
+  u16 ua = (u16)a;
+  _Float16 ha; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  if (__builtin_isnan(fa)) return ua | 0x0200;
+  if (__builtin_isinf(fa)) return ua | 0x0200;  // QNaN
+  if (fa == 0.0f) return ua;
+  int exp;
+  float mant = frexpf(fabsf(fa), &exp);  // [0.5, 1.0)
+  int norm = (int)(imm & 3);
+  if (norm == 0 || norm == 2) mant *= 2.0f;  // [1.0, 2.0)
+  int sign_ctrl = (int)((imm >> 2) & 3);
+  bool neg;
+  switch (sign_ctrl) {
+  case 0: neg = fa < 0.0f; break;
+  case 1: neg = false; break;
+  case 2: neg = false; break;
+  default: neg = fa < 0.0f; break;
+  }
+  if (neg) mant = -mant;
+  _Float16 hr = (_Float16)mant;
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_reduce(u64 a, u64 imm) {
+  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  int m = (int)(imm & 0xF);
+  float scale = exp2f((float)m);
+  SYNC_MXCSR_RC();
+  float rounded = nearbyintf(fa * scale) / scale;
+  float fr = fa - rounded;
+  _Float16 hr = (_Float16)fr;
+  u16 r; memcpy(&r, &hr, 2); return r;
+}
+
+u64 Model::z__f16_fixupimm(u64 dst, u64 src1, u64 src2, u64 imm) {
+  // Simplified fixup for FP16 — follows same pattern as f32 version
+  u16 udst = (u16)dst, us1 = (u16)src1;
+  u32 tbl = (u32)src2;  // 32-bit table entry
+  _Float16 h1; memcpy(&h1, &us1, 2);
+  float f1 = (float)h1;
+  int j;
+  if (__builtin_isnan(f1)) j = ((us1 & 0x0200) ? 1 : 0);  // QNaN=1, SNaN=0
+  else if (__builtin_isinf(f1)) j = (f1 < 0 ? 4 : 5);
+  else if (f1 == 0.0f) j = (us1 & 0x8000 ? 3 : 2);
+  else if (f1 == 1.0f) j = 6;
+  else j = 7;
+  int resp = (tbl >> (j * 4)) & 0xF;
+  switch (resp) {
+  case 0x0: return udst;
+  case 0x1: return us1;
+  case 0x2: return us1 | 0x0200;
+  case 0x3: return 0xFE00;  // QNaN indefinite
+  case 0x4: return 0xFC00;  // -Inf
+  case 0x5: return 0x7C00;  // +Inf
+  case 0x6: return (us1 & 0x8000) ? 0xFC00 : 0x7C00;
+  case 0x7: return 0x8000;  // -0
+  case 0x8: return 0x0000;  // +0
+  case 0x9: return 0xBC00;  // -1.0
+  case 0xA: return 0x3C00;  // +1.0
+  case 0xB: return 0x3800;  // 0.5
+  case 0xC: return 0x55A0;  // 90.0
+  case 0xD: return 0x4248;  // pi/2 ≈ 1.5703125
+  case 0xE: return 0x7BFF;  // MAX_FP16
+  case 0xF: return 0xFBFF;  // -MAX_FP16
+  default: return udst;
+  }
+}
+
+#endif  // FP16 externals not yet used
+
 } // namespace x86

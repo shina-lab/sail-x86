@@ -113,6 +113,55 @@ val __f64_fixupimm : (qword, qword, qword, byte) -> qword
 // VDPBF16PS: BF16 dot product element (dst += bf16_hi*bf16_hi + bf16_lo*bf16_lo)
 val __vdpbf16ps_elem : (dword, dword, dword) -> dword
 
+// Half precision (16-bit) — AVX-512 FP16
+val __f16_add  : (word, word) -> word
+val __f16_sub  : (word, word) -> word
+val __f16_mul  : (word, word) -> word
+val __f16_div  : (word, word) -> word
+val __f16_sqrt : word -> word
+val __f16_min  : (word, word) -> word
+val __f16_max  : (word, word) -> word
+
+// FP16 FMA
+val __f16_fmadd  : (word, word, word) -> word
+val __f16_fmsub  : (word, word, word) -> word
+val __f16_fnmadd : (word, word, word) -> word
+val __f16_fnmsub : (word, word, word) -> word
+
+// FP16 conversions
+val __f16_to_f32 : word -> dword
+val __f32_to_f16 : dword -> word
+val __f16_to_f64 : word -> qword
+val __f64_to_f16 : qword -> word
+val __f16_to_int32 : word -> dword
+val __f16_to_int64 : word -> qword
+val __f16_to_int32_trunc : word -> dword
+val __f16_to_int64_trunc : word -> qword
+val __int32_to_f16 : dword -> word
+val __int64_to_f16 : qword -> word
+val __f16_to_uint32 : word -> dword
+val __f16_to_uint64 : word -> qword
+val __f16_to_uint32_trunc : word -> dword
+val __f16_to_uint64_trunc : word -> qword
+val __uint32_to_f16 : dword -> word
+val __uint64_to_f16 : qword -> word
+val __f16_to_int16 : word -> word
+val __f16_to_int16_trunc : word -> word
+val __int16_to_f16 : word -> word
+val __f16_to_uint16 : word -> word
+val __f16_to_uint16_trunc : word -> word
+val __uint16_to_f16 : word -> word
+
+// FP16 special operations
+val __f16_scalef : (word, word) -> word
+val __f16_getexp : word -> word
+val __f16_rcp   : word -> word
+val __f16_rsqrt : word -> word
+val __f16_rndscale : (word, byte) -> word
+val __f16_getmant : (word, byte) -> word
+val __f16_reduce : (word, byte) -> word
+val __f16_fixupimm : (word, word, dword, byte) -> word
+
 // VRCP28/VRSQRT28/VEXP2 (KNL)
 val __f32_rcp28 : dword -> dword
 val __f64_rcp28 : qword -> qword

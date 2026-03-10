@@ -347,6 +347,8 @@ function dispatch_evex() = {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),
     3 => dispatch_evex_0f3a(opcode, pfx),
-    _ => raise_UD(),  // mmm=0,4,5,6,7 are reserved (#UD)
+    5 => dispatch_evex_map5(opcode, pfx),
+    6 => dispatch_evex_map6(opcode, pfx),
+    _ => raise_UD(),  // mmm=0,4,7 are reserved (#UD)
   }
 }
