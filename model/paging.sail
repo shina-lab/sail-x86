@@ -5,7 +5,7 @@
 //
 // Page table walks use phys_read64 to avoid recursion through mem_read.
 // Follows the sail-riscv pattern: translate_addr() returns physical address
-// or throws X86Fault(EXN_PF, error_code) on failure.
+// or throws Fault(EXN_PF, error_code) on failure.
 
 // Raw physical memory read/write primitives.
 // These are external functions provided by the execution environment.
@@ -90,7 +90,7 @@ function update_accessed_dirty(pte_addr, pte, access) = {
 // 4-level page table walk.
 // Walks PML4 → PDPT → PD → PT to translate a 64-bit linear address.
 // On success, returns the physical address.
-// On failure, throws X86Fault(EXN_PF, error_code).
+// On failure, throws Fault(EXN_PF, error_code).
 //
 // The `level` parameter counts down: 3=PML4, 2=PDPT, 1=PD, 0=PT.
 val pt_walk : (qword, PTAccess, qword, range(0, 3)) -> qword
@@ -111,7 +111,7 @@ function pt_walk(linear, access, table_base, level) = {
   // 3. Check Present bit
   if pte[0] == bitzero then {
     CR2 = linear;
-    throw X86Fault(EXN_PF, mk_pf_error(access, false, false))
+    throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
 
   // 4. Check reserved bits
@@ -127,7 +127,7 @@ function pt_walk(linear, access, table_base, level) = {
     // 6. Permission check
     if not_bool(check_pte_permissions(pte, access)) then {
       CR2 = linear;
-      throw X86Fault(EXN_PF, mk_pf_error(access, true, false))
+      throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };
 
     // 7. Update A/D bits
@@ -152,7 +152,7 @@ function pt_walk(linear, access, table_base, level) = {
   } else {
     // level 0 non-leaf = impossible (always leaf)
     CR2 = linear;
-    throw X86Fault(EXN_PF, mk_pf_error(access, true, true))
+    throw Fault(EXN_PF, mk_pf_error(access, true, true))
   }
 }
 termination_measure pt_walk(_, _, _, level) = level

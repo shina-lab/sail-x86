@@ -62,22 +62,21 @@ static u64 setup_4kb_pages(PhysicalMemory &mem, u64 pml4_addr, u64 alloc_base,
   return alloc;
 }
 
+enum RunResult { RUN_OK = 0, RUN_HALTED = 1, RUN_FAULTED = 2 };
+
 static int run_code(x86::Model &model, u64 code_addr, const u8 *code, size_t len,
                     u64 max_insns = 1000) {
   model.phys_mem.write_bytes(code_addr, code, len);
   model.zRIP = code_addr;
 
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-
   u64 count = 0;
   while (count < max_insns) {
-    model.zstep(&result, UNIT);
-    if (result.kind != x86::Kind_zOk)
-      break;
+    model.zstep(UNIT);
+    if (model.zfault_pending) return RUN_FAULTED;
+    if (model.zsystem_state == x86::zSysHalted) return RUN_HALTED;
     count++;
   }
-  return result.kind;
+  return RUN_OK;
 }
 
 static int tests_passed = 0;
@@ -123,7 +122,7 @@ TEST(identity_map_2mb) {
   // mov rax, 0x42; hlt
   u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
 
   model.model_fini();
@@ -166,7 +165,7 @@ TEST(non_identity_4kb_mapping) {
     0xF4,              // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0xDEADBEEFCAFEBABEULL);
 
   model.model_fini();
@@ -199,7 +198,7 @@ TEST(page_fault_not_present) {
     0xF4,              // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zFault);
+  ASSERT_EQ(kind, RUN_FAULTED);
   // CR2 should contain the faulting address
   ASSERT_EQ((u64)model.zCR2, 0x500000UL);
 
@@ -234,7 +233,7 @@ TEST(accessed_dirty_bits) {
     0xF4,                                        // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // Check that A (bit 5) and D (bit 6) are now set in the PTE
   u64 updated_pte = model.phys_mem.read64(pte_addr);
@@ -271,7 +270,7 @@ TEST(write_protect) {
     0xF4,
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zFault);
+  ASSERT_EQ(kind, RUN_FAULTED);
   ASSERT_EQ((u64)model.zCR2, 0x300000UL);
 
   model.model_fini();
@@ -294,7 +293,7 @@ TEST(huge_page_1gb) {
   // mov rax, 0x42; hlt (code at 0x100000, which is within the 1GB page)
   u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
 
   model.model_fini();
@@ -319,7 +318,7 @@ TEST(store_through_paging) {
     0xF4,
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // Verify physical memory
   u64 stored = model.phys_mem.read64(0x200000);

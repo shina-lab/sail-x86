@@ -74,9 +74,6 @@ int main(int argc, char *argv[], char *envp[]) {
   }
 
   u64 insn_count = 0;
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-  result.variants.zOk = UNIT;
 
   while (!model.should_exit) {
     if (debug) {
@@ -86,29 +83,13 @@ int main(int argc, char *argv[], char *envp[]) {
               model.zGPR.data[2], model.zGPR.data[4]);
     }
 
-    model.zstep(&result, UNIT);
+    model.zstep(UNIT);
 
-    switch (result.kind) {
-    case x86::Kind_zOk:
-      insn_count++;
-      break;
-
-    case x86::Kind_zHalt:
-      if (debug) {
-        u64 nr = model.zGPR.data[0];
-        fprintf(stderr, "[%lu] SYSCALL nr=%lu arg1=0x%lx arg2=0x%lx arg3=0x%lx\n",
-                insn_count, nr, model.zGPR.data[7], model.zGPR.data[6], model.zGPR.data[2]);
-      }
-      emulate_syscall(model);
-      insn_count++;
-      break;
-
-    case x86::Kind_zFault: {
-      i64 vec = result.variants.zFault.ztup0;
-      u32 err = result.variants.zFault.ztup1;
+    if (model.zfault_pending) {
+      i64 vec = model.zfault_vector;
+      u32 err = model.zfault_error_code;
       fprintf(stderr, "sail-x86: fault #%ld (error code 0x%x) at RIP=0x%lx after %lu instructions\n",
               vec, err, model.zRIP, insn_count);
-      // Dump instruction bytes at fault address for debugging
       if (debug) {
         fprintf(stderr, "  bytes:");
         u8 insn_bytes[16];
@@ -119,7 +100,17 @@ int main(int argc, char *argv[], char *envp[]) {
       }
       model.model_fini();
       return 128 + (int)vec;
-    }
+    } else if (model.zsystem_state == x86::zSysSyscall) {
+      if (debug) {
+        u64 nr = model.zGPR.data[0];
+        fprintf(stderr, "[%lu] SYSCALL nr=%lu arg1=0x%lx arg2=0x%lx arg3=0x%lx\n",
+                insn_count, nr, model.zGPR.data[7], model.zGPR.data[6], model.zGPR.data[2]);
+      }
+      emulate_syscall(model);
+      model.zsystem_state = x86::zSysRunning;
+      insn_count++;
+    } else {
+      insn_count++;
     }
   }
 

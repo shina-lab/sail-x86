@@ -116,7 +116,7 @@ function push_to_stack(rsp, value) = {
 register sw_return_rip : option(qword) = None()
 
 // Inner delivery: read IDT gate, push interrupt frame, update CPU state.
-// May throw X86Fault if gate is not present or stack push faults.
+// May throw Fault if gate is not present or stack push faults.
 // software_int: true for INT n, INT3, INT1 — suppresses error code push
 //               and enables gate DPL check (for INT n and INT3, not INT1).
 val deliver_exception_inner : (exception_vector, dword, bool) -> unit
@@ -145,7 +145,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
 
   // 1. Check gate present — #GP if not
   if not_bool(gate.gate_present) then {
-    throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
   };
 
   // 1b. Software interrupt DPL check: gate DPL must be >= CPL.
@@ -154,7 +154,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   // from invoking ring-0 interrupt handlers via INT n/INT3.
   // (INT1 bypasses this check — SDM says INT1 does not check DPL.)
   if software_int & gate.gate_dpl < old_cpl then {
-    throw X86Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
   };
 
   // 2. Determine new stack
@@ -220,7 +220,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
 //
 // If delivery itself faults, the fault is caught and re-entered through
 // this function, which applies the escalation rules before retrying.
-// Triple fault throws X86Fault(EXN_MC, 0) as an unrecoverable signal.
+// Triple fault throws Fault(EXN_MC, 0) as an unrecoverable signal.
 val deliver_exception : (exception_vector, dword, bool) -> unit
 function deliver_exception(vec, err_code, software_int) = {
   let second_class = classify_exception(vec);
@@ -233,7 +233,7 @@ function deliver_exception(vec, err_code, software_int) = {
       _ => {
         // Contributory or page fault during #DF → shutdown (triple fault)
         exception_depth = 0;
-        throw X86Fault(EXN_MC, 0x00000000)
+        throw Fault(EXN_MC, 0x00000000)
       },
     }
   } else if exception_depth == 1 then {
@@ -263,7 +263,7 @@ function deliver_exception(vec, err_code, software_int) = {
   try {
     deliver_exception_inner(vec, err_code, software_int)
   } catch {
-    X86Fault(vec2, err2) => {
+    Fault(vec2, err2) => {
       // Fault during delivery — re-enter with escalation logic (never software_int)
       deliver_exception(vec2, err2, false);
       return ()

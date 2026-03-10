@@ -100,22 +100,21 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zRF = 0;
 }
 
+enum RunResult { RUN_OK = 0, RUN_HALTED = 1, RUN_FAULTED = 2 };
+
 static int run_code(x86::Model &model, const u8 *code, size_t len,
                     u64 max_insns = 1000, u64 code_addr = CODE_ADDR) {
   model.phys_mem.write_bytes(code_addr, code, len);
   model.zRIP = code_addr;
 
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-
   u64 count = 0;
   while (count < max_insns) {
-    model.zstep(&result, UNIT);
-    if (result.kind != x86::Kind_zOk)
-      break;
+    model.zstep(UNIT);
+    if (model.zfault_pending) return RUN_FAULTED;
+    if (model.zsystem_state == x86::zSysHalted) return RUN_HALTED;
     count++;
   }
-  return result.kind;
+  return RUN_OK;
 }
 
 // =========================================================================
@@ -177,7 +176,7 @@ TEST(divide_error_delivery) {
   int kind = run_code(model, code, sizeof(code));
 
   // Should halt at the handler
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   // RIP stays at the HLT instruction (Halt doesn't advance RIP)
   ASSERT_EQ((u64)model.zRIP, handler_addr);
 
@@ -220,7 +219,7 @@ TEST(gp_fault_delivery_with_error_code) {
   };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zRIP, handler_addr);
 
   // #GP has error code. Stack: error_code, RIP, CS, RFLAGS, RSP, SS
@@ -259,7 +258,7 @@ TEST(interrupt_gate_clears_if) {
   u8 code[] = { 0x48, 0xF7, 0xF1, 0xF4 };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // IF should be cleared by interrupt gate
   ASSERT_EQ((u64)model.zIF_flag, 0UL);
@@ -292,7 +291,7 @@ TEST(trap_gate_preserves_if) {
   u8 code[] = { 0x48, 0xF7, 0xF1, 0xF4 };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // IF should be preserved (trap gate doesn't clear it)
   ASSERT_EQ((u64)model.zIF_flag, 1UL);
@@ -322,7 +321,7 @@ TEST(tf_nt_rf_cleared_on_delivery) {
   u8 code[] = { 0x48, 0xF7, 0xF1, 0xF4 };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // TF, NT, RF should all be cleared
   ASSERT_EQ((u64)model.zTF, 0UL);
@@ -359,7 +358,7 @@ TEST(stack_alignment_16byte) {
   u8 code[] = { 0x48, 0xF7, 0xF1, 0xF4 };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   // RSP should be 16-byte aligned (minus the frame pushes)
   // Frame is 5 * 8 = 40 bytes. Aligned base = 0x80000.
@@ -394,7 +393,7 @@ TEST(int3_software_interrupt) {
   };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zRIP, handler_addr);
 
   // Stack frame: RIP, CS, RFLAGS, RSP, SS (no error code for software interrupt)
@@ -430,7 +429,7 @@ TEST(int_n_no_error_code_for_gp_vector) {
   };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zRIP, handler_addr);
 
   // Stack frame: RIP, CS, RFLAGS, RSP, SS — NO error code
@@ -464,7 +463,7 @@ TEST(int_n_saved_rip) {
   };
 
   int kind = run_code(model, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   u64 rsp = model.zGPR.data[4];
   u64 frame_rip = model.phys_mem.read64(rsp);

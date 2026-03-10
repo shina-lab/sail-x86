@@ -286,28 +286,24 @@ static void fxrstor_common(Model &m, u64 addr) {
   }
 }
 
-void Model::z__fxsave(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxsave(u64 addr) {
   fxsave_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxsave64(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxsave64(u64 addr) {
   fxsave_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxrstor(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxrstor(u64 addr) {
   fxrstor_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxrstor64(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxrstor64(u64 addr) {
   fxrstor_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
 // =========================================================================
@@ -325,7 +321,7 @@ void Model::z__fxrstor64(zExecutionResult *rop, u64 addr) {
 // XCR0: we support x87 (bit 0), SSE (bit 1), AVX (bit 2).
 static constexpr u64 XCR0 = 0x7;
 
-void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
+unit Model::z__xsave(u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
 
   // Read old XSTATE_BV (XSAVE merges, not overwrites).
@@ -346,11 +342,10 @@ void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
   // XCOMP_BV = 0 (standard format), reserved = 0.
   memset((void *)(addr + 0x208), 0, 56);
 
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
+unit Model::z__xrstor(u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
 
   u64 xstate_bv;
@@ -384,8 +379,7 @@ void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
     mxcsr_state.mxcsr = mxcsr;
   }
 
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
 } // namespace x86

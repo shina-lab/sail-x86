@@ -475,28 +475,24 @@ static void fxrstor_common(Model &m, u64 addr) {
   }
 }
 
-void Model::z__fxsave(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxsave(u64 addr) {
   fxsave_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxsave64(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxsave64(u64 addr) {
   fxsave_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxrstor(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxrstor(u64 addr) {
   fxrstor_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__fxrstor64(zExecutionResult *rop, u64 addr) {
+unit Model::z__fxrstor64(u64 addr) {
   fxrstor_common(*this, addr);
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
 // =========================================================================
@@ -514,7 +510,7 @@ void Model::z__fxrstor64(zExecutionResult *rop, u64 addr) {
 // XCR0: we support x87 (bit 0), SSE (bit 1), AVX (bit 2).
 static constexpr u64 XCR0 = 0x7;
 
-void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
+unit Model::z__xsave(u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
 
   // Read old XSTATE_BV (XSAVE merges, not overwrites).
@@ -529,11 +525,10 @@ void Model::z__xsave(zExecutionResult *rop, u64 addr, u64 mask) {
   u8 zero[56] = {};
   virt_write_bytes(*this, addr + 0x208, zero, 56);
 
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
-void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
+unit Model::z__xrstor(u64 addr, u64 mask) {
   u64 rfbm = mask & XCR0;
   u64 xstate_bv = virt_read64(*this, addr + 0x200);
 
@@ -558,8 +553,7 @@ void Model::z__xrstor(zExecutionResult *rop, u64 addr, u64 mask) {
   if ((rfbm & 6) && (xstate_bv & 2))
     mxcsr_state.mxcsr = virt_read32(*this, addr + 0x18);
 
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+  return UNIT;
 }
 
 } // namespace x86

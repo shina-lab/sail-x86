@@ -973,21 +973,22 @@ struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdseed64(unit) {
 // Software interrupt (INT n) — stub for user mode
 // =========================================================================
 
-void Model::z__software_interrupt(struct zExecutionResult *rop, u64 vec) {
+unit Model::z__software_interrupt(u64 vec) {
   // In user mode, INT 0x80 was the old Linux syscall interface.
-  // For now, just fault.
-  rop->kind = Kind_zFault;
-  rop->variants.zFault.ztup0 = (i64)vec;
-  rop->variants.zFault.ztup1 = 0;
+  // For now, just raise a fault exception.
+  current_exception->kind = Kind_zFault;
+  current_exception->variants.zFault.ztup0 = (i64)vec;
+  current_exception->variants.zFault.ztup1 = 0;
+  have_exception = true;
+  return UNIT;
 }
 
 // =========================================================================
 // WAIT/FWAIT — no-op in user mode
 // =========================================================================
 
-void Model::z__wait(struct zExecutionResult *rop, unit) {
-  rop->kind = Kind_zOk;
-  rop->variants.zOk = UNIT;
+unit Model::z__wait(unit) {
+  return UNIT;
 }
 // =========================================================================
 // AES-NI
@@ -1698,7 +1699,7 @@ void Model::z__pcmpistrm(struct ztuple_z8z5bvzCz0z5bv1zCz0z5bv1zCz0z5bv1zCz0z5bv
 // SYSCALL — handled externally by the emulator run loop
 // =========================================================================
 
-void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
+unit Model::z__syscall(u64 rip, u64 rflags) {
   // SYSCALL ABI: RCX = return address (next instruction), R11 = saved RFLAGS
   // rip is the address of the SYSCALL instruction itself;
   // zdecode_pos points past it (next instruction address).
@@ -1709,9 +1710,9 @@ void Model::z__syscall(struct zExecutionResult *rop, u64 rip, u64 rflags) {
   // Advance RIP past the SYSCALL instruction.
   zRIP = zdecode_pos;
 
-  // Signal to the run loop that a syscall happened by returning Halt.
-  rop->kind = Kind_zHalt;
-  rop->variants.zHalt = UNIT;
+  // Signal to the run loop that a syscall happened.
+  zsystem_state = zSysSyscall;
+  return UNIT;
 }
 
 // =========================================================================

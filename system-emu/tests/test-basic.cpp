@@ -51,24 +51,23 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zKERNEL_GS_BASE = 0;
 }
 
+// Run result codes (replacing the old zExecutionResult kind enum)
+enum RunResult { RUN_OK = 0, RUN_HALTED = 1, RUN_FAULTED = 2 };
+
 // Run code loaded at code_addr until HLT or fault.
-// Returns the ExecutionResult kind.
 static int run_code(x86::Model &model, u64 code_addr, const u8 *code, size_t len,
                     u64 max_insns = 1000) {
   model.phys_mem.write_bytes(code_addr, code, len);
   model.zRIP = code_addr;
 
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-
   u64 count = 0;
   while (count < max_insns) {
-    model.zstep(&result, UNIT);
-    if (result.kind != x86::Kind_zOk)
-      break;
+    model.zstep(UNIT);
+    if (model.zfault_pending) return RUN_FAULTED;
+    if (model.zsystem_state == x86::zSysHalted) return RUN_HALTED;
     count++;
   }
-  return result.kind;
+  return RUN_OK;
 }
 
 static int tests_passed = 0;
@@ -140,7 +139,7 @@ TEST(mov_eax_imm32_hlt) {
   // mov eax, 0x42; hlt
   u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
 
   model.model_fini();
@@ -156,7 +155,7 @@ TEST(mov_rax_imm64_hlt) {
     0xF4
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x123456789ABCDEF0UL);
 
   model.model_fini();
@@ -172,7 +171,7 @@ TEST(add_rax_rbx_hlt) {
   // add rax, rbx (48 01 D8); hlt
   u8 code[] = { 0x48, 0x01, 0xD8, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 42UL);
 
   model.model_fini();
@@ -196,7 +195,7 @@ TEST(mem_store_load_hlt) {
     0xF4,                                        // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[3], 0x42UL); // RBX should be 0x42
 
   // Verify it's actually in physical memory
@@ -214,7 +213,7 @@ TEST(push_pop_hlt) {
   // push rax; pop rbx; hlt
   u8 code[] = { 0x50, 0x5B, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[3], 0xDEADBEEFUL); // RBX
 
   model.model_fini();
@@ -232,7 +231,7 @@ TEST(jmp_forward_hlt) {
     0xF4,                                  // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
 
   model.model_fini();
@@ -258,7 +257,7 @@ TEST(loop_counter_hlt) {
     0xF4,                                  // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 10UL); // RAX = 10
 
   model.model_fini();
@@ -292,7 +291,7 @@ TEST(mov_cr0_read_write) {
   // hlt
   u8 code[] = { 0x0F, 0x20, 0xC0, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], (u64)model.zCR0);
 
   model.model_fini();
@@ -318,7 +317,7 @@ TEST(mov_cr3_write) {
     0xF4,                                        // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zCR3, 0x5000UL);
   ASSERT_EQ((u64)model.zGPR.data[3], 0x5000UL); // RBX = CR3
 
@@ -348,7 +347,7 @@ TEST(lgdt_sgdt) {
     0xF4,              // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGDTR_limit, 0x00FFUL);
   ASSERT_EQ((u64)model.zGDTR_base, 0x300000UL);
 
@@ -382,7 +381,7 @@ TEST(lidt_sidt) {
     0xF4,
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zIDTR_limit, 0x0FFFUL);
   ASSERT_EQ((u64)model.zIDTR_base, 0x400000UL);
 
@@ -407,7 +406,7 @@ TEST(wrmsr_rdmsr_star) {
     0xF4,                                       // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[0], 0UL);          // EAX = low 32
   ASSERT_EQ((u64)model.zGPR.data[2], 0x00230010UL);  // EDX = high 32
 
@@ -429,7 +428,7 @@ TEST(wrmsr_rdmsr_efer) {
     0xF4,                                       // hlt
   };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zEFER, 0x0D01UL);
   ASSERT_EQ((u64)model.zGPR.data[0], 0x0D01UL);
 
@@ -447,7 +446,7 @@ TEST(swapgs) {
   // hlt
   u8 code[] = { 0x0F, 0x01, 0xF8, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGS_BASE, 0xBBBB0000UL);
   ASSERT_EQ((u64)model.zKERNEL_GS_BASE, 0xAAAA0000UL);
 
@@ -463,13 +462,13 @@ TEST(cli_sti) {
   // cli; hlt  (should clear IF)
   u8 code[] = { 0xFA, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zIF_flag, 0UL);
 
   // sti; hlt  (should set IF)
   u8 code2[] = { 0xFB, 0xF4 };
   kind = run_code(model, 0x100000, code2, sizeof(code2));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zIF_flag, 1UL);
 
   model.model_fini();
@@ -483,7 +482,7 @@ TEST(wbinvd) {
   // hlt
   u8 code[] = { 0x0F, 0x09, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
 
   model.model_fini();
 }
@@ -498,7 +497,7 @@ TEST(clts) {
   // clts (0F 06); mov rax, cr0; hlt
   u8 code[] = { 0x0F, 0x06, 0x0F, 0x20, 0xC0, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
-  ASSERT_EQ(kind, x86::Kind_zHalt);
+  ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ(((u64)model.zCR0 >> 3) & 1, 0UL); // TS should be cleared
 
   model.model_fini();

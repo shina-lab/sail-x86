@@ -23,8 +23,8 @@ function decode_evex() = {
 
   // Reserved field checks (SDM Vol.2 §2.6.1):
   // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
-  if p0[3] == bitone then throw X86Fault(EXN_UD, 0x00000000);
-  if p1[2] == bitzero then throw X86Fault(EXN_UD, 0x00000000);
+  if p0[3] == bitone then throw Fault(EXN_UD, 0x00000000);
+  if p1[2] == bitzero then throw Fault(EXN_UD, 0x00000000);
 
   let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
@@ -58,7 +58,7 @@ function decode_evex() = {
   (pfx, mmm)
 }
 
-val dispatch_evex_0f : (byte, Prefixes) -> ExecutionResult
+val dispatch_evex_0f : (byte, Prefixes) -> unit
 function dispatch_evex_0f(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   match op {
@@ -173,7 +173,7 @@ function dispatch_evex_0f(opcode, pfx) = {
   }
 }
 
-val dispatch_evex_0f38 : (byte, Prefixes) -> ExecutionResult
+val dispatch_evex_0f38 : (byte, Prefixes) -> unit
 function dispatch_evex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   match op {
@@ -333,13 +333,13 @@ function dispatch_evex_0f38(opcode, pfx) = {
   }
 }
 
-val dispatch_evex_0f3a : (byte, Prefixes) -> ExecutionResult
+val dispatch_evex_0f3a : (byte, Prefixes) -> unit
 function dispatch_evex_0f3a(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   dispatch_evex_imm(op, pfx)
 }
 
-val dispatch_evex : unit -> ExecutionResult
+val dispatch_evex : unit -> unit
 function dispatch_evex() = {
   let (pfx, mmm) = decode_evex();
   let opcode = fetch_byte();

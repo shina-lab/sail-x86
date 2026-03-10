@@ -690,9 +690,6 @@ int main(int argc, char *argv[]) {
   bool trampoline_dumped = false;
 
   u64 insn_count = 0;
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-  result.variants.zOk = UNIT;
 
   // PIT timer: tick every N instructions to generate periodic interrupts.
   // The PIT runs at 1.193182 MHz. At ~1M interpreted instructions/sec,
@@ -740,7 +737,7 @@ int main(int argc, char *argv[]) {
               (u64)model.zCR0, (u64)model.zCR3);
     }
 
-    model.zstep(&result, UNIT);
+    model.zstep(UNIT);
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.
@@ -765,12 +762,39 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    switch (result.kind) {
-    case x86::Kind_zOk:
-      insn_count++;
-      break;
-
-    case x86::Kind_zHalt:
+    if (model.zfault_pending) {
+      i64 vec = model.zfault_vector;
+      u32 err = model.zfault_error_code;
+      fprintf(stderr, "\nsail-x86-system: FATAL fault #%ld (err=0x%x) at RIP=0x%lx after %lu insns\n",
+              vec, err, (u64)model.zRIP, insn_count);
+      fprintf(stderr, "  RAX=0x%lx RBX=0x%lx RCX=0x%lx RDX=0x%lx\n",
+              (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
+              (u64)model.zGPR.data[1], (u64)model.zGPR.data[2]);
+      fprintf(stderr, "  RSP=0x%lx RBP=0x%lx RSI=0x%lx RDI=0x%lx\n",
+              (u64)model.zGPR.data[4], (u64)model.zGPR.data[5],
+              (u64)model.zGPR.data[6], (u64)model.zGPR.data[7]);
+      fprintf(stderr, "  R8=0x%lx R9=0x%lx R10=0x%lx R11=0x%lx\n",
+              (u64)model.zGPR.data[8], (u64)model.zGPR.data[9],
+              (u64)model.zGPR.data[10], (u64)model.zGPR.data[11]);
+      fprintf(stderr, "  R12=0x%lx R13=0x%lx R14=0x%lx R15=0x%lx\n",
+              (u64)model.zGPR.data[12], (u64)model.zGPR.data[13],
+              (u64)model.zGPR.data[14], (u64)model.zGPR.data[15]);
+      fprintf(stderr, "  CR0=0x%lx CR2=0x%lx CR3=0x%lx CR4=0x%lx EFER=0x%lx\n",
+              (u64)model.zCR0, (u64)model.zCR2, (u64)model.zCR3,
+              (u64)model.zCR4, (u64)model.zEFER);
+      fprintf(stderr, "  IDTR: base=0x%lx limit=0x%x\n",
+              (u64)model.zIDTR_base, (u32)model.zIDTR_limit);
+      u64 rip = model.zRIP;
+      fprintf(stderr, "  bytes at RIP:");
+      for (int b = 0; b < 16; b++) {
+        u64 pa = rip + b;
+        if (model.phys_mem.in_ram(pa))
+          fprintf(stderr, " %02x", model.phys_mem.read8(pa));
+      }
+      fprintf(stderr, "\n");
+      model.model_fini();
+      return 128 + (int)vec;
+    } else if (model.zsystem_state == x86::zSysHalted) {
       // HLT: in system mode, wait for interrupt then continue
       if (model.zsystem_mode) {
         // If IF=0, this is a panic halt loop — exit
@@ -782,7 +806,6 @@ int main(int argc, char *argv[]) {
         }
         // Wait for an interrupt: poll stdin + tick PIT until something fires
         while (!model.pic_master.has_pending()) {
-          // Poll stdin for input (block briefly with poll())
           if (poll_stdin) {
             struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
             if (poll(&pfd, 1, 10 /*ms*/) > 0) {
@@ -806,59 +829,23 @@ int main(int argc, char *argv[]) {
                 model.pic_master.raise_irq(4);
             }
           }
-          // Tick PIT
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pic_master.raise_irq(0);
         }
         // Advance RIP past the HLT instruction (1 byte, opcode 0xF4).
         // On real x86, when an interrupt wakes the CPU from HLT, execution
-        // resumes at the instruction AFTER HLT. Our Sail model returns Halt
-        // without advancing RIP, so we must do it here. Without this, the
-        // interrupt's return address would be HLT itself, trapping the CPU
-        // in a HLT loop and preventing the idle loop's need_resched() check.
+        // resumes at the instruction AFTER HLT. Our Sail model sets SysHalted
+        // without advancing RIP, so we must do it here.
         model.zRIP = model.zRIP + 1;
+        model.zsystem_state = x86::zSysRunning;
         insn_count++;
-        result.kind = x86::Kind_zOk; // Continue execution
         continue;
       }
       fprintf(stderr, "sail-x86-system: HLT after %lu instructions\n", insn_count);
       model.model_fini();
       return 0;
-
-    case x86::Kind_zFault: {
-      i64 vec = result.variants.zFault.ztup0;
-      u32 err = result.variants.zFault.ztup1;
-      fprintf(stderr, "\nsail-x86-system: FATAL fault #%ld (err=0x%x) at RIP=0x%lx after %lu insns\n",
-              vec, err, (u64)model.zRIP, insn_count);
-      fprintf(stderr, "  RAX=0x%lx RBX=0x%lx RCX=0x%lx RDX=0x%lx\n",
-              (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
-              (u64)model.zGPR.data[1], (u64)model.zGPR.data[2]);
-      fprintf(stderr, "  RSP=0x%lx RBP=0x%lx RSI=0x%lx RDI=0x%lx\n",
-              (u64)model.zGPR.data[4], (u64)model.zGPR.data[5],
-              (u64)model.zGPR.data[6], (u64)model.zGPR.data[7]);
-      fprintf(stderr, "  R8=0x%lx R9=0x%lx R10=0x%lx R11=0x%lx\n",
-              (u64)model.zGPR.data[8], (u64)model.zGPR.data[9],
-              (u64)model.zGPR.data[10], (u64)model.zGPR.data[11]);
-      fprintf(stderr, "  R12=0x%lx R13=0x%lx R14=0x%lx R15=0x%lx\n",
-              (u64)model.zGPR.data[12], (u64)model.zGPR.data[13],
-              (u64)model.zGPR.data[14], (u64)model.zGPR.data[15]);
-      fprintf(stderr, "  CR0=0x%lx CR2=0x%lx CR3=0x%lx CR4=0x%lx EFER=0x%lx\n",
-              (u64)model.zCR0, (u64)model.zCR2, (u64)model.zCR3,
-              (u64)model.zCR4, (u64)model.zEFER);
-      fprintf(stderr, "  IDTR: base=0x%lx limit=0x%x\n",
-              (u64)model.zIDTR_base, (u32)model.zIDTR_limit);
-      // Dump bytes at RIP
-      u64 rip = model.zRIP;
-      fprintf(stderr, "  bytes at RIP:");
-      for (int b = 0; b < 16; b++) {
-        u64 pa = rip + b; // Approximate; should translate
-        if (model.phys_mem.in_ram(pa))
-          fprintf(stderr, " %02x", model.phys_mem.read8(pa));
-      }
-      fprintf(stderr, "\n");
-      model.model_fini();
-      return 128 + (int)vec;
-    }
+    } else {
+      insn_count++;
     }
 
     // Poll stdin for input and feed into UART RX FIFO.

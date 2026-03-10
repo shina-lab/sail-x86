@@ -479,18 +479,11 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   for (int i = 0; i < 8; i++)
     model.zKREG.data[i] = tc.initial.kregs[i];
 
-  x86::zExecutionResult result = {};
-  result.kind = x86::Kind_zOk;
-  result.variants.zOk = UNIT;
-
   for (int i = 0; i < 1000; i++) {
-    model.zstep(&result, UNIT);
-    switch (result.kind) {
-    case x86::Kind_zOk: continue;
-    case x86::Kind_zHalt: goto done;
-    case x86::Kind_zFault: {
-      i64 vec = result.variants.zFault.ztup0;
-      u32 err = result.variants.zFault.ztup1;
+    model.zstep(UNIT);
+    if (model.zfault_pending) {
+      i64 vec = model.zfault_vector;
+      u32 err = model.zfault_error_code;
       if (fault_out) {
         fault_out->faulted = true;
         fault_out->vector = (int)vec;
@@ -501,14 +494,13 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
       }
       fprintf(stderr, "Sail: fault #%ld (error 0x%x) at RIP=0x%lx [%s]\n",
               vec, err, model.zRIP, tc.name.c_str());
-      // Print code bytes for debugging
       fprintf(stderr, "  code bytes:");
       for (size_t j = 0; j < tc.code.size(); j++)
         fprintf(stderr, " %02x", tc.code[j]);
       fprintf(stderr, "\n");
       abort();
     }
-    }
+    if (model.zsystem_state == x86::zSysHalted) goto done;
   }
   fprintf(stderr, "Sail: did not reach HLT within 1000 steps\n");
   abort();

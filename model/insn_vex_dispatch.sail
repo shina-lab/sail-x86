@@ -2,7 +2,7 @@
 // VEX 0F map dispatch — routes to sub-dispatchers
 // =========================================================================
 
-val dispatch_vex_0f : (byte, Prefixes) -> ExecutionResult
+val dispatch_vex_0f : (byte, Prefixes) -> unit
 function dispatch_vex_0f(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
@@ -132,7 +132,7 @@ function dispatch_vex_0f(opcode, pfx) = {
 // VEX 0F38 map dispatch — routes to sub-dispatchers
 // =========================================================================
 
-val dispatch_vex_0f38 : (byte, Prefixes) -> ExecutionResult
+val dispatch_vex_0f38 : (byte, Prefixes) -> unit
 function dispatch_vex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
@@ -265,7 +265,7 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // Must come after dispatch_vex_0f/0f38/0f3a definitions.
 // =========================================================================
 
-val dispatch_vex : byte -> ExecutionResult
+val dispatch_vex : byte -> unit
 function dispatch_vex(first_byte) = {
   let (pfx, map) : (Prefixes, range(0, 31)) =
     if first_byte == 0xC5 then {

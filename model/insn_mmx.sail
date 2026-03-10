@@ -32,7 +32,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..24] @ d[31..24] @ s[23..16] @ d[23..16] @
                      s[15..8]  @ d[15..8]  @ s[7..0]   @ d[7..0]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 61: PUNPCKLWD mm, mm/m32
@@ -43,7 +43,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..16] @ d[31..16] @ s[15..0] @ d[15..0]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 62: PUNPCKLDQ mm, mm/m32
@@ -54,7 +54,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..0] @ d[31..0]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 63: PACKSSWB mm, mm/m64
@@ -68,7 +68,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_s16_to_s8(s[31..16]) @ sat_s16_to_s8(s[15..0]) @
                      sat_s16_to_s8(d[63..48]) @ sat_s16_to_s8(d[47..32]) @
                      sat_s16_to_s8(d[31..16]) @ sat_s16_to_s8(d[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 64: PCMPGTB mm, mm/m64
@@ -82,7 +82,7 @@ function dispatch_mmx(op, pfx) = {
                      cmp_gt8(d[47..40], s[47..40]) @ cmp_gt8(d[39..32], s[39..32]) @
                      cmp_gt8(d[31..24], s[31..24]) @ cmp_gt8(d[23..16], s[23..16]) @
                      cmp_gt8(d[15..8],  s[15..8])  @ cmp_gt8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 65: PCMPGTW mm, mm/m64
@@ -94,7 +94,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_gt16(d[63..48], s[63..48]) @ cmp_gt16(d[47..32], s[47..32]) @
                      cmp_gt16(d[31..16], s[31..16]) @ cmp_gt16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 66: PCMPGTD mm, mm/m64
@@ -106,7 +106,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, (if signed(d[63..32]) > signed(s[63..32]) then ones() else zeros() : dword) @
                      (if signed(d[31..0])  > signed(s[31..0])  then ones() else zeros() : dword));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 67: PACKUSWB mm, mm/m64
@@ -120,7 +120,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_s16_to_u8(s[31..16]) @ sat_s16_to_u8(s[15..0]) @
                      sat_s16_to_u8(d[63..48]) @ sat_s16_to_u8(d[47..32]) @
                      sat_s16_to_u8(d[31..16]) @ sat_s16_to_u8(d[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 68: PUNPCKHBW mm, mm/m64
@@ -132,7 +132,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..56] @ d[63..56] @ s[55..48] @ d[55..48] @
                      s[47..40] @ d[47..40] @ s[39..32] @ d[39..32]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 69: PUNPCKHWD mm, mm/m64
@@ -143,7 +143,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..48] @ d[63..48] @ s[47..32] @ d[47..32]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 6A: PUNPCKHDQ mm, mm/m64
@@ -154,7 +154,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..32] @ d[63..32]);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 6B: PACKSSDW mm, mm/m64
@@ -166,7 +166,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sat_s32_to_s16(s[63..32]) @ sat_s32_to_s16(s[31..0]) @
                      sat_s32_to_s16(d[63..32]) @ sat_s32_to_s16(d[31..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 6E: MOVD mm, r/m32 (or MOVQ mm, r/m64 with REX.W)
@@ -187,7 +187,7 @@ function dispatch_mmx(op, pfx) = {
         };
         write_mm(dst, zero_extend(v))
       };
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 6F: MOVQ mm, mm/m64
@@ -197,7 +197,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let v : qword = mmx_read_rm(modrm, rm);
       write_mm(dst, v);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 70: PSHUFW mm, mm/m64, imm8
@@ -220,7 +220,7 @@ function dispatch_mmx(op, pfx) = {
         0 => src[15..0], 1 => src[31..16], 2 => src[47..32], _ => src[63..48],
       };
       write_mm(dst, w3 @ w2 @ w1 @ w0);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 71: Group 12 — PSRLW/PSRAW/PSLLW mm, imm8
@@ -235,17 +235,17 @@ function dispatch_mmx(op, pfx) = {
         2 => {
           write_mm(dst, srl16(d[63..48], c) @ srl16(d[47..32], c) @
                          srl16(d[31..16], c) @ srl16(d[15..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         4 => {
           write_mm(dst, sra16(d[63..48], c) @ sra16(d[47..32], c) @
                          sra16(d[31..16], c) @ sra16(d[15..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         6 => {
           write_mm(dst, sll16(d[63..48], c) @ sll16(d[47..32], c) @
                          sll16(d[31..16], c) @ sll16(d[15..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         _ => raise_UD(),
       }
@@ -262,15 +262,15 @@ function dispatch_mmx(op, pfx) = {
       match reg_field {
         2 => {
           write_mm(dst, srl32(d[63..32], c) @ srl32(d[31..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         4 => {
           write_mm(dst, sra32(d[63..32], c) @ sra32(d[31..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         6 => {
           write_mm(dst, sll32(d[63..32], c) @ sll32(d[31..0], c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         _ => raise_UD(),
       }
@@ -287,11 +287,11 @@ function dispatch_mmx(op, pfx) = {
       match reg_field {
         2 => {
           write_mm(dst, srl64(d, c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         6 => {
           write_mm(dst, sll64(d, c));
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         _ => raise_UD(),
       }
@@ -308,7 +308,7 @@ function dispatch_mmx(op, pfx) = {
                      cmp_eq8(d[47..40], s[47..40]) @ cmp_eq8(d[39..32], s[39..32]) @
                      cmp_eq8(d[31..24], s[31..24]) @ cmp_eq8(d[23..16], s[23..16]) @
                      cmp_eq8(d[15..8],  s[15..8])  @ cmp_eq8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 75: PCMPEQW mm, mm/m64
@@ -322,7 +322,7 @@ function dispatch_mmx(op, pfx) = {
                      (if d[47..32] == s[47..32] then ones() else zeros() : word) @
                      (if d[31..16] == s[31..16] then ones() else zeros() : word) @
                      (if d[15..0]  == s[15..0]  then ones() else zeros() : word));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 76: PCMPEQD mm, mm/m64
@@ -334,7 +334,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, (if d[63..32] == s[63..32] then ones() else zeros() : dword) @
                      (if d[31..0]  == s[31..0]  then ones() else zeros() : dword));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 7E: MOVD r/m32, mm (or MOVQ r/m64, mm with REX.W)
@@ -354,7 +354,7 @@ function dispatch_mmx(op, pfx) = {
           RM_mem(addr) => mem_write32(addr, v[31..0]),
         }
       };
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F 7F: MOVQ mm/m64, mm
@@ -367,7 +367,7 @@ function dispatch_mmx(op, pfx) = {
         RM_reg(_) => write_mm(modrm_mm_rm(modrm), v),
         RM_mem(addr) => mem_write64(addr, v),
       };
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F C4: PINSRW mm, r32/m16, imm8
@@ -385,7 +385,7 @@ function dispatch_mmx(op, pfx) = {
       let lo = sel * 16;
       d[(lo + 15) .. lo] = w;
       write_mm(dst, d);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F C5: PEXTRW r32, mm, imm8
@@ -399,7 +399,7 @@ function dispatch_mmx(op, pfx) = {
       let lo = sel * 16;
       let w : word = v[(lo + 15) .. lo];
       write_gpr32(dst_gpr, zero_extend(w));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D1: PSRLW mm, mm/m64
@@ -411,7 +411,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, srl16(d[63..48], c) @ srl16(d[47..32], c) @
                      srl16(d[31..16], c) @ srl16(d[15..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D2: PSRLD mm, mm/m64
@@ -422,7 +422,7 @@ function dispatch_mmx(op, pfx) = {
       let c : int = unsigned(mmx_read_rm(modrm, rm));
       let d : qword = read_mm(dst);
       write_mm(dst, srl32(d[63..32], c) @ srl32(d[31..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D3: PSRLQ mm, mm/m64
@@ -433,7 +433,7 @@ function dispatch_mmx(op, pfx) = {
       let c : int = unsigned(mmx_read_rm(modrm, rm));
       let d : qword = read_mm(dst);
       write_mm(dst, srl64(d, c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D4: PADDQ mm, mm/m64
@@ -444,7 +444,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, d + s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D5: PMULLW mm, mm/m64
@@ -456,7 +456,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, mul_lo16(d[63..48], s[63..48]) @ mul_lo16(d[47..32], s[47..32]) @
                      mul_lo16(d[31..16], s[31..16]) @ mul_lo16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D7: PMOVMSKB r32, mm
@@ -469,7 +469,7 @@ function dispatch_mmx(op, pfx) = {
         v[63..63] @ v[55..55] @ v[47..47] @ v[39..39] @
         v[31..31] @ v[23..23] @ v[15..15] @ v[7..7];
       write_gpr32(dst_gpr, zero_extend(mask));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D8: PSUBUSB mm, mm/m64
@@ -483,7 +483,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_sub_u8(d[47..40], s[47..40]) @ sat_sub_u8(d[39..32], s[39..32]) @
                      sat_sub_u8(d[31..24], s[31..24]) @ sat_sub_u8(d[23..16], s[23..16]) @
                      sat_sub_u8(d[15..8],  s[15..8])  @ sat_sub_u8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F D9: PSUBUSW mm, mm/m64
@@ -495,7 +495,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_u16(d[63..48], s[63..48]) @ sat_sub_u16(d[47..32], s[47..32]) @
                      sat_sub_u16(d[31..16], s[31..16]) @ sat_sub_u16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DA: PMINUB mm, mm/m64
@@ -509,7 +509,7 @@ function dispatch_mmx(op, pfx) = {
                      min_u8(d[47..40], s[47..40]) @ min_u8(d[39..32], s[39..32]) @
                      min_u8(d[31..24], s[31..24]) @ min_u8(d[23..16], s[23..16]) @
                      min_u8(d[15..8],  s[15..8])  @ min_u8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DB: PAND mm, mm/m64
@@ -519,7 +519,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       write_mm(dst, read_mm(dst) & s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DC: PADDUSB mm, mm/m64
@@ -533,7 +533,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_add_u8(d[47..40], s[47..40]) @ sat_add_u8(d[39..32], s[39..32]) @
                      sat_add_u8(d[31..24], s[31..24]) @ sat_add_u8(d[23..16], s[23..16]) @
                      sat_add_u8(d[15..8],  s[15..8])  @ sat_add_u8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DD: PADDUSW mm, mm/m64
@@ -545,7 +545,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_u16(d[63..48], s[63..48]) @ sat_add_u16(d[47..32], s[47..32]) @
                      sat_add_u16(d[31..16], s[31..16]) @ sat_add_u16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DE: PMAXUB mm, mm/m64
@@ -559,7 +559,7 @@ function dispatch_mmx(op, pfx) = {
                      max_u8(d[47..40], s[47..40]) @ max_u8(d[39..32], s[39..32]) @
                      max_u8(d[31..24], s[31..24]) @ max_u8(d[23..16], s[23..16]) @
                      max_u8(d[15..8],  s[15..8])  @ max_u8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F DF: PANDN mm, mm/m64
@@ -569,7 +569,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       write_mm(dst, ~(read_mm(dst)) & s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E0: PAVGB mm, mm/m64
@@ -583,7 +583,7 @@ function dispatch_mmx(op, pfx) = {
                      avg8(d[47..40], s[47..40]) @ avg8(d[39..32], s[39..32]) @
                      avg8(d[31..24], s[31..24]) @ avg8(d[23..16], s[23..16]) @
                      avg8(d[15..8],  s[15..8])  @ avg8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E1: PSRAW mm, mm/m64
@@ -595,7 +595,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sra16(d[63..48], c) @ sra16(d[47..32], c) @
                      sra16(d[31..16], c) @ sra16(d[15..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E2: PSRAD mm, mm/m64
@@ -606,7 +606,7 @@ function dispatch_mmx(op, pfx) = {
       let c : int = unsigned(mmx_read_rm(modrm, rm));
       let d : qword = read_mm(dst);
       write_mm(dst, sra32(d[63..32], c) @ sra32(d[31..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E3: PAVGW mm, mm/m64
@@ -618,7 +618,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, avg16(d[63..48], s[63..48]) @ avg16(d[47..32], s[47..32]) @
                      avg16(d[31..16], s[31..16]) @ avg16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E4: PMULHUW mm, mm/m64
@@ -630,7 +630,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, mul_hi16u(d[63..48], s[63..48]) @ mul_hi16u(d[47..32], s[47..32]) @
                      mul_hi16u(d[31..16], s[31..16]) @ mul_hi16u(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E5: PMULHW mm, mm/m64
@@ -642,7 +642,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, mul_hi16s(d[63..48], s[63..48]) @ mul_hi16s(d[47..32], s[47..32]) @
                      mul_hi16s(d[31..16], s[31..16]) @ mul_hi16s(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E7: MOVNTQ m64, mm
@@ -651,7 +651,7 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
       match rm {
-        RM_mem(addr) => { mem_write64(addr, read_mm(src)); mmx_touch(); Ok() },
+        RM_mem(addr) => { mem_write64(addr, read_mm(src)); mmx_touch() },
         RM_reg(_) => raise_UD(),
       }
     },
@@ -667,7 +667,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_sub_s8(d[47..40], s[47..40]) @ sat_sub_s8(d[39..32], s[39..32]) @
                      sat_sub_s8(d[31..24], s[31..24]) @ sat_sub_s8(d[23..16], s[23..16]) @
                      sat_sub_s8(d[15..8],  s[15..8])  @ sat_sub_s8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F E9: PSUBSW mm, mm/m64
@@ -679,7 +679,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_s16(d[63..48], s[63..48]) @ sat_sub_s16(d[47..32], s[47..32]) @
                      sat_sub_s16(d[31..16], s[31..16]) @ sat_sub_s16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F EA: PMINSW mm, mm/m64
@@ -691,7 +691,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, min_s16(d[63..48], s[63..48]) @ min_s16(d[47..32], s[47..32]) @
                      min_s16(d[31..16], s[31..16]) @ min_s16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F EB: POR mm, mm/m64
@@ -701,7 +701,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       write_mm(dst, read_mm(dst) | s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F EC: PADDSB mm, mm/m64
@@ -715,7 +715,7 @@ function dispatch_mmx(op, pfx) = {
                      sat_add_s8(d[47..40], s[47..40]) @ sat_add_s8(d[39..32], s[39..32]) @
                      sat_add_s8(d[31..24], s[31..24]) @ sat_add_s8(d[23..16], s[23..16]) @
                      sat_add_s8(d[15..8],  s[15..8])  @ sat_add_s8(d[7..0],   s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F ED: PADDSW mm, mm/m64
@@ -727,7 +727,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_s16(d[63..48], s[63..48]) @ sat_add_s16(d[47..32], s[47..32]) @
                      sat_add_s16(d[31..16], s[31..16]) @ sat_add_s16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F EE: PMAXSW mm, mm/m64
@@ -739,7 +739,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, max_s16(d[63..48], s[63..48]) @ max_s16(d[47..32], s[47..32]) @
                      max_s16(d[31..16], s[31..16]) @ max_s16(d[15..0],  s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F EF: PXOR mm, mm/m64
@@ -749,7 +749,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       write_mm(dst, read_mm(dst) ^ s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F1: PSLLW mm, mm/m64
@@ -761,7 +761,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, sll16(d[63..48], c) @ sll16(d[47..32], c) @
                      sll16(d[31..16], c) @ sll16(d[15..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F2: PSLLD mm, mm/m64
@@ -772,7 +772,7 @@ function dispatch_mmx(op, pfx) = {
       let c : int = unsigned(mmx_read_rm(modrm, rm));
       let d : qword = read_mm(dst);
       write_mm(dst, sll32(d[63..32], c) @ sll32(d[31..0], c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F3: PSLLQ mm, mm/m64
@@ -783,7 +783,7 @@ function dispatch_mmx(op, pfx) = {
       let c : int = unsigned(mmx_read_rm(modrm, rm));
       let d : qword = read_mm(dst);
       write_mm(dst, sll64(d, c));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F4: PMULUDQ mm, mm/m64
@@ -795,7 +795,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       let result : qword = to_bits_truncate(unsigned(d[31..0]) * unsigned(s[31..0]));
       write_mm(dst, result);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F5: PMADDWD mm, mm/m64
@@ -808,7 +808,7 @@ function dispatch_mmx(op, pfx) = {
       let d1 : dword = to_bits_truncate(signed(d[63..48]) * signed(s[63..48]) + signed(d[47..32]) * signed(s[47..32]));
       let d0 : dword = to_bits_truncate(signed(d[31..16]) * signed(s[31..16]) + signed(d[15..0]) * signed(s[15..0]));
       write_mm(dst, d1 @ d0);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F6: PSADBW mm, mm/m64
@@ -824,7 +824,7 @@ function dispatch_mmx(op, pfx) = {
         abs_diff8(d[31..24], s[31..24]) + abs_diff8(d[23..16], s[23..16]) +
         abs_diff8(d[15..8],  s[15..8])  + abs_diff8(d[7..0],   s[7..0]);
       write_mm(dst, zero_extend(to_bits_truncate(16, sum)));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F7: MASKMOVQ mm, mm
@@ -843,7 +843,7 @@ function dispatch_mmx(op, pfx) = {
               mem_write8(addr + zero_extend(to_bits(64, i)), data[(i * 8 + 7) .. (i * 8)])
             }
           };
-          mmx_touch(); Ok()
+          mmx_touch()
         },
         RM_mem(_) => raise_UD(),
       }
@@ -860,7 +860,7 @@ function dispatch_mmx(op, pfx) = {
                      (d[47..40] - s[47..40]) @ (d[39..32] - s[39..32]) @
                      (d[31..24] - s[31..24]) @ (d[23..16] - s[23..16]) @
                      (d[15..8]  - s[15..8])  @ (d[7..0]   - s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F F9: PSUBW mm, mm/m64
@@ -872,7 +872,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] - s[63..48]) @ (d[47..32] - s[47..32]) @
                      (d[31..16] - s[31..16]) @ (d[15..0]  - s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F FA: PSUBD mm, mm/m64
@@ -883,7 +883,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] - s[63..32]) @ (d[31..0] - s[31..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F FB: PSUBQ mm, mm/m64
@@ -894,7 +894,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, d - s);
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F FC: PADDB mm, mm/m64
@@ -908,7 +908,7 @@ function dispatch_mmx(op, pfx) = {
                      (d[47..40] + s[47..40]) @ (d[39..32] + s[39..32]) @
                      (d[31..24] + s[31..24]) @ (d[23..16] + s[23..16]) @
                      (d[15..8]  + s[15..8])  @ (d[7..0]   + s[7..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F FD: PADDW mm, mm/m64
@@ -920,7 +920,7 @@ function dispatch_mmx(op, pfx) = {
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] + s[63..48]) @ (d[47..32] + s[47..32]) @
                      (d[31..16] + s[31..16]) @ (d[15..0]  + s[15..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     // 0F FE: PADDD mm, mm/m64
@@ -931,7 +931,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] + s[63..32]) @ (d[31..0] + s[31..0]));
-      mmx_touch(); Ok()
+      mmx_touch()
     },
 
     _ => raise_UD(),

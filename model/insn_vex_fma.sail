@@ -10,7 +10,7 @@
 //   213: a=vvvv, b=dst, c=rm
 //   231: a=vvvv, b=rm,  c=dst
 
-val dispatch_vex_0f38_fma : (range(0, 255), Prefixes) -> ExecutionResult
+val dispatch_vex_0f38_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f38_fma(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
 
@@ -40,15 +40,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -65,15 +65,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -90,15 +90,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -133,15 +133,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -176,15 +176,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -219,15 +219,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))); Ok()
+          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
         } else {
-          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))); Ok()
+          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
         }
       }
     }
@@ -262,15 +262,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -287,15 +287,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -312,15 +312,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -355,15 +355,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -398,15 +398,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -441,15 +441,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))); Ok()
+          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
         } else {
-          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))); Ok()
+          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
         }
       }
     }
@@ -484,15 +484,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
@@ -509,15 +509,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
@@ -534,15 +534,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
@@ -577,15 +577,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
@@ -620,15 +620,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
@@ -663,15 +663,15 @@ function dispatch_vex_0f38_fma(op, pfx) = {
       let v = pfx.vex_vvvv;
       if pfx.vex_w then {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       } else {
         if pfx.vex_l then {
-          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))); Ok()
+          write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
         } else {
-          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))); Ok()
+          write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
         }
       }
     }
