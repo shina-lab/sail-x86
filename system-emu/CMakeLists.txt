@@ -43,7 +43,7 @@ add_dependencies(sail-x86-system generated_sail_x86_model)
 # Downloads Linux kernel source automatically if not already present.
 
 set(VMLINUX "${CMAKE_BINARY_DIR}/vmlinux")
-set(INITRAMFS "${CMAKE_BINARY_DIR}/initramfs.cpio.gz")
+set(INITRAMFS "${CMAKE_BINARY_DIR}/initramfs.cpio")
 
 add_custom_command(
     OUTPUT "${INITRAMFS}"
@@ -63,7 +63,7 @@ add_custom_target(linux
     DEPENDS sail-x86-system "${INITRAMFS}" "${VMLINUX}"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Run:"
-    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio.gz vmlinux"
+    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio vmlinux"
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 

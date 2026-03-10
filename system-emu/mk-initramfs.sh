@@ -1,12 +1,12 @@
 #!/bin/bash
 # Build a minimal initramfs with busybox for the Sail x86 system emulator.
-# Usage: ./mk-initramfs.sh [output.cpio.gz]
+# Usage: ./mk-initramfs.sh [output.cpio]
 #
-# Produces a gzipped cpio archive suitable for -i flag of sail-x86-system.
+# Produces a cpio archive suitable for -i flag of sail-x86-system.
 
 set -e
 
-OUTPUT="${1:-initramfs.cpio.gz}"
+OUTPUT="${1:-initramfs.cpio}"
 # Make OUTPUT absolute so it works after cd into TMPDIR.
 case "$OUTPUT" in
   /*) ;;
@@ -92,7 +92,7 @@ fakeroot sh -c '
   mknod dev/null c 1 3
   chmod 666 dev/null
   find . | cpio -o -H newc 2>/dev/null
-' | gzip -9 > "$OUTPUT"
+' > "$OUTPUT"
 
 SIZE=$(stat -c %s "$OUTPUT")
 echo "Created $OUTPUT ($SIZE bytes)"
