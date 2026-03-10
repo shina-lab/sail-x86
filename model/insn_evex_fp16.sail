@@ -1083,8 +1083,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x10: VMOVSH (F3) — scalar FP16 move (load or reg-reg)
     16 => {
-      if mp != MP_F3 then { raise_UD() }
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1106,8 +1107,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x11: VMOVSH (F3) — scalar FP16 store
     17 => {
-      if mp != MP_F3 then { raise_UD() }
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let src = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1129,8 +1131,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x2A: VCVTSI2SH (F3) — int to scalar FP16
     42 => {
-      if mp != MP_F3 then { raise_UD() }
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
@@ -1157,8 +1160,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x2C: VCVTTSH2SI (F3) — FP16 to int with truncation
     44 => {
-      if mp != MP_F3 then { raise_UD() }
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst_gpr = modrm_reg(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1176,8 +1180,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x2D: VCVTSH2SI (F3) — FP16 to int with rounding
     45 => {
-      if mp != MP_F3 then { raise_UD() }
-      else {
+      if mp != MP_F3 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst_gpr = modrm_reg(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1195,8 +1200,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x2E: VUCOMISH (NP) — unordered compare scalar FP16, set EFLAGS
     46 => {
-      if mp != MP_NONE then { raise_UD() }
-      else {
+      if mp != MP_NONE then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let src_reg = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1218,8 +1224,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x2F: VCOMISH (NP) — ordered compare scalar FP16, set EFLAGS
     47 => {
-      if mp != MP_NONE then { raise_UD() }
-      else {
+      if mp != MP_NONE then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let src_reg = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1241,8 +1248,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x6E: VMOVW (66) — load 16-bit value to XMM low, zero-extend
     110 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -1968,8 +1976,9 @@ function dispatch_evex_map5(opcode, pfx) = {
 
     // MAP5 0x7E: VMOVW (66) — store XMM low 16-bit to mem/GPR
     126 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let src = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2148,8 +2157,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x98: VFMADD132PH (66, W=0)
     152 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2185,8 +2195,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xA8: VFMADD213PH (66, W=0)
     168 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2222,8 +2233,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xB8: VFMADD231PH (66, W=0)
     184 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2259,8 +2271,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9A: VFMSUB132PH (66, W=0)
     154 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2296,8 +2309,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAA: VFMSUB213PH (66, W=0)
     170 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2333,8 +2347,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBA: VFMSUB231PH (66, W=0)
     186 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2370,8 +2385,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9C: VFNMADD132PH (66, W=0)
     156 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2407,8 +2423,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAC: VFNMADD213PH (66, W=0)
     172 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2444,8 +2461,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBC: VFNMADD231PH (66, W=0)
     188 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2481,8 +2499,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9E: VFNMSUB132PH (66, W=0)
     158 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2518,8 +2537,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAE: VFNMSUB213PH (66, W=0)
     174 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2555,8 +2575,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBE: VFNMSUB231PH (66, W=0)
     190 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2654,8 +2675,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x2C: VSCALEFPH (66, W=0)
     44 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2688,8 +2710,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x2D: VSCALEFSH (66, W=0)
     45 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2705,8 +2728,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x42: VGETEXPPH (66, W=0)
     66 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2733,8 +2757,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x43: VGETEXPSH (66, W=0)
     67 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2750,8 +2775,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x4C: VRCPPH (66, W=0)
     76 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2778,8 +2804,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x4D: VRCPSH (66, W=0)
     77 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2795,8 +2822,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x4E: VRSQRTPH (66, W=0)
     78 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2823,8 +2851,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x4F: VRSQRTSH (66, W=0)
     79 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2840,8 +2869,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x96: VFMADDSUB132PH (66, W=0)
     150 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2877,8 +2907,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x97: VFMSUBADD132PH (66, W=0)
     151 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2914,8 +2945,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x99: VFMADD132SH (66, W=0)
     153 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2932,8 +2964,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9B: VFMSUB132SH (66, W=0)
     155 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2950,8 +2983,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9D: VFNMADD132SH (66, W=0)
     157 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2968,8 +3002,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x9F: VFNMSUB132SH (66, W=0)
     159 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2986,8 +3021,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xA6: VFMADDSUB213PH (66, W=0)
     166 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -3023,8 +3059,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xA7: VFMSUBADD213PH (66, W=0)
     167 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -3060,8 +3097,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xA9: VFMADD213SH (66, W=0)
     169 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3079,8 +3117,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAB: VFMSUB213SH (66, W=0)
     171 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3098,8 +3137,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAD: VFNMADD213SH (66, W=0)
     173 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3117,8 +3157,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xAF: VFNMSUB213SH (66, W=0)
     175 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3136,8 +3177,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xB6: VFMADDSUB231PH (66, W=0)
     182 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -3173,8 +3215,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xB7: VFMSUBADD231PH (66, W=0)
     183 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -3210,8 +3253,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xB9: VFMADD231SH (66, W=0)
     185 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3229,8 +3273,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBB: VFMSUB231SH (66, W=0)
     187 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3248,8 +3293,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBD: VFNMADD231SH (66, W=0)
     189 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3267,8 +3313,9 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xBF: VFNMSUB231SH (66, W=0)
     191 => {
-      if mp != MP_66 then { raise_UD() }
-      else {
+      if mp != MP_66 then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, 2);
@@ -3286,15 +3333,17 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x56: VFCMADDCPH (F2, W=0) / VFMADDCPH (F3, W=0) — complex multiply-accumulate
     86 => {
-      if pfx.vex_w then { raise_UD() }
-      else {
+      if pfx.vex_w then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let conj : bool = (mp == MP_F2);
-        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
-        else match pfx.evex_ll {
+        if mp != MP_F2 & mp != MP_F3 then {
+          raise_UD()
+        } else match pfx.evex_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
             let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
@@ -3325,11 +3374,13 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0x57: VFCMADDCSH (F2, W=0) / VFMADDCSH (F3, W=0) — scalar complex multiply-accumulate
     87 => {
-      if pfx.vex_w then { raise_UD() }
-      else {
+      if pfx.vex_w then {
+        raise_UD()
+      } else {
         let conj : bool = (mp == MP_F2);
-        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
-        else {
+        if mp != MP_F2 & mp != MP_F3 then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, 4);
@@ -3358,15 +3409,17 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xD6: VFCMULCPH (F2, W=0) / VFMULCPH (F3, W=0) — complex multiply
     214 => {
-      if pfx.vex_w then { raise_UD() }
-      else {
+      if pfx.vex_w then {
+        raise_UD()
+      } else {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let conj : bool = (mp == MP_F2);
-        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
-        else match pfx.evex_ll {
+        if mp != MP_F2 & mp != MP_F3 then {
+          raise_UD()
+        } else match pfx.evex_ll {
           2 => {
             let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
             let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
@@ -3394,11 +3447,13 @@ function dispatch_evex_map6(opcode, pfx) = {
 
     // MAP6 0xD7: VFCMULCSH (F2, W=0) / VFMULCSH (F3, W=0) — scalar complex multiply
     215 => {
-      if pfx.vex_w then { raise_UD() }
-      else {
+      if pfx.vex_w then {
+        raise_UD()
+      } else {
         let conj : bool = (mp == MP_F2);
-        if mp != MP_F2 & mp != MP_F3 then { raise_UD() }
-        else {
+        if mp != MP_F2 & mp != MP_F3 then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, 4);

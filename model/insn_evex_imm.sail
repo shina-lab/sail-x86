@@ -1000,10 +1000,10 @@ function avx_fpclass_f64(src, imm) = {
 
 val avx_vfpclassps_128 : (xmmword, byte) -> byte
 function avx_vfpclassps_128(src, imm) = {
-  let b0 : bits(1) = if avx_fpclass_f32(src[31..0], imm) then 0b1 else 0b0;
-  let b1 : bits(1) = if avx_fpclass_f32(src[63..32], imm) then 0b1 else 0b0;
-  let b2 : bits(1) = if avx_fpclass_f32(src[95..64], imm) then 0b1 else 0b0;
-  let b3 : bits(1) = if avx_fpclass_f32(src[127..96], imm) then 0b1 else 0b0;
+  let b0 : bits(1) = bool_to_bit(avx_fpclass_f32(src[31..0], imm));
+  let b1 : bits(1) = bool_to_bit(avx_fpclass_f32(src[63..32], imm));
+  let b2 : bits(1) = bool_to_bit(avx_fpclass_f32(src[95..64], imm));
+  let b3 : bits(1) = bool_to_bit(avx_fpclass_f32(src[127..96], imm));
   0b0000 @ b3 @ b2 @ b1 @ b0
 }
 
@@ -1023,8 +1023,8 @@ function avx_vfpclassps_512(src, imm) = {
 
 val avx_vfpclasspd_128 : (xmmword, byte) -> byte
 function avx_vfpclasspd_128(src, imm) = {
-  let b0 : bits(1) = if avx_fpclass_f64(src[63..0], imm) then 0b1 else 0b0;
-  let b1 : bits(1) = if avx_fpclass_f64(src[127..64], imm) then 0b1 else 0b0;
+  let b0 : bits(1) = bool_to_bit(avx_fpclass_f64(src[63..0], imm));
+  let b1 : bits(1) = bool_to_bit(avx_fpclass_f64(src[127..64], imm));
   0b000000 @ b1 @ b0
 }
 
@@ -2316,8 +2316,9 @@ function dispatch_evex_imm(op, pfx) = {
 
   // 0F3A 08: VRNDSCALEPS (66, W=0) / VRNDSCALEPH (NP, W=0)
   8 => {
-    if pfx.vex_w then { raise_UD() }
-    else match mp {
+    if pfx.vex_w then {
+      raise_UD()
+    } else match mp {
       MP_66 => {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
@@ -2380,8 +2381,9 @@ function dispatch_evex_imm(op, pfx) = {
 
   // 0F3A 0A: VRNDSCALESS (66, W=0) / VRNDSCALESH (NP, W=0)
   10 => {
-    if pfx.vex_w then { raise_UD() }
-    else match mp {
+    if pfx.vex_w then {
+      raise_UD()
+    } else match mp {
       MP_66 => {
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);
@@ -2478,8 +2480,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VGETMANTPH: packed FP16 extract mantissa
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2528,8 +2531,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VGETMANTSH: scalar FP16 extract mantissa
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2744,8 +2748,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VREDUCEPH: packed FP16 reduce
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2794,8 +2799,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VREDUCESH: scalar FP16 reduce
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst = evex_reg_idx(modrm, pfx);
           let rm = decode_rm_evex(modrm, pfx, 2);
@@ -2867,8 +2873,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VFPCLASSPH: classify packed FP16 → kmask
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst_k : range(0, 7) = unsigned(modrm[5..3]);
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
@@ -2923,8 +2930,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       MP_NONE => {
         // VFPCLASSSH: classify scalar FP16 → kmask
-        if pfx.vex_w then { raise_UD() }
-        else {
+        if pfx.vex_w then {
+          raise_UD()
+        } else {
           let modrm = fetch_byte();
           let dst_k : range(0, 7) = unsigned(modrm[5..3]);
           let rm = decode_rm_evex(modrm, pfx, 2);

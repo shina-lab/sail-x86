@@ -4404,8 +4404,9 @@ function dispatch_evex_arith(op, pfx) = {
     match mp {
       MP_66 => {
         // VPSHRDVW (W=1 required)
-        if not_bool(pfx.rex_w) then { raise_UD() }
-        else {
+        if not_bool(pfx.rex_w) then {
+          raise_UD()
+        } else {
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
           match pfx.evex_ll {
             2 => { write_zmm(dst, avx_vpshrdvw_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))); Ok() },
@@ -4416,8 +4417,9 @@ function dispatch_evex_arith(op, pfx) = {
       },
       MP_F2 => {
         // VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 (W=0)
-        if pfx.rex_w then { raise_UD() }
-        else {
+        if pfx.rex_w then {
+          raise_UD()
+        } else {
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
           let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
           match pfx.evex_ll {
@@ -4429,8 +4431,9 @@ function dispatch_evex_arith(op, pfx) = {
       },
       MP_F3 => {
         // VCVTNEPS2BF16: convert packed FP32 → packed BF16 (W=0, vvvv must be 1111)
-        if pfx.rex_w then { raise_UD() }
-        else {
+        if pfx.rex_w then {
+          raise_UD()
+        } else {
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
           let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
           match pfx.evex_ll {
@@ -4576,8 +4579,9 @@ function dispatch_evex_arith(op, pfx) = {
       },
       MP_F3 => {
         // VDPBF16PS: BF16 dot product accumulating to FP32 (W=0)
-        if pfx.rex_w then { raise_UD() }
-        else {
+        if pfx.rex_w then {
+          raise_UD()
+        } else {
           match pfx.evex_ll {
             2 => { write_zmm(dst, avx_vdpbf16ps_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))); Ok() },
             1 => { write_ymm(dst, avx_vdpbf16ps_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))); Ok() },
@@ -4686,7 +4690,9 @@ function dispatch_evex_arith(op, pfx) = {
 
   // 0F38 66: VPBLENDMB (66,W0) / VPBLENDMW (66,W1) — mask-controlled byte/word blend
   102 => {
-    if mp != MP_66 then { raise_UD() } else {
+    if mp != MP_66 then {
+      raise_UD()
+    } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 2 else 1);
