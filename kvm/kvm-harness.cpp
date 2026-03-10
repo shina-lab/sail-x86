@@ -574,6 +574,8 @@ std::vector<TestCase> build_tests() {
   add_exception_tests(tests);
 
   add_vex_tests(tests);
+  add_evex_tests(tests);
+  add_evex_tests_2(tests);
   add_mmx_tests(tests);
 
   return tests;

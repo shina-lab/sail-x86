@@ -9,6 +9,8 @@ add_executable(kvm_harness
   kvm-tests-extended.cpp
   kvm-tests-exception.cpp
   kvm-tests-vex.cpp
+  kvm-tests-evex.cpp
+  kvm-tests-evex2.cpp
   kvm-tests-mmx.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
@@ -242,6 +244,12 @@ set(KVM_CATEGORIES
   "EVEX shift reg"
   "EVEX VMOV mask"
   BF16
+  "EVEX bcast conv"
+  "EVEX bcast int"
+  "EVEX ER"
+  "EVEX FP mask ymm"
+  "EVEX VCVTQQ2PS"
+  "EVEX VPCMPW"
   "MMX arith"
   "MMX saturate"
   "MMX logical"
