@@ -694,8 +694,9 @@ function exec_retf(pfx, maybe_imm) = {
   next_rip = Some(new_rip)
 }
 
-val dispatch_opcode_1byte : (byte, Prefixes) -> unit
-function dispatch_opcode_1byte(opcode, pfx) = {
+val decode_execute : unit -> unit
+function decode_execute() = {
+  let (pfx, opcode) = scan_prefixes();
   let op : range(0, 255) = unsigned(opcode);
 
   // LOCK prefix is only valid on specific opcodes; #UD otherwise.

@@ -73,12 +73,8 @@ function isla_footprint(opcode) = {
     insn_start = RIP;
     rip_rel_pending = false;
     next_rip = None();
-    let (pfx, opcode_byte) = scan_prefixes();
-    let result = dispatch_opcode_1byte(opcode_byte, pfx);
-    match result {
-      Ok(_) => RIP = match next_rip { Some(t) => t, None() => decode_pos },
-      _ => (),
-    };
+    decode_execute();
+    RIP = match next_rip { Some(t) => t, None() => decode_pos };
     true
   } catch {
     _ => false

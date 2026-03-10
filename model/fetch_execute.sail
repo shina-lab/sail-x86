@@ -43,11 +43,8 @@ function step() = {
 
   let faulted : bool =
     try {
-      // Phase 1: Scan prefixes and get opcode byte
-      let (pfx, opcode) = scan_prefixes();
-
-      // Phase 2-5: Dispatch opcode (handles ModR/M, SIB, disp, imm internally)
-      dispatch_opcode_1byte(opcode, pfx);
+      // Decode and execute one instruction
+      decode_execute();
       false
     } catch {
       Fault(vec, err) => {
