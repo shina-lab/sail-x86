@@ -29,6 +29,7 @@ decode {
     insn_x87.sail,
     insn_sse_fp.sail,
     insn_sse_int.sail,
+    insn_mmx.sail,
     insn_baseline.sail,
     insn_groups.sail,
     insn_fma.sail,

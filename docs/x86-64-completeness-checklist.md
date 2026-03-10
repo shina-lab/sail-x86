@@ -205,11 +205,11 @@ validity matches SDM (some are invalid in 64-bit mode).
 
 ### 1.3 MMX (legacy, 64-bit packed integer in mm0-mm7)
 
-- [x] EMMS (empty MMX state — required for x87↔MMX transition) — verified: 0F 77, implemented as NOP (MMX state not separately modeled) + KVM tests
-- [N/A] All MMX integer instructions (MOVD/Q, PADD*, PSUB*, PMUL*, PAND/POR/PXOR, PCMP*, PACK*, PUNPCK*, PSHUF*, etc.) — legacy 64-bit SIMD superseded by SSE2 128-bit equivalents; MM0-MM7 registers not modeled (aliased to x87 ST regs). All SSE2/AVX/EVEX equivalents are implemented.
-- [N/A] MASKMOVQ, MOVNTQ — MMX non-temporal ops, MM registers not modeled
-- [N/A] MOVDQ2Q, MOVQ2DQ — MMX↔XMM transfer, MM registers not modeled
-- [N/A] CVTPD2PI, CVTPI2PD, CVTPI2PS, CVTPS2PI, CVTTPD2PI, CVTTPS2PI — MMX↔float conversions, MM registers not modeled
+- [x] EMMS (empty MMX state — required for x87↔MMX transition) — verified: 0F 77 + KVM tests
+- [x] All MMX integer instructions (MOVD/Q, PADD*, PSUB*, PMUL*, PAND/POR/PXOR, PCMP*, PACK*, PUNPCK*, PSHUFW, PINSRW, PEXTRW, PMOVMSKB, PAVG*, PMIN/MAX*, PSAD*, shifts) — ~50 instructions with KVM differential tests
+- [x] MASKMOVQ, MOVNTQ — MMX non-temporal ops + KVM tests
+- [N/A] MOVDQ2Q, MOVQ2DQ — MMX↔XMM transfer (rarely used, can add if needed)
+- [N/A] CVTPD2PI, CVTPI2PD, CVTPI2PS, CVTPS2PI, CVTTPD2PI, CVTTPS2PI — MMX↔float conversions (legacy, rarely used)
 
 ### 1.4 SSE (128-bit, single-precision float)
 
@@ -662,7 +662,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] LFENCE, SFENCE, MFENCE (memory fences) — verified: NOP in sequential model (0F AE /5,/6,/7 mod=11)
 - [x] MOVNTI (non-temporal store, 32/64-bit) — verified: 0F C3
 - [x] MOVNTDQ, MOVNTPD, MOVNTPS (non-temporal SIMD stores) — verified in SSE dispatch
-- [N/A] MOVNTQ (MMX non-temporal store) — MM registers not modeled
+- [x] MOVNTQ (MMX non-temporal store) — implemented + KVM tests
 - [x] MOVNTDQA (non-temporal aligned load) — verified in SSE dispatch
 - [N/A] MOVDIR64B (64-byte direct store) — MOVDIR extension not targeted
 - [N/A] MOVDIRI (direct store) — MOVDIR extension not targeted
@@ -822,7 +822,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [N/A] Last instruction/operand pointers — x87 FIP/FDP not modeled (no x87 exception delivery)
 
 ### 3.6 MMX Registers
-- [N/A] MM0-MM7 (alias to low 64 bits of ST(0)-ST(7)) — MMX register file not modeled; all MMX ops use SSE2+ equivalents instead
+- [x] MM0-MM7 (alias to low 64 bits of ST(0)-ST(7)) — fully modeled via x87 physical registers with proper tag/TOP management
 
 ### 3.7 SSE/AVX Registers
 - [x] XMM0-XMM15 (128-bit, base SSE) — verified: ZMM vector(32, zmmword), read_xmm/write_xmm access low 128 bits
@@ -1110,7 +1110,7 @@ These are tricky behaviors a formal spec MUST get right.
 |---|---|
 | General-purpose integer | ~120 |
 | x87 floating-point | ~90 |
-| MMX | ~50 |
+| MMX | ~50 (implemented) |
 | SSE (1/2/3/SSSE3/4.1/4.2) | ~200 |
 | AVX/AVX2 (VEX re-encoding of above) | (same ops, VEX form) |
 | FMA | ~96 forms (4 ops × 3 orderings × 2 types × 2 sizes + packed variants) |

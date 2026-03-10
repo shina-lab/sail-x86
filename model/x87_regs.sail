@@ -88,6 +88,39 @@ function x87_init() = {
   }
 }
 
+// =========================================================================
+// MMX register access
+//
+// MMX registers MM0-MM7 alias the low 64 bits of the x87 physical registers
+// ST(0)-ST(7), accessed by physical index (not relative to TOP).
+// Writing an MMX register sets bits [79:64] to all ones and marks the tag
+// as valid. All MMX instructions also set TOS (TOP) to 0 and mark all
+// tag bits as valid (tag word = 0x0000).
+// =========================================================================
+
+val read_mm : range(0, 7) -> qword
+function read_mm(idx) = x87_ST[idx][63..0]
+
+val write_mm : (range(0, 7), qword) -> unit
+function write_mm(idx, v) = {
+  x87_ST[idx] = ones(16) @ v
+}
+
+// Called on any MMX instruction: set TOS=0, all tags=valid.
+val mmx_touch : unit -> unit
+function mmx_touch() = {
+  x87_sw[13..11] = 0b000;  // TOP = 0
+  x87_tw = 0x0000           // all valid
+}
+
+// MMX register index from modrm reg field (3-bit, no REX extension)
+val modrm_mm_reg : byte -> range(0, 7)
+function modrm_mm_reg(modrm) = unsigned(modrm[5..3])
+
+// MMX register index from modrm r/m field (3-bit, no REX extension)
+val modrm_mm_rm : byte -> range(0, 7)
+function modrm_mm_rm(modrm) = unsigned(modrm[2..0])
+
 // Save 28-byte x87 environment (CW, SW, TW) as bits(224).
 val x87_save_env : unit -> bits(224)
 function x87_save_env() = {

@@ -9,6 +9,7 @@ add_executable(kvm_harness
   kvm-tests-extended.cpp
   kvm-tests-exception.cpp
   kvm-tests-vex.cpp
+  kvm-tests-mmx.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -241,6 +242,15 @@ set(KVM_CATEGORIES
   "EVEX shift reg"
   "EVEX VMOV mask"
   BF16
+  "MMX arith"
+  "MMX saturate"
+  "MMX logical"
+  "MMX compare"
+  "MMX shift"
+  "MMX pack"
+  "MMX minmax"
+  "MMX move"
+  "MMX mem"
 )
 
 foreach(cat ${KVM_CATEGORIES})
