@@ -5579,4 +5579,468 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     add_xmm("vxorpd xmm0,xmm1,xmm2",
             {0x62, 0xF1, 0xF5, 0x08, 0x57, 0xC2}, s, 0x7);
   }
+
+  // =====================================================================
+  // EVEX BW-class integer: VPADDB/W, VPSUBB/W, VPANDND/Q, VPACKSSWB,
+  // VPACKUSWB, VPAVGB/W, VPMADDWD, VPSADBW, saturating add/sub
+  // All use EVEX.128.66.0F encoding, reg-reg xmm0←xmm1,xmm2
+  // P0=0xF1(mmm=001), P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08(no mask)
+  // modrm=0xC2(mod=11,reg=000,rm=010)
+  // =====================================================================
+  cat = "EVEX BW int";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm1: byte pattern 0x01..0x10
+    s.xmm[1] = {0x0807060504030201, 0x100F0E0D0C0B0A09};
+    // xmm2: byte pattern 0x10,0x20,...
+    s.xmm[2] = {0x8070605040302010, 0x00F0E0D0C0B0A090};
+
+    // EVEX VPADDB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG FC /r
+    add_xmm("evex vpaddb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFC, 0xC2}, s, 0x7);
+
+    // EVEX VPADDW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG FD /r
+    add_xmm("evex vpaddw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xFD, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG F8 /r
+    add_xmm("evex vpsubb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF8, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG F9 /r
+    add_xmm("evex vpsubw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF9, 0xC2}, s, 0x7);
+
+    // EVEX VPANDND xmm0, xmm1, xmm2: EVEX.128.66.0F.W0 DF /r
+    add_xmm("evex vpandnd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDF, 0xC2}, s, 0x7);
+
+    // EVEX VPANDNQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 DF /r
+    // P1=0xF5 (W=1,vvvv=1110,pp=01)
+    add_xmm("evex vpandnq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xDF, 0xC2}, s, 0x7);
+
+    // EVEX VPACKSSWB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 63 /r
+    add_xmm("evex vpacksswb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x63, 0xC2}, s, 0x7);
+
+    // EVEX VPACKUSWB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 67 /r
+    add_xmm("evex vpackuswb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x67, 0xC2}, s, 0x7);
+
+    // EVEX VPAVGB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E0 /r
+    add_xmm("evex vpavgb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE0, 0xC2}, s, 0x7);
+
+    // EVEX VPAVGW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E3 /r
+    add_xmm("evex vpavgw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE3, 0xC2}, s, 0x7);
+
+    // EVEX VPMADDWD xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG F5 /r
+    add_xmm("evex vpmaddwd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF5, 0xC2}, s, 0x7);
+
+    // EVEX VPSADBW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG F6 /r
+    add_xmm("evex vpsadbw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF6, 0xC2}, s, 0x7);
+
+    // Saturating arithmetic
+    // EVEX VPADDSB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG EC /r
+    add_xmm("evex vpaddsb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEC, 0xC2}, s, 0x7);
+
+    // EVEX VPADDSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG ED /r
+    add_xmm("evex vpaddsw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xED, 0xC2}, s, 0x7);
+
+    // EVEX VPADDUSB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG DC /r
+    add_xmm("evex vpaddusb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDC, 0xC2}, s, 0x7);
+
+    // EVEX VPADDUSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG DD /r
+    add_xmm("evex vpaddusw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDD, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBSB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E8 /r
+    add_xmm("evex vpsubsb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE8, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E9 /r
+    add_xmm("evex vpsubsw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE9, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBUSB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG D8 /r
+    add_xmm("evex vpsubusb xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD8, 0xC2}, s, 0x7);
+
+    // EVEX VPSUBUSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG D9 /r
+    add_xmm("evex vpsubusw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD9, 0xC2}, s, 0x7);
+
+    // EVEX VPMULLW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG D5 /r
+    add_xmm("evex vpmullw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD5, 0xC2}, s, 0x7);
+
+    // EVEX VPMULHW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E5 /r
+    add_xmm("evex vpmulhw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE5, 0xC2}, s, 0x7);
+
+    // EVEX VPMULHUW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E4 /r
+    add_xmm("evex vpmulhuw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE4, 0xC2}, s, 0x7);
+
+    // EVEX VPMULUDQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 F4 /r
+    // W=1 → P1=0xF5
+    add_xmm("evex vpmuludq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xF4, 0xC2}, s, 0x7);
+
+    // Unpack/interleave
+    // EVEX VPUNPCKLBW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 60 /r
+    add_xmm("evex vpunpcklbw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x60, 0xC2}, s, 0x7);
+
+    // EVEX VPUNPCKHBW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 68 /r
+    add_xmm("evex vpunpckhbw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x68, 0xC2}, s, 0x7);
+
+    // EVEX VPUNPCKLWD xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 61 /r
+    add_xmm("evex vpunpcklwd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x61, 0xC2}, s, 0x7);
+
+    // EVEX VPUNPCKHWD xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG 69 /r
+    add_xmm("evex vpunpckhwd xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0x69, 0xC2}, s, 0x7);
+
+    // Min/max byte/word
+    // EVEX VPMINUB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG DA /r
+    add_xmm("evex vpminub xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDA, 0xC2}, s, 0x7);
+
+    // EVEX VPMINSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG EA /r
+    add_xmm("evex vpminsw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEA, 0xC2}, s, 0x7);
+
+    // EVEX VPMAXUB xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG DE /r
+    add_xmm("evex vpmaxub xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xDE, 0xC2}, s, 0x7);
+
+    // EVEX VPMAXSW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG EE /r
+    add_xmm("evex vpmaxsw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEE, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX shift-by-immediate (Group 12/13/14)
+  // Encoding: dst=vvvv, src=ModRM.rm, /digit=ModRM.reg
+  // P0=0xF1(mmm=001), P1=0x7D(W=0,vvvv=~0=1111,pp=01), P2=0x08
+  // modrm: mod=11, reg=/digit, rm=001(xmm1)
+  // =====================================================================
+  cat = "EVEX shift imm";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = {0x8000400020001000, 0xFF00800040002000};
+
+    // VPSRLW xmm0, xmm1, 4: EVEX.128.66.0F 71 /2 ib
+    // modrm: mod=11, reg=010(/2), rm=001 → 0xD1
+    add_xmm("evex vpsrlw xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x71, 0xD1, 0x04}, s, 0x7);
+
+    // VPSRAW xmm0, xmm1, 4: EVEX.128.66.0F 71 /4 ib
+    // modrm: mod=11, reg=100(/4), rm=001 → 0xE1
+    add_xmm("evex vpsraw xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x71, 0xE1, 0x04}, s, 0x7);
+
+    // VPSLLW xmm0, xmm1, 4: EVEX.128.66.0F 71 /6 ib
+    // modrm: mod=11, reg=110(/6), rm=001 → 0xF1
+    add_xmm("evex vpsllw xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x71, 0xF1, 0x04}, s, 0x7);
+
+    // VPSRLD xmm0, xmm1, 4: EVEX.128.66.0F.W0 72 /2 ib
+    // modrm: mod=11, reg=010(/2), rm=001 → 0xD1
+    add_xmm("evex vpsrld xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xD1, 0x04}, s, 0x7);
+
+    // VPSRAD xmm0, xmm1, 4: EVEX.128.66.0F.W0 72 /4 ib
+    add_xmm("evex vpsrad xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xE1, 0x04}, s, 0x7);
+
+    // VPSLLD xmm0, xmm1, 4: EVEX.128.66.0F.W0 72 /6 ib
+    add_xmm("evex vpslld xmm0,xmm1,4",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xF1, 0x04}, s, 0x7);
+
+    // VPSRLQ xmm0, xmm1, 4: EVEX.128.66.0F.W1 73 /2 ib
+    // P1=0xFD(W=1,vvvv=1111,pp=01)
+    // modrm: mod=11, reg=010(/2), rm=001 → 0xD1
+    add_xmm("evex vpsrlq xmm0,xmm1,4",
+            {0x62, 0xF1, 0xFD, 0x08, 0x73, 0xD1, 0x04}, s, 0x7);
+
+    // VPSRAQ xmm0, xmm1, 4: EVEX.128.66.0F.W1 72 /4 ib
+    add_xmm("evex vpsraq xmm0,xmm1,4",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xE1, 0x04}, s, 0x7);
+
+    // VPSLLQ xmm0, xmm1, 4: EVEX.128.66.0F.W1 73 /6 ib
+    add_xmm("evex vpsllq xmm0,xmm1,4",
+            {0x62, 0xF1, 0xFD, 0x08, 0x73, 0xF1, 0x04}, s, 0x7);
+
+    // VPROLD xmm0, xmm1, 7: EVEX.128.66.0F.W0 72 /1 ib
+    // modrm: mod=11, reg=001(/1), rm=001 → 0xC9
+    add_xmm("evex vprold xmm0,xmm1,7",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xC9, 0x07}, s, 0x7);
+
+    // VPRORD xmm0, xmm1, 7: EVEX.128.66.0F.W0 72 /0 ib
+    // modrm: mod=11, reg=000(/0), rm=001 → 0xC1
+    add_xmm("evex vprord xmm0,xmm1,7",
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xC1, 0x07}, s, 0x7);
+
+    // VPROLQ xmm0, xmm1, 7: EVEX.128.66.0F.W1 72 /1 ib
+    add_xmm("evex vprolq xmm0,xmm1,7",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xC9, 0x07}, s, 0x7);
+
+    // VPRORQ xmm0, xmm1, 7: EVEX.128.66.0F.W1 72 /0 ib
+    add_xmm("evex vprorq xmm0,xmm1,7",
+            {0x62, 0xF1, 0xFD, 0x08, 0x72, 0xC1, 0x07}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX 0F38 integer: abs, min/max signed, sign/zero extend
+  // P0=0xF2(mmm=010), P2=0x08
+  // 2-operand: P1=0x7D(W=0,vvvv=1111,pp=01), modrm=0xC1(dst=xmm0,src=xmm1)
+  // 3-operand: P1=0x75(W=0,vvvv=~1=1110,pp=01), modrm=0xC2(dst=xmm0,src=xmm2)
+  // =====================================================================
+  cat = "EVEX 0F38 int";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = {0x80FE0102FF030405, 0x7F00FFFE00010003};
+    s.xmm[2] = {0x81FF0201FE040503, 0x7E01FFFD00020004};
+
+    // VPABSB xmm0, xmm1: EVEX.128.66.0F38.WIG 1C /r
+    add_xmm("evex vpabsb xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x1C, 0xC1}, s, 0x7);
+
+    // VPABSW xmm0, xmm1: EVEX.128.66.0F38.WIG 1D /r
+    add_xmm("evex vpabsw xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x1D, 0xC1}, s, 0x7);
+
+    // VPABSD xmm0, xmm1: EVEX.128.66.0F38.W0 1E /r
+    add_xmm("evex vpabsd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x1E, 0xC1}, s, 0x7);
+
+    // VPMINSB xmm0, xmm1, xmm2: EVEX.128.66.0F38.WIG 38 /r
+    add_xmm("evex vpminsb xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x38, 0xC2}, s, 0x7);
+
+    // VPMINSD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 39 /r
+    add_xmm("evex vpminsd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x39, 0xC2}, s, 0x7);
+
+    // VPMAXSB xmm0, xmm1, xmm2: EVEX.128.66.0F38.WIG 3C /r
+    add_xmm("evex vpmaxsb xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3C, 0xC2}, s, 0x7);
+
+    // VPMAXSD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 3D /r
+    add_xmm("evex vpmaxsd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3D, 0xC2}, s, 0x7);
+
+    // VPMINUD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 3B /r
+    add_xmm("evex vpminud xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3B, 0xC2}, s, 0x7);
+
+    // VPMAXUD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 3F /r
+    add_xmm("evex vpmaxud xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x3F, 0xC2}, s, 0x7);
+
+    // Sign-extend
+    // VPMOVSXBW xmm0, xmm1: EVEX.128.66.0F38.WIG 20 /r
+    add_xmm("evex vpmovsxbw xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x20, 0xC1}, s, 0x7);
+
+    // VPMOVSXBD xmm0, xmm1: EVEX.128.66.0F38.WIG 21 /r
+    add_xmm("evex vpmovsxbd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x21, 0xC1}, s, 0x7);
+
+    // VPMOVSXBQ xmm0, xmm1: EVEX.128.66.0F38.WIG 22 /r
+    add_xmm("evex vpmovsxbq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x22, 0xC1}, s, 0x7);
+
+    // VPMOVSXWD xmm0, xmm1: EVEX.128.66.0F38.WIG 23 /r
+    add_xmm("evex vpmovsxwd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x23, 0xC1}, s, 0x7);
+
+    // VPMOVSXWQ xmm0, xmm1: EVEX.128.66.0F38.WIG 24 /r
+    add_xmm("evex vpmovsxwq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x24, 0xC1}, s, 0x7);
+
+    // VPMOVSXDQ xmm0, xmm1: EVEX.128.66.0F38.W0 25 /r
+    add_xmm("evex vpmovsxdq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x25, 0xC1}, s, 0x7);
+
+    // Zero-extend
+    // VPMOVZXBW xmm0, xmm1: EVEX.128.66.0F38.WIG 30 /r
+    add_xmm("evex vpmovzxbw xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x30, 0xC1}, s, 0x7);
+
+    // VPMOVZXBD xmm0, xmm1: EVEX.128.66.0F38.WIG 31 /r
+    add_xmm("evex vpmovzxbd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x31, 0xC1}, s, 0x7);
+
+    // VPMOVZXBQ xmm0, xmm1: EVEX.128.66.0F38.WIG 32 /r
+    add_xmm("evex vpmovzxbq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x32, 0xC1}, s, 0x7);
+
+    // VPMOVZXWD xmm0, xmm1: EVEX.128.66.0F38.WIG 33 /r
+    add_xmm("evex vpmovzxwd xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x33, 0xC1}, s, 0x7);
+
+    // VPMOVZXWQ xmm0, xmm1: EVEX.128.66.0F38.WIG 34 /r
+    add_xmm("evex vpmovzxwq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x34, 0xC1}, s, 0x7);
+
+    // VPMOVZXDQ xmm0, xmm1: EVEX.128.66.0F38.W0 35 /r
+    add_xmm("evex vpmovzxdq xmm0,xmm1",
+            {0x62, 0xF2, 0x7D, 0x08, 0x35, 0xC1}, s, 0x7);
+
+    // VPMULDQ xmm0, xmm1, xmm2: EVEX.128.66.0F38.W1 28 /r
+    // P1=0xF5(W=1,vvvv=1110,pp=01)
+    add_xmm("evex vpmuldq xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x28, 0xC2}, s, 0x7);
+
+    // VPMULLD xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 40 /r
+    add_xmm("evex vpmulld xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x40, 0xC2}, s, 0x7);
+
+    // VPACKUSDW xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 2B /r
+    add_xmm("evex vpackusdw xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x2B, 0xC2}, s, 0x7);
+
+    // VPMADDUBSW xmm0, xmm1, xmm2: EVEX.128.66.0F38.WIG 04 /r
+    add_xmm("evex vpmaddubsw xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x04, 0xC2}, s, 0x7);
+
+    // VPMULHRSW xmm0, xmm1, xmm2: EVEX.128.66.0F38.WIG 0B /r
+    add_xmm("evex vpmulhrsw xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x0B, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX FMA packed (all 3 orderings, PS and PD)
+  // EVEX.128.66.0F38, modrm=0xC2(dst=xmm0,src3=xmm2)
+  // P0=0xF2(mmm=010)
+  // PS: P1=0x75(W=0,vvvv=~1,pp=01) — src2=xmm1
+  // PD: P1=0xF5(W=1,vvvv=~1,pp=01) — src2=xmm1
+  // P2=0x08(no mask)
+  // =====================================================================
+  cat = "EVEX FMA packed";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    // Use simple float values for predictable FMA results
+    s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
+    s.xmm[2] = xmm_from_f32(9.0f, 10.0f, 11.0f, 12.0f);
+
+    // VFMADD132PS xmm0,xmm1,xmm2: dst = dst*src3 + src2 = xmm0*xmm2 + xmm1
+    add_xmm("evex vfmadd132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x98, 0xC2}, s, 0x7);
+
+    // VFMADD213PS xmm0,xmm1,xmm2: dst = src2*dst + src3 = xmm1*xmm0 + xmm2
+    add_xmm("evex vfmadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA8, 0xC2}, s, 0x7);
+
+    // VFMADD231PS xmm0,xmm1,xmm2: dst = src2*src3 + dst = xmm1*xmm2 + xmm0
+    add_xmm("evex vfmadd231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xB8, 0xC2}, s, 0x7);
+
+    // VFMSUB132PS: dst = dst*src3 - src2 = xmm0*xmm2 - xmm1
+    add_xmm("evex vfmsub132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x9A, 0xC2}, s, 0x7);
+
+    // VFNMADD213PS: dst = -(src2*dst) + src3 = -(xmm1*xmm0) + xmm2
+    add_xmm("evex vfnmadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xAC, 0xC2}, s, 0x7);
+
+    // VFNMSUB231PS: dst = -(src2*src3) - dst = -(xmm1*xmm2) - xmm0
+    add_xmm("evex vfnmsub231ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xBE, 0xC2}, s, 0x7);
+
+    // PD variants (W=1)
+    ArchState sd = {};
+    sd.rflags = 0x2;
+    sd.xmm[0] = xmm_from_f64(1.5, 2.5);
+    sd.xmm[1] = xmm_from_f64(3.0, 4.0);
+    sd.xmm[2] = xmm_from_f64(5.0, 6.0);
+
+    // VFMADD132PD xmm0,xmm1,xmm2: dst = dst*src3 + src2
+    add_xmm("evex vfmadd132pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0x98, 0xC2}, sd, 0x7);
+
+    // VFMADD213PD xmm0,xmm1,xmm2: dst = src2*dst + src3
+    add_xmm("evex vfmadd213pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xA8, 0xC2}, sd, 0x7);
+
+    // VFMADD231PD xmm0,xmm1,xmm2: dst = src2*src3 + dst
+    add_xmm("evex vfmadd231pd xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0xF5, 0x08, 0xB8, 0xC2}, sd, 0x7);
+
+    // VFMADDSUB132PS xmm0,xmm1,xmm2: even=dst*src3-src2, odd=dst*src3+src2
+    add_xmm("evex vfmaddsub132ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0x96, 0xC2}, s, 0x7);
+
+    // VFMSUBADD213PS xmm0,xmm1,xmm2: even=src2*dst+src3, odd=src2*dst-src3
+    add_xmm("evex vfmsubadd213ps xmm0,xmm1,xmm2",
+            {0x62, 0xF2, 0x75, 0x08, 0xA7, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX shift-by-register (count from low 64 bits of xmm)
+  // EVEX.128.66.0F, src1=xmm1(vvvv), count=xmm2(rm)
+  // P0=0xF1, P1=0x75(W=0,vvvv=~1,pp=01), P2=0x08
+  // modrm=0xC2(mod=11,reg=000(dst),rm=010(count))
+  // =====================================================================
+  cat = "EVEX shift reg";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.xmm[1] = {0x8000400020001000, 0xFF00800040002000};
+    // Shift count in low 64 bits of xmm2 (count=4)
+    s.xmm[2] = {0x0000000000000004, 0x0000000000000000};
+
+    // VPSRLW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG D1 /r
+    add_xmm("evex vpsrlw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD1, 0xC2}, s, 0x7);
+
+    // VPSRLD xmm0, xmm1, xmm2: EVEX.128.66.0F.W0 D2 /r
+    add_xmm("evex vpsrld xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xD2, 0xC2}, s, 0x7);
+
+    // VPSRLQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 D3 /r
+    add_xmm("evex vpsrlq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xD3, 0xC2}, s, 0x7);
+
+    // VPSRAW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG E1 /r
+    add_xmm("evex vpsraw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE1, 0xC2}, s, 0x7);
+
+    // VPSRAD xmm0, xmm1, xmm2: EVEX.128.66.0F.W0 E2 /r
+    add_xmm("evex vpsrad xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xE2, 0xC2}, s, 0x7);
+
+    // VPSRAQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 E2 /r
+    add_xmm("evex vpsraq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xE2, 0xC2}, s, 0x7);
+
+    // VPSLLW xmm0, xmm1, xmm2: EVEX.128.66.0F.WIG F1 /r
+    add_xmm("evex vpsllw xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF1, 0xC2}, s, 0x7);
+
+    // VPSLLD xmm0, xmm1, xmm2: EVEX.128.66.0F.W0 F2 /r
+    add_xmm("evex vpslld xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xF2, 0xC2}, s, 0x7);
+
+    // VPSLLQ xmm0, xmm1, xmm2: EVEX.128.66.0F.W1 F3 /r
+    add_xmm("evex vpsllq xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0xF5, 0x08, 0xF3, 0xC2}, s, 0x7);
+  }
 }
