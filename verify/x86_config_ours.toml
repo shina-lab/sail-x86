@@ -1,0 +1,39 @@
+# Isla configuration for sail-x86 model (x86-64 mode)
+
+pc = "RIP"
+
+comment_prefixes = ["#", "//"]
+
+default_sizeof = 1
+
+in_program_order = []
+
+[[toolchain]]
+name = "default"
+assembler = "as --64"
+objdump = "objdump"
+linker = "ld"
+nm = "nm"
+
+[mmu]
+page_table_base = "0x300000"
+page_size = "4096"
+s2_page_table_base = "0x300000"
+s2_page_size = "4096"
+
+[threads]
+base = "0x400000"
+top = "0x500000"
+stride = "0x10000"
+
+[symbolic_addrs]
+base = "0x600000"
+top = "0x700000"
+stride = "0x10"
+
+[registers.defaults]
+system_mode = "false"
+cur_mode = "Long64"
+cur_cpl = "0 : %i64"
+rip_rel_pending = "false"
+rip_rel_disp = "0x0000000000000000"
