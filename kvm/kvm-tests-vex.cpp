@@ -6536,4 +6536,210 @@ void add_vex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // EVEX scalar FP (5323b7d) and embedded rounding (da3ff9e, c217130)
+  // =====================================================================
+  cat = "EVEX scalar FP";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[0] = xmm_from_f32(99.0f, 88.0f, 77.0f, 66.0f);
+    s.xmm[1] = xmm_from_f32(1.5f, 2.5f, 3.5f, 4.5f);
+    s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+    // VADDSS xmm0, xmm1, xmm2 (EVEX)
+    // EVEX.NDS.LIG.F3.0F.W0 58 /r
+    // P0=0xF1, P1=0x76(W=0,~vvvv=1110,V'=1,pp=10=F3), P2=0x08
+    add_xmm("vaddss xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0x76, 0x08, 0x58, 0xC2}, s, 0x7);
+
+    // VMULSS xmm0, xmm1, xmm2 (EVEX)
+    add_xmm("vmulss xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0x76, 0x08, 0x59, 0xC2}, s, 0x7);
+
+    // VSUBSS xmm0, xmm1, xmm2 (EVEX)
+    add_xmm("vsubss xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0x76, 0x08, 0x5C, 0xC2}, s, 0x7);
+
+    // VDIVSS xmm0, xmm1, xmm2 (EVEX)
+    add_xmm("vdivss xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0x76, 0x08, 0x5E, 0xC2}, s, 0x7);
+
+    // EVEX scalar double
+    s.xmm[0] = xmm_from_f64(99.0, 88.0);
+    s.xmm[1] = xmm_from_f64(1.5, 2.5);
+    s.xmm[2] = xmm_from_f64(10.0, 20.0);
+
+    // VADDSD xmm0, xmm1, xmm2 (EVEX)
+    // EVEX.NDS.LIG.F2.0F.W1 58 /r
+    // P1=0xF7(W=1,~vvvv=1110,V'=1,pp=11=F2)
+    add_xmm("vaddsd xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0xF7, 0x08, 0x58, 0xC2}, s, 0x7);
+
+    // VMULSD xmm0, xmm1, xmm2 (EVEX)
+    add_xmm("vmulsd xmm0,xmm1,xmm2 evex",
+      {0x62, 0xF1, 0xF7, 0x08, 0x59, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX embedded rounding (VADDPS zmm with {rn-sae}, {rd-sae}, etc.)
+  // EVEX.b=1 with register operand = embedded rounding
+  // =====================================================================
+  cat = "EVEX ER";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp, bool cmp_mxcsr = false) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, cmp_mxcsr});
+    };
+
+    // VADDPS zmm0, zmm1, zmm2, {rn-sae}
+    // EVEX.512.NP.0F.W0 58 /r with b=1, L'L=00 (rn-sae)
+    // P2: z=0, L'L=00, b=1, V'=1, aaa=000 → 0x18
+    // But for ER: L'L encodes the rounding mode, and b=1
+    // rn-sae: L'L=00, b=1 → P2 = 0x18
+    // rd-sae: L'L=01, b=1 → P2 = 0x38
+    // ru-sae: L'L=10, b=1 → P2 = 0x58
+    // rz-sae: L'L=11, b=1 → P2 = 0x78
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      // Use a value that rounds differently depending on mode
+      // 1.5 + 0.0 = 1.5 (exact), but for integer conversion, rounding matters
+      // Let's use VCVTPS2DQ which converts float→int and is affected by rounding
+      // VCVTPS2DQ zmm0, zmm1, {rn-sae}
+      // EVEX.512.66.0F.W0 5B /r, b=1
+      // P0=0xF1, P1=0x7D(W=0,~vvvv=1111,V'=1,pp=01=66), P2=0x18(rn)
+      s.xmm[1] = xmm_from_f32(1.5f, 2.5f, -1.5f, -2.5f);
+
+      // {rn-sae}: round to nearest even → 2, 2, -2, -2
+      add_xmm("vcvtps2dq zmm {rn-sae}",
+        {0x62, 0xF1, 0x7D, 0x18, 0x5B, 0xC1}, s, 0x1);
+
+      // {rd-sae}: round down → 1, 2, -2, -3
+      add_xmm("vcvtps2dq zmm {rd-sae}",
+        {0x62, 0xF1, 0x7D, 0x38, 0x5B, 0xC1}, s, 0x1);
+
+      // {ru-sae}: round up → 2, 3, -1, -2
+      add_xmm("vcvtps2dq zmm {ru-sae}",
+        {0x62, 0xF1, 0x7D, 0x58, 0x5B, 0xC1}, s, 0x1);
+
+      // {rz-sae}: round toward zero → 1, 2, -1, -2
+      add_xmm("vcvtps2dq zmm {rz-sae}",
+        {0x62, 0xF1, 0x7D, 0x78, 0x5B, 0xC1}, s, 0x1);
+    }
+
+    // VFMADD132PS zmm0, zmm1, zmm2, {rn-sae}
+    // EVEX.512.66.0F38.W0 98 /r, b=1
+    // Exercises embedded rounding on FMA
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+      s.xmm[1] = xmm_from_f32(0.5f, 0.5f, 0.5f, 0.5f);
+      s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
+
+      // VFMADD132PS: dst = dst*src2 + vvvv = xmm0*xmm2 + xmm1
+      // P0=0xF2(mmm=010), P1=0x75(W=0,~vvvv=1110,V'=1,pp=01), P2=0x18(rn)
+      add_xmm("vfmadd132ps zmm {rn-sae}",
+        {0x62, 0xF2, 0x75, 0x18, 0x98, 0xC2}, s, 0x7);
+    }
+  }
+
+  // =====================================================================
+  // VPCMPW/VPCMPUW (b9f3e23: word compare producing k-register)
+  // =====================================================================
+  cat = "EVEX VPCMPW";
+  {
+    // VPCMPW k0, xmm1, xmm2, 1 (LT)
+    // EVEX.128.66.0F3A.W1 3F /r ib
+    // P0=0xF3(mmm=011), P1=0xFD(W=1,~vvvv=1110,V'=1,pp=01), P2=0x08
+    {
+      TestCase tc;
+      tc.name = "vpcmpw k0,xmm1,xmm2,LT";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xFD, 0x08, 0x3F, 0xC2, 0x01};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      // Signed words: {-5, 10, 0, 32767, -32768, 100, -1, 0}
+      tc.initial.xmm[1] = xmm_from_u64(0x7FFF0000000AFFFB, 0x0000FFFF00648000);
+      // Comparison target: {0, 0, 0, 0, 0, 0, 0, 0}
+      tc.initial.xmm[2] = {};
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.kreg_mask = 0x1;  // compare k0
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPUW k0, xmm1, xmm2, 5 (GE unsigned)
+    // EVEX.128.66.0F3A.W1 3E /r ib
+    {
+      TestCase tc;
+      tc.name = "vpcmpuw k0,xmm1,xmm2,GE";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xFD, 0x08, 0x3E, 0xC2, 0x05};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+      tc.initial.xmm[2] = xmm_from_u64(0x0004000300020001, 0x0008000700060005);
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.kreg_mask = 0x1;
+      tests.push_back(std::move(tc));
+    }
+
+    // VPCMPW k0, ymm1, ymm2, 0 (EQ) — 256-bit
+    // P2 = 0x28 (L'L=01)
+    {
+      TestCase tc;
+      tc.name = "vpcmpw k0,ymm1,ymm2,EQ";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0xFD, 0x28, 0x3F, 0xC2, 0x00};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+      tc.initial.xmm[2] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.kreg_mask = 0x1;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // VCVTQQ2PS (2d6eac6: convert packed int64 to float32)
+  // =====================================================================
+  cat = "EVEX VCVTQQ2PS";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+
+    // VCVTQQ2PS xmm0, xmm1
+    // EVEX.128.NP.0F.W1 5B /r
+    // P0=0xF1, P1=0xFC(W=1,~vvvv=1111,V'=1,pp=00), P2=0x08
+    s.xmm[1] = xmm_from_u64(42, 1000000);
+    add_xmm("vcvtqq2ps xmm0,xmm1",
+      {0x62, 0xF1, 0xFC, 0x08, 0x5B, 0xC1}, s, 0x7);
+
+    // VCVTQQ2PS xmm0, ymm1
+    // P2=0x28 (L'L=01 for 256-bit source, 128-bit dest)
+    s.xmm[1] = xmm_from_u64(100, -100);
+    add_xmm("vcvtqq2ps xmm0,ymm1",
+      {0x62, 0xF1, 0xFC, 0x28, 0x5B, 0xC1}, s, 0x7);
+
+    // Large values that lose precision
+    s.xmm[1] = xmm_from_u64(0x7FFFFFFFFFFFFFFF, -1);
+    add_xmm("vcvtqq2ps xmm0,xmm1 large",
+      {0x62, 0xF1, 0xFC, 0x08, 0x5B, 0xC1}, s, 0x7);
+  }
 }
