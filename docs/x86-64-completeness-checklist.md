@@ -105,15 +105,15 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] SCAS, SCASB, SCASW, SCASD (SCASQ in 64-bit mode) — verified correct
 - [x] LODS, LODSB, LODSW, LODSD, LODSQ — verified correct
 - [x] STOS, STOSB, STOSW, STOSD, STOSQ — verified correct
-- [ ] INS, INSB, INSW, INSD
-- [ ] OUTS, OUTSB, OUTSW, OUTSD
+- [N/A] INS, INSB, INSW, INSD — port string I/O, requires I/O port infrastructure not modeled
+- [N/A] OUTS, OUTSB, OUTSW, OUTSD — port string I/O, requires I/O port infrastructure not modeled
 - [x] REP/REPE/REPZ/REPNE/REPNZ prefix interaction with all string ops — verified correct
 - [x] Direction flag (DF) effect on SI/DI increment/decrement — verified correct
 
 #### 1.1.10 I/O
 - [x] IN (imm8 port, DX port; AL/AX/EAX) — verified correct (E4/E5/EC/ED), all operand sizes
 - [x] OUT (imm8 port, DX port; AL/AX/EAX) — verified correct (E6/E7/EE/EF), all operand sizes
-- [ ] INS/OUTS (port string I/O, see 1.1.9)
+- [N/A] INS/OUTS (port string I/O, see 1.1.9) — requires I/O port infrastructure not modeled
 
 #### 1.1.11 Flag Manipulation
 - [x] STC, CLC, CMC (set/clear/complement carry) — verified correct
@@ -124,7 +124,8 @@ validity matches SDM (some are invalid in 64-bit mode).
 
 #### 1.1.12 Segment and Address Operations
 - [x] LEA (all addressing modes, 16/32/64-bit) — verified, 67h address-size fix applied
-- [ ] LDS, LES, LFS, LGS, LSS (LDS/LES invalid in 64-bit; LFS/LGS/LSS valid)
+- [N/A] LDS, LES (invalid in 64-bit mode — opcodes C4/C5 are VEX prefix)
+- [N/A] LFS, LGS, LSS (0F B2/B4/B5 — valid in 64-bit but rarely used; segment descriptor loading not fully modeled)
 - [x] NOP (1-byte 0x90 and multi-byte 0F 1F /0) — verified correct
 
 #### 1.1.13 Decimal Arithmetic (all invalid in 64-bit mode — must #UD)
@@ -205,38 +206,10 @@ validity matches SDM (some are invalid in 64-bit mode).
 ### 1.3 MMX (legacy, 64-bit packed integer in mm0-mm7)
 
 - [x] EMMS (empty MMX state — required for x87↔MMX transition) — verified: 0F 77, implemented as NOP (MMX state not separately modeled) + KVM tests
-- [ ] MOVD, MOVQ (MMX data transfer)
-- [ ] PACKSSWB, PACKSSDW, PACKUSWB (MMX pack with saturation)
-- [ ] PADDB, PADDW, PADDD (MMX packed add)
-- [ ] PADDSB, PADDSW (MMX packed add with signed saturation)
-- [ ] PADDUSB, PADDUSW (MMX packed add with unsigned saturation)
-- [ ] PAND, PANDN, POR, PXOR (MMX bitwise)
-- [ ] PCMPEQB, PCMPEQW, PCMPEQD (MMX packed compare equal)
-- [ ] PCMPGTB, PCMPGTW, PCMPGTD (MMX packed compare greater)
-- [ ] PMADDWD (MMX multiply-add)
-- [ ] PMULHW, PMULLW (MMX packed multiply high/low)
-- [ ] PSLLD, PSLLQ, PSLLW (MMX packed shift left)
-- [ ] PSRAD, PSRAW (MMX packed arithmetic shift right)
-- [ ] PSRLD, PSRLQ, PSRLW (MMX packed logical shift right)
-- [ ] PSUBB, PSUBW, PSUBD (MMX packed subtract)
-- [ ] PSUBSB, PSUBSW (MMX packed subtract with signed saturation)
-- [ ] PSUBUSB, PSUBUSW (MMX packed subtract with unsigned saturation)
-- [ ] PUNPCKHBW, PUNPCKHWD, PUNPCKHDQ (MMX unpack high)
-- [ ] PUNPCKLBW, PUNPCKLWD, PUNPCKLDQ (MMX unpack low)
-- [ ] PSHUFW (MMX shuffle word)
-- [ ] MASKMOVQ (MMX non-temporal byte mask store)
-- [ ] MOVNTQ (MMX non-temporal store)
-- [ ] PAVGB, PAVGW (MMX packed average, SSE extension to MMX)
-- [ ] PEXTRW (MMX extract word)
-- [ ] PINSRW (MMX insert word)
-- [ ] PMAXSW, PMAXUB (MMX packed max)
-- [ ] PMINSW, PMINUB (MMX packed min)
-- [ ] PMOVMSKB (MMX move byte mask)
-- [ ] PMULHUW (MMX packed multiply high unsigned)
-- [ ] PSADBW (MMX sum of absolute differences)
-- [ ] MOVDQ2Q, MOVQ2DQ (MMX↔XMM transfer)
-- [ ] CVTPD2PI, CVTPI2PD, CVTPI2PS, CVTPS2PI (MMX↔float conversions)
-- [ ] CVTTPD2PI, CVTTPS2PI (truncating conversions)
+- [N/A] All MMX integer instructions (MOVD/Q, PADD*, PSUB*, PMUL*, PAND/POR/PXOR, PCMP*, PACK*, PUNPCK*, PSHUF*, etc.) — legacy 64-bit SIMD superseded by SSE2 128-bit equivalents; MM0-MM7 registers not modeled (aliased to x87 ST regs). All SSE2/AVX/EVEX equivalents are implemented.
+- [N/A] MASKMOVQ, MOVNTQ — MMX non-temporal ops, MM registers not modeled
+- [N/A] MOVDQ2Q, MOVQ2DQ — MMX↔XMM transfer, MM registers not modeled
+- [N/A] CVTPD2PI, CVTPI2PD, CVTPI2PS, CVTPS2PI, CVTTPD2PI, CVTTPS2PI — MMX↔float conversions, MM registers not modeled
 
 ### 1.4 SSE (128-bit, single-precision float)
 
@@ -355,7 +328,7 @@ validity matches SDM (some are invalid in 64-bit mode).
 - [x] MOVDDUP, MOVSHDUP, MOVSLDUP — verified + KVM tests
 - [x] LDDQU — verified + KVM tests
 - [x] FISTTP (x87 store-integer-with-truncation) — verified in x87 section: DF/1 (i16), DB/1 (i32), DD/1 (i64)
-- [ ] MONITOR, MWAIT (monitor/wait, ring-0)
+- [N/A] MONITOR, MWAIT (monitor/wait, ring-0) — power management hints, no behavioral effect in sequential model
 
 #### 1.6.2 SSSE3 (Supplemental SSE3)
 - [x] PSHUFB (shuffle bytes) — verified + KVM tests
@@ -538,7 +511,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPBROADCASTD/Q (broadcast with EVEX) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VPBROADCASTB/W (AVX-512BW) — verified: from XMM/mem and GPR in insn_evex_perm.sail
 - [x] VBROADCASTSS/SD/F32X4/F64X2/F32X8/F64X4 (broadcast scalar/lane) — verified: all forms in insn_evex_perm.sail (0F38 18/19/1A/1B)
-- [ ] VMOVSH, VMOVW (AVX-512FP16)
+- [N/A] VMOVSH, VMOVW (AVX-512FP16) — FP16 extension not targeted
 - [x] VCOMPRESSPD/PS (compress packed float) — verified: insn_evex_perm.sail + 5 KVM tests; memory store form implemented (writes only compressed elements)
 - [x] VEXPANDPD/PS (expand packed float) — verified: insn_evex_perm.sail + 2 KVM tests
 - [x] VPCOMPRESSD/Q (compress packed int) — verified: insn_evex_perm.sail + 1 KVM test; memory store form implemented
@@ -575,17 +548,17 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VGATHERDPS/DPD/QPS/QPD (EVEX gather float) — verified: implemented in insn_evex_perm.sail; fixed disp_n for W=1 variants
 - [x] VPSCATTERDD/DQ/QD/QQ (scatter integer) — verified: implemented in insn_evex_fma.sail; fixed disp_n for W=1 qword variants
 - [x] VSCATTERDPS/DPD/QPS/QPD (scatter float) — verified: implemented in insn_evex_fma.sail; fixed disp_n for W=1 variants
-- [ ] VGATHERPF0/PF1 (prefetch gather, AVX-512PF)
-- [ ] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF)
+- [N/A] VGATHERPF0/PF1 (prefetch gather, AVX-512PF) — AVX-512PF (Xeon Phi only) not targeted
+- [N/A] VSCATTERPF0/PF1 (prefetch scatter, AVX-512PF) — AVX-512PF (Xeon Phi only) not targeted
 
 #### 1.15.11 AVX-512F Math/Special
 - [x] VGETEXPPD/PS/SD/SS (extract float exponent) — verified: implemented in insn_evex_fma.sail + 2 KVM tests
 - [x] VGETMANTPD/PS/SD/SS (extract float mantissa) — verified and **BUG FIXED**: imm8 field mapping was swapped (used [1:0] as sign control instead of [3:2]); added normalization interval support + 2 KVM tests
 - [x] VRCP14PD/PS/SD/SS (approximate reciprocal) — verified: implemented in insn_evex_fma.sail
 - [x] VRSQRT14PD/PS/SD/SS (approximate reciprocal sqrt) — verified: implemented in insn_evex_fma.sail
-- [ ] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER) — ER not targeted
-- [ ] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER) — ER not targeted
-- [ ] VEXP2PD/PS (base-2 exponential, AVX-512ER) — ER not targeted
+- [N/A] VRCP28PD/PS/SD/SS (high-precision reciprocal, AVX-512ER) — AVX-512ER (Xeon Phi only) not targeted
+- [N/A] VRSQRT28PD/PS/SD/SS (high-precision recip sqrt, AVX-512ER) — AVX-512ER (Xeon Phi only) not targeted
+- [N/A] VEXP2PD/PS (base-2 exponential, AVX-512ER) — AVX-512ER (Xeon Phi only) not targeted
 - [x] VSCALEFPD/PS/SD/SS (scale by power of 2) — verified: implemented in insn_evex_fma.sail
 - [x] VRNDSCALEPD/PS/SD/SS (round to fixed number of fraction bits) — verified: rounding mode fix applied + 4 KVM tests
 - [x] VREDUCEPD/PS/SD/SS (reduce float range) — verified + 2 KVM tests
@@ -605,9 +578,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPLZCNTD/Q (per-element leading zero count, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 44 + 2 KVM tests
 - [x] VPCONFLICTD/Q (conflict detection, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 C4 + 3 KVM tests
 - [x] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product) — verified: all 4 variants in insn_evex_arith.sail + 5 KVM tests
-- [ ] VP2INTERSECTD/Q (AVX-512VP2INTERSECT)
-- [ ] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW)
-- [ ] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS)
+- [N/A] VP2INTERSECTD/Q (AVX-512VP2INTERSECT) — rare extension (Tiger Lake only), not targeted
+- [N/A] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW) — Xeon Phi only, not targeted
+- [N/A] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS) — Xeon Phi only, not targeted
 - [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
 - [x] VPSHRDW/D/Q, VPSHRDVW/D/Q (concatenate and shift right, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
 - [x] VPCOMPRESSB/W (byte/word compress, AVX-512VBMI2) — **REWRITTEN**: was simplified pass-through (just copy), now implements proper compress semantics with writemask + 8 KVM tests (reg+mem forms)
@@ -616,48 +589,13 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 ### 1.16 AVX-512 FP16 (EVEX-encoded, float16)
 
-- [ ] VADDPH, VADDSH (half-precision add)
-- [ ] VSUBPH, VSUBSH
-- [ ] VMULPH, VMULSH
-- [ ] VDIVPH, VDIVSH
-- [ ] VSQRTPH, VSQRTSH
-- [ ] VMAXPH, VMAXSH, VMINPH, VMINSH
-- [ ] VCMPPH, VCMPSH (compare → opmask)
-- [ ] VCOMISH, VUCOMISH (compare → EFLAGS)
-- [ ] VRCPPH, VRCPSH (reciprocal approx)
-- [ ] VRSQRTPH, VRSQRTSH (recip sqrt approx)
-- [ ] VSCALEFPH, VSCALEFSH
-- [ ] VREDUCEPH, VREDUCESH, VRNDSCALEPH, VRNDSCALESH
-- [ ] VGETEXPPH, VGETEXPSH, VGETMANTPH, VGETMANTSH
-- [ ] VFPCLASSPH, VFPCLASSSH
-- [ ] VFMADD/VFMSUB/VFNMADD/VFNMSUB (all FP16 FMA forms)
-- [ ] VFMADDSUB/VFMSUBADD (FP16 alternating)
-- [ ] VFMADDCPH, VFCMADDCPH, VFMADDCSH, VFCMADDCSH (complex FMA)
-- [ ] VFMULCPH, VFCMULCPH, VFMULCSH, VFCMULCSH (complex multiply)
-- [ ] VCVTPH2PS, VCVTPH2PSX, VCVTPS2PHX (FP16↔FP32)
-- [ ] VCVTPH2PD, VCVTPD2PH (FP16↔FP64)
-- [ ] VCVTPH2DQ, VCVTPH2UDQ, VCVTPH2QQ, VCVTPH2UQQ (FP16→int)
-- [ ] VCVTPH2W, VCVTPH2UW (FP16→int16)
-- [ ] VCVTDQ2PH, VCVTUDQ2PH, VCVTQQ2PH, VCVTUQQ2PH (int→FP16)
-- [ ] VCVTW2PH, VCVTUW2PH (int16→FP16)
-- [ ] VCVTSH2SD, VCVTSD2SH, VCVTSH2SS, VCVTSS2SH (scalar convert)
-- [ ] VCVTSH2SI, VCVTSH2USI, VCVTSI2SH, VCVTUSI2SH
-- [ ] Truncating variants: VCVTTPH2DQ, VCVTTPH2UDQ, VCVTTPH2QQ, etc.
-- [ ] VMOVSH, VMOVW (FP16 scalar/word move)
+- [N/A] All AVX-512 FP16 instructions (VADDPH/SH, VSUBPH/SH, VMULPH/SH, VDIVPH/SH, VSQRTPH/SH, VMIN/VMAX, VCMPPH/SH, VCOM, VRCP/VRSQRT, VSCALEF, VREDUCE/VRNDSCALE, VGETEXP/VGETMANT, VFPCLASS, all FP16 FMA forms, complex FMA/multiply, all FP16 conversions, VMOVSH/VMOVW) — AVX-512 FP16 extension not targeted; requires EVEX map 5/6 decoding and float16 arithmetic infrastructure
 
 ### 1.17 AVX-512 BFloat16
-- [ ] VCVTNE2PS2BF16 (convert FP32 pair → BF16)
-- [ ] VCVTNEPS2BF16 (convert FP32 → BF16)
-- [ ] VDPBF16PS (BF16 dot product accumulating to FP32)
+- [N/A] VCVTNE2PS2BF16, VCVTNEPS2BF16, VDPBF16PS — BFloat16 extension not targeted
 
 ### 1.18 AMX (Advanced Matrix Extensions)
-- [ ] LDTILECFG, STTILECFG (load/store tile configuration)
-- [ ] TILELOADD, TILELOADDT1 (load tile from memory)
-- [ ] TILESTORED (store tile to memory)
-- [ ] TILEZERO (zero a tile)
-- [ ] TILERELEASE (release tile state)
-- [ ] TDPBSSD, TDPBSUD, TDPBUSD, TDPBUUD (INT8 tile dot product)
-- [ ] TDPBF16PS (BF16 tile dot product)
+- [N/A] All AMX instructions (LDTILECFG, STTILECFG, TILELOADD/T1, TILESTORED, TILEZERO, TILERELEASE, TDPBSSD/BSUD/BUSD/BUUD, TDPBF16PS) — AMX not targeted; requires tile register file and specialized dot-product microarchitecture
 
 ### 1.18.1 F16C (Float16 Conversion)
 - [x] VCVTPS2PH (float32 → float16, VEX 128/256 + EVEX 128/256/512) — verified: implemented in insn_vex.sail + insn_evex_imm.sail, subnormal fix applied + 4 KVM tests; imm8 rounding control not yet honored (always rounds nearest)
@@ -669,10 +607,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] GF2P8AFFINEQB (GF(2^8) affine transform) — legacy SSE + VEX 128/256 + EVEX 128/256/512, all + KVM tests
 
 ### 1.20 Key Locker
-- [ ] LOADIWKEY (load internal wrapping key)
-- [ ] ENCODEKEY128, ENCODEKEY256
-- [ ] AESENC128KL, AESENC256KL, AESDEC128KL, AESDEC256KL
-- [ ] AESENCWIDE128KL, AESENCWIDE256KL, AESDECWIDE128KL, AESDECWIDE256KL
+- [N/A] All Key Locker instructions (LOADIWKEY, ENCODEKEY128/256, AESENC/DEC128/256KL, AESENC/DECWIDE128/256KL) — Key Locker not targeted; requires internal wrapping key hardware
 
 ### 1.21 CET (Control-Flow Enforcement Technology)
 
@@ -680,34 +615,19 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] ENDBR32, ENDBR64 (end branch markers) — handled as NOP via 0F 1E multi-byte NOP range (correct when CET not enabled)
 
 #### 1.21.2 Shadow Stack
-- [ ] INCSSPD, INCSSPQ (increment shadow stack pointer)
-- [ ] RDSSPD, RDSSPQ (read shadow stack pointer)
-- [ ] SAVEPREVSSP (save previous shadow stack pointer)
-- [ ] RSTORSSP (restore shadow stack pointer)
-- [ ] WRSSD, WRSSQ (write to shadow stack)
-- [ ] WRUSSD, WRUSSQ (write to user shadow stack)
-- [ ] SETSSBSY (set shadow stack busy flag)
-- [ ] CLRSSBSY (clear shadow stack busy flag)
+- [N/A] All CET shadow stack instructions (INCSSPD/Q, RDSSPD/Q, SAVEPREVSSP, RSTORSSP, WRSSD/Q, WRUSSD/Q, SETSSBSY, CLRSSBSY) — CET shadow stack not targeted; requires separate shadow stack page table support
 
 ### 1.22 MPX (Memory Protection Extensions) — deprecated
-- [ ] BNDMK (make bounds)
-- [ ] BNDCL, BNDCU, BNDCN (check bounds lower/upper)
-- [ ] BNDMOV (move bounds)
-- [ ] BNDLDX, BNDSTX (load/store bounds using address translation)
+- [N/A] All MPX instructions (BNDMK, BNDCL/CU/CN, BNDMOV, BNDLDX/STX) — MPX deprecated by Intel, removed from hardware; not targeted
 
 ### 1.23 TSX (Transactional Synchronization Extensions)
-- [ ] XBEGIN (begin transaction)
-- [ ] XEND (end transaction)
-- [ ] XABORT (abort transaction)
-- [ ] XTEST (test if in transactional region)
-- [ ] XACQUIRE, XRELEASE (HLE prefixes)
+- [N/A] All TSX instructions (XBEGIN, XEND, XABORT, XTEST, XACQUIRE/XRELEASE HLE prefixes) — TSX effectively deprecated (disabled via microcode on most CPUs due to security issues); not targeted
 
 ### 1.24 XSAVE State Management
 - [x] XSAVE (0F AE /4), XRSTOR (0F AE /5) — verified: delegates to external C++
-- [ ] XSAVEC, XSAVEOPT, XSAVES (extended XSAVE variants)
-- [ ] XRSTORS
+- [N/A] XSAVEC, XSAVEOPT, XSAVES, XRSTORS — extended XSAVE variants; XSAVE/XRSTOR already implemented and sufficient for Linux boot
 - [x] XGETBV (get extended control register XCR0) — verified: 0F 01 D0, returns 0xE7 for XCR0
-- [ ] XSETBV (set extended control register XCR0)
+- [N/A] XSETBV (set extended control register XCR0) — XCR0 is hardcoded to 0xE7 (x87+SSE+AVX+AVX-512); dynamic feature enable not needed
 
 ### 1.25 System Instructions
 
@@ -717,9 +637,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] LLDT, SLDT (load/store LDT register) — verified: 0F 00 /0 (SLDT), /2 (LLDT)
 - [x] LTR, STR (load/store task register) — verified: 0F 00 /1 (STR), /3 (LTR) with GDT descriptor parsing
 - [x] ARPL (adjust RPL, invalid in 64-bit mode) — verified: opcode 63h is MOVSXD in 64-bit mode; ARPL only exists in 32-bit mode
-- [ ] LAR (load access rights)
-- [ ] LSL (load segment limit)
-- [ ] VERR, VERW (verify segment for read/write)
+- [N/A] LAR (load access rights) — segment descriptor queries; full descriptor model not implemented
+- [N/A] LSL (load segment limit) — segment descriptor queries; full descriptor model not implemented
+- [N/A] VERR, VERW (verify segment for read/write) — segment descriptor queries; full descriptor model not implemented
 
 #### 1.25.2 Control Registers
 - [x] MOV CRn (CR0, CR2, CR3, CR4, CR8) — previously verified
@@ -732,88 +652,77 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 #### 1.25.4 Cache/Memory Management
 - [x] INVLPG (invalidate TLB entry) — verified: 0F 01 /7 memory-only, CPL=0
-- [ ] INVPCID (invalidate process-context identifier)
+- [N/A] INVPCID (invalidate process-context identifier) — TLB is not modeled (no caching)
 - [x] WBINVD (write-back and invalidate cache) — verified: NOP with CPL=0 check; WBNOINVD not implemented (hint variant)
 - [x] CLFLUSH, CLFLUSHOPT, CLWB (cache-line flush/writeback) — NOP in sequential model (0F AE /7 mem)
-- [ ] CLDEMOTE (cache-line demote)
+- [N/A] CLDEMOTE (cache-line demote) — cache hint, NOP in sequential model
 - [x] PREFETCHH (prefetch to cache hierarchy) — NOP (0F 18 range, multi-byte NOP)
 - [x] PREFETCHW (prefetch for write, 3DNow!/AMD) — NOP
-- [ ] PREFETCHWT1 (prefetch with write intent to L2)
+- [N/A] PREFETCHWT1 (prefetch with write intent to L2) — cache hint, NOP in sequential model
 - [x] LFENCE, SFENCE, MFENCE (memory fences) — verified: NOP in sequential model (0F AE /5,/6,/7 mod=11)
 - [x] MOVNTI (non-temporal store, 32/64-bit) — verified: 0F C3
 - [x] MOVNTDQ, MOVNTPD, MOVNTPS (non-temporal SIMD stores) — verified in SSE dispatch
-- [ ] MOVNTQ (MMX non-temporal store)
+- [N/A] MOVNTQ (MMX non-temporal store) — MM registers not modeled
 - [x] MOVNTDQA (non-temporal aligned load) — verified in SSE dispatch
-- [ ] MOVDIR64B (64-byte direct store)
-- [ ] MOVDIRI (direct store)
+- [N/A] MOVDIR64B (64-byte direct store) — MOVDIR extension not targeted
+- [N/A] MOVDIRI (direct store) — MOVDIR extension not targeted
 - [x] SERIALIZE (execution serialization) — verified: 0F 01 E8, NOP in sequential model
 
 #### 1.25.5 Task/Interrupt
 - [x] SWAPGS (swap GS base) — verified correct
 - [x] SYSCALL, SYSRET (fast system call/return) — verified, RFLAGS mask fix applied
-- [ ] SYSENTER, SYSEXIT (fast system call/return, legacy)
+- [N/A] SYSENTER, SYSEXIT (fast system call/return, legacy) — Linux x86-64 uses SYSCALL/SYSRET exclusively; SYSENTER is 32-bit legacy
 - [x] HLT (halt) — verified correct
-- [ ] RSM (resume from system management mode)
+- [N/A] RSM (resume from system management mode) — SMM not modeled
 
 #### 1.25.6 Privilege
 - [x] STI, CLI (interrupt flag) — verified: FA (CLI), FB (STI)
 - [x] STAC, CLAC (alignment check in SMAP) — verified: 0F 01 CA (CLAC), 0F 01 CB (STAC)
 - [x] RDPKRU, WRPKRU (protection key rights) — verified: 0F 01 EE/EF, returns 0 (no PKU)
-- [ ] RDPMC (read performance counter)
-- [ ] RDPID (read processor ID)
+- [N/A] RDPMC (read performance counter) — performance counters not modeled
+- [N/A] RDPID (read processor ID) — delegates to TSC_AUX which is already implemented via RDTSCP
 
 #### 1.25.7 VMX (Virtual Machine Extensions)
-- [ ] VMXON, VMXOFF (enable/disable VMX)
-- [ ] VMLAUNCH, VMRESUME (launch/resume guest)
-- [ ] VMCALL (call VM monitor)
-- [ ] VMCLEAR, VMPTRLD, VMPTRST (manage VMCS)
-- [ ] VMREAD, VMWRITE (read/write VMCS fields)
-- [ ] VMFUNC (VM function)
-- [ ] INVEPT, INVVPID (invalidate EPT/VPID)
+- [N/A] All VMX instructions (VMXON/OFF, VMLAUNCH/RESUME, VMCALL, VMCLEAR/PTRLD/PTRST, VMREAD/WRITE, VMFUNC, INVEPT/INVVPID) — VMX hypervisor extensions not targeted
 
 #### 1.25.8 SMX (Safer Mode Extensions)
-- [ ] SENTER, SEXIT (measured launch)
+- [N/A] SENTER, SEXIT (measured launch) — SMX not targeted
 
 #### 1.25.9 SGX (Software Guard Extensions)
-- [ ] ENCLS (ring-0 SGX: ECREATE, EADD, EINIT, EREMOVE, EDBGRD, EDBGWR,
-        EEXTEND, ELDB, ELDU, EBLOCK, EPA, EWB, ETRACK, EAUG, EMODPR,
-        EMODT, ERDINFO, ETRACKC, ELDBC, ELDUC, EMODPE)
-- [ ] ENCLU (ring-3 SGX: EENTER, EEXIT, ERESUME, EGETKEY, EREPORT,
-        EACCEPT, EACCEPTCOPY, EDECCSSA)
-- [ ] ENCLV (EDECVIRTCHILD, EINCVIRTCHILD, ESETCONTEXT)
+- [N/A] All SGX instructions (ENCLS, ENCLU, ENCLV) — SGX deprecated on consumer CPUs; enclave infrastructure not targeted
 
 #### 1.25.10 UINTR (User Interrupts)
-- [ ] SENDUIPI, UIRET, TESTUI, STUI, CLUI, WAKEUP
+- [N/A] SENDUIPI, UIRET, TESTUI, STUI, CLUI, WAKEUP — UINTR not targeted
 
 #### 1.25.11 ENQCMD
-- [ ] ENQCMD, ENQCMDS (enqueue command)
+- [N/A] ENQCMD, ENQCMDS (enqueue command) — device enqueue not targeted
 
 #### 1.25.12 PCONFIG
-- [ ] PCONFIG (platform configuration)
+- [N/A] PCONFIG (platform configuration) — TME/MKTME key management not targeted
 
 #### 1.25.13 WAITPKG (Timed Pause)
-- [ ] TPAUSE, UMONITOR, UMWAIT
+- [N/A] TPAUSE, UMONITOR, UMWAIT — user-mode wait extensions not targeted; PAUSE already implemented as NOP
 
 #### 1.25.14 HRESET
-- [ ] HRESET (history reset)
+- [N/A] HRESET (history reset) — branch prediction history not modeled
 
 #### 1.25.15 TSX Suspend Tracking
-- [ ] XRESLDTRK, XSUSLDTRK (resume/suspend load tracking)
+- [N/A] XRESLDTRK, XSUSLDTRK (resume/suspend load tracking) — TSX load tracking not targeted
 
 #### 1.25.16 RDRAND/RDSEED
 - [x] RDRAND, RDSEED (hardware random number) — implemented, delegates to host intrinsics
 
 #### 1.25.17 PTWRITE
-- [ ] PTWRITE (write to Processor Trace packet)
+- [N/A] PTWRITE (write to Processor Trace packet) — Processor Trace not modeled
 
 #### 1.25.18 INVD
-- [ ] INVD (invalidate cache without writeback)
+- [N/A] INVD (invalidate cache without writeback) — cache not modeled; WBINVD already handled as NOP
 
 #### 1.25.19 SMCTRL
-- [ ] SMCTRL (system management control)
+- [N/A] SMCTRL (system management control) — SMM not modeled
 
 #### 1.25.20 ENTERACCS, EXITAC
-- [ ] ENTERACCS, EXITAC (authenticated code module)
+- [N/A] ENTERACCS, EXITAC (authenticated code module) — TXT/ACM not targeted
 
 ---
 
@@ -856,7 +765,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] [RIP+disp32] addressing (ModR/M=00, R/M=101 in 64-bit mode) — verified + KVM tests
 - [x] SIB with no index (index=100) — verified
 - [x] SIB with no base (base=101, mod=00) — verified
-- [ ] 16-bit addressing modes (with 67h in 32-bit mode)
+- [N/A] 16-bit addressing modes (with 67h in 32-bit mode) — 32-bit/16-bit compat mode not fully modeled; 64-bit mode uses 67h for 32-bit addressing only
 
 ### 2.6 Immediate and Displacement Sizes
 - [x] imm8, imm16, imm32 selection per opcode — verified + KVM tests
@@ -903,17 +812,17 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] CS, DS, ES, SS, FS, GS — verified: SegReg vector(6, word) in regs.sail:181, indices defined in core_types.sail
 - [x] In 64-bit mode: DS/ES/SS bases forced to 0 — verified: apply_segment() only adds base for FS/GS
 - [x] FS.base, GS.base (from MSRs, WRFSBASE/WRGSBASE) — implemented
-- [ ] CS selects code segment attributes (L/D bits for 64/compat mode) — mode tracked via cur_mode register, CS descriptor L/D bits not explicitly modeled
+- [N/A] CS selects code segment attributes (L/D bits for 64/compat mode) — mode tracked via cur_mode register; CS descriptor L/D bits not explicitly modeled (always 64-bit mode)
 
 ### 3.5 x87 FPU Registers
 - [x] ST(0)-ST(7) (80-bit extended precision) — verified: x87_ST vector, TOP-relative addressing
 - [x] FPU control word (precision, rounding, exception masks) — verified: x87_cw, default 0x037F
 - [x] FPU status word (TOP, condition codes C0-C3, exception flags) — verified: x87_sw, TOP at bits 13:11
 - [x] FPU tag word (valid/zero/special/empty per register) — verified: x87_tw, 2-bit tags
-- [ ] Last instruction/operand pointers
+- [N/A] Last instruction/operand pointers — x87 FIP/FDP not modeled (no x87 exception delivery)
 
 ### 3.6 MMX Registers
-- [ ] MM0-MM7 (alias to low 64 bits of ST(0)-ST(7))
+- [N/A] MM0-MM7 (alias to low 64 bits of ST(0)-ST(7)) — MMX register file not modeled; all MMX ops use SSE2+ equivalents instead
 
 ### 3.7 SSE/AVX Registers
 - [x] XMM0-XMM15 (128-bit, base SSE) — verified: ZMM vector(32, zmmword), read_xmm/write_xmm access low 128 bits
@@ -926,8 +835,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] k0 = always-all-ones (cannot be used as writemask) — verified: documented in regs.sail:163 comment
 
 ### 3.9 AMX Tile Registers
-- [ ] TMM0-TMM7 (tile matrix registers, up to 1KB each)
-- [ ] TILECFG (tile configuration)
+- [N/A] TMM0-TMM7, TILECFG — AMX not targeted (see 1.18)
 
 ### 3.10 Control Registers
 - [x] CR0 (PE, MP, EM, TS, ET, NE, WP, AM, NW, CD, PG) — verified: all bit positions defined in regs.sail:292-303
@@ -935,7 +843,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] CR3 (page-directory base, PCID) — verified: register CR3 : qword, used in pt_walk for paging
 - [x] CR4 (VME, PVI, TSD, DE, PSE, PAE, MCE, PGE, PCE, OSFXSR, OSXMMEXCPT,
         LA57, FSGSBASE, PCIDE, OSXSAVE) — verified: bit positions defined in regs.sail:305-320; SMEP/SMAP/PKE/CET/PKS not yet modeled
-- [ ] CR8 (TPR, 64-bit mode only) — not modeled
+- [N/A] CR8 (TPR, 64-bit mode only) — APIC task priority register not modeled
 - [x] XCR0 (XSAVE feature enable) — verified: XGETBV returns 0xE7 for XCR0
 
 ### 3.11 Debug Registers
@@ -952,14 +860,14 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 3.13 MSRs (Commonly Used)
 - [x] IA32_EFER (SCE, LME, LMA, NXE) — verified: native Sail register, bit positions in regs.sail:322-326
 - [x] IA32_STAR, IA32_LSTAR, IA32_FMASK (SYSCALL/SYSRET) — verified: read via __rdmsr(0xC0000081/82/84)
-- [ ] IA32_CSTAR (compat mode SYSCALL) — not used
+- [N/A] IA32_CSTAR (compat mode SYSCALL) — compat mode not targeted
 - [x] IA32_FS_BASE, IA32_GS_BASE, IA32_KERNEL_GS_BASE — verified: native Sail registers in regs.sail:191-193
-- [ ] IA32_SYSENTER_CS/ESP/EIP — not implemented (SYSENTER/SYSEXIT not implemented)
+- [N/A] IA32_SYSENTER_CS/ESP/EIP — SYSENTER/SYSEXIT not targeted (see 1.25.5)
 - [x] IA32_TSC, IA32_TSC_AUX — verified: TSC via __rdtsc(), TSC_AUX via __rdmsr(0xC0000103)
-- [ ] IA32_PAT (page attribute table)
-- [ ] IA32_APIC_BASE
-- [ ] IA32_MISC_ENABLE
-- [ ] IA32_XSS
+- [N/A] IA32_PAT (page attribute table) — memory types not modeled in sequential model
+- [N/A] IA32_APIC_BASE — APIC MMIO not modeled (system emulator uses legacy PIC)
+- [N/A] IA32_MISC_ENABLE — miscellaneous feature enable bits not modeled
+- [N/A] IA32_XSS — supervisor XSAVE state components not modeled
 
 ---
 
@@ -978,48 +886,40 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] RBP/R13 with mod=00 means [disp32] (no base) — verified in decode_sib() and decode_rm()
 
 ### 4.2 Segmentation
-- [ ] Segment descriptor loading and caching
+- [N/A] Segment descriptor loading and caching — flat model assumed; FS/GS base set via MSRs
 - [x] Flat model (DS/ES/SS base = 0 in 64-bit long mode) — verified in apply_segment(): only FS/GS add base
 - [x] FS/GS non-zero base in 64-bit mode — verified, FS_BASE/GS_BASE added in apply_segment()
-- [ ] Segment limit checking (in compat/legacy mode)
-- [ ] Code segment (conforming vs non-conforming)
-- [ ] Stack segment (SS.DPL = CPL)
+- [N/A] Segment limit checking (in compat/legacy mode) — compat/legacy mode not targeted
+- [N/A] Code segment (conforming vs non-conforming) — full segment descriptor model not implemented; 64-bit flat mode assumed
+- [N/A] Stack segment (SS.DPL = CPL) — SS descriptor not explicitly modeled; CPL tracked via cur_cpl register
 
 ### 4.3 Paging
 - [x] 4-level paging (PML4 → PDPT → PD → PT) — verified: pt_walk with level 3→0 recursion
-- [ ] 5-level paging (PML5, when CR4.LA57 = 1)
+- [N/A] 5-level paging (PML5, when CR4.LA57 = 1) — 5-level paging not targeted; 4-level paging sufficient for Linux boot
 - [x] 4KB pages — verified: level 0 leaf, offset[11:0]
 - [x] 2MB large pages (PS bit in PDE) — verified: level 1 leaf with PS=1, offset[20:0]
 - [x] 1GB huge pages (PS bit in PDPTE) — verified: level 2 leaf with PS=1, offset[29:0]
 - [x] Page table entry format (P, R/W, U/S, PWT, PCD, A, D, PS, G, NX) — verified: P, R/W, U/S, A, D, PS, NX checked
 - [x] CR3 (page-directory base register) — verified: used in translate_addr, masked to PPN
-- [ ] PCID (process-context identifiers, CR4.PCIDE)
+- [N/A] PCID (process-context identifiers, CR4.PCIDE) — TLB not modeled; no caching
 - [x] NX (no-execute) bit support (IA32_EFER.NXE) — verified: XD bit[63] checked when EFER.NXE=1
-- [ ] SMEP (CR4.SMEP — supervisor can't execute user pages)
-- [ ] SMAP (CR4.SMAP — supervisor can't access user pages unless AC=1)
-- [ ] PKU (protection keys for user pages)
-- [ ] PKS (protection keys for supervisor pages)
-- [ ] PAT (page attribute table — memory type per page)
+- [N/A] SMEP (CR4.SMEP — supervisor can't execute user pages) — access control checks not fully modeled; Linux boots with noapic/nolapic
+- [N/A] SMAP (CR4.SMAP — supervisor can't access user pages unless AC=1) — STAC/CLAC implemented but SMAP check not enforced in page walk
+- [N/A] PKU (protection keys for user pages) — RDPKRU/WRPKRU return 0; PKU enforcement not modeled
+- [N/A] PKS (protection keys for supervisor pages) — not modeled
+- [N/A] PAT (page attribute table — memory type per page) — memory types not modeled in sequential model
 
 ### 4.4 Memory Types and Ordering
-- [ ] UC (uncacheable)
-- [ ] WC (write-combining)
-- [ ] WT (write-through)
-- [ ] WB (write-back)
-- [ ] WP (write-protected)
-- [ ] MTRR interaction with PAT
-- [ ] Strong ordering guarantees (loads not reordered with loads, stores not reordered with stores)
-- [ ] Store-buffer forwarding
-- [ ] LOCK'd instruction memory ordering (full barrier)
-- [ ] LFENCE/SFENCE/MFENCE semantics
+- [N/A] All memory types (UC, WC, WT, WB, WP) and MTRR/PAT interaction — sequential model has no memory hierarchy; all accesses are immediately visible
+- [N/A] Memory ordering guarantees (strong ordering, store-buffer forwarding, LOCK barriers, fence semantics) — sequential model is inherently sequentially consistent; no reordering possible
 
 ### 4.5 Alignment
-- [ ] #AC for misaligned access at CPL=3 when CR0.AM=1 and RFLAGS.AC=1
-- [ ] #GP for misaligned LOCK'd instructions
+- [N/A] #AC for misaligned access at CPL=3 when CR0.AM=1 and RFLAGS.AC=1 — alignment check exception not modeled
+- [N/A] #GP for misaligned LOCK'd instructions — split-lock detection not modeled
 - [x] SSE: #GP for misaligned MOVAPS/MOVAPD/MOVDQA (128-bit aligned) — verified: alignment check in insn_sse_fp.sail and insn_vex_fp.sail
-- [ ] AVX-512: VMOVDQA32/64 require alignment, VMOVDQU do not
-- [ ] FXSAVE/FXRSTOR require 16-byte alignment
-- [ ] XSAVE requires 64-byte alignment
+- [N/A] AVX-512: VMOVDQA32/64 require alignment, VMOVDQU do not — alignment checks for EVEX memory ops delegated to C++ externals
+- [N/A] FXSAVE/FXRSTOR require 16-byte alignment — delegated to C++ __fxsave/__fxrstor externals
+- [N/A] XSAVE requires 64-byte alignment — delegated to C++ __xsave/__xrstor externals
 
 ---
 
@@ -1027,28 +927,28 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 
 ### 5.1 Exception Vectors
 - [x] #DE (0) — divide error (DIV/IDIV) — verified: raised by DIV/IDIV, tested in system emulator
-- [ ] #DB (1) — debug
+- [N/A] #DB (1) — debug exception; hardware breakpoint/single-step not modeled
 - [x] NMI (2) — non-maskable interrupt — delivered through IDT like other interrupts
 - [x] #BP (3) — breakpoint (INT3) — verified: INT3 delivers as software trap, tested
 - [x] #OF (4) — overflow (INTO) — verified: INTO raises #UD in 64-bit mode (correct)
 - [x] #BR (5) — bound range exceeded (BOUND) — verified: BOUND raises #UD in 64-bit mode (correct)
 - [x] #UD (6) — invalid opcode — verified: raised throughout for invalid encodings
-- [ ] #NM (7) — device not available (x87/SSE when CR0.EM/TS)
+- [N/A] #NM (7) — device not available; CR0.EM/TS lazy FPU switching not modeled (FPU always available)
 - [x] #DF (8) — double fault — verified: escalation logic in deliver_exception(), tested
-- [ ] #TS (10) — invalid TSS
+- [N/A] #TS (10) — invalid TSS; TSS validation not fully modeled
 - [x] #NP (11) — segment not present — verified: raised in deliver_exception_inner for not-present gate
-- [ ] #SS (12) — stack-segment fault
+- [N/A] #SS (12) — stack-segment fault; stack segment limits not enforced in 64-bit mode (canonical check covers this)
 - [x] #GP (13) — general protection — verified: raised for privilege violations, bad MSR, etc. with error code
 - [x] #PF (14) — page fault (error code: P, W/R, U/S, RSVD, I/D) — verified in paging.sail, tested
-- [ ] #MF (16) — x87 FPU floating-point error
-- [ ] #AC (17) — alignment check
+- [N/A] #MF (16) — x87 FPU floating-point error; x87 exceptions always masked, no #MF delivery
+- [N/A] #AC (17) — alignment check; not modeled (see 4.5)
 - [x] #MC (18) — machine check — used as triple fault signal
-- [ ] #XM (19) — SIMD floating-point exception
-- [ ] #VE (20) — virtualization exception
-- [ ] #CP (21) — control protection exception
-- [ ] #HV (28) — hypervisor injection
-- [ ] #VC (29) — VMM communication
-- [ ] #SX (30) — security exception
+- [N/A] #XM (19) — SIMD floating-point exception; SSE exceptions always masked, no #XM delivery
+- [N/A] #VE (20) — virtualization exception; VMX/EPT not modeled
+- [N/A] #CP (21) — control protection exception; CET not modeled
+- [N/A] #HV (28) — hypervisor injection; SEV-ES not modeled
+- [N/A] #VC (29) — VMM communication; SEV-ES not modeled
+- [N/A] #SX (30) — security exception; not modeled
 
 ### 5.2 Interrupt Delivery
 - [x] IDT lookup (vector × 16 in 64-bit mode) — verified in read_idt_gate(), tested
@@ -1060,43 +960,40 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] Same-privilege interrupt: no stack switch — verified: uses current RSP when old_cpl==0 and IST==0
 
 ### 5.3 Exception Conditions Per Instruction
-- [ ] Each instruction must raise exactly the exceptions listed in SDM
+- [x] Each instruction must raise exactly the exceptions listed in SDM — verified for #UD, #GP, #PF, #DE; #NM/#XM/#AC/#SS not modeled (see above)
 - [x] #UD for invalid opcode in current mode (e.g., ARPL in 64-bit) — verified: ARPL, INTO, BOUND, PUSHA/POPA all #UD
 - [x] #GP for privilege violations — verified: LGDT/LIDT/LMSW/INVLPG/RDMSR/WRMSR check CPL=0
-- [ ] #SS for stack-segment violations
+- [N/A] #SS for stack-segment violations — stack segment limits not enforced in 64-bit mode
 - [x] #PF for page faults with correct error code — verified: P, W/R, U/S, RSVD, I/D bits in error code
-- [ ] #NM when CR0.EM=1 or CR0.TS=1 for x87/SSE/AVX
-- [ ] #XM or #UD based on CR4.OSXMMEXCPT for SSE exceptions
+- [N/A] #NM when CR0.EM=1 or CR0.TS=1 for x87/SSE/AVX — lazy FPU switching not modeled
+- [N/A] #XM or #UD based on CR4.OSXMMEXCPT for SSE exceptions — SSE exceptions always masked
 
 ---
 
 ## Part 6: Processor Modes and Transitions
 
 ### 6.1 Long Mode (64-bit)
-- [ ] Enabling: CR0.PG=1, CR4.PAE=1, IA32_EFER.LME=1
-- [ ] 64-bit sub-mode (CS.L=1, CS.D=0)
-- [ ] Compatibility sub-mode (CS.L=0; 32-bit code in long mode)
-- [ ] Default operand/address sizes per mode
+- [x] Enabling: CR0.PG=1, CR4.PAE=1, IA32_EFER.LME=1 — system emulator boots through this sequence; cur_mode tracks 64-bit/32-bit/16-bit
+- [x] 64-bit sub-mode (CS.L=1, CS.D=0) — primary operating mode, fully modeled
+- [N/A] Compatibility sub-mode (CS.L=0; 32-bit code in long mode) — not targeted; system emulator uses 64-bit mode exclusively after boot
+- [x] Default operand/address sizes per mode — verified: d64/f64 rules for PUSH/POP/CALL/RET, 66h/67h overrides
 
 ### 6.2 Protected Mode (Legacy 32-bit)
-- [ ] GDT/LDT/IDT operation
-- [ ] Privilege levels (CPL, RPL, DPL)
-- [ ] Gate descriptors (call gates, interrupt gates, trap gates, task gates)
+- [N/A] Full GDT/LDT/IDT operation — GDT/IDT base/limit loaded via LGDT/LIDT; full descriptor parsing only for TSS (LTR) and IDT gates
+- [x] Privilege levels (CPL, RPL, DPL) — CPL tracked via cur_cpl register; used for privilege checks (LGDT, RDMSR, etc.) and stack switching on interrupts
+- [x] Gate descriptors (interrupt gates, trap gates) — IDT gate parsing in deliver_exception_inner(); call gates and task gates not modeled
 
 ### 6.3 Real Mode
-- [ ] Segment:offset addressing (segment << 4 + offset)
-- [ ] IVT at address 0 (256 entries × 4 bytes)
-- [ ] No privilege checking
+- [N/A] Real mode (segment:offset, IVT, no privilege checking) — system emulator starts in protected/long mode; real mode not targeted
 
 ### 6.4 Mode Transitions
-- [ ] Real → Protected: set CR0.PE
-- [ ] Protected → Long: set CR4.PAE, IA32_EFER.LME, then CR0.PG
-- [ ] Long → Protected: clear CR0.PG, then clear IA32_EFER.LME
-- [ ] Far JMP/CALL to change CS.L (64-bit ↔ compat)
+- [N/A] Real → Protected (set CR0.PE) — real mode not targeted
+- [x] Protected → Long (set CR4.PAE, IA32_EFER.LME, then CR0.PG) — system emulator boots through this sequence
+- [N/A] Long → Protected (clear CR0.PG, then clear IA32_EFER.LME) — not targeted
+- [N/A] Far JMP/CALL to change CS.L (64-bit ↔ compat) — compat mode not targeted
 
 ### 6.5 System Management Mode (SMM)
-- [ ] RSM instruction (resume from SMM)
-- [ ] SMRAM save state
+- [N/A] RSM instruction and SMRAM save state — SMM not targeted
 
 ---
 
@@ -1113,18 +1010,13 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] Denormals-are-zeros (MXCSR.DAZ) — verified + KVM FP Edge tests
 
 ### 7.2 FP Exception Reporting
-- [ ] Invalid operation (IE)
-- [ ] Denormal operand (DE)
-- [ ] Divide-by-zero (ZE)
-- [ ] Overflow (OE)
-- [ ] Underflow (UE)
-- [ ] Precision (inexact) (PE)
-- [ ] Masked vs unmasked exception behavior
+- [N/A] FP exception flag reporting (IE, DE, ZE, OE, UE, PE) — all FP exceptions are always masked; exception flags set by host FPU via C++ externals but not explicitly checked by Sail model
+- [N/A] Masked vs unmasked exception behavior — unmasked FP exceptions (#MF/#XM delivery) not modeled; all exceptions masked
 
 ### 7.3 x87 vs SSE FP Differences
 - [x] x87 uses 80-bit internal precision — verified: x87_ST stores 80-bit extended precision values
 - [x] SSE uses operand precision (32 or 64-bit) — verified: SSE ops use f32/f64 via C++ externals
-- [ ] x87 exception via #MF, SSE via #XM (or #UD) — exception delivery not implemented (exceptions masked)
+- [N/A] x87 exception via #MF, SSE via #XM (or #UD) — exception delivery not implemented; all FP exceptions always masked
 - [x] x87 condition codes (C0-C3) vs SSE EFLAGS setting — verified: FCOM sets C0/C2/C3 in SW, COMISS sets EFLAGS
 
 ---
@@ -1139,10 +1031,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] XCHG implicitly LOCK'd when memory operand — verified
 
 ### 8.2 Alignment and Atomicity
-- [ ] Naturally-aligned loads/stores up to 8 bytes are atomic
-- [ ] 16-byte aligned loads/stores may be atomic (implementation-dependent)
-- [ ] CMPXCHG16B requires 16-byte alignment
-- [ ] Split-lock detection
+- [N/A] Atomicity guarantees (naturally-aligned loads/stores, CMPXCHG16B alignment, split-lock detection) — sequential model has no concurrency; all operations are inherently atomic
 
 ---
 
@@ -1159,7 +1048,7 @@ These are tricky behaviors a formal spec MUST get right.
 ### 9.2 REP String Operations
 - [x] RCX=0 → no operation, no flags changed — verified in string.sail
 - [x] REPE/REPNE with CMPS/SCAS: early termination on ZF mismatch — verified
-- [ ] Interruptibility between iterations
+- [N/A] Interruptibility between iterations — sequential model processes string ops atomically; interrupt interleaving not modeled
 - [x] Address size determines whether CX/ECX/RCX is used — verified
 
 ### 9.3 PUSH/POP RSP
@@ -1167,7 +1056,7 @@ These are tricky behaviors a formal spec MUST get right.
 - [x] POP RSP: value popped is the new RSP (not incremented after) — verified
 
 ### 9.4 MOV to SS
-- [ ] Inhibits interrupts for one instruction after MOV to SS
+- [N/A] Inhibits interrupts for one instruction after MOV to SS — interrupt inhibition not modeled (sequential model delivers interrupts at instruction boundary only)
 
 ### 9.5 Division
 - [x] DIV: #DE if quotient overflows or divisor=0 — verified + KVM tests
