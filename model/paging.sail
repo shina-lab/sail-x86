@@ -174,9 +174,9 @@ val __tlb_flush : unit -> unit
 // Otherwise, checks TLB first, then walks the page table starting from CR3.
 val translate_addr : (qword, PTAccess) -> qword
 function translate_addr(linear, access) = {
-  if CR0[31] == bitzero then
+  if CR0[31] == bitzero then {
     linear  // Paging disabled: linear = physical
-  else {
+  } else {
     let is_write = access == PT_Write;
     match __tlb_lookup(linear, is_write) {
       Some(paddr) => paddr,

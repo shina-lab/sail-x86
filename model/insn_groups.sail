@@ -301,13 +301,13 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
     match reg_field {
       0 => (),  // unreachable, handled above
       1 => (),  // unreachable, handled above
+      // NOT r/m8
       2 => {
-        // NOT r/m8
         let result = v ^ 0x00000000000000FF;
         write_rm_val(rm, OS8, pfx.has_rex, result)
       },
+      // NEG r/m8
       3 => {
-        // NEG r/m8
         let zero : qword = zeros();
         let result = zero - v;
         update_flags_sub(result[7..0], zero[7..0], v[7..0]);
@@ -344,13 +344,13 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     match reg_field {
       0 => (),  // unreachable
       1 => (),  // unreachable
+      // NOT r/m
       2 => {
-        // NOT r/m
         let result = ~(v);
         write_rm_val(rm, os, pfx.has_rex, result)
       },
+      // NEG r/m
       3 => {
-        // NEG r/m
         let zero : qword = zeros();
         let result = zero - v;
         match os {
@@ -376,24 +376,24 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
 val dispatch_group5 : (range(0, 7), RM, Prefixes) -> unit
 function dispatch_group5(reg_field, rm, pfx) = {
   match reg_field {
+    // INC r/m
     0 => {
-      // INC r/m
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
       let result = exec_inc(v, os);
       write_rm_val(rm, os, pfx.has_rex, result)
     },
+    // DEC r/m
     1 => {
-      // DEC r/m
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
       let result = exec_dec(v, os);
       write_rm_val(rm, os, pfx.has_rex, result)
     },
+    // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
+    // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
+    // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
     2 => {
-      // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
-      // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
-      // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
       let os = get_operand_size_f64(pfx);
       let target = read_rm_val(rm, os, pfx.has_rex);
       let return_addr = decode_pos;
@@ -405,13 +405,13 @@ function dispatch_group5(reg_field, rm, pfx) = {
       };
       next_rip = Some(target)
     },
+    // JMP near indirect (f64)
     4 => {
-      // JMP near indirect (f64)
       let target = read_rm_val(rm, OS64, pfx.has_rex);
       next_rip = Some(target)
     },
+    // PUSH r/m (d64)
     6 => {
-      // PUSH r/m (d64)
       let os = get_operand_size_d64(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
       exec_push_imm(v, os)

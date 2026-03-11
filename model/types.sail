@@ -214,14 +214,14 @@ function modrm_rm_reg(modrm, pfx) = {
 
 val read_byte_reg : (gpr_idx, bool) -> byte
 function read_byte_reg(idx, has_rex) =
-  if not_bool(has_rex) & idx >= 4 & idx <= 7 then
+  if not_bool(has_rex) & 4 <= idx & idx <= 7 then
     read_gpr8h(idx - 4)
   else
     read_gpr8l(idx)
 
 val write_byte_reg : (gpr_idx, bool, byte) -> unit
 function write_byte_reg(idx, has_rex, v) =
-  if not_bool(has_rex) & idx >= 4 & idx <= 7 then
+  if not_bool(has_rex) & 4 <= idx & idx <= 7 then
     write_gpr8h(idx - 4, v)
   else
     write_gpr8l(idx, v)

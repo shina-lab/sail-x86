@@ -295,9 +295,9 @@ function vex_pshufb_128(src, ctrl) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 15) {
     let c : byte = ctrl[(i*8+7)..(i*8)];
-    if c[7] == bitone then
+    if c[7] == bitone then {
       result[(i*8+7)..(i*8)] = 0x00
-    else {
+    } else {
       let idx : range(0, 15) = unsigned(c[3..0]);
       result[(i*8+7)..(i*8)] = src[(idx*8+7)..(idx*8)]
     }

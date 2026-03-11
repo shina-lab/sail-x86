@@ -542,10 +542,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             let a : dword = read_xmm(xreg)[31..0];
             let b : dword = src_xmm[31..0];
             match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+              FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+              FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+              FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+              FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
             };
             OF = bitzero;
             AF = bitzero;
@@ -555,10 +555,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             let a : qword = read_xmm(xreg)[63..0];
             let b : qword = src_xmm[63..0];
             match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+              FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+              FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+              FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+              FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
             };
             OF = bitzero;
             AF = bitzero;
@@ -586,10 +586,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             let a : dword = read_xmm(xreg)[31..0];
             let b : dword = src_xmm[31..0];
             match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+              FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+              FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+              FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+              FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
             };
             OF = bitzero;
             AF = bitzero;
@@ -599,10 +599,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             let a : qword = read_xmm(xreg)[63..0];
             let b : qword = src_xmm[63..0];
             match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+              FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+              FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+              FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+              FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
             };
             OF = bitzero;
             AF = bitzero;
@@ -648,7 +648,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       };
       let arith_op : range(0, 15) = op - 80;
       match arith_op {
-        1 => { // 0F 51: SQRT
+        // 0F 51: SQRT
+        1 => {
           match mp {
             MP_NONE => {
                 let r : xmmword = __f32_sqrt(src_xmm[127..96]) @
@@ -672,35 +673,40 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        4 => { // 0F 54: ANDPS/ANDPD
+        // 0F 54: ANDPS/ANDPD
+        4 => {
           match mp {
             MP_NONE => write_xmm_legacy(xreg, read_xmm(xreg) & src_xmm),
             MP_66 => write_xmm_legacy(xreg, read_xmm(xreg) & src_xmm),
             _       => raise_UD(),
           }
         },
-        5 => { // 0F 55: ANDNPS/ANDNPD
+        // 0F 55: ANDNPS/ANDNPD
+        5 => {
           match mp {
             MP_NONE => write_xmm_legacy(xreg, ~(read_xmm(xreg)) & src_xmm),
             MP_66 => write_xmm_legacy(xreg, ~(read_xmm(xreg)) & src_xmm),
             _       => raise_UD(),
           }
         },
-        6 => { // 0F 56: ORPS/ORPD
+        // 0F 56: ORPS/ORPD
+        6 => {
           match mp {
             MP_NONE => write_xmm_legacy(xreg, read_xmm(xreg) | src_xmm),
             MP_66 => write_xmm_legacy(xreg, read_xmm(xreg) | src_xmm),
             _       => raise_UD(),
           }
         },
-        7 => { // 0F 57: XORPS/XORPD
+        // 0F 57: XORPS/XORPD
+        7 => {
           match mp {
             MP_NONE => write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)),
             MP_66 => write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)),
             _       => raise_UD(),
           }
         },
-        8 => { // 0F 58: ADD
+        // 0F 58: ADD
+        8 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -728,7 +734,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        9 => { // 0F 59: MUL
+        // 0F 59: MUL
+        9 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -754,7 +761,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        10 => { // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
+        // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
+        10 => {
           match mp {
             MP_NONE => {
               let r : xmmword = __f32_to_f64(src_xmm[63..32]) @ __f32_to_f64(src_xmm[31..0]);
@@ -778,7 +786,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             },
           }
         },
-        11 => { // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ
+        // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ
+        11 => {
           match mp {
             MP_NONE => {
               let r : xmmword = __int32_to_f32(src_xmm[127..96]) @ __int32_to_f32(src_xmm[95..64]) @
@@ -798,7 +807,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             _       => raise_UD(),
           }
         },
-        12 => { // 0F 5C: SUB
+        // 0F 5C: SUB
+        12 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -824,7 +834,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        13 => { // 0F 5D: MIN
+        // 0F 5D: MIN
+        13 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -850,7 +861,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        14 => { // 0F 5E: DIV
+        // 0F 5E: DIV
+        14 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -876,7 +888,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        15 => { // 0F 5F: MAX
+        // 0F 5F: MAX
+        15 => {
           match mp {
             MP_NONE => {
                 let a : xmmword = read_xmm(xreg);
@@ -902,7 +915,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               },
           }
         },
-        2 => { // 0F 52: RSQRTPS/RSQRTSS
+        // 0F 52: RSQRTPS/RSQRTSS
+        2 => {
           match mp {
             MP_NONE => {
                 var xmm : xmmword = zeros();
@@ -920,7 +934,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             _       => raise_UD(),
           }
         },
-        3 => { // 0F 53: RCPPS/RCPSS
+        // 0F 53: RCPPS/RCPSS
+        3 => {
           match mp {
             MP_NONE => {
                 var xmm : xmmword = zeros();
@@ -1256,8 +1271,8 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
     match op {
+      // BLENDVPS xmm1, xmm2/m128, <XMM0>
       20 => {
-        // BLENDVPS
         let a : xmmword = read_xmm(xreg);
         let m : xmmword = read_xmm(0);
         let d0 : dword = if m[31] == bitone then src_xmm[31..0] else a[31..0];
@@ -1266,8 +1281,8 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
         let d3 : dword = if m[127] == bitone then src_xmm[127..96] else a[127..96];
         write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
       },
+      // BLENDVPD xmm1, xmm2/m128, <XMM0>
       21 => {
-        // BLENDVPD
         let a : xmmword = read_xmm(xreg);
         let m : xmmword = read_xmm(0);
         let lo : qword = if m[63] == bitone then src_xmm[63..0] else a[63..0];

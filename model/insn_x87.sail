@@ -368,8 +368,8 @@ function dispatch_x87_db(modrm, rm, _) = {
         1 => if ZF == bitzero then x87_write_st(0, x87_read_st(sti)),
         2 => if CF == bitzero & ZF == bitzero then x87_write_st(0, x87_read_st(sti)),
         3 => if PF == bitzero then x87_write_st(0, x87_read_st(sti)),
+        // FNCLEX — clear exception flags
         4 => {
-          // FNCLEX — clear exception flags
           if modrm_val == 226 then {
             var sw : word = x87_sw;
             sw[7 .. 0] = 0x00;

@@ -73,8 +73,9 @@ function popcount32(v) =
 val lzcnt64 : (qword, range(0, 63)) -> range(0, 64)
 function lzcnt64(v, idx) =
   if idx == 0 then (if bit_to_bool(v[0]) then 0 else 1)
-  else if bit_to_bool(v[idx]) then 0
-  else {
+  else if bit_to_bool(v[idx]) then {
+    0
+  } else {
     let rest = lzcnt64(v, idx - 1);
     // rest is count of zeros in [idx-1..0], add 1 for bit idx being 0
     let total : range(0, 65) = rest + 1;
@@ -113,8 +114,9 @@ function exec_shld(d, s, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then d
-  else {
+  if count == 0 then {
+    d
+  } else {
     let result : qword = match os {
       OS16 => {
         if count > 16 then {
@@ -177,8 +179,9 @@ function exec_shrd(d, s, count_raw, os) = {
     OS64 => unsigned(count_raw) % 64,
     _    => unsigned(count_raw) % 32,
   };
-  if count == 0 then d
-  else {
+  if count == 0 then {
+    d
+  } else {
     let result : qword = match os {
       OS16 => {
         if count > 16 then {
@@ -774,68 +777,67 @@ function dispatch_2byte_gpr(op, pfx) = {
       // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
       if pfx.has_rep & reg_field <= 3 then {
         match rm {
-          RM_reg(r) => {
-            if reg_field == 0 then {
-              // F3 0F AE /0 mod=11: RDFSBASE r32/r64
+          RM_reg(r) => match reg_field {
+            // F3 0F AE /0 mod=11: RDFSBASE r32/r64
+            0 => {
               if pfx.rex_w then write_gpr64(r, FS_BASE)
               else write_gpr32(r, FS_BASE[31..0])
-            } else if reg_field == 1 then {
-              // F3 0F AE /1 mod=11: RDGSBASE r32/r64
+            },
+            // F3 0F AE /1 mod=11: RDGSBASE r32/r64
+            1 => {
               if pfx.rex_w then write_gpr64(r, GS_BASE)
               else write_gpr32(r, GS_BASE[31..0])
-            } else if reg_field == 2 then {
-              // F3 0F AE /2 mod=11: WRFSBASE r32/r64
+            },
+            // F3 0F AE /2 mod=11: WRFSBASE r32/r64
+            2 => {
               if pfx.rex_w then FS_BASE = read_gpr64(r)
               else FS_BASE = zero_extend(read_gpr32(r))
-            } else {
-              // F3 0F AE /3 mod=11: WRGSBASE r32/r64
+            },
+            // F3 0F AE /3 mod=11: WRGSBASE r32/r64
+            3 => {
               if pfx.rex_w then GS_BASE = read_gpr64(r)
               else GS_BASE = zero_extend(read_gpr32(r))
-            }
+            },
+            _ => raise_UD(),
           },
           RM_mem(_) => raise_UD(),
         }
-      } else if reg_field == 0 then {
-        // /0: FXSAVE m512byte
-        match rm {
+      } else match reg_field {
+        // FXSAVE m512byte
+        0 => match rm {
           RM_mem(addr) => {
             if pfx.rex_w then __fxsave64(fixup_addr(addr))
             else __fxsave(fixup_addr(addr))
           },
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 1 then {
-        // /1: FXRSTOR m512byte
-        match rm {
+        },
+        // FXRSTOR m512byte
+        1 => match rm {
           RM_mem(addr) => {
             if pfx.rex_w then __fxrstor64(fixup_addr(addr))
             else __fxrstor(fixup_addr(addr))
           },
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 2 then {
-        // /2: LDMXCSR m32
-        match rm {
+        },
+        // LDMXCSR m32
+        2 => match rm {
           RM_mem(addr) => __ldmxcsr(mem_read32(addr)),
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 3 then {
-        // /3: STMXCSR m32
-        match rm {
+        },
+        // STMXCSR m32
+        3 => match rm {
           RM_mem(addr) => mem_write32(addr, __stmxcsr()),
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 4 then {
-        // /4: XSAVE m
-        match rm {
+        },
+        // XSAVE m
+        4 => match rm {
           RM_mem(addr) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(fixup_addr(addr), mask)
           },
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 5 then {
-        match rm {
+        },
+        5 => match rm {
           RM_mem(addr) => {
             // /5 mem: XRSTOR m
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
@@ -845,15 +847,11 @@ function dispatch_2byte_gpr(op, pfx) = {
             // /5 mod=11: LFENCE
             ()
           },
-        }
-      } else if reg_field == 6 then {
+        },
         // /6 mod=11: MFENCE
-        ()
-      } else if reg_field == 7 then {
+        6 => (),
         // /7 mod=11: SFENCE
-        ()
-      } else {
-        raise_UD()
+        _ => (),
       }
     },
     // 0F A2: CPUID
@@ -1058,26 +1056,28 @@ function dispatch_2byte_gpr(op, pfx) = {
           _    => unsigned(imm[4..0]),
         };
         CF = v[bit_num];
-        if reg_field == 4 then {
+        match reg_field {
           // BT — just test, no modification
-          ()
-        } else if reg_field == 5 then {
+          4 => (),
           // BTS — set bit
-          var result : qword = v;
-          result[bit_num] = bitone;
-          write_rm_val(rm, os, pfx.has_rex, result)
-        } else if reg_field == 6 then {
+          5 => {
+            var result : qword = v;
+            result[bit_num] = bitone;
+            write_rm_val(rm, os, pfx.has_rex, result)
+          },
           // BTR — reset bit
-          var result : qword = v;
-          result[bit_num] = bitzero;
-          write_rm_val(rm, os, pfx.has_rex, result)
-        } else if reg_field == 7 then {
+          6 => {
+            var result : qword = v;
+            result[bit_num] = bitzero;
+            write_rm_val(rm, os, pfx.has_rex, result)
+          },
           // BTC — complement bit
-          var result : qword = v;
-          result[bit_num] = ~(v[bit_num]);
-          write_rm_val(rm, os, pfx.has_rex, result)
-        } else {
-          raise_UD()
+          7 => {
+            var result : qword = v;
+            result[bit_num] = ~(v[bit_num]);
+            write_rm_val(rm, os, pfx.has_rex, result)
+          },
+          _ => raise_UD(),
         }
       }
     },
@@ -1103,7 +1103,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
-        // TZCNT
+        // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         let src = modrm_rm_reg(modrm, pfx);
         let src_val : qword = read_gpr(src, os);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
@@ -1119,7 +1119,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         CF = bool_to_bit(is_zero);
         ZF = bool_to_bit(count == 0)
       } else {
-        // BSF
+        // BSF r16/r32/r64, r/m16/r/m32/r/m64
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let is_zero : bool = match os {
           OS8  => src_val[7..0] == zeros(),
@@ -1143,7 +1143,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
-        // LZCNT
+        // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         let src = modrm_rm_reg(modrm, pfx);
         let src_val : qword = read_gpr(src, os);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
@@ -1157,7 +1157,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         CF = bool_to_bit(count == os_bits);
         ZF = bool_to_bit(count == 0)
       } else {
-        // BSR
+        // BSR r16/r32/r64, r/m16/r/m32/r/m64
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let is_zero : bool = match os {
           OS8  => src_val[7..0] == zeros(),
@@ -1288,8 +1288,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
-      if reg_field == 1 then {
-        match rm {
+      match reg_field {
+        // CMPXCHG8B/CMPXCHG16B m64/m128
+        1 => match rm {
           RM_mem(addr) => {
             if pfx.rex_w then {
               let mem_lo : qword = mem_read64(addr);
@@ -1318,10 +1319,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             }
           },
           RM_reg(_) => raise_UD(),
-        }
-      } else if reg_field == 6 then {
+        },
         // /6 mod=11: RDRAND r16/r32/r64
-        match rm {
+        6 => match rm {
           RM_reg(r) => {
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdrand64();
@@ -1342,10 +1342,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
           RM_mem(_) => raise_UD(),
-        }
-      } else if reg_field == 7 then {
+        },
         // /7 mod=11: RDSEED r16/r32/r64
-        match rm {
+        7 => match rm {
           RM_reg(r) => {
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdseed64();
@@ -1366,9 +1365,8 @@ function dispatch_2byte_gpr(op, pfx) = {
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
           RM_mem(_) => raise_UD(),
-        }
-      } else {
-        raise_UD()
+        },
+        _ => raise_UD(),
       }
     },
     // 0F C8-CF: BSWAP r32/r64 (register in opcode)

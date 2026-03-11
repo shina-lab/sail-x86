@@ -42,9 +42,9 @@ function avx_pshufb_128(src, ctrl) = {
   foreach (j from 0 to 15) {
     let jj : range(0, 120) = j * 8;
     let c : byte = ctrl[(jj + 7)..jj];
-    if c[7] == bitone then
+    if c[7] == bitone then {
       r[(jj + 7)..jj] = 0x00
-    else {
+    } else {
       let idx : range(0, 120) = unsigned(c[3..0]) * 8;
       r[(jj + 7)..jj] = src[(idx + 7)..idx];
     }
@@ -1842,14 +1842,14 @@ function dispatch_evex_perm(op, pfx) = {
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
       let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
       if pfx.rex_w then {
-        // VEXPANDPD
+        // VEXPANDPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vexpandpd_512(evex_src_zmm(modrm, rm, pfx), k[7..0])),
           1 => write_ymm(dst, avx_vexpandpd_256(evex_src_ymm(modrm, rm, pfx), k[7..0])),
           _ => write_xmm(dst, avx_vexpandpd_128(evex_src_xmm(modrm, rm, pfx), k[7..0])),
         }
       } else {
-        // VEXPANDPS
+        // VEXPANDPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vexpandps_512(evex_src_zmm(modrm, rm, pfx), k[15..0])),
           1 => write_ymm(dst, avx_vexpandps_256(evex_src_ymm(modrm, rm, pfx), k[7..0])),
@@ -1983,7 +1983,9 @@ function dispatch_evex_perm(op, pfx) = {
 
   // 0F38 64: VPBLENDMD (66,W0) / VPBLENDMQ (66,W1) — mask-controlled blend
   100 => {
-    if mp != MP_66 then { raise_UD() } else {
+    if mp != MP_66 then {
+      raise_UD()
+    } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
@@ -2076,7 +2078,9 @@ function dispatch_evex_perm(op, pfx) = {
 
   // 0F38 65: VBLENDMPS (66,W0) / VBLENDMPD (66,W1) — mask-controlled FP blend
   101 => {
-    if mp != MP_66 then { raise_UD() } else {
+    if mp != MP_66 then {
+      raise_UD()
+    } else {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);

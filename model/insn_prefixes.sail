@@ -17,63 +17,54 @@ function scan_prefixes() = {
     let bv : range(0, 255) = unsigned(b);
 
     // Clear REX state on any legacy prefix (REX must be last)
-    if bv == 240 then {
+    match bv {
       // F0 = LOCK
-      pfx = {pfx with has_lock = true, has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 242 then {
+      240 => pfx = {pfx with has_lock = true, has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // F2 = REPNE / mandatory prefix
-      pfx = {pfx with has_repne = true, has_rep = false, has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 243 then {
+      242 => pfx = {pfx with has_repne = true, has_rep = false, has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // F3 = REP / mandatory prefix
-      pfx = {pfx with has_rep = true, has_repne = false, has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 38 then {
+      243 => pfx = {pfx with has_rep = true, has_repne = false, has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 26 = ES override
-      pfx = {pfx with seg_override = Some(ES), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 46 then {
+      38 => pfx = {pfx with seg_override = Some(ES), has_rex = false,
+              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 2E = CS override
-      pfx = {pfx with seg_override = Some(CS), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 54 then {
+      46 => pfx = {pfx with seg_override = Some(CS), has_rex = false,
+              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 36 = SS override
-      pfx = {pfx with seg_override = Some(SS), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 62 then {
+      54 => pfx = {pfx with seg_override = Some(SS), has_rex = false,
+              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 3E = DS override
-      pfx = {pfx with seg_override = Some(DS), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 100 then {
+      62 => pfx = {pfx with seg_override = Some(DS), has_rex = false,
+              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 64 = FS override
-      pfx = {pfx with seg_override = Some(FS), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 101 then {
+      100 => pfx = {pfx with seg_override = Some(FS), has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 65 = GS override
-      pfx = {pfx with seg_override = Some(GS), has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 102 then {
+      101 => pfx = {pfx with seg_override = Some(GS), has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 66 = operand size override
-      pfx = {pfx with has_opsize = true, has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv == 103 then {
+      102 => pfx = {pfx with has_opsize = true, has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 67 = address size override
-      pfx = {pfx with has_adsize = true, has_rex = false,
-             rex_w = false, rex_r = false, rex_x = false, rex_b = false};
-    } else if bv >= 64 & bv <= 79 & cur_mode == LongMode then {
+      103 => pfx = {pfx with has_adsize = true, has_rex = false,
+               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
       // 40-4F = REX prefix (64-bit mode only; INC/DEC in 32-bit mode)
-      pfx = {pfx with
-        has_rex = true,
-        rex_w = b[3] == bitone,
-        rex_r = b[2] == bitone,
-        rex_x = b[1] == bitone,
-        rex_b = b[0] == bitone,
-      };
-    } else {
-      // Not a prefix — this is the opcode byte
-      opcode = b;
-      done = true;
+      bv if 64 <= bv & bv <= 79 & cur_mode == LongMode =>
+        pfx = {pfx with
+          has_rex = true,
+          rex_w = b[3] == bitone,
+          rex_r = b[2] == bitone,
+          rex_x = b[1] == bitone,
+          rex_b = b[0] == bitone,
+        },
+      _ => {
+        // Not a prefix — this is the opcode byte
+        opcode = b;
+        done = true;
+      },
     }
   };
   (pfx, opcode)

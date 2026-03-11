@@ -658,8 +658,9 @@ function avx_prorvd_128(src, cnt) = {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
     let elem : bits(32) = src[(lo + 31)..lo];
-    if c == 0 then r[(lo + 31)..lo] = elem
-    else {
+    if c == 0 then {
+      r[(lo + 31)..lo] = elem
+    } else {
       let rc : range(1, 31) = 32 - c;
       r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits(5, rc));
     }
@@ -684,8 +685,9 @@ function avx_prorvq_128(src, cnt) = {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
     let elem : bits(64) = src[(lo + 63)..lo];
-    if c == 0 then r[(lo + 63)..lo] = elem
-    else {
+    if c == 0 then {
+      r[(lo + 63)..lo] = elem
+    } else {
       let rc : range(1, 63) = 64 - c;
       r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits(6, rc));
     }
@@ -710,8 +712,9 @@ function avx_prolvd_128(src, cnt) = {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
     let elem : bits(32) = src[(lo + 31)..lo];
-    if c == 0 then r[(lo + 31)..lo] = elem
-    else {
+    if c == 0 then {
+      r[(lo + 31)..lo] = elem
+    } else {
       let rc : range(1, 31) = 32 - c;
       r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits(5, rc));
     }
@@ -736,8 +739,9 @@ function avx_prolvq_128(src, cnt) = {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
     let elem : bits(64) = src[(lo + 63)..lo];
-    if c == 0 then r[(lo + 63)..lo] = elem
-    else {
+    if c == 0 then {
+      r[(lo + 63)..lo] = elem
+    } else {
       let rc : range(1, 63) = 64 - c;
       r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits(6, rc));
     }
@@ -1987,8 +1991,9 @@ function avx_vpmovq2m_512(src) = {
 
 val avx_lzcnt32 : dword -> dword
 function avx_lzcnt32(v) = {
-  if v == zeros() then 0x00000020
-  else {
+  if v == zeros() then {
+    0x00000020
+  } else {
     let count : range(0, 32) = 0;
     foreach (i from 31 downto 0) {
       if v[i] == bitone then return to_bits(32, 31 - i)
@@ -1999,8 +2004,9 @@ function avx_lzcnt32(v) = {
 
 val avx_lzcnt64 : qword -> qword
 function avx_lzcnt64(v) = {
-  if v == zeros() then 0x0000000000000040
-  else {
+  if v == zeros() then {
+    0x0000000000000040
+  } else {
     foreach (i from 63 downto 0) {
       if v[i] == bitone then return to_bits(64, 63 - i)
     };
@@ -2867,14 +2873,14 @@ function dispatch_evex_arith(op, pfx) = {
       let dst_k : kreg_idx = unsigned(modrm[5..3]);
       let src_idx = evex_rm_reg_idx(modrm, pfx);
       if pfx.rex_w then {
-        // VPMOVW2M
+        // VPMOVW2M k1, xmm2/ymm2/zmm2
         match pfx.evex_ll {
           2 => write_kreg(dst_k, avx_vpmovw2m_512(read_zmm(src_idx))),
           1 => write_kreg(dst_k, avx_vpmovw2m_256(read_ymm(src_idx))),
           _ => write_kreg(dst_k, avx_vpmovw2m_128(read_xmm(src_idx))),
         }
       } else {
-        // VPMOVB2M
+        // VPMOVB2M k1, xmm2/ymm2/zmm2
         match pfx.evex_ll {
           2 => write_kreg(dst_k, avx_vpmovb2m_512(read_zmm(src_idx))),
           1 => write_kreg(dst_k, avx_vpmovb2m_256(read_ymm(src_idx))),
@@ -2994,14 +3000,14 @@ function dispatch_evex_arith(op, pfx) = {
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
       let k_val = read_kreg(k_idx);
       if pfx.rex_w then {
-        // VPMOVM2Q
+        // VPMOVM2Q xmm1/ymm1/zmm1, k1
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vpmovm2q_512(k_val)),
           1 => write_ymm(dst, avx_vpmovm2q_256(k_val)),
           _ => write_xmm(dst, avx_vpmovm2q_128(k_val)),
         }
       } else {
-        // VPMOVM2D
+        // VPMOVM2D xmm1/ymm1/zmm1, k1
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vpmovm2d_512(k_val)),
           1 => write_ymm(dst, avx_vpmovm2d_256(k_val)),
@@ -3041,14 +3047,14 @@ function dispatch_evex_arith(op, pfx) = {
       let dst_k : kreg_idx = unsigned(modrm[5..3]);
       let src_idx = evex_rm_reg_idx(modrm, pfx);
       if pfx.rex_w then {
-        // VPMOVQ2M
+        // VPMOVQ2M k1, xmm2/ymm2/zmm2
         match pfx.evex_ll {
           2 => write_kreg(dst_k, avx_vpmovq2m_512(read_zmm(src_idx))),
           1 => write_kreg(dst_k, avx_vpmovq2m_256(read_ymm(src_idx))),
           _ => write_kreg(dst_k, avx_vpmovq2m_128(read_xmm(src_idx))),
         }
       } else {
-        // VPMOVD2M
+        // VPMOVD2M k1, xmm2/ymm2/zmm2
         match pfx.evex_ll {
           2 => write_kreg(dst_k, avx_vpmovd2m_512(read_zmm(src_idx))),
           1 => write_kreg(dst_k, avx_vpmovd2m_256(read_ymm(src_idx))),
@@ -3273,14 +3279,14 @@ function dispatch_evex_arith(op, pfx) = {
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
       let k_val = read_kreg(k_idx);
       if pfx.rex_w then {
-        // VPMOVM2W
+        // VPMOVM2W xmm1/ymm1/zmm1, k1
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vpmovm2w_512(k_val)),
           1 => write_ymm(dst, avx_vpmovm2w_256(k_val)),
           _ => write_xmm(dst, avx_vpmovm2w_128(k_val)),
         }
       } else {
-        // VPMOVM2B
+        // VPMOVM2B xmm1/ymm1/zmm1, k1
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vpmovm2b_512(k_val)),
           1 => write_ymm(dst, avx_vpmovm2b_256(k_val)),
@@ -4570,7 +4576,7 @@ function dispatch_evex_arith(op, pfx) = {
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
     match mp {
       MP_66 => {
-        // VPDPWSSD
+        // VPDPWSSD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
         match pfx.evex_ll {
           2 => write_zmm(dst, avx_vpdpwssd_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem))),
           1 => write_ymm(dst, avx_vpdpwssd_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem))),

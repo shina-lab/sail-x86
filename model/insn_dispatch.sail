@@ -115,16 +115,16 @@ function dispatch_alu_opcode(op, pfx) = {
     raise_UD()
   } else {
     match col {
+      // OP r/m8, r8
       0 => {
-        // OP r/m8, r8
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         check_lock_rm(pfx, rm, alu_op == ALU_CMP);
         exec_alu_rm_reg_byte(alu_op, rm, reg, pfx)
       },
+      // OP r/m, r (word/dword/qword)
       1 => {
-        // OP r/m, r (word/dword/qword)
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
@@ -132,28 +132,28 @@ function dispatch_alu_opcode(op, pfx) = {
         check_lock_rm(pfx, rm, alu_op == ALU_CMP);
         exec_alu_rm_reg(alu_op, rm, reg, os, pfx)
       },
+      // OP r8, r/m8
       2 => {
-        // OP r8, r/m8
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         exec_alu_reg_rm_byte(alu_op, reg, rm, pfx)
       },
+      // OP r, r/m (word/dword/qword)
       3 => {
-        // OP r, r/m (word/dword/qword)
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         exec_alu_reg_rm(alu_op, reg, rm, os, pfx)
       },
+      // OP AL, imm8
       4 => {
-        // OP AL, imm8
         let imm : qword = zero_extend(fetch_byte());
         exec_alu_acc_imm(alu_op, imm, OS8, pfx)
       },
+      // OP rAX, imm (Iz: 16 or 32 bit, sign-extended)
       5 => {
-        // OP rAX, imm (Iz: 16 or 32 bit, sign-extended)
         let os = get_operand_size(pfx);
         let imm = fetch_imm_z(os);
         exec_alu_acc_imm(alu_op, imm, os, pfx)
@@ -320,9 +320,9 @@ val exec_rep : (RepPrefix, StringOp, OperandSize, AddressSize) -> unit
 function exec_rep(prefix, op, os, asz) = {
   var done : bool = false;
   while ~(done) do {
-    if read_count_reg(asz) == zeros() then
+    if read_count_reg(asz) == zeros() then {
       done = true
-    else {
+    } else {
       match op {
         STR_movs => exec_movs(os, asz),
         STR_stos => exec_stos(os, asz),
@@ -546,26 +546,38 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       58 => {
         let opcode3 = fetch_byte();
         let op3 : range(0, 255) = unsigned(opcode3);
-        if op3 == 8 then dispatch_3byte_3a_sse_fp(opcode3, pfx)       // ROUNDPS
-        else if op3 == 9 then dispatch_3byte_3a_sse_fp(opcode3, pfx)  // ROUNDPD
-        else if op3 == 10 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // ROUNDSS
-        else if op3 == 11 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // ROUNDSD
-        else if op3 == 12 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // BLENDPS
-        else if op3 == 13 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // BLENDPD
-        else if op3 == 23 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // EXTRACTPS
-        else if op3 == 33 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // INSERTPS
-        else if op3 == 64 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // DPPS
-        else if op3 == 65 then dispatch_3byte_3a_sse_fp(opcode3, pfx) // DPPD
-        else if op3 == 204 & get_mandatory_prefix(pfx) == MP_NONE then {
-          // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
-          let modrm = fetch_byte();
-          let xreg = modrm_xmm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
-          let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-          let imm : byte = fetch_byte();
-          write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm))
+        match op3 {
+          // ROUNDPS xmm1, xmm2/m128, imm8
+          8  => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // ROUNDPD xmm1, xmm2/m128, imm8
+          9  => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // ROUNDSS xmm1, xmm2/m32, imm8
+          10 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // ROUNDSD xmm1, xmm2/m64, imm8
+          11 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // BLENDPS xmm1, xmm2/m128, imm8
+          12 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // BLENDPD xmm1, xmm2/m128, imm8
+          13 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // EXTRACTPS r/m32, xmm1, imm8
+          23 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // INSERTPS xmm1, xmm2/m32, imm8
+          33 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // DPPS xmm1, xmm2/m128, imm8
+          64 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          // DPPD xmm1, xmm2/m128, imm8
+          65 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+          204 if get_mandatory_prefix(pfx) == MP_NONE => {
+            // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
+            let modrm = fetch_byte();
+            let xreg = modrm_xmm_reg(modrm, pfx);
+            let rm = decode_rm(modrm, pfx);
+            let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+            let imm : byte = fetch_byte();
+            write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm))
+          },
+          _  => dispatch_3byte_3a_sse_int(opcode3, pfx),
         }
-        else dispatch_3byte_3a_sse_int(opcode3, pfx)
       },
 
       // SSE floating-point (data movement, arithmetic, conversion, comparison)
@@ -1388,7 +1400,9 @@ function decode_execute() = {
           sw_return_rip = Some(decode_pos);
           deliver_exception(3, 0x00000000, true);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
-        } else __software_interrupt(0x03)
+        } else {
+          __software_interrupt(0x03)
+        }
       },
 
       // CD: INT imm8
@@ -1399,7 +1413,9 @@ function decode_execute() = {
           sw_return_rip = Some(decode_pos);
           deliver_exception(unsigned(imm), 0x00000000, true);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
-        } else __software_interrupt(imm)
+        } else {
+          __software_interrupt(imm)
+        }
       },
 
       // CF: IRET/IRETD/IRETQ — Interrupt Return
