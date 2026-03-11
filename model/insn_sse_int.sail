@@ -149,17 +149,36 @@ function avg16(a, b) = {
 // PCMPEQB/PCMPEQW/PCMPEQD — Compare Packed Integers for Equal
 // PCMPGTB/PCMPGTW/PCMPGTD — Compare Packed Signed Integers for Greater Than
 // Result is all-ones if true, all-zeros if false per lane.
+// Branchless: high bit of (0 @ xor) - 1 is 1 iff xor == 0 (i.e. a == b).
+// Avoids symbolic execution path explosion in Isla.
 val cmp_eq8 : (byte, byte) -> byte
-function cmp_eq8(a, b) = if a == b then ones() else zeros()
+function cmp_eq8(a, b) = {
+  let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
+  zeros() - (0b0000000 @ xd[8..8])
+}
 
+// Branchless: high bit of sign_extend(b) - sign_extend(a) is 1 iff a > b (signed).
 val cmp_gt8 : (byte, byte) -> byte
-function cmp_gt8(a, b) = if signed(a) > signed(b) then ones() else zeros()
+function cmp_gt8(a, b) = {
+  let a9 : bits(9) = sign_extend(a);
+  let b9 : bits(9) = sign_extend(b);
+  let diff : bits(9) = b9 - a9;
+  zeros() - (0b0000000 @ diff[8..8])
+}
 
 val cmp_eq16 : (word, word) -> word
-function cmp_eq16(a, b) = if a == b then ones() else zeros()
+function cmp_eq16(a, b) = {
+  let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
+  zeros() - (0x000 @ 0b000 @ xd[16..16])
+}
 
 val cmp_gt16 : (word, word) -> word
-function cmp_gt16(a, b) = if signed(a) > signed(b) then ones() else zeros()
+function cmp_gt16(a, b) = {
+  let a17 : bits(17) = sign_extend(a);
+  let b17 : bits(17) = sign_extend(b);
+  let diff : bits(17) = b17 - a17;
+  zeros() - (0x000 @ 0b000 @ diff[16..16])
+}
 
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
 //
@@ -270,50 +289,105 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
 // PMAXSB/PMAXSW/PMAXSD — Packed Maximum Signed Integers
 // PMAXSB and PMAXSD are SSE4.1; PMAXSW is SSE2.
 // No flags affected.
+// Branchless min/max: compute comparison as a bitmask, then bitwise select.
+// For unsigned: high bit of (0 @ a) - (0 @ b) is 1 iff a < b.
+// For signed: high bit of sign_extend(b) - sign_extend(a) is 1 iff a > b.
+// Mask = zeros() - zero_extend(carry_bit) gives all-1s or all-0s.
+// Select: (x & mask) | (y & ~mask).
+// This avoids if/then/else which causes path explosion in Isla.
+
 val max_s8 : (byte, byte) -> byte
-function max_s8(a, b) = if signed(a) > signed(b) then a else b
+function max_s8(a, b) = {
+  let diff : bits(9) = sign_extend(b) - sign_extend(a);
+  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a > b
+  (a & mask) | (b & ~(mask))
+}
 
 val max_s16 : (word, word) -> word
-function max_s16(a, b) = if signed(a) > signed(b) then a else b
+function max_s16(a, b) = {
+  let diff : bits(17) = sign_extend(b) - sign_extend(a);
+  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  (a & mask) | (b & ~(mask))
+}
 
 val max_s32 : (dword, dword) -> dword
-function max_s32(a, b) = if signed(a) > signed(b) then a else b
+function max_s32(a, b) = {
+  let diff : bits(33) = sign_extend(b) - sign_extend(a);
+  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  (a & mask) | (b & ~(mask))
+}
 
 // PMAXUB/PMAXUW/PMAXUD — Packed Maximum Unsigned Integers
 // PMAXUB is SSE2; PMAXUW and PMAXUD are SSE4.1.
 // No flags affected.
 val max_u8 : (byte, byte) -> byte
-function max_u8(a, b) = if unsigned(a) > unsigned(b) then a else b
+function max_u8(a, b) = {
+  let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
+  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  (b & mask) | (a & ~(mask)) // select b if a < b, else a
+}
 
 val max_u16 : (word, word) -> word
-function max_u16(a, b) = if unsigned(a) > unsigned(b) then a else b
+function max_u16(a, b) = {
+  let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
+  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  (b & mask) | (a & ~(mask))
+}
 
 val max_u32 : (dword, dword) -> dword
-function max_u32(a, b) = if unsigned(a) > unsigned(b) then a else b
+function max_u32(a, b) = {
+  let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
+  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  (b & mask) | (a & ~(mask))
+}
 
 // PMINSB/PMINSW/PMINSD — Packed Minimum Signed Integers
 // PMINSB and PMINSD are SSE4.1; PMINSW is SSE2.
 // No flags affected.
 val min_s8 : (byte, byte) -> byte
-function min_s8(a, b) = if signed(a) < signed(b) then a else b
+function min_s8(a, b) = {
+  let diff : bits(9) = sign_extend(a) - sign_extend(b);
+  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  (a & mask) | (b & ~(mask))
+}
 
 val min_s16 : (word, word) -> word
-function min_s16(a, b) = if signed(a) < signed(b) then a else b
+function min_s16(a, b) = {
+  let diff : bits(17) = sign_extend(a) - sign_extend(b);
+  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  (a & mask) | (b & ~(mask))
+}
 
 val min_s32 : (dword, dword) -> dword
-function min_s32(a, b) = if signed(a) < signed(b) then a else b
+function min_s32(a, b) = {
+  let diff : bits(33) = sign_extend(a) - sign_extend(b);
+  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  (a & mask) | (b & ~(mask))
+}
 
 // PMINUB/PMINUW/PMINUD — Packed Minimum Unsigned Integers
 // PMINUB is SSE2; PMINUW and PMINUD are SSE4.1.
 // No flags affected.
 val min_u8 : (byte, byte) -> byte
-function min_u8(a, b) = if unsigned(a) < unsigned(b) then a else b
+function min_u8(a, b) = {
+  let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
+  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  (a & mask) | (b & ~(mask))
+}
 
 val min_u16 : (word, word) -> word
-function min_u16(a, b) = if unsigned(a) < unsigned(b) then a else b
+function min_u16(a, b) = {
+  let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
+  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  (a & mask) | (b & ~(mask))
+}
 
 val min_u32 : (dword, dword) -> dword
-function min_u32(a, b) = if unsigned(a) < unsigned(b) then a else b
+function min_u32(a, b) = {
+  let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
+  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  (a & mask) | (b & ~(mask))
+}
 
 // PMOVSX — Packed Move with Sign Extend (SSE4.1)
 // Sign-extends packed integers from smaller to larger element sizes.
