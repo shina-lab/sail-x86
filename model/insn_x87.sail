@@ -186,8 +186,8 @@ function dispatch_x87_d9(modrm, rm, _) = {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
         0 => x87_push(x87_read_st(sti)),
+        // FXCH ST(i)
         1 => {
-          // FXCH ST(i)
           let v0 : fp80 = x87_read_st(0);
           let vi : fp80 = x87_read_st(sti);
           x87_write_st(0, vi);
@@ -197,13 +197,14 @@ function dispatch_x87_d9(modrm, rm, _) = {
         _ => {
           // D9 E0-FF: misc operations encoded by full ModR/M
           match modrm_val {
-            // FCHS / FABS
+            // FCHS
             224 => x87_write_st(0, __f80_chs(x87_read_st(0))),
+            // FABS
             225 => x87_write_st(0, __f80_abs(x87_read_st(0))),
-            // FTST / FXAM
+            // FTST
             228 => x87_set_sw_cc(__f80_compare(x87_read_st(0), __f80_zero())),
+            // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign
             229 => {
-              // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign
               let val80 : fp80 = x87_read_st(0);
               var sw : word = x87_sw;
               sw[9] = val80[79];  // C1 = sign bit
@@ -218,61 +219,74 @@ function dispatch_x87_d9(modrm, rm, _) = {
               };
               x87_sw = sw
             },
-            // Load constants
+            // FLD1
             232 => x87_push(__f80_one()),
+            // FLDL2T
             233 => x87_push(__f80_log2_10()),
+            // FLDL2E
             234 => x87_push(__f80_log2_e()),
+            // FLDPI
             235 => x87_push(__f80_pi()),
+            // FLDLG2
             236 => x87_push(__f80_log10_2()),
+            // FLDLN2
             237 => x87_push(__f80_ln_2()),
+            // FLDZ
             238 => x87_push(__f80_zero()),
-            // Transcendental / special
+            // F2XM1
             240 => x87_write_st(0, __f80_2xm1(x87_read_st(0))),
+            // FYL2X — ST(1) * log2(ST(0)), pop
             241 => {
-              // FYL2X — ST(1) * log2(ST(0)), pop
               let result = __f80_yl2x(x87_read_st(1), x87_read_st(0));
               let _ = x87_pop();
               x87_write_st(0, result)
             },
+            // FPTAN — tan(ST(0)), push 1.0
             242 => {
-              // FPTAN — tan(ST(0)), push 1.0
               x87_write_st(0, __f80_tan(x87_read_st(0)));
               x87_push(__f80_one())
             },
+            // FPATAN — atan2(ST(1), ST(0)), pop
             243 => {
-              // FPATAN — atan2(ST(1), ST(0)), pop
               let result = __f80_atan2(x87_read_st(1), x87_read_st(0));
               let _ = x87_pop();
               x87_write_st(0, result)
             },
+            // FXTRACT — split into exponent + significand
             244 => {
-              // FXTRACT — split into exponent + significand
               let val80 = x87_read_st(0);
               x87_write_st(0, __f80_extract_exponent(val80));
               x87_push(__f80_extract_significand(val80))
             },
+            // FPREM1
             245 => x87_write_st(0, __f80_prem1(x87_read_st(0), x87_read_st(1))),
             // FDECSTP
             246 => x87_dec_top(),
             // FINCSTP
             247 => x87_inc_top(),
+            // FPREM
             248 => x87_write_st(0, __f80_prem(x87_read_st(0), x87_read_st(1))),
+            // FYL2XP1 — ST(1) * log2(ST(0) + 1), pop
             249 => {
-              // FYL2XP1 — ST(1) * log2(ST(0) + 1), pop
               let result = __f80_yl2xp1(x87_read_st(1), x87_read_st(0));
               let _ = x87_pop();
               x87_write_st(0, result)
             },
+            // FSQRT
             250 => x87_write_st(0, __f80_sqrt(x87_read_st(0))),
+            // FSINCOS — sin in ST(0), push cos
             251 => {
-              // FSINCOS — sin in ST(0), push cos
               let src = x87_read_st(0);
               x87_write_st(0, __f80_sin(src));
               x87_push(__f80_cos(src))
             },
+            // FRNDINT
             252 => x87_write_st(0, __f80_round(x87_read_st(0))),
+            // FSCALE
             253 => x87_write_st(0, __f80_scale(x87_read_st(0), x87_read_st(1))),
+            // FSIN
             254 => x87_write_st(0, __f80_sin(x87_read_st(0))),
+            // FCOS
             255 => x87_write_st(0, __f80_cos(x87_read_st(0))),
             _   => raise_UD(),
           }
@@ -311,8 +325,8 @@ function dispatch_x87_da(modrm, rm, _) = {
         1 => if ZF == bitone then x87_write_st(0, x87_read_st(sti)),
         2 => if CF == bitone | ZF == bitone then x87_write_st(0, x87_read_st(sti)),
         3 => if PF == bitone then x87_write_st(0, x87_read_st(sti)),
+        // FUCOMPP
         5 => {
-          // FUCOMPP
           if sti == 1 then {
             x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(1)));
             let _ = x87_pop();
@@ -355,14 +369,14 @@ function dispatch_x87_db(modrm, rm, _) = {
         2 => if CF == bitzero & ZF == bitzero then x87_write_st(0, x87_read_st(sti)),
         3 => if PF == bitzero then x87_write_st(0, x87_read_st(sti)),
         4 => {
+          // FNCLEX — clear exception flags
           if modrm_val == 226 then {
-            // FNCLEX — clear exception flags
             var sw : word = x87_sw;
             sw[7 .. 0] = 0x00;
             sw[15] = bitzero;
             x87_sw = sw
+          // FNINIT
           } else if modrm_val == 227 then {
-            // FNINIT
             x87_init()
           } else {
             raise_UD()
@@ -430,8 +444,8 @@ function dispatch_x87_dd(modrm, rm, _) = {
         2 => mem_write64(addr, __f80_to_f64(x87_read_st(0))),
         3 => mem_write64(addr, __f80_to_f64(x87_pop())),
         4 => x87_load_state(mem_read_864(addr)),
+        // FNSAVE — save state, then reinitialize
         6 => {
-          // FNSAVE — save state, then reinitialize
           let state = x87_save_state();
           x87_init();
           mem_write_864(addr, state)
@@ -493,8 +507,8 @@ function dispatch_x87_de(modrm, rm, _) = {
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
+        // FCOMPP
         2 => {
-          // FCOMPP
           if modrm_val == 217 then {
             x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(1)));
             let _ = x87_pop();
@@ -503,26 +517,26 @@ function dispatch_x87_de(modrm, rm, _) = {
             raise_UD()
           }
         },
+        // FSUBRP — ST(i) = ST(0) - ST(i), pop
         4 => {
-          // FSUBRP — ST(i) = ST(0) - ST(i), pop
           let result = __f80_sub(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
+        // FSUBP — ST(i) = ST(i) - ST(0), pop
         5 => {
-          // FSUBP — ST(i) = ST(i) - ST(0), pop
           let result = __f80_sub(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
+        // FDIVRP — ST(i) = ST(0) / ST(i), pop
         6 => {
-          // FDIVRP — ST(i) = ST(0) / ST(i), pop
           let result = __f80_div(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
+        // FDIVP — ST(i) = ST(i) / ST(0), pop
         7 => {
-          // FDIVP — ST(i) = ST(i) / ST(0), pop
           let result = __f80_div(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
@@ -558,21 +572,21 @@ function dispatch_x87_df(modrm, rm, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
+        // FNSTSW AX
         4 => {
-          // FNSTSW AX
           if modrm_val == 224 then {
             write_gpr16(RAX, x87_sw)
           } else {
             raise_UD()
           }
         },
+        // FUCOMIP — unordered compare, set RFLAGS, pop
         5 => {
-          // FUCOMIP — unordered compare, set RFLAGS, pop
           x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
+        // FCOMIP — compare, set RFLAGS, pop
         6 => {
-          // FCOMIP — compare, set RFLAGS, pop
           x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },

@@ -142,6 +142,85 @@ All code must be properly indented. When a block is nested inside another
 (e.g., a `match` inside an `else`), the inner block must be indented relative
 to its enclosing block.
 
+## Match vs If/Else Chains
+
+Prefer `match` over if/else if/else chains when dispatching on an integer
+or enum value. This is clearer and more consistent with the rest of the
+codebase.
+
+```sail
+// OK: match on reg_field
+match reg_field {
+  // PSRLW xmm1, imm8
+  2 => { ... },
+  // PSRAW xmm1, imm8
+  4 => { ... },
+  // PSLLW xmm1, imm8
+  6 => { ... },
+  _ => raise_UD(),
+}
+
+// BAD: if/else chain on the same
+if reg_field == 2 then { ... }
+else if reg_field == 4 then { ... }
+else if reg_field == 6 then { ... }
+else raise_UD()
+```
+
+A short two-way if/else on a single condition is fine — this rule applies
+when there are three or more branches dispatching on the same variable.
+
+## Comments on Match Arms
+
+Put the instruction name comment on the line **before** the match arm,
+not inside the body or as a trailing comment on the closing brace.
+
+Include the instruction signature (operands) in the comment, not just
+the mnemonic.
+
+```sail
+// OK: comment above the arm with signature
+match sub_op {
+  // PUNPCKLBW xmm1, xmm2/m128
+  0 => {
+    ...
+  },
+  // PUNPCKLWD xmm1, xmm2/m128
+  1 => {
+    ...
+  },
+}
+
+// BAD: comment inside the body
+0 => {
+  // PUNPCKLBW xmm1, xmm2/m128
+  ...
+},
+
+// BAD: trailing comment on closing brace
+0 => {
+  ...
+},   // 0F 60
+
+// BAD: mnemonic only, no operands
+// PUNPCKLBW
+0 => {
+  ...
+},
+```
+
+For one-liner match arms, the comment goes on the line above:
+
+```sail
+// FCHS
+224 => x87_write_st(0, __f80_chs(x87_read_st(0))),
+// FABS
+225 => x87_write_st(0, __f80_abs(x87_read_st(0))),
+```
+
+When a group comment covers the outer match arm (e.g., an opcode range),
+each inner sub-dispatch arm still needs its own instruction name comment.
+
 ## Operators
 
 - The `~()` (bitwise NOT) operator requires parens: `~(CF)` not `~CF`
