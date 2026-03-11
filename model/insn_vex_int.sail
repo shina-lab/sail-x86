@@ -1,4 +1,4 @@
-// x86-64 VEX — Integer Instructions (0F map)
+// x86-64 — VEX Integer Instructions (0F map)
 //
 // Integer moves, arithmetic, logical, compare, shuffle, insert/extract,
 // mask register ops, VZEROUPPER/VZEROALL.

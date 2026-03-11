@@ -1,4 +1,4 @@
-// x86-64 Decoder — x87 FPU (opcodes D8-DF)
+// x86-64 — x87 FPU (opcodes D8-DF)
 //
 // Each x87 opcode consumes a ModR/M byte. When mod != 11 (memory),
 // the reg field selects the operation. When mod == 11 (register),

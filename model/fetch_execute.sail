@@ -1,4 +1,4 @@
-// x86-64 Decoder — Fetch-Decode-Execute Loop
+// x86-64 — Fetch-Decode-Execute Loop
 //
 // Top-level entry point for the instruction cycle.
 // Fetches and decodes one instruction from RIP, executes it,

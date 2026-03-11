@@ -1,4 +1,4 @@
-// x86-64 VEX — FMA Instructions (0F38 map)
+// x86-64 — VEX FMA Instructions (0F38 map)
 //
 // FMA3 fused multiply-add/sub instructions (0F38 96..BF).
 // All require 66 mandatory prefix.

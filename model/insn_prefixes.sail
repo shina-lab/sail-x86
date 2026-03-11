@@ -1,4 +1,4 @@
-// x86-64 Decoder — Prefix Scanning
+// x86-64 — Prefix Scanning
 //
 // Scans legacy prefixes and REX prefix from the instruction stream.
 // In 64-bit mode, bytes 40-4F are REX prefixes (not INC/DEC).

@@ -1,4 +1,4 @@
-// x86-64 VEX — Arithmetic/Misc Instructions (0F38 map)
+// x86-64 — VEX Arithmetic/Misc (0F38 map)
 //
 // SSSE3, SSE4, broadcast, BMI, variable shifts, gather, test,
 // maskmov, sign/zero-extend, permute.

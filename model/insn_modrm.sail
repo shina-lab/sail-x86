@@ -1,4 +1,4 @@
-// x86-64 Decoder — ModR/M and SIB Decoding
+// x86-64 — ModR/M and SIB Decoding
 //
 // Decodes the ModR/M byte, optional SIB byte, and displacement to
 // produce either a register operand or an effective memory address.

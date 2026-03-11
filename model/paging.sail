@@ -1,4 +1,4 @@
-// x86-64 Sail Model — 4-Level Paging (Long Mode)
+// x86-64 — 4-Level Paging (Long Mode)
 //
 // Implements the IA-32e paging mechanism:
 //   Virtual address → PML4 → PDPT → PD → PT → Physical address

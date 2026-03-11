@@ -1,4 +1,4 @@
-// x86-64 EVEX — Immediate Operations (0F3A map)
+// x86-64 — EVEX Immediate Operations (0F3A map)
 //
 // Insert/extract, permute-imm, ternlog, round, compare-imm,
 // classify, shift-imm, GFNI, and FP16 compare.

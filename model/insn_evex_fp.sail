@@ -1,4 +1,4 @@
-// x86-64 EVEX — FP Operations (0F map)
+// x86-64 — EVEX FP Operations (0F map)
 //
 // FP mov, arithmetic, compare, and convert instructions.
 // Called from dispatch_evex_0f in insn_evex.sail.

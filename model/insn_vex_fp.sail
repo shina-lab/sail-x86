@@ -1,4 +1,4 @@
-// x86-64 VEX — FP Instructions (0F map)
+// x86-64 — VEX FP Instructions (0F map)
 //
 // Floating-point moves, arithmetic, compare, convert, shuffle, unpack.
 

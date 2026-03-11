@@ -1,4 +1,4 @@
-// x86-64 EVEX — Broadcast, Permute, Shuffle, Compress/Expand (0F38 map)
+// x86-64 — EVEX Permute/Shuffle/Compress (0F38 map)
 //
 // VBROADCAST, VPERM, VPSHUF, VCOMPRESS, VEXPAND.
 // Called from dispatch_evex_0f38 in insn_evex.sail.

@@ -1,4 +1,4 @@
-// x86-64 EVEX — SIMD Integer (0F38 map)
+// x86-64 — EVEX Arithmetic/Misc (0F38 map)
 //
 // Integer min/max/abs, multiply, variable shifts, narrowing/widening
 // converts, VNNI, test-mask, and bit manipulation.

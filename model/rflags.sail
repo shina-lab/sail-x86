@@ -1,4 +1,4 @@
-// x86-64 Sail Model — RFLAGS Register and Flag Computation
+// x86-64 — RFLAGS Register and Flag Computation
 
 // RFLAGS register. We model individual flags as separate registers
 // for clarity, since different instructions update different subsets.

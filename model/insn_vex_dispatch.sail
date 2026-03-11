@@ -1,6 +1,4 @@
-// =========================================================================
-// VEX 0F map dispatch — routes to sub-dispatchers
-// =========================================================================
+// x86-64 — VEX Dispatch
 
 val dispatch_vex_0f : (byte, Prefixes) -> unit
 function dispatch_vex_0f(opcode, pfx) = {

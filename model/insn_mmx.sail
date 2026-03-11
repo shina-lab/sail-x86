@@ -1,4 +1,4 @@
-// x86-64 Decoder — MMX Operations
+// x86-64 — MMX Operations
 //
 // MMX instructions operate on MM0-MM7 (64-bit registers aliasing the low
 // 64 bits of x87 ST(0)-ST(7) by physical index). All MMX instructions

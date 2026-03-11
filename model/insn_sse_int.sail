@@ -1,4 +1,4 @@
-// x86-64 Decoder — SSE Integer Operations
+// x86-64 — SSE Integer Operations
 //
 // SSE/SSE2/SSSE3/SSE4.1/SSE4.2 packed integer arithmetic, logical,
 // shift, pack/unpack, compare, AES-NI, and PCLMULQDQ.

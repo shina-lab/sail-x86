@@ -1,4 +1,4 @@
-// x86-64 Sail Model — Register Definitions
+// x86-64 — Register Definitions
 
 // =========================================================================
 // Instruction pointer

@@ -1,4 +1,4 @@
-// x86-64 Decoder — 2-Byte Opcode Map: Baseline Operations
+// x86-64 — 2-Byte Opcode Map: Baseline Operations
 //
 // CMOVcc, Jcc, SETcc, BT/BTS/BTR/BTC, SHLD/SHRD, IMUL, MOVZX/MOVSX,
 // BSF/BSR, POPCNT, CMPXCHG, XADD, BSWAP, CPUID, RDTSC, and more.

@@ -1,4 +1,4 @@
-// x86-64 Sail Model — Exception Handling
+// x86-64 — Exception Handling
 
 // Sail exception type for faults raised during decode/execute.
 // Caught by step() and stored in fault registers.

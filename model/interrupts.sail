@@ -1,4 +1,4 @@
-// x86-64 Sail Model — Exception and Interrupt Delivery
+// x86-64 — Exception and Interrupt Delivery
 //
 // In system mode, faults are delivered through the IDT:
 //   1. Read 16-byte gate descriptor from IDTR_base + vector * 16

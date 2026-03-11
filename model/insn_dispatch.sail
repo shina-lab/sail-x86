@@ -1,4 +1,4 @@
-// x86-64 Decoder — Opcode Dispatch
+// x86-64 — Opcode Dispatch
 //
 // Central dispatch for 1-byte, 2-byte (0F xx), and 3-byte (0F 38/3A xx)
 // opcode maps. Routes to category-specific handlers.

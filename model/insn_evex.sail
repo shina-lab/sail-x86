@@ -1,4 +1,4 @@
-// x86-64 EVEX — Shared Helpers
+// x86-64 — EVEX Shared Helpers
 //
 // Register index computation, source operand reading, writemask application,
 // broadcast, and other utilities used by multiple EVEX dispatch files.

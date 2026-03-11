@@ -1,4 +1,4 @@
-/* ---- 2-source word permute (VPERMI2W/VPERMT2W) ---- */
+// x86-64 — EVEX FMA Instructions (0F38 map)
 
 // gather_addr and gather_addr_q are defined in insn_sse4_helpers.sail
 

@@ -1,4 +1,4 @@
-// x86-64 EVEX — AVX-512 FP16 Operations (MAP5 and MAP6)
+// x86-64 — EVEX FP16 Operations (MAP5 and MAP6)
 //
 // Half-precision (16-bit) packed and scalar floating-point arithmetic,
 // conversions, and special operations.

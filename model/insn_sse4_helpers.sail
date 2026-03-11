@@ -1,4 +1,4 @@
-// x86-64 — Shared SSE4.1/AVX integer helpers
+// x86-64 — SSE4/AVX Shared Integer Helpers
 //
 // These helper functions are used by both VEX (insn_vex.sail) and
 // EVEX (insn_evex_arith.sail) instruction dispatch. This file must

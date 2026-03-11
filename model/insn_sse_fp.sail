@@ -1,4 +1,4 @@
-// x86-64 Decoder — 2-Byte Opcode Map: SSE Floating-Point Operations
+// x86-64 — SSE Floating-Point Operations
 //
 // SSE/SSE2/SSE3 data movement, arithmetic, conversion, and comparison.
 

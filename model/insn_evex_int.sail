@@ -1,4 +1,4 @@
-// x86-64 EVEX — Integer Operations (0F map)
+// x86-64 — EVEX Integer Operations (0F map)
 //
 // Packed integer arithmetic, logic, pack/unpack, shift, and compare.
 // Called from dispatch_evex_0f in insn_evex.sail.

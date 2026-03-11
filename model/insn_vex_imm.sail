@@ -1,4 +1,4 @@
-// x86-64 VEX — Immediate Instructions (0F3A map)
+// x86-64 — VEX Immediate Instructions (0F3A map)
 //
 // Blend, round, dpps, palignr, permil, insert/extract, cvtps2ph,
 // kshift, mpsadbw, pblendd.

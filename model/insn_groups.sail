@@ -1,4 +1,4 @@
-// INC — Increment by 1
+// x86-64 — Group Instruction Helpers (INC/DEC, shifts, MUL/DIV, etc.)
 //
 // Computes dest := dest + 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 

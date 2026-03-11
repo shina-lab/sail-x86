@@ -1,4 +1,4 @@
-// x86-64 Decoder — Types and Structures
+// x86-64 — Types and Structures
 
 // =========================================================================
 // Prefix state accumulated during prefix scanning

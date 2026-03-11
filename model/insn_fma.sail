@@ -1,4 +1,4 @@
-// FMA helper functions shared by VEX and EVEX instruction decoders.
+// x86-64 — FMA Shared Helpers
 //
 // Packed and scalar FMA variants (fmadd, fmsub, fnmadd, fnmsub,
 // fmaddsub, fmsubadd) for PS/PD in 128/256/512-bit widths,

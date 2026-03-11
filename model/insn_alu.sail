@@ -1,4 +1,4 @@
-// x86-64 Decoder — Generic ALU Execution Helpers
+// x86-64 — ALU Helpers
 //
 // These helpers perform ALU operations on resolved values, handling
 // flag updates and result write-back. They support both register and

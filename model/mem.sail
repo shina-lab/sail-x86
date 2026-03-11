@@ -1,4 +1,4 @@
-// x86-64 Sail Model — Memory Interface
+// x86-64 — Memory Interface
 //
 // Two-layer memory model following the sail-riscv pattern:
 //   mem_read/mem_write (virtual) → translate_addr → phys_read/phys_write

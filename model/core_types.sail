@@ -1,4 +1,4 @@
-// x86-64 Sail Model — Core Types
+// x86-64 — Core Types
 
 // Operand sizes used in x86 instructions.
 // This determines the width of register/memory operations.

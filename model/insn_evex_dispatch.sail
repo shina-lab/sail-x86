@@ -1,4 +1,4 @@
-// x86-64 EVEX — Prefix Decoding and Top-level Dispatch
+// x86-64 — EVEX Prefix Decoding and Dispatch
 //
 // Decodes 4-byte EVEX prefix (62h) and routes opcodes to sub-dispatchers.
 //

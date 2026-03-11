@@ -1,5 +1,6 @@
-// External floating-point functions provided by the execution environment.
-// These implement IEEE 754 arithmetic.
+// x86-64 — External Floating-Point Functions
+//
+// Provided by the execution environment. These implement IEEE 754 arithmetic.
 
 // Single precision (32-bit)
 val __f32_add  : (dword, dword) -> dword

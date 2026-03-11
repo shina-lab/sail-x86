@@ -1,4 +1,4 @@
-// x87 FPU register state
+// x86-64 — x87 FPU Register State
 //
 // The x87 FPU has an 8-register stack of 80-bit extended precision values.
 // Registers are accessed relative to the TOP pointer in the status word.

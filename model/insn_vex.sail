@@ -1,4 +1,4 @@
-// x86-64 Decoder — VEX Prefix Decoding and Dispatch
+// x86-64 — VEX Prefix Decoding and Dispatch
 //
 // Handles 2-byte VEX (C5h) and 3-byte VEX (C4h) prefixes.
 // In 64-bit mode, C4/C5 are always VEX prefixes (LES/LDS are invalid).
