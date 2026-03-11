@@ -1,53 +1,108 @@
-// Isla entry points for sail-x86 model.
-// Provides wrappers for symbolic execution and comparison.
+// Splice file for Isla IR generation (v9).
+// Bypasses symbolic memory by reading instruction bytes from insn_buf register.
+// Isla's memory model doesn't connect writes to reads at the same address,
+// but register state IS properly tracked.
 
-val isla_reset_registers = pure "reset_registers" : unit -> unit
+// Declare Isla's memory primitives
+val isla_read_mem = impure "platform_read_mem"
+  : forall 'n, 'n > 0. (bits(2), int(64), bits(64), int('n)) -> bits(8 * 'n)
 
-// Wrapper for ADD 64-bit: takes two 64-bit operands, returns result
-// and flag values (CF, PF, AF, ZF, SF, OF) as a struct.
-// This normalizes our flag-as-side-effect model into a pure function return.
-val compare_add64 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_add64(a, b) = {
-  let (result, _) = alu_compute(ALU_ADD, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+val isla_write_mem = impure "platform_write_mem"
+  : forall 'n, 'n > 0. (bits(2), int(64), bits(64), int('n), bits(8 * 'n)) -> bool
+
+function phys_read(addr, n) = isla_read_mem(0b00, 64, addr, n)
+function phys_write(addr, n, data) = {
+  let _ = isla_write_mem(0b00, 64, addr, n, data);
+  ()
 }
 
-val compare_sub64 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_sub64(a, b) = {
-  let (result, _) = alu_compute(ALU_SUB, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+function translate_addr(linear, access) = linear
+function __check_pending_irq() = negate(1)
+function __mem_read_crossing(addr, n) = phys_read(addr, n)
+function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
+
+// Override ifetch to read from insn_buf register.
+// Use low 4 bits of address as byte index (base is 0x400000, page-aligned).
+function ifetch_read8(addr) = {
+  let idx : bits(4) = addr[3..0];
+  if idx == 0x0 then insn_buf[7..0]
+  else if idx == 0x1 then insn_buf[15..8]
+  else if idx == 0x2 then insn_buf[23..16]
+  else if idx == 0x3 then insn_buf[31..24]
+  else if idx == 0x4 then insn_buf[39..32]
+  else if idx == 0x5 then insn_buf[47..40]
+  else if idx == 0x6 then insn_buf[55..48]
+  else if idx == 0x7 then insn_buf[63..56]
+  else if idx == 0x8 then insn_buf[71..64]
+  else if idx == 0x9 then insn_buf[79..72]
+  else if idx == 0xA then insn_buf[87..80]
+  else if idx == 0xB then insn_buf[95..88]
+  else if idx == 0xC then insn_buf[103..96]
+  else if idx == 0xD then insn_buf[111..104]
+  else insn_buf[119..112]
 }
 
-val compare_and64 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_and64(a, b) = {
-  let (result, _) = alu_compute(ALU_AND, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+// Simplified step: no try/catch, no interrupt check.
+function step() = {
+  fault_pending = false;
+  decode_pos = RIP;
+  insn_start = RIP;
+  rip_rel_pending = false;
+  next_rip = None();
+
+  let (pfx, opcode) = scan_prefixes();
+  dispatch_opcode_1byte(opcode, pfx);
+
+  if system_state == SysRunning then
+    RIP = match next_rip { Some(t) => t, None() => decode_pos }
 }
 
-val compare_or64 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_or64(a, b) = {
-  let (result, _) = alu_compute(ALU_OR, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+// Helper: pack instruction bytes into insn_buf and execute.
+val setup_and_exec : bits(120) -> unit
+function setup_and_exec(bytes) = {
+  let base : bits(64) = 0x0000000000400000;
+  RIP = base;
+  insn_start = base;
+  insn_buf = bytes;
+  let _ = step();
+  ()
 }
 
-val compare_xor64 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_xor64(a, b) = {
-  let (result, _) = alu_compute(ALU_XOR, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+// ADD r64, imm32: REX.W + 81 /0 + ModR/M + imm32
+val isla_test_add_r64_imm32 : (bits(4), bits(32)) -> unit
+function isla_test_add_r64_imm32(reg, imm) = {
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let modrm : bits(8) = 0xC0 | (0b00000 @ reg[2..0]);
+  let bytes : bits(120) =
+    0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
+    imm[31..24] @ imm[23..16] @ imm[15..8] @ imm[7..0] @
+    modrm @ 0x81 @ rex;
+  setup_and_exec(bytes)
 }
 
-val compare_adc64 : (bits(64), bits(64), bit) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_adc64(a, b, carry_in) = {
-  CF = carry_in;
-  let (result, _) = alu_compute(ALU_ADC, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+// MOV r64, imm64: REX.W + B8+rd + imm64
+val isla_test_mov_r64_imm64 : (bits(4), bits(64)) -> unit
+function isla_test_mov_r64_imm64(reg, imm) = {
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let opcode : bits(8) = 0xB8 | (0b00000 @ reg[2..0]);
+  let bytes : bits(120) =
+    0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
+    imm[63..56] @ imm[55..48] @ imm[47..40] @ imm[39..32] @
+    imm[31..24] @ imm[23..16] @ imm[15..8] @ imm[7..0] @
+    opcode @ rex;
+  setup_and_exec(bytes)
 }
 
-val compare_sbb64 : (bits(64), bits(64), bit) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_sbb64(a, b, borrow_in) = {
-  CF = borrow_in;
-  let (result, _) = alu_compute(ALU_SBB, a, b, OS64);
-  (result, CF, PF, AF, ZF, SF, OF)
+// SHL r64, imm8: REX.W + C1 /4 + ModR/M + imm8
+val isla_test_shl_r64_imm8 : (bits(4), bits(8)) -> unit
+function isla_test_shl_r64_imm8(reg, imm) = {
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let modrm : bits(8) = 0xE0 | (0b00000 @ reg[2..0]);
+  let bytes : bits(120) =
+    0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
+    0xF4 @ 0xF4 @ 0xF4 @
+    imm @ modrm @ 0xC1 @ rex;
+  setup_and_exec(bytes)
 }
 
 // 32-bit variants
@@ -79,4 +134,12 @@ function isla_footprint(opcode) = {
   } catch {
     _ => false
   }
+}
+
+function main() = {
+  let _ = step();
+  isla_test_add_r64_imm32(0b0000, 0x00000000);
+  isla_test_mov_r64_imm64(0b0000, 0x0000000000000000);
+  isla_test_shl_r64_imm8(0b0000, 0x00);
+  ()
 }

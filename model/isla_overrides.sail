@@ -1,21 +1,33 @@
-// Splice file for ACL2 model Isla IR generation (v2).
-// Overrides memi() to read instruction bytes from insn_buf register.
+// Isla overrides for symbolic execution.
+// This file is included in the model's source list and uses $ifdef ISLA
+// to conditionally override functions that need special handling for
+// Isla's symbolic execution engine.
 
-// Override rb: skip canonical address check and paging, go straight to memi.
-function rb(n, addr, access_kind) = {
-  result : bits(8 * 'n) = sail_zeros(8 * n);
-  foreach (offset from 0 to (n - 1)) {
-    let lin_addr : bits(48) = add_bits_int(sail_mask_signed(48, addr), offset);
-    result[((8 * offset) + 7) .. (8 * offset)] = memi(sail_mask_signed(52, lin_addr))
-  };
-  return result
+$ifdef ISLA
+
+// Isla's memory primitives
+val isla_read_mem = impure "platform_read_mem"
+  : forall 'n, 'n > 0. (bits(2), int(64), bits(64), int('n)) -> bits(8 * 'n)
+
+val isla_write_mem = impure "platform_write_mem"
+  : forall 'n, 'n > 0. (bits(2), int(64), bits(64), int('n), bits(8 * 'n)) -> bool
+
+// Override memory primitives to use Isla's platform memory
+function phys_read(addr, n) = isla_read_mem(0b00, 64, addr, n)
+function phys_write(addr, n, data) = {
+  let _ = isla_write_mem(0b00, 64, addr, n, data);
+  ()
 }
 
-// Override memi: read from insn_buf using low 4 bits of address as index.
-// Base address is 0x400000 (page-aligned), so bits [3..0] give the byte offset.
-// This avoids expensive unsigned() arithmetic in SMT.
-function memi(addr) = {
-  let idx : bits(4) = sail_mask(4, addr);
+function translate_addr(linear, access) = linear
+function __check_pending_irq() = negate(1)
+function __mem_read_crossing(addr, n) = phys_read(addr, n)
+function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
+
+// Override ifetch to read from insn_buf register.
+// Use low 4 bits of address as byte index (base is 0x400000, page-aligned).
+function ifetch_read8(addr) = {
+  let idx : bits(4) = addr[3..0];
   if idx == 0x0 then insn_buf[7..0]
   else if idx == 0x1 then insn_buf[15..8]
   else if idx == 0x2 then insn_buf[23..16]
@@ -30,17 +42,32 @@ function memi(addr) = {
   else if idx == 0xB then insn_buf[95..88]
   else if idx == 0xC then insn_buf[103..96]
   else if idx == 0xD then insn_buf[111..104]
-  else if idx == 0xE then insn_buf[119..112]
-  else 0xF4
+  else insn_buf[119..112]
+}
+
+// Simplified step: no try/catch, no interrupt check.
+function step() = {
+  fault_pending = false;
+  decode_pos = RIP;
+  insn_start = RIP;
+  rip_rel_pending = false;
+  next_rip = None();
+
+  let (pfx, opcode) = scan_prefixes();
+  dispatch_opcode_1byte(opcode, pfx);
+
+  if system_state == SysRunning then
+    RIP = match next_rip { Some(t) => t, None() => decode_pos }
 }
 
 // Helper: pack instruction bytes into insn_buf and execute.
-val setup_and_exec_acl2 : bits(120) -> unit
-function setup_and_exec_acl2(bytes) = {
-  let base : sbits(48) = 0x000000400000;
-  write_rip(base);
+val setup_and_exec : bits(120) -> unit
+function setup_and_exec(bytes) = {
+  let base : bits(64) = 0x0000000000400000;
+  RIP = base;
+  insn_start = base;
   insn_buf = bytes;
-  x86_fetch_decode_execute();
+  let _ = step();
   ()
 }
 
@@ -53,7 +80,7 @@ function isla_test_add_r64_imm32(reg, imm) = {
     0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
     imm[31..24] @ imm[23..16] @ imm[15..8] @ imm[7..0] @
     modrm @ 0x81 @ rex;
-  setup_and_exec_acl2(bytes)
+  setup_and_exec(bytes)
 }
 
 // MOV r64, imm64: REX.W + B8+rd + imm64
@@ -66,7 +93,7 @@ function isla_test_mov_r64_imm64(reg, imm) = {
     imm[63..56] @ imm[55..48] @ imm[47..40] @ imm[39..32] @
     imm[31..24] @ imm[23..16] @ imm[15..8] @ imm[7..0] @
     opcode @ rex;
-  setup_and_exec_acl2(bytes)
+  setup_and_exec(bytes)
 }
 
 // SHL r64, imm8: REX.W + C1 /4 + ModR/M + imm8
@@ -78,14 +105,15 @@ function isla_test_shl_r64_imm8(reg, imm) = {
     0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
     0xF4 @ 0xF4 @ 0xF4 @
     imm @ modrm @ 0xC1 @ rex;
-  setup_and_exec_acl2(bytes)
+  setup_and_exec(bytes)
 }
 
 function main() = {
-  initialize_model();
+  let _ = step();
   isla_test_add_r64_imm32(0b0000, 0x00000000);
   isla_test_mov_r64_imm64(0b0000, 0x0000000000000000);
   isla_test_shl_r64_imm8(0b0000, 0x00);
-  steps = x86_run_halt(haltAddrReg, 10000, not_bool(log_register_writes), false, 0);
   ()
 }
+
+$endif

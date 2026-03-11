@@ -1,6 +1,9 @@
 #!/bin/bash
 # Generate Isla IR files for both x86 Sail models.
-# Requires setup.sh to have been run first.
+# Uses insn_buf register-based instruction buffer to avoid
+# Isla's symbolic memory issue (writes not connected to reads).
+#
+# Prerequisites: run setup.sh first.
 
 set -euo pipefail
 
@@ -16,7 +19,7 @@ ISLA_PLUGIN="$ISLA_DIR/isla-sail/_build/default/sail_plugin_isla.cmxs"
 
 # Activate opam environment
 eval $(opam env 2>/dev/null) || true
-export SAIL_DIR="$HOME/sail/share/sail"
+export SAIL_DIR="$SAIL_SRC"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -26,21 +29,16 @@ echo "=== Generating Isla IR files ==="
 echo "[1/2] Generating IR for sail-x86 (our model)..."
 cd "$OUR_MODEL"
 
-OUR_FILES="prelude.sail core_types.sail regs.sail rflags.sail exceptions.sail \
-  paging.sail mem.sail interrupts.sail fp_extern.sail x87_regs.sail types.sail \
-  insn_prefixes.sail insn_modrm.sail insn_alu.sail insn_x87.sail \
-  insn_sse_fp.sail insn_sse_int.sail insn_baseline.sail insn_groups.sail \
-  insn_fma.sail insn_sse4_helpers.sail insn_vex.sail insn_vex_imm.sail \
-  insn_vex_fp.sail insn_vex_int.sail insn_vex_fma.sail insn_vex_arith.sail \
-  insn_vex_dispatch.sail insn_evex.sail insn_evex_fp.sail insn_evex_int.sail \
-  insn_evex_fma.sail insn_evex_perm.sail insn_evex_arith.sail \
-  insn_evex_imm.sail insn_evex_dispatch.sail insn_dispatch.sail \
-  fetch_execute.sail"
+# Use sail_project file list — read .sail files from x86.sail_project
+OUR_FILES=$(grep '\.sail' x86.sail_project | sed 's/,$//' | tr -d ' ' | tr '\n' ' ')
 
 "$SAIL" \
   --plugin "$ISLA_PLUGIN" \
   --isla \
-  --isla-preserve isla_footprint \
+  -D ISLA \
+  --isla-preserve isla_test_add_r64_imm32 \
+  --isla-preserve isla_test_mov_r64_imm64 \
+  --isla-preserve isla_test_shl_r64_imm8 \
   -splice "$SCRIPT_DIR/splice_ours.sail" \
   -o "$OUTPUT_DIR/sail_x86" \
   $OUR_FILES 2>&1 | grep -v "^Warning\|warnings have been suppressed" || true
@@ -58,7 +56,9 @@ ACL2_FILES="prelude.sail register_types.sail registers.sail register_accessors.s
 "$SAIL" \
   --plugin "$ISLA_PLUGIN" \
   --isla \
-  --isla-preserve isla_footprint \
+  --isla-preserve isla_test_add_r64_imm32 \
+  --isla-preserve isla_test_mov_r64_imm64 \
+  --isla-preserve isla_test_shl_r64_imm8 \
   -splice "$SCRIPT_DIR/splice_acl2.sail" \
   $(for f in "$ACL2_MODEL"/test-generation-patches/*.sail; do echo "-splice $f"; done) \
   -o "$OUTPUT_DIR/acl2_x86" \
