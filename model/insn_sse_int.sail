@@ -908,47 +908,47 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         if mp != MP_66 then raise_UD();
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let _ = decode_rm(modrm, pfx);
-      let xreg = modrm_xmm_rm(modrm, pfx);
-      let imm = fetch_byte();
-      match reg_field {
-        // PSRLW xmm1, imm8
-        2 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            srl16(a[127..112], c) @ srl16(a[111..96], c) @
-            srl16(a[95..80], c) @ srl16(a[79..64], c) @
-            srl16(a[63..48], c) @ srl16(a[47..32], c) @
-            srl16(a[31..16], c) @ srl16(a[15..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSRAW xmm1, imm8
-        4 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            sra16(a[127..112], c) @ sra16(a[111..96], c) @
-            sra16(a[95..80], c) @ sra16(a[79..64], c) @
-            sra16(a[63..48], c) @ sra16(a[47..32], c) @
-            sra16(a[31..16], c) @ sra16(a[15..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSLLW xmm1, imm8
-        6 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            sll16(a[127..112], c) @ sll16(a[111..96], c) @
-            sll16(a[95..80], c) @ sll16(a[79..64], c) @
-            sll16(a[63..48], c) @ sll16(a[47..32], c) @
-            sll16(a[31..16], c) @ sll16(a[15..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        _ => raise_UD(),
-      }
+        let modrm = fetch_byte();
+        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let _ = decode_rm(modrm, pfx);
+        let xreg = modrm_xmm_rm(modrm, pfx);
+        let imm = fetch_byte();
+        match reg_field {
+          // PSRLW xmm1, imm8
+          2 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              srl16(a[127..112], c) @ srl16(a[111..96], c) @
+              srl16(a[95..80], c) @ srl16(a[79..64], c) @
+              srl16(a[63..48], c) @ srl16(a[47..32], c) @
+              srl16(a[31..16], c) @ srl16(a[15..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSRAW xmm1, imm8
+          4 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              sra16(a[127..112], c) @ sra16(a[111..96], c) @
+              sra16(a[95..80], c) @ sra16(a[79..64], c) @
+              sra16(a[63..48], c) @ sra16(a[47..32], c) @
+              sra16(a[31..16], c) @ sra16(a[15..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSLLW xmm1, imm8
+          6 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              sll16(a[127..112], c) @ sll16(a[111..96], c) @
+              sll16(a[95..80], c) @ sll16(a[79..64], c) @
+              sll16(a[63..48], c) @ sll16(a[47..32], c) @
+              sll16(a[31..16], c) @ sll16(a[15..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          _ => raise_UD(),
+        }
       }
     },
 
@@ -959,41 +959,41 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         if mp != MP_66 then raise_UD();
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let _ = decode_rm(modrm, pfx);
-      let xreg = modrm_xmm_rm(modrm, pfx);
-      let imm = fetch_byte();
-      match reg_field {
-        // PSRLD xmm1, imm8
-        2 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            srl32(a[127..96], c) @ srl32(a[95..64], c) @
-            srl32(a[63..32], c) @ srl32(a[31..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSRAD xmm1, imm8
-        4 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            sra32(a[127..96], c) @ sra32(a[95..64], c) @
-            sra32(a[63..32], c) @ sra32(a[31..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSLLD xmm1, imm8
-        6 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword =
-            sll32(a[127..96], c) @ sll32(a[95..64], c) @
-            sll32(a[63..32], c) @ sll32(a[31..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        _ => raise_UD(),
-      }
+        let modrm = fetch_byte();
+        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let _ = decode_rm(modrm, pfx);
+        let xreg = modrm_xmm_rm(modrm, pfx);
+        let imm = fetch_byte();
+        match reg_field {
+          // PSRLD xmm1, imm8
+          2 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              srl32(a[127..96], c) @ srl32(a[95..64], c) @
+              srl32(a[63..32], c) @ srl32(a[31..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSRAD xmm1, imm8
+          4 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              sra32(a[127..96], c) @ sra32(a[95..64], c) @
+              sra32(a[63..32], c) @ sra32(a[31..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSLLD xmm1, imm8
+          6 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword =
+              sll32(a[127..96], c) @ sll32(a[95..64], c) @
+              sll32(a[63..32], c) @ sll32(a[31..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          _ => raise_UD(),
+        }
       }
     },
 
@@ -1004,46 +1004,46 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         if mp != MP_66 then raise_UD();
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let _ = decode_rm(modrm, pfx);
-      let xreg = modrm_xmm_rm(modrm, pfx);
-      let imm = fetch_byte();
-      match reg_field {
-        // PSRLQ xmm1, imm8
-        2 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSRLDQ xmm1, imm8
-        3 => {
-          let c : range(0, 255) = unsigned(imm);
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let a : xmmword = read_xmm(xreg);
-          let shift : range(0, 128) = byte_count * 8;
-          let r : xmmword = if shift > 127 then zeros() else a >> shift;
-          write_xmm_legacy(xreg, r)
-        },
-        // PSLLQ xmm1, imm8
-        6 => {
-          let c : int = unsigned(imm);
-          let a : xmmword = read_xmm(xreg);
-          let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
-          write_xmm_legacy(xreg, r)
-        },
-        // PSLLDQ xmm1, imm8
-        7 => {
-          let c : range(0, 255) = unsigned(imm);
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let a : xmmword = read_xmm(xreg);
-          let shift : range(0, 128) = byte_count * 8;
-          let r : xmmword = if shift > 127 then zeros() else a << shift;
-          write_xmm_legacy(xreg, r)
-        },
-        _ => raise_UD(),
-      }
+        let modrm = fetch_byte();
+        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let _ = decode_rm(modrm, pfx);
+        let xreg = modrm_xmm_rm(modrm, pfx);
+        let imm = fetch_byte();
+        match reg_field {
+          // PSRLQ xmm1, imm8
+          2 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSRLDQ xmm1, imm8
+          3 => {
+            let c : range(0, 255) = unsigned(imm);
+            let byte_count : range(0, 16) = if c > 15 then 16 else c;
+            let a : xmmword = read_xmm(xreg);
+            let shift : range(0, 128) = byte_count * 8;
+            let r : xmmword = if shift > 127 then zeros() else a >> shift;
+            write_xmm_legacy(xreg, r)
+          },
+          // PSLLQ xmm1, imm8
+          6 => {
+            let c : int = unsigned(imm);
+            let a : xmmword = read_xmm(xreg);
+            let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
+            write_xmm_legacy(xreg, r)
+          },
+          // PSLLDQ xmm1, imm8
+          7 => {
+            let c : range(0, 255) = unsigned(imm);
+            let byte_count : range(0, 16) = if c > 15 then 16 else c;
+            let a : xmmword = read_xmm(xreg);
+            let shift : range(0, 128) = byte_count * 8;
+            let r : xmmword = if shift > 127 then zeros() else a << shift;
+            write_xmm_legacy(xreg, r)
+          },
+          _ => raise_UD(),
+        }
       }
     },
 
@@ -1640,15 +1640,15 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         if mp != MP_66 then raise_UD();
-      let modrm = fetch_byte();
-      let xreg = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(addr) => {
-          mem_write128(addr, read_xmm(xreg))
-        },
-        RM_reg(_) => raise_UD(),
-      }
+        let modrm = fetch_byte();
+        let xreg = modrm_xmm_reg(modrm, pfx);
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_mem(addr) => {
+            mem_write128(addr, read_xmm(xreg))
+          },
+          RM_reg(_) => raise_UD(),
+        }
       }
     },
 

@@ -3156,31 +3156,31 @@ function dispatch_evex_map6(opcode, pfx) = {
       let conj : bool = (mp == MP_F2);
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
       match pfx.evex_ll {
-      2 => {
-        let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-        let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-        let acc : zmmword = read_zmm(dst);
-        let r = cfmaddcph_zmm(src1, src2, acc, conj);
-        let mask : word = evex_get_mask16(pfx);
-        write_zmm(dst, apply_writemask_ps_zmm(r, acc, mask, pfx.evex_z))
-      },
-      1 => {
-        let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
-        let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-        let acc : ymmword = read_ymm(dst);
-        let r = cfmaddcph_ymm(src1, src2, acc, conj);
-        let mask : byte = evex_get_mask8(pfx);
-        write_ymm(dst, apply_writemask_ps_ymm(r, acc, zero_extend(mask), pfx.evex_z))
-      },
-      _ => {
-        let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
-        let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
-        let acc : xmmword = read_xmm(dst);
-        let r = cfmaddcph_xmm(src1, src2, acc, conj);
-        let mask : byte = evex_get_mask8(pfx);
-        write_xmm(dst, apply_writemask_ps_xmm(r, acc, zero_extend(mask), pfx.evex_z))
-      },
-    }
+        2 => {
+          let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+          let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+          let acc : zmmword = read_zmm(dst);
+          let r = cfmaddcph_zmm(src1, src2, acc, conj);
+          let mask : word = evex_get_mask16(pfx);
+          write_zmm(dst, apply_writemask_ps_zmm(r, acc, mask, pfx.evex_z))
+        },
+        1 => {
+          let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+          let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+          let acc : ymmword = read_ymm(dst);
+          let r = cfmaddcph_ymm(src1, src2, acc, conj);
+          let mask : byte = evex_get_mask8(pfx);
+          write_ymm(dst, apply_writemask_ps_ymm(r, acc, zero_extend(mask), pfx.evex_z))
+        },
+        _ => {
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+          let acc : xmmword = read_xmm(dst);
+          let r = cfmaddcph_xmm(src1, src2, acc, conj);
+          let mask : byte = evex_get_mask8(pfx);
+          write_xmm(dst, apply_writemask_ps_xmm(r, acc, zero_extend(mask), pfx.evex_z))
+        },
+      }
     },
 
     // MAP6 0x57: VFCMADDCSH (F2, W=0) / VFMADDCSH (F3, W=0) — scalar complex multiply-accumulate
@@ -3222,28 +3222,28 @@ function dispatch_evex_map6(opcode, pfx) = {
       let conj : bool = (mp == MP_F2);
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
       match pfx.evex_ll {
-      2 => {
-        let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-        let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-        let r = cfmulcph_zmm(src1, src2, conj);
-        let mask : word = evex_get_mask16(pfx);
-        write_zmm(dst, apply_writemask_ps_zmm(r, read_zmm(dst), mask, pfx.evex_z))
-      },
-      1 => {
-        let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
-        let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-        let r = cfmulcph_ymm(src1, src2, conj);
-        let mask : byte = evex_get_mask8(pfx);
-        write_ymm(dst, apply_writemask_ps_ymm(r, read_ymm(dst), zero_extend(mask), pfx.evex_z))
-      },
-      _ => {
-        let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
-        let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
-        let r = cfmulcph_xmm(src1, src2, conj);
-        let mask : byte = evex_get_mask8(pfx);
-        write_xmm(dst, apply_writemask_ps_xmm(r, read_xmm(dst), zero_extend(mask), pfx.evex_z))
-      },
-    }
+        2 => {
+          let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
+          let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
+          let r = cfmulcph_zmm(src1, src2, conj);
+          let mask : word = evex_get_mask16(pfx);
+          write_zmm(dst, apply_writemask_ps_zmm(r, read_zmm(dst), mask, pfx.evex_z))
+        },
+        1 => {
+          let src1 : ymmword = read_ymm(pfx.evex_vvvvv);
+          let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
+          let r = cfmulcph_ymm(src1, src2, conj);
+          let mask : byte = evex_get_mask8(pfx);
+          write_ymm(dst, apply_writemask_ps_ymm(r, read_ymm(dst), zero_extend(mask), pfx.evex_z))
+        },
+        _ => {
+          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
+          let r = cfmulcph_xmm(src1, src2, conj);
+          let mask : byte = evex_get_mask8(pfx);
+          write_xmm(dst, apply_writemask_ps_xmm(r, read_xmm(dst), zero_extend(mask), pfx.evex_z))
+        },
+      }
     },
 
     // MAP6 0xD7: VFCMULCSH (F2, W=0) / VFMULCSH (F3, W=0) — scalar complex multiply

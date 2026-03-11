@@ -1921,7 +1921,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-                if pfx.rex_w then { // VCVTTPD2UDQ: f64→u32 trunc (narrowing)
+        if pfx.rex_w then { // VCVTTPD2UDQ: f64→u32 trunc (narrowing)
           match eff_ll {
             2 => {
               let src = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
@@ -1985,7 +1985,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-                if pfx.rex_w then { // VCVTTPD2UQQ: f64→u64 trunc
+        if pfx.rex_w then { // VCVTTPD2UQQ: f64→u64 trunc
           match eff_ll {
             2 => write_zmm(dst, avx_cvttpd2uqq_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
             1 => write_ymm(dst, avx_cvttpd2uqq_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
@@ -2015,7 +2015,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-                if pfx.rex_w then { // VCVTPD2UDQ: f64→u32 round (narrowing)
+        if pfx.rex_w then { // VCVTPD2UDQ: f64→u32 round (narrowing)
           match eff_ll {
             2 => write_ymm(dst, avx_cvtpd2udq_8(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
             1 => write_xmm(dst, avx_cvtpd2udq_4(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
@@ -2070,7 +2070,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-                if pfx.rex_w then { // VCVTPD2UQQ: f64→u64 round
+        if pfx.rex_w then { // VCVTPD2UQQ: f64→u64 round
           match eff_ll {
             2 => write_zmm(dst, avx_cvtpd2uqq_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
             1 => write_ymm(dst, avx_cvtpd2uqq_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
@@ -2162,7 +2162,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
         let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-                if pfx.rex_w then { // VCVTPD2QQ: f64→i64 round
+        if pfx.rex_w then { // VCVTPD2QQ: f64→i64 round
           match eff_ll {
             2 => write_zmm(dst, avx_cvtpd2qq_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
             1 => write_ymm(dst, avx_cvtpd2qq_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
