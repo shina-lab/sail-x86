@@ -992,43 +992,37 @@ function dispatch_evex_fp(op, pfx) = {
     match mp {
       // VMOVLPS (mem) or VMOVHLPS (reg) — XMM only
       MP_NONE => {
-        if pfx.evex_ll != 0 then {
-          raise_UD()
-        } else {
-          let rm = decode_rm_evex(modrm, pfx, 8);
-          match rm {
-            // VMOVHLPS xmm1, xmm2, xmm3
-            RM_reg(_) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
-              let result : xmmword = src1[127..64] @ src2[127..64];
-              write_xmm(dst, result)
-            },
-            // VMOVLPS xmm2, xmm1, m64
-            RM_mem(addr) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let m64val = mem_read64(fixup_addr(addr));
-              let result : xmmword = src1[127..64] @ m64val;
-              write_xmm(dst, result)
-            },
-          }
+        if pfx.evex_ll != 0 then raise_UD();
+        let rm = decode_rm_evex(modrm, pfx, 8);
+        match rm {
+          // VMOVHLPS xmm1, xmm2, xmm3
+          RM_reg(_) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
+            let result : xmmword = src1[127..64] @ src2[127..64];
+            write_xmm(dst, result)
+          },
+          // VMOVLPS xmm2, xmm1, m64
+          RM_mem(addr) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let m64val = mem_read64(fixup_addr(addr));
+            let result : xmmword = src1[127..64] @ m64val;
+            write_xmm(dst, result)
+          },
         }
       },
       // VMOVLPD xmm2, xmm1, m64 — XMM only
       MP_66 => {
-        if pfx.evex_ll != 0 then {
-          raise_UD()
-        } else {
-          let rm = decode_rm_evex(modrm, pfx, 8);
-          match rm {
-            RM_reg(_) => raise_UD(),
-            RM_mem(addr) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let m64val = mem_read64(fixup_addr(addr));
-              let result : xmmword = src1[127..64] @ m64val;
-              write_xmm(dst, result)
-            },
-          }
+        if pfx.evex_ll != 0 then raise_UD();
+        let rm = decode_rm_evex(modrm, pfx, 8);
+        match rm {
+          RM_reg(_) => raise_UD(),
+          RM_mem(addr) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let m64val = mem_read64(fixup_addr(addr));
+            let result : xmmword = src1[127..64] @ m64val;
+            write_xmm(dst, result)
+          },
         }
       },
       // VMOVSLDUP xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
@@ -1066,17 +1060,14 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 13: VMOVLPS (NP,store) / VMOVLPD (66,store) — XMM only, m64
   19 => {
     let modrm = fetch_byte();
-    if pfx.evex_ll != 0 then {
-      raise_UD()
-    } else {
-      let rm = decode_rm_evex(modrm, pfx, 8);
-      match rm {
-        RM_reg(_) => raise_UD(),
-        RM_mem(addr) => {
-          let src = read_xmm(evex_reg_idx(modrm, pfx));
-          mem_write64(fixup_addr(addr), src[63..0])
-        },
-      }
+    if pfx.evex_ll != 0 then raise_UD();
+    let rm = decode_rm_evex(modrm, pfx, 8);
+    match rm {
+      RM_reg(_) => raise_UD(),
+      RM_mem(addr) => {
+        let src = read_xmm(evex_reg_idx(modrm, pfx));
+        mem_write64(fixup_addr(addr), src[63..0])
+      },
     }
   },
 
@@ -1194,43 +1185,37 @@ function dispatch_evex_fp(op, pfx) = {
     match mp {
       // VMOVHPS (mem) or VMOVLHPS (reg) — XMM only
       MP_NONE => {
-        if pfx.evex_ll != 0 then {
-          raise_UD()
-        } else {
-          let rm = decode_rm_evex(modrm, pfx, 8);
-          match rm {
-            // VMOVLHPS xmm1, xmm2, xmm3
-            RM_reg(_) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
-              let result : xmmword = src2[63..0] @ src1[63..0];
-              write_xmm(dst, result)
-            },
-            // VMOVHPS xmm2, xmm1, m64
-            RM_mem(addr) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let m64val = mem_read64(fixup_addr(addr));
-              let result : xmmword = m64val @ src1[63..0];
-              write_xmm(dst, result)
-            },
-          }
+        if pfx.evex_ll != 0 then raise_UD();
+        let rm = decode_rm_evex(modrm, pfx, 8);
+        match rm {
+          // VMOVLHPS xmm1, xmm2, xmm3
+          RM_reg(_) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
+            let result : xmmword = src2[63..0] @ src1[63..0];
+            write_xmm(dst, result)
+          },
+          // VMOVHPS xmm2, xmm1, m64
+          RM_mem(addr) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let m64val = mem_read64(fixup_addr(addr));
+            let result : xmmword = m64val @ src1[63..0];
+            write_xmm(dst, result)
+          },
         }
       },
       // VMOVHPD xmm2, xmm1, m64 — XMM only
       MP_66 => {
-        if pfx.evex_ll != 0 then {
-          raise_UD()
-        } else {
-          let rm = decode_rm_evex(modrm, pfx, 8);
-          match rm {
-            RM_reg(_) => raise_UD(),
-            RM_mem(addr) => {
-              let src1 = read_xmm(pfx.evex_vvvvv);
-              let m64val = mem_read64(fixup_addr(addr));
-              let result : xmmword = m64val @ src1[63..0];
-              write_xmm(dst, result)
-            },
-          }
+        if pfx.evex_ll != 0 then raise_UD();
+        let rm = decode_rm_evex(modrm, pfx, 8);
+        match rm {
+          RM_reg(_) => raise_UD(),
+          RM_mem(addr) => {
+            let src1 = read_xmm(pfx.evex_vvvvv);
+            let m64val = mem_read64(fixup_addr(addr));
+            let result : xmmword = m64val @ src1[63..0];
+            write_xmm(dst, result)
+          },
         }
       },
       // VMOVSHDUP xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
@@ -1250,17 +1235,14 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 17: VMOVHPS (NP,store) / VMOVHPD (66,store) — XMM only, m64
   23 => {
     let modrm = fetch_byte();
-    if pfx.evex_ll != 0 then {
-      raise_UD()
-    } else {
-      let rm = decode_rm_evex(modrm, pfx, 8);
-      match rm {
-        RM_reg(_) => raise_UD(),
-        RM_mem(addr) => {
-          let src = read_xmm(evex_reg_idx(modrm, pfx));
-          mem_write64(fixup_addr(addr), src[127..64])
-        },
-      }
+    if pfx.evex_ll != 0 then raise_UD();
+    let rm = decode_rm_evex(modrm, pfx, 8);
+    match rm {
+      RM_reg(_) => raise_UD(),
+      RM_mem(addr) => {
+        let src = read_xmm(evex_reg_idx(modrm, pfx));
+        mem_write64(fixup_addr(addr), src[127..64])
+      },
     }
   },
 

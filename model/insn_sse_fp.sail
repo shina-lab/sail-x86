@@ -393,11 +393,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         RM_mem(addr) => {
           // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(addr) % 16 != 0 then {
-            raise_GP0()
-          } else {
-            write_xmm(xreg, mem_read128(addr))
-          }
+          if unsigned(addr) % 16 != 0 then raise_GP0();
+          write_xmm(xreg, mem_read128(addr))
         },
       }
     },
@@ -417,11 +414,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         RM_mem(addr) => {
           // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(addr) % 16 != 0 then {
-            raise_GP0()
-          } else {
-            mem_write128(addr, read_xmm(xreg))
-          }
+          if unsigned(addr) % 16 != 0 then raise_GP0();
+          mem_write128(addr, read_xmm(xreg))
         },
       }
     },
@@ -988,22 +982,19 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F D6: MOVQ xmm/m64, xmm (66 prefix)
     214 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        raise_UD()
-      } else {
-        let modrm = fetch_byte();
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let v = read_xmm(xreg);
-        match rm {
-          RM_reg(_) => {
-            let dst_xmm = modrm_xmm_rm(modrm, pfx);
-            write_xmm(dst_xmm, zero_extend(v[63..0]))
-          },
-          RM_mem(addr) => {
-            mem_write64(addr, v[63..0])
-          },
-        }
+      if mp != MP_66 then raise_UD();
+      let modrm = fetch_byte();
+      let xreg = modrm_xmm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let v = read_xmm(xreg);
+      match rm {
+        RM_reg(_) => {
+          let dst_xmm = modrm_xmm_rm(modrm, pfx);
+          write_xmm(dst_xmm, zero_extend(v[63..0]))
+        },
+        RM_mem(addr) => {
+          mem_write64(addr, v[63..0])
+        },
       }
     },
     // 0F E6: CVTDQ2PD/CVTPD2DQ/CVTTPD2DQ
@@ -1263,34 +1254,31 @@ val dispatch_3byte_38_sse_fp : (byte, Prefixes) -> unit
 function dispatch_3byte_38_sse_fp(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
-  if mp != MP_66 then {
-    raise_UD()
-  } else {
-    let modrm = fetch_byte();
-    let xreg = modrm_xmm_reg(modrm, pfx);
-    let rm = decode_rm(modrm, pfx);
-    let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-    match op {
-      // BLENDVPS xmm1, xmm2/m128, <XMM0>
-      20 => {
-        let a : xmmword = read_xmm(xreg);
-        let m : xmmword = read_xmm(0);
-        let d0 : dword = if m[31] == bitone then src_xmm[31..0] else a[31..0];
-        let d1 : dword = if m[63] == bitone then src_xmm[63..32] else a[63..32];
-        let d2 : dword = if m[95] == bitone then src_xmm[95..64] else a[95..64];
-        let d3 : dword = if m[127] == bitone then src_xmm[127..96] else a[127..96];
-        write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
-      },
-      // BLENDVPD xmm1, xmm2/m128, <XMM0>
-      21 => {
-        let a : xmmword = read_xmm(xreg);
-        let m : xmmword = read_xmm(0);
-        let lo : qword = if m[63] == bitone then src_xmm[63..0] else a[63..0];
-        let hi : qword = if m[127] == bitone then src_xmm[127..64] else a[127..64];
-        write_xmm_legacy(xreg, hi @ lo)
-      },
-      _ => raise_UD(),
-    }
+  if mp != MP_66 then raise_UD();
+  let modrm = fetch_byte();
+  let xreg = modrm_xmm_reg(modrm, pfx);
+  let rm = decode_rm(modrm, pfx);
+  let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+  match op {
+    // BLENDVPS xmm1, xmm2/m128, <XMM0>
+    20 => {
+      let a : xmmword = read_xmm(xreg);
+      let m : xmmword = read_xmm(0);
+      let d0 : dword = if m[31] == bitone then src_xmm[31..0] else a[31..0];
+      let d1 : dword = if m[63] == bitone then src_xmm[63..32] else a[63..32];
+      let d2 : dword = if m[95] == bitone then src_xmm[95..64] else a[95..64];
+      let d3 : dword = if m[127] == bitone then src_xmm[127..96] else a[127..96];
+      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+    },
+    // BLENDVPD xmm1, xmm2/m128, <XMM0>
+    21 => {
+      let a : xmmword = read_xmm(xreg);
+      let m : xmmword = read_xmm(0);
+      let lo : qword = if m[63] == bitone then src_xmm[63..0] else a[63..0];
+      let hi : qword = if m[127] == bitone then src_xmm[127..64] else a[127..64];
+      write_xmm_legacy(xreg, hi @ lo)
+    },
+    _ => raise_UD(),
   }
 }
 
@@ -1299,118 +1287,115 @@ val dispatch_3byte_3a_sse_fp : (byte, Prefixes) -> unit
 function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
-  if mp != MP_66 then {
-    raise_UD()
-  } else {
-    let modrm = fetch_byte();
-    let xreg = modrm_xmm_reg(modrm, pfx);
-    let rm = decode_rm(modrm, pfx);
-    match op {
-      // SSE4.1 — round
-      8 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let d0 : dword = __f32_round(src_xmm[31..0], imm);
-        let d1 : dword = __f32_round(src_xmm[63..32], imm);
-        let d2 : dword = __f32_round(src_xmm[95..64], imm);
-        let d3 : dword = __f32_round(src_xmm[127..96], imm);
-        write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
-      },
-      9 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let lo : qword = __f64_round(src_xmm[63..0], imm);
-        let hi : qword = __f64_round(src_xmm[127..64], imm);
-        write_xmm_legacy(xreg, hi @ lo)
-      },
-      10 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let lo : dword = __f32_round(src_xmm[31..0], imm);
-        write_xmm_legacy(xreg, a[127..32] @ lo)
-      },
-      11 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let lo : qword = __f64_round(src_xmm[63..0], imm);
-        write_xmm_legacy(xreg, a[127..64] @ lo)
-      },
+  if mp != MP_66 then raise_UD();
+  let modrm = fetch_byte();
+  let xreg = modrm_xmm_reg(modrm, pfx);
+  let rm = decode_rm(modrm, pfx);
+  match op {
+    // SSE4.1 — round
+    8 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let d0 : dword = __f32_round(src_xmm[31..0], imm);
+      let d1 : dword = __f32_round(src_xmm[63..32], imm);
+      let d2 : dword = __f32_round(src_xmm[95..64], imm);
+      let d3 : dword = __f32_round(src_xmm[127..96], imm);
+      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+    },
+    9 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let lo : qword = __f64_round(src_xmm[63..0], imm);
+      let hi : qword = __f64_round(src_xmm[127..64], imm);
+      write_xmm_legacy(xreg, hi @ lo)
+    },
+    10 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let lo : dword = __f32_round(src_xmm[31..0], imm);
+      write_xmm_legacy(xreg, a[127..32] @ lo)
+    },
+    11 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let lo : qword = __f64_round(src_xmm[63..0], imm);
+      write_xmm_legacy(xreg, a[127..64] @ lo)
+    },
 
-      // SSE4.1 — blend
-      12 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let d0 : dword = if imm[0] == bitone then src_xmm[31..0] else a[31..0];
-        let d1 : dword = if imm[1] == bitone then src_xmm[63..32] else a[63..32];
-        let d2 : dword = if imm[2] == bitone then src_xmm[95..64] else a[95..64];
-        let d3 : dword = if imm[3] == bitone then src_xmm[127..96] else a[127..96];
-        write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
-      },
-      13 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let lo : qword = if imm[0] == bitone then src_xmm[63..0] else a[63..0];
-        let hi : qword = if imm[1] == bitone then src_xmm[127..64] else a[127..64];
-        write_xmm_legacy(xreg, hi @ lo)
-      },
+    // SSE4.1 — blend
+    12 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let d0 : dword = if imm[0] == bitone then src_xmm[31..0] else a[31..0];
+      let d1 : dword = if imm[1] == bitone then src_xmm[63..32] else a[63..32];
+      let d2 : dword = if imm[2] == bitone then src_xmm[95..64] else a[95..64];
+      let d3 : dword = if imm[3] == bitone then src_xmm[127..96] else a[127..96];
+      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+    },
+    13 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let lo : qword = if imm[0] == bitone then src_xmm[63..0] else a[63..0];
+      let hi : qword = if imm[1] == bitone then src_xmm[127..64] else a[127..64];
+      write_xmm_legacy(xreg, hi @ lo)
+    },
 
-      // EXTRACTPS r/m32, xmm, imm8
-      23 => {
-        let imm = fetch_byte();
-        let v = extract_dword_from_xmm(read_xmm(xreg), imm);
-        match rm {
-          RM_reg(_) => {
-            let dst_reg = modrm_rm_reg(modrm, pfx);
-            write_gpr32(dst_reg, v);
-          },
-          RM_mem(addr) => mem_write32(fixup_addr(addr), v),
-        }
-      },
+    // EXTRACTPS r/m32, xmm, imm8
+    23 => {
+      let imm = fetch_byte();
+      let v = extract_dword_from_xmm(read_xmm(xreg), imm);
+      match rm {
+        RM_reg(_) => {
+          let dst_reg = modrm_rm_reg(modrm, pfx);
+          write_gpr32(dst_reg, v);
+        },
+        RM_mem(addr) => mem_write32(fixup_addr(addr), v),
+      }
+    },
 
-      // INSERTPS xmm, xmm/m32, imm8
-      33 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        exec_insertps(xreg, src_xmm, imm)
-      },
+    // INSERTPS xmm, xmm/m32, imm8
+    33 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      exec_insertps(xreg, src_xmm, imm)
+    },
 
-      // SSE4.1 — dot product
-      64 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let zero : dword = 0x00000000;
-        let temp0 : dword = if imm[4] == bitone then __f32_mul(a[31..0], src_xmm[31..0]) else zero;
-        let temp1 : dword = if imm[5] == bitone then __f32_mul(a[63..32], src_xmm[63..32]) else zero;
-        let temp2 : dword = if imm[6] == bitone then __f32_mul(a[95..64], src_xmm[95..64]) else zero;
-        let temp3 : dword = if imm[7] == bitone then __f32_mul(a[127..96], src_xmm[127..96]) else zero;
-        let sum01 : dword = __f32_add(temp0, temp1);
-        let sum23 : dword = __f32_add(temp2, temp3);
-        let sum : dword = __f32_add(sum01, sum23);
-        let d0 : dword = if imm[0] == bitone then sum else zero;
-        let d1 : dword = if imm[1] == bitone then sum else zero;
-        let d2 : dword = if imm[2] == bitone then sum else zero;
-        let d3 : dword = if imm[3] == bitone then sum else zero;
-        write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
-      },
-      65 => {
-        let src_xmm = decode_xmm_src(modrm, rm, pfx);
-        let imm = fetch_byte();
-        let a : xmmword = read_xmm(xreg);
-        let zero : qword = 0x0000000000000000;
-        let temp0 : qword = if imm[4] == bitone then __f64_mul(a[63..0], src_xmm[63..0]) else zero;
-        let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], src_xmm[127..64]) else zero;
-        let sum : qword = __f64_add(temp0, temp1);
-        let lo : qword = if imm[0] == bitone then sum else zero;
-        let hi : qword = if imm[1] == bitone then sum else zero;
-        write_xmm_legacy(xreg, hi @ lo)
-      },
+    // SSE4.1 — dot product
+    64 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let zero : dword = 0x00000000;
+      let temp0 : dword = if imm[4] == bitone then __f32_mul(a[31..0], src_xmm[31..0]) else zero;
+      let temp1 : dword = if imm[5] == bitone then __f32_mul(a[63..32], src_xmm[63..32]) else zero;
+      let temp2 : dword = if imm[6] == bitone then __f32_mul(a[95..64], src_xmm[95..64]) else zero;
+      let temp3 : dword = if imm[7] == bitone then __f32_mul(a[127..96], src_xmm[127..96]) else zero;
+      let sum01 : dword = __f32_add(temp0, temp1);
+      let sum23 : dword = __f32_add(temp2, temp3);
+      let sum : dword = __f32_add(sum01, sum23);
+      let d0 : dword = if imm[0] == bitone then sum else zero;
+      let d1 : dword = if imm[1] == bitone then sum else zero;
+      let d2 : dword = if imm[2] == bitone then sum else zero;
+      let d3 : dword = if imm[3] == bitone then sum else zero;
+      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+    },
+    65 => {
+      let src_xmm = decode_xmm_src(modrm, rm, pfx);
+      let imm = fetch_byte();
+      let a : xmmword = read_xmm(xreg);
+      let zero : qword = 0x0000000000000000;
+      let temp0 : qword = if imm[4] == bitone then __f64_mul(a[63..0], src_xmm[63..0]) else zero;
+      let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], src_xmm[127..64]) else zero;
+      let sum : qword = __f64_add(temp0, temp1);
+      let lo : qword = if imm[0] == bitone then sum else zero;
+      let hi : qword = if imm[1] == bitone then sum else zero;
+      write_xmm_legacy(xreg, hi @ lo)
+    },
 
-      _ => raise_UD(),
-    }
+    _ => raise_UD(),
   }
 }

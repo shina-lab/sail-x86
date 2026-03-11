@@ -15,23 +15,23 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     match mp {
       // VMOVUPS (vvvv reserved)
-      MP_NONE =>
-        if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else if pfx.vex_l then {
+      MP_NONE => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        if pfx.vex_l then {
           write_ymm(dst, decode_vex_src_ymm(modrm, rm, pfx))
         } else {
           write_xmm(dst, decode_vex_src_xmm(modrm, rm, pfx))
-        },
+        }
+      },
       // VMOVUPD (vvvv reserved)
-      MP_66 =>
-        if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else if pfx.vex_l then {
+      MP_66 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        if pfx.vex_l then {
           write_ymm(dst, decode_vex_src_ymm(modrm, rm, pfx))
         } else {
           write_xmm(dst, decode_vex_src_xmm(modrm, rm, pfx))
-        },
+        }
+      },
       // VMOVSS xmm1, xmm2, xmm3 or xmm1, m32
       MP_F3 => {
         match rm {
@@ -72,10 +72,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     match mp {
       // VMOVUPS (vvvv reserved)
-      MP_NONE =>
-        if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match rm {
+      MP_NONE => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        match rm {
           RM_reg(_) => {
             let dst = modrm_xmm_rm(modrm, pfx);
             if pfx.vex_l then {
@@ -92,12 +91,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
               mem_write128(a, read_xmm(src))
             }
           },
-        },
+        }
+      },
       // VMOVUPD (vvvv reserved)
-      MP_66 =>
-        if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match rm {
+      MP_66 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        match rm {
           RM_reg(_) => {
             let dst = modrm_xmm_rm(modrm, pfx);
             if pfx.vex_l then {
@@ -114,7 +113,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
               mem_write128(a, read_xmm(src))
             }
           },
-        },
+        }
+      },
       // VMOVSS xmm1, xmm2, xmm3 or VMOVSS m32, xmm1
       MP_F3 => {
         match rm {
@@ -170,16 +170,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 13: VMOVLPS/VMOVLPD m64, xmm (store low 64 bits to memory)
   19 => {
-    if pfx.vex_l | pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(addr) => mem_write64(fixup_addr(addr), read_xmm(src)[63..0]),
-        RM_reg(_) => raise_UD(),
-      }
+    if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match rm {
+      RM_mem(addr) => mem_write64(fixup_addr(addr), read_xmm(src)[63..0]),
+      RM_reg(_) => raise_UD(),
     }
   },
 
@@ -279,93 +276,72 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 17: VMOVHPS/VMOVHPD m64, xmm (store high 64 bits to memory)
   23 => {
-    if pfx.vex_l | pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(addr) => mem_write64(fixup_addr(addr), read_xmm(src)[127..64]),
-        RM_reg(_) => raise_UD(),
-      }
+    if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match rm {
+      RM_mem(addr) => mem_write64(fixup_addr(addr), read_xmm(src)[127..64]),
+      RM_reg(_) => raise_UD(),
     }
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (load)
   // SDM: VEX.vvvv must be 1111b
   40 => {
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let dst = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_reg(_) => {
-          if pfx.vex_l then {
-            write_ymm(dst, read_ymm(modrm_xmm_rm(modrm, pfx)));
-          } else {
-            write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx)));
-          }
-        },
-        RM_mem(addr) => {
-          let a = fixup_addr(addr);
-          // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
-          if pfx.vex_l then {
-            if unsigned(a) % 32 != 0 then {
-              raise_GP0()
-            } else {
-              write_ymm(dst, mem_read256(a))
-            }
-          } else {
-            if unsigned(a) % 16 != 0 then {
-              raise_GP0()
-            } else {
-              write_xmm(dst, mem_read128(a))
-            }
-          }
-        },
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let dst = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match rm {
+      RM_reg(_) => {
+        if pfx.vex_l then {
+          write_ymm(dst, read_ymm(modrm_xmm_rm(modrm, pfx)));
+        } else {
+          write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx)));
+        }
+      },
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
+        if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0();
+          write_ymm(dst, mem_read256(a))
+        } else {
+          if unsigned(a) % 16 != 0 then raise_GP0();
+          write_xmm(dst, mem_read128(a))
+        }
+      },
     }
   },
 
   // 0F 29: VMOVAPS/VMOVAPD (store)
   // SDM: VEX.vvvv must be 1111b
   41 => {
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_reg(_) => {
-          let dst = modrm_xmm_rm(modrm, pfx);
-          if pfx.vex_l then {
-            write_ymm(dst, read_ymm(src))
-          } else {
-            write_xmm(dst, read_xmm(src))
-          }
-        },
-        RM_mem(addr) => {
-          let a = fixup_addr(addr);
-          // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
-          if pfx.vex_l then {
-            if unsigned(a) % 32 != 0 then {
-              raise_GP0()
-            } else {
-              mem_write256(a, read_ymm(src))
-            }
-          } else {
-            if unsigned(a) % 16 != 0 then {
-              raise_GP0()
-            } else {
-              mem_write128(a, read_xmm(src))
-            }
-          }
-        },
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match rm {
+      RM_reg(_) => {
+        let dst = modrm_xmm_rm(modrm, pfx);
+        if pfx.vex_l then {
+          write_ymm(dst, read_ymm(src))
+        } else {
+          write_xmm(dst, read_xmm(src))
+        }
+      },
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
+        if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0();
+          mem_write256(a, read_ymm(src))
+        } else {
+          if unsigned(a) % 16 != 0 then raise_GP0();
+          mem_write128(a, read_xmm(src))
+        }
+      },
     }
   },
 
@@ -402,25 +378,22 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 2B: VMOVNTPS/VMOVNTPD m, xmm/ymm (non-temporal store; we treat as regular store)
   43 => {
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(addr) => {
-          let a = fixup_addr(addr);
-          if pfx.vex_l then {
-            let v : ymmword = read_ymm(src);
-            mem_write128(a, v[127..0]);
-            mem_write128(a + 16, v[255..128])
-          } else {
-            mem_write128(a, read_xmm(src))
-          }
-        },
-        RM_reg(_) => raise_UD(),
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match rm {
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        if pfx.vex_l then {
+          let v : ymmword = read_ymm(src);
+          mem_write128(a, v[127..0]);
+          mem_write128(a + 16, v[255..128])
+        } else {
+          mem_write128(a, read_xmm(src))
+        }
+      },
+      RM_reg(_) => raise_UD(),
     }
   },
 
@@ -485,94 +458,88 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 2E: VUCOMISS (NP) / VUCOMISD (66) — unordered compare scalars, set EFLAGS
   // SDM: VEX.vvvv must be 1111b
   46 => {
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src_reg = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match mp {
-        // VUCOMISS xmm1, xmm2/m32
-        MP_NONE => {
-          let src : xmmword = match rm {
-            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-            RM_mem(addr) => zero_extend(mem_read32(fixup_addr(addr))),
-          };
-          let a : dword = read_xmm(src_reg)[31..0];
-          let b : dword = src[31..0];
-          match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
-          };
-          OF = bitzero; SF = bitzero; AF = bitzero
-        },
-        // VUCOMISD xmm1, xmm2/m64
-        MP_66 => {
-          let src : xmmword = match rm {
-            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-            RM_mem(addr) => zero_extend(mem_read64(fixup_addr(addr))),
-          };
-          let a : qword = read_xmm(src_reg)[63..0];
-          let b : qword = src[63..0];
-          match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
-          };
-          OF = bitzero; SF = bitzero; AF = bitzero
-        },
-        _ => raise_UD(),
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src_reg = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match mp {
+      // VUCOMISS xmm1, xmm2/m32
+      MP_NONE => {
+        let src : xmmword = match rm {
+          RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => zero_extend(mem_read32(fixup_addr(addr))),
+        };
+        let a : dword = read_xmm(src_reg)[31..0];
+        let b : dword = src[31..0];
+        match __compare_ss(a, b) {
+          FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+          FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+          FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+          FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        };
+        OF = bitzero; SF = bitzero; AF = bitzero
+      },
+      // VUCOMISD xmm1, xmm2/m64
+      MP_66 => {
+        let src : xmmword = match rm {
+          RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => zero_extend(mem_read64(fixup_addr(addr))),
+        };
+        let a : qword = read_xmm(src_reg)[63..0];
+        let b : qword = src[63..0];
+        match __compare_sd(a, b) {
+          FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+          FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+          FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+          FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        };
+        OF = bitzero; SF = bitzero; AF = bitzero
+      },
+      _ => raise_UD(),
     }
   },
 
   // 0F 2F: VCOMISS (NP) / VCOMISD (66) — ordered compare scalars, set EFLAGS
   // SDM: VEX.vvvv must be 1111b
   47 => {
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      let modrm = fetch_byte();
-      let src_reg = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match mp {
-        // VCOMISS xmm1, xmm2/m32
-        MP_NONE => {
-          let src : xmmword = match rm {
-            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-            RM_mem(addr) => zero_extend(mem_read32(fixup_addr(addr))),
-          };
-          let a : dword = read_xmm(src_reg)[31..0];
-          let b : dword = src[31..0];
-          match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
-          };
-          OF = bitzero; SF = bitzero; AF = bitzero
-        },
-        // VCOMISD xmm1, xmm2/m64
-        MP_66 => {
-          let src : xmmword = match rm {
-            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-            RM_mem(addr) => zero_extend(mem_read64(fixup_addr(addr))),
-          };
-          let a : qword = read_xmm(src_reg)[63..0];
-          let b : qword = src[63..0];
-          match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
-          };
-          OF = bitzero; SF = bitzero; AF = bitzero
-        },
-        _ => raise_UD(),
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    let modrm = fetch_byte();
+    let src_reg = modrm_xmm_reg(modrm, pfx);
+    let rm = decode_rm(modrm, pfx);
+    match mp {
+      // VCOMISS xmm1, xmm2/m32
+      MP_NONE => {
+        let src : xmmword = match rm {
+          RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => zero_extend(mem_read32(fixup_addr(addr))),
+        };
+        let a : dword = read_xmm(src_reg)[31..0];
+        let b : dword = src[31..0];
+        match __compare_ss(a, b) {
+          FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+          FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+          FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+          FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        };
+        OF = bitzero; SF = bitzero; AF = bitzero
+      },
+      // VCOMISD xmm1, xmm2/m64
+      MP_66 => {
+        let src : xmmword = match rm {
+          RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+          RM_mem(addr) => zero_extend(mem_read64(fixup_addr(addr))),
+        };
+        let a : qword = read_xmm(src_reg)[63..0];
+        let b : qword = src[63..0];
+        match __compare_sd(a, b) {
+          FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
+          FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
+          FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
+          FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        };
+        OF = bitzero; SF = bitzero; AF = bitzero
+      },
+      _ => raise_UD(),
     }
   },
 
@@ -581,35 +548,32 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch_byte();
     let reg = modrm_reg(modrm, pfx);
     let _ = decode_rm(modrm, pfx);
-    if pfx.vex_vvvv != 0 then {
-      raise_UD()
-    } else {
-      match mp {
-        MP_NONE => {
-          if pfx.vex_l then {
-            let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
-            let mask : byte = src[255] @ src[223] @ src[191] @ src[159] @
-                              src[127] @ src[95] @ src[63] @ src[31];
-            write_gpr32(reg, zero_extend(mask))
-          } else {
-            let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
-            let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
-            write_gpr32(reg, zero_extend(mask))
-          }
-        },
-        MP_66 => {
-          if pfx.vex_l then {
-            let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
-            let mask : bits(4) = src[255] @ src[191] @ src[127] @ src[63];
-            write_gpr32(reg, zero_extend(mask))
-          } else {
-            let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
-            let mask : bits(2) = src[127] @ src[63];
-            write_gpr32(reg, zero_extend(mask))
-          }
-        },
-        _ => raise_UD(),
-      }
+    if pfx.vex_vvvv != 0 then raise_UD();
+    match mp {
+      MP_NONE => {
+        if pfx.vex_l then {
+          let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
+          let mask : byte = src[255] @ src[223] @ src[191] @ src[159] @
+                            src[127] @ src[95] @ src[63] @ src[31];
+          write_gpr32(reg, zero_extend(mask))
+        } else {
+          let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+          let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
+          write_gpr32(reg, zero_extend(mask))
+        }
+      },
+      MP_66 => {
+        if pfx.vex_l then {
+          let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
+          let mask : bits(4) = src[255] @ src[191] @ src[127] @ src[63];
+          write_gpr32(reg, zero_extend(mask))
+        } else {
+          let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+          let mask : bits(2) = src[127] @ src[63];
+          write_gpr32(reg, zero_extend(mask))
+        }
+      },
+      _ => raise_UD(),
     }
   },
 
@@ -627,38 +591,41 @@ function dispatch_vex_0f_fp(op, pfx) = {
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       match col {
         // VSQRTPS/VSQRTPD (unary, vvvv reserved)
-        1 => if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match mp {
-          MP_NONE => write_ymm(dst, vsqrtps_xmm(src2[255..128]) @ vsqrtps_xmm(src2[127..0])),
-          MP_66   => write_ymm(dst, vsqrtpd_xmm(src2[255..128]) @ vsqrtpd_xmm(src2[127..0])),
-          _ => raise_UD(),
+        1 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            MP_NONE => write_ymm(dst, vsqrtps_xmm(src2[255..128]) @ vsqrtps_xmm(src2[127..0])),
+            MP_66   => write_ymm(dst, vsqrtpd_xmm(src2[255..128]) @ vsqrtpd_xmm(src2[127..0])),
+            _ => raise_UD(),
+          }
         },
         // VRSQRTPS (NP only, vvvv reserved, 256-bit)
-        2 => if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match mp {
-          MP_NONE => {
-            let hi = __f32_rsqrt(src2[255..224]) @ __f32_rsqrt(src2[223..192]) @
-                     __f32_rsqrt(src2[191..160]) @ __f32_rsqrt(src2[159..128]);
-            let lo = __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
-                     __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]);
-            write_ymm(dst, hi @ lo)
-          },
-          _ => raise_UD(),
+        2 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            MP_NONE => {
+              let hi = __f32_rsqrt(src2[255..224]) @ __f32_rsqrt(src2[223..192]) @
+                       __f32_rsqrt(src2[191..160]) @ __f32_rsqrt(src2[159..128]);
+              let lo = __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
+                       __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]);
+              write_ymm(dst, hi @ lo)
+            },
+            _ => raise_UD(),
+          }
         },
         // VRCPPS (NP only, vvvv reserved, 256-bit)
-        3 => if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match mp {
-          MP_NONE => {
-            let hi = __f32_rcp(src2[255..224]) @ __f32_rcp(src2[223..192]) @
-                     __f32_rcp(src2[191..160]) @ __f32_rcp(src2[159..128]);
-            let lo = __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
-                     __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]);
-            write_ymm(dst, hi @ lo)
-          },
-          _ => raise_UD(),
+        3 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            MP_NONE => {
+              let hi = __f32_rcp(src2[255..224]) @ __f32_rcp(src2[223..192]) @
+                       __f32_rcp(src2[191..160]) @ __f32_rcp(src2[159..128]);
+              let lo = __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
+                       __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]);
+              write_ymm(dst, hi @ lo)
+            },
+            _ => raise_UD(),
+          }
         },
         // VANDPS/VANDPD
         4 => match mp {
@@ -689,26 +656,27 @@ function dispatch_vex_0f_fp(op, pfx) = {
           _ => raise_UD(),
         },
         // VCVTPS2PD/VCVTPD2PS (256-bit, vvvv reserved)
-        10 => if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match mp {
-          // VCVTPS2PD: 4 floats -> 4 doubles
-          MP_NONE => {
-            let r3 = __f32_to_f64(src2[127..96]);
-            let r2 = __f32_to_f64(src2[95..64]);
-            let r1 = __f32_to_f64(src2[63..32]);
-            let r0 = __f32_to_f64(src2[31..0]);
-            write_ymm(dst, r3 @ r2 @ r1 @ r0)
-          },
-          // VCVTPD2PS: 4 doubles -> 4 floats (in low 128)
-          MP_66 => {
-            let r3 = __f64_to_f32(src2[255..192]);
-            let r2 = __f64_to_f32(src2[191..128]);
-            let r1 = __f64_to_f32(src2[127..64]);
-            let r0 = __f64_to_f32(src2[63..0]);
-            write_xmm(dst, r3 @ r2 @ r1 @ r0)
-          },
-          _ => raise_UD(),
+        10 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            // VCVTPS2PD: 4 floats -> 4 doubles
+            MP_NONE => {
+              let r3 = __f32_to_f64(src2[127..96]);
+              let r2 = __f32_to_f64(src2[95..64]);
+              let r1 = __f32_to_f64(src2[63..32]);
+              let r0 = __f32_to_f64(src2[31..0]);
+              write_ymm(dst, r3 @ r2 @ r1 @ r0)
+            },
+            // VCVTPD2PS: 4 doubles -> 4 floats (in low 128)
+            MP_66 => {
+              let r3 = __f64_to_f32(src2[255..192]);
+              let r2 = __f64_to_f32(src2[191..128]);
+              let r1 = __f64_to_f32(src2[127..64]);
+              let r0 = __f64_to_f32(src2[63..0]);
+              write_xmm(dst, r3 @ r2 @ r1 @ r0)
+            },
+            _ => raise_UD(),
+          }
         },
         // VSUBPS/VSUBPD
         12 => match mp {
@@ -743,32 +711,28 @@ function dispatch_vex_0f_fp(op, pfx) = {
       match col {
         // VSQRTPS/VSQRTPD/VSQRTSS/VSQRTSD
         1 => match mp {
-          MP_NONE => if pfx.vex_vvvv != 0 then { raise_UD() } else { write_xmm(dst, vsqrtps_xmm(src2)) },
-          MP_66   => if pfx.vex_vvvv != 0 then { raise_UD() } else { write_xmm(dst, vsqrtpd_xmm(src2)) },
+          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_xmm(dst, vsqrtps_xmm(src2)) },
+          MP_66   => { if pfx.vex_vvvv != 0 then raise_UD(); write_xmm(dst, vsqrtpd_xmm(src2)) },
           MP_F3   => write_xmm(dst, src1[127..32] @ __f32_sqrt(src2[31..0])),
           MP_F2   => write_xmm(dst, src1[127..64] @ __f64_sqrt(src2[63..0])),
         },
         // VRSQRTPS (NP, vvvv reserved) / VRSQRTSS (F3, scalar merge)
         2 => match mp {
-          MP_NONE =>
-            if pfx.vex_vvvv != 0 then {
-              raise_UD()
-            } else {
-              write_xmm(dst, __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
-                             __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]))
-            },
+          MP_NONE => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            write_xmm(dst, __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
+                           __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]))
+          },
           MP_F3 => write_xmm(dst, src1[127..32] @ __f32_rsqrt(src2[31..0])),
           _ => raise_UD(),
         },
         // VRCPPS (NP, vvvv reserved) / VRCPSS (F3, scalar merge)
         3 => match mp {
-          MP_NONE =>
-            if pfx.vex_vvvv != 0 then {
-              raise_UD()
-            } else {
-              write_xmm(dst, __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
-                             __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]))
-            },
+          MP_NONE => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            write_xmm(dst, __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
+                           __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]))
+          },
           MP_F3 => write_xmm(dst, src1[127..32] @ __f32_rcp(src2[31..0])),
           _ => raise_UD(),
         },
@@ -803,46 +767,43 @@ function dispatch_vex_0f_fp(op, pfx) = {
           MP_F2   => write_xmm(dst, src1[127..64] @ __f64_mul(src1[63..0], src2[63..0])),
         },
         // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ (unary, vvvv reserved)
-        11 => if pfx.vex_vvvv != 0 then {
-          raise_UD()
-        } else match mp {
-          // VCVTDQ2PS xmm1, xmm2/m128
-          MP_NONE => {
-            write_xmm(dst, __int32_to_f32(src2[127..96]) @ __int32_to_f32(src2[95..64]) @
-              __int32_to_f32(src2[63..32]) @ __int32_to_f32(src2[31..0]))
-          },
-          // VCVTPS2DQ xmm1, xmm2/m128
-          MP_66 => {
-            write_xmm(dst, __f32_to_int32(src2[127..96]) @ __f32_to_int32(src2[95..64]) @
-              __f32_to_int32(src2[63..32]) @ __f32_to_int32(src2[31..0]))
-          },
-          // VCVTTPS2DQ xmm1, xmm2/m128
-          MP_F3 => {
-            write_xmm(dst, __f32_to_int32_trunc(src2[127..96]) @ __f32_to_int32_trunc(src2[95..64]) @
-              __f32_to_int32_trunc(src2[63..32]) @ __f32_to_int32_trunc(src2[31..0]))
-          },
-          _ => raise_UD(),
+        11 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            // VCVTDQ2PS xmm1, xmm2/m128
+            MP_NONE => {
+              write_xmm(dst, __int32_to_f32(src2[127..96]) @ __int32_to_f32(src2[95..64]) @
+                __int32_to_f32(src2[63..32]) @ __int32_to_f32(src2[31..0]))
+            },
+            // VCVTPS2DQ xmm1, xmm2/m128
+            MP_66 => {
+              write_xmm(dst, __f32_to_int32(src2[127..96]) @ __f32_to_int32(src2[95..64]) @
+                __f32_to_int32(src2[63..32]) @ __f32_to_int32(src2[31..0]))
+            },
+            // VCVTTPS2DQ xmm1, xmm2/m128
+            MP_F3 => {
+              write_xmm(dst, __f32_to_int32_trunc(src2[127..96]) @ __f32_to_int32_trunc(src2[95..64]) @
+                __f32_to_int32_trunc(src2[63..32]) @ __f32_to_int32_trunc(src2[31..0]))
+            },
+            _ => raise_UD(),
+          }
         },
         // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)
         10 => match mp {
           // VCVTPS2PD: 2 floats -> 2 doubles (vvvv reserved)
-          MP_NONE =>
-            if pfx.vex_vvvv != 0 then {
-              raise_UD()
-            } else {
-              let r1 = __f32_to_f64(src2[63..32]);
-              let r0 = __f32_to_f64(src2[31..0]);
-              write_xmm(dst, r1 @ r0)
-            },
+          MP_NONE => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            let r1 = __f32_to_f64(src2[63..32]);
+            let r0 = __f32_to_f64(src2[31..0]);
+            write_xmm(dst, r1 @ r0)
+          },
           // VCVTPD2PS: 2 doubles -> 2 floats (vvvv reserved)
-          MP_66 =>
-            if pfx.vex_vvvv != 0 then {
-              raise_UD()
-            } else {
-              let r1 = __f64_to_f32(src2[127..64]);
-              let r0 = __f64_to_f32(src2[63..0]);
-              write_xmm(dst, zeros(64) @ r1 @ r0)
-            },
+          MP_66 => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            let r1 = __f64_to_f32(src2[127..64]);
+            let r0 = __f64_to_f32(src2[63..0]);
+            write_xmm(dst, zeros(64) @ r1 @ r0)
+          },
           // VCVTSS2SD: scalar float -> double
           MP_F3 => {
             write_xmm(dst, src1[127..64] @ __f32_to_f64(src2[31..0]))

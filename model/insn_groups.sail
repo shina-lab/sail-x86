@@ -83,67 +83,47 @@ function exec_div(src, os) = {
   match os {
     OS8 => {
       let divisor = unsigned(src[7..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = unsigned(read_gpr16(RAX));
-        let quotient = dividend / divisor;
-        let remainder = dividend - quotient * divisor;
-        if quotient > 255 then {
-          raise_DE()
-        } else {
-          write_gpr8l(RAX, to_bits_truncate(quotient));
-          write_gpr8h(RAX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor > 0);
+      let dividend = unsigned(read_gpr16(RAX));
+      let quotient = dividend / divisor;
+      let remainder = dividend - quotient * divisor;
+      if quotient > 255 then raise_DE();
+      write_gpr8l(RAX, to_bits_truncate(quotient));
+      write_gpr8h(RAX, to_bits_truncate(remainder))
     },
     OS16 => {
       let divisor = unsigned(src[15..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = unsigned(read_gpr16(RDX) @ read_gpr16(RAX));
-        let quotient = dividend / divisor;
-        let remainder = dividend - quotient * divisor;
-        if quotient > 65535 then {
-          raise_DE()
-        } else {
-          write_gpr16(RAX, to_bits_truncate(quotient));
-          write_gpr16(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor > 0);
+      let dividend = unsigned(read_gpr16(RDX) @ read_gpr16(RAX));
+      let quotient = dividend / divisor;
+      let remainder = dividend - quotient * divisor;
+      if quotient > 65535 then raise_DE();
+      write_gpr16(RAX, to_bits_truncate(quotient));
+      write_gpr16(RDX, to_bits_truncate(remainder))
     },
     OS32 => {
       let divisor = unsigned(src[31..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = unsigned(read_gpr32(RDX) @ read_gpr32(RAX));
-        let quotient = dividend / divisor;
-        let remainder = dividend - quotient * divisor;
-        if quotient > (pow2(32) - 1) then {
-          raise_DE()
-        } else {
-          write_gpr32(RAX, to_bits_truncate(quotient));
-          write_gpr32(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor > 0);
+      let dividend = unsigned(read_gpr32(RDX) @ read_gpr32(RAX));
+      let quotient = dividend / divisor;
+      let remainder = dividend - quotient * divisor;
+      if quotient > (pow2(32) - 1) then raise_DE();
+      write_gpr32(RAX, to_bits_truncate(quotient));
+      write_gpr32(RDX, to_bits_truncate(remainder))
     },
     OS64 => {
       let divisor = unsigned(src);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = unsigned(read_gpr64(RDX) @ read_gpr64(RAX));
-        let quotient = dividend / divisor;
-        let remainder = dividend - quotient * divisor;
-        if quotient > (pow2(64) - 1) then {
-          raise_DE()
-        } else {
-          write_gpr64(RAX, to_bits_truncate(quotient));
-          write_gpr64(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor > 0);
+      let dividend = unsigned(read_gpr64(RDX) @ read_gpr64(RAX));
+      let quotient = dividend / divisor;
+      let remainder = dividend - quotient * divisor;
+      if quotient > (pow2(64) - 1) then raise_DE();
+      write_gpr64(RAX, to_bits_truncate(quotient));
+      write_gpr64(RDX, to_bits_truncate(remainder))
     },
   }
 }
@@ -155,67 +135,47 @@ function exec_idiv(src, os) = {
   match os {
     OS8 => {
       let divisor = signed(src[7..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = signed(read_gpr16(RAX));
-        let quotient = quot_round_zero(dividend, divisor);
-        let remainder = rem_round_zero(dividend, divisor);
-        if quotient > 127 | quotient < negate(128) then {
-          raise_DE()
-        } else {
-          write_gpr8l(RAX, to_bits_truncate(quotient));
-          write_gpr8h(RAX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor != 0);
+      let dividend = signed(read_gpr16(RAX));
+      let quotient = quot_round_zero(dividend, divisor);
+      let remainder = rem_round_zero(dividend, divisor);
+      if quotient > 127 | quotient < negate(128) then raise_DE();
+      write_gpr8l(RAX, to_bits_truncate(quotient));
+      write_gpr8h(RAX, to_bits_truncate(remainder))
     },
     OS16 => {
       let divisor = signed(src[15..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = signed(read_gpr16(RDX) @ read_gpr16(RAX));
-        let quotient = quot_round_zero(dividend, divisor);
-        let remainder = rem_round_zero(dividend, divisor);
-        if quotient > 32767 | quotient < negate(32768) then {
-          raise_DE()
-        } else {
-          write_gpr16(RAX, to_bits_truncate(quotient));
-          write_gpr16(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor != 0);
+      let dividend = signed(read_gpr16(RDX) @ read_gpr16(RAX));
+      let quotient = quot_round_zero(dividend, divisor);
+      let remainder = rem_round_zero(dividend, divisor);
+      if quotient > 32767 | quotient < negate(32768) then raise_DE();
+      write_gpr16(RAX, to_bits_truncate(quotient));
+      write_gpr16(RDX, to_bits_truncate(remainder))
     },
     OS32 => {
       let divisor = signed(src[31..0]);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = signed(read_gpr32(RDX) @ read_gpr32(RAX));
-        let quotient = quot_round_zero(dividend, divisor);
-        let remainder = rem_round_zero(dividend, divisor);
-        if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then {
-          raise_DE()
-        } else {
-          write_gpr32(RAX, to_bits_truncate(quotient));
-          write_gpr32(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor != 0);
+      let dividend = signed(read_gpr32(RDX) @ read_gpr32(RAX));
+      let quotient = quot_round_zero(dividend, divisor);
+      let remainder = rem_round_zero(dividend, divisor);
+      if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then raise_DE();
+      write_gpr32(RAX, to_bits_truncate(quotient));
+      write_gpr32(RDX, to_bits_truncate(remainder))
     },
     OS64 => {
       let divisor = signed(src);
-      if divisor == 0 then {
-        raise_DE()
-      } else {
-        let dividend = signed(read_gpr64(RDX) @ read_gpr64(RAX));
-        let quotient = quot_round_zero(dividend, divisor);
-        let remainder = rem_round_zero(dividend, divisor);
-        if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then {
-          raise_DE()
-        } else {
-          write_gpr64(RAX, to_bits_truncate(quotient));
-          write_gpr64(RDX, to_bits_truncate(remainder))
-        }
-      }
+      if divisor == 0 then raise_DE();
+      assert(divisor != 0);
+      let dividend = signed(read_gpr64(RDX) @ read_gpr64(RAX));
+      let quotient = quot_round_zero(dividend, divisor);
+      let remainder = rem_round_zero(dividend, divisor);
+      if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then raise_DE();
+      write_gpr64(RAX, to_bits_truncate(quotient));
+      write_gpr64(RDX, to_bits_truncate(remainder))
     },
   }
 }

@@ -316,48 +316,42 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // 0F 00 /2: LLDT r/m16 — Load LDT Register (requires CPL=0)
         2 => {
-          if cur_cpl != 0 then {
-            raise_GP0()
-          } else {
-            let rm = decode_rm(modrm, pfx);
-            let sel : word = match rm {
-              RM_reg(r) => read_gpr16(r),
-              RM_mem(addr) => mem_read16(addr),
-            };
-            LDTR = sel
-          }
+          if cur_cpl != 0 then raise_GP0();
+          let rm = decode_rm(modrm, pfx);
+          let sel : word = match rm {
+            RM_reg(r) => read_gpr16(r),
+            RM_mem(addr) => mem_read16(addr),
+          };
+          LDTR = sel
         },
         // 0F 00 /3: LTR r/m16 — Load Task Register (requires CPL=0)
         3 => {
-          if cur_cpl != 0 then {
-            raise_GP0()
-          } else {
-            let rm = decode_rm(modrm, pfx);
-            let sel : word = match rm {
-              RM_reg(r) => read_gpr16(r),
-              RM_mem(addr) => mem_read16(addr),
-            };
-            TR = sel;
-            // Load TSS base/limit from GDT descriptor
-            let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
-            let desc_lo : dword = mem_read32(desc_addr);
-            let desc_hi : dword = mem_read32(desc_addr + 4);
-            // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
-            let base_lo : dword = desc_lo[31..16] @ 0x0000;
-            let base_mid : byte = desc_hi[7..0];
-            let base_hi : byte = desc_hi[31..24];
-            TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
-            // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
-            let desc_ext : dword = mem_read32(desc_addr + 8);
-            TR_base = zero_extend(desc_ext) @ TR_base[31..0];
-            // Limit = desc[51:48] @ desc[15:0] (with granularity)
-            let limit_lo : word = desc_lo[15..0];
-            let limit_hi : bits(4) = desc_hi[19..16];
-            let g : bit = desc_hi[23];
-            TR_limit = if g == bitone
-              then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
-              else zero_extend(limit_hi @ limit_lo)
-          }
+          if cur_cpl != 0 then raise_GP0();
+          let rm = decode_rm(modrm, pfx);
+          let sel : word = match rm {
+            RM_reg(r) => read_gpr16(r),
+            RM_mem(addr) => mem_read16(addr),
+          };
+          TR = sel;
+          // Load TSS base/limit from GDT descriptor
+          let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
+          let desc_lo : dword = mem_read32(desc_addr);
+          let desc_hi : dword = mem_read32(desc_addr + 4);
+          // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
+          let base_lo : dword = desc_lo[31..16] @ 0x0000;
+          let base_mid : byte = desc_hi[7..0];
+          let base_hi : byte = desc_hi[31..24];
+          TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
+          // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
+          let desc_ext : dword = mem_read32(desc_addr + 8);
+          TR_base = zero_extend(desc_ext) @ TR_base[31..0];
+          // Limit = desc[51:48] @ desc[15:0] (with granularity)
+          let limit_lo : word = desc_lo[15..0];
+          let limit_hi : bits(4) = desc_hi[19..16];
+          let g : bit = desc_hi[23];
+          TR_limit = if g == bitone
+            then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
+            else zero_extend(limit_hi @ limit_lo)
         },
         _ => raise_UD(),
       }
@@ -405,13 +399,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
-          if cur_cpl != 0 then {
-            raise_GP0()
-          } else {
-            let tmp = GS_BASE;
-            GS_BASE = KERNEL_GS_BASE;
-            KERNEL_GS_BASE = tmp
-          }
+          if cur_cpl != 0 then raise_GP0();
+          let tmp = GS_BASE;
+          GS_BASE = KERNEL_GS_BASE;
+          KERNEL_GS_BASE = tmp
         },
         _ => {
           // Group 7: dispatch by reg_field, then check memory vs register
@@ -435,9 +426,8 @@ function dispatch_2byte_gpr(op, pfx) = {
             },
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
             2 => {
-              if cur_cpl != 0 then {
-                raise_GP0()
-              } else match rm {
+              if cur_cpl != 0 then raise_GP0();
+              match rm {
                 RM_mem(addr) => {
                   GDTR_limit = mem_read16(addr);
                   GDTR_base = mem_read64(addr + 2)
@@ -447,9 +437,8 @@ function dispatch_2byte_gpr(op, pfx) = {
             },
             // 0F 01 /3: LIDT m — Load IDTR (memory only, requires CPL=0)
             3 => {
-              if cur_cpl != 0 then {
-                raise_GP0()
-              } else match rm {
+              if cur_cpl != 0 then raise_GP0();
+              match rm {
                 RM_mem(addr) => {
                   IDTR_limit = mem_read16(addr);
                   IDTR_base = mem_read64(addr + 2)
@@ -474,24 +463,20 @@ function dispatch_2byte_gpr(op, pfx) = {
             },
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
             6 => {
-              if cur_cpl != 0 then {
-                raise_GP0()
-              } else {
-                let msw : word = match rm {
-                  RM_reg(r) => read_gpr16(r),
-                  RM_mem(addr) => mem_read16(addr),
-                };
-                // LMSW sets low 4 bits of CR0, cannot clear PE once set
-                var new_cr0 = CR0;
-                new_cr0[3..0] = msw[3..0] | CR0[3..0];
-                CR0 = new_cr0
-              }
+              if cur_cpl != 0 then raise_GP0();
+              let msw : word = match rm {
+                RM_reg(r) => read_gpr16(r),
+                RM_mem(addr) => mem_read16(addr),
+              };
+              // LMSW sets low 4 bits of CR0, cannot clear PE once set
+              var new_cr0 = CR0;
+              new_cr0[3..0] = msw[3..0] | CR0[3..0];
+              CR0 = new_cr0
             },
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
             7 => {
-              if cur_cpl != 0 then {
-                raise_GP0()
-              } else match rm {
+              if cur_cpl != 0 then raise_GP0();
+              match rm {
                 RM_mem(_) => __tlb_flush(),
                 _ => raise_UD(),
               }
@@ -535,55 +520,43 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
     // 0F 06: CLTS — Clear TS flag in CR0 (requires CPL=0)
     6 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        CR0[3] = bitzero  // TS = bit 3
-      }
+      if cur_cpl != 0 then raise_GP0();
+      CR0[3] = bitzero  // TS = bit 3
     },
     // 0F 07: SYSRET (requires CPL=0)
     7 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
+      if cur_cpl != 0 then raise_GP0();
+      // SYSRET: restore RIP from RCX, RFLAGS from R11
+      let new_rip = read_gpr64(RCX);
+      let new_rflags = read_gpr64(R11);
+
+      // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
+      // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
+      let restored = (new_rflags & 0x00000000003C7FD7) | 0x0000000000000002;
+      write_rflags(restored);
+
+      // Load CS and SS from IA32_STAR MSR.
+      // SDM Vol.2: SYSRET with REX.W (64-bit):
+      //   CS.Sel = STAR[63:48] + 16, SS.Sel = STAR[63:48] + 8
+      // SYSRET without REX.W (32-bit compat):
+      //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
+      let star : qword = __rdmsr(0xC0000081);
+      let sysret_base : bits(16) = star[63..48];
+      if pfx.rex_w then {
+        write_segreg(CS, sysret_base + 0x0010);  // + 16
       } else {
-        // SYSRET: restore RIP from RCX, RFLAGS from R11
-        let new_rip = read_gpr64(RCX);
-        let new_rflags = read_gpr64(R11);
+        write_segreg(CS, sysret_base);
+      };
+      write_segreg(SS, sysret_base + 0x0008);  // + 8
 
-        // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
-        // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
-        let restored = (new_rflags & 0x00000000003C7FD7) | 0x0000000000000002;
-        write_rflags(restored);
-
-        // Load CS and SS from IA32_STAR MSR.
-        // SDM Vol.2: SYSRET with REX.W (64-bit):
-        //   CS.Sel = STAR[63:48] + 16, SS.Sel = STAR[63:48] + 8
-        // SYSRET without REX.W (32-bit compat):
-        //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
-        let star : qword = __rdmsr(0xC0000081);
-        let sysret_base : bits(16) = star[63..48];
-        if pfx.rex_w then {
-          write_segreg(CS, sysret_base + 0x0010);  // + 16
-        } else {
-          write_segreg(CS, sysret_base);
-        };
-        write_segreg(SS, sysret_base + 0x0008);  // + 8
-
-        // Return to ring 3
-        cur_cpl = 3;
-        next_rip = Some(new_rip)
-      }
+      // Return to ring 3
+      cur_cpl = 3;
+      next_rip = Some(new_rip)
     },
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)
-    9 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else ()
-    },
+    9 => if cur_cpl != 0 then raise_GP0(),
     // 0F 0B: UD2
-    11 => {
-      raise_UD()
-    },
+    11 => raise_UD(),
     // 0F 1F: Multi-byte NOP r/m (prefetch hint)
     31 => {
       let modrm = fetch_byte();
@@ -591,126 +564,105 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
     // 0F 20: MOV reg, CRn — Read control register (requires CPL=0)
     32 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let modrm = fetch_byte();
-        let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
-        let rm_idx : gpr_idx = if pfx.rex_b
-          then unsigned(bitone @ modrm[2..0])
-          else unsigned(bitzero @ modrm[2..0]);
-        let cr_val : qword = match cr_idx {
-          0 => CR0,
-          2 => CR2,
-          3 => CR3,
-          4 => CR4,
-          _ => throw Fault(EXN_UD, 0x00000000),
-        };
-        write_gpr64(rm_idx, cr_val)
-      }
+      if cur_cpl != 0 then raise_GP0();
+      let modrm = fetch_byte();
+      let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      let rm_idx : gpr_idx = if pfx.rex_b
+        then unsigned(bitone @ modrm[2..0])
+        else unsigned(bitzero @ modrm[2..0]);
+      let cr_val : qword = match cr_idx {
+        0 => CR0,
+        2 => CR2,
+        3 => CR3,
+        4 => CR4,
+        _ => throw Fault(EXN_UD, 0x00000000),
+      };
+      write_gpr64(rm_idx, cr_val)
     },
     // 0F 22: MOV CRn, reg — Write control register (requires CPL=0)
     34 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let modrm = fetch_byte();
-        let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
-        let rm_idx : gpr_idx = if pfx.rex_b
-          then unsigned(bitone @ modrm[2..0])
-          else unsigned(bitzero @ modrm[2..0]);
-        let cr_val : qword = read_gpr64(rm_idx);
-        match cr_idx {
-          0 => {
-            CR0 = cr_val;
-            // EFER.LMA = EFER.LME & CR0.PG (SDM Vol.3 §4.1.1)
-            let lme = EFER[8];
-            let pg  = cr_val[31];
-            EFER[10] = lme & pg;  // Update LMA
-            if lme == bitone & pg == bitone then
-              cur_mode = LongMode
-            else if cr_val[0] == bitone then
-              cur_mode = ProtectedMode
-            else
-              cur_mode = RealMode
-          },
-          2 => CR2 = cr_val,
-          3 => { CR3 = cr_val; __tlb_flush() },
-          4 => CR4 = cr_val,
-          _ => throw Fault(EXN_UD, 0x00000000),
-        }
+      if cur_cpl != 0 then raise_GP0();
+      let modrm = fetch_byte();
+      let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      let rm_idx : gpr_idx = if pfx.rex_b
+        then unsigned(bitone @ modrm[2..0])
+        else unsigned(bitzero @ modrm[2..0]);
+      let cr_val : qword = read_gpr64(rm_idx);
+      match cr_idx {
+        0 => {
+          CR0 = cr_val;
+          // EFER.LMA = EFER.LME & CR0.PG (SDM Vol.3 §4.1.1)
+          let lme = EFER[8];
+          let pg  = cr_val[31];
+          EFER[10] = lme & pg;  // Update LMA
+          if lme == bitone & pg == bitone then
+            cur_mode = LongMode
+          else if cr_val[0] == bitone then
+            cur_mode = ProtectedMode
+          else
+            cur_mode = RealMode
+        },
+        2 => CR2 = cr_val,
+        3 => { CR3 = cr_val; __tlb_flush() },
+        4 => CR4 = cr_val,
+        _ => throw Fault(EXN_UD, 0x00000000),
       }
     },
     // 0F 21: MOV reg, DRn — Read debug register (requires CPL=0)
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     33 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let modrm = fetch_byte();
-        let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
-        if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then {
-          raise_UD()
-        } else {
-          let rm_idx : gpr_idx = if pfx.rex_b
-            then unsigned(bitone @ modrm[2..0])
-            else unsigned(bitzero @ modrm[2..0]);
-          let dr_val : qword = match dr_idx {
-            0 => DR0,
-            1 => DR1,
-            2 => DR2,
-            3 => DR3,
-            4 => DR6,  // alias when CR4.DE=0
-            5 => DR7,  // alias when CR4.DE=0
-            6 => DR6,
-            7 => DR7,
-          };
-          write_gpr64(rm_idx, dr_val)
-        }
-      }
+      if cur_cpl != 0 then raise_GP0();
+      let modrm = fetch_byte();
+      let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then raise_UD();
+      let rm_idx : gpr_idx = if pfx.rex_b
+        then unsigned(bitone @ modrm[2..0])
+        else unsigned(bitzero @ modrm[2..0]);
+      let dr_val : qword = match dr_idx {
+        0 => DR0,
+        1 => DR1,
+        2 => DR2,
+        3 => DR3,
+        4 => DR6,  // alias when CR4.DE=0
+        5 => DR7,  // alias when CR4.DE=0
+        6 => DR6,
+        7 => DR7,
+      };
+      write_gpr64(rm_idx, dr_val)
     },
     // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     35 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let modrm = fetch_byte();
-        let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
-        if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then {
-          raise_UD()
-        } else {
-          let rm_idx : gpr_idx = if pfx.rex_b
-            then unsigned(bitone @ modrm[2..0])
-            else unsigned(bitzero @ modrm[2..0]);
-          let dr_val : qword = read_gpr64(rm_idx);
-          match dr_idx {
-            0 => DR0 = dr_val,
-            1 => DR1 = dr_val,
-            2 => DR2 = dr_val,
-            3 => DR3 = dr_val,
-            4 => DR6 = dr_val,  // alias when CR4.DE=0
-            5 => DR7 = dr_val,  // alias when CR4.DE=0
-            6 => DR6 = dr_val,
-            7 => DR7 = dr_val,
-          }
-        }
+      if cur_cpl != 0 then raise_GP0();
+      let modrm = fetch_byte();
+      let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then raise_UD();
+      let rm_idx : gpr_idx = if pfx.rex_b
+        then unsigned(bitone @ modrm[2..0])
+        else unsigned(bitzero @ modrm[2..0]);
+      let dr_val : qword = read_gpr64(rm_idx);
+      match dr_idx {
+        0 => DR0 = dr_val,
+        1 => DR1 = dr_val,
+        2 => DR2 = dr_val,
+        3 => DR3 = dr_val,
+        4 => DR6 = dr_val,  // alias when CR4.DE=0
+        5 => DR7 = dr_val,  // alias when CR4.DE=0
+        6 => DR6 = dr_val,
+        7 => DR7 = dr_val,
       }
     },
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
     48 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let ecx : dword = read_gpr32(RCX);
-        let msr_val : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
-        // Handle EFER specially since it has a Sail register
-        if ecx == 0xC0000080 then EFER = msr_val
-        else if ecx == 0xC0000100 then FS_BASE = msr_val
-        else if ecx == 0xC0000101 then GS_BASE = msr_val
-        else if ecx == 0xC0000102 then KERNEL_GS_BASE = msr_val
-        else __wrmsr(ecx, msr_val)
-      }
+      if cur_cpl != 0 then raise_GP0();
+      let ecx : dword = read_gpr32(RCX);
+      let msr_val : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
+      // Handle EFER specially since it has a Sail register
+      if ecx == 0xC0000080 then EFER = msr_val
+      else if ecx == 0xC0000100 then FS_BASE = msr_val
+      else if ecx == 0xC0000101 then GS_BASE = msr_val
+      else if ecx == 0xC0000102 then KERNEL_GS_BASE = msr_val
+      else __wrmsr(ecx, msr_val)
     },
     // 0F 18-1E: Prefetch hints / multi-byte NOPs
     // These all consume ModR/M and do nothing.
@@ -726,19 +678,16 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {
-      if cur_cpl != 0 then {
-        raise_GP0()
-      } else {
-        let ecx : dword = read_gpr32(RCX);
-        // Handle registers with Sail state specially
-        let msr_val : qword = if ecx == 0xC0000080 then EFER
-          else if ecx == 0xC0000100 then FS_BASE
-          else if ecx == 0xC0000101 then GS_BASE
-          else if ecx == 0xC0000102 then KERNEL_GS_BASE
-          else __rdmsr(ecx);
-        write_gpr32(RAX, msr_val[31..0]);
-        write_gpr32(RDX, msr_val[63..32])
-      }
+      if cur_cpl != 0 then raise_GP0();
+      let ecx : dword = read_gpr32(RCX);
+      // Handle registers with Sail state specially
+      let msr_val : qword = if ecx == 0xC0000080 then EFER
+        else if ecx == 0xC0000100 then FS_BASE
+        else if ecx == 0xC0000101 then GS_BASE
+        else if ecx == 0xC0000102 then KERNEL_GS_BASE
+        else __rdmsr(ecx);
+      write_gpr32(RAX, msr_val[31..0]);
+      write_gpr32(RDX, msr_val[63..32])
     },
     // 0F 40-4F: CMOVcc r, r/m
     op if 64 <= op & op <= 79 => {
@@ -1043,42 +992,39 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
       // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
-      if pfx.has_lock & reg_field == 4 then {
-        raise_UD()
-      } else {
-        check_lock_rm(pfx, rm, false);
-        let imm = fetch_byte();
-        let v = read_rm_val(rm, os, pfx.has_rex);
-        let bit_num : range(0, 63) = match os {
-          OS16 => unsigned(imm[3..0]),
-          OS32 => unsigned(imm[4..0]),
-          OS64 => unsigned(imm[5..0]),
-          _    => unsigned(imm[4..0]),
-        };
-        CF = v[bit_num];
-        match reg_field {
-          // BT — just test, no modification
-          4 => (),
-          // BTS — set bit
-          5 => {
-            var result : qword = v;
-            result[bit_num] = bitone;
-            write_rm_val(rm, os, pfx.has_rex, result)
-          },
-          // BTR — reset bit
-          6 => {
-            var result : qword = v;
-            result[bit_num] = bitzero;
-            write_rm_val(rm, os, pfx.has_rex, result)
-          },
-          // BTC — complement bit
-          7 => {
-            var result : qword = v;
-            result[bit_num] = ~(v[bit_num]);
-            write_rm_val(rm, os, pfx.has_rex, result)
-          },
-          _ => raise_UD(),
-        }
+      if pfx.has_lock & reg_field == 4 then raise_UD();
+      check_lock_rm(pfx, rm, false);
+      let imm = fetch_byte();
+      let v = read_rm_val(rm, os, pfx.has_rex);
+      let bit_num : range(0, 63) = match os {
+        OS16 => unsigned(imm[3..0]),
+        OS32 => unsigned(imm[4..0]),
+        OS64 => unsigned(imm[5..0]),
+        _    => unsigned(imm[4..0]),
+      };
+      CF = v[bit_num];
+      match reg_field {
+        // BT — just test, no modification
+        4 => (),
+        // BTS — set bit
+        5 => {
+          var result : qword = v;
+          result[bit_num] = bitone;
+          write_rm_val(rm, os, pfx.has_rex, result)
+        },
+        // BTR — reset bit
+        6 => {
+          var result : qword = v;
+          result[bit_num] = bitzero;
+          write_rm_val(rm, os, pfx.has_rex, result)
+        },
+        // BTC — complement bit
+        7 => {
+          var result : qword = v;
+          result[bit_num] = ~(v[bit_num]);
+          write_rm_val(rm, os, pfx.has_rex, result)
+        },
+        _ => raise_UD(),
       }
     },
     // 0F BB: BTC r/m, r
@@ -1246,24 +1192,21 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B8: POPCNT r, r/m (F3 prefix)
     184 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_F3 then {
-        raise_UD()
-      } else {
-        let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let count : range(0, 64) = match os {
-          OS8  => popcount8(src_val[7..0]),
-          OS16 => popcount16(src_val[15..0]),
-          OS32 => popcount32(src_val[31..0]),
-          OS64 => popcount32(src_val[31..0]) + popcount32(src_val[63..32]),
-        };
-        OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
-        ZF = bool_to_bit(count == 0);
-        write_gpr(reg, os, to_bits_truncate(count))
-      }
+      if mp != MP_F3 then raise_UD();
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let src_val = read_rm_val(rm, os, pfx.has_rex);
+      let count : range(0, 64) = match os {
+        OS8  => popcount8(src_val[7..0]),
+        OS16 => popcount16(src_val[15..0]),
+        OS32 => popcount32(src_val[31..0]),
+        OS64 => popcount32(src_val[31..0]) + popcount32(src_val[63..32]),
+      };
+      OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
+      ZF = bool_to_bit(count == 0);
+      write_gpr(reg, os, to_bits_truncate(count))
     },
     // 0F C3: MOVNTI m32/64, r
     195 => {
