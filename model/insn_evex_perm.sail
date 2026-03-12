@@ -422,24 +422,14 @@ function avx_vpermb_512(src, idx) = {
 
 val popcount_byte : (byte, int) -> int
 function popcount_byte(mask, upto) = {
-  var count : int = 0;
-  foreach (i from 0 to 7) {
-    if i < upto then {
-      if mask[i] == bitone then count = count + 1;
-    };
-  };
-  count
+  assert(upto >= 0);
+  popcount8(mask & (shiftl(0x01 : byte, upto) - 0x01))
 }
 
 val popcount_word : (word, int) -> int
 function popcount_word(mask, upto) = {
-  var count : int = 0;
-  foreach (i from 0 to 15) {
-    if i < upto then {
-      if mask[i] == bitone then count = count + 1;
-    };
-  };
-  count
+  assert(upto >= 0);
+  popcount16(mask & (shiftl(0x0001 : word, upto) - 0x0001))
 }
 
 // For expand/compress, we use a simpler strategy: iterate and use get_slice/set_slice
