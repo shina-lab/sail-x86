@@ -33,7 +33,7 @@ inline void bytes_to_xmm(lbits *out, const u8 *in) {
     mpz_mul_2exp(*out->bits, *out->bits, 8);
     mpz_add_ui(*out->bits, *out->bits, in[i - 1]);
   }
-  out->len = 128;
+  out->len = 512;  // ZMM registers are 512-bit; upper bits are implicitly zero
 }
 
 // Guest physical memory layout (identity-mapped, 2MB total):
