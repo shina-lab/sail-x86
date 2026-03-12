@@ -15,18 +15,6 @@ function check_lock_rm(pfx, rm, is_cmp) = {
   }
 }
 
-val bsf64 : (qword, range(0, 63)) -> range(0, 63)
-function bsf64(v, idx) =
-  if idx >= 63 then 63
-  else if bit_to_bool(v[idx]) then idx
-  else bsf64(v, idx + 1)
-
-val bsr64 : (qword, range(0, 63)) -> range(0, 63)
-function bsr64(v, idx) =
-  if idx <= 0 then 0
-  else if bit_to_bool(v[idx]) then idx
-  else bsr64(v, idx - 1)
-
 // XADD — Exchange and Add
 
 val exec_xadd : (gpr_idx, gpr_idx, OperandSize) -> unit
@@ -100,6 +88,67 @@ function clz64(v) = {
   let x5 : qword = x4 | (x4 >> 16);
   let x6 : qword = x5 | (x5 >> 32);
   64 - popcount64(x6)
+}
+
+// Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
+val ctz8 : byte -> range(0, 8)
+function ctz8(v) = popcount8(not_vec(v) & (v - 0x01))
+
+val ctz16 : word -> range(0, 16)
+function ctz16(v) = popcount16(not_vec(v) & (v - 0x0001))
+
+val ctz32 : dword -> range(0, 32)
+function ctz32(v) = popcount32(not_vec(v) & (v - 0x00000001))
+
+val ctz64 : qword -> range(0, 64)
+function ctz64(v) = popcount64(not_vec(v) & (v - 0x0000000000000001))
+
+// Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
+// Precondition: v != 0 (BSR is undefined for zero).
+val bsr8 : byte -> range(0, 7)
+function bsr8(v) = {
+  let x1 : byte = v  | (v  >> 1);
+  let x2 : byte = x1 | (x1 >> 2);
+  let x3 : byte = x2 | (x2 >> 4);
+  let n = popcount8(x3);
+  assert(n > 0);
+  n - 1
+}
+
+val bsr16 : word -> range(0, 15)
+function bsr16(v) = {
+  let x1 : word = v  | (v  >> 1);
+  let x2 : word = x1 | (x1 >> 2);
+  let x3 : word = x2 | (x2 >> 4);
+  let x4 : word = x3 | (x3 >> 8);
+  let n = popcount16(x4);
+  assert(n > 0);
+  n - 1
+}
+
+val bsr32 : dword -> range(0, 31)
+function bsr32(v) = {
+  let x1 : dword = v  | (v  >> 1);
+  let x2 : dword = x1 | (x1 >> 2);
+  let x3 : dword = x2 | (x2 >> 4);
+  let x4 : dword = x3 | (x3 >> 8);
+  let x5 : dword = x4 | (x4 >> 16);
+  let n = popcount32(x5);
+  assert(n > 0);
+  n - 1
+}
+
+val bsr64 : qword -> range(0, 63)
+function bsr64(v) = {
+  let x1 : qword = v  | (v  >> 1);
+  let x2 : qword = x1 | (x1 >> 2);
+  let x3 : qword = x2 | (x2 >> 4);
+  let x4 : qword = x3 | (x3 >> 8);
+  let x5 : qword = x4 | (x4 >> 16);
+  let x6 : qword = x5 | (x5 >> 32);
+  let n = popcount64(x6);
+  assert(n > 0);
+  n - 1
 }
 
 val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
@@ -1072,16 +1121,14 @@ function dispatch_2byte_gpr(op, pfx) = {
         let src = modrm_rm_reg(modrm, pfx);
         let src_val : qword = read_gpr(src, os);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
-        let is_zero : bool = match os {
-          OS8  => src_val[7..0] == zeros(),
-          OS16 => src_val[15..0] == zeros(),
-          OS32 => src_val[31..0] == zeros(),
-          OS64 => src_val == zeros(),
+        let count : range(0, 64) = match os {
+          OS8  => ctz8(src_val[7..0]),
+          OS16 => ctz16(src_val[15..0]),
+          OS32 => ctz32(src_val[31..0]),
+          OS64 => ctz64(src_val),
         };
-        let count : int = if is_zero then os_bits
-                          else bsf64(src_val, 0);
         write_gpr(reg, os, to_bits_truncate(count));
-        CF = bool_to_bit(is_zero);
+        CF = bool_to_bit(count == os_bits);
         ZF = bool_to_bit(count == 0)
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
@@ -1096,7 +1143,12 @@ function dispatch_2byte_gpr(op, pfx) = {
           ZF = bitone;
         } else {
           ZF = bitzero;
-          let idx : range(0, 63) = bsf64(src_val, 0);
+          let idx : range(0, 64) = match os {
+            OS8  => ctz8(src_val[7..0]),
+            OS16 => ctz16(src_val[15..0]),
+            OS32 => ctz32(src_val[31..0]),
+            OS64 => ctz64(src_val),
+          };
           write_gpr(reg, os, to_bits_truncate(idx));
         }
       }
@@ -1134,13 +1186,12 @@ function dispatch_2byte_gpr(op, pfx) = {
           ZF = bitone;
         } else {
           ZF = bitzero;
-          let top : range(0, 63) = match os {
-            OS8  => 7,
-            OS16 => 15,
-            OS32 => 31,
-            OS64 => 63,
+          let idx : range(0, 63) = match os {
+            OS8  => bsr8(src_val[7..0]),
+            OS16 => bsr16(src_val[15..0]),
+            OS32 => bsr32(src_val[31..0]),
+            OS64 => bsr64(src_val),
           };
-          let idx : range(0, 63) = bsr64(src_val, top);
           write_gpr(reg, os, to_bits_truncate(idx));
         }
       }
