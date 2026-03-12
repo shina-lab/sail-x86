@@ -1236,10 +1236,10 @@ function exec_insertps(dst, src, imm8) = {
   let t3 : dword = if dst_sel == 3 then src_float else a[127..96];
   // Zero lanes indicated by imm8[3:0] (branchless)
   write_xmm_legacy(dst,
-    (t3 & replicate_bits(~(imm8[3..3]), 32)) @
-    (t2 & replicate_bits(~(imm8[2..2]), 32)) @
-    (t1 & replicate_bits(~(imm8[1..1]), 32)) @
-    (t0 & replicate_bits(~(imm8[0..0]), 32)))
+    (t3 & sign_extend(~(imm8[3..3]))) @
+    (t2 & sign_extend(~(imm8[2..2]))) @
+    (t1 & sign_extend(~(imm8[1..1]))) @
+    (t0 & sign_extend(~(imm8[0..0]))))
 }
 
 // =========================================================================
@@ -1378,10 +1378,10 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let sum23 : dword = __f32_add(temp2, temp3);
       let sum : dword = __f32_add(sum01, sum23);
       write_xmm_legacy(xreg,
-        (sum & replicate_bits(imm[3..3], 32)) @
-        (sum & replicate_bits(imm[2..2], 32)) @
-        (sum & replicate_bits(imm[1..1], 32)) @
-        (sum & replicate_bits(imm[0..0], 32)))
+        (sum & sign_extend(imm[3..3])) @
+        (sum & sign_extend(imm[2..2])) @
+        (sum & sign_extend(imm[1..1])) @
+        (sum & sign_extend(imm[0..0])))
     },
     65 => {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
@@ -1392,8 +1392,8 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], src_xmm[127..64]) else zero;
       let sum : qword = __f64_add(temp0, temp1);
       write_xmm_legacy(xreg,
-        (sum & replicate_bits(imm[1..1], 64)) @
-        (sum & replicate_bits(imm[0..0], 64)))
+        (sum & sign_extend(imm[1..1])) @
+        (sum & sign_extend(imm[0..0])))
     },
 
     _ => raise_UD(),

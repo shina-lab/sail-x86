@@ -50,13 +50,13 @@ function crc32c_64(crc, data) = {
 // No flags affected.
 // Branchless: mask = sign-extend of MSB; (x ^ mask) - mask
 val abs8 : byte -> byte
-function abs8(x) = { let m : byte = replicate_bits(x[7..7], 8); (x ^ m) - m }
+function abs8(x) = { let m : byte = sign_extend(x[7..7]); (x ^ m) - m }
 
 val abs16 : word -> word
-function abs16(x) = { let m : word = replicate_bits(x[15..15], 16); (x ^ m) - m }
+function abs16(x) = { let m : word = sign_extend(x[15..15]); (x ^ m) - m }
 
 val abs32 : dword -> dword
-function abs32(x) = { let m : dword = replicate_bits(x[31..31], 32); (x ^ m) - m }
+function abs32(x) = { let m : dword = sign_extend(x[31..31]); (x ^ m) - m }
 
 // PACKSSWB — Pack with Signed Saturation (words to bytes)
 // PACKSSDW — Pack with Signed Saturation (dwords to words)
@@ -65,20 +65,20 @@ function abs32(x) = { let m : dword = replicate_bits(x[31..31], 32); (x ^ m) - m
 val sat_s16_to_s8 : word -> byte
 function sat_s16_to_s8(x) = {
   let sign : bits(1) = x[15..15];
-  let diff : byte = x[14..7] ^ replicate_bits(sign, 8);
+  let diff : byte = x[14..7] ^ sign_extend(sign);
   let out_of_range : bits(1) = or_reduce_8(diff);
-  let out_mask : byte = replicate_bits(out_of_range, 8);
-  let clamp_val : byte = replicate_bits(sign, 8) ^ 0x7F;
+  let out_mask : byte = sign_extend(out_of_range);
+  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
   (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
 }
 
 val sat_s32_to_s16 : dword -> word
 function sat_s32_to_s16(x) = {
   let sign : bits(1) = x[31..31];
-  let diff : word = x[30..15] ^ replicate_bits(sign, 16);
+  let diff : word = x[30..15] ^ sign_extend(sign);
   let out_of_range : bits(1) = or_reduce_16(diff);
-  let out_mask : word = replicate_bits(out_of_range, 16);
-  let clamp_val : word = replicate_bits(sign, 16) ^ 0x7FFF;
+  let out_mask : word = sign_extend(out_of_range);
+  let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
   (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
 }
 
@@ -88,10 +88,10 @@ function sat_s32_to_s16(x) = {
 // Branchless: zero negative values, then saturate positive overflow.
 val sat_s32_to_u16 : dword -> word
 function sat_s32_to_u16(v) = {
-  let neg_mask : dword = replicate_bits(v[31..31], 32);
+  let neg_mask : dword = sign_extend(v[31..31]);
   let pos_val : dword = v & ~(neg_mask);
   let overflow : bits(1) = or_reduce_16(pos_val[31..16]);
-  let over_mask : word = replicate_bits(overflow, 16);
+  let over_mask : word = sign_extend(overflow);
   pos_val[15..0] | over_mask
 }
 
@@ -100,10 +100,10 @@ function sat_s32_to_u16(v) = {
 // Branchless: zero negative values, then saturate positive overflow.
 val sat_s16_to_u8 : word -> byte
 function sat_s16_to_u8(x) = {
-  let neg_mask : word = replicate_bits(x[15..15], 16);
+  let neg_mask : word = sign_extend(x[15..15]);
   let pos_val : word = x & ~(neg_mask);
   let overflow : bits(1) = or_reduce_8(pos_val[15..8]);
-  let over_mask : byte = replicate_bits(overflow, 8);
+  let over_mask : byte = sign_extend(overflow);
   pos_val[7..0] | over_mask
 }
 
@@ -116,8 +116,8 @@ function sat_add_s8(a, b) = {
   let wide : bits(9) = sign_extend(a) + sign_extend(b);
   let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
   let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
-  let ov_mask : byte = replicate_bits(ov, 8);
-  let uf_mask : byte = replicate_bits(uf, 8);
+  let ov_mask : byte = sign_extend(ov);
+  let uf_mask : byte = sign_extend(uf);
   (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
 }
 
@@ -126,8 +126,8 @@ function sat_add_s16(a, b) = {
   let wide : bits(17) = sign_extend(a) + sign_extend(b);
   let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
   let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
-  let ov_mask : word = replicate_bits(ov, 16);
-  let uf_mask : word = replicate_bits(uf, 16);
+  let ov_mask : word = sign_extend(ov);
+  let uf_mask : word = sign_extend(uf);
   (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
 }
 
@@ -135,14 +135,14 @@ function sat_add_s16(a, b) = {
 val sat_add_u8 : (byte, byte) -> byte
 function sat_add_u8(a, b) = {
   let wide : bits(9) = (0b0 @ a) + (0b0 @ b);
-  let sat : byte = replicate_bits(wide[8..8], 8);
+  let sat : byte = sign_extend(wide[8..8]);
   wide[7..0] | sat
 }
 
 val sat_add_u16 : (word, word) -> word
 function sat_add_u16(a, b) = {
   let wide : bits(17) = (0b0 @ a) + (0b0 @ b);
-  let sat : word = replicate_bits(wide[16..16], 16);
+  let sat : word = sign_extend(wide[16..16]);
   wide[15..0] | sat
 }
 
@@ -542,7 +542,7 @@ val pshufb_byte : (xmmword, byte) -> byte
 function pshufb_byte(data, mask) = {
   let idx : range(0, 15) = unsigned(mask[3..0]);
   let selected : byte = (data >> (idx * 8))[7..0];
-  selected & replicate_bits(~(mask[7..7]), 8)
+  selected & sign_extend(~(mask[7..7]))
 }
 
 // PSHUFHW — Shuffle Packed High Words
@@ -569,25 +569,25 @@ function select_low_word(v, sel) = {
 // Branchless: neg_mask selects negation, nonzero mask zeros when b==0.
 val psign8 : (byte, byte) -> byte
 function psign8(a, b) = {
-  let neg_mask : byte = replicate_bits(b[7..7], 8);
+  let neg_mask : byte = sign_extend(b[7..7]);
   let borrow : bits(9) = (0b0 @ b) - 0b000000001;
-  let nonzero : byte = replicate_bits(~(borrow[8..8]), 8);
+  let nonzero : byte = sign_extend(~(borrow[8..8]));
   ((a ^ neg_mask) - neg_mask) & nonzero
 }
 
 val psign16 : (word, word) -> word
 function psign16(a, b) = {
-  let neg_mask : word = replicate_bits(b[15..15], 16);
+  let neg_mask : word = sign_extend(b[15..15]);
   let borrow : bits(17) = (0b0 @ b) - zero_extend(0b1);
-  let nonzero : word = replicate_bits(~(borrow[16..16]), 16);
+  let nonzero : word = sign_extend(~(borrow[16..16]));
   ((a ^ neg_mask) - neg_mask) & nonzero
 }
 
 val psign32 : (dword, dword) -> dword
 function psign32(a, b) = {
-  let neg_mask : dword = replicate_bits(b[31..31], 32);
+  let neg_mask : dword = sign_extend(b[31..31]);
   let borrow : bits(33) = (0b0 @ b) - zero_extend(0b1);
-  let nonzero : dword = replicate_bits(~(borrow[32..32]), 32);
+  let nonzero : dword = sign_extend(~(borrow[32..32]));
   ((a ^ neg_mask) - neg_mask) & nonzero
 }
 
@@ -636,8 +636,8 @@ function sat_sub_s8(a, b) = {
   let wide : bits(9) = sign_extend(a) - sign_extend(b);
   let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
   let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
-  let ov_mask : byte = replicate_bits(ov, 8);
-  let uf_mask : byte = replicate_bits(uf, 8);
+  let ov_mask : byte = sign_extend(ov);
+  let uf_mask : byte = sign_extend(uf);
   (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
 }
 
@@ -646,8 +646,8 @@ function sat_sub_s16(a, b) = {
   let wide : bits(17) = sign_extend(a) - sign_extend(b);
   let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
   let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
-  let ov_mask : word = replicate_bits(ov, 16);
-  let uf_mask : word = replicate_bits(uf, 16);
+  let ov_mask : word = sign_extend(ov);
+  let uf_mask : word = sign_extend(uf);
   (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
 }
 
@@ -655,14 +655,14 @@ function sat_sub_s16(a, b) = {
 val sat_sub_u8 : (byte, byte) -> byte
 function sat_sub_u8(a, b) = {
   let wide : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = replicate_bits(~(wide[8..8]), 8);
+  let mask : byte = sign_extend(~(wide[8..8]));
   wide[7..0] & mask
 }
 
 val sat_sub_u16 : (word, word) -> word
 function sat_sub_u16(a, b) = {
   let wide : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = replicate_bits(~(wide[16..16]), 16);
+  let mask : word = sign_extend(~(wide[16..16]));
   wide[15..0] & mask
 }
 

@@ -1972,10 +1972,10 @@ function dispatch_evex_imm(op, pfx) = {
     var result = read_xmm(pfx.evex_vvvvv);
     result[(dlo + 31)..dlo] = src_float;
     // imm8[3:0] = zero mask for each float (branchless)
-    result[31..0]   = result[31..0]   & replicate_bits(~(imm[0..0]), 32);
-    result[63..32]  = result[63..32]  & replicate_bits(~(imm[1..1]), 32);
-    result[95..64]  = result[95..64]  & replicate_bits(~(imm[2..2]), 32);
-    result[127..96] = result[127..96] & replicate_bits(~(imm[3..3]), 32);
+    result[31..0]   = result[31..0]   & sign_extend(~(imm[0..0]));
+    result[63..32]  = result[63..32]  & sign_extend(~(imm[1..1]));
+    result[95..64]  = result[95..64]  & sign_extend(~(imm[2..2]));
+    result[127..96] = result[127..96] & sign_extend(~(imm[3..3]));
     write_xmm(dst, result)
   },
 
