@@ -7,8 +7,8 @@
 val evex_reg_idx : (byte, Prefixes) -> simd_idx
 function evex_reg_idx(modrm, pfx) = {
   let base : range(0, 7) = unsigned(modrm[5..3]);
-  let r_ext : range(0, 1) = if pfx.rex_r then 1 else 0;
-  let rr_ext : range(0, 1) = if pfx.evex_rr then 1 else 0;
+  let r_ext : range(0, 1) = unsigned(zero_extend(bool_to_bit(pfx.rex_r)) : bits(1));
+  let rr_ext : range(0, 1) = unsigned(zero_extend(bool_to_bit(pfx.evex_rr)) : bits(1));
   // 5-bit index: R' : R : reg[2:0]
   rr_ext * 16 + r_ext * 8 + base
 }
@@ -18,8 +18,8 @@ function evex_reg_idx(modrm, pfx) = {
 val evex_rm_reg_idx : (byte, Prefixes) -> simd_idx
 function evex_rm_reg_idx(modrm, pfx) = {
   let base : range(0, 7) = unsigned(modrm[2..0]);
-  let b_ext : range(0, 1) = if pfx.rex_b then 1 else 0;
-  let x_ext : range(0, 1) = if pfx.rex_x then 1 else 0;
+  let b_ext : range(0, 1) = unsigned(zero_extend(bool_to_bit(pfx.rex_b)) : bits(1));
+  let x_ext : range(0, 1) = unsigned(zero_extend(bool_to_bit(pfx.rex_x)) : bits(1));
   // 5-bit index: X : B : rm[2:0]
   x_ext * 16 + b_ext * 8 + base
 }

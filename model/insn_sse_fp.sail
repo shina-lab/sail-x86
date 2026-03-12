@@ -84,7 +84,7 @@ function cmp_pred_f32(a, b, pred) = {
     0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
     0b111 => result != FP_UNORDERED,
   };
-  if cond then ones() else zeros()
+  zeros() - zero_extend(bool_to_bit(cond))
 }
 
 val cmp_pred_f64 : (qword, qword, bits(3)) -> qword
@@ -100,7 +100,7 @@ function cmp_pred_f64(a, b, pred) = {
     0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
     0b111 => result != FP_UNORDERED,
   };
-  if cond then ones() else zeros()
+  zeros() - zero_extend(bool_to_bit(cond))
 }
 
 // SHUFPS helper: select one of four dwords by 2-bit index

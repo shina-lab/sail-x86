@@ -2753,12 +2753,12 @@ function dispatch_evex_imm(op, pfx) = {
         let src = evex_src_xmm(modrm, rm, pfx);
         if pfx.vex_w then {
           let result : bool = avx_fpclass_f64(src[63..0], imm);
-          let k_val : qword = if result then zero_extend(0b1 : bits(1)) else zeros();
+          let k_val : qword = zero_extend(bool_to_bit(result));
           let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
           write_kreg(dst_k, k_mask)
         } else {
           let result : bool = avx_fpclass_f32(src[31..0], imm);
-          let k_val : qword = if result then zero_extend(0b1 : bits(1)) else zeros();
+          let k_val : qword = zero_extend(bool_to_bit(result));
           let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
           write_kreg(dst_k, k_mask)
         }
@@ -2772,7 +2772,7 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch_byte();
         let src = evex_src_xmm(modrm, rm, pfx);
         let result : bool = fpclass_f16(src[15..0], imm);
-        let k_val : qword = if result then zero_extend(0b1 : bits(1)) else zeros();
+        let k_val : qword = zero_extend(bool_to_bit(result));
         let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
         write_kreg(dst_k, k_mask)
       },
@@ -2936,8 +2936,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let pred_byte = fetch_byte();
         let pred : range(0, 31) = unsigned(pred_byte[4..0]);
-        let bit : bool = cmp_pred5_f16(src1[15..0], src2[15..0], pred);
-        write_kreg(k_idx, if bit then 0x0000000000000001 else 0x0000000000000000)
+        write_kreg(k_idx, zero_extend(bool_to_bit(cmp_pred5_f16(src1[15..0], src2[15..0], pred))))
       },
       _ => raise_UD(),
     }

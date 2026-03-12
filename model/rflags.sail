@@ -128,7 +128,7 @@ function update_flags_sub(result, a, b) = {
 // Compute CF and OF for addition with carry: dest = a + b + carry_in.
 val update_flags_adc : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_adc(result, a, b, carry_in) = {
-  let c : int = if carry_in == bitone then 1 else 0;
+  let c : int = unsigned(zero_extend(carry_in) : bits(1));
   CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(b) + c);
   OF = bool_to_bit(signed(result) != signed(a) + signed(b) + c);
   AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]) + c);
@@ -138,7 +138,7 @@ function update_flags_adc(result, a, b, carry_in) = {
 // Compute CF and OF for subtraction with borrow: dest = a - b - borrow_in.
 val update_flags_sbb : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_sbb(result, a, b, borrow_in) = {
-  let bw : int = if borrow_in == bitone then 1 else 0;
+  let bw : int = unsigned(zero_extend(borrow_in) : bits(1));
   CF = bool_to_bit(unsigned(a) < unsigned(b) + bw);
   OF = bool_to_bit(signed(result) != signed(a) - signed(b) - bw);
   AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]) + bw);

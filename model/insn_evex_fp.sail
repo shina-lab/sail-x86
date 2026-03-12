@@ -2491,8 +2491,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(addr) => mem_read32(fixup_addr(addr)),
         };
-        let bit : bits(1) = if cmp_pred5_f32(src1_f32, src2_f32, pred) then 0b1 else 0b0;
-        write_kreg(dst_k, zero_extend(bit))
+        write_kreg(dst_k, zero_extend(bool_to_bit(cmp_pred5_f32(src1_f32, src2_f32, pred))))
       },
       // VCMPSD → k (scalar, bit 0 only)
       MP_F2 => {
@@ -2504,8 +2503,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(addr) => mem_read64(fixup_addr(addr)),
         };
-        let bit : bits(1) = if cmp_pred5_f64(src1_f64, src2_f64, pred) then 0b1 else 0b0;
-        write_kreg(dst_k, zero_extend(bit))
+        write_kreg(dst_k, zero_extend(bool_to_bit(cmp_pred5_f64(src1_f64, src2_f64, pred))))
       },
     }
   },

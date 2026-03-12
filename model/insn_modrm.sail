@@ -174,8 +174,8 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
   // Index is a vector register: {EVEX.V', EVEX.X, SIB.index[2:0]} = 5-bit simd_idx
   // EVEX.V' is the inverted V' bit stored in evex byte3[3]
   // For VSIB, the index register is {V', X, index[2:0]}
-  let rr_bit : bits(1) = if pfx.evex_rr then 0b1 else 0b0;
-  let x_bit : bits(1) = if pfx.rex_x then 0b1 else 0b0;
+  let rr_bit : bits(1) = zero_extend(bool_to_bit(pfx.evex_rr));
+  let x_bit : bits(1) = zero_extend(bool_to_bit(pfx.rex_x));
   let vidx : simd_idx = unsigned(rr_bit @ x_bit @ sib[5..3]);
 
   let base_val : qword =

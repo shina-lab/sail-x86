@@ -706,7 +706,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 144;
       let modrm = fetch_byte();
       let rm = decode_rm(modrm, pfx);
-      let v : qword = if eval_cc(cc) then 0x0000000000000001 else zeros();
+      let v : qword = zero_extend(bool_to_bit(eval_cc(cc)));
       write_rm_val(rm, OS8, pfx.has_rex, v)
     },
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
