@@ -154,7 +154,7 @@ function avg16(a, b) = {
 val cmp_eq8 : (byte, byte) -> byte
 function cmp_eq8(a, b) = {
   let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
-  zeros() - (0b0000000 @ xd[8..8])
+  zeros() - zero_extend(xd[8..8])
 }
 
 // Branchless: high bit of sign_extend(b) - sign_extend(a) is 1 iff a > b (signed).
@@ -163,13 +163,13 @@ function cmp_gt8(a, b) = {
   let a9 : bits(9) = sign_extend(a);
   let b9 : bits(9) = sign_extend(b);
   let diff : bits(9) = b9 - a9;
-  zeros() - (0b0000000 @ diff[8..8])
+  zeros() - zero_extend(diff[8..8])
 }
 
 val cmp_eq16 : (word, word) -> word
 function cmp_eq16(a, b) = {
   let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
-  zeros() - (0x000 @ 0b000 @ xd[16..16])
+  zeros() - zero_extend(xd[16..16])
 }
 
 val cmp_gt16 : (word, word) -> word
@@ -177,7 +177,35 @@ function cmp_gt16(a, b) = {
   let a17 : bits(17) = sign_extend(a);
   let b17 : bits(17) = sign_extend(b);
   let diff : bits(17) = b17 - a17;
-  zeros() - (0x000 @ 0b000 @ diff[16..16])
+  zeros() - zero_extend(diff[16..16])
+}
+
+val cmp_eq32 : (dword, dword) -> dword
+function cmp_eq32(a, b) = {
+  let xd : bits(33) = (0b0 @ xor_vec(a, b)) - 0b000000000000000000000000000000001;
+  zeros() - zero_extend(xd[32..32])
+}
+
+val cmp_gt32 : (dword, dword) -> dword
+function cmp_gt32(a, b) = {
+  let a33 : bits(33) = sign_extend(a);
+  let b33 : bits(33) = sign_extend(b);
+  let diff : bits(33) = b33 - a33;
+  zeros() - zero_extend(diff[32..32])
+}
+
+val cmp_eq64 : (qword, qword) -> qword
+function cmp_eq64(a, b) = {
+  let xd : bits(65) = (0b0 @ xor_vec(a, b)) - zero_extend(0b1 : bits(1));
+  zeros() - zero_extend(xd[64..64])
+}
+
+val cmp_gt64 : (qword, qword) -> qword
+function cmp_gt64(a, b) = {
+  let a65 : bits(65) = sign_extend(a);
+  let b65 : bits(65) = sign_extend(b);
+  let diff : bits(65) = b65 - a65;
+  zeros() - zero_extend(diff[64..64])
 }
 
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
@@ -299,21 +327,21 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
 val max_s8 : (byte, byte) -> byte
 function max_s8(a, b) = {
   let diff : bits(9) = sign_extend(b) - sign_extend(a);
-  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a > b
+  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a > b
   (a & mask) | (b & ~(mask))
 }
 
 val max_s16 : (word, word) -> word
 function max_s16(a, b) = {
   let diff : bits(17) = sign_extend(b) - sign_extend(a);
-  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  let mask : word = zeros() - zero_extend(diff[16..16]);
   (a & mask) | (b & ~(mask))
 }
 
 val max_s32 : (dword, dword) -> dword
 function max_s32(a, b) = {
   let diff : bits(33) = sign_extend(b) - sign_extend(a);
-  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  let mask : dword = zeros() - zero_extend(diff[32..32]);
   (a & mask) | (b & ~(mask))
 }
 
@@ -323,21 +351,21 @@ function max_s32(a, b) = {
 val max_u8 : (byte, byte) -> byte
 function max_u8(a, b) = {
   let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
   (b & mask) | (a & ~(mask)) // select b if a < b, else a
 }
 
 val max_u16 : (word, word) -> word
 function max_u16(a, b) = {
   let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  let mask : word = zeros() - zero_extend(diff[16..16]);
   (b & mask) | (a & ~(mask))
 }
 
 val max_u32 : (dword, dword) -> dword
 function max_u32(a, b) = {
   let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  let mask : dword = zeros() - zero_extend(diff[32..32]);
   (b & mask) | (a & ~(mask))
 }
 
@@ -347,21 +375,21 @@ function max_u32(a, b) = {
 val min_s8 : (byte, byte) -> byte
 function min_s8(a, b) = {
   let diff : bits(9) = sign_extend(a) - sign_extend(b);
-  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
   (a & mask) | (b & ~(mask))
 }
 
 val min_s16 : (word, word) -> word
 function min_s16(a, b) = {
   let diff : bits(17) = sign_extend(a) - sign_extend(b);
-  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  let mask : word = zeros() - zero_extend(diff[16..16]);
   (a & mask) | (b & ~(mask))
 }
 
 val min_s32 : (dword, dword) -> dword
 function min_s32(a, b) = {
   let diff : bits(33) = sign_extend(a) - sign_extend(b);
-  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  let mask : dword = zeros() - zero_extend(diff[32..32]);
   (a & mask) | (b & ~(mask))
 }
 
@@ -371,21 +399,49 @@ function min_s32(a, b) = {
 val min_u8 : (byte, byte) -> byte
 function min_u8(a, b) = {
   let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = zeros() - (0b0000000 @ diff[8..8]); // all-1s if a < b
+  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
   (a & mask) | (b & ~(mask))
 }
 
 val min_u16 : (word, word) -> word
 function min_u16(a, b) = {
   let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = zeros() - (0x000 @ 0b000 @ diff[16..16]);
+  let mask : word = zeros() - zero_extend(diff[16..16]);
   (a & mask) | (b & ~(mask))
 }
 
 val min_u32 : (dword, dword) -> dword
 function min_u32(a, b) = {
   let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let mask : dword = zeros() - (0x0000000 @ 0b000 @ diff[32..32]);
+  let mask : dword = zeros() - zero_extend(diff[32..32]);
+  (a & mask) | (b & ~(mask))
+}
+
+val max_s64 : (qword, qword) -> qword
+function max_s64(a, b) = {
+  let diff : bits(65) = sign_extend(b) - sign_extend(a);
+  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  (a & mask) | (b & ~(mask))
+}
+
+val min_s64 : (qword, qword) -> qword
+function min_s64(a, b) = {
+  let diff : bits(65) = sign_extend(a) - sign_extend(b);
+  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  (a & mask) | (b & ~(mask))
+}
+
+val max_u64 : (qword, qword) -> qword
+function max_u64(a, b) = {
+  let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
+  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  (b & mask) | (a & ~(mask))
+}
+
+val min_u64 : (qword, qword) -> qword
+function min_u64(a, b) = {
+  let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
+  let mask : qword = zeros() - zero_extend(diff[64..64]);
   (a & mask) | (b & ~(mask))
 }
 
@@ -768,10 +824,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              (if signed(a[127..96]) > signed(b[127..96]) then ones() else zeros() : dword) @
-              (if signed(a[95..64]) > signed(b[95..64]) then ones() else zeros() : dword) @
-              (if signed(a[63..32]) > signed(b[63..32]) then ones() else zeros() : dword) @
-              (if signed(a[31..0]) > signed(b[31..0]) then ones() else zeros() : dword);
+              cmp_gt32(a[127..96], b[127..96]) @
+              cmp_gt32(a[95..64], b[95..64]) @
+              cmp_gt32(a[63..32], b[63..32]) @
+              cmp_gt32(a[31..0], b[31..0]);
             write_xmm_legacy(xreg, r)
           },
           // PACKUSWB xmm1, xmm2/m128
@@ -1166,10 +1222,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              (if a[127..96] == b[127..96] then ones() else zeros() : dword) @
-              (if a[95..64] == b[95..64] then ones() else zeros() : dword) @
-              (if a[63..32] == b[63..32] then ones() else zeros() : dword) @
-              (if a[31..0] == b[31..0] then ones() else zeros() : dword);
+              cmp_eq32(a[127..96], b[127..96]) @
+              cmp_eq32(a[95..64], b[95..64]) @
+              cmp_eq32(a[63..32], b[63..32]) @
+              cmp_eq32(a[31..0], b[31..0]);
             write_xmm_legacy(xreg, r)
           },
         }
@@ -2582,9 +2638,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     41 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let r : xmmword =
-        (if a[127..64] == b[127..64] then ones() else zeros() : qword) @
-        (if a[63..0] == b[63..0] then ones() else zeros() : qword);
+      let r : xmmword = cmp_eq64(a[127..64], b[127..64]) @ cmp_eq64(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
     },
     // MOVNTDQA xmm, m128
@@ -2663,9 +2717,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     55 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let r : xmmword =
-        (if signed(a[127..64]) > signed(b[127..64]) then ones() else zeros() : qword) @
-        (if signed(a[63..0]) > signed(b[63..0]) then ones() else zeros() : qword);
+      let r : xmmword = cmp_gt64(a[127..64], b[127..64]) @ cmp_gt64(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
     },
 

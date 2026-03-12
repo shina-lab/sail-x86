@@ -104,8 +104,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, (if signed(d[63..32]) > signed(s[63..32]) then ones() else zeros() : dword) @
-                     (if signed(d[31..0])  > signed(s[31..0])  then ones() else zeros() : dword));
+      write_mm(dst, cmp_gt32(d[63..32], s[63..32]) @ cmp_gt32(d[31..0], s[31..0]));
       mmx_touch()
     },
 
@@ -318,10 +317,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, (if d[63..48] == s[63..48] then ones() else zeros() : word) @
-                     (if d[47..32] == s[47..32] then ones() else zeros() : word) @
-                     (if d[31..16] == s[31..16] then ones() else zeros() : word) @
-                     (if d[15..0]  == s[15..0]  then ones() else zeros() : word));
+      write_mm(dst, cmp_eq16(d[63..48], s[63..48]) @ cmp_eq16(d[47..32], s[47..32]) @
+                     cmp_eq16(d[31..16], s[31..16]) @ cmp_eq16(d[15..0], s[15..0]));
       mmx_touch()
     },
 
@@ -332,8 +329,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, (if d[63..32] == s[63..32] then ones() else zeros() : dword) @
-                     (if d[31..0]  == s[31..0]  then ones() else zeros() : dword));
+      write_mm(dst, cmp_eq32(d[63..32], s[63..32]) @ cmp_eq32(d[31..0], s[31..0]));
       mmx_touch()
     },
 

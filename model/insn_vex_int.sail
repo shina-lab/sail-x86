@@ -581,23 +581,17 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
-      let r7 : dword = if src1[255..224] == src2[255..224] then ones() else zeros();
-      let r6 : dword = if src1[223..192] == src2[223..192] then ones() else zeros();
-      let r5 : dword = if src1[191..160] == src2[191..160] then ones() else zeros();
-      let r4 : dword = if src1[159..128] == src2[159..128] then ones() else zeros();
-      let r3 : dword = if src1[127..96]  == src2[127..96]  then ones() else zeros();
-      let r2 : dword = if src1[95..64]   == src2[95..64]   then ones() else zeros();
-      let r1 : dword = if src1[63..32]   == src2[63..32]   then ones() else zeros();
-      let r0 : dword = if src1[31..0]    == src2[31..0]    then ones() else zeros();
-      write_ymm(dst, r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
+      write_ymm(dst,
+        cmp_eq32(src1[255..224], src2[255..224]) @ cmp_eq32(src1[223..192], src2[223..192]) @
+        cmp_eq32(src1[191..160], src2[191..160]) @ cmp_eq32(src1[159..128], src2[159..128]) @
+        cmp_eq32(src1[127..96], src2[127..96])   @ cmp_eq32(src1[95..64], src2[95..64]) @
+        cmp_eq32(src1[63..32], src2[63..32])     @ cmp_eq32(src1[31..0], src2[31..0]))
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
-      let r3 : dword = if src1[127..96] == src2[127..96] then ones() else zeros();
-      let r2 : dword = if src1[95..64]  == src2[95..64]  then ones() else zeros();
-      let r1 : dword = if src1[63..32]  == src2[63..32]  then ones() else zeros();
-      let r0 : dword = if src1[31..0]   == src2[31..0]   then ones() else zeros();
-      write_xmm(dst, r3 @ r2 @ r1 @ r0)
+      write_xmm(dst,
+        cmp_eq32(src1[127..96], src2[127..96]) @ cmp_eq32(src1[95..64], src2[95..64]) @
+        cmp_eq32(src1[63..32], src2[63..32])   @ cmp_eq32(src1[31..0], src2[31..0]))
     }
   },
 
@@ -1474,7 +1468,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 15) {
         let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
         let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = if signed(a) > signed(b) then a else b
+        result[(i * 16 + 15) .. (i * 16)] = max_s16(a, b)
       };
       write_ymm(dst, result)
     } else {
@@ -1484,7 +1478,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 7) {
         let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
         let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = if signed(a) > signed(b) then a else b
+        result[(i * 16 + 15) .. (i * 16)] = max_s16(a, b)
       };
       write_xmm(dst, result)
     }

@@ -532,11 +532,9 @@ function avx_maxuw_256(a, b) =
   avx_maxuw_128(a[127..0], b[127..0])
 
 val avx_pcmpeqq_128 : (xmmword, xmmword) -> xmmword
-function avx_pcmpeqq_128(a, b) = {
-  let r1 : qword = if a[127..64] == b[127..64] then ones() else zeros();
-  let r0 : qword = if a[63..0] == b[63..0] then ones() else zeros();
-  r1 @ r0
-}
+function avx_pcmpeqq_128(a, b) =
+  cmp_eq64(a[127..64], b[127..64]) @
+  cmp_eq64(a[63..0], b[63..0])
 
 val avx_pcmpeqq_256 : (ymmword, ymmword) -> ymmword
 function avx_pcmpeqq_256(a, b) =
@@ -671,13 +669,11 @@ function vex_pcmpgtw_128(a, b) =
   cmp_gt16(a[31..16],   b[31..16])   @ cmp_gt16(a[15..0],   b[15..0])
 
 val vex_pcmpgtd_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpgtd_128(a, b) = {
-  let r3 : dword = if signed(a[127..96]) > signed(b[127..96]) then ones() else zeros();
-  let r2 : dword = if signed(a[95..64])  > signed(b[95..64])  then ones() else zeros();
-  let r1 : dword = if signed(a[63..32])  > signed(b[63..32])  then ones() else zeros();
-  let r0 : dword = if signed(a[31..0])   > signed(b[31..0])   then ones() else zeros();
-  r3 @ r2 @ r1 @ r0
-}
+function vex_pcmpgtd_128(a, b) =
+  cmp_gt32(a[127..96], b[127..96]) @
+  cmp_gt32(a[95..64], b[95..64]) @
+  cmp_gt32(a[63..32], b[63..32]) @
+  cmp_gt32(a[31..0], b[31..0])
 
 // VPCMPEQB/W: compare packed for equality
 val vex_pcmpeqb_128 : (xmmword, xmmword) -> xmmword
