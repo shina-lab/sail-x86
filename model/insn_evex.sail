@@ -286,9 +286,9 @@ function gf2p8_mul(a, b) = {
   var result : bits(9) = zeros();
   var aa : bits(9) = sail_zero_extend(a, 9);
   foreach (i from 0 to 7) {
-    if b[i] == bitone then result = result ^ aa;
+    result = result ^ (replicate_bits(b[i..i], 9) & aa);
     aa = aa << 1;
-    if aa[8] == bitone then aa = aa ^ 0b100011011 // 0x11B
+    aa = aa ^ (replicate_bits(aa[8..8], 9) & 0b100011011) // 0x11B
   };
   result[7..0]
 }

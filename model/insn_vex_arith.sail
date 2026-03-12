@@ -40,10 +40,7 @@ function vex_vpermd_256(ctrl, src) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let idx : range(0, 7) = unsigned(ctrl[(i * 32 + 2) .. (i * 32)]);
-    foreach (j from 0 to 7) {
-      if j == idx then
-        result[(i * 32 + 31) .. (i * 32)] = src[(j * 32 + 31) .. (j * 32)]
-    }
+    result[(i * 32 + 31) .. (i * 32)] = src[(idx * 32 + 31) .. (idx * 32)]
   };
   result
 }

@@ -924,36 +924,24 @@ function dispatch_vex_0f_fp(op, pfx) = {
           // 256-bit: two independent 128-bit lane shuffles, same imm8
           let src1 : ymmword = read_ymm(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
-          // Low lane: select from src1[127..0] and src2[127..0]
-          var r0 : dword = zeros(); var r1 : dword = zeros();
-          var r2 : dword = zeros(); var r3 : dword = zeros();
-          foreach (i from 0 to 3) {
-            if i == s0 then r0 = src1[(32*i+31) .. (32*i)];
-            if i == s1 then r1 = src1[(32*i+31) .. (32*i)];
-            if i == s2 then r2 = src2[(32*i+31) .. (32*i)];
-            if i == s3 then r3 = src2[(32*i+31) .. (32*i)];
-          };
-          // High lane: select from src1[255..128] and src2[255..128]
-          var r4 : dword = zeros(); var r5 : dword = zeros();
-          var r6 : dword = zeros(); var r7 : dword = zeros();
-          foreach (i from 0 to 3) {
-            if i == s0 then r4 = src1[(32*i+159) .. (32*i+128)];
-            if i == s1 then r5 = src1[(32*i+159) .. (32*i+128)];
-            if i == s2 then r6 = src2[(32*i+159) .. (32*i+128)];
-            if i == s3 then r7 = src2[(32*i+159) .. (32*i+128)];
-          };
+          // Low lane: r0-r1 from src1[127..0], r2-r3 from src2[127..0]
+          let r0 : dword = src1[(32*s0+31) .. (32*s0)];
+          let r1 : dword = src1[(32*s1+31) .. (32*s1)];
+          let r2 : dword = src2[(32*s2+31) .. (32*s2)];
+          let r3 : dword = src2[(32*s3+31) .. (32*s3)];
+          // High lane: r4-r5 from src1[255..128], r6-r7 from src2[255..128]
+          let r4 : dword = src1[(32*s0+159) .. (32*s0+128)];
+          let r5 : dword = src1[(32*s1+159) .. (32*s1+128)];
+          let r6 : dword = src2[(32*s2+159) .. (32*s2+128)];
+          let r7 : dword = src2[(32*s3+159) .. (32*s3+128)];
           write_ymm(dst, r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
         } else {
           let src1 : xmmword = read_xmm(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
-          var r0 : dword = zeros(); var r1 : dword = zeros();
-          var r2 : dword = zeros(); var r3 : dword = zeros();
-          foreach (i from 0 to 3) {
-            if i == s0 then r0 = src1[(32*i+31) .. (32*i)];
-            if i == s1 then r1 = src1[(32*i+31) .. (32*i)];
-            if i == s2 then r2 = src2[(32*i+31) .. (32*i)];
-            if i == s3 then r3 = src2[(32*i+31) .. (32*i)];
-          };
+          let r0 : dword = src1[(32*s0+31) .. (32*s0)];
+          let r1 : dword = src1[(32*s1+31) .. (32*s1)];
+          let r2 : dword = src2[(32*s2+31) .. (32*s2)];
+          let r3 : dword = src2[(32*s3+31) .. (32*s3)];
           write_xmm(dst, r3 @ r2 @ r1 @ r0)
         }
       },

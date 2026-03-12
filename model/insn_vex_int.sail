@@ -886,9 +886,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
     var result : xmmword = src1;
-    foreach (i from 0 to 7) {
-      if i == sel then result[(16 * i + 15) .. (16 * i)] = v;
-    };
+    result[(16 * sel + 15) .. (16 * sel)] = v;
     write_xmm(dst, result)
   },
 
@@ -900,10 +898,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
-    var result : word = zeros();
-    foreach (i from 0 to 7) {
-      if i == sel then result = src[(16 * i + 15) .. (16 * i)];
-    };
+    let result : word = src[(16 * sel + 15) .. (16 * sel)];
     write_gpr32(dst_gpr, zero_extend(result))
   },
 

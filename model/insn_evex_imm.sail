@@ -1292,9 +1292,8 @@ function gf2p8_affine(src, matrix, imm8) = {
     let row_lo : range(0, 56) = (7 - i) * 8;
     let row : byte = matrix[(row_lo + 7)..row_lo];
     let product : byte = src & row;
-    // XOR-reduce (popcount mod 2)
-    var bit : bit = bitzero;
-    foreach (j from 0 to 7) { if product[j] == bitone then bit = bool_to_bit(bit == bitzero) };
+    // XOR-reduce via popcount parity
+    let bit : bit = bool_to_bit(popcount8(product) % 2 == 1);
     // XOR with imm8 bit
     r[i] = bool_to_bit(bit != imm8[i]);
   };
