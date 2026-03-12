@@ -73,11 +73,9 @@ function avx_pblendd_256(src1, src2, imm) =
 // VPALIGNR 128-bit: concatenate src1(high):src2(low), shift right by imm bytes, take low 128 bits
 val avx_palignr_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_palignr_128(src1, src2, imm) = {
-  let shift_bytes : int = unsigned(imm);
+  let shift_bytes : range(0, 255) = unsigned(imm);
   let concat : ymmword = src1 @ src2;
-  if shift_bytes <= 0 then concat[127..0]
-  else if shift_bytes >= 32 then zeros()
-  else (concat >> (shift_bytes * 8))[127..0]
+  (concat >> (shift_bytes * 8))[127..0]
 }
 
 // VROUNDPS 128-bit

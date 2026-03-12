@@ -2979,11 +2979,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let d : xmmword = read_xmm(xreg);
       let s : xmmword = src_xmm;
       let concat : ymmword = d @ s;
-      let shift_bytes : int = unsigned(imm);
-      let r : xmmword =
-        if shift_bytes <= 0 then concat[127..0]
-        else if shift_bytes >= 32 then zeros()
-        else (concat >> (shift_bytes * 8))[127..0];
+      let shift_bytes : range(0, 255) = unsigned(imm);
+      let r : xmmword = (concat >> (shift_bytes * 8))[127..0];
       write_xmm_legacy(xreg, r)
     },
 

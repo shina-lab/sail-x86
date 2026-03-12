@@ -1022,13 +1022,19 @@ function avx_range_f32(src1, src2, imm) = {
   let tmp : dword = match op {
     0 => __f32_min(src1, src2),
     1 => __f32_max(src1, src2),
-    // abs_min: compare |src1| vs |src2|, return original
+    // abs_min: compare |src1| vs |src2|, return original (branchless)
     2 => {
-      if unsigned(src1[30..0]) <= unsigned(src2[30..0]) then src1 else src2
+      let diff : bits(32) = (0b0 @ src2[30..0]) - (0b0 @ src1[30..0]);
+      let nb : bits(1) = 0b1 ^ diff[31..31];
+      let mask : bits(32) = zeros() - zero_extend(nb);
+      (src1 & mask) | (src2 & not_vec(mask))
     },
-    // abs_max: compare |src1| vs |src2|, return original
+    // abs_max: compare |src1| vs |src2|, return original (branchless)
     _ => {
-      if unsigned(src1[30..0]) >= unsigned(src2[30..0]) then src1 else src2
+      let diff : bits(32) = (0b0 @ src1[30..0]) - (0b0 @ src2[30..0]);
+      let nb : bits(1) = 0b1 ^ diff[31..31];
+      let mask : bits(32) = zeros() - zero_extend(nb);
+      (src1 & mask) | (src2 & not_vec(mask))
     },
   };
   // Phase 2: apply sign control
@@ -1049,10 +1055,16 @@ function avx_range_f64(src1, src2, imm) = {
     0 => __f64_min(src1, src2),
     1 => __f64_max(src1, src2),
     2 => {
-      if unsigned(src1[62..0]) <= unsigned(src2[62..0]) then src1 else src2
+      let diff : bits(64) = (0b0 @ src2[62..0]) - (0b0 @ src1[62..0]);
+      let nb : bits(1) = 0b1 ^ diff[63..63];
+      let mask : bits(64) = zeros() - zero_extend(nb);
+      (src1 & mask) | (src2 & not_vec(mask))
     },
     _ => {
-      if unsigned(src1[62..0]) >= unsigned(src2[62..0]) then src1 else src2
+      let diff : bits(64) = (0b0 @ src1[62..0]) - (0b0 @ src2[62..0]);
+      let nb : bits(1) = 0b1 ^ diff[63..63];
+      let mask : bits(64) = zeros() - zero_extend(nb);
+      (src1 & mask) | (src2 & not_vec(mask))
     },
   };
   match sign_ctl {
