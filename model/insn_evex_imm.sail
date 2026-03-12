@@ -16,38 +16,34 @@ function cmp_ub_pred(a, b, pred) = match pred {
   _ => true,   // TRUE
 }
 
-val avx_pcmpub_512 : (zmmword, zmmword, range(0, 7)) -> qword
-function avx_pcmpub_512(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to 63) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_ub_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpub_128 : (xmmword, xmmword, range(0, 7)) -> word
+function avx_pcmpub_128(a, b, pred) =
+  bool_to_bit(cmp_ub_pred(a[127..120], b[127..120], pred)) @
+  bool_to_bit(cmp_ub_pred(a[119..112], b[119..112], pred)) @
+  bool_to_bit(cmp_ub_pred(a[111..104], b[111..104], pred)) @
+  bool_to_bit(cmp_ub_pred(a[103..96], b[103..96], pred)) @
+  bool_to_bit(cmp_ub_pred(a[95..88], b[95..88], pred)) @
+  bool_to_bit(cmp_ub_pred(a[87..80], b[87..80], pred)) @
+  bool_to_bit(cmp_ub_pred(a[79..72], b[79..72], pred)) @
+  bool_to_bit(cmp_ub_pred(a[71..64], b[71..64], pred)) @
+  bool_to_bit(cmp_ub_pred(a[63..56], b[63..56], pred)) @
+  bool_to_bit(cmp_ub_pred(a[55..48], b[55..48], pred)) @
+  bool_to_bit(cmp_ub_pred(a[47..40], b[47..40], pred)) @
+  bool_to_bit(cmp_ub_pred(a[39..32], b[39..32], pred)) @
+  bool_to_bit(cmp_ub_pred(a[31..24], b[31..24], pred)) @
+  bool_to_bit(cmp_ub_pred(a[23..16], b[23..16], pred)) @
+  bool_to_bit(cmp_ub_pred(a[15..8], b[15..8], pred)) @
+  bool_to_bit(cmp_ub_pred(a[7..0], b[7..0], pred))
 
 val avx_pcmpub_256 : (ymmword, ymmword, range(0, 7)) -> dword
-function avx_pcmpub_256(a, b, pred) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_ub_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpub_256(a, b, pred) =
+  avx_pcmpub_128(a[255..128], b[255..128], pred) @
+  avx_pcmpub_128(a[127..0], b[127..0], pred)
 
-val avx_pcmpub_128 : (xmmword, xmmword, range(0, 7)) -> word
-function avx_pcmpub_128(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_ub_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpub_512 : (zmmword, zmmword, range(0, 7)) -> qword
+function avx_pcmpub_512(a, b, pred) =
+  avx_pcmpub_256(a[511..256], b[511..256], pred) @
+  avx_pcmpub_256(a[255..0], b[255..0], pred)
 
 // VPCMPB: signed byte compare
 
@@ -63,38 +59,34 @@ function cmp_sb_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpb_512 : (zmmword, zmmword, range(0, 7)) -> qword
-function avx_pcmpb_512(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to 63) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_sb_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpb_128 : (xmmword, xmmword, range(0, 7)) -> word
+function avx_pcmpb_128(a, b, pred) =
+  bool_to_bit(cmp_sb_pred(a[127..120], b[127..120], pred)) @
+  bool_to_bit(cmp_sb_pred(a[119..112], b[119..112], pred)) @
+  bool_to_bit(cmp_sb_pred(a[111..104], b[111..104], pred)) @
+  bool_to_bit(cmp_sb_pred(a[103..96], b[103..96], pred)) @
+  bool_to_bit(cmp_sb_pred(a[95..88], b[95..88], pred)) @
+  bool_to_bit(cmp_sb_pred(a[87..80], b[87..80], pred)) @
+  bool_to_bit(cmp_sb_pred(a[79..72], b[79..72], pred)) @
+  bool_to_bit(cmp_sb_pred(a[71..64], b[71..64], pred)) @
+  bool_to_bit(cmp_sb_pred(a[63..56], b[63..56], pred)) @
+  bool_to_bit(cmp_sb_pred(a[55..48], b[55..48], pred)) @
+  bool_to_bit(cmp_sb_pred(a[47..40], b[47..40], pred)) @
+  bool_to_bit(cmp_sb_pred(a[39..32], b[39..32], pred)) @
+  bool_to_bit(cmp_sb_pred(a[31..24], b[31..24], pred)) @
+  bool_to_bit(cmp_sb_pred(a[23..16], b[23..16], pred)) @
+  bool_to_bit(cmp_sb_pred(a[15..8], b[15..8], pred)) @
+  bool_to_bit(cmp_sb_pred(a[7..0], b[7..0], pred))
 
 val avx_pcmpb_256 : (ymmword, ymmword, range(0, 7)) -> dword
-function avx_pcmpb_256(a, b, pred) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_sb_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpb_256(a, b, pred) =
+  avx_pcmpb_128(a[255..128], b[255..128], pred) @
+  avx_pcmpb_128(a[127..0], b[127..0], pred)
 
-val avx_pcmpb_128 : (xmmword, xmmword, range(0, 7)) -> word
-function avx_pcmpb_128(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if cmp_sb_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpb_512 : (zmmword, zmmword, range(0, 7)) -> qword
+function avx_pcmpb_512(a, b, pred) =
+  avx_pcmpb_256(a[511..256], b[511..256], pred) @
+  avx_pcmpb_256(a[255..0], b[255..0], pred)
 
 // VPCMPUW: unsigned word compare
 
@@ -110,35 +102,26 @@ function cmp_uw_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpuw_512 : (zmmword, zmmword, range(0, 7)) -> dword
-function avx_pcmpuw_512(a, b, pred) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpuw_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpuw_128(a, b, pred) =
+  bool_to_bit(cmp_uw_pred(a[127..112], b[127..112], pred)) @
+  bool_to_bit(cmp_uw_pred(a[111..96], b[111..96], pred)) @
+  bool_to_bit(cmp_uw_pred(a[95..80], b[95..80], pred)) @
+  bool_to_bit(cmp_uw_pred(a[79..64], b[79..64], pred)) @
+  bool_to_bit(cmp_uw_pred(a[63..48], b[63..48], pred)) @
+  bool_to_bit(cmp_uw_pred(a[47..32], b[47..32], pred)) @
+  bool_to_bit(cmp_uw_pred(a[31..16], b[31..16], pred)) @
+  bool_to_bit(cmp_uw_pred(a[15..0], b[15..0], pred))
 
 val avx_pcmpuw_256 : (ymmword, ymmword, range(0, 7)) -> word
-function avx_pcmpuw_256(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpuw_256(a, b, pred) =
+  avx_pcmpuw_128(a[255..128], b[255..128], pred) @
+  avx_pcmpuw_128(a[127..0], b[127..0], pred)
 
-val avx_pcmpuw_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpuw_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_uw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpuw_512 : (zmmword, zmmword, range(0, 7)) -> dword
+function avx_pcmpuw_512(a, b, pred) =
+  avx_pcmpuw_256(a[511..256], b[511..256], pred) @
+  avx_pcmpuw_256(a[255..0], b[255..0], pred)
 
 // VPCMPW: signed word compare
 
@@ -154,35 +137,26 @@ function cmp_sw_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpw_512 : (zmmword, zmmword, range(0, 7)) -> dword
-function avx_pcmpw_512(a, b, pred) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpw_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpw_128(a, b, pred) =
+  bool_to_bit(cmp_sw_pred(a[127..112], b[127..112], pred)) @
+  bool_to_bit(cmp_sw_pred(a[111..96], b[111..96], pred)) @
+  bool_to_bit(cmp_sw_pred(a[95..80], b[95..80], pred)) @
+  bool_to_bit(cmp_sw_pred(a[79..64], b[79..64], pred)) @
+  bool_to_bit(cmp_sw_pred(a[63..48], b[63..48], pred)) @
+  bool_to_bit(cmp_sw_pred(a[47..32], b[47..32], pred)) @
+  bool_to_bit(cmp_sw_pred(a[31..16], b[31..16], pred)) @
+  bool_to_bit(cmp_sw_pred(a[15..0], b[15..0], pred))
 
 val avx_pcmpw_256 : (ymmword, ymmword, range(0, 7)) -> word
-function avx_pcmpw_256(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpw_256(a, b, pred) =
+  avx_pcmpw_128(a[255..128], b[255..128], pred) @
+  avx_pcmpw_128(a[127..0], b[127..0], pred)
 
-val avx_pcmpw_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpw_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16; let hi = lo + 15;
-    if cmp_sw_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpw_512 : (zmmword, zmmword, range(0, 7)) -> dword
+function avx_pcmpw_512(a, b, pred) =
+  avx_pcmpw_256(a[511..256], b[511..256], pred) @
+  avx_pcmpw_256(a[255..0], b[255..0], pred)
 
 // VPCMPUD: unsigned dword compare producing kmask
 
@@ -198,35 +172,31 @@ function cmp_ud_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpud_512 : (zmmword, zmmword, range(0, 7)) -> word
-function avx_pcmpud_512(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_ud_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+val avx_pcmpud_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpud_128(a, b, pred) = {
+  let r : bits(4) =
+    bool_to_bit(cmp_ud_pred(a[127..96], b[127..96], pred)) @
+    bool_to_bit(cmp_ud_pred(a[95..64], b[95..64], pred)) @
+    bool_to_bit(cmp_ud_pred(a[63..32], b[63..32], pred)) @
+    bool_to_bit(cmp_ud_pred(a[31..0], b[31..0], pred));
+  zero_extend(r)
 }
 
 val avx_pcmpud_256 : (ymmword, ymmword, range(0, 7)) -> byte
-function avx_pcmpud_256(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_ud_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpud_256(a, b, pred) =
+  bool_to_bit(cmp_ud_pred(a[255..224], b[255..224], pred)) @
+  bool_to_bit(cmp_ud_pred(a[223..192], b[223..192], pred)) @
+  bool_to_bit(cmp_ud_pred(a[191..160], b[191..160], pred)) @
+  bool_to_bit(cmp_ud_pred(a[159..128], b[159..128], pred)) @
+  bool_to_bit(cmp_ud_pred(a[127..96], b[127..96], pred)) @
+  bool_to_bit(cmp_ud_pred(a[95..64], b[95..64], pred)) @
+  bool_to_bit(cmp_ud_pred(a[63..32], b[63..32], pred)) @
+  bool_to_bit(cmp_ud_pred(a[31..0], b[31..0], pred))
 
-val avx_pcmpud_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpud_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_ud_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpud_512 : (zmmword, zmmword, range(0, 7)) -> word
+function avx_pcmpud_512(a, b, pred) =
+  avx_pcmpud_256(a[511..256], b[511..256], pred) @
+  avx_pcmpud_256(a[255..0], b[255..0], pred)
 
 // VPCMPD: signed dword compare
 
@@ -242,35 +212,31 @@ function cmp_sd_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpd_512 : (zmmword, zmmword, range(0, 7)) -> word
-function avx_pcmpd_512(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_sd_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+val avx_pcmpd_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpd_128(a, b, pred) = {
+  let r : bits(4) =
+    bool_to_bit(cmp_sd_pred(a[127..96], b[127..96], pred)) @
+    bool_to_bit(cmp_sd_pred(a[95..64], b[95..64], pred)) @
+    bool_to_bit(cmp_sd_pred(a[63..32], b[63..32], pred)) @
+    bool_to_bit(cmp_sd_pred(a[31..0], b[31..0], pred));
+  zero_extend(r)
 }
 
 val avx_pcmpd_256 : (ymmword, ymmword, range(0, 7)) -> byte
-function avx_pcmpd_256(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_sd_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+function avx_pcmpd_256(a, b, pred) =
+  bool_to_bit(cmp_sd_pred(a[255..224], b[255..224], pred)) @
+  bool_to_bit(cmp_sd_pred(a[223..192], b[223..192], pred)) @
+  bool_to_bit(cmp_sd_pred(a[191..160], b[191..160], pred)) @
+  bool_to_bit(cmp_sd_pred(a[159..128], b[159..128], pred)) @
+  bool_to_bit(cmp_sd_pred(a[127..96], b[127..96], pred)) @
+  bool_to_bit(cmp_sd_pred(a[95..64], b[95..64], pred)) @
+  bool_to_bit(cmp_sd_pred(a[63..32], b[63..32], pred)) @
+  bool_to_bit(cmp_sd_pred(a[31..0], b[31..0], pred))
 
-val avx_pcmpd_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpd_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 32; let hi = lo + 31;
-    if cmp_sd_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpd_512 : (zmmword, zmmword, range(0, 7)) -> word
+function avx_pcmpd_512(a, b, pred) =
+  avx_pcmpd_256(a[511..256], b[511..256], pred) @
+  avx_pcmpd_256(a[255..0], b[255..0], pred)
 
 // VPCMPUQ: unsigned qword compare
 
@@ -286,35 +252,34 @@ function cmp_uq_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpuq_512 : (zmmword, zmmword, range(0, 7)) -> byte
-function avx_pcmpuq_512(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_uq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+val avx_pcmpuq_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpuq_128(a, b, pred) = {
+  let r : bits(2) =
+    bool_to_bit(cmp_uq_pred(a[127..64], b[127..64], pred)) @
+    bool_to_bit(cmp_uq_pred(a[63..0], b[63..0], pred));
+  zero_extend(r)
 }
 
 val avx_pcmpuq_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpuq_256(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_uq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+  let r : bits(4) =
+    bool_to_bit(cmp_uq_pred(a[255..192], b[255..192], pred)) @
+    bool_to_bit(cmp_uq_pred(a[191..128], b[191..128], pred)) @
+    bool_to_bit(cmp_uq_pred(a[127..64], b[127..64], pred)) @
+    bool_to_bit(cmp_uq_pred(a[63..0], b[63..0], pred));
+  zero_extend(r)
 }
 
-val avx_pcmpuq_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpuq_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 1) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_uq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpuq_512 : (zmmword, zmmword, range(0, 7)) -> byte
+function avx_pcmpuq_512(a, b, pred) =
+  bool_to_bit(cmp_uq_pred(a[511..448], b[511..448], pred)) @
+  bool_to_bit(cmp_uq_pred(a[447..384], b[447..384], pred)) @
+  bool_to_bit(cmp_uq_pred(a[383..320], b[383..320], pred)) @
+  bool_to_bit(cmp_uq_pred(a[319..256], b[319..256], pred)) @
+  bool_to_bit(cmp_uq_pred(a[255..192], b[255..192], pred)) @
+  bool_to_bit(cmp_uq_pred(a[191..128], b[191..128], pred)) @
+  bool_to_bit(cmp_uq_pred(a[127..64], b[127..64], pred)) @
+  bool_to_bit(cmp_uq_pred(a[63..0], b[63..0], pred))
 
 // VPCMPQ: signed qword compare
 
@@ -330,35 +295,34 @@ function cmp_sq_pred(a, b, pred) = match pred {
   _ => true,
 }
 
-val avx_pcmpq_512 : (zmmword, zmmword, range(0, 7)) -> byte
-function avx_pcmpq_512(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_sq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+val avx_pcmpq_128 : (xmmword, xmmword, range(0, 7)) -> byte
+function avx_pcmpq_128(a, b, pred) = {
+  let r : bits(2) =
+    bool_to_bit(cmp_sq_pred(a[127..64], b[127..64], pred)) @
+    bool_to_bit(cmp_sq_pred(a[63..0], b[63..0], pred));
+  zero_extend(r)
 }
 
 val avx_pcmpq_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpq_256(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_sq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
+  let r : bits(4) =
+    bool_to_bit(cmp_sq_pred(a[255..192], b[255..192], pred)) @
+    bool_to_bit(cmp_sq_pred(a[191..128], b[191..128], pred)) @
+    bool_to_bit(cmp_sq_pred(a[127..64], b[127..64], pred)) @
+    bool_to_bit(cmp_sq_pred(a[63..0], b[63..0], pred));
+  zero_extend(r)
 }
 
-val avx_pcmpq_128 : (xmmword, xmmword, range(0, 7)) -> byte
-function avx_pcmpq_128(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 1) {
-    let lo = i * 64; let hi = lo + 63;
-    if cmp_sq_pred(a[(hi)..(lo)], b[(hi)..(lo)], pred) then r[i] = bitone
-  };
-  r
-}
+val avx_pcmpq_512 : (zmmword, zmmword, range(0, 7)) -> byte
+function avx_pcmpq_512(a, b, pred) =
+  bool_to_bit(cmp_sq_pred(a[511..448], b[511..448], pred)) @
+  bool_to_bit(cmp_sq_pred(a[447..384], b[447..384], pred)) @
+  bool_to_bit(cmp_sq_pred(a[383..320], b[383..320], pred)) @
+  bool_to_bit(cmp_sq_pred(a[319..256], b[319..256], pred)) @
+  bool_to_bit(cmp_sq_pred(a[255..192], b[255..192], pred)) @
+  bool_to_bit(cmp_sq_pred(a[191..128], b[191..128], pred)) @
+  bool_to_bit(cmp_sq_pred(a[127..64], b[127..64], pred)) @
+  bool_to_bit(cmp_sq_pred(a[63..0], b[63..0], pred))
 
 // =========================================================================
 // VPTERNLOGD: ternary logic on 3 dword operands using 8-bit truth table
