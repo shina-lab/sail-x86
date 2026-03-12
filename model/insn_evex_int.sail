@@ -876,21 +876,13 @@ function avx_punpckhqdq_512(a, b) =
 // Per 128-bit lane: 8 words from src1 → low 8 bytes, 8 words from src2 → high 8 bytes
 // =========================================================================
 
-val saturate_sw_to_sb : word -> byte
-function saturate_sw_to_sb(w) = {
-  let v : int = signed(w);
-  if v > 127 then 0x7F
-  else if v < negate(128) then 0x80
-  else get_slice_int(8, v, 0)
-}
-
 val avx_packsswb_128 : (xmmword, xmmword) -> xmmword
 function avx_packsswb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let src_lo : range(0, 112) = i * 16;
-    r[(i * 8 + 7)..(i * 8)] = saturate_sw_to_sb(a[(src_lo + 15)..src_lo]);
-    r[(i * 8 + 71)..(i * 8 + 64)] = saturate_sw_to_sb(b[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 7)..(i * 8)] = sat_s16_to_s8(a[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 71)..(i * 8 + 64)] = sat_s16_to_s8(b[(src_lo + 15)..src_lo]);
   };
   r
 }
@@ -905,21 +897,13 @@ function avx_packsswb_512(a, b) =
 
 // VPACKSSDW: pack signed dwords to signed words with saturation
 
-val saturate_sd_to_sw : dword -> word
-function saturate_sd_to_sw(d) = {
-  let v : int = signed(d);
-  if v > 32767 then 0x7FFF
-  else if v < negate(32768) then 0x8000
-  else get_slice_int(16, v, 0)
-}
-
 val avx_packssdw_128 : (xmmword, xmmword) -> xmmword
 function avx_packssdw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
-    r[(i * 16 + 15)..(i * 16)] = saturate_sd_to_sw(a[(src_lo + 31)..src_lo]);
-    r[(i * 16 + 79)..(i * 16 + 64)] = saturate_sd_to_sw(b[(src_lo + 31)..src_lo]);
+    r[(i * 16 + 15)..(i * 16)] = sat_s32_to_s16(a[(src_lo + 31)..src_lo]);
+    r[(i * 16 + 79)..(i * 16 + 64)] = sat_s32_to_s16(b[(src_lo + 31)..src_lo]);
   };
   r
 }
@@ -934,21 +918,13 @@ function avx_packssdw_512(a, b) =
 
 // VPACKUSWB: pack signed words to unsigned bytes with saturation
 
-val saturate_sw_to_ub : word -> byte
-function saturate_sw_to_ub(w) = {
-  let v : int = signed(w);
-  if v > 255 then 0xFF
-  else if v < 0 then 0x00
-  else get_slice_int(8, v, 0)
-}
-
 val avx_packuswb_128 : (xmmword, xmmword) -> xmmword
 function avx_packuswb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let src_lo : range(0, 112) = i * 16;
-    r[(i * 8 + 7)..(i * 8)] = saturate_sw_to_ub(a[(src_lo + 15)..src_lo]);
-    r[(i * 8 + 71)..(i * 8 + 64)] = saturate_sw_to_ub(b[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 7)..(i * 8)] = sat_s16_to_u8(a[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 71)..(i * 8 + 64)] = sat_s16_to_u8(b[(src_lo + 15)..src_lo]);
   };
   r
 }

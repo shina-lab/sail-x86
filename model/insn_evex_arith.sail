@@ -1233,8 +1233,7 @@ function avx_pmovuswb_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 112) = i * 16;
     let dlo : range(0, 56) = i * 8;
-    let v : int = unsigned(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1245,8 +1244,7 @@ function avx_pmovuswb_256(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 240) = i * 16;
     let dlo : range(0, 120) = i * 8;
-    let v : int = unsigned(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1257,8 +1255,7 @@ function avx_pmovuswb_512(src) = {
   foreach (i from 0 to 31) {
     let slo : range(0, 496) = i * 16;
     let dlo : range(0, 248) = i * 8;
-    let v : int = unsigned(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1271,8 +1268,7 @@ function avx_pmovusdb_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 24) = i * 8;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1283,8 +1279,7 @@ function avx_pmovusdb_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 56) = i * 8;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1295,8 +1290,7 @@ function avx_pmovusdb_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 120) = i * 8;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1309,8 +1303,7 @@ function avx_pmovusqb_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 8) = i * 8;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1321,8 +1314,7 @@ function avx_pmovusqb_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 24) = i * 8;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1333,8 +1325,7 @@ function avx_pmovusqb_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 56) = i * 8;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 255 then 0xFF else src[(slo + 7)..slo];
+    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1347,8 +1338,7 @@ function avx_pmovusdw_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 48) = i * 16;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1359,8 +1349,7 @@ function avx_pmovusdw_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 112) = i * 16;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1371,8 +1360,7 @@ function avx_pmovusdw_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 240) = i * 16;
-    let v : int = unsigned(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1385,8 +1373,7 @@ function avx_pmovusqw_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 16) = i * 16;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1397,8 +1384,7 @@ function avx_pmovusqw_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 48) = i * 16;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1409,8 +1395,7 @@ function avx_pmovusqw_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 112) = i * 16;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 65535 then 0xFFFF else src[(slo + 15)..slo];
+    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1423,8 +1408,7 @@ function avx_pmovusqd_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 32) = i * 32;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 4294967295 then 0xFFFFFFFF else src[(slo + 31)..slo];
+    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1435,8 +1419,7 @@ function avx_pmovusqd_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 96) = i * 32;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 4294967295 then 0xFFFFFFFF else src[(slo + 31)..slo];
+    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1447,8 +1430,7 @@ function avx_pmovusqd_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 224) = i * 32;
-    let v : int = unsigned(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 4294967295 then 0xFFFFFFFF else src[(slo + 31)..slo];
+    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
   };
   r
 }

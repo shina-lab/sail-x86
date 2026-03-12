@@ -110,6 +110,45 @@ function sat_s16_to_u8(x) = {
   pos_val[7..0] | over_mask
 }
 
+// VPMOVUS — Unsigned saturation truncation (wider → narrower)
+// Branchless: if any upper bit is set, OR result with all-ones.
+
+val sat_trunc_u_w2b : word -> byte
+function sat_trunc_u_w2b(x) = {
+  let overflow : byte = sign_extend(or_reduce_8(x[15..8]));
+  x[7..0] | overflow
+}
+
+val sat_trunc_u_d2w : dword -> word
+function sat_trunc_u_d2w(x) = {
+  let overflow : word = sign_extend(or_reduce_16(x[31..16]));
+  x[15..0] | overflow
+}
+
+val sat_trunc_u_d2b : dword -> byte
+function sat_trunc_u_d2b(x) = {
+  let overflow : byte = sign_extend(or_reduce_8(x[31..24] | x[23..16] | x[15..8]));
+  x[7..0] | overflow
+}
+
+val sat_trunc_u_q2b : qword -> byte
+function sat_trunc_u_q2b(x) = {
+  let overflow : byte = sign_extend(or_reduce_8(x[63..56] | x[55..48] | x[47..40] | x[39..32] | x[31..24] | x[23..16] | x[15..8]));
+  x[7..0] | overflow
+}
+
+val sat_trunc_u_q2w : qword -> word
+function sat_trunc_u_q2w(x) = {
+  let overflow : word = sign_extend(or_reduce_16(x[63..48] | x[47..32] | x[31..16]));
+  x[15..0] | overflow
+}
+
+val sat_trunc_u_q2d : qword -> dword
+function sat_trunc_u_q2d(x) = {
+  let overflow : dword = sign_extend(or_reduce_32(x[63..32]));
+  x[31..0] | overflow
+}
+
 // PADDSB/PADDSW — Add Packed Signed Integers with Signed Saturation
 // PADDUSB/PADDUSW — Add Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.

@@ -409,6 +409,12 @@ function or_reduce_8(v) = {
 val or_reduce_16 : word -> bits(1)
 function or_reduce_16(v) = or_reduce_8(v[15..8] | v[7..0])
 
+val or_reduce_32 : dword -> bits(1)
+function or_reduce_32(v) = or_reduce_16(v[31..16] | v[15..0])
+
+val or_reduce_64 : qword -> bits(1)
+function or_reduce_64(v) = or_reduce_32(v[63..32] | v[31..0])
+
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
 val blend16 : (word, word, bits(1)) -> word
