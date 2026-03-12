@@ -14,269 +14,191 @@ function avx_pminud_512(a, b) =
 // Each byte lane: if a[i] == b[i] then mask bit = 1, else 0
 // =========================================================================
 
-val avx_ptestmb_512 : (zmmword, zmmword) -> qword
-function avx_ptestmb_512(a, b) = {
-  var r : qword = zeros();
-  foreach (i from 0 to 63) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmb_512 : (zmmword, zmmword) -> qword
-function avx_ptestnmb_512(a, b) = {
-  var r : qword = zeros();
-  foreach (i from 0 to 63) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestmb_256 : (ymmword, ymmword) -> dword
-function avx_ptestmb_256(a, b) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmb_256 : (ymmword, ymmword) -> dword
-function avx_ptestnmb_256(a, b) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
 val avx_ptestmb_128 : (xmmword, xmmword) -> word
-function avx_ptestmb_128(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestmb_128(a, b) =
+  or_reduce_8(a[127..120] & b[127..120]) @
+  or_reduce_8(a[119..112] & b[119..112]) @
+  or_reduce_8(a[111..104] & b[111..104]) @
+  or_reduce_8(a[103..96]  & b[103..96]) @
+  or_reduce_8(a[95..88]   & b[95..88]) @
+  or_reduce_8(a[87..80]   & b[87..80]) @
+  or_reduce_8(a[79..72]   & b[79..72]) @
+  or_reduce_8(a[71..64]   & b[71..64]) @
+  or_reduce_8(a[63..56]   & b[63..56]) @
+  or_reduce_8(a[55..48]   & b[55..48]) @
+  or_reduce_8(a[47..40]   & b[47..40]) @
+  or_reduce_8(a[39..32]   & b[39..32]) @
+  or_reduce_8(a[31..24]   & b[31..24]) @
+  or_reduce_8(a[23..16]   & b[23..16]) @
+  or_reduce_8(a[15..8]    & b[15..8]) @
+  or_reduce_8(a[7..0]     & b[7..0])
 
 val avx_ptestnmb_128 : (xmmword, xmmword) -> word
-function avx_ptestnmb_128(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestnmb_128(a, b) =
+  (~(or_reduce_8(a[127..120] & b[127..120]))) @
+  (~(or_reduce_8(a[119..112] & b[119..112]))) @
+  (~(or_reduce_8(a[111..104] & b[111..104]))) @
+  (~(or_reduce_8(a[103..96]  & b[103..96]))) @
+  (~(or_reduce_8(a[95..88]   & b[95..88]))) @
+  (~(or_reduce_8(a[87..80]   & b[87..80]))) @
+  (~(or_reduce_8(a[79..72]   & b[79..72]))) @
+  (~(or_reduce_8(a[71..64]   & b[71..64]))) @
+  (~(or_reduce_8(a[63..56]   & b[63..56]))) @
+  (~(or_reduce_8(a[55..48]   & b[55..48]))) @
+  (~(or_reduce_8(a[47..40]   & b[47..40]))) @
+  (~(or_reduce_8(a[39..32]   & b[39..32]))) @
+  (~(or_reduce_8(a[31..24]   & b[31..24]))) @
+  (~(or_reduce_8(a[23..16]   & b[23..16]))) @
+  (~(or_reduce_8(a[15..8]    & b[15..8]))) @
+  (~(or_reduce_8(a[7..0]     & b[7..0])))
+
+val avx_ptestmb_256 : (ymmword, ymmword) -> dword
+function avx_ptestmb_256(a, b) =
+  avx_ptestmb_128(a[255..128], b[255..128]) @
+  avx_ptestmb_128(a[127..0], b[127..0])
+
+val avx_ptestnmb_256 : (ymmword, ymmword) -> dword
+function avx_ptestnmb_256(a, b) =
+  avx_ptestnmb_128(a[255..128], b[255..128]) @
+  avx_ptestnmb_128(a[127..0], b[127..0])
+
+val avx_ptestmb_512 : (zmmword, zmmword) -> qword
+function avx_ptestmb_512(a, b) =
+  avx_ptestmb_256(a[511..256], b[511..256]) @
+  avx_ptestmb_256(a[255..0], b[255..0])
+
+val avx_ptestnmb_512 : (zmmword, zmmword) -> qword
+function avx_ptestnmb_512(a, b) =
+  avx_ptestnmb_256(a[511..256], b[511..256]) @
+  avx_ptestnmb_256(a[255..0], b[255..0])
 
 // =========================================================================
 // VPTESTMD/VPTESTNMD: dword version
 // =========================================================================
 
-val avx_ptestmd_512 : (zmmword, zmmword) -> word
-function avx_ptestmd_512(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmd_512 : (zmmword, zmmword) -> word
-function avx_ptestnmd_512(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestmd_256 : (ymmword, ymmword) -> byte
-function avx_ptestmd_256(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmd_256 : (ymmword, ymmword) -> byte
-function avx_ptestnmd_256(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
 val avx_ptestmd_128 : (xmmword, xmmword) -> byte
-function avx_ptestmd_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestmd_128(a, b) =
+  0x0 @
+  or_reduce_32(a[127..96] & b[127..96]) @
+  or_reduce_32(a[95..64]  & b[95..64]) @
+  or_reduce_32(a[63..32]  & b[63..32]) @
+  or_reduce_32(a[31..0]   & b[31..0])
 
 val avx_ptestnmd_128 : (xmmword, xmmword) -> byte
-function avx_ptestnmd_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 32;
-    let hi = lo + 31;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestnmd_128(a, b) =
+  0x0 @
+  (~(or_reduce_32(a[127..96] & b[127..96]))) @
+  (~(or_reduce_32(a[95..64]  & b[95..64]))) @
+  (~(or_reduce_32(a[63..32]  & b[63..32]))) @
+  (~(or_reduce_32(a[31..0]   & b[31..0])))
+
+val avx_ptestmd_256 : (ymmword, ymmword) -> byte
+function avx_ptestmd_256(a, b) =
+  avx_ptestmd_128(a[255..128], b[255..128])[3..0] @
+  avx_ptestmd_128(a[127..0], b[127..0])[3..0]
+
+val avx_ptestnmd_256 : (ymmword, ymmword) -> byte
+function avx_ptestnmd_256(a, b) =
+  avx_ptestnmd_128(a[255..128], b[255..128])[3..0] @
+  avx_ptestnmd_128(a[127..0], b[127..0])[3..0]
+
+val avx_ptestmd_512 : (zmmword, zmmword) -> word
+function avx_ptestmd_512(a, b) =
+  avx_ptestmd_256(a[511..256], b[511..256]) @
+  avx_ptestmd_256(a[255..0], b[255..0])
+
+val avx_ptestnmd_512 : (zmmword, zmmword) -> word
+function avx_ptestnmd_512(a, b) =
+  avx_ptestnmd_256(a[511..256], b[511..256]) @
+  avx_ptestnmd_256(a[255..0], b[255..0])
 
 // =========================================================================
 // VPTESTMW/VPTESTNMW: word version
 // =========================================================================
 
-val avx_ptestmw_512 : (zmmword, zmmword) -> dword
-function avx_ptestmw_512(a, b) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmw_512 : (zmmword, zmmword) -> dword
-function avx_ptestnmw_512(a, b) = {
-  var r : dword = zeros();
-  foreach (i from 0 to 31) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestmw_256 : (ymmword, ymmword) -> word
-function avx_ptestmw_256(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmw_256 : (ymmword, ymmword) -> word
-function avx_ptestnmw_256(a, b) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
 val avx_ptestmw_128 : (xmmword, xmmword) -> byte
-function avx_ptestmw_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestmw_128(a, b) =
+  or_reduce_16(a[127..112] & b[127..112]) @
+  or_reduce_16(a[111..96]  & b[111..96]) @
+  or_reduce_16(a[95..80]   & b[95..80]) @
+  or_reduce_16(a[79..64]   & b[79..64]) @
+  or_reduce_16(a[63..48]   & b[63..48]) @
+  or_reduce_16(a[47..32]   & b[47..32]) @
+  or_reduce_16(a[31..16]   & b[31..16]) @
+  or_reduce_16(a[15..0]    & b[15..0])
 
 val avx_ptestnmw_128 : (xmmword, xmmword) -> byte
-function avx_ptestnmw_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16; let hi = lo + 15;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestnmw_128(a, b) =
+  (~(or_reduce_16(a[127..112] & b[127..112]))) @
+  (~(or_reduce_16(a[111..96]  & b[111..96]))) @
+  (~(or_reduce_16(a[95..80]   & b[95..80]))) @
+  (~(or_reduce_16(a[79..64]   & b[79..64]))) @
+  (~(or_reduce_16(a[63..48]   & b[63..48]))) @
+  (~(or_reduce_16(a[47..32]   & b[47..32]))) @
+  (~(or_reduce_16(a[31..16]   & b[31..16]))) @
+  (~(or_reduce_16(a[15..0]    & b[15..0])))
+
+val avx_ptestmw_256 : (ymmword, ymmword) -> word
+function avx_ptestmw_256(a, b) =
+  avx_ptestmw_128(a[255..128], b[255..128]) @
+  avx_ptestmw_128(a[127..0], b[127..0])
+
+val avx_ptestnmw_256 : (ymmword, ymmword) -> word
+function avx_ptestnmw_256(a, b) =
+  avx_ptestnmw_128(a[255..128], b[255..128]) @
+  avx_ptestnmw_128(a[127..0], b[127..0])
+
+val avx_ptestmw_512 : (zmmword, zmmword) -> dword
+function avx_ptestmw_512(a, b) =
+  avx_ptestmw_256(a[511..256], b[511..256]) @
+  avx_ptestmw_256(a[255..0], b[255..0])
+
+val avx_ptestnmw_512 : (zmmword, zmmword) -> dword
+function avx_ptestnmw_512(a, b) =
+  avx_ptestnmw_256(a[511..256], b[511..256]) @
+  avx_ptestnmw_256(a[255..0], b[255..0])
 
 // =========================================================================
 // VPTESTMQ/VPTESTNMQ: qword version
 // =========================================================================
 
-val avx_ptestmq_512 : (zmmword, zmmword) -> byte
-function avx_ptestmq_512(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmq_512 : (zmmword, zmmword) -> byte
-function avx_ptestnmq_512(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestmq_256 : (ymmword, ymmword) -> byte
-function avx_ptestmq_256(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
-
-val avx_ptestnmq_256 : (ymmword, ymmword) -> byte
-function avx_ptestnmq_256(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
-
 val avx_ptestmq_128 : (xmmword, xmmword) -> byte
-function avx_ptestmq_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 1) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) != zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestmq_128(a, b) =
+  0b000000 @
+  or_reduce_64(a[127..64] & b[127..64]) @
+  or_reduce_64(a[63..0]   & b[63..0])
 
 val avx_ptestnmq_128 : (xmmword, xmmword) -> byte
-function avx_ptestnmq_128(a, b) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 1) {
-    let lo = i * 64; let hi = lo + 63;
-    if (a[(hi)..(lo)] & b[(hi)..(lo)]) == zeros() then r[i] = bitone
-  };
-  r
-}
+function avx_ptestnmq_128(a, b) =
+  0b000000 @
+  (~(or_reduce_64(a[127..64] & b[127..64]))) @
+  (~(or_reduce_64(a[63..0]   & b[63..0])))
+
+val avx_ptestmq_256 : (ymmword, ymmword) -> byte
+function avx_ptestmq_256(a, b) =
+  0x0 @
+  avx_ptestmq_128(a[255..128], b[255..128])[1..0] @
+  avx_ptestmq_128(a[127..0], b[127..0])[1..0]
+
+val avx_ptestnmq_256 : (ymmword, ymmword) -> byte
+function avx_ptestnmq_256(a, b) =
+  0x0 @
+  avx_ptestnmq_128(a[255..128], b[255..128])[1..0] @
+  avx_ptestnmq_128(a[127..0], b[127..0])[1..0]
+
+val avx_ptestmq_512 : (zmmword, zmmword) -> byte
+function avx_ptestmq_512(a, b) =
+  avx_ptestmq_128(a[511..384], b[511..384])[1..0] @
+  avx_ptestmq_128(a[383..256], b[383..256])[1..0] @
+  avx_ptestmq_128(a[255..128], b[255..128])[1..0] @
+  avx_ptestmq_128(a[127..0], b[127..0])[1..0]
+
+val avx_ptestnmq_512 : (zmmword, zmmword) -> byte
+function avx_ptestnmq_512(a, b) =
+  avx_ptestnmq_128(a[511..384], b[511..384])[1..0] @
+  avx_ptestnmq_128(a[383..256], b[383..256])[1..0] @
+  avx_ptestnmq_128(a[255..128], b[255..128])[1..0] @
+  avx_ptestnmq_128(a[127..0], b[127..0])[1..0]
 
 // =========================================================================
 // VPCMPUB: compare unsigned bytes with imm8 predicate, produce kmask
@@ -1787,30 +1709,28 @@ function avx_vpmovm2q_512(k) = {
 
 val avx_vpmovb2m_128 : xmmword -> qword
 function avx_vpmovb2m_128(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 15) {
-    if src[i * 8 + 7] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : word =
+    src[127..127] @ src[119..119] @ src[111..111] @ src[103..103] @
+    src[95..95] @ src[87..87] @ src[79..79] @ src[71..71] @
+    src[63..63] @ src[55..55] @ src[47..47] @ src[39..39] @
+    src[31..31] @ src[23..23] @ src[15..15] @ src[7..7];
+  zero_extend(mask)
 }
 
 val avx_vpmovb2m_256 : ymmword -> qword
 function avx_vpmovb2m_256(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 31) {
-    if src[i * 8 + 7] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : dword =
+    avx_vpmovb2m_128(src[255..128])[15..0] @
+    avx_vpmovb2m_128(src[127..0])[15..0];
+  zero_extend(mask)
 }
 
 val avx_vpmovb2m_512 : zmmword -> qword
-function avx_vpmovb2m_512(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 63) {
-    if src[i * 8 + 7] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
-}
+function avx_vpmovb2m_512(src) =
+  avx_vpmovb2m_128(src[511..384])[15..0] @
+  avx_vpmovb2m_128(src[383..256])[15..0] @
+  avx_vpmovb2m_128(src[255..128])[15..0] @
+  avx_vpmovb2m_128(src[127..0])[15..0]
 
 // =====================================================================
 // VPMOVW2M: vector -> mask (MSB of each word -> mask bit)
@@ -1818,29 +1738,28 @@ function avx_vpmovb2m_512(src) = {
 
 val avx_vpmovw2m_128 : xmmword -> qword
 function avx_vpmovw2m_128(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 7) {
-    if src[i * 16 + 15] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : byte =
+    src[127..127] @ src[111..111] @ src[95..95] @ src[79..79] @
+    src[63..63] @ src[47..47] @ src[31..31] @ src[15..15];
+  zero_extend(mask)
 }
 
 val avx_vpmovw2m_256 : ymmword -> qword
 function avx_vpmovw2m_256(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 15) {
-    if src[i * 16 + 15] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : word =
+    avx_vpmovw2m_128(src[255..128])[7..0] @
+    avx_vpmovw2m_128(src[127..0])[7..0];
+  zero_extend(mask)
 }
 
 val avx_vpmovw2m_512 : zmmword -> qword
 function avx_vpmovw2m_512(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 31) {
-    if src[i * 16 + 15] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : dword =
+    avx_vpmovw2m_128(src[511..384])[7..0] @
+    avx_vpmovw2m_128(src[383..256])[7..0] @
+    avx_vpmovw2m_128(src[255..128])[7..0] @
+    avx_vpmovw2m_128(src[127..0])[7..0];
+  zero_extend(mask)
 }
 
 // =====================================================================
@@ -1849,29 +1768,26 @@ function avx_vpmovw2m_512(src) = {
 
 val avx_vpmovd2m_128 : xmmword -> qword
 function avx_vpmovd2m_128(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 3) {
-    if src[i * 32 + 31] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : bits(4) = src[127..127] @ src[95..95] @ src[63..63] @ src[31..31];
+  zero_extend(mask)
 }
 
 val avx_vpmovd2m_256 : ymmword -> qword
 function avx_vpmovd2m_256(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 7) {
-    if src[i * 32 + 31] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : byte =
+    avx_vpmovd2m_128(src[255..128])[3..0] @
+    avx_vpmovd2m_128(src[127..0])[3..0];
+  zero_extend(mask)
 }
 
 val avx_vpmovd2m_512 : zmmword -> qword
 function avx_vpmovd2m_512(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 15) {
-    if src[i * 32 + 31] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : word =
+    avx_vpmovd2m_128(src[511..384])[3..0] @
+    avx_vpmovd2m_128(src[383..256])[3..0] @
+    avx_vpmovd2m_128(src[255..128])[3..0] @
+    avx_vpmovd2m_128(src[127..0])[3..0];
+  zero_extend(mask)
 }
 
 // =====================================================================
@@ -1880,29 +1796,26 @@ function avx_vpmovd2m_512(src) = {
 
 val avx_vpmovq2m_128 : xmmword -> qword
 function avx_vpmovq2m_128(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 1) {
-    if src[i * 64 + 63] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : bits(2) = src[127..127] @ src[63..63];
+  zero_extend(mask)
 }
 
 val avx_vpmovq2m_256 : ymmword -> qword
 function avx_vpmovq2m_256(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 3) {
-    if src[i * 64 + 63] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : bits(4) =
+    avx_vpmovq2m_128(src[255..128])[1..0] @
+    avx_vpmovq2m_128(src[127..0])[1..0];
+  zero_extend(mask)
 }
 
 val avx_vpmovq2m_512 : zmmword -> qword
 function avx_vpmovq2m_512(src) = {
-  var result : qword = zeros();
-  foreach (i from 0 to 7) {
-    if src[i * 64 + 63] == bitone then result = result | (zero_extend(0b1 : bits(1)) << i);
-  };
-  result
+  let mask : byte =
+    avx_vpmovq2m_128(src[511..384])[1..0] @
+    avx_vpmovq2m_128(src[383..256])[1..0] @
+    avx_vpmovq2m_128(src[255..128])[1..0] @
+    avx_vpmovq2m_128(src[127..0])[1..0];
+  zero_extend(mask)
 }
 
 /* ---- VSHUFF32X4 / VSHUFI32X4: 128-bit lane shuffle ---- */

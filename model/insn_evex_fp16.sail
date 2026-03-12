@@ -122,16 +122,15 @@ function vsqrtph_zmm(a) =
 // Apply 8-bit writemask to 128-bit XMM (8 × 16-bit FP16)
 val apply_writemask_ph_xmm : (xmmword, xmmword, byte, bool) -> xmmword
 function apply_writemask_ph_xmm(result, old_dst, mask_val, zeroing) = {
-  var r : xmmword = if zeroing then zeros() else old_dst;
-  if mask_val[7] == bitone then r[127..112] = result[127..112];
-  if mask_val[6] == bitone then r[111..96]  = result[111..96];
-  if mask_val[5] == bitone then r[95..80]   = result[95..80];
-  if mask_val[4] == bitone then r[79..64]   = result[79..64];
-  if mask_val[3] == bitone then r[63..48]   = result[63..48];
-  if mask_val[2] == bitone then r[47..32]   = result[47..32];
-  if mask_val[1] == bitone then r[31..16]   = result[31..16];
-  if mask_val[0] == bitone then r[15..0]    = result[15..0];
-  r
+  let base : xmmword = if zeroing then zeros() else old_dst;
+  blend16(base[127..112], result[127..112], mask_val[7..7]) @
+  blend16(base[111..96],  result[111..96],  mask_val[6..6]) @
+  blend16(base[95..80],   result[95..80],   mask_val[5..5]) @
+  blend16(base[79..64],   result[79..64],   mask_val[4..4]) @
+  blend16(base[63..48],   result[63..48],   mask_val[3..3]) @
+  blend16(base[47..32],   result[47..32],   mask_val[2..2]) @
+  blend16(base[31..16],   result[31..16],   mask_val[1..1]) @
+  blend16(base[15..0],    result[15..0],    mask_val[0..0])
 }
 
 // Apply 16-bit writemask to 256-bit YMM (16 × 16-bit FP16)
