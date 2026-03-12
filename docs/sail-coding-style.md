@@ -239,6 +239,17 @@ if 10 <= x & x <= 20 then ...
 if x >= 10 & x <= 20 then ...
 ```
 
+When checking if a value is outside a range, keep the constants in the
+same ascending order:
+
+```sail
+// OK: constants still in number-line order
+if x < 10 | 20 < x then ...
+
+// BAD: reversed order
+if x < 10 | x > 20 then ...
+```
+
 ## Functions and Declarations
 
 - `val` declarations go in the file where the function is called
