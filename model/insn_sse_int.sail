@@ -2891,17 +2891,46 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let w6 : word = s[111..96];
       let w7 : word = s[127..112];
 
-      // Find minimum value and index (lowest index wins on tie)
-      let min_val : word = w0;
-      let min_idx : word = 0x0000;
-      let (min_val, min_idx) = if unsigned(w1) < unsigned(min_val) then (w1, 0x0001) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w2) < unsigned(min_val) then (w2, 0x0002) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w3) < unsigned(min_val) then (w3, 0x0003) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w4) < unsigned(min_val) then (w4, 0x0004) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w5) < unsigned(min_val) then (w5, 0x0005) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w6) < unsigned(min_val) then (w6, 0x0006) else (min_val, min_idx);
-      let (min_val, min_idx) = if unsigned(w7) < unsigned(min_val) then (w7, 0x0007) else (min_val, min_idx);
-      write_xmm_legacy(xreg, zeros(96) @ min_idx @ min_val)
+      // Find minimum value and index (lowest index wins on tie) — branchless
+      var mv : word = w0;
+      var mi : word = 0x0000;
+
+      let d1 : bits(17) = (0b0 @ w1) - (0b0 @ mv);
+      let u1 : word = zeros() - zero_extend(d1[16..16]);
+      mv = (w1 & u1) | (mv & not_vec(u1));
+      mi = (0x0001 & u1) | (mi & not_vec(u1));
+
+      let d2 : bits(17) = (0b0 @ w2) - (0b0 @ mv);
+      let u2 : word = zeros() - zero_extend(d2[16..16]);
+      mv = (w2 & u2) | (mv & not_vec(u2));
+      mi = (0x0002 & u2) | (mi & not_vec(u2));
+
+      let d3 : bits(17) = (0b0 @ w3) - (0b0 @ mv);
+      let u3 : word = zeros() - zero_extend(d3[16..16]);
+      mv = (w3 & u3) | (mv & not_vec(u3));
+      mi = (0x0003 & u3) | (mi & not_vec(u3));
+
+      let d4 : bits(17) = (0b0 @ w4) - (0b0 @ mv);
+      let u4 : word = zeros() - zero_extend(d4[16..16]);
+      mv = (w4 & u4) | (mv & not_vec(u4));
+      mi = (0x0004 & u4) | (mi & not_vec(u4));
+
+      let d5 : bits(17) = (0b0 @ w5) - (0b0 @ mv);
+      let u5 : word = zeros() - zero_extend(d5[16..16]);
+      mv = (w5 & u5) | (mv & not_vec(u5));
+      mi = (0x0005 & u5) | (mi & not_vec(u5));
+
+      let d6 : bits(17) = (0b0 @ w6) - (0b0 @ mv);
+      let u6 : word = zeros() - zero_extend(d6[16..16]);
+      mv = (w6 & u6) | (mv & not_vec(u6));
+      mi = (0x0006 & u6) | (mi & not_vec(u6));
+
+      let d7 : bits(17) = (0b0 @ w7) - (0b0 @ mv);
+      let u7 : word = zeros() - zero_extend(d7[16..16]);
+      mv = (w7 & u7) | (mv & not_vec(u7));
+      mi = (0x0007 & u7) | (mi & not_vec(u7));
+
+      write_xmm_legacy(xreg, zeros(96) @ mi @ mv)
     },
 
     // AES-NI — AESIMC
