@@ -498,7 +498,7 @@ function avx_pminuw_128(a, b) = {
     let hi = lo + 15;
     let av : word = a[(hi)..(lo)];
     let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = if unsigned(av) < unsigned(bv) then av else bv
+    r[(hi)..(lo)] = min_u16(av, bv)
   };
   r
 }
@@ -521,7 +521,7 @@ function avx_maxuw_128(a, b) = {
     let hi = lo + 15;
     let av : word = a[(hi)..(lo)];
     let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = if unsigned(av) > unsigned(bv) then av else bv
+    r[(hi)..(lo)] = max_u16(av, bv)
   };
   r
 }
@@ -814,7 +814,7 @@ function vex_pminub_128(a, b) = {
   foreach (i from 0 to 15) {
     let lo = i * 8; let hi = lo + 7;
     let av : byte = a[(hi)..(lo)]; let bv : byte = b[(hi)..(lo)];
-    r[(hi)..(lo)] = if unsigned(av) < unsigned(bv) then av else bv
+    r[(hi)..(lo)] = min_u8(av, bv)
   };
   r
 }
@@ -825,7 +825,7 @@ function vex_pmaxub_128(a, b) = {
   foreach (i from 0 to 15) {
     let lo = i * 8; let hi = lo + 7;
     let av : byte = a[(hi)..(lo)]; let bv : byte = b[(hi)..(lo)];
-    r[(hi)..(lo)] = if unsigned(av) > unsigned(bv) then av else bv
+    r[(hi)..(lo)] = max_u8(av, bv)
   };
   r
 }
@@ -837,7 +837,7 @@ function vex_pminsw_128(a, b) = {
   foreach (i from 0 to 7) {
     let lo = i * 16; let hi = lo + 15;
     let av : word = a[(hi)..(lo)]; let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = if signed(av) < signed(bv) then av else bv
+    r[(hi)..(lo)] = min_s16(av, bv)
   };
   r
 }

@@ -944,7 +944,7 @@ function avx_pmaxuw_128(a, b) = {
     let lo : range(0, 112) = i * 16;
     let va = a[(lo + 15)..lo];
     let vb = b[(lo + 15)..lo];
-    r[(lo + 15)..lo] = if unsigned(va) > unsigned(vb) then va else vb;
+    r[(lo + 15)..lo] = max_u16(va, vb);
   };
   r
 }
@@ -976,7 +976,7 @@ function avx_pminuq_128(a, b) = {
     let lo : range(0, 64) = i * 64;
     let va = a[(lo + 63)..lo];
     let vb = b[(lo + 63)..lo];
-    r[(lo + 63)..lo] = if unsigned(va) < unsigned(vb) then va else vb;
+    r[(lo + 63)..lo] = min_u64(va, vb);
   };
   r
 }
@@ -996,7 +996,7 @@ function avx_pmaxuq_128(a, b) = {
     let lo : range(0, 64) = i * 64;
     let va = a[(lo + 63)..lo];
     let vb = b[(lo + 63)..lo];
-    r[(lo + 63)..lo] = if unsigned(va) > unsigned(vb) then va else vb;
+    r[(lo + 63)..lo] = max_u64(va, vb);
   };
   r
 }
