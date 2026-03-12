@@ -47,17 +47,9 @@ function exec_xadd(dst, src, os) = {
 // POPCNT helpers
 
 val popcount8 : byte -> range(0, 8)
-function popcount8(v) = {
-  let b0 : range(0, 1) = if bit_to_bool(v[0]) then 1 else 0;
-  let b1 : range(0, 1) = if bit_to_bool(v[1]) then 1 else 0;
-  let b2 : range(0, 1) = if bit_to_bool(v[2]) then 1 else 0;
-  let b3 : range(0, 1) = if bit_to_bool(v[3]) then 1 else 0;
-  let b4 : range(0, 1) = if bit_to_bool(v[4]) then 1 else 0;
-  let b5 : range(0, 1) = if bit_to_bool(v[5]) then 1 else 0;
-  let b6 : range(0, 1) = if bit_to_bool(v[6]) then 1 else 0;
-  let b7 : range(0, 1) = if bit_to_bool(v[7]) then 1 else 0;
-  b0 + b1 + b2 + b3 + b4 + b5 + b6 + b7
-}
+function popcount8(v) =
+  unsigned(v[0..0]) + unsigned(v[1..1]) + unsigned(v[2..2]) + unsigned(v[3..3]) +
+  unsigned(v[4..4]) + unsigned(v[5..5]) + unsigned(v[6..6]) + unsigned(v[7..7])
 
 val popcount16 : word -> range(0, 16)
 function popcount16(v) =

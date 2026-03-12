@@ -48,88 +48,102 @@ function crc32c_64(crc, data) = {
 
 // PABSB/PABSW/PABSD — Packed Absolute Value (SSSE3)
 // No flags affected.
+// Branchless: mask = sign-extend of MSB; (x ^ mask) - mask
 val abs8 : byte -> byte
-function abs8(x) = if x[7] == bitone then (0x00 - x) else x
+function abs8(x) = { let m : byte = replicate_bits(x[7..7], 8); (x ^ m) - m }
 
 val abs16 : word -> word
-function abs16(x) = if x[15] == bitone then (0x0000 - x) else x
+function abs16(x) = { let m : word = replicate_bits(x[15..15], 16); (x ^ m) - m }
 
 val abs32 : dword -> dword
-function abs32(x) = if x[31] == bitone then (0x00000000 - x) else x
+function abs32(x) = { let m : dword = replicate_bits(x[31..31], 32); (x ^ m) - m }
 
 // PACKSSWB — Pack with Signed Saturation (words to bytes)
 // PACKSSDW — Pack with Signed Saturation (dwords to words)
 // No flags affected.
+// Branchless: check if upper bits are sign-extension of truncated value.
 val sat_s16_to_s8 : word -> byte
 function sat_s16_to_s8(x) = {
-  let v = signed(x);
-  if v > 127 then 0x7F
-  else if v < -128 then 0x80
-  else x[7..0]
+  let sign : bits(1) = x[15..15];
+  let diff : byte = x[14..7] ^ replicate_bits(sign, 8);
+  let out_of_range : bits(1) = or_reduce_8(diff);
+  let out_mask : byte = replicate_bits(out_of_range, 8);
+  let clamp_val : byte = replicate_bits(sign, 8) ^ 0x7F;
+  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
 }
 
 val sat_s32_to_s16 : dword -> word
 function sat_s32_to_s16(x) = {
-  let v = signed(x);
-  if v > 32767 then 0x7FFF
-  else if v < -32768 then 0x8000
-  else x[15..0]
+  let sign : bits(1) = x[31..31];
+  let diff : word = x[30..15] ^ replicate_bits(sign, 16);
+  let out_of_range : bits(1) = or_reduce_16(diff);
+  let out_mask : word = replicate_bits(out_of_range, 16);
+  let clamp_val : word = replicate_bits(sign, 16) ^ 0x7FFF;
+  (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
 }
 
 // PACKUSDW — Pack Dwords to Words with Unsigned Saturation (SSE4.1)
 // Packs 4 signed dwords from dst and 4 from src into 8 unsigned words.
 // No flags affected.
+// Branchless: zero negative values, then saturate positive overflow.
 val sat_s32_to_u16 : dword -> word
 function sat_s32_to_u16(v) = {
-  let sv : int = signed(v);
-  if sv < 0 then 0x0000
-  else if sv > 65535 then 0xFFFF
-  else v[15..0]
+  let neg_mask : dword = replicate_bits(v[31..31], 32);
+  let pos_val : dword = v & ~(neg_mask);
+  let overflow : bits(1) = or_reduce_16(pos_val[31..16]);
+  let over_mask : word = replicate_bits(overflow, 16);
+  pos_val[15..0] | over_mask
 }
 
 // PACKUSWB — Pack with Unsigned Saturation (words to bytes)
 // No flags affected.
+// Branchless: zero negative values, then saturate positive overflow.
 val sat_s16_to_u8 : word -> byte
 function sat_s16_to_u8(x) = {
-  let v = signed(x);
-  if v > 255 then 0xFF
-  else if v < 0 then 0x00
-  else x[7..0]
+  let neg_mask : word = replicate_bits(x[15..15], 16);
+  let pos_val : word = x & ~(neg_mask);
+  let overflow : bits(1) = or_reduce_8(pos_val[15..8]);
+  let over_mask : byte = replicate_bits(overflow, 8);
+  pos_val[7..0] | over_mask
 }
 
 // PADDSB/PADDSW — Add Packed Signed Integers with Signed Saturation
 // PADDUSB/PADDUSW — Add Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
+// Branchless: detect overflow/underflow via sign bits of wide sum.
 val sat_add_s8 : (byte, byte) -> byte
 function sat_add_s8(a, b) = {
-  let sum : int = signed(a) + signed(b);
-  let clamped : int = if sum < -128 then -128
-                      else if sum > 127 then 127
-                      else sum;
-  to_bits_truncate(clamped)
+  let wide : bits(9) = sign_extend(a) + sign_extend(b);
+  let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
+  let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
+  let ov_mask : byte = replicate_bits(ov, 8);
+  let uf_mask : byte = replicate_bits(uf, 8);
+  (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
 }
 
 val sat_add_s16 : (word, word) -> word
 function sat_add_s16(a, b) = {
-  let sum : int = signed(a) + signed(b);
-  let clamped : int = if sum < -32768 then -32768
-                      else if sum > 32767 then 32767
-                      else sum;
-  to_bits_truncate(clamped)
+  let wide : bits(17) = sign_extend(a) + sign_extend(b);
+  let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
+  let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
+  let ov_mask : word = replicate_bits(ov, 16);
+  let uf_mask : word = replicate_bits(uf, 16);
+  (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
 }
 
+// Branchless: carry bit of wide sum → saturate to all-1s.
 val sat_add_u8 : (byte, byte) -> byte
 function sat_add_u8(a, b) = {
-  let sum : int = unsigned(a) + unsigned(b);
-  let clamped : int = if sum > 255 then 255 else sum;
-  to_bits_truncate(clamped)
+  let wide : bits(9) = (0b0 @ a) + (0b0 @ b);
+  let sat : byte = replicate_bits(wide[8..8], 8);
+  wide[7..0] | sat
 }
 
 val sat_add_u16 : (word, word) -> word
 function sat_add_u16(a, b) = {
-  let sum : int = unsigned(a) + unsigned(b);
-  let clamped : int = if sum > 65535 then 65535 else sum;
-  to_bits_truncate(clamped)
+  let wide : bits(17) = (0b0 @ a) + (0b0 @ b);
+  let sat : word = replicate_bits(wide[16..16], 16);
+  wide[15..0] | sat
 }
 
 // PAVGB/PAVGW — Average Packed Integers with Rounding
@@ -523,31 +537,12 @@ function abs_diff8(a, b) = {
 // Each byte in result is selected from dst by the low 4 bits of the corresponding
 // byte in src. If the high bit of the selector byte is set, the result byte is zero.
 // No flags affected.
+// Branchless: shift right by idx*8, take low byte, AND with zero-mask.
 val pshufb_byte : (xmmword, byte) -> byte
 function pshufb_byte(data, mask) = {
-  if mask[7] == bitone then {
-    0x00
-  } else {
-    let idx : range(0, 15) = unsigned(mask[3..0]);
-    match idx {
-      0  => data[7..0],
-      1  => data[15..8],
-      2  => data[23..16],
-      3  => data[31..24],
-      4  => data[39..32],
-      5  => data[47..40],
-      6  => data[55..48],
-      7  => data[63..56],
-      8  => data[71..64],
-      9  => data[79..72],
-      10 => data[87..80],
-      11 => data[95..88],
-      12 => data[103..96],
-      13 => data[111..104],
-      14 => data[119..112],
-      15 => data[127..120]
-    }
-  }
+  let idx : range(0, 15) = unsigned(mask[3..0]);
+  let selected : byte = (data >> (idx * 8))[7..0];
+  selected & replicate_bits(~(mask[7..7]), 8)
 }
 
 // PSHUFHW — Shuffle Packed High Words
@@ -571,23 +566,30 @@ function select_low_word(v, sel) = {
 // PSIGNB/PSIGNW/PSIGND — Packed Sign (SSSE3)
 // For each lane: if src < 0, negate dst; if src == 0, zero; if src > 0, keep dst.
 // No flags affected.
+// Branchless: neg_mask selects negation, nonzero mask zeros when b==0.
 val psign8 : (byte, byte) -> byte
-function psign8(a, b) =
-  if signed(b) < 0 then (0x00 - a)
-  else if b == zeros() then zeros()
-  else a
+function psign8(a, b) = {
+  let neg_mask : byte = replicate_bits(b[7..7], 8);
+  let borrow : bits(9) = (0b0 @ b) - 0b000000001;
+  let nonzero : byte = replicate_bits(~(borrow[8..8]), 8);
+  ((a ^ neg_mask) - neg_mask) & nonzero
+}
 
 val psign16 : (word, word) -> word
-function psign16(a, b) =
-  if signed(b) < 0 then (0x0000 - a)
-  else if b == zeros() then zeros()
-  else a
+function psign16(a, b) = {
+  let neg_mask : word = replicate_bits(b[15..15], 16);
+  let borrow : bits(17) = (0b0 @ b) - zero_extend(0b1);
+  let nonzero : word = replicate_bits(~(borrow[16..16]), 16);
+  ((a ^ neg_mask) - neg_mask) & nonzero
+}
 
 val psign32 : (dword, dword) -> dword
-function psign32(a, b) =
-  if signed(b) < 0 then (0x00000000 - a)
-  else if b == zeros() then zeros()
-  else a
+function psign32(a, b) = {
+  let neg_mask : dword = replicate_bits(b[31..31], 32);
+  let borrow : bits(33) = (0b0 @ b) - zero_extend(0b1);
+  let nonzero : dword = replicate_bits(~(borrow[32..32]), 32);
+  ((a ^ neg_mask) - neg_mask) & nonzero
+}
 
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
 // PSRLW/PSRLD/PSRLQ — Shift Packed Data Right Logical
@@ -628,36 +630,40 @@ function sra32(v, count) = {
 // PSUBSB/PSUBSW — Subtract Packed Signed Integers with Signed Saturation
 // PSUBUSB/PSUBUSW — Subtract Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
+// Branchless: detect overflow/underflow via sign bits of wide difference.
 val sat_sub_s8 : (byte, byte) -> byte
 function sat_sub_s8(a, b) = {
-  let diff : int = signed(a) - signed(b);
-  let clamped : int = if diff < -128 then -128
-                      else if diff > 127 then 127
-                      else diff;
-  to_bits_truncate(clamped)
+  let wide : bits(9) = sign_extend(a) - sign_extend(b);
+  let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
+  let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
+  let ov_mask : byte = replicate_bits(ov, 8);
+  let uf_mask : byte = replicate_bits(uf, 8);
+  (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
 }
 
 val sat_sub_s16 : (word, word) -> word
 function sat_sub_s16(a, b) = {
-  let diff : int = signed(a) - signed(b);
-  let clamped : int = if diff < -32768 then -32768
-                      else if diff > 32767 then 32767
-                      else diff;
-  to_bits_truncate(clamped)
+  let wide : bits(17) = sign_extend(a) - sign_extend(b);
+  let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
+  let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
+  let ov_mask : word = replicate_bits(ov, 16);
+  let uf_mask : word = replicate_bits(uf, 16);
+  (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
 }
 
+// Branchless: borrow bit of wide difference → mask to zero.
 val sat_sub_u8 : (byte, byte) -> byte
 function sat_sub_u8(a, b) = {
-  let diff : int = unsigned(a) - unsigned(b);
-  let clamped : int = if diff < 0 then 0 else diff;
-  to_bits_truncate(clamped)
+  let wide : bits(9) = (0b0 @ a) - (0b0 @ b);
+  let mask : byte = replicate_bits(~(wide[8..8]), 8);
+  wide[7..0] & mask
 }
 
 val sat_sub_u16 : (word, word) -> word
 function sat_sub_u16(a, b) = {
-  let diff : int = unsigned(a) - unsigned(b);
-  let clamped : int = if diff < 0 then 0 else diff;
-  to_bits_truncate(clamped)
+  let wide : bits(17) = (0b0 @ a) - (0b0 @ b);
+  let mask : word = replicate_bits(~(wide[16..16]), 16);
+  wide[15..0] & mask
 }
 
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
@@ -2901,15 +2907,15 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let w0 : word = if imm[0] == bitone then b[15..0]    else a[15..0];
-      let w1 : word = if imm[1] == bitone then b[31..16]   else a[31..16];
-      let w2 : word = if imm[2] == bitone then b[47..32]   else a[47..32];
-      let w3 : word = if imm[3] == bitone then b[63..48]   else a[63..48];
-      let w4 : word = if imm[4] == bitone then b[79..64]   else a[79..64];
-      let w5 : word = if imm[5] == bitone then b[95..80]   else a[95..80];
-      let w6 : word = if imm[6] == bitone then b[111..96]  else a[111..96];
-      let w7 : word = if imm[7] == bitone then b[127..112] else a[127..112];
-      write_xmm_legacy(xreg, w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0)
+      write_xmm_legacy(xreg,
+        blend16(a[127..112], b[127..112], imm[7..7]) @
+        blend16(a[111..96],  b[111..96],  imm[6..6]) @
+        blend16(a[95..80],   b[95..80],   imm[5..5]) @
+        blend16(a[79..64],   b[79..64],   imm[4..4]) @
+        blend16(a[63..48],   b[63..48],   imm[3..3]) @
+        blend16(a[47..32],   b[47..32],   imm[2..2]) @
+        blend16(a[31..16],   b[31..16],   imm[1..1]) @
+        blend16(a[15..0],    b[15..0],    imm[0..0]))
     },
 
     // SSSE3 — PALIGNR
@@ -3013,8 +3019,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let sel_a : qword = if imm[0] == bitone then a[127..64] else a[63..0];
-      let sel_b : qword = if imm[4] == bitone then b[127..64] else b[63..0];
+      let sel_a : qword = blend64(a[63..0], a[127..64], imm[0..0]);
+      let sel_b : qword = blend64(b[63..0], b[127..64], imm[4..4]);
       let result : xmmword = __pclmulqdq(sel_a, sel_b);
       write_xmm_legacy(xreg, result)
     },

@@ -2459,32 +2459,46 @@ function avx_vdpbf16ps_512(dst, src1, src2) = {
 
 /* ---- VPOPCNT: population count per element ---- */
 
+// Hacker's Delight population count (branchless).
 val popcnt8 : byte -> byte
 function popcnt8(v) = {
-  var count : int = 0;
-  foreach (i from 0 to 7) { if v[i] == bitone then count = count + 1 };
-  get_slice_int(8, count, 0)
+  var x : byte = v;
+  x = x - ((x >> 1) & 0x55);
+  x = (x & 0x33) + ((x >> 2) & 0x33);
+  (x + (x >> 4)) & 0x0F
 }
 
 val popcnt16 : word -> word
 function popcnt16(v) = {
-  var count : int = 0;
-  foreach (i from 0 to 15) { if v[i] == bitone then count = count + 1 };
-  get_slice_int(16, count, 0)
+  var x : word = v;
+  x = x - ((x >> 1) & 0x5555);
+  x = (x & 0x3333) + ((x >> 2) & 0x3333);
+  x = (x + (x >> 4)) & 0x0F0F;
+  x = x + (x >> 8);
+  x & 0x001F
 }
 
 val popcnt32 : dword -> dword
 function popcnt32(v) = {
-  var count : int = 0;
-  foreach (i from 0 to 31) { if v[i] == bitone then count = count + 1 };
-  get_slice_int(32, count, 0)
+  var x : dword = v;
+  x = x - ((x >> 1) & 0x55555555);
+  x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+  x = (x + (x >> 4)) & 0x0F0F0F0F;
+  x = x + (x >> 8);
+  x = x + (x >> 16);
+  x & 0x0000003F
 }
 
 val popcnt64 : qword -> qword
 function popcnt64(v) = {
-  var count : int = 0;
-  foreach (i from 0 to 63) { if v[i] == bitone then count = count + 1 };
-  get_slice_int(64, count, 0)
+  var x : qword = v;
+  x = x - ((x >> 1) & 0x5555555555555555);
+  x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
+  x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
+  x = x + (x >> 8);
+  x = x + (x >> 16);
+  x = x + (x >> 32);
+  x & 0x000000000000007F
 }
 
 // VPOPCNTB (byte elements)

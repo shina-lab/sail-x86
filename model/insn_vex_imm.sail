@@ -9,80 +9,66 @@
 
 // VBLENDPS 128-bit: for each dword i, select from src1 or src2 based on imm8[i]
 val avx_blendps_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_blendps_128(src1, src2, imm) = {
-  let d0 : dword = if imm[0] == bitone then src2[31..0]    else src1[31..0];
-  let d1 : dword = if imm[1] == bitone then src2[63..32]   else src1[63..32];
-  let d2 : dword = if imm[2] == bitone then src2[95..64]   else src1[95..64];
-  let d3 : dword = if imm[3] == bitone then src2[127..96]  else src1[127..96];
-  d3 @ d2 @ d1 @ d0
-}
+function avx_blendps_128(src1, src2, imm) =
+  blend32(src1[127..96], src2[127..96], imm[3..3]) @
+  blend32(src1[95..64],  src2[95..64],  imm[2..2]) @
+  blend32(src1[63..32],  src2[63..32],  imm[1..1]) @
+  blend32(src1[31..0],   src2[31..0],   imm[0..0])
 
 val avx_blendps_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_blendps_256(src1, src2, imm) = {
-  let d0 : dword = if imm[0] == bitone then src2[31..0]    else src1[31..0];
-  let d1 : dword = if imm[1] == bitone then src2[63..32]   else src1[63..32];
-  let d2 : dword = if imm[2] == bitone then src2[95..64]   else src1[95..64];
-  let d3 : dword = if imm[3] == bitone then src2[127..96]  else src1[127..96];
-  let d4 : dword = if imm[4] == bitone then src2[159..128] else src1[159..128];
-  let d5 : dword = if imm[5] == bitone then src2[191..160] else src1[191..160];
-  let d6 : dword = if imm[6] == bitone then src2[223..192] else src1[223..192];
-  let d7 : dword = if imm[7] == bitone then src2[255..224] else src1[255..224];
-  d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0
-}
+function avx_blendps_256(src1, src2, imm) =
+  blend32(src1[255..224], src2[255..224], imm[7..7]) @
+  blend32(src1[223..192], src2[223..192], imm[6..6]) @
+  blend32(src1[191..160], src2[191..160], imm[5..5]) @
+  blend32(src1[159..128], src2[159..128], imm[4..4]) @
+  blend32(src1[127..96],  src2[127..96],  imm[3..3]) @
+  blend32(src1[95..64],   src2[95..64],   imm[2..2]) @
+  blend32(src1[63..32],   src2[63..32],   imm[1..1]) @
+  blend32(src1[31..0],    src2[31..0],    imm[0..0])
 
 // VBLENDPD 128-bit: for each qword i, select based on imm8[i]
 val avx_blendpd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_blendpd_128(src1, src2, imm) = {
-  let lo : qword = if imm[0] == bitone then src2[63..0]   else src1[63..0];
-  let hi : qword = if imm[1] == bitone then src2[127..64] else src1[127..64];
-  hi @ lo
-}
+function avx_blendpd_128(src1, src2, imm) =
+  blend64(src1[127..64], src2[127..64], imm[1..1]) @
+  blend64(src1[63..0],   src2[63..0],   imm[0..0])
 
 val avx_blendpd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_blendpd_256(src1, src2, imm) = {
-  let q0 : qword = if imm[0] == bitone then src2[63..0]    else src1[63..0];
-  let q1 : qword = if imm[1] == bitone then src2[127..64]  else src1[127..64];
-  let q2 : qword = if imm[2] == bitone then src2[191..128] else src1[191..128];
-  let q3 : qword = if imm[3] == bitone then src2[255..192] else src1[255..192];
-  q3 @ q2 @ q1 @ q0
-}
+function avx_blendpd_256(src1, src2, imm) =
+  blend64(src1[255..192], src2[255..192], imm[3..3]) @
+  blend64(src1[191..128], src2[191..128], imm[2..2]) @
+  blend64(src1[127..64],  src2[127..64],  imm[1..1]) @
+  blend64(src1[63..0],    src2[63..0],    imm[0..0])
 
 // VPBLENDW 128-bit: for each word i, select based on imm8[i]
 val avx_pblendw_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_pblendw_128(src1, src2, imm) = {
-  let w0 : word = if imm[0] == bitone then src2[15..0]    else src1[15..0];
-  let w1 : word = if imm[1] == bitone then src2[31..16]   else src1[31..16];
-  let w2 : word = if imm[2] == bitone then src2[47..32]   else src1[47..32];
-  let w3 : word = if imm[3] == bitone then src2[63..48]   else src1[63..48];
-  let w4 : word = if imm[4] == bitone then src2[79..64]   else src1[79..64];
-  let w5 : word = if imm[5] == bitone then src2[95..80]   else src1[95..80];
-  let w6 : word = if imm[6] == bitone then src2[111..96]  else src1[111..96];
-  let w7 : word = if imm[7] == bitone then src2[127..112] else src1[127..112];
-  w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0
-}
+function avx_pblendw_128(src1, src2, imm) =
+  blend16(src1[127..112], src2[127..112], imm[7..7]) @
+  blend16(src1[111..96],  src2[111..96],  imm[6..6]) @
+  blend16(src1[95..80],   src2[95..80],   imm[5..5]) @
+  blend16(src1[79..64],   src2[79..64],   imm[4..4]) @
+  blend16(src1[63..48],   src2[63..48],   imm[3..3]) @
+  blend16(src1[47..32],   src2[47..32],   imm[2..2]) @
+  blend16(src1[31..16],   src2[31..16],   imm[1..1]) @
+  blend16(src1[15..0],    src2[15..0],    imm[0..0])
 
 // VPBLENDD 128-bit: for each dword i, select based on imm8[i]
 val avx_pblendd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_pblendd_128(src1, src2, imm) = {
-  let d0 : dword = if imm[0] == bitone then src2[31..0]   else src1[31..0];
-  let d1 : dword = if imm[1] == bitone then src2[63..32]  else src1[63..32];
-  let d2 : dword = if imm[2] == bitone then src2[95..64]  else src1[95..64];
-  let d3 : dword = if imm[3] == bitone then src2[127..96] else src1[127..96];
-  d3 @ d2 @ d1 @ d0
-}
+function avx_pblendd_128(src1, src2, imm) =
+  blend32(src1[127..96], src2[127..96], imm[3..3]) @
+  blend32(src1[95..64],  src2[95..64],  imm[2..2]) @
+  blend32(src1[63..32],  src2[63..32],  imm[1..1]) @
+  blend32(src1[31..0],   src2[31..0],   imm[0..0])
 
 val avx_pblendd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_pblendd_256(src1, src2, imm) = {
-  let d0 : dword = if imm[0] == bitone then src2[31..0]    else src1[31..0];
-  let d1 : dword = if imm[1] == bitone then src2[63..32]   else src1[63..32];
-  let d2 : dword = if imm[2] == bitone then src2[95..64]   else src1[95..64];
-  let d3 : dword = if imm[3] == bitone then src2[127..96]  else src1[127..96];
-  let d4 : dword = if imm[4] == bitone then src2[159..128] else src1[159..128];
-  let d5 : dword = if imm[5] == bitone then src2[191..160] else src1[191..160];
-  let d6 : dword = if imm[6] == bitone then src2[223..192] else src1[223..192];
-  let d7 : dword = if imm[7] == bitone then src2[255..224] else src1[255..224];
-  d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0
-}
+function avx_pblendd_256(src1, src2, imm) =
+  blend32(src1[255..224], src2[255..224], imm[7..7]) @
+  blend32(src1[223..192], src2[223..192], imm[6..6]) @
+  blend32(src1[191..160], src2[191..160], imm[5..5]) @
+  blend32(src1[159..128], src2[159..128], imm[4..4]) @
+  blend32(src1[127..96],  src2[127..96],  imm[3..3]) @
+  blend32(src1[95..64],   src2[95..64],   imm[2..2]) @
+  blend32(src1[63..32],   src2[63..32],   imm[1..1]) @
+  blend32(src1[31..0],    src2[31..0],    imm[0..0])
 
 // VPALIGNR 128-bit: concatenate src1(high):src2(low), shift right by imm bytes, take low 128 bits
 val avx_palignr_128 : (xmmword, xmmword, byte) -> xmmword

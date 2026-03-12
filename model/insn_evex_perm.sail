@@ -42,12 +42,7 @@ function avx_pshufb_128(src, ctrl) = {
   foreach (j from 0 to 15) {
     let jj : range(0, 120) = j * 8;
     let c : byte = ctrl[(jj + 7)..jj];
-    if c[7] == bitone then {
-      r[(jj + 7)..jj] = 0x00
-    } else {
-      let idx : range(0, 120) = unsigned(c[3..0]) * 8;
-      r[(jj + 7)..jj] = src[(idx + 7)..idx];
-    }
+    r[(jj + 7)..jj] = pshufb_byte(src, c)
   };
   r
 }

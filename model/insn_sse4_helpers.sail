@@ -299,21 +299,15 @@ function avx_pmulld_256(a, b) =
 val avx_packusdw_128 : (xmmword, xmmword) -> xmmword
 function avx_packusdw_128(a, b) = {
   var r : xmmword = zeros();
-  /* Process 4 dwords from a -> lower 4 words */
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
     let dst_lo : range(0, 48) = i * 16;
-    let sv = signed(a[(src_lo + 31)..src_lo]);
-    let clamped = if sv < 0 then 0 else if sv > 65535 then 65535 else sv;
-    r[(dst_lo + 15)..dst_lo] = to_bits(16, clamped);
+    r[(dst_lo + 15)..dst_lo] = sat_s32_to_u16(a[(src_lo + 31)..src_lo]);
   };
-  /* Process 4 dwords from b -> upper 4 words */
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
     let dst_lo : range(64, 112) = 64 + i * 16;
-    let sv = signed(b[(src_lo + 31)..src_lo]);
-    let clamped = if sv < 0 then 0 else if sv > 65535 then 65535 else sv;
-    r[(dst_lo + 15)..dst_lo] = to_bits(16, clamped);
+    r[(dst_lo + 15)..dst_lo] = sat_s32_to_u16(b[(src_lo + 31)..src_lo]);
   };
   r
 }

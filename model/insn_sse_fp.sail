@@ -972,8 +972,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_66 => {
           let d : xmmword = read_xmm(xreg);
-          let low : qword = if imm[0] == bitone then d[127..64] else d[63..0];
-          let high : qword = if imm[1] == bitone then src_xmm[127..64] else src_xmm[63..0];
+          let low : qword = blend64(d[63..0], d[127..64], imm[0..0]);
+          let high : qword = blend64(src_xmm[63..0], src_xmm[127..64], imm[1..1]);
           write_xmm_legacy(xreg, high @ low)
         },
         _       => raise_UD(),
@@ -1234,12 +1234,12 @@ function exec_insertps(dst, src, imm8) = {
   let t1 : dword = if dst_sel == 1 then src_float else a[63..32];
   let t2 : dword = if dst_sel == 2 then src_float else a[95..64];
   let t3 : dword = if dst_sel == 3 then src_float else a[127..96];
-  // Zero lanes indicated by imm8[3:0]
-  let d0 : dword = if imm8[0] == bitone then 0x00000000 else t0;
-  let d1 : dword = if imm8[1] == bitone then 0x00000000 else t1;
-  let d2 : dword = if imm8[2] == bitone then 0x00000000 else t2;
-  let d3 : dword = if imm8[3] == bitone then 0x00000000 else t3;
-  write_xmm_legacy(dst, d3 @ d2 @ d1 @ d0)
+  // Zero lanes indicated by imm8[3:0] (branchless)
+  write_xmm_legacy(dst,
+    (t3 & replicate_bits(~(imm8[3..3]), 32)) @
+    (t2 & replicate_bits(~(imm8[2..2]), 32)) @
+    (t1 & replicate_bits(~(imm8[1..1]), 32)) @
+    (t0 & replicate_bits(~(imm8[0..0]), 32)))
 }
 
 // =========================================================================
@@ -1329,19 +1329,19 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
-      let d0 : dword = if imm[0] == bitone then src_xmm[31..0] else a[31..0];
-      let d1 : dword = if imm[1] == bitone then src_xmm[63..32] else a[63..32];
-      let d2 : dword = if imm[2] == bitone then src_xmm[95..64] else a[95..64];
-      let d3 : dword = if imm[3] == bitone then src_xmm[127..96] else a[127..96];
-      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+      write_xmm_legacy(xreg,
+        blend32(a[127..96], src_xmm[127..96], imm[3..3]) @
+        blend32(a[95..64],  src_xmm[95..64],  imm[2..2]) @
+        blend32(a[63..32],  src_xmm[63..32],  imm[1..1]) @
+        blend32(a[31..0],   src_xmm[31..0],   imm[0..0]))
     },
     13 => {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
-      let lo : qword = if imm[0] == bitone then src_xmm[63..0] else a[63..0];
-      let hi : qword = if imm[1] == bitone then src_xmm[127..64] else a[127..64];
-      write_xmm_legacy(xreg, hi @ lo)
+      write_xmm_legacy(xreg,
+        blend64(a[127..64], src_xmm[127..64], imm[1..1]) @
+        blend64(a[63..0],   src_xmm[63..0],   imm[0..0]))
     },
 
     // EXTRACTPS r/m32, xmm, imm8
@@ -1377,11 +1377,11 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let sum01 : dword = __f32_add(temp0, temp1);
       let sum23 : dword = __f32_add(temp2, temp3);
       let sum : dword = __f32_add(sum01, sum23);
-      let d0 : dword = if imm[0] == bitone then sum else zero;
-      let d1 : dword = if imm[1] == bitone then sum else zero;
-      let d2 : dword = if imm[2] == bitone then sum else zero;
-      let d3 : dword = if imm[3] == bitone then sum else zero;
-      write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
+      write_xmm_legacy(xreg,
+        (sum & replicate_bits(imm[3..3], 32)) @
+        (sum & replicate_bits(imm[2..2], 32)) @
+        (sum & replicate_bits(imm[1..1], 32)) @
+        (sum & replicate_bits(imm[0..0], 32)))
     },
     65 => {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
@@ -1391,9 +1391,9 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let temp0 : qword = if imm[4] == bitone then __f64_mul(a[63..0], src_xmm[63..0]) else zero;
       let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], src_xmm[127..64]) else zero;
       let sum : qword = __f64_add(temp0, temp1);
-      let lo : qword = if imm[0] == bitone then sum else zero;
-      let hi : qword = if imm[1] == bitone then sum else zero;
-      write_xmm_legacy(xreg, hi @ lo)
+      write_xmm_legacy(xreg,
+        (sum & replicate_bits(imm[1..1], 64)) @
+        (sum & replicate_bits(imm[0..0], 64)))
     },
 
     _ => raise_UD(),

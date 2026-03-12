@@ -1971,11 +1971,11 @@ function dispatch_evex_imm(op, pfx) = {
     let dlo : range(0, 96) = count_d * 32;
     var result = read_xmm(pfx.evex_vvvvv);
     result[(dlo + 31)..dlo] = src_float;
-    // imm8[3:0] = zero mask for each float
-    if imm[0] == bitone then result[31..0] = zeros();
-    if imm[1] == bitone then result[63..32] = zeros();
-    if imm[2] == bitone then result[95..64] = zeros();
-    if imm[3] == bitone then result[127..96] = zeros();
+    // imm8[3:0] = zero mask for each float (branchless)
+    result[31..0]   = result[31..0]   & replicate_bits(~(imm[0..0]), 32);
+    result[63..32]  = result[63..32]  & replicate_bits(~(imm[1..1]), 32);
+    result[95..64]  = result[95..64]  & replicate_bits(~(imm[2..2]), 32);
+    result[127..96] = result[127..96] & replicate_bits(~(imm[3..3]), 32);
     write_xmm(dst, result)
   },
 

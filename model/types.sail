@@ -393,3 +393,29 @@ function modrm_xmm_rm(modrm, pfx) = {
   let r : range(0, 7) = unsigned(modrm[2..0]);
   if pfx.rex_b then r + 8 else r
 }
+
+// =========================================================================
+// Branchless helpers (used across multiple instruction files)
+// =========================================================================
+
+// or_reduce: 1 if any bit is set, 0 otherwise (branchless tree reduction).
+val or_reduce_8 : byte -> bits(1)
+function or_reduce_8(v) = {
+  let r4 : bits(4) = v[7..4] | v[3..0];
+  let r2 : bits(2) = r4[3..2] | r4[1..0];
+  r2[1..1] | r2[0..0]
+}
+
+val or_reduce_16 : word -> bits(1)
+function or_reduce_16(v) = or_reduce_8(v[15..8] | v[7..0])
+
+// Branchless blend: select a or b per element based on a single bit.
+// sel=0 → a, sel=1 → b.
+val blend16 : (word, word, bits(1)) -> word
+function blend16(a, b, sel) = { let m = replicate_bits(sel, 16); (a & ~(m)) | (b & m) }
+
+val blend32 : (dword, dword, bits(1)) -> dword
+function blend32(a, b, sel) = { let m = replicate_bits(sel, 32); (a & ~(m)) | (b & m) }
+
+val blend64 : (qword, qword, bits(1)) -> qword
+function blend64(a, b, sel) = { let m = replicate_bits(sel, 64); (a & ~(m)) | (b & m) }
