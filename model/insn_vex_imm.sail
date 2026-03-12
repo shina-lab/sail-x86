@@ -109,10 +109,10 @@ function avx_dpps_128(a, b, imm) = {
   let sum01 : dword = __f32_add(temp0, temp1);
   let sum23 : dword = __f32_add(temp2, temp3);
   let sum : dword = __f32_add(sum01, sum23);
-  let d0 : dword = if imm[0] == bitone then sum else zero;
-  let d1 : dword = if imm[1] == bitone then sum else zero;
-  let d2 : dword = if imm[2] == bitone then sum else zero;
-  let d3 : dword = if imm[3] == bitone then sum else zero;
+  let d0 : dword = sum & replicate_bits(imm[0..0], 32);
+  let d1 : dword = sum & replicate_bits(imm[1..1], 32);
+  let d2 : dword = sum & replicate_bits(imm[2..2], 32);
+  let d3 : dword = sum & replicate_bits(imm[3..3], 32);
   d3 @ d2 @ d1 @ d0
 }
 
@@ -123,8 +123,8 @@ function avx_dppd_128(a, b, imm) = {
   let temp0 : qword = if imm[4] == bitone then __f64_mul(a[63..0], b[63..0]) else zero;
   let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], b[127..64]) else zero;
   let sum : qword = __f64_add(temp0, temp1);
-  let lo : qword = if imm[0] == bitone then sum else zero;
-  let hi : qword = if imm[1] == bitone then sum else zero;
+  let lo : qword = sum & replicate_bits(imm[0..0], 64);
+  let hi : qword = sum & replicate_bits(imm[1..1], 64);
   hi @ lo
 }
 
@@ -155,10 +155,10 @@ function avx_insertps(dst, src, imm8, is_mem) = {
   let t1 : dword = if dst_sel == 1 then src_float else dst[63..32];
   let t2 : dword = if dst_sel == 2 then src_float else dst[95..64];
   let t3 : dword = if dst_sel == 3 then src_float else dst[127..96];
-  let d0 : dword = if imm8[0] == bitone then 0x00000000 else t0;
-  let d1 : dword = if imm8[1] == bitone then 0x00000000 else t1;
-  let d2 : dword = if imm8[2] == bitone then 0x00000000 else t2;
-  let d3 : dword = if imm8[3] == bitone then 0x00000000 else t3;
+  let d0 : dword = t0 & replicate_bits(~(imm8[0..0]), 32);
+  let d1 : dword = t1 & replicate_bits(~(imm8[1..1]), 32);
+  let d2 : dword = t2 & replicate_bits(~(imm8[2..2]), 32);
+  let d3 : dword = t3 & replicate_bits(~(imm8[3..3]), 32);
   d3 @ d2 @ d1 @ d0
 }
 
@@ -729,8 +729,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
     let imm = fetch_byte();
-    let sel_a : qword = if imm[0] == bitone then src1[127..64] else src1[63..0];
-    let sel_b : qword = if imm[4] == bitone then src2[127..64] else src2[63..0];
+    let sel_a : qword = blend64(src1[63..0], src1[127..64], imm[0..0]);
+    let sel_b : qword = blend64(src2[63..0], src2[127..64], imm[4..4]);
     let result : xmmword = __pclmulqdq(sel_a, sel_b);
     write_xmm(dst, result)
   },
@@ -808,27 +808,23 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
     let imm = fetch_byte();
     // Low 128-bit result selected by imm8[1:0], zeroed if imm8[3]
-    var lo_result : xmmword = zeros();
-    if imm[3] == bitzero then {
-      let sel_lo : range(0, 3) = unsigned(imm[1..0]);
-      lo_result = match sel_lo {
-        0 => src1[127..0],
-        1 => src1[255..128],
-        2 => src2[127..0],
-        3 => src2[255..128],
-      }
+    let sel_lo : range(0, 3) = unsigned(imm[1..0]);
+    let lo_selected : xmmword = match sel_lo {
+      0 => src1[127..0],
+      1 => src1[255..128],
+      2 => src2[127..0],
+      3 => src2[255..128],
     };
+    let lo_result : xmmword = lo_selected & replicate_bits(~(imm[3..3]), 128);
     // High 128-bit result selected by imm8[5:4], zeroed if imm8[7]
-    var hi_result : xmmword = zeros();
-    if imm[7] == bitzero then {
-      let sel_hi : range(0, 3) = unsigned(imm[5..4]);
-      hi_result = match sel_hi {
-        0 => src1[127..0],
-        1 => src1[255..128],
-        2 => src2[127..0],
-        3 => src2[255..128],
-      }
+    let sel_hi : range(0, 3) = unsigned(imm[5..4]);
+    let hi_selected : xmmword = match sel_hi {
+      0 => src1[127..0],
+      1 => src1[255..128],
+      2 => src2[127..0],
+      3 => src2[255..128],
     };
+    let hi_result : xmmword = hi_selected & replicate_bits(~(imm[7..7]), 128);
     write_ymm(dst, hi_result @ lo_result)
   },
 
@@ -878,26 +874,22 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
     let imm = fetch_byte();
     // Same logic as VPERM2F128
-    var lo_result : xmmword = zeros();
-    if imm[3] == bitzero then {
-      let sel_lo : range(0, 3) = unsigned(imm[1..0]);
-      lo_result = match sel_lo {
-        0 => src1[127..0],
-        1 => src1[255..128],
-        2 => src2[127..0],
-        3 => src2[255..128],
-      }
+    let sel_lo : range(0, 3) = unsigned(imm[1..0]);
+    let lo_selected : xmmword = match sel_lo {
+      0 => src1[127..0],
+      1 => src1[255..128],
+      2 => src2[127..0],
+      3 => src2[255..128],
     };
-    var hi_result : xmmword = zeros();
-    if imm[7] == bitzero then {
-      let sel_hi : range(0, 3) = unsigned(imm[5..4]);
-      hi_result = match sel_hi {
-        0 => src1[127..0],
-        1 => src1[255..128],
-        2 => src2[127..0],
-        3 => src2[255..128],
-      }
+    let lo_result : xmmword = lo_selected & replicate_bits(~(imm[3..3]), 128);
+    let sel_hi : range(0, 3) = unsigned(imm[5..4]);
+    let hi_selected : xmmword = match sel_hi {
+      0 => src1[127..0],
+      1 => src1[255..128],
+      2 => src2[127..0],
+      3 => src2[255..128],
     };
+    let hi_result : xmmword = hi_selected & replicate_bits(~(imm[7..7]), 128);
     write_ymm(dst, hi_result @ lo_result)
   },
 
