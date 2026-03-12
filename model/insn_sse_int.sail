@@ -615,10 +615,7 @@ function mul_hi16u(a, b) = {
 // Computes absolute differences of unsigned byte pairs, then sums each 8-byte group.
 // Result is zero-extended to 64 bits per qword lane. No flags affected.
 val abs_diff8 : (byte, byte) -> int
-function abs_diff8(a, b) = {
-  let diff : int = unsigned(a) - unsigned(b);
-  if diff < 0 then negate(diff) else diff
-}
+function abs_diff8(a, b) = unsigned(max_u8(a, b) - min_u8(a, b))
 
 // PSHUFB — Packed Shuffle Bytes (SSSE3)
 // Each byte in result is selected from dst by the low 4 bits of the corresponding

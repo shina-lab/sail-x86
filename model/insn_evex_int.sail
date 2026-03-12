@@ -578,8 +578,7 @@ function avx_psadbw_64(a, b) = {
   var sum : int = 0;
   foreach (i from 0 to 7) {
     let lo : range(0, 56) = i * 8;
-    let diff : int = unsigned(a[(lo + 7)..lo]) - unsigned(b[(lo + 7)..lo]);
-    sum = sum + (if diff < 0 then negate(diff) else diff);
+    sum = sum + abs_diff8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   zero_extend(get_slice_int(16, sum, 0))
 }

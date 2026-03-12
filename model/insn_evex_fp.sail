@@ -481,28 +481,28 @@ function avx_shufps_512(src1, src2, imm) =
 // Bit 0 → dest[63:0] from src1, Bit 1 → dest[127:64] from src2
 // Bit 2 → dest[191:128] from src1, Bit 3 → dest[255:192] from src2, etc.
 
-val shufpd_lane : (bits(128), bits(128), bit, bit) -> bits(128)
+val shufpd_lane : (bits(128), bits(128), bits(1), bits(1)) -> bits(128)
 function shufpd_lane(src1, src2, ctrl0, ctrl1) = {
-  let lo : bits(64) = if ctrl0 == bitone then src1[127..64] else src1[63..0];
-  let hi : bits(64) = if ctrl1 == bitone then src2[127..64] else src2[63..0];
+  let lo : bits(64) = blend64(src1[63..0], src1[127..64], ctrl0);
+  let hi : bits(64) = blend64(src2[63..0], src2[127..64], ctrl1);
   hi @ lo
 }
 
 val avx_shufpd_128 : (xmmword, xmmword, bits(8)) -> xmmword
 function avx_shufpd_128(src1, src2, imm) =
-  shufpd_lane(src1, src2, imm[0], imm[1])
+  shufpd_lane(src1, src2, imm[0..0], imm[1..1])
 
 val avx_shufpd_256 : (ymmword, ymmword, bits(8)) -> ymmword
 function avx_shufpd_256(src1, src2, imm) =
-  shufpd_lane(src1[255..128], src2[255..128], imm[2], imm[3]) @
-  shufpd_lane(src1[127..0], src2[127..0], imm[0], imm[1])
+  shufpd_lane(src1[255..128], src2[255..128], imm[2..2], imm[3..3]) @
+  shufpd_lane(src1[127..0], src2[127..0], imm[0..0], imm[1..1])
 
 val avx_shufpd_512 : (zmmword, zmmword, bits(8)) -> zmmword
 function avx_shufpd_512(src1, src2, imm) =
-  shufpd_lane(src1[511..384], src2[511..384], imm[6], imm[7]) @
-  shufpd_lane(src1[383..256], src2[383..256], imm[4], imm[5]) @
-  shufpd_lane(src1[255..128], src2[255..128], imm[2], imm[3]) @
-  shufpd_lane(src1[127..0], src2[127..0], imm[0], imm[1])
+  shufpd_lane(src1[511..384], src2[511..384], imm[6..6], imm[7..7]) @
+  shufpd_lane(src1[383..256], src2[383..256], imm[4..4], imm[5..5]) @
+  shufpd_lane(src1[255..128], src2[255..128], imm[2..2], imm[3..3]) @
+  shufpd_lane(src1[127..0], src2[127..0], imm[0..0], imm[1..1])
 
 // VCVTTPS2UDQ: convert N f32 → N u32 (truncate)
 

@@ -768,8 +768,7 @@ function avx_vdbpsadbw_128(src1, src2, imm) = {
       let t1_base : range(0, 11) = bb + w;  // sliding window start byte
       var sad : int = 0;
       foreach (k from 0 to 3) {
-        let diff : int = unsigned(xmm_byte(src1, s1_base + k)) - unsigned(xmm_byte(tmp1, t1_base + k));
-        sad = sad + (if diff < 0 then negate(diff) else diff);
+        sad = sad + abs_diff8(xmm_byte(src1, s1_base + k), xmm_byte(tmp1, t1_base + k));
       };
       let wrd : word = get_slice_int(16, sad, 0);
       let dst_bit : range(0, 112) = (blk * 4 + w) * 16;
@@ -1155,8 +1154,8 @@ function avx_vcvtps2ph_512(src) = {
 
 val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
 function avx_vpclmulqdq_lane(src1, src2, imm8) = {
-  let sel_a : qword = if imm8[0] == bitone then src1[127..64] else src1[63..0];
-  let sel_b : qword = if imm8[4] == bitone then src2[127..64] else src2[63..0];
+  let sel_a : qword = blend64(src1[63..0], src1[127..64], imm8[0..0]);
+  let sel_b : qword = blend64(src2[63..0], src2[127..64], imm8[4..4]);
   __pclmulqdq(sel_a, sel_b)
 }
 
