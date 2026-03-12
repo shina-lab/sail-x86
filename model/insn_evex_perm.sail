@@ -196,78 +196,72 @@ function avx_vpermq_512(src, idx) = {
 
 val avx_vperm2_d_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vperm2_d_128(t1, t2, idx) = {
+  let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
     let id : range(0, 7) = unsigned(idx[(lo + 2)..lo]);
-    let sel : range(0, 96) = (id % 4) * 32;
-    if id < 4 then r[(lo + 31)..lo] = t1[(sel + 31)..sel]
-    else r[(lo + 31)..lo] = t2[(sel + 31)..sel];
+    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
   };
   r
 }
 
 val avx_vperm2_d_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_vperm2_d_256(t1, t2, idx) = {
+  let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
     let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    let sel : range(0, 224) = (id % 8) * 32;
-    if id < 8 then r[(lo + 31)..lo] = t1[(sel + 31)..sel]
-    else r[(lo + 31)..lo] = t2[(sel + 31)..sel];
+    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
   };
   r
 }
 
 val avx_vperm2_d_512 : (zmmword, zmmword, zmmword) -> zmmword
 function avx_vperm2_d_512(t1, t2, idx) = {
+  let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
     let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    let sel : range(0, 480) = (id % 16) * 32;
-    if id < 16 then r[(lo + 31)..lo] = t1[(sel + 31)..sel]
-    else r[(lo + 31)..lo] = t2[(sel + 31)..sel];
+    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
   };
   r
 }
 
 val avx_vperm2_q_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vperm2_q_128(t1, t2, idx) = {
+  let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
     let id : range(0, 3) = unsigned(idx[(lo + 1)..lo]);
-    let sel : range(0, 64) = (id % 2) * 64;
-    if id < 2 then r[(lo + 63)..lo] = t1[(sel + 63)..sel]
-    else r[(lo + 63)..lo] = t2[(sel + 63)..sel];
+    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
   };
   r
 }
 
 val avx_vperm2_q_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_vperm2_q_256(t1, t2, idx) = {
+  let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 192) = i * 64;
     let id : range(0, 7) = unsigned(idx[(lo + 2)..lo]);
-    let sel : range(0, 192) = (id % 4) * 64;
-    if id < 4 then r[(lo + 63)..lo] = t1[(sel + 63)..sel]
-    else r[(lo + 63)..lo] = t2[(sel + 63)..sel];
+    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
   };
   r
 }
 
 val avx_vperm2_q_512 : (zmmword, zmmword, zmmword) -> zmmword
 function avx_vperm2_q_512(t1, t2, idx) = {
+  let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
     let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    let sel : range(0, 448) = (id % 8) * 64;
-    if id < 8 then r[(lo + 63)..lo] = t1[(sel + 63)..sel]
-    else r[(lo + 63)..lo] = t2[(sel + 63)..sel];
+    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
   };
   r
 }
@@ -276,39 +270,36 @@ function avx_vperm2_q_512(t1, t2, idx) = {
 
 val avx_vperm2_w_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vperm2_w_128(t1, t2, idx) = {
+  let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
     let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    let sel : range(0, 112) = (id % 8) * 16;
-    if id < 8 then r[(lo + 15)..lo] = t1[(sel + 15)..sel]
-    else r[(lo + 15)..lo] = t2[(sel + 15)..sel];
+    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
   };
   r
 }
 
 val avx_vperm2_w_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_vperm2_w_256(t1, t2, idx) = {
+  let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
     let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    let sel : range(0, 240) = (id % 16) * 16;
-    if id < 16 then r[(lo + 15)..lo] = t1[(sel + 15)..sel]
-    else r[(lo + 15)..lo] = t2[(sel + 15)..sel];
+    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
   };
   r
 }
 
 val avx_vperm2_w_512 : (zmmword, zmmword, zmmword) -> zmmword
 function avx_vperm2_w_512(t1, t2, idx) = {
+  let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
     let id : range(0, 63) = unsigned(idx[(lo + 5)..lo]);
-    let sel : range(0, 496) = (id % 32) * 16;
-    if id < 32 then r[(lo + 15)..lo] = t1[(sel + 15)..sel]
-    else r[(lo + 15)..lo] = t2[(sel + 15)..sel];
+    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
   };
   r
 }
@@ -355,39 +346,36 @@ function avx_vpermw_512(src, idx) = {
 
 val avx_vperm2_b_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_vperm2_b_128(t1, t2, idx) = {
+  let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
     let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    let sel : range(0, 120) = (id % 16) * 8;
-    if id < 16 then r[(lo + 7)..lo] = t1[(sel + 7)..sel]
-    else r[(lo + 7)..lo] = t2[(sel + 7)..sel];
+    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
   };
   r
 }
 
 val avx_vperm2_b_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_vperm2_b_256(t1, t2, idx) = {
+  let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 248) = i * 8;
     let id : range(0, 63) = unsigned(idx[(lo + 5)..lo]);
-    let sel : range(0, 248) = (id % 32) * 8;
-    if id < 32 then r[(lo + 7)..lo] = t1[(sel + 7)..sel]
-    else r[(lo + 7)..lo] = t2[(sel + 7)..sel];
+    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
   };
   r
 }
 
 val avx_vperm2_b_512 : (zmmword, zmmword, zmmword) -> zmmword
 function avx_vperm2_b_512(t1, t2, idx) = {
+  let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 63) {
     let lo : range(0, 504) = i * 8;
     let id : range(0, 127) = unsigned(idx[(lo + 6)..lo]);
-    let sel : range(0, 504) = (id % 64) * 8;
-    if id < 64 then r[(lo + 7)..lo] = t1[(sel + 7)..sel]
-    else r[(lo + 7)..lo] = t2[(sel + 7)..sel];
+    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
   };
   r
 }
