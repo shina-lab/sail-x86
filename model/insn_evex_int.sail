@@ -132,9 +132,8 @@ val avx_pcmpeqb_mask_128 : (xmmword, xmmword) -> word
 function avx_pcmpeqb_mask_128(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    let lo = i * 8; let hi = lo + 7;
+    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -143,9 +142,8 @@ val avx_pcmpeqb_mask_256 : (ymmword, ymmword) -> dword
 function avx_pcmpeqb_mask_256(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    let lo = i * 8; let hi = lo + 7;
+    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -154,9 +152,8 @@ val avx_pcmpeqb_mask_512 : (zmmword, zmmword) -> qword
 function avx_pcmpeqb_mask_512(a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to 63) {
-    let lo = i * 8;
-    let hi = lo + 7;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    let lo = i * 8; let hi = lo + 7;
+    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -171,7 +168,7 @@ function avx_pcmpeqd_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 3) {
     let lo = i * 32; let hi = lo + 31;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -181,7 +178,7 @@ function avx_pcmpeqd_mask_256(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo = i * 32; let hi = lo + 31;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -191,7 +188,7 @@ function avx_pcmpeqd_mask_512(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo = i * 32; let hi = lo + 31;
-    if a[(hi)..(lo)] == b[(hi)..(lo)] then r[i] = bitone
+    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
   };
   r
 }
@@ -607,7 +604,7 @@ function avx_pmaxsw_128(a, b) = {
     let lo : range(0, 112) = i * 16;
     let va = a[(lo + 15)..lo];
     let vb = b[(lo + 15)..lo];
-    r[(lo + 15)..lo] = if signed(va) > signed(vb) then va else vb;
+    r[(lo + 15)..lo] = max_s16(va, vb);
   };
   r
 }
@@ -682,8 +679,7 @@ function avx_pcmpgtb_mask_128(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    if signed(a[(lo + 7)..lo]) > signed(b[(lo + 7)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
   };
   r
 }
@@ -693,8 +689,7 @@ function avx_pcmpgtb_mask_256(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 248) = i * 8;
-    if signed(a[(lo + 7)..lo]) > signed(b[(lo + 7)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
   };
   r
 }
@@ -704,8 +699,7 @@ function avx_pcmpgtb_mask_512(a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to 63) {
     let lo : range(0, 504) = i * 8;
-    if signed(a[(lo + 7)..lo]) > signed(b[(lo + 7)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
   };
   r
 }
@@ -715,8 +709,7 @@ function avx_pcmpgtw_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    if signed(a[(lo + 15)..lo]) > signed(b[(lo + 15)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -726,8 +719,7 @@ function avx_pcmpgtw_mask_256(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    if signed(a[(lo + 15)..lo]) > signed(b[(lo + 15)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -737,8 +729,7 @@ function avx_pcmpgtw_mask_512(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    if signed(a[(lo + 15)..lo]) > signed(b[(lo + 15)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -748,8 +739,7 @@ function avx_pcmpgtd_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    if signed(a[(lo + 31)..lo]) > signed(b[(lo + 31)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
   };
   r
 }
@@ -759,8 +749,7 @@ function avx_pcmpgtd_mask_256(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    if signed(a[(lo + 31)..lo]) > signed(b[(lo + 31)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
   };
   r
 }
@@ -770,8 +759,7 @@ function avx_pcmpgtd_mask_512(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    if signed(a[(lo + 31)..lo]) > signed(b[(lo + 31)..lo])
-    then r[i] = bitone;
+    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
   };
   r
 }
@@ -783,8 +771,7 @@ function avx_pcmpeqw_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    if a[(lo + 15)..lo] == b[(lo + 15)..lo]
-    then r[i] = bitone;
+    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -794,8 +781,7 @@ function avx_pcmpeqw_mask_256(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    if a[(lo + 15)..lo] == b[(lo + 15)..lo]
-    then r[i] = bitone;
+    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -805,8 +791,7 @@ function avx_pcmpeqw_mask_512(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    if a[(lo + 15)..lo] == b[(lo + 15)..lo]
-    then r[i] = bitone;
+    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
   };
   r
 }
@@ -1251,7 +1236,7 @@ function arith_shr_word(v, count) = {
   if count == 0 then {
     v
   } else if count >= 16 then {
-    if v[15] == bitone then ones() else zeros()
+    zeros() - zero_extend(v[15..15])
   } else {
     // Logical shift right, then fill high bits with sign bit
     let shifted : word = v >> count;
@@ -1290,7 +1275,7 @@ function arith_shr_dword(v, count) = {
   if count == 0 then {
     v
   } else if count >= 32 then {
-    if v[31] == bitone then ones() else zeros()
+    zeros() - zero_extend(v[31..31])
   } else {
     let shifted : dword = v >> count;
     let sign_bit = v[31];
@@ -1328,7 +1313,7 @@ function arith_shr_qword(v, count) = {
   if count == 0 then {
     v
   } else if count >= 64 then {
-    if v[63] == bitone then ones() else zeros()
+    zeros() - zero_extend(v[63..63])
   } else {
     let shifted : qword = v >> count;
     let sign_bit = v[63];

@@ -880,7 +880,7 @@ function avx_pminsq_128(a, b) = {
     let lo : range(0, 64) = i * 64;
     let va = a[(lo + 63)..lo];
     let vb = b[(lo + 63)..lo];
-    r[(lo + 63)..lo] = if signed(va) < signed(vb) then va else vb;
+    r[(lo + 63)..lo] = min_s64(va, vb);
   };
   r
 }
@@ -920,7 +920,7 @@ function avx_pmaxsq_128(a, b) = {
     let lo : range(0, 64) = i * 64;
     let va = a[(lo + 63)..lo];
     let vb = b[(lo + 63)..lo];
-    r[(lo + 63)..lo] = if signed(va) > signed(vb) then va else vb;
+    r[(lo + 63)..lo] = max_s64(va, vb);
   };
   r
 }
@@ -1734,7 +1734,7 @@ function avx_vpmovm2b_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    result[(lo + 7)..lo] = if k[i] == bitone then 0xFF else 0x00;
+    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1744,7 +1744,7 @@ function avx_vpmovm2b_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 248) = i * 8;
-    result[(lo + 7)..lo] = if k[i] == bitone then 0xFF else 0x00;
+    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1754,7 +1754,7 @@ function avx_vpmovm2b_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 63) {
     let lo : range(0, 504) = i * 8;
-    result[(lo + 7)..lo] = if k[i] == bitone then 0xFF else 0x00;
+    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1768,7 +1768,7 @@ function avx_vpmovm2w_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    result[(lo + 15)..lo] = if k[i] == bitone then 0xFFFF else 0x0000;
+    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1778,7 +1778,7 @@ function avx_vpmovm2w_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    result[(lo + 15)..lo] = if k[i] == bitone then 0xFFFF else 0x0000;
+    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1788,7 +1788,7 @@ function avx_vpmovm2w_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    result[(lo + 15)..lo] = if k[i] == bitone then 0xFFFF else 0x0000;
+    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1802,7 +1802,7 @@ function avx_vpmovm2d_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    result[(lo + 31)..lo] = if k[i] == bitone then 0xFFFFFFFF else 0x00000000;
+    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1812,7 +1812,7 @@ function avx_vpmovm2d_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    result[(lo + 31)..lo] = if k[i] == bitone then 0xFFFFFFFF else 0x00000000;
+    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1822,7 +1822,7 @@ function avx_vpmovm2d_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    result[(lo + 31)..lo] = if k[i] == bitone then 0xFFFFFFFF else 0x00000000;
+    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1836,7 +1836,7 @@ function avx_vpmovm2q_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    result[(lo + 63)..lo] = if k[i] == bitone then ones() else zeros();
+    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1846,7 +1846,7 @@ function avx_vpmovm2q_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 192) = i * 64;
-    result[(lo + 63)..lo] = if k[i] == bitone then ones() else zeros();
+    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -1856,7 +1856,7 @@ function avx_vpmovm2q_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
-    result[(lo + 63)..lo] = if k[i] == bitone then ones() else zeros();
+    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
   };
   result
 }
@@ -2945,7 +2945,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 7) {
           let lo : range(0, 448) = i * 64;
-          if signed(src1[(lo + 63)..lo]) > signed(src2[(lo + 63)..lo]) then mask = mask | to_bits(8, pow2(i));
+          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
         };
         let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
         write_kreg(dst_k, k_mask)
@@ -2956,7 +2956,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 3) {
           let lo : range(0, 192) = i * 64;
-          if signed(src1[(lo + 63)..lo]) > signed(src2[(lo + 63)..lo]) then mask = mask | to_bits(8, pow2(i));
+          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
         };
         let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
         write_kreg(dst_k, k_mask)
@@ -2967,7 +2967,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 1) {
           let lo : range(0, 64) = i * 64;
-          if signed(src1[(lo + 63)..lo]) > signed(src2[(lo + 63)..lo]) then mask = mask | to_bits(8, pow2(i));
+          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
         };
         let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
         write_kreg(dst_k, k_mask)
