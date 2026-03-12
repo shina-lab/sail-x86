@@ -1443,10 +1443,7 @@ function avx_pmovswb_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 112) = i * 16;
     let dlo : range(0, 56) = i * 8;
-    let v : int = signed(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1457,10 +1454,7 @@ function avx_pmovswb_256(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 240) = i * 16;
     let dlo : range(0, 120) = i * 8;
-    let v : int = signed(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1471,10 +1465,7 @@ function avx_pmovswb_512(src) = {
   foreach (i from 0 to 31) {
     let slo : range(0, 496) = i * 16;
     let dlo : range(0, 248) = i * 8;
-    let v : int = signed(src[(slo + 15)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1487,10 +1478,7 @@ function avx_pmovsdb_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 24) = i * 8;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1501,10 +1489,7 @@ function avx_pmovsdb_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 56) = i * 8;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1515,10 +1500,7 @@ function avx_pmovsdb_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 120) = i * 8;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1531,10 +1513,7 @@ function avx_pmovsqb_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 8) = i * 8;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1545,10 +1524,7 @@ function avx_pmovsqb_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 24) = i * 8;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1559,10 +1535,7 @@ function avx_pmovsqb_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 56) = i * 8;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 7)..dlo] = if v > 127 then 0x7F
-                         else if v < negate(128) then 0x80
-                         else get_slice_int(8, v, 0);
+    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1575,10 +1548,7 @@ function avx_pmovsdw_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 48) = i * 16;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1589,10 +1559,7 @@ function avx_pmovsdw_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 112) = i * 16;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1603,10 +1570,7 @@ function avx_pmovsdw_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 240) = i * 16;
-    let v : int = signed(src[(slo + 31)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1619,10 +1583,7 @@ function avx_pmovsqw_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 16) = i * 16;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1633,10 +1594,7 @@ function avx_pmovsqw_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 48) = i * 16;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1647,10 +1605,7 @@ function avx_pmovsqw_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 112) = i * 16;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 15)..dlo] = if v > 32767 then 0x7FFF
-                          else if v < negate(32768) then 0x8000
-                          else get_slice_int(16, v, 0);
+    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1663,10 +1618,7 @@ function avx_pmovsqd_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 32) = i * 32;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 2147483647 then 0x7FFFFFFF
-                          else if v < negate(2147483648) then 0x80000000
-                          else get_slice_int(32, v, 0);
+    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1677,10 +1629,7 @@ function avx_pmovsqd_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 96) = i * 32;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 2147483647 then 0x7FFFFFFF
-                          else if v < negate(2147483648) then 0x80000000
-                          else get_slice_int(32, v, 0);
+    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1691,10 +1640,7 @@ function avx_pmovsqd_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 224) = i * 32;
-    let v : int = signed(src[(slo + 63)..slo]);
-    r[(dlo + 31)..dlo] = if v > 2147483647 then 0x7FFFFFFF
-                          else if v < negate(2147483648) then 0x80000000
-                          else get_slice_int(32, v, 0);
+    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
   };
   r
 }

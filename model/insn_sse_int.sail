@@ -85,6 +85,51 @@ function sat_s32_to_s16(x) = {
   (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
 }
 
+// VPMOVS — Signed saturation truncation (wider → narrower)
+// Branchless: check if bits above target width are proper sign-extension.
+
+val sat_s32_to_s8 : dword -> byte
+function sat_s32_to_s8(x) = {
+  let sign : bits(1) = x[31..31];
+  let diff : bits(24) = x[30..7] ^ sign_extend(sign);
+  let out_of_range : bits(1) = or_reduce_8(diff[23..16] | diff[15..8] | diff[7..0]);
+  let out_mask : byte = sign_extend(out_of_range);
+  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
+  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
+}
+
+val sat_s64_to_s8 : qword -> byte
+function sat_s64_to_s8(x) = {
+  let sign : bits(1) = x[63..63];
+  let diff : bits(56) = x[62..7] ^ sign_extend(sign);
+  let folded : byte = diff[55..48] | diff[47..40] | diff[39..32] | diff[31..24] | diff[23..16] | diff[15..8] | diff[7..0];
+  let out_of_range : bits(1) = or_reduce_8(folded);
+  let out_mask : byte = sign_extend(out_of_range);
+  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
+  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
+}
+
+val sat_s64_to_s16 : qword -> word
+function sat_s64_to_s16(x) = {
+  let sign : bits(1) = x[63..63];
+  let diff : bits(48) = x[62..15] ^ sign_extend(sign);
+  let folded : word = diff[47..32] | diff[31..16] | diff[15..0];
+  let out_of_range : bits(1) = or_reduce_16(folded);
+  let out_mask : word = sign_extend(out_of_range);
+  let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
+  (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
+}
+
+val sat_s64_to_s32 : qword -> dword
+function sat_s64_to_s32(x) = {
+  let sign : bits(1) = x[63..63];
+  let diff : dword = x[62..31] ^ sign_extend(sign);
+  let out_of_range : bits(1) = or_reduce_32(diff);
+  let out_mask : dword = sign_extend(out_of_range);
+  let clamp_val : dword = sign_extend(sign) ^ 0x7FFFFFFF;
+  (clamp_val & out_mask) | (x[31..0] & ~(out_mask))
+}
+
 // PACKUSDW — Pack Dwords to Words with Unsigned Saturation (SSE4.1)
 // Packs 4 signed dwords from dst and 4 from src into 8 unsigned words.
 // No flags affected.
