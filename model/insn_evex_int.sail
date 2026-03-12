@@ -1133,38 +1133,34 @@ function avx_psllq_imm_512(a, count) =
 // VPSRAW: arithmetic right shift words by imm
 
 val arith_shr_words_128b : (xmmword, range(0, 255)) -> xmmword
-function arith_shr_words_128b(a, count) = {
-  let c = if count > 15 then 16 else count;
-  sail_arith_shiftright(a[127..112], c) @
-  sail_arith_shiftright(a[111..96], c) @
-  sail_arith_shiftright(a[95..80], c) @
-  sail_arith_shiftright(a[79..64], c) @
-  sail_arith_shiftright(a[63..48], c) @
-  sail_arith_shiftright(a[47..32], c) @
-  sail_arith_shiftright(a[31..16], c) @
-  sail_arith_shiftright(a[15..0], c)
-}
+function arith_shr_words_128b(a, count) =
+  sail_arith_shiftright(a[127..112], count) @
+  sail_arith_shiftright(a[111..96], count) @
+  sail_arith_shiftright(a[95..80], count) @
+  sail_arith_shiftright(a[79..64], count) @
+  sail_arith_shiftright(a[63..48], count) @
+  sail_arith_shiftright(a[47..32], count) @
+  sail_arith_shiftright(a[31..16], count) @
+  sail_arith_shiftright(a[15..0], count)
 
 val arith_shr_words_256b : (ymmword, range(0, 255)) -> ymmword
-function arith_shr_words_256b(a, count) = {
-  let c = if count > 15 then 16 else count;
-  sail_arith_shiftright(a[255..240], c) @
-  sail_arith_shiftright(a[239..224], c) @
-  sail_arith_shiftright(a[223..208], c) @
-  sail_arith_shiftright(a[207..192], c) @
-  sail_arith_shiftright(a[191..176], c) @
-  sail_arith_shiftright(a[175..160], c) @
-  sail_arith_shiftright(a[159..144], c) @
-  sail_arith_shiftright(a[143..128], c) @
-  sail_arith_shiftright(a[127..112], c) @
-  sail_arith_shiftright(a[111..96], c) @
-  sail_arith_shiftright(a[95..80], c) @
-  sail_arith_shiftright(a[79..64], c) @
-  sail_arith_shiftright(a[63..48], c) @
-  sail_arith_shiftright(a[47..32], c) @
-  sail_arith_shiftright(a[31..16], c) @
-  sail_arith_shiftright(a[15..0], c)
-}
+function arith_shr_words_256b(a, count) =
+  sail_arith_shiftright(a[255..240], count) @
+  sail_arith_shiftright(a[239..224], count) @
+  sail_arith_shiftright(a[223..208], count) @
+  sail_arith_shiftright(a[207..192], count) @
+  sail_arith_shiftright(a[191..176], count) @
+  sail_arith_shiftright(a[175..160], count) @
+  sail_arith_shiftright(a[159..144], count) @
+  sail_arith_shiftright(a[143..128], count) @
+  sail_arith_shiftright(a[127..112], count) @
+  sail_arith_shiftright(a[111..96], count) @
+  sail_arith_shiftright(a[95..80], count) @
+  sail_arith_shiftright(a[79..64], count) @
+  sail_arith_shiftright(a[63..48], count) @
+  sail_arith_shiftright(a[47..32], count) @
+  sail_arith_shiftright(a[31..16], count) @
+  sail_arith_shiftright(a[15..0], count)
 
 val arith_shr_words_512b : (zmmword, range(0, 255)) -> zmmword
 function arith_shr_words_512b(a, count) =
@@ -1173,26 +1169,22 @@ function arith_shr_words_512b(a, count) =
 // VPSRAD: arithmetic right shift dwords by imm
 
 val arith_shr_dwords_128b : (xmmword, range(0, 255)) -> xmmword
-function arith_shr_dwords_128b(a, count) = {
-  let c = if count > 31 then 32 else count;
-  sail_arith_shiftright(a[127..96], c) @
-  sail_arith_shiftright(a[95..64], c) @
-  sail_arith_shiftright(a[63..32], c) @
-  sail_arith_shiftright(a[31..0], c)
-}
+function arith_shr_dwords_128b(a, count) =
+  sail_arith_shiftright(a[127..96], count) @
+  sail_arith_shiftright(a[95..64], count) @
+  sail_arith_shiftright(a[63..32], count) @
+  sail_arith_shiftright(a[31..0], count)
 
 val arith_shr_dwords_256b : (ymmword, range(0, 255)) -> ymmword
-function arith_shr_dwords_256b(a, count) = {
-  let c = if count > 31 then 32 else count;
-  sail_arith_shiftright(a[255..224], c) @
-  sail_arith_shiftright(a[223..192], c) @
-  sail_arith_shiftright(a[191..160], c) @
-  sail_arith_shiftright(a[159..128], c) @
-  sail_arith_shiftright(a[127..96], c) @
-  sail_arith_shiftright(a[95..64], c) @
-  sail_arith_shiftright(a[63..32], c) @
-  sail_arith_shiftright(a[31..0], c)
-}
+function arith_shr_dwords_256b(a, count) =
+  sail_arith_shiftright(a[255..224], count) @
+  sail_arith_shiftright(a[223..192], count) @
+  sail_arith_shiftright(a[191..160], count) @
+  sail_arith_shiftright(a[159..128], count) @
+  sail_arith_shiftright(a[127..96], count) @
+  sail_arith_shiftright(a[95..64], count) @
+  sail_arith_shiftright(a[63..32], count) @
+  sail_arith_shiftright(a[31..0], count)
 
 val arith_shr_dwords_512b : (zmmword, range(0, 255)) -> zmmword
 function arith_shr_dwords_512b(a, count) =
@@ -1201,33 +1193,27 @@ function arith_shr_dwords_512b(a, count) =
 // VPSRAQ: arithmetic right shift qwords by imm (AVX-512 new)
 
 val arith_shr_qwords_128b : (xmmword, range(0, 255)) -> xmmword
-function arith_shr_qwords_128b(a, count) = {
-  let c = if count > 63 then 64 else count;
-  sail_arith_shiftright(a[127..64], c) @
-  sail_arith_shiftright(a[63..0], c)
-}
+function arith_shr_qwords_128b(a, count) =
+  sail_arith_shiftright(a[127..64], count) @
+  sail_arith_shiftright(a[63..0], count)
 
 val arith_shr_qwords_256b : (ymmword, range(0, 255)) -> ymmword
-function arith_shr_qwords_256b(a, count) = {
-  let c = if count > 63 then 64 else count;
-  sail_arith_shiftright(a[255..192], c) @
-  sail_arith_shiftright(a[191..128], c) @
-  sail_arith_shiftright(a[127..64], c) @
-  sail_arith_shiftright(a[63..0], c)
-}
+function arith_shr_qwords_256b(a, count) =
+  sail_arith_shiftright(a[255..192], count) @
+  sail_arith_shiftright(a[191..128], count) @
+  sail_arith_shiftright(a[127..64], count) @
+  sail_arith_shiftright(a[63..0], count)
 
 val arith_shr_qwords_512b : (zmmword, range(0, 255)) -> zmmword
-function arith_shr_qwords_512b(a, count) = {
-  let c = if count > 63 then 64 else count;
-  sail_arith_shiftright(a[511..448], c) @
-  sail_arith_shiftright(a[447..384], c) @
-  sail_arith_shiftright(a[383..320], c) @
-  sail_arith_shiftright(a[319..256], c) @
-  sail_arith_shiftright(a[255..192], c) @
-  sail_arith_shiftright(a[191..128], c) @
-  sail_arith_shiftright(a[127..64], c) @
-  sail_arith_shiftright(a[63..0], c)
-}
+function arith_shr_qwords_512b(a, count) =
+  sail_arith_shiftright(a[511..448], count) @
+  sail_arith_shiftright(a[447..384], count) @
+  sail_arith_shiftright(a[383..320], count) @
+  sail_arith_shiftright(a[319..256], count) @
+  sail_arith_shiftright(a[255..192], count) @
+  sail_arith_shiftright(a[191..128], count) @
+  sail_arith_shiftright(a[127..64], count) @
+  sail_arith_shiftright(a[63..0], count)
 
 
 // VPSLLDQ: byte shift left per 128-bit lane
