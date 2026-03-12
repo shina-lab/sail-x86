@@ -540,19 +540,52 @@ function avx_pcmpeqq_256(a, b) =
 // Result: bits[15:0] = min value, bits[18:16] = index of min, rest zeroed.
 val avx_phminposuw_128 : xmmword -> xmmword
 function avx_phminposuw_128(src) = {
-  var min_val : word = src[15..0];
-  var min_idx : int = 0;
-  foreach (i from 1 to 7) {
-    let lo = i * 16;
-    let hi = lo + 15;
-    let v : word = src[(hi)..(lo)];
-    if unsigned(v) < unsigned(min_val) then {
-      min_val = v;
-      min_idx = i
-    }
-  };
-  let idx : bits(3) = get_slice_int(3, min_idx, 0);
-  zeros(109) @ idx @ min_val
+  var mv : word = src[15..0];
+  var mi : bits(3) = 0b000;
+
+  let v1 : word = src[31..16];
+  let d1 : bits(17) = (0b0 @ v1) - (0b0 @ mv);
+  let u1 : word = zeros() - zero_extend(d1[16..16]);
+  mv = (v1 & u1) | (mv & not_vec(u1));
+  mi = (0b001 & u1[2..0]) | (mi & not_vec(u1[2..0]));
+
+  let v2 : word = src[47..32];
+  let d2 : bits(17) = (0b0 @ v2) - (0b0 @ mv);
+  let u2 : word = zeros() - zero_extend(d2[16..16]);
+  mv = (v2 & u2) | (mv & not_vec(u2));
+  mi = (0b010 & u2[2..0]) | (mi & not_vec(u2[2..0]));
+
+  let v3 : word = src[63..48];
+  let d3 : bits(17) = (0b0 @ v3) - (0b0 @ mv);
+  let u3 : word = zeros() - zero_extend(d3[16..16]);
+  mv = (v3 & u3) | (mv & not_vec(u3));
+  mi = (0b011 & u3[2..0]) | (mi & not_vec(u3[2..0]));
+
+  let v4 : word = src[79..64];
+  let d4 : bits(17) = (0b0 @ v4) - (0b0 @ mv);
+  let u4 : word = zeros() - zero_extend(d4[16..16]);
+  mv = (v4 & u4) | (mv & not_vec(u4));
+  mi = (0b100 & u4[2..0]) | (mi & not_vec(u4[2..0]));
+
+  let v5 : word = src[95..80];
+  let d5 : bits(17) = (0b0 @ v5) - (0b0 @ mv);
+  let u5 : word = zeros() - zero_extend(d5[16..16]);
+  mv = (v5 & u5) | (mv & not_vec(u5));
+  mi = (0b101 & u5[2..0]) | (mi & not_vec(u5[2..0]));
+
+  let v6 : word = src[111..96];
+  let d6 : bits(17) = (0b0 @ v6) - (0b0 @ mv);
+  let u6 : word = zeros() - zero_extend(d6[16..16]);
+  mv = (v6 & u6) | (mv & not_vec(u6));
+  mi = (0b110 & u6[2..0]) | (mi & not_vec(u6[2..0]));
+
+  let v7 : word = src[127..112];
+  let d7 : bits(17) = (0b0 @ v7) - (0b0 @ mv);
+  let u7 : word = zeros() - zero_extend(d7[16..16]);
+  mv = (v7 & u7) | (mv & not_vec(u7));
+  mi = (0b111 & u7[2..0]) | (mi & not_vec(u7[2..0]));
+
+  zeros(109) @ mi @ mv
 }
 
 // =========================================================================
