@@ -1352,137 +1352,138 @@ function evex_vprorq_512(a, b) =
 // Same functions as imm but count extracted from xmm src2[63:0]
 // =========================================================================
 
-val clamp_shift_count : int -> range(0, 255)
-function clamp_shift_count(c) = {
-  let r : range(0, 255) = if c > 255 then 255 else if c < 0 then 0 else c;
-  r
+val clamp_shift_bv64 : bits(64) -> range(0, 255)
+function clamp_shift_bv64(raw) = {
+  let hi_nonzero : bit = bool_to_bit(raw[63..8] != zeros());
+  let sat_mask : bits(8) = zeros() - zero_extend(hi_nonzero);
+  unsigned(raw[7..0] | sat_mask)
 }
 
 // VPSRLW by xmm count
 
 val avx_psrlw_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psrlw_xmm_128(a, count_xmm) =
-  avx_psrlw_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlw_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrlw_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psrlw_xmm_256(a, count_xmm) =
-  avx_psrlw_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlw_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrlw_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psrlw_xmm_512(a, count_xmm) =
-  avx_psrlw_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlw_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSRLD by xmm count
 
 val avx_psrld_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psrld_xmm_128(a, count_xmm) =
-  avx_psrld_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrld_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrld_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psrld_xmm_256(a, count_xmm) =
-  avx_psrld_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrld_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrld_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psrld_xmm_512(a, count_xmm) =
-  avx_psrld_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrld_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSRLQ by xmm count
 
 val avx_psrlq_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psrlq_xmm_128(a, count_xmm) =
-  avx_psrlq_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlq_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrlq_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psrlq_xmm_256(a, count_xmm) =
-  avx_psrlq_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlq_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrlq_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psrlq_xmm_512(a, count_xmm) =
-  avx_psrlq_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psrlq_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSLLW by xmm count
 
 val avx_psllw_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psllw_xmm_128(a, count_xmm) =
-  avx_psllw_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllw_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psllw_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psllw_xmm_256(a, count_xmm) =
-  avx_psllw_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllw_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psllw_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psllw_xmm_512(a, count_xmm) =
-  avx_psllw_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllw_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSLLD by xmm count
 
 val avx_pslld_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_pslld_xmm_128(a, count_xmm) =
-  avx_pslld_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_pslld_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_pslld_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_pslld_xmm_256(a, count_xmm) =
-  avx_pslld_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_pslld_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_pslld_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_pslld_xmm_512(a, count_xmm) =
-  avx_pslld_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_pslld_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSLLQ by xmm count
 
 val avx_psllq_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psllq_xmm_128(a, count_xmm) =
-  avx_psllq_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllq_imm_128(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psllq_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psllq_xmm_256(a, count_xmm) =
-  avx_psllq_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllq_imm_256(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psllq_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psllq_xmm_512(a, count_xmm) =
-  avx_psllq_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  avx_psllq_imm_512(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSRAW by xmm count
 
 val avx_psraw_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psraw_xmm_128(a, count_xmm) =
-  arith_shr_words_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_128b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psraw_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psraw_xmm_256(a, count_xmm) =
-  arith_shr_words_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_256b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psraw_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psraw_xmm_512(a, count_xmm) =
-  arith_shr_words_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_512b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSRAD by xmm count
 
 val avx_psrad_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psrad_xmm_128(a, count_xmm) =
-  arith_shr_dwords_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrad_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psrad_xmm_256(a, count_xmm) =
-  arith_shr_dwords_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_256b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrad_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psrad_xmm_512(a, count_xmm) =
-  arith_shr_dwords_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_512b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // VPSRAQ by xmm count
 
 val avx_psraq_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psraq_xmm_128(a, count_xmm) =
-  arith_shr_qwords_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psraq_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psraq_xmm_256(a, count_xmm) =
-  arith_shr_qwords_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_256b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psraq_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psraq_xmm_512(a, count_xmm) =
-  arith_shr_qwords_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_512b(a, clamp_shift_bv64(count_xmm[63..0]))
 
 // =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values
