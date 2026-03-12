@@ -358,16 +358,11 @@ function avx_pmovzxdq_512(src) = avx_pmovzxdq_256(src[255..128]) @ avx_pmovzxdq_
 // VPSRLVD: variable logical right shift dwords
 
 val avx_psrlvd_128 : (xmmword, xmmword) -> xmmword
-function avx_psrlvd_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let c : bits(32) = cnt[(lo + 31)..lo];
-    if unsigned(c) >= 32 then r[(lo + 31)..lo] = zeros()
-    else r[(lo + 31)..lo] = shift_bits_right(src[(lo + 31)..lo], c);
-  };
-  r
-}
+function avx_psrlvd_128(src, cnt) =
+  shift_bits_right(src[127..96], cnt[127..96]) @
+  shift_bits_right(src[95..64], cnt[95..64]) @
+  shift_bits_right(src[63..32], cnt[63..32]) @
+  shift_bits_right(src[31..0], cnt[31..0])
 
 val avx_psrlvd_256 : (ymmword, ymmword) -> ymmword
 function avx_psrlvd_256(a, b) =
@@ -380,16 +375,9 @@ function avx_psrlvd_512(a, b) =
 // VPSRLVQ: variable logical right shift qwords
 
 val avx_psrlvq_128 : (xmmword, xmmword) -> xmmword
-function avx_psrlvq_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    let c : bits(64) = cnt[(lo + 63)..lo];
-    if unsigned(c) >= 64 then r[(lo + 63)..lo] = zeros()
-    else r[(lo + 63)..lo] = shift_bits_right(src[(lo + 63)..lo], c);
-  };
-  r
-}
+function avx_psrlvq_128(src, cnt) =
+  shift_bits_right(src[127..64], cnt[127..64]) @
+  shift_bits_right(src[63..0], cnt[63..0])
 
 val avx_psrlvq_256 : (ymmword, ymmword) -> ymmword
 function avx_psrlvq_256(a, b) =
@@ -402,22 +390,11 @@ function avx_psrlvq_512(a, b) =
 // VPSRAVD: variable arithmetic right shift dwords
 
 val avx_psravd_128 : (xmmword, xmmword) -> xmmword
-function avx_psravd_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let c : range(0, 4294967295) = unsigned(cnt[(lo + 31)..lo]);
-    let elem : bits(32) = src[(lo + 31)..lo];
-    if c >= 32 then {
-      if elem[31] == bitone then r[(lo + 31)..lo] = ones()
-      else r[(lo + 31)..lo] = zeros()
-    } else {
-      let shift_amt : range(0, 31) = c;
-      r[(lo + 31)..lo] = sail_arith_shiftright(elem, shift_amt);
-    }
-  };
-  r
-}
+function avx_psravd_128(src, cnt) =
+  sail_arith_shiftright(src[127..96], unsigned(cnt[127..96])) @
+  sail_arith_shiftright(src[95..64], unsigned(cnt[95..64])) @
+  sail_arith_shiftright(src[63..32], unsigned(cnt[63..32])) @
+  sail_arith_shiftright(src[31..0], unsigned(cnt[31..0]))
 
 val avx_psravd_256 : (ymmword, ymmword) -> ymmword
 function avx_psravd_256(a, b) =
@@ -430,22 +407,9 @@ function avx_psravd_512(a, b) =
 // VPSRAVQ: variable arithmetic right shift qwords
 
 val avx_psravq_128 : (xmmword, xmmword) -> xmmword
-function avx_psravq_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    let c = unsigned(cnt[(lo + 63)..lo]);
-    let elem : bits(64) = src[(lo + 63)..lo];
-    if c >= 64 then {
-      if elem[63] == bitone then r[(lo + 63)..lo] = ones()
-      else r[(lo + 63)..lo] = zeros()
-    } else {
-      let shift_amt : range(0, 63) = c;
-      r[(lo + 63)..lo] = sail_arith_shiftright(elem, shift_amt);
-    }
-  };
-  r
-}
+function avx_psravq_128(src, cnt) =
+  sail_arith_shiftright(src[127..64], unsigned(cnt[127..64])) @
+  sail_arith_shiftright(src[63..0], unsigned(cnt[63..0]))
 
 val avx_psravq_256 : (ymmword, ymmword) -> ymmword
 function avx_psravq_256(a, b) =
@@ -458,16 +422,11 @@ function avx_psravq_512(a, b) =
 // VPSLLVD: variable logical left shift dwords
 
 val avx_psllvd_128 : (xmmword, xmmword) -> xmmword
-function avx_psllvd_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let c : bits(32) = cnt[(lo + 31)..lo];
-    if unsigned(c) >= 32 then r[(lo + 31)..lo] = zeros()
-    else r[(lo + 31)..lo] = shift_bits_left(src[(lo + 31)..lo], c);
-  };
-  r
-}
+function avx_psllvd_128(src, cnt) =
+  shift_bits_left(src[127..96], cnt[127..96]) @
+  shift_bits_left(src[95..64], cnt[95..64]) @
+  shift_bits_left(src[63..32], cnt[63..32]) @
+  shift_bits_left(src[31..0], cnt[31..0])
 
 val avx_psllvd_256 : (ymmword, ymmword) -> ymmword
 function avx_psllvd_256(a, b) =
@@ -480,16 +439,9 @@ function avx_psllvd_512(a, b) =
 // VPSLLVQ: variable logical left shift qwords
 
 val avx_psllvq_128 : (xmmword, xmmword) -> xmmword
-function avx_psllvq_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    let c : bits(64) = cnt[(lo + 63)..lo];
-    if unsigned(c) >= 64 then r[(lo + 63)..lo] = zeros()
-    else r[(lo + 63)..lo] = shift_bits_left(src[(lo + 63)..lo], c);
-  };
-  r
-}
+function avx_psllvq_128(src, cnt) =
+  shift_bits_left(src[127..64], cnt[127..64]) @
+  shift_bits_left(src[63..0], cnt[63..0])
 
 val avx_psllvq_256 : (ymmword, ymmword) -> ymmword
 function avx_psllvq_256(a, b) =
@@ -502,16 +454,15 @@ function avx_psllvq_512(a, b) =
 // VPSRLVW: variable logical right shift words
 
 val avx_psrlvw_128 : (xmmword, xmmword) -> xmmword
-function avx_psrlvw_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let c : bits(16) = cnt[(lo + 15)..lo];
-    if unsigned(c) >= 16 then r[(lo + 15)..lo] = zeros()
-    else r[(lo + 15)..lo] = shift_bits_right(src[(lo + 15)..lo], c);
-  };
-  r
-}
+function avx_psrlvw_128(src, cnt) =
+  shift_bits_right(src[127..112], cnt[127..112]) @
+  shift_bits_right(src[111..96], cnt[111..96]) @
+  shift_bits_right(src[95..80], cnt[95..80]) @
+  shift_bits_right(src[79..64], cnt[79..64]) @
+  shift_bits_right(src[63..48], cnt[63..48]) @
+  shift_bits_right(src[47..32], cnt[47..32]) @
+  shift_bits_right(src[31..16], cnt[31..16]) @
+  shift_bits_right(src[15..0], cnt[15..0])
 
 val avx_psrlvw_256 : (ymmword, ymmword) -> ymmword
 function avx_psrlvw_256(a, b) =
@@ -524,22 +475,15 @@ function avx_psrlvw_512(a, b) =
 // VPSRAVW: variable arithmetic right shift words
 
 val avx_psravw_128 : (xmmword, xmmword) -> xmmword
-function avx_psravw_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let c : range(0, 65535) = unsigned(cnt[(lo + 15)..lo]);
-    let elem : bits(16) = src[(lo + 15)..lo];
-    if c >= 16 then {
-      if elem[15] == bitone then r[(lo + 15)..lo] = ones()
-      else r[(lo + 15)..lo] = zeros()
-    } else {
-      let shift_amt : range(0, 15) = c;
-      r[(lo + 15)..lo] = sail_arith_shiftright(elem, shift_amt);
-    }
-  };
-  r
-}
+function avx_psravw_128(src, cnt) =
+  sail_arith_shiftright(src[127..112], unsigned(cnt[127..112])) @
+  sail_arith_shiftright(src[111..96], unsigned(cnt[111..96])) @
+  sail_arith_shiftright(src[95..80], unsigned(cnt[95..80])) @
+  sail_arith_shiftright(src[79..64], unsigned(cnt[79..64])) @
+  sail_arith_shiftright(src[63..48], unsigned(cnt[63..48])) @
+  sail_arith_shiftright(src[47..32], unsigned(cnt[47..32])) @
+  sail_arith_shiftright(src[31..16], unsigned(cnt[31..16])) @
+  sail_arith_shiftright(src[15..0], unsigned(cnt[15..0]))
 
 val avx_psravw_256 : (ymmword, ymmword) -> ymmword
 function avx_psravw_256(a, b) =
@@ -552,16 +496,15 @@ function avx_psravw_512(a, b) =
 // VPSLLVW: variable logical left shift words
 
 val avx_psllvw_128 : (xmmword, xmmword) -> xmmword
-function avx_psllvw_128(src, cnt) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let c : bits(16) = cnt[(lo + 15)..lo];
-    if unsigned(c) >= 16 then r[(lo + 15)..lo] = zeros()
-    else r[(lo + 15)..lo] = shift_bits_left(src[(lo + 15)..lo], c);
-  };
-  r
-}
+function avx_psllvw_128(src, cnt) =
+  shift_bits_left(src[127..112], cnt[127..112]) @
+  shift_bits_left(src[111..96], cnt[111..96]) @
+  shift_bits_left(src[95..80], cnt[95..80]) @
+  shift_bits_left(src[79..64], cnt[79..64]) @
+  shift_bits_left(src[63..48], cnt[63..48]) @
+  shift_bits_left(src[47..32], cnt[47..32]) @
+  shift_bits_left(src[31..16], cnt[31..16]) @
+  shift_bits_left(src[15..0], cnt[15..0])
 
 val avx_psllvw_256 : (ymmword, ymmword) -> ymmword
 function avx_psllvw_256(a, b) =
