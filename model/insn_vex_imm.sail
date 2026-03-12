@@ -854,7 +854,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
     let v : ymmword = read_ymm(src);
-    let extracted : xmmword = if imm[0] == bitzero then v[127..0] else v[255..128];
+    let extracted : xmmword = (v >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
     match rm {
       RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
       RM_mem(addr) => {

@@ -677,8 +677,8 @@ val avx_shuf_f32x4_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_shuf_f32x4_256(src1, src2, imm) = {
   let s0 : range(0, 1) = unsigned(imm[0..0]);
   let s1 : range(0, 1) = unsigned(imm[1..1]);
-  let lane0 : xmmword = if s0 == 0 then src1[127..0] else src1[255..128];
-  let lane1 : xmmword = if s1 == 0 then src2[127..0] else src2[255..128];
+  let lane0 : xmmword = (src1 >> (s0 * 128))[127..0];
+  let lane1 : xmmword = (src2 >> (s1 * 128))[127..0];
   lane1 @ lane0
 }
 
@@ -1669,7 +1669,7 @@ function dispatch_evex_imm(op, pfx) = {
       },
       1 => {
         let src_ymm = read_ymm(src);
-        let extracted : xmmword = if imm[0] == bitzero then src_ymm[127..0] else src_ymm[255..128];
+        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), extracted),
           RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
@@ -1711,7 +1711,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       2 => {
         let src_zmm = read_zmm(src);
-        let extracted : ymmword = if imm[0] == bitzero then src_zmm[255..0] else src_zmm[511..256];
+        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 256))[255..0];
         match rm {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), extracted),
           RM_mem(addr) => mem_write256(fixup_addr(addr), extracted),
@@ -2045,7 +2045,7 @@ function dispatch_evex_imm(op, pfx) = {
       },
       1 => {
         let src_ymm = read_ymm(src);
-        let extracted : xmmword = if imm[0] == bitzero then src_ymm[127..0] else src_ymm[255..128];
+        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), extracted),
           RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
@@ -2086,7 +2086,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       2 => {
         let src_zmm = read_zmm(src);
-        let extracted : ymmword = if imm[0] == bitzero then src_zmm[255..0] else src_zmm[511..256];
+        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 256))[255..0];
         match rm {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), extracted),
           RM_mem(addr) => mem_write256(fixup_addr(addr), extracted),
