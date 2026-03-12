@@ -598,36 +598,28 @@ function psign32(a, b) = {
 // PSRAW/PSRAD — Shift Packed Data Right Arithmetic
 // Shift count from imm8 or XMM. No flags affected.
 val sll16 : (word, int) -> word
-function sll16(v, count) = if count > 15 | count < 0 then zeros() else v << count
+function sll16(v, count) = { assert(count >= 0); v << count }
 
 val sll32 : (dword, int) -> dword
-function sll32(v, count) = if count > 31 | count < 0 then zeros() else v << count
+function sll32(v, count) = { assert(count >= 0); v << count }
 
 val sll64 : (qword, int) -> qword
-function sll64(v, count) = if count > 63 | count < 0 then zeros() else v << count
+function sll64(v, count) = { assert(count >= 0); v << count }
 
 val srl16 : (word, int) -> word
-function srl16(v, count) = if count > 15 | count < 0 then zeros() else v >> count
+function srl16(v, count) = { assert(count >= 0); v >> count }
 
 val srl32 : (dword, int) -> dword
-function srl32(v, count) = if count > 31 | count < 0 then zeros() else v >> count
+function srl32(v, count) = { assert(count >= 0); v >> count }
 
 val srl64 : (qword, int) -> qword
-function srl64(v, count) = if count > 63 | count < 0 then zeros() else v >> count
+function srl64(v, count) = { assert(count >= 0); v >> count }
 
 val sra16 : (word, int) -> word
-function sra16(v, count) = {
-  if count <= 0 then v
-  else if count > 15 then shift_right_arith(v, 15)
-  else shift_right_arith(v, count)
-}
+function sra16(v, count) = { assert(count >= 0); sail_arith_shiftright(v, count) }
 
 val sra32 : (dword, int) -> dword
-function sra32(v, count) = {
-  if count <= 0 then v
-  else if count > 31 then shift_right_arith(v, 31)
-  else shift_right_arith(v, count)
-}
+function sra32(v, count) = { assert(count >= 0); sail_arith_shiftright(v, count) }
 
 // PSUBSB/PSUBSW — Subtract Packed Signed Integers with Signed Saturation
 // PSUBUSB/PSUBUSW — Subtract Packed Unsigned Integers with Unsigned Saturation
