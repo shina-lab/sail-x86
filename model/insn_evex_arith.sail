@@ -1769,29 +1769,10 @@ function avx_vpmovq2m_512(src) = {
 // Helper: select 128-bit lane from a 512-bit source
 
 val avx_lzcnt32 : dword -> dword
-function avx_lzcnt32(v) = {
-  if v == zeros() then {
-    0x00000020
-  } else {
-    let count : range(0, 32) = 0;
-    foreach (i from 31 downto 0) {
-      if v[i] == bitone then return to_bits(32, 31 - i)
-    };
-    0x00000020
-  }
-}
+function avx_lzcnt32(v) = to_bits(32, clz32(v))
 
 val avx_lzcnt64 : qword -> qword
-function avx_lzcnt64(v) = {
-  if v == zeros() then {
-    0x0000000000000040
-  } else {
-    foreach (i from 63 downto 0) {
-      if v[i] == bitone then return to_bits(64, 63 - i)
-    };
-    0x0000000000000040
-  }
-}
+function avx_lzcnt64(v) = to_bits(64, clz64(v))
 
 val avx_vplzcntd_128 : xmmword -> xmmword
 function avx_vplzcntd_128(src) = {

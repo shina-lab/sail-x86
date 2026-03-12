@@ -59,21 +59,48 @@ val popcount32 : dword -> range(0, 32)
 function popcount32(v) =
   popcount16(v[15..0]) + popcount16(v[31..16])
 
-// LZCNT helper
+val popcount64 : qword -> range(0, 64)
+function popcount64(v) =
+  popcount32(v[31..0]) + popcount32(v[63..32])
 
-// Count leading zeros in v from bit idx downward. Returns 0..idx+1.
-val lzcnt64 : (qword, range(0, 63)) -> range(0, 64)
-function lzcnt64(v, idx) =
-  if idx == 0 then (if bit_to_bool(v[0]) then 0 else 1)
-  else if bit_to_bool(v[idx]) then {
-    0
-  } else {
-    let rest = lzcnt64(v, idx - 1);
-    // rest is count of zeros in [idx-1..0], add 1 for bit idx being 0
-    let total : range(0, 65) = rest + 1;
-    // Clamp — total can never exceed 64 in practice
-    if total > 64 then 64 else total
-  }
+// Branchless CLZ via smear (fill all bits below MSB) then popcount.
+val clz8 : byte -> range(0, 8)
+function clz8(v) = {
+  let x1 : byte = v  | (v  >> 1);
+  let x2 : byte = x1 | (x1 >> 2);
+  let x3 : byte = x2 | (x2 >> 4);
+  8 - popcount8(x3)
+}
+
+val clz16 : word -> range(0, 16)
+function clz16(v) = {
+  let x1 : word = v  | (v  >> 1);
+  let x2 : word = x1 | (x1 >> 2);
+  let x3 : word = x2 | (x2 >> 4);
+  let x4 : word = x3 | (x3 >> 8);
+  16 - popcount16(x4)
+}
+
+val clz32 : dword -> range(0, 32)
+function clz32(v) = {
+  let x1 : dword = v  | (v  >> 1);
+  let x2 : dword = x1 | (x1 >> 2);
+  let x3 : dword = x2 | (x2 >> 4);
+  let x4 : dword = x3 | (x3 >> 8);
+  let x5 : dword = x4 | (x4 >> 16);
+  32 - popcount32(x5)
+}
+
+val clz64 : qword -> range(0, 64)
+function clz64(v) = {
+  let x1 : qword = v  | (v  >> 1);
+  let x2 : qword = x1 | (x1 >> 2);
+  let x3 : qword = x2 | (x2 >> 4);
+  let x4 : qword = x3 | (x3 >> 8);
+  let x5 : qword = x4 | (x4 >> 16);
+  let x6 : qword = x5 | (x5 >> 32);
+  64 - popcount64(x6)
+}
 
 val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
 val __rdtsc : unit -> qword
@@ -1086,10 +1113,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         let src_val : qword = read_gpr(src, os);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
         let count : range(0, 64) = match os {
-          OS8  => lzcnt64(zero_extend(src_val[7..0]), 7),
-          OS16 => lzcnt64(zero_extend(src_val[15..0]), 15),
-          OS32 => lzcnt64(zero_extend(src_val[31..0]), 31),
-          OS64 => lzcnt64(src_val, 63),
+          OS8  => clz8(src_val[7..0]),
+          OS16 => clz16(src_val[15..0]),
+          OS32 => clz32(src_val[31..0]),
+          OS64 => clz64(src_val),
         };
         write_gpr(reg, os, to_bits_truncate(count));
         CF = bool_to_bit(count == os_bits);
