@@ -9,45 +9,27 @@
 
 // VMASKMOVPS load 128-bit: conditional load of dword lanes based on sign bit of mask
 val vex_maskmovps_load_128 : (xmmword, xmmword) -> xmmword
-function vex_maskmovps_load_128(mask, data) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    if mask[(i * 32 + 31)] == bitone then
-      result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)]
-  };
-  result
-}
+function vex_maskmovps_load_128(mask, data) =
+  blend32(0x00000000, data[127..96], mask[127..127]) @
+  blend32(0x00000000, data[95..64],  mask[95..95]) @
+  blend32(0x00000000, data[63..32],  mask[63..63]) @
+  blend32(0x00000000, data[31..0],   mask[31..31])
 
 val vex_maskmovps_load_256 : (ymmword, ymmword) -> ymmword
-function vex_maskmovps_load_256(mask, data) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    if mask[(i * 32 + 31)] == bitone then
-      result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)]
-  };
-  result
-}
+function vex_maskmovps_load_256(mask, data) =
+  vex_maskmovps_load_128(mask[255..128], data[255..128]) @
+  vex_maskmovps_load_128(mask[127..0], data[127..0])
 
 // VMASKMOVPD load 128-bit: conditional load of qword lanes based on sign bit of mask
 val vex_maskmovpd_load_128 : (xmmword, xmmword) -> xmmword
-function vex_maskmovpd_load_128(mask, data) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    if mask[(i * 64 + 63)] == bitone then
-      result[(i * 64 + 63) .. (i * 64)] = data[(i * 64 + 63) .. (i * 64)]
-  };
-  result
-}
+function vex_maskmovpd_load_128(mask, data) =
+  blend64(0x0000000000000000, data[127..64], mask[127..127]) @
+  blend64(0x0000000000000000, data[63..0],   mask[63..63])
 
 val vex_maskmovpd_load_256 : (ymmword, ymmword) -> ymmword
-function vex_maskmovpd_load_256(mask, data) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 3) {
-    if mask[(i * 64 + 63)] == bitone then
-      result[(i * 64 + 63) .. (i * 64)] = data[(i * 64 + 63) .. (i * 64)]
-  };
-  result
-}
+function vex_maskmovpd_load_256(mask, data) =
+  vex_maskmovpd_load_128(mask[255..128], data[255..128]) @
+  vex_maskmovpd_load_128(mask[127..0], data[127..0])
 
 // VMASKMOVPS store helpers: return (data_to_write, write_mask) pairs not needed;
 // we write individual dwords/qwords conditionally in the dispatch code.

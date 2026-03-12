@@ -81,8 +81,8 @@ function avx_vpermilps_512(src, ctrl) =
 
 val avx_vpermilpd_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermilpd_128(src, ctrl) = {
-  let lo : bits(64) = if ctrl[1] == bitone then src[127..64] else src[63..0];
-  let hi : bits(64) = if ctrl[65] == bitone then src[127..64] else src[63..0];
+  let lo : bits(64) = blend64(src[63..0], src[127..64], ctrl[1..1]);
+  let hi : bits(64) = blend64(src[63..0], src[127..64], ctrl[65..65]);
   hi @ lo
 }
 
