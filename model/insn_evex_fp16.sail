@@ -122,7 +122,8 @@ function vsqrtph_zmm(a) =
 // Apply 8-bit writemask to 128-bit XMM (8 × 16-bit FP16)
 val apply_writemask_ph_xmm : (xmmword, xmmword, byte, bool) -> xmmword
 function apply_writemask_ph_xmm(result, old_dst, mask_val, zeroing) = {
-  let base : xmmword = if zeroing then zeros() else old_dst;
+  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : xmmword = old_dst & keep;
   blend16(base[127..112], result[127..112], mask_val[7..7]) @
   blend16(base[111..96],  result[111..96],  mask_val[6..6]) @
   blend16(base[95..80],   result[95..80],   mask_val[5..5]) @
@@ -136,7 +137,8 @@ function apply_writemask_ph_xmm(result, old_dst, mask_val, zeroing) = {
 // Apply 16-bit writemask to 256-bit YMM (16 × 16-bit FP16)
 val apply_writemask_ph_ymm : (ymmword, ymmword, word, bool) -> ymmword
 function apply_writemask_ph_ymm(result, old_dst, mask_val, zeroing) = {
-  let r : ymmword = if zeroing then zeros() else old_dst;
+  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let r : ymmword = old_dst & keep;
   let hi = apply_writemask_ph_xmm(result[255..128], old_dst[255..128], mask_val[15..8], zeroing);
   let lo = apply_writemask_ph_xmm(result[127..0], old_dst[127..0], mask_val[7..0], zeroing);
   hi @ lo
