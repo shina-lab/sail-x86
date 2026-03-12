@@ -1132,116 +1132,103 @@ function avx_psllq_imm_512(a, count) =
 
 // VPSRAW: arithmetic right shift words by imm
 
-val arith_shr_word : (word, range(0, 255)) -> word
-function arith_shr_word(v, count) = {
-  if count == 0 then {
-    v
-  } else if count >= 16 then {
-    zeros() - zero_extend(v[15..15])
-  } else {
-    // Logical shift right, then fill high bits with sign bit
-    let shifted : word = v >> count;
-    let sign_bit = v[15];
-    var r : word = shifted;
-    foreach (i from 0 to 14) {
-      let bit_idx : range(0, 15) = 15 - i;
-      if i < count then r[bit_idx] = sign_bit;
-    };
-    r
-  }
+val arith_shr_words_128b : (xmmword, range(0, 255)) -> xmmword
+function arith_shr_words_128b(a, count) = {
+  let c = if count > 15 then 16 else count;
+  sail_arith_shiftright(a[127..112], c) @
+  sail_arith_shiftright(a[111..96], c) @
+  sail_arith_shiftright(a[95..80], c) @
+  sail_arith_shiftright(a[79..64], c) @
+  sail_arith_shiftright(a[63..48], c) @
+  sail_arith_shiftright(a[47..32], c) @
+  sail_arith_shiftright(a[31..16], c) @
+  sail_arith_shiftright(a[15..0], c)
 }
 
-val avx_psraw_imm_128 : (xmmword, range(0, 255)) -> xmmword
-function avx_psraw_imm_128(a, count) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = arith_shr_word(a[(lo + 15)..lo], count);
-  };
-  r
+val arith_shr_words_256b : (ymmword, range(0, 255)) -> ymmword
+function arith_shr_words_256b(a, count) = {
+  let c = if count > 15 then 16 else count;
+  sail_arith_shiftright(a[255..240], c) @
+  sail_arith_shiftright(a[239..224], c) @
+  sail_arith_shiftright(a[223..208], c) @
+  sail_arith_shiftright(a[207..192], c) @
+  sail_arith_shiftright(a[191..176], c) @
+  sail_arith_shiftright(a[175..160], c) @
+  sail_arith_shiftright(a[159..144], c) @
+  sail_arith_shiftright(a[143..128], c) @
+  sail_arith_shiftright(a[127..112], c) @
+  sail_arith_shiftright(a[111..96], c) @
+  sail_arith_shiftright(a[95..80], c) @
+  sail_arith_shiftright(a[79..64], c) @
+  sail_arith_shiftright(a[63..48], c) @
+  sail_arith_shiftright(a[47..32], c) @
+  sail_arith_shiftright(a[31..16], c) @
+  sail_arith_shiftright(a[15..0], c)
 }
 
-val avx_psraw_imm_256 : (ymmword, range(0, 255)) -> ymmword
-function avx_psraw_imm_256(a, count) =
-  avx_psraw_imm_128(a[255..128], count) @ avx_psraw_imm_128(a[127..0], count)
-
-val avx_psraw_imm_512 : (zmmword, range(0, 255)) -> zmmword
-function avx_psraw_imm_512(a, count) =
-  avx_psraw_imm_256(a[511..256], count) @ avx_psraw_imm_256(a[255..0], count)
+val arith_shr_words_512b : (zmmword, range(0, 255)) -> zmmword
+function arith_shr_words_512b(a, count) =
+  arith_shr_words_256b(a[511..256], count) @ arith_shr_words_256b(a[255..0], count)
 
 // VPSRAD: arithmetic right shift dwords by imm
 
-val arith_shr_dword : (dword, range(0, 255)) -> dword
-function arith_shr_dword(v, count) = {
-  if count == 0 then {
-    v
-  } else if count >= 32 then {
-    zeros() - zero_extend(v[31..31])
-  } else {
-    let shifted : dword = v >> count;
-    let sign_bit = v[31];
-    var r : dword = shifted;
-    foreach (i from 0 to 30) {
-      let bit_idx : range(0, 31) = 31 - i;
-      if i < count then r[bit_idx] = sign_bit;
-    };
-    r
-  }
+val arith_shr_dwords_128b : (xmmword, range(0, 255)) -> xmmword
+function arith_shr_dwords_128b(a, count) = {
+  let c = if count > 31 then 32 else count;
+  sail_arith_shiftright(a[127..96], c) @
+  sail_arith_shiftright(a[95..64], c) @
+  sail_arith_shiftright(a[63..32], c) @
+  sail_arith_shiftright(a[31..0], c)
 }
 
-val avx_psrad_imm_128 : (xmmword, range(0, 255)) -> xmmword
-function avx_psrad_imm_128(a, count) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = arith_shr_dword(a[(lo + 31)..lo], count);
-  };
-  r
+val arith_shr_dwords_256b : (ymmword, range(0, 255)) -> ymmword
+function arith_shr_dwords_256b(a, count) = {
+  let c = if count > 31 then 32 else count;
+  sail_arith_shiftright(a[255..224], c) @
+  sail_arith_shiftright(a[223..192], c) @
+  sail_arith_shiftright(a[191..160], c) @
+  sail_arith_shiftright(a[159..128], c) @
+  sail_arith_shiftright(a[127..96], c) @
+  sail_arith_shiftright(a[95..64], c) @
+  sail_arith_shiftright(a[63..32], c) @
+  sail_arith_shiftright(a[31..0], c)
 }
 
-val avx_psrad_imm_256 : (ymmword, range(0, 255)) -> ymmword
-function avx_psrad_imm_256(a, count) =
-  avx_psrad_imm_128(a[255..128], count) @ avx_psrad_imm_128(a[127..0], count)
-
-val avx_psrad_imm_512 : (zmmword, range(0, 255)) -> zmmword
-function avx_psrad_imm_512(a, count) =
-  avx_psrad_imm_256(a[511..256], count) @ avx_psrad_imm_256(a[255..0], count)
+val arith_shr_dwords_512b : (zmmword, range(0, 255)) -> zmmword
+function arith_shr_dwords_512b(a, count) =
+  arith_shr_dwords_256b(a[511..256], count) @ arith_shr_dwords_256b(a[255..0], count)
 
 // VPSRAQ: arithmetic right shift qwords by imm (AVX-512 new)
 
-val arith_shr_qword : (qword, range(0, 255)) -> qword
-function arith_shr_qword(v, count) = {
-  if count == 0 then {
-    v
-  } else if count >= 64 then {
-    zeros() - zero_extend(v[63..63])
-  } else {
-    let shifted : qword = v >> count;
-    let sign_bit = v[63];
-    var r : qword = shifted;
-    foreach (i from 0 to 62) {
-      let bit_idx : range(0, 63) = 63 - i;
-      if i < count then r[bit_idx] = sign_bit;
-    };
-    r
-  }
+val arith_shr_qwords_128b : (xmmword, range(0, 255)) -> xmmword
+function arith_shr_qwords_128b(a, count) = {
+  let c = if count > 63 then 64 else count;
+  sail_arith_shiftright(a[127..64], c) @
+  sail_arith_shiftright(a[63..0], c)
 }
 
-val avx_psraq_imm_128 : (xmmword, range(0, 255)) -> xmmword
-function avx_psraq_imm_128(a, count) = {
-  var r : xmmword = zeros();
-  r[63..0] = arith_shr_qword(a[63..0], count);
-  r[127..64] = arith_shr_qword(a[127..64], count);
-  r
+val arith_shr_qwords_256b : (ymmword, range(0, 255)) -> ymmword
+function arith_shr_qwords_256b(a, count) = {
+  let c = if count > 63 then 64 else count;
+  sail_arith_shiftright(a[255..192], c) @
+  sail_arith_shiftright(a[191..128], c) @
+  sail_arith_shiftright(a[127..64], c) @
+  sail_arith_shiftright(a[63..0], c)
 }
 
-val avx_psraq_imm_256 : (ymmword, range(0, 255)) -> ymmword
-function avx_psraq_imm_256(a, count) =
-  avx_psraq_imm_128(a[255..128], count) @ avx_psraq_imm_128(a[127..0], count)
+val arith_shr_qwords_512b : (zmmword, range(0, 255)) -> zmmword
+function arith_shr_qwords_512b(a, count) = {
+  let c = if count > 63 then 64 else count;
+  sail_arith_shiftright(a[511..448], c) @
+  sail_arith_shiftright(a[447..384], c) @
+  sail_arith_shiftright(a[383..320], c) @
+  sail_arith_shiftright(a[319..256], c) @
+  sail_arith_shiftright(a[255..192], c) @
+  sail_arith_shiftright(a[191..128], c) @
+  sail_arith_shiftright(a[127..64], c) @
+  sail_arith_shiftright(a[63..0], c)
+}
 
-val avx_psraq_imm_512 : (zmmword, range(0, 255)) -> zmmword
-function avx_psraq_imm_512(a, count) =
-  avx_psraq_imm_256(a[511..256], count) @ avx_psraq_imm_256(a[255..0], count)
 
 // VPSLLDQ: byte shift left per 128-bit lane
 
@@ -1479,43 +1466,43 @@ function avx_psllq_xmm_512(a, count_xmm) =
 
 val avx_psraw_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psraw_xmm_128(a, count_xmm) =
-  avx_psraw_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psraw_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psraw_xmm_256(a, count_xmm) =
-  avx_psraw_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psraw_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psraw_xmm_512(a, count_xmm) =
-  avx_psraw_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_words_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 // VPSRAD by xmm count
 
 val avx_psrad_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psrad_xmm_128(a, count_xmm) =
-  avx_psrad_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psrad_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psrad_xmm_256(a, count_xmm) =
-  avx_psrad_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psrad_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psrad_xmm_512(a, count_xmm) =
-  avx_psrad_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_dwords_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 // VPSRAQ by xmm count
 
 val avx_psraq_xmm_128 : (xmmword, xmmword) -> xmmword
 function avx_psraq_xmm_128(a, count_xmm) =
-  avx_psraq_imm_128(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_128b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psraq_xmm_256 : (ymmword, xmmword) -> ymmword
 function avx_psraq_xmm_256(a, count_xmm) =
-  avx_psraq_imm_256(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_256b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 val avx_psraq_xmm_512 : (zmmword, xmmword) -> zmmword
 function avx_psraq_xmm_512(a, count_xmm) =
-  avx_psraq_imm_512(a, clamp_shift_count(unsigned(count_xmm[63..0])))
+  arith_shr_qwords_512b(a, clamp_shift_count(unsigned(count_xmm[63..0])))
 
 // =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values
@@ -2594,9 +2581,9 @@ function dispatch_evex_int(op, pfx) = {
       },
       // VPSRAW xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
       4 => match pfx.evex_ll {
-        2 => write_zmm(dst, avx_psraw_imm_512(read_zmm(src), count)),
-        1 => write_ymm(dst, avx_psraw_imm_256(read_ymm(src), count)),
-        _ => write_xmm(dst, avx_psraw_imm_128(read_xmm(src), count)),
+        2 => write_zmm(dst, arith_shr_words_512b(read_zmm(src), count)),
+        1 => write_ymm(dst, arith_shr_words_256b(read_ymm(src), count)),
+        _ => write_xmm(dst, arith_shr_words_128b(read_xmm(src), count)),
       },
       // VPSLLW xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
       6 => match pfx.evex_ll {
@@ -2650,9 +2637,9 @@ function dispatch_evex_int(op, pfx) = {
         },
         // VPSRAQ xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
         4 => match pfx.evex_ll {
-          2 => write_zmm(dst, avx_psraq_imm_512(read_zmm(src), count)),
-          1 => write_ymm(dst, avx_psraq_imm_256(read_ymm(src), count)),
-          _ => write_xmm(dst, avx_psraq_imm_128(read_xmm(src), count)),
+          2 => write_zmm(dst, arith_shr_qwords_512b(read_zmm(src), count)),
+          1 => write_ymm(dst, arith_shr_qwords_256b(read_ymm(src), count)),
+          _ => write_xmm(dst, arith_shr_qwords_128b(read_xmm(src), count)),
         },
         // VPSLLQ xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
         6 => match pfx.evex_ll {
@@ -2693,9 +2680,9 @@ function dispatch_evex_int(op, pfx) = {
         },
         // VPSRAD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
         4 => match pfx.evex_ll {
-          2 => write_zmm(dst, avx_psrad_imm_512(read_zmm(src), count)),
-          1 => write_ymm(dst, avx_psrad_imm_256(read_ymm(src), count)),
-          _ => write_xmm(dst, avx_psrad_imm_128(read_xmm(src), count)),
+          2 => write_zmm(dst, arith_shr_dwords_512b(read_zmm(src), count)),
+          1 => write_ymm(dst, arith_shr_dwords_256b(read_ymm(src), count)),
+          _ => write_xmm(dst, arith_shr_dwords_128b(read_xmm(src), count)),
         },
         // VPSLLD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, imm8
         6 => match pfx.evex_ll {
