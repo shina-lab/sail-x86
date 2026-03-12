@@ -1216,11 +1216,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRLDQ xmm1, imm8
           3 => {
             let c : range(0, 255) = unsigned(imm);
-            let byte_count : range(0, 16) = if c > 15 then 16 else c;
             let a : xmmword = read_xmm(xreg);
-            let shift : range(0, 128) = byte_count * 8;
-            let r : xmmword = if shift > 127 then zeros() else a >> shift;
-            write_xmm_legacy(xreg, r)
+            write_xmm_legacy(xreg, a >> (c * 8))
           },
           // PSLLQ xmm1, imm8
           6 => {
@@ -1232,11 +1229,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSLLDQ xmm1, imm8
           7 => {
             let c : range(0, 255) = unsigned(imm);
-            let byte_count : range(0, 16) = if c > 15 then 16 else c;
             let a : xmmword = read_xmm(xreg);
-            let shift : range(0, 128) = byte_count * 8;
-            let r : xmmword = if shift > 127 then zeros() else a << shift;
-            write_xmm_legacy(xreg, r)
+            write_xmm_legacy(xreg, a << (c * 8))
           },
           _ => raise_UD(),
         }

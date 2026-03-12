@@ -1021,7 +1021,7 @@ function avx_psrlw_imm_128(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = if count >= 16 then zeros() else a[(lo + 15)..lo] >> count;
+    r[(lo + 15)..lo] = a[(lo + 15)..lo] >> count;
   };
   r
 }
@@ -1041,7 +1041,7 @@ function avx_psrld_imm_128(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = if count >= 32 then zeros() else a[(lo + 31)..lo] >> count;
+    r[(lo + 31)..lo] = a[(lo + 31)..lo] >> count;
   };
   r
 }
@@ -1059,8 +1059,8 @@ function avx_psrld_imm_512(a, count) =
 val avx_psrlq_imm_128 : (xmmword, range(0, 255)) -> xmmword
 function avx_psrlq_imm_128(a, count) = {
   var r : xmmword = zeros();
-  r[63..0] = if count >= 64 then zeros() else a[63..0] >> count;
-  r[127..64] = if count >= 64 then zeros() else a[127..64] >> count;
+  r[63..0] = a[63..0] >> count;
+  r[127..64] = a[127..64] >> count;
   r
 }
 
@@ -1079,7 +1079,7 @@ function avx_psllw_imm_128(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = if count >= 16 then zeros() else a[(lo + 15)..lo] << count;
+    r[(lo + 15)..lo] = a[(lo + 15)..lo] << count;
   };
   r
 }
@@ -1099,7 +1099,7 @@ function avx_pslld_imm_128(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = if count >= 32 then zeros() else a[(lo + 31)..lo] << count;
+    r[(lo + 31)..lo] = a[(lo + 31)..lo] << count;
   };
   r
 }
@@ -1117,8 +1117,8 @@ function avx_pslld_imm_512(a, count) =
 val avx_psllq_imm_128 : (xmmword, range(0, 255)) -> xmmword
 function avx_psllq_imm_128(a, count) = {
   var r : xmmword = zeros();
-  r[63..0] = if count >= 64 then zeros() else a[63..0] << count;
-  r[127..64] = if count >= 64 then zeros() else a[127..64] << count;
+  r[63..0] = a[63..0] << count;
+  r[127..64] = a[127..64] << count;
   r
 }
 
@@ -1219,10 +1219,7 @@ function arith_shr_qwords_512b(a, count) =
 // VPSLLDQ: byte shift left per 128-bit lane
 
 val avx_pslldq_128 : (xmmword, range(0, 255)) -> xmmword
-function avx_pslldq_128(a, count) = {
-  let cnt = if count > 15 then 16 else count;
-  a << (cnt * 8)
-}
+function avx_pslldq_128(a, count) = a << (count * 8)
 
 val avx_pslldq_256 : (ymmword, range(0, 255)) -> ymmword
 function avx_pslldq_256(a, count) =
@@ -1235,10 +1232,7 @@ function avx_pslldq_512(a, count) =
 // VPSRLDQ: byte shift right per 128-bit lane
 
 val avx_psrldq_128 : (xmmword, range(0, 255)) -> xmmword
-function avx_psrldq_128(a, count) = {
-  let cnt = if count > 15 then 16 else count;
-  a >> (cnt * 8)
-}
+function avx_psrldq_128(a, count) = a >> (count * 8)
 
 val avx_psrldq_256 : (ymmword, range(0, 255)) -> ymmword
 function avx_psrldq_256(a, count) =

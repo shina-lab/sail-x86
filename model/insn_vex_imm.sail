@@ -235,8 +235,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
     let src : bits(16) = read_kreg(k2)[15..0];
-    let result : bits(16) = if shift >= 16 then zeros() else sail_shiftright(src, shift);
-    write_kreg(k1, zero_extend(result))
+    write_kreg(k1, zero_extend(sail_shiftright(src, shift)))
   },
 
   // 0F3A 32: KSHIFTLW k1, k2, imm8 (66, W1)
@@ -248,8 +247,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
     let src : bits(16) = read_kreg(k2)[15..0];
-    let result : bits(16) = if shift >= 16 then zeros() else sail_shiftleft(src, shift);
-    write_kreg(k1, zero_extend(result))
+    write_kreg(k1, zero_extend(sail_shiftleft(src, shift)))
   },
 
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)

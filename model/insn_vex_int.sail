@@ -499,11 +499,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         },
         3 => {
           // VPSRLDQ: byte shift right per 128-bit lane
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let shift : range(0, 128) = byte_count * 8;
-          let rlo : xmmword = if shift > 127 then zeros() else lo >> shift;
-          let rhi : xmmword = if shift > 127 then zeros() else hi >> shift;
-          write_ymm(dst, rhi @ rlo)
+          write_ymm(dst, (hi >> (c * 8)) @ (lo >> (c * 8)))
         },
         6 => {
           // VPSLLQ
@@ -512,11 +508,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         },
         7 => {
           // VPSLLDQ: byte shift left per 128-bit lane
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let shift : range(0, 128) = byte_count * 8;
-          let rlo : xmmword = if shift > 127 then zeros() else lo << shift;
-          let rhi : xmmword = if shift > 127 then zeros() else hi << shift;
-          write_ymm(dst, rhi @ rlo)
+          write_ymm(dst, (hi << (c * 8)) @ (lo << (c * 8)))
         },
         _ => raise_UD(),
       }
@@ -524,19 +516,9 @@ function dispatch_vex_0f_int(op, pfx) = {
       let a : xmmword = read_xmm(src_idx);
       match reg_field {
         2 => write_xmm(dst, vex_psrlq_128(a, c)),
-        3 => {
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let shift : range(0, 128) = byte_count * 8;
-          let r : xmmword = if shift > 127 then zeros() else a >> shift;
-          write_xmm(dst, r)
-        },
+        3 => write_xmm(dst, a >> (c * 8)),
         6 => write_xmm(dst, vex_psllq_128(a, c)),
-        7 => {
-          let byte_count : range(0, 16) = if c > 15 then 16 else c;
-          let shift : range(0, 128) = byte_count * 8;
-          let r : xmmword = if shift > 127 then zeros() else a << shift;
-          write_xmm(dst, r)
-        },
+        7 => write_xmm(dst, a << (c * 8)),
         _ => raise_UD(),
       }
     }
