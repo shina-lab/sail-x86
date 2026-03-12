@@ -1230,10 +1230,14 @@ function exec_insertps(dst, src, imm8) = {
   let src_float : dword = b[(src_sel * 32 + 31) .. (src_sel * 32)];
   // Insert at destination position using imm8[5:4]
   let dst_sel : range(0, 3) = unsigned(imm8[5..4]);
-  let t0 : dword = if dst_sel == 0 then src_float else a[31..0];
-  let t1 : dword = if dst_sel == 1 then src_float else a[63..32];
-  let t2 : dword = if dst_sel == 2 then src_float else a[95..64];
-  let t3 : dword = if dst_sel == 3 then src_float else a[127..96];
+  let m0 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 0));
+  let m1 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 1));
+  let m2 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 2));
+  let m3 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 3));
+  let t0 : dword = (src_float & m0) | (a[31..0] & not_vec(m0));
+  let t1 : dword = (src_float & m1) | (a[63..32] & not_vec(m1));
+  let t2 : dword = (src_float & m2) | (a[95..64] & not_vec(m2));
+  let t3 : dword = (src_float & m3) | (a[127..96] & not_vec(m3));
   // Zero lanes indicated by imm8[3:0] (branchless)
   write_xmm_legacy(dst,
     (t3 & sign_extend(~(imm8[3..3]))) @

@@ -220,7 +220,8 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
     rip_rel_pending = true;
     rip_rel_disp = disp;
     let ea : qword = decode_pos + disp;
-    let ea : qword = if pfx.has_adsize then zero_extend(ea[31..0]) else ea;
+    let ad_keep : qword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.has_adsize)));
+    let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
     RM_mem(apply_segment(ea, pfx))
   } else {
     let addr : qword =
@@ -242,7 +243,8 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
         let b3 = fetch_byte();
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
-    let addr : qword = if pfx.has_adsize then zero_extend(addr[31..0]) else addr;
+    let ad_keep : qword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.has_adsize)));
+    let addr : qword = addr & (ad_keep | 0x00000000FFFFFFFF);
     RM_mem(apply_segment(addr, pfx))
   }
 }
@@ -273,7 +275,8 @@ function decode_rm(modrm, pfx) = {
     rip_rel_disp = disp;
     let ea : qword = decode_pos + disp;
     // 67h prefix: truncate effective address to 32 bits, zero-extended
-    let ea : qword = if pfx.has_adsize then zero_extend(ea[31..0]) else ea;
+    let ad_keep : qword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.has_adsize)));
+    let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
     RM_mem(apply_segment(ea, pfx))
   } else {
     // Memory operand — compute address then apply segment override
@@ -298,7 +301,8 @@ function decode_rm(modrm, pfx) = {
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
     // 67h prefix: truncate effective address to 32 bits, zero-extended
-    let addr : qword = if pfx.has_adsize then zero_extend(addr[31..0]) else addr;
+    let ad_keep : qword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.has_adsize)));
+    let addr : qword = addr & (ad_keep | 0x00000000FFFFFFFF);
     RM_mem(apply_segment(addr, pfx))
   }
 }
