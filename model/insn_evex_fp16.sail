@@ -152,9 +152,7 @@ function apply_writemask_ph_zmm(result, old_dst, mask_val, zeroing) = {
 
 // Get 32-bit writemask for FP16 ZMM (32 lanes)
 val evex_get_mask32 : Prefixes -> dword
-function evex_get_mask32(pfx) =
-  if pfx.evex_aaa == 0 then ones()
-  else read_kreg(pfx.evex_aaa)[31..0]
+function evex_get_mask32(pfx) = evex_kmask64(pfx)[31..0]
 
 // =========================================================================
 // FP16 broadcast helpers

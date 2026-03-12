@@ -24,17 +24,19 @@ function evex_rm_reg_idx(modrm, pfx) = {
   x_ext * 16 + b_ext * 8 + base
 }
 
-// Get the effective opmask value for writemask application.
-// aaa=0 means no masking (all bits set). Otherwise read the mask register.
+// Get the effective 64-bit opmask: aaa=0 → all-ones (no masking), else kreg(aaa).
+// Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
+val evex_kmask64 : Prefixes -> qword
+function evex_kmask64(pfx) = {
+  let no_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.evex_aaa == 0));
+  no_mask | read_kreg(pfx.evex_aaa)
+}
+
 val evex_get_mask16 : Prefixes -> word
-function evex_get_mask16(pfx) =
-  if pfx.evex_aaa == 0 then ones()
-  else read_kreg(pfx.evex_aaa)[15..0]
+function evex_get_mask16(pfx) = evex_kmask64(pfx)[15..0]
 
 val evex_get_mask8 : Prefixes -> byte
-function evex_get_mask8(pfx) =
-  if pfx.evex_aaa == 0 then ones()
-  else read_kreg(pfx.evex_aaa)[7..0]
+function evex_get_mask8(pfx) = evex_kmask64(pfx)[7..0]
 
 // Read ZMM source from r/m field: register or memory.
 val evex_src_zmm : (byte, RM, Prefixes) -> zmmword

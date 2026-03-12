@@ -1760,17 +1760,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : byte = avx_pcmpuq_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : byte = avx_pcmpuq_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpuq_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -1779,17 +1779,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : word = avx_pcmpud_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : byte = avx_pcmpud_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpud_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -1811,17 +1811,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : byte = avx_pcmpq_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : byte = avx_pcmpq_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpq_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -1830,17 +1830,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : word = avx_pcmpd_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : byte = avx_pcmpd_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpd_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -2110,17 +2110,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : dword = avx_pcmpuw_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : word = avx_pcmpuw_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpuw_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -2129,17 +2129,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask = avx_pcmpub_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = mask & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : dword = avx_pcmpub_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : word = avx_pcmpub_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -2160,17 +2160,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask : dword = avx_pcmpw_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : word = avx_pcmpw_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : byte = avx_pcmpw_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -2179,17 +2179,17 @@ function dispatch_evex_imm(op, pfx) = {
       match pfx.evex_ll {
         2 => {
           let mask = avx_pcmpb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then mask else mask & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = mask & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         1 => {
           let mask : dword = avx_pcmpb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
         _ => {
           let mask : word = avx_pcmpb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx), pred);
-          let k_mask : qword = if pfx.evex_aaa == 0 then zero_extend(mask) else zero_extend(mask) & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         },
       }
@@ -2669,19 +2669,19 @@ function dispatch_evex_imm(op, pfx) = {
             2 => {
               let mask : byte = avx_vfpclasspd_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
             1 => {
               let mask : byte = avx_vfpclasspd_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
             _ => {
               let mask : byte = avx_vfpclasspd_128(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
           }
@@ -2691,19 +2691,19 @@ function dispatch_evex_imm(op, pfx) = {
             2 => {
               let mask : word = avx_vfpclassps_512(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
             1 => {
               let mask : byte = avx_vfpclassps_256(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
             _ => {
               let mask : byte = avx_vfpclassps_128(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), imm);
               let k_val : qword = zero_extend(mask);
-              let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+              let k_mask : qword = k_val & evex_kmask64(pfx);
               write_kreg(dst_k, k_mask)
             },
           }
@@ -2721,19 +2721,19 @@ function dispatch_evex_imm(op, pfx) = {
           2 => {
             let mask : dword = vfpclassph_zmm(evex_bcast_src_f16_zmm(modrm, rm, pfx, is_mem), imm);
             let k_val : qword = zero_extend(mask);
-            let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+            let k_mask : qword = k_val & evex_kmask64(pfx);
             write_kreg(dst_k, k_mask)
           },
           1 => {
             let mask : word = vfpclassph_ymm(evex_bcast_src_f16_ymm(modrm, rm, pfx, is_mem), imm);
             let k_val : qword = zero_extend(mask);
-            let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+            let k_mask : qword = k_val & evex_kmask64(pfx);
             write_kreg(dst_k, k_mask)
           },
           _ => {
             let mask : byte = vfpclassph_xmm(evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem), imm);
             let k_val : qword = zero_extend(mask);
-            let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+            let k_mask : qword = k_val & evex_kmask64(pfx);
             write_kreg(dst_k, k_mask)
           },
         }
@@ -2754,12 +2754,12 @@ function dispatch_evex_imm(op, pfx) = {
         if pfx.vex_w then {
           let result : bool = avx_fpclass_f64(src[63..0], imm);
           let k_val : qword = zero_extend(bool_to_bit(result));
-          let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = k_val & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         } else {
           let result : bool = avx_fpclass_f32(src[31..0], imm);
           let k_val : qword = zero_extend(bool_to_bit(result));
-          let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+          let k_mask : qword = k_val & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         }
       },
@@ -2773,7 +2773,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src = evex_src_xmm(modrm, rm, pfx);
         let result : bool = fpclass_f16(src[15..0], imm);
         let k_val : qword = zero_extend(bool_to_bit(result));
-        let k_mask : qword = if pfx.evex_aaa == 0 then k_val else k_val & read_kreg(pfx.evex_aaa);
+        let k_mask : qword = k_val & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       _ => raise_UD(),

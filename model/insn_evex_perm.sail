@@ -1576,7 +1576,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 1);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     if pfx.rex_w then { // VPEXPANDW
       match pfx.evex_ll {
         2 => write_zmm(dst, avx_vpexpandw_512(evex_src_zmm(modrm, rm, pfx), k[31..0])),
@@ -1598,7 +1598,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 1);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     match rm {
       RM_reg(_) => {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
@@ -1749,7 +1749,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     if pfx.rex_w then {
       // VEXPANDPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       match pfx.evex_ll {
@@ -1774,7 +1774,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     if pfx.rex_w then {
       // VPEXPANDQ — same as VEXPANDPD (qword elements)
       match pfx.evex_ll {
@@ -1799,7 +1799,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     match rm {
       RM_reg(_) => {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
@@ -1843,7 +1843,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     match rm {
       RM_reg(_) => {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
@@ -1888,7 +1888,7 @@ function dispatch_evex_perm(op, pfx) = {
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     if pfx.rex_w then {
       // VPBLENDMQ: qword blend
       match pfx.evex_ll {
@@ -1980,7 +1980,7 @@ function dispatch_evex_perm(op, pfx) = {
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
-    let k : qword = if pfx.evex_aaa == 0 then ones() else read_kreg(pfx.evex_aaa);
+    let k : qword = evex_kmask64(pfx);
     if pfx.rex_w then {
       // VBLENDMPD: qword blend
       match pfx.evex_ll {
