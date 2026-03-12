@@ -2443,8 +2443,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
 // =========================================================================
 // 3-Byte Opcode Map: SSE Integer Operations
 // =========================================================================
-val blend_byte : (byte, byte, bit) -> byte
-function blend_byte(a, b, sel) = if sel == bitone then b else a
+val blend_byte : (byte, byte, bits(1)) -> byte
+function blend_byte(a, b, sel) = { let m : byte = sign_extend(sel); (a & ~(m)) | (b & m) }
 
 // 0F 38 xx — SSE integer operations (SSSE3, SSE4.1, SSE4.2, AES-NI)
 val dispatch_3byte_38_sse_int : (byte, Prefixes) -> unit
@@ -2601,22 +2601,22 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     16 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7]);
-      let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15]);
-      let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23]);
-      let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31]);
-      let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39]);
-      let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47]);
-      let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55]);
-      let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63]);
-      let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71]);
-      let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79]);
-      let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87]);
-      let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95]);
-      let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103]);
-      let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111]);
-      let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119]);
-      let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127]);
+      let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7..7]);
+      let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15..15]);
+      let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23..23]);
+      let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31..31]);
+      let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39..39]);
+      let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47..47]);
+      let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55..55]);
+      let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63..63]);
+      let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71..71]);
+      let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79..79]);
+      let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87..87]);
+      let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95..95]);
+      let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103..103]);
+      let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111..111]);
+      let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119..119]);
+      let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127..127]);
       write_xmm_legacy(xreg, r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
     },
 

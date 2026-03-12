@@ -1264,18 +1264,18 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
     20 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let d0 : dword = if m[31] == bitone then src_xmm[31..0] else a[31..0];
-      let d1 : dword = if m[63] == bitone then src_xmm[63..32] else a[63..32];
-      let d2 : dword = if m[95] == bitone then src_xmm[95..64] else a[95..64];
-      let d3 : dword = if m[127] == bitone then src_xmm[127..96] else a[127..96];
+      let d0 : dword = blend32(a[31..0], src_xmm[31..0], m[31..31]);
+      let d1 : dword = blend32(a[63..32], src_xmm[63..32], m[63..63]);
+      let d2 : dword = blend32(a[95..64], src_xmm[95..64], m[95..95]);
+      let d3 : dword = blend32(a[127..96], src_xmm[127..96], m[127..127]);
       write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
     },
     // BLENDVPD xmm1, xmm2/m128, <XMM0>
     21 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let lo : qword = if m[63] == bitone then src_xmm[63..0] else a[63..0];
-      let hi : qword = if m[127] == bitone then src_xmm[127..64] else a[127..64];
+      let lo : qword = blend64(a[63..0], src_xmm[63..0], m[63..63]);
+      let hi : qword = blend64(a[127..64], src_xmm[127..64], m[127..127]);
       write_xmm_legacy(xreg, hi @ lo)
     },
     _ => raise_UD(),
