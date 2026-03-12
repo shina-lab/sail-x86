@@ -196,20 +196,12 @@ function avx_pcmpeqd_mask_512(a, b) = {
 // VPCMPNEQD producing kmask (neq = pred 4)
 // Reusing VPCMPUB pattern but for dwords
 
-val saturate_sb : (byte, byte) -> byte
-function saturate_sb(a, b) = {
-  let sum : int = signed(a) + signed(b);
-  if sum > 127 then 0x7F
-  else if sum < negate(128) then 0x80
-  else get_slice_int(8, sum, 0)
-}
-
 val avx_paddsb_128 : (xmmword, xmmword) -> xmmword
 function avx_paddsb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = saturate_sb(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_add_s8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -222,22 +214,12 @@ val avx_paddsb_512 : (zmmword, zmmword) -> zmmword
 function avx_paddsb_512(a, b) =
   avx_paddsb_256(a[511..256], b[511..256]) @ avx_paddsb_256(a[255..0], b[255..0])
 
-// SaturateToSignedWord: clamp (signed 32-bit sum) to [-32768, 32767]
-
-val saturate_sw : (word, word) -> word
-function saturate_sw(a, b) = {
-  let sum : int = signed(a) + signed(b);
-  if sum > 32767 then 0x7FFF
-  else if sum < negate(32768) then 0x8000
-  else get_slice_int(16, sum, 0)
-}
-
 val avx_paddsw_128 : (xmmword, xmmword) -> xmmword
 function avx_paddsw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = saturate_sw(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_add_s16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -250,22 +232,12 @@ val avx_paddsw_512 : (zmmword, zmmword) -> zmmword
 function avx_paddsw_512(a, b) =
   avx_paddsw_256(a[511..256], b[511..256]) @ avx_paddsw_256(a[255..0], b[255..0])
 
-// SaturateToSignedByte for subtraction
-
-val saturate_sb_sub : (byte, byte) -> byte
-function saturate_sb_sub(a, b) = {
-  let diff : int = signed(a) - signed(b);
-  if diff > 127 then 0x7F
-  else if diff < negate(128) then 0x80
-  else get_slice_int(8, diff, 0)
-}
-
 val avx_psubsb_128 : (xmmword, xmmword) -> xmmword
 function avx_psubsb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = saturate_sb_sub(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_sub_s8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -278,22 +250,12 @@ val avx_psubsb_512 : (zmmword, zmmword) -> zmmword
 function avx_psubsb_512(a, b) =
   avx_psubsb_256(a[511..256], b[511..256]) @ avx_psubsb_256(a[255..0], b[255..0])
 
-// SaturateToSignedWord for subtraction
-
-val saturate_sw_sub : (word, word) -> word
-function saturate_sw_sub(a, b) = {
-  let diff : int = signed(a) - signed(b);
-  if diff > 32767 then 0x7FFF
-  else if diff < negate(32768) then 0x8000
-  else get_slice_int(16, diff, 0)
-}
-
 val avx_psubsw_128 : (xmmword, xmmword) -> xmmword
 function avx_psubsw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = saturate_sw_sub(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_sub_s16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -306,21 +268,12 @@ val avx_psubsw_512 : (zmmword, zmmword) -> zmmword
 function avx_psubsw_512(a, b) =
   avx_psubsw_256(a[511..256], b[511..256]) @ avx_psubsw_256(a[255..0], b[255..0])
 
-// SaturateToUnsignedByte for add
-
-val saturate_ub_add : (byte, byte) -> byte
-function saturate_ub_add(a, b) = {
-  let sum : int = unsigned(a) + unsigned(b);
-  if sum > 255 then 0xFF
-  else get_slice_int(8, sum, 0)
-}
-
 val avx_paddusb_128 : (xmmword, xmmword) -> xmmword
 function avx_paddusb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = saturate_ub_add(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_add_u8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -333,21 +286,12 @@ val avx_paddusb_512 : (zmmword, zmmword) -> zmmword
 function avx_paddusb_512(a, b) =
   avx_paddusb_256(a[511..256], b[511..256]) @ avx_paddusb_256(a[255..0], b[255..0])
 
-// SaturateToUnsignedWord for add
-
-val saturate_uw_add : (word, word) -> word
-function saturate_uw_add(a, b) = {
-  let sum : int = unsigned(a) + unsigned(b);
-  if sum > 65535 then 0xFFFF
-  else get_slice_int(16, sum, 0)
-}
-
 val avx_paddusw_128 : (xmmword, xmmword) -> xmmword
 function avx_paddusw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = saturate_uw_add(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_add_u16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -360,21 +304,12 @@ val avx_paddusw_512 : (zmmword, zmmword) -> zmmword
 function avx_paddusw_512(a, b) =
   avx_paddusw_256(a[511..256], b[511..256]) @ avx_paddusw_256(a[255..0], b[255..0])
 
-// SaturateToUnsignedByte for sub
-
-val saturate_ub_sub : (byte, byte) -> byte
-function saturate_ub_sub(a, b) = {
-  let diff : int = unsigned(a) - unsigned(b);
-  if diff < 0 then 0x00
-  else get_slice_int(8, diff, 0)
-}
-
 val avx_psubusb_128 : (xmmword, xmmword) -> xmmword
 function avx_psubusb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = saturate_ub_sub(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_sub_u8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -387,21 +322,12 @@ val avx_psubusb_512 : (zmmword, zmmword) -> zmmword
 function avx_psubusb_512(a, b) =
   avx_psubusb_256(a[511..256], b[511..256]) @ avx_psubusb_256(a[255..0], b[255..0])
 
-// SaturateToUnsignedWord for sub
-
-val saturate_uw_sub : (word, word) -> word
-function saturate_uw_sub(a, b) = {
-  let diff : int = unsigned(a) - unsigned(b);
-  if diff < 0 then 0x0000
-  else get_slice_int(16, diff, 0)
-}
-
 val avx_psubusw_128 : (xmmword, xmmword) -> xmmword
 function avx_psubusw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = saturate_uw_sub(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_sub_u16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }

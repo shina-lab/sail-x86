@@ -766,9 +766,7 @@ function avx_pabsb_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    let va = a[(lo + 7)..lo];
-    let sv = signed(va);
-    r[(lo + 7)..lo] = if sv < 0 then to_bits_truncate(negate(sv)) else va;
+    r[(lo + 7)..lo] = abs8(a[(lo + 7)..lo]);
   };
   r
 }
@@ -790,9 +788,7 @@ function avx_pabsw_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    let va = a[(lo + 15)..lo];
-    let sv = signed(va);
-    r[(lo + 15)..lo] = if sv < 0 then to_bits_truncate(negate(sv)) else va;
+    r[(lo + 15)..lo] = abs16(a[(lo + 15)..lo]);
   };
   r
 }
@@ -814,9 +810,7 @@ function avx_pabsd_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    let va = a[(lo + 31)..lo];
-    let sv = signed(va);
-    r[(lo + 31)..lo] = if sv < 0 then to_bits_truncate(negate(sv)) else va;
+    r[(lo + 31)..lo] = abs32(a[(lo + 31)..lo]);
   };
   r
 }
@@ -838,9 +832,7 @@ function avx_pabsq_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    let va = a[(lo + 63)..lo];
-    let sv = signed(va);
-    r[(lo + 63)..lo] = if sv < 0 then to_bits_truncate(negate(sv)) else va;
+    r[(lo + 63)..lo] = abs64(a[(lo + 63)..lo]);
   };
   r
 }

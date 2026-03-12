@@ -58,6 +58,9 @@ function abs16(x) = { let m : word = sign_extend(x[15..15]); (x ^ m) - m }
 val abs32 : dword -> dword
 function abs32(x) = { let m : dword = sign_extend(x[31..31]); (x ^ m) - m }
 
+val abs64 : qword -> qword
+function abs64(x) = { let m : qword = sign_extend(x[63..63]); (x ^ m) - m }
+
 // PACKSSWB — Pack with Signed Saturation (words to bytes)
 // PACKSSDW — Pack with Signed Saturation (dwords to words)
 // No flags affected.
