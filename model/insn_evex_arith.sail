@@ -215,9 +215,12 @@ function avx_pmaddubsw_128(a, b) = {
     let prod0 : int = unsigned(a[(b0 + 7)..b0]) * signed(b[(b0 + 7)..b0]);
     let prod1 : int = unsigned(a[(b1 + 7)..b1]) * signed(b[(b1 + 7)..b1]);
     let sum : int = prod0 + prod1;
-    // Saturate to signed 16-bit
-    let sat : int = if sum > 32767 then 32767 else if sum < -32768 then -32768 else sum;
-    r[(lo + 15)..lo] = to_bits_truncate(sat);
+    // Branchless signed saturation to 16-bit via 17-bit overflow detection
+    let wide : bits(17) = get_slice_int(17, sum, 0);
+    let sign : bits(1) = wide[16..16];
+    let of_mask : word = sign_extend(sign ^ wide[15..15]);
+    let sat_val : word = sign_extend(sign) ^ 0x7FFF;
+    r[(lo + 15)..lo] = (sat_val & of_mask) | (wide[15..0] & not_vec(of_mask));
   };
   r
 }
@@ -2007,9 +2010,12 @@ function avx_vpdpwssd_512(dst, src1, src2) = {
 
 val sat_s32 : int -> dword
 function sat_s32(v) = {
-  if v > 2147483647 then 0x7FFFFFFF
-  else if v < negate(2147483648) then 0x80000000
-  else get_slice_int(32, v, 0)
+  // Branchless signed saturation to 32-bit via 33-bit overflow detection
+  let wide : bits(33) = get_slice_int(33, v, 0);
+  let sign : bits(1) = wide[32..32];
+  let of_mask : dword = sign_extend(sign ^ wide[31..31]);
+  let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
+  (sat & of_mask) | (wide[31..0] & not_vec(of_mask))
 }
 
 val avx_vpdpwssds_elem : (dword, dword, dword) -> dword

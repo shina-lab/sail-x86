@@ -422,9 +422,12 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   let p1 : int = unsigned(a_even) * signed(b_even);
   let p2 : int = unsigned(a_odd) * signed(b_odd);
   let sum : int = p1 + p2;
-  if sum > 32767 then 0x7FFF
-  else if sum < -32768 then 0x8000
-  else to_bits_truncate(sum) : word
+  // Branchless signed saturation to 16-bit via 17-bit overflow detection
+  let wide : bits(17) = get_slice_int(17, sum, 0);
+  let sign : bits(1) = wide[16..16];
+  let of_mask : word = sign_extend(sign ^ wide[15..15]);
+  let sat : word = sign_extend(sign) ^ 0x7FFF;
+  (sat & of_mask) | (wide[15..0] & not_vec(of_mask))
 }
 
 val max_s64 : (qword, qword) -> qword
