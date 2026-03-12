@@ -526,12 +526,7 @@ function avx_prorvd_128(src, cnt) = {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
     let elem : bits(32) = src[(lo + 31)..lo];
-    if c == 0 then {
-      r[(lo + 31)..lo] = elem
-    } else {
-      let rc : range(1, 31) = 32 - c;
-      r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits(5, rc));
-    }
+    r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits_truncate(5, 32 - c));
   };
   r
 }
@@ -553,12 +548,7 @@ function avx_prorvq_128(src, cnt) = {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
     let elem : bits(64) = src[(lo + 63)..lo];
-    if c == 0 then {
-      r[(lo + 63)..lo] = elem
-    } else {
-      let rc : range(1, 63) = 64 - c;
-      r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits(6, rc));
-    }
+    r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits_truncate(6, 64 - c));
   };
   r
 }
@@ -580,12 +570,7 @@ function avx_prolvd_128(src, cnt) = {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
     let elem : bits(32) = src[(lo + 31)..lo];
-    if c == 0 then {
-      r[(lo + 31)..lo] = elem
-    } else {
-      let rc : range(1, 31) = 32 - c;
-      r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits(5, rc));
-    }
+    r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits_truncate(5, 32 - c));
   };
   r
 }
@@ -607,12 +592,7 @@ function avx_prolvq_128(src, cnt) = {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
     let elem : bits(64) = src[(lo + 63)..lo];
-    if c == 0 then {
-      r[(lo + 63)..lo] = elem
-    } else {
-      let rc : range(1, 63) = 64 - c;
-      r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits(6, rc));
-    }
+    r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits_truncate(6, 64 - c));
   };
   r
 }
