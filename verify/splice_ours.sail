@@ -50,8 +50,7 @@ function step() = {
   rip_rel_pending = false;
   next_rip = None();
 
-  let (pfx, opcode) = scan_prefixes();
-  dispatch_opcode_1byte(opcode, pfx);
+  decode_execute();
 
   if system_state == SysRunning then
     RIP = match next_rip { Some(t) => t, None() => decode_pos }
@@ -116,24 +115,6 @@ val compare_sub32 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, 
 function compare_sub32(a, b) = {
   let (result, _) = alu_compute(ALU_SUB, a, b, OS32);
   (result, CF, PF, AF, ZF, SF, OF)
-}
-
-// Isla footprint for full decode+execute
-val isla_footprint : bits(120) -> bool
-function isla_footprint(opcode) = {
-  try {
-    isla_reset_registers();
-    system_mode = false;
-    decode_pos = RIP;
-    insn_start = RIP;
-    rip_rel_pending = false;
-    next_rip = None();
-    decode_execute();
-    RIP = match next_rip { Some(t) => t, None() => decode_pos };
-    true
-  } catch {
-    _ => false
-  }
 }
 
 function main() = {

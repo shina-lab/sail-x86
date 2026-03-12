@@ -250,49 +250,61 @@ function avg16(a, b) = {
 // PCMPEQB/PCMPEQW/PCMPEQD — Compare Packed Integers for Equal
 // PCMPGTB/PCMPGTW/PCMPGTD — Compare Packed Signed Integers for Greater Than
 // Result is all-ones if true, all-zeros if false per lane.
-// Branchless: high bit of (0 @ xor) - 1 is 1 iff xor == 0 (i.e. a == b).
-// Avoids symbolic execution path explosion in Isla.
+//
+// All comparison helpers use the wide intermediate in TWO extract positions
+// (high bit + low bits) to prevent Isla from inlining the subtraction and
+// then incorrectly distributing extract over bvsub.
+//
+// cmp_eq: (0 @ (a^b)) - 1 borrows iff a^b == 0 iff a == b.
+//   When a==b: result = 0x1FF, low=0xFF, high=1 → 0xFF & 0xFF = 0xFF.
+//   When a!=b: result = [0,0xFE], low=xor-1, high=0 → anything & 0x00 = 0x00.
+//
+// cmp_gt (signed): convert to unsigned via XOR sign bit, compute sat_sub,
+//   then convert nonzero to all-ones mask using the borrow trick.
+
 val cmp_eq8 : (byte, byte) -> byte
 function cmp_eq8(a, b) = {
   let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
-  zeros() - zero_extend(xd[8..8])
+  xd[7..0] & sign_extend(xd[8..8])
 }
 
-// Branchless: high bit of sign_extend(b) - sign_extend(a) is 1 iff a > b (signed).
 val cmp_gt8 : (byte, byte) -> byte
 function cmp_gt8(a, b) = {
-  let a9 : bits(9) = sign_extend(a);
-  let b9 : bits(9) = sign_extend(b);
-  let diff : bits(9) = b9 - a9;
-  zeros() - zero_extend(diff[8..8])
+  // a > b signed iff (a^0x80) > (b^0x80) unsigned iff sat_sub > 0
+  let ds : bits(9) = (0b0 @ (a ^ 0x80)) - (0b0 @ (b ^ 0x80));
+  let d : byte = ds[7..0] & sign_extend(~(ds[8..8]));
+  // d != 0 → borrow on d-1 is 0 → mask = ~(low & 0xFF) = 0xFF
+  // d == 0 → borrow on d-1 is 1 → mask = ~(0xFF & 0xFF) = 0x00
+  let probe : bits(9) = (0b0 @ d) - 0b000000001;
+  ~(probe[7..0] & sign_extend(probe[8..8]))
 }
 
 val cmp_eq16 : (word, word) -> word
 function cmp_eq16(a, b) = {
   let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
-  zeros() - zero_extend(xd[16..16])
+  xd[15..0] & sign_extend(xd[16..16])
 }
 
 val cmp_gt16 : (word, word) -> word
 function cmp_gt16(a, b) = {
-  let a17 : bits(17) = sign_extend(a);
-  let b17 : bits(17) = sign_extend(b);
-  let diff : bits(17) = b17 - a17;
-  zeros() - zero_extend(diff[16..16])
+  let ds : bits(17) = (0b0 @ (a ^ 0x8000)) - (0b0 @ (b ^ 0x8000));
+  let d : word = ds[15..0] & sign_extend(~(ds[16..16]));
+  let probe : bits(17) = (0b0 @ d) - 0b00000000000000001;
+  ~(probe[15..0] & sign_extend(probe[16..16]))
 }
 
 val cmp_eq32 : (dword, dword) -> dword
 function cmp_eq32(a, b) = {
   let xd : bits(33) = (0b0 @ xor_vec(a, b)) - 0b000000000000000000000000000000001;
-  zeros() - zero_extend(xd[32..32])
+  xd[31..0] & sign_extend(xd[32..32])
 }
 
 val cmp_gt32 : (dword, dword) -> dword
 function cmp_gt32(a, b) = {
-  let a33 : bits(33) = sign_extend(a);
-  let b33 : bits(33) = sign_extend(b);
-  let diff : bits(33) = b33 - a33;
-  zeros() - zero_extend(diff[32..32])
+  let ds : bits(33) = (0b0 @ (a ^ 0x80000000)) - (0b0 @ (b ^ 0x80000000));
+  let d : dword = ds[31..0] & sign_extend(~(ds[32..32]));
+  let probe : bits(33) = (0b0 @ d) - 0b000000000000000000000000000000001;
+  ~(probe[31..0] & sign_extend(probe[32..32]))
 }
 
 val cmp_eq64 : (qword, qword) -> qword
@@ -415,109 +427,6 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   else to_bits_truncate(sum) : word
 }
 
-// PMAXSB/PMAXSW/PMAXSD — Packed Maximum Signed Integers
-// PMAXSB and PMAXSD are SSE4.1; PMAXSW is SSE2.
-// No flags affected.
-// Branchless min/max: compute comparison as a bitmask, then bitwise select.
-// For unsigned: high bit of (0 @ a) - (0 @ b) is 1 iff a < b.
-// For signed: high bit of sign_extend(b) - sign_extend(a) is 1 iff a > b.
-// Mask = zeros() - zero_extend(carry_bit) gives all-1s or all-0s.
-// Select: (x & mask) | (y & ~mask).
-// This avoids if/then/else which causes path explosion in Isla.
-
-val max_s8 : (byte, byte) -> byte
-function max_s8(a, b) = {
-  let diff : bits(9) = sign_extend(b) - sign_extend(a);
-  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a > b
-  (a & mask) | (b & ~(mask))
-}
-
-val max_s16 : (word, word) -> word
-function max_s16(a, b) = {
-  let diff : bits(17) = sign_extend(b) - sign_extend(a);
-  let mask : word = zeros() - zero_extend(diff[16..16]);
-  (a & mask) | (b & ~(mask))
-}
-
-val max_s32 : (dword, dword) -> dword
-function max_s32(a, b) = {
-  let diff : bits(33) = sign_extend(b) - sign_extend(a);
-  let mask : dword = zeros() - zero_extend(diff[32..32]);
-  (a & mask) | (b & ~(mask))
-}
-
-// PMAXUB/PMAXUW/PMAXUD — Packed Maximum Unsigned Integers
-// PMAXUB is SSE2; PMAXUW and PMAXUD are SSE4.1.
-// No flags affected.
-val max_u8 : (byte, byte) -> byte
-function max_u8(a, b) = {
-  let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
-  (b & mask) | (a & ~(mask)) // select b if a < b, else a
-}
-
-val max_u16 : (word, word) -> word
-function max_u16(a, b) = {
-  let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = zeros() - zero_extend(diff[16..16]);
-  (b & mask) | (a & ~(mask))
-}
-
-val max_u32 : (dword, dword) -> dword
-function max_u32(a, b) = {
-  let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let mask : dword = zeros() - zero_extend(diff[32..32]);
-  (b & mask) | (a & ~(mask))
-}
-
-// PMINSB/PMINSW/PMINSD — Packed Minimum Signed Integers
-// PMINSB and PMINSD are SSE4.1; PMINSW is SSE2.
-// No flags affected.
-val min_s8 : (byte, byte) -> byte
-function min_s8(a, b) = {
-  let diff : bits(9) = sign_extend(a) - sign_extend(b);
-  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
-  (a & mask) | (b & ~(mask))
-}
-
-val min_s16 : (word, word) -> word
-function min_s16(a, b) = {
-  let diff : bits(17) = sign_extend(a) - sign_extend(b);
-  let mask : word = zeros() - zero_extend(diff[16..16]);
-  (a & mask) | (b & ~(mask))
-}
-
-val min_s32 : (dword, dword) -> dword
-function min_s32(a, b) = {
-  let diff : bits(33) = sign_extend(a) - sign_extend(b);
-  let mask : dword = zeros() - zero_extend(diff[32..32]);
-  (a & mask) | (b & ~(mask))
-}
-
-// PMINUB/PMINUW/PMINUD — Packed Minimum Unsigned Integers
-// PMINUB is SSE2; PMINUW and PMINUD are SSE4.1.
-// No flags affected.
-val min_u8 : (byte, byte) -> byte
-function min_u8(a, b) = {
-  let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = zeros() - zero_extend(diff[8..8]); // all-1s if a < b
-  (a & mask) | (b & ~(mask))
-}
-
-val min_u16 : (word, word) -> word
-function min_u16(a, b) = {
-  let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = zeros() - zero_extend(diff[16..16]);
-  (a & mask) | (b & ~(mask))
-}
-
-val min_u32 : (dword, dword) -> dword
-function min_u32(a, b) = {
-  let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let mask : dword = zeros() - zero_extend(diff[32..32]);
-  (a & mask) | (b & ~(mask))
-}
-
 val max_s64 : (qword, qword) -> qword
 function max_s64(a, b) = {
   let diff : bits(65) = sign_extend(b) - sign_extend(a);
@@ -615,7 +524,13 @@ function mul_hi16u(a, b) = {
 // Computes absolute differences of unsigned byte pairs, then sums each 8-byte group.
 // Result is zero-extended to 64 bits per qword lane. No flags affected.
 val abs_diff8 : (byte, byte) -> int
-function abs_diff8(a, b) = unsigned(max_u8(a, b) - min_u8(a, b))
+function abs_diff8(a, b) = {
+  let d1 : bits(9) = (0b0 @ a) - (0b0 @ b);
+  let d2 : bits(9) = (0b0 @ b) - (0b0 @ a);
+  let m1 : byte = sign_extend(~(d1[8..8]));
+  let m2 : byte = sign_extend(~(d2[8..8]));
+  unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
+}
 
 // PSHUFB — Packed Shuffle Bytes (SSSE3)
 // Each byte in result is selected from dst by the low 4 bits of the corresponding
@@ -749,6 +664,67 @@ function sat_sub_u16(a, b) = {
   let mask : word = sign_extend(~(wide[16..16]));
   wide[15..0] & mask
 }
+
+val sat_sub_u32 : (dword, dword) -> dword
+function sat_sub_u32(a, b) = {
+  let wide : bits(33) = (0b0 @ a) - (0b0 @ b);
+  let mask : dword = sign_extend(~(wide[32..32]));
+  wide[31..0] & mask
+}
+
+// Unsigned min/max expressed via sat_sub to avoid an Isla symbolic execution
+// bug where extract(N,N) is incorrectly distributed over bvsub when the
+// (N+1)-bit intermediate has only one reference.
+//
+// min_u(a, b) = a - sat_sub_u(a, b):
+//   if a >= b: a - (a - b) = b = min(a, b)
+//   if a <  b: a - 0       = a = min(a, b)
+//
+// max_u(a, b) = a + sat_sub_u(b, a):
+//   if a >= b: a + 0       = a = max(a, b)
+//   if a <  b: a + (b - a) = b = max(a, b)
+
+// PMINUB/PMINUW/PMINUD — Packed Minimum Unsigned Integers
+val min_u8 : (byte, byte) -> byte
+function min_u8(a, b) = a - sat_sub_u8(a, b)
+
+val min_u16 : (word, word) -> word
+function min_u16(a, b) = a - sat_sub_u16(a, b)
+
+val min_u32 : (dword, dword) -> dword
+function min_u32(a, b) = a - sat_sub_u32(a, b)
+
+// PMAXUB/PMAXUW/PMAXUD — Packed Maximum Unsigned Integers
+val max_u8 : (byte, byte) -> byte
+function max_u8(a, b) = a + sat_sub_u8(b, a)
+
+val max_u16 : (word, word) -> word
+function max_u16(a, b) = a + sat_sub_u16(b, a)
+
+val max_u32 : (dword, dword) -> dword
+function max_u32(a, b) = a + sat_sub_u32(b, a)
+
+// Signed min/max use XOR with sign bit to convert to unsigned comparison.
+
+// PMINSB/PMINSW/PMINSD — Packed Minimum Signed Integers
+val min_s8 : (byte, byte) -> byte
+function min_s8(a, b) = min_u8(a ^ 0x80, b ^ 0x80) ^ 0x80
+
+val min_s16 : (word, word) -> word
+function min_s16(a, b) = min_u16(a ^ 0x8000, b ^ 0x8000) ^ 0x8000
+
+val min_s32 : (dword, dword) -> dword
+function min_s32(a, b) = min_u32(a ^ 0x80000000, b ^ 0x80000000) ^ 0x80000000
+
+// PMAXSB/PMAXSW/PMAXSD — Packed Maximum Signed Integers
+val max_s8 : (byte, byte) -> byte
+function max_s8(a, b) = max_u8(a ^ 0x80, b ^ 0x80) ^ 0x80
+
+val max_s16 : (word, word) -> word
+function max_s16(a, b) = max_u16(a ^ 0x8000, b ^ 0x8000) ^ 0x8000
+
+val max_s32 : (dword, dword) -> dword
+function max_s32(a, b) = max_u32(a ^ 0x80000000, b ^ 0x80000000) ^ 0x80000000
 
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
 //
