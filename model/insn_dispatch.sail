@@ -1045,18 +1045,9 @@ function decode_execute() = {
       153 => {
         let os = get_operand_size(pfx);
         match os {
-          OS16 => {
-            if read_gpr16(RAX)[15] == bitone then write_gpr16(RDX, 0xFFFF)
-            else write_gpr16(RDX, 0x0000)
-          },
-          OS32 => {
-            if read_gpr32(RAX)[31] == bitone then write_gpr32(RDX, 0xFFFFFFFF)
-            else write_gpr32(RDX, 0x00000000)
-          },
-          OS64 => {
-            if read_gpr64(RAX)[63] == bitone then write_gpr64(RDX, ones())
-            else write_gpr64(RDX, zeros())
-          },
+          OS16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15..15])),
+          OS32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31..31])),
+          OS64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63..63])),
           _ => (),
         }
       },
