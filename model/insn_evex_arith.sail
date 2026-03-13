@@ -2654,7 +2654,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 7) {
             let lo : range(0, 448) = i * 64;
-            if src1[(lo + 63)..lo] == src2[(lo + 63)..lo] then mask = mask | to_bits(8, pow2(i));
+            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
@@ -2665,7 +2665,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 3) {
             let lo : range(0, 192) = i * 64;
-            if src1[(lo + 63)..lo] == src2[(lo + 63)..lo] then mask = mask | to_bits(8, pow2(i));
+            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
@@ -2676,7 +2676,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 1) {
             let lo : range(0, 64) = i * 64;
-            if src1[(lo + 63)..lo] == src2[(lo + 63)..lo] then mask = mask | to_bits(8, pow2(i));
+            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
