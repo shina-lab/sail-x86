@@ -761,7 +761,7 @@ function popcount_dword(mask, upto) = {
   var count : int = 0;
   foreach (i from 0 to 31) {
     if i < upto then {
-      if mask[i] == bitone then count = count + 1;
+      count = count + unsigned(mask[i..i]);
     };
   };
   count
@@ -772,7 +772,7 @@ function popcount_qword(mask, upto) = {
   var count : int = 0;
   foreach (i from 0 to 63) {
     if i < upto then {
-      if mask[i] == bitone then count = count + 1;
+      count = count + unsigned(mask[i..i]);
     };
   };
   count
