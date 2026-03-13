@@ -1333,32 +1333,19 @@ function avx_gf2p8affineqb_512(src1, src2, imm8) = {
 
 val gf2p8_inv : byte -> byte
 function gf2p8_inv(x) = {
-  if x == 0x00 then 0x00
-  else {
-    // Compute x^254 = x^(-1) in GF(2^8) using repeated squaring
-    // x^2
-    let x2 = gf2p8_mul(x, x);
-    // x^3
-    let x3 = gf2p8_mul(x2, x);
-    // x^6
-    let x6 = gf2p8_mul(x3, x3);
-    // x^12
-    let x12 = gf2p8_mul(x6, x6);
-    // x^15 = x^12 * x^3
-    let x15 = gf2p8_mul(x12, x3);
-    // x^30
-    let x30 = gf2p8_mul(x15, x15);
-    // x^60
-    let x60 = gf2p8_mul(x30, x30);
-    // x^63 = x^60 * x^3
-    let x63 = gf2p8_mul(x60, x3);
-    // x^126
-    let x126 = gf2p8_mul(x63, x63);
-    // x^252
-    let x252 = gf2p8_mul(x126, x126);
-    // x^254 = x^252 * x^2
-    gf2p8_mul(x252, x2)
-  }
+  // Compute x^254 = x^(-1) in GF(2^8) using repeated squaring.
+  // No zero check needed: gf2p8_mul(0,0)=0, so 0^254=0 naturally.
+  let x2 = gf2p8_mul(x, x);
+  let x3 = gf2p8_mul(x2, x);
+  let x6 = gf2p8_mul(x3, x3);
+  let x12 = gf2p8_mul(x6, x6);
+  let x15 = gf2p8_mul(x12, x3);
+  let x30 = gf2p8_mul(x15, x15);
+  let x60 = gf2p8_mul(x30, x30);
+  let x63 = gf2p8_mul(x60, x3);
+  let x126 = gf2p8_mul(x63, x63);
+  let x252 = gf2p8_mul(x126, x126);
+  gf2p8_mul(x252, x2)
 }
 
 val avx_gf2p8affineinvqb_lane : (qword, qword, byte) -> qword
