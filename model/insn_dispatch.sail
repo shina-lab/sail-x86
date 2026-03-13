@@ -1735,7 +1735,7 @@ function decode_execute() = {
       op if 112 <= op & op <= 127 => {
         let cc : cc_idx = op - 112;
         let offset = fetch_rel8();
-        if eval_cc(cc) then {
+        if eval_cc(cc) == bitone then {
           next_rip = Some(decode_pos + offset);
         }
       },

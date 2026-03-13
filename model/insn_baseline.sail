@@ -764,7 +764,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      if eval_cc(cc) then {
+      if eval_cc(cc) == bitone then {
         let v = read_rm_val(rm, os, pfx.has_rex);
         write_gpr(reg, os, v);
       }
@@ -773,7 +773,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel32();
-      if eval_cc(cc) then {
+      if eval_cc(cc) == bitone then {
         next_rip = Some(decode_pos + offset);
       }
     },
@@ -782,7 +782,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 144;
       let modrm = fetch_byte();
       let rm = decode_rm(modrm, pfx);
-      let v : qword = zero_extend(eval_cc_bit(cc));
+      let v : qword = zero_extend(eval_cc(cc));
       write_rm_val(rm, OS8, pfx.has_rex, v)
     },
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
