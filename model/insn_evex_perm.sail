@@ -1850,12 +1850,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
           let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : zmmword = read_zmm(dst) & z_keep;
+          let src1_eff : zmmword = src1 & z_keep;
+          var result : zmmword = zeros();
           foreach (i from 0 to 7) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_zmm(dst, result)
         },
@@ -1863,12 +1861,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
           let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : ymmword = read_ymm(dst) & z_keep;
+          let src1_eff : ymmword = src1 & z_keep;
+          var result : ymmword = zeros();
           foreach (i from 0 to 3) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_ymm(dst, result)
         },
@@ -1876,12 +1872,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
           let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : xmmword = read_xmm(dst) & z_keep;
+          let src1_eff : xmmword = src1 & z_keep;
+          var result : xmmword = zeros();
           foreach (i from 0 to 1) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_xmm(dst, result)
         },
@@ -1893,12 +1887,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
           let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : zmmword = read_zmm(dst) & z_keep;
+          let src1_eff : zmmword = src1 & z_keep;
+          var result : zmmword = zeros();
           foreach (i from 0 to 15) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_zmm(dst, result)
         },
@@ -1906,12 +1898,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
           let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : ymmword = read_ymm(dst) & z_keep;
+          let src1_eff : ymmword = src1 & z_keep;
+          var result : ymmword = zeros();
           foreach (i from 0 to 7) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_ymm(dst, result)
         },
@@ -1919,12 +1909,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
           let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : xmmword = read_xmm(dst) & z_keep;
+          let src1_eff : xmmword = src1 & z_keep;
+          var result : xmmword = zeros();
           foreach (i from 0 to 3) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_xmm(dst, result)
         },
@@ -1948,12 +1936,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
           let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : zmmword = read_zmm(dst) & z_keep;
+          let src1_eff : zmmword = src1 & z_keep;
+          var result : zmmword = zeros();
           foreach (i from 0 to 7) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_zmm(dst, result)
         },
@@ -1961,12 +1947,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
           let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : ymmword = read_ymm(dst) & z_keep;
+          let src1_eff : ymmword = src1 & z_keep;
+          var result : ymmword = zeros();
           foreach (i from 0 to 3) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_ymm(dst, result)
         },
@@ -1974,12 +1958,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
           let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : xmmword = read_xmm(dst) & z_keep;
+          let src1_eff : xmmword = src1 & z_keep;
+          var result : xmmword = zeros();
           foreach (i from 0 to 1) {
-            if k[i] == bitone then
-              result[(i * 64 + 63) .. (i * 64)] = src2[(i * 64 + 63) .. (i * 64)]
-            else if ~(pfx.evex_z) then
-              result[(i * 64 + 63) .. (i * 64)] = src1[(i * 64 + 63) .. (i * 64)]
+            result[(i * 64 + 63) .. (i * 64)] = blend64(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i..i])
           };
           write_xmm(dst, result)
         },
@@ -1991,12 +1973,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
           let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : zmmword = read_zmm(dst) & z_keep;
+          let src1_eff : zmmword = src1 & z_keep;
+          var result : zmmword = zeros();
           foreach (i from 0 to 15) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_zmm(dst, result)
         },
@@ -2004,12 +1984,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
           let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : ymmword = read_ymm(dst) & z_keep;
+          let src1_eff : ymmword = src1 & z_keep;
+          var result : ymmword = zeros();
           foreach (i from 0 to 7) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_ymm(dst, result)
         },
@@ -2017,12 +1995,10 @@ function dispatch_evex_perm(op, pfx) = {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
           let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
-          var result : xmmword = read_xmm(dst) & z_keep;
+          let src1_eff : xmmword = src1 & z_keep;
+          var result : xmmword = zeros();
           foreach (i from 0 to 3) {
-            if k[i] == bitone then
-              result[(i * 32 + 31) .. (i * 32)] = src2[(i * 32 + 31) .. (i * 32)]
-            else if ~(pfx.evex_z) then
-              result[(i * 32 + 31) .. (i * 32)] = src1[(i * 32 + 31) .. (i * 32)]
+            result[(i * 32 + 31) .. (i * 32)] = blend32(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i..i])
           };
           write_xmm(dst, result)
         },
