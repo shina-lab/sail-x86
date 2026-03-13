@@ -167,8 +167,8 @@ function update_flags_sbb(result, a, b, borrow_in) = {
 //   8=S  9=NS  A=P   B=NP  C=L   D=GE  E=LE  F=G
 type cc_idx = range(0, 15)
 
-val eval_cc : cc_idx -> bool
-function eval_cc(cc) = {
+val eval_cc_bit : cc_idx -> bit
+function eval_cc_bit(cc) = {
   let sf_ne_of : bits(1) = SF ^ OF;
   let results : bits(16) =
     (~(ZF) & ~(sf_ne_of)) @  // F: G/NLE
@@ -187,8 +187,11 @@ function eval_cc(cc) = {
     CF @                     // 2: B/C/NAE
     (~(OF)) @                // 1: NO
     OF;                      // 0: O
-  results[cc] == bitone
+  results[cc]
 }
+
+val eval_cc : cc_idx -> bool
+function eval_cc(cc) = eval_cc_bit(cc) == bitone
 
 // Update flags for logical operations (AND, OR, XOR).
 // CF and OF are cleared; AF is undefined per SDM.

@@ -759,13 +759,24 @@ function decode_execute() = {
           OS64 => signed(src) * signed(imm),
         };
         let result : qword = to_bits_truncate(product);
-        let truncated : bool = match os {
-          OS8  => product != signed(result[7..0]),
-          OS16 => product != signed(result[15..0]),
-          OS32 => product != signed(result[31..0]),
-          OS64 => product != signed(result),
+        CF = match os {
+          OS8  => {
+            let w : bits(16) = to_bits_truncate(product);
+            (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
+          },
+          OS16 => {
+            let w : bits(32) = to_bits_truncate(product);
+            (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+          },
+          OS32 => {
+            let w : bits(64) = to_bits_truncate(product);
+            (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+          },
+          OS64 => {
+            let w : bits(128) = to_bits_truncate(product);
+            (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+          },
         };
-        CF = bool_to_bit(truncated);
         OF = CF;
         write_gpr(reg, os, result)
       },
@@ -793,13 +804,24 @@ function decode_execute() = {
           OS64 => signed(src) * signed(imm),
         };
         let result : qword = to_bits_truncate(product);
-        let truncated : bool = match os {
-          OS8  => product != signed(result[7..0]),
-          OS16 => product != signed(result[15..0]),
-          OS32 => product != signed(result[31..0]),
-          OS64 => product != signed(result),
+        CF = match os {
+          OS8  => {
+            let w : bits(16) = to_bits_truncate(product);
+            (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
+          },
+          OS16 => {
+            let w : bits(32) = to_bits_truncate(product);
+            (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+          },
+          OS32 => {
+            let w : bits(64) = to_bits_truncate(product);
+            (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+          },
+          OS64 => {
+            let w : bits(128) = to_bits_truncate(product);
+            (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+          },
         };
-        CF = bool_to_bit(truncated);
         OF = CF;
         write_gpr(reg, os, result)
       },

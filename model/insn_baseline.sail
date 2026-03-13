@@ -782,7 +782,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 144;
       let modrm = fetch_byte();
       let rm = decode_rm(modrm, pfx);
-      let v : qword = zero_extend(bool_to_bit(eval_cc(cc)));
+      let v : qword = zero_extend(eval_cc_bit(cc));
       write_rm_val(rm, OS8, pfx.has_rex, v)
     },
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
@@ -970,13 +970,24 @@ function dispatch_2byte_gpr(op, pfx) = {
         OS64 => signed(a) * signed(b),
       };
       let result : qword = to_bits_truncate(product);
-      let truncated : bool = match os {
-        OS8  => product != signed(result[7..0]),
-        OS16 => product != signed(result[15..0]),
-        OS32 => product != signed(result[31..0]),
-        OS64 => product != signed(result),
+      CF = match os {
+        OS8  => {
+          let w : bits(16) = to_bits_truncate(product);
+          (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
+        },
+        OS16 => {
+          let w : bits(32) = to_bits_truncate(product);
+          (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+        },
+        OS32 => {
+          let w : bits(64) = to_bits_truncate(product);
+          (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+        },
+        OS64 => {
+          let w : bits(128) = to_bits_truncate(product);
+          (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+        },
       };
-      CF = bool_to_bit(truncated);
       OF = CF;
       write_gpr(reg, os, result)
     },
@@ -1128,8 +1139,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           OS64 => ctz64(src_val),
         };
         write_gpr(reg, os, to_bits_truncate(count));
-        CF = bool_to_bit(count == os_bits);
-        ZF = bool_to_bit(count == 0)
+        CF = match os {
+          OS8  => (~(or_reduce_8(src_val[7..0])))[0],
+          OS16 => (~(or_reduce_16(src_val[15..0])))[0],
+          OS32 => (~(or_reduce_32(src_val[31..0])))[0],
+          OS64 => (~(or_reduce_64(src_val)))[0],
+        };
+        ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
         let src_val = read_rm_val(rm, os, pfx.has_rex);
@@ -1171,8 +1187,18 @@ function dispatch_2byte_gpr(op, pfx) = {
           OS64 => clz64(src_val),
         };
         write_gpr(reg, os, to_bits_truncate(count));
-        CF = bool_to_bit(count == os_bits);
-        ZF = bool_to_bit(count == 0)
+        CF = match os {
+          OS8  => (~(or_reduce_8(src_val[7..0])))[0],
+          OS16 => (~(or_reduce_16(src_val[15..0])))[0],
+          OS32 => (~(or_reduce_32(src_val[31..0])))[0],
+          OS64 => (~(or_reduce_64(src_val)))[0],
+        };
+        ZF = match os {
+          OS8  => src_val[7],
+          OS16 => src_val[15],
+          OS32 => src_val[31],
+          OS64 => src_val[63],
+        }
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
         let src_val = read_rm_val(rm, os, pfx.has_rex);
@@ -1275,7 +1301,12 @@ function dispatch_2byte_gpr(op, pfx) = {
         OS64 => popcount32(src_val[31..0]) + popcount32(src_val[63..32]),
       };
       OF = bitzero; SF = bitzero; AF = bitzero; CF = bitzero; PF = bitzero;
-      ZF = bool_to_bit(count == 0);
+      ZF = match os {
+        OS8  => (~(or_reduce_8(src_val[7..0])))[0],
+        OS16 => (~(or_reduce_16(src_val[15..0])))[0],
+        OS32 => (~(or_reduce_32(src_val[31..0])))[0],
+        OS64 => (~(or_reduce_64(src_val)))[0],
+      };
       write_gpr(reg, os, to_bits_truncate(count))
     },
     // 0F C3: MOVNTI m32/64, r
