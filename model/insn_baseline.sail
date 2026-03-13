@@ -764,10 +764,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      if eval_cc(cc) == bitone then {
-        let v = read_rm_val(rm, os, pfx.has_rex);
-        write_gpr(reg, os, v);
-      }
+      let src = read_rm_val(rm, os, pfx.has_rex);
+      let dst = read_gpr(reg, os);
+      let mask : qword = zeros() - zero_extend(eval_cc(cc));
+      write_gpr(reg, os, (src & mask) | (dst & ~(mask)))
     },
     // 0F 80-8F: Jcc rel32 (f64)
     op if 128 <= op & op <= 143 => {
