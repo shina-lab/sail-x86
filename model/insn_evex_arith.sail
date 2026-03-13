@@ -1798,7 +1798,7 @@ function avx_vpconflictd_128(src) = {
       if j < i then {
         let jlo : range(0, 96) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1817,7 +1817,7 @@ function avx_vpconflictd_256(src) = {
       if j < i then {
         let jlo : range(0, 224) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1836,7 +1836,7 @@ function avx_vpconflictd_512(src) = {
       if j < i then {
         let jlo : range(0, 480) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1855,7 +1855,7 @@ function avx_vpconflictq_128(src) = {
       if j < i then {
         let jlo : range(0, 64) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1874,7 +1874,7 @@ function avx_vpconflictq_256(src) = {
       if j < i then {
         let jlo : range(0, 192) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1893,7 +1893,7 @@ function avx_vpconflictq_512(src) = {
       if j < i then {
         let jlo : range(0, 448) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = bool_to_bit(elem_i == elem_j);
+        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
       }
     };
     result[(ilo + 63)..ilo] = mask;

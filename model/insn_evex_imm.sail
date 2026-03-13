@@ -1336,10 +1336,12 @@ function gf2p8_affine(src, matrix, imm8) = {
     let row_lo : range(0, 56) = (7 - i) * 8;
     let row : byte = matrix[(row_lo + 7)..row_lo];
     let product : byte = src & row;
-    // XOR-reduce via popcount parity
-    let bit : bit = bool_to_bit(popcount8(product) % 2 == 1);
+    // XOR-reduce via tree fold
+    let x4 : bits(4) = product[7..4] ^ product[3..0];
+    let x2 : bits(2) = x4[3..2] ^ x4[1..0];
+    let bit : bit = (x2[1..1] ^ x2[0..0])[0];
     // XOR with imm8 bit
-    r[i] = bool_to_bit(bit != imm8[i]);
+    r[i] = bit ^ imm8[i];
   };
   r
 }
