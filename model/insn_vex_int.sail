@@ -849,8 +849,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let v1 : bits(16) = read_kreg(k1)[15..0];
     let v2 : bits(16) = read_kreg(k2)[15..0];
     let result : bits(16) = v1 | v2;
-    ZF = bool_to_bit(result == zeros());
-    CF = bool_to_bit(result == ones());
+    ZF = (~(or_reduce_16(result)))[0];
+    CF = (~(or_reduce_16(~(result))))[0];
     SF = bitzero;
     OF = bitzero;
     PF = bitzero;
@@ -864,8 +864,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let v1 : bits(16) = read_kreg(k1)[15..0];
     let v2 : bits(16) = read_kreg(k2)[15..0];
-    ZF = bool_to_bit((v1 & v2) == zeros());
-    CF = bool_to_bit((~(v1) & v2) == zeros());
+    ZF = (~(or_reduce_16(v1 & v2)))[0];
+    CF = (~(or_reduce_16(~(v1) & v2)))[0];
     SF = bitzero;
     OF = bitzero;
     PF = bitzero;

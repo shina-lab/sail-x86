@@ -42,7 +42,7 @@ function exec_mul(src, os) = {
       let b : int = unsigned(src[7..0]);
       let result : word = to_bits_truncate(a * b);
       write_gpr16(RAX, result);
-      CF = bool_to_bit(result[15..8] != zeros());
+      CF = (or_reduce_8(result[15..8]))[0];
       OF = CF;
     },
     OS16 => {
@@ -51,7 +51,7 @@ function exec_mul(src, os) = {
       let result : dword = to_bits_truncate(a * b);
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
-      CF = bool_to_bit(result[31..16] != zeros());
+      CF = (or_reduce_16(result[31..16]))[0];
       OF = CF;
     },
     OS32 => {
@@ -60,7 +60,7 @@ function exec_mul(src, os) = {
       let result : qword = to_bits_truncate(a * b);
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
-      CF = bool_to_bit(result[63..32] != zeros());
+      CF = (or_reduce_32(result[63..32]))[0];
       OF = CF;
     },
     OS64 => {
@@ -70,7 +70,7 @@ function exec_mul(src, os) = {
       let result : xmmword = to_bits_truncate(product);
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
-      CF = bool_to_bit(result[127..64] != zeros());
+      CF = (or_reduce_64(result[127..64]))[0];
       OF = CF;
     },
   }
@@ -401,14 +401,14 @@ function exec_shl(a, count_raw, os) = {
         CF = if count <= 8 then a[8 - count] else undefined;
         update_SF_ZF_PF(result[7..0]);
         if count == 1 then
-          OF = bool_to_bit(result[7] != CF)
+          OF = (result[7..7] ^ CF)[0]
         else OF = undefined
       },
       OS16 => {
         CF = if count <= 16 then a[16 - count] else undefined;
         update_SF_ZF_PF(result[15..0]);
         if count == 1 then
-          OF = bool_to_bit(result[15] != CF)
+          OF = (result[15..15] ^ CF)[0]
         else OF = undefined
       },
       OS32 => {
@@ -417,7 +417,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[32 - c];
         update_SF_ZF_PF(result[31..0]);
         if count == 1 then
-          OF = bool_to_bit(result[31] != CF)
+          OF = (result[31..31] ^ CF)[0]
         else OF = undefined
       },
       OS64 => {
@@ -426,7 +426,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[64 - c];
         update_SF_ZF_PF(result);
         if count == 1 then
-          OF = bool_to_bit(result[63] != CF)
+          OF = (result[63..63] ^ CF)[0]
         else OF = undefined
       },
     };
@@ -560,10 +560,10 @@ function exec_rol(a, count_raw, os) = {
     };
     CF = result[0];
     if count == 1 then match os {
-      OS8  => OF = bool_to_bit(result[7] != CF),
-      OS16 => OF = bool_to_bit(result[15] != CF),
-      OS32 => OF = bool_to_bit(result[31] != CF),
-      OS64 => OF = bool_to_bit(result[63] != CF),
+      OS8  => OF = (result[7..7] ^ CF)[0],
+      OS16 => OF = (result[15..15] ^ CF)[0],
+      OS32 => OF = (result[31..31] ^ CF)[0],
+      OS64 => OF = (result[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };
@@ -602,10 +602,10 @@ function exec_ror(a, count_raw, os) = {
       OS64 => CF = result[63],
     };
     if count == 1 then match os {
-      OS8  => OF = bool_to_bit(result[7] != result[6]),
-      OS16 => OF = bool_to_bit(result[15] != result[14]),
-      OS32 => OF = bool_to_bit(result[31] != result[30]),
-      OS64 => OF = bool_to_bit(result[63] != result[62]),
+      OS8  => OF = (result[7..7] ^ result[6..6])[0],
+      OS16 => OF = (result[15..15] ^ result[14..14])[0],
+      OS32 => OF = (result[31..31] ^ result[30..30])[0],
+      OS64 => OF = (result[63..63] ^ result[62..62])[0],
     } else {
       OF = undefined;
     };
@@ -668,10 +668,10 @@ function exec_rcl(a, count_raw, os) = {
     };
     CF = cf_bit;
     if masked == 1 then match os {
-      OS8  => OF = bool_to_bit(val8[7] != CF),
-      OS16 => OF = bool_to_bit(val16[15] != CF),
-      OS32 => OF = bool_to_bit(val32[31] != CF),
-      OS64 => OF = bool_to_bit(val64[63] != CF),
+      OS8  => OF = (val8[7..7] ^ CF)[0],
+      OS16 => OF = (val16[15..15] ^ CF)[0],
+      OS32 => OF = (val32[31..31] ^ CF)[0],
+      OS64 => OF = (val64[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };
@@ -707,10 +707,10 @@ function exec_rcr(a, count_raw, os) = {
     var val64 : qword = a;
     // OF is set before the rotate for RCR
     if masked == 1 then match os {
-      OS8  => OF = bool_to_bit(val8[7] != CF),
-      OS16 => OF = bool_to_bit(val16[15] != CF),
-      OS32 => OF = bool_to_bit(val32[31] != CF),
-      OS64 => OF = bool_to_bit(val64[63] != CF),
+      OS8  => OF = (val8[7..7] ^ CF)[0],
+      OS16 => OF = (val16[15..15] ^ CF)[0],
+      OS32 => OF = (val32[31..31] ^ CF)[0],
+      OS64 => OF = (val64[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };

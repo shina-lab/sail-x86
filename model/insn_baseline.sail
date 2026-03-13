@@ -199,7 +199,7 @@ function exec_shld(d, s, count_raw, os) = {
           CF = wide[32 - count];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = bool_to_bit(r[15] != d[15])
+            OF = (r[15..15] ^ d[15..15])[0]
           else OF = undefined;
           zero_extend(r)
         }
@@ -211,7 +211,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[64 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = bool_to_bit(r[31] != d[31])
+          OF = (r[31..31] ^ d[31..31])[0]
         else OF = undefined;
         zero_extend(r)
       },
@@ -222,7 +222,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[128 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = bool_to_bit(r[63] != d[63])
+          OF = (r[63..63] ^ d[63..63])[0]
         else OF = undefined;
         r
       },
@@ -264,7 +264,7 @@ function exec_shrd(d, s, count_raw, os) = {
           CF = d[count - 1];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = bool_to_bit(r[15] != d[15])
+            OF = (r[15..15] ^ d[15..15])[0]
           else OF = undefined;
           zero_extend(r)
         }
@@ -276,7 +276,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = bool_to_bit(r[31] != d[31])
+          OF = (r[31..31] ^ d[31..31])[0]
         else OF = undefined;
         zero_extend(r)
       },
@@ -287,7 +287,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = bool_to_bit(r[63] != d[63])
+          OF = (r[63..63] ^ d[63..63])[0]
         else OF = undefined;
         r
       },

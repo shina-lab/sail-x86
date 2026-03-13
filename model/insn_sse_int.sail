@@ -2587,8 +2587,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let b : xmmword = src_xmm;
       let temp1 : xmmword = a & b;
       let temp2 : xmmword = (not_vec(a)) & b;
-      ZF = bool_to_bit(temp1 == zeros());
-      CF = bool_to_bit(temp2 == zeros());
+      ZF = (~(or_reduce_64(temp1[127..64] | temp1[63..0])))[0];
+      CF = (~(or_reduce_64(temp2[127..64] | temp2[63..0])))[0];
       OF = bitzero;
       AF = bitzero;
       PF = bitzero;
