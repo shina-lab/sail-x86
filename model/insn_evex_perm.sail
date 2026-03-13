@@ -439,13 +439,12 @@ val avx_vexpandps_128 : (xmmword, byte) -> xmmword
 function avx_vexpandps_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 96) = i * 32;
-      let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
-      result[(dst_lo + 31)..dst_lo] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 96) = i * 32;
+    let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result[(dst_lo + 31)..dst_lo] = src_elem & lane_mask;
   };
   result
 }
@@ -454,13 +453,12 @@ val avx_vexpandps_256 : (ymmword, byte) -> ymmword
 function avx_vexpandps_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 224) = i * 32;
-      let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
-      result[(dst_lo + 31)..dst_lo] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 224) = i * 32;
+    let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result[(dst_lo + 31)..dst_lo] = src_elem & lane_mask;
   };
   result
 }
@@ -469,13 +467,12 @@ val avx_vexpandps_512 : (zmmword, word) -> zmmword
 function avx_vexpandps_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 480) = i * 32;
-      let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
-      result[(dst_lo + 31)..dst_lo] = src_elem;
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 480) = i * 32;
+    let src_elem : dword = get_slice_int(32, unsigned(src), j * 32);
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result[(dst_lo + 31)..dst_lo] = src_elem & lane_mask;
   };
   result
 }
@@ -484,13 +481,12 @@ val avx_vexpandpd_128 : (xmmword, byte) -> xmmword
 function avx_vexpandpd_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 64) = i * 64;
-      let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
-      result[(dst_lo + 63)..dst_lo] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 64) = i * 64;
+    let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result[(dst_lo + 63)..dst_lo] = src_elem & lane_mask;
   };
   result
 }
@@ -499,13 +495,12 @@ val avx_vexpandpd_256 : (ymmword, byte) -> ymmword
 function avx_vexpandpd_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 192) = i * 64;
-      let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
-      result[(dst_lo + 63)..dst_lo] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 192) = i * 64;
+    let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result[(dst_lo + 63)..dst_lo] = src_elem & lane_mask;
   };
   result
 }
@@ -514,13 +509,12 @@ val avx_vexpandpd_512 : (zmmword, byte) -> zmmword
 function avx_vexpandpd_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let dst_lo : range(0, 448) = i * 64;
-      let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
-      result[(dst_lo + 63)..dst_lo] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let dst_lo : range(0, 448) = i * 64;
+    let src_elem : qword = get_slice_int(64, unsigned(src), j * 64);
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result[(dst_lo + 63)..dst_lo] = src_elem & lane_mask;
   };
   result
 }

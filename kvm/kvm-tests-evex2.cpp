@@ -490,6 +490,63 @@ void add_evex_tests_2(std::vector<TestCase> &tests) {
              0x62, 0xF2, 0x7D, 0x09, 0x88, 0xC1},  // VEXPANDPS xmm0{k1}, xmm1
             s, 0x3);
 
+    // VEXPANDPS ymm0{k1}{z}, ymm1: 256-bit, zero masking
+    // EVEX.256.66.0F38.W0 88 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0b01010101 → expand src[0..3] into positions 0,2,4,6
+    add_xmm("vexpandps ymm: k1=55h",
+            {0xB8, 0x55, 0x00, 0x00, 0x00,        // MOV eax, 0x55
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0xA9, 0x88, 0xC1},  // VEXPANDPS ymm0{k1}{z}, ymm1
+            s, 0x3);
+
+    // VEXPANDPS zmm0{k1}{z}, zmm1: 512-bit, zero masking
+    // EVEX.512.66.0F38.W0 88 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0b0000000000000101 → expand src[0..1] into positions 0,2
+    add_xmm("vexpandps zmm: k1=0005h",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0xC9, 0x88, 0xC1},  // VEXPANDPS zmm0{k1}{z}, zmm1
+            s, 0x3);
+
+    // VEXPANDPD xmm0{k1}{z}, xmm1: 128-bit double, zero masking
+    // EVEX.128.66.0F38.W1 88 /r
+    // P2=0x89 (z=1, L'L=00, aaa=001)
+    // k1=0b01 → expand src[0] into position 0
+    add_xmm("vexpandpd xmm: k1=01h",
+            {0xB8, 0x01, 0x00, 0x00, 0x00,        // MOV eax, 1
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0x89, 0x88, 0xC1},  // VEXPANDPD xmm0{k1}{z}, xmm1
+            s, 0x3);
+
+    // VEXPANDPD xmm0{k1}{z}, xmm1: k1=0b11 → all elements
+    add_xmm("vexpandpd xmm: k1=03h",
+            {0xB8, 0x03, 0x00, 0x00, 0x00,        // MOV eax, 3
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0x89, 0x88, 0xC1},  // VEXPANDPD xmm0{k1}{z}, xmm1
+            s, 0x3);
+
+    // VEXPANDPD ymm0{k1}{z}, ymm1: 256-bit double, zero masking
+    // EVEX.256.66.0F38.W1 88 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0b0101 → expand src[0..1] into positions 0,2
+    add_xmm("vexpandpd ymm: k1=05h",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0xA9, 0x88, 0xC1},  // VEXPANDPD ymm0{k1}{z}, ymm1
+            s, 0x3);
+
+    // VEXPANDPD zmm0{k1}{z}, zmm1: 512-bit double, zero masking
+    // EVEX.512.66.0F38.W1 88 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0b10100101 → expand src[0..3] into positions 0,2,5,7
+    add_xmm("vexpandpd zmm: k1=A5h",
+            {0xB8, 0xA5, 0x00, 0x00, 0x00,        // MOV eax, 0xA5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0xC9, 0x88, 0xC1},  // VEXPANDPD zmm0{k1}{z}, zmm1
+            s, 0x3);
+
     // VCOMPRESSPS [rdi]{k1}, xmm1: memory store form, writes only compressed elements
     // EVEX.128.66.0F38.W0 8A /r: reg=xmm1(src), rm=[rdi](dst)
     // modrm: mod=00, reg=001, rm=111 → 0x0F
