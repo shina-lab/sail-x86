@@ -547,6 +547,63 @@ void add_evex_tests_2(std::vector<TestCase> &tests) {
              0x62, 0xF2, 0xFD, 0xC9, 0x88, 0xC1},  // VEXPANDPD zmm0{k1}{z}, zmm1
             s, 0x3);
 
+    // VCOMPRESSPS ymm0{k1}{z}, ymm1: 256-bit, zero masking
+    // EVEX.256.66.0F38.W0 8A /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0b01010101 → elements 0,2,4,6 compress to positions 0-3
+    add_xmm("vcompressps ymm: k1=55h",
+            {0xB8, 0x55, 0x00, 0x00, 0x00,        // MOV eax, 0x55
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0xA9, 0x8A, 0xC8},  // VCOMPRESSPS ymm0{k1}{z}, ymm1
+            s, 0x3);
+
+    // VCOMPRESSPS zmm0{k1}{z}, zmm1: 512-bit, zero masking
+    // EVEX.512.66.0F38.W0 8A /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0b0000000000000101 → elements 0,2 compress to positions 0,1
+    add_xmm("vcompressps zmm: k1=0005h",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0x7D, 0xC9, 0x8A, 0xC8},  // VCOMPRESSPS zmm0{k1}{z}, zmm1
+            s, 0x3);
+
+    // VCOMPRESSPD xmm0{k1}{z}, xmm1: 128-bit double, zero masking
+    // EVEX.128.66.0F38.W1 8A /r
+    // P2=0x89 (z=1, L'L=00, aaa=001)
+    // k1=0b01 → element 0 stays, element 1 zeroed
+    add_xmm("vcompresspd xmm: k1=01h",
+            {0xB8, 0x01, 0x00, 0x00, 0x00,        // MOV eax, 1
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0x89, 0x8A, 0xC8},  // VCOMPRESSPD xmm0{k1}{z}, xmm1
+            s, 0x3);
+
+    // VCOMPRESSPD xmm0{k1}{z}, xmm1: k1=0b11 → all elements
+    add_xmm("vcompresspd xmm: k1=03h",
+            {0xB8, 0x03, 0x00, 0x00, 0x00,        // MOV eax, 3
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0x89, 0x8A, 0xC8},  // VCOMPRESSPD xmm0{k1}{z}, xmm1
+            s, 0x3);
+
+    // VCOMPRESSPD ymm0{k1}{z}, ymm1: 256-bit double, zero masking
+    // EVEX.256.66.0F38.W1 8A /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0b0101 → elements 0,2 compress to positions 0,1
+    add_xmm("vcompresspd ymm: k1=05h",
+            {0xB8, 0x05, 0x00, 0x00, 0x00,        // MOV eax, 5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0xA9, 0x8A, 0xC8},  // VCOMPRESSPD ymm0{k1}{z}, ymm1
+            s, 0x3);
+
+    // VCOMPRESSPD zmm0{k1}{z}, zmm1: 512-bit double, zero masking
+    // EVEX.512.66.0F38.W1 8A /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0b10100101 → elements 0,2,5,7 compress to positions 0-3
+    add_xmm("vcompresspd zmm: k1=A5h",
+            {0xB8, 0xA5, 0x00, 0x00, 0x00,        // MOV eax, 0xA5
+             0xC5, 0xF8, 0x92, 0xC8,               // KMOVW k1, eax
+             0x62, 0xF2, 0xFD, 0xC9, 0x8A, 0xC8},  // VCOMPRESSPD zmm0{k1}{z}, zmm1
+            s, 0x3);
+
     // VCOMPRESSPS [rdi]{k1}, xmm1: memory store form, writes only compressed elements
     // EVEX.128.66.0F38.W0 8A /r: reg=xmm1(src), rm=[rdi](dst)
     // modrm: mod=00, reg=001, rm=111 → 0x0F
@@ -981,6 +1038,94 @@ void add_evex_tests_2(std::vector<TestCase> &tests) {
       sk.kregs[1] = 0x0A;
       add_xmm("vpexpandw xmm0,xmm1 k1=0x0A",
               {0x62, 0xF2, 0xFD, 0x09, 0x62, 0xC1}, sk, 0x3);
+    }
+
+    // VPCOMPRESSB ymm0{k1}{z}, ymm1: 256-bit, zero masking
+    // EVEX.256.66.0F38.W0 63 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0x00FF → first 8 bytes compress to positions 0-7
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x00FF;
+      add_xmm("vpcompressb ymm: k1=00FFh",
+              {0x62, 0xF2, 0x7D, 0xA9, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPCOMPRESSB zmm0{k1}{z}, zmm1: 512-bit, zero masking
+    // EVEX.512.66.0F38.W0 63 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0x0F → first 4 bytes
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0F;
+      add_xmm("vpcompressb zmm: k1=000Fh",
+              {0x62, 0xF2, 0x7D, 0xC9, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPEXPANDB ymm0{k1}{z}, ymm1: 256-bit, zero masking
+    // EVEX.256.66.0F38.W0 62 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0x5555 → expand into even positions
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x5555;
+      add_xmm("vpexpandb ymm: k1=5555h",
+              {0x62, 0xF2, 0x7D, 0xA9, 0x62, 0xC1}, sk, 0x3);
+    }
+
+    // VPEXPANDB zmm0{k1}{z}, zmm1: 512-bit, zero masking
+    // EVEX.512.66.0F38.W0 62 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0x0F → first 4 positions
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0F;
+      add_xmm("vpexpandb zmm: k1=000Fh",
+              {0x62, 0xF2, 0x7D, 0xC9, 0x62, 0xC1}, sk, 0x3);
+    }
+
+    // VPCOMPRESSW ymm0{k1}{z}, ymm1: 256-bit word compress
+    // EVEX.256.66.0F38.W1 63 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0x55 → words 0,2,4,6 compress to positions 0-3
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x55;
+      add_xmm("vpcompressw ymm: k1=55h",
+              {0x62, 0xF2, 0xFD, 0xA9, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPCOMPRESSW zmm0{k1}{z}, zmm1: 512-bit word compress
+    // EVEX.512.66.0F38.W1 63 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0x0F → first 4 words
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0F;
+      add_xmm("vpcompressw zmm: k1=000Fh",
+              {0x62, 0xF2, 0xFD, 0xC9, 0x63, 0xC8}, sk, 0x3);
+    }
+
+    // VPEXPANDW ymm0{k1}{z}, ymm1: 256-bit word expand
+    // EVEX.256.66.0F38.W1 62 /r
+    // P2=0xA9 (z=1, L'L=01, aaa=001)
+    // k1=0x55 → expand into even word positions
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x55;
+      add_xmm("vpexpandw ymm: k1=55h",
+              {0x62, 0xF2, 0xFD, 0xA9, 0x62, 0xC1}, sk, 0x3);
+    }
+
+    // VPEXPANDW zmm0{k1}{z}, zmm1: 512-bit word expand
+    // EVEX.512.66.0F38.W1 62 /r
+    // P2=0xC9 (z=1, L'L=10, aaa=001)
+    // k1=0x0F → first 4 word positions
+    {
+      ArchState sk = s;
+      sk.kregs[1] = 0x0F;
+      add_xmm("vpexpandw zmm: k1=000Fh",
+              {0x62, 0xF2, 0xFD, 0xC9, 0x62, 0xC1}, sk, 0x3);
     }
   }
 

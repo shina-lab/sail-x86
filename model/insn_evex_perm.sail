@@ -525,13 +525,12 @@ val avx_vcompressps_128 : (xmmword, byte) -> xmmword
 function avx_vcompressps_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 96) = i * 32;
-      let src_elem : dword = src[(src_lo + 31)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 32));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 96) = i * 32;
+    let src_elem : dword = src[(src_lo + 31)..src_lo];
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 32));
   };
   result
 }
@@ -540,13 +539,12 @@ val avx_vcompressps_256 : (ymmword, byte) -> ymmword
 function avx_vcompressps_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 224) = i * 32;
-      let src_elem : dword = src[(src_lo + 31)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 32));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 224) = i * 32;
+    let src_elem : dword = src[(src_lo + 31)..src_lo];
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 32));
   };
   result
 }
@@ -555,13 +553,12 @@ val avx_vcompressps_512 : (zmmword, word) -> zmmword
 function avx_vcompressps_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 480) = i * 32;
-      let src_elem : dword = src[(src_lo + 31)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 32));
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 480) = i * 32;
+    let src_elem : dword = src[(src_lo + 31)..src_lo];
+    let lane_mask : dword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 32));
   };
   result
 }
@@ -570,13 +567,12 @@ val avx_vcompresspd_128 : (xmmword, byte) -> xmmword
 function avx_vcompresspd_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 64) = i * 64;
-      let src_elem : qword = src[(src_lo + 63)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 64));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 64) = i * 64;
+    let src_elem : qword = src[(src_lo + 63)..src_lo];
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 64));
   };
   result
 }
@@ -585,13 +581,12 @@ val avx_vcompresspd_256 : (ymmword, byte) -> ymmword
 function avx_vcompresspd_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 192) = i * 64;
-      let src_elem : qword = src[(src_lo + 63)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 64));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 192) = i * 64;
+    let src_elem : qword = src[(src_lo + 63)..src_lo];
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 64));
   };
   result
 }
@@ -600,13 +595,12 @@ val avx_vcompresspd_512 : (zmmword, byte) -> zmmword
 function avx_vcompresspd_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_lo : range(0, 448) = i * 64;
-      let src_elem : qword = src[(src_lo + 63)..src_lo];
-      result = result | (zero_extend(src_elem) << (j * 64));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_lo : range(0, 448) = i * 64;
+    let src_elem : qword = src[(src_lo + 63)..src_lo];
+    let lane_mask : qword = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 64));
   };
   result
 }
@@ -789,12 +783,11 @@ val avx_vpcompressb_128 : (xmmword, word) -> xmmword
 function avx_vpcompressb_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = truncate(src >> (i * 8), 8);
-      result = result | (zero_extend(src_elem) << (j * 8));
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = truncate(src >> (i * 8), 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 8));
   };
   result
 }
@@ -803,12 +796,11 @@ val avx_vpcompressb_256 : (ymmword, dword) -> ymmword
 function avx_vpcompressb_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
-      let j = popcount_dword(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = truncate(src >> (i * 8), 8);
-      result = result | (zero_extend(src_elem) << (j * 8));
-    };
+    let j = popcount_dword(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = truncate(src >> (i * 8), 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 8));
   };
   result
 }
@@ -817,12 +809,11 @@ val avx_vpcompressb_512 : (zmmword, qword) -> zmmword
 function avx_vpcompressb_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 63) {
-    if mask[i] == bitone then {
-      let j = popcount_qword(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = truncate(src >> (i * 8), 8);
-      result = result | (zero_extend(src_elem) << (j * 8));
-    };
+    let j = popcount_qword(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = truncate(src >> (i * 8), 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 8));
   };
   result
 }
@@ -832,12 +823,11 @@ val avx_vpcompressw_128 : (xmmword, byte) -> xmmword
 function avx_vpcompressw_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_elem : word = truncate(src >> (i * 16), 16);
-      result = result | (zero_extend(src_elem) << (j * 16));
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_elem : word = truncate(src >> (i * 16), 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 16));
   };
   result
 }
@@ -846,12 +836,11 @@ val avx_vpcompressw_256 : (ymmword, word) -> ymmword
 function avx_vpcompressw_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let src_elem : word = truncate(src >> (i * 16), 16);
-      result = result | (zero_extend(src_elem) << (j * 16));
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let src_elem : word = truncate(src >> (i * 16), 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 16));
   };
   result
 }
@@ -860,12 +849,11 @@ val avx_vpcompressw_512 : (zmmword, dword) -> zmmword
 function avx_vpcompressw_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
-      let j = popcount_dword(mask, i);
-      assert(j >= 0);
-      let src_elem : word = truncate(src >> (i * 16), 16);
-      result = result | (zero_extend(src_elem) << (j * 16));
-    };
+    let j = popcount_dword(mask, i);
+    assert(j >= 0);
+    let src_elem : word = truncate(src >> (i * 16), 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 16));
   };
   result
 }
@@ -950,12 +938,11 @@ val avx_vpexpandb_128 : (xmmword, word) -> xmmword
 function avx_vpexpandb_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
-      result[(i * 8 + 7)..(i * 8)] = src_elem;
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result[(i * 8 + 7)..(i * 8)] = src_elem & lane_mask;
   };
   result
 }
@@ -964,12 +951,11 @@ val avx_vpexpandb_256 : (ymmword, dword) -> ymmword
 function avx_vpexpandb_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
-      let j = popcount_dword(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
-      result[(i * 8 + 7)..(i * 8)] = src_elem;
-    };
+    let j = popcount_dword(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result[(i * 8 + 7)..(i * 8)] = src_elem & lane_mask;
   };
   result
 }
@@ -978,12 +964,11 @@ val avx_vpexpandb_512 : (zmmword, qword) -> zmmword
 function avx_vpexpandb_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 63) {
-    if mask[i] == bitone then {
-      let j = popcount_qword(mask, i);
-      assert(j >= 0);
-      let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
-      result[(i * 8 + 7)..(i * 8)] = src_elem;
-    };
+    let j = popcount_qword(mask, i);
+    assert(j >= 0);
+    let src_elem : byte = get_slice_int(8, unsigned(src), j * 8);
+    let lane_mask : byte = sign_extend(mask[i..i]);
+    result[(i * 8 + 7)..(i * 8)] = src_elem & lane_mask;
   };
   result
 }
@@ -992,12 +977,11 @@ val avx_vpexpandw_128 : (xmmword, byte) -> xmmword
 function avx_vpexpandw_128(src, mask) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
-      let j = popcount_byte(mask, i);
-      assert(j >= 0);
-      let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
-      result[(i * 16 + 15)..(i * 16)] = src_elem;
-    };
+    let j = popcount_byte(mask, i);
+    assert(j >= 0);
+    let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result[(i * 16 + 15)..(i * 16)] = src_elem & lane_mask;
   };
   result
 }
@@ -1006,12 +990,11 @@ val avx_vpexpandw_256 : (ymmword, word) -> ymmword
 function avx_vpexpandw_256(src, mask) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
-      let j = popcount_word(mask, i);
-      assert(j >= 0);
-      let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
-      result[(i * 16 + 15)..(i * 16)] = src_elem;
-    };
+    let j = popcount_word(mask, i);
+    assert(j >= 0);
+    let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result[(i * 16 + 15)..(i * 16)] = src_elem & lane_mask;
   };
   result
 }
@@ -1020,12 +1003,11 @@ val avx_vpexpandw_512 : (zmmword, dword) -> zmmword
 function avx_vpexpandw_512(src, mask) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
-      let j = popcount_dword(mask, i);
-      assert(j >= 0);
-      let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
-      result[(i * 16 + 15)..(i * 16)] = src_elem;
-    };
+    let j = popcount_dword(mask, i);
+    assert(j >= 0);
+    let src_elem : word = get_slice_int(16, unsigned(src), j * 16);
+    let lane_mask : word = sign_extend(mask[i..i]);
+    result[(i * 16 + 15)..(i * 16)] = src_elem & lane_mask;
   };
   result
 }
