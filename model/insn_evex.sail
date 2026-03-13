@@ -286,9 +286,9 @@ function gf2p8_mul(a, b) = {
   var result : bits(9) = zeros();
   var aa : bits(9) = sail_zero_extend(a, 9);
   foreach (i from 0 to 7) {
-    result = result ^ (replicate_bits(b[i..i], 9) & aa);
+    result = result ^ (sign_extend(b[i..i]) & aa);
     aa = aa << 1;
-    aa = aa ^ (replicate_bits(aa[8..8], 9) & 0b100011011) // 0x11B
+    aa = aa ^ (sign_extend(aa[8..8]) & 0b100011011) // 0x11B
   };
   result[7..0]
 }

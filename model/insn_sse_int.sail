@@ -17,7 +17,7 @@ val crc32c_byte : (bits(32), byte) -> bits(32)
 function crc32c_byte(crc, data) = {
   var c : bits(32) = crc ^ zero_extend(data);
   foreach (i from 0 to 7) {
-    c = (0b0 @ c[31..1]) ^ (replicate_bits(c[0..0], 32) & 0x82F63B78)
+    c = (0b0 @ c[31..1]) ^ (sign_extend(c[0..0]) & 0x82F63B78)
   };
   c
 }
