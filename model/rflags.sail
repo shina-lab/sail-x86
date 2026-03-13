@@ -152,23 +152,25 @@ function update_flags_sbb(result, a, b, borrow_in) = {
 type cc_idx = range(0, 15)
 
 val eval_cc : cc_idx -> bool
-function eval_cc(cc) = match cc {
-  0  => OF == bitone,                                    // O
-  1  => OF == bitzero,                                   // NO
-  2  => CF == bitone,                                    // B/C/NAE
-  3  => CF == bitzero,                                   // AE/NB/NC
-  4  => ZF == bitone,                                    // E/Z
-  5  => ZF == bitzero,                                   // NE/NZ
-  6  => CF == bitone | ZF == bitone,                     // BE/NA
-  7  => CF == bitzero & ZF == bitzero,                   // A/NBE
-  8  => SF == bitone,                                    // S
-  9  => SF == bitzero,                                   // NS
-  10 => PF == bitone,                                    // P/PE
-  11 => PF == bitzero,                                   // NP/PO
-  12 => SF != OF,                                        // L/NGE
-  13 => SF == OF,                                        // GE/NL
-  14 => ZF == bitone | SF != OF,                         // LE/NG
-  15 => ZF == bitzero & SF == OF,                        // G/NLE
+function eval_cc(cc) = {
+  let results : bits(16) =
+    bool_to_bit(ZF == bitzero & SF == OF) @      // F: G/NLE
+    bool_to_bit(ZF == bitone | SF != OF) @       // E: LE/NG
+    bool_to_bit(SF == OF) @                       // D: GE/NL
+    bool_to_bit(SF != OF) @                       // C: L/NGE
+    bool_to_bit(PF == bitzero) @                  // B: NP/PO
+    bool_to_bit(PF == bitone) @                   // A: P/PE
+    bool_to_bit(SF == bitzero) @                  // 9: NS
+    bool_to_bit(SF == bitone) @                   // 8: S
+    bool_to_bit(CF == bitzero & ZF == bitzero) @  // 7: A/NBE
+    bool_to_bit(CF == bitone | ZF == bitone) @    // 6: BE/NA
+    bool_to_bit(ZF == bitzero) @                  // 5: NE/NZ
+    bool_to_bit(ZF == bitone) @                   // 4: E/Z
+    bool_to_bit(CF == bitzero) @                  // 3: AE/NB/NC
+    bool_to_bit(CF == bitone) @                   // 2: B/C/NAE
+    bool_to_bit(OF == bitzero) @                  // 1: NO
+    bool_to_bit(OF == bitone);                    // 0: O
+  results[cc] == bitone
 }
 
 // Update flags for logical operations (AND, OR, XOR).
