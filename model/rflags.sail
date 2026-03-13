@@ -66,10 +66,11 @@ function write_rflags(v) = {
 // PF is set if the number of set bits in the low byte is even.
 val compute_PF : byte -> bit
 function compute_PF(val8) = {
-  let p = val8[0] ^ val8[1] ^ val8[2] ^ val8[3] ^
-          val8[4] ^ val8[5] ^ val8[6] ^ val8[7];
+  let r4 : bits(4) = val8[7..4] ^ val8[3..0];
+  let r2 : bits(2) = r4[3..2] ^ r4[1..0];
+  let r1 : bits(1) = r2[1..1] ^ r2[0..0];
   // PF=1 means even parity, so invert
-  bool_to_bit(p == bitzero)
+  (~(r1))[0]
 }
 
 // Update SF, ZF, PF based on a result value.
@@ -77,7 +78,8 @@ function compute_PF(val8) = {
 val update_SF_ZF_PF : forall 'n, 'n >= 8. bits('n) -> unit
 function update_SF_ZF_PF(result) = {
   SF = result['n - 1];
-  ZF = bool_to_bit(result == zeros());
+  let zf_wide : bits('n + 1) = (0b0 @ result) - 1;
+  ZF = zf_wide['n];
   PF = compute_PF(result[7..0])
 }
 
@@ -85,8 +87,9 @@ function update_SF_ZF_PF(result) = {
 // Used by INC which must preserve CF.
 val update_flags_add_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_add_no_cf(result, a, b) = {
-  OF = bool_to_bit((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]));
-  AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]));
+  OF = (~(a['n - 1 .. 'n - 1] ^ b['n - 1 .. 'n - 1]) & (result['n - 1 .. 'n - 1] ^ a['n - 1 .. 'n - 1]))[0];
+  let af_wide : bits(5) = (0b0 @ a[3..0]) + (0b0 @ b[3..0]);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
@@ -94,54 +97,67 @@ function update_flags_add_no_cf(result, a, b) = {
 // Used by DEC which must preserve CF.
 val update_flags_sub_no_cf : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_sub_no_cf(result, a, b) = {
-  OF = bool_to_bit((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]));
-  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]));
+  OF = ((a['n - 1 .. 'n - 1] ^ b['n - 1 .. 'n - 1]) & (result['n - 1 .. 'n - 1] ^ a['n - 1 .. 'n - 1]))[0];
+  let af_wide : bits(5) = (0b0 @ a[3..0]) - (0b0 @ b[3..0]);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
 // Compute CF and OF for addition: dest = a + b.
 val update_flags_add : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_add(result, a, b) = {
-  // CF: unsigned overflow
-  CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(b));
-  // OF: signed overflow — occurs when both operands have the same sign
-  // but the result has a different sign
-  OF = bool_to_bit((a['n - 1] == b['n - 1]) & (result['n - 1] != a['n - 1]));
+  // CF: carry bit from wide addition
+  let cf_wide : bits('n + 1) = (0b0 @ a) + (0b0 @ b);
+  CF = cf_wide['n];
+  // OF: signed overflow — same sign inputs, different sign result
+  OF = (~(a['n - 1 .. 'n - 1] ^ b['n - 1 .. 'n - 1]) & (result['n - 1 .. 'n - 1] ^ a['n - 1 .. 'n - 1]))[0];
   // AF: carry out of bit 3
-  AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]));
+  let af_wide : bits(5) = (0b0 @ a[3..0]) + (0b0 @ b[3..0]);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
 // Compute CF and OF for subtraction: dest = a - b.
 val update_flags_sub : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n)) -> unit
 function update_flags_sub(result, a, b) = {
-  // CF: borrow (unsigned underflow)
-  CF = bool_to_bit(unsigned(a) < unsigned(b));
-  // OF: signed overflow — occurs when operands have different signs
-  // and result sign differs from first operand
-  OF = bool_to_bit((a['n - 1] != b['n - 1]) & (result['n - 1] != a['n - 1]));
+  // CF: borrow bit from wide subtraction
+  let cf_wide : bits('n + 1) = (0b0 @ a) - (0b0 @ b);
+  CF = cf_wide['n];
+  // OF: signed overflow — different sign inputs, result sign differs from a
+  OF = ((a['n - 1 .. 'n - 1] ^ b['n - 1 .. 'n - 1]) & (result['n - 1 .. 'n - 1] ^ a['n - 1 .. 'n - 1]))[0];
   // AF: borrow out of bit 3
-  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]));
+  let af_wide : bits(5) = (0b0 @ a[3..0]) - (0b0 @ b[3..0]);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
 // Compute CF and OF for addition with carry: dest = a + b + carry_in.
 val update_flags_adc : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_adc(result, a, b, carry_in) = {
-  let c : int = unsigned(zero_extend(carry_in) : bits(1));
-  CF = bool_to_bit(unsigned(result) != unsigned(a) + unsigned(b) + c);
-  OF = bool_to_bit(signed(result) != signed(a) + signed(b) + c);
-  AF = bool_to_bit(unsigned(result[3..0]) != unsigned(a[3..0]) + unsigned(b[3..0]) + c);
+  // CF: carry bit from wide addition with carry_in
+  let cf_wide : bits('n + 1) = (0b0 @ a) + (0b0 @ b) + zero_extend(carry_in);
+  CF = cf_wide['n];
+  // OF: signed overflow from wide signed addition
+  let of_wide : bits('n + 1) = sign_extend(a) + sign_extend(b) + zero_extend(carry_in);
+  OF = (of_wide['n .. 'n] ^ of_wide['n - 1 .. 'n - 1])[0];
+  // AF: nibble carry with carry_in
+  let af_wide : bits(5) = (0b0 @ a[3..0]) + (0b0 @ b[3..0]) + zero_extend(carry_in);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
 // Compute CF and OF for subtraction with borrow: dest = a - b - borrow_in.
 val update_flags_sbb : forall 'n, 'n >= 8. (bits('n), bits('n), bits('n), bit) -> unit
 function update_flags_sbb(result, a, b, borrow_in) = {
-  let bw : int = unsigned(zero_extend(borrow_in) : bits(1));
-  CF = bool_to_bit(unsigned(a) < unsigned(b) + bw);
-  OF = bool_to_bit(signed(result) != signed(a) - signed(b) - bw);
-  AF = bool_to_bit(unsigned(a[3..0]) < unsigned(b[3..0]) + bw);
+  // CF: borrow bit from wide subtraction with borrow_in
+  let cf_wide : bits('n + 1) = (0b0 @ a) - (0b0 @ b) - zero_extend(borrow_in);
+  CF = cf_wide['n];
+  // OF: signed overflow from wide signed subtraction
+  let of_wide : bits('n + 1) = sign_extend(a) - sign_extend(b) - zero_extend(borrow_in);
+  OF = (of_wide['n .. 'n] ^ of_wide['n - 1 .. 'n - 1])[0];
+  // AF: nibble borrow with borrow_in
+  let af_wide : bits(5) = (0b0 @ a[3..0]) - (0b0 @ b[3..0]) - zero_extend(borrow_in);
+  AF = af_wide[4];
   update_SF_ZF_PF(result)
 }
 
@@ -153,23 +169,24 @@ type cc_idx = range(0, 15)
 
 val eval_cc : cc_idx -> bool
 function eval_cc(cc) = {
+  let sf_ne_of : bits(1) = SF ^ OF;
   let results : bits(16) =
-    bool_to_bit(ZF == bitzero & SF == OF) @      // F: G/NLE
-    bool_to_bit(ZF == bitone | SF != OF) @       // E: LE/NG
-    bool_to_bit(SF == OF) @                       // D: GE/NL
-    bool_to_bit(SF != OF) @                       // C: L/NGE
-    bool_to_bit(PF == bitzero) @                  // B: NP/PO
-    bool_to_bit(PF == bitone) @                   // A: P/PE
-    bool_to_bit(SF == bitzero) @                  // 9: NS
-    bool_to_bit(SF == bitone) @                   // 8: S
-    bool_to_bit(CF == bitzero & ZF == bitzero) @  // 7: A/NBE
-    bool_to_bit(CF == bitone | ZF == bitone) @    // 6: BE/NA
-    bool_to_bit(ZF == bitzero) @                  // 5: NE/NZ
-    bool_to_bit(ZF == bitone) @                   // 4: E/Z
-    bool_to_bit(CF == bitzero) @                  // 3: AE/NB/NC
-    bool_to_bit(CF == bitone) @                   // 2: B/C/NAE
-    bool_to_bit(OF == bitzero) @                  // 1: NO
-    bool_to_bit(OF == bitone);                    // 0: O
+    (~(ZF) & ~(sf_ne_of)) @  // F: G/NLE
+    (ZF | sf_ne_of) @        // E: LE/NG
+    (~(sf_ne_of)) @          // D: GE/NL
+    sf_ne_of @               // C: L/NGE
+    (~(PF)) @                // B: NP/PO
+    PF @                     // A: P/PE
+    (~(SF)) @                // 9: NS
+    SF @                     // 8: S
+    (~(CF) & ~(ZF)) @       // 7: A/NBE
+    (CF | ZF) @              // 6: BE/NA
+    (~(ZF)) @                // 5: NE/NZ
+    ZF @                     // 4: E/Z
+    (~(CF)) @                // 3: AE/NB/NC
+    CF @                     // 2: B/C/NAE
+    (~(OF)) @                // 1: NO
+    OF;                      // 0: O
   results[cc] == bitone
 }
 
