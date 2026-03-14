@@ -287,6 +287,7 @@ register CR0  : qword  // PE, PG, WP, etc.
 register CR2  : qword  // Page Fault Linear Address
 register CR3  : qword  // Page table base
 register CR4  : qword  // PAE, PSE, OSFXSR, OSXSAVE, etc.
+register CR8  : bits(4) // Task Priority Register (TPR), bits 3:0
 register EFER : qword  // Extended Feature Enable Register
 
 // Debug registers

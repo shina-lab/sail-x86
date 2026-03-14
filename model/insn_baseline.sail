@@ -647,10 +647,13 @@ function dispatch_2byte_gpr(op, pfx) = {
       let _ = decode_rm(modrm, pfx)  // consume ModR/M + SIB + disp
     },
     // 0F 20: MOV reg, CRn — Read control register (requires CPL=0)
+    // REX.R extends reg field to access CR8
     32 => {
       if cur_cpl != 0 then raise_GP0();
       let modrm = fetch_byte();
-      let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      let cr_idx : range(0, 15) = if pfx.has_rex & pfx.rex_r
+        then unsigned(bitone @ modrm[5..3])
+        else unsigned(bitzero @ modrm[5..3]);
       let rm_idx : gpr_idx = if pfx.rex_b
         then unsigned(bitone @ modrm[2..0])
         else unsigned(bitzero @ modrm[2..0]);
@@ -659,15 +662,19 @@ function dispatch_2byte_gpr(op, pfx) = {
         2 => CR2,
         3 => CR3,
         4 => CR4,
+        8 => zero_extend(CR8),
         _ => throw Fault(EXN_UD, 0x00000000),
       };
       write_gpr64(rm_idx, cr_val)
     },
     // 0F 22: MOV CRn, reg — Write control register (requires CPL=0)
+    // REX.R extends reg field to access CR8
     34 => {
       if cur_cpl != 0 then raise_GP0();
       let modrm = fetch_byte();
-      let cr_idx : range(0, 7) = unsigned(modrm[5..3]);
+      let cr_idx : range(0, 15) = if pfx.has_rex & pfx.rex_r
+        then unsigned(bitone @ modrm[5..3])
+        else unsigned(bitzero @ modrm[5..3]);
       let rm_idx : gpr_idx = if pfx.rex_b
         then unsigned(bitone @ modrm[2..0])
         else unsigned(bitzero @ modrm[2..0]);
@@ -689,6 +696,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         2 => CR2 = cr_val,
         3 => { CR3 = cr_val; __tlb_flush() },
         4 => CR4 = cr_val,
+        8 => CR8 = cr_val[3..0],
         _ => throw Fault(EXN_UD, 0x00000000),
       }
     },
