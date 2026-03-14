@@ -421,6 +421,56 @@ function dispatch_2byte_gpr(op, pfx) = {
             then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
             else zero_extend(limit_hi @ limit_lo)
         },
+        // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
+        4 => {
+          let rm = decode_rm(modrm, pfx);
+          let selector : word = match rm {
+            RM_reg(r) => read_gpr16(r),
+            RM_mem(addr) => mem_read16(addr),
+          };
+          if (selector & 0xFFFC) == zeros() then {
+            ZF = bitzero
+          } else {
+            let sel_offset : qword = zero_extend(selector & 0xFFF8);
+            if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+              ZF = bitzero
+            } else {
+              let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+              // Check present bit (bit 15 of desc_hi = bit 47 of descriptor)
+              // and that it's a code/data segment (not system)
+              let present : bit = desc_hi[15];
+              let s_bit : bit = desc_hi[12];  // S=1 means code/data
+              // Readable: data segments always readable; code segments readable if R bit set
+              let is_code : bit = desc_hi[11];
+              let readable : bit = if is_code == bitone then desc_hi[9] else bitone;
+              ZF = present & s_bit & readable
+            }
+          }
+        },
+        // 0F 00 /5: VERW r/m16 — Verify segment writable, set ZF
+        5 => {
+          let rm = decode_rm(modrm, pfx);
+          let selector : word = match rm {
+            RM_reg(r) => read_gpr16(r),
+            RM_mem(addr) => mem_read16(addr),
+          };
+          if (selector & 0xFFFC) == zeros() then {
+            ZF = bitzero
+          } else {
+            let sel_offset : qword = zero_extend(selector & 0xFFF8);
+            if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+              ZF = bitzero
+            } else {
+              let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+              let present : bit = desc_hi[15];
+              let s_bit : bit = desc_hi[12];
+              let is_code : bit = desc_hi[11];
+              // Writable: only data segments with W bit set
+              let writable : bit = if is_code == bitone then bitzero else desc_hi[9];
+              ZF = present & s_bit & writable
+            }
+          }
+        },
         _ => raise_UD(),
       }
     },
@@ -566,6 +616,67 @@ function dispatch_2byte_gpr(op, pfx) = {
             _ => raise_UD(),
           }
         },
+      }
+    },
+    // 0F 02: LAR r, r/m16 — Load Access Rights Byte
+    // Reads descriptor from GDT/LDT, loads access rights into dest, sets ZF.
+    2 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let selector : word = match rm {
+        RM_reg(r) => read_gpr16(r),
+        RM_mem(addr) => mem_read16(fixup_addr(addr)),
+      };
+      // Null selector → ZF=0
+      if (selector & 0xFFFC) == zeros() then {
+        ZF = bitzero
+      } else {
+        let sel_offset : qword = zero_extend(selector & 0xFFF8);
+        let desc_addr : qword = GDTR_base + sel_offset;
+        if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+          ZF = bitzero
+        } else {
+          let desc_hi : dword = mem_read32(desc_addr + 4);
+          // Access rights = desc byte 5 and granularity bits of byte 6
+          let ar : dword = zero_extend(desc_hi[23..0]) & 0x00FFFF00;
+          write_gpr(reg, os, zero_extend(ar));
+          ZF = bitone
+        }
+      }
+    },
+    // 0F 03: LSL r, r/m16 — Load Segment Limit
+    // Reads descriptor from GDT/LDT, loads segment limit into dest, sets ZF.
+    3 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      let selector : word = match rm {
+        RM_reg(r) => read_gpr16(r),
+        RM_mem(addr) => mem_read16(fixup_addr(addr)),
+      };
+      if (selector & 0xFFFC) == zeros() then {
+        ZF = bitzero
+      } else {
+        let sel_offset : qword = zero_extend(selector & 0xFFF8);
+        let desc_addr : qword = GDTR_base + sel_offset;
+        if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+          ZF = bitzero
+        } else {
+          let desc_lo : dword = mem_read32(desc_addr);
+          let desc_hi : dword = mem_read32(desc_addr + 4);
+          let limit_lo : word = desc_lo[15..0];
+          let limit_hi : bits(4) = desc_hi[19..16];
+          let granularity : bit = desc_hi[23];
+          let limit : dword = zero_extend(limit_hi @ limit_lo);
+          let final_limit : dword = if granularity == bitone
+            then (limit << 12) | 0x00000FFF
+            else limit;
+          write_gpr(reg, os, zero_extend(final_limit));
+          ZF = bitone
+        }
       }
     },
     // 0F 05: SYSCALL
@@ -769,6 +880,42 @@ function dispatch_2byte_gpr(op, pfx) = {
       let tsc : qword = __rdtsc();
       write_gpr32(RAX, tsc[31..0]);
       write_gpr32(RDX, tsc[63..32])
+    },
+    // 0F 34: SYSENTER — Fast System Call (legacy, used in compat mode)
+    // SDM: loads CS/SS/EIP/ESP from MSRs IA32_SYSENTER_CS/ESP/EIP
+    52 => {
+      let sysenter_cs : qword = __rdmsr(0x00000174);
+      if sysenter_cs[15..0] == zeros() then raise_GP0();
+      write_segreg(CS, sysenter_cs[15..0] & 0xFFFC);
+      cur_cpl = 0;
+      write_segreg(SS, (sysenter_cs[15..0] + 0x0008) & 0xFFFC);
+      let sysenter_esp : qword = __rdmsr(0x00000175);
+      let sysenter_eip : qword = __rdmsr(0x00000176);
+      write_gpr64(RSP, sysenter_esp);
+      IF_flag = bitzero;
+      next_rip = Some(sysenter_eip)
+    },
+    // 0F 35: SYSEXIT — Fast Return from System Call (companion to SYSENTER)
+    // SDM: requires CPL=0; loads CS/SS from IA32_SYSENTER_CS, RIP from RDX, RSP from RCX
+    53 => {
+      if cur_cpl != 0 then raise_GP0();
+      let sysenter_cs : qword = __rdmsr(0x00000174);
+      if sysenter_cs[15..0] == zeros() then raise_GP0();
+      if pfx.rex_w then {
+        // 64-bit: CS.sel = IA32_SYSENTER_CS + 32, SS.sel = IA32_SYSENTER_CS + 40
+        write_segreg(CS, (sysenter_cs[15..0] + 0x0020) | 0x0003);
+        write_segreg(SS, (sysenter_cs[15..0] + 0x0028) | 0x0003);
+        cur_cpl = 3;
+        next_rip = Some(read_gpr64(RDX));
+        write_gpr64(RSP, read_gpr64(RCX))
+      } else {
+        // 32-bit: CS.sel = IA32_SYSENTER_CS + 16, SS.sel = IA32_SYSENTER_CS + 24
+        write_segreg(CS, (sysenter_cs[15..0] + 0x0010) | 0x0003);
+        write_segreg(SS, (sysenter_cs[15..0] + 0x0018) | 0x0003);
+        cur_cpl = 3;
+        next_rip = Some(zero_extend(read_gpr32(RDX)));
+        write_gpr64(RSP, zero_extend(read_gpr32(RCX)))
+      }
     },
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {

@@ -420,6 +420,8 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     map_guest_page(CODE_ADDR, 0x1000);
     map_guest_page(DATA_ADDR, 0x1000);
     map_guest_page(STACK_TOP - 0x1000, 0x1000);
+    // Map page for Sail-side GDT (can't use 0x3000, too low for mmap)
+    map_guest_page(0x14000, 0x1000);
     pages_mapped = true;
   }
 
@@ -461,6 +463,15 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zSF = (flags >> 7) & 1;
   model.zDF = (flags >> 10) & 1;
   model.zOF = (flags >> 11) & 1;
+
+  // Initialize GDTR and write GDT entries to match KVM guest
+  // Use 0x14000 for Sail-side GDT (0x3000 is too low for mmap)
+  static constexpr u64 SAIL_GDT_ADDR = 0x14000;
+  model.zGDTR_base = SAIL_GDT_ADDR;
+  model.zGDTR_limit = 3 * 8 - 1;
+  ((u64 *)SAIL_GDT_ADDR)[0] = 0;
+  ((u64 *)SAIL_GDT_ADDR)[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08)
+  ((u64 *)SAIL_GDT_ADDR)[2] = 0x00CF92000000FFFF;  // data (selector 0x10)
 
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);

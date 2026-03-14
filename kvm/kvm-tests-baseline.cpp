@@ -1238,6 +1238,26 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // LAR/LSL — load access rights / segment limit from descriptor
+  // =====================================================================
+  {
+    cat = "Baseline/Data movement";
+
+    // LAR EAX, EBX: 0F 02 C3 — load access rights for CS selector (0x08)
+    // Should set ZF=1 and load access rights into EAX
+    tests.push_back({"lar eax,bx (cs=0x08)", cat, {0x0F, 0x02, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x08, .rflags = 0x2}, FL_ZF});
+
+    // LAR with null selector (0x0000) should set ZF=0
+    tests.push_back({"lar eax,bx (null)", cat, {0x0F, 0x02, 0xC3},
+                      {.rax = 0xDEADDEAD, .rflags = 0x2}, FL_ZF});
+
+    // LSL EAX, EBX: 0F 03 C3 — load segment limit for CS selector
+    tests.push_back({"lsl eax,bx (cs=0x08)", cat, {0x0F, 0x03, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x08, .rflags = 0x2}, FL_ZF});
+  }
+
+  // =====================================================================
   // LFS/LGS — load far pointer (offset + selector from memory)
   // =====================================================================
   {
