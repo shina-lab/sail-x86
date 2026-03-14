@@ -2454,4 +2454,73 @@ void add_evex_tests(std::vector<TestCase> &tests) {
     }
   }
 
+  // =====================================================================
+  // EVEX writemask tests for instructions that were previously missing it
+  // =====================================================================
+  cat = "EVEX mask";
+  {
+    // VPABSD xmm0{k1}, xmm1 — merge masking with k1 = 0b0101
+    // EVEX.128.66.0F38.W0 1E /r: 62 F2 7D 09 1E C1
+    // P0=62, P1=F2(R=1,X=1,B=1,R'=1,mm=10), P2[vvvv]=7D(W=0,vvvv=1111,pp=01)
+    // P3=09(z=0,L'L=00,b=0,V'=1,aaa=001)
+    // opcode=1E, modrm=C1(mod=11,reg=xmm0,rm=xmm1)
+    {
+      TestCase tc;
+      tc.name = "vpabsd xmm merge k1=0101b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x09, 0x1E, 0xC1};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      tc.initial.xmm[1] = xmm_from_u32(0xFFFFFFF6, 0xFFFFFFF7, 0xFFFFFFF8, 0xFFFFFFF9);
+      tc.initial.kregs[1] = 0x5;  // k1 = 0b0101
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.kreg_mask = 0;
+      tests.push_back(std::move(tc));
+      // Expected: elem0=abs(-10)=10, elem1=preserved(0xDEADBEEF),
+      //           elem2=abs(-8)=8, elem3=preserved(0xDEADBEEF)
+    }
+
+    // VPABSD xmm0{k1}{z}, xmm1 — zero masking with k1 = 0b0101
+    // P3=89(z=1,L'L=00,b=0,V'=1,aaa=001)
+    {
+      TestCase tc;
+      tc.name = "vpabsd xmm zero k1=0101b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x89, 0x1E, 0xC1};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      tc.initial.xmm[1] = xmm_from_u32(0xFFFFFFF6, 0xFFFFFFF7, 0xFFFFFFF8, 0xFFFFFFF9);
+      tc.initial.kregs[1] = 0x5;  // k1 = 0b0101
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.kreg_mask = 0;
+      tests.push_back(std::move(tc));
+      // Expected: elem0=10, elem1=0, elem2=8, elem3=0
+    }
+
+    // VPMAXSD xmm0{k1}, xmm1, xmm2 — merge masking
+    // EVEX.128.66.0F38.W0 3D /r: 62 F2 75 09 3D C2
+    {
+      TestCase tc;
+      tc.name = "vpmaxsd xmm merge k1=0011b";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x09, 0x3D, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(5, 10, 15, 20);
+      tc.initial.xmm[2] = xmm_from_u32(3, 12, 8, 25);
+      tc.initial.kregs[1] = 0x3;  // k1 = 0b0011
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tc.kreg_mask = 0;
+      tests.push_back(std::move(tc));
+      // Expected: elem0=max(5,3)=5, elem1=max(10,12)=12,
+      //           elem2=preserved, elem3=preserved
+    }
+  }
+
 }

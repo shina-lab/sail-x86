@@ -163,6 +163,171 @@ function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
   blend64(base[63..0],    result[63..0],    mask_val[0..0])
 }
 
+// =========================================================================
+// Byte-element (8-bit) writemask helpers — for VPADDB, VPSUBB, etc.
+// =========================================================================
+
+val apply_writemask_b_xmm : (xmmword, xmmword, word, bool) -> xmmword
+function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
+  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : xmmword = old_dst & keep;
+  var r : xmmword = zeros();
+  foreach (i from 0 to 15) {
+    let hi = i * 8 + 7;
+    let lo = i * 8;
+    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+val apply_writemask_b_ymm : (ymmword, ymmword, dword, bool) -> ymmword
+function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
+  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : ymmword = old_dst & keep;
+  var r : ymmword = zeros();
+  foreach (i from 0 to 31) {
+    let hi = i * 8 + 7;
+    let lo = i * 8;
+    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+val apply_writemask_b_zmm : (zmmword, zmmword, qword, bool) -> zmmword
+function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
+  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : zmmword = old_dst & keep;
+  var r : zmmword = zeros();
+  foreach (i from 0 to 63) {
+    let hi = i * 8 + 7;
+    let lo = i * 8;
+    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+// =========================================================================
+// Word-element (16-bit) writemask helpers — for VPADDW, VPSUBW, etc.
+// =========================================================================
+
+val apply_writemask_w_xmm : (xmmword, xmmword, byte, bool) -> xmmword
+function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
+  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : xmmword = old_dst & keep;
+  var r : xmmword = zeros();
+  foreach (i from 0 to 7) {
+    let hi = i * 16 + 15;
+    let lo = i * 16;
+    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+val apply_writemask_w_ymm : (ymmword, ymmword, word, bool) -> ymmword
+function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
+  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : ymmword = old_dst & keep;
+  var r : ymmword = zeros();
+  foreach (i from 0 to 15) {
+    let hi = i * 16 + 15;
+    let lo = i * 16;
+    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+val apply_writemask_w_zmm : (zmmword, zmmword, dword, bool) -> zmmword
+function apply_writemask_w_zmm(result, old_dst, mask_val, zeroing) = {
+  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let base : zmmword = old_dst & keep;
+  var r : zmmword = zeros();
+  foreach (i from 0 to 31) {
+    let hi = i * 16 + 15;
+    let lo = i * 16;
+    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+  };
+  r
+}
+
+// =========================================================================
+// Convenience wrappers: evex_write_{b,w,d,q}_{zmm,ymm,xmm}
+// These compute+apply writemask and write the result in one call.
+// Element size determines mask granularity:
+//   b=8-bit (64 elements/ZMM), w=16-bit (32), d=32-bit (16), q=64-bit (8)
+// =========================================================================
+
+// --- Byte (8-bit) element ---
+val evex_write_b_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_b_zmm(dst, result, pfx) =
+  write_zmm(dst, apply_writemask_b_zmm(result, read_zmm(dst), evex_kmask64(pfx), pfx.evex_z))
+
+val evex_write_b_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_b_ymm(dst, result, pfx) =
+  write_ymm(dst, apply_writemask_b_ymm(result, read_ymm(dst), evex_kmask64(pfx)[31..0], pfx.evex_z))
+
+val evex_write_b_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_b_xmm(dst, result, pfx) =
+  write_xmm(dst, apply_writemask_b_xmm(result, read_xmm(dst), evex_get_mask16(pfx), pfx.evex_z))
+
+// --- Word (16-bit) element ---
+val evex_write_w_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_w_zmm(dst, result, pfx) =
+  write_zmm(dst, apply_writemask_w_zmm(result, read_zmm(dst), evex_kmask64(pfx)[31..0], pfx.evex_z))
+
+val evex_write_w_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_w_ymm(dst, result, pfx) =
+  write_ymm(dst, apply_writemask_w_ymm(result, read_ymm(dst), evex_get_mask16(pfx), pfx.evex_z))
+
+val evex_write_w_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_w_xmm(dst, result, pfx) =
+  write_xmm(dst, apply_writemask_w_xmm(result, read_xmm(dst), evex_get_mask8(pfx), pfx.evex_z))
+
+// --- Dword (32-bit) element ---
+val evex_write_d_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_d_zmm(dst, result, pfx) =
+  write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), evex_get_mask16(pfx), pfx.evex_z))
+
+val evex_write_d_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_d_ymm(dst, result, pfx) =
+  write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), evex_get_mask16(pfx), pfx.evex_z))
+
+val evex_write_d_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_d_xmm(dst, result, pfx) =
+  write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), evex_get_mask16(pfx), pfx.evex_z))
+
+// --- Qword (64-bit) element ---
+val evex_write_q_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_q_zmm(dst, result, pfx) =
+  write_zmm(dst, apply_writemask_pd_zmm(result, read_zmm(dst), evex_get_mask8(pfx), pfx.evex_z))
+
+val evex_write_q_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_q_ymm(dst, result, pfx) =
+  write_ymm(dst, apply_writemask_pd_ymm(result, read_ymm(dst), evex_get_mask8(pfx), pfx.evex_z))
+
+val evex_write_q_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_q_xmm(dst, result, pfx) =
+  write_xmm(dst, apply_writemask_pd_xmm(result, read_xmm(dst), evex_get_mask8(pfx), pfx.evex_z))
+
+// --- PS (32-bit FP) — aliases for dword ---
+val evex_write_ps_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_ps_zmm(dst, result, pfx) = evex_write_d_zmm(dst, result, pfx)
+
+val evex_write_ps_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_ps_ymm(dst, result, pfx) = evex_write_d_ymm(dst, result, pfx)
+
+val evex_write_ps_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_ps_xmm(dst, result, pfx) = evex_write_d_xmm(dst, result, pfx)
+
+// --- PD (64-bit FP) — aliases for qword ---
+val evex_write_pd_zmm : (simd_idx, zmmword, Prefixes) -> unit
+function evex_write_pd_zmm(dst, result, pfx) = evex_write_q_zmm(dst, result, pfx)
+
+val evex_write_pd_ymm : (simd_idx, ymmword, Prefixes) -> unit
+function evex_write_pd_ymm(dst, result, pfx) = evex_write_q_ymm(dst, result, pfx)
+
+val evex_write_pd_xmm : (simd_idx, xmmword, Prefixes) -> unit
+function evex_write_pd_xmm(dst, result, pfx) = evex_write_q_xmm(dst, result, pfx)
+
 // Broadcast a 32-bit value to all 16 dword lanes of a ZMM register.
 
 val broadcast_f32_zmm : dword -> zmmword

@@ -417,6 +417,9 @@ function or_reduce_64(v) = or_reduce_32(v[63..32] | v[31..0])
 
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
+val blend8 : (byte, byte, bits(1)) -> byte
+function blend8(a, b, sel) = { let m : byte = sign_extend(sel); (a & ~(m)) | (b & m) }
+
 val blend16 : (word, word, bits(1)) -> word
 function blend16(a, b, sel) = { let m : word = sign_extend(sel); (a & ~(m)) | (b & m) }
 
