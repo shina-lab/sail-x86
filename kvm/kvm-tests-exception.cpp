@@ -164,6 +164,26 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vmovapd [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x29, 0x07},
             {.rdi = DATA_ADDR + 16, .rflags = 0x2}, 13);
 
+  // VEX VMOVDQA load unaligned (128-bit)
+  // VMOVDQA XMM0, [RDI]: C5 F9 6F 07
+  add_fault("vmovdqa xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x6F, 0x07},
+            {.rdi = DATA_ADDR + 1, .rflags = 0x2}, 13);
+
+  // VEX VMOVDQA store unaligned (128-bit)
+  // VMOVDQA [RDI], XMM0: C5 F9 7F 07
+  add_fault("vmovdqa [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x7F, 0x07},
+            {.rdi = DATA_ADDR + 1, .rflags = 0x2}, 13);
+
+  // VEX VMOVNTDQ store unaligned (128-bit)
+  // VMOVNTDQ [RDI], XMM0: C5 F9 E7 07
+  add_fault("vmovntdq [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0xE7, 0x07},
+            {.rdi = DATA_ADDR + 1, .rflags = 0x2}, 13);
+
+  // VEX VMOVNTPS store unaligned (128-bit)
+  // VMOVNTPS [RDI], XMM0: C5 F8 2B 07
+  add_fault("vmovntps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x2B, 0x07},
+            {.rdi = DATA_ADDR + 1, .rflags = 0x2}, 13);
+
   // ---- More #UD tests: LOCK on 2-byte opcodes ----
   cat = "Exception #UD";
 

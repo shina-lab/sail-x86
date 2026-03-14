@@ -377,6 +377,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   },
 
   // 0F 2B: VMOVNTPS/VMOVNTPD m, xmm/ymm (non-temporal store; we treat as regular store)
+  // SDM: requires alignment (32 for YMM, 16 for XMM); #GP(0) if unaligned.
   43 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
@@ -386,10 +387,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
       RM_mem(addr) => {
         let a = fixup_addr(addr);
         if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
           mem_write128(a, v[127..0]);
           mem_write128(a + 16, v[255..128])
         } else {
+          if unsigned(a) % 16 != 0 then raise_GP0();
           mem_write128(a, read_xmm(src))
         }
       },

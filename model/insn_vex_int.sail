@@ -342,12 +342,22 @@ function dispatch_vex_0f_int(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     match mp {
       // VMOVDQA xmm1/ymm1, xmm2/ymm2/m128/m256
-      MP_66 =>
-        if pfx.vex_l then {
-          write_ymm(dst, decode_vex_src_ymm(modrm, rm, pfx))
-        } else {
-          write_xmm(dst, decode_vex_src_xmm(modrm, rm, pfx))
+      // Requires alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned.
+      MP_66 => match rm {
+        RM_reg(_) =>
+          if pfx.vex_l then write_ymm(dst, read_ymm(modrm_xmm_rm(modrm, pfx)))
+          else write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx))),
+        RM_mem(addr) => {
+          let a = fixup_addr(addr);
+          if pfx.vex_l then {
+            if unsigned(a) % 32 != 0 then raise_GP0();
+            write_ymm(dst, mem_read256(a))
+          } else {
+            if unsigned(a) % 16 != 0 then raise_GP0();
+            write_xmm(dst, mem_read128(a))
+          }
         },
+      },
       // VMOVDQU xmm1/ymm1, xmm2/ymm2/m128/m256
       MP_F3 =>
         if pfx.vex_l then {
@@ -742,6 +752,7 @@ function dispatch_vex_0f_int(op, pfx) = {
 
   // 0F 7F: VMOVDQA/VMOVDQU (store)
   // SDM: VEX.vvvv must be 1111b
+  // VMOVDQA (66): requires alignment; VMOVDQU (F3): unaligned OK.
   127 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
@@ -758,6 +769,13 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(addr) => {
         let a = fixup_addr(addr);
+        if mp == MP_66 then {
+          if pfx.vex_l then {
+            if unsigned(a) % 32 != 0 then raise_GP0();
+          } else {
+            if unsigned(a) % 16 != 0 then raise_GP0();
+          }
+        };
         if pfx.vex_l then {
           mem_write256(a, read_ymm(src))
         } else {
@@ -1324,6 +1342,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F E7: VMOVNTDQ m128/m256, xmm/ymm (66 prefix) — non-temporal store
+  // SDM: requires alignment (32 for YMM, 16 for XMM); #GP(0) if unaligned.
   231 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
@@ -1333,10 +1352,12 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_mem(addr) => {
         let a = fixup_addr(addr);
         if pfx.vex_l then {
+          if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
           mem_write128(a, v[127..0]);
           mem_write128(a + 16, v[255..128])
         } else {
+          if unsigned(a) % 16 != 0 then raise_GP0();
           mem_write128(a, read_xmm(src))
         }
       },
