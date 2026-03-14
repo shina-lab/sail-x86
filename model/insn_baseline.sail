@@ -1453,8 +1453,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         _ => (),
       }
     },
-    // 0F 77: EMMS
-    119 => (),
+    // 0F 77: EMMS — set x87 tag word to all empty
+    119 => x87_tw = 0xFFFF,
     _ => raise_UD(),
   }
 }

@@ -515,6 +515,20 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
     // EMMS: 0F 77
     add("emms", {0x0F, 0x77}, s, FL_ALL);
+
+    // EMMS must set x87 tag word to all empty (0xFFFF).
+    // Test: MOVD MM0,EAX (marks tags valid), then EMMS, then
+    // FXSAVE [RDI] to capture state. Compare the saved area —
+    // the abridged tag word at offset 4 should be 0xFF (all empty).
+    {
+      std::vector<u8> init_data(512, 0);
+      tests.push_back({"emms clears tags", cat,
+        {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (sets tag valid)
+         0x0F, 0x77,              // EMMS (should set all tags empty)
+         0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
+        {.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2},
+        FL_NONE, 0, false, init_data, 512});
+    }
   }
 
   // =====================================================================
