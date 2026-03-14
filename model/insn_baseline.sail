@@ -881,6 +881,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_gpr32(RAX, tsc[31..0]);
       write_gpr32(RDX, tsc[63..32])
     },
+    // 0F 33: RDPMC — Read Performance-Monitoring Counter
+    // SDM pseudocode:
+    //   IF (((CR4.PCE = 1) or (CPL = 0)) and (ECX indicates a supported counter))
+    //     THEN EAX := counter[31:0]; EDX := ZeroExtend(counter[MSCB:32]);
+    //     ELSE #GP(0);
+    //   FI;
+    // No performance counters are modeled, so ECX always indicates an
+    // unsupported counter → unconditional #GP(0).
+    51 => raise_GP0(),
     // 0F 34: SYSENTER — Fast System Call (legacy, used in compat mode)
     // SDM: loads CS/SS/EIP/ESP from MSRs IA32_SYSENTER_CS/ESP/EIP
     52 => {

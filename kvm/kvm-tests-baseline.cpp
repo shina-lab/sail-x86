@@ -1238,6 +1238,25 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // CLFLUSH / ENDBR64 — should execute without faulting
+  // =====================================================================
+  {
+    cat = "Baseline/Data movement";
+
+    // CLFLUSH [RDI]: 0F AE 3F (ModRM /7 mod=00, rm=111=RDI)
+    {
+      std::vector<u8> data(64, 0);
+      tests.push_back({"clflush [rdi]", cat, {0x0F, 0xAE, 0x3F},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
+
+    // ENDBR64: F3 0F 1E FA — NOP in our model
+    tests.push_back({"endbr64", cat, {0xF3, 0x0F, 0x1E, 0xFA},
+                      {.rflags = 0x2}, FL_NONE});
+  }
+
+  // =====================================================================
   // LAR/LSL — load access rights / segment limit from descriptor
   // =====================================================================
   {

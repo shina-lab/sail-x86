@@ -404,6 +404,21 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPS
       } else if op3 == 21 then {
         dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPD
+      } else if op3 == 130 then {
+        // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
+        // SDM: #GP(0) if CPL > 0. Type in register, descriptor in memory.
+        // Model: flush TLB (NOP for paging-structure caches).
+        if cur_cpl != 0 then raise_GP0();
+        let modrm = fetch_byte();
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_mem(addr) => {
+            let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
+            if unsigned(inv_type) > 3 then raise_GP0();
+            __tlb_flush()
+          },
+          RM_reg(_) => raise_UD(),
+        }
       } else if (op3 == 240 | op3 == 241) then {
         // MOVBE (0F 38 F0/F1) or CRC32 (F2 0F 38 F0/F1)
         let mp = get_mandatory_prefix(pfx);
