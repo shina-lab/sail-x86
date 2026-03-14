@@ -2521,6 +2521,112 @@ void add_evex_tests(std::vector<TestCase> &tests) {
       // Expected: elem0=max(5,3)=5, elem1=max(10,12)=12,
       //           elem2=preserved, elem3=preserved
     }
+
+    // --- Byte element writemask test ---
+    // VPADDB xmm0{k1}, xmm1, xmm2 — merge masking
+    // EVEX.128.66.0F.WIG FC /r: 62 F1 75 09 FC C2
+    // k1 = 0xFF00 → bytes 0-7 preserved, bytes 8-15 updated
+    {
+      TestCase tc;
+      tc.name = "vpaddb xmm merge k1=0xFF00";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xFC, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u64(0xDDDDDDDDDDDDDDDD, 0xDDDDDDDDDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+      tc.initial.xmm[2] = xmm_from_u64(0x1010101010101010, 0x1010101010101010);
+      tc.initial.kregs[1] = 0xFF00;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // bytes 0-7: preserved (0xDD), bytes 8-15: sum
+    }
+
+    // --- Word element writemask test ---
+    // VPADDW xmm0{k1}, xmm1, xmm2 — merge masking
+    // EVEX.128.66.0F.WIG FD /r: 62 F1 75 09 FD C2
+    // k1 = 0x05 → words 0,2 updated, words 1,3,4,5,6,7 preserved
+    {
+      TestCase tc;
+      tc.name = "vpaddw xmm merge k1=05h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x75, 0x09, 0xFD, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u64(0xBBBBBBBBBBBBBBBB, 0xBBBBBBBBBBBBBBBB);
+      tc.initial.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
+      tc.initial.xmm[2] = xmm_from_u64(0x0010001000100010, 0x0010001000100010);
+      tc.initial.kregs[1] = 0x05;  // bits 0,2
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // word0=0x0014, word1=preserved, word2=0x0013, rest=preserved
+    }
+
+    // --- Qword element writemask test ---
+    // VPADDQ xmm0{k1}, xmm1, xmm2 — merge masking
+    // EVEX.128.66.0F.W1 D4 /r: 62 F1 F5 09 D4 C2
+    // k1 = 0x01 → qword 0 updated, qword 1 preserved
+    {
+      TestCase tc;
+      tc.name = "vpaddq xmm merge k1=01h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xF5, 0x09, 0xD4, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u64(0xCCCCCCCCCCCCCCCC, 0xCCCCCCCCCCCCCCCC);
+      tc.initial.xmm[1] = xmm_from_u64(100, 200);
+      tc.initial.xmm[2] = xmm_from_u64(1000, 2000);
+      tc.initial.kregs[1] = 0x01;  // bit 0 only
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // qword0=1100, qword1=preserved(0xCCCC...)
+    }
+
+    // --- FMA writemask test (PS) ---
+    // VFMADD132PS xmm0{k1}, xmm1, xmm2 — merge masking
+    // EVEX.128.66.0F38.W0 98 /r: 62 F2 75 09 98 C2
+    // k1 = 0x0A → elements 1,3 updated, elements 0,2 preserved
+    {
+      TestCase tc;
+      tc.name = "vfmadd132ps xmm merge k1=0Ah";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x09, 0x98, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0x40000000, 0x40000000, 0x40000000, 0x40000000);  // 2.0f
+      tc.initial.xmm[1] = xmm_from_u32(0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000);  // 1.0f
+      tc.initial.xmm[2] = xmm_from_u32(0x40400000, 0x40400000, 0x40400000, 0x40400000);  // 3.0f
+      tc.initial.kregs[1] = 0x0A;  // bits 1,3
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // result = xmm0*xmm2 + xmm1 = 2.0*3.0+1.0 = 7.0 for masked elements
+      // elem0=preserved(2.0), elem1=7.0, elem2=preserved(2.0), elem3=7.0
+    }
+
+    // --- Permutation writemask test ---
+    // VPSHUFD xmm0{k1}, xmm1, imm8 — merge masking
+    // EVEX.128.66.0F.W0 70 /r ib: 62 F1 7D 09 70 C1 1B
+    // imm8=0x1B = 00_01_10_11 → reverse dword order
+    // k1 = 0x06 → elements 1,2 updated, elements 0,3 preserved
+    {
+      TestCase tc;
+      tc.name = "vpshufd xmm merge k1=06h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x7D, 0x09, 0x70, 0xC1, 0x1B};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tc.initial.kregs[1] = 0x06;  // bits 1,2
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // shuffle reverses: [44,33,22,11] → elem0=preserved, elem1=33, elem2=22, elem3=preserved
+    }
   }
 
 }

@@ -892,20 +892,20 @@ function dispatch_evex_map5(opcode, pfx) = {
                 __f64_to_f16(src[383..320]) @ __f64_to_f16(src[319..256]) @
                 __f64_to_f16(src[255..192]) @ __f64_to_f16(src[191..128]) @
                 __f64_to_f16(src[127..64]) @ __f64_to_f16(src[63..0]);
-              write_xmm(dst, r)
+              evex_write_w_xmm(dst, r, pfx)
             },
             1 => {
               let src = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
               let r : qword =
                 __f64_to_f16(src[255..192]) @ __f64_to_f16(src[191..128]) @
                 __f64_to_f16(src[127..64]) @ __f64_to_f16(src[63..0]);
-              write_xmm(dst, zero_extend(r))
+              evex_write_w_xmm(dst, zero_extend(r), pfx)
             },
             _ => {
               let src = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
               let r : dword =
                 __f64_to_f16(src[127..64]) @ __f64_to_f16(src[63..0]);
-              write_xmm(dst, zero_extend(r))
+              evex_write_w_xmm(dst, zero_extend(r), pfx)
             },
           };
           evex_end_rc(saved)
@@ -942,7 +942,7 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __int64_to_f16(src[383..320]) @ __int64_to_f16(src[319..256]) @
                   __int64_to_f16(src[255..192]) @ __int64_to_f16(src[191..128]) @
                   __int64_to_f16(src[127..64]) @ __int64_to_f16(src[63..0]);
-                write_xmm(dst, r)
+                evex_write_w_xmm(dst, r, pfx)
               },
               _ => raise_UD(),
             }
@@ -960,7 +960,7 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __int32_to_f16(src[191..160]) @ __int32_to_f16(src[159..128]) @
                   __int32_to_f16(src[127..96]) @ __int32_to_f16(src[95..64]) @
                   __int32_to_f16(src[63..32]) @ __int32_to_f16(src[31..0]);
-                write_ymm(dst, r)
+                evex_write_w_ymm(dst, r, pfx)
               },
               1 => {
                 let src = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
@@ -969,14 +969,14 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __int32_to_f16(src[191..160]) @ __int32_to_f16(src[159..128]) @
                   __int32_to_f16(src[127..96]) @ __int32_to_f16(src[95..64]) @
                   __int32_to_f16(src[63..32]) @ __int32_to_f16(src[31..0]);
-                write_xmm(dst, r)
+                evex_write_w_xmm(dst, r, pfx)
               },
               _ => {
                 let src = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
                 let r : qword =
                   __int32_to_f16(src[127..96]) @ __int32_to_f16(src[95..64]) @
                   __int32_to_f16(src[63..32]) @ __int32_to_f16(src[31..0]);
-                write_xmm(dst, zero_extend(r))
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
               },
             }
           }
@@ -1489,7 +1489,7 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __uint64_to_f16(src[383..320]) @ __uint64_to_f16(src[319..256]) @
                   __uint64_to_f16(src[255..192]) @ __uint64_to_f16(src[191..128]) @
                   __uint64_to_f16(src[127..64]) @ __uint64_to_f16(src[63..0]);
-                write_xmm(dst, r)
+                evex_write_w_xmm(dst, r, pfx)
               },
               _ => raise_UD(),
             };
@@ -1511,7 +1511,7 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __uint32_to_f16(src[191..160]) @ __uint32_to_f16(src[159..128]) @
                   __uint32_to_f16(src[127..96]) @ __uint32_to_f16(src[95..64]) @
                   __uint32_to_f16(src[63..32]) @ __uint32_to_f16(src[31..0]);
-                write_ymm(dst, r)
+                evex_write_w_ymm(dst, r, pfx)
               },
               1 => {
                 let src = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
@@ -1520,14 +1520,14 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __uint32_to_f16(src[191..160]) @ __uint32_to_f16(src[159..128]) @
                   __uint32_to_f16(src[127..96]) @ __uint32_to_f16(src[95..64]) @
                   __uint32_to_f16(src[63..32]) @ __uint32_to_f16(src[31..0]);
-                write_xmm(dst, r)
+                evex_write_w_xmm(dst, r, pfx)
               },
               _ => {
                 let src = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
                 let r : qword =
                   __uint32_to_f16(src[127..96]) @ __uint32_to_f16(src[95..64]) @
                   __uint32_to_f16(src[63..32]) @ __uint32_to_f16(src[31..0]);
-                write_xmm(dst, zero_extend(r))
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
               },
             };
             evex_end_rc(saved)
