@@ -71,34 +71,55 @@ val __f32_rsqrt : dword -> dword
 val __f32_rcp : dword -> dword
 
 // FP comparison predicate helpers (used by CMPPS/CMPPD/CMPSS/CMPSD)
-val cmp_pred_f32 : (dword, dword, bits(3)) -> dword
+// VCMPPS/PD/SS/SD predicate evaluation.
+// SDM defines 32 predicates (imm8[4:0]). Bits [3:0] select the comparison;
+// bit 4 only changes signaling vs quiet (affects exceptions, not results).
+// Predicates 0-7: base set. 8-15: some swap NaN handling. 16-31: repeat
+// with signaling/quiet flipped (same results as 0-15).
+val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
 function cmp_pred_f32(a, b, pred) = {
   let result = __compare_ss(a, b);
-  let cond : bool = match pred {
-    0b000 => result == FP_EQ,
-    0b001 => result == FP_LT,
-    0b010 => result == FP_LT | result == FP_EQ,
-    0b011 => result == FP_UNORDERED,
-    0b100 => result != FP_EQ,
-    0b101 => result != FP_LT,
-    0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
-    0b111 => result != FP_UNORDERED,
+  let cond : bool = match pred[3..0] {
+    0x0 => result == FP_EQ,                       // EQ_OQ
+    0x1 => result == FP_LT,                       // LT_OS
+    0x2 => result == FP_LT | result == FP_EQ,     // LE_OS
+    0x3 => result == FP_UNORDERED,                 // UNORD_Q
+    0x4 => result != FP_EQ,                        // NEQ_UQ (true for NaN)
+    0x5 => result != FP_LT,                        // NLT_US (true for NaN)
+    0x6 => result != FP_LT & result != FP_EQ,     // NLE_US (true for NaN)
+    0x7 => result != FP_UNORDERED,                 // ORD_Q
+    0x8 => result == FP_EQ | result == FP_UNORDERED, // EQ_UQ (true for NaN)
+    0x9 => result == FP_LT | result == FP_UNORDERED, // NGE_US (true for NaN)
+    0xA => result == FP_LT | result == FP_EQ | result == FP_UNORDERED, // NGT_US
+    0xB => false,                                  // FALSE_OQ
+    0xC => result != FP_EQ & result != FP_UNORDERED, // NEQ_OQ (false for NaN)
+    0xD => result != FP_LT & result != FP_UNORDERED, // GE_OS (false for NaN)
+    0xE => result == FP_GT,                        // GT_OS (false for NaN)
+    0xF => true,                                   // TRUE_UQ
   };
   zeros() - zero_extend(bool_to_bit(cond))
 }
 
-val cmp_pred_f64 : (qword, qword, bits(3)) -> qword
+val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
 function cmp_pred_f64(a, b, pred) = {
   let result = __compare_sd(a, b);
-  let cond : bool = match pred {
-    0b000 => result == FP_EQ,
-    0b001 => result == FP_LT,
-    0b010 => result == FP_LT | result == FP_EQ,
-    0b011 => result == FP_UNORDERED,
-    0b100 => result != FP_EQ,
-    0b101 => result != FP_LT,
-    0b110 => result != FP_LT & result != FP_EQ,  // NLE: not less-or-equal (true for unordered)
-    0b111 => result != FP_UNORDERED,
+  let cond : bool = match pred[3..0] {
+    0x0 => result == FP_EQ,
+    0x1 => result == FP_LT,
+    0x2 => result == FP_LT | result == FP_EQ,
+    0x3 => result == FP_UNORDERED,
+    0x4 => result != FP_EQ,
+    0x5 => result != FP_LT,
+    0x6 => result != FP_LT & result != FP_EQ,
+    0x7 => result != FP_UNORDERED,
+    0x8 => result == FP_EQ | result == FP_UNORDERED,
+    0x9 => result == FP_LT | result == FP_UNORDERED,
+    0xA => result == FP_LT | result == FP_EQ | result == FP_UNORDERED,
+    0xB => false,
+    0xC => result != FP_EQ & result != FP_UNORDERED,
+    0xD => result != FP_LT & result != FP_UNORDERED,
+    0xE => result == FP_GT,
+    0xF => true,
   };
   zeros() - zero_extend(bool_to_bit(cond))
 }
@@ -1110,7 +1131,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => {
           let a : xmmword = read_xmm(xreg);
-          let pred : bits(3) = imm[2..0];
+          let pred : bits(5) = zero_extend(imm[2..0]);
           let r : xmmword =
           cmp_pred_f32(a[127..96], src_xmm[127..96], pred) @
           cmp_pred_f32(a[95..64], src_xmm[95..64], pred) @
@@ -1120,7 +1141,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_66 => {
           let a : xmmword = read_xmm(xreg);
-          let pred : bits(3) = imm[2..0];
+          let pred : bits(5) = zero_extend(imm[2..0]);
           let r : xmmword =
           cmp_pred_f64(a[127..64], src_xmm[127..64], pred) @
           cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
@@ -1128,14 +1149,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_F3 => {
           let a : xmmword = read_xmm(xreg);
-          let pred : bits(3) = imm[2..0];
+          let pred : bits(5) = zero_extend(imm[2..0]);
           let low : dword = cmp_pred_f32(a[31..0], src_xmm[31..0], pred);
           let r : xmmword = a[127..32] @ low;
           write_xmm_legacy(xreg, r)
         },
         MP_F2 => {
           let a : xmmword = read_xmm(xreg);
-          let pred : bits(3) = imm[2..0];
+          let pred : bits(5) = zero_extend(imm[2..0]);
           let low : qword = cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
           let r : xmmword = a[127..64] @ low;
           write_xmm_legacy(xreg, r)

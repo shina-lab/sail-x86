@@ -980,6 +980,65 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VCMPPS 5-bit predicates (predicates 8-15 test NaN-aware comparisons)
+  // =====================================================================
+  {
+    cat = "VCMPPS pred5";
+
+    auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    // VCMPPS XMM0, XMM1, XMM2, imm8: VEX.128.0F.WIG C2 /r ib
+    // C5 F0 C2 C2 xx: VEX.128.NP L=0 pp=00, vvvv=xmm1, C2 /r=xmm2, imm8=xx
+    // Use 1.0 vs 2.0 (ordered, 1<2)
+    const u32 ONE = 0x3F800000;   // 1.0f
+    const u32 TWO = 0x40000000;   // 2.0f
+    const u32 QNAN = 0x7FC00000;  // quiet NaN
+
+    // pred 8: EQ_UQ — equal, unordered quiet (true for NaN)
+    // 1.0 vs 2.0 → not equal, ordered → false
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
+      s.xmm[2] = xmm_from_u32(TWO, 0, 0, 0);
+      add_xmm("vcmpps pred8 eq_uq ord", {0xC5, 0xF0, 0xC2, 0xC2, 0x08}, s, 0x1);
+    }
+    // 1.0 vs NaN → unordered → true (EQ_UQ returns true for unordered)
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
+      s.xmm[2] = xmm_from_u32(QNAN, 0, 0, 0);
+      add_xmm("vcmpps pred8 eq_uq nan", {0xC5, 0xF0, 0xC2, 0xC2, 0x08}, s, 0x1);
+    }
+
+    // pred 11: FALSE_OQ — always false
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(ONE, ONE, ONE, ONE);
+      s.xmm[2] = xmm_from_u32(ONE, ONE, ONE, ONE);
+      add_xmm("vcmpps pred11 false", {0xC5, 0xF0, 0xC2, 0xC2, 0x0B}, s, 0x1);
+    }
+
+    // pred 12: NEQ_OQ — not equal, ordered (false for NaN)
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
+      s.xmm[2] = xmm_from_u32(QNAN, 0, 0, 0);
+      add_xmm("vcmpps pred12 neq_oq nan", {0xC5, 0xF0, 0xC2, 0xC2, 0x0C}, s, 0x1);
+    }
+
+    // pred 15: TRUE_UQ — always true
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0, 0, 0, 0);
+      s.xmm[2] = xmm_from_u32(ONE, TWO, QNAN, 0);
+      add_xmm("vcmpps pred15 true", {0xC5, 0xF0, 0xC2, 0xC2, 0x0F}, s, 0x1);
+    }
+  }
+
+  // =====================================================================
   // Legacy SSE loads must preserve YMM upper bits (write_xmm_legacy)
   // Strategy: VMOVDQU YMM0,[RDI] to set upper bits, then legacy SSE
   // load into XMM0, then VEXTRACTI128 XMM1,YMM0,1 to read upper 128.

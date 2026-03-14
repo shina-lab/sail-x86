@@ -852,7 +852,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
-    let pred : bits(3) = imm[2..0];
+    let pred : bits(5) = imm[4..0];
     match mp {
       // VCMPPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_NONE => {
