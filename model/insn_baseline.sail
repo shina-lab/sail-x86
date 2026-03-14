@@ -1042,6 +1042,38 @@ function dispatch_2byte_gpr(op, pfx) = {
       result[bit_num] = bitzero;
       write_rm_val(adj_rm, os, pfx.has_rex, result)
     },
+    // 0F B2: LSS r, m16:16/32/64 — Load far pointer into SS
+    // 0F B4: LFS r, m16:16/32/64 — Load far pointer into FS
+    // 0F B5: LGS r, m16:16/32/64 — Load far pointer into GS
+    // Memory format: [offset (16/32/64-bit)][selector (16-bit)]
+    // Register operand only (memory source); #UD for register source.
+    op if op == 178 | op == 180 | op == 181 => {
+      let os = get_operand_size(pfx);
+      let modrm = fetch_byte();
+      let reg = modrm_reg(modrm, pfx);
+      let rm = decode_rm(modrm, pfx);
+      match rm {
+        RM_mem(addr) => {
+          let a = fixup_addr(addr);
+          let offset : qword = match os {
+            OS8  => zero_extend(mem_read8(a)),
+            OS16 => zero_extend(mem_read16(a)),
+            OS32 => zero_extend(mem_read32(a)),
+            OS64 => mem_read64(a),
+          };
+          let sel_off : int = match os { OS8 => 1, OS16 => 2, OS32 => 4, OS64 => 8 };
+          let selector : word = mem_read16(a + to_bits_truncate(sel_off));
+          write_gpr(reg, os, offset);
+          let seg : segreg_idx = match op {
+            178 => SS,
+            180 => FS,
+            _   => GS,
+          };
+          write_segreg(seg, selector)
+        },
+        RM_reg(_) => raise_UD(),
+      }
+    },
     // 0F B0: CMPXCHG r/m8, r8
     176 => {
       let modrm = fetch_byte();

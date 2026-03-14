@@ -1238,6 +1238,31 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // LFS/LGS — load far pointer (offset + selector from memory)
+  // =====================================================================
+  {
+    cat = "Baseline/Data movement";
+
+    // LFS EAX, [RDI]: 0F B4 07
+    // Memory layout: [offset32=0x12345678][selector16=0x0000]
+    // Loads EAX=0x12345678, FS selector=0x0000
+    {
+      std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0x00, 0x00, 0, 0};
+      tests.push_back({"lfs eax,[rdi]", cat, {0x0F, 0xB4, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
+
+    // LGS EAX, [RDI]: 0F B5 07
+    {
+      std::vector<u8> data = {0xEF, 0xBE, 0xAD, 0xDE, 0x00, 0x00, 0, 0};
+      tests.push_back({"lgs eax,[rdi]", cat, {0x0F, 0xB5, 0x07},
+                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
+  }
+
+  // =====================================================================
   // CALL/RET — verify near call/return in 64-bit mode
   // =====================================================================
   cat = "CALL/RET";
