@@ -110,7 +110,6 @@ set(KVM_CATEGORIES
   SSE
   SSSE3
   SSE4.1
-  "VCMPPS pred5"
   "SSE Legacy Upper"
   SSE4.2
   AES

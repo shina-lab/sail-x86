@@ -980,10 +980,41 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // INSERTPS memory form — imm8[7:6] forced to 0, reads 32 bits
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // INSERTPS XMM0, [RDI], imm8: 66 0F 3A 21 07 imm8
+    // Memory form reads 32 bits only; imm8[7:6] (count_s) is ignored.
+    // imm8 = 0xC0: count_s=3 (ignored for mem), count_d=0, zmask=0
+    // Should insert the 32-bit value at [RDI] into XMM0[31:0].
+    {
+      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      std::vector<u8> data = {0xAA, 0xBB, 0xCC, 0xDD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      tests.push_back({"insertps xmm,m32 count_s=3", cat,
+        {0x66, 0x0F, 0x3A, 0x21, 0x07, 0xC0},
+        s, FL_NONE, 0x1, false, data, 0});
+    }
+
+    // INSERTPS XMM0, [RDI], 0x10: count_s=0, count_d=1, zmask=0
+    // Insert 32-bit [RDI] into XMM0[63:32]
+    {
+      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      std::vector<u8> data = {0xEE, 0xFF, 0x00, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      tests.push_back({"insertps xmm,m32 dst=1", cat,
+        {0x66, 0x0F, 0x3A, 0x21, 0x07, 0x10},
+        s, FL_NONE, 0x1, false, data, 0});
+    }
+  }
+
+  // =====================================================================
   // VCMPPS 5-bit predicates (predicates 8-15 test NaN-aware comparisons)
   // =====================================================================
   {
-    cat = "VCMPPS pred5";
+    cat = "SSE";
 
     auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
                         u32 xmm_cmp) {

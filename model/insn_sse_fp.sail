@@ -1379,10 +1379,16 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     },
 
     // INSERTPS xmm, xmm/m32, imm8
+    // Memory form: reads 32 bits, imm8[7:6] forced to 0 (count_s ignored).
     33 => {
-      let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
-      exec_insertps(xreg, src_xmm, imm)
+      match rm {
+        RM_reg(_) => exec_insertps(xreg, read_xmm(modrm_xmm_rm(modrm, pfx)), imm),
+        RM_mem(addr) => {
+          let src : xmmword = zero_extend(mem_read32(addr));
+          exec_insertps(xreg, src, imm & 0x3F)
+        },
+      }
     },
 
     // SSE4.1 — dot product
