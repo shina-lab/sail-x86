@@ -1198,6 +1198,22 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // expect RSP = DATA_ADDR + 8, RBP = 0x1234
   }
 
+  // 66h LEAVE: operand-size prefix makes POP write BP (16-bit),
+  // but StackAddrSize is always 64 in long mode, so RSP := RBP must
+  // use the full 64-bit RBP, not just the low 16 bits.
+  {
+    ArchState s = {};
+    s.rbp = DATA_ADDR;
+    s.rsp = 0x1000;         // will be overwritten by LEAVE
+    std::vector<u8> data(16, 0);
+    data[0] = 0x78; data[1] = 0x56;  // saved BP = 0x5678
+    tests.push_back({"leave 66h prefix", cat,
+      {0x66, 0xC9},  // 66h LEAVE
+      s, FL_NONE, 0, false, std::move(data), 0});
+    // RSP = RBP = DATA_ADDR (full 64-bit), POP BP reads 16-bit
+    // expect RSP = DATA_ADDR + 2, RBP low 16 = 0x5678
+  }
+
   // =====================================================================
   // CALL/RET — verify near call/return in 64-bit mode
   // =====================================================================

@@ -1367,22 +1367,19 @@ function decode_execute() = {
       },
 
       // C9: LEAVE
+      // In 64-bit mode, StackAddrSize is always 64: RSP := RBP uses full
+      // 64-bit RBP regardless of operand-size prefix. Only the POP of RBP
+      // is affected by operand size (16 vs 64).
       201 => {
         let os = get_operand_size_d64(pfx);
+        write_gpr64(RSP, read_gpr64(RBP));
         match os {
-          OS64 => {
-            write_gpr64(RSP, read_gpr64(RBP));
-            write_gpr64(RBP, pop64());
-          },
+          OS64 => write_gpr64(RBP, pop64()),
           OS32 => {
-            write_gpr64(RSP, zero_extend(read_gpr32(RBP)));
             let v : qword = pop64();
             write_gpr32(RBP, v[31..0]);
           },
-          OS16 => {
-            write_gpr16(RSP, read_gpr16(RBP));
-            write_gpr16(RBP, pop16());
-          },
+          OS16 => write_gpr16(RBP, pop16()),
           _ => (),
         }
       },
