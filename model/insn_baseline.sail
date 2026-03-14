@@ -1129,8 +1129,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
-        let src = modrm_rm_reg(modrm, pfx);
-        let src_val : qword = read_gpr(src, os);
+        let src_val = read_rm_val(rm, os, pfx.has_rex);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
         let count : range(0, 64) = match os {
           OS8  => ctz8(src_val[7..0]),
@@ -1177,8 +1176,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
-        let src = modrm_rm_reg(modrm, pfx);
-        let src_val : qword = read_gpr(src, os);
+        let src_val = read_rm_val(rm, os, pfx.has_rex);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
         let count : range(0, 64) = match os {
           OS8  => clz8(src_val[7..0]),

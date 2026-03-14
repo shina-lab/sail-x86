@@ -321,6 +321,36 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     // tzcnt=8
     tests.push_back({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3},
                       {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 0x100, .rflags = 0x2}, FL_CF | FL_ZF});
+
+    // --- Memory operand tests ---
+
+    // LZCNT EAX, [RDI]: F3 0F BD 07
+    // Memory contains 0x00010000 -> lzcnt32 = 15
+    tests.push_back({"lzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBD, 0x07},
+                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_CF | FL_ZF, 0, false,
+                      {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
+
+    // LZCNT RAX, [RDI]: F3 48 0F BD 07
+    // Memory contains 0x0000000100000000 -> lzcnt64 = 31
+    tests.push_back({"lzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBD, 0x07},
+                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_CF | FL_ZF, 0, false,
+                      {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}, 0});
+
+    // TZCNT EAX, [RDI]: F3 0F BC 07
+    // Memory contains 0x00000100 -> tzcnt32 = 8
+    tests.push_back({"tzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBC, 0x07},
+                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_CF | FL_ZF, 0, false,
+                      {0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
+
+    // TZCNT RAX, [RDI]: F3 48 0F BC 07
+    // Memory contains 0x8000000000000000 -> tzcnt64 = 63
+    tests.push_back({"tzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBC, 0x07},
+                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_CF | FL_ZF, 0, false,
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80}, 0});
   }
 
   // =====================================================================
