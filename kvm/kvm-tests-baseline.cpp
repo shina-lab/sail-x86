@@ -1215,6 +1215,29 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // PUSH/POP FS/GS (0F A0/A1/A8/A9)
+  // In 64-bit mode, PUSH pushes 64-bit (zero-extended selector),
+  // POP pops 64-bit and loads low 16 bits into segment register.
+  // =====================================================================
+  cat = "PUSH/POP mem";
+  {
+    // PUSH FS; POP FS — round-trip, RSP should return to original
+    // 0F A0 = PUSH FS, 0F A1 = POP FS
+    tests.push_back({"push fs; pop fs", cat, {0x0F, 0xA0, 0x0F, 0xA1},
+                      {.rflags = 0x2}, FL_NONE});
+
+    // PUSH GS; POP GS — round-trip
+    // 0F A8 = PUSH GS, 0F A9 = POP GS
+    tests.push_back({"push gs; pop gs", cat, {0x0F, 0xA8, 0x0F, 0xA9},
+                      {.rflags = 0x2}, FL_NONE});
+
+    // PUSH FS; PUSH GS; POP GS; POP FS — verify both round-trip
+    tests.push_back({"push fs; push gs; pop gs; pop fs", cat,
+                      {0x0F, 0xA0, 0x0F, 0xA8, 0x0F, 0xA9, 0x0F, 0xA1},
+                      {.rflags = 0x2}, FL_NONE});
+  }
+
+  // =====================================================================
   // CALL/RET — verify near call/return in 64-bit mode
   // =====================================================================
   cat = "CALL/RET";
