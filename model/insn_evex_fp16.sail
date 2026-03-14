@@ -1941,13 +1941,13 @@ function dispatch_evex_map5(opcode, pfx) = {
       }
     },
 
-    // MAP5 0x1D: VCVTPS2PHX (NP, W=0) / VCVTSS2SH (F3, W=0)
+    // MAP5 0x1D: VCVTPS2PHX (66, W=0) / VCVTSS2SH (NP, W=0)
     29 => {
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
       match mp {
-        MP_NONE => {
-          // VCVTPS2PHX: packed FP32 to FP16
+        MP_66 => {
+          // VCVTPS2PHX: packed FP32 to FP16 (EVEX.66.MAP5.W0)
           let disp_n : range(4, 64) = if pfx.evex_b then 4 else match pfx.evex_ll {
             0 => 16, 1 => 32, _ => 64,
           };
@@ -1987,8 +1987,8 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           evex_end_rc(saved)
         },
-        MP_F3 => {
-          // VCVTSS2SH: scalar FP32 to FP16
+        MP_NONE => {
+          // VCVTSS2SH: scalar FP32 to FP16 (EVEX.NP.MAP5.W0)
           let rm = decode_rm_evex(modrm, pfx, 4);
           let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
           let src2 : dword = match rm {
