@@ -1149,6 +1149,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
+        // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
+        // PF set from result parity (verified against real hardware).
+        // SDM footnote: "On some older processors, CF, OF, SF, AF, and
+        // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let is_zero : bool = match os {
           OS8  => src_val[7..0] == zeros(),
@@ -1156,8 +1160,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           OS32 => src_val[31..0] == zeros(),
           OS64 => src_val == zeros(),
         };
+        CF = bitzero;
+        OF = bitzero;
+        SF = bitzero;
+        AF = bitzero;
         if is_zero then {
           ZF = bitone;
+          PF = compute_PF(0x00);
         } else {
           ZF = bitzero;
           let idx : range(0, 64) = match os {
@@ -1166,7 +1175,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             OS32 => ctz32(src_val[31..0]),
             OS64 => ctz64(src_val),
           };
-          write_gpr(reg, os, to_bits_truncate(idx));
+          let result : qword = to_bits_truncate(idx);
+          PF = compute_PF(result[7..0]);
+          write_gpr(reg, os, result);
         }
       }
     },
@@ -1201,6 +1212,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
+        // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
+        // PF set from result parity (verified against real hardware).
+        // SDM footnote: "On some older processors, CF, OF, SF, AF, and
+        // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let is_zero : bool = match os {
           OS8  => src_val[7..0] == zeros(),
@@ -1208,8 +1223,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           OS32 => src_val[31..0] == zeros(),
           OS64 => src_val == zeros(),
         };
+        CF = bitzero;
+        OF = bitzero;
+        SF = bitzero;
+        AF = bitzero;
         if is_zero then {
           ZF = bitone;
+          PF = compute_PF(0x00);
         } else {
           ZF = bitzero;
           let idx : range(0, 63) = match os {
@@ -1218,7 +1238,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             OS32 => bsr32(src_val[31..0]),
             OS64 => bsr64(src_val),
           };
-          write_gpr(reg, os, to_bits_truncate(idx));
+          let result : qword = to_bits_truncate(idx);
+          PF = compute_PF(result[7..0]);
+          write_gpr(reg, os, result);
         }
       }
     },

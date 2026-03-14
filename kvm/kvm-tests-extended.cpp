@@ -398,54 +398,55 @@ void add_extended_instruction_tests(std::vector<TestCase> &tests) {
     cat = "BSF/BSR";
 
     // BSF: 0F BC /r -- scan forward (LSB to MSB)
-    // ZF=1 if source is zero, dest is undefined
-    // Other flags (OF,SF,AF,CF,PF) are undefined
+    // SDM: ZF set if source is zero. CF, OF, SF, AF cleared.
+    // PF set from source operand parity (low 8 bits).
 
     // BSF 32-bit: value=1 -> result=0
     // 0F BC C3: BSF EAX, EBX
+    // Set all flags initially to verify they get cleared.
     tests.push_back({"bsf eax,ebx lsb", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 1, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 1, .rflags = 0x2 | FL_CF | FL_OF | FL_SF | FL_AF}, FL_ALL});
 
     // BSF 32-bit: value=0x80000000 -> result=31
     tests.push_back({"bsf eax,ebx msb", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 0x80000000, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0x80000000, .rflags = 0x2 | FL_CF | FL_OF}, FL_ALL});
 
     // BSF 32-bit: zero -> ZF=1, dest should be unchanged
     tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3},
-                      {.rax = 0xDEADDEAD, .rflags = 0x2}, FL_ZF});
+                      {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
     // BSF 64-bit: bit 32 only
     // 48 0F BC C3: BSF RAX, RBX
     tests.push_back({"bsf rax,rbx bit32", cat, {0x48, 0x0F, 0xBC, 0xC3},
-                      {.rbx = 0x0000000100000000, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0x0000000100000000, .rflags = 0x2 | FL_AF}, FL_ALL});
 
     // BSF 16-bit: 66 0F BC C3, BX=0x0100, bsf=8
     tests.push_back({"bsf ax,bx 0x100", cat, {0x66, 0x0F, 0xBC, 0xC3},
-                      {.rbx = 0xDEAD000000000100, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0xDEAD000000000100, .rflags = 0x2 | FL_CF | FL_OF | FL_AF}, FL_ALL});
 
     // BSR: 0F BD /r -- scan reverse (MSB to LSB)
-    // ZF=1 if source is zero, dest is undefined
+    // SDM: same flag behavior as BSF.
 
     // BSR 32-bit: value=1 -> result=0
     // 0F BD C3: BSR EAX, EBX
     tests.push_back({"bsr eax,ebx lsb", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 1, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 1, .rflags = 0x2 | FL_CF | FL_OF | FL_SF | FL_AF}, FL_ALL});
 
     // BSR 32-bit: value=0x80000000 -> result=31
     tests.push_back({"bsr eax,ebx msb", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0x80000000, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0x80000000, .rflags = 0x2 | FL_CF | FL_OF}, FL_ALL});
 
     // BSR 32-bit: zero -> ZF=1
     tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3},
-                      {.rax = 0xDEADDEAD, .rflags = 0x2}, FL_ZF});
+                      {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
     // BSR 64-bit
     tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3},
-                      {.rbx = 0x8000000000000000, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0x8000000000000000, .rflags = 0x2 | FL_AF}, FL_ALL});
 
     // BSR 32-bit: 0xFF -> result=7
     tests.push_back({"bsr eax,ebx 0xFF", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0xFF, .rflags = 0x2}, FL_ZF});
+                      {.rbx = 0xFF, .rflags = 0x2 | FL_CF | FL_OF | FL_AF}, FL_ALL});
   }
 
   // =====================================================================
