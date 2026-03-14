@@ -33,6 +33,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         }
       },
       // VMOVSS xmm1, xmm2, xmm3 or xmm1, m32
+      // Memory form: VEX.vvvv must be 1111b.
       MP_F3 => {
         match rm {
           RM_reg(_) => {
@@ -42,13 +43,14 @@ function dispatch_vex_0f_fp(op, pfx) = {
             write_xmm(dst, src2[127..32] @ src3[31..0])
           },
           RM_mem(addr) => {
-            // mem: load 32 bits, zero-extend to 128
+            if pfx.vex_vvvv != 0 then raise_UD();
             let v : dword = mem_read32(fixup_addr(addr));
             write_xmm(dst, zeros(96) @ v)
           },
         }
       },
       // VMOVSD xmm1, xmm2, xmm3 or xmm1, m64
+      // Memory form: VEX.vvvv must be 1111b.
       MP_F2 => {
         match rm {
           RM_reg(_) => {
@@ -57,6 +59,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
             write_xmm(dst, src2[127..64] @ src3[63..0])
           },
           RM_mem(addr) => {
+            if pfx.vex_vvvv != 0 then raise_UD();
             let v : qword = mem_read64(fixup_addr(addr));
             write_xmm(dst, zeros(64) @ v)
           },
@@ -116,6 +119,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         }
       },
       // VMOVSS xmm1, xmm2, xmm3 or VMOVSS m32, xmm1
+      // Memory form: VEX.vvvv must be 1111b.
       MP_F3 => {
         match rm {
           RM_reg(_) => {
@@ -124,10 +128,14 @@ function dispatch_vex_0f_fp(op, pfx) = {
             let src3 : xmmword = read_xmm(src);
             write_xmm(dst, src2[127..32] @ src3[31..0])
           },
-          RM_mem(addr) => mem_write32(fixup_addr(addr), read_xmm(src)[31..0]),
+          RM_mem(addr) => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            mem_write32(fixup_addr(addr), read_xmm(src)[31..0])
+          },
         }
       },
       // VMOVSD xmm1, xmm2, xmm3 or VMOVSD m64, xmm1
+      // Memory form: VEX.vvvv must be 1111b.
       MP_F2 => {
         match rm {
           RM_reg(_) => {
@@ -136,7 +144,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
             let src3 : xmmword = read_xmm(src);
             write_xmm(dst, src2[127..64] @ src3[63..0])
           },
-          RM_mem(addr) => mem_write64(fixup_addr(addr), read_xmm(src)[63..0]),
+          RM_mem(addr) => {
+            if pfx.vex_vvvv != 0 then raise_UD();
+            mem_write64(fixup_addr(addr), read_xmm(src)[63..0])
+          },
         }
       },
     }
