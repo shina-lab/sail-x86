@@ -6,7 +6,7 @@ add_executable(kvm_harness
   kvm-tests-misc.cpp
   kvm-tests-x87-avx.cpp
   kvm-tests-fp-edge.cpp
-  kvm-tests-extended.cpp
+  kvm-tests-encoding.cpp
   kvm-tests-exception.cpp
   kvm-tests-vex.cpp
   kvm-tests-evex.cpp
@@ -132,6 +132,7 @@ set(KVM_CATEGORIES
   CMPXCHG16B
   AVX
   EVEX
+  "EVEX basic"
   "AVX Edge"
   "FP Edge"
   ADCX/ADOX
@@ -150,6 +151,7 @@ set(KVM_CATEGORIES
   MOVBE
   "String ops"
   "SSE4.2 str"
+  "XSAVE/XRSTOR"
   "Exception #DE"
   "Exception #UD"
   "Exception #GP"

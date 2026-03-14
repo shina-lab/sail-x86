@@ -2421,4 +2421,37 @@ void add_evex_tests(std::vector<TestCase> &tests) {
             {0x62, 0xF2, 0xF5, 0x08, 0x83, 0xC2}, s, 0x3);
   }
 
+  // =====================================================================
+  // Basic EVEX 128-bit operations
+  // =====================================================================
+  {
+    cat = "EVEX basic";
+
+    auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    // VPADDD XMM0, XMM1, XMM2 (EVEX 128-bit integer add)
+    // EVEX.128.66.0F.W0 FE /r
+    // 62 F1 75 08 FE C2: L'L=00(128)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      s.xmm[2] = xmm_from_u32(10, 20, 30, 40);
+      add_xmm("vpaddd xmm0,xmm1,xmm2 evex", {0x62, 0xF1, 0x75, 0x08, 0xFE, 0xC2}, s, 0x1);
+    }
+
+    // VPXORD XMM0, XMM1, XMM2 (EVEX 128-bit XOR)
+    // EVEX.128.66.0F.W0 EF /r: 62 F1 75 08 EF C2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+      s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xAAAAAAAAAAAAAAAA);
+      add_xmm("vpxord xmm0,xmm1,xmm2 evex", {0x62, 0xF1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x1);
+    }
+  }
+
 }

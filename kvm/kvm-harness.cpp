@@ -561,7 +561,7 @@ std::vector<TestCase> build_tests() {
   add_misc_instruction_tests(tests);
   add_x87_avx_tests(tests);
   add_fp_edge_tests(tests);
-  add_extended_instruction_tests(tests);
+  add_encoding_tests(tests);
   add_systematic_tests(tests);
   add_exception_tests(tests);
 

@@ -1074,5 +1074,69 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {.rdi = DATA_ADDR, .rflags = 0x2},
       FL_NONE, 0x3, false, data, 0});
   }
+
+  // =====================================================================
+  // SSE4.2 string operations — PCMPISTRI/PCMPISTRM
+  // =====================================================================
+  {
+    cat = "SSE4.2 str";
+
+    auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    // PCMPISTRI xmm1, xmm2, imm8: 66 0F 3A 63 /r ib
+    // Mode 0x00: unsigned bytes, equal any, LSB index
+    // XMM0 = "abcd\0...", XMM1 = "xxbx\0..." -> find 'b' at index 2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
+      // 66 0F 3A 63 C1 00: PCMPISTRI XMM0, XMM1, 0x00
+      add_xmm("pcmpistri eq_any", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x00}, s, 0);
+    }
+
+    // PCMPISTRI: equal each (mode 0x08) -- byte-by-byte compare
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
+      s.xmm[1] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
+      add_xmm("pcmpistri eq_each match", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
+    }
+
+    // PCMPISTRI: equal each with difference at byte 2
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000044584241, 0);  // "AB\x58D\0..."
+      add_xmm("pcmpistri eq_each diff@2", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
+    }
+
+    // PCMPISTRM: equal each (mode 0x08), returns mask in XMM0
+    // 66 0F 3A 62 C1 08: PCMPISTRM XMM0, XMM1, 0x08
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      s.xmm[1] = xmm_from_u64(0x00000000FF43FF41, 0);  // "A\xffC\xff\0..."
+      add_xmm("pcmpistrm eq_each", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x08}, s, 0x1);
+    }
+
+    // PCMPESTRI: explicit length -- 66 0F 3A 61 C1 imm8
+    // EAX=length of xmm0 string, EDX=length of xmm1 string
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rax = 3;  // length of needle
+      s.rdx = 4;  // length of haystack
+      s.xmm[0] = xmm_from_u64(0x0000000000434241, 0);  // "ABC\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      add_xmm("pcmpestri eq_each", {0x66, 0x0F, 0x3A, 0x61, 0xC1, 0x08}, s, 0);
+    }
+  }
 }
 

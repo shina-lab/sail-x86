@@ -1337,5 +1337,160 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
          0xF2, 0x0F, 0x38, 0xF0, 0xC3},       // CRC32 eax, bl (8-bit)
         s, FL_NONE);
   }
+
+  // =====================================================================
+  // String ops — REP MOVS/STOS/SCAS/CMPS/LODS with DF, zero-length
+  // =====================================================================
+  {
+    cat = "String ops";
+
+    // REP MOVSB: F3 A4 -- copy RCX bytes from [RSI] to [RDI]
+    // Forward (DF=0), 8 bytes
+    {
+      std::vector<u8> data(512, 0);
+      for (int i = 0; i < 8; i++)
+        data[i] = 0x10 + i;
+      tests.push_back({"rep movsb fwd 8", cat, {0xF3, 0xA4},
+                        {.rcx = 8, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 512});
+    }
+
+    // REP MOVSB: backward (DF=1), 4 bytes -- start pointers at end
+    {
+      std::vector<u8> data(512, 0);
+      data[0] = 0xAA;
+      data[1] = 0xBB;
+      data[2] = 0xCC;
+      data[3] = 0xDD;
+      tests.push_back({"rep movsb bwd 4", cat, {0xF3, 0xA4},
+                        {.rcx = 4, .rsi = DATA_ADDR + 3, .rdi = DATA_ADDR + 256 + 3,
+                         .rflags = 0x2 | FL_DF},
+                        FL_ALL, 0, false, data, 512});
+    }
+
+    // REP MOVSB: zero count -- no-op
+    {
+      std::vector<u8> data(512, 0);
+      data[0] = 0xFF;  // should not be copied
+      tests.push_back({"rep movsb zero", cat, {0xF3, 0xA4},
+                        {.rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 512});
+    }
+
+    // REP MOVSQ: F3 48 A5 -- copy 2 qwords
+    {
+      std::vector<u8> data(512, 0);
+      for (int i = 0; i < 16; i++)
+        data[i] = 0x10 + i;
+      tests.push_back({"rep movsq fwd 2", cat, {0xF3, 0x48, 0xA5},
+                        {.rcx = 2, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 512});
+    }
+
+    // REP STOSB: F3 AA -- fill RCX bytes at [RDI] with AL
+    tests.push_back({"rep stosb 8", cat, {0xF3, 0xAA},
+                      {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
+
+    // REP STOSD: F3 AB -- fill with EAX
+    tests.push_back({"rep stosd 2", cat, {0xF3, 0xAB},
+                      {.rax = 0xDEADBEEF, .rcx = 2, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
+
+    // REP STOSQ: F3 48 AB
+    tests.push_back({"rep stosq 1", cat, {0xF3, 0x48, 0xAB},
+                      {.rax = 0x0102030405060708, .rcx = 1, .rdi = DATA_ADDR, .rflags = 0x2},
+                      FL_ALL, 0, false, {}, 8});
+
+    // LODSB: AC -- load byte from [RSI] into AL
+    {
+      std::vector<u8> data = {0x42};
+      tests.push_back({"lodsb", cat, {0xAC},
+                        {.rax = 0xDEADDEADDEADDEAD, .rsi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // LODSQ: 48 AD -- load qword from [RSI] into RAX
+    {
+      std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+      tests.push_back({"lodsq", cat, {0x48, 0xAD},
+                        {.rsi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REPE CMPSB: F3 A6 -- compare while equal
+    // Equal strings of length 4
+    {
+      std::vector<u8> data(512, 0);
+      data[0]   = 0x11;
+      data[1]   = 0x22;
+      data[2]   = 0x33;
+      data[3]   = 0x44;
+      data[256] = 0x11;
+      data[257] = 0x22;
+      data[258] = 0x33;
+      data[259] = 0x44;
+      tests.push_back({"repe cmpsb equal", cat, {0xF3, 0xA6},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REPE CMPSB: differ at byte 2
+    {
+      std::vector<u8> data(512, 0);
+      data[0]   = 0x11;
+      data[1]   = 0x22;
+      data[2]   = 0x33;
+      data[3]   = 0x44;
+      data[256] = 0x11;
+      data[257] = 0x22;
+      data[258] = 0xFF;
+      data[259] = 0x44;
+      tests.push_back({"repe cmpsb diff@2", cat, {0xF3, 0xA6},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REPNE SCASB: F2 AE -- scan for AL in [RDI]
+    {
+      std::vector<u8> data = {0x00, 0x01, 0x02, 0x42, 0x04, 0x05, 0x06, 0x07};
+      tests.push_back({"repne scasb found", cat, {0xF2, 0xAE},
+                        {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+
+    // REPNE SCASB: not found
+    {
+      std::vector<u8> data = {0x00, 0x01, 0x02, 0x03};
+      tests.push_back({"repne scasb notfound", cat, {0xF2, 0xAE},
+                        {.rax = 0xFF, .rcx = 4, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_ALL, 0, false, data, 0});
+    }
+  }
+
+  // =====================================================================
+  // ENTER with nesting levels
+  // =====================================================================
+  {
+    cat = "ENTER";
+
+    // ENTER 0, 0: just push RBP and set RBP=RSP (like push rbp; mov rbp,rsp)
+    // C8 00 00 00
+    tests.push_back({"enter 0,0", cat, {0xC8, 0x00, 0x00, 0x00},
+                      {.rbp = 0xAAAAAAAAAAAAAAAA, .rflags = 0x2}, FL_NONE});
+
+    // ENTER 16, 0: allocate 16 bytes of local space
+    tests.push_back({"enter 16,0", cat, {0xC8, 0x10, 0x00, 0x00},
+                      {.rbp = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_NONE});
+
+    // ENTER 0, 1: nesting level 1 -- pushes old RBP, then pushes frame_temp
+    // RBP must point to valid stack memory since nesting copies prior frames
+    tests.push_back({"enter 0,1", cat, {0xC8, 0x00, 0x00, 0x01},
+                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_NONE});
+
+    // ENTER 8, 2: nesting level 2 -- pushes old RBP, copies 1 prior frame ptr, pushes frame_temp
+    tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02},
+                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_NONE});
+  }
 }
 
