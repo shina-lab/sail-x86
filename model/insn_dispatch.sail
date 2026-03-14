@@ -1644,8 +1644,11 @@ function decode_execute() = {
         exec_out(read_gpr16(RDX), os)
       },
 
-      // F4: HLT
-      244 => system_state = SysHalted,
+      // F4: HLT — SDM: #GP(0) if CPL > 0
+      244 => {
+        if cur_cpl != 0 then raise_GP0();
+        system_state = SysHalted
+      },
 
       // F5: CMC
       245 => CF = ~(CF),

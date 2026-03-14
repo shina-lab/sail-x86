@@ -458,7 +458,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
         239 => (),
         // 0F 01 F9: RDTSCP — Read TSC and IA32_TSC_AUX
+        // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
         249 => {
+          if CR4[2] == bitone & cur_cpl != 0 then raise_GP0();
           let tsc : qword = __rdtsc();
           write_gpr32(RAX, tsc[31..0]);
           write_gpr32(RDX, tsc[63..32]);
@@ -557,7 +559,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
     // 0F 05: SYSCALL
+    // SDM: #UD if EFER.SCE (bit 0) = 0
     5 => {
+      if EFER[0] != bitone then raise_UD();
       if system_mode then {
         // Full hardware SYSCALL per Intel SDM Vol.2.
         // RCX = return address, R11 = RFLAGS
@@ -741,7 +745,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let _ = decode_rm(modrm, pfx)
     },
     // 0F 31: RDTSC
+    // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
     49 => {
+      if CR4[2] == bitone & cur_cpl != 0 then raise_GP0();
       let tsc : qword = __rdtsc();
       write_gpr32(RAX, tsc[31..0]);
       write_gpr32(RDX, tsc[63..32])
@@ -794,7 +800,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let rm = decode_rm(modrm, pfx);
       // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
+      // SDM: #UD if CR4.FSGSBASE (bit 16) = 0
       if pfx.has_rep & reg_field <= 3 then {
+        if CR4[16] != bitone then raise_UD();
         match rm {
           RM_reg(r) => match reg_field {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64

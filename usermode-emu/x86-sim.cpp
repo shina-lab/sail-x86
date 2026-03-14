@@ -44,6 +44,8 @@ int main(int argc, char *argv[], char *envp[]) {
   model.zinitializze_registers(UNIT);
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 3;
+  model.zEFER = 0x0000000000000D01;  // SCE | LME | LMA | NXE
+  model.zCR4 = model.zCR4 | (1ULL << 16);  // FSGSBASE
 
   ElfLoadResult elf = load_elf(model, elf_path);
   if (!elf.success) {
