@@ -458,7 +458,7 @@ function dispatch_x87_dd(modrm, rm, _) = {
       match reg {
         0 => x87_free(sti),
         2 => x87_write_st(sti, x87_read_st(0)),
-        3 => { let v = x87_pop(); x87_write_st(sti, v) },
+        3 => { x87_write_st(sti, x87_read_st(0)); let _ = x87_pop() },
         4 => x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
         5 => {
           x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));

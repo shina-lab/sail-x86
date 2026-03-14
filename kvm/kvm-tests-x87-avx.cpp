@@ -458,6 +458,29 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // FSTP ST(i): must write before pop (off-by-one test)
+  // =====================================================================
+  cat = "x87";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // FLD1, FLDZ, FLDPI, FSTP ST(2), FSTP [RDI], FSTP [RDI+8]
+    // After FSTP ST(2): ST(0)=0.0, ST(1)=pi (pi was copied to ST(2) pre-pop)
+    // After FSTP [RDI]: mem[0..7]=0.0, ST(0)=pi
+    // After FSTP [RDI+8]: mem[8..15]=pi
+    tests.push_back({"fstp st(2) order", cat,
+      {0xD9, 0xE8,           // FLD1
+       0xD9, 0xEE,           // FLDZ
+       0xD9, 0xEB,           // FLDPI
+       0xDD, 0xDA,           // FSTP ST(2)
+       0xDD, 0x1F,           // FSTP [RDI] (m64fp)
+       0xDD, 0x5F, 0x08},    // FSTP [RDI+8] (m64fp)
+      s, FL_ALL, 0, false, {}, 16});
+  }
+
+  // =====================================================================
   // 49. More x87 transcendental/special operations
   // =====================================================================
   cat = "x87";
