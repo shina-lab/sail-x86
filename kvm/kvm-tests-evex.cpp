@@ -2627,6 +2627,108 @@ void add_evex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
       // shuffle reverses: [44,33,22,11] → elem0=preserved, elem1=33, elem2=22, elem3=preserved
     }
+
+    // --- evex_arith: VPLZCNTD writemask ---
+    // EVEX.128.66.0F38.W0 44 /r: 62 F2 7D 09 44 C1
+    // k1 = 0x09 → elements 0,3 updated, elements 1,2 preserved
+    {
+      TestCase tc;
+      tc.name = "vplzcntd xmm merge k1=09h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x09, 0x44, 0xC1};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(1, 0x100, 0x10000, 0);  // lzcnt: 31, 23, 15, 32
+      tc.initial.kregs[1] = 0x09;  // bits 0,3
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+    }
+
+    // --- evex_fp: VUNPCKLPS writemask ---
+    // EVEX.128.NP.0F.W0 14 /r: 62 F1 74 09 14 C2
+    // k1 = 0x05 → elements 0,2 updated, elements 1,3 preserved
+    {
+      TestCase tc;
+      tc.name = "vunpcklps xmm merge k1=05h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x74, 0x09, 0x14, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tc.initial.xmm[2] = xmm_from_u32(0x55555555, 0x66666666, 0x77777777, 0x88888888);
+      tc.initial.kregs[1] = 0x05;  // bits 0,2
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // unpcklps interleaves low dwords: [src1[0],src2[0],src1[1],src2[1]]
+      // = [0x11111111,0x55555555,0x22222222,0x66666666]
+      // masked: elem0=0x11111111, elem1=preserved, elem2=0x22222222, elem3=preserved
+    }
+
+    // --- evex_imm: VPTERNLOGD writemask ---
+    // EVEX.128.66.0F3A.W0 25 /r ib: 62 F3 75 09 25 C2 FF
+    // imm8=0xFF → all ones (dst = 0xFFFFFFFF for each masked element)
+    // k1 = 0x06 → elements 1,2 updated, elements 0,3 preserved
+    {
+      TestCase tc;
+      tc.name = "vpternlogd xmm merge k1=06h imm=FF";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x09, 0x25, 0xC2, 0xFF};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tc.initial.xmm[1] = xmm_from_u32(0, 0, 0, 0);
+      tc.initial.xmm[2] = xmm_from_u32(0, 0, 0, 0);
+      tc.initial.kregs[1] = 0x06;  // bits 1,2
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // elem0=preserved(0x11111111), elem1=0xFFFFFFFF, elem2=0xFFFFFFFF, elem3=preserved(0x44444444)
+    }
+
+    // --- evex_fma: VFNMSUB213PS writemask ---
+    // EVEX.128.66.0F38.W0 AE /r: 62 F2 75 09 AE C2
+    // k1 = 0x0A → elements 1,3 updated, elements 0,2 preserved
+    {
+      TestCase tc;
+      tc.name = "vfnmsub213ps xmm merge k1=0Ah";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x75, 0x09, 0xAE, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      // result = -(xmm1 * xmm0) - xmm2 = -(1.0 * 2.0) - 3.0 = -5.0
+      tc.initial.xmm[0] = xmm_from_u32(0x40000000, 0x40000000, 0x40000000, 0x40000000);  // 2.0f
+      tc.initial.xmm[1] = xmm_from_u32(0x3F800000, 0x3F800000, 0x3F800000, 0x3F800000);  // 1.0f
+      tc.initial.xmm[2] = xmm_from_u32(0x40400000, 0x40400000, 0x40400000, 0x40400000);  // 3.0f
+      tc.initial.kregs[1] = 0x0A;  // bits 1,3
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // elem0=preserved(2.0), elem1=-5.0, elem2=preserved(2.0), elem3=-5.0
+    }
+
+    // --- evex_perm: VPBROADCASTD writemask ---
+    // EVEX.128.66.0F38.W0 58 /r: 62 F2 7D 09 58 C1
+    // Broadcast xmm1[31:0] to all dword elements, with k1 merge mask
+    // k1 = 0x05 → elements 0,2 updated, elements 1,3 preserved
+    {
+      TestCase tc;
+      tc.name = "vpbroadcastd xmm merge k1=05h";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x09, 0x58, 0xC1};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+      tc.initial.xmm[1] = xmm_from_u32(0x42424242, 0, 0, 0);
+      tc.initial.kregs[1] = 0x05;  // bits 0,2
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // elem0=0x42424242, elem1=preserved, elem2=0x42424242, elem3=preserved
+    }
   }
 
 }
