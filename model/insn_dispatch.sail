@@ -1076,9 +1076,10 @@ function decode_execute() = {
       155 => __wait(),
 
       // 9C: PUSHF (d64)
+      // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.
       156 => {
         let os = get_operand_size_d64(pfx);
-        let flags = read_rflags();
+        let flags = read_rflags() & 0x0000000000FCFFFF;
         exec_push_imm(flags, os)
       },
 
