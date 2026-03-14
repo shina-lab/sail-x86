@@ -431,6 +431,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let mod_field : range(0, 3) = unsigned(modrm[7..6]);
       match modrm_val {
+        // 0F 01 D1: XSETBV — Write XCR (ECX selects register, EDX:EAX = value)
+        // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists)
+        209 => {
+          if cur_cpl != 0 then raise_GP0();
+          let ecx_val : dword = read_gpr32(RCX);
+          if ecx_val != 0x00000000 then raise_GP0();
+          // XCR0: bits 0(x87)=must be 1, 1=SSE, 2=AVX, 5-7=AVX-512
+          // We accept any valid value but don't enforce all constraints
+          ()  // Model does not track XCR0 writes (XGETBV returns constant)
+        },
         // 0F 01 D0: XGETBV
         208 => {
           let ecx_val : dword = read_gpr32(RCX);

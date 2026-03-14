@@ -1094,13 +1094,23 @@ function decode_execute() = {
           OS16 => {
             let v : word = pop16();
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
-            TF = v[8]; IF_flag = v[9]; DF = v[10]; OF = v[11];
-            IOPL = v[13..12];
+            TF = v[8]; DF = v[10]; OF = v[11];
             NT = v[14];
+            // IOPL modifiable only at CPL 0; IF modifiable at CPL <= IOPL
+            if cur_cpl == 0 then IOPL = v[13..12];
+            if cur_cpl <= unsigned(IOPL) then IF_flag = v[9];
           },
           OS64 => {
             let v : qword = pop64();
+            // Save IOPL and IF before write_rflags overwrites them
+            let old_iopl = IOPL;
+            let old_if = IF_flag;
             write_rflags(v);
+            // RF always cleared; VIP, VIF, VM not modifiable
+            RF = bitzero;
+            // IOPL modifiable only at CPL 0; IF modifiable at CPL <= IOPL
+            if cur_cpl != 0 then IOPL = old_iopl;
+            if cur_cpl > unsigned(old_iopl) then IF_flag = old_if;
           },
           _ => (),
         }
