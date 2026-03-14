@@ -77,6 +77,7 @@ function exec_mul(src, os) = {
 }
 
 // DIV — Unsigned Divide
+// SDM: CF, OF, SF, ZF, AF, PF are undefined after DIV.
 
 val exec_div : (qword, OperandSize) -> unit
 function exec_div(src, os) = {
@@ -125,10 +126,17 @@ function exec_div(src, os) = {
       write_gpr64(RAX, to_bits_truncate(quotient));
       write_gpr64(RDX, to_bits_truncate(remainder))
     },
-  }
+  };
+  CF = undefined;
+  OF = undefined;
+  SF = undefined;
+  ZF = undefined;
+  AF = undefined;
+  PF = undefined
 }
 
 // IDIV — Signed Divide
+// SDM: CF, OF, SF, ZF, AF, PF are undefined after IDIV.
 
 val exec_idiv : (qword, OperandSize) -> unit
 function exec_idiv(src, os) = {
@@ -177,7 +185,13 @@ function exec_idiv(src, os) = {
       write_gpr64(RAX, to_bits_truncate(quotient));
       write_gpr64(RDX, to_bits_truncate(remainder))
     },
-  }
+  };
+  CF = undefined;
+  OF = undefined;
+  SF = undefined;
+  ZF = undefined;
+  AF = undefined;
+  PF = undefined
 }
 
 // IMUL — Signed Multiply (one-operand form)
