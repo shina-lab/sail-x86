@@ -1021,6 +1021,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_rm_val(rm, OS8, pfx.has_rex, src);
       } else {
         write_gpr8l(RAX, dest[7..0]);
+        write_rm_val(rm, OS8, pfx.has_rex, dest);
       }
     },
     // 0F B1: CMPXCHG r/m, r
@@ -1044,6 +1045,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_rm_val(rm, os, pfx.has_rex, src);
       } else {
         write_gpr(RAX, os, dest);
+        write_rm_val(rm, os, pfx.has_rex, dest);
       }
     },
     // 0F B6: MOVZX r, r/m8
