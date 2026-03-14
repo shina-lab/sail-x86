@@ -2729,6 +2729,86 @@ void add_evex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
       // elem0=0x42424242, elem1=preserved, elem2=0x42424242, elem3=preserved
     }
+
+    // --- Scalar SS writemask: merge (mask bit 0 = 0) ---
+    // VADDSS xmm0{k1}, xmm1, xmm2: EVEX.LIG.F3.0F.W0 58 /r
+    // 62 F1 76 09 58 C2 (pp=10=F3, vvvv=xmm1, aaa=001)
+    // k1 = 0x0 → bit 0 = 0, merge: lowest dword preserved from dst
+    {
+      TestCase tc;
+      tc.name = "vaddss xmm merge k1=0 (masked off)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x76, 0x09, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0x11111111, 0x22222222, 0x33333333);
+      tc.initial.xmm[1] = xmm_from_u32(0x3F800000, 0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC);  // 1.0f
+      tc.initial.xmm[2] = xmm_from_u32(0x40000000, 0, 0, 0);  // 2.0f
+      tc.initial.kregs[1] = 0x0;  // bit 0 = 0 → lowest dword masked off
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // Upper 96 bits from xmm1: CCCCCCCC BBBBBBBB AAAAAAAA
+      // Low dword: preserved from xmm0 = 0xDEADBEEF (merge)
+    }
+
+    // --- Scalar SS writemask: zero (mask bit 0 = 0, z=1) ---
+    // 62 F1 76 89 58 C2 (z=1)
+    {
+      TestCase tc;
+      tc.name = "vaddss xmm zero k1=0 (zeroed)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x76, 0x89, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0x11111111, 0x22222222, 0x33333333);
+      tc.initial.xmm[1] = xmm_from_u32(0x3F800000, 0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC);
+      tc.initial.xmm[2] = xmm_from_u32(0x40000000, 0, 0, 0);
+      tc.initial.kregs[1] = 0x0;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // Low dword: zeroed (z=1, mask=0)
+    }
+
+    // --- Scalar SS writemask: pass (mask bit 0 = 1) ---
+    // Same encoding but k1 = 0x1
+    {
+      TestCase tc;
+      tc.name = "vaddss xmm merge k1=1 (passes)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x76, 0x09, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u32(0xDEADBEEF, 0x11111111, 0x22222222, 0x33333333);
+      tc.initial.xmm[1] = xmm_from_u32(0x3F800000, 0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC);
+      tc.initial.xmm[2] = xmm_from_u32(0x40000000, 0, 0, 0);
+      tc.initial.kregs[1] = 0x1;  // bit 0 = 1 → lowest dword updated
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // Low dword: 1.0 + 2.0 = 3.0 = 0x40400000
+    }
+
+    // --- Scalar SD writemask: merge (mask bit 0 = 0) ---
+    // VADDSD xmm0{k1}, xmm1, xmm2: EVEX.LIG.F2.0F.W1 58 /r
+    // 62 F1 F7 09 58 C2 (W=1, pp=11=F2, vvvv=xmm1, aaa=001)
+    {
+      TestCase tc;
+      tc.name = "vaddsd xmm merge k1=0 (masked off)";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0xF7, 0x09, 0x58, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[0] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0x1111111111111111);
+      tc.initial.xmm[1] = xmm_from_u64(0x3FF0000000000000, 0xAAAAAAAAAAAAAAAA);  // 1.0
+      tc.initial.xmm[2] = xmm_from_u64(0x4000000000000000, 0);  // 2.0
+      tc.initial.kregs[1] = 0x0;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+      // Low qword: preserved from xmm0 = 0xDEADBEEFDEADBEEF
+    }
   }
 
 }

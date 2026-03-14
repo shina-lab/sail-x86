@@ -2313,7 +2313,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let r = __f32_rndscale(src2[31..0], imm);
-        write_xmm(dst, src1[127..32] @ r)
+        evex_write_ss(dst, src1[127..32] @ r, pfx)
       },
       MP_NONE => {
         // VRNDSCALESH: scalar FP16 round
@@ -2324,7 +2324,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let r : word = __f16_rndscale(src2[15..0], imm);
-        write_xmm(dst, src1[127..16] @ r)
+        evex_write_sh(dst, src1[127..16] @ r, pfx)
       },
       _ => raise_UD(),
     }
@@ -2341,7 +2341,7 @@ function dispatch_evex_imm(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src_xmm(modrm, rm, pfx);
     let r = __f64_rndscale(src2[63..0], imm);
-    write_xmm(dst, src1[127..64] @ r)
+    evex_write_sd(dst, src1[127..64] @ r, pfx)
   },
 
   // 0F3A 23: VSHUFF32X4 (66, W=0) / VSHUFF64X2 (66, W=1) — shuffle 128-bit lanes (FP)
@@ -2435,10 +2435,10 @@ function dispatch_evex_imm(op, pfx) = {
         let src2 = evex_src_xmm(modrm, rm, pfx);
         if pfx.vex_w then {
           let r = __f64_getmant(src2[63..0], imm);
-          write_xmm(dst, src1[127..64] @ r)
+          evex_write_sd(dst, src1[127..64] @ r, pfx)
         } else {
           let r = __f32_getmant(src2[31..0], imm);
-          write_xmm(dst, src1[127..32] @ r)
+          evex_write_ss(dst, src1[127..32] @ r, pfx)
         }
       },
       MP_NONE => {
@@ -2451,7 +2451,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let r : word = __f16_getmant(src2[15..0], imm);
-        write_xmm(dst, src1[127..16] @ r)
+        evex_write_sh(dst, src1[127..16] @ r, pfx)
       },
       _ => raise_UD(),
     }
@@ -2550,14 +2550,14 @@ function dispatch_evex_imm(op, pfx) = {
         RM_mem(addr) => mem_read64(fixup_addr(addr)),
       };
       let r = avx_range_f64(src1[63..0], src2, imm);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       let src2 : dword = match rm {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
         RM_mem(addr) => mem_read32(fixup_addr(addr)),
       };
       let r = avx_range_f32(src1[31..0], src2, imm);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     }
   },
 
@@ -2601,11 +2601,11 @@ function dispatch_evex_imm(op, pfx) = {
     if pfx.vex_w then {
       // VFIXUPIMMSD xmm1, xmm2, xmm3/m64, imm8
       let r = __f64_fixupimm(dst_xmm[63..0], src1[63..0], src2[63..0], imm);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       // VFIXUPIMMSS xmm1, xmm2, xmm3/m32, imm8
       let r = __f32_fixupimm(dst_xmm[31..0], src1[31..0], src2[31..0], imm);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     }
   },
 
@@ -2676,10 +2676,10 @@ function dispatch_evex_imm(op, pfx) = {
         let src2 = evex_src_xmm(modrm, rm, pfx);
         if pfx.vex_w then {
           let r = __f64_reduce(src2[63..0], imm);
-          write_xmm(dst, src1[127..64] @ r)
+          evex_write_sd(dst, src1[127..64] @ r, pfx)
         } else {
           let r = __f32_reduce(src2[31..0], imm);
-          write_xmm(dst, src1[127..32] @ r)
+          evex_write_ss(dst, src1[127..32] @ r, pfx)
         }
       },
       MP_NONE => {
@@ -2692,7 +2692,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let r : word = __f16_reduce(src2[15..0], imm);
-        write_xmm(dst, src1[127..16] @ r)
+        evex_write_sh(dst, src1[127..16] @ r, pfx)
       },
       _ => raise_UD(),
     }

@@ -1621,11 +1621,11 @@ function dispatch_evex_fma(op, pfx) = {
     if pfx.rex_w then {
       // VSCALEFSD xmm1, xmm2, xmm3/m64
       let r = __f64_scalef(src1[63..0], src2[63..0]);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       // VSCALEFSS xmm1, xmm2, xmm3/m32
       let r = __f32_scalef(src1[31..0], src2[31..0]);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1671,11 +1671,11 @@ function dispatch_evex_fma(op, pfx) = {
     if pfx.rex_w then {
       // VGETEXPSD xmm1, xmm2, xmm3/m64
       let r = __f64_getexp(src2[63..0]);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       // VGETEXPSS xmm1, xmm2, xmm3/m32
       let r = __f32_getexp(src2[31..0]);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1717,11 +1717,11 @@ function dispatch_evex_fma(op, pfx) = {
     if pfx.rex_w then {
       // VRCP14SD xmm1, xmm2, xmm3/m64
       let r = __f64_rcp14(src2[63..0]);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       // VRCP14SS xmm1, xmm2, xmm3/m32
       let r = __f32_rcp14(src2[31..0]);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     }
   },
 
@@ -1762,11 +1762,11 @@ function dispatch_evex_fma(op, pfx) = {
     if pfx.rex_w then {
       // VRSQRT14SD xmm1, xmm2, xmm3/m64
       let r = __f64_rsqrt14(src2[63..0]);
-      write_xmm(dst, src1[127..64] @ r)
+      evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       // VRSQRT14SS xmm1, xmm2, xmm3/m32
       let r = __f32_rsqrt14(src2[31..0]);
-      write_xmm(dst, src1[127..32] @ r)
+      evex_write_ss(dst, src1[127..32] @ r, pfx)
     }
   },
 
