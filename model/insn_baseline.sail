@@ -536,9 +536,11 @@ function dispatch_2byte_gpr(op, pfx) = {
                 RM_reg(r) => read_gpr16(r),
                 RM_mem(addr) => mem_read16(addr),
               };
-              // LMSW sets low 4 bits of CR0, cannot clear PE once set
+              // LMSW sets low 4 bits of CR0; only PE (bit 0) is sticky
+              // (cannot clear PE once set). MP/EM/TS are freely assignable.
               var new_cr0 = CR0;
-              new_cr0[3..0] = msw[3..0] | CR0[3..0];
+              new_cr0[3..1] = msw[3..1];
+              new_cr0[0] = msw[0] | CR0[0];
               CR0 = new_cr0
             },
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
