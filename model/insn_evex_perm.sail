@@ -1632,22 +1632,27 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 2A: VMOVNTDQA (66) [F] / VPBROADCASTMB2Q (F3,W1) [CD]
   42 => {
     if mp == MP_66 then {
-      // VMOVNTDQA: element size depends on W
+      // VMOVNTDQA: memory source only (SDM: ModRM.MOD != 11b)
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      if pfx.rex_w then {
-        match pfx.evex_ll {
-          2 => evex_write_q_zmm(dst, evex_src_zmm(modrm, rm, pfx), pfx),
-          1 => evex_write_q_ymm(dst, evex_src_ymm(modrm, rm, pfx), pfx),
-          _ => evex_write_q_xmm(dst, evex_src_xmm(modrm, rm, pfx), pfx),
-        }
-      } else {
-        match pfx.evex_ll {
-          2 => evex_write_d_zmm(dst, evex_src_zmm(modrm, rm, pfx), pfx),
-          1 => evex_write_d_ymm(dst, evex_src_ymm(modrm, rm, pfx), pfx),
-          _ => evex_write_d_xmm(dst, evex_src_xmm(modrm, rm, pfx), pfx),
-        }
+      match rm {
+        RM_reg(_) => raise_UD(),
+        RM_mem(_) => {
+          if pfx.rex_w then {
+            match pfx.evex_ll {
+              2 => evex_write_q_zmm(dst, evex_src_zmm(modrm, rm, pfx), pfx),
+              1 => evex_write_q_ymm(dst, evex_src_ymm(modrm, rm, pfx), pfx),
+              _ => evex_write_q_xmm(dst, evex_src_xmm(modrm, rm, pfx), pfx),
+            }
+          } else {
+            match pfx.evex_ll {
+              2 => evex_write_d_zmm(dst, evex_src_zmm(modrm, rm, pfx), pfx),
+              1 => evex_write_d_ymm(dst, evex_src_ymm(modrm, rm, pfx), pfx),
+              _ => evex_write_d_xmm(dst, evex_src_xmm(modrm, rm, pfx), pfx),
+            }
+          }
+        },
       }
     } else if mp == MP_F3 then {
       if pfx.rex_w then {

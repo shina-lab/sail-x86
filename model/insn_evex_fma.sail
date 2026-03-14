@@ -1833,13 +1833,13 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let src1 = read_zmm(pfx.evex_vvvvv);
+    let src1 = read_xmm(pfx.evex_vvvvv);
     if pfx.rex_w then {
       let src2 = evex_src_xmm(modrm, rm, pfx);
-      write_zmm(dst, src1[511..64] @ __f64_rcp28(src2[63..0]))
+      evex_write_sd(dst, src1[127..64] @ __f64_rcp28(src2[63..0]), pfx)
     } else {
       let src2 = evex_src_xmm(modrm, rm, pfx);
-      write_zmm(dst, src1[511..32] @ __f32_rcp28(src2[31..0]))
+      evex_write_ss(dst, src1[127..32] @ __f32_rcp28(src2[31..0]), pfx)
     }
   },
 
@@ -1865,13 +1865,13 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let src1 = read_zmm(pfx.evex_vvvvv);
+    let src1 = read_xmm(pfx.evex_vvvvv);
     if pfx.rex_w then {
       let src2 = evex_src_xmm(modrm, rm, pfx);
-      write_zmm(dst, src1[511..64] @ __f64_rsqrt28(src2[63..0]))
+      evex_write_sd(dst, src1[127..64] @ __f64_rsqrt28(src2[63..0]), pfx)
     } else {
       let src2 = evex_src_xmm(modrm, rm, pfx);
-      write_zmm(dst, src1[511..32] @ __f32_rsqrt28(src2[31..0]))
+      evex_write_ss(dst, src1[127..32] @ __f32_rsqrt28(src2[31..0]), pfx)
     }
   },
 

@@ -1955,7 +1955,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm2 = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-        let dst_gpr = modrm_rm_reg(modrm, pfx);
+        let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(addr) => mem_read32(fixup_addr(addr)),
@@ -1972,7 +1972,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm2 = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-        let dst_gpr = modrm_rm_reg(modrm, pfx);
+        let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(addr) => mem_read64(fixup_addr(addr)),
@@ -2040,7 +2040,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm2 = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-        let dst_gpr = modrm_rm_reg(modrm, pfx);
+        let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(addr) => mem_read32(fixup_addr(addr)),
@@ -2057,7 +2057,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm2 = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
-        let dst_gpr = modrm_rm_reg(modrm, pfx);
+        let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(addr) => mem_read64(fixup_addr(addr)),

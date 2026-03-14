@@ -2729,7 +2729,35 @@ void add_evex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
       // elem0=0x42424242, elem1=preserved, elem2=0x42424242, elem3=preserved
     }
+  }
 
+  // =====================================================================
+  // EVEX conversion bugs — dest GPR in reg field, not r/m
+  // =====================================================================
+  cat = "EVEX FP conv";
+  {
+    // VCVTTSS2USI EAX, XMM1: EVEX.LIG.F3.0F.W0 78 /r
+    // 62 F1 7E 08 78 C1: dest=EAX (reg=0), src=XMM1 (rm=1)
+    // SDM: Operand 1 = ModRM:reg (w), Operand 2 = ModRM:r/m (r)
+    // XMM1 = 3.0f (0x40400000) → truncate → EAX = 3
+    {
+      TestCase tc;
+      tc.name = "vcvttss2usi eax,xmm1";
+      tc.category = cat;
+      tc.code = {0x62, 0xF1, 0x7E, 0x08, 0x78, 0xC1};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0xDEADDEADDEADDEAD;
+      tc.initial.xmm[1] = xmm_from_u32(0x40400000, 0, 0, 0);  // 3.0f
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tests.push_back(std::move(tc));
+      // Expected: EAX = 3 (0x00000003)
+    }
+  }
+
+  cat = "EVEX mask";
+  {
     // --- Scalar SS writemask: merge (mask bit 0 = 0) ---
     // VADDSS xmm0{k1}, xmm1, xmm2: EVEX.LIG.F3.0F.W0 58 /r
     // 62 F1 76 09 58 C2 (pp=10=F3, vvvv=xmm1, aaa=001)
