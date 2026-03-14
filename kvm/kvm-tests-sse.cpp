@@ -978,5 +978,101 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // MPSADBW XMM0, XMM1, 0: 66 0F 3A 42 C1 00
     add_xmm("mpsadbw xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s, 0x3);
   }
+
+  // =====================================================================
+  // Legacy SSE loads must preserve YMM upper bits (write_xmm_legacy)
+  // Strategy: VMOVDQU YMM0,[RDI] to set upper bits, then legacy SSE
+  // load into XMM0, then VEXTRACTI128 XMM1,YMM0,1 to read upper 128.
+  // XMM1 should retain the pattern if upper bits are preserved.
+  // =====================================================================
+  {
+    cat = "SSE Legacy Upper";
+
+    // Data layout at DATA_ADDR:
+    //   [0..15]  = YMM0[127:0] initial (don't care, will be overwritten)
+    //   [16..31] = YMM0[255:128] initial = 0xAA pattern (must survive)
+    //   [32..47] = SSE load source data = 0xBB pattern
+    std::vector<u8> data(64, 0);
+    for (int i = 16; i < 32; i++) data[i] = 0xAA;  // upper YMM
+    for (int i = 32; i < 48; i++) data[i] = 0xBB;  // load source
+
+    // MOVUPS XMM0, [RDI+32]: legacy SSE 128-bit load
+    // Code: VMOVDQU YMM0,[RDI]      = C5 FE 6F 07        (4 bytes)
+    //       MOVUPS XMM0,[RDI+0x20]  = 0F 10 47 20        (4 bytes)
+    //       VEXTRACTI128 XMM1,YMM0,1= C4 E3 7D 39 C1 01  (6 bytes)
+    tests.push_back({"movups xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0x0F, 0x10, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVAPS XMM0, [RDI+32]: legacy SSE aligned 128-bit load
+    // Code: VMOVDQU YMM0,[RDI]      = C5 FE 6F 07
+    //       MOVAPS XMM0,[RDI+0x20]  = 0F 28 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1= C4 E3 7D 39 C1 01
+    // DATA_ADDR+32 = 0x11020, 0x11020 % 16 == 0 (aligned)
+    tests.push_back({"movaps xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0x0F, 0x28, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVDQU XMM0, [RDI+32]: legacy SSE integer 128-bit load (F3 0F 6F)
+    // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
+    //       MOVDQU XMM0,[RDI+0x20]   = F3 0F 6F 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1 = C4 E3 7D 39 C1 01
+    tests.push_back({"movdqu xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0xF3, 0x0F, 0x6F, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVSS XMM0, [RDI+32]: legacy SSE scalar float load (F3 0F 10)
+    // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
+    //       MOVSS XMM0,[RDI+0x20]    = F3 0F 10 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1 = C4 E3 7D 39 C1 01
+    tests.push_back({"movss xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0xF3, 0x0F, 0x10, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVSD XMM0, [RDI+32]: legacy SSE scalar double load (F2 0F 10)
+    // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
+    //       MOVSD XMM0,[RDI+0x20]    = F2 0F 10 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1 = C4 E3 7D 39 C1 01
+    tests.push_back({"movsd xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0xF2, 0x0F, 0x10, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVUPD XMM0, [RDI+32]: legacy SSE 128-bit double load (66 0F 10)
+    // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
+    //       MOVUPD XMM0,[RDI+0x20]   = 66 0F 10 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1 = C4 E3 7D 39 C1 01
+    tests.push_back({"movupd xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0x66, 0x0F, 0x10, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+
+    // MOVDDUP XMM0, [RDI+32]: legacy SSE double duplicate (F2 0F 12)
+    // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
+    //       MOVDDUP XMM0,[RDI+0x20]  = F2 0F 12 47 20
+    //       VEXTRACTI128 XMM1,YMM0,1 = C4 E3 7D 39 C1 01
+    tests.push_back({"movddup xmm,m preserves upper", cat,
+      {0xC5, 0xFE, 0x6F, 0x07,
+       0xF2, 0x0F, 0x12, 0x47, 0x20,
+       0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
+      {.rdi = DATA_ADDR, .rflags = 0x2},
+      FL_NONE, 0x3, false, data, 0});
+  }
 }
 

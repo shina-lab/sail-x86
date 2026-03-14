@@ -110,6 +110,7 @@ set(KVM_CATEGORIES
   SSE
   SSSE3
   SSE4.1
+  "SSE Legacy Upper"
   SSE4.2
   AES
   SETcc
@@ -142,7 +143,6 @@ set(KVM_CATEGORIES
   LZCNT/TZCNT
   POPCNT
   BSF/BSR
-  "SSE Legacy Upper"
   BSWAP
   XCHG
   MOVSX/MOVSXD
