@@ -124,18 +124,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           // MOVUPS xmm1, xmm2/m128
           match rm {
             RM_reg(_) => exec_movups(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(addr) => {
-              write_xmm(xreg, mem_read128(addr))
-            },
+            RM_mem(addr) => write_xmm_legacy(xreg, mem_read128(addr)),
           }
         },
         MP_66 => {
           // MOVUPD xmm1, xmm2/m128
           match rm {
             RM_reg(_) => exec_movupd_load(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(addr) => {
-              write_xmm(xreg, mem_read128(addr))
-            },
+            RM_mem(addr) => write_xmm_legacy(xreg, mem_read128(addr)),
           }
         },
         MP_F3 => {
@@ -144,7 +140,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             RM_reg(_) => exec_movss_xmm(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
             RM_mem(addr) => {
               let v : xmmword = zero_extend(mem_read32(addr));
-              write_xmm(xreg, v)
+              write_xmm_legacy(xreg, v)
             },
           }
         },
@@ -154,7 +150,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             RM_reg(_) => exec_movsd_xmm(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
             RM_mem(addr) => {
               let v : xmmword = zero_extend(mem_read64(addr));
-              write_xmm(xreg, v)
+              write_xmm_legacy(xreg, v)
             },
           }
         },
@@ -256,7 +252,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             },
             RM_mem(addr) => {
               let lo = mem_read64(addr);
-              write_xmm(xreg, lo @ lo)
+              write_xmm_legacy(xreg, lo @ lo)
             },
           }
         },
@@ -394,7 +390,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         RM_mem(addr) => {
           // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
           if unsigned(addr) % 16 != 0 then raise_GP0();
-          write_xmm(xreg, mem_read128(addr))
+          write_xmm_legacy(xreg, mem_read128(addr))
         },
       }
     },

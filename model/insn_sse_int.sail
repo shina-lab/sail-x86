@@ -1028,9 +1028,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
               _     => raise_UD(),
             }
           },
-          RM_mem(addr) => {
-            write_xmm(xreg, mem_read128(addr))
-          },
+          RM_mem(addr) => write_xmm_legacy(xreg, mem_read128(addr)),
         }
       }
     },
