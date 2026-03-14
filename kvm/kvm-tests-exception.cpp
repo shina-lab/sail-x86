@@ -184,6 +184,27 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vmovntps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x2B, 0x07},
             {.rdi = DATA_ADDR + 1, .rflags = 0x2}, 13);
 
+  // VEX VMOVSS/VMOVSD memory forms: vvvv must be 1111b, else #UD
+  cat = "Exception #UD";
+
+  // VMOVSS XMM0, [RDI] with vvvv=1110 (should be 1111): C5 F2 10 07
+  // Normal: C5 FA 10 07 (vvvv=1111). F2 = R=1,vvvv=1110,L=0,pp=10.
+  add_fault("vmovss xmm,m32 vvvv!=1111 → #UD", {0xC5, 0xF2, 0x10, 0x07},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+
+  // VMOVSD XMM0, [RDI] with vvvv=1110: C5 F3 10 07
+  // Normal: C5 FB 10 07 (vvvv=1111, pp=11=F2). F3 = R=1,vvvv=1110,L=0,pp=11.
+  add_fault("vmovsd xmm,m64 vvvv!=1111 → #UD", {0xC5, 0xF3, 0x10, 0x07},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+
+  // VMOVSS [RDI], XMM0 with vvvv=1110: C5 F2 11 07
+  add_fault("vmovss m32,xmm vvvv!=1111 → #UD", {0xC5, 0xF2, 0x11, 0x07},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+
+  // VMOVSD [RDI], XMM0 with vvvv=1110: C5 F3 11 07
+  add_fault("vmovsd m64,xmm vvvv!=1111 → #UD", {0xC5, 0xF3, 0x11, 0x07},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+
   // ---- More #UD tests: LOCK on 2-byte opcodes ----
   cat = "Exception #UD";
 

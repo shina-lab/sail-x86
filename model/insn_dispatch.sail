@@ -1469,9 +1469,25 @@ function decode_execute() = {
             write_gpr64(RSP, zero_extend(new_esp));
             write_segreg(SS, new_ss[15..0]);
           },
-          _ => {
-            throw Fault(EXN_GP, 0x00000000)
+          OS16 => {
+            let new_ip     = pop16();
+            let new_cs     = pop16();
+            let new_flags  = pop16();
+            let new_sp     = pop16();
+            let new_ss     = pop16();
+
+            next_rip = Some(zero_extend(new_ip));
+            write_segreg(CS, new_cs);
+            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
+            cur_cpl = new_cpl;
+            // Only lower 16 bits of RFLAGS affected
+            let old_rflags = read_rflags();
+            write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
+            RF = bitzero;
+            write_gpr64(RSP, zero_extend(new_sp));
+            write_segreg(SS, new_ss);
           },
+          _ => (),
         }
       },
 
