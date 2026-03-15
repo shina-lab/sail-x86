@@ -934,6 +934,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
           if pfx.vex_w then {
             // VCVTQQ2PH: convert packed int64 to FP16
+            // SDM: KL=VL/64 elements, result in DEST.fp16[0..KL-1], rest zeroed
             match pfx.evex_ll {
               2 => {
                 let src = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
@@ -944,7 +945,19 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __int64_to_f16(src[127..64]) @ __int64_to_f16(src[63..0]);
                 evex_write_w_xmm(dst, r, pfx)
               },
-              _ => raise_UD(),
+              1 => {
+                let src = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
+                let r : qword =
+                  __int64_to_f16(src[255..192]) @ __int64_to_f16(src[191..128]) @
+                  __int64_to_f16(src[127..64]) @ __int64_to_f16(src[63..0]);
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
+              },
+              _ => {
+                let src = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
+                let r : dword =
+                  __int64_to_f16(src[127..64]) @ __int64_to_f16(src[63..0]);
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
+              },
             }
           } else {
             // VCVTDQ2PH: convert packed int32 to FP16
@@ -1491,7 +1504,19 @@ function dispatch_evex_map5(opcode, pfx) = {
                   __uint64_to_f16(src[127..64]) @ __uint64_to_f16(src[63..0]);
                 evex_write_w_xmm(dst, r, pfx)
               },
-              _ => raise_UD(),
+              1 => {
+                let src = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
+                let r : qword =
+                  __uint64_to_f16(src[255..192]) @ __uint64_to_f16(src[191..128]) @
+                  __uint64_to_f16(src[127..64]) @ __uint64_to_f16(src[63..0]);
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
+              },
+              _ => {
+                let src = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
+                let r : dword =
+                  __uint64_to_f16(src[127..64]) @ __uint64_to_f16(src[63..0]);
+                evex_write_w_xmm(dst, zero_extend(r), pfx)
+              },
             };
             evex_end_rc(saved)
           } else {
