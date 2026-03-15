@@ -20,45 +20,45 @@ function scan_prefixes() = {
     match bv {
       // F0 = LOCK
       240 => pfx = {pfx with has_lock = true, has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // F2 = REPNE / mandatory prefix
       242 => pfx = {pfx with has_repne = true, has_rep = false, has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // F3 = REP / mandatory prefix
       243 => pfx = {pfx with has_rep = true, has_repne = false, has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 26 = ES override
       38 => pfx = {pfx with seg_override = Some(ES), has_rex = false,
-              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+              rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 2E = CS override
       46 => pfx = {pfx with seg_override = Some(CS), has_rex = false,
-              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+              rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 36 = SS override
       54 => pfx = {pfx with seg_override = Some(SS), has_rex = false,
-              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+              rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 3E = DS override
       62 => pfx = {pfx with seg_override = Some(DS), has_rex = false,
-              rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+              rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 64 = FS override
       100 => pfx = {pfx with seg_override = Some(FS), has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 65 = GS override
       101 => pfx = {pfx with seg_override = Some(GS), has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 66 = operand size override
       102 => pfx = {pfx with has_opsize = true, has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 67 = address size override
       103 => pfx = {pfx with has_adsize = true, has_rex = false,
-               rex_w = false, rex_r = false, rex_x = false, rex_b = false},
+               rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 40-4F = REX prefix (64-bit mode only; INC/DEC in 32-bit mode)
       bv if 64 <= bv & bv <= 79 & cur_mode == LongMode =>
         pfx = {pfx with
           has_rex = true,
           rex_w = b[3] == bitone,
-          rex_r = b[2] == bitone,
-          rex_x = b[1] == bitone,
-          rex_b = b[0] == bitone,
+          rex_r = b[2],
+          rex_x = b[1],
+          rex_b = b[0],
         },
       _ => {
         // Not a prefix — this is the opcode byte

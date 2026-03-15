@@ -767,12 +767,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     32 => {
       if cur_cpl != 0 then raise_GP0();
       let modrm = fetch_byte();
-      let cr_idx : range(0, 15) = if pfx.has_rex & pfx.rex_r
-        then unsigned(bitone @ modrm[5..3])
-        else unsigned(bitzero @ modrm[5..3]);
-      let rm_idx : gpr_idx = if pfx.rex_b
-        then unsigned(bitone @ modrm[2..0])
-        else unsigned(bitzero @ modrm[2..0]);
+      let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else bitzero;
+      let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
+      let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let cr_val : qword = match cr_idx {
         0 => CR0,
         2 => CR2,
@@ -788,12 +785,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     34 => {
       if cur_cpl != 0 then raise_GP0();
       let modrm = fetch_byte();
-      let cr_idx : range(0, 15) = if pfx.has_rex & pfx.rex_r
-        then unsigned(bitone @ modrm[5..3])
-        else unsigned(bitzero @ modrm[5..3]);
-      let rm_idx : gpr_idx = if pfx.rex_b
-        then unsigned(bitone @ modrm[2..0])
-        else unsigned(bitzero @ modrm[2..0]);
+      let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else bitzero;
+      let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
+      let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let cr_val : qword = read_gpr64(rm_idx);
       match cr_idx {
         0 => {
@@ -823,9 +817,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then raise_UD();
-      let rm_idx : gpr_idx = if pfx.rex_b
-        then unsigned(bitone @ modrm[2..0])
-        else unsigned(bitzero @ modrm[2..0]);
+      let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let dr_val : qword = match dr_idx {
         0 => DR0,
         1 => DR1,
@@ -845,9 +837,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == bitone then raise_UD();
-      let rm_idx : gpr_idx = if pfx.rex_b
-        then unsigned(bitone @ modrm[2..0])
-        else unsigned(bitzero @ modrm[2..0]);
+      let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let dr_val : qword = read_gpr64(rm_idx);
       match dr_idx {
         0 => DR0 = dr_val,

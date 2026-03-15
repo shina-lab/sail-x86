@@ -12,9 +12,9 @@ struct Prefixes = {
   has_opsize : bool,  // 66
   has_adsize : bool,  // 67
   rex_w : bool,
-  rex_r : bool,
-  rex_x : bool,
-  rex_b : bool,
+  rex_r : bit,
+  rex_x : bit,
+  rex_b : bit,
   has_rex : bool,     // any REX present (changes byte reg encoding)
   // VEX prefix fields
   vex_present : bool, // VEX prefix was decoded
@@ -28,7 +28,7 @@ struct Prefixes = {
   evex_aaa : kreg_idx,  // opmask register index (k0-k7)
   evex_z : bit,         // zeroing (1) vs merging (0)
   evex_b : bool,        // broadcast / rounding control
-  evex_rr : bool,       // R' (extends reg to 5 bits)
+  evex_rr : bit,        // R' (extends reg to 5 bits)
 }
 
 val default_prefixes : unit -> Prefixes
@@ -40,9 +40,9 @@ function default_prefixes() = struct {
   has_opsize = false,
   has_adsize = false,
   rex_w = false,
-  rex_r = false,
-  rex_x = false,
-  rex_b = false,
+  rex_r = bitzero,
+  rex_x = bitzero,
+  rex_b = bitzero,
   has_rex = false,
   vex_present = false,
   vex_l = false,
@@ -54,7 +54,7 @@ function default_prefixes() = struct {
   evex_aaa = 0,
   evex_z = bitzero,
   evex_b = false,
-  evex_rr = false,
+  evex_rr = bitzero,
 }
 
 // =========================================================================
@@ -186,9 +186,9 @@ function get_operand_size_f64(_pfx) =
 // =========================================================================
 
 // Extend a 3-bit register field with a REX extension bit to get gpr_idx.
-val extend_reg : (range(0, 7), bool) -> gpr_idx
+val extend_reg : (range(0, 7), bit) -> gpr_idx
 function extend_reg(base, rex_bit) =
-  if rex_bit then base + 8 else base
+  unsigned(rex_bit @ to_bits(3, base))
 
 // Decode the ModR/M reg field (bits 5:3) with REX.R.
 val modrm_reg : (byte, Prefixes) -> gpr_idx
@@ -383,16 +383,12 @@ function fetch_moffs(pfx) =
 // =========================================================================
 
 val modrm_xmm_reg : (byte, Prefixes) -> simd_idx
-function modrm_xmm_reg(modrm, pfx) = {
-  let r : range(0, 7) = unsigned(modrm[5..3]);
-  if pfx.rex_r then r + 8 else r
-}
+function modrm_xmm_reg(modrm, pfx) =
+  unsigned(pfx.rex_r @ modrm[5..3])
 
 val modrm_xmm_rm : (byte, Prefixes) -> simd_idx
-function modrm_xmm_rm(modrm, pfx) = {
-  let r : range(0, 7) = unsigned(modrm[2..0]);
-  if pfx.rex_b then r + 8 else r
-}
+function modrm_xmm_rm(modrm, pfx) =
+  unsigned(pfx.rex_b @ modrm[2..0])
 
 // =========================================================================
 // Branchless helpers (used across multiple instruction files)

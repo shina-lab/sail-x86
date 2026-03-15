@@ -1125,7 +1125,7 @@ function decode_execute() = {
       144 => {
         if pfx.has_rep then {
           ()
-        } else if pfx.rex_b then {
+        } else if pfx.rex_b == bitone then {
           let os = get_operand_size(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {

@@ -31,10 +31,10 @@ function decode_evex() = {
     evex_present = true,
     has_rex = true,
     // P0: R̄, X̄, B̄ (inverted), R'̄ (inverted)
-    rex_r  = not_bool(p0[7] == bitone),
-    rex_x  = not_bool(p0[6] == bitone),
-    rex_b  = not_bool(p0[5] == bitone),
-    evex_rr = not_bool(p0[4] == bitone),
+    rex_r  = ~(p0[7]),
+    rex_x  = ~(p0[6]),
+    rex_b  = ~(p0[5]),
+    evex_rr = ~(p0[4]),
     // P1: W, vvvv (inverted), pp
     rex_w  = p1[7] == bitone,
     vex_w  = p1[7] == bitone,

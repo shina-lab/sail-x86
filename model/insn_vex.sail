@@ -151,7 +151,7 @@ function decode_vex2(byte1) = {
   let pfx = {default_prefixes() with
     vex_present = true,
     // R̄ is bit 7 (inverted)
-    rex_r = not_bool(byte1[7] == bitone),
+    rex_r = ~(byte1[7]),
     // vvvv is bits 6:3 (inverted)
     vex_vvvv = 15 - unsigned(byte1[6..3]),
     // L is bit 2
@@ -172,9 +172,9 @@ function decode_vex3(byte1, byte2) = {
   let pfx = {default_prefixes() with
     vex_present = true,
     // R̄, X̄, B̄ are bits 7, 6, 5 of byte1 (inverted)
-    rex_r = not_bool(byte1[7] == bitone),
-    rex_x = not_bool(byte1[6] == bitone),
-    rex_b = not_bool(byte1[5] == bitone),
+    rex_r = ~(byte1[7]),
+    rex_x = ~(byte1[6]),
+    rex_b = ~(byte1[5]),
     // W is bit 7 of byte2
     vex_w = byte2[7] == bitone,
     rex_w = byte2[7] == bitone,
