@@ -567,6 +567,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         12 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
         // BLENDPD xmm1, xmm2/m128, imm8
         13 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+        // PEXTRW r/m16, xmm, imm8 (SSE4.1)
+        21 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
         // EXTRACTPS r/m32, xmm1, imm8
         23 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
         // INSERTPS xmm1, xmm2/m32, imm8

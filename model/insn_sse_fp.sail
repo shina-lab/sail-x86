@@ -2,6 +2,9 @@
 //
 // SSE/SSE2/SSE3 data movement, arithmetic, conversion, and comparison.
 
+// Forward declaration (defined in insn_vex_imm.sail)
+val extract_word_from_xmm : (xmmword, range(0, 7)) -> word
+
 // =========================================================================
 // SSE move helpers
 // =========================================================================
@@ -1383,6 +1386,21 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       write_xmm_legacy(xreg,
         blend64(a[127..64], src_xmm[127..64], imm[1..1]) @
         blend64(a[63..0],   src_xmm[63..0],   imm[0..0]))
+    },
+
+    // PEXTRW r/m16, xmm, imm8 (SSE4.1, 66 0F 3A 15)
+    // SDM: ModRM:reg = source XMM, ModRM:r/m = dest (reg: zero-extend to 32, mem: 16 bits)
+    21 => {
+      let imm = fetch_byte();
+      let sel : range(0, 7) = unsigned(imm[2..0]);
+      let w : word = extract_word_from_xmm(read_xmm(xreg), sel);
+      match rm {
+        RM_reg(_) => {
+          let dst_reg = modrm_rm_reg(modrm, pfx);
+          write_gpr32(dst_reg, zero_extend(w))
+        },
+        RM_mem(addr) => mem_write16(fixup_addr(addr), w),
+      }
     },
 
     // EXTRACTPS r/m32, xmm, imm8

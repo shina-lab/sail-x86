@@ -1070,6 +1070,22 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // PEXTRW SSE4.1 memory form (66 0F 3A 15)
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // PEXTRW [RDI], XMM0, 2: 66 0F 3A 15 07 02
+    // Extract word at index 2 from XMM0, store to memory
+    {
+      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      s.xmm[0] = xmm_from_u32(0x11112222, 0x33334444, 0x55556666, 0x77778888);
+      tests.push_back({"pextrw [rdi],xmm0,2", cat,
+        {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x02}, s, FL_NONE, 0, false, {}, 2});
+    }
+  }
+
+  // =====================================================================
   // MOVQ2DQ: move MMX register to low 64 bits of XMM, zero upper
   // =====================================================================
   {

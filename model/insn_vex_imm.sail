@@ -165,7 +165,6 @@ function avx_insertps(dst, src, imm8, is_mem) = {
 }
 
 // Extract word from XMM at position sel (0..7)
-val extract_word_from_xmm : (xmmword, range(0, 7)) -> word
 function extract_word_from_xmm(s, sel) = {
   match sel {
     0 => s[15..0],
