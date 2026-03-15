@@ -2,6 +2,11 @@
 //
 // Floating-point moves, arithmetic, compare, convert, shuffle, unpack.
 
+// Forward declarations for conversion helpers (defined in insn_evex_fp.sail)
+val avx_cvtdq2ps_256 : ymmword -> ymmword
+val avx_cvtps2dq_256 : ymmword -> ymmword
+val avx_cvttps2dq_256 : ymmword -> ymmword
+
 val dispatch_vex_0f_fp : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f_fp(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
@@ -757,6 +762,20 @@ function dispatch_vex_0f_fp(op, pfx) = {
               let r0 = __f64_to_f32(src2[63..0]);
               write_xmm(dst, r3 @ r2 @ r1 @ r0)
             },
+            _ => raise_UD(),
+          }
+        },
+        // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ (256-bit, vvvv reserved)
+        // SDM: 8 element-wise conversions on 32-bit lanes, upper zeroed
+        11 => {
+          if pfx.vex_vvvv != 0 then raise_UD();
+          match mp {
+            // VCVTDQ2PS ymm1, ymm2/m256
+            MP_NONE => write_ymm(dst, avx_cvtdq2ps_256(src2)),
+            // VCVTPS2DQ ymm1, ymm2/m256
+            MP_66 => write_ymm(dst, avx_cvtps2dq_256(src2)),
+            // VCVTTPS2DQ ymm1, ymm2/m256
+            MP_F3 => write_ymm(dst, avx_cvttps2dq_256(src2)),
             _ => raise_UD(),
           }
         },

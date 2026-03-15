@@ -403,7 +403,6 @@ function avx_cvtdq2ps_128(src) = {
   r
 }
 
-val avx_cvtdq2ps_256 : ymmword -> ymmword
 function avx_cvtdq2ps_256(src) =
   avx_cvtdq2ps_128(src[255..128]) @ avx_cvtdq2ps_128(src[127..0])
 
@@ -423,7 +422,6 @@ function avx_cvtps2dq_128(src) = {
   r
 }
 
-val avx_cvtps2dq_256 : ymmword -> ymmword
 function avx_cvtps2dq_256(src) =
   avx_cvtps2dq_128(src[255..128]) @ avx_cvtps2dq_128(src[127..0])
 
@@ -443,7 +441,6 @@ function avx_cvttps2dq_128(src) = {
   r
 }
 
-val avx_cvttps2dq_256 : ymmword -> ymmword
 function avx_cvttps2dq_256(src) =
   avx_cvttps2dq_128(src[255..128]) @ avx_cvttps2dq_128(src[127..0])
 

@@ -1070,6 +1070,51 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VEX VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // VCVTDQ2PS xmm0, xmm1: VEX.128.NP.0F.WIG 5B /r
+    // C5 F8 5B C1: convert packed dword integers to packed f32
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
+      tests.push_back({"vcvtdq2ps xmm0,xmm1", cat,
+        {0xC5, 0xF8, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+    }
+
+    // VCVTPS2DQ xmm0, xmm1: VEX.128.66.0F.WIG 5B /r
+    // C5 F9 5B C1: convert packed f32 to packed dword integers (MXCSR rounding)
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0x3F800000, 0x40000000, 0x40400000, 0x40800000); // 1,2,3,4
+      tests.push_back({"vcvtps2dq xmm0,xmm1", cat,
+        {0xC5, 0xF9, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+    }
+
+    // VCVTTPS2DQ xmm0, xmm1: VEX.128.F3.0F.WIG 5B /r
+    // C5 FA 5B C1: convert packed f32 to packed dword integers (truncation)
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0x40490FDB, 0x40C90FDB, 0x41200000, 0xC1200000); // pi,2pi,10,-10
+      tests.push_back({"vcvttps2dq xmm0,xmm1", cat,
+        {0xC5, 0xFA, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+    }
+
+    // VCVTDQ2PS ymm0, ymm1: VEX.256.NP.0F.WIG 5B /r
+    // C5 FC 5B C1: 256-bit convert packed dword integers to packed f32
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(1, 2, 3, 4);  // low 128
+      // Need to set ymm1 upper half too — but test harness only sets xmm
+      // Just test that the instruction doesn't fault
+      tests.push_back({"vcvtdq2ps ymm0,ymm1 256", cat,
+        {0xC5, 0xFC, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+    }
+  }
+
+  // =====================================================================
   // VCMPPS 5-bit predicates (predicates 8-15 test NaN-aware comparisons)
   // =====================================================================
   {
