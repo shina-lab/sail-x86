@@ -252,12 +252,20 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   },
 
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)
+  // SDM: imm8[2]=0 → use imm8[1:0] for rounding; imm8[2]=1 → use MXCSR.RC
   29 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
+    // Apply rounding control from imm8
+    let saved_mxcsr = __stmxcsr();
+    if imm[2] == bitzero then {
+      let rc : range(0, 3) = unsigned(imm[1..0]);
+      let new_mxcsr : dword = (saved_mxcsr & 0xFFFF9FFF) | to_bits(32, rc * 8192);
+      __ldmxcsr(new_mxcsr)
+    };
     if pfx.vex_l then {
       let res : xmmword = avx_vcvtps2ph_256(read_ymm(src));
       match rm {
@@ -270,7 +278,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(res)),
         RM_mem(addr) => mem_write64(fixup_addr(addr), res),
       }
-    }
+    };
+    __ldmxcsr(saved_mxcsr)
   },
 
   // 0F3A DF: VAESKEYGENASSIST — VEX.128.66.0F3A.WIG DF

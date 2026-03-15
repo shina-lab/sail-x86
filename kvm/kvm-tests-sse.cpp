@@ -1070,6 +1070,24 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VCVTPS2PH rounding control
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // VCVTPS2PH XMM0, XMM1, 0x03: VEX.128.66.0F3A.WIG 1D /r ib
+    // C4 E3 79 1D C8 03: imm8=0x03 → truncation mode (imm8[2]=0, imm8[1:0]=11)
+    // XMM1 = [1.6, 2.5, 3.7, 4.9] → truncated to [1.0, 2.0, 3.0, 4.0] as FP16
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0x3FCCCCCD, 0x40200000, 0x406CCCCD, 0x409CCCCD);
+      // C4 E3 79 1D C8 03: VEX.128.66.0F3A W=0 vvvv=1111, 1D, modrm=C8(reg=xmm1,rm=xmm0), imm=03
+      tests.push_back({"vcvtps2ph xmm0,xmm1,trunc", cat,
+        {0xC4, 0xE3, 0x79, 0x1D, 0xC8, 0x03}, s, FL_NONE, 0x1});
+    }
+  }
+
+  // =====================================================================
   // PEXTRW SSE4.1 memory form (66 0F 3A 15)
   // =====================================================================
   {
