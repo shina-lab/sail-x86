@@ -49,7 +49,7 @@ function scan_prefixes() = {
       102 => pfx = {pfx with has_opsize = true, has_rex = false,
                rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 67 = address size override
-      103 => pfx = {pfx with has_adsize = true, has_rex = false,
+      103 => pfx = {pfx with has_adsize = bitone, has_rex = false,
                rex_w = false, rex_r = bitzero, rex_x = bitzero, rex_b = bitzero},
       // 40-4F = REX prefix (64-bit mode only; INC/DEC in 32-bit mode)
       bv if 64 <= bv & bv <= 79 & cur_mode == LongMode =>

@@ -39,7 +39,7 @@ function decode_evex() = {
     rex_w  = p1[7] == bitone,
     vex_w  = p1[7] == bitone,
     evex_vvvvv = {
-      let vprime : range(0, 1) = unsigned(zero_extend(bool_to_bit(p2[3] == bitzero)) : bits(1));
+      let vprime : range(0, 1) = unsigned(zero_extend(~(p2[3])) : bits(1));
       let vvvv : range(0, 15) = unsigned(~(p1[6..3]));
       vprime * 16 + vvvv
     },

@@ -10,7 +10,7 @@ struct Prefixes = {
   has_rep : bool,     // F3
   seg_override : option(segreg_idx),
   has_opsize : bool,  // 66
-  has_adsize : bool,  // 67
+  has_adsize : bit,   // 67
   rex_w : bool,
   rex_r : bit,
   rex_x : bit,
@@ -38,7 +38,7 @@ function default_prefixes() = struct {
   has_rep = false,
   seg_override = None(),
   has_opsize = false,
-  has_adsize = false,
+  has_adsize = bitzero,
   rex_w = false,
   rex_r = bitzero,
   rex_x = bitzero,
@@ -351,7 +351,7 @@ function fetch_rel8() = sign_extend(fetch_byte())
 // In 64-bit mode: default AS64, 67h -> AS32. AS16 not encodable.
 val get_address_size : Prefixes -> AddressSize
 function get_address_size(pfx) =
-  if pfx.has_adsize then AS32
+  if pfx.has_adsize == bitone then AS32
   else AS64
 
 // =========================================================================
@@ -360,7 +360,7 @@ function get_address_size(pfx) =
 // =========================================================================
 val fetch_moffs : Prefixes -> qword
 function fetch_moffs(pfx) =
-  if pfx.has_adsize then {
+  if pfx.has_adsize == bitone then {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
