@@ -330,13 +330,13 @@ function vfmsubaddph_zmm(a, b, c) =
 // FP16 compare predicate helper
 // =========================================================================
 
-val cmp_f16_pred : (word, word, range(0, 31)) -> bool
+val cmp_f16_pred : (word, word, range(0, 31)) -> bit
 function cmp_f16_pred(a, b, pred) = {
   let c = __compare_sh(a, b);
-  let unord : bool = match c { FP_UNORDERED => true, _ => false };
-  let eq : bool = match c { FP_EQ => true, _ => false };
-  let lt : bool = match c { FP_LT => true, _ => false };
-  let le : bool = lt | eq;
+  let unord : bit = match c { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match c { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match c { FP_LT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
   match pred {
     0  => eq,                    // EQ_OQ
     1  => lt,                    // LT_OS
@@ -349,11 +349,11 @@ function cmp_f16_pred(a, b, pred) = {
     8  => eq | unord,            // EQ_UQ
     9  => lt | unord,            // NGE_US
     10 => le | unord,            // NGT_US
-    11 => false,                 // FALSE_OQ
+    11 => bitzero,               // FALSE_OQ
     12 => ~(eq) & ~(unord),      // NEQ_OQ
     13 => ~(lt) & ~(unord),      // GE_OS
     14 => ~(le) & ~(unord),      // GT_OS
-    15 => true,                  // TRUE_UQ
+    15 => bitone,                // TRUE_UQ
     16 => eq,                    // EQ_OS
     17 => lt,                    // LT_OQ
     18 => le,                    // LE_OQ
@@ -365,24 +365,24 @@ function cmp_f16_pred(a, b, pred) = {
     24 => eq | unord,            // EQ_US
     25 => lt | unord,            // NGE_UQ
     26 => le | unord,            // NGT_UQ
-    27 => false,                 // FALSE_OS
+    27 => bitzero,               // FALSE_OS
     28 => ~(eq) & ~(unord),      // NEQ_OS
     29 => ~(lt) & ~(unord),      // GE_OQ
     30 => ~(le) & ~(unord),      // GT_OQ
-    _  => true,                  // TRUE_US
+    _  => bitone,                // TRUE_US
   }
 }
 
 val vcmpph_xmm : (xmmword, xmmword, range(0, 31)) -> byte
 function vcmpph_xmm(a, b, pred) =
-  bool_to_bit(cmp_f16_pred(a[127..112], b[127..112], pred)) @
-  bool_to_bit(cmp_f16_pred(a[111..96], b[111..96], pred)) @
-  bool_to_bit(cmp_f16_pred(a[95..80], b[95..80], pred)) @
-  bool_to_bit(cmp_f16_pred(a[79..64], b[79..64], pred)) @
-  bool_to_bit(cmp_f16_pred(a[63..48], b[63..48], pred)) @
-  bool_to_bit(cmp_f16_pred(a[47..32], b[47..32], pred)) @
-  bool_to_bit(cmp_f16_pred(a[31..16], b[31..16], pred)) @
-  bool_to_bit(cmp_f16_pred(a[15..0], b[15..0], pred))
+  cmp_f16_pred(a[127..112], b[127..112], pred) @
+  cmp_f16_pred(a[111..96], b[111..96], pred) @
+  cmp_f16_pred(a[95..80], b[95..80], pred) @
+  cmp_f16_pred(a[79..64], b[79..64], pred) @
+  cmp_f16_pred(a[63..48], b[63..48], pred) @
+  cmp_f16_pred(a[47..32], b[47..32], pred) @
+  cmp_f16_pred(a[31..16], b[31..16], pred) @
+  cmp_f16_pred(a[15..0], b[15..0], pred)
 
 // =========================================================================
 // FP16 FPCLASS helper (pure Sail bit manipulation)
@@ -391,37 +391,43 @@ function vcmpph_xmm(a, b, pred) =
 //   bit 4: -Inf, bit 5: Denormal, bit 6: Negative finite, bit 7: SNaN
 // =========================================================================
 
-val fpclass_f16 : (word, byte) -> bool
+val fpclass_f16 : (word, byte) -> bit
 function fpclass_f16(v, imm) = {
   let sign : bit = v[15];
   let exp : bits(5) = v[14..10];
   let mant : bits(10) = v[9..0];
-  let is_zero : bool = (exp == 0b00000) & (mant == zeros());
-  let is_denorm : bool = (exp == 0b00000) & (mant != zeros());
-  let is_inf : bool = (exp == 0b11111) & (mant == zeros());
-  let is_snan : bool = (exp == 0b11111) & (mant != zeros()) & (mant[9] == bitzero);
-  let is_qnan : bool = (exp == 0b11111) & (mant[9] == bitone);
-  let is_neg_finite : bool = (sign == bitone) & ~(is_zero) & ~(is_inf) & ~(is_snan) & ~(is_qnan);
-  (imm[0] == bitone & is_qnan) |
-  (imm[1] == bitone & is_zero & sign == bitzero) |
-  (imm[2] == bitone & is_zero & sign == bitone) |
-  (imm[3] == bitone & is_inf & sign == bitzero) |
-  (imm[4] == bitone & is_inf & sign == bitone) |
-  (imm[5] == bitone & is_denorm) |
-  (imm[6] == bitone & is_neg_finite) |
-  (imm[7] == bitone & is_snan)
+  let exp_all : bit = (~(or_reduce_8(zero_extend(~(exp)))))[0];
+  let exp_zero : bit = (~(or_reduce_8(zero_extend(exp))))[0];
+  let mant_nz : bit = (or_reduce_16(zero_extend(mant)))[0];
+  let mant_zero : bit = ~(mant_nz);
+  let is_qnan : bit = exp_all & mant_nz & mant[9];
+  let is_snan : bit = exp_all & mant_nz & ~(mant[9]);
+  let is_pos_zero : bit = ~(sign) & exp_zero & mant_zero;
+  let is_neg_zero : bit = sign & exp_zero & mant_zero;
+  let is_pos_inf : bit = ~(sign) & exp_all & mant_zero;
+  let is_neg_inf : bit = sign & exp_all & mant_zero;
+  let is_denorm : bit = exp_zero & mant_nz;
+  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & mant_zero);
+  (imm[0] & is_qnan) |
+  (imm[1] & is_pos_zero) |
+  (imm[2] & is_neg_zero) |
+  (imm[3] & is_pos_inf) |
+  (imm[4] & is_neg_inf) |
+  (imm[5] & is_denorm) |
+  (imm[6] & is_neg_finite) |
+  (imm[7] & is_snan)
 }
 
 val vfpclassph_xmm : (xmmword, byte) -> byte
 function vfpclassph_xmm(a, imm) =
-  bool_to_bit(fpclass_f16(a[127..112], imm)) @
-  bool_to_bit(fpclass_f16(a[111..96], imm)) @
-  bool_to_bit(fpclass_f16(a[95..80], imm)) @
-  bool_to_bit(fpclass_f16(a[79..64], imm)) @
-  bool_to_bit(fpclass_f16(a[63..48], imm)) @
-  bool_to_bit(fpclass_f16(a[47..32], imm)) @
-  bool_to_bit(fpclass_f16(a[31..16], imm)) @
-  bool_to_bit(fpclass_f16(a[15..0], imm))
+  fpclass_f16(a[127..112], imm) @
+  fpclass_f16(a[111..96], imm) @
+  fpclass_f16(a[95..80], imm) @
+  fpclass_f16(a[79..64], imm) @
+  fpclass_f16(a[63..48], imm) @
+  fpclass_f16(a[47..32], imm) @
+  fpclass_f16(a[31..16], imm) @
+  fpclass_f16(a[15..0], imm)
 
 val vfpclassph_ymm : (ymmword, byte) -> word
 function vfpclassph_ymm(a, imm) =

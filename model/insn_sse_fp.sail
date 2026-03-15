@@ -81,50 +81,60 @@ val __f32_rcp : dword -> dword
 // with signaling/quiet flipped (same results as 0-15).
 val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
 function cmp_pred_f32(a, b, pred) = {
-  let result = __compare_ss(a, b);
-  let cond : bool = match pred[3..0] {
-    0x0 => result == FP_EQ,                       // EQ_OQ
-    0x1 => result == FP_LT,                       // LT_OS
-    0x2 => result == FP_LT | result == FP_EQ,     // LE_OS
-    0x3 => result == FP_UNORDERED,                 // UNORD_Q
-    0x4 => result != FP_EQ,                        // NEQ_UQ (true for NaN)
-    0x5 => result != FP_LT,                        // NLT_US (true for NaN)
-    0x6 => result != FP_LT & result != FP_EQ,     // NLE_US (true for NaN)
-    0x7 => result != FP_UNORDERED,                 // ORD_Q
-    0x8 => result == FP_EQ | result == FP_UNORDERED, // EQ_UQ (true for NaN)
-    0x9 => result == FP_LT | result == FP_UNORDERED, // NGE_US (true for NaN)
-    0xA => result == FP_LT | result == FP_EQ | result == FP_UNORDERED, // NGT_US
-    0xB => false,                                  // FALSE_OQ
-    0xC => result != FP_EQ & result != FP_UNORDERED, // NEQ_OQ (false for NaN)
-    0xD => result != FP_LT & result != FP_UNORDERED, // GE_OS (false for NaN)
-    0xE => result == FP_GT,                        // GT_OS (false for NaN)
-    0xF => true,                                   // TRUE_UQ
+  let r = __compare_ss(a, b);
+  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
+  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
+  let cond : bit = match pred[3..0] {
+    0x0 => eq,                       // EQ_OQ
+    0x1 => lt,                       // LT_OS
+    0x2 => le,                       // LE_OS
+    0x3 => unord,                    // UNORD_Q
+    0x4 => ~(eq),                    // NEQ_UQ (true for NaN)
+    0x5 => ~(lt),                    // NLT_US (true for NaN)
+    0x6 => ~(le),                    // NLE_US (true for NaN)
+    0x7 => ~(unord),                 // ORD_Q
+    0x8 => eq | unord,              // EQ_UQ (true for NaN)
+    0x9 => lt | unord,              // NGE_US (true for NaN)
+    0xA => le | unord,              // NGT_US
+    0xB => bitzero,                  // FALSE_OQ
+    0xC => ~(eq) & ~(unord),        // NEQ_OQ (false for NaN)
+    0xD => ~(lt) & ~(unord),        // GE_OS (false for NaN)
+    0xE => gt,                       // GT_OS (false for NaN)
+    0xF => bitone,                   // TRUE_UQ
   };
-  zeros() - zero_extend(bool_to_bit(cond))
+  zeros() - zero_extend(cond)
 }
 
 val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
 function cmp_pred_f64(a, b, pred) = {
-  let result = __compare_sd(a, b);
-  let cond : bool = match pred[3..0] {
-    0x0 => result == FP_EQ,
-    0x1 => result == FP_LT,
-    0x2 => result == FP_LT | result == FP_EQ,
-    0x3 => result == FP_UNORDERED,
-    0x4 => result != FP_EQ,
-    0x5 => result != FP_LT,
-    0x6 => result != FP_LT & result != FP_EQ,
-    0x7 => result != FP_UNORDERED,
-    0x8 => result == FP_EQ | result == FP_UNORDERED,
-    0x9 => result == FP_LT | result == FP_UNORDERED,
-    0xA => result == FP_LT | result == FP_EQ | result == FP_UNORDERED,
-    0xB => false,
-    0xC => result != FP_EQ & result != FP_UNORDERED,
-    0xD => result != FP_LT & result != FP_UNORDERED,
-    0xE => result == FP_GT,
-    0xF => true,
+  let r = __compare_sd(a, b);
+  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
+  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
+  let cond : bit = match pred[3..0] {
+    0x0 => eq,
+    0x1 => lt,
+    0x2 => le,
+    0x3 => unord,
+    0x4 => ~(eq),
+    0x5 => ~(lt),
+    0x6 => ~(le),
+    0x7 => ~(unord),
+    0x8 => eq | unord,
+    0x9 => lt | unord,
+    0xA => le | unord,
+    0xB => bitzero,
+    0xC => ~(eq) & ~(unord),
+    0xD => ~(lt) & ~(unord),
+    0xE => gt,
+    0xF => bitone,
   };
-  zeros() - zero_extend(bool_to_bit(cond))
+  zeros() - zero_extend(cond)
 }
 
 // SHUFPS helper: select one of four dwords by 2-bit index

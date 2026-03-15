@@ -241,83 +241,91 @@ function avx_unpckhpd_512(a, b) =
 // Full 5-bit predicate (imm8[4:0]) for VCMPPS/VCMPPD/VCMPSS/VCMPSD.
 // Returns 1 bit (true/false) for a single element comparison.
 
-val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bool
+val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bit
 function cmp_pred5_f32(a, b, pred) = {
   let r = __compare_ss(a, b);
-  let is_unord = r == FP_UNORDERED;
+  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
+  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
   match pred {
-    0  => r == FP_EQ,                        // EQ_OQ
-    1  => r == FP_LT,                        // LT_OS
-    2  => r == FP_LT | r == FP_EQ,           // LE_OS
-    3  => is_unord,                           // UNORD_Q
-    4  => r != FP_EQ & not_bool(is_unord),    // NEQ_UQ (true if unord too, but NEQ)
-    5  => not_bool(r == FP_LT) | is_unord,   // NLT_US
-    6  => not_bool(r == FP_LT | r == FP_EQ) | is_unord, // NLE_US
-    7  => not_bool(is_unord),                 // ORD_Q
-    8  => r == FP_EQ | is_unord,             // EQ_UQ
-    9  => r == FP_LT | is_unord,             // NGE_US (= LT or unord)
-    10 => (r == FP_LT | r == FP_EQ) | is_unord, // NGT_US (= LE or unord)
-    11 => false,                             // FALSE_OQ
-    12 => r != FP_EQ,                        // NEQ_OQ
-    13 => not_bool(r == FP_LT),              // GE_OS (= NLT)
-    14 => r == FP_GT | r == FP_EQ,           // GT_OS
-    15 => true,                              // TRUE_UQ
-    16 => r == FP_EQ,                        // EQ_OS
-    17 => r == FP_LT,                        // LT_OQ
-    18 => r == FP_LT | r == FP_EQ,           // LE_OQ
-    19 => is_unord,                          // UNORD_S
-    20 => r != FP_EQ | is_unord,             // NEQ_US
-    21 => not_bool(r == FP_LT) | is_unord,   // NLT_UQ
-    22 => not_bool(r == FP_LT | r == FP_EQ) | is_unord, // NLE_UQ
-    23 => not_bool(is_unord),                // ORD_S
-    24 => r == FP_EQ | is_unord,             // EQ_US
-    25 => r == FP_LT | is_unord,             // NGE_UQ
-    26 => (r == FP_LT | r == FP_EQ) | is_unord, // NGT_UQ
-    27 => false,                             // FALSE_OS
-    28 => r != FP_EQ,                        // NEQ_OS
-    29 => not_bool(r == FP_LT),              // GE_OQ
-    30 => r == FP_GT | r == FP_EQ,           // GT_OQ
-    31 => true,                              // TRUE_US
+    0  => eq,                    // EQ_OQ
+    1  => lt,                    // LT_OS
+    2  => le,                    // LE_OS
+    3  => unord,                 // UNORD_Q
+    4  => ~(eq) & ~(unord),      // NEQ_UQ
+    5  => ~(lt) | unord,         // NLT_US
+    6  => ~(le) | unord,         // NLE_US
+    7  => ~(unord),              // ORD_Q
+    8  => eq | unord,            // EQ_UQ
+    9  => lt | unord,            // NGE_US
+    10 => le | unord,            // NGT_US
+    11 => bitzero,               // FALSE_OQ
+    12 => ~(eq),                 // NEQ_OQ
+    13 => ~(lt),                 // GE_OS
+    14 => gt | eq,               // GT_OS
+    15 => bitone,                // TRUE_UQ
+    16 => eq,                    // EQ_OS
+    17 => lt,                    // LT_OQ
+    18 => le,                    // LE_OQ
+    19 => unord,                 // UNORD_S
+    20 => ~(eq) | unord,         // NEQ_US
+    21 => ~(lt) | unord,         // NLT_UQ
+    22 => ~(le) | unord,         // NLE_UQ
+    23 => ~(unord),              // ORD_S
+    24 => eq | unord,            // EQ_US
+    25 => lt | unord,            // NGE_UQ
+    26 => le | unord,            // NGT_UQ
+    27 => bitzero,               // FALSE_OS
+    28 => ~(eq),                 // NEQ_OS
+    29 => ~(lt),                 // GE_OQ
+    30 => gt | eq,               // GT_OQ
+    31 => bitone,                // TRUE_US
   }
 }
 
-val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bool
+val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bit
 function cmp_pred5_f64(a, b, pred) = {
   let r = __compare_sd(a, b);
-  let is_unord = r == FP_UNORDERED;
+  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
+  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
   match pred {
-    0  => r == FP_EQ,
-    1  => r == FP_LT,
-    2  => r == FP_LT | r == FP_EQ,
-    3  => is_unord,
-    4  => r != FP_EQ & not_bool(is_unord),
-    5  => not_bool(r == FP_LT) | is_unord,
-    6  => not_bool(r == FP_LT | r == FP_EQ) | is_unord,
-    7  => not_bool(is_unord),
-    8  => r == FP_EQ | is_unord,
-    9  => r == FP_LT | is_unord,
-    10 => (r == FP_LT | r == FP_EQ) | is_unord,
-    11 => false,
-    12 => r != FP_EQ,
-    13 => not_bool(r == FP_LT),
-    14 => r == FP_GT | r == FP_EQ,
-    15 => true,
-    16 => r == FP_EQ,
-    17 => r == FP_LT,
-    18 => r == FP_LT | r == FP_EQ,
-    19 => is_unord,
-    20 => r != FP_EQ | is_unord,
-    21 => not_bool(r == FP_LT) | is_unord,
-    22 => not_bool(r == FP_LT | r == FP_EQ) | is_unord,
-    23 => not_bool(is_unord),
-    24 => r == FP_EQ | is_unord,
-    25 => r == FP_LT | is_unord,
-    26 => (r == FP_LT | r == FP_EQ) | is_unord,
-    27 => false,
-    28 => r != FP_EQ,
-    29 => not_bool(r == FP_LT),
-    30 => r == FP_GT | r == FP_EQ,
-    31 => true,
+    0  => eq,                    // EQ_OQ
+    1  => lt,                    // LT_OS
+    2  => le,                    // LE_OS
+    3  => unord,                 // UNORD_Q
+    4  => ~(eq) & ~(unord),      // NEQ_UQ
+    5  => ~(lt) | unord,         // NLT_US
+    6  => ~(le) | unord,         // NLE_US
+    7  => ~(unord),              // ORD_Q
+    8  => eq | unord,            // EQ_UQ
+    9  => lt | unord,            // NGE_US
+    10 => le | unord,            // NGT_US
+    11 => bitzero,               // FALSE_OQ
+    12 => ~(eq),                 // NEQ_OQ
+    13 => ~(lt),                 // GE_OS
+    14 => gt | eq,               // GT_OS
+    15 => bitone,                // TRUE_UQ
+    16 => eq,                    // EQ_OS
+    17 => lt,                    // LT_OQ
+    18 => le,                    // LE_OQ
+    19 => unord,                 // UNORD_S
+    20 => ~(eq) | unord,         // NEQ_US
+    21 => ~(lt) | unord,         // NLT_UQ
+    22 => ~(le) | unord,         // NLE_UQ
+    23 => ~(unord),              // ORD_S
+    24 => eq | unord,            // EQ_US
+    25 => lt | unord,            // NGE_UQ
+    26 => le | unord,            // NGT_UQ
+    27 => bitzero,               // FALSE_OS
+    28 => ~(eq),                 // NEQ_OS
+    29 => ~(lt),                 // GE_OQ
+    30 => gt | eq,               // GT_OQ
+    31 => bitone,                // TRUE_US
   }
 }
 
@@ -328,7 +336,7 @@ function avx_vcmpps_kmask_128(a, b, pred) = {
   var r : bits(4) = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    if cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred) then r[i] = bitone;
+    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred);
   };
   r
 }
@@ -338,7 +346,7 @@ function avx_vcmpps_kmask_512(a, b, pred) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    if cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred) then r[i] = bitone;
+    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred);
   };
   r
 }
@@ -348,7 +356,7 @@ function avx_vcmppd_kmask_128(a, b, pred) = {
   var r : bits(2) = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    if cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred) then r[i] = bitone;
+    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred);
   };
   r
 }
@@ -358,7 +366,7 @@ function avx_vcmppd_kmask_512(a, b, pred) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
-    if cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred) then r[i] = bitone;
+    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred);
   };
   r
 }
@@ -2493,7 +2501,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(addr) => mem_read32(fixup_addr(addr)),
         };
-        write_kreg(dst_k, zero_extend(bool_to_bit(cmp_pred5_f32(src1_f32, src2_f32, pred))))
+        write_kreg(dst_k, zero_extend(cmp_pred5_f32(src1_f32, src2_f32, pred)))
       },
       // VCMPSD → k (scalar, bit 0 only)
       MP_F2 => {
@@ -2505,7 +2513,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(addr) => mem_read64(fixup_addr(addr)),
         };
-        write_kreg(dst_k, zero_extend(bool_to_bit(cmp_pred5_f64(src1_f64, src2_f64, pred))))
+        write_kreg(dst_k, zero_extend(cmp_pred5_f64(src1_f64, src2_f64, pred)))
       },
     }
   },

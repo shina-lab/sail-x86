@@ -416,43 +416,47 @@ function vpternlog_512(a, b, c, imm) = {
 // KADD -- Add Mask Registers
 // =========================================================================
 
-val cmp_pred5_f16 : (word, word, range(0, 31)) -> bool
+val cmp_pred5_f16 : (word, word, range(0, 31)) -> bit
 function cmp_pred5_f16(a, b, pred) = {
   let r = __compare_sh(a, b);
-  let is_unord = r == FP_UNORDERED;
+  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
+  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
+  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
+  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let le : bit = lt | eq;
   match pred {
-    0  => r == FP_EQ,
-    1  => r == FP_LT,
-    2  => r == FP_LT | r == FP_EQ,
-    3  => is_unord,
-    4  => r != FP_EQ & not_bool(is_unord),
-    5  => not_bool(r == FP_LT) | is_unord,
-    6  => not_bool(r == FP_LT | r == FP_EQ) | is_unord,
-    7  => not_bool(is_unord),
-    8  => r == FP_EQ | is_unord,
-    9  => r == FP_LT | is_unord,
-    10 => (r == FP_LT | r == FP_EQ) | is_unord,
-    11 => false,
-    12 => r != FP_EQ,
-    13 => not_bool(r == FP_LT),
-    14 => r == FP_GT | r == FP_EQ,
-    15 => true,
-    16 => r == FP_EQ,
-    17 => r == FP_LT,
-    18 => r == FP_LT | r == FP_EQ,
-    19 => is_unord,
-    20 => r != FP_EQ | is_unord,
-    21 => not_bool(r == FP_LT) | is_unord,
-    22 => not_bool(r == FP_LT | r == FP_EQ) | is_unord,
-    23 => not_bool(is_unord),
-    24 => r == FP_EQ | is_unord,
-    25 => r == FP_LT | is_unord,
-    26 => (r == FP_LT | r == FP_EQ) | is_unord,
-    27 => false,
-    28 => r != FP_EQ,
-    29 => not_bool(r == FP_LT),
-    30 => r == FP_GT | r == FP_EQ,
-    31 => true,
+    0  => eq,                    // EQ_OQ
+    1  => lt,                    // LT_OS
+    2  => le,                    // LE_OS
+    3  => unord,                 // UNORD_Q
+    4  => ~(eq) & ~(unord),      // NEQ_UQ
+    5  => ~(lt) | unord,         // NLT_US
+    6  => ~(le) | unord,         // NLE_US
+    7  => ~(unord),              // ORD_Q
+    8  => eq | unord,            // EQ_UQ
+    9  => lt | unord,            // NGE_US
+    10 => le | unord,            // NGT_US
+    11 => bitzero,               // FALSE_OQ
+    12 => ~(eq),                 // NEQ_OQ
+    13 => ~(lt),                 // GE_OS
+    14 => gt | eq,               // GT_OS
+    15 => bitone,                // TRUE_UQ
+    16 => eq,                    // EQ_OS
+    17 => lt,                    // LT_OQ
+    18 => le,                    // LE_OQ
+    19 => unord,                 // UNORD_S
+    20 => ~(eq) | unord,         // NEQ_US
+    21 => ~(lt) | unord,         // NLT_UQ
+    22 => ~(le) | unord,         // NLE_UQ
+    23 => ~(unord),              // ORD_S
+    24 => eq | unord,            // EQ_US
+    25 => lt | unord,            // NGE_UQ
+    26 => le | unord,            // NGT_UQ
+    27 => bitzero,               // FALSE_OS
+    28 => ~(eq),                 // NEQ_OS
+    29 => ~(lt),                 // GE_OQ
+    30 => gt | eq,               // GT_OQ
+    31 => bitone,                // TRUE_US
   }
 }
 
@@ -463,7 +467,7 @@ function avx_vcmpph_kmask_128(a, b, pred) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    if cmp_pred5_f16(a[(lo+15)..lo], b[(lo+15)..lo], pred) then r[i] = bitone;
+    r[i] = cmp_pred5_f16(a[(lo+15)..lo], b[(lo+15)..lo], pred);
   };
   r
 }
@@ -957,60 +961,68 @@ function avx_vfixupimmpd_512(dst, src1, src2, imm) = {
 
 /* ---- VPLZCNTD/Q: count leading zeros per element ---- */
 
-val avx_fpclass_f32 : (dword, byte) -> bool
+val avx_fpclass_f32 : (dword, byte) -> bit
 function avx_fpclass_f32(src, imm) = {
-  let sign = src[31];
+  let sign : bit = src[31];
   let exp : byte = src[30..23];
   let frac : bits(23) = src[22..0];
-  let is_qnan = (exp == 0xFF) & (frac != zeros()) & (frac[22] == bitone);
-  let is_snan = (exp == 0xFF) & (frac != zeros()) & (frac[22] == bitzero);
-  let is_pos_zero = (sign == bitzero) & (exp == 0x00) & (frac == zeros());
-  let is_neg_zero = (sign == bitone) & (exp == 0x00) & (frac == zeros());
-  let is_pos_inf = (sign == bitzero) & (exp == 0xFF) & (frac == zeros());
-  let is_neg_inf = (sign == bitone) & (exp == 0xFF) & (frac == zeros());
-  let is_denorm = (exp == 0x00) & (frac != zeros());
-  let is_neg_finite = (sign == bitone) & (exp != 0xFF) & not_bool((exp == 0x00) & (frac == zeros()));
-  (imm[0] == bitone & is_qnan) |
-  (imm[1] == bitone & is_pos_zero) |
-  (imm[2] == bitone & is_neg_zero) |
-  (imm[3] == bitone & is_pos_inf) |
-  (imm[4] == bitone & is_neg_inf) |
-  (imm[5] == bitone & is_denorm) |
-  (imm[6] == bitone & is_neg_finite) |
-  (imm[7] == bitone & is_snan)
+  let exp_all : bit = (~(or_reduce_8(~(exp))))[0];
+  let exp_zero : bit = (~(or_reduce_8(exp)))[0];
+  let frac_nz : bit = (or_reduce_32(zero_extend(frac)))[0];
+  let frac_zero : bit = ~(frac_nz);
+  let is_qnan : bit = exp_all & frac_nz & frac[22];
+  let is_snan : bit = exp_all & frac_nz & ~(frac[22]);
+  let is_pos_zero : bit = ~(sign) & exp_zero & frac_zero;
+  let is_neg_zero : bit = sign & exp_zero & frac_zero;
+  let is_pos_inf : bit = ~(sign) & exp_all & frac_zero;
+  let is_neg_inf : bit = sign & exp_all & frac_zero;
+  let is_denorm : bit = exp_zero & frac_nz;
+  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & frac_zero);
+  (imm[0] & is_qnan) |
+  (imm[1] & is_pos_zero) |
+  (imm[2] & is_neg_zero) |
+  (imm[3] & is_pos_inf) |
+  (imm[4] & is_neg_inf) |
+  (imm[5] & is_denorm) |
+  (imm[6] & is_neg_finite) |
+  (imm[7] & is_snan)
 }
 
-val avx_fpclass_f64 : (qword, byte) -> bool
+val avx_fpclass_f64 : (qword, byte) -> bit
 function avx_fpclass_f64(src, imm) = {
-  let sign = src[63];
+  let sign : bit = src[63];
   let exp : bits(11) = src[62..52];
   let frac : bits(52) = src[51..0];
-  let is_qnan = (exp == ones()) & (frac != zeros()) & (frac[51] == bitone);
-  let is_snan = (exp == ones()) & (frac != zeros()) & (frac[51] == bitzero);
-  let is_pos_zero = (sign == bitzero) & (exp == zeros()) & (frac == zeros());
-  let is_neg_zero = (sign == bitone) & (exp == zeros()) & (frac == zeros());
-  let is_pos_inf = (sign == bitzero) & (exp == ones()) & (frac == zeros());
-  let is_neg_inf = (sign == bitone) & (exp == ones()) & (frac == zeros());
-  let is_denorm = (exp == zeros()) & (frac != zeros());
-  let is_neg_finite = (sign == bitone) & (exp != ones()) & not_bool((exp == zeros()) & (frac == zeros()));
-  (imm[0] == bitone & is_qnan) |
-  (imm[1] == bitone & is_pos_zero) |
-  (imm[2] == bitone & is_neg_zero) |
-  (imm[3] == bitone & is_pos_inf) |
-  (imm[4] == bitone & is_neg_inf) |
-  (imm[5] == bitone & is_denorm) |
-  (imm[6] == bitone & is_neg_finite) |
-  (imm[7] == bitone & is_snan)
+  let exp_all : bit = (~(or_reduce_16(zero_extend(~(exp)))))[0];
+  let exp_zero : bit = (~(or_reduce_16(zero_extend(exp))))[0];
+  let frac_nz : bit = (or_reduce_64(zero_extend(frac)))[0];
+  let frac_zero : bit = ~(frac_nz);
+  let is_qnan : bit = exp_all & frac_nz & frac[51];
+  let is_snan : bit = exp_all & frac_nz & ~(frac[51]);
+  let is_pos_zero : bit = ~(sign) & exp_zero & frac_zero;
+  let is_neg_zero : bit = sign & exp_zero & frac_zero;
+  let is_pos_inf : bit = ~(sign) & exp_all & frac_zero;
+  let is_neg_inf : bit = sign & exp_all & frac_zero;
+  let is_denorm : bit = exp_zero & frac_nz;
+  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & frac_zero);
+  (imm[0] & is_qnan) |
+  (imm[1] & is_pos_zero) |
+  (imm[2] & is_neg_zero) |
+  (imm[3] & is_pos_inf) |
+  (imm[4] & is_neg_inf) |
+  (imm[5] & is_denorm) |
+  (imm[6] & is_neg_finite) |
+  (imm[7] & is_snan)
 }
 
 // VFPCLASSPS/PD packed versions
 
 val avx_vfpclassps_128 : (xmmword, byte) -> byte
 function avx_vfpclassps_128(src, imm) = {
-  let b0 : bits(1) = bool_to_bit(avx_fpclass_f32(src[31..0], imm));
-  let b1 : bits(1) = bool_to_bit(avx_fpclass_f32(src[63..32], imm));
-  let b2 : bits(1) = bool_to_bit(avx_fpclass_f32(src[95..64], imm));
-  let b3 : bits(1) = bool_to_bit(avx_fpclass_f32(src[127..96], imm));
+  let b0 : bits(1) = avx_fpclass_f32(src[31..0], imm);
+  let b1 : bits(1) = avx_fpclass_f32(src[63..32], imm);
+  let b2 : bits(1) = avx_fpclass_f32(src[95..64], imm);
+  let b3 : bits(1) = avx_fpclass_f32(src[127..96], imm);
   0b0000 @ b3 @ b2 @ b1 @ b0
 }
 
@@ -1030,8 +1042,8 @@ function avx_vfpclassps_512(src, imm) = {
 
 val avx_vfpclasspd_128 : (xmmword, byte) -> byte
 function avx_vfpclasspd_128(src, imm) = {
-  let b0 : bits(1) = bool_to_bit(avx_fpclass_f64(src[63..0], imm));
-  let b1 : bits(1) = bool_to_bit(avx_fpclass_f64(src[127..64], imm));
+  let b0 : bits(1) = avx_fpclass_f64(src[63..0], imm);
+  let b1 : bits(1) = avx_fpclass_f64(src[127..64], imm);
   0b000000 @ b1 @ b0
 }
 
@@ -2807,13 +2819,13 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch_byte();
         let src = evex_src_xmm(modrm, rm, pfx);
         if pfx.vex_w then {
-          let result : bool = avx_fpclass_f64(src[63..0], imm);
-          let k_val : qword = zero_extend(bool_to_bit(result));
+          let result : bit = avx_fpclass_f64(src[63..0], imm);
+          let k_val : qword = zero_extend(result);
           let k_mask : qword = k_val & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         } else {
-          let result : bool = avx_fpclass_f32(src[31..0], imm);
-          let k_val : qword = zero_extend(bool_to_bit(result));
+          let result : bit = avx_fpclass_f32(src[31..0], imm);
+          let k_val : qword = zero_extend(result);
           let k_mask : qword = k_val & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
         }
@@ -2826,8 +2838,8 @@ function dispatch_evex_imm(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, 2);
         let imm = fetch_byte();
         let src = evex_src_xmm(modrm, rm, pfx);
-        let result : bool = fpclass_f16(src[15..0], imm);
-        let k_val : qword = zero_extend(bool_to_bit(result));
+        let result : bit = fpclass_f16(src[15..0], imm);
+        let k_val : qword = zero_extend(result);
         let k_mask : qword = k_val & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
@@ -2991,7 +3003,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src2 = evex_src_xmm(modrm, rm, pfx);
         let pred_byte = fetch_byte();
         let pred : range(0, 31) = unsigned(pred_byte[4..0]);
-        write_kreg(k_idx, zero_extend(bool_to_bit(cmp_pred5_f16(src1[15..0], src2[15..0], pred))))
+        write_kreg(k_idx, zero_extend(cmp_pred5_f16(src1[15..0], src2[15..0], pred)))
       },
       _ => raise_UD(),
     }
