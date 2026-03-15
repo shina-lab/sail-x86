@@ -895,8 +895,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let v1 : qword = read_kreg(k1) & mask;
     let v2 : qword = read_kreg(k2) & mask;
     let result : qword = v1 | v2;
-    ZF = bool_to_bit(result == zeros());
-    CF = bool_to_bit(result == mask);
+    ZF = (~(or_reduce_64(result)))[0];
+    CF = (~(or_reduce_64(result ^ mask)))[0];
     SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
   },
 
@@ -908,8 +908,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     let v1 : qword = read_kreg(k1) & mask;
     let v2 : qword = read_kreg(k2) & mask;
-    ZF = bool_to_bit((v1 & v2) == zeros());
-    CF = bool_to_bit((~(v1) & v2 & mask) == zeros());
+    ZF = (~(or_reduce_64(v1 & v2)))[0];
+    CF = (~(or_reduce_64(~(v1) & v2 & mask)))[0];
     SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
   },
 
