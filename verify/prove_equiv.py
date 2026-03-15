@@ -83,7 +83,7 @@ def extract_trace_smt(filename):
                     seen_decls.add(m.group(1))
                 smt_lines.append(stripped)
             else:
-                m = re.search(r'write-reg \|Final result\| nil (\w+)', stripped)
+                m = re.search(r'write-reg \|Final.result\| nil (\w+)', stripped)
                 if m:
                     result_var = m.group(1)
 
@@ -460,6 +460,13 @@ def main():
          "/tmp/trace_test_gzip_match_opt.txt",
          "GZIP MATCH: byte-by-byte test (47 instrs) vs TZCNT+SHR (3 instrs)",
          "gzip deflate.c:longest_match inner loop",
+         True),
+        # --- FFmpeg HARDMIX: 4 instructions vs 2 instructions ---
+        ("hardmix",
+         "/tmp/trace_test_hardmix_orig.txt",
+         "/tmp/trace_test_hardmix_opt.txt",
+         "HARDMIX: pxor/pcmpgtb/pxor (4 instrs) vs paddusb/pcmpeqb (2 instrs)",
+         "FFmpeg vf_blend.asm:239-258",
          True),
     ]
 
