@@ -597,7 +597,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let result : qword = ~(vval) & src;
     write_gpr(dst, os, result);
     SF = if pfx.vex_w then result[63] else result[31];
-    ZF = if pfx.vex_w then (~(or_reduce_64(result)))[0] else (~(or_reduce_32(result[31..0])))[0];
+    ZF = (~(or_reduce_64(result)))[0];
     OF = bitzero;
     CF = bitzero
   },
@@ -617,8 +617,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let result : qword = (src - 1) & src;
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = if pfx.vex_w then (~(or_reduce_64(result)))[0] else (~(or_reduce_32(result[31..0])))[0];
-        CF = if pfx.vex_w then (~(or_reduce_64(src)))[0] else (~(or_reduce_32(src[31..0])))[0];
+        ZF = (~(or_reduce_64(result)))[0];
+        CF = (~(or_reduce_64(src)))[0];
         OF = bitzero
       },
       // BLSMSK: dest = (src - 1) ^ src
@@ -627,7 +627,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
         ZF = bitzero;
-        CF = if pfx.vex_w then (~(or_reduce_64(src)))[0] else (~(or_reduce_32(src[31..0])))[0];
+        CF = (~(or_reduce_64(src)))[0];
         OF = bitzero
       },
       // BLSI: dest = (-src) & src (isolate lowest set bit)
@@ -636,8 +636,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let result : qword = neg_src & src;
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = if pfx.vex_w then (~(or_reduce_64(result)))[0] else (~(or_reduce_32(result[31..0])))[0];
-        CF = if pfx.vex_w then (or_reduce_64(src))[0] else (or_reduce_32(src[31..0]))[0];
+        ZF = (~(or_reduce_64(result)))[0];
+        CF = (or_reduce_64(src))[0];
         OF = bitzero
       },
       _ => raise_UD(),
@@ -730,7 +730,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         };
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = if pfx.vex_w then (~(or_reduce_64(result)))[0] else (~(or_reduce_32(result[31..0])))[0];
+        ZF = (~(or_reduce_64(result)))[0];
         OF = bitzero
       },
       MP_F2 => {
@@ -818,7 +818,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           }
         };
         write_gpr(dst, os, result);
-        ZF = if pfx.vex_w then (~(or_reduce_64(result)))[0] else (~(or_reduce_32(result[31..0])))[0];
+        ZF = (~(or_reduce_64(result)))[0];
         OF = bitzero;
         CF = bitzero
       },
