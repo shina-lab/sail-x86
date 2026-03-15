@@ -175,7 +175,48 @@ function dispatch_vex_0f_fp(op, pfx) = {
           },
         }
       },
-      _ => raise_UD(),
+      // VMOVLPD xmm1, xmm2, m64: DEST[63:0] := SRC2[63:0]; DEST[127:64] := SRC1[127:64]
+      MP_66 => {
+        match rm {
+          RM_mem(addr) => {
+            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let v : qword = mem_read64(fixup_addr(addr));
+            write_xmm(dst, src1[127..64] @ v)
+          },
+          _ => raise_UD(),
+        }
+      },
+      // VMOVSLDUP xmm1, xmm2/m128: duplicate even-indexed floats
+      // SDM: DEST = [SRC[95:64], SRC[95:64], SRC[31:0], SRC[31:0]]
+      MP_F3 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        if pfx.vex_l then {
+          let src : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          write_ymm(dst, src[223..192] @ src[223..192] @
+                         src[159..128] @ src[159..128] @
+                         src[95..64] @ src[95..64] @
+                         src[31..0] @ src[31..0])
+        } else {
+          let src : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          write_xmm(dst, src[95..64] @ src[95..64] @
+                         src[31..0] @ src[31..0])
+        }
+      },
+      // VMOVDDUP xmm1, xmm2/m64: duplicate low qword
+      // SDM 128: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0]
+      // SDM 256: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0];
+      //          DEST[191:128] := SRC[191:128]; DEST[255:192] := SRC[191:128]
+      MP_F2 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        if pfx.vex_l then {
+          let src : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          write_ymm(dst, src[191..128] @ src[191..128] @
+                         src[63..0] @ src[63..0])
+        } else {
+          let src : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          write_xmm(dst, src[63..0] @ src[63..0])
+        }
+      },
     }
   },
 
@@ -279,6 +320,33 @@ function dispatch_vex_0f_fp(op, pfx) = {
             let v : qword = mem_read64(fixup_addr(addr));
             write_xmm(dst, v @ src1[63..0])
           },
+        }
+      },
+      // VMOVHPD xmm1, xmm2, m64: DEST[63:0] := SRC1[63:0]; DEST[127:64] := SRC2[63:0]
+      MP_66 => {
+        match rm {
+          RM_mem(addr) => {
+            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let v : qword = mem_read64(fixup_addr(addr));
+            write_xmm(dst, v @ src1[63..0])
+          },
+          _ => raise_UD(),
+        }
+      },
+      // VMOVSHDUP xmm1, xmm2/m128: duplicate odd-indexed floats
+      // SDM: DEST = [SRC[127:96], SRC[127:96], SRC[63:32], SRC[63:32]]
+      MP_F3 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        if pfx.vex_l then {
+          let src : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
+          write_ymm(dst, src[255..224] @ src[255..224] @
+                         src[191..160] @ src[191..160] @
+                         src[127..96] @ src[127..96] @
+                         src[63..32] @ src[63..32])
+        } else {
+          let src : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
+          write_xmm(dst, src[127..96] @ src[127..96] @
+                         src[63..32] @ src[63..32])
         }
       },
       _ => raise_UD(),

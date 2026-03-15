@@ -1011,6 +1011,65 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VEX 0F 12/16 variants: VMOVLPD, VMOVSLDUP, VMOVDDUP, VMOVHPD, VMOVSHDUP
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // VMOVLPD xmm0, xmm1, [rdi]: VEX.128.66.0F.WIG 12 /r
+    // C5 F1 12 07: VEX pp=01(66), vvvv=xmm1, opcode=12, modrm=07([rdi])
+    // SDM: DEST[63:0] := SRC2[63:0]; DEST[127:64] := SRC1[127:64]; upper zeroed
+    {
+      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+      std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+      tests.push_back({"vmovlpd xmm0,xmm1,[rdi]", cat,
+        {0xC5, 0xF1, 0x12, 0x07}, s, FL_NONE, 0x1, false, data, 0});
+    }
+
+    // VMOVSLDUP xmm0, xmm1: VEX.128.F3.0F.WIG 12 /r
+    // C5 FA 12 C1: VEX pp=10(F3), vvvv=1111, opcode=12, modrm=C1(xmm1)
+    // SDM: DEST = [src[95:64], src[95:64], src[31:0], src[31:0]]
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tests.push_back({"vmovsldup xmm0,xmm1", cat,
+        {0xC5, 0xFA, 0x12, 0xC1}, s, FL_NONE, 0x1});
+    }
+
+    // VMOVDDUP xmm0, xmm1: VEX.128.F2.0F.WIG 12 /r
+    // C5 FB 12 C1: VEX pp=11(F2), vvvv=1111, opcode=12, modrm=C1(xmm1)
+    // SDM: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0]
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
+      tests.push_back({"vmovddup xmm0,xmm1", cat,
+        {0xC5, 0xFB, 0x12, 0xC1}, s, FL_NONE, 0x1});
+    }
+
+    // VMOVHPD xmm0, xmm1, [rdi]: VEX.128.66.0F.WIG 16 /r
+    // C5 F1 16 07: VEX pp=01(66), vvvv=xmm1, opcode=16, modrm=07([rdi])
+    // SDM: DEST[63:0] := SRC1[63:0]; DEST[127:64] := SRC2[63:0]; upper zeroed
+    {
+      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+      std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+      tests.push_back({"vmovhpd xmm0,xmm1,[rdi]", cat,
+        {0xC5, 0xF1, 0x16, 0x07}, s, FL_NONE, 0x1, false, data, 0});
+    }
+
+    // VMOVSHDUP xmm0, xmm1: VEX.128.F3.0F.WIG 16 /r
+    // C5 FA 16 C1: VEX pp=10(F3), vvvv=1111, opcode=16, modrm=C1(xmm1)
+    // SDM: DEST = [src[127:96], src[127:96], src[63:32], src[63:32]]
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+      tests.push_back({"vmovshdup xmm0,xmm1", cat,
+        {0xC5, 0xFA, 0x16, 0xC1}, s, FL_NONE, 0x1});
+    }
+  }
+
+  // =====================================================================
   // VCMPPS 5-bit predicates (predicates 8-15 test NaN-aware comparisons)
   // =====================================================================
   {
