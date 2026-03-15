@@ -848,27 +848,29 @@ function decode_execute() = {
         let port : word = read_gpr16(RDX);
         let v : byte = __port_in8(port);
         mem_write8(read_gpr64(RDI), v);
-        let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFF else 0x0000000000000001;
+        let sign : qword = zeros() - zero_extend(DF);
+        let delta : qword = (0x0000000000000001 ^ sign) - sign;
         write_gpr64(RDI, read_gpr64(RDI) + delta)
       },
       // 6D: INSW/INSD — Input word/dword from port DX to [ES:RDI]
       109 => {
         let port : word = read_gpr16(RDX);
         let os = get_operand_size(pfx);
+        let sign : qword = zeros() - zero_extend(DF);
         match os {
           OS8  => {
             mem_write8(read_gpr64(RDI), __port_in8(port));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFF else 0x0000000000000001;
+            let delta : qword = (0x0000000000000001 ^ sign) - sign;
             write_gpr64(RDI, read_gpr64(RDI) + delta)
           },
           OS16 => {
             mem_write16(read_gpr64(RDI), __port_in16(port));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFE else 0x0000000000000002;
+            let delta : qword = (0x0000000000000002 ^ sign) - sign;
             write_gpr64(RDI, read_gpr64(RDI) + delta)
           },
           OS32 => {
             mem_write32(read_gpr64(RDI), __port_in32(port));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFC else 0x0000000000000004;
+            let delta : qword = (0x0000000000000004 ^ sign) - sign;
             write_gpr64(RDI, read_gpr64(RDI) + delta)
           },
           OS64 => (),
@@ -878,27 +880,29 @@ function decode_execute() = {
       110 => {
         let port : word = read_gpr16(RDX);
         __port_out8(port, mem_read8(read_gpr64(RSI)));
-        let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFF else 0x0000000000000001;
+        let sign : qword = zeros() - zero_extend(DF);
+        let delta : qword = (0x0000000000000001 ^ sign) - sign;
         write_gpr64(RSI, read_gpr64(RSI) + delta)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from [DS:RSI] to port DX
       111 => {
         let port : word = read_gpr16(RDX);
         let os = get_operand_size(pfx);
+        let sign : qword = zeros() - zero_extend(DF);
         match os {
           OS8  => {
             __port_out8(port, mem_read8(read_gpr64(RSI)));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFF else 0x0000000000000001;
+            let delta : qword = (0x0000000000000001 ^ sign) - sign;
             write_gpr64(RSI, read_gpr64(RSI) + delta)
           },
           OS16 => {
             __port_out16(port, mem_read16(read_gpr64(RSI)));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFE else 0x0000000000000002;
+            let delta : qword = (0x0000000000000002 ^ sign) - sign;
             write_gpr64(RSI, read_gpr64(RSI) + delta)
           },
           OS32 => {
             __port_out32(port, mem_read32(read_gpr64(RSI)));
-            let delta : qword = if DF == bitone then 0xFFFFFFFFFFFFFFFC else 0x0000000000000004;
+            let delta : qword = (0x0000000000000004 ^ sign) - sign;
             write_gpr64(RSI, read_gpr64(RSI) + delta)
           },
           OS64 => (),

@@ -442,7 +442,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               let s_bit : bit = desc_hi[12];  // S=1 means code/data
               // Readable: data segments always readable; code segments readable if R bit set
               let is_code : bit = desc_hi[11];
-              let readable : bit = if is_code == bitone then desc_hi[9] else bitone;
+              let readable : bit = desc_hi[9] | ~(is_code);
               ZF = present & s_bit & readable
             }
           }
@@ -466,7 +466,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               let s_bit : bit = desc_hi[12];
               let is_code : bit = desc_hi[11];
               // Writable: only data segments with W bit set
-              let writable : bit = if is_code == bitone then bitzero else desc_hi[9];
+              let writable : bit = desc_hi[9] & ~(is_code);
               ZF = present & s_bit & writable
             }
           }

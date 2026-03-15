@@ -235,7 +235,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let mask : qword = if pfx.vex_w then 0x000000000000FFFF else 0x00000000000000FF;
+    let w_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.vex_w));
+    let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
     let src : qword = read_kreg(k2) & mask;
     write_kreg(k1, sail_shiftright(src, shift) & mask)
   },
@@ -248,7 +249,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let mask : qword = if pfx.vex_w then 0xFFFFFFFFFFFFFFFF else 0x00000000FFFFFFFF;
+    let w_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.vex_w));
+    let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
     let src : qword = read_kreg(k2) & mask;
     write_kreg(k1, sail_shiftright(src, shift) & mask)
   },
@@ -261,7 +263,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let mask : qword = if pfx.vex_w then 0x000000000000FFFF else 0x00000000000000FF;
+    let w_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.vex_w));
+    let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
     let src : qword = read_kreg(k2) & mask;
     write_kreg(k1, sail_shiftleft(src, shift) & mask)
   },
@@ -274,7 +277,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let mask : qword = if pfx.vex_w then 0xFFFFFFFFFFFFFFFF else 0x00000000FFFFFFFF;
+    let w_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.vex_w));
+    let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
     let src : qword = read_kreg(k2) & mask;
     write_kreg(k1, sail_shiftleft(src, shift) & mask)
   },
