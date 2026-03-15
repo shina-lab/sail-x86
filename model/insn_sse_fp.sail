@@ -999,19 +999,39 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F D6: MOVQ xmm/m64, xmm (66 prefix)
     214 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch_byte();
-      let xreg = modrm_xmm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let v = read_xmm(xreg);
-      match rm {
-        RM_reg(_) => {
-          let dst_xmm = modrm_xmm_rm(modrm, pfx);
-          write_xmm(dst_xmm, zero_extend(v[63..0]))
+      match mp {
+        // 66 0F D6: MOVQ xmm1/m64, xmm2 — store low 64 bits
+        MP_66 => {
+          let modrm = fetch_byte();
+          let xreg = modrm_xmm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          let v = read_xmm(xreg);
+          match rm {
+            RM_reg(_) => {
+              let dst_xmm = modrm_xmm_rm(modrm, pfx);
+              write_xmm(dst_xmm, zero_extend(v[63..0]))
+            },
+            RM_mem(addr) => mem_write64(addr, v[63..0]),
+          }
         },
-        RM_mem(addr) => {
-          mem_write64(addr, v[63..0])
+        // F2 0F D6: MOVDQ2Q mm, xmm — SDM: DEST := SRC[63:0]
+        MP_F2 => {
+          let modrm = fetch_byte();
+          let _ = decode_rm(modrm, pfx);
+          let src_xmm = modrm_xmm_rm(modrm, pfx);
+          let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
+          mmx_touch();
+          write_mm(mm_dst, read_xmm(src_xmm)[63..0])
         },
+        // F3 0F D6: MOVQ2DQ xmm, mm — SDM: DEST[63:0] := SRC; DEST[127:64] := 0
+        MP_F3 => {
+          let modrm = fetch_byte();
+          let _ = decode_rm(modrm, pfx);
+          let dst_xmm = modrm_xmm_reg(modrm, pfx);
+          let mm_src : range(0, 7) = unsigned(modrm[2..0]);
+          write_xmm_legacy(dst_xmm, zero_extend(read_mm(mm_src)))
+        },
+        _ => raise_UD(),
       }
     },
     // 0F E6: CVTDQ2PD/CVTPD2DQ/CVTTPD2DQ

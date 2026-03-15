@@ -1070,6 +1070,25 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // MOVQ2DQ: move MMX register to low 64 bits of XMM, zero upper
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // MOVQ2DQ XMM0, MM0: F3 0F D6 C0
+    // SDM: DEST[63:0] := SRC[63:0]; DEST[127:64] := 0
+    // First load MM0 via MOVD MM0,EAX (0F 6E C0), then MOVQ2DQ
+    {
+      ArchState s = {.rax = 0x1234567890ABCDEF, .rflags = 0x2};
+      tests.push_back({"movd mm0,eax; movq2dq xmm0,mm0", cat,
+        {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (loads low 32 bits)
+         0xF3, 0x0F, 0xD6, 0xC0,  // MOVQ2DQ XMM0, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE, 0x1});
+    }
+  }
+
+  // =====================================================================
   // VEX VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ
   // =====================================================================
   {
