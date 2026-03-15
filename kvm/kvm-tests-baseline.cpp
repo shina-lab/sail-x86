@@ -1254,6 +1254,22 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // ENDBR64: F3 0F 1E FA — NOP in our model
     tests.push_back({"endbr64", cat, {0xF3, 0x0F, 0x1E, 0xFA},
                       {.rflags = 0x2}, FL_NONE});
+
+    // CLFLUSHOPT [RDI]: 66 0F AE 3F — NOP for architectural state
+    {
+      std::vector<u8> data(64, 0);
+      tests.push_back({"clflushopt [rdi]", cat, {0x66, 0x0F, 0xAE, 0x3F},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
+
+    // CLWB [RDI]: 66 0F AE 37 (/6 mem) — NOP for architectural state
+    {
+      std::vector<u8> data(64, 0);
+      tests.push_back({"clwb [rdi]", cat, {0x66, 0x0F, 0xAE, 0x37},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
   }
 
   // =====================================================================

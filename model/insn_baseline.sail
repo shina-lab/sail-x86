@@ -1049,10 +1049,26 @@ function dispatch_2byte_gpr(op, pfx) = {
             ()
           },
         },
-        // /6 mod=11: MFENCE
-        6 => (),
-        // /7 mod=11: SFENCE
-        _ => (),
+        // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
+        6 => match rm {
+          RM_mem(addr) => {
+            // XSAVEOPT (NP) or CLWB (66) — both are NOPs for architectural state
+            // XSAVEOPT: SDM says optimized XSAVE (we treat as regular XSAVE)
+            // CLWB: SDM says Cache_Line_Write_Back(m8) — NOP for us
+            if pfx.has_opsize then {
+              ()  // CLWB: NOP (cache write-back, no architectural effect)
+            } else {
+              let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+              __xsave(fixup_addr(addr), mask)  // XSAVEOPT: treat as XSAVE
+            }
+          },
+          RM_reg(_) => (),  // MFENCE
+        },
+        // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
+        _ => match rm {
+          RM_mem(_) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
+          RM_reg(_) => (),  // SFENCE
+        },
       }
     },
     // 0F A2: CPUID
@@ -1609,6 +1625,27 @@ function dispatch_2byte_gpr(op, pfx) = {
             }
           },
           RM_reg(_) => raise_UD(),
+        },
+        // /4 mem: XSAVEC — save extended state with compaction
+        // SDM: uses compacted format (XCOMP_BV bit 63 set)
+        // We treat as equivalent to XSAVE for simplicity.
+        4 => match rm {
+          RM_mem(addr) => {
+            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            __xsave(fixup_addr(addr), mask)
+          },
+          _ => raise_UD(),
+        },
+        // /5 mem: XSAVES — save extended state (supervisor, requires CPL=0)
+        // SDM: RFBM = (XCR0 OR IA32_XSS) AND EDX:EAX; compacted format
+        // We treat as equivalent to XSAVE for simplicity.
+        5 => match rm {
+          RM_mem(addr) => {
+            if cur_cpl != 0 then raise_GP0();
+            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            __xsave(fixup_addr(addr), mask)
+          },
+          _ => raise_UD(),
         },
         // /6 mod=11: RDRAND r16/r32/r64
         6 => match rm {
