@@ -1070,6 +1070,87 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // MMX↔SSE conversions: CVTPI2PS, CVTPS2PI, etc.
+  // =====================================================================
+  {
+    cat = "SSE";
+
+    // CVTPI2PS: NP 0F 2A /r — convert 2 packed dwords from MM to low 2 floats in XMM
+    // Load MM0 with [3, 7] via MOVD+PUNPCKLDQ, then CVTPI2PS XMM0, MM0, EMMS
+    // MOVD MM0, EAX (0F 6E C0) loads 3 into low dword
+    // We just test a simple case: MM0 has {3, 0} after MOVD
+    {
+      ArchState s = {.rax = 3, .rflags = 0x2};
+      s.xmm[0] = xmm_from_u64(0xDEADDEADDEADDEAD, 0xBBBBBBBBBBBBBBBB);
+      tests.push_back({"cvtpi2ps xmm0,mm0", cat,
+        {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 3})
+         0x0F, 0x2A, 0xC0,        // CVTPI2PS XMM0, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE, 0x1});
+      // XMM0 low 64 = {f32(0), f32(3)}, high 64 = preserved (0xBBBB...)
+    }
+
+    // CVTPI2PD: 66 0F 2A /r — convert 2 packed dwords from MM to 2 doubles in XMM
+    {
+      ArchState s = {.rax = 5, .rflags = 0x2};
+      tests.push_back({"cvtpi2pd xmm0,mm0", cat,
+        {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 5})
+         0x66, 0x0F, 0x2A, 0xC0,  // CVTPI2PD XMM0, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE, 0x1});
+    }
+
+    // CVTPS2PI: NP 0F 2D /r — convert 2 floats from low XMM to 2 dwords in MM
+    // Then MOVD EAX,MM0 to read result; compare via RAX
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[0] = xmm_from_u32(0x40400000, 0x40A00000, 0, 0); // 3.0f, 5.0f
+      tests.push_back({"cvtps2pi mm0,xmm0; movd eax,mm0", cat,
+        {0x0F, 0x2D, 0xC0,        // CVTPS2PI MM0, XMM0
+         0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE});
+      // EAX should be 3 (low dword of MM0)
+    }
+
+    // CVTTPS2PI: NP 0F 2C /r — truncate 2 floats to 2 dwords in MM
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[0] = xmm_from_u32(0x40490FDB, 0x40C90FDB, 0, 0); // pi, 2*pi
+      tests.push_back({"cvttps2pi mm0,xmm0; movd eax,mm0", cat,
+        {0x0F, 0x2C, 0xC0,        // CVTTPS2PI MM0, XMM0
+         0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE});
+      // EAX should be 3 (trunc(pi))
+    }
+
+    // CVTPD2PI: 66 0F 2D /r — round 2 doubles to 2 dwords in MM
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[0] = xmm_from_u64(0x4008000000000000, 0x4014000000000000); // 3.0, 5.0
+      tests.push_back({"cvtpd2pi mm0,xmm0; movd eax,mm0", cat,
+        {0x66, 0x0F, 0x2D, 0xC0,  // CVTPD2PI MM0, XMM0
+         0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE});
+      // EAX should be 3 (low dword of MM0 = round(3.0))
+    }
+
+    // CVTTPD2PI: 66 0F 2C /r — truncate 2 doubles to 2 dwords in MM
+    {
+      ArchState s = {.rflags = 0x2};
+      s.xmm[0] = xmm_from_u64(0x400921FB54442D18, 0x4019000000000000); // pi, 6.25
+      tests.push_back({"cvttpd2pi mm0,xmm0; movd eax,mm0", cat,
+        {0x66, 0x0F, 0x2C, 0xC0,  // CVTTPD2PI MM0, XMM0
+         0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
+         0x0F, 0x77},             // EMMS
+        s, FL_NONE});
+      // EAX should be 3 (trunc(pi))
+    }
+  }
+
+  // =====================================================================
   // VCVTPS2PH rounding control
   // =====================================================================
   {

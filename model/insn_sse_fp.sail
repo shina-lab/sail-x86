@@ -454,6 +454,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
       };
       match mp {
+        // CVTSI2SS xmm, r/m32/64 (F3 prefix)
         MP_F3 => {
           let result : dword = match os {
             OS64 => __int64_to_f32(src_val),
@@ -463,6 +464,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           xmm[31..0] = result;
           write_xmm_legacy(xreg, xmm)
         },
+        // CVTSI2SD xmm, r/m32/64 (F2 prefix)
         MP_F2 => {
           let result : qword = match os {
             OS64 => __int64_to_f64(src_val),
@@ -472,7 +474,28 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           xmm[63..0] = result;
           write_xmm_legacy(xreg, xmm)
         },
-        _     => raise_UD(),
+        // CVTPI2PS xmm, mm/m64 (NP) — SDM: DEST[31:0] := cvt(SRC[31:0]); DEST[63:32] := cvt(SRC[63:32])
+        // High quadword unchanged.
+        MP_NONE => {
+          let mm_src : qword = match rm {
+            RM_reg(_) => { mmx_touch(); read_mm(unsigned(modrm[2..0])) },
+            RM_mem(addr) => mem_read64(addr),
+          };
+          var xmm : xmmword = read_xmm(xreg);
+          xmm[31..0] = __int32_to_f32(mm_src[31..0]);
+          xmm[63..32] = __int32_to_f32(mm_src[63..32]);
+          write_xmm_legacy(xreg, xmm)
+        },
+        // CVTPI2PD xmm, mm/m64 (66 prefix) — SDM: full XMM write
+        MP_66 => {
+          let mm_src : qword = match rm {
+            RM_reg(_) => { mmx_touch(); read_mm(unsigned(modrm[2..0])) },
+            RM_mem(addr) => mem_read64(addr),
+          };
+          let lo : qword = __int32_to_f64(mm_src[31..0]);
+          let hi : qword = __int32_to_f64(mm_src[63..32]);
+          write_xmm_legacy(xreg, hi @ lo)
+        },
       }
     },
     // 0F 2C: CVTTSS2SI/CVTTSD2SI
@@ -503,7 +526,26 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             _    => write_gpr32(reg, __f64_to_int32_trunc(src_xmm[63..0])),
           }
         },
-        _     => raise_UD(),
+        // CVTTPS2PI mm, xmm/m64 (NP) — SDM: truncate 2 floats to 2 dwords in MM
+        MP_NONE => {
+          let src : qword = match rm {
+            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+            RM_mem(addr) => mem_read64(addr),
+          };
+          mmx_touch();
+          let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
+          write_mm(mm_dst, __f32_to_int32_trunc(src[63..32]) @ __f32_to_int32_trunc(src[31..0]))
+        },
+        // CVTTPD2PI mm, xmm/m128 (66) — SDM: truncate 2 doubles to 2 dwords in MM
+        MP_66 => {
+          let src : xmmword = match rm {
+            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+            RM_mem(addr) => mem_read128(addr),
+          };
+          mmx_touch();
+          let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
+          write_mm(mm_dst, __f64_to_int32_trunc(src[127..64]) @ __f64_to_int32_trunc(src[63..0]))
+        },
       }
     },
     // 0F 2D: CVTSS2SI/CVTSD2SI
@@ -534,7 +576,26 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             _    => write_gpr32(reg, __f64_to_int32(src_xmm[63..0])),
           }
         },
-        _     => raise_UD(),
+        // CVTPS2PI mm, xmm/m64 (NP) — SDM: round 2 floats to 2 dwords in MM
+        MP_NONE => {
+          let src : qword = match rm {
+            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+            RM_mem(addr) => mem_read64(addr),
+          };
+          mmx_touch();
+          let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
+          write_mm(mm_dst, __f32_to_int32(src[63..32]) @ __f32_to_int32(src[31..0]))
+        },
+        // CVTPD2PI mm, xmm/m128 (66) — SDM: round 2 doubles to 2 dwords in MM
+        MP_66 => {
+          let src : xmmword = match rm {
+            RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+            RM_mem(addr) => mem_read128(addr),
+          };
+          mmx_touch();
+          let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
+          write_mm(mm_dst, __f64_to_int32(src[127..64]) @ __f64_to_int32(src[63..0]))
+        },
       }
     },
     // 0F 2E: UCOMISS/UCOMISD
