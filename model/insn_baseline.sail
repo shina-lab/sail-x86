@@ -749,6 +749,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       next_rip = Some(new_rip)
     },
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)
+    // 0F 08: INVD — Invalidate Internal Caches (requires CPL=0)
+    // SDM: Flush(InternalCaches); SignalFlush(ExternalCaches); Continue
+    // Destructive: dirty cache lines discarded (not written back).
+    8 => if cur_cpl != 0 then raise_GP0(),
+    // 0F 09: WBINVD — Write Back and Invalidate Cache (requires CPL=0)
     9 => if cur_cpl != 0 then raise_GP0(),
     // 0F 0B: UD2
     11 => raise_UD(),

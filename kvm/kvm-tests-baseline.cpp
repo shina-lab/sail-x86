@@ -1263,6 +1263,18 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
                         FL_NONE, 0, false, data, 0});
     }
 
+    // ENDBR32: F3 0F 1E FB — NOP
+    tests.push_back({"endbr32", cat, {0xF3, 0x0F, 0x1E, 0xFB},
+                      {.rflags = 0x2}, FL_NONE});
+
+    // CLDEMOTE [RDI]: NP 0F 1C 07 (/0 mem) — hint, NOP
+    {
+      std::vector<u8> data(64, 0);
+      tests.push_back({"cldemote [rdi]", cat, {0x0F, 0x1C, 0x07},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, data, 0});
+    }
+
     // CLWB [RDI]: 66 0F AE 37 (/6 mem) — NOP for architectural state
     {
       std::vector<u8> data(64, 0);

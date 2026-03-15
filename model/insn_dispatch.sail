@@ -1731,6 +1731,10 @@ function decode_execute() = {
         exec_out(read_gpr16(RDX), os)
       },
 
+      // F1: INT1 / ICEBP — Generate #DB (vector 1) without setting DR6 bits.
+      // SDM: delivers interrupt/exception to vector 1.
+      241 => throw Fault(EXN_DB, 0x00000000),
+
       // F4: HLT — SDM: #GP(0) if CPL > 0
       244 => {
         if cur_cpl != 0 then raise_GP0();
