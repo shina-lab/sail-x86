@@ -227,7 +227,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
-  // 0F3A 30: KSHIFTRW k1, k2, imm8 (66, W1)
+  // 0F3A 30: KSHIFTRW (66,W1) / KSHIFTRB (66,W0)
   48 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
@@ -235,11 +235,25 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let src : bits(16) = read_kreg(k2)[15..0];
-    write_kreg(k1, zero_extend(sail_shiftright(src, shift)))
+    let mask : qword = if pfx.vex_w then 0x000000000000FFFF else 0x00000000000000FF;
+    let src : qword = read_kreg(k2) & mask;
+    write_kreg(k1, sail_shiftright(src, shift) & mask)
   },
 
-  // 0F3A 32: KSHIFTLW k1, k2, imm8 (66, W1)
+  // 0F3A 31: KSHIFTRD (66,W0) / KSHIFTRQ (66,W1)
+  49 => {
+    if mp != MP_66 then raise_UD();
+    let modrm = fetch_byte();
+    let k1 : range(0, 7) = unsigned(modrm[5..3]);
+    let k2 : range(0, 7) = unsigned(modrm[2..0]);
+    let imm = fetch_byte();
+    let shift : range(0, 255) = unsigned(imm);
+    let mask : qword = if pfx.vex_w then 0xFFFFFFFFFFFFFFFF else 0x00000000FFFFFFFF;
+    let src : qword = read_kreg(k2) & mask;
+    write_kreg(k1, sail_shiftright(src, shift) & mask)
+  },
+
+  // 0F3A 32: KSHIFTLW (66,W1) / KSHIFTLB (66,W0)
   50 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
@@ -247,8 +261,22 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let imm = fetch_byte();
     let shift : range(0, 255) = unsigned(imm);
-    let src : bits(16) = read_kreg(k2)[15..0];
-    write_kreg(k1, zero_extend(sail_shiftleft(src, shift)))
+    let mask : qword = if pfx.vex_w then 0x000000000000FFFF else 0x00000000000000FF;
+    let src : qword = read_kreg(k2) & mask;
+    write_kreg(k1, sail_shiftleft(src, shift) & mask)
+  },
+
+  // 0F3A 33: KSHIFTLD (66,W0) / KSHIFTLQ (66,W1)
+  51 => {
+    if mp != MP_66 then raise_UD();
+    let modrm = fetch_byte();
+    let k1 : range(0, 7) = unsigned(modrm[5..3]);
+    let k2 : range(0, 7) = unsigned(modrm[2..0]);
+    let imm = fetch_byte();
+    let shift : range(0, 255) = unsigned(imm);
+    let mask : qword = if pfx.vex_w then 0xFFFFFFFFFFFFFFFF else 0x00000000FFFFFFFF;
+    let src : qword = read_kreg(k2) & mask;
+    write_kreg(k1, sail_shiftleft(src, shift) & mask)
   },
 
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)

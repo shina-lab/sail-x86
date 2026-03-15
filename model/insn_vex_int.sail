@@ -3,98 +3,118 @@
 // Integer moves, arithmetic, logical, compare, shuffle, insert/extract,
 // mask register ops, VZEROUPPER/VZEROALL.
 
+// K-register width mask: NP+W0=W(16), 66+W0=B(8), NP+W1=Q(64), 66+W1=D(32)
+val kreg_width_mask : (MandatoryPrefix, bool) -> qword
+function kreg_width_mask(mp, w) = match (mp, w) {
+  (MP_NONE, false) => 0x000000000000FFFF,  // W: 16 bits
+  (MP_66,   false) => 0x00000000000000FF,  // B: 8 bits
+  (MP_NONE, true)  => 0xFFFFFFFFFFFFFFFF,  // Q: 64 bits
+  (MP_66,   true)  => 0x00000000FFFFFFFF,  // D: 32 bits
+  (_, _)           => 0x000000000000FFFF,  // default: W
+}
+
 val dispatch_vex_0f_int : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f_int(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
 
   match op {
 
-  // 0F 41: KANDW k1, k2, k3 (NP, W0)
+  // 0F 41: KAND{W,B,D,Q} k1, k2, k3
+  // SDM: DEST := SRC1 AND SRC2 (width by NP+W0=W, 66+W0=B, NP+W1=Q, 66+W1=D)
   65 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     let result : qword = read_kreg(k2) & read_kreg(k3);
-    write_kreg(k1, zero_extend(result[15..0]))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 42: KANDNW k1, k2, k3 (NP, W0)
+  // 0F 42: KANDN{W,B,D,Q} k1, k2, k3
   66 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     let result : qword = ~(read_kreg(k2)) & read_kreg(k3);
-    write_kreg(k1, zero_extend(result[15..0]))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 44: KNOTW k1, k2 (NP, W0)
+  // 0F 44: KNOT{W,B,D,Q} k1, k2
   68 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    write_kreg(k1, zero_extend(~(read_kreg(k2)[15..0])))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, ~(read_kreg(k2)) & mask)
   },
 
-  // 0F 45: KORW k1, k2, k3 (NP, W0)
+  // 0F 45: KOR{W,B,D,Q} k1, k2, k3
   69 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     let result : qword = read_kreg(k2) | read_kreg(k3);
-    write_kreg(k1, zero_extend(result[15..0]))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 46: KXNORW k1, k2, k3 (NP, W0)
+  // 0F 46: KXNOR{W,B,D,Q} k1, k2, k3
   70 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     let result : qword = ~(xor_vec(read_kreg(k2), read_kreg(k3)));
-    write_kreg(k1, zero_extend(result[15..0]))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 47: KXORW k1, k2, k3 (NP, W0)
+  // 0F 47: KXOR{W,B,D,Q} k1, k2, k3
   71 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     let result : qword = xor_vec(read_kreg(k2), read_kreg(k3));
-    write_kreg(k1, zero_extend(result[15..0]))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 4A: KADDW k1, k2, k3 (NP, W0)
+  // 0F 4A: KADD{W,B,D,Q} k1, k2, k3
   74 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let sum : bits(16) = read_kreg(k2)[15..0] + read_kreg(k3)[15..0];
-    write_kreg(k1, zero_extend(sum))
+    let result : qword = read_kreg(k2) + read_kreg(k3);
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    write_kreg(k1, result & mask)
   },
 
-  // 0F 4B: KUNPCKBW / KUNPCKWD
+  // 0F 4B: KUNPCKBW (66,W0) / KUNPCKWD (NP,W0) / KUNPCKDQ (NP,W1)
   75 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    match mp {
-      MP_66 => {
-        // KUNPCKBW k1, k2, k3 (66, W0) — byte → word
-        let result : bits(16) = read_kreg(k2)[7..0] @ read_kreg(k3)[7..0];
-        write_kreg(k1, zero_extend(result))
-      },
-      MP_NONE => {
-        // KUNPCKWD k1, k2, k3 (NP, W0) — word → dword
-        let result : bits(32) = read_kreg(k2)[15..0] @ read_kreg(k3)[15..0];
-        write_kreg(k1, zero_extend(result))
-      },
-      _ => raise_UD()
+    if mp == MP_66 & not_bool(pfx.vex_w) then {
+      // KUNPCKBW: byte → word
+      let result : bits(16) = read_kreg(k2)[7..0] @ read_kreg(k3)[7..0];
+      write_kreg(k1, zero_extend(result))
+    } else if mp == MP_NONE & not_bool(pfx.vex_w) then {
+      // KUNPCKWD: word → dword
+      let result : bits(32) = read_kreg(k2)[15..0] @ read_kreg(k3)[15..0];
+      write_kreg(k1, zero_extend(result))
+    } else if mp == MP_NONE & pfx.vex_w then {
+      // KUNPCKDQ: dword → qword
+      let result : qword = read_kreg(k2)[31..0] @ read_kreg(k3)[31..0];
+      write_kreg(k1, result)
+    } else {
+      raise_UD()
     }
   },
 
@@ -787,107 +807,110 @@ function dispatch_vex_0f_int(op, pfx) = {
 
   // 0F 90: KMOVW k1, k/m16 (NP, W0) — load k-register from k/memory
   144 => {
+    // 0F 90: KMOV{W,B,D,Q} k1, k/m — load k-register
+    // NP+W0=W(16), 66+W0=B(8), NP+W1=Q(64), 66+W1=D(32)
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm(modrm, pfx);
-    match mp {
-      MP_NONE => {
-        let v : bits(16) = match rm {
-          RM_reg(idx) => {
-            let k_src : range(0, 7) = idx % 8;
-            read_kreg(k_src)[15..0]
-          },
-          RM_mem(addr) => mem_read16(fixup_addr(addr)),
-        };
-        write_kreg(k1, zero_extend(v))
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    match rm {
+      RM_reg(idx) => {
+        let k_src : range(0, 7) = idx % 8;
+        write_kreg(k1, read_kreg(k_src) & mask)
       },
-      _ => raise_UD(),
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        if pfx.vex_w then {
+          if mp == MP_NONE then write_kreg(k1, mem_read64(a))            // KMOVQ
+          else write_kreg(k1, zero_extend(mem_read32(a)))                // KMOVD
+        } else {
+          if mp == MP_66 then write_kreg(k1, zero_extend(mem_read8(a)))  // KMOVB
+          else write_kreg(k1, zero_extend(mem_read16(a)))                // KMOVW
+        }
+      },
     }
   },
 
-  // 0F 91: KMOVW k/m16, k1 (NP, W0) — store k-register to memory
+  // 0F 91: KMOV{W,B,D,Q} k/m, k1 — store k-register to memory
   145 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm(modrm, pfx);
-    match mp {
-      MP_NONE => {
-        match rm {
-          RM_mem(addr) => {
-            mem_write16(fixup_addr(addr), read_kreg(k1)[15..0])
-          },
-          RM_reg(_) => raise_UD(),
+    match rm {
+      RM_mem(addr) => {
+        let a = fixup_addr(addr);
+        if pfx.vex_w then {
+          if mp == MP_NONE then mem_write64(a, read_kreg(k1))             // KMOVQ
+          else mem_write32(a, read_kreg(k1)[31..0])                       // KMOVD
+        } else {
+          if mp == MP_66 then mem_write8(a, read_kreg(k1)[7..0])          // KMOVB
+          else mem_write16(a, read_kreg(k1)[15..0])                       // KMOVW
         }
       },
       _ => raise_UD(),
     }
   },
 
-  // 0F 92: KMOVW r32 -> k (NP, W0) / KMOVB/D/Q variants
+  // 0F 92: KMOV{W,B} r32→k (NP/66,W0) / KMOV{D,Q} r32/r64→k (F2,W0/W1)
   146 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm(modrm, pfx);
-    match mp {
-      // KMOVW: r/m16 -> k
-      MP_NONE => {
-        let v : dword = match rm {
-          RM_reg(idx) => read_gpr32(idx),
-          RM_mem(addr) => zero_extend(mem_read16(fixup_addr(addr))),
-        };
-        write_kreg(k1, zero_extend(v[15..0]))
+    match rm {
+      RM_reg(idx) => {
+        if mp == MP_F2 then {
+          if pfx.vex_w then write_kreg(k1, read_gpr64(idx))                // KMOVQ
+          else write_kreg(k1, zero_extend(read_gpr32(idx)))                // KMOVD
+        } else if mp == MP_66 then {
+          write_kreg(k1, zero_extend(read_gpr32(idx)[7..0]))               // KMOVB
+        } else {
+          write_kreg(k1, zero_extend(read_gpr32(idx)[15..0]))              // KMOVW
+        }
       },
       _ => raise_UD(),
     }
   },
 
-  // 0F 93: KMOVW k -> r32 (NP, W0) / KMOVD k -> r32 (F2, W0)
+  // 0F 93: KMOV{W,B} k→r32 (NP/66,W0) / KMOV{D,Q} k→r32/r64 (F2,W0/W1)
   147 => {
     let modrm = fetch_byte();
     let dst_gpr = modrm_reg(modrm, pfx);
     let k1 : range(0, 7) = unsigned(modrm[2..0]);
-    match mp {
-      // KMOVW r32, k1
-      MP_NONE => {
-        write_gpr32(dst_gpr, zero_extend(read_kreg(k1)[15..0]))
-      },
-      // KMOVD r32, k1
-      MP_F2 => {
-        write_gpr32(dst_gpr, read_kreg(k1)[31..0])
-      },
-      _ => raise_UD(),
+    if mp == MP_F2 then {
+      if pfx.vex_w then write_gpr64(dst_gpr, read_kreg(k1))               // KMOVQ
+      else write_gpr32(dst_gpr, read_kreg(k1)[31..0])                     // KMOVD
+    } else if mp == MP_66 then {
+      write_gpr32(dst_gpr, zero_extend(read_kreg(k1)[7..0]))              // KMOVB
+    } else {
+      write_gpr32(dst_gpr, zero_extend(read_kreg(k1)[15..0]))             // KMOVW
     }
   },
 
-  // 0F 98: KORTESTW k1, k2 (NP, W0) — set ZF if k1|k2==0, CF if k1|k2==all-ones
+  // 0F 98: KORTEST{W,B,D,Q} k1, k2 — ZF if k1|k2==0, CF if k1|k2==all-ones
   152 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let v1 : bits(16) = read_kreg(k1)[15..0];
-    let v2 : bits(16) = read_kreg(k2)[15..0];
-    let result : bits(16) = v1 | v2;
-    ZF = (~(or_reduce_16(result)))[0];
-    CF = (~(or_reduce_16(~(result))))[0];
-    SF = bitzero;
-    OF = bitzero;
-    PF = bitzero;
-    AF = bitzero
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    let v1 : qword = read_kreg(k1) & mask;
+    let v2 : qword = read_kreg(k2) & mask;
+    let result : qword = v1 | v2;
+    ZF = bool_to_bit(result == zeros());
+    CF = bool_to_bit(result == mask);
+    SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
   },
 
-  // 0F 99: KTESTW k1, k2 (NP, W0) — set ZF if k1&k2==0, CF if (~k1)&k2==0
+  // 0F 99: KTEST{W,B,D,Q} k1, k2 — ZF if k1&k2==0, CF if (~k1)&k2==0
   153 => {
     let modrm = fetch_byte();
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let v1 : bits(16) = read_kreg(k1)[15..0];
-    let v2 : bits(16) = read_kreg(k2)[15..0];
-    ZF = (~(or_reduce_16(v1 & v2)))[0];
-    CF = (~(or_reduce_16(~(v1) & v2)))[0];
-    SF = bitzero;
-    OF = bitzero;
-    PF = bitzero;
-    AF = bitzero
+    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    let v1 : qword = read_kreg(k1) & mask;
+    let v2 : qword = read_kreg(k2) & mask;
+    ZF = bool_to_bit((v1 & v2) == zeros());
+    CF = bool_to_bit((~(v1) & v2 & mask) == zeros());
+    SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
   },
 
   // 0F C4: VPINSRW xmm, xmm, r32/m16, imm8 (66 prefix, VEX.128 only)

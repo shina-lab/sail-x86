@@ -1301,6 +1301,38 @@ void add_vex_tests(std::vector<TestCase> &tests) {
     }
   }
 
+  // K-register B/D/Q width tests
+  {
+    // KANDD k2, k2, k2 (dword AND): VEX.L1.66.0F.W1 41 /r
+    // C4 E1 ED 41 D2: L=1, pp=01(66), W=1, vvvv=~k2=1101, opcode=41, modrm=D2(k2,k2)
+    {
+      TestCase tc;
+      tc.name = "kandd k2,k2,k2 (32-bit)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE1, 0xED, 0x41, 0xD2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[2] = 0x00000000FFFF0000;
+      tc.flags_mask = FL_NONE;
+      tc.kreg_mask = (1 << 2);
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVD EAX, k2 (F2+W0): C5 FB 93 C2
+    {
+      TestCase tc;
+      tc.name = "kmovd eax,k2";
+      tc.category = cat;
+      tc.code = {0xC5, 0xFB, 0x93, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0xDEADDEADDEADDEAD;
+      tc.initial.kregs[2] = 0x12345678;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
   // =====================================================================
   // EVEX blend — VPBLENDMD/Q, VBLENDMPS/PD
   // =====================================================================
