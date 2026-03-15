@@ -412,7 +412,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(addr) => {
+          RM_mem(_) => {
             let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
             if unsigned(inv_type) > 3 then raise_GP0();
             __tlb_flush()
