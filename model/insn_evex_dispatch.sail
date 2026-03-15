@@ -48,7 +48,7 @@ function decode_evex() = {
     has_rep    = p1[1..0] == 0b10,
     has_repne  = p1[1..0] == 0b11,
     // P2: z, L'L, b, V', aaa
-    evex_z   = p2[7] == bitone,
+    evex_z   = p2[7],
     evex_ll  = unsigned(p2[6..5]),
     evex_b   = p2[4] == bitone,
     evex_aaa = unsigned(p2[2..0]),

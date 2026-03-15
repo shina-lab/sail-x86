@@ -1887,7 +1887,7 @@ function dispatch_evex_perm(op, pfx) = {
         2 => {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
-          let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : zmmword = src1 & z_keep;
           var result : zmmword = zeros();
           foreach (i from 0 to 7) {
@@ -1898,7 +1898,7 @@ function dispatch_evex_perm(op, pfx) = {
         1 => {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
-          let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : ymmword = src1 & z_keep;
           var result : ymmword = zeros();
           foreach (i from 0 to 3) {
@@ -1909,7 +1909,7 @@ function dispatch_evex_perm(op, pfx) = {
         _ => {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
-          let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : xmmword = src1 & z_keep;
           var result : xmmword = zeros();
           foreach (i from 0 to 1) {
@@ -1924,7 +1924,7 @@ function dispatch_evex_perm(op, pfx) = {
         2 => {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-          let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : zmmword = src1 & z_keep;
           var result : zmmword = zeros();
           foreach (i from 0 to 15) {
@@ -1935,7 +1935,7 @@ function dispatch_evex_perm(op, pfx) = {
         1 => {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-          let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : ymmword = src1 & z_keep;
           var result : ymmword = zeros();
           foreach (i from 0 to 7) {
@@ -1946,7 +1946,7 @@ function dispatch_evex_perm(op, pfx) = {
         _ => {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
-          let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : xmmword = src1 & z_keep;
           var result : xmmword = zeros();
           foreach (i from 0 to 3) {
@@ -1973,7 +1973,7 @@ function dispatch_evex_perm(op, pfx) = {
         2 => {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
-          let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : zmmword = src1 & z_keep;
           var result : zmmword = zeros();
           foreach (i from 0 to 7) {
@@ -1984,7 +1984,7 @@ function dispatch_evex_perm(op, pfx) = {
         1 => {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
-          let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : ymmword = src1 & z_keep;
           var result : ymmword = zeros();
           foreach (i from 0 to 3) {
@@ -1995,7 +1995,7 @@ function dispatch_evex_perm(op, pfx) = {
         _ => {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
-          let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : xmmword = src1 & z_keep;
           var result : xmmword = zeros();
           foreach (i from 0 to 1) {
@@ -2010,7 +2010,7 @@ function dispatch_evex_perm(op, pfx) = {
         2 => {
           let src1 : zmmword = read_zmm(src1_idx);
           let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-          let z_keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : zmmword = src1 & z_keep;
           var result : zmmword = zeros();
           foreach (i from 0 to 15) {
@@ -2021,7 +2021,7 @@ function dispatch_evex_perm(op, pfx) = {
         1 => {
           let src1 : ymmword = read_ymm(src1_idx);
           let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-          let z_keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : ymmword = src1 & z_keep;
           var result : ymmword = zeros();
           foreach (i from 0 to 7) {
@@ -2032,7 +2032,7 @@ function dispatch_evex_perm(op, pfx) = {
         _ => {
           let src1 : xmmword = read_xmm(src1_idx);
           let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
-          let z_keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(pfx.evex_z)));
+          let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
           let src1_eff : xmmword = src1 & z_keep;
           var result : xmmword = zeros();
           foreach (i from 0 to 3) {

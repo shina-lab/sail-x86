@@ -75,9 +75,9 @@ function evex_src_m64(modrm, rm, pfx) = match rm {
 // Shared helpers (used by multiple EVEX dispatch files)
 // =========================================================================
 
-val apply_writemask_ps_zmm : (zmmword, zmmword, word, bool) -> zmmword
+val apply_writemask_ps_zmm : (zmmword, zmmword, word, bit) -> zmmword
 function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   blend32(base[511..480], result[511..480], mask_val[15..15]) @
   blend32(base[479..448], result[479..448], mask_val[14..14]) @
@@ -99,9 +99,9 @@ function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
 
 // Apply 8-bit writemask to a 512-bit ZMM result (64-bit elements, 8 lanes).
 
-val apply_writemask_pd_zmm : (zmmword, zmmword, byte, bool) -> zmmword
+val apply_writemask_pd_zmm : (zmmword, zmmword, byte, bit) -> zmmword
 function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   blend64(base[511..448], result[511..448], mask_val[7..7]) @
   blend64(base[447..384], result[447..384], mask_val[6..6]) @
@@ -115,9 +115,9 @@ function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
 
 // Apply 4-bit writemask to a 128-bit XMM result (32-bit elements, 4 lanes).
 
-val apply_writemask_ps_xmm : (xmmword, xmmword, word, bool) -> xmmword
+val apply_writemask_ps_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   blend32(base[127..96], result[127..96], mask_val[3..3]) @
   blend32(base[95..64],  result[95..64],  mask_val[2..2]) @
@@ -127,9 +127,9 @@ function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
 
 // Apply 8-bit writemask to a 256-bit YMM result (32-bit elements, 8 lanes).
 
-val apply_writemask_ps_ymm : (ymmword, ymmword, word, bool) -> ymmword
+val apply_writemask_ps_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   blend32(base[255..224], result[255..224], mask_val[7..7]) @
   blend32(base[223..192], result[223..192], mask_val[6..6]) @
@@ -143,9 +143,9 @@ function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
 
 // Apply 2-bit writemask to a 128-bit XMM result (64-bit elements, 2 lanes).
 
-val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bool) -> xmmword
+val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   blend64(base[127..64], result[127..64], mask_val[1..1]) @
   blend64(base[63..0],   result[63..0],   mask_val[0..0])
@@ -153,9 +153,9 @@ function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
 
 // Apply 4-bit writemask to a 256-bit YMM result (64-bit elements, 4 lanes).
 
-val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bool) -> ymmword
+val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bit) -> ymmword
 function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   blend64(base[255..192], result[255..192], mask_val[3..3]) @
   blend64(base[191..128], result[191..128], mask_val[2..2]) @
@@ -167,9 +167,9 @@ function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
 // Byte-element (8-bit) writemask helpers — for VPADDB, VPSUBB, etc.
 // =========================================================================
 
-val apply_writemask_b_xmm : (xmmword, xmmword, word, bool) -> xmmword
+val apply_writemask_b_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
@@ -180,9 +180,9 @@ function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
   r
 }
 
-val apply_writemask_b_ymm : (ymmword, ymmword, dword, bool) -> ymmword
+val apply_writemask_b_ymm : (ymmword, ymmword, dword, bit) -> ymmword
 function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   var r : ymmword = zeros();
   foreach (i from 0 to 31) {
@@ -193,9 +193,9 @@ function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
   r
 }
 
-val apply_writemask_b_zmm : (zmmword, zmmword, qword, bool) -> zmmword
+val apply_writemask_b_zmm : (zmmword, zmmword, qword, bit) -> zmmword
 function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   var r : zmmword = zeros();
   foreach (i from 0 to 63) {
@@ -210,9 +210,9 @@ function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
 // Word-element (16-bit) writemask helpers — for VPADDW, VPSUBW, etc.
 // =========================================================================
 
-val apply_writemask_w_xmm : (xmmword, xmmword, byte, bool) -> xmmword
+val apply_writemask_w_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
@@ -223,9 +223,9 @@ function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
   r
 }
 
-val apply_writemask_w_ymm : (ymmword, ymmword, word, bool) -> ymmword
+val apply_writemask_w_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   var r : ymmword = zeros();
   foreach (i from 0 to 15) {
@@ -236,9 +236,9 @@ function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
   r
 }
 
-val apply_writemask_w_zmm : (zmmword, zmmword, dword, bool) -> zmmword
+val apply_writemask_w_zmm : (zmmword, zmmword, dword, bit) -> zmmword
 function apply_writemask_w_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(bool_to_bit(not_bool(zeroing)));
+  let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   var r : zmmword = zeros();
   foreach (i from 0 to 31) {
@@ -336,7 +336,7 @@ function evex_write_ss(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
   if mask_bit == bitone then {
     write_xmm(dst, result)
-  } else if pfx.evex_z then {
+  } else if pfx.evex_z == bitone then {
     write_xmm(dst, result[127..32] @ zeros(32))
   } else {
     write_xmm(dst, result[127..32] @ read_xmm(dst)[31..0])
@@ -349,7 +349,7 @@ function evex_write_sh(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
   if mask_bit == bitone then {
     write_xmm(dst, result)
-  } else if pfx.evex_z then {
+  } else if pfx.evex_z == bitone then {
     write_xmm(dst, result[127..16] @ zeros(16))
   } else {
     write_xmm(dst, result[127..16] @ read_xmm(dst)[15..0])
@@ -362,7 +362,7 @@ function evex_write_sd(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
   if mask_bit == bitone then {
     write_xmm(dst, result)
-  } else if pfx.evex_z then {
+  } else if pfx.evex_z == bitone then {
     write_xmm(dst, result[127..64] @ zeros(64))
   } else {
     write_xmm(dst, result[127..64] @ read_xmm(dst)[63..0])
