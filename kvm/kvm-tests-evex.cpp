@@ -2754,6 +2754,38 @@ void add_evex_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
       // Expected: EAX = 3 (0x00000003)
     }
+
+    // VRANGEPS NaN handling — SDM: QNaN is transparent, non-NaN wins
+    // VRANGEPS xmm0, xmm1, xmm2, 0x00 (min): 62 F3 75 08 50 C2 00
+    // SRC1=QNaN, SRC2=3.0 → SDM says return SRC2 (non-NaN)
+    {
+      TestCase tc;
+      tc.name = "vrangeps min: qnan vs 3.0";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x00};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[1] = xmm_from_u32(0x7FC00000, 0x7FC00000, 0x7FC00000, 0x7FC00000);
+      tc.initial.xmm[2] = xmm_from_u32(0x40400000, 0x40400000, 0x40400000, 0x40400000);
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+    }
+
+    // SRC1=3.0, SRC2=QNaN → SDM says return SRC1
+    {
+      TestCase tc;
+      tc.name = "vrangeps min: 3.0 vs qnan";
+      tc.category = cat;
+      tc.code = {0x62, 0xF3, 0x75, 0x08, 0x50, 0xC2, 0x00};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.xmm[1] = xmm_from_u32(0x40400000, 0x40400000, 0x40400000, 0x40400000);
+      tc.initial.xmm[2] = xmm_from_u32(0x7FC00000, 0x7FC00000, 0x7FC00000, 0x7FC00000);
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x1;
+      tests.push_back(std::move(tc));
+    }
   }
 
   cat = "EVEX mask";

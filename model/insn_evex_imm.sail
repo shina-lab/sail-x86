@@ -1058,30 +1058,38 @@ function avx_vfpclasspd_512(src, imm) = {
 //   0=preserve src1 sign, 1=preserve compare result sign, 2=force +, 3=force -
 
 // Per-element range for f32 (SDM: RangeSP)
+// Faithful translation of SDM pseudocode including NaN handling.
 val avx_range_f32 : (dword, dword, byte) -> dword
 function avx_range_f32(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
-  // Phase 1: select comparison result (TMP)
-  let tmp : dword = match op {
-    0 => __f32_min(src1, src2),
-    1 => __f32_max(src1, src2),
-    // abs_min: compare |src1| vs |src2|, return original (branchless)
-    2 => {
-      let diff : bits(32) = (0b0 @ src2[30..0]) - (0b0 @ src1[30..0]);
-      let nb : bits(1) = 0b1 ^ diff[31..31];
-      let mask : bits(32) = zeros() - zero_extend(nb);
-      (src1 & mask) | (src2 & not_vec(mask))
-    },
-    // abs_max: compare |src1| vs |src2|, return original (branchless)
-    _ => {
-      let diff : bits(32) = (0b0 @ src1[30..0]) - (0b0 @ src2[30..0]);
-      let nb : bits(1) = 0b1 ^ diff[31..31];
-      let mask : bits(32) = zeros() - zero_extend(nb);
-      (src1 & mask) | (src2 & not_vec(mask))
-    },
-  };
-  // Phase 2: apply sign control
+  // SDM: SNaN check — return quieted SNaN (we don't model IE flag)
+  let src1_is_nan : bool = __compare_ss(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = __compare_ss(src2, src2) == FP_UNORDERED;
+  // SDM: QNaN priority — non-NaN operand wins
+  //   IF (SRC2 = QNAN) THEN TMP := SRC1
+  //   ELSE IF (SRC1 = QNAN) THEN TMP := SRC2
+  //   ELSE ... comparison ...
+  let tmp : dword =
+    if src2_is_nan then src1
+    else if src1_is_nan then src2
+    else match op {
+      0 => if __compare_ss(src1, src2) != FP_GT then src1 else src2,  // min: src1<=src2 ? src1 : src2
+      1 => if __compare_ss(src1, src2) != FP_GT then src2 else src1,  // max: src1<=src2 ? src2 : src1
+      // abs_min: |src1|<=|src2| ? src1 : src2
+      2 => {
+        let a1 : dword = 0b0 @ src1[30..0];
+        let a2 : dword = 0b0 @ src2[30..0];
+        if __compare_ss(a1, a2) != FP_GT then src1 else src2
+      },
+      // abs_max: |src1|<=|src2| ? src2 : src1
+      _ => {
+        let a1 : dword = 0b0 @ src1[30..0];
+        let a2 : dword = 0b0 @ src2[30..0];
+        if __compare_ss(a1, a2) != FP_GT then src2 else src1
+      },
+    };
+  // Phase 2: apply sign control (SDM: SignSelCtl)
   match sign_ctl {
     0 => src1[31..31] @ tmp[30..0],  // preserve src1 sign
     1 => tmp,                          // preserve compare result sign
@@ -1095,22 +1103,25 @@ val avx_range_f64 : (qword, qword, byte) -> qword
 function avx_range_f64(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
-  let tmp : qword = match op {
-    0 => __f64_min(src1, src2),
-    1 => __f64_max(src1, src2),
-    2 => {
-      let diff : bits(64) = (0b0 @ src2[62..0]) - (0b0 @ src1[62..0]);
-      let nb : bits(1) = 0b1 ^ diff[63..63];
-      let mask : bits(64) = zeros() - zero_extend(nb);
-      (src1 & mask) | (src2 & not_vec(mask))
-    },
-    _ => {
-      let diff : bits(64) = (0b0 @ src1[62..0]) - (0b0 @ src2[62..0]);
-      let nb : bits(1) = 0b1 ^ diff[63..63];
-      let mask : bits(64) = zeros() - zero_extend(nb);
-      (src1 & mask) | (src2 & not_vec(mask))
-    },
-  };
+  let src1_is_nan : bool = __compare_sd(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = __compare_sd(src2, src2) == FP_UNORDERED;
+  let tmp : qword =
+    if src2_is_nan then src1
+    else if src1_is_nan then src2
+    else match op {
+      0 => if __compare_sd(src1, src2) != FP_GT then src1 else src2,
+      1 => if __compare_sd(src1, src2) != FP_GT then src2 else src1,
+      2 => {
+        let a1 : qword = 0b0 @ src1[62..0];
+        let a2 : qword = 0b0 @ src2[62..0];
+        if __compare_sd(a1, a2) != FP_GT then src1 else src2
+      },
+      _ => {
+        let a1 : qword = 0b0 @ src1[62..0];
+        let a2 : qword = 0b0 @ src2[62..0];
+        if __compare_sd(a1, a2) != FP_GT then src2 else src1
+      },
+    };
   match sign_ctl {
     0 => src1[63..63] @ tmp[62..0],
     1 => tmp,
