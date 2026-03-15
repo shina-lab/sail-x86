@@ -253,3 +253,69 @@ function test_phoenix16_opt() = {
   exec4(0x660FEFC3);  // pxor xmm0, xmm3
   Final_result = read_xmm(0)
 }
+
+// =========================================================================
+// SIGN_ADD 8-bit: clamp(u8 + i8, 0, 255)
+// VP9 loop filter: add signed byte to unsigned byte with [0,255] clamping
+// Original: EXTRACT_POS_NEG + paddusb/psubusb (8 instrs)
+// Optimized: pxor(pb_80)/paddsb/pxor(pb_80) (3 instrs)
+// =========================================================================
+
+// Original: split i8 into positive/negative parts, then saturating add/sub
+val test_sign_add_orig : unit -> unit
+function test_sign_add_orig() = {
+  // xmm0 = u8 (symbolic), xmm1 = i8 (symbolic)
+  write_xmm(2, replicate_bits(0x00 : bits(8), 16));  // zero
+  write_xmm(3, replicate_bits(0x00 : bits(8), 16));  // zero
+  exec4(0x660F64D1);  // pcmpgtb xmm2, xmm1   ; mask = (0 > i8) = 0xFF where negative
+  exec4(0x660FF8D9);  // psubb   xmm3, xmm1   ; neg_abs = 0 - i8
+  exec4(0x660FDBDA);  // pand    xmm3, xmm2   ; neg_abs &= mask (keep only where i8 < 0)
+  exec4(0x660FDFD1);  // pandn   xmm2, xmm1   ; pos = ~mask & i8 (keep only where i8 >= 0)
+  exec4(0x660FDCD0);  // paddusb xmm2, xmm0   ; result = pos + u8 (unsigned saturating)
+  exec4(0x660FD8D3);  // psubusb xmm2, xmm3   ; result -= neg_abs (unsigned saturating)
+  Final_result = read_xmm(2)
+}
+
+// Optimized: bias u8 to signed domain, signed saturating add, bias back
+val test_sign_add_opt : unit -> unit
+function test_sign_add_opt() = {
+  // xmm0 = u8 (symbolic), xmm1 = i8 (symbolic)
+  write_xmm(2, replicate_bits(0x80 : bits(8), 16));  // pb_80
+  exec4(0x660FEFC2);  // pxor   xmm0, xmm2   ; u8 ^ 0x80 -> signed domain
+  exec4(0x660FECC1);  // paddsb xmm0, xmm1   ; signed saturating add
+  exec4(0x660FEFC2);  // pxor   xmm0, xmm2   ; ^ 0x80 -> unsigned domain
+  Final_result = read_xmm(0)
+}
+
+// =========================================================================
+// SIGN_SUB 8-bit: clamp(u8 - i8, 0, 255)
+// Original: EXTRACT_POS_NEG + paddusb neg/psubusb pos (8 instrs)
+// Optimized: pxor(pb_80)/psubsb/pxor(pb_80) (3 instrs)
+// =========================================================================
+
+// Original: split i8 into positive/negative parts, then reversed saturating ops
+val test_sign_sub_orig : unit -> unit
+function test_sign_sub_orig() = {
+  // xmm0 = u8 (symbolic), xmm1 = i8 (symbolic)
+  write_xmm(2, replicate_bits(0x00 : bits(8), 16));  // zero
+  write_xmm(3, replicate_bits(0x00 : bits(8), 16));  // zero
+  exec4(0x660F64D1);  // pcmpgtb xmm2, xmm1   ; mask = (0 > i8) = 0xFF where negative
+  exec4(0x660FF8D9);  // psubb   xmm3, xmm1   ; neg_abs = 0 - i8
+  exec4(0x660FDBDA);  // pand    xmm3, xmm2   ; neg_abs &= mask (keep only where i8 < 0)
+  exec4(0x660FDFD1);  // pandn   xmm2, xmm1   ; pos = ~mask & i8 (keep only where i8 >= 0)
+  // u8 - i8 = u8 + neg_abs - pos
+  exec4(0x660FDCC3);  // paddusb xmm0, xmm3   ; u8 + neg_abs (unsigned saturating)
+  exec4(0x660FD8C2);  // psubusb xmm0, xmm2   ; result -= pos (unsigned saturating)
+  Final_result = read_xmm(0)
+}
+
+// Optimized: bias u8 to signed domain, signed saturating subtract, bias back
+val test_sign_sub_opt : unit -> unit
+function test_sign_sub_opt() = {
+  // xmm0 = u8 (symbolic), xmm1 = i8 (symbolic)
+  write_xmm(2, replicate_bits(0x80 : bits(8), 16));  // pb_80
+  exec4(0x660FEFC2);  // pxor   xmm0, xmm2   ; u8 ^ 0x80 -> signed domain
+  exec4(0x660FE8C1);  // psubsb xmm0, xmm1   ; signed saturating subtract
+  exec4(0x660FEFC2);  // pxor   xmm0, xmm2   ; ^ 0x80 -> unsigned domain
+  Final_result = read_xmm(0)
+}

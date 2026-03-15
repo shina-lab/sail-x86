@@ -448,3 +448,79 @@ total, so even a 2x kernel speedup translates to minimal end-to-end gain.
 The instruction count reduction (50–69%) and ISA requirement reduction
 (SSE4.1→SSE2) are the more robust metrics, as they are independent of
 microarchitecture and memory subsystem behavior.
+
+---
+
+## 7. VP9 loop filter SIGN_ADD/SIGN_SUB (vp9lpf.asm)
+
+**Status: Formally proven equivalent (Z3: UNSAT for both SIGN_ADD and SIGN_SUB).
+Applied to FFmpeg, all 1272 VP9 DSP tests pass.**
+
+The VP9 loop filter adds signed filter deltas to unsigned pixel values with
+clamping to [0,255]. This operation (`clip_u8(u8 + i8)`) appears 6 times in
+the hot path.
+
+### Original SIGN_ADD (8 instructions)
+
+Split signed i8 into positive and negative parts, then apply separately:
+
+```nasm
+pxor     pos, pos              ; zero
+pxor     neg, neg              ; zero
+pcmpgtb  pos, i8               ; mask where i8 < 0
+psubb    neg, i8               ; -i8
+pand     neg, pos              ; keep negative magnitudes
+pandn    pos, i8               ; keep positive values
+paddusb  dst, u8               ; + positives (saturating)
+psubusb  dst, neg              ; - negatives (saturating)
+```
+
+### Optimized SIGN_ADD (4 instructions, including register copy)
+
+Bias unsigned byte to signed domain via XOR 0x80, use signed saturating add,
+bias back:
+
+```nasm
+mova     dst, u8               ; copy
+pxor     dst, [pb_80]          ; unsigned -> signed domain
+paddsb   dst, i8               ; signed saturating add
+pxor     dst, [pb_80]          ; signed -> unsigned domain
+```
+
+The identity: XOR with 0x80 converts unsigned [0,255] to signed [-128,127].
+`paddsb` clamps correctly in the signed domain. XOR back converts to unsigned.
+
+### Kernel benchmark (checkasm, 8-bit VP9 loop filter)
+
+| Function | Before (cycles) | After (cycles) | Speedup |
+|---|---|---|---|
+| mix2_v_44_16 SSE2 | 62.6 | 53.7 | **1.17x** |
+| mix2_v_44_16 AVX | 60.1 | 52.8 | **1.14x** |
+| mix2_v_88_16 SSE2 | 107.2 | 98.6 | **1.09x** |
+| mix2_h_44_16 SSE2 | 118.8 | 111.5 | **1.07x** |
+| h_4_8 MMXEXT | 120.1 | 109.8 | **1.09x** |
+| v_4_8 MMXEXT | 69.9 | 62.7 | **1.11x** |
+| v_16_16 SSE2 | 210.4 | 201.3 | **1.05x** |
+| h_16_16 SSE2 | 279.8 | 271.1 | **1.03x** |
+
+Consistent 3-17% kernel speedup across all filter sizes and ISA variants.
+
+### End-to-end VP9 decode benchmark
+
+Single-threaded VP9 decoding of a 10-second 1080p30 4Mbps video, measured with
+`hyperfine` (5 runs, 1 warmup):
+
+```
+ffmpeg -threads 1 -i test_vp9.webm -f null -
+```
+
+| | Time (mean ± σ) |
+|---|---|
+| Before (original) | 889.6 ms ± 4.0 ms |
+| After (optimized) | 882.9 ms ± 4.9 ms |
+| **End-to-end speedup** | **~0.8%** |
+
+The loop filter is one of several pipeline stages in VP9 decoding (transform,
+motion compensation, loop filter, entropy decoding). A 5-10% kernel speedup
+in one stage translates to <1% end-to-end, which is consistent with what other
+SIMD optimization papers report for codec workloads.
