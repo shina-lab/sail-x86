@@ -28,7 +28,7 @@ function evex_rm_reg_idx(modrm, pfx) = {
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
 function evex_kmask64(pfx) = {
-  let no_mask : qword = zeros() - zero_extend(bool_to_bit(pfx.evex_aaa == 0));
+  let no_mask : qword = zeros() - zero_extend(~(or_reduce_8(zero_extend(to_bits(3, pfx.evex_aaa)))));
   no_mask | read_kreg(pfx.evex_aaa)
 }
 
