@@ -148,11 +148,14 @@ function avx_insertps(dst, src, imm8, is_mem) = {
     let src_sel : range(0, 3) = unsigned(imm8[7..6]);
     match src_sel { 0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96] }
   };
-  let dst_sel : range(0, 3) = unsigned(imm8[5..4]);
-  let m0 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 0));
-  let m1 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 1));
-  let m2 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 2));
-  let m3 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 3));
+  let sel = imm8[5..4];
+  let m0 : dword = zeros() - zero_extend(~(sel[1..1] | sel[0..0]));
+  let x1 : bits(2) = sel ^ 0b01;
+  let m1 : dword = zeros() - zero_extend(~(x1[1..1] | x1[0..0]));
+  let x2 : bits(2) = sel ^ 0b10;
+  let m2 : dword = zeros() - zero_extend(~(x2[1..1] | x2[0..0]));
+  let x3 : bits(2) = sel ^ 0b11;
+  let m3 : dword = zeros() - zero_extend(~(x3[1..1] | x3[0..0]));
   let t0 : dword = (src_float & m0) | (dst[31..0] & not_vec(m0));
   let t1 : dword = (src_float & m1) | (dst[63..32] & not_vec(m1));
   let t2 : dword = (src_float & m2) | (dst[95..64] & not_vec(m2));

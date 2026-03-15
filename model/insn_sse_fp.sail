@@ -1330,11 +1330,14 @@ function exec_insertps(dst, src, imm8) = {
   let src_sel : range(0, 3) = unsigned(imm8[7..6]);
   let src_float : dword = b[(src_sel * 32 + 31) .. (src_sel * 32)];
   // Insert at destination position using imm8[5:4]
-  let dst_sel : range(0, 3) = unsigned(imm8[5..4]);
-  let m0 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 0));
-  let m1 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 1));
-  let m2 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 2));
-  let m3 : dword = zeros() - zero_extend(bool_to_bit(dst_sel == 3));
+  let sel = imm8[5..4];
+  let m0 : dword = zeros() - zero_extend(~(sel[1..1] | sel[0..0]));
+  let x1 : bits(2) = sel ^ 0b01;
+  let m1 : dword = zeros() - zero_extend(~(x1[1..1] | x1[0..0]));
+  let x2 : bits(2) = sel ^ 0b10;
+  let m2 : dword = zeros() - zero_extend(~(x2[1..1] | x2[0..0]));
+  let x3 : bits(2) = sel ^ 0b11;
+  let m3 : dword = zeros() - zero_extend(~(x3[1..1] | x3[0..0]));
   let t0 : dword = (src_float & m0) | (a[31..0] & not_vec(m0));
   let t1 : dword = (src_float & m1) | (a[63..32] & not_vec(m1));
   let t2 : dword = (src_float & m2) | (a[95..64] & not_vec(m2));
