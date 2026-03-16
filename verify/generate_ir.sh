@@ -39,7 +39,18 @@ OUR_FILES=$(grep '\.sail' x86.sail_project | sed 's/,$//' | tr -d ' ' | tr '\n' 
   --isla-preserve isla_test_add_r64_imm32 \
   --isla-preserve isla_test_mov_r64_imm64 \
   --isla-preserve isla_test_shl_r64_imm8 \
+  --isla-preserve test_md5_g_orig \
+  --isla-preserve test_md5_g_opt \
+  --isla-preserve test_mulx_rdx_after \
+  --isla-preserve test_rdx_identity \
+  --isla-preserve test_xorps_xmm \
+  --isla-preserve test_pxor_xmm \
+  --isla-preserve test_xor32_zero \
+  --isla-preserve test_xor64_zero \
+  --isla-preserve test_cmpq_zero \
+  --isla-preserve test_testq_self \
   -splice "$SCRIPT_DIR/splice_ours.sail" \
+  -splice "$SCRIPT_DIR/boringssl_tests.sail" \
   -o "$OUTPUT_DIR/sail_x86" \
   $OUR_FILES 2>&1 | grep -v "^Warning\|warnings have been suppressed" || true
 
