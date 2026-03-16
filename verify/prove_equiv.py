@@ -468,6 +468,12 @@ def main():
          "HARDMIX: pxor/pcmpgtb/pxor (4 instrs) vs paddusb/pcmpeqb (2 instrs)",
          "FFmpeg vf_blend.asm:239-258",
          True),
+        ("threshold_or",
+         "/tmp/trace_test_threshold_or_orig.txt",
+         "/tmp/trace_test_threshold_or_opt.txt",
+         "THRESHOLD_OR: psubusb/pcmpeqb/por (6 instrs) vs pmaxub/psubusb/pcmpeqb (3 instrs)",
+         "threshold OR pattern: (a>T)||(b>T) <-> max(a,b)>T",
+         True),
     ]
 
     proved = 0

@@ -524,3 +524,48 @@ The loop filter is one of several pipeline stages in VP9 decoding (transform,
 motion compensation, loop filter, entropy decoding). A 5-10% kernel speedup
 in one stage translates to <1% end-to-end, which is consistent with what other
 SIMD optimization papers report for codec workloads.
+
+---
+
+## 8. libvpx deblock filter threshold combining (deblock_sse2.asm)
+
+**Status: Formally proven equivalent (Z3: UNSAT). Applied to libvpx, all 20
+post-processing tests pass.**
+
+The VP8/VP9 deblock post-processing filter tests whether ANY of several
+absolute differences exceeds a threshold. The original code tests each
+difference separately and combines with `por`:
+
+### Original FIRST_2_ROWS mask (8 instructions)
+
+```nasm
+movdqa   xmm2, flimit         ; load threshold
+pxor     xmm1, xmm1           ; zero
+movdqa   xmm7, xmm2           ; copy threshold
+psubusb  xmm2, xmm4           ; flimit - |d1| (0 when exceeded)
+psubusb  xmm7, xmm6           ; flimit - |d2|
+pcmpeqb  xmm2, xmm1           ; 0xFF where |d1| > flimit
+pcmpeqb  xmm7, xmm1           ; 0xFF where |d2| > flimit
+por      xmm7, xmm2           ; either exceeded
+```
+
+### Optimized (6 instructions)
+
+```nasm
+movdqa   xmm2, flimit
+pxor     xmm1, xmm1
+pmaxub   xmm4, xmm6           ; max(|d1|, |d2|)
+psubusb  xmm2, xmm4           ; flimit - max (0 when exceeded)
+pcmpeqb  xmm2, xmm1           ; 0xFF where max > flimit
+movdqa   xmm7, xmm2
+```
+
+The identity: `(a > T) || (b > T)` ↔ `max(a, b) > T`. Eliminates the
+copy of flimit, one `psubusb`, one `pcmpeqb`, and the `por`.
+
+Same optimization applied to SECOND_2_ROWS (saves 3 more instructions).
+Total: 5 instructions saved per filter invocation.
+
+### Benchmark
+
+Post-processing speed test: 318ms → 316ms (~0.6%). Memory-bound workload.

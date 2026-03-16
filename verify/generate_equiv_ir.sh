@@ -42,6 +42,7 @@ TEST_FUNCS=(
   test_phoenix16_orig test_phoenix16_opt
   test_sign_add_orig test_sign_add_opt
   test_sign_sub_orig test_sign_sub_opt
+  test_threshold_or_orig test_threshold_or_opt
 )
 
 PRESERVE_FLAGS=""

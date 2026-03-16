@@ -33,6 +33,7 @@ TESTS=(
   "abs16:test_abs16_sse2:test_abs16_ssse3"
   "gzip_match:test_gzip_match_orig:test_gzip_match_opt"
   "hardmix:test_hardmix_orig:test_hardmix_opt"
+  "threshold_or:test_threshold_or_orig:test_threshold_or_opt"
 )
 
 echo "=== Generating symbolic traces ==="

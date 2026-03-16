@@ -319,3 +319,37 @@ function test_sign_sub_opt() = {
   exec4(0x660FEFC2);  // pxor   xmm0, xmm2   ; ^ 0x80 -> unsigned domain
   Final_result = read_xmm(0)
 }
+
+// =========================================================================
+// THRESHOLD_OR 8-bit: (|diff1| > T) || (|diff2| > T)
+// Original: movdqa/psubusb/psubusb/pcmpeqb/pcmpeqb/por (6 instrs)
+// Optimized: pmaxub/psubusb/pcmpeqb (3 instrs)
+// Identity: (a > T) || (b > T)  <->  max(a, b) > T  for unsigned values
+// =========================================================================
+
+// Original: compute per-channel threshold comparison and OR
+val test_threshold_or_orig : unit -> unit
+function test_threshold_or_orig() = {
+  // xmm0 = |diff1| (symbolic), xmm1 = |diff2| (symbolic),
+  // xmm2 = threshold (symbolic), xmm4 = zero (concrete)
+  write_xmm(4, replicate_bits(0x00 : bits(8), 16));
+  exec4(0x660F6FDA);  // movdqa xmm3, xmm2   ; copy threshold
+  exec4(0x660FD8D0);  // psubusb xmm2, xmm0  ; threshold - |diff1| (0 when exceeded)
+  exec4(0x660FD8D9);  // psubusb xmm3, xmm1  ; threshold - |diff2|
+  exec4(0x660F74D4);  // pcmpeqb xmm2, xmm4  ; 0xFF where |diff1| > threshold
+  exec4(0x660F74DC);  // pcmpeqb xmm3, xmm4  ; 0xFF where |diff2| > threshold
+  exec4(0x660FEBD3);  // por xmm2, xmm3      ; either exceeded
+  Final_result = read_xmm(2)
+}
+
+// Optimized: max then single threshold comparison
+val test_threshold_or_opt : unit -> unit
+function test_threshold_or_opt() = {
+  // xmm0 = |diff1| (symbolic), xmm1 = |diff2| (symbolic),
+  // xmm2 = threshold (symbolic), xmm4 = zero (concrete)
+  write_xmm(4, replicate_bits(0x00 : bits(8), 16));
+  exec4(0x660FDEC1);  // pmaxub xmm0, xmm1   ; max(|diff1|, |diff2|)
+  exec4(0x660FD8D0);  // psubusb xmm2, xmm0  ; threshold - max (0 when exceeded)
+  exec4(0x660F74D4);  // pcmpeqb xmm2, xmm4  ; 0xFF where max > threshold
+  Final_result = read_xmm(2)
+}
