@@ -3,6 +3,7 @@
 // physical memory backed by the PhysicalMemory manager.
 
 #include "sail_x86_model.h"
+#include "x86-helpers.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -10,6 +11,7 @@
 static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.model_init();
   model.zinitializze_registers(UNIT);
+  enable_all_features(model);
 
   // Use system_mode=false for these tests since no IDT is set up.
   // Faults return to C++ directly rather than going through IDT delivery.

@@ -4,6 +4,7 @@
 // and compares the resulting architectural state against the Sail model.
 
 #include "kvm-harness.h"
+#include "x86-helpers.h"
 
 // ---- KVM VM ----
 
@@ -235,6 +236,18 @@ struct KvmVm {
   }
 
   void load_test(const TestCase &tc) {
+    // Restore default XCR0 and CR4 (may have been overridden by previous test)
+    struct kvm_xcrs xcrs_default = {};
+    xcrs_default.nr_xcrs = 1;
+    xcrs_default.xcrs[0].xcr = 0;
+    xcrs_default.xcrs[0].value = 0xE7;
+    ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs_default);
+
+    struct kvm_sregs sregs_tmp;
+    ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp);
+    sregs_tmp.cr4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+    ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
+
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
     memset(guest_mem + DATA_ADDR, 0, 0x1000);
     memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
@@ -294,6 +307,23 @@ struct KvmVm {
     u64 xstate_bv = 0x27;  // bits 0,1,2,5
     memcpy(xs + 0x200, &xstate_bv, 8);
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
+
+    // Apply per-test XCR0 override if requested
+    if (tc.xcr0_override) {
+      struct kvm_xcrs xcrs = {};
+      xcrs.nr_xcrs = 1;
+      xcrs.xcrs[0].xcr = 0;
+      xcrs.xcrs[0].value = tc.xcr0_override;
+      ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs);
+    }
+
+    // Apply per-test CR4 override if requested
+    if (tc.cr4_override) {
+      struct kvm_sregs sregs;
+      ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
+      sregs.cr4 = tc.cr4_override;
+      ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
+    }
   }
 
   // Check if a KVM run resulted in a fault (HLT in exception handler area).
@@ -410,6 +440,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
+  x86::enable_all_features(model);
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
@@ -489,6 +520,12 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // Set k-registers (opmask)
   for (int i = 0; i < 8; i++)
     model.zKREG.data[i] = tc.initial.kregs[i];
+
+  // Apply per-test XCR0/CR4 overrides
+  if (tc.xcr0_override)
+    model.zXCR0 = tc.xcr0_override;
+  if (tc.cr4_override)
+    model.zCR4 = tc.cr4_override;
 
   for (int i = 0; i < 1000; i++) {
     model.zstep(UNIT);
@@ -580,6 +617,7 @@ std::vector<TestCase> build_tests() {
   add_evex_tests(tests);
   add_evex_tests_2(tests);
   add_mmx_tests(tests);
+  add_feature_tests(tests);
 
   return tests;
 }

@@ -373,6 +373,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // ADCX (66) / ADOX (F3)
         // The 66/F3 prefix is a mandatory prefix, NOT an operand size override.
         // Operand size is determined by REX.W only: W=1 → 64-bit, else 32-bit.
+        if ~(has_adx) then raise_UD();
         let mp = get_mandatory_prefix(pfx);
         let os : OperandSize = if pfx.rex_w then OS64 else OS32;
         let modrm = fetch_byte();
@@ -400,10 +401,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         } else {
           raise_UD()
         }
-      } else if op3 == 20 then {
-        dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPS
-      } else if op3 == 21 then {
-        dispatch_3byte_38_sse_fp(opcode3, pfx)    // BLENDVPD
+      } else if op3 == 20 | op3 == 21 then {
+        // BLENDVPS or BLENDVPD
+        if sse_em_blocked() then raise_UD();
+        dispatch_3byte_38_sse_fp(opcode3, pfx)
       } else if op3 == 130 then {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
         // SDM: #GP(0) if CPL > 0. Type in register, descriptor in memory.
@@ -423,6 +424,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // MOVBE (0F 38 F0/F1) or CRC32 (F2 0F 38 F0/F1)
         let mp = get_mandatory_prefix(pfx);
         if mp == MP_F2 then {
+          if ~(has_crc32) then raise_UD();
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
@@ -473,6 +475,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           }
         } else {
           // MOVBE (0F 38 F0/F1) — load/store with byte swap
+          if ~(has_movbe) then raise_UD();
           let os = get_operand_size(pfx);
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
@@ -527,6 +530,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         }
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
+        if ~(has_sha) then raise_UD();
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
@@ -547,11 +551,13 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           _ => raise_UD(),
         }
       } else {
+        if sse_em_blocked() then raise_UD();
         dispatch_3byte_38_sse_int(opcode3, pfx)
       }
     },
     // 0F 3A: 3-byte escape (SSE4/AES-NI with imm8)
     58 => {
+      if sse_em_blocked() then raise_UD();
       let opcode3 = fetch_byte();
       let op3 : range(0, 255) = unsigned(opcode3);
       match op3 {
@@ -579,6 +585,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         65 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
         204 if get_mandatory_prefix(pfx) == MP_NONE => {
           // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
+          if ~(has_sha) then raise_UD();
           let modrm = fetch_byte();
           let xreg = modrm_xmm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
@@ -591,26 +598,16 @@ function dispatch_opcode_2byte(opcode, pfx) = {
     },
 
     // SSE floating-point (data movement, arithmetic, conversion, comparison)
-    op if 16 <= op & op <= 23 => dispatch_2byte_sse_fp(op, pfx),
-    op if 40 <= op & op <= 47 => dispatch_2byte_sse_fp(op, pfx),
-    op if 80 <= op & op <= 95 => dispatch_2byte_sse_fp(op, pfx),
-    124 => dispatch_2byte_sse_fp(op, pfx),
-    125 => dispatch_2byte_sse_fp(op, pfx),
-    194 => dispatch_2byte_sse_fp(op, pfx),
-    198 => dispatch_2byte_sse_fp(op, pfx),
-    208 => dispatch_2byte_sse_fp(op, pfx),
-    214 => dispatch_2byte_sse_fp(op, pfx),
-    230 => dispatch_2byte_sse_fp(op, pfx),
+    // CR0.EM=1 blocks all legacy SSE instructions with #UD
+    op if (16 <= op & op <= 23) | (40 <= op & op <= 47) | (80 <= op & op <= 95)
+        | op == 124 | op == 125 | op == 194 | op == 198
+        | op == 208 | op == 214 | op == 230
+      => { if sse_em_blocked() then raise_UD(); dispatch_2byte_sse_fp(op, pfx) },
 
     // SSE integer (packed integer arithmetic, logical, shift, pack/unpack)
-    op if 96 <= op & op <= 118 => dispatch_2byte_sse_int(op, pfx),
-    126 => dispatch_2byte_sse_int(op, pfx),
-    127 => dispatch_2byte_sse_int(op, pfx),
-    196 => dispatch_2byte_sse_int(op, pfx),
-    197 => dispatch_2byte_sse_int(op, pfx),
-    op if 209 <= op & op <= 213 => dispatch_2byte_sse_int(op, pfx),
-    op if 215 <= op & op <= 229 => dispatch_2byte_sse_int(op, pfx),
-    op if 231 <= op & op <= 255 => dispatch_2byte_sse_int(op, pfx),
+    op if (96 <= op & op <= 118) | op == 126 | op == 127 | op == 196 | op == 197
+        | (209 <= op & op <= 213) | (215 <= op & op <= 229) | (231 <= op & op <= 255)
+      => { if sse_em_blocked() then raise_UD(); dispatch_2byte_sse_int(op, pfx) },
 
     // GPR and system operations (everything else)
     _ => dispatch_2byte_gpr(op, pfx),

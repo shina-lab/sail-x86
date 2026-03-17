@@ -116,6 +116,7 @@ function dispatch_evex_0f3a(opcode, pfx) = {
 
 val dispatch_evex : unit -> unit
 function dispatch_evex() = {
+  if ~(avx512_enabled()) then raise_UD();
   let (pfx, mmm) = decode_evex();
   let opcode = fetch_byte();
   match mmm {

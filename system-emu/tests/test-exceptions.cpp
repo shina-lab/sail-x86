@@ -3,6 +3,7 @@
 // interrupt frame layout, flag clearing, and SS handling.
 
 #include "sail_x86_model.h"
+#include "x86-helpers.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -52,6 +53,7 @@ static const u64 CODE_ADDR  = 0x100000;  // Code address
 static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.model_init();
   model.zinitializze_registers(UNIT);
+  enable_all_features(model);
 
   model.zsystem_mode = true;
   model.zcur_mode = x86::zLongMode;

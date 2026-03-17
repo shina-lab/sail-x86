@@ -151,7 +151,132 @@ function bsr64(v) = {
   n - 1
 }
 
-val __cpuid : (dword, dword) -> (dword, dword, dword, dword)
+// CPUID — returns (EAX, EBX, ECX, EDX) for a given leaf/subleaf.
+// Feature-dependent leaves are built from has_* registers and XCR0.
+val cpuid : (dword, dword) -> (dword, dword, dword, dword)
+function cpuid(leaf, subleaf) = {
+  let leaf_val : range(0, 4294967295) = unsigned(leaf);
+  let sub_val : range(0, 4294967295) = unsigned(subleaf);
+
+  match leaf_val {
+    // Leaf 0: Vendor string + max basic leaf
+    0 => (0x0000000D, 0x756E6547, 0x6C65746E, 0x49656E69),
+    //                  "Genu"       "ntel"       "ineI"
+
+    // Leaf 1: Family/Model/Stepping, feature bits
+    1 => {
+      let eax : dword = 0x000506E3;  // Family 6, Model 5E, Stepping 3
+      let ebx : dword = 0x00010800;  // CLFLUSH=8, max logical=1
+
+      // ECX: built dynamically from has_* flags and CR4/XCR0
+      var ecx : dword = 0x00000000;
+      ecx = ecx | 0x00000001;  // SSE3 (bit 0)
+      ecx = ecx | 0x00000200;  // SSSE3 (bit 9)
+      ecx = ecx | 0x00002000;  // CX16 (bit 13)
+      ecx = ecx | 0x00080000;  // SSE4.1 (bit 19)
+      ecx = ecx | 0x00100000;  // SSE4.2 (bit 20)
+      if has_pclmulqdq then ecx = ecx | 0x00000002;  // bit 1
+      if has_fma       then ecx = ecx | 0x00001000;  // bit 12
+      if has_movbe     then ecx = ecx | 0x00400000;  // bit 22
+      if has_popcnt    then ecx = ecx | 0x00800000;  // bit 23
+      if has_aesni     then ecx = ecx | 0x02000000;  // bit 25
+      if CR4[18] == bitone then ecx = ecx | 0x0C000000;  // XSAVE+OSXSAVE (bits 26+27)
+      if XCR0[2] == bitone then ecx = ecx | 0x10000000;  // AVX (bit 28)
+      if has_f16c      then ecx = ecx | 0x20000000;  // bit 29
+      if has_rdrand    then ecx = ecx | 0x40000000;  // bit 30
+
+      // EDX: baseline features (FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8,
+      //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
+      //       MMX, FXSR, SSE, SSE2)
+      let edx : dword = 0x078BFBFD;
+
+      (eax, ebx, ecx, edx)
+    },
+
+    // Leaf 2: Cache/TLB descriptors
+    2 => (0x76036301, 0x00F0B5FF, 0x00000000, 0x00C30000),
+
+    // Leaf 4: Deterministic cache parameters — no more caches
+    4 => (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+
+    // Leaf 7: Structured extended feature flags
+    7 => {
+      if sub_val == 0 then {
+        var ebx : dword = 0x00000000;
+        ebx = ebx | 0x00000200;  // ERMS (bit 9)
+        if has_bmi1    then ebx = ebx | 0x00000008;  // bit 3
+        if XCR0[2] == bitone then ebx = ebx | 0x00000020;  // AVX2 (bit 5)
+        if has_bmi2    then ebx = ebx | 0x00000100;  // bit 8
+        if has_avx512  then ebx = ebx | 0xD0030000;  // F(16)+DQ(17)+CD(28)+BW(30)+VL(31)
+        if has_rdseed  then ebx = ebx | 0x00040000;  // bit 18
+        if has_adx     then ebx = ebx | 0x00080000;  // bit 19
+        if has_sha     then ebx = ebx | 0x20000000;  // bit 29
+        (0x00000000, ebx, 0x00000000, 0x00000000)
+      } else {
+        (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+      }
+    },
+
+    // Leaf 0xD: XSAVE state component info
+    13 => {
+      if sub_val == 0 then {
+        // EAX = XCR0_SUPPORTED, EBX/ECX = max XSAVE area size
+        (XCR0_SUPPORTED[31..0], 0x00000980, 0x00000980, 0x00000000)
+      } else if sub_val == 1 then {
+        (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+      } else if sub_val == 2 then {
+        // AVX state (component 2): 256 bytes at offset 576
+        (0x00000100, 0x00000240, 0x00000000, 0x00000000)
+      } else if sub_val == 5 then {
+        // Opmask state (component 5): 64 bytes at offset 832
+        (0x00000040, 0x00000340, 0x00000000, 0x00000000)
+      } else if sub_val == 6 then {
+        // ZMM_Hi256 (component 6): 512 bytes at offset 896
+        (0x00000200, 0x00000380, 0x00000000, 0x00000000)
+      } else if sub_val == 7 then {
+        // Hi16_ZMM (component 7): 1024 bytes at offset 1408
+        (0x00000400, 0x00000580, 0x00000000, 0x00000000)
+      } else {
+        (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+      }
+    },
+
+    // Leaf 0x80000000: Max extended leaf
+    _ if leaf_val == 2147483648 => (0x80000008, 0x00000000, 0x00000000, 0x00000000),
+
+    // Leaf 0x80000001: Extended feature bits
+    _ if leaf_val == 2147483649 => {
+      // ECX: LAHF(0), conditionally LZCNT(5)
+      var ecx : dword = 0x00000001;  // LAHF
+      if has_lzcnt then ecx = ecx | 0x00000020;  // bit 5
+      // EDX: SYSCALL(11), NX(20), LM(29)
+      let edx : dword = 0x20100800;
+      (0x00000000, 0x00000000, ecx, edx)
+    },
+
+    // Leaves 0x80000002-0x80000004: Processor brand string "Sail x86-64 Emulator"
+    _ if leaf_val == 2147483650 =>      // 0x80000002
+      (0x6C696153, 0x36387820, 0x2034362D, 0x6C756D45),
+    //  "Sail"      " x86"     "-64 "      "Emul"
+    _ if leaf_val == 2147483651 =>      // 0x80000003
+      (0x726F7461, 0x00000000, 0x00000000, 0x00000000),
+    //  "ator"
+    _ if leaf_val == 2147483652 =>      // 0x80000004
+      (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+
+    // Leaf 0x80000007: Advanced power management — invariant TSC (bit 8)
+    _ if leaf_val == 2147483655 =>      // 0x80000007
+      (0x00000000, 0x00000000, 0x00000000, 0x00000100),
+
+    // Leaf 0x80000008: Address sizes (39-bit physical, 48-bit virtual)
+    _ if leaf_val == 2147483656 =>      // 0x80000008
+      (0x00003027, 0x00000000, 0x00000000, 0x00000000),
+
+    // Unknown leaf: return zeros
+    _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+  }
+}
+
 val __rdtsc : unit -> qword
 val __rdrand64 : unit -> (qword, bit)
 val __rdseed64 : unit -> (qword, bit)
@@ -482,22 +607,33 @@ function dispatch_2byte_gpr(op, pfx) = {
       let mod_field : range(0, 3) = unsigned(modrm[7..6]);
       match modrm_val {
         // 0F 01 D1: XSETBV — Write XCR (ECX selects register, EDX:EAX = value)
-        // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists)
+        // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists);
+        // #GP(0) if attempting to set unsupported bits or violating constraints.
         209 => {
           if cur_cpl != 0 then raise_GP0();
           let ecx_val : dword = read_gpr32(RCX);
           if ecx_val != 0x00000000 then raise_GP0();
-          // XCR0: bits 0(x87)=must be 1, 1=SSE, 2=AVX, 5-7=AVX-512
-          // We accept any valid value but don't enforce all constraints
-          ()  // Model does not track XCR0 writes (XGETBV returns constant)
+          let new_xcr0 : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
+          // Any bit set that is not in XCR0_SUPPORTED → #GP
+          if (new_xcr0 & ~(XCR0_SUPPORTED)) != zeros() then raise_GP0();
+          // Bit 0 (x87) must always be 1
+          if new_xcr0[0] == bitzero then raise_GP0();
+          // Can't set AVX (bit 2) without SSE (bit 1)
+          if new_xcr0[2] == bitone & new_xcr0[1] == bitzero then raise_GP0();
+          // Bits 7:5 (AVX-512) must be all-or-nothing, and require bits 2:1
+          let avx512_bits : bits(3) = new_xcr0[7..5];
+          if avx512_bits != 0b000 & avx512_bits != 0b111 then raise_GP0();
+          if avx512_bits == 0b111 & (new_xcr0[2] == bitzero | new_xcr0[1] == bitzero) then raise_GP0();
+          // Bits 18:17 (AMX) must be both-or-neither
+          if new_xcr0[17] != new_xcr0[18] then raise_GP0();
+          XCR0 = new_xcr0
         },
-        // 0F 01 D0: XGETBV
+        // 0F 01 D0: XGETBV — Read XCR0
         208 => {
           let ecx_val : dword = read_gpr32(RCX);
           if ecx_val == 0x00000000 then {
-            // bit 0=x87, 1=SSE, 2=AVX, 5=opmask, 6=ZMM_Hi256, 7=Hi16_ZMM
-            write_gpr32(RAX, 0x000000E7);
-            write_gpr32(RDX, 0x00000000)
+            write_gpr32(RAX, XCR0[31..0]);
+            write_gpr32(RDX, XCR0[63..32])
           } else {
             raise_GP0()
           }
@@ -1070,7 +1206,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     162 => {
       let leaf : dword = read_gpr32(RAX);
       let subleaf : dword = read_gpr32(RCX);
-      let (out_eax, out_ebx, out_ecx, out_edx) = __cpuid(leaf, subleaf);
+      let (out_eax, out_ebx, out_ecx, out_edx) = cpuid(leaf, subleaf);
       write_gpr32(RAX, out_eax);
       write_gpr32(RBX, out_ebx);
       write_gpr32(RCX, out_ecx);
@@ -1366,6 +1502,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
+        if ~(has_bmi1) then raise_UD();
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
         let count : range(0, 64) = match os {
@@ -1424,6 +1561,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
+        if ~(has_lzcnt) then raise_UD();
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let os_bits : {8, 16, 32, 64} = operand_size_bits(os);
         let count : range(0, 64) = match os {
@@ -1546,6 +1684,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     184 => {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_F3 then raise_UD();
+      if ~(has_popcnt) then raise_UD();
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
@@ -1645,6 +1784,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /6 mod=11: RDRAND r16/r32/r64
         6 => match rm {
           RM_reg(r) => {
+            if ~(has_rdrand) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdrand64();
             if cf_val == bitone then {
@@ -1668,6 +1808,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /7 mod=11: RDSEED r16/r32/r64
         7 => match rm {
           RM_reg(r) => {
+            if ~(has_rdseed) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdseed64();
             if cf_val == bitone then {

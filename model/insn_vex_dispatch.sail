@@ -56,6 +56,7 @@ function dispatch_vex_0f38(opcode, pfx) = {
 
 val dispatch_vex : byte -> unit
 function dispatch_vex(first_byte) = {
+  if ~(avx_enabled()) then raise_UD();
   let (pfx, map) : (Prefixes, range(0, 31)) =
     if first_byte == 0xC5 then {
       let b1 = fetch_byte();

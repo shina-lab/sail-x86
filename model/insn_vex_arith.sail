@@ -522,6 +522,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 13: VCVTPH2PS xmm/ymm, xmm/m64/m128 (66 prefix)
   // SDM: VEX.vvvv must be 1111b
   19 => {
+    if ~(has_f16c) then raise_UD();
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
@@ -586,6 +587,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
   // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src
   242 => {
+    if ~(has_bmi1) then raise_UD();
     if mp != MP_NONE then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
@@ -604,6 +606,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg
   243 => {
+    if ~(has_bmi1) then raise_UD();
     if mp != MP_NONE then raise_UD();
     let modrm = fetch_byte();
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
@@ -646,6 +649,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DB: VAESIMC — VEX.128.66.0F38.WIG DB
   219 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
@@ -658,6 +662,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DC: VAESENC — VEX.128.66.0F38.WIG DC
   220 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     let modrm = fetch_byte();
@@ -670,6 +675,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DD: VAESENCLAST — VEX.128.66.0F38.WIG DD
   221 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     let modrm = fetch_byte();
@@ -682,6 +688,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DE: VAESDEC — VEX.128.66.0F38.WIG DE
   222 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     let modrm = fetch_byte();
@@ -694,6 +701,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DF: VAESDECLAST — VEX.128.66.0F38.WIG DF
   223 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     let modrm = fetch_byte();
@@ -706,6 +714,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F5: BZHI (NP) / PDEP (F2) / PEXT (F3) — multiplexed by mandatory prefix
   245 => {
+    if ~(has_bmi2) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -769,6 +778,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F6: MULX (F2, VEX.NDD.LZ) — unsigned multiply without affecting flags
   246 => {
+    if ~(has_bmi2) then raise_UD();
     if mp != MP_F2 then raise_UD();
     let modrm = fetch_byte();
     let dst_hi = modrm_reg(modrm, pfx);
@@ -793,6 +803,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F7: BEXTR (NP) / SARX (F3) / SHLX (66) / SHRX (F2) — multiplexed by prefix
   247 => {
+    if mp == MP_NONE then { if ~(has_bmi1) then raise_UD() }
+    else { if ~(has_bmi2) then raise_UD() };
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);

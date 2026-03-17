@@ -112,100 +112,6 @@ unit Model::z__tlb_flush(unit) {
 }
 
 // =========================================================================
-// CPUID
-// =========================================================================
-
-struct ztuple_z8z5bv32zCz0z5bv32zCz0z5bv32zCz0z5bv32z9
-Model::z__cpuid(u64 leaf, u64 subleaf) {
-  struct ztuple_z8z5bv32zCz0z5bv32zCz0z5bv32zCz0z5bv32z9 result;
-  result.ztup0 = 0; result.ztup1 = 0; result.ztup2 = 0; result.ztup3 = 0;
-
-  // Return x86-64 CPU description for Linux boot.
-  // Stripped-down: no XSAVE/AVX/AVX-512 to avoid XSAVE init issues.
-  // Leaf 1 EDX: FPU DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA
-  //             CMOV PAT CLFSH MMX FXSR SSE SSE2 (no PSE36)
-  // Leaf 1 ECX: SSE3 SSSE3 CX16 SSE4.1 SSE4.2 POPCNT
-  // No APIC bit: we don't emulate local APIC MMIO, so kernel uses PIC-only.
-  constexpr u32 SYS_CPUID_1_EDX =
-    CPUID_1_EDX_FPU | CPUID_1_EDX_DE | CPUID_1_EDX_PSE | CPUID_1_EDX_TSC |
-    CPUID_1_EDX_MSR | CPUID_1_EDX_PAE | CPUID_1_EDX_MCE | CPUID_1_EDX_CX8 |
-    CPUID_1_EDX_SEP | CPUID_1_EDX_MTRR | CPUID_1_EDX_PGE |
-    CPUID_1_EDX_MCA | CPUID_1_EDX_CMOV | CPUID_1_EDX_PAT |
-    CPUID_1_EDX_CLFSH | CPUID_1_EDX_MMX | CPUID_1_EDX_FXSR |
-    CPUID_1_EDX_SSE | CPUID_1_EDX_SSE2;
-  constexpr u32 SYS_CPUID_1_ECX =
-    CPUID_1_ECX_SSE3 | CPUID_1_ECX_SSSE3 | CPUID_1_ECX_CX16 |
-    CPUID_1_ECX_SSE4_1 | CPUID_1_ECX_SSE4_2 | CPUID_1_ECX_POPCNT;
-
-  auto pack = [](const char *p) -> u32 {
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-  };
-
-  switch (leaf) {
-  case 0:
-    result.ztup0 = 0x07;    // max basic leaf
-    result.ztup1 = pack("Genu");
-    result.ztup2 = pack("ntel");
-    result.ztup3 = pack("ineI");
-    break;
-  case 1:
-    // EAX: Family 6, Model 0x5E, Stepping 3
-    result.ztup0 = 0x000506E3;
-    // EBX: CLFLUSH=8, max logical=1, initial APIC=0
-    result.ztup1 = 0x00010800;
-    result.ztup2 = SYS_CPUID_1_ECX;
-    result.ztup3 = SYS_CPUID_1_EDX;
-    break;
-  case 2:
-    // Cache/TLB descriptors — return a plausible single descriptor
-    result.ztup0 = 0x76036301;  // call count=1 + descriptors
-    result.ztup1 = 0x00F0B5FF;
-    result.ztup2 = 0x00000000;
-    result.ztup3 = 0x00C30000;
-    break;
-  case 4:
-    // Deterministic cache parameters — report no more caches
-    result.ztup0 = 0x00000000;  // type=0 (no more caches)
-    break;
-  case 7:
-    if (subleaf == 0)
-      result.ztup1 = CPUID_7_EBX_ERMS;  // only ERMS, no AVX2/AVX-512
-    break;
-  case 0x80000000:
-    result.ztup0 = 0x80000008;  // max extended leaf
-    break;
-  case 0x80000001:
-    result.ztup2 = EMU_CPUID_EXT1_ECX;
-    result.ztup3 = EMU_CPUID_EXT1_EDX;
-    break;
-  case 0x80000002:
-    // Processor brand string part 1
-    result.ztup0 = pack("Sail");
-    result.ztup1 = pack(" x86");
-    result.ztup2 = pack("-64 ");
-    result.ztup3 = pack("Emul");
-    break;
-  case 0x80000003:
-    // Processor brand string part 2
-    result.ztup0 = pack("ator");
-    break;
-  case 0x80000004:
-    // Processor brand string part 3 (empty)
-    break;
-  case 0x80000007:
-    // Advanced power management — invariant TSC (bit 8)
-    result.ztup3 = 0x00000100;
-    break;
-  case 0x80000008:
-    // Address sizes: 39-bit physical, 48-bit virtual
-    result.ztup0 = 0x00003027;
-    break;
-  }
-  // CPUID trace disabled for performance
-  return result;
-}
-
-// =========================================================================
 // MSR register file
 // =========================================================================
 //
@@ -507,11 +413,8 @@ unit Model::z__fxrstor64(u64 addr) {
 //   0x210–0x23F: reserved (must be zero)
 //   0x240–0x33F: AVX state (YMM upper 128 bits) — if bit 2 set
 
-// XCR0: we support x87 (bit 0), SSE (bit 1), AVX (bit 2).
-static constexpr u64 XCR0 = 0x7;
-
 unit Model::z__xsave(u64 addr, u64 mask) {
-  u64 rfbm = mask & XCR0;
+  u64 rfbm = mask & zXCR0;
 
   // Read old XSTATE_BV (XSAVE merges, not overwrites).
   u64 old_bv = virt_read64(*this, addr + 0x200);
@@ -519,7 +422,7 @@ unit Model::z__xsave(u64 addr, u64 mask) {
   if (rfbm & 3)
     fxsave_common(*this, addr);
 
-  u64 xstate_bv = (old_bv & ~rfbm) | (XCR0 & rfbm);
+  u64 xstate_bv = (old_bv & ~rfbm) | (zXCR0 & rfbm);
   virt_write64(*this, addr + 0x200, xstate_bv);
   // XCOMP_BV = 0, reserved = 0.
   u8 zero[56] = {};
@@ -529,7 +432,7 @@ unit Model::z__xsave(u64 addr, u64 mask) {
 }
 
 unit Model::z__xrstor(u64 addr, u64 mask) {
-  u64 rfbm = mask & XCR0;
+  u64 rfbm = mask & zXCR0;
   u64 xstate_bv = virt_read64(*this, addr + 0x200);
 
   u64 to_restore = rfbm & xstate_bv;

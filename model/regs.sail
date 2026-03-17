@@ -338,6 +338,139 @@ let EFER_LMA : int = 10  // Long Mode Active
 let EFER_NXE : int = 11  // No-Execute Enable
 
 // =========================================================================
+// Extended Control Register 0 (XCR0) and CPUID feature flags
+//
+// XCR0 controls OS-level enabling of XSAVE-managed state components.
+// XCR0_SUPPORTED defines the hardware (silicon) mask; XCR0 <= XCR0_SUPPORTED.
+// CPUID feature flags model silicon-fixed features (BMI, POPCNT, etc.).
+// All are set at init time; Isla treats them as constants.
+// =========================================================================
+
+register XCR0           : qword  // Extended Control Register 0 (OS-enabled state)
+register XCR0_SUPPORTED : qword  // Which XCR0 bits this "CPU" supports (silicon mask)
+
+// XCR0 bit position constants (SDM Table 13-1)
+let XCR0_X87       : int = 0
+let XCR0_SSE       : int = 1
+let XCR0_AVX       : int = 2
+let XCR0_OPMASK    : int = 5
+let XCR0_ZMM_HI256 : int = 6
+let XCR0_HI16_ZMM  : int = 7
+let XCR0_TILECFG   : int = 17
+let XCR0_TILEDATA  : int = 18
+
+// CPUID feature flag registers (concrete booleans, set at init)
+register has_popcnt    : bool
+register has_lzcnt     : bool
+register has_bmi1      : bool
+register has_bmi2      : bool
+register has_fma       : bool
+register has_aesni     : bool
+register has_pclmulqdq : bool
+register has_f16c      : bool
+register has_movbe     : bool
+register has_adx       : bool
+register has_sha       : bool
+register has_rdrand    : bool
+register has_rdseed    : bool
+register has_crc32     : bool
+register has_avx512    : bool  // silicon support (separate from XCR0 enable)
+
+// =========================================================================
+// XCR0 / feature check helpers
+// =========================================================================
+
+// AVX enabled: CR4.OSXSAVE(bit 18)=1 and XCR0.SSE(bit 1)=1, AVX(bit 2)=1
+val avx_enabled : unit -> bool
+function avx_enabled() =
+  CR4[18] == bitone & XCR0[2] == bitone & XCR0[1] == bitone
+
+// AVX-512 enabled: AVX enabled + silicon support + XCR0 bits 5,6,7
+val avx512_enabled : unit -> bool
+function avx512_enabled() =
+  avx_enabled() & has_avx512 &
+  XCR0[5] == bitone & XCR0[6] == bitone & XCR0[7] == bitone
+
+// Legacy SSE blocked by CR0.EM(bit 2)=1
+val sse_em_blocked : unit -> bool
+function sse_em_blocked() = CR0[2] == bitone
+
+// =========================================================================
+// Convenience functions: configure features by processor level
+// =========================================================================
+
+// x86-64-v1: Baseline 64-bit (SSE2 only, no extensions)
+val enable_features_v1 : unit -> unit
+function enable_features_v1() = {
+  // CR0: clear EM, set MP
+  CR0 = (CR0 & 0xFFFFFFFFFFFFFFFB) | 0x0000000000000002;
+  // CR4: OSFXSR + OSXMMEXCPT
+  CR4 = CR4 | 0x0000000000000600;
+  XCR0_SUPPORTED = 0x0000000000000003;  // x87 + SSE
+  XCR0 = 0x0000000000000003;
+  // All CPUID features off
+  has_popcnt = false;
+  has_lzcnt = false;
+  has_bmi1 = false;
+  has_bmi2 = false;
+  has_fma = false;
+  has_aesni = false;
+  has_pclmulqdq = false;
+  has_f16c = false;
+  has_movbe = false;
+  has_adx = false;
+  has_sha = false;
+  has_rdrand = false;
+  has_rdseed = false;
+  has_crc32 = false;
+  has_avx512 = false
+}
+
+// x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
+val enable_features_v2 : unit -> unit
+function enable_features_v2() = {
+  enable_features_v1();
+  has_popcnt = true;
+  has_crc32 = true;
+  has_pclmulqdq = true
+}
+
+// x86-64-v3: Haswell+ (AVX2, FMA, BMI1/2, MOVBE, F16C)
+val enable_features_v3 : unit -> unit
+function enable_features_v3() = {
+  enable_features_v2();
+  CR4 = CR4 | 0x0000000000040000;  // OSXSAVE
+  XCR0_SUPPORTED = 0x0000000000000007;  // x87 + SSE + AVX
+  XCR0 = 0x0000000000000007;
+  has_bmi1 = true;
+  has_bmi2 = true;
+  has_fma = true;
+  has_lzcnt = true;
+  has_f16c = true;
+  has_movbe = true;
+  has_rdrand = true;
+  has_aesni = true;
+  has_adx = true
+}
+
+// x86-64-v4: Skylake-X+ (AVX-512F/BW/CD/DQ/VL)
+val enable_features_v4 : unit -> unit
+function enable_features_v4() = {
+  enable_features_v3();
+  XCR0_SUPPORTED = 0x00000000000000E7;  // + opmask + ZMM_Hi256 + Hi16_ZMM
+  XCR0 = 0x00000000000000E7;
+  has_avx512 = true;
+  has_rdseed = true;
+  has_sha = true
+}
+
+// All features (current default behavior, matches XCR0=0xE7)
+val enable_features_all : unit -> unit
+function enable_features_all() = {
+  enable_features_v4()
+}
+
+// =========================================================================
 // Descriptor table registers
 // =========================================================================
 

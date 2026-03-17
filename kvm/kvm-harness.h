@@ -229,6 +229,8 @@ struct TestCase {
   bool expect_fault = false;       // test expects an exception, not normal HLT
   int expected_vector = -1;        // expected exception vector (-1 = any)
   u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
+  u64 xcr0_override = 0;          // if nonzero, override XCR0 for this test
+  u64 cr4_override = 0;           // if nonzero, override CR4 for this test
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
@@ -244,5 +246,6 @@ void add_vex_tests(std::vector<TestCase> &tests);
 void add_evex_tests(std::vector<TestCase> &tests);
 void add_evex_tests_2(std::vector<TestCase> &tests);
 void add_mmx_tests(std::vector<TestCase> &tests);
+void add_feature_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

@@ -55,111 +55,6 @@ unit Model::z__tlb_insert(u64, u64, bool) { return UNIT; }
 unit Model::z__tlb_flush(unit) { return UNIT; }
 
 // =========================================================================
-// CPUID
-// =========================================================================
-
-struct ztuple_z8z5bv32zCz0z5bv32zCz0z5bv32zCz0z5bv32z9
-Model::z__cpuid(u64 leaf, u64 subleaf) {
-  struct ztuple_z8z5bv32zCz0z5bv32zCz0z5bv32zCz0z5bv32z9 result;
-  result.ztup0 = 0; result.ztup1 = 0; result.ztup2 = 0; result.ztup3 = 0;
-
-  auto pack = [](const char *p) -> u32 {
-    return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-  };
-
-  // Return a baseline x86-64 CPU description (no host CPUID).
-  // Roughly x86-64-v2: SSE4.2, POPCNT, CMPXCHG16B, but no AVX/FMA/BMI.
-  switch (leaf) {
-  case 0:
-    result.ztup0 = 0x0D;    // max basic leaf
-    result.ztup1 = pack("Genu");
-    result.ztup2 = pack("ntel");
-    result.ztup3 = pack("ineI");
-    break;
-  case 1:
-    // EAX: Family 6, Model 0x5E, Stepping 3
-    result.ztup0 = 0x000506E3;
-    // EBX: CLFLUSH=8, max logical=1, initial APIC=0
-    result.ztup1 = 0x00010800;
-    result.ztup2 = EMU_CPUID_1_ECX;
-    result.ztup3 = EMU_CPUID_1_EDX;
-    break;
-  case 2:
-    // Cache/TLB descriptors — return a plausible single descriptor
-    result.ztup0 = 0x76036301;  // call count=1 + descriptors
-    result.ztup1 = 0x00F0B5FF;
-    result.ztup2 = 0x00000000;
-    result.ztup3 = 0x00C30000;
-    break;
-  case 4:
-    // Deterministic cache parameters — report no more caches
-    result.ztup0 = 0x00000000;  // type=0 (no more caches)
-    break;
-  case 7:
-    if (subleaf == 0)
-      result.ztup1 = EMU_CPUID_7_EBX;
-    break;
-  case 0xD:
-    if (subleaf == 0) {
-      // XSAVE: x87(0) + SSE(1) + AVX(2) + opmask(5) + ZMM_Hi256(6) + Hi16_ZMM(7)
-      result.ztup0 = 0x000000E7;  // XCR0 supported bits
-      result.ztup1 = 0x00000980;  // max size (2432 bytes)
-      result.ztup2 = 0x00000980;
-      result.ztup3 = 0x00000000;
-    } else if (subleaf == 1) {
-      result.ztup0 = 0x00000000;
-    } else if (subleaf == 2) {
-      // AVX state (component 2): 256 bytes at offset 576
-      result.ztup0 = 0x00000100;
-      result.ztup1 = 0x00000240;
-    } else if (subleaf == 5) {
-      // Opmask state (component 5): 64 bytes at offset 832
-      result.ztup0 = 0x00000040;
-      result.ztup1 = 0x00000340;
-    } else if (subleaf == 6) {
-      // ZMM_Hi256 (component 6): 512 bytes at offset 896
-      result.ztup0 = 0x00000200;
-      result.ztup1 = 0x00000380;
-    } else if (subleaf == 7) {
-      // Hi16_ZMM (component 7): 1024 bytes at offset 1408
-      result.ztup0 = 0x00000400;
-      result.ztup1 = 0x00000580;
-    }
-    break;
-  case 0x80000000:
-    result.ztup0 = 0x80000008;  // max extended leaf
-    break;
-  case 0x80000001:
-    result.ztup2 = EMU_CPUID_EXT1_ECX;
-    result.ztup3 = EMU_CPUID_EXT1_EDX;
-    break;
-  case 0x80000002:
-    // Processor brand string part 1
-    result.ztup0 = pack("Sail");
-    result.ztup1 = pack(" x86");
-    result.ztup2 = pack("-64 ");
-    result.ztup3 = pack("Emul");
-    break;
-  case 0x80000003:
-    // Processor brand string part 2
-    result.ztup0 = pack("ator");
-    break;
-  case 0x80000004:
-    // Processor brand string part 3 (empty)
-    break;
-  case 0x80000007:
-    // Advanced power management — invariant TSC (bit 8)
-    result.ztup3 = 0x00000100;
-    break;
-  case 0x80000008:
-    // Address sizes: 39-bit physical, 48-bit virtual
-    result.ztup0 = 0x00003027;
-    break;
-  }
-  return result;
-}
-
-// =========================================================================
 // MSR (stub — user mode doesn't have MSR access)
 // =========================================================================
 
@@ -318,11 +213,8 @@ unit Model::z__fxrstor64(u64 addr) {
 //   0x210–0x23F: reserved (must be zero)
 //   0x240–0x33F: AVX state (YMM upper 128 bits) — if bit 2 set
 
-// XCR0: we support x87 (bit 0), SSE (bit 1), AVX (bit 2).
-static constexpr u64 XCR0 = 0x7;
-
 unit Model::z__xsave(u64 addr, u64 mask) {
-  u64 rfbm = mask & XCR0;
+  u64 rfbm = mask & zXCR0;
 
   // Read old XSTATE_BV (XSAVE merges, not overwrites).
   u64 old_bv;
@@ -336,8 +228,8 @@ unit Model::z__xsave(u64 addr, u64 mask) {
     fxsave_common(*this, addr);
 
   // XSTATE_BV := (OLD_BV AND NOT RFBM) OR (XINUSE AND RFBM).
-  // We treat all supported components as in-use (XINUSE = XCR0).
-  u64 xstate_bv = (old_bv & ~rfbm) | (XCR0 & rfbm);
+  // We treat all supported components as in-use (XINUSE = zXCR0).
+  u64 xstate_bv = (old_bv & ~rfbm) | (zXCR0 & rfbm);
   memcpy((void *)(addr + 0x200), &xstate_bv, 8);
   // XCOMP_BV = 0 (standard format), reserved = 0.
   memset((void *)(addr + 0x208), 0, 56);
@@ -346,7 +238,7 @@ unit Model::z__xsave(u64 addr, u64 mask) {
 }
 
 unit Model::z__xrstor(u64 addr, u64 mask) {
-  u64 rfbm = mask & XCR0;
+  u64 rfbm = mask & zXCR0;
 
   u64 xstate_bv;
   memcpy(&xstate_bv, (void *)(addr + 0x200), 8);

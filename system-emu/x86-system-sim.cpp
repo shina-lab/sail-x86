@@ -3,6 +3,7 @@
 // using the Sail x86 model with paging and exception delivery.
 
 #include "sail_x86_model.h"
+#include "x86-helpers.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -95,6 +96,7 @@ static void uart_output_stdout(u8 ch) {
 static void init_cpu_state(x86::Model &model) {
   model.model_init();
   model.zinitializze_registers(UNIT);
+  enable_all_features(model);
 
   model.zsystem_mode = true;
   model.zcur_mode = x86::zLongMode;

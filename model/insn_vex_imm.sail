@@ -289,6 +289,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)
   // SDM: imm8[2]=0 → use imm8[1:0] for rounding; imm8[2]=1 → use MXCSR.RC
   29 => {
+    if ~(has_f16c) then raise_UD();
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
@@ -319,6 +320,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A DF: VAESKEYGENASSIST — VEX.128.66.0F3A.WIG DF
   223 => {
+    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
@@ -764,6 +766,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A 44: VPCLMULQDQ xmm, xmm, xmm/m128, imm8 (66) — VEX.128 only
   68 => {
+    if ~(has_pclmulqdq) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     let modrm = fetch_byte();

@@ -2924,29 +2924,34 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // AES-NI — AESIMC
     219 => {
+      if ~(has_aesni) then raise_UD();
       let s : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesimc(s))
     },
     // AES-NI — AESENC
     220 => {
+      if ~(has_aesni) then raise_UD();
       let state : xmmword = read_xmm(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesenc(state, roundkey))
     },
     // AES-NI — AESENCLAST (0F 38 DD)
     221 => {
+      if ~(has_aesni) then raise_UD();
       let state : xmmword = read_xmm(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesenclast(state, roundkey))
     },
     // AES-NI — AESDEC (0F 38 DE)
     222 => {
+      if ~(has_aesni) then raise_UD();
       let state : xmmword = read_xmm(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesdec(state, roundkey))
     },
     // AES-NI — AESDECLAST
     223 => {
+      if ~(has_aesni) then raise_UD();
       let state : xmmword = read_xmm(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesdeclast(state, roundkey))
@@ -3084,6 +3089,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // PCLMULQDQ xmm1, xmm2/m128, imm8
     68 => {
+      if ~(has_pclmulqdq) then raise_UD();
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
@@ -3161,6 +3167,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // AES-NI — AESKEYGENASSIST
     223 => {
+      if ~(has_aesni) then raise_UD();
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let s : xmmword = src_xmm;
