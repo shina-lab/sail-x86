@@ -37,18 +37,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -59,18 +52,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -81,18 +67,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -104,11 +83,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmadd132sd(dst, src2, src3)
-    } else {
-      exec_vfmadd132ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmadd132sd(dst, src2, src3)
+    else exec_vfmadd132ss(dst, src2, src3)
   },
 
   // 0F38 9A: VFMSUB132PS (W0) / VFMSUB132PD (W1)
@@ -118,18 +94,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -141,11 +110,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmsub132sd(dst, src2, src3)
-    } else {
-      exec_vfmsub132ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmsub132sd(dst, src2, src3)
+    else exec_vfmsub132ss(dst, src2, src3)
   },
 
   // 0F38 9C: VFNMADD132PS (W0) / VFNMADD132PD (W1)
@@ -155,18 +121,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -178,11 +137,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmadd132sd(dst, src2, src3)
-    } else {
-      exec_vfnmadd132ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmadd132sd(dst, src2, src3)
+    else exec_vfnmadd132ss(dst, src2, src3)
   },
 
   // 0F38 9E: VFNMSUB132PS (W0) / VFNMSUB132PD (W1)
@@ -192,18 +148,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v)))
-      } else {
-        write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(v))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(v))),
     }
   },
 
@@ -215,11 +164,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmsub132sd(dst, src2, src3)
-    } else {
-      exec_vfnmsub132ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmsub132sd(dst, src2, src3)
+    else exec_vfnmsub132ss(dst, src2, src3)
   },
 
   // 0F38 A6: VFMADDSUB213PS (W0) / VFMADDSUB213PD (W1)
@@ -229,18 +175,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -251,18 +190,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -273,18 +205,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -296,11 +221,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmadd213sd(dst, src2, src3)
-    } else {
-      exec_vfmadd213ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmadd213sd(dst, src2, src3)
+    else exec_vfmadd213ss(dst, src2, src3)
   },
 
   // 0F38 AA: VFMSUB213PS (W0) / VFMSUB213PD (W1)
@@ -310,18 +232,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -333,11 +248,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmsub213sd(dst, src2, src3)
-    } else {
-      exec_vfmsub213ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmsub213sd(dst, src2, src3)
+    else exec_vfmsub213ss(dst, src2, src3)
   },
 
   // 0F38 AC: VFNMADD213PS (W0) / VFNMADD213PD (W1)
@@ -347,18 +259,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -370,11 +275,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmadd213sd(dst, src2, src3)
-    } else {
-      exec_vfnmadd213ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmadd213sd(dst, src2, src3)
+    else exec_vfnmadd213ss(dst, src2, src3)
   },
 
   // 0F38 AE: VFNMSUB213PS (W0) / VFNMSUB213PD (W1)
@@ -384,18 +286,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, rm, pfx))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -407,11 +302,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmsub213sd(dst, src2, src3)
-    } else {
-      exec_vfnmsub213ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmsub213sd(dst, src2, src3)
+    else exec_vfnmsub213ss(dst, src2, src3)
   },
 
   // 0F38 B6: VFMADDSUB231PS (W0) / VFMADDSUB231PD (W1)
@@ -421,18 +313,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -443,18 +328,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -465,18 +343,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -488,11 +359,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmadd231sd(dst, src2, src3)
-    } else {
-      exec_vfmadd231ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmadd231sd(dst, src2, src3)
+    else exec_vfmadd231ss(dst, src2, src3)
   },
 
   // 0F38 BA: VFMSUB231PS (W0) / VFMSUB231PD (W1)
@@ -502,18 +370,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -525,11 +386,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfmsub231sd(dst, src2, src3)
-    } else {
-      exec_vfmsub231ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfmsub231sd(dst, src2, src3)
+    else exec_vfmsub231ss(dst, src2, src3)
   },
 
   // 0F38 BC: VFNMADD231PS (W0) / VFNMADD231PD (W1)
@@ -539,18 +397,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -562,11 +413,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmadd231sd(dst, src2, src3)
-    } else {
-      exec_vfnmadd231ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmadd231sd(dst, src2, src3)
+    else exec_vfnmadd231ss(dst, src2, src3)
   },
 
   // 0F38 BE: VFNMSUB231PS (W0) / VFNMSUB231PD (W1)
@@ -576,18 +424,11 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
-    } else {
-      if pfx.vex_l then {
-        write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst)))
-      } else {
-        write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst)))
-      }
+    match (pfx.vex_w, pfx.vex_l) {
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx), read_xmm(dst))),
     }
   },
 
@@ -599,11 +440,8 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, rm, pfx);
-    if pfx.vex_w then {
-      exec_vfnmsub231sd(dst, src2, src3)
-    } else {
-      exec_vfnmsub231ss(dst, src2, src3)
-    }
+    if pfx.vex_w then exec_vfnmsub231sd(dst, src2, src3)
+    else exec_vfnmsub231ss(dst, src2, src3)
   },
 
   _ => raise_UD(),

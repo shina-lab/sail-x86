@@ -173,18 +173,11 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
-      if pfx.rex_w then {
-        let v : qword = match rm {
-          RM_reg(idx) => read_gpr64(idx),
-          RM_mem(addr) => mem_read64(addr),
-        };
-        write_mm(dst, v)
-      } else {
-        let v : dword = match rm {
-          RM_reg(idx) => read_gpr32(idx),
-          RM_mem(addr) => mem_read32(addr),
-        };
-        write_mm(dst, zero_extend(v))
+      match (rm, pfx.rex_w) {
+        (RM_reg(idx), true)   => write_mm(dst, read_gpr64(idx)),
+        (RM_mem(addr), true)  => write_mm(dst, mem_read64(addr)),
+        (RM_reg(idx), false)  => write_mm(dst, zero_extend(read_gpr32(idx))),
+        (RM_mem(addr), false) => write_mm(dst, zero_extend(mem_read32(addr))),
       };
       mmx_touch()
     },
@@ -339,16 +332,11 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
       let v : qword = read_mm(src);
-      if pfx.rex_w then {
-        match rm {
-          RM_reg(idx) => write_gpr64(idx, v),
-          RM_mem(addr) => mem_write64(addr, v),
-        }
-      } else {
-        match rm {
-          RM_reg(idx) => write_gpr32(idx, v[31..0]),
-          RM_mem(addr) => mem_write32(addr, v[31..0]),
-        }
+      match (rm, pfx.rex_w) {
+        (RM_reg(idx), true)   => write_gpr64(idx, v),
+        (RM_mem(addr), true)  => mem_write64(addr, v),
+        (RM_reg(idx), false)  => write_gpr32(idx, v[31..0]),
+        (RM_mem(addr), false) => mem_write32(addr, v[31..0]),
       };
       mmx_touch()
     },

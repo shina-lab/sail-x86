@@ -740,16 +740,11 @@ function dispatch_vex_0f_int(op, pfx) = {
       MP_66 => {
         // VMOVD/VMOVQ xmm -> r/m
         let src = read_xmm(modrm_xmm_reg(modrm, pfx));
-        if pfx.vex_w then {
-          match rm {
-            RM_reg(idx) => write_gpr64(idx, src[63..0]),
-            RM_mem(addr) => mem_write64(fixup_addr(addr), src[63..0]),
-          };
-        } else {
-          match rm {
-            RM_reg(idx) => write_gpr32(idx, src[31..0]),
-            RM_mem(addr) => mem_write32(fixup_addr(addr), src[31..0]),
-          };
+        match (rm, pfx.vex_w) {
+          (RM_reg(idx), true)  => write_gpr64(idx, src[63..0]),
+          (RM_reg(idx), false) => write_gpr32(idx, src[31..0]),
+          (RM_mem(addr), true)  => mem_write64(fixup_addr(addr), src[63..0]),
+          (RM_mem(addr), false) => mem_write32(fixup_addr(addr), src[31..0]),
         }
       },
       MP_F3 => {
@@ -820,12 +815,11 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(addr) => {
         let a = fixup_addr(addr);
-        if pfx.vex_w then {
-          if mp == MP_NONE then write_kreg(k1, mem_read64(a))            // KMOVQ
-          else write_kreg(k1, zero_extend(mem_read32(a)))                // KMOVD
-        } else {
-          if mp == MP_66 then write_kreg(k1, zero_extend(mem_read8(a)))  // KMOVB
-          else write_kreg(k1, zero_extend(mem_read16(a)))                // KMOVW
+        match (mp, pfx.vex_w) {
+          (MP_NONE, true) => write_kreg(k1, mem_read64(a)),              // KMOVQ
+          (_,       true) => write_kreg(k1, zero_extend(mem_read32(a))), // KMOVD
+          (MP_66,  false) => write_kreg(k1, zero_extend(mem_read8(a))),  // KMOVB
+          (_,      false) => write_kreg(k1, zero_extend(mem_read16(a))), // KMOVW
         }
       },
     }
@@ -839,12 +833,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     match rm {
       RM_mem(addr) => {
         let a = fixup_addr(addr);
-        if pfx.vex_w then {
-          if mp == MP_NONE then mem_write64(a, read_kreg(k1))             // KMOVQ
-          else mem_write32(a, read_kreg(k1)[31..0])                       // KMOVD
-        } else {
-          if mp == MP_66 then mem_write8(a, read_kreg(k1)[7..0])          // KMOVB
-          else mem_write16(a, read_kreg(k1)[15..0])                       // KMOVW
+        match (mp, pfx.vex_w) {
+          (MP_NONE, true) => mem_write64(a, read_kreg(k1)),              // KMOVQ
+          (_,       true) => mem_write32(a, read_kreg(k1)[31..0]),       // KMOVD
+          (MP_66,  false) => mem_write8(a, read_kreg(k1)[7..0]),         // KMOVB
+          (_,      false) => mem_write16(a, read_kreg(k1)[15..0]),       // KMOVW
         }
       },
       _ => raise_UD(),

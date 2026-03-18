@@ -436,11 +436,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               RM_mem(addr) => mem_read8(addr),
             };
             let result : bits(32) = crc32c_byte(crc, src);
-            if pfx.rex_w then {
-              write_gpr(reg, OS64, zero_extend(result))
-            } else {
-              write_gpr(reg, OS32, zero_extend(result))
-            }
+            write_gpr(reg, if pfx.rex_w then OS64 else OS32, zero_extend(result))
           } else {
             // CRC32 r32/r64, r/m16/r/m32/r/m64
             let os = get_operand_size(pfx);
@@ -467,11 +463,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                 crc32c_32(crc, src)
               },
             };
-            if pfx.rex_w then {
-              write_gpr(reg, OS64, zero_extend(result))
-            } else {
-              write_gpr(reg, OS32, zero_extend(result))
-            }
+            write_gpr(reg, if pfx.rex_w then OS64 else OS32, zero_extend(result))
           }
         } else {
           // MOVBE (0F 38 F0/F1) — load/store with byte swap

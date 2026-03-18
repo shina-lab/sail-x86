@@ -873,11 +873,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
       let star : qword = __rdmsr(0xC0000081);
       let sysret_base : bits(16) = star[63..48];
-      if pfx.rex_w then {
-        write_segreg(CS, sysret_base + 0x0010);  // + 16
-      } else {
-        write_segreg(CS, sysret_base);
-      };
+      write_segreg(CS, if pfx.rex_w then sysret_base + 0x0010 else sysret_base);
       write_segreg(SS, sysret_base + 0x0008);  // + 8
 
       // Return to ring 3
@@ -1109,47 +1105,35 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_rep & reg_field <= 3 then {
         if CR4[16] != bitone then raise_UD();
         match rm {
-          RM_reg(r) => match reg_field {
+          RM_reg(r) => match (reg_field, pfx.rex_w) {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64
-            0 => {
-              if pfx.rex_w then write_gpr64(r, FS_BASE)
-              else write_gpr32(r, FS_BASE[31..0])
-            },
+            (0, true)  => write_gpr64(r, FS_BASE),
+            (0, false) => write_gpr32(r, FS_BASE[31..0]),
             // F3 0F AE /1 mod=11: RDGSBASE r32/r64
-            1 => {
-              if pfx.rex_w then write_gpr64(r, GS_BASE)
-              else write_gpr32(r, GS_BASE[31..0])
-            },
+            (1, true)  => write_gpr64(r, GS_BASE),
+            (1, false) => write_gpr32(r, GS_BASE[31..0]),
             // F3 0F AE /2 mod=11: WRFSBASE r32/r64
-            2 => {
-              if pfx.rex_w then FS_BASE = read_gpr64(r)
-              else FS_BASE = zero_extend(read_gpr32(r))
-            },
+            (2, true)  => FS_BASE = read_gpr64(r),
+            (2, false) => FS_BASE = zero_extend(read_gpr32(r)),
             // F3 0F AE /3 mod=11: WRGSBASE r32/r64
-            3 => {
-              if pfx.rex_w then GS_BASE = read_gpr64(r)
-              else GS_BASE = zero_extend(read_gpr32(r))
-            },
+            (3, true)  => GS_BASE = read_gpr64(r),
+            (3, false) => GS_BASE = zero_extend(read_gpr32(r)),
             _ => raise_UD(),
           },
           RM_mem(_) => raise_UD(),
         }
       } else match reg_field {
         // FXSAVE m512byte
-        0 => match rm {
-          RM_mem(addr) => {
-            if pfx.rex_w then __fxsave64(fixup_addr(addr))
-            else __fxsave(fixup_addr(addr))
-          },
-          RM_reg(_) => raise_UD(),
+        0 => match (rm, pfx.rex_w) {
+          (RM_mem(addr), true)  => __fxsave64(fixup_addr(addr)),
+          (RM_mem(addr), false) => __fxsave(fixup_addr(addr)),
+          _ => raise_UD(),
         },
         // FXRSTOR m512byte
-        1 => match rm {
-          RM_mem(addr) => {
-            if pfx.rex_w then __fxrstor64(fixup_addr(addr))
-            else __fxrstor(fixup_addr(addr))
-          },
-          RM_reg(_) => raise_UD(),
+        1 => match (rm, pfx.rex_w) {
+          (RM_mem(addr), true)  => __fxrstor64(fixup_addr(addr)),
+          (RM_mem(addr), false) => __fxrstor(fixup_addr(addr)),
+          _ => raise_UD(),
         },
         // LDMXCSR m32
         2 => match rm {

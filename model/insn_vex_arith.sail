@@ -1542,20 +1542,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      // VPSRLVQ xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256
-      if pfx.vex_l then {
-        write_ymm(dst, vex_psrlvq_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, vex_psrlvq_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      // VPSRLVD xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256
-      if pfx.vex_l then {
-        write_ymm(dst, vex_psrlvd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, vex_psrlvd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_l, pfx.vex_w) {
+      // VPSRLVQ ymm1, ymm2, ymm3/m256
+      (true, true)   => write_ymm(dst, vex_psrlvq_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx))),
+      // VPSRLVQ xmm1, xmm2, xmm3/m128
+      (false, true)  => write_xmm(dst, vex_psrlvq_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx))),
+      // VPSRLVD ymm1, ymm2, ymm3/m256
+      (true, false)  => write_ymm(dst, vex_psrlvd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx))),
+      // VPSRLVD xmm1, xmm2, xmm3/m128
+      (false, false) => write_xmm(dst, vex_psrlvd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -1582,20 +1577,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
-    if pfx.vex_w then {
-      // VPSLLVQ xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256
-      if pfx.vex_l then {
-        write_ymm(dst, vex_psllvq_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, vex_psllvq_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
-    } else {
-      // VPSLLVD xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256
-      if pfx.vex_l then {
-        write_ymm(dst, vex_psllvd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx)))
-      } else {
-        write_xmm(dst, vex_psllvd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx)))
-      }
+    match (pfx.vex_l, pfx.vex_w) {
+      // VPSLLVQ ymm1, ymm2, ymm3/m256
+      (true, true)   => write_ymm(dst, vex_psllvq_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx))),
+      // VPSLLVQ xmm1, xmm2, xmm3/m128
+      (false, true)  => write_xmm(dst, vex_psllvq_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx))),
+      // VPSLLVD ymm1, ymm2, ymm3/m256
+      (true, false)  => write_ymm(dst, vex_psllvd_256(read_ymm(v), decode_vex_src_ymm(modrm, rm, pfx))),
+      // VPSLLVD xmm1, xmm2, xmm3/m128
+      (false, false) => write_xmm(dst, vex_psllvd_128(read_xmm(v), decode_vex_src_xmm(modrm, rm, pfx))),
     }
   },
 
@@ -2001,9 +1991,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       RM_mem(addr) => {
         let a = fixup_addr(addr);
         let mask_idx = pfx.vex_vvvv;
-        if pfx.rex_w then {
+        match (pfx.vex_l, pfx.rex_w) {
           // VPMASKMOVQ: qword elements
-          if pfx.vex_l then {
+          (true, true) => {
             let mask : ymmword = read_ymm(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 3) {
@@ -2011,7 +2001,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
                 result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
             };
             write_ymm(dst, result)
-          } else {
+          },
+          (false, true) => {
             let mask : xmmword = read_xmm(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 1) {
@@ -2019,10 +2010,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
                 result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
             };
             write_xmm(dst, result)
-          }
-        } else {
+          },
           // VPMASKMOVD: dword elements
-          if pfx.vex_l then {
+          (true, false) => {
             let mask : ymmword = read_ymm(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 7) {
@@ -2030,7 +2020,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
                 result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
             };
             write_ymm(dst, result)
-          } else {
+          },
+          (false, false) => {
             let mask : xmmword = read_xmm(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 3) {
@@ -2038,7 +2029,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
                 result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
             };
             write_xmm(dst, result)
-          }
+          },
         }
       },
       RM_reg(_) => raise_UD(),
@@ -2055,40 +2046,41 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       RM_mem(addr) => {
         let a = fixup_addr(addr);
         let mask_idx = pfx.vex_vvvv;
-        if pfx.rex_w then {
-          // VPMASKMOVQ m256, ymm2, ymm3
-          if pfx.vex_l then {
+        match (pfx.vex_l, pfx.rex_w) {
+          // VPMASKMOVQ: qword elements
+          (true, true) => {
             let mask : ymmword = read_ymm(mask_idx);
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 3) {
               if mask[(i * 64 + 63)] == bitone then
                 mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
-          } else {
+          },
+          (false, true) => {
             let mask : xmmword = read_xmm(mask_idx);
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 1) {
               if mask[(i * 64 + 63)] == bitone then
                 mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
-          }
-        } else {
-          // VPMASKMOVD m128/m256, xmm2/ymm2, xmm3/ymm3
-          if pfx.vex_l then {
+          },
+          // VPMASKMOVD: dword elements
+          (true, false) => {
             let mask : ymmword = read_ymm(mask_idx);
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 7) {
               if mask[(i * 32 + 31)] == bitone then
                 mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
-          } else {
+          },
+          (false, false) => {
             let mask : xmmword = read_xmm(mask_idx);
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 3) {
               if mask[(i * 32 + 31)] == bitone then
                 mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
-          }
+          },
         }
       },
       RM_reg(_) => raise_UD(),

@@ -94,7 +94,7 @@ function evex_full_disp_n(pfx) =
   else match pfx.evex_ll {
     0 => 16,
     1 => 32,
-    _ => 64,
+    2 => 64,
   }
 
 // Decode SIB with EVEX compressed disp8.

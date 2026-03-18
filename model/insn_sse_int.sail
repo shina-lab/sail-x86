@@ -995,18 +995,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        if pfx.rex_w then {
-          let v : qword = match rm {
-            RM_reg(idx) => read_gpr64(idx),
-            RM_mem(addr) => mem_read64(addr),
-          };
-          write_xmm_legacy(xreg, zero_extend(v))
-        } else {
-          let v : dword = match rm {
-            RM_reg(idx) => read_gpr32(idx),
-            RM_mem(addr) => mem_read32(addr),
-          };
-          write_xmm_legacy(xreg, zero_extend(v))
+        match (rm, pfx.rex_w) {
+          (RM_reg(idx), true)   => write_xmm_legacy(xreg, zero_extend(read_gpr64(idx))),
+          (RM_mem(addr), true)  => write_xmm_legacy(xreg, zero_extend(mem_read64(addr))),
+          (RM_reg(idx), false)  => write_xmm_legacy(xreg, zero_extend(read_gpr32(idx))),
+          (RM_mem(addr), false) => write_xmm_legacy(xreg, zero_extend(mem_read32(addr))),
         }
       }
     },
@@ -1294,16 +1287,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
           MP_66 => {
             let src_xmm = modrm_xmm_reg(modrm, pfx);
             let v = read_xmm(src_xmm);
-            if pfx.rex_w then {
-              match rm {
-                RM_reg(idx) => write_gpr64(idx, v[63..0]),
-                RM_mem(addr) => mem_write64(addr, v[63..0]),
-              };
-            } else {
-              match rm {
-                RM_reg(idx) => write_gpr32(idx, v[31..0]),
-                RM_mem(addr) => mem_write32(addr, v[31..0]),
-              };
+            match (rm, pfx.rex_w) {
+              (RM_reg(idx), true)   => write_gpr64(idx, v[63..0]),
+              (RM_mem(addr), true)  => mem_write64(addr, v[63..0]),
+              (RM_reg(idx), false)  => write_gpr32(idx, v[31..0]),
+              (RM_mem(addr), false) => mem_write32(addr, v[31..0]),
             }
           },
           // MOVQ xmm1, xmm2/m64
@@ -3024,17 +3012,11 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     22 => {
       let imm = fetch_byte();
       let src = read_xmm(xreg);
-      match rm {
-        RM_reg(_) => {
-          let dst_reg = modrm_rm_reg(modrm, pfx);
-          if pfx.rex_w then write_gpr64(dst_reg, extract_qword_from_xmm(src, imm))
-          else write_gpr32(dst_reg, extract_dword_from_xmm(src, imm))
-        },
-        RM_mem(addr) => {
-          let a = fixup_addr(addr);
-          if pfx.rex_w then mem_write64(a, extract_qword_from_xmm(src, imm))
-          else mem_write32(a, extract_dword_from_xmm(src, imm))
-        },
+      match (rm, pfx.rex_w) {
+        (RM_reg(_), true)     => write_gpr64(modrm_rm_reg(modrm, pfx), extract_qword_from_xmm(src, imm)),
+        (RM_reg(_), false)    => write_gpr32(modrm_rm_reg(modrm, pfx), extract_dword_from_xmm(src, imm)),
+        (RM_mem(addr), true)  => mem_write64(fixup_addr(addr), extract_qword_from_xmm(src, imm)),
+        (RM_mem(addr), false) => mem_write32(fixup_addr(addr), extract_dword_from_xmm(src, imm)),
       }
     },
 

@@ -608,17 +608,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
     let src_xmm : xmmword = read_xmm(src);
-    match rm {
-      RM_reg(_) => {
-        let dst_reg = modrm_rm_reg(modrm, pfx);
-        if pfx.rex_w then write_gpr64(dst_reg, extract_qword_from_xmm(src_xmm, imm))
-        else write_gpr32(dst_reg, extract_dword_from_xmm(src_xmm, imm))
-      },
-      RM_mem(addr) => {
-        let a = fixup_addr(addr);
-        if pfx.rex_w then mem_write64(a, extract_qword_from_xmm(src_xmm, imm))
-        else mem_write32(a, extract_dword_from_xmm(src_xmm, imm))
-      },
+    match (rm, pfx.rex_w) {
+      (RM_reg(_), true)     => write_gpr64(modrm_rm_reg(modrm, pfx), extract_qword_from_xmm(src_xmm, imm)),
+      (RM_reg(_), false)    => write_gpr32(modrm_rm_reg(modrm, pfx), extract_dword_from_xmm(src_xmm, imm)),
+      (RM_mem(addr), true)  => mem_write64(fixup_addr(addr), extract_qword_from_xmm(src_xmm, imm)),
+      (RM_mem(addr), false) => mem_write32(fixup_addr(addr), extract_dword_from_xmm(src_xmm, imm)),
     }
   },
 
