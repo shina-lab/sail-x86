@@ -916,9 +916,9 @@ function dispatch_evex_fp(op, pfx) = {
     match mp {
       // VMOVUPS xmm2/ymm2/zmm2/m128/m256/m512, xmm1/ymm1/zmm1
       MP_NONE => {
-        let mask = evex_get_mask16(pfx);
         match rm {
           RM_reg(_) => {
+            let mask = evex_get_mask16(pfx);
             let dst = evex_rm_reg_idx(modrm, pfx);
             match pfx.evex_ll {
               2 => write_zmm(dst, apply_writemask_ps_zmm(read_zmm(src), read_zmm(dst), mask, pfx.evex_z)),
@@ -928,19 +928,16 @@ function dispatch_evex_fp(op, pfx) = {
           },
           RM_mem(addr) => {
             let a = fixup_addr(addr);
-            match pfx.evex_ll {
-              2 => mem_write512(a, read_zmm(src)),
-              1 => mem_write256(a, read_ymm(src)),
-              _ => mem_write128(a, read_xmm(src)),
-            }
+            let nbytes : {16, 32, 64} = match pfx.evex_ll { 2 => 64, 1 => 32, _ => 16 };
+            evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, 4)
           },
         }
       },
       // VMOVUPD xmm2/ymm2/zmm2/m128/m256/m512, xmm1/ymm1/zmm1
       MP_66 => {
-        let mask = evex_get_mask8(pfx);
         match rm {
           RM_reg(_) => {
+            let mask = evex_get_mask8(pfx);
             let dst = evex_rm_reg_idx(modrm, pfx);
             match pfx.evex_ll {
               2 => write_zmm(dst, apply_writemask_pd_zmm(read_zmm(src), read_zmm(dst), mask, pfx.evex_z)),
@@ -950,11 +947,8 @@ function dispatch_evex_fp(op, pfx) = {
           },
           RM_mem(addr) => {
             let a = fixup_addr(addr);
-            match pfx.evex_ll {
-              2 => mem_write512(a, read_zmm(src)),
-              1 => mem_write256(a, read_ymm(src)),
-              _ => mem_write128(a, read_xmm(src)),
-            }
+            let nbytes : {16, 32, 64} = match pfx.evex_ll { 2 => 64, 1 => 32, _ => 16 };
+            evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, 8)
           },
         }
       },
@@ -1296,11 +1290,9 @@ function dispatch_evex_fp(op, pfx) = {
       },
       RM_mem(addr) => {
         let a = fixup_addr(addr);
-        match pfx.evex_ll {
-          2 => mem_write512(a, read_zmm(src)),
-          1 => mem_write256(a, read_ymm(src)),
-          _ => mem_write128(a, read_xmm(src)),
-        }
+        let elem : {4, 8} = if mp == MP_66 then 8 else 4;
+        let nbytes : {16, 32, 64} = match pfx.evex_ll { 2 => 64, 1 => 32, _ => 16 };
+        evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, elem)
       },
     }
   },

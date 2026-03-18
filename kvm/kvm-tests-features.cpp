@@ -83,4 +83,52 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = 0;
     tests.push_back(std::move(tc));
   }
+
+  // --- EVEX masked memory store: VMOVUPS xmm with k1 ---
+  // VMOVUPS uses dword (4-byte) granularity. Mask k1=0x07 means write
+  // 3 of 4 dwords (12 bytes written, 4 bytes unchanged).
+  {
+    TestCase tc;
+    tc.name = "vmovups masked store (3 of 4 dwords)";
+    tc.category = cat;
+    // vxorps xmm0, xmm0, xmm0        (zero xmm0)
+    // mov ecx, 0x07                   (mask = 3 low dwords)
+    // kmovd ecx, k1
+    // vmovups [rdi]{k1}, xmm0         (EVEX.128.NP.0F 11 /r)
+    tc.code = {
+      0xc5, 0xf8, 0x57, 0xc0,                // vxorps %xmm0,%xmm0,%xmm0
+      0xb9, 0x07, 0x00, 0x00, 0x00,          // mov $0x7,%ecx
+      0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
+      0x62, 0xf1, 0x7c, 0x09, 0x11, 0x07,    // vmovups %xmm0,(%rdi){%k1}
+    };
+    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.init_data.assign(16, 0x42);
+    tc.compare_data_len = 16;
+    tc.flags_mask = 0;
+    tests.push_back(std::move(tc));
+  }
+
+  // --- EVEX masked memory store: VMOVAPS xmm with k1 ---
+  // VMOVAPS uses dword (4-byte) granularity. Mask k1=0x05 means write
+  // dwords 0 and 2 (8 bytes written), dwords 1 and 3 unchanged.
+  {
+    TestCase tc;
+    tc.name = "vmovaps masked store (2 of 4 dwords)";
+    tc.category = cat;
+    // vxorps xmm0, xmm0, xmm0
+    // mov ecx, 0x05                   (mask = dwords 0,2)
+    // kmovd ecx, k1
+    // vmovaps [rdi]{k1}, xmm0         (EVEX.128.66.0F 29 /r — actually NP for VMOVAPS)
+    tc.code = {
+      0xc5, 0xf8, 0x57, 0xc0,                // vxorps %xmm0,%xmm0,%xmm0
+      0xb9, 0x05, 0x00, 0x00, 0x00,          // mov $0x5,%ecx
+      0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
+      0x62, 0xf1, 0x7c, 0x09, 0x29, 0x07,    // vmovaps %xmm0,(%rdi){%k1}
+    };
+    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.init_data.assign(16, 0x42);
+    tc.compare_data_len = 16;
+    tc.flags_mask = 0;
+    tests.push_back(std::move(tc));
+  }
 }
