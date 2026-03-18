@@ -10,28 +10,17 @@
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <elf-binary> [args...]\n", prog);
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "  -d          Enable debug trace\n");
-  fprintf(stderr, "  -l <level>  CPU feature level: v1, v2, v3, v4 (default)\n");
-  fprintf(stderr, "  -h          Show this help\n");
+  fprintf(stderr, "  -d    Enable debug trace\n");
+  fprintf(stderr, "  -h    Show this help\n");
 }
 
 int main(int argc, char *argv[], char *envp[]) {
   bool debug = false;
-  int feature_level = 4;
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
     if (strcmp(argv[first_arg], "-d") == 0) {
       debug = true;
-      first_arg++;
-    } else if (strcmp(argv[first_arg], "-l") == 0 && first_arg + 1 < argc) {
-      first_arg++;
-      const char *lvl = argv[first_arg];
-      if (strcmp(lvl, "v1") == 0) feature_level = 1;
-      else if (strcmp(lvl, "v2") == 0) feature_level = 2;
-      else if (strcmp(lvl, "v3") == 0) feature_level = 3;
-      else if (strcmp(lvl, "v4") == 0) feature_level = 4;
-      else { fprintf(stderr, "Unknown level: %s\n", lvl); return 1; }
       first_arg++;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
@@ -54,12 +43,7 @@ int main(int argc, char *argv[], char *envp[]) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
-  switch (feature_level) {
-  case 1: enable_features_v1(model); break;
-  case 2: enable_features_v2(model); break;
-  case 3: enable_features_v3(model); break;
-  default: enable_features_v4(model); break;
-  }
+  enable_all_features(model);
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 3;
   model.zEFER = 0x0000000000000D01;  // SCE | LME | LMA | NXE

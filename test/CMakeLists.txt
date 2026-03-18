@@ -76,13 +76,13 @@ add_test(
 # Test: /bin/echo (dynamic binary)
 add_test(
   NAME echo
-  COMMAND sh -c "${SIM} -l v2 /bin/echo hello | grep -q hello"
+  COMMAND sh -c "${SIM} /bin/echo hello | grep -q hello"
 )
 
 # Test: /bin/ls (dynamic binary, runs to completion)
 add_test(
   NAME ls
-  COMMAND ${SIM} -l v2 /bin/ls /
+  COMMAND ${SIM} /bin/ls /
 )
 
 # Test: syscall layer
@@ -118,5 +118,5 @@ add_test(
 # Test: /usr/bin/wc (dynamic binary)
 add_test(
   NAME wc
-  COMMAND sh -c "echo 'one two three' | ${SIM} -l v2 /usr/bin/wc -w | grep -q 3"
+  COMMAND sh -c "echo 'one two three' | ${SIM} /usr/bin/wc -w | grep -q 3"
 )
