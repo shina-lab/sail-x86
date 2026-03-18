@@ -1722,7 +1722,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+          },
         }
       },
       1 => {
@@ -1731,7 +1734,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+          },
         }
       },
       _ => raise_UD(),
@@ -1775,7 +1781,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write256(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 32, elem)
+          },
         }
       },
       _ => raise_UD(),
@@ -1792,17 +1801,17 @@ function dispatch_evex_imm(op, pfx) = {
              let _imm = fetch_byte();
              let res = avx_vcvtps2ph_512(read_zmm(src));
              match rm { RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
-                         RM_mem(addr) => { mem_write256(fixup_addr(addr), res) } } },
+                         RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 32, 2) } },
       1 => { let rm = decode_rm_evex(modrm, pfx, 16);
              let _imm = fetch_byte();
              let res = avx_vcvtps2ph_256(read_ymm(src));
              match rm { RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
-                         RM_mem(addr) => { mem_write128(fixup_addr(addr), res) } } },
+                         RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 16, 2) } },
       _ => { let rm = decode_rm_evex(modrm, pfx, 8);
              let _imm = fetch_byte();
              let res = avx_vcvtps2ph_128(read_xmm(src));
              match rm { RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
-                         RM_mem(addr) => { mem_write64(fixup_addr(addr), res) } } },
+                         RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 8, 2) } },
     }
   },
 
@@ -2104,7 +2113,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+          },
         }
       },
       1 => {
@@ -2113,7 +2125,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write128(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+          },
         }
       },
       _ => raise_UD(),
@@ -2156,7 +2171,10 @@ function dispatch_evex_imm(op, pfx) = {
         match rm {
           RM_reg(_) => if pfx.vex_w then evex_write_q_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
                        else evex_write_d_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx),
-          RM_mem(addr) => mem_write256(fixup_addr(addr), extracted),
+          RM_mem(addr) => {
+            let elem : {4, 8} = if pfx.vex_w then 8 else 4;
+            evex_masked_mem_store(fixup_addr(addr), zero_extend(extracted), evex_kmask64(pfx), 32, elem)
+          },
         }
       },
       _ => raise_UD(),
