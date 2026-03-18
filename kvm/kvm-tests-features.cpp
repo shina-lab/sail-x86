@@ -54,4 +54,33 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.xcr0_override = 0x03;
     tests.push_back(std::move(tc));
   }
+
+  // --- EVEX masked memory store (vmovdqu8 with k1 mask) ---
+  // Verifies that masked stores only write bytes where mask bit = 1.
+  // This is the pattern glibc's EVEX+BMI2 memset uses for partial writes.
+  {
+    TestCase tc;
+    tc.name = "vmovdqu8 masked store (24 of 32 bytes)";
+    tc.category = cat;
+    // Fill data area with 0x41 pattern, then do masked zero-fill of 24 bytes.
+    // vpbroadcastb esi, ymm16    (esi=0, broadcast zero)
+    // mov ecx, 0xFFFFFFFF
+    // bzhi edx, ecx, ecx         (ecx = (1<<24)-1 = 0x00FFFFFF)
+    // kmovd ecx, k1
+    // vmovdqu8 ymm16, [rdi]{k1}  (write 24 zero bytes at DATA_ADDR)
+    tc.code = {
+      0x62, 0xe2, 0x7d, 0x28, 0x7a, 0xc6,  // vpbroadcastb %esi,%ymm16
+      0xb9, 0xff, 0xff, 0xff, 0xff,          // mov $0xffffffff,%ecx
+      0xc4, 0xe2, 0x68, 0xf5, 0xc9,          // bzhi %edx,%ecx,%ecx
+      0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
+      0x62, 0xe1, 0x7f, 0x29, 0x7f, 0x07,    // vmovdqu8 %ymm16,(%rdi){%k1}
+    };
+    tc.initial = {.rdx = 24, .rsi = 0, .rdi = DATA_ADDR, .rflags = 0x2};
+    // Init data: 32 bytes of 0x41
+    tc.init_data.assign(32, 0x41);
+    // Compare first 32 bytes: 24 zeros + 8 unchanged (0x41)
+    tc.compare_data_len = 32;
+    tc.flags_mask = 0;
+    tests.push_back(std::move(tc));
+  }
 }

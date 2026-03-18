@@ -1521,11 +1521,12 @@ function dispatch_evex_int(op, pfx) = {
       },
       RM_mem(addr) => {
         let a = fixup_addr(addr);
-        match pfx.evex_ll {
-          2 => mem_write512(a, read_zmm(src)),
-          1 => mem_write256(a, read_ymm(src)),
-          _ => mem_write128(a, read_xmm(src)),
-        }
+        let mask : qword = evex_kmask64(pfx);
+        let elem_size : {1, 2, 4, 8} =
+          if pfx.has_repne then (if pfx.rex_w then 2 else 1)
+          else (if pfx.rex_w then 8 else 4);
+        let nbytes : {16, 32, 64} = match pfx.evex_ll { 2 => 64, 1 => 32, _ => 16 };
+        evex_masked_mem_store(a, read_zmm(src), mask, nbytes, elem_size)
       },
     }
   },

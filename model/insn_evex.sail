@@ -24,6 +24,39 @@ function evex_rm_reg_idx(modrm, pfx) = {
   x_ext * 16 + b_ext * 8 + base
 }
 
+// Masked memory store: write only bytes where mask bit = 1.
+// elem_bytes: element size (1=byte, 2=word, 4=dword, 8=qword).
+// One mask bit per element.
+val evex_masked_mem_store : (qword, zmmword, qword, int, int) -> unit
+function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
+  if mask == ones() then {
+    // Fast path: no masking, write the full vector
+    match nbytes {
+      64 => mem_write512(addr, data),
+      32 => mem_write256(addr, data[255..0]),
+      _  => mem_write128(addr, data[127..0]),
+    }
+  } else {
+    // Slow path: write only elements where the corresponding mask bit = 1
+    var off : int = 0;
+    var m : qword = mask;
+    while off < nbytes do {
+      if m[0] == bitone then {
+        var j : int = 0;
+        while j < elem_bytes do {
+          let idx : int = off + j;
+          assert(0 <= idx & idx < 512);
+          let byte_val : byte = get_slice_int(8, unsigned(data), idx * 8);
+          mem_write8(addr + to_bits(64, idx), byte_val);
+          j = j + 1;
+        }
+      };
+      off = off + elem_bytes;
+      m = m >> 1;
+    }
+  }
+}
+
 // Get the effective 64-bit opmask: aaa=0 → all-ones (no masking), else kreg(aaa).
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
