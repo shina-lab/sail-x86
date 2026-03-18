@@ -131,4 +131,30 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = 0;
     tests.push_back(std::move(tc));
   }
+
+  // --- EVEX masked memory store: VPMOVDB with k1 ---
+  // VPMOVDB truncates dwords to bytes. Output element = 1 byte.
+  // XMM source (4 dwords) → 4 output bytes. Mask k1=0x03 writes 2 of 4 bytes.
+  {
+    TestCase tc;
+    tc.name = "vpmovdb masked store (2 of 4 bytes)";
+    tc.category = cat;
+    // vpbroadcastd 0x12345678, xmm0    (set up source)
+    // mov ecx, 0x03                     (mask = 2 low elements)
+    // kmovd ecx, k1
+    // vpmovdb [rdi]{k1}, xmm0          (EVEX.128.F3.0F38 31 /r)
+    tc.code = {
+      0xb8, 0x78, 0x56, 0x34, 0x12,          // mov $0x12345678,%eax
+      0xc5, 0xf9, 0x6e, 0xc0,                // vmovd %eax,%xmm0
+      0x62, 0xf2, 0x7d, 0x08, 0x58, 0xc0,    // vpbroadcastd %xmm0,%xmm0
+      0xb9, 0x03, 0x00, 0x00, 0x00,          // mov $0x3,%ecx
+      0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
+      0x62, 0xf2, 0x7e, 0x09, 0x31, 0x07,    // vpmovdb %xmm0,(%rdi){%k1}
+    };
+    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.init_data.assign(8, 0x42);
+    tc.compare_data_len = 8;
+    tc.flags_mask = 0;
+    tests.push_back(std::move(tc));
+  }
 }
