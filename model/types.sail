@@ -6,21 +6,21 @@
 
 struct Prefixes = {
   has_lock : bool,
-  has_repne : bool,   // F2
-  has_rep : bool,     // F3
+  has_repne : bool,     // F2
+  has_rep : bool,       // F3
   seg_override : option(segreg_idx),
-  has_opsize : bool,  // 66
-  has_adsize : bit,   // 67
+  has_opsize : bool,    // 66
+  has_adsize : bit,     // 67
   rex_w : bool,
   rex_r : bit,
   rex_x : bit,
   rex_b : bit,
-  has_rex : bool,     // any REX present (changes byte reg encoding)
+  has_rex : bool,       // any REX present (changes byte reg encoding)
   // VEX prefix fields
-  vex_present : bool, // VEX prefix was decoded
-  vex_l : bool,       // vector length: false=128, true=256
-  vex_vvvv : simd_idx,// extra register operand (already complemented)
-  vex_w : bool,       // VEX.W (like REX.W for some instructions)
+  vex_present : bool,   // VEX prefix was decoded
+  vex_l : bool,         // vector length: false=128, true=256
+  vex_vvvv : simd_idx,  // extra register operand (already complemented)
+  vex_w : bool,         // VEX.W (like REX.W for some instructions)
   // EVEX prefix fields
   evex_present : bool,  // EVEX prefix was decoded
   evex_ll : range(0, 3),// vector length: 0=128, 1=256, 2=512
@@ -414,13 +414,25 @@ function or_reduce_64(v) = or_reduce_32(v[63..32] | v[31..0])
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
 val blend8 : (byte, byte, bits(1)) -> byte
-function blend8(a, b, sel) = { let m : byte = sign_extend(sel); (a & ~(m)) | (b & m) }
+function blend8(a, b, sel) = {
+  let m : byte = sign_extend(sel);
+  (a & ~(m)) | (b & m)
+}
 
 val blend16 : (word, word, bits(1)) -> word
-function blend16(a, b, sel) = { let m : word = sign_extend(sel); (a & ~(m)) | (b & m) }
+function blend16(a, b, sel) = {
+  let m : word = sign_extend(sel);
+  (a & ~(m)) | (b & m)
+}
 
 val blend32 : (dword, dword, bits(1)) -> dword
-function blend32(a, b, sel) = { let m : dword = sign_extend(sel); (a & ~(m)) | (b & m) }
+function blend32(a, b, sel) = {
+  let m : dword = sign_extend(sel);
+  (a & ~(m)) | (b & m)
+}
 
 val blend64 : (qword, qword, bits(1)) -> qword
-function blend64(a, b, sel) = { let m : qword = sign_extend(sel); (a & ~(m)) | (b & m) }
+function blend64(a, b, sel) = {
+  let m : qword = sign_extend(sel);
+  (a & ~(m)) | (b & m)
+}

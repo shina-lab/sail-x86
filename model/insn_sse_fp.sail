@@ -88,22 +88,22 @@ function cmp_pred_f32(a, b, pred) = {
   let gt : bit = match r { FP_GT => bitone, _ => bitzero };
   let le : bit = lt | eq;
   let cond : bit = match pred[3..0] {
-    0x0 => eq,                       // EQ_OQ
-    0x1 => lt,                       // LT_OS
-    0x2 => le,                       // LE_OS
-    0x3 => unord,                    // UNORD_Q
-    0x4 => ~(eq),                    // NEQ_UQ (true for NaN)
-    0x5 => ~(lt),                    // NLT_US (true for NaN)
-    0x6 => ~(le),                    // NLE_US (true for NaN)
-    0x7 => ~(unord),                 // ORD_Q
+    0x0 => eq,                      // EQ_OQ
+    0x1 => lt,                      // LT_OS
+    0x2 => le,                      // LE_OS
+    0x3 => unord,                   // UNORD_Q
+    0x4 => ~(eq),                   // NEQ_UQ (true for NaN)
+    0x5 => ~(lt),                   // NLT_US (true for NaN)
+    0x6 => ~(le),                   // NLE_US (true for NaN)
+    0x7 => ~(unord),                // ORD_Q
     0x8 => eq | unord,              // EQ_UQ (true for NaN)
     0x9 => lt | unord,              // NGE_US (true for NaN)
     0xA => le | unord,              // NGT_US
-    0xB => bitzero,                  // FALSE_OQ
+    0xB => bitzero,                 // FALSE_OQ
     0xC => ~(eq) & ~(unord),        // NEQ_OQ (false for NaN)
     0xD => ~(lt) & ~(unord),        // GE_OS (false for NaN)
-    0xE => gt,                       // GT_OS (false for NaN)
-    0xF => bitone,                   // TRUE_UQ
+    0xE => gt,                      // GT_OS (false for NaN)
+    0xF => bitone,                  // TRUE_UQ
   };
   zeros() - zero_extend(cond)
 }

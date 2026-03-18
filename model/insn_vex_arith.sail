@@ -2121,6 +2121,5 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   _ => raise_UD(),
-
   }
 }

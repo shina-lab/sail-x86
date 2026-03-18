@@ -1684,12 +1684,18 @@ function dispatch_evex_perm(op, pfx) = {
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match pfx.evex_ll {
-      2 => { let r = avx_vpshufbitqmb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx));
-             write_kreg(dst_k, r) },
-      1 => { let r = avx_vpshufbitqmb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx));
-             write_kreg(dst_k, zero_extend(r)) },
-      _ => { let r = avx_vpshufbitqmb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx));
-             write_kreg(dst_k, zero_extend(r)) },
+      2 => {
+        let r = avx_vpshufbitqmb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx));
+        write_kreg(dst_k, r)
+      },
+      1 => {
+        let r = avx_vpshufbitqmb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx));
+        write_kreg(dst_k, zero_extend(r))
+      },
+      _ => {
+        let r = avx_vpshufbitqmb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx));
+        write_kreg(dst_k, zero_extend(r))
+      },
     }
   },
 
