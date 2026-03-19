@@ -253,6 +253,8 @@ set(KVM_CATEGORIES
   "EVEX ER"
   "EVEX FP mask ymm"
   "EVEX VCVTQQ2PS"
+  "EVEX VPERM ymm"
+  "EVEX VBCAST X4 ymm"
   "EVEX VPCMPW"
   "MMX arith"
   "MMX saturate"

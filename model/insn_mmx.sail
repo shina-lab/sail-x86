@@ -22,7 +22,6 @@ function mmx_read_rm(modrm, rm) = {
 
 function dispatch_mmx(op, pfx) = {
   match op {
-
     // 0F 60: PUNPCKLBW mm, mm/m32
     96 => {
       let modrm = fetch_byte();

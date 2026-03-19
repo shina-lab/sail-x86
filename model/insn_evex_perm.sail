@@ -1193,9 +1193,9 @@ function dispatch_evex_perm(op, pfx) = {
       RM_mem(addr) => {
         let src : xmmword = mem_read128(fixup_addr(addr));
         match (pfx.rex_w, pfx.evex_ll) {
-          (true, 0) => evex_write_q_ymm(dst, src @ src, pfx),
+          (true, 1) => evex_write_q_ymm(dst, src @ src, pfx),
           (true, 2) => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
-          (false, 0) => evex_write_d_ymm(dst, src @ src, pfx),
+          (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
           (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
           _ => raise_UD(),
         }
@@ -1232,9 +1232,9 @@ function dispatch_evex_perm(op, pfx) = {
       RM_mem(addr) => {
         let src : xmmword = mem_read128(fixup_addr(addr));
         match (pfx.rex_w, pfx.evex_ll) {
-          (true, 0) => evex_write_q_ymm(dst, src @ src, pfx),
+          (true, 1) => evex_write_q_ymm(dst, src @ src, pfx),
           (true, 2) => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
-          (false, 0) => evex_write_d_ymm(dst, src @ src, pfx),
+          (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
           (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
           _ => raise_UD(),
         }
@@ -1357,10 +1357,10 @@ function dispatch_evex_perm(op, pfx) = {
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMPD
-      (true, 0) => evex_write_q_ymm(dst, avx_vpermpd_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
+      (true, 1) => evex_write_q_ymm(dst, avx_vpermpd_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
       (true, 2) => evex_write_q_zmm(dst, avx_vpermpd_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem), read_zmm(idx_reg)), pfx),
       // VPERMPS
-      (false, 0) => evex_write_d_ymm(dst, avx_vpermps_256(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
+      (false, 1) => evex_write_d_ymm(dst, avx_vpermps_256(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
       (false, 2) => evex_write_d_zmm(dst, avx_vpermps_512(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(idx_reg)), pfx),
       _ => raise_UD(),
     }
@@ -1377,10 +1377,10 @@ function dispatch_evex_perm(op, pfx) = {
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMQ
-      (true, 0) => evex_write_q_ymm(dst, avx_vpermq_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
+      (true, 1) => evex_write_q_ymm(dst, avx_vpermq_256(evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
       (true, 2) => evex_write_q_zmm(dst, avx_vpermq_512(evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem), read_zmm(idx_reg)), pfx),
       // VPERMD
-      (false, 0) => evex_write_d_ymm(dst, avx_vpermd_256(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
+      (false, 1) => evex_write_d_ymm(dst, avx_vpermd_256(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(idx_reg)), pfx),
       (false, 2) => evex_write_d_zmm(dst, avx_vpermd_512(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(idx_reg)), pfx),
       _ => raise_UD(),
     }

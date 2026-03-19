@@ -2334,4 +2334,123 @@ void add_evex_tests_2(std::vector<TestCase> &tests) {
     add_xmm("vcvtqq2ps xmm0,xmm1 large",
       {0x62, 0xF1, 0xFC, 0x08, 0x5B, 0xC1}, s, 0x7);
   }
+
+  // =====================================================================
+  // EVEX VPERMD/VPERMQ ymm — 256-bit cross-lane permute (LL=01)
+  // These test the LL=01 encoding that was previously broken (matched LL=0
+  // instead of LL=1, causing #UD for the valid 256-bit form).
+  // =====================================================================
+  cat = "EVEX VPERM ymm";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+
+    // VPERMD ymm0, ymm1, ymm2: EVEX.256.66.0F38.W0 36 /r
+    // P0=0xF2(mmm=010), P1=0x75(W=0,~vvvv=1110,pp=01), P2=0x28(LL=01)
+    // modrm=0xC2(reg=0,rm=2)
+    // idx ymm1 = {7,6,5,4,3,2,1,0} → reverse
+    s.xmm[1] = xmm_from_u32(0x00000007, 0x00000006, 0x00000005, 0x00000004);
+    s.xmm[2] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    // For ymm, we need upper halves too but KVM harness only has xmm[].
+    // The test just verifies the low 128 bits match between KVM and Sail.
+    add_xmm("vpermd ymm0,ymm1,ymm2: reverse",
+            {0x62, 0xF2, 0x75, 0x28, 0x36, 0xC2}, s, 0x7);
+
+    // VPERMD ymm0, ymm1, ymm2: identity permute {0,1,2,3,...}
+    s.xmm[1] = xmm_from_u32(0x00000000, 0x00000001, 0x00000002, 0x00000003);
+    s.xmm[2] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+    add_xmm("vpermd ymm0,ymm1,ymm2: identity",
+            {0x62, 0xF2, 0x75, 0x28, 0x36, 0xC2}, s, 0x7);
+
+    // VPERMQ ymm0, ymm1, ymm2: EVEX.256.66.0F38.W1 36 /r
+    // P1=0xF5(W=1,~vvvv=1110,pp=01)
+    // idx ymm1 = {1,0} in low 128 bits → swap qwords
+    s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000000);
+    s.xmm[2] = xmm_from_u64(0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL);
+    add_xmm("vpermq ymm0,ymm1,ymm2: swap",
+            {0x62, 0xF2, 0xF5, 0x28, 0x36, 0xC2}, s, 0x7);
+
+    // VPERMPS ymm0, ymm1, ymm2: EVEX.256.66.0F38.W0 16 /r
+    s.xmm[1] = xmm_from_u32(0x00000003, 0x00000002, 0x00000001, 0x00000000);
+    s.xmm[2] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
+    add_xmm("vpermps ymm0,ymm1,ymm2: reverse",
+            {0x62, 0xF2, 0x75, 0x28, 0x16, 0xC2}, s, 0x7);
+
+    // VPERMPD ymm0, ymm1, ymm2: EVEX.256.66.0F38.W1 16 /r
+    s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000000);
+    s.xmm[2] = xmm_from_f64(1.5, 2.5);
+    add_xmm("vpermpd ymm0,ymm1,ymm2: swap",
+            {0x62, 0xF2, 0xF5, 0x28, 0x16, 0xC2}, s, 0x7);
+  }
+
+  // =====================================================================
+  // EVEX VBROADCASTF32X4/I32X4 ymm — 256-bit broadcast from mem (LL=01)
+  // These load 128 bits from memory and broadcast to fill ymm (2x128).
+  // Previously broken: LL=01 fell through to #UD.
+  // =====================================================================
+  cat = "EVEX VBCAST X4 ymm";
+  {
+    ArchState s = {};
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+
+    // Source data: 16 bytes at DATA_ADDR
+    std::vector<u8> data(16);
+    for (int i = 0; i < 16; i++) data[i] = (u8)(0x10 + i);
+
+    // VBROADCASTF32X4 ymm0, [rdi]: EVEX.256.66.0F38.W0 1A /r
+    // P0=0xF2(mmm=010), P1=0x7D(W=0,~vvvv=1111,pp=01), P2=0x28(LL=01)
+    // modrm=0x07(reg=0,rm=[rdi])
+    {
+      TestCase tc;
+      tc.name = "vbroadcastf32x4 ymm0,[rdi]";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x28, 0x1A, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x3;
+      tc.init_data = data;
+      tests.push_back(std::move(tc));
+    }
+
+    // VBROADCASTF64X2 ymm0, [rdi]: EVEX.256.66.0F38.W1 1A /r
+    // P1=0xFD(W=1,~vvvv=1111,pp=01)
+    {
+      TestCase tc;
+      tc.name = "vbroadcastf64x2 ymm0,[rdi]";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xFD, 0x28, 0x1A, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x3;
+      tc.init_data = data;
+      tests.push_back(std::move(tc));
+    }
+
+    // VBROADCASTI32X4 ymm0, [rdi]: EVEX.256.66.0F38.W0 5A /r
+    {
+      TestCase tc;
+      tc.name = "vbroadcasti32x4 ymm0,[rdi]";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0x7D, 0x28, 0x5A, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x3;
+      tc.init_data = data;
+      tests.push_back(std::move(tc));
+    }
+
+    // VBROADCASTI64X2 ymm0, [rdi]: EVEX.256.66.0F38.W1 5A /r
+    {
+      TestCase tc;
+      tc.name = "vbroadcasti64x2 ymm0,[rdi]";
+      tc.category = cat;
+      tc.code = {0x62, 0xF2, 0xFD, 0x28, 0x5A, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0x3;
+      tc.init_data = data;
+      tests.push_back(std::move(tc));
+    }
+  }
 }

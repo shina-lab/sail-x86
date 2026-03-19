@@ -110,7 +110,7 @@ function write_mm(idx, v) = {
 val mmx_touch : unit -> unit
 function mmx_touch() = {
   x87_sw[13..11] = 0b000;  // TOP = 0
-  x87_tw = 0x0000           // all valid
+  x87_tw = 0x0000          // all valid
 }
 
 // MMX register index from modrm reg field (3-bit, no REX extension)
