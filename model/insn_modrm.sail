@@ -95,6 +95,7 @@ function evex_full_disp_n(pfx) =
     0 => 16,
     1 => 32,
     2 => 64,
+    3 => { raise_UD(); 16 },
   }
 
 // Decode SIB with EVEX compressed disp8.

@@ -778,6 +778,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_gather_d32_128(dst, vsib, pfx.evex_aaa),
       (false, 1) => exec_gather_d32_256(dst, vsib, pfx.evex_aaa),
       (false, 2) => exec_gather_d32_512(dst, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -797,6 +798,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_gather_q32_128(dst, vsib, pfx.evex_aaa),
       (false, 1) => exec_gather_q32_256(dst, vsib, pfx.evex_aaa),
       (false, 2) => exec_gather_q32_512(dst, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -816,6 +818,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_gather_d32_128(dst, vsib, pfx.evex_aaa),
       (false, 1) => exec_gather_d32_256(dst, vsib, pfx.evex_aaa),
       (false, 2) => exec_gather_d32_512(dst, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -835,6 +838,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_gather_q32_128(dst, vsib, pfx.evex_aaa),
       (false, 1) => exec_gather_q32_256(dst, vsib, pfx.evex_aaa),
       (false, 2) => exec_gather_q32_512(dst, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -859,6 +863,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmaddsub_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -880,6 +885,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsubadd_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -901,6 +907,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmadd_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -938,6 +945,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsub_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -975,6 +983,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmadd_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1012,6 +1021,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(v)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(v)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmsub_ps_512(read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(v)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1050,6 +1060,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_scatter_d32_128(src, vsib, pfx.evex_aaa),
       (false, 1) => exec_scatter_d32_256(src, vsib, pfx.evex_aaa),
       (false, 2) => exec_scatter_d32_512(src, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -1067,6 +1078,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_scatter_q32_128(src, vsib, pfx.evex_aaa),
       (false, 1) => exec_scatter_q32_256(src, vsib, pfx.evex_aaa),
       (false, 2) => exec_scatter_q32_512(src, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -1084,6 +1096,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_scatter_d32_128(src, vsib, pfx.evex_aaa),
       (false, 1) => exec_scatter_d32_256(src, vsib, pfx.evex_aaa),
       (false, 2) => exec_scatter_d32_512(src, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -1101,6 +1114,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => exec_scatter_q32_128(src, vsib, pfx.evex_aaa),
       (false, 1) => exec_scatter_q32_256(src, vsib, pfx.evex_aaa),
       (false, 2) => exec_scatter_q32_512(src, vsib, pfx.evex_aaa),
+      _ => raise_UD(),
     }
   },
 
@@ -1125,6 +1139,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmaddsub_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1146,6 +1161,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsubadd_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1167,6 +1183,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmadd_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1204,6 +1221,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsub_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1241,6 +1259,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmadd_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1278,6 +1297,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmsub_ps_512(read_zmm(v), read_zmm(dst), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1310,6 +1330,7 @@ function dispatch_evex_fma(op, pfx) = {
       0 => write_xmm(dst, avx_vpmadd52luq_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))),
       1 => write_ymm(dst, avx_vpmadd52luq_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
       2 => write_zmm(dst, avx_vpmadd52luq_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
+      3 => raise_UD(),
     }
   },
 
@@ -1325,6 +1346,7 @@ function dispatch_evex_fma(op, pfx) = {
       0 => write_xmm(dst, avx_vpmadd52huq_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))),
       1 => write_ymm(dst, avx_vpmadd52huq_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem))),
       2 => write_zmm(dst, avx_vpmadd52huq_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem))),
+      3 => raise_UD(),
     }
   },
 
@@ -1349,6 +1371,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmaddsub_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1370,6 +1393,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsubadd_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1391,6 +1415,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmadd_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmadd_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmadd_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1428,6 +1453,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fmsub_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fmsub_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fmsub_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1465,6 +1491,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmadd_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1502,6 +1529,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem), read_xmm(dst)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem), read_ymm(dst)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, avx_fnmsub_ps_512(read_zmm(v), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem), read_zmm(dst)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1548,6 +1576,7 @@ function dispatch_evex_fma(op, pfx) = {
         let src2 = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
         evex_write_ps_zmm(dst, vscalefps_zmm(src1, src2), pfx)
       },
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1587,6 +1616,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, vgetexpps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, vgetexpps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, vgetexpps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     };
     evex_end_rc(saved_mxcsr)
   },
@@ -1625,6 +1655,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, vrcp14ps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, vrcp14ps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, vrcp14ps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     }
   },
 
@@ -1659,6 +1690,7 @@ function dispatch_evex_fma(op, pfx) = {
       (false, 0) => evex_write_ps_xmm(dst, vrsqrt14ps_xmm(evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem)), pfx),
       (false, 1) => evex_write_ps_ymm(dst, vrsqrt14ps_ymm(evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem)), pfx),
       (false, 2) => evex_write_ps_zmm(dst, vrsqrt14ps_zmm(evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem)), pfx),
+      _ => raise_UD(),
     }
   },
 
@@ -1775,6 +1807,7 @@ function dispatch_evex_fma(op, pfx) = {
       0 => write_xmm(dst, avx_gf2p8mulb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx))),
       1 => write_ymm(dst, avx_gf2p8mulb_256(read_ymm(pfx.evex_vvvvv), evex_src_ymm(modrm, rm, pfx))),
       2 => write_zmm(dst, avx_gf2p8mulb_512(read_zmm(pfx.evex_vvvvv), evex_src_zmm(modrm, rm, pfx))),
+      3 => raise_UD(),
     }
   },
 
