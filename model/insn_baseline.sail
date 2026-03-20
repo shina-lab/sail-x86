@@ -1281,9 +1281,26 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_gpr32(RDX, out_edx)
     },
     // 0F A0: PUSH FS (d64)
-    160 => push64(zero_extend(read_segreg(FS))),
+    // SDM: pushes FS selector. d64 = default 64 in long mode.
+    // Non-64-bit mode: operand size from CS.D and 66h prefix.
+    160 => {
+      let os = get_operand_size_d64(pfx);
+      match os {
+        OS64 => push64(zero_extend(read_segreg(FS))),
+        OS32 => push32(zero_extend(read_segreg(FS))),
+        _    => push16(read_segreg(FS)),
+      }
+    },
     // 0F A1: POP FS (d64)
-    161 => { let v = pop64(); write_segreg(FS, v[15..0]) },
+    161 => {
+      let os = get_operand_size_d64(pfx);
+      let v : word = match os {
+        OS64 => pop64()[15..0],
+        OS32 => pop32()[15..0],
+        _    => pop16(),
+      };
+      load_segment_register(FS, v)
+    },
     // 0F A3: BT r/m, r
     163 => {
       let os = get_operand_size(pfx);
@@ -1320,9 +1337,24 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
     // 0F A8: PUSH GS (d64)
-    168 => push64(zero_extend(read_segreg(GS))),
+    168 => {
+      let os = get_operand_size_d64(pfx);
+      match os {
+        OS64 => push64(zero_extend(read_segreg(GS))),
+        OS32 => push32(zero_extend(read_segreg(GS))),
+        _    => push16(read_segreg(GS)),
+      }
+    },
     // 0F A9: POP GS (d64)
-    169 => { let v = pop64(); write_segreg(GS, v[15..0]) },
+    169 => {
+      let os = get_operand_size_d64(pfx);
+      let v : word = match os {
+        OS64 => pop64()[15..0],
+        OS32 => pop32()[15..0],
+        _    => pop16(),
+      };
+      load_segment_register(GS, v)
+    },
     // 0F AB: BTS r/m, r
     171 => {
       let os = get_operand_size(pfx);
