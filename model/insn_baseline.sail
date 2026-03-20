@@ -1248,14 +1248,14 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // XSAVE m
         4 => match rm {
-          RM_mem(seg, offset) => {
+          RM_mem(_, _) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => raise_UD(),
         },
         5 => match rm {
-          RM_mem(seg, offset) => {
+          RM_mem(_, _) => {
             // /5 mem: XRSTOR m
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xrstor(seg_linear(seg, offset, 576), mask)
@@ -1267,7 +1267,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
         6 => match rm {
-          RM_mem(seg, offset) => {
+          RM_mem(_, _) => {
             // XSAVEOPT (NP) or CLWB (66) — both are NOPs for architectural state
             // XSAVEOPT: SDM says optimized XSAVE (we treat as regular XSAVE)
             // CLWB: SDM says Cache_Line_Write_Back(m8) — NOP for us
@@ -1881,7 +1881,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: uses compacted format (XCOMP_BV bit 63 set)
         // We treat as equivalent to XSAVE for simplicity.
         4 => match rm {
-          RM_mem(seg, offset) => {
+          RM_mem(_, _) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
           },
@@ -1891,7 +1891,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: RFBM = (XCR0 OR IA32_XSS) AND EDX:EAX; compacted format
         // We treat as equivalent to XSAVE for simplicity.
         5 => match rm {
-          RM_mem(seg, offset) => {
+          RM_mem(_, _) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
