@@ -115,12 +115,156 @@ function push_to_stack(rsp, value) = {
 // Reset to None() after each use.
 register sw_return_rip : option(qword) = None()
 
-// Inner delivery: read IDT gate, push interrupt frame, update CPU state.
+// Push a 32-bit value onto a stack at the given address.
+// Returns the new stack pointer.
+val push_to_stack_32 : (qword, dword) -> qword
+function push_to_stack_32(esp, value) = {
+  let new_esp = esp - 4;
+  mem_write32(new_esp, value);
+  new_esp
+}
+
+// Push a 16-bit value onto a stack at the given address.
+// Returns the new stack pointer.
+val push_to_stack_16 : (qword, word) -> qword
+function push_to_stack_16(sp, value) = {
+  let new_sp = sp - 2;
+  mem_write16(new_sp, value);
+  new_sp
+}
+
+// Read and parse an 8-byte IDT gate descriptor (protected mode).
+// SDM Vol.3A §6.11: offset[31:16] @ offset[15:0], selector, type/DPL/P.
+val read_idt_gate_32 : exception_vector -> IDTGate
+function read_idt_gate_32(vec) = {
+  let vec_offset : qword = to_bits(64, vec * 8);
+  let base : qword = IDTR_base + vec_offset;
+  let lo : dword = mem_read32(base);
+  let hi : dword = mem_read32(base + 4);
+
+  // Offset = hi[31:16] @ lo[15:0]
+  let offset : dword = hi[31..16] @ lo[15..0];
+  let sel : word = lo[31..16];
+  let gtype : bits(4) = hi[11..8];
+  let dpl : range(0, 3) = unsigned(hi[14..13]);
+  let present : bool = hi[15] == bitone;
+
+  struct {
+    gate_offset = zero_extend(offset),
+    gate_sel = sel,
+    gate_ist = 0,  // No IST in protected mode
+    gate_type = gtype,
+    gate_dpl = dpl,
+    gate_present = present,
+  }
+}
+
+// Read ESP0 and SS0 from the 32-bit TSS (for privilege-level changes).
+// ESP0 is at offset 4, SS0 is at offset 8 (low 16 bits).
+val read_tss_esp0_32 : unit -> (dword, word)
+function read_tss_esp0_32() = {
+  let esp0 : dword = mem_read32(TR_base + 4);
+  let ss0  : word  = mem_read16(TR_base + 8);
+  (esp0, ss0)
+}
+
+// Protected mode interrupt delivery (SDM Vol.3A §6.12).
+// Reads 8-byte IDT gate, pushes 32-bit or 16-bit interrupt frame.
+val deliver_exception_inner_32 : (exception_vector, dword, bool) -> unit
+function deliver_exception_inner_32(vec, err_code, software_int) = {
+  let old_eip : dword = match sw_return_rip {
+    Some(addr) => addr[31..0],
+    None() => RIP[31..0],
+  };
+  sw_return_rip = None();
+  let old_cs     : word  = read_segreg(CS);
+  let old_eflags : dword = read_rflags()[31..0];
+  let old_esp    : dword = read_gpr32(RSP);
+  let old_ss     : word  = read_segreg(SS);
+  let old_cpl    : cpl_t = cur_cpl;
+
+  cur_cpl = 0;
+
+  let gate = read_idt_gate_32(vec);
+
+  if not_bool(gate.gate_present) then {
+    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+  };
+
+  if software_int & gate.gate_dpl < old_cpl then {
+    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+  };
+
+  // Determine gate size: D bit (bit 3 of type field encodes 32 vs 16)
+  // 0x0E/0x0F = 32-bit, 0x06/0x07 = 16-bit
+  let is_32bit : bool = gate.gate_type[3] == bitone;
+
+  // Determine new stack
+  let privilege_change : bool = old_cpl != 0;
+  var new_esp : qword = zero_extend(old_esp);
+  var new_ss : word = old_ss;
+  if privilege_change then {
+    let (esp0, ss0) = read_tss_esp0_32();
+    new_esp = zero_extend(esp0);
+    new_ss = ss0
+  };
+
+  if is_32bit then {
+    // 32-bit gate: push 32-bit values
+    if privilege_change then {
+      new_esp = push_to_stack_32(new_esp, zero_extend(old_ss));
+      new_esp = push_to_stack_32(new_esp, old_esp)
+    };
+    new_esp = push_to_stack_32(new_esp, old_eflags);
+    new_esp = push_to_stack_32(new_esp, zero_extend(old_cs));
+    new_esp = push_to_stack_32(new_esp, old_eip);
+    if not_bool(software_int) & has_error_code(vec) then {
+      new_esp = push_to_stack_32(new_esp, err_code)
+    }
+  } else {
+    // 16-bit gate: push 16-bit values
+    if privilege_change then {
+      new_esp = push_to_stack_16(new_esp, old_ss);
+      new_esp = push_to_stack_16(new_esp, old_esp[15..0])
+    };
+    new_esp = push_to_stack_16(new_esp, old_eflags[15..0]);
+    new_esp = push_to_stack_16(new_esp, old_cs);
+    new_esp = push_to_stack_16(new_esp, old_eip[15..0]);
+    if not_bool(software_int) & has_error_code(vec) then {
+      new_esp = push_to_stack_16(new_esp, err_code[15..0])
+    }
+  };
+
+  // Update stack pointer and SS
+  write_gpr32(RSP, new_esp[31..0]);
+  if privilege_change then write_segreg(SS, new_ss);
+
+  // Load CS and handler address
+  write_segreg(CS, gate.gate_sel);
+  RIP = gate.gate_offset;
+
+  // If interrupt gate, clear IF
+  if gate.gate_type == 0xE | gate.gate_type == 0x6 then {
+    IF_flag = bitzero
+  };
+
+  TF = bitzero;
+  NT = bitzero;
+  RF = bitzero;
+}
+
+// IA-32e (64-bit) inner delivery: read 16-byte IDT gate, push 64-bit frame.
 // May throw Fault if gate is not present or stack push faults.
 // software_int: true for INT n, INT3, INT1 — suppresses error code push
 //               and enables gate DPL check (for INT n and INT3, not INT1).
 val deliver_exception_inner : (exception_vector, dword, bool) -> unit
 function deliver_exception_inner(vec, err_code, software_int) = {
+  // Dispatch by mode: EFER.LMA determines IDT gate format
+  if EFER[10] != bitone then {
+    deliver_exception_inner_32(vec, err_code, software_int);
+    return ()
+  };
+  // IA-32e mode below
   // Save old state before doing anything.
   let old_rip : qword = match sw_return_rip {
     Some(addr) => addr,

@@ -496,6 +496,177 @@ TEST(triple_fault) {
 }
 
 // =========================================================================
+// Protected mode (32-bit) exception delivery tests
+// =========================================================================
+
+// Write an 8-byte protected mode IDT gate descriptor.
+static void write_idt_gate_32(PhysicalMemory &mem, u64 idt_base, int vector,
+                               u32 handler_offset, u16 selector,
+                               u8 type, u8 dpl, bool present) {
+  u64 addr = idt_base + vector * 8;
+
+  u32 lo = 0;
+  lo |= (handler_offset & 0xFFFF);              // Offset[15:0]
+  lo |= ((u32)selector << 16);                  // Selector
+
+  u32 hi = 0;
+  hi |= ((handler_offset >> 16) & 0xFFFF) << 16;// Offset[31:16]
+  hi |= ((u32)(type & 0xF) << 8);               // Type in bits 11:8
+  hi |= ((u32)(dpl & 0x3) << 13);               // DPL in bits 14:13
+  hi |= (present ? (1U << 15) : 0);             // P in bit 15
+
+  mem.write32(addr, lo);
+  mem.write32(addr + 4, hi);
+}
+
+static const u64 IDT32_BASE = 0x4000;
+static const u64 TSS32_BASE = 0x5000;
+
+static void init_model_32(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+  enable_all_features(model);
+
+  model.zsystem_mode = true;
+  model.zcur_mode = x86::zProtectedMode;
+  model.zcur_cpl = 0;
+
+  // CR0: PE + ET + NE + WP + PG
+  model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
+  // CR4: PSE + OSFXSR (no PAE)
+  model.zCR4 = (1UL << 4) | (1UL << 9);
+  // EFER: no LME, no LMA
+  model.zEFER = 0;
+
+  assert(model.phys_mem.init(ram_size));
+
+  // Set up identity-mapped 4MB pages
+  u64 pd_addr = 0x10000;
+  model.zCR3 = pd_addr;
+  model.phys_mem.write32(pd_addr + 0 * 4, 0x00000083); // PD[0] = 4MB, P+RW
+  model.phys_mem.write32(pd_addr + 1 * 4, 0x00400083); // PD[1] = 4MB at 4MB
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = STACK_ADDR; // ESP
+
+  // Flat 4GB segments
+  for (int i = 0; i < 6; i++) {
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFFFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_g = 1;
+    model.zSegCache.data[i].zseg_db = 1;
+  }
+
+  // IDTR: 8-byte gates, 256 entries
+  model.zIDTR_base = IDT32_BASE;
+  model.zIDTR_limit = 256 * 8 - 1;
+
+  // TSS (32-bit): ESP0 at offset 4, SS0 at offset 8
+  model.zTR_base = TSS32_BASE;
+  model.zTR_limit = 0x67;
+  model.phys_mem.write32(TSS32_BASE + 4, STACK_ADDR);  // ESP0
+  model.phys_mem.write16(TSS32_BASE + 8, 0x10);        // SS0
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zKERNEL_GS_BASE = 0;
+
+  model.zNT = 0;
+  model.zRF = 0;
+}
+
+TEST(pm32_divide_error_delivery) {
+  // 32-bit protected mode: DIV by zero triggers #DE through 8-byte IDT gate
+  x86::Model model;
+  init_model_32(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };  // hlt
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  // 32-bit interrupt gate (type 0x0E), DPL 0, present
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 0, handler_addr, 0x08, 0x0E, 0, true);
+
+  // DIV ECX with ECX=0
+  model.zGPR.data[0] = 42;  // EAX
+  model.zGPR.data[2] = 0;   // EDX = 0
+  model.zGPR.data[1] = 0;   // ECX = 0 → #DE
+
+  // div ecx (32-bit, no REX prefix)
+  u8 code[] = { 0xF7, 0xF1, 0xF4 };
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zRIP, handler_addr);
+
+  // Verify 32-bit interrupt frame: EFLAGS, CS, EIP (no error code for #DE)
+  u32 esp = (u32)model.zGPR.data[4];
+  u32 frame_eip    = model.phys_mem.read32(esp);
+  u32 frame_cs     = model.phys_mem.read32(esp + 4);
+  u32 frame_eflags = model.phys_mem.read32(esp + 8);
+
+  ASSERT_EQ((u64)frame_eip, CODE_ADDR);
+  ASSERT_EQ((u64)(frame_cs & 0xFFFF), 0UL);  // Old CS (flat model, selector 0)
+  // EFLAGS should have some reasonable value (at least bit 1 = reserved = 1)
+  ASSERT_EQ((u64)(frame_eflags & 0x2), 0x2UL);
+
+  model.model_fini();
+}
+
+TEST(pm32_interrupt_gate_clears_if) {
+  // 32-bit interrupt gate should clear IF
+  x86::Model model;
+  init_model_32(model);
+  model.zIF_flag = 0b1;  // Start with IF=1
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 0, handler_addr, 0x08, 0x0E, 0, true);
+
+  model.zGPR.data[0] = 42;
+  model.zGPR.data[2] = 0;
+  model.zGPR.data[1] = 0;
+
+  u8 code[] = { 0xF7, 0xF1, 0xF4 };
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // IF should be cleared by interrupt gate
+  ASSERT_EQ((u64)model.zIF_flag, 0UL);
+
+  model.model_fini();
+}
+
+TEST(pm32_trap_gate_preserves_if) {
+  // 32-bit trap gate should NOT clear IF
+  x86::Model model;
+  init_model_32(model);
+  model.zIF_flag = 0b1;
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+
+  // Trap gate (type 0x0F)
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 0, handler_addr, 0x08, 0x0F, 0, true);
+
+  model.zGPR.data[0] = 42;
+  model.zGPR.data[2] = 0;
+  model.zGPR.data[1] = 0;
+
+  u8 code[] = { 0xF7, 0xF1, 0xF4 };
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // IF should still be set (trap gate doesn't clear it)
+  ASSERT_EQ((u64)model.zIF_flag, 1UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("Exception delivery tests:\n");
@@ -510,6 +681,11 @@ int main() {
   run_test_int_n_no_error_code_for_gp_vector();
   run_test_int_n_saved_rip();
   run_test_triple_fault();
+
+  // Protected mode (32-bit) exception delivery
+  run_test_pm32_divide_error_delivery();
+  run_test_pm32_interrupt_gate_clears_if();
+  run_test_pm32_trap_gate_preserves_if();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;
