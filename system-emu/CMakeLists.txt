@@ -42,7 +42,7 @@ add_dependencies(sail-x86-system generated_sail_x86_model)
 # Requires: curl, busybox-static, fakeroot, standard build tools.
 # Downloads Linux kernel source automatically if not already present.
 
-set(VMLINUX "${CMAKE_BINARY_DIR}/vmlinux")
+set(BZIMAGE "${CMAKE_BINARY_DIR}/bzImage")
 set(INITRAMFS "${CMAKE_BINARY_DIR}/initramfs.cpio")
 
 add_custom_command(
@@ -53,17 +53,17 @@ add_custom_command(
 )
 
 add_custom_command(
-    OUTPUT "${VMLINUX}"
+    OUTPUT "${BZIMAGE}"
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-linux.sh" "${CMAKE_BINARY_DIR}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mk-linux.sh"
     COMMENT "Building Linux kernel"
 )
 
 add_custom_target(linux
-    DEPENDS sail-x86-system "${INITRAMFS}" "${VMLINUX}"
+    DEPENDS sail-x86-system "${INITRAMFS}" "${BZIMAGE}"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Run:"
-    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio vmlinux"
+    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio bzImage"
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 

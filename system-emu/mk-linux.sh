@@ -4,7 +4,7 @@
 #
 # Usage: ./mk-linux.sh <build-dir>
 #
-# Produces <build-dir>/vmlinux (uncompressed ELF kernel).
+# Produces <build-dir>/bzImage (compressed kernel with 16-bit setup code).
 # Downloads the kernel source to <build-dir>/linux-src/ if not already present.
 
 set -e
@@ -37,7 +37,7 @@ fi
 make -C "$SRC" ARCH=x86_64 tinyconfig
 
 cat > "$SRC/.config.fragment" << 'EOF'
-CONFIG_KERNEL_XZ=y
+CONFIG_KERNEL_LZ4=y
 CONFIG_PREEMPT_VOLUNTARY=y
 CONFIG_BLK_DEV_INITRD=y
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
@@ -65,5 +65,5 @@ EOF
 make -C "$SRC" ARCH=x86_64 olddefconfig
 make -C "$SRC" ARCH=x86_64 -j"$(nproc)"
 
-cp "$SRC/vmlinux" "${BUILD_DIR}/vmlinux"
-echo "Kernel ready: ${BUILD_DIR}/vmlinux"
+cp "$SRC/arch/x86/boot/bzImage" "${BUILD_DIR}/bzImage"
+echo "Kernel ready: ${BUILD_DIR}/bzImage"
