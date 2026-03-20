@@ -507,6 +507,186 @@ TEST(la57_accessed_dirty) {
 }
 
 // =========================================================================
+// 32-bit paging tests (non-PAE and PAE)
+// =========================================================================
+
+// Init for 32-bit protected mode with paging
+static void init_model_32(x86::Model &model, u64 ram_size = 16 * 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+  enable_all_features(model);
+
+  model.zsystem_mode = false;
+  model.zcur_mode = x86::zProtectedMode;
+  model.zcur_cpl = 0;
+
+  // CR0: PE + ET + NE + WP + PG
+  model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
+  // CR4: PSE + OSFXSR (no PAE, no LA57)
+  model.zCR4 = (1UL << 4) | (1UL << 9);
+  // EFER: no LME, no LMA
+  model.zEFER = 0;
+
+  assert(model.phys_mem.init(ram_size));
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = 0x80000; // ESP
+
+  // Flat 4GB segments: CS.D=1 (32-bit code), SS.B=1 (32-bit stack)
+  for (int i = 0; i < 6; i++) {
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFFFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_g = 1;
+    model.zSegCache.data[i].zseg_db = 1;
+  }
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zIDTR_base = 0;
+  model.zIDTR_limit = 0;
+  model.zKERNEL_GS_BASE = 0;
+}
+
+TEST(paging_32bit_identity_4kb) {
+  // 32-bit non-PAE paging: identity map using 4KB pages
+  x86::Model model;
+  init_model_32(model);
+
+  // Set up 2-level page table: PD at 0x10000, PT at 0x11000
+  u64 pd_addr = 0x10000;
+  u64 pt_addr = 0x11000;
+  model.zCR3 = pd_addr;
+
+  // PD[0] -> PT (covers 0-4MB, 1024 × 4KB entries)
+  model.phys_mem.write32(pd_addr + 0 * 4, pt_addr | 0x03); // P+RW
+  for (u32 i = 0; i < 1024; i++)
+    model.phys_mem.write32(pt_addr + i * 4, (i << 12) | 0x03);
+
+  model.phys_mem.write32(0x200000, 0xCAFE1234);
+
+  // 32-bit code: mov eax, [0x200000]; hlt
+  // Use [edi] since direct disp32 with mod=00 rm=5 works in 32-bit mode
+  model.zGPR.data[7] = 0x200000; // EDI
+  u8 code[] = {
+    0x8B, 0x07,  // mov eax, [edi]
+    0xF4,        // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0xCAFE1234UL);
+
+  model.model_fini();
+}
+
+TEST(paging_32bit_4mb_page) {
+  // 32-bit non-PAE paging with 4MB pages (CR4.PSE=1, PDE.PS=1)
+  x86::Model model;
+  init_model_32(model);
+
+  u64 pd_addr = 0x10000;
+  model.zCR3 = pd_addr;
+
+  // PD[0] = 4MB page mapping physical 0 (PS=1, P+RW)
+  model.phys_mem.write32(pd_addr + 0 * 4, 0x00000083); // PS=1, P+RW
+
+  // Write known value
+  model.phys_mem.write32(0x100010, 0xDEADBEEF);
+
+  // mov eax, [edi]; hlt
+  model.zGPR.data[7] = 0x100010;
+  u8 code[] = { 0x8B, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0xDEADBEEFUL);
+
+  model.model_fini();
+}
+
+TEST(paging_32bit_fault_not_present) {
+  // 32-bit paging: access unmapped page → #PF
+  x86::Model model;
+  init_model_32(model);
+
+  u64 pd_addr = 0x10000;
+  model.zCR3 = pd_addr;
+
+  // Only map PD[0] with a 4MB page for code area
+  model.phys_mem.write32(pd_addr + 0 * 4, 0x00000083);
+  // PD[1] not present — accessing 0x400000 should fault
+
+  model.zGPR.data[7] = 0x400000;
+  u8 code[] = { 0x8B, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ((u64)model.zCR2, 0x400000UL);
+
+  model.model_fini();
+}
+
+TEST(paging_pae_identity_2mb) {
+  // PAE paging with 2MB pages
+  x86::Model model;
+  init_model_32(model);
+
+  // Enable PAE
+  model.zCR4 = model.zCR4 | (1UL << 5);
+
+  u64 pdpt_addr = 0x10000; // Must be 32-byte aligned
+  u64 pd_addr   = 0x11000;
+  model.zCR3 = pdpt_addr;
+
+  // PDPTE[0] -> PD (covers 0-1GB)
+  model.phys_mem.write64(pdpt_addr + 0 * 8, pd_addr | 0x01); // P only
+
+  // PD[0] = 2MB page, identity-mapped (PS=1, P+RW)
+  model.phys_mem.write64(pd_addr + 0 * 8, 0x0000000000000083ULL);
+
+  model.phys_mem.write32(0x100010, 0x12345678);
+
+  model.zGPR.data[7] = 0x100010;
+  u8 code[] = { 0x8B, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+
+  model.model_fini();
+}
+
+TEST(paging_pae_4kb) {
+  // PAE paging with 4KB pages
+  x86::Model model;
+  init_model_32(model);
+
+  model.zCR4 = model.zCR4 | (1UL << 5);
+
+  u64 pdpt_addr = 0x10000;
+  u64 pd_addr   = 0x11000;
+  u64 pt_addr   = 0x12000;
+  model.zCR3 = pdpt_addr;
+
+  // PDPTE[0] -> PD
+  model.phys_mem.write64(pdpt_addr + 0 * 8, pd_addr | 0x01);
+  // PD[0] -> PT (covers 0-2MB)
+  model.phys_mem.write64(pd_addr + 0 * 8, pt_addr | 0x03ULL);
+  // PT entries: identity map first 2MB
+  for (u32 i = 0; i < 512; i++)
+    model.phys_mem.write64(pt_addr + i * 8, ((u64)i << 12) | 0x03ULL);
+
+  model.phys_mem.write32(0x100010, 0xABCD0000);
+
+  model.zGPR.data[7] = 0x100010;
+  u8 code[] = { 0x8B, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0xABCD0000UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("Paging tests:\n");
@@ -524,6 +704,15 @@ int main() {
   run_test_la57_non_identity_4kb();
   run_test_la57_1gb_huge_page();
   run_test_la57_accessed_dirty();
+
+  // 32-bit paging tests
+  run_test_paging_32bit_identity_4kb();
+  run_test_paging_32bit_4mb_page();
+  run_test_paging_32bit_fault_not_present();
+
+  // PAE paging tests
+  run_test_paging_pae_identity_2mb();
+  run_test_paging_pae_4kb();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

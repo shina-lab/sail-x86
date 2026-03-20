@@ -177,16 +177,172 @@ val __tlb_lookup : (qword, bool) -> option(qword)
 val __tlb_insert : (qword, qword, bool) -> unit
 val __tlb_flush : unit -> unit
 
+// =========================================================================
+// 32-bit non-PAE paging (SDM Vol.3A §4.3)
+//
+// 2-level walk: CR3 → Page Directory (1024 × 4-byte PDEs) → Page Table
+// Linear address split: [31:22]=PDE index, [21:12]=PTE index, [11:0]=offset
+// CR4.PSE=1 enables 4MB pages when PDE.PS=1.
+// =========================================================================
+
+val pt_walk_32 : (qword, PTAccess) -> qword
+function pt_walk_32(linear, access) = {
+  let pd_base : qword = CR3 & 0x00000000FFFFF000;
+
+  // 1. PDE lookup: index = linear[31:22]
+  let pde_index : qword = zero_extend((linear[31..22]) : bits(10));
+  let pde_addr : qword = pd_base + (pde_index << 2);
+  let pde : dword = phys_read(pde_addr, 4);
+
+  // Check present
+  if pde[0] == bitzero then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, false, false))
+  };
+
+  // Check permissions (R/W, U/S)
+  if access == PT_Write & pde[1] == bitzero then {
+    if cur_cpl == 3 | CR0[16] == bitone then {
+      CR2 = linear;
+      throw Fault(EXN_PF, mk_pf_error(access, true, false))
+    }
+  };
+  if cur_cpl == 3 & pde[2] == bitzero then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, true, false))
+  };
+
+  // 4MB page (CR4.PSE=1 and PDE.PS=1)
+  if CR4[4] == bitone & pde[7] == bitone then {
+    // Update A/D bits
+    var new_pde = pde;
+    var changed : bool = false;
+    if pde[5] == bitzero then { new_pde[5] = bitone; changed = true };
+    if access == PT_Write & pde[6] == bitzero then {
+      new_pde[6] = bitone; changed = true
+    };
+    if changed then phys_write(pde_addr, 4, new_pde);
+    // Physical address: PDE[31:22] @ linear[21:0]
+    let ppn : dword = pde & 0xFFC00000;
+    zero_extend(ppn | zero_extend(linear[21..0]))
+  } else {
+    // 2. PTE lookup: index = linear[21:12]
+    let pt_base : qword = zero_extend(pde & 0xFFFFF000);
+    let pte_index : qword = zero_extend((linear[21..12]) : bits(10));
+    let pte_addr : qword = pt_base + (pte_index << 2);
+    let pte : dword = phys_read(pte_addr, 4);
+
+    // Check present
+    if pte[0] == bitzero then {
+      CR2 = linear;
+      throw Fault(EXN_PF, mk_pf_error(access, false, false))
+    };
+
+    // Check permissions
+    if access == PT_Write & pte[1] == bitzero then {
+      if cur_cpl == 3 | CR0[16] == bitone then {
+        CR2 = linear;
+        throw Fault(EXN_PF, mk_pf_error(access, true, false))
+      }
+    };
+    if cur_cpl == 3 & pte[2] == bitzero then {
+      CR2 = linear;
+      throw Fault(EXN_PF, mk_pf_error(access, true, false))
+    };
+
+    // Update A/D bits on PDE and PTE
+    if pde[5] == bitzero then phys_write(pde_addr, 4, pde | 0x00000020);
+    var new_pte = pte;
+    var pte_changed : bool = false;
+    if pte[5] == bitzero then { new_pte[5] = bitone; pte_changed = true };
+    if access == PT_Write & pte[6] == bitzero then {
+      new_pte[6] = bitone; pte_changed = true
+    };
+    if pte_changed then phys_write(pte_addr, 4, new_pte);
+
+    // Physical address: PTE[31:12] @ linear[11:0]
+    zero_extend((pte & 0xFFFFF000) | zero_extend(linear[11..0]))
+  }
+}
+
+// =========================================================================
+// PAE paging (SDM Vol.3A §4.4)
+//
+// 3-level walk: CR3 → PDPT (4 × 64-bit entries) → PD → PT
+// Linear address split: [31:30]=PDPTE, [29:21]=PDE, [20:12]=PTE, [11:0]=offset
+// PDE/PTE are 64-bit. Supports 2MB pages when PDE.PS=1.
+// =========================================================================
+
+val pt_walk_pae : (qword, PTAccess) -> qword
+function pt_walk_pae(linear, access) = {
+  // 1. PDPTE lookup: index = linear[31:30] (2 bits, 4 entries)
+  let pdpt_base : qword = CR3 & 0x00000000FFFFFFE0;
+  let pdpte_index : qword = zero_extend((linear[31..30]) : bits(2));
+  let pdpte_addr : qword = pdpt_base + (pdpte_index << 3);
+  let pdpte : qword = phys_read64(pdpte_addr);
+
+  if pdpte[0] == bitzero then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, false, false))
+  };
+
+  // 2. PDE lookup: index = linear[29:21]
+  let pd_base : qword = pdpte & 0x000FFFFFFFFFF000;
+  let pde_index : qword = zero_extend((linear[29..21]) : bits(9));
+  let pde_addr : qword = pd_base + (pde_index << 3);
+  let pde : qword = phys_read64(pde_addr);
+
+  if pde[0] == bitzero then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, false, false))
+  };
+
+  // Permission checks
+  if not_bool(check_pte_permissions(pde, access)) then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, true, false))
+  };
+
+  // 2MB page (PDE.PS=1)
+  if pde[7] == bitone then {
+    update_accessed_dirty(pde_addr, pde, access);
+    let ppn : qword = pde & 0x000FFFFFFFE00000;
+    ppn | zero_extend(linear[20..0])
+  } else {
+    // 3. PTE lookup: index = linear[20:12]
+    let pt_base : qword = pde & 0x000FFFFFFFFFF000;
+    let pte_index : qword = zero_extend((linear[20..12]) : bits(9));
+    let pte_addr : qword = pt_base + (pte_index << 3);
+    let pte : qword = phys_read64(pte_addr);
+
+    if pte[0] == bitzero then {
+      CR2 = linear;
+      throw Fault(EXN_PF, mk_pf_error(access, false, false))
+    };
+
+    if not_bool(check_pte_permissions(pte, access)) then {
+      CR2 = linear;
+      throw Fault(EXN_PF, mk_pf_error(access, true, false))
+    };
+
+    // Update A/D on PDE and PTE
+    if pde[5] == bitzero then phys_write64(pde_addr, pde | 0x0000000000000020);
+    update_accessed_dirty(pte_addr, pte, access);
+
+    let ppn : qword = pte & 0x000FFFFFFFFFF000;
+    ppn | zero_extend(linear[11..0])
+  }
+}
+
 // Top-level address translation.
-// If paging is disabled (CR0.PG=0), returns the linear address as-is.
-// Otherwise, checks TLB first, then walks the page table starting from CR3.
-// With CR4.LA57=1 (5-level paging), CR3 points to PML5 and walk starts at level 4.
-// With CR4.LA57=0 (4-level paging), CR3 points to PML4 and walk starts at level 3.
+// Dispatches to the appropriate paging mode based on CR0.PG, EFER.LMA,
+// and CR4.PAE (SDM Vol.3A §4.1.1).
 val translate_addr : (qword, PTAccess) -> qword
 function translate_addr(linear, access) = {
   if CR0[31] == bitzero then {
     linear  // Paging disabled: linear = physical
-  } else {
+  } else if EFER[10] == bitone then {
+    // IA-32e mode (long mode): 4-level or 5-level paging
     let is_write = access == PT_Write;
     match __tlb_lookup(linear, is_write) {
       Some(paddr) => paddr,
@@ -195,10 +351,15 @@ function translate_addr(linear, access) = {
         let start_level : range(0, 4) =
           if CR4[12] == bitone then 4 else 3;
         let paddr = pt_walk(linear, access, table_base, start_level);
-        // Only cache 4KB-aligned translations (common case)
         __tlb_insert(linear, paddr, is_write);
         paddr
       },
     }
+  } else if CR4[5] == bitone then {
+    // PAE paging (CR4.PAE=1, EFER.LMA=0)
+    pt_walk_pae(linear, access)
+  } else {
+    // 32-bit non-PAE paging
+    pt_walk_32(linear, access)
   }
 }
