@@ -691,6 +691,132 @@ TEST(movdir64b_unaligned_faults) {
 }
 
 // =========================================================================
+// 32-bit protected mode tests
+// =========================================================================
+
+static void init_model_32(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+  enable_all_features(model);
+
+  model.zsystem_mode = false;
+  model.zcur_mode = x86::zProtectedMode;
+  model.zcur_cpl = 0;
+
+  // CR0: PE + ET + NE + WP + PG
+  model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
+  // CR4: PSE + OSFXSR (no PAE)
+  model.zCR4 = (1UL << 4) | (1UL << 9);
+  model.zEFER = 0;  // No LME, no LMA
+
+  assert(model.phys_mem.init(ram_size));
+
+  // Identity-mapped 4MB pages
+  u64 pd_addr = 0x10000;
+  model.zCR3 = pd_addr;
+  model.phys_mem.write32(pd_addr + 0 * 4, 0x00000083);
+  model.phys_mem.write32(pd_addr + 1 * 4, 0x00400083);
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = 0x80000;
+
+  // Flat 4GB segments: CS.D=1, SS.B=1
+  for (int i = 0; i < 6; i++) {
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFFFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_g = 1;
+    model.zSegCache.data[i].zseg_db = 1;
+  }
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zIDTR_base = 0;
+  model.zIDTR_limit = 0;
+  model.zKERNEL_GS_BASE = 0;
+}
+
+TEST(lgdt_sgdt_32bit) {
+  // In 32-bit mode, LGDT reads 6 bytes (2 limit + 4 base),
+  // SGDT writes 6 bytes.
+  x86::Model model;
+  init_model_32(model);
+
+  // Set up a 6-byte GDT descriptor at 0x200000:
+  // limit = 0x00FF, base = 0x00300000 (4 bytes)
+  u16 limit = 0x00FF;
+  u32 base = 0x00300000;
+  model.phys_mem.write16(0x200000, limit);
+  model.phys_mem.write32(0x200002, base);
+
+  // lgdt [edi] ; sgdt [esi] ; hlt
+  model.zGPR.data[7] = 0x200000; // EDI
+  model.zGPR.data[6] = 0x200100; // ESI
+
+  u8 code[] = {
+    0x0F, 0x01, 0x17,  // lgdt [edi]
+    0x0F, 0x01, 0x06,  // sgdt [esi]
+    0xF4,              // hlt
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGDTR_limit, 0x00FFUL);
+  ASSERT_EQ((u64)model.zGDTR_base, 0x00300000UL);
+
+  // Verify SGDT wrote 6 bytes (not 10)
+  u16 stored_limit = model.phys_mem.read16(0x200100);
+  u32 stored_base  = model.phys_mem.read32(0x200102);
+  ASSERT_EQ((u64)stored_limit, 0x00FFUL);
+  ASSERT_EQ((u64)stored_base, 0x00300000UL);
+
+  // Byte at offset 6 should be untouched (not overwritten by an 8-byte store)
+  // Write a sentinel first, then verify it survives
+  model.model_fini();
+}
+
+TEST(lidt_sidt_32bit) {
+  // In 32-bit mode, LIDT reads 6 bytes, SIDT writes 6 bytes.
+  x86::Model model;
+  init_model_32(model);
+
+  u16 limit = 0x07FF;
+  u32 base = 0x00400000;
+  model.phys_mem.write16(0x200000, limit);
+  model.phys_mem.write32(0x200002, base);
+
+  model.zGPR.data[7] = 0x200000;
+  model.zGPR.data[6] = 0x200100;
+
+  // Write sentinel at 0x200106 (byte after 6-byte SIDT output)
+  model.phys_mem.write_bytes(0x200106, (const u8[]){0xAA}, 1);
+
+  u8 code[] = {
+    0x0F, 0x01, 0x1F,  // lidt [edi]
+    0x0F, 0x01, 0x0E,  // sidt [esi]
+    0xF4,
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zIDTR_limit, 0x07FFUL);
+  ASSERT_EQ((u64)model.zIDTR_base, 0x00400000UL);
+
+  // Verify 6-byte format
+  u16 stored_limit = model.phys_mem.read16(0x200100);
+  u32 stored_base  = model.phys_mem.read32(0x200102);
+  ASSERT_EQ((u64)stored_limit, 0x07FFUL);
+  ASSERT_EQ((u64)stored_base, 0x00400000UL);
+
+  // Sentinel should be untouched (SIDT only wrote 6 bytes, not 10)
+  u8 sentinel = 0;
+  model.phys_mem.read_bytes(0x200106, &sentinel, 1);
+  ASSERT_EQ((u64)sentinel, 0xAAUL);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -731,6 +857,10 @@ int main() {
   run_test_movdiri_64();
   run_test_movdir64b();
   run_test_movdir64b_unaligned_faults();
+
+  printf("\n32-bit protected mode tests:\n");
+  run_test_lgdt_sgdt_32bit();
+  run_test_lidt_sidt_32bit();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

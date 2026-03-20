@@ -729,10 +729,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           match reg_field {
             // 0F 01 /0: SGDT m — Store GDTR (memory only)
+            // Non-64-bit: 6 bytes (2 limit + 4 base).
+            // 64-bit: 10 bytes (2 limit + 8 base). SDM Vol.2A LGDT/LIDT.
             0 => match rm {
               RM_mem(addr) => {
                 mem_write16(addr, GDTR_limit);
-                mem_write64(addr + 2, GDTR_base)
+                if cur_mode == LongMode then mem_write64(addr + 2, GDTR_base)
+                else mem_write32(addr + 2, GDTR_base[31..0])
               },
               _ => raise_UD(),
             },
@@ -740,17 +743,24 @@ function dispatch_2byte_gpr(op, pfx) = {
             1 => match rm {
               RM_mem(addr) => {
                 mem_write16(addr, IDTR_limit);
-                mem_write64(addr + 2, IDTR_base)
+                if cur_mode == LongMode then mem_write64(addr + 2, IDTR_base)
+                else mem_write32(addr + 2, IDTR_base[31..0])
               },
               _ => raise_UD(),
             },
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
+            // Non-64-bit: 6 bytes (2 limit + 4 base).
+            // 64-bit: 10 bytes (2 limit + 8 base).
             2 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(addr) => {
                   GDTR_limit = mem_read16(addr);
-                  GDTR_base = mem_read64(addr + 2)
+                  if cur_mode == LongMode then {
+                    GDTR_base = mem_read64(addr + 2)
+                  } else {
+                    GDTR_base = zero_extend(mem_read32(addr + 2))
+                  }
                 },
                 _ => raise_UD(),
               }
@@ -761,7 +771,11 @@ function dispatch_2byte_gpr(op, pfx) = {
               match rm {
                 RM_mem(addr) => {
                   IDTR_limit = mem_read16(addr);
-                  IDTR_base = mem_read64(addr + 2)
+                  if cur_mode == LongMode then {
+                    IDTR_base = mem_read64(addr + 2)
+                  } else {
+                    IDTR_base = zero_extend(mem_read32(addr + 2))
+                  }
                 },
                 _ => raise_UD(),
               }
