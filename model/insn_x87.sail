@@ -173,13 +173,13 @@ function dispatch_x87_d9(modrm, rm, _) = {
     RM_mem(addr) => {
       match reg {
         0 => x87_push(__f80_from_f32(mem_read32(addr))),
+        1 => raise_UD(),
         2 => mem_write32(addr, __f80_to_f32(x87_read_st(0))),
         3 => mem_write32(addr, __f80_to_f32(x87_pop())),
         4 => x87_load_env(mem_read_224(addr)),
         5 => x87_cw = mem_read16(addr),
         6 => mem_write_224(addr, x87_save_env()),
         7 => mem_write16(addr, x87_cw),
-        _ => raise_UD(),
       }
     },
     RM_reg(_) => {
@@ -356,9 +356,10 @@ function dispatch_x87_db(modrm, rm, _) = {
         1 => mem_write32(addr, __f80_to_int32_trunc(x87_pop())),
         2 => mem_write32(addr, __f80_to_int32(x87_read_st(0))),
         3 => mem_write32(addr, __f80_to_int32(x87_pop())),
+        4 => raise_UD(),
         5 => x87_push(mem_read_fp80(addr)),
+        6 => raise_UD(),
         7 => mem_write_fp80(addr, x87_pop()),
-        _ => raise_UD(),
       }
     },
     RM_reg(_) => {
@@ -384,7 +385,7 @@ function dispatch_x87_db(modrm, rm, _) = {
         },
         5 => x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
         6 => x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
-        _ => raise_UD(),
+        7 => raise_UD(),
       }
     },
   }
@@ -418,11 +419,12 @@ function dispatch_x87_dc(modrm, rm, _) = {
       match reg {
         0 => x87_write_st(sti, __f80_add(x87_read_st(sti), x87_read_st(0))),
         1 => x87_write_st(sti, __f80_mul(x87_read_st(sti), x87_read_st(0))),
+        2 => raise_UD(),
+        3 => raise_UD(),
         4 => x87_write_st(sti, __f80_sub(x87_read_st(0), x87_read_st(sti))),
         5 => x87_write_st(sti, __f80_sub(x87_read_st(sti), x87_read_st(0))),
         6 => x87_write_st(sti, __f80_div(x87_read_st(0), x87_read_st(sti))),
         7 => x87_write_st(sti, __f80_div(x87_read_st(sti), x87_read_st(0))),
-        _ => raise_UD(),
       }
     },
   }
@@ -444,6 +446,7 @@ function dispatch_x87_dd(modrm, rm, _) = {
         2 => mem_write64(addr, __f80_to_f64(x87_read_st(0))),
         3 => mem_write64(addr, __f80_to_f64(x87_pop())),
         4 => x87_load_state(mem_read_864(addr)),
+        5 => raise_UD(),
         // FNSAVE — save state, then reinitialize
         6 => {
           let state = x87_save_state();
@@ -451,12 +454,12 @@ function dispatch_x87_dd(modrm, rm, _) = {
           mem_write_864(addr, state)
         },
         7 => mem_write16(addr, x87_sw),
-        _ => raise_UD(),
       }
     },
     RM_reg(_) => {
       match reg {
         0 => x87_free(sti),
+        1 => raise_UD(),
         2 => x87_write_st(sti, x87_read_st(0)),
         3 => { x87_write_st(sti, x87_read_st(0)); let _ = x87_pop() },
         4 => x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
@@ -464,7 +467,8 @@ function dispatch_x87_dd(modrm, rm, _) = {
           x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
-        _ => raise_UD(),
+        6 => raise_UD(),
+        7 => raise_UD(),
       }
     },
   }
@@ -517,6 +521,7 @@ function dispatch_x87_de(modrm, rm, _) = {
             raise_UD()
           }
         },
+        3 => raise_UD(),
         // FSUBRP — ST(i) = ST(0) - ST(i), pop
         4 => {
           let result = __f80_sub(x87_read_st(0), x87_read_st(sti));
@@ -541,7 +546,6 @@ function dispatch_x87_de(modrm, rm, _) = {
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
-        _ => raise_UD(),
       }
     },
   }
@@ -566,7 +570,6 @@ function dispatch_x87_df(modrm, rm, _) = {
         5 => x87_push(__f80_from_int64(mem_read64(addr))),
         6 => mem_write_fp80(addr, __f80_to_bcd(x87_pop())),
         7 => mem_write64(addr, __f80_to_int64(x87_pop())),
-        _ => raise_UD(),
       }
     },
     RM_reg(_) => {

@@ -403,46 +403,46 @@ function dispatch_vex_0f_int(op, pfx) = {
       // Shuffle low 128-bit lane
       let lo : xmmword = src[127..0];
       let l0 : dword = match unsigned(imm[1..0]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], _ => lo[127..96],
+        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
       };
       let l1 : dword = match unsigned(imm[3..2]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], _ => lo[127..96],
+        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
       };
       let l2 : dword = match unsigned(imm[5..4]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], _ => lo[127..96],
+        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
       };
       let l3 : dword = match unsigned(imm[7..6]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], _ => lo[127..96],
+        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
       };
       // Shuffle high 128-bit lane
       let hi : xmmword = src[255..128];
       let h0 : dword = match unsigned(imm[1..0]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], _ => hi[127..96],
+        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
       };
       let h1 : dword = match unsigned(imm[3..2]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], _ => hi[127..96],
+        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
       };
       let h2 : dword = match unsigned(imm[5..4]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], _ => hi[127..96],
+        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
       };
       let h3 : dword = match unsigned(imm[7..6]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], _ => hi[127..96],
+        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
       };
       write_ymm(dst, (h3 @ h2 @ h1 @ h0) @ (l3 @ l2 @ l1 @ l0))
     } else {
       let src : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let imm = fetch_byte();
       let d0 : dword = match unsigned(imm[1..0]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96],
+        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
       };
       let d1 : dword = match unsigned(imm[3..2]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96],
+        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
       };
       let d2 : dword = match unsigned(imm[5..4]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96],
+        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
       };
       let d3 : dword = match unsigned(imm[7..6]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96],
+        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
       };
       write_xmm(dst, d3 @ d2 @ d1 @ d0)
     }

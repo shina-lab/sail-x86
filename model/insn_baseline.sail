@@ -311,6 +311,7 @@ function exec_shld(d, s, count_raw, os) = {
     d
   } else {
     let result : qword = match os {
+      OS8 => d,
       OS16 => {
         if count > 16 then {
           // SDM: result and flags undefined when count > operand size
@@ -351,7 +352,6 @@ function exec_shld(d, s, count_raw, os) = {
         else OF = undefined;
         r
       },
-      _ => d,
     };
     AF = undefined;
     result
@@ -376,6 +376,7 @@ function exec_shrd(d, s, count_raw, os) = {
     d
   } else {
     let result : qword = match os {
+      OS8 => d,
       OS16 => {
         if count > 16 then {
           // SDM: result and flags undefined when count > operand size
@@ -416,7 +417,6 @@ function exec_shrd(d, s, count_raw, os) = {
         else OF = undefined;
         r
       },
-      _ => d,
     };
     AF = undefined;
     result
@@ -450,6 +450,12 @@ function bt_adjust(rm, bit_idx, os) = {
       // string starting at the effective address. Compute the word displacement
       // (Euclidean: bit_num is always in [0, op_bits)).
       let (byte_disp, bit_num_int) : (int, int) = match os {
+        OS8 => {
+          let off = signed(bit_idx[31..0]);
+          let r = rem_round_zero(off, 32);
+          let q = quot_round_zero(off, 32);
+          if r >= 0 then (q * 4, r) else ((q - 1) * 4, r + 32)
+        },
         OS16 => {
           let off = signed(bit_idx[15..0]);
           let r = rem_round_zero(off, 16);
@@ -467,12 +473,6 @@ function bt_adjust(rm, bit_idx, os) = {
           let r = rem_round_zero(off, 64);
           let q = quot_round_zero(off, 64);
           if r >= 0 then (q * 8, r) else ((q - 1) * 8, r + 64)
-        },
-        _ => {
-          let off = signed(bit_idx[31..0]);
-          let r = rem_round_zero(off, 32);
-          let q = quot_round_zero(off, 32);
-          if r >= 0 then (q * 4, r) else ((q - 1) * 4, r + 32)
         },
       };
       let new_addr : qword = base_addr + get_slice_int(64, byte_disp, 0);
@@ -1180,7 +1180,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_reg(_) => (),  // MFENCE
         },
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
-        _ => match rm {
+        7 => match rm {
           RM_mem(_) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
           RM_reg(_) => (),  // SFENCE
         },
@@ -1433,10 +1433,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let imm = fetch_byte();
       let v = read_rm_val(rm, os, pfx.has_rex);
       let bit_num : range(0, 63) = match os {
+        OS8  => unsigned(imm[4..0]),
         OS16 => unsigned(imm[3..0]),
         OS32 => unsigned(imm[4..0]),
         OS64 => unsigned(imm[5..0]),
-        _    => unsigned(imm[4..0]),
       };
       CF = v[bit_num];
       match reg_field {

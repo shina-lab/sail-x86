@@ -133,10 +133,10 @@ function avx_vpermq(src, imm) = {
   let sel1 : range(0, 3) = unsigned(imm[3..2]);
   let sel2 : range(0, 3) = unsigned(imm[5..4]);
   let sel3 : range(0, 3) = unsigned(imm[7..6]);
-  let q0 : qword = match sel0 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], _ => src[255..192] };
-  let q1 : qword = match sel1 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], _ => src[255..192] };
-  let q2 : qword = match sel2 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], _ => src[255..192] };
-  let q3 : qword = match sel3 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], _ => src[255..192] };
+  let q0 : qword = match sel0 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
+  let q1 : qword = match sel1 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
+  let q2 : qword = match sel2 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
+  let q3 : qword = match sel3 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
   q3 @ q2 @ q1 @ q0
 }
 
@@ -146,7 +146,7 @@ function avx_insertps(dst, src, imm8, is_mem) = {
   // For memory operand, count_s (imm8[7:6]) is ignored — the 32-bit value is used directly
   let src_float : dword = if is_mem then src[31..0] else {
     let src_sel : range(0, 3) = unsigned(imm8[7..6]);
-    match src_sel { 0 => src[31..0], 1 => src[63..32], 2 => src[95..64], _ => src[127..96] }
+    match src_sel { 0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96] }
   };
   let sel = imm8[5..4];
   let m0 : dword = zeros() - zero_extend(~(sel[1..1] | sel[0..0]));

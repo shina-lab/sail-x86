@@ -54,11 +54,11 @@ function exec_out(port, os) = {
 val exec_pop_reg : (gpr_idx, OperandSize) -> unit
 function exec_pop_reg(dst, os) = {
   match os {
-    OS64 => write_gpr64(dst, pop64()),
+    OS8 => (),
+    OS16 => write_gpr16(dst, pop16()),
     OS32 => if cur_mode == LongMode then write_gpr32(dst, pop64()[31..0])
             else write_gpr32(dst, pop32()),
-    OS16 => write_gpr16(dst, pop16()),
-    _ => (),
+    OS64 => write_gpr64(dst, pop64()),
   }
 }
 
@@ -477,6 +477,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             match rm {
               RM_mem(addr) => {
                 match os {
+                  OS8 => (),
                   OS16 => {
                     let v = mem_read16(addr);
                     write_gpr(reg, OS16, zero_extend(v[7..0] @ v[15..8]))
@@ -490,7 +491,6 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                     write_gpr(reg, OS64, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                          v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
-                  _ => (),
                 }
               },
               RM_reg(_) => raise_UD(),
@@ -500,6 +500,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             match rm {
               RM_mem(addr) => {
                 match os {
+                  OS8 => (),
                   OS16 => {
                     let v : word = read_gpr(reg, OS16)[15..0];
                     mem_write16(addr, v[7..0] @ v[15..8])
@@ -513,7 +514,6 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                     mem_write64(addr, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                       v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
-                  _ => (),
                 }
               },
               RM_reg(_) => raise_UD(),
@@ -1126,10 +1126,10 @@ function decode_execute() = {
       152 => {
         let os = get_operand_size(pfx);
         match os {
+          OS8 => (),
           OS16 => { let v : word = sign_extend(read_gpr8l(RAX)); write_gpr16(RAX, v) },
           OS32 => { let v : dword = sign_extend(read_gpr16(RAX)); write_gpr32(RAX, v) },
           OS64 => { let v : qword = sign_extend(read_gpr32(RAX)); write_gpr64(RAX, v) },
-          _ => (),
         }
       },
 
@@ -1137,10 +1137,10 @@ function decode_execute() = {
       153 => {
         let os = get_operand_size(pfx);
         match os {
+          OS8 => (),
           OS16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15..15])),
           OS32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31..31])),
           OS64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63..63])),
-          _ => (),
         }
       },
 
@@ -1456,13 +1456,13 @@ function decode_execute() = {
         let os = get_operand_size_d64(pfx);
         write_gpr64(RSP, read_gpr64(RBP));
         match os {
-          OS64 => write_gpr64(RBP, pop64()),
+          OS8 => (),
+          OS16 => write_gpr16(RBP, pop16()),
           OS32 => {
             let v : qword = pop64();
             write_gpr32(RBP, v[31..0]);
           },
-          OS16 => write_gpr16(RBP, pop16()),
-          _ => (),
+          OS64 => write_gpr64(RBP, pop64()),
         }
       },
 
@@ -1509,6 +1509,41 @@ function decode_execute() = {
           throw Fault(EXN_GP, 0x00000000)
         };
         match os {
+          OS8 => (),
+          OS16 => {
+            let new_ip     = pop16();
+            let new_cs     = pop16();
+            let new_flags  = pop16();
+            let new_sp     = pop16();
+            let new_ss     = pop16();
+
+            next_rip = Some(zero_extend(new_ip));
+            write_segreg(CS, new_cs);
+            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
+            cur_cpl = new_cpl;
+            // Only lower 16 bits of RFLAGS affected
+            let old_rflags = read_rflags();
+            write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
+            RF = bitzero;
+            write_gpr64(RSP, zero_extend(new_sp));
+            write_segreg(SS, new_ss);
+          },
+          OS32 => {
+            let new_eip    = pop32();
+            let new_cs     = pop32();
+            let new_eflags = pop32();
+            let new_esp    = pop32();
+            let new_ss     = pop32();
+
+            next_rip = Some(zero_extend(new_eip));
+            write_segreg(CS, new_cs[15..0]);
+            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
+            cur_cpl = new_cpl;
+            write_rflags(zero_extend(new_eflags));
+            RF = bitzero;
+            write_gpr64(RSP, zero_extend(new_esp));
+            write_segreg(SS, new_ss[15..0]);
+          },
           OS64 => {
             let new_rip    = pop64();
             let new_cs     = pop64();  // High 48 bits discarded
@@ -1535,41 +1570,6 @@ function decode_execute() = {
             write_gpr64(RSP, new_rsp);
             write_segreg(SS, new_ss[15..0]);
           },
-          OS32 => {
-            let new_eip    = pop32();
-            let new_cs     = pop32();
-            let new_eflags = pop32();
-            let new_esp    = pop32();
-            let new_ss     = pop32();
-
-            next_rip = Some(zero_extend(new_eip));
-            write_segreg(CS, new_cs[15..0]);
-            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
-            cur_cpl = new_cpl;
-            write_rflags(zero_extend(new_eflags));
-            RF = bitzero;
-            write_gpr64(RSP, zero_extend(new_esp));
-            write_segreg(SS, new_ss[15..0]);
-          },
-          OS16 => {
-            let new_ip     = pop16();
-            let new_cs     = pop16();
-            let new_flags  = pop16();
-            let new_sp     = pop16();
-            let new_ss     = pop16();
-
-            next_rip = Some(zero_extend(new_ip));
-            write_segreg(CS, new_cs);
-            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
-            cur_cpl = new_cpl;
-            // Only lower 16 bits of RFLAGS affected
-            let old_rflags = read_rflags();
-            write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
-            RF = bitzero;
-            write_gpr64(RSP, zero_extend(new_sp));
-            write_segreg(SS, new_ss);
-          },
-          _ => (),
         }
       },
 
@@ -1690,10 +1690,10 @@ function decode_execute() = {
         let os = get_operand_size_f64(pfx);
         let return_addr = decode_pos;
         match os {
-          OS64 => push64(return_addr),
-          OS32 => push64(zero_extend(return_addr[31..0])),
+          OS8 => (),
           OS16 => push16(return_addr[15..0]),
-          _ => (),
+          OS32 => push64(zero_extend(return_addr[31..0])),
+          OS64 => push64(return_addr),
         };
         next_rip = Some(return_addr + offset)
       },
@@ -1818,11 +1818,11 @@ function decode_execute() = {
         let reg = extend_reg(reg_field, pfx.rex_b);
         let os = get_operand_size_d64(pfx);
         match os {
-          OS64 => push64(read_gpr64(reg)),
+          OS8 => (),
+          OS16 => push16(read_gpr16(reg)),
           OS32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
                   else push32(read_gpr32(reg)),
-          OS16 => push16(read_gpr16(reg)),
-          _ => (),
+          OS64 => push64(read_gpr64(reg)),
         }
       },
 

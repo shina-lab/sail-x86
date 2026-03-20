@@ -369,7 +369,7 @@ function cmp_f16_pred(a, b, pred) = {
     28 => ~(eq) & ~(unord),      // NEQ_OS
     29 => ~(lt) & ~(unord),      // GE_OQ
     30 => ~(le) & ~(unord),      // GT_OQ
-    _  => bitone,                // TRUE_US
+    31 => bitone,                // TRUE_US
   }
 }
 

@@ -17,7 +17,7 @@ function cmp_ub_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -66,7 +66,7 @@ function cmp_sb_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -114,7 +114,7 @@ function cmp_uw_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -155,7 +155,7 @@ function cmp_sw_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -195,7 +195,7 @@ function cmp_ud_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -241,7 +241,7 @@ function cmp_sd_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -286,7 +286,7 @@ function cmp_uq_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -335,7 +335,7 @@ function cmp_sq_pred(a, b, pred) = {
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    _ => bitone,
+    7 => bitone,
   }
 }
 
@@ -1095,7 +1095,7 @@ function avx_range_f32(src1, src2, imm) = {
         if __compare_ss(a1, a2) != FP_GT then src1 else src2
       },
       // abs_max: |src1|<=|src2| ? src2 : src1
-      _ => {
+      3 => {
         let a1 : dword = 0b0 @ src1[30..0];
         let a2 : dword = 0b0 @ src2[30..0];
         if __compare_ss(a1, a2) != FP_GT then src2 else src1
@@ -1106,7 +1106,7 @@ function avx_range_f32(src1, src2, imm) = {
     0 => src1[31..31] @ tmp[30..0],  // preserve src1 sign
     1 => tmp,                          // preserve compare result sign
     2 => 0b0 @ tmp[30..0],            // force positive
-    _ => 0b1 @ tmp[30..0],            // force negative
+    3 => 0b1 @ tmp[30..0],            // force negative
   }
 }
 
@@ -1128,7 +1128,7 @@ function avx_range_f64(src1, src2, imm) = {
         let a2 : qword = 0b0 @ src2[62..0];
         if __compare_sd(a1, a2) != FP_GT then src1 else src2
       },
-      _ => {
+      3 => {
         let a1 : qword = 0b0 @ src1[62..0];
         let a2 : qword = 0b0 @ src2[62..0];
         if __compare_sd(a1, a2) != FP_GT then src2 else src1
@@ -1138,7 +1138,7 @@ function avx_range_f64(src1, src2, imm) = {
     0 => src1[63..63] @ tmp[62..0],
     1 => tmp,
     2 => 0b0 @ tmp[62..0],
-    _ => 0b1 @ tmp[62..0],
+    3 => 0b1 @ tmp[62..0],
   }
 }
 

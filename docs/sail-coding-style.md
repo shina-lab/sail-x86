@@ -170,6 +170,49 @@ else raise_UD()
 A short two-way if/else on a single condition is fine — this rule applies
 when there are three or more branches dispatching on the same variable.
 
+## Wildcard Match Arms
+
+Match arms must be exhaustive — every possible value of the matched type
+must be covered. The Sail compiler warns on non-exhaustive matches; our
+code must be warning-free.
+
+Only use `_` in a match when it genuinely covers **multiple** values.
+If `_` would match exactly one remaining value, write that value explicitly
+instead. This makes the match visibly exhaustive and lets the Sail compiler
+catch cases where the type's range is wider than expected (e.g., a `_` that
+was silently accepting invalid encodings).
+
+```sail
+// OK: _ covers 0,1,3,5,7 (multiple values)
+match reg_field {
+  2 => ...,
+  4 => ...,
+  6 => ...,
+  _ => raise_UD(),
+}
+
+// OK: explicit final value
+match pred {
+  0 => eq,
+  1 => lt,
+  2 => (eq | lt)[0],
+  3 => bitzero,
+  4 => ~(eq)[0],
+  5 => ~(lt)[0],
+  6 => (~(eq) & ~(lt))[0],
+  7 => bitone,
+}
+
+// BAD: _ means exactly 7 here — write 7 instead
+  ...
+  6 => (~(eq) & ~(lt))[0],
+  _ => bitone,
+```
+
+Order match arms in ascending order of their values (e.g., OS8 before OS16
+before OS32 before OS64; MP_NONE before MP_66 before MP_F2 before MP_F3;
+0 before 1 before 2 before 3).
+
 ## Comments on Match Arms
 
 Put the instruction name comment on the line **before** the match arm,

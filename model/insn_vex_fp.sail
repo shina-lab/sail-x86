@@ -338,6 +338,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
           _ => raise_UD(),
         }
       },
+      MP_F2 => raise_UD(),
       // VMOVSHDUP xmm1, xmm2/m128: duplicate odd-indexed floats
       // SDM: DEST = [SRC[127:96], SRC[127:96], SRC[63:32], SRC[63:32]]
       MP_F3 => {
@@ -354,7 +355,6 @@ function dispatch_vex_0f_fp(op, pfx) = {
                          src[63..32] @ src[63..32])
         }
       },
-      _ => raise_UD(),
     }
   },
 
@@ -715,21 +715,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
           }
         },
         // VANDPS/VANDPD
-        4 => match mp {
-          _ => write_ymm(dst, src1 & src2),
-        },
+        4 => write_ymm(dst, src1 & src2),
         // VANDNPS/VANDNPD
-        5 => match mp {
-          _ => write_ymm(dst, ~(src1) & src2),
-        },
+        5 => write_ymm(dst, ~(src1) & src2),
         // VORPS/VORPD
-        6 => match mp {
-          _ => write_ymm(dst, src1 | src2),
-        },
+        6 => write_ymm(dst, src1 | src2),
         // VXORPS/VXORPD
-        7 => match mp {
-          _ => write_ymm(dst, xor_vec(src1, src2)),
-        },
+        7 => write_ymm(dst, xor_vec(src1, src2)),
         // VADDPS/VADDPD
         8 => match mp {
           MP_NONE => write_ymm(dst, vaddps_xmm(src1[255..128], src2[255..128]) @ vaddps_xmm(src1[127..0], src2[127..0])),
@@ -774,9 +766,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
             MP_NONE => write_ymm(dst, avx_cvtdq2ps_256(src2)),
             // VCVTPS2DQ ymm1, ymm2/m256
             MP_66 => write_ymm(dst, avx_cvtps2dq_256(src2)),
+            MP_F2 => raise_UD(),
             // VCVTTPS2DQ ymm1, ymm2/m256
             MP_F3 => write_ymm(dst, avx_cvttps2dq_256(src2)),
-            _ => raise_UD(),
           }
         },
         // VSUBPS/VSUBPD
@@ -838,21 +830,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
           _ => raise_UD(),
         },
         // VANDPS/VANDPD
-        4 => match mp {
-          _ => write_xmm(dst, src1 & src2),
-        },
+        4 => write_xmm(dst, src1 & src2),
         // VANDNPS/VANDNPD
-        5 => match mp {
-          _ => write_xmm(dst, ~(src1) & src2),
-        },
+        5 => write_xmm(dst, ~(src1) & src2),
         // VORPS/VORPD
-        6 => match mp {
-          _ => write_xmm(dst, src1 | src2),
-        },
+        6 => write_xmm(dst, src1 | src2),
         // VXORPS/VXORPD
-        7 => match mp {
-          _ => write_xmm(dst, xor_vec(src1, src2)),
-        },
+        7 => write_xmm(dst, xor_vec(src1, src2)),
         // VADDPS/VADDPD/VADDSS/VADDSD
         8 => match mp {
           MP_NONE => write_xmm(dst, vaddps_xmm(src1, src2)),
@@ -881,12 +865,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
               write_xmm(dst, __f32_to_int32(src2[127..96]) @ __f32_to_int32(src2[95..64]) @
                 __f32_to_int32(src2[63..32]) @ __f32_to_int32(src2[31..0]))
             },
+            MP_F2 => raise_UD(),
             // VCVTTPS2DQ xmm1, xmm2/m128
             MP_F3 => {
               write_xmm(dst, __f32_to_int32_trunc(src2[127..96]) @ __f32_to_int32_trunc(src2[95..64]) @
                 __f32_to_int32_trunc(src2[63..32]) @ __f32_to_int32_trunc(src2[31..0]))
             },
-            _ => raise_UD(),
           }
         },
         // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)
