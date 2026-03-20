@@ -303,38 +303,44 @@ register rip_rel_disp : qword
 
 val read_count_reg : AddressSize -> qword
 function read_count_reg(asz) = match asz {
+  AS16 => zero_extend(read_gpr16(RCX)),
   AS32 => zero_extend(read_gpr32(RCX)),
-  _    => read_gpr64(RCX),
+  AS64 => read_gpr64(RCX),
 }
 
 val write_count_reg : (AddressSize, qword) -> unit
 function write_count_reg(asz, v) = match asz {
+  AS16 => write_gpr16(RCX, v[15..0]),
   AS32 => write_gpr32(RCX, v[31..0]),
-  _    => write_gpr64(RCX, v),
+  AS64 => write_gpr64(RCX, v),
 }
 
 val read_index_src : AddressSize -> qword
 function read_index_src(asz) = match asz {
+  AS16 => zero_extend(read_gpr16(RSI)),
   AS32 => zero_extend(read_gpr32(RSI)),
-  _    => read_gpr64(RSI),
+  AS64 => read_gpr64(RSI),
 }
 
 val write_index_src : (AddressSize, qword) -> unit
 function write_index_src(asz, v) = match asz {
+  AS16 => write_gpr16(RSI, v[15..0]),
   AS32 => write_gpr32(RSI, v[31..0]),
-  _    => write_gpr64(RSI, v),
+  AS64 => write_gpr64(RSI, v),
 }
 
 val read_index_dst : AddressSize -> qword
 function read_index_dst(asz) = match asz {
+  AS16 => zero_extend(read_gpr16(RDI)),
   AS32 => zero_extend(read_gpr32(RDI)),
-  _    => read_gpr64(RDI),
+  AS64 => read_gpr64(RDI),
 }
 
 val write_index_dst : (AddressSize, qword) -> unit
 function write_index_dst(asz, v) = match asz {
+  AS16 => write_gpr16(RDI, v[15..0]),
   AS32 => write_gpr32(RDI, v[31..0]),
-  _    => write_gpr64(RDI, v),
+  AS64 => write_gpr64(RDI, v),
 }
 
 // VSIB (Vector SIB) addressing info for gather/scatter
