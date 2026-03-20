@@ -903,6 +903,299 @@ TEST(seg_limit_ss_fault) {
 }
 
 // =========================================================================
+// Real mode helpers and tests
+// =========================================================================
+
+static void init_model_16(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+  enable_all_features(model);
+
+  model.zsystem_mode = false;
+  model.zcur_mode = x86::zRealMode;
+  model.zcur_cpl = 0;
+
+  // CR0: no PE, no PG (real mode)
+  model.zCR0 = (1UL << 4) | (1UL << 5);  // ET + NE only
+  model.zCR4 = 0;
+  model.zEFER = 0;
+
+  assert(model.phys_mem.init(ram_size));
+
+  // No paging in real mode
+  model.zCR3 = 0;
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = 0xFFFE;  // SP = 0xFFFE
+
+  // Real mode segment setup: all bases = selector << 4
+  for (int i = 0; i < 6; i++) {
+    model.zSegReg.data[i] = 0;
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_type = 0x3;  // data R/W
+    model.zSegCache.data[i].zseg_dpl = 0;
+    model.zSegCache.data[i].zseg_db = 0;  // 16-bit default
+    model.zSegCache.data[i].zseg_l = 0;
+    model.zSegCache.data[i].zseg_g = 0;
+  }
+  // CS type should be code
+  model.zSegCache.data[x86::SEG_CS].zseg_type = 0xB;  // code, R, accessed
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zIDTR_base = 0;
+  model.zIDTR_limit = 0;
+  model.zKERNEL_GS_BASE = 0;
+}
+
+TEST(real_mode_mov_ax_hlt) {
+  // Basic 16-bit real mode: mov ax, 0x1234; hlt
+  x86::Model model;
+  init_model_16(model);
+
+  // In 16-bit mode (CS.D=0), B8 is "mov ax, imm16"
+  u8 code[] = { 0xB8, 0x34, 0x12, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(model.zGPR.data[0] & 0xFFFF), 0x1234UL);
+
+  model.model_fini();
+}
+
+TEST(real_mode_far_jmp_ea) {
+  // Far JMP (EA) in real mode: ljmp 0x1000:0x0010
+  // Should set CS=0x1000, CS.base=0x10000, EIP=0x0010
+  x86::Model model;
+  init_model_16(model);
+
+  // Place a HLT at the target address (linear 0x10010 = 0x1000*16 + 0x0010)
+  model.phys_mem.write_bytes(0x10010, (const u8[]){0xF4}, 1);
+
+  // EA 10 00 00 10 = JMP 0x1000:0x0010 (offset first, then selector, little-endian)
+  u8 code[] = { 0xEA, 0x10, 0x00, 0x00, 0x10 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x1000UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x10000UL);
+
+  model.model_fini();
+}
+
+TEST(real_mode_far_call_9a) {
+  // Far CALL (9A) in real mode: lcall 0x0000:target
+  // Should push old CS:IP, set CS=0, EIP=target
+  x86::Model model;
+  init_model_16(model);
+
+  // Set up SS:SP for the stack (SS=0, SP=0xFFFE)
+  model.zSegReg.data[x86::SEG_SS] = 0;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0;
+
+  // target = 0x0020, so code at linear 0x0020 should be HLT
+  model.phys_mem.write_bytes(0x0020, (const u8[]){0xF4}, 1);
+
+  // 9A 20 00 00 00 = CALL 0x0000:0x0020
+  u8 code[] = { 0x9A, 0x20, 0x00, 0x00, 0x00 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // Old CS (0x0000) and old IP (0x0005, after the 5-byte CALL) should be on stack
+  // SP should have decreased by 4 (two 16-bit pushes)
+  u64 sp = model.zGPR.data[4] & 0xFFFF;
+  ASSERT_EQ(sp, 0xFFFAUL);  // 0xFFFE - 4
+  // Stack at 0xFFFA: old_CS(16-bit) then old_IP(16-bit)
+  // Push order: push CS first, then push IP
+  // So mem[0xFFFC] = old_CS, mem[0xFFFA] = old_IP
+  u16 saved_cs = model.phys_mem.read16(0xFFFC);
+  u16 saved_ip = model.phys_mem.read16(0xFFFA);
+  ASSERT_EQ((u64)saved_cs, 0x0000UL);
+  ASSERT_EQ((u64)saved_ip, 0x0005UL);
+
+  model.model_fini();
+}
+
+// Helper to build a GDT code segment descriptor.
+// base, limit (20-bit raw), type, S, DPL, P, D/B, L, G
+static void write_gdt_code_desc(x86::Model &model, u64 gdt_base, int index,
+                                u32 base, u32 limit_raw, int dpl, bool db, bool g) {
+  u64 offset = gdt_base + index * 8;
+  // Descriptor format (SDM Vol.3A §3.4.5):
+  // lo[15:0]  = limit[15:0]
+  // lo[31:16] = base[15:0]
+  // hi[7:0]   = base[23:16]
+  // hi[11:8]  = type (code: 0xB = exec/read/accessed)
+  // hi[12]    = S (1 = code/data)
+  // hi[14:13] = DPL
+  // hi[15]    = P (present)
+  // hi[19:16] = limit[19:16]
+  // hi[21]    = L
+  // hi[22]    = D/B
+  // hi[23]    = G
+  // hi[31:24] = base[31:24]
+  u32 lo = (limit_raw & 0xFFFF) | ((base & 0xFFFF) << 16);
+  u32 hi = ((base >> 16) & 0xFF)
+         | (0xBU << 8)          // type = code, R, accessed
+         | (1U << 12)           // S = code/data
+         | ((dpl & 3U) << 13)
+         | (1U << 15)           // P = present
+         | (((limit_raw >> 16) & 0xF) << 16)
+         | (db ? (1U << 22) : 0)
+         | (g ? (1U << 23) : 0)
+         | ((base >> 24) << 24);
+  model.phys_mem.write32(offset, lo);
+  model.phys_mem.write32(offset + 4, hi);
+}
+
+static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
+                                u32 base, u32 limit_raw, int dpl, bool db, bool g) {
+  u64 offset = gdt_base + index * 8;
+  u32 lo = (limit_raw & 0xFFFF) | ((base & 0xFFFF) << 16);
+  u32 hi = ((base >> 16) & 0xFF)
+         | (0x3U << 8)          // type = data, R/W, accessed
+         | (1U << 12)           // S = code/data
+         | ((dpl & 3U) << 13)
+         | (1U << 15)           // P = present
+         | (((limit_raw >> 16) & 0xF) << 16)
+         | (db ? (1U << 22) : 0)
+         | (g ? (1U << 23) : 0)
+         | ((base >> 24) << 24);
+  model.phys_mem.write32(offset, lo);
+  model.phys_mem.write32(offset + 4, hi);
+}
+
+TEST(protected_mode_far_jmp_ea) {
+  // Far JMP (EA) in protected mode:
+  // Set up GDT with a flat 32-bit code segment at selector 0x08.
+  // Execute EA xx xx 08 00 to jump to CS=0x08:offset.
+  x86::Model model;
+  init_model_32(model);
+
+  u64 gdt_base = 0x200000;
+  // GDT[0] = null
+  model.phys_mem.write32(gdt_base, 0);
+  model.phys_mem.write32(gdt_base + 4, 0);
+  // GDT[1] = flat 32-bit code segment (selector 0x08)
+  write_gdt_code_desc(model, gdt_base, 1, 0, 0xFFFFF, 0, true, true);
+  // GDT[2] = flat 32-bit data segment (selector 0x10)
+  write_gdt_data_desc(model, gdt_base, 2, 0, 0xFFFFF, 0, true, true);
+
+  model.zGDTR_base = gdt_base;
+  model.zGDTR_limit = 0x17;  // 3 entries * 8 - 1
+
+  // Place HLT at target 0x100020
+  model.phys_mem.write_bytes(0x100020, (const u8[]){0xF4}, 1);
+
+  // EA 20 00 10 00 08 00 = JMP 0x0008:0x00100020
+  u8 code[] = { 0xEA, 0x20, 0x00, 0x10, 0x00, 0x08, 0x00 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(model.zSegReg.data[x86::SEG_CS] & 0xFFFC), 0x0008UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_db, 1UL);
+
+  model.model_fini();
+}
+
+TEST(protected_mode_far_jmp_ff5) {
+  // Far JMP indirect (FF /5) in protected mode
+  x86::Model model;
+  init_model_32(model);
+
+  u64 gdt_base = 0x200000;
+  model.phys_mem.write32(gdt_base, 0);
+  model.phys_mem.write32(gdt_base + 4, 0);
+  write_gdt_code_desc(model, gdt_base, 1, 0, 0xFFFFF, 0, true, true);
+  model.zGDTR_base = gdt_base;
+  model.zGDTR_limit = 0x0F;
+
+  // Place HLT at target
+  model.phys_mem.write_bytes(0x100030, (const u8[]){0xF4}, 1);
+
+  // Far pointer at 0x300000: offset(32) + selector(16)
+  model.phys_mem.write32(0x300000, 0x00100030);  // offset
+  model.phys_mem.write16(0x300004, 0x0008);       // selector
+
+  model.zGPR.data[7] = 0x300000;  // EDI
+
+  // FF 2F = JMP far [EDI] (FF /5, ModR/M = 0x2F: reg=5, rm=7)
+  u8 code[] = { 0xFF, 0x2F, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(model.zSegReg.data[x86::SEG_CS] & 0xFFFC), 0x0008UL);
+
+  model.model_fini();
+}
+
+TEST(real_to_protected_mode_transition) {
+  // Classic boot sequence: real mode → protected mode via far JMP
+  x86::Model model;
+  init_model_16(model);
+
+  u64 gdt_base = 0x1000;
+
+  // GDT[0] = null descriptor
+  model.phys_mem.write32(gdt_base, 0);
+  model.phys_mem.write32(gdt_base + 4, 0);
+  // GDT[1] = flat 32-bit code segment, selector 0x08
+  write_gdt_code_desc(model, gdt_base, 1, 0, 0xFFFFF, 0, true, true);
+  // GDT[2] = flat 32-bit data segment, selector 0x10
+  write_gdt_data_desc(model, gdt_base, 2, 0, 0xFFFFF, 0, true, true);
+
+  // GDT descriptor for LGDT: 6 bytes at 0x2000
+  // limit = 23 (3 entries * 8 - 1)
+  model.phys_mem.write16(0x2000, 0x17);
+  // base = 0x1000 (32-bit in real mode via 66h override)
+  model.phys_mem.write32(0x2002, gdt_base);
+
+  // Protected mode entry point: at linear 0x3000
+  // mov ax, 0x10; mov ds, ax; mov eax, 0xDEAD; hlt
+  u8 pm_code[] = {
+    0x66, 0xB8, 0x10, 0x00, 0x00, 0x00,  // mov eax, 0x10
+    0x8E, 0xD8,                            // mov ds, ax
+    0x66, 0xB8, 0xAD, 0xDE, 0x00, 0x00,  // mov eax, 0xDEAD
+    0xF4,                                  // hlt
+  };
+  model.phys_mem.write_bytes(0x3000, pm_code, sizeof(pm_code));
+
+  // Real mode code at 0x0000:
+  // cli                        ; FA
+  // lgdt [0x2000]              ; 66 0F 01 16 00 20 (with 66h for 32-bit base)
+  // mov eax, cr0               ; 0F 20 C0
+  // or al, 1                   ; 0C 01
+  // mov cr0, eax               ; 0F 22 C0
+  // jmp 0x08:0x3000            ; EA 00 30 08 00 (16-bit offset in real mode)
+  //
+  // Wait — after setting PE, we need a 32-bit far jmp. Use 66h prefix:
+  // 66 EA 00 30 00 00 08 00    ; JMP 0x0008:0x00003000 (32-bit operand size)
+  u8 rm_code[] = {
+    0xFA,                                  // cli
+    0x66, 0x0F, 0x01, 0x16, 0x00, 0x20,  // lgdt [0x2000] (addr-size 16, 32-bit base via 66h)
+    0x0F, 0x20, 0xC0,                     // mov eax, cr0
+    0x0C, 0x01,                            // or al, 1
+    0x0F, 0x22, 0xC0,                     // mov cr0, eax
+    0x66, 0xEA, 0x00, 0x30, 0x00, 0x00, 0x08, 0x00,  // jmp 0x0008:0x00003000
+  };
+  int kind = run_code(model, 0x0000, rm_code, sizeof(rm_code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // Verify we're in protected mode
+  ASSERT_EQ((u64)(model.zCR0 & 1), 1UL);  // PE=1
+  ASSERT_EQ((u64)(model.zSegReg.data[x86::SEG_CS] & 0xFFFC), 0x0008UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_db, 1UL);  // 32-bit code
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+  // DS should be loaded with selector 0x10
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_DS], 0x0010UL);
+  // EAX should be 0xDEAD
+  ASSERT_EQ((u64)(u32)model.zGPR.data[0], 0xDEADUL);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -953,6 +1246,18 @@ int main() {
   run_test_seg_limit_dword_crosses();
   run_test_seg_limit_dword_within();
   run_test_seg_limit_ss_fault();
+
+  printf("\nReal mode tests:\n");
+  run_test_real_mode_mov_ax_hlt();
+  run_test_real_mode_far_jmp_ea();
+  run_test_real_mode_far_call_9a();
+
+  printf("\nProtected mode far transfer tests:\n");
+  run_test_protected_mode_far_jmp_ea();
+  run_test_protected_mode_far_jmp_ff5();
+
+  printf("\nMode transition tests:\n");
+  run_test_real_to_protected_mode_transition();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
