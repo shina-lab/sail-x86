@@ -363,9 +363,25 @@ function fetch_rel32() = {
   sign_extend(b3 @ b2 @ b1 @ b0)
 }
 
+// Fetch a 16-bit sign-extended relative offset.
+val fetch_rel16 : unit -> qword
+function fetch_rel16() = {
+  let b0 = fetch_byte();
+  let b1 = fetch_byte();
+  sign_extend(b1 @ b0)
+}
+
 // Fetch an 8-bit sign-extended relative offset.
 val fetch_rel8 : unit -> qword
 function fetch_rel8() = sign_extend(fetch_byte())
+
+// Fetch a relative offset sized by operand size (rel16 or rel32).
+// In 16-bit mode (CS.D=0), fetches 16-bit offset; in 32-bit mode, 32-bit.
+// In 64-bit mode (f64 instructions), always 32-bit (SDM Vol.2 §E.3.3).
+val fetch_rel_os : unit -> qword
+function fetch_rel_os() =
+  if cur_mode != LongMode & get_cs_db() == bitzero then fetch_rel16()
+  else fetch_rel32()
 
 // =========================================================================
 // Address size determination (for string ops, LOOP, XLAT, etc.)

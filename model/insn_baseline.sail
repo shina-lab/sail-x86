@@ -1162,10 +1162,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let mask : qword = zeros() - zero_extend(eval_cc(cc));
       write_gpr(reg, os, (src & mask) | (dst & ~(mask)))
     },
-    // 0F 80-8F: Jcc rel32 (f64)
+    // 0F 80-8F: Jcc rel16/rel32 (f64)
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
-      let offset = fetch_rel32();
+      let offset = fetch_rel_os();
       if eval_cc(cc) == bitone then {
         next_rip = Some(decode_pos + offset);
       }

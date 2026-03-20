@@ -731,10 +731,15 @@ function is_lockable_1byte(op) = {
 // SDM Vol.2 RET — IA-32e Mode Operation.
 val exec_retf : (Prefixes, option(word)) -> unit
 function exec_retf(pfx, maybe_imm) = {
-  // Far RET default is 32-bit in 64-bit mode; REX.W promotes to 64-bit.
-  let os : OperandSize = if pfx.rex_w then OS64
+  // Operand size: in 64-bit mode, default is 32, REX.W → 64, 66h → 16.
+  // In non-64-bit mode, determined by CS.D and 66h prefix.
+  let os : OperandSize = if cur_mode == LongMode then {
+    if pfx.rex_w then OS64
     else if pfx.has_opsize then OS16
-    else OS32;
+    else OS32
+  } else {
+    get_operand_size(pfx)
+  };
 
   // Pop return RIP and CS
   let new_rip : qword = match os {
@@ -1959,9 +1964,9 @@ function decode_execute() = {
         exec_out(port, os)
       },
 
-      // E8: CALL rel32 (f64)
+      // E8: CALL rel16/rel32 (f64)
       232 => {
-        let offset = fetch_rel32();
+        let offset = fetch_rel_os();
         let os = get_operand_size_f64(pfx);
         let return_addr = decode_pos;
         match os {
@@ -1974,9 +1979,9 @@ function decode_execute() = {
         next_rip = Some(return_addr + offset)
       },
 
-      // E9: JMP rel32 (f64)
+      // E9: JMP rel16/rel32 (f64)
       233 => {
-        next_rip = Some(decode_pos + fetch_rel32())
+        next_rip = Some(decode_pos + fetch_rel_os())
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate

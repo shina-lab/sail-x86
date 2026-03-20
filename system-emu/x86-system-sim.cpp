@@ -987,9 +987,10 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\n");
       }
     }
-    if (debug && (insn_count < 50 || insn_count > 820)) {
+    if (debug && insn_count < 5000) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
-                             (model.zcur_mode == x86::zProtectedMode) ? "P" : "?";
+                             (model.zcur_mode == x86::zProtectedMode) ? "P" :
+                             (model.zcur_mode == x86::zRealMode) ? "R" : "C";
       fprintf(stderr, "[%lu] RIP=0x%lx RSP=0x%lx mode=%s CR0=0x%lx CR3=0x%lx\n",
               insn_count, (u64)model.zRIP,
               (u64)model.zGPR.data[4], mode_str,
