@@ -17,6 +17,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -d          Enable debug trace\n");
+  fprintf(stderr, "  -r          Boot from real mode (16-bit setup code)\n");
   fprintf(stderr, "  -m <MB>     RAM size in MB (default 256)\n");
   fprintf(stderr, "  -a <args>   Kernel command line\n");
   fprintf(stderr, "  -i <file>   Initramfs image\n");
@@ -590,11 +591,252 @@ static bool load_bzimage(x86::Model &model, const char *path,
 }
 
 // =========================================================================
+// Real-mode boot: load bzImage 16-bit setup code
+// =========================================================================
+
+// Initialize CPU in real mode for 16-bit boot.
+static void init_cpu_state_realmode(x86::Model &model) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+  enable_all_features(model);
+
+  model.zsystem_mode = true;
+  model.zcur_mode = x86::zRealMode;
+  model.zcur_cpl = 0;
+
+  // CR0: no PE, no PG (real mode). ET + NE set.
+  model.zCR0 = (1UL << 4) | (1UL << 5);
+  model.zCR4 = 0;
+  model.zEFER = 0;
+  model.zCR2 = 0;
+  model.zCR3 = 0;
+
+  // Real mode segment setup: all bases = 0, limits = 0xFFFF
+  for (int i = 0; i < 6; i++) {
+    model.zSegReg.data[i] = 0;
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_type = 0x3;  // data R/W
+    model.zSegCache.data[i].zseg_dpl = 0;
+    model.zSegCache.data[i].zseg_db = 0;  // 16-bit default
+    model.zSegCache.data[i].zseg_l = 0;
+    model.zSegCache.data[i].zseg_g = 0;
+  }
+  // CS type should be code
+  model.zSegCache.data[x86::SEG_CS].zseg_type = 0xB;  // code, R, accessed
+
+  model.zGDTR_base = 0;
+  model.zGDTR_limit = 0;
+  model.zIDTR_base = 0;
+  model.zIDTR_limit = 0x3FF;  // Real mode IVT spans 0x0000-0x03FF
+  model.zLDTR = 0;
+  model.zTR = 0;
+  model.zTR_base = 0;
+  model.zTR_limit = 0;
+  model.zKERNEL_GS_BASE = 0;
+
+  // Debug registers
+  model.zDR0 = 0;
+  model.zDR1 = 0;
+  model.zDR2 = 0;
+  model.zDR3 = 0;
+  model.zDR6 = 0xFFFF0FF0;
+  model.zDR7 = 0x00000400;
+
+  // Disable interrupts
+  model.zIF_flag = 0;
+  model.zNT = 0;
+  model.zRF = 0;
+
+  // Zero GPRs
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+}
+
+// Load bzImage for real-mode boot (16-bit setup code).
+// Per Linux boot protocol (Documentation/arch/x86/boot.rst):
+//   1. Load setup code (first setup_sects+1 sectors) to a real-mode segment
+//   2. Load protected-mode kernel to 0x100000 (LOAD_HIGH)
+//   3. Fill in boot_params fields within the loaded setup image
+//   4. Set DS=ES=SS=FS=GS=setup_seg, SP=heap_end
+//   5. Jump to setup_seg+0x20:0x0000 (entry is at offset 0x200)
+static bool load_bzimage_realmode(x86::Model &model, const char *path,
+                                   const char *cmdline, const char *initrd_path,
+                                   bool debug) {
+  size_t bzimage_size;
+  u8 *bzimage = read_file(path, &bzimage_size);
+  if (!bzimage) return false;
+
+  if (bzimage_size < 0x300) {
+    fprintf(stderr, "bzImage too small\n");
+    free(bzimage);
+    return false;
+  }
+
+  if (memcmp(bzimage + 0x202, "HdrS", 4) != 0) {
+    fprintf(stderr, "Not a valid bzImage (missing HdrS magic)\n");
+    free(bzimage);
+    return false;
+  }
+
+  u16 protocol_version = *(u16 *)(bzimage + 0x206);
+  if (debug)
+    fprintf(stderr, "Boot protocol version: %d.%d\n",
+            protocol_version >> 8, protocol_version & 0xFF);
+
+  if (protocol_version < 0x0202) {
+    fprintf(stderr, "Boot protocol version %d.%d too old (need >= 2.02 for real-mode boot)\n",
+            protocol_version >> 8, protocol_version & 0xFF);
+    free(bzimage);
+    return false;
+  }
+
+  u8 setup_sects = bzimage[0x1F1];
+  if (setup_sects == 0) setup_sects = 4;
+  u64 setup_size = (setup_sects + 1) * 512;
+  u64 kernel_offset = setup_size;
+  u64 kernel_size = bzimage_size - kernel_offset;
+
+  u8 loadflags = bzimage[0x211];
+  bool is_bzImage = (loadflags & 0x01);  // LOAD_HIGH
+  u64 kernel_addr = is_bzImage ? 0x100000 : 0x10000;
+
+  if (debug) {
+    fprintf(stderr, "  setup_sects=%d, setup_size=0x%lx\n", setup_sects, setup_size);
+    fprintf(stderr, "  kernel at offset 0x%lx (%lu bytes), load at 0x%lx\n",
+            kernel_offset, kernel_size, kernel_addr);
+  }
+
+  // Load protected-mode kernel
+  if (kernel_addr + kernel_size > model.phys_mem.ram_size()) {
+    fprintf(stderr, "Kernel doesn't fit in RAM\n");
+    free(bzimage);
+    return false;
+  }
+  model.phys_mem.write_bytes(kernel_addr, bzimage + kernel_offset, kernel_size);
+
+  // Load real-mode setup code at segment 0x1000 (linear 0x10000).
+  // Per boot protocol, for version >= 2.02 with LOAD_HIGH, we can
+  // load below 0x90000.
+  const u64 setup_base = 0x10000;
+  const u16 setup_seg = 0x1000;
+  model.phys_mem.write_bytes(setup_base, bzimage, setup_size);
+
+  // Fill in boot_params fields in the loaded image.
+  // The setup header lives at offset 0x1F1 within the setup code,
+  // which is at physical address setup_base + 0x1F1.
+
+  // type_of_loader
+  model.phys_mem.write8(setup_base + 0x210, 0xFF);
+
+  // loadflags: set CAN_USE_HEAP
+  u8 lf = model.phys_mem.read8(setup_base + 0x211);
+  lf |= 0x80;
+  model.phys_mem.write8(setup_base + 0x211, lf);
+
+  // heap_end_ptr (relative to setup start): 0xDE00 - 0x200
+  model.phys_mem.write16(setup_base + 0x224, 0xDE00 - 0x0200);
+
+  // Command line at setup_base + 0xE000 (within the same 64K segment)
+  u64 cmdline_off = 0xE000;
+  u64 cmdline_addr = setup_base + cmdline_off;
+  const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
+  const char *use_cmdline = (cmdline && strlen(cmdline) > 0) ? cmdline : default_cmdline;
+  model.phys_mem.write_bytes(cmdline_addr, use_cmdline, strlen(use_cmdline) + 1);
+  // cmd_line_ptr: physical address of command line
+  model.phys_mem.write32(setup_base + 0x228, (u32)cmdline_addr);
+
+  // vid_mode: normal (0xFFFF)
+  model.phys_mem.write16(setup_base + 0x1FA, 0xFFFF);
+
+  // Load initramfs if provided
+  if (initrd_path) {
+    size_t initrd_size;
+    u8 *initrd = read_file(initrd_path, &initrd_size);
+    if (!initrd) {
+      fprintf(stderr, "Failed to load initramfs: %s\n", initrd_path);
+      free(bzimage);
+      return false;
+    }
+    u64 initrd_addr = (model.phys_mem.ram_size() - initrd_size) & ~0xFFFULL;
+    model.phys_mem.write_bytes(initrd_addr, initrd, initrd_size);
+    model.phys_mem.write32(setup_base + 0x218, (u32)initrd_addr);
+    model.phys_mem.write32(setup_base + 0x21C, (u32)initrd_size);
+    if (debug)
+      fprintf(stderr, "  initrd at 0x%lx (%zu bytes)\n", initrd_addr, initrd_size);
+    free(initrd);
+  }
+
+  // E820 memory map in boot_params (offset 0x2D0 from start of boot_params).
+  // The setup code's boot_params IS the loaded setup image (zeroth sector).
+  struct E820Entry {
+    u64 addr;
+    u64 size;
+    u32 type;
+  } __attribute__((packed));
+
+  u64 ram_size = model.phys_mem.ram_size();
+  E820Entry entries[] = {
+    { 0x00000000, 0x0009FC00, 1 },
+    { 0x0009FC00, 0x00000400, 2 },
+    { 0x000E0000, 0x00020000, 2 },
+    { 0x00100000, ram_size - 0x100000, 1 },
+    { 0xFEC00000, 0x00010000, 2 },
+    { 0xFEE00000, 0x00010000, 2 },
+  };
+  int num_entries = sizeof(entries) / sizeof(entries[0]);
+  for (int i = 0; i < num_entries; i++) {
+    u64 off = setup_base + 0x2D0 + i * 20;
+    model.phys_mem.write64(off, entries[i].addr);
+    model.phys_mem.write64(off + 8, entries[i].size);
+    model.phys_mem.write32(off + 16, entries[i].type);
+  }
+  model.phys_mem.write8(setup_base + 0x1E8, num_entries);
+
+  // Set up IVT (Interrupt Vector Table) at 0x0000-0x03FF.
+  // All 256 entries point to a single IRET at 0x0400.
+  // This makes BIOS INT calls (which the setup code uses for hardware
+  // detection) return immediately with no effect.
+  model.phys_mem.write8(0x0400, 0xCF);  // IRET at linear 0x0400
+  for (int i = 0; i < 256; i++) {
+    model.phys_mem.write16(i * 4, 0x0400);      // offset = 0x0400
+    model.phys_mem.write16(i * 4 + 2, 0x0000);  // segment = 0x0000
+  }
+
+  // Set up CPU state for real-mode entry.
+  // Per boot protocol: DS=ES=SS=FS=GS=setup_seg, SP=heap_end,
+  // interrupts disabled, jump to setup_seg+0x20:0x0000.
+  u16 entry_seg = setup_seg + 0x20;  // 0x1020
+  for (int i = 0; i < 6; i++) {
+    model.zSegReg.data[i] = setup_seg;
+    model.zSegCache.data[i].zseg_base = (u64)setup_seg << 4;
+  }
+  // CS points to entry segment
+  model.zSegReg.data[x86::SEG_CS] = entry_seg;
+  model.zSegCache.data[x86::SEG_CS].zseg_base = (u64)entry_seg << 4;
+
+  model.zGPR.data[4] = 0xDE00;  // SP = heap_end
+  model.zRIP = 0x0000;          // IP = 0 (relative to CS base)
+
+  if (debug) {
+    fprintf(stderr, "  real-mode entry: %04x:%04x (linear 0x%lx)\n",
+            entry_seg, 0, (u64)entry_seg * 16);
+    fprintf(stderr, "  SS:SP = %04x:%04x\n", setup_seg, 0xDE00);
+  }
+
+  free(bzimage);
+  return true;
+}
+
+// =========================================================================
 // Main emulation loop
 // =========================================================================
 
 int main(int argc, char *argv[]) {
   bool debug = false;
+  bool realmode_boot = false;
   u64 ram_mb = 256;
   const char *cmdline = nullptr;
   const char *initrd_path = nullptr;
@@ -604,6 +846,9 @@ int main(int argc, char *argv[]) {
   while (first_arg < argc && argv[first_arg][0] == '-') {
     if (strcmp(argv[first_arg], "-d") == 0) {
       debug = true;
+      first_arg++;
+    } else if (strcmp(argv[first_arg], "-r") == 0) {
+      realmode_boot = true;
       first_arg++;
     } else if (strcmp(argv[first_arg], "-m") == 0 && first_arg + 1 < argc) {
       ram_mb = atoi(argv[first_arg + 1]);
@@ -634,43 +879,54 @@ int main(int argc, char *argv[]) {
   u64 ram_size = ram_mb * 1024 * 1024;
 
   x86::Model model;
-  init_cpu_state(model);
+
+  if (realmode_boot) {
+    init_cpu_state_realmode(model);
+  } else {
+    init_cpu_state(model);
+  }
 
   if (!model.phys_mem.init(ram_size)) {
     fprintf(stderr, "Failed to allocate %lu MB guest RAM\n", ram_mb);
     return 1;
   }
 
-  // Set up identity-mapped page tables
-  u64 cr3 = setup_identity_page_tables(model.phys_mem, ram_size);
-  model.zCR3 = cr3;
-
   fprintf(stderr, "sail-x86-system: loading %s\n", bzimage_path);
 
-  // Auto-detect ELF vs bzImage
-  bool is_elf = false;
-  if (int fd = open(bzimage_path, O_RDONLY);
-      fd >= 0) {
-    u8 magic[5];
-    if (read(fd, magic, 5) == 5)
-      is_elf = (magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L'
-                && magic[3] == 'F' && magic[4] == 2 /*ELFCLASS64*/);
-    close(fd);
-  }
-
-  if (is_elf) {
-    // Re-create page tables with kernel virtual mapping
-    cr3 = setup_identity_page_tables(model.phys_mem, ram_size, true);
-    model.zCR3 = cr3;
-
-    if (!load_elf_kernel(model, bzimage_path, cmdline, initrd_path, debug)) {
-      fprintf(stderr, "Failed to load ELF kernel image\n");
+  if (realmode_boot) {
+    if (!load_bzimage_realmode(model, bzimage_path, cmdline, initrd_path, debug)) {
+      fprintf(stderr, "Failed to load kernel image for real-mode boot\n");
       return 1;
     }
   } else {
-    if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, debug)) {
-      fprintf(stderr, "Failed to load kernel image\n");
-      return 1;
+    // Set up identity-mapped page tables (64-bit boot needs paging)
+    u64 cr3 = setup_identity_page_tables(model.phys_mem, ram_size);
+    model.zCR3 = cr3;
+
+    // Auto-detect ELF vs bzImage
+    bool is_elf = false;
+    if (int fd = open(bzimage_path, O_RDONLY);
+        fd >= 0) {
+      u8 magic[5];
+      if (read(fd, magic, 5) == 5)
+        is_elf = (magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L'
+                  && magic[3] == 'F' && magic[4] == 2 /*ELFCLASS64*/);
+      close(fd);
+    }
+
+    if (is_elf) {
+      cr3 = setup_identity_page_tables(model.phys_mem, ram_size, true);
+      model.zCR3 = cr3;
+
+      if (!load_elf_kernel(model, bzimage_path, cmdline, initrd_path, debug)) {
+        fprintf(stderr, "Failed to load ELF kernel image\n");
+        return 1;
+      }
+    } else {
+      if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, debug)) {
+        fprintf(stderr, "Failed to load kernel image\n");
+        return 1;
+      }
     }
   }
 
