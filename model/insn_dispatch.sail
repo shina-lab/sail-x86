@@ -161,8 +161,54 @@ function dispatch_alu_opcode(op, pfx) = {
 }
 
 // =========================================================================
-// String Operations (MOVS, STOS, LODS, SCAS, CMPS, REP)
+// String Operations (MOVS, STOS, LODS, SCAS, CMPS, INS, OUTS, REP)
 // =========================================================================
+
+// INS — Input from port DX to ES:[RDI]
+val exec_ins : (OperandSize, AddressSize) -> unit
+function exec_ins(os, asz) = {
+  let port : word = read_gpr16(RDX);
+  let addr : qword = read_index_dst(asz);
+  match os {
+    OS8  => mem_write8(addr, __port_in8(port)),
+    OS16 => mem_write16(addr, __port_in16(port)),
+    OS32 => mem_write32(addr, __port_in32(port)),
+    OS64 => (),
+  };
+  let delta : qword = match os {
+    OS8  => 0x0000000000000001,
+    OS16 => 0x0000000000000002,
+    OS32 => 0x0000000000000004,
+    OS64 => 0x0000000000000008,
+  };
+  if DF == bitzero then
+    write_index_dst(asz, addr + delta)
+  else
+    write_index_dst(asz, addr - delta)
+}
+
+// OUTS — Output from DS:[RSI] to port DX
+val exec_outs : (OperandSize, AddressSize) -> unit
+function exec_outs(os, asz) = {
+  let port : word = read_gpr16(RDX);
+  let addr : qword = read_index_src(asz);
+  match os {
+    OS8  => __port_out8(port, mem_read8(addr)),
+    OS16 => __port_out16(port, mem_read16(addr)),
+    OS32 => __port_out32(port, mem_read32(addr)),
+    OS64 => (),
+  };
+  let delta : qword = match os {
+    OS8  => 0x0000000000000001,
+    OS16 => 0x0000000000000002,
+    OS32 => 0x0000000000000004,
+    OS64 => 0x0000000000000008,
+  };
+  if DF == bitzero then
+    write_index_src(asz, addr + delta)
+  else
+    write_index_src(asz, addr - delta)
+}
 
 val exec_movs : (OperandSize, AddressSize) -> unit
 function exec_movs(os, asz) = {
@@ -311,7 +357,7 @@ function exec_cmps(os, asz) = {
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
-enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas }
+enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
 val exec_rep : (RepPrefix, StringOp, OperandSize, AddressSize) -> unit
 function exec_rep(prefix, op, os, asz) = {
@@ -326,6 +372,8 @@ function exec_rep(prefix, op, os, asz) = {
         STR_lods => exec_lods(os, asz),
         STR_cmps => exec_cmps(os, asz),
         STR_scas => exec_scas(os, asz),
+        STR_ins  => exec_ins(os, asz),
+        STR_outs => exec_outs(os, asz),
       };
       let cnt = read_count_reg(asz);
       write_count_reg(asz, cnt - 1);
@@ -841,70 +889,31 @@ function decode_execute() = {
         write_gpr(reg, os, result)
       },
 
-      // 6C: INSB — Input byte from port DX to [ES:RDI]
+      // 6C: INSB — Input byte from port DX to ES:[RDI]
       108 => {
-        let port : word = read_gpr16(RDX);
-        let v : byte = __port_in8(port);
-        mem_write8(read_gpr64(RDI), v);
-        let sign : qword = zeros() - zero_extend(DF);
-        let delta : qword = (0x0000000000000001 ^ sign) - sign;
-        write_gpr64(RDI, read_gpr64(RDI) + delta)
+        let asz = get_address_size(pfx);
+        if pfx.has_rep then exec_rep(REP_rep, STR_ins, OS8, asz)
+        else exec_ins(OS8, asz)
       },
-      // 6D: INSW/INSD — Input word/dword from port DX to [ES:RDI]
+      // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
       109 => {
-        let port : word = read_gpr16(RDX);
         let os = get_operand_size(pfx);
-        let sign : qword = zeros() - zero_extend(DF);
-        match os {
-          OS8  => {
-            mem_write8(read_gpr64(RDI), __port_in8(port));
-            let delta : qword = (0x0000000000000001 ^ sign) - sign;
-            write_gpr64(RDI, read_gpr64(RDI) + delta)
-          },
-          OS16 => {
-            mem_write16(read_gpr64(RDI), __port_in16(port));
-            let delta : qword = (0x0000000000000002 ^ sign) - sign;
-            write_gpr64(RDI, read_gpr64(RDI) + delta)
-          },
-          OS32 => {
-            mem_write32(read_gpr64(RDI), __port_in32(port));
-            let delta : qword = (0x0000000000000004 ^ sign) - sign;
-            write_gpr64(RDI, read_gpr64(RDI) + delta)
-          },
-          OS64 => (),
-        }
+        let asz = get_address_size(pfx);
+        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz)
+        else exec_ins(os, asz)
       },
-      // 6E: OUTSB — Output byte from [DS:RSI] to port DX
+      // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
-        let port : word = read_gpr16(RDX);
-        __port_out8(port, mem_read8(read_gpr64(RSI)));
-        let sign : qword = zeros() - zero_extend(DF);
-        let delta : qword = (0x0000000000000001 ^ sign) - sign;
-        write_gpr64(RSI, read_gpr64(RSI) + delta)
+        let asz = get_address_size(pfx);
+        if pfx.has_rep then exec_rep(REP_rep, STR_outs, OS8, asz)
+        else exec_outs(OS8, asz)
       },
-      // 6F: OUTSW/OUTSD — Output word/dword from [DS:RSI] to port DX
+      // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
       111 => {
-        let port : word = read_gpr16(RDX);
         let os = get_operand_size(pfx);
-        let sign : qword = zeros() - zero_extend(DF);
-        match os {
-          OS8  => {
-            __port_out8(port, mem_read8(read_gpr64(RSI)));
-            let delta : qword = (0x0000000000000001 ^ sign) - sign;
-            write_gpr64(RSI, read_gpr64(RSI) + delta)
-          },
-          OS16 => {
-            __port_out16(port, mem_read16(read_gpr64(RSI)));
-            let delta : qword = (0x0000000000000002 ^ sign) - sign;
-            write_gpr64(RSI, read_gpr64(RSI) + delta)
-          },
-          OS32 => {
-            __port_out32(port, mem_read32(read_gpr64(RSI)));
-            let delta : qword = (0x0000000000000004 ^ sign) - sign;
-            write_gpr64(RSI, read_gpr64(RSI) + delta)
-          },
-          OS64 => (),
-        }
+        let asz = get_address_size(pfx);
+        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz)
+        else exec_outs(os, asz)
       },
 
       // 80: Group 1 — ALU r/m8, imm8

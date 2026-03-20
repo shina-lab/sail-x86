@@ -506,6 +506,123 @@ TEST(clts) {
 }
 
 // =========================================================================
+// String I/O tests (INS/OUTS)
+// =========================================================================
+
+TEST(insb_single) {
+  // INSB reads a byte from port DX and stores to [RDI], then increments RDI
+  x86::Model model;
+  init_model(model);
+
+  // Port 0x80 (debug port) reads as 0xFF
+  model.zGPR.data[2] = 0x80;     // RDX = port
+  model.zGPR.data[7] = 0x200000; // RDI = destination
+  model.zDF = 0;                  // DF=0 (forward)
+
+  // insb (6C); hlt
+  u8 code[] = { 0x6C, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ(model.phys_mem.read8(0x200000), 0xFF);
+  ASSERT_EQ((u64)model.zGPR.data[7], 0x200001UL); // RDI incremented by 1
+}
+
+TEST(outsb_single) {
+  // OUTSB reads a byte from [RSI] and outputs to port DX, then increments RSI
+  x86::Model model;
+  init_model(model);
+
+  model.phys_mem.write8(0x200000, 0x42);
+  model.zGPR.data[2] = 0x80;     // RDX = port
+  model.zGPR.data[6] = 0x200000; // RSI = source
+  model.zDF = 0;
+
+  // outsb (6E); hlt
+  u8 code[] = { 0x6E, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[6], 0x200001UL); // RSI incremented by 1
+}
+
+TEST(rep_insb) {
+  // REP INSB: read 4 bytes from port 0x80 to [RDI], decrementing RCX each time
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[2] = 0x80;     // RDX = port
+  model.zGPR.data[7] = 0x200000; // RDI = destination
+  model.zGPR.data[1] = 4;        // RCX = count
+  model.zDF = 0;
+
+  // rep insb (F3 6C); hlt
+  u8 code[] = { 0xF3, 0x6C, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[1], 0UL);        // RCX = 0
+  ASSERT_EQ((u64)model.zGPR.data[7], 0x200004UL); // RDI advanced by 4
+  // All 4 bytes should be 0xFF (from port 0x80)
+  ASSERT_EQ(model.phys_mem.read32(0x200000), 0xFFFFFFFFUL);
+}
+
+TEST(rep_outsb) {
+  // REP OUTSB: write 4 bytes from [RSI] to port 0x80
+  x86::Model model;
+  init_model(model);
+
+  model.phys_mem.write32(0x200000, 0xDEADBEEF);
+  model.zGPR.data[2] = 0x80;     // RDX = port
+  model.zGPR.data[6] = 0x200000; // RSI = source
+  model.zGPR.data[1] = 4;        // RCX = count
+  model.zDF = 0;
+
+  // rep outsb (F3 6E); hlt
+  u8 code[] = { 0xF3, 0x6E, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[1], 0UL);        // RCX = 0
+  ASSERT_EQ((u64)model.zGPR.data[6], 0x200004UL); // RSI advanced by 4
+}
+
+TEST(rep_insd) {
+  // REP INSD: read 3 dwords from port 0x80, DF=1 (backward)
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[2] = 0x80;     // RDX = port
+  model.zGPR.data[7] = 0x200008; // RDI = destination (start high, go down)
+  model.zGPR.data[1] = 3;        // RCX = count
+  model.zDF = 1;                  // DF=1 (backward)
+
+  // rep insd (F3 6D); hlt
+  u8 code[] = { 0xF3, 0x6D, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[1], 0UL);        // RCX = 0
+  ASSERT_EQ((u64)model.zGPR.data[7], 0x1FFFFCUL); // RDI decremented by 3*4=12
+  // Each dword should be 0xFFFFFFFF
+  ASSERT_EQ(model.phys_mem.read32(0x200008), 0xFFFFFFFFUL);
+  ASSERT_EQ(model.phys_mem.read32(0x200004), 0xFFFFFFFFUL);
+  ASSERT_EQ(model.phys_mem.read32(0x200000), 0xFFFFFFFFUL);
+}
+
+TEST(insb_df_backward) {
+  // Single INSB with DF=1: RDI should decrement
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[2] = 0x80;
+  model.zGPR.data[7] = 0x200010;
+  model.zDF = 1;
+
+  // insb; hlt
+  u8 code[] = { 0x6C, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ(model.phys_mem.read8(0x200010), 0xFF);
+  ASSERT_EQ((u64)model.zGPR.data[7], 0x20000FUL); // RDI decremented by 1
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -532,6 +649,14 @@ int main() {
   run_test_cli_sti();
   run_test_wbinvd();
   run_test_clts();
+
+  printf("\nString I/O tests:\n");
+  run_test_insb_single();
+  run_test_outsb_single();
+  run_test_rep_insb();
+  run_test_rep_outsb();
+  run_test_rep_insd();
+  run_test_insb_df_backward();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
