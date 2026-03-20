@@ -407,15 +407,25 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         dispatch_3byte_38_sse_fp(opcode3, pfx)
       } else if op3 == 130 then {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
-        // SDM: #GP(0) if CPL > 0. Type in register, descriptor in memory.
-        // Model: flush TLB (NOP for paging-structure caches).
         if cur_cpl != 0 then raise_GP0();
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(_) => {
+          RM_mem(addr) => {
             let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
             if unsigned(inv_type) > 3 then raise_GP0();
+            let desc : xmmword = mem_read128(fixup_addr(addr));
+            let pcid : bits(12) = desc[11..0];
+            let reserved : bits(52) = desc[63..12];
+            let lin_addr : qword = desc[127..64];
+            if unsigned(inv_type) <= 1 then {
+              if reserved != zeros() then raise_GP0();
+              if unsigned(inv_type) == 0 then {
+                // Linear address must be canonical (sign-extended from bit 47)
+                let top17 : bits(17) = lin_addr[63..47];
+                if top17 != zeros() & top17 != ones() then raise_GP0()
+              }
+            };
             __tlb_flush()
           },
           RM_reg(_) => raise_UD(),

@@ -434,4 +434,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
             {0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3,
              0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0x90},
             {.rflags = 0x2}, 13);
+
+  // Note: INVPCID descriptor validation #GP tests are not possible via KVM
+  // because KVM intercepts INVPCID (VM exit) and emulates it without
+  // checking reserved bits or canonical addresses. The Sail model does
+  // validate these per the SDM.
 }

@@ -1347,6 +1347,34 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // INVPCID — invalidate TLB by PCID (66 0F 38 82 /r)
+  // =====================================================================
+  {
+    cat = "Baseline/Data movement";
+
+    // INVPCID RAX, [RDI] with type=2 (all-context): 66 0F 38 82 07
+    // Descriptor: all zeros (PCID=0, addr=0) — valid for type 2
+    {
+      std::vector<u8> desc(16, 0);
+      tests.push_back({"invpcid type=2 (all-ctx)", cat,
+                        {0x66, 0x0F, 0x38, 0x82, 0x07},
+                        {.rax = 2, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, desc, 0});
+    }
+
+    // INVPCID type=0 (individual address): descriptor PCID=0, addr=0x1000
+    {
+      std::vector<u8> desc(16, 0);
+      // Linear address at offset 8 (little-endian): 0x1000
+      desc[8] = 0x00; desc[9] = 0x10;
+      tests.push_back({"invpcid type=0 (addr)", cat,
+                        {0x66, 0x0F, 0x38, 0x82, 0x07},
+                        {.rax = 0, .rdi = DATA_ADDR, .rflags = 0x2},
+                        FL_NONE, 0, false, desc, 0});
+    }
+  }
+
+  // =====================================================================
   // LFS/LGS — load far pointer (offset + selector from memory)
   // =====================================================================
   {
