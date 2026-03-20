@@ -185,3 +185,24 @@ function load_segment_register(idx, selector) = {
     },
   }
 }
+
+// =========================================================================
+// Segment limit checking (SDM Vol.3A §6.3)
+// =========================================================================
+
+// Check that an access at the given offset with the given size is within
+// the segment limit. Raises #GP(0) for non-SS segments, #SS(0) for SS.
+// Only checks in non-long mode; 64-bit mode disables limit checking for
+// CS/DS/ES/SS (SDM Vol.3A §6.3.1).
+// For expand-up segments: offset + size - 1 <= effective_limit.
+val check_seg_limit : (segreg_idx, qword, int) -> unit
+function check_seg_limit(seg, offset, access_size) = {
+  if cur_mode != LongMode then {
+    let limit : dword = SegCache[seg].seg_limit;
+    // Expand-up check: offset + size - 1 must not exceed limit
+    if unsigned(offset) + access_size - 1 > unsigned(limit) then {
+      if seg == SS then throw Fault(EXN_SS, 0x00000000)
+      else throw Fault(EXN_GP, 0x00000000)
+    }
+  }
+}

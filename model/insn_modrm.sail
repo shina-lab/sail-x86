@@ -85,6 +85,9 @@ function apply_segment(addr, pfx, default_seg) = {
     Some(s) => s,
     None() => default_seg,
   };
+  // Check segment limit in non-long mode (SDM Vol.3A §6.3).
+  // Uses size=1 here; exact access size check is at the instruction level.
+  check_seg_limit(seg, addr, 1);
   addr + get_seg_base(seg)
 }
 
