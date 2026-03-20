@@ -1178,9 +1178,9 @@ function avx_vrangepd_512(src1, src2, imm) = {
 
 /* ---- VPBROADCASTMB2Q / VPBROADCASTMW2D: broadcast mask to vector ---- */
 
-val avx_vcvtps2ph_512 : zmmword -> ymmword
-function avx_vcvtps2ph_512(src) = {
-  avx_vcvtps2ph_256(src[511..256]) @ avx_vcvtps2ph_256(src[255..0])
+val avx_vcvtps2ph_512 : (zmmword, bits(2)) -> ymmword
+function avx_vcvtps2ph_512(src, rc) = {
+  avx_vcvtps2ph_256(src[511..256], rc) @ avx_vcvtps2ph_256(src[255..0], rc)
 }
 
 /* ---- Gather: VPGATHERDD/DQ, VGATHERDPS/DPD (dword indices) ---- */
@@ -1778,8 +1778,9 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       0 => {
         let rm = decode_rm_evex(modrm, pfx, 8);
-        let _imm = fetch_byte();
-        let res = avx_vcvtps2ph_128(read_xmm(src));
+        let imm = fetch_byte();
+        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let res = avx_vcvtps2ph_128(read_xmm(src), rc);
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
           RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 8, 2)
@@ -1787,8 +1788,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       1 => {
         let rm = decode_rm_evex(modrm, pfx, 16);
-        let _imm = fetch_byte();
-        let res = avx_vcvtps2ph_256(read_ymm(src));
+        let imm = fetch_byte();
+        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let res = avx_vcvtps2ph_256(read_ymm(src), rc);
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 16, 2)
@@ -1796,8 +1798,9 @@ function dispatch_evex_imm(op, pfx) = {
       },
       2 => {
         let rm = decode_rm_evex(modrm, pfx, 32);
-        let _imm = fetch_byte();
-        let res = avx_vcvtps2ph_512(read_zmm(src));
+        let imm = fetch_byte();
+        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let res = avx_vcvtps2ph_512(read_zmm(src), rc);
         match rm {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(addr) => evex_masked_mem_store(fixup_addr(addr), zero_extend(res), evex_kmask64(pfx), 32, 2)

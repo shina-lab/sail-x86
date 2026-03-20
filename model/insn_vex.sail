@@ -238,8 +238,9 @@ function fp16_to_fp32(h) = {
   }
 }
 
-val fp32_to_fp16 : bits(32) -> bits(16)
-function fp32_to_fp16(f) = {
+// rc: imm8[1:0] rounding control — 00=RNE, 01=round down, 10=round up, 11=truncate
+val fp32_to_fp16 : (bits(32), bits(2)) -> bits(16)
+function fp32_to_fp16(f, rc) = {
   let sign : bits(1) = f[31..31];
   let exp8 : bits(8) = f[30..23];
   let frac23 : bits(23) = f[22..0];
@@ -251,14 +252,30 @@ function fp32_to_fp16(f) = {
     sign @ 0b11111 @ 0b0000000000
   } else if exp_val < 103 then {
     sign @ 0b00000 @ 0b0000000000
-  } else if exp_val < 113 then {
-    let shift_amt : int = 113 - exp_val;
-    let full_frac : bits(24) = 0b1 @ frac23;
-    let shifted : bits(24) = sail_shiftright(full_frac, shift_amt);
-    sign @ 0b00000 @ shifted[22..13]
   } else {
-    let new_exp : int = exp_val - 112;
-    sign @ get_slice_int(5, new_exp, 0) @ frac23[22..13]
+    // Compute 15-bit truncated result (5-bit exp @ 10-bit mantissa), round bit, sticky bit
+    let (top15, round_bit, sticky_bit) : (bits(15), bit, bit) =
+      if exp_val < 113 then {
+        // Denormal: right-shift (1.frac23) into 10-bit mantissa with exp=0
+        // Use 37-bit intermediate (24 mantissa + 13 guard) to preserve round/sticky bits
+        let shift_amt : int = 113 - exp_val;
+        let wide : bits(37) = (0b1 @ frac23) @ 0b0000000000000;
+        let shifted : bits(37) = sail_shiftright(wide, shift_amt);
+        (0b00000 @ shifted[35..26], shifted[25],
+         if shifted[24..0] != zeros() then bitone else bitzero)
+      } else {
+        let new_exp : int = exp_val - 112;
+        (get_slice_int(5, new_exp, 0) @ frac23[22..13], frac23[12],
+         if frac23[11..0] != zeros() then bitone else bitzero)
+      };
+    let round_up : bool = match rc {
+      0b00 => round_bit == bitone & (sticky_bit == bitone | top15[0] == bitone),
+      0b01 => sign == 0b1 & (round_bit == bitone | sticky_bit == bitone),
+      0b10 => sign == 0b0 & (round_bit == bitone | sticky_bit == bitone),
+      0b11 => false
+    };
+    let result15 : bits(15) = if round_up then top15 + 1 else top15;
+    sign @ result15
   }
 }
 
@@ -268,10 +285,10 @@ function avx_vcvtph2ps_128(src) = {
   fp16_to_fp32(src[31..16]) @ fp16_to_fp32(src[15..0])
 }
 
-val avx_vcvtps2ph_128 : xmmword -> bits(64)
-function avx_vcvtps2ph_128(src) = {
-  fp32_to_fp16(src[127..96]) @ fp32_to_fp16(src[95..64]) @
-  fp32_to_fp16(src[63..32]) @ fp32_to_fp16(src[31..0])
+val avx_vcvtps2ph_128 : (xmmword, bits(2)) -> bits(64)
+function avx_vcvtps2ph_128(src, rc) = {
+  fp32_to_fp16(src[127..96], rc) @ fp32_to_fp16(src[95..64], rc) @
+  fp32_to_fp16(src[63..32], rc) @ fp32_to_fp16(src[31..0], rc)
 }
 
 val avx_vcvtph2ps_256 : xmmword -> ymmword
@@ -279,9 +296,9 @@ function avx_vcvtph2ps_256(src) = {
   avx_vcvtph2ps_128(src[127..64]) @ avx_vcvtph2ps_128(src[63..0])
 }
 
-val avx_vcvtps2ph_256 : ymmword -> xmmword
-function avx_vcvtps2ph_256(src) = {
-  avx_vcvtps2ph_128(src[255..128]) @ avx_vcvtps2ph_128(src[127..0])
+val avx_vcvtps2ph_256 : (ymmword, bits(2)) -> xmmword
+function avx_vcvtps2ph_256(src, rc) = {
+  avx_vcvtps2ph_128(src[255..128], rc) @ avx_vcvtps2ph_128(src[127..0], rc)
 }
 
 // =========================================================================

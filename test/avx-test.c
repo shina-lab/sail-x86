@@ -529,6 +529,62 @@ static void test_vmulps_256(void) {
         "vmulps ymm");
 }
 
+// =========================================================================
+// VCVTPS2PH rounding control tests (F16C)
+// =========================================================================
+// Input: 0x3F801800 = 1.0007324219 (1 + 3*2^-12)
+// FP16 mantissa top 10 bits: 0, discarded bits: 0x1800 (0.75 ULP > 0.5)
+// So RNE and round-up should round up to 0x3C01; truncate and round-down → 0x3C00.
+static void test_vcvtps2ph_rounding(void) {
+  u32 in = 0x3F801800;
+  float val = *(float *)&in;
+  v4sf src = {val, val, val, val};
+  BARRIER(src);
+
+  v4si dst_rne, dst_dn, dst_up, dst_trunc;
+
+  // imm=0: Round to nearest even
+  __asm__ volatile("vcvtps2ph $0, %1, %0" : "=x"(dst_rne) : "x"(src));
+  // imm=1: Round toward -inf
+  __asm__ volatile("vcvtps2ph $1, %1, %0" : "=x"(dst_dn) : "x"(src));
+  // imm=2: Round toward +inf
+  __asm__ volatile("vcvtps2ph $2, %1, %0" : "=x"(dst_up) : "x"(src));
+  // imm=3: Truncate
+  __asm__ volatile("vcvtps2ph $3, %1, %0" : "=x"(dst_trunc) : "x"(src));
+
+  u32 h_rne   = (u32)dst_rne[0] & 0xFFFF;
+  u32 h_dn    = (u32)dst_dn[0] & 0xFFFF;
+  u32 h_up    = (u32)dst_up[0] & 0xFFFF;
+  u32 h_trunc = (u32)dst_trunc[0] & 0xFFFF;
+
+  check(h_rne   == 0x3C01, "vcvtps2ph RNE (imm=0)");
+  check(h_dn    == 0x3C00, "vcvtps2ph round-down (imm=1)");
+  check(h_up    == 0x3C01, "vcvtps2ph round-up (imm=2)");
+  check(h_trunc == 0x3C00, "vcvtps2ph truncate (imm=3)");
+
+  // Negative input: 0xBF801800 = -1.0007324219
+  u32 nin = 0xBF801800;
+  float nval = *(float *)&nin;
+  v4sf nsrc = {nval, nval, nval, nval};
+  BARRIER(nsrc);
+
+  v4si ndst_rne, ndst_dn, ndst_up, ndst_trunc;
+  __asm__ volatile("vcvtps2ph $0, %1, %0" : "=x"(ndst_rne) : "x"(nsrc));
+  __asm__ volatile("vcvtps2ph $1, %1, %0" : "=x"(ndst_dn) : "x"(nsrc));
+  __asm__ volatile("vcvtps2ph $2, %1, %0" : "=x"(ndst_up) : "x"(nsrc));
+  __asm__ volatile("vcvtps2ph $3, %1, %0" : "=x"(ndst_trunc) : "x"(nsrc));
+
+  u32 nh_rne   = (u32)ndst_rne[0] & 0xFFFF;
+  u32 nh_dn    = (u32)ndst_dn[0] & 0xFFFF;
+  u32 nh_up    = (u32)ndst_up[0] & 0xFFFF;
+  u32 nh_trunc = (u32)ndst_trunc[0] & 0xFFFF;
+
+  check(nh_rne   == 0xBC01, "vcvtps2ph neg RNE (imm=0)");
+  check(nh_dn    == 0xBC01, "vcvtps2ph neg round-down (imm=1)");
+  check(nh_up    == 0xBC00, "vcvtps2ph neg round-up (imm=2)");
+  check(nh_trunc == 0xBC00, "vcvtps2ph neg truncate (imm=3)");
+}
+
 void __attribute__((force_align_arg_pointer)) _start(void) {
   // FP arithmetic 128-bit
   test_vaddps_128();
@@ -584,6 +640,9 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
 
   // VZEROUPPER
   test_vzeroupper();
+
+  // F16C
+  test_vcvtps2ph_rounding();
 
   // Summary
   print("\n");

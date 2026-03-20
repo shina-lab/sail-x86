@@ -24,7 +24,7 @@ add_custom_command(
 
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/avx-test
-  COMMAND gcc -static -nostdlib -mavx -o ${CMAKE_CURRENT_BINARY_DIR}/avx-test
+  COMMAND gcc -static -nostdlib -mavx -mf16c -o ${CMAKE_CURRENT_BINARY_DIR}/avx-test
     ${CMAKE_CURRENT_SOURCE_DIR}/avx-test.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/avx-test.c
 )
