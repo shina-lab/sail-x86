@@ -201,6 +201,21 @@ register cur_mode : ProcessorMode
 register cur_cpl : cpl_t
 
 // =========================================================================
+// Descriptor table registers
+// =========================================================================
+
+register GDTR_base  : qword
+register GDTR_limit : word
+register IDTR_base  : qword
+register IDTR_limit : word
+register LDTR       : word   // LDT selector
+register TR         : word   // Task register selector
+
+// TSS base and limit (loaded from GDT when LTR executes)
+register TR_base  : qword
+register TR_limit : dword
+
+// =========================================================================
 // Segment descriptor cache helpers
 // =========================================================================
 
@@ -218,6 +233,33 @@ function get_seg_base(seg) =
 // Returns bitone when CS.D=1 (32-bit default), bitzero when CS.D=0 (16-bit).
 val get_cs_db : unit -> bit
 function get_cs_db() = SegCache[CS].seg_db
+
+// Parse an 8-byte segment descriptor into a SegDescCache (SDM Vol.3A §3.4.5).
+// lo = descriptor bytes [3:0], hi = descriptor bytes [7:4].
+val parse_seg_descriptor : (dword, dword) -> SegDescCache
+function parse_seg_descriptor(lo, hi) = {
+  // Base address: hi[31:24] @ hi[7:0] @ lo[31:16]
+  let base : dword = hi[31..24] @ hi[7..0] @ lo[31..16];
+  // Limit: hi[19:16] @ lo[15:0]  (20-bit raw limit)
+  let raw_limit : bits(20) = hi[19..16] @ lo[15..0];
+  // Granularity: if G=1, scale limit by 4KB (shift left 12, fill low bits)
+  let g : bit = hi[23];
+  let limit : dword = if g == bitone then zero_extend(raw_limit) @ 0xFFF
+                      else zero_extend(raw_limit);
+  struct {
+    seg_base    = zero_extend(base),
+    seg_limit   = limit,
+    seg_type    = hi[11..8],
+    seg_s       = hi[12],
+    seg_dpl     = unsigned(hi[14..13]),
+    seg_present = hi[15],
+    seg_db      = hi[22],
+    seg_l       = hi[21],
+    seg_g       = g,
+  }
+}
+
+// load_segment_register is defined in mem.sail (needs mem_read32).
 
 // =========================================================================
 // Decode position
@@ -491,21 +533,6 @@ val enable_features_all : unit -> unit
 function enable_features_all() = {
   enable_features_v4()
 }
-
-// =========================================================================
-// Descriptor table registers
-// =========================================================================
-
-register GDTR_base  : qword
-register GDTR_limit : word
-register IDTR_base  : qword
-register IDTR_limit : word
-register LDTR       : word   // LDT selector
-register TR         : word   // Task register selector
-
-// TSS base and limit (loaded from GDT when LTR executes)
-register TR_base  : qword
-register TR_limit : dword
 
 // =========================================================================
 // System mode flag

@@ -148,3 +148,40 @@ function pop16() = {
   write_stack_ptr(sp + 2 - get_seg_base(SS));
   v
 }
+
+// =========================================================================
+// Segment register loading
+// =========================================================================
+
+// Load a segment register with a selector, updating both the visible
+// selector and the hidden descriptor cache (SDM Vol.3A §3.4.5).
+// In real mode: base = selector << 4, limit = 0xFFFF, present, R/W.
+// In protected/compat mode: read 8-byte descriptor from GDT/LDT.
+// In long mode: just store the selector (FS/GS base set via MSR).
+val load_segment_register : (segreg_idx, word) -> unit
+function load_segment_register(idx, selector) = {
+  write_segreg(idx, selector);
+  match cur_mode {
+    RealMode => {
+      SegCache[idx].seg_base = zero_extend(selector) << 4;
+      SegCache[idx].seg_limit = 0x0000FFFF;
+      SegCache[idx].seg_present = bitone
+    },
+    LongMode => (),
+    _ => {
+      // Protected mode / compatibility mode: read descriptor from GDT or LDT
+      let ti : bit = selector[2];
+      let index : bits(13) = selector[15..3];
+      let table_base : qword = if ti == bitone then {
+        // LDT: TODO — for now treat as GDT
+        GDTR_base
+      } else {
+        GDTR_base
+      };
+      let desc_offset : qword = zero_extend(index @ 0b000);
+      let desc_lo : dword = mem_read32(table_base + desc_offset);
+      let desc_hi : dword = mem_read32(table_base + desc_offset + 4);
+      SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
+    },
+  }
+}

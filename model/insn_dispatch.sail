@@ -1110,7 +1110,7 @@ function decode_execute() = {
             RM_mem(addr) => mem_read16(addr),
           };
           if seg == CS then raise_UD();
-          write_segreg(seg, v)
+          load_segment_register(seg, v)
         }
       },
 
@@ -1626,18 +1626,16 @@ function decode_execute() = {
             // Set RIP (via next_rip so step() uses it)
             next_rip = Some(new_rip);
 
-            // Load CS selector
-            write_segreg(CS, new_cs[15..0]);
-
-            // Determine processor mode from CS descriptor's L bit (bit 53).
+            // Load CS selector and descriptor cache from GDT.
             // Must read GDT before changing CPL — GDT access is an implicit
             // supervisor-level access (SDM Vol.3 §5.5).
             let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
+            let desc_lo : dword = mem_read32(GDTR_base + sel_offset);
             let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
-            cur_mode = if desc_hi[21] == bitone then LongMode else CompatibilityMode;
-            // Update CS descriptor cache L and D/B bits
-            SegCache[CS].seg_l = desc_hi[21];
-            SegCache[CS].seg_db = desc_hi[22];
+            write_segreg(CS, new_cs[15..0]);
+            SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
+            cur_mode = if SegCache[CS].seg_l == bitone then LongMode
+                       else CompatibilityMode;
 
             // Determine new CPL from CS.RPL
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);
