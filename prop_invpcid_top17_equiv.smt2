@@ -1,0 +1,7 @@
+(declare-datatypes ((Unit 0)) (((unit))))
+(declare-datatypes ((Bits 0)) (((Bits (len (_ BitVec 8)) (contents (_ BitVec 64))))))
+(declare-datatypes ((Zexception 0)) (((z__dummy_exnz3 (unz__dummy_exnz3 Unit)))))
+(declare-const zz477/1 (_ BitVec 64))
+(define-const zz478/2 (_ BitVec 64) zz477/1)
+(assert (not (= ((_ extract 63 47) zz478/2) ((_ extract 63 47) zz478/2))))
+(check-sat)

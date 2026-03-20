@@ -970,14 +970,14 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\n");
       }
     }
-    if (debug && insn_count < 200) {
+    if (debug && insn_count > 9700) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
       u64 cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
       u64 lin = cs_base + (u64)model.zRIP;
-      fprintf(stderr, "[%lu] lin=0x%lx RSP=0x%lx mode=%s bytes=%02x%02x%02x%02x%02x%02x\n",
-              insn_count, lin,
+      fprintf(stderr, "[%lu] lin=0x%lx EAX=0x%lx RSP=0x%lx mode=%s bytes=%02x%02x%02x%02x%02x%02x\n",
+              insn_count, lin, (u64)model.zGPR.data[0],
               (u64)model.zGPR.data[4], mode_str,
               model.phys_mem.read8(lin), model.phys_mem.read8(lin+1),
               model.phys_mem.read8(lin+2), model.phys_mem.read8(lin+3),
