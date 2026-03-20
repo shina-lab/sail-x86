@@ -210,15 +210,23 @@ function exec_outs(os, asz) = {
     write_index_src(asz, addr - delta)
 }
 
-val exec_movs : (OperandSize, AddressSize) -> unit
-function exec_movs(os, asz) = {
-  let src_addr : qword = read_index_src(asz);
-  let dst_addr : qword = read_index_dst(asz);
+val exec_movs : (OperandSize, AddressSize, Prefixes) -> unit
+function exec_movs(os, asz, pfx) = {
+  let src_off : qword = read_index_src(asz);
+  let dst_off : qword = read_index_dst(asz);
+  // MOVS source is DS:SI (overridable), destination is always ES:DI.
+  let src_seg : segreg_idx = match pfx.seg_override {
+    Some(s) => s,
+    None()  => DS,
+  };
+  let sz = operand_size_bits(os) / 8;
+  let src_lin = seg_linear(src_seg, src_off, sz);
+  let dst_lin = seg_linear(ES, dst_off, sz);
   match os {
-    OS8  => mem_write8(dst_addr, mem_read8(src_addr)),
-    OS16 => mem_write16(dst_addr, mem_read16(src_addr)),
-    OS32 => mem_write32(dst_addr, mem_read32(src_addr)),
-    OS64 => mem_write64(dst_addr, mem_read64(src_addr)),
+    OS8  => mem_write8(dst_lin, mem_read8(src_lin)),
+    OS16 => mem_write16(dst_lin, mem_read16(src_lin)),
+    OS32 => mem_write32(dst_lin, mem_read32(src_lin)),
+    OS64 => mem_write64(dst_lin, mem_read64(src_lin)),
   };
   let delta : qword = match os {
     OS8  => 0x0000000000000001,
@@ -227,22 +235,25 @@ function exec_movs(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then {
-    write_index_src(asz, src_addr + delta);
-    write_index_dst(asz, dst_addr + delta);
+    write_index_src(asz, src_off + delta);
+    write_index_dst(asz, dst_off + delta);
   } else {
-    write_index_src(asz, src_addr - delta);
-    write_index_dst(asz, dst_addr - delta);
+    write_index_src(asz, src_off - delta);
+    write_index_dst(asz, dst_off - delta);
   }
 }
 
 val exec_stos : (OperandSize, AddressSize) -> unit
 function exec_stos(os, asz) = {
-  let addr : qword = read_index_dst(asz);
+  let off : qword = read_index_dst(asz);
+  // STOS destination is always ES:DI (not overridable).
+  let sz = operand_size_bits(os) / 8;
+  let lin = seg_linear(ES, off, sz);
   match os {
-    OS8  => mem_write8(addr, read_gpr8l(RAX)),
-    OS16 => mem_write16(addr, read_gpr16(RAX)),
-    OS32 => mem_write32(addr, read_gpr32(RAX)),
-    OS64 => mem_write64(addr, read_gpr64(RAX)),
+    OS8  => mem_write8(lin, read_gpr8l(RAX)),
+    OS16 => mem_write16(lin, read_gpr16(RAX)),
+    OS32 => mem_write32(lin, read_gpr32(RAX)),
+    OS64 => mem_write64(lin, read_gpr64(RAX)),
   };
   let delta : qword = match os {
     OS8  => 0x0000000000000001,
@@ -251,19 +262,26 @@ function exec_stos(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then
-    write_index_dst(asz, addr + delta)
+    write_index_dst(asz, off + delta)
   else
-    write_index_dst(asz, addr - delta)
+    write_index_dst(asz, off - delta)
 }
 
-val exec_lods : (OperandSize, AddressSize) -> unit
-function exec_lods(os, asz) = {
-  let addr : qword = read_index_src(asz);
+val exec_lods : (OperandSize, AddressSize, Prefixes) -> unit
+function exec_lods(os, asz, pfx) = {
+  let off : qword = read_index_src(asz);
+  // LODS source is DS:SI (overridable).
+  let src_seg : segreg_idx = match pfx.seg_override {
+    Some(s) => s,
+    None()  => DS,
+  };
+  let sz = operand_size_bits(os) / 8;
+  let lin = seg_linear(src_seg, off, sz);
   match os {
-    OS8  => write_gpr8l(RAX, mem_read8(addr)),
-    OS16 => write_gpr16(RAX, mem_read16(addr)),
-    OS32 => write_gpr32(RAX, mem_read32(addr)),
-    OS64 => write_gpr64(RAX, mem_read64(addr)),
+    OS8  => write_gpr8l(RAX, mem_read8(lin)),
+    OS16 => write_gpr16(RAX, mem_read16(lin)),
+    OS32 => write_gpr32(RAX, mem_read32(lin)),
+    OS64 => write_gpr64(RAX, mem_read64(lin)),
   };
   let delta : qword = match os {
     OS8  => 0x0000000000000001,
@@ -272,33 +290,36 @@ function exec_lods(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then
-    write_index_src(asz, addr + delta)
+    write_index_src(asz, off + delta)
   else
-    write_index_src(asz, addr - delta)
+    write_index_src(asz, off - delta)
 }
 
 val exec_scas : (OperandSize, AddressSize) -> unit
 function exec_scas(os, asz) = {
-  let addr : qword = read_index_dst(asz);
+  let off : qword = read_index_dst(asz);
+  // SCAS destination is always ES:DI (not overridable).
+  let sz = operand_size_bits(os) / 8;
+  let lin = seg_linear(ES, off, sz);
   match os {
     OS8 => {
       let a : byte = read_gpr8l(RAX);
-      let b : byte = mem_read8(addr);
+      let b : byte = mem_read8(lin);
       update_flags_sub(a - b, a, b);
     },
     OS16 => {
       let a : word = read_gpr16(RAX);
-      let b : word = mem_read16(addr);
+      let b : word = mem_read16(lin);
       update_flags_sub(a - b, a, b);
     },
     OS32 => {
       let a : dword = read_gpr32(RAX);
-      let b : dword = mem_read32(addr);
+      let b : dword = mem_read32(lin);
       update_flags_sub(a - b, a, b);
     },
     OS64 => {
       let a : qword = read_gpr64(RAX);
-      let b : qword = mem_read64(addr);
+      let b : qword = mem_read64(lin);
       update_flags_sub(a - b, a, b);
     },
   };
@@ -309,34 +330,42 @@ function exec_scas(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then
-    write_index_dst(asz, addr + delta)
+    write_index_dst(asz, off + delta)
   else
-    write_index_dst(asz, addr - delta)
+    write_index_dst(asz, off - delta)
 }
 
-val exec_cmps : (OperandSize, AddressSize) -> unit
-function exec_cmps(os, asz) = {
-  let src_addr : qword = read_index_src(asz);
-  let dst_addr : qword = read_index_dst(asz);
+val exec_cmps : (OperandSize, AddressSize, Prefixes) -> unit
+function exec_cmps(os, asz, pfx) = {
+  let src_off : qword = read_index_src(asz);
+  let dst_off : qword = read_index_dst(asz);
+  // CMPS source is DS:SI (overridable), destination is ES:DI.
+  let src_seg : segreg_idx = match pfx.seg_override {
+    Some(s) => s,
+    None()  => DS,
+  };
+  let sz = operand_size_bits(os) / 8;
+  let src_lin = seg_linear(src_seg, src_off, sz);
+  let dst_lin = seg_linear(ES, dst_off, sz);
   match os {
     OS8 => {
-      let a : byte = mem_read8(src_addr);
-      let b : byte = mem_read8(dst_addr);
+      let a : byte = mem_read8(src_lin);
+      let b : byte = mem_read8(dst_lin);
       update_flags_sub(a - b, a, b);
     },
     OS16 => {
-      let a : word = mem_read16(src_addr);
-      let b : word = mem_read16(dst_addr);
+      let a : word = mem_read16(src_lin);
+      let b : word = mem_read16(dst_lin);
       update_flags_sub(a - b, a, b);
     },
     OS32 => {
-      let a : dword = mem_read32(src_addr);
-      let b : dword = mem_read32(dst_addr);
+      let a : dword = mem_read32(src_lin);
+      let b : dword = mem_read32(dst_lin);
       update_flags_sub(a - b, a, b);
     },
     OS64 => {
-      let a : qword = mem_read64(src_addr);
-      let b : qword = mem_read64(dst_addr);
+      let a : qword = mem_read64(src_lin);
+      let b : qword = mem_read64(dst_lin);
       update_flags_sub(a - b, a, b);
     },
   };
@@ -347,11 +376,11 @@ function exec_cmps(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then {
-    write_index_src(asz, src_addr + delta);
-    write_index_dst(asz, dst_addr + delta);
+    write_index_src(asz, src_off + delta);
+    write_index_dst(asz, dst_off + delta);
   } else {
-    write_index_src(asz, src_addr - delta);
-    write_index_dst(asz, dst_addr - delta);
+    write_index_src(asz, src_off - delta);
+    write_index_dst(asz, dst_off - delta);
   }
 }
 
@@ -359,18 +388,18 @@ enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
-val exec_rep : (RepPrefix, StringOp, OperandSize, AddressSize) -> unit
-function exec_rep(prefix, op, os, asz) = {
+val exec_rep : (RepPrefix, StringOp, OperandSize, AddressSize, Prefixes) -> unit
+function exec_rep(prefix, op, os, asz, pfx) = {
   var done : bool = false;
   while ~(done) do {
     if read_count_reg(asz) == zeros() then {
       done = true
     } else {
       match op {
-        STR_movs => exec_movs(os, asz),
+        STR_movs => exec_movs(os, asz, pfx),
         STR_stos => exec_stos(os, asz),
-        STR_lods => exec_lods(os, asz),
-        STR_cmps => exec_cmps(os, asz),
+        STR_lods => exec_lods(os, asz, pfx),
+        STR_cmps => exec_cmps(os, asz, pfx),
         STR_scas => exec_scas(os, asz),
         STR_ins  => exec_ins(os, asz),
         STR_outs => exec_outs(os, asz),
@@ -1090,27 +1119,27 @@ function decode_execute() = {
       // 6C: INSB — Input byte from port DX to ES:[RDI]
       108 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, OS8, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_ins, OS8, asz, pfx)
         else exec_ins(OS8, asz)
       },
       // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
       109 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz, pfx)
         else exec_ins(os, asz)
       },
       // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, OS8, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_outs, OS8, asz, pfx)
         else exec_outs(OS8, asz)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
       111 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
         else exec_outs(os, asz)
       },
 
@@ -1497,33 +1526,33 @@ function decode_execute() = {
       // A4: MOVSB
       164 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, OS8, asz)
-        else exec_movs(OS8, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_movs, OS8, asz, pfx)
+        else exec_movs(OS8, asz, pfx)
       },
 
       // A5: MOVSW/MOVSD/MOVSQ
       165 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz)
-        else exec_movs(os, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz, pfx)
+        else exec_movs(os, asz, pfx)
       },
 
       // A6: CMPSB
       166 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_repe, STR_cmps, OS8, asz)
-        else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, OS8, asz)
-        else exec_cmps(OS8, asz)
+        if pfx.has_rep then exec_rep(REP_repe, STR_cmps, OS8, asz, pfx)
+        else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, OS8, asz, pfx)
+        else exec_cmps(OS8, asz, pfx)
       },
 
       // A7: CMPSW/CMPSD/CMPSQ
       167 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_repe, STR_cmps, os, asz)
-        else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, os, asz)
-        else exec_cmps(os, asz)
+        if pfx.has_rep then exec_rep(REP_repe, STR_cmps, os, asz, pfx)
+        else if pfx.has_repne then exec_rep(REP_repne, STR_cmps, os, asz, pfx)
+        else exec_cmps(os, asz, pfx)
       },
 
       // A8: TEST AL, imm8
@@ -1551,7 +1580,7 @@ function decode_execute() = {
       // AA: STOSB
       170 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, OS8, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_stos, OS8, asz, pfx)
         else exec_stos(OS8, asz)
       },
 
@@ -1559,30 +1588,30 @@ function decode_execute() = {
       171 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz, pfx)
         else exec_stos(os, asz)
       },
 
       // AC: LODSB
       172 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, OS8, asz)
-        else exec_lods(OS8, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_lods, OS8, asz, pfx)
+        else exec_lods(OS8, asz, pfx)
       },
 
       // AD: LODSW/LODSD/LODSQ
       173 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz)
-        else exec_lods(os, asz)
+        if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz, pfx)
+        else exec_lods(os, asz, pfx)
       },
 
       // AE: SCASB
       174 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_repe, STR_scas, OS8, asz)
-        else if pfx.has_repne then exec_rep(REP_repne, STR_scas, OS8, asz)
+        if pfx.has_rep then exec_rep(REP_repe, STR_scas, OS8, asz, pfx)
+        else if pfx.has_repne then exec_rep(REP_repne, STR_scas, OS8, asz, pfx)
         else exec_scas(OS8, asz)
       },
 
@@ -1590,8 +1619,8 @@ function decode_execute() = {
       175 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_repe, STR_scas, os, asz)
-        else if pfx.has_repne then exec_rep(REP_repne, STR_scas, os, asz)
+        if pfx.has_rep then exec_rep(REP_repe, STR_scas, os, asz, pfx)
+        else if pfx.has_repne then exec_rep(REP_repne, STR_scas, os, asz, pfx)
         else exec_scas(os, asz)
       },
 

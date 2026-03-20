@@ -970,7 +970,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\n");
       }
     }
-    if (debug && insn_count > 9700) {
+    if (debug && (insn_count < 30 || ((u64)model.zRIP == 0 && model.zcur_mode == x86::zRealMode))) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
