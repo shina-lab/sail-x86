@@ -154,32 +154,44 @@ function fetch_byte() = {
 // Operand size determination
 // =========================================================================
 
-// Standard operand size: default 32-bit in 64-bit mode.
-// REX.W -> 64, 66h -> 16, otherwise 32.
+// Standard operand size (SDM Vol.1 §3.6).
+// LongMode: default OS32, REX.W → OS64, 66h → OS16.
+// Non-LongMode, CS.D=1: default OS32, 66h → OS16.
+// Non-LongMode, CS.D=0: default OS16, 66h → OS32.
 val get_operand_size : Prefixes -> OperandSize
 function get_operand_size(pfx) =
   if pfx.rex_w then OS64
-  else if pfx.has_opsize then OS16
-  else OS32
-
-// Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
-// REX.W or default -> 64, 66h -> 16. 32-bit is NOT encodable.
-val get_operand_size_d64 : Prefixes -> OperandSize
-function get_operand_size_d64(pfx) =
-  if cur_mode != LongMode then {
-    // In 32-bit mode: default 32, 66h prefix → 16
+  else if cur_mode == LongMode then {
+    if pfx.has_opsize then OS16 else OS32
+  } else if get_cs_db() == bitone then {
     if pfx.has_opsize then OS16 else OS32
   } else {
-    // In 64-bit mode: default 64, 66h prefix → 16
+    if pfx.has_opsize then OS32 else OS16
+  }
+
+// Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
+// LongMode: default OS64, 66h → OS16 (OS32 not encodable).
+// Non-LongMode, CS.D=1: default OS32, 66h → OS16.
+// Non-LongMode, CS.D=0: default OS16, 66h → OS32.
+val get_operand_size_d64 : Prefixes -> OperandSize
+function get_operand_size_d64(pfx) =
+  if cur_mode == LongMode then {
     if pfx.has_opsize then OS16 else OS64
+  } else if get_cs_db() == bitone then {
+    if pfx.has_opsize then OS16 else OS32
+  } else {
+    if pfx.has_opsize then OS32 else OS16
   }
 
 // Operand size for instructions forced to 64-bit (JMP rel, CALL rel, Jcc rel).
-// In 64-bit mode: always 64-bit, 66h ignored.
-// In 32-bit mode: always 32-bit.
+// LongMode: always OS64, 66h ignored.
+// Non-LongMode, CS.D=1: always OS32.
+// Non-LongMode, CS.D=0: always OS16.
 val get_operand_size_f64 : Prefixes -> OperandSize
 function get_operand_size_f64(_pfx) =
-  if cur_mode == LongMode then OS64 else OS32
+  if cur_mode == LongMode then OS64
+  else if get_cs_db() == bitone then OS32
+  else OS16
 
 // =========================================================================
 // Register index helpers (extending 3-bit fields with REX bits)
@@ -348,29 +360,38 @@ function fetch_rel8() = sign_extend(fetch_byte())
 // Address size determination (for string ops, LOOP, XLAT, etc.)
 // =========================================================================
 
-// 64-bit mode: default AS64, 67h -> AS32.
-// Compat/protected mode (CS.D=1): default AS32, 67h -> AS16.
+// Address size (SDM Vol.1 §3.6).
+// LongMode: default AS64, 67h → AS32.
+// Non-LongMode, CS.D=1: default AS32, 67h → AS16.
+// Non-LongMode, CS.D=0: default AS16, 67h → AS32.
 val get_address_size : Prefixes -> AddressSize
 function get_address_size(pfx) =
   if cur_mode == LongMode then {
     if pfx.has_adsize == bitone then AS32 else AS64
-  } else {
+  } else if get_cs_db() == bitone then {
     if pfx.has_adsize == bitone then AS16 else AS32
+  } else {
+    if pfx.has_adsize == bitone then AS32 else AS16
   }
 
-// =========================================================================
-// Fetch a full moffs (memory offset) address — 64-bit in 64-bit mode,
-// 32-bit with 67h prefix.
-// =========================================================================
+// Fetch a full moffs (memory offset) address.
+// Size depends on effective address size: AS64 → 8 bytes, AS32 → 4 bytes,
+// AS16 → 2 bytes.
 val fetch_moffs : Prefixes -> qword
-function fetch_moffs(pfx) =
-  if pfx.has_adsize == bitone then {
+function fetch_moffs(pfx) = match get_address_size(pfx) {
+  AS16 => {
+    let b0 = fetch_byte();
+    let b1 = fetch_byte();
+    zero_extend(b1 @ b0)
+  },
+  AS32 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
     let b3 = fetch_byte();
     zero_extend(b3 @ b2 @ b1 @ b0)
-  } else {
+  },
+  AS64 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
@@ -380,7 +401,8 @@ function fetch_moffs(pfx) =
     let b6 = fetch_byte();
     let b7 = fetch_byte();
     b7 @ b6 @ b5 @ b4 @ b3 @ b2 @ b1 @ b0
-  }
+  },
+}
 
 // =========================================================================
 // SIMD register index helpers (extending 3-bit fields with REX bits)

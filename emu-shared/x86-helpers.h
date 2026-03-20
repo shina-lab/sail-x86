@@ -8,6 +8,14 @@
 
 namespace x86 {
 
+// Segment register indices (matching Sail segreg_idx constants).
+constexpr int SEG_ES = 0;
+constexpr int SEG_CS = 1;
+constexpr int SEG_SS = 2;
+constexpr int SEG_DS = 3;
+constexpr int SEG_FS = 4;
+constexpr int SEG_GS = 5;
+
 static inline void bits_to_bytes(lbits val, u8 *out, size_t nbytes) {
   // lbits stores data in mpz_t. Extract bytes in little-endian order.
   mpz_t tmp;

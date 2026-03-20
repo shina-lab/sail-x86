@@ -18,6 +18,7 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zsystem_mode = false;
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
 
   // CR0: PE + ET + NE + WP + PG
   model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
@@ -48,8 +49,6 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zGDTR_limit = 0;
   model.zIDTR_base = 0;
   model.zIDTR_limit = 0;
-  model.zFS_BASE = 0;
-  model.zGS_BASE = 0;
   model.zKERNEL_GS_BASE = 0;
 }
 
@@ -441,7 +440,7 @@ TEST(swapgs) {
   x86::Model model;
   init_model(model);
 
-  model.zGS_BASE = 0xAAAA0000;
+  model.zSegCache.data[x86::SEG_GS].zseg_base = 0xAAAA0000;
   model.zKERNEL_GS_BASE = 0xBBBB0000;
 
   // swapgs ; 0F 01 F8
@@ -449,7 +448,7 @@ TEST(swapgs) {
   u8 code[] = { 0x0F, 0x01, 0xF8, 0xF4 };
   int kind = run_code(model, 0x100000, code, sizeof(code));
   ASSERT_EQ(kind, RUN_HALTED);
-  ASSERT_EQ((u64)model.zGS_BASE, 0xBBBB0000UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_GS].zseg_base, 0xBBBB0000UL);
   ASSERT_EQ((u64)model.zKERNEL_GS_BASE, 0xAAAA0000UL);
 
   model.model_fini();

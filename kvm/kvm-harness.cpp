@@ -482,6 +482,18 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   x86::enable_all_features(model);
   model.zcur_mode = tc.compat_mode ? x86::zCompatibilityMode : x86::zLongMode;
   model.zcur_cpl = 0;
+
+  // In compatibility mode, CS.D=1 for 32-bit default operand/address size.
+  // In long mode, CS.L=1 and CS.D=0 (SDM Vol.3A §3.4.5).
+  // SS.B=1 for 32-bit stack pointer in both modes.
+  if (tc.compat_mode) {
+    model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+    model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+  } else {
+    model.zSegCache.data[x86::SEG_CS].zseg_db = 0;
+    model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
+  }
+  model.zSegCache.data[x86::SEG_SS].zseg_db = 1;
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
   // Ensure guest pages are mapped (idempotent after first call).

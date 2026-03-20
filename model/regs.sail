@@ -180,17 +180,18 @@ function write_kreg(idx, v) = KREG[idx] = v
 
 register SegReg : vector(6, word)
 
+// Segment descriptor caches (hidden part of each segment register).
+// Per SDM Vol.3A §3.4.3, loaded from GDT/LDT on segment register write.
+register SegCache : vector(6, SegDescCache)
+
 val read_segreg : segreg_idx -> word
 function read_segreg(idx) = SegReg[idx]
 
 val write_segreg : (segreg_idx, word) -> unit
 function write_segreg(idx, v) = SegReg[idx] = v
 
-// FS and GS segment base addresses (used in 64-bit mode for TLS).
-// In 64-bit mode, only FS and GS have non-zero bases.
-register FS_BASE : qword
-register GS_BASE : qword
-register KERNEL_GS_BASE : qword  // Swapped with GS_BASE by SWAPGS
+// Kernel GS base (shadow register swapped with SegCache[GS].seg_base by SWAPGS).
+register KERNEL_GS_BASE : qword
 
 // =========================================================================
 // Processor mode and privilege
@@ -198,6 +199,25 @@ register KERNEL_GS_BASE : qword  // Swapped with GS_BASE by SWAPGS
 
 register cur_mode : ProcessorMode
 register cur_cpl : cpl_t
+
+// =========================================================================
+// Segment descriptor cache helpers
+// =========================================================================
+
+// Get the linear base address of a segment.
+// In LongMode, ES/CS/SS/DS are treated as base 0 (SDM Vol.3A §3.4.4);
+// FS and GS bases are stored in SegCache (set via MSR or descriptor load).
+// In other modes, all segment bases come from the descriptor cache.
+val get_seg_base : segreg_idx -> qword
+function get_seg_base(seg) =
+  if cur_mode == LongMode & seg != FS & seg != GS
+  then 0x0000000000000000
+  else SegCache[seg].seg_base
+
+// Get the CS.D bit (default operation size).
+// Returns bitone when CS.D=1 (32-bit default), bitzero when CS.D=0 (16-bit).
+val get_cs_db : unit -> bit
+function get_cs_db() = SegCache[CS].seg_db
 
 // =========================================================================
 // Decode position

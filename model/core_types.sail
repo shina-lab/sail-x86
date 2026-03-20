@@ -53,6 +53,36 @@ let DS : segreg_idx = 3
 let FS : segreg_idx = 4
 let GS : segreg_idx = 5
 
+// Segment descriptor cache (hidden part of segment registers).
+// Per SDM Vol.3A §3.4.3, each segment register has a visible part
+// (16-bit selector) and a hidden part loaded from the GDT/LDT descriptor.
+struct SegDescCache = {
+  seg_base    : qword,       // linear base address
+  seg_limit   : dword,       // segment limit (byte-granular after scaling)
+  seg_type    : bits(4),     // type field (code/data, R/W, accessed, etc.)
+  seg_s       : bit,         // descriptor type: 0=system, 1=code/data
+  seg_dpl     : range(0, 3), // descriptor privilege level
+  seg_present : bit,         // segment present
+  seg_db      : bit,         // D/B bit (default operation size)
+  seg_l       : bit,         // L bit (64-bit code segment)
+  seg_g       : bit,         // granularity (0=byte, 1=4KB)
+}
+
+// Default segment descriptor cache for real mode:
+// base=0, limit=0xFFFF, present, data R/W, DPL=0
+val default_seg_desc_cache : unit -> SegDescCache
+function default_seg_desc_cache() = struct {
+  seg_base    = 0x0000000000000000,
+  seg_limit   = 0x0000FFFF,
+  seg_type    = 0x3,         // data, R/W, accessed
+  seg_s       = bitone,      // code/data
+  seg_dpl     = 0,
+  seg_present = bitone,
+  seg_db      = bitzero,     // 16-bit default
+  seg_l       = bitzero,
+  seg_g       = bitzero,     // byte granularity
+}
+
 // Exception class for double-fault escalation (SDM Vol.3 Table 7-4).
 enum ExceptionClass = { EC_Benign, EC_Contributory, EC_PageFault }
 

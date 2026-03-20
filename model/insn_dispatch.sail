@@ -1267,12 +1267,15 @@ function decode_execute() = {
       },
 
       // A0: MOV AL, moffs8
-      160 => { let addr = fetch_moffs(pfx); write_gpr8l(RAX, mem_read8(addr)) },
+      160 => {
+        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        write_gpr8l(RAX, mem_read8(addr))
+      },
 
       // A1: MOV rAX, moffs
       161 => {
         let os = get_operand_size(pfx);
-        let addr = fetch_moffs(pfx);
+        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
         let v : qword = match os {
           OS8  => zero_extend(mem_read8(addr)),
           OS16 => zero_extend(mem_read16(addr)),
@@ -1283,12 +1286,15 @@ function decode_execute() = {
       },
 
       // A2: MOV moffs8, AL
-      162 => { let addr = fetch_moffs(pfx); mem_write8(addr, read_gpr8l(RAX)) },
+      162 => {
+        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        mem_write8(addr, read_gpr8l(RAX))
+      },
 
       // A3: MOV moffs, rAX
       163 => {
         let os = get_operand_size(pfx);
-        let addr = fetch_moffs(pfx);
+        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
         let v = read_gpr(RAX, os);
         match os {
           OS8  => mem_write8(addr, v[7..0]),
@@ -1629,6 +1635,9 @@ function decode_execute() = {
             let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
             let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
             cur_mode = if desc_hi[21] == bitone then LongMode else CompatibilityMode;
+            // Update CS descriptor cache L and D/B bits
+            SegCache[CS].seg_l = desc_hi[21];
+            SegCache[CS].seg_db = desc_hi[22];
 
             // Determine new CPL from CS.RPL
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);

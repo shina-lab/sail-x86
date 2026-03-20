@@ -58,6 +58,7 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zsystem_mode = true;
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
 
   // CR0: PE + ET + NE + WP + PG
   model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
@@ -93,8 +94,6 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
 
   model.zGDTR_base = 0;
   model.zGDTR_limit = 0;
-  model.zFS_BASE = 0;
-  model.zGS_BASE = 0;
   model.zKERNEL_GS_BASE = 0;
 
   // Clear flags

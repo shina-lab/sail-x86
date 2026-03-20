@@ -46,6 +46,7 @@ int main(int argc, char *argv[], char *envp[]) {
   enable_all_features(model);
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 3;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
   model.zEFER = 0x0000000000000D01;  // SCE | LME | LMA | NXE
   model.zCR4 = model.zCR4 | (1ULL << 16);  // FSGSBASE
 

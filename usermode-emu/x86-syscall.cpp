@@ -1,4 +1,5 @@
 #include "x86-syscall.h"
+#include "x86-helpers.h"
 #include <cstring>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -69,19 +70,19 @@ void emulate_syscall(x86::Model &model) {
     #define ARCH_GET_GS  0x1004
     switch (arg1) {
     case ARCH_SET_FS:
-      model.zFS_BASE = arg2;
+      model.zSegCache.data[x86::SEG_FS].zseg_base = arg2;
       result = 0;
       break;
     case ARCH_SET_GS:
-      model.zGS_BASE = arg2;
+      model.zSegCache.data[x86::SEG_GS].zseg_base = arg2;
       result = 0;
       break;
     case ARCH_GET_FS:
-      *(u64 *)arg2 = model.zFS_BASE;
+      *(u64 *)arg2 = model.zSegCache.data[x86::SEG_FS].zseg_base;
       result = 0;
       break;
     case ARCH_GET_GS:
-      *(u64 *)arg2 = model.zGS_BASE;
+      *(u64 *)arg2 = model.zSegCache.data[x86::SEG_GS].zseg_base;
       result = 0;
       break;
     default:

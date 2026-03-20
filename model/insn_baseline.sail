@@ -720,8 +720,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
           if cur_cpl != 0 then raise_GP0();
-          let tmp = GS_BASE;
-          GS_BASE = KERNEL_GS_BASE;
+          let tmp = SegCache[GS].seg_base;
+          SegCache[GS].seg_base = KERNEL_GS_BASE;
           KERNEL_GS_BASE = tmp
         },
         _ => {
@@ -939,7 +939,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       // Return to ring 3
       cur_cpl = 3;
       // REX.W -> 64-bit mode; without REX.W -> 32-bit compat mode
-      cur_mode = if pfx.rex_w then LongMode else CompatibilityMode;
+      if pfx.rex_w then {
+        cur_mode = LongMode;
+        SegCache[CS].seg_l = bitone;
+        SegCache[CS].seg_db = bitzero
+      } else {
+        cur_mode = CompatibilityMode;
+        SegCache[CS].seg_l = bitzero;
+        SegCache[CS].seg_db = bitone
+      };
       next_rip = Some(new_rip)
     },
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)
@@ -1051,8 +1059,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let msr_val : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
       // Handle EFER specially since it has a Sail register
       if ecx == 0xC0000080 then EFER = msr_val
-      else if ecx == 0xC0000100 then FS_BASE = msr_val
-      else if ecx == 0xC0000101 then GS_BASE = msr_val
+      else if ecx == 0xC0000100 then SegCache[FS].seg_base = msr_val
+      else if ecx == 0xC0000101 then SegCache[GS].seg_base = msr_val
       else if ecx == 0xC0000102 then KERNEL_GS_BASE = msr_val
       else __wrmsr(ecx, msr_val)
     },
@@ -1121,8 +1129,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let ecx : dword = read_gpr32(RCX);
       // Handle registers with Sail state specially
       let msr_val : qword = if ecx == 0xC0000080 then EFER
-        else if ecx == 0xC0000100 then FS_BASE
-        else if ecx == 0xC0000101 then GS_BASE
+        else if ecx == 0xC0000100 then SegCache[FS].seg_base
+        else if ecx == 0xC0000101 then SegCache[GS].seg_base
         else if ecx == 0xC0000102 then KERNEL_GS_BASE
         else __rdmsr(ecx);
       write_gpr32(RAX, msr_val[31..0]);
@@ -1169,17 +1177,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         match rm {
           RM_reg(r) => match (reg_field, pfx.rex_w) {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64
-            (0, true)  => write_gpr64(r, FS_BASE),
-            (0, false) => write_gpr32(r, FS_BASE[31..0]),
+            (0, true)  => write_gpr64(r, SegCache[FS].seg_base),
+            (0, false) => write_gpr32(r, SegCache[FS].seg_base[31..0]),
             // F3 0F AE /1 mod=11: RDGSBASE r32/r64
-            (1, true)  => write_gpr64(r, GS_BASE),
-            (1, false) => write_gpr32(r, GS_BASE[31..0]),
+            (1, true)  => write_gpr64(r, SegCache[GS].seg_base),
+            (1, false) => write_gpr32(r, SegCache[GS].seg_base[31..0]),
             // F3 0F AE /2 mod=11: WRFSBASE r32/r64
-            (2, true)  => FS_BASE = read_gpr64(r),
-            (2, false) => FS_BASE = zero_extend(read_gpr32(r)),
+            (2, true)  => SegCache[FS].seg_base = read_gpr64(r),
+            (2, false) => SegCache[FS].seg_base = zero_extend(read_gpr32(r)),
             // F3 0F AE /3 mod=11: WRGSBASE r32/r64
-            (3, true)  => GS_BASE = read_gpr64(r),
-            (3, false) => GS_BASE = zero_extend(read_gpr32(r)),
+            (3, true)  => SegCache[GS].seg_base = read_gpr64(r),
+            (3, false) => SegCache[GS].seg_base = zero_extend(read_gpr32(r)),
             _ => raise_UD(),
           },
           RM_mem(_) => raise_UD(),

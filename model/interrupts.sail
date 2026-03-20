@@ -199,6 +199,8 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   // In IA-32e mode, all IDT gates reference 64-bit code segments.
   // Exception delivery always switches to 64-bit mode (SDM Vol.3 §12.17).
   cur_mode = LongMode;
+  SegCache[CS].seg_l = bitone;
+  SegCache[CS].seg_db = bitzero;
 
   // 9. Set new RIP to handler address
   RIP = gate.gate_offset;

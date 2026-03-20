@@ -102,6 +102,9 @@ static void init_cpu_state(x86::Model &model) {
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
 
+  // Long mode: CS.L=1, CS.D=0 (SDM Vol.3A §3.4.5)
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
+
   // CR0: PE + ET + NE + WP + PG
   model.zCR0 = (1UL << 0) | (1UL << 4) | (1UL << 5) | (1UL << 16) | (1UL << 31);
   // CR4: PAE + OSFXSR + OSXSAVE
@@ -117,8 +120,6 @@ static void init_cpu_state(x86::Model &model) {
   model.zTR = 0;
   model.zTR_base = 0;
   model.zTR_limit = 0;
-  model.zFS_BASE = 0;
-  model.zGS_BASE = 0;
   model.zKERNEL_GS_BASE = 0;
   model.zCR2 = 0;
   model.zCR3 = 0;

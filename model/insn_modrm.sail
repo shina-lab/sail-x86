@@ -75,14 +75,17 @@ function decode_sib(sib, modbits, pfx) = {
   base_val + index_val
 }
 
-// Apply segment override to a memory address.
-// In 64-bit mode, only FS and GS have non-zero bases.
-val apply_segment : (qword, Prefixes) -> qword
-function apply_segment(addr, pfx) = match pfx.seg_override {
-  Some(seg) => if seg == FS then addr + FS_BASE
-               else if seg == GS then addr + GS_BASE
-               else addr,
-  None() => addr,
+// Apply segment base to a memory address (SDM Vol.3A §3.4).
+// Linear address = segment base + effective address.
+// If there's an explicit segment override prefix, use that segment;
+// otherwise use the default segment (DS for most, SS for BP/SP-based).
+val apply_segment : (qword, Prefixes, segreg_idx) -> qword
+function apply_segment(addr, pfx, default_seg) = {
+  let seg : segreg_idx = match pfx.seg_override {
+    Some(s) => s,
+    None() => default_seg,
+  };
+  addr + get_seg_base(seg)
 }
 
 // Compute EVEX compressed displacement scale factor for "Full" tuple type.
@@ -224,39 +227,97 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
       let ea : qword = decode_pos + disp;
       let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-      RM_mem(apply_segment(ea, pfx))
+      RM_mem(apply_segment(ea, pfx, DS))
     } else {
       // Compat/protected mode: [disp32] absolute
       let ea : qword = disp & 0x00000000FFFFFFFF;
-      RM_mem(apply_segment(ea, pfx))
+      RM_mem(apply_segment(ea, pfx, DS))
     }
   } else {
     let asz = get_address_size(pfx);
+    var default_seg : segreg_idx = DS;
     let addr : qword =
       if rm_raw == 4 then {
         let sib = fetch_byte();
+        let sib_base : range(0, 7) = unsigned(sib[2..0]);
+        if (sib_base == 4 | sib_base == 5) & ~(sib_base == 5 & modbits == 0) then
+          default_seg = SS;
         decode_sib_evex(sib, modbits, pfx, disp_n)
       } else if modbits == 0 then {
         read_gpr64(extend_reg(rm_raw, pfx.rex_b))
-      } else if modbits == 1 then {
-        // disp8 * N
-        let d8 = fetch_byte();
-        let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
-        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + scaled_disp
       } else {
-        // disp32 (no compression)
-        let b0 = fetch_byte();
-        let b1 = fetch_byte();
-        let b2 = fetch_byte();
-        let b3 = fetch_byte();
-        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
+        if rm_raw == 5 then default_seg = SS;
+        if modbits == 1 then {
+          // disp8 * N
+          let d8 = fetch_byte();
+          let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
+          read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + scaled_disp
+        } else {
+          // disp32 (no compression)
+          let b0 = fetch_byte();
+          let b1 = fetch_byte();
+          let b2 = fetch_byte();
+          let b3 = fetch_byte();
+          read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
+        }
       };
     let addr : qword = match asz {
       AS16 => addr & 0x000000000000FFFF,
       AS32 => addr & 0x00000000FFFFFFFF,
       AS64 => addr,
     };
-    RM_mem(apply_segment(addr, pfx))
+    RM_mem(apply_segment(addr, pfx, default_seg))
+  }
+}
+
+// Decode ModR/M with 16-bit addressing (SDM Vol.2 Table 2-1).
+// No SIB byte, no REX extension. Register pairs for effective address:
+//   rm=0: [BX+SI], 1: [BX+DI], 2: [BP+SI], 3: [BP+DI],
+//   4: [SI], 5: [DI], 6: [disp16] (mod=00) or [BP], 7: [BX]
+// Default segment: BP-based → SS, others → DS.
+val decode_rm_16 : (byte, Prefixes) -> RM
+function decode_rm_16(modrm, pfx) = {
+  let modbits : range(0, 3) = unsigned(modrm[7..6]);
+  let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
+
+  if modbits == 3 then {
+    RM_reg(unsigned(modrm[2..0]))
+  } else {
+    // Compute base address from register pair
+    let base : word = match rm_raw {
+      0 => read_gpr16(RBX) + read_gpr16(RSI),
+      1 => read_gpr16(RBX) + read_gpr16(RDI),
+      2 => read_gpr16(RBP) + read_gpr16(RSI),
+      3 => read_gpr16(RBP) + read_gpr16(RDI),
+      4 => read_gpr16(RSI),
+      5 => read_gpr16(RDI),
+      6 => if modbits == 0 then 0x0000 else read_gpr16(RBP),
+      7 => read_gpr16(RBX),
+    };
+    // Add displacement
+    let ea : word = if modbits == 0 & rm_raw == 6 then {
+      // mod=00, rm=110: [disp16] absolute
+      let lo = fetch_byte();
+      let hi = fetch_byte();
+      hi @ lo
+    } else if modbits == 0 then {
+      base
+    } else if modbits == 1 then {
+      // + sign-extended disp8
+      let d8 = fetch_byte();
+      base + sign_extend(d8)
+    } else {
+      // modbits == 2: + disp16
+      let lo = fetch_byte();
+      let hi = fetch_byte();
+      base + (hi @ lo)
+    };
+    // Default segment: BP-based → SS, others → DS
+    let default_seg : segreg_idx =
+      if rm_raw == 2 | rm_raw == 3 then SS          // [BP+SI], [BP+DI]
+      else if rm_raw == 6 & modbits != 0 then SS    // [BP]+disp
+      else DS;
+    RM_mem(apply_segment(zero_extend(ea), pfx, default_seg))
   }
 }
 
@@ -265,6 +326,11 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
 // The modrm byte has already been fetched by the caller.
 val decode_rm : (byte, Prefixes) -> RM
 function decode_rm(modrm, pfx) = {
+  // 16-bit addressing uses a completely different table (SDM Table 2-1)
+  if get_address_size(pfx) == AS16 then {
+    return decode_rm_16(modrm, pfx)
+  };
+
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
   let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
 
@@ -287,34 +353,44 @@ function decode_rm(modrm, pfx) = {
       let ea : qword = decode_pos + disp;
       let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-      RM_mem(apply_segment(ea, pfx))
+      RM_mem(apply_segment(ea, pfx, DS))
     } else {
       // Compat/protected mode: [disp32] absolute (no RIP-relative)
       let ea : qword = disp & 0x00000000FFFFFFFF;
-      RM_mem(apply_segment(ea, pfx))
+      RM_mem(apply_segment(ea, pfx, DS))
     }
   } else {
-    // Memory operand — compute address then apply segment override
+    // Memory operand — compute address then apply segment
     let asz = get_address_size(pfx);
+    // Default segment: BP/SP-based → SS, otherwise → DS (SDM Vol.1 Table 3-5)
+    var default_seg : segreg_idx = DS;
     let addr : qword =
       if rm_raw == 4 then {
         // SIB byte follows
         let sib = fetch_byte();
+        let sib_base : range(0, 7) = unsigned(sib[2..0]);
+        // SIB base = BP(5) or SP(4) → SS default
+        if (sib_base == 4 | sib_base == 5) & ~(sib_base == 5 & modbits == 0) then
+          default_seg = SS;
         decode_sib(sib, modbits, pfx)
       } else if modbits == 0 then {
         // [reg] no displacement
         read_gpr64(extend_reg(rm_raw, pfx.rex_b))
-      } else if modbits == 1 then {
-        // [reg] + disp8
-        let d8 = fetch_byte();
-        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(d8)
       } else {
-        // modbits == 2: [reg] + disp32
-        let b0 = fetch_byte();
-        let b1 = fetch_byte();
-        let b2 = fetch_byte();
-        let b3 = fetch_byte();
-        read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
+        // rm_raw = 5 is EBP/RBP → SS default
+        if rm_raw == 5 then default_seg = SS;
+        if modbits == 1 then {
+          // [reg] + disp8
+          let d8 = fetch_byte();
+          read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(d8)
+        } else {
+          // modbits == 2: [reg] + disp32
+          let b0 = fetch_byte();
+          let b1 = fetch_byte();
+          let b2 = fetch_byte();
+          let b3 = fetch_byte();
+          read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
+        }
       };
     // Truncate address based on address size
     let addr : qword = match asz {
@@ -322,7 +398,7 @@ function decode_rm(modrm, pfx) = {
       AS32 => addr & 0x00000000FFFFFFFF,
       AS64 => addr,
     };
-    RM_mem(apply_segment(addr, pfx))
+    RM_mem(apply_segment(addr, pfx, default_seg))
   }
 }
 

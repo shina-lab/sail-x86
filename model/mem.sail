@@ -79,51 +79,72 @@ val mem_write512 : (qword, zmmword) -> unit
 function mem_read512(addr) = mem_read(addr, 64)
 function mem_write512(addr, v) = mem_write(addr, 64, v)
 
-// Stack operations using RSP.
+// Stack operations.
+// In long mode, uses RSP directly (SS base is 0).
+// In non-long mode, linear address = SS base + ESP/SP (SDM Vol.3A §3.4).
+// Stack pointer width depends on SS.B: if SS.B=1 then ESP (32-bit),
+// if SS.B=0 then SP (16-bit). In long mode, always RSP (64-bit).
+
+// Read the stack pointer as a linear address (SS base + ESP/RSP/SP).
+val read_stack_ptr : unit -> qword
+function read_stack_ptr() =
+  if cur_mode == LongMode then read_gpr64(RSP)
+  else get_seg_base(SS) + (
+    if SegCache[SS].seg_db == bitone then zero_extend(read_gpr32(RSP))
+    else zero_extend(read_gpr16(RSP))
+  )
+
+// Write the stack pointer (only the SP/ESP/RSP portion, not the base).
+val write_stack_ptr : qword -> unit
+function write_stack_ptr(v) =
+  if cur_mode == LongMode then write_gpr64(RSP, v)
+  else if SegCache[SS].seg_db == bitone then write_gpr32(RSP, v[31..0])
+  else write_gpr16(RSP, v[15..0])
+
 val push64 : qword -> unit
 function push64(v) = {
-  let rsp = read_gpr64(RSP);
-  let new_rsp = rsp - 8;
-  mem_write64(new_rsp, v);
-  write_gpr64(RSP, new_rsp)
+  let sp = read_stack_ptr();
+  let new_sp = sp - 8;
+  mem_write64(new_sp, v);
+  write_stack_ptr(new_sp - get_seg_base(SS))
 }
 
 val push32 : dword -> unit
 function push32(v) = {
-  let rsp = read_gpr64(RSP);
-  let new_rsp = rsp - 4;
-  mem_write32(new_rsp, v);
-  write_gpr64(RSP, new_rsp)
+  let sp = read_stack_ptr();
+  let new_sp = sp - 4;
+  mem_write32(new_sp, v);
+  write_stack_ptr(new_sp - get_seg_base(SS))
 }
 
 val pop64 : unit -> qword
 function pop64() = {
-  let rsp = read_gpr64(RSP);
-  let v = mem_read64(rsp);
-  write_gpr64(RSP, rsp + 8);
+  let sp = read_stack_ptr();
+  let v = mem_read64(sp);
+  write_stack_ptr(sp + 8 - get_seg_base(SS));
   v
 }
 
 val pop32 : unit -> dword
 function pop32() = {
-  let rsp = read_gpr64(RSP);
-  let v = mem_read32(rsp);
-  write_gpr64(RSP, rsp + 4);
+  let sp = read_stack_ptr();
+  let v = mem_read32(sp);
+  write_stack_ptr(sp + 4 - get_seg_base(SS));
   v
 }
 
 val push16 : word -> unit
 function push16(v) = {
-  let rsp = read_gpr64(RSP);
-  let new_rsp = rsp - 2;
-  mem_write16(new_rsp, v);
-  write_gpr64(RSP, new_rsp)
+  let sp = read_stack_ptr();
+  let new_sp = sp - 2;
+  mem_write16(new_sp, v);
+  write_stack_ptr(new_sp - get_seg_base(SS))
 }
 
 val pop16 : unit -> word
 function pop16() = {
-  let rsp = read_gpr64(RSP);
-  let v = mem_read16(rsp);
-  write_gpr64(RSP, rsp + 2);
+  let sp = read_stack_ptr();
+  let v = mem_read16(sp);
+  write_stack_ptr(sp + 2 - get_seg_base(SS));
   v
 }
