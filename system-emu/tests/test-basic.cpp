@@ -623,6 +623,75 @@ TEST(insb_df_backward) {
 }
 
 // =========================================================================
+// Direct store tests (MOVDIRI/MOVDIR64B)
+// =========================================================================
+
+TEST(movdiri_32) {
+  // MOVDIRI [RDI], EAX: NP 0F 38 F9 07
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[7] = 0x200000; // RDI = destination
+  model.zGPR.data[0] = 0xDEADBEEF12345678ULL; // RAX
+
+  // movdiri [rdi], eax; hlt
+  u8 code[] = { 0x0F, 0x38, 0xF9, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ(model.phys_mem.read32(0x200000), 0x12345678UL); // low 32 bits only
+}
+
+TEST(movdiri_64) {
+  // MOVDIRI [RDI], RAX: REX.W 0F 38 F9 07
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[7] = 0x200000;
+  model.zGPR.data[0] = 0xDEADBEEF12345678ULL;
+
+  u8 code[] = { 0x48, 0x0F, 0x38, 0xF9, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ(model.phys_mem.read64(0x200000), 0xDEADBEEF12345678ULL);
+}
+
+TEST(movdir64b) {
+  // MOVDIR64B RAX, [RDI]: 66 0F 38 F8 07
+  // reg=RAX=destination address, r/m=[RDI]=source
+  x86::Model model;
+  init_model(model);
+
+  // Write 64-byte source pattern at 0x200000
+  for (int i = 0; i < 64; i++)
+    model.phys_mem.write8(0x200000 + i, (u8)(i + 1));
+
+  model.zGPR.data[7] = 0x200000;  // RDI = source address
+  model.zGPR.data[0] = 0x200100;  // RAX = destination address (64-byte aligned)
+
+  // movdir64b rax, [rdi]; hlt
+  u8 code[] = { 0x66, 0x0F, 0x38, 0xF8, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // Verify all 64 bytes were copied
+  for (int i = 0; i < 64; i++)
+    ASSERT_EQ(model.phys_mem.read8(0x200100 + i), (u8)(i + 1));
+}
+
+TEST(movdir64b_unaligned_faults) {
+  // MOVDIR64B with unaligned destination should #GP(0)
+  x86::Model model;
+  init_model(model);
+
+  model.zGPR.data[7] = 0x200000;  // source (aligned, doesn't matter)
+  model.zGPR.data[0] = 0x200001;  // destination NOT 64-byte aligned
+
+  u8 code[] = { 0x66, 0x0F, 0x38, 0xF8, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -657,6 +726,12 @@ int main() {
   run_test_rep_outsb();
   run_test_rep_insd();
   run_test_insb_df_backward();
+
+  printf("\nDirect store tests:\n");
+  run_test_movdiri_32();
+  run_test_movdiri_64();
+  run_test_movdir64b();
+  run_test_movdir64b_unaligned_faults();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

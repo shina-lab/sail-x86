@@ -374,6 +374,8 @@ register has_sha       : bool
 register has_rdrand    : bool
 register has_rdseed    : bool
 register has_crc32     : bool
+register has_movdiri   : bool
+register has_movdir64b : bool
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 
 // =========================================================================

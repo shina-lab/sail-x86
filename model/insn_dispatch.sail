@@ -577,6 +577,45 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             }
           }
         }
+      } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
+        // MOVDIRI m32/m64, r32/r64 (NP 0F 38 F9)
+        if ~(has_movdiri) then raise_UD();
+        let os = if pfx.rex_w then OS64 else OS32;
+        let modrm = fetch_byte();
+        let reg = modrm_reg(modrm, pfx);
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_mem(addr) => {
+            let v = read_gpr(reg, os);
+            match os {
+              OS32 => mem_write32(fixup_addr(addr), v[31..0]),
+              _    => mem_write64(fixup_addr(addr), v),
+            }
+          },
+          RM_reg(_) => raise_UD(),
+        }
+      } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
+        // MOVDIR64B r, m512 (66 0F 38 F8)
+        if ~(has_movdir64b) then raise_UD();
+        let modrm = fetch_byte();
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_mem(addr) => {
+            // Source: 64 bytes from ModRM:r/m memory address
+            let src : zmmword = mem_read512(fixup_addr(addr));
+            // Destination: address from ModRM:reg (ES-relative, no override)
+            let asz = get_address_size(pfx);
+            let reg = modrm_reg(modrm, pfx);
+            let dst_addr : qword = match asz {
+              AS32 => zero_extend(read_gpr32(reg)),
+              _    => read_gpr64(reg),
+            };
+            // Destination must be 64-byte aligned
+            if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
+            mem_write512(dst_addr, src)
+          },
+          RM_reg(_) => raise_UD(),
+        }
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();

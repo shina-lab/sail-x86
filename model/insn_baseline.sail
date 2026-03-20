@@ -254,7 +254,10 @@ function cpuid(leaf, subleaf) = {
         if has_rdseed  then ebx = ebx | 0x00040000;  // bit 18
         if has_adx     then ebx = ebx | 0x00080000;  // bit 19
         if has_sha     then ebx = ebx | 0x20000000;  // bit 29
-        (0x00000000, ebx, 0x00000000, 0x00000000)
+        var ecx : dword = 0x00000000;
+        if has_movdiri   then ecx = ecx | 0x08000000;  // bit 27
+        if has_movdir64b then ecx = ecx | 0x10000000;  // bit 28
+        (0x00000000, ebx, ecx, 0x00000000)
       } else {
         (0x00000000, 0x00000000, 0x00000000, 0x00000000)
       }

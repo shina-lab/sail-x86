@@ -56,6 +56,8 @@ static inline void enable_all_features(Model &m) {
   m.zhas_rdrand = true;
   m.zhas_rdseed = true;
   m.zhas_crc32 = true;
+  m.zhas_movdiri = true;
+  m.zhas_movdir64b = true;
   m.zhas_avx512 = true;
 }
 

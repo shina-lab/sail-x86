@@ -1,4 +1,5 @@
 #include "kvm-harness.h"
+#include <cpuid.h>
 
 void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   std::string cat;
@@ -288,6 +289,43 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // MOVNTI [RDI], RAX: 48 0F C3 07
     add_mem("movnti [rdi],rax", {0x48, 0x0F, 0xC3, 0x07}, s, FL_ALL, {}, 8);
+
+    // MOVDIRI/MOVDIR64B: only test if the host CPU supports them
+    // (CPUID leaf 7, ECX bit 27 = MOVDIRI, bit 28 = MOVDIR64B)
+    u32 eax7, ebx7, ecx7, edx7;
+    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
+
+    if (ecx7 & (1u << 27)) {
+      // MOVDIRI [RDI], EAX: NP 0F 38 F9 07
+      add_mem("movdiri [rdi],eax", {0x0F, 0x38, 0xF9, 0x07}, s, FL_ALL, {}, 4);
+
+      // MOVDIRI [RDI], RAX: NP REX.W 0F 38 F9 07
+      add_mem("movdiri [rdi],rax", {0x48, 0x0F, 0x38, 0xF9, 0x07}, s, FL_ALL, {}, 8);
+
+      // MOVDIRI [RDI], EBX: NP 0F 38 F9 1F
+      s.rbx = 0xCAFEBABE;
+      add_mem("movdiri [rdi],ebx", {0x0F, 0x38, 0xF9, 0x1F}, s, FL_ALL, {}, 4);
+
+      // MOVDIRI [RDI], R8: REX.WR 0F 38 F9 07
+      s.r8 = 0x0102030405060708;
+      add_mem("movdiri [rdi],r8", {0x4C, 0x0F, 0x38, 0xF9, 0x07}, s, FL_ALL, {}, 8);
+    }
+
+    if (ecx7 & (1u << 28)) {
+      // MOVDIR64B RAX, [RDI]: 66 0F 38 F8 07
+      // reg=RAX holds destination address, r/m=[RDI] is source
+      ArchState s2;
+      s2.rflags = 0x2;
+      s2.rdi = DATA_ADDR;         // source
+      s2.rax = DATA_ADDR + 0x80;  // destination (64-byte aligned)
+
+      std::vector<u8> data(256, 0);
+      for (int i = 0; i < 64; i++)
+        data[i] = (u8)(i + 1);
+
+      tests.push_back({"movdir64b rax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF8, 0x07},
+                        s2, FL_ALL, 0, false, data, 256});
+    }
   }
 
   // =====================================================================
