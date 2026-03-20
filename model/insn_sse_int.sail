@@ -392,23 +392,6 @@ function insert_dword(v, d, sel) = {
   }
 }
 
-// PINSRW — Insert Word
-// Insert a 16-bit value into XMM at position selected by imm8[2..0].
-// Other words unchanged. No flags affected.
-val insert_word : (xmmword, word, range(0, 7)) -> xmmword
-function insert_word(v, w, sel) = {
-  match sel {
-    0 => v[127..16] @ w,
-    1 => v[127..32] @ w @ v[15..0],
-    2 => v[127..48] @ w @ v[31..0],
-    3 => v[127..64] @ w @ v[47..0],
-    4 => v[127..80] @ w @ v[63..0],
-    5 => v[127..96] @ w @ v[79..0],
-    6 => v[127..112] @ w @ v[95..0],
-    7 => w @ v[111..0]
-  }
-}
-
 // PMADDUBSW — Multiply and Add Packed Signed and Unsigned Bytes (SSSE3)
 // Multiplies unsigned bytes from src1 with signed bytes from src2,
 // then adds adjacent pairs with signed saturation to produce 16-bit results.
@@ -1835,7 +1818,16 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let imm = fetch_byte();
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
-        let r : xmmword = insert_word(v_0, v, sel);
+        let r : xmmword = match sel {
+          0 => v_0[127..16] @ v,
+          1 => v_0[127..32] @ v @ v_0[15..0],
+          2 => v_0[127..48] @ v @ v_0[31..0],
+          3 => v_0[127..64] @ v @ v_0[47..0],
+          4 => v_0[127..80] @ v @ v_0[63..0],
+          5 => v_0[127..96] @ v @ v_0[79..0],
+          6 => v_0[127..112] @ v @ v_0[95..0],
+          7 => v @ v_0[111..0]
+        };
         write_xmm_legacy(xreg, r)
       }
     },
