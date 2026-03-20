@@ -382,17 +382,10 @@ function fetch_rel8() = sign_extend(fetch_byte())
 // In 64-bit mode (f64 instructions), always 32-bit (SDM Vol.2 §E.3.3).
 val fetch_rel_os : Prefixes -> qword
 function fetch_rel_os(pfx) = {
-  let os = if cur_mode == LongMode then {
-      OS32
-    } else if get_cs_db() == bitone then {
-      if pfx.has_opsize then OS16 else OS32
-    } else {
-      if pfx.has_opsize then OS32 else OS16
-    };
-  match os {
-    OS16 => fetch_rel16(),
-    _    => fetch_rel32(),
-  }
+  let use_32 : bool = if cur_mode == LongMode then true
+    else if get_cs_db() == bitone then not_bool(pfx.has_opsize)
+    else pfx.has_opsize;
+  if use_32 then fetch_rel32() else fetch_rel16()
 }
 
 // =========================================================================
