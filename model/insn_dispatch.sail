@@ -775,7 +775,7 @@ function exec_retf(pfx, maybe_imm) = {
     };
     let new_ss : word = new_ss_raw[15..0];
     write_gpr64(RSP, new_rsp);
-    write_segreg(SS, new_ss);
+    load_segment_register(SS, new_ss);
   } else {
     // Same-privilege: adjust RSP for imm16 if present
     match maybe_imm {
@@ -792,8 +792,8 @@ function exec_retf(pfx, maybe_imm) = {
     }
   };
 
-  // Load new CS and set CPL
-  write_segreg(CS, new_cs);
+  // Load new CS (selector + descriptor cache) and set CPL
+  load_segment_register(CS, new_cs);
   cur_cpl = return_rpl;
 
   // Set RIP to return address
@@ -1725,14 +1725,18 @@ function decode_execute() = {
         exec_loop(rel, LOOP_always, asz)
       },
 
-      // E3: JRCXZ rel8
+      // E3: JCXZ/JECXZ/JRCXZ rel8
+      // Address size selects CX (AS16), ECX (AS32), or RCX (AS64).
       227 => {
         let rel = fetch_rel8();
         let asz = get_address_size(pfx);
-        let count_reg : qword = if asz == AS32 then zero_extend(read_gpr32(RCX)) else read_gpr64(RCX);
+        let count_reg : qword = match asz {
+          AS16 => zero_extend(read_gpr16(RCX)),
+          AS32 => zero_extend(read_gpr32(RCX)),
+          AS64 => read_gpr64(RCX),
+        };
         if count_reg == zeros() then {
-          let target = decode_pos + rel;
-          next_rip = Some(target)
+          next_rip = Some(decode_pos + rel)
         } else {
           ()
         }
