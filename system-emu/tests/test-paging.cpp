@@ -1,4 +1,4 @@
-// Tests for 4-level paging (page table walk, permission checks, A/D bits).
+// Tests for 4-level and 5-level paging (page table walk, permission checks, A/D bits).
 
 #include "sail_x86_model.h"
 #include "x86-helpers.h"
@@ -331,6 +331,183 @@ TEST(store_through_paging) {
 }
 
 // =========================================================================
+// 5-Level Paging (LA57) tests
+// =========================================================================
+
+// Set up a 5-level page table: PML5 → PML4 → PDPT → PD → PT → 4KB page.
+// Returns the next free allocation address.
+static u64 setup_5level_4kb(PhysicalMemory &mem, u64 pml5_addr, u64 alloc_base,
+                            u64 vaddr, u64 paddr, u64 flags) {
+  u64 alloc = alloc_base;
+
+  // PML5 entry: index from bits[56:48]
+  u64 pml4_addr = alloc; alloc += 0x1000;
+  mem.write64(pml5_addr + ((vaddr >> 48) & 0x1FF) * 8,
+              pml4_addr | 0x03); // Present + R/W
+
+  // PML4 entry: index from bits[47:39]
+  u64 pdpt_addr = alloc; alloc += 0x1000;
+  mem.write64(pml4_addr + ((vaddr >> 39) & 0x1FF) * 8,
+              pdpt_addr | 0x03);
+
+  // PDPT entry: index from bits[38:30]
+  u64 pd_addr = alloc; alloc += 0x1000;
+  mem.write64(pdpt_addr + ((vaddr >> 30) & 0x1FF) * 8,
+              pd_addr | 0x03);
+
+  // PD entry: index from bits[29:21]
+  u64 pt_addr = alloc; alloc += 0x1000;
+  mem.write64(pd_addr + ((vaddr >> 21) & 0x1FF) * 8,
+              pt_addr | 0x03);
+
+  // PT entry: map vaddr to paddr with given flags
+  mem.write64(pt_addr + ((vaddr >> 12) & 0x1FF) * 8,
+              (paddr & 0x000FFFFFFFFFF000ULL) | flags);
+
+  return alloc;
+}
+
+TEST(la57_identity_map_4kb) {
+  // 5-level paging with CR4.LA57=1, identity-mapped 4KB page at low address
+  x86::Model model;
+  init_model(model);
+
+  // Enable LA57
+  model.zCR4 = model.zCR4 | (1ULL << 12);
+
+  u64 pml5_addr = 0x10000;
+  model.zCR3 = pml5_addr;
+
+  // Identity map 0x100000 through 5-level page tables
+  u64 alloc = setup_5level_4kb(model.phys_mem, pml5_addr, 0x20000,
+                               0x100000, 0x100000, 0x03);
+
+  // Also identity map stack area 0x80000
+  // Reuse existing PML5[0]→PML4[0]→PDPT[0]→PD[0] chain
+  u64 pml4_addr = model.phys_mem.read64(pml5_addr) & ~0xFFFULL;
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_addr = model.phys_mem.read64(pd_addr) & ~0xFFFULL;
+  // 0x80000 >> 12 = 0x80, so PT[0x80]
+  model.phys_mem.write64(pt_addr + 0x80 * 8, 0x80000 | 0x03);
+
+  // mov rax, 0x42; hlt
+  u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
+
+  model.model_fini();
+}
+
+TEST(la57_non_identity_4kb) {
+  // 5-level paging: map vaddr 0x400000 to paddr 0x200000
+  x86::Model model;
+  init_model(model);
+
+  model.zCR4 = model.zCR4 | (1ULL << 12);
+
+  u64 pml5_addr = 0x10000;
+  model.zCR3 = pml5_addr;
+
+  // Identity map code at 0x100000
+  u64 alloc = setup_5level_4kb(model.phys_mem, pml5_addr, 0x20000,
+                               0x100000, 0x100000, 0x03);
+
+  // Map 0x400000 → 0x200000 (shares PML5[0]→PML4[0]→PDPT[0], different PD entry)
+  u64 pml4_addr = model.phys_mem.read64(pml5_addr) & ~0xFFFULL;
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_for_data = alloc; alloc += 0x1000;
+  model.phys_mem.write64(pd_addr + 2 * 8, pt_for_data | 0x03); // PD[2]
+  model.phys_mem.write64(pt_for_data, 0x200000 | 0x03); // PT[0]
+
+  // Write data at physical 0x200000
+  model.phys_mem.write64(0x200000, 0xDEADBEEFCAFEBABEULL);
+
+  // mov rax, [rdi]; hlt
+  model.zGPR.data[7] = 0x400000;
+  u8 code[] = { 0x48, 0x8B, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0xDEADBEEFCAFEBABEULL);
+
+  model.model_fini();
+}
+
+TEST(la57_1gb_huge_page) {
+  // 5-level paging with 1GB huge page (PS=1 at PDPT level)
+  x86::Model model;
+  init_model(model);
+
+  model.zCR4 = model.zCR4 | (1ULL << 12);
+
+  u64 pml5_addr = 0x10000;
+  u64 pml4_addr = 0x11000;
+  u64 pdpt_addr = 0x12000;
+  model.zCR3 = pml5_addr;
+
+  // PML5[0] → PML4
+  model.phys_mem.write64(pml5_addr, pml4_addr | 0x03);
+  // PML4[0] → PDPT
+  model.phys_mem.write64(pml4_addr, pdpt_addr | 0x03);
+  // PDPT[0] = 1GB page mapping physical 0 (PS=1, P+RW)
+  model.phys_mem.write64(pdpt_addr, 0x00000000 | 0x83);
+
+  // mov rax, 0x42; hlt
+  u8 code[] = { 0xB8, 0x42, 0x00, 0x00, 0x00, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x42UL);
+
+  model.model_fini();
+}
+
+TEST(la57_accessed_dirty) {
+  // 5-level paging: verify A/D bits set through all 5 levels
+  x86::Model model;
+  init_model(model);
+
+  model.zCR4 = model.zCR4 | (1ULL << 12);
+
+  u64 pml5_addr = 0x10000;
+  model.zCR3 = pml5_addr;
+
+  // Identity map code at 0x100000
+  u64 alloc = setup_5level_4kb(model.phys_mem, pml5_addr, 0x20000,
+                               0x100000, 0x100000, 0x03);
+
+  // Map 0x300000 with P+RW but A=0, D=0
+  u64 pml4_addr = model.phys_mem.read64(pml5_addr) & ~0xFFFULL;
+  u64 pdpt_addr = model.phys_mem.read64(pml4_addr) & ~0xFFFULL;
+  u64 pd_addr = model.phys_mem.read64(pdpt_addr) & ~0xFFFULL;
+  u64 pt_for_data = alloc; alloc += 0x1000;
+  model.phys_mem.write64(pd_addr + 1 * 8, pt_for_data | 0x03);
+  u64 pte_addr = pt_for_data + ((0x300000 >> 12) & 0x1FF) * 8;
+  model.phys_mem.write64(pte_addr, 0x300000 | 0x03); // P+RW, A=0, D=0
+
+  // Write to 0x300000
+  model.zGPR.data[7] = 0x300000;
+  u8 code[] = {
+    0x48, 0xC7, 0x07, 0x42, 0x00, 0x00, 0x00,  // mov qword [rdi], 0x42
+    0xF4,
+  };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // Check A and D bits on leaf PTE
+  u64 updated_pte = model.phys_mem.read64(pte_addr);
+  ASSERT_EQ((updated_pte >> 5) & 1, 1UL); // Accessed
+  ASSERT_EQ((updated_pte >> 6) & 1, 1UL); // Dirty
+
+  // Check Accessed bit on PML5 entry (non-leaf entries get A bit set too)
+  u64 pml5e = model.phys_mem.read64(pml5_addr);
+  ASSERT_EQ((pml5e >> 5) & 1, 1UL); // Accessed
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("Paging tests:\n");
@@ -342,6 +519,12 @@ int main() {
   run_test_write_protect();
   run_test_huge_page_1gb();
   run_test_store_through_paging();
+
+  // 5-level paging (LA57) tests
+  run_test_la57_identity_map_4kb();
+  run_test_la57_non_identity_4kb();
+  run_test_la57_1gb_huge_page();
+  run_test_la57_accessed_dirty();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

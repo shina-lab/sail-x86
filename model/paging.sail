@@ -1,7 +1,8 @@
-// x86-64 — 4-Level Paging (Long Mode)
+// x86-64 — 4-Level and 5-Level Paging (Long Mode)
 //
 // Implements the IA-32e paging mechanism:
-//   Virtual address → PML4 → PDPT → PD → PT → Physical address
+//   4-level (default):  Virtual address → PML4 → PDPT → PD → PT → Physical address
+//   5-level (CR4.LA57): Virtual address → PML5 → PML4 → PDPT → PD → PT → Physical address
 //
 // Page table walks use phys_read64 to avoid recursion through mem_read.
 // Follows the sail-riscv pattern: translate_addr() returns physical address
@@ -87,17 +88,20 @@ function update_accessed_dirty(pte_addr, pte, access) = {
   if changed then phys_write64(pte_addr, new_pte)
 }
 
-// 4-level page table walk.
-// Walks PML4 → PDPT → PD → PT to translate a 64-bit linear address.
+// Page table walk.
+// Walks PML5 → PML4 → PDPT → PD → PT to translate a 64-bit linear address.
 // On success, returns the physical address.
 // On failure, throws Fault(EXN_PF, error_code).
 //
-// The `level` parameter counts down: 3=PML4, 2=PDPT, 1=PD, 0=PT.
-val pt_walk : (qword, PTAccess, qword, range(0, 3)) -> qword
+// The `level` parameter counts down:
+//   4=PML5 (5-level only), 3=PML4, 2=PDPT, 1=PD, 0=PT.
+val pt_walk : (qword, PTAccess, qword, range(0, 4)) -> qword
 function pt_walk(linear, access, table_base, level) = {
   // 1. Compute index: 9 bits per level
-  //    PML4: bits[47:39], PDPT: bits[38:30], PD: bits[29:21], PT: bits[20:12]
+  //    PML5: bits[56:48], PML4: bits[47:39], PDPT: bits[38:30],
+  //    PD: bits[29:21], PT: bits[20:12]
   let index : qword = match level {
+    4 => zero_extend((linear[56..48]) : bits(9)),  // PML5 index
     3 => zero_extend((linear[47..39]) : bits(9)),  // PML4 index
     2 => zero_extend((linear[38..30]) : bits(9)),  // PDPT index
     1 => zero_extend((linear[29..21]) : bits(9)),  // PD index
@@ -115,8 +119,12 @@ function pt_walk(linear, access, table_base, level) = {
   };
 
   // 4. Check reserved bits
-  //    For non-leaf entries at levels 3,2,1: bits[12:51] are the next table base
-  //    For leaf entries: PS=1 at level 1 (2MB) or level 2 (1GB)
+  //    PML5E and PML4E: PS (bit 7) must be 0 (reserved)
+  //    PDPTE/PDE: PS=1 allowed for huge pages
+  if (level == 4 | level == 3) & pte[7] == bitone then {
+    CR2 = linear;
+    throw Fault(EXN_PF, mk_pf_error(access, true, true))
+  };
 
   // 5. Check if this is a leaf entry
   let is_leaf : bool = if level == 0 then true
@@ -172,6 +180,8 @@ val __tlb_flush : unit -> unit
 // Top-level address translation.
 // If paging is disabled (CR0.PG=0), returns the linear address as-is.
 // Otherwise, checks TLB first, then walks the page table starting from CR3.
+// With CR4.LA57=1 (5-level paging), CR3 points to PML5 and walk starts at level 4.
+// With CR4.LA57=0 (4-level paging), CR3 points to PML4 and walk starts at level 3.
 val translate_addr : (qword, PTAccess) -> qword
 function translate_addr(linear, access) = {
   if CR0[31] == bitzero then {
@@ -181,8 +191,10 @@ function translate_addr(linear, access) = {
     match __tlb_lookup(linear, is_write) {
       Some(paddr) => paddr,
       None() => {
-        let pml4_base : qword = CR3 & 0x000FFFFFFFFFF000;
-        let paddr = pt_walk(linear, access, pml4_base, 3);
+        let table_base : qword = CR3 & 0x000FFFFFFFFFF000;
+        let start_level : range(0, 4) =
+          if CR4[12] == bitone then 4 else 3;
+        let paddr = pt_walk(linear, access, table_base, start_level);
         // Only cache 4KB-aligned translations (common case)
         __tlb_insert(linear, paddr, is_write);
         paddr
