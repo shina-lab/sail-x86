@@ -415,17 +415,16 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
             if unsigned(inv_type) > 3 then raise_GP0();
             let desc : xmmword = mem_read128(fixup_addr(addr));
-            let pcid : bits(12) = desc[11..0];
             let reserved : bits(52) = desc[63..12];
-            let lin_addr : qword = desc[127..64];
-            if unsigned(inv_type) <= 1 then {
-              if reserved != zeros() then raise_GP0();
-              if unsigned(inv_type) == 0 then {
-                // Linear address must be canonical (sign-extended from bit 47)
-                let top17 : bits(17) = lin_addr[63..47];
-                if top17 != zeros() & top17 != ones() then raise_GP0()
-              }
-            };
+            let top17 : bits(17) = desc[127..111];
+            // types 0,1: reserved bits must be zero
+            // type 0: linear address must be canonical
+            let is_type_01 : bit = bool_to_bit(unsigned(inv_type) <= 1);
+            let is_type_0 : bit = bool_to_bit(inv_type == zeros());
+            let bad_reserved : bit = bool_to_bit(reserved != zeros());
+            let non_canonical : bit = bool_to_bit(top17 != zeros() & top17 != ones());
+            let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
+            if fault == bitone then raise_GP0();
             __tlb_flush()
           },
           RM_reg(_) => raise_UD(),
