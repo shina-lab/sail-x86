@@ -1603,11 +1603,12 @@ function decode_execute() = {
       },
 
       // CF: IRET/IRETD/IRETQ — Interrupt Return
-      // In IA-32e mode (64-bit): pop RIP, CS, RFLAGS, RSP, SS from stack.
-      // RSP and SS are always popped in 64-bit mode (SDM Vol.2 IRET).
+      // Real mode: pop IP, CS, FLAGS (3 words, no SP/SS).
+      // Protected mode same-privilege: pop EIP, CS, EFLAGS (no ESP/SS).
+      // Protected mode outer-privilege: also pop ESP, SS.
+      // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
         let os = get_operand_size(pfx);
-        // NT must be clear in IA-32e mode, else #GP(0)
         if NT == bitone then {
           throw Fault(EXN_GP, 0x00000000)
         };
@@ -1617,49 +1618,58 @@ function decode_execute() = {
             let new_ip     = pop16();
             let new_cs     = pop16();
             let new_flags  = pop16();
-            let new_sp     = pop16();
-            let new_ss     = pop16();
+
+            let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
             next_rip = Some(zero_extend(new_ip));
-            write_segreg(CS, new_cs);
-            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
-            cur_cpl = new_cpl;
-            // Only lower 16 bits of RFLAGS affected
+            load_segment_register(CS, new_cs);
+
+            // Only pop SP/SS on outer-privilege return (not in real mode)
+            if cur_mode != RealMode & return_rpl > cur_cpl then {
+              let new_sp = pop16();
+              let new_ss = pop16();
+              write_gpr64(RSP, zero_extend(new_sp));
+              load_segment_register(SS, new_ss)
+            };
+
+            cur_cpl = return_rpl;
             let old_rflags = read_rflags();
             write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
-            RF = bitzero;
-            write_gpr64(RSP, zero_extend(new_sp));
-            write_segreg(SS, new_ss);
+            RF = bitzero
           },
           OS32 => {
             let new_eip    = pop32();
-            let new_cs     = pop32();
+            let new_cs_raw = pop32();
             let new_eflags = pop32();
-            let new_esp    = pop32();
-            let new_ss     = pop32();
+            let new_cs : word = new_cs_raw[15..0];
+
+            let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
             next_rip = Some(zero_extend(new_eip));
-            write_segreg(CS, new_cs[15..0]);
-            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
-            cur_cpl = new_cpl;
+            load_segment_register(CS, new_cs);
+
+            // Only pop ESP/SS on outer-privilege return (not in real mode)
+            if cur_mode != RealMode & return_rpl > cur_cpl then {
+              let new_esp = pop32();
+              let new_ss  = pop32();
+              write_gpr64(RSP, zero_extend(new_esp));
+              load_segment_register(SS, new_ss[15..0])
+            };
+
+            cur_cpl = return_rpl;
             write_rflags(zero_extend(new_eflags));
-            RF = bitzero;
-            write_gpr64(RSP, zero_extend(new_esp));
-            write_segreg(SS, new_ss[15..0]);
+            RF = bitzero
           },
           OS64 => {
             let new_rip    = pop64();
-            let new_cs     = pop64();  // High 48 bits discarded
+            let new_cs     = pop64();
             let new_rflags = pop64();
             let new_rsp    = pop64();
-            let new_ss     = pop64();  // High 48 bits discarded
+            let new_ss     = pop64();
 
-            // Set RIP (via next_rip so step() uses it)
             next_rip = Some(new_rip);
 
             // Load CS selector and descriptor cache from GDT.
-            // Must read GDT before changing CPL — GDT access is an implicit
-            // supervisor-level access (SDM Vol.3 §5.5).
             let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
             let desc_lo : dword = mem_read32(GDTR_base + sel_offset);
             let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
@@ -1668,16 +1678,12 @@ function decode_execute() = {
             cur_mode = if SegCache[CS].seg_l == bitone then LongMode
                        else CompatibilityMode;
 
-            // Determine new CPL from CS.RPL
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);
             cur_cpl = new_cpl;
 
-            // Restore RFLAGS. At CPL 0: all flags modifiable except VIP, VIF, VM.
-            // RF is always cleared by instruction execution.
             write_rflags(new_rflags);
             RF = bitzero;
 
-            // Load RSP and SS
             write_gpr64(RSP, new_rsp);
             write_segreg(SS, new_ss[15..0]);
           },
