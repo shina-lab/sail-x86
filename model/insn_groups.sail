@@ -387,7 +387,85 @@ function dispatch_group5(reg_field, rm, pfx) = {
       let v = read_rm_val(rm, os, pfx.has_rex);
       exec_push_imm(v, os)
     },
-    _ => raise_UD(),  // 3=CALL far, 5=JMP far, 7=reserved
+    // CALL far indirect m16:16/m16:32/m16:64
+    // Memory operand contains offset (16/32/64 bits) then selector (16 bits).
+    // Register form is #UD.
+    3 => {
+      match rm {
+        RM_reg(_) => raise_UD(),
+        RM_mem(seg, offset) => {
+          let os = get_operand_size(pfx);
+          let off_size : int = operand_size_bits(os) / 8;
+          let a = seg_linear(seg, offset, off_size + 2);
+          let far_offset : qword = match os {
+            OS16 => zero_extend(mem_read16(a)),
+            OS32 => zero_extend(mem_read32(a)),
+            OS64 => mem_read64(a),
+            OS8  => zeros(),
+          };
+          let far_selector : word = mem_read16(a + off_size);
+          match cur_mode {
+            LongMode => {
+              // 64-bit far CALL: push old CS:RIP, load new CS:RIP
+              push64(zero_extend(read_segreg(CS)));
+              push64(decode_pos);
+              load_segment_register(CS, far_selector);
+              next_rip = Some(far_offset)
+            },
+            RealMode => {
+              match os {
+                OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
+                _    => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+              };
+              load_segment_register(CS, far_selector);
+              let target : qword = match os {
+                OS16 => zero_extend(far_offset[15..0]),
+                _    => zero_extend(far_offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_call_protected(far_selector, far_offset, os),
+          }
+        },
+      }
+    },
+    // JMP far indirect m16:16/m16:32/m16:64
+    // Memory operand contains offset (16/32/64 bits) then selector (16 bits).
+    // Register form is #UD.
+    5 => {
+      match rm {
+        RM_reg(_) => raise_UD(),
+        RM_mem(seg, offset) => {
+          let os = get_operand_size(pfx);
+          let off_size : int = operand_size_bits(os) / 8;
+          let a = seg_linear(seg, offset, off_size + 2);
+          let far_offset : qword = match os {
+            OS16 => zero_extend(mem_read16(a)),
+            OS32 => zero_extend(mem_read32(a)),
+            OS64 => mem_read64(a),
+            OS8  => zeros(),
+          };
+          let far_selector : word = mem_read16(a + off_size);
+          match cur_mode {
+            LongMode => {
+              load_segment_register(CS, far_selector);
+              next_rip = Some(far_offset)
+            },
+            RealMode => {
+              load_segment_register(CS, far_selector);
+              let target : qword = match os {
+                OS16 => zero_extend(far_offset[15..0]),
+                _    => zero_extend(far_offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_jmp_protected(far_selector, far_offset, os),
+          }
+        },
+      }
+    },
+    // 7: reserved
+    7 => raise_UD(),
   }
 }
 

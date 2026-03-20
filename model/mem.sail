@@ -259,3 +259,127 @@ function seg_write64(seg, offset, v)  = mem_write64(seg_linear(seg, offset, 8), 
 function seg_write128(seg, offset, v) = mem_write128(seg_linear(seg, offset, 16), v)
 function seg_write256(seg, offset, v) = mem_write256(seg_linear(seg, offset, 32), v)
 function seg_write512(seg, offset, v) = mem_write512(seg_linear(seg, offset, 64), v)
+
+// =========================================================================
+// Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)
+// =========================================================================
+
+// Read a segment descriptor from the GDT (or LDT — TODO: LDT support).
+// Returns the parsed descriptor cache entry.
+// Raises #GP(selector) if the selector index is beyond the table limit.
+val read_descriptor : word -> SegDescCache
+function read_descriptor(selector) = {
+  let ti : bit = selector[2];
+  let index : bits(13) = selector[15..3];
+  let table_base : qword = if ti == bitone then GDTR_base  // TODO: LDT base
+                            else GDTR_base;
+  let table_limit : word = GDTR_limit;
+  let desc_offset : qword = zero_extend(index @ 0b000);
+  // Descriptor must fit within the table limit (offset + 7 <= limit)
+  if unsigned(desc_offset) + 7 > unsigned(table_limit) then {
+    throw Fault(EXN_GP, zero_extend(selector))
+  };
+  let desc_lo : dword = mem_read32(table_base + desc_offset);
+  let desc_hi : dword = mem_read32(table_base + desc_offset + 4);
+  parse_seg_descriptor(desc_lo, desc_hi)
+}
+
+// Validate and load CS for a far JMP in protected mode (same-privilege,
+// code segment only — no call gates or task switches).
+// SDM Vol.2A JMP — Protected Mode, non-64-bit:
+//   1. Selector must not be null (#GP(0))
+//   2. Selector index must be within GDT/LDT limits (#GP(selector))
+//   3. Descriptor must be a code segment (S=1, type bit 3 set) (#GP(selector))
+//   4. Non-conforming: DPL = CPL and RPL <= CPL (#GP(selector))
+//      Conforming: DPL <= CPL (#GP(selector))
+//   5. Segment must be present (#NP(selector))
+//   6. Load CS, set RPL = CPL
+val validate_far_jmp_cs : word -> SegDescCache
+function validate_far_jmp_cs(selector) = {
+  // Null selector check
+  if selector[15..2] == zeros() then {
+    throw Fault(EXN_GP, 0x00000000)
+  };
+
+  let desc = read_descriptor(selector);
+
+  // Must be a code/data segment (S=1), not a system descriptor
+  if desc.seg_s == bitzero then {
+    throw Fault(EXN_GP, zero_extend(selector))
+  };
+  // Must be a code segment (type bit 3 set)
+  if desc.seg_type[3] == bitzero then {
+    throw Fault(EXN_GP, zero_extend(selector))
+  };
+
+  let rpl : range(0, 3) = unsigned(selector[1..0]);
+  let conforming : bool = desc.seg_type[2] == bitone;
+
+  if conforming then {
+    // Conforming: DPL must be <= CPL
+    if desc.seg_dpl > cur_cpl then {
+      throw Fault(EXN_GP, zero_extend(selector))
+    }
+  } else {
+    // Non-conforming: DPL must equal CPL, RPL must be <= CPL
+    if desc.seg_dpl != cur_cpl then {
+      throw Fault(EXN_GP, zero_extend(selector))
+    };
+    if rpl > cur_cpl then {
+      throw Fault(EXN_GP, zero_extend(selector))
+    }
+  };
+
+  // Segment must be present
+  if desc.seg_present == bitzero then {
+    throw Fault(EXN_NP, zero_extend(selector))
+  };
+
+  desc
+}
+
+// Execute far JMP in protected mode.
+// Validates the target code segment, loads CS with descriptor cache,
+// and sets EIP. Call gates and task switches are not supported (#GP).
+val exec_far_jmp_protected : (word, qword, OperandSize) -> unit
+function exec_far_jmp_protected(selector, offset, os) = {
+  let desc = validate_far_jmp_cs(selector);
+  // Load CS: write selector with RPL set to CPL
+  let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
+  write_segreg(CS, adj_sel);
+  SegCache[CS] = desc;
+  // Truncate offset based on operand size
+  let target : qword = match os {
+    OS8  => offset,
+    OS16 => zero_extend(offset[15..0]),
+    OS32 => zero_extend(offset[31..0]),
+    OS64 => offset,
+  };
+  next_rip = Some(target)
+}
+
+// Execute far CALL in protected mode.
+// Same validation as far JMP, but pushes old CS:EIP first.
+val exec_far_call_protected : (word, qword, OperandSize) -> unit
+function exec_far_call_protected(selector, offset, os) = {
+  let desc = validate_far_jmp_cs(selector);
+  // Push old CS and EIP/IP
+  match os {
+    OS8  => (),
+    OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
+    OS32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+    OS64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },
+  };
+  // Load CS
+  let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
+  write_segreg(CS, adj_sel);
+  SegCache[CS] = desc;
+  // Set EIP
+  let target : qword = match os {
+    OS8  => offset,
+    OS16 => zero_extend(offset[15..0]),
+    OS32 => zero_extend(offset[31..0]),
+    OS64 => offset,
+  };
+  next_rip = Some(target)
+}

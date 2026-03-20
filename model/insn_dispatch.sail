@@ -1201,6 +1201,37 @@ function decode_execute() = {
         }
       },
 
+      // 9A: CALL ptr16:16/ptr16:32 — Far call, immediate
+      // Invalid in 64-bit mode. Encoding: offset (16/32 bits) then selector (16 bits).
+      154 => {
+        if cur_mode == LongMode then {
+          raise_UD()
+        } else {
+          let os = get_operand_size(pfx);
+          let offset : qword = match os {
+            OS16 => fetch_imm_v(OS16),
+            _    => fetch_imm_v(OS32),
+          };
+          let selector : word = fetch_imm16();
+          match cur_mode {
+            RealMode => {
+              // Push old CS:IP/EIP
+              match os {
+                OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
+                _    => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+              };
+              load_segment_register(CS, selector);
+              let target : qword = match os {
+                OS16 => zero_extend(offset[15..0]),
+                _    => zero_extend(offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_call_protected(selector, offset, os),
+          }
+        }
+      },
+
       // 9B: FWAIT/WAIT
       155 => __wait(),
 
@@ -1786,6 +1817,32 @@ function decode_execute() = {
       // E9: JMP rel32 (f64)
       233 => {
         next_rip = Some(decode_pos + fetch_rel32())
+      },
+
+      // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
+      // Invalid in 64-bit mode. Encoding: offset (16/32 bits) then selector (16 bits).
+      234 => {
+        if cur_mode == LongMode then {
+          raise_UD()
+        } else {
+          let os = get_operand_size(pfx);
+          let offset : qword = match os {
+            OS16 => fetch_imm_v(OS16),
+            _    => fetch_imm_v(OS32),
+          };
+          let selector : word = fetch_imm16();
+          match cur_mode {
+            RealMode => {
+              load_segment_register(CS, selector);
+              let target : qword = match os {
+                OS16 => zero_extend(offset[15..0]),
+                _    => zero_extend(offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_jmp_protected(selector, offset, os),
+          }
+        }
       },
 
       // EB: JMP rel8 (f64)
