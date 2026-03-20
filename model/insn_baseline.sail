@@ -1165,7 +1165,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 80-8F: Jcc rel16/rel32 (f64)
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
-      let offset = fetch_rel_os();
+      let offset = fetch_rel_os(pfx);
       if eval_cc(cc) == bitone then {
         next_rip = Some(decode_pos + offset);
       }

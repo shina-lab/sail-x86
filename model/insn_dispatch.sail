@@ -1966,7 +1966,7 @@ function decode_execute() = {
 
       // E8: CALL rel16/rel32 (f64)
       232 => {
-        let offset = fetch_rel_os();
+        let offset = fetch_rel_os(pfx);
         let os = get_operand_size_f64(pfx);
         let return_addr = decode_pos;
         match os {
@@ -1981,7 +1981,7 @@ function decode_execute() = {
 
       // E9: JMP rel16/rel32 (f64)
       233 => {
-        next_rip = Some(decode_pos + fetch_rel_os())
+        next_rip = Some(decode_pos + fetch_rel_os(pfx))
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate

@@ -375,13 +375,25 @@ function fetch_rel16() = {
 val fetch_rel8 : unit -> qword
 function fetch_rel8() = sign_extend(fetch_byte())
 
-// Fetch a relative offset sized by operand size (rel16 or rel32).
-// In 16-bit mode (CS.D=0), fetches 16-bit offset; in 32-bit mode, 32-bit.
+// Fetch a relative offset sized by effective operand size (rel16 or rel32).
+// SDM Vol.2: for near CALL/JMP/Jcc, the displacement size matches the
+// operand-size attribute: 16-bit in 16-bit mode, 32-bit in 32-bit mode.
+// The 66h prefix toggles it: 66h in 16-bit mode → 32-bit offset.
 // In 64-bit mode (f64 instructions), always 32-bit (SDM Vol.2 §E.3.3).
-val fetch_rel_os : unit -> qword
-function fetch_rel_os() =
-  if cur_mode != LongMode & get_cs_db() == bitzero then fetch_rel16()
-  else fetch_rel32()
+val fetch_rel_os : Prefixes -> qword
+function fetch_rel_os(pfx) = {
+  let os = if cur_mode == LongMode then {
+      OS32
+    } else if get_cs_db() == bitone then {
+      if pfx.has_opsize then OS16 else OS32
+    } else {
+      if pfx.has_opsize then OS32 else OS16
+    };
+  match os {
+    OS16 => fetch_rel16(),
+    _    => fetch_rel32(),
+  }
+}
 
 // =========================================================================
 // Address size determination (for string ops, LOOP, XLAT, etc.)
