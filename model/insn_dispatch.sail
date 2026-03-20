@@ -459,10 +459,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(addr) => {
+          RM_mem(seg, offset) => {
             let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
             if unsigned(inv_type) > 3 then raise_GP0();
-            let desc : xmmword = mem_read128(fixup_addr(addr));
+            let desc : xmmword = seg_read128(seg, offset);
             let reserved : bits(52) = desc[63..12];
             let top17 : bits(17) = desc[127..111];
             // types 0,1: reserved bits must be zero
@@ -490,7 +490,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             // CRC32 r32/r64, r/m8
             let src : byte = match rm {
               RM_reg(_) => read_rm_val(rm, OS8, pfx.has_rex)[7..0],
-              RM_mem(addr) => mem_read8(addr),
+              RM_mem(seg, offset) => seg_read8(seg, offset),
             };
             let result : bits(32) = crc32c_byte(crc, src);
             write_gpr(reg, if pfx.rex_w then OS64 else OS32, zero_extend(result))
@@ -501,21 +501,21 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               OS16 => {
                 let src : bits(16) = match rm {
                   RM_reg(_) => read_rm_val(rm, OS16, pfx.has_rex)[15..0],
-                  RM_mem(addr) => mem_read16(addr),
+                  RM_mem(seg, offset) => seg_read16(seg, offset),
                 };
                 crc32c_16(crc, src)
               },
               OS64 => {
                 let src : bits(64) = match rm {
                   RM_reg(_) => read_rm_val(rm, OS64, pfx.has_rex),
-                  RM_mem(addr) => mem_read64(addr),
+                  RM_mem(seg, offset) => seg_read64(seg, offset),
                 };
                 crc32c_64(crc, src)
               },
               _ => {
                 let src : bits(32) = match rm {
                   RM_reg(_) => read_rm_val(rm, OS32, pfx.has_rex)[31..0],
-                  RM_mem(addr) => mem_read32(addr),
+                  RM_mem(seg, offset) => seg_read32(seg, offset),
                 };
                 crc32c_32(crc, src)
               },
@@ -532,19 +532,19 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           if op3 == 240 then {
             // MOVBE r, m — load from memory and byte-swap
             match rm {
-              RM_mem(addr) => {
+              RM_mem(seg, offset) => {
                 match os {
                   OS8 => (),
                   OS16 => {
-                    let v = mem_read16(addr);
+                    let v = seg_read16(seg, offset);
                     write_gpr(reg, OS16, zero_extend(v[7..0] @ v[15..8]))
                   },
                   OS32 => {
-                    let v = mem_read32(addr);
+                    let v = seg_read32(seg, offset);
                     write_gpr(reg, OS32, zero_extend(v[7..0] @ v[15..8] @ v[23..16] @ v[31..24]))
                   },
                   OS64 => {
-                    let v = mem_read64(addr);
+                    let v = seg_read64(seg, offset);
                     write_gpr(reg, OS64, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                          v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
@@ -555,20 +555,20 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           } else {
             // MOVBE m, r — byte-swap register and store to memory
             match rm {
-              RM_mem(addr) => {
+              RM_mem(seg, offset) => {
                 match os {
                   OS8 => (),
                   OS16 => {
                     let v : word = read_gpr(reg, OS16)[15..0];
-                    mem_write16(addr, v[7..0] @ v[15..8])
+                    seg_write16(seg, offset, v[7..0] @ v[15..8])
                   },
                   OS32 => {
                     let v : dword = read_gpr(reg, OS32)[31..0];
-                    mem_write32(addr, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
+                    seg_write32(seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
                   },
                   OS64 => {
                     let v : qword = read_gpr(reg, OS64);
-                    mem_write64(addr, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
+                    seg_write64(seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                       v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
                 }
@@ -585,11 +585,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(addr) => {
+          RM_mem(seg, offset) => {
             let v = read_gpr(reg, os);
             match os {
-              OS32 => mem_write32(fixup_addr(addr), v[31..0]),
-              _    => mem_write64(fixup_addr(addr), v),
+              OS32 => seg_write32(seg, offset, v[31..0]),
+              _    => seg_write64(seg, offset, v),
             }
           },
           RM_reg(_) => raise_UD(),
@@ -600,9 +600,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(addr) => {
+          RM_mem(seg, offset) => {
             // Source: 64 bytes from ModRM:r/m memory address
-            let src : zmmword = mem_read512(fixup_addr(addr));
+            let src : zmmword = seg_read512(seg, offset);
             // Destination: address from ModRM:reg (ES-relative, no override)
             let asz = get_address_size(pfx);
             let reg = modrm_reg(modrm, pfx);
@@ -1091,7 +1091,7 @@ function decode_execute() = {
               let os = get_operand_size(pfx);
               write_gpr(idx, os, zero_extend(read_segreg(seg)))
             },
-            RM_mem(addr) => mem_write16(addr, read_segreg(seg)),
+            RM_mem(s, offset) => seg_write16(s, offset, read_segreg(seg)),
           }
         }
       },
@@ -1107,7 +1107,7 @@ function decode_execute() = {
           let rm = decode_rm(modrm, pfx);
           let v : word = match rm {
             RM_reg(idx) => read_gpr16(idx),
-            RM_mem(addr) => mem_read16(addr),
+            RM_mem(s, offset) => seg_read16(s, offset),
           };
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
@@ -1121,7 +1121,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         match rm {
-          RM_mem(addr) => write_gpr(reg, os, addr),
+          RM_mem(_, offset) => write_gpr(reg, os, offset),
           RM_reg(_) => raise_UD(),
         }
       },
@@ -1152,10 +1152,10 @@ function decode_execute() = {
             };
             let rm = decode_rm(modrm, pfx);
             match rm {
-              RM_mem(addr) => {
+              RM_mem(seg, offset) => {
                 match os {
-                  OS64 => mem_write64(addr, v),
-                  OS16 => mem_write16(addr, v[15..0]),
+                  OS64 => seg_write64(seg, offset, v),
+                  OS16 => seg_write16(seg, offset, v[15..0]),
                   _ => (),
                 }
               },

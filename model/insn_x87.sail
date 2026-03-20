@@ -71,23 +71,23 @@ val __wait : unit -> unit
 // Memory access helpers for x87 data sizes
 // =========================================================================
 
-val mem_read_fp80 : qword -> fp80
-function mem_read_fp80(addr) = mem_read(addr, 10)
+val seg_read_fp80 : (segreg_idx, qword) -> fp80
+function seg_read_fp80(seg, offset) = mem_read(seg_linear(seg, offset, 10), 10)
 
-val mem_write_fp80 : (qword, fp80) -> unit
-function mem_write_fp80(addr, v) = mem_write(addr, 10, v)
+val seg_write_fp80 : (segreg_idx, qword, fp80) -> unit
+function seg_write_fp80(seg, offset, v) = mem_write(seg_linear(seg, offset, 10), 10, v)
 
-val mem_read_224 : qword -> bits(224)
-function mem_read_224(addr) = mem_read(addr, 28)
+val seg_read_224 : (segreg_idx, qword) -> bits(224)
+function seg_read_224(seg, offset) = mem_read(seg_linear(seg, offset, 28), 28)
 
-val mem_write_224 : (qword, bits(224)) -> unit
-function mem_write_224(addr, v) = mem_write(addr, 28, v)
+val seg_write_224 : (segreg_idx, qword, bits(224)) -> unit
+function seg_write_224(seg, offset, v) = mem_write(seg_linear(seg, offset, 28), 28, v)
 
-val mem_read_864 : qword -> bits(864)
-function mem_read_864(addr) = mem_read(addr, 108)
+val seg_read_864 : (segreg_idx, qword) -> bits(864)
+function seg_read_864(seg, offset) = mem_read(seg_linear(seg, offset, 108), 108)
 
-val mem_write_864 : (qword, bits(864)) -> unit
-function mem_write_864(addr, v) = mem_write(addr, 108, v)
+val seg_write_864 : (segreg_idx, qword, bits(864)) -> unit
+function seg_write_864(seg, offset, v) = mem_write(seg_linear(seg, offset, 108), 108, v)
 
 // =========================================================================
 // Status word condition code helpers
@@ -129,8 +129,8 @@ function dispatch_x87_d8(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
-      let src : fp80 = __f80_from_f32(mem_read32(addr));
+    RM_mem(seg, offset) => {
+      let src : fp80 = __f80_from_f32(seg_read32(seg, offset));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -170,16 +170,16 @@ function dispatch_x87_d9(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
+    RM_mem(seg, offset) => {
       match reg {
-        0 => x87_push(__f80_from_f32(mem_read32(addr))),
+        0 => x87_push(__f80_from_f32(seg_read32(seg, offset))),
         1 => raise_UD(),
-        2 => mem_write32(addr, __f80_to_f32(x87_read_st(0))),
-        3 => mem_write32(addr, __f80_to_f32(x87_pop())),
-        4 => x87_load_env(mem_read_224(addr)),
-        5 => x87_cw = mem_read16(addr),
-        6 => mem_write_224(addr, x87_save_env()),
-        7 => mem_write16(addr, x87_cw),
+        2 => seg_write32(seg, offset, __f80_to_f32(x87_read_st(0))),
+        3 => seg_write32(seg, offset, __f80_to_f32(x87_pop())),
+        4 => x87_load_env(seg_read_224(seg, offset)),
+        5 => x87_cw = seg_read16(seg, offset),
+        6 => seg_write_224(seg, offset, x87_save_env()),
+        7 => seg_write16(seg, offset, x87_cw),
       }
     },
     RM_reg(_) => {
@@ -305,8 +305,8 @@ function dispatch_x87_da(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
-      let src : fp80 = __f80_from_int32(mem_read32(addr));
+    RM_mem(seg, offset) => {
+      let src : fp80 = __f80_from_int32(seg_read32(seg, offset));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -350,16 +350,16 @@ function dispatch_x87_db(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
+    RM_mem(seg, offset) => {
       match reg {
-        0 => x87_push(__f80_from_int32(mem_read32(addr))),
-        1 => mem_write32(addr, __f80_to_int32_trunc(x87_pop())),
-        2 => mem_write32(addr, __f80_to_int32(x87_read_st(0))),
-        3 => mem_write32(addr, __f80_to_int32(x87_pop())),
+        0 => x87_push(__f80_from_int32(seg_read32(seg, offset))),
+        1 => seg_write32(seg, offset, __f80_to_int32_trunc(x87_pop())),
+        2 => seg_write32(seg, offset, __f80_to_int32(x87_read_st(0))),
+        3 => seg_write32(seg, offset, __f80_to_int32(x87_pop())),
         4 => raise_UD(),
-        5 => x87_push(mem_read_fp80(addr)),
+        5 => x87_push(seg_read_fp80(seg, offset)),
         6 => raise_UD(),
-        7 => mem_write_fp80(addr, x87_pop()),
+        7 => seg_write_fp80(seg, offset, x87_pop()),
       }
     },
     RM_reg(_) => {
@@ -400,8 +400,8 @@ function dispatch_x87_dc(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
-      let src : fp80 = __f80_from_f64(mem_read64(addr));
+    RM_mem(seg, offset) => {
+      let src : fp80 = __f80_from_f64(seg_read64(seg, offset));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -439,21 +439,21 @@ function dispatch_x87_dd(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
+    RM_mem(seg, offset) => {
       match reg {
-        0 => x87_push(__f80_from_f64(mem_read64(addr))),
-        1 => mem_write64(addr, __f80_to_int64_trunc(x87_pop())),
-        2 => mem_write64(addr, __f80_to_f64(x87_read_st(0))),
-        3 => mem_write64(addr, __f80_to_f64(x87_pop())),
-        4 => x87_load_state(mem_read_864(addr)),
+        0 => x87_push(__f80_from_f64(seg_read64(seg, offset))),
+        1 => seg_write64(seg, offset, __f80_to_int64_trunc(x87_pop())),
+        2 => seg_write64(seg, offset, __f80_to_f64(x87_read_st(0))),
+        3 => seg_write64(seg, offset, __f80_to_f64(x87_pop())),
+        4 => x87_load_state(seg_read_864(seg, offset)),
         5 => raise_UD(),
         // FNSAVE — save state, then reinitialize
         6 => {
           let state = x87_save_state();
           x87_init();
-          mem_write_864(addr, state)
+          seg_write_864(seg, offset, state)
         },
-        7 => mem_write16(addr, x87_sw),
+        7 => seg_write16(seg, offset, x87_sw),
       }
     },
     RM_reg(_) => {
@@ -483,8 +483,8 @@ function dispatch_x87_de(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
-      let src : fp80 = __f80_from_int16(mem_read16(addr));
+    RM_mem(seg, offset) => {
+      let src : fp80 = __f80_from_int16(seg_read16(seg, offset));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -560,16 +560,16 @@ function dispatch_x87_df(modrm, rm, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match rm {
-    RM_mem(addr) => {
+    RM_mem(seg, offset) => {
       match reg {
-        0 => x87_push(__f80_from_int16(mem_read16(addr))),
-        1 => mem_write16(addr, __f80_to_int16_trunc(x87_pop())),
-        2 => mem_write16(addr, __f80_to_int16(x87_read_st(0))),
-        3 => mem_write16(addr, __f80_to_int16(x87_pop())),
-        4 => x87_push(__f80_from_bcd(mem_read_fp80(addr))),
-        5 => x87_push(__f80_from_int64(mem_read64(addr))),
-        6 => mem_write_fp80(addr, __f80_to_bcd(x87_pop())),
-        7 => mem_write64(addr, __f80_to_int64(x87_pop())),
+        0 => x87_push(__f80_from_int16(seg_read16(seg, offset))),
+        1 => seg_write16(seg, offset, __f80_to_int16_trunc(x87_pop())),
+        2 => seg_write16(seg, offset, __f80_to_int16(x87_read_st(0))),
+        3 => seg_write16(seg, offset, __f80_to_int16(x87_pop())),
+        4 => x87_push(__f80_from_bcd(seg_read_fp80(seg, offset))),
+        5 => x87_push(__f80_from_int64(seg_read64(seg, offset))),
+        6 => seg_write_fp80(seg, offset, __f80_to_bcd(x87_pop())),
+        7 => seg_write64(seg, offset, __f80_to_int64(x87_pop())),
       }
     },
     RM_reg(_) => {

@@ -61,27 +61,33 @@ function default_prefixes() = struct {
 // Resolved ModR/M operand — either a register or memory address
 // =========================================================================
 
+// A resolved ModR/M operand: either a register index or a logical memory
+// address (segment + effective address/offset).  Per SDM Vol.3A §3.4, the
+// processor translates a logical address to a linear address by:
+//   1. checking the offset against the segment limit (§6.3)
+//   2. adding the segment base to the offset
+// Both steps happen at memory-access time, not during decode.
 union RM = {
   RM_reg : gpr_idx,
-  RM_mem : qword,
+  RM_mem : (segreg_idx, qword),   // (segment, effective address / offset)
 }
 
-// Fixup for RIP-relative addressing. When rip_rel_pending is true, the
-// RM_mem address was computed with an intermediate decode_pos (before
-// trailing imm bytes were fetched). This function recomputes the correct
-// address using the final decode_pos and the saved displacement.
-// Idempotent: safe to call multiple times (e.g. read + write).
+// RIP-relative fixup for effective addresses.  When rip_rel_pending is true,
+// the offset was computed with an intermediate decode_pos (before trailing
+// imm bytes were fetched).  seg_linear() handles this automatically, so
+// instruction code rarely needs to call this directly.
 val fixup_addr : qword -> qword
 function fixup_addr(addr) =
   if rip_rel_pending then decode_pos + rip_rel_disp
   else addr
 
-// Extract the memory address from an RM, applying RIP-relative fixup.
-// For SSE/misc code that directly matches RM_mem(addr).
-val rm_effective_addr : RM -> qword
-function rm_effective_addr(rm) = match rm {
-  RM_mem(addr) => fixup_addr(addr),
-  RM_reg(_) => zeros(),  // shouldn't be called for register operands
+// Extract the linear memory address from an RM, applying segment base and
+// RIP-relative fixup.  Access size 1 is used for the limit check (caller
+// should use seg_linear directly if a precise size is needed).
+val rm_linear_addr : RM -> qword
+function rm_linear_addr(rm) = match rm {
+  RM_mem(seg, offset) => seg_linear(seg, offset, 1),
+  RM_reg(_) => zeros(),
 }
 
 // =========================================================================
@@ -253,8 +259,9 @@ function read_rm_val(rm, os, has_rex) = match rm {
     OS32 => zero_extend(read_gpr32(idx)),
     OS64 => read_gpr64(idx),
   },
-  RM_mem(addr) => {
-    let a = fixup_addr(addr);
+  RM_mem(seg, offset) => {
+    let sz = operand_size_bits(os) / 8;
+    let a = seg_linear(seg, offset, sz);
     match os {
       OS8  => zero_extend(mem_read8(a)),
       OS16 => zero_extend(mem_read16(a)),
@@ -272,8 +279,9 @@ function write_rm_val(rm, os, has_rex, v) = match rm {
     OS32 => write_gpr32(idx, v[31..0]),
     OS64 => write_gpr64(idx, v),
   },
-  RM_mem(addr) => {
-    let a = fixup_addr(addr);
+  RM_mem(seg, offset) => {
+    let sz = operand_size_bits(os) / 8;
+    let a = seg_linear(seg, offset, sz);
     match os {
       OS8  => mem_write8(a, v[7..0]),
       OS16 => mem_write16(a, v[15..0]),

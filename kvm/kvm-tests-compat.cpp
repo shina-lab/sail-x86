@@ -1105,6 +1105,41 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tests.push_back(std::move(tc));
   }
 
+  // --- LEA in compat mode ---
+  // LEA computes the effective address without adding segment base.
+  // With flat segments (base=0), LEA [EBP+ECX*4+0x10] should return
+  // EBP + ECX*4 + 0x10.
+  {
+    ArchState s = {};
+    s.rbp = 0x1000;
+    s.rcx = 0x20;
+    s.rflags = 0x2;
+    // LEA EAX, [EBP+ECX*4+0x10] = 8D 44 8D 10
+    add("compat lea eax,[ebp+ecx*4+0x10]",
+        {0x8D, 0x44, 0x8D, 0x10}, s, FL_NONE);
+  }
+
+  // --- Memory load/store in compat mode ---
+  // MOV EAX, [EDI] where EDI points to data area
+  {
+    ArchState s = {};
+    s.rdi = DATA_ADDR;
+    s.rflags = 0x2;
+    std::vector<u8> data(8, 0);
+    u32 magic = 0xDEADBEEF;
+    memcpy(data.data(), &magic, 4);
+    add_mem("compat mov eax,[edi]", {0x8B, 0x07}, s, FL_NONE, data, 0);
+  }
+
+  // --- 32-bit push/pop in compat mode ---
+  {
+    ArchState s = {};
+    s.rax = 0x12345678;
+    s.rflags = 0x2;
+    // PUSH EAX; POP EBX  (50 5B)
+    add("compat push eax; pop ebx", {0x50, 0x5B}, s, FL_NONE);
+  }
+
   // --- IRET CPL 0 -> CPL 3 (user mode) with 64-bit CS ---
   // This tests that the GDT descriptor read during IRET happens before
   // the CPL change. If cur_cpl is set to 3 before reading the GDT,

@@ -816,6 +816,92 @@ TEST(lidt_sidt_32bit) {
   model.model_fini();
 }
 
+TEST(seg_limit_byte_within) {
+  // 1-byte read at the last valid offset should succeed
+  x86::Model model;
+  init_model_32(model);
+
+  // DS limit = 0x200FFF (covers 0..0x200FFF)
+  model.zSegCache.data[x86::SEG_DS].zseg_limit = 0x200FFF;
+
+  // Write value at physical 0x200FFF
+  model.phys_mem.write_bytes(0x200FFF, (const u8[]){0x42}, 1);
+
+  // MOV AL, [EDI] ; HLT — 1-byte read at offset 0x200FFF
+  model.zGPR.data[7] = 0x200FFF;  // EDI
+  u8 code[] = { 0x8A, 0x07, 0xF4 };  // mov al, [edi]; hlt
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(model.zGPR.data[0] & 0xFF), 0x42UL);
+
+  model.model_fini();
+}
+
+TEST(seg_limit_dword_crosses) {
+  // 4-byte read at offset 0x200FFD spans 0x200FFD..0x201000, which exceeds
+  // the limit of 0x200FFF. Should fault with #GP(0).
+  x86::Model model;
+  init_model_32(model);
+
+  // DS limit = 0x200FFF
+  model.zSegCache.data[x86::SEG_DS].zseg_limit = 0x200FFF;
+
+  // MOV EAX, [EDI] — 4-byte read at offset 0x200FFD
+  model.zGPR.data[7] = 0x200FFD;  // EDI
+  u8 code[] = { 0x8B, 0x07, 0xF4 };  // mov eax, [edi]; hlt
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ((u64)model.zfault_vector, 13UL);  // #GP
+
+  model.model_fini();
+}
+
+TEST(seg_limit_dword_within) {
+  // 4-byte read at offset 0x200FFC spans 0x200FFC..0x200FFF — exactly
+  // within the limit of 0x200FFF. Should succeed.
+  x86::Model model;
+  init_model_32(model);
+
+  // DS limit = 0x200FFF
+  model.zSegCache.data[x86::SEG_DS].zseg_limit = 0x200FFF;
+
+  u32 magic = 0xCAFEBABE;
+  model.phys_mem.write32(0x200FFC, magic);
+
+  // MOV EAX, [EDI] — 4-byte read at offset 0x200FFC
+  model.zGPR.data[7] = 0x200FFC;  // EDI
+  u8 code[] = { 0x8B, 0x07, 0xF4 };  // mov eax, [edi]; hlt
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(u32)model.zGPR.data[0], 0xCAFEBABEUL);
+
+  model.model_fini();
+}
+
+TEST(seg_limit_ss_fault) {
+  // SS limit violation should raise #SS(0), not #GP(0).
+  // MOV [EBP+disp], EAX defaults to SS segment. If the offset exceeds
+  // SS limit, the processor raises #SS(0).
+  x86::Model model;
+  init_model_32(model);
+
+  // SS limit = 0x200FFF (tight)
+  model.zSegCache.data[x86::SEG_SS].zseg_limit = 0x200FFF;
+
+  // MOV [EBP+0x10], EAX — writes 4 bytes to SS:[EBP+0x10]
+  // EBP = 0x200FFC, so offset = 0x200FFC + 0x10 = 0x20100C → exceeds limit
+  model.zGPR.data[5] = 0x200FFC;  // EBP
+  model.zGPR.data[0] = 0x42;
+
+  // mov [ebp+0x10], eax = 89 45 10
+  u8 code[] = { 0x89, 0x45, 0x10, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ((u64)model.zfault_vector, 12UL);  // #SS
+
+  model.model_fini();
+}
+
 // =========================================================================
 
 int main() {
@@ -861,6 +947,12 @@ int main() {
   printf("\n32-bit protected mode tests:\n");
   run_test_lgdt_sgdt_32bit();
   run_test_lidt_sidt_32bit();
+
+  printf("\nSegment limit checking tests:\n");
+  run_test_seg_limit_byte_within();
+  run_test_seg_limit_dword_crosses();
+  run_test_seg_limit_dword_within();
+  run_test_seg_limit_ss_fault();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;

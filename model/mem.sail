@@ -206,3 +206,56 @@ function check_seg_limit(seg, offset, access_size) = {
     }
   }
 }
+
+// =========================================================================
+// Segment-aware memory access (SDM Vol.3A §3.4)
+//
+// Translates a logical address (segment, offset) to a linear address:
+//   1. Check offset against segment limit (§6.3)
+//   2. Linear address = segment base + offset
+// Then passes the linear address through paging (translate_addr).
+// =========================================================================
+
+// Translate a logical (segment, offset) pair to a linear address,
+// performing segment limit checking with the given access size.
+// Also applies the RIP-relative fixup if pending.
+val seg_linear : (segreg_idx, qword, int) -> qword
+function seg_linear(seg, offset, access_size) = {
+  // Apply RIP-relative fixup if pending (only in LongMode, where
+  // mod=00 rm=101 means [RIP+disp32])
+  let offset = if rip_rel_pending then decode_pos + rip_rel_disp else offset;
+  check_seg_limit(seg, offset, access_size);
+  offset + get_seg_base(seg)
+}
+
+// Segmented memory read: check limit, compute linear, read.
+val seg_read8  : (segreg_idx, qword) -> byte
+val seg_read16 : (segreg_idx, qword) -> word
+val seg_read32 : (segreg_idx, qword) -> dword
+val seg_read64 : (segreg_idx, qword) -> qword
+val seg_read128 : (segreg_idx, qword) -> xmmword
+val seg_read256 : (segreg_idx, qword) -> ymmword
+val seg_read512 : (segreg_idx, qword) -> zmmword
+function seg_read8(seg, offset)   = mem_read8(seg_linear(seg, offset, 1))
+function seg_read16(seg, offset)  = mem_read16(seg_linear(seg, offset, 2))
+function seg_read32(seg, offset)  = mem_read32(seg_linear(seg, offset, 4))
+function seg_read64(seg, offset)  = mem_read64(seg_linear(seg, offset, 8))
+function seg_read128(seg, offset) = mem_read128(seg_linear(seg, offset, 16))
+function seg_read256(seg, offset) = mem_read256(seg_linear(seg, offset, 32))
+function seg_read512(seg, offset) = mem_read512(seg_linear(seg, offset, 64))
+
+// Segmented memory write: check limit, compute linear, write.
+val seg_write8   : (segreg_idx, qword, byte)    -> unit
+val seg_write16  : (segreg_idx, qword, word)   -> unit
+val seg_write32  : (segreg_idx, qword, dword)  -> unit
+val seg_write64  : (segreg_idx, qword, qword)  -> unit
+val seg_write128 : (segreg_idx, qword, xmmword) -> unit
+val seg_write256 : (segreg_idx, qword, ymmword) -> unit
+val seg_write512 : (segreg_idx, qword, zmmword) -> unit
+function seg_write8(seg, offset, v)   = mem_write8(seg_linear(seg, offset, 1), v)
+function seg_write16(seg, offset, v)  = mem_write16(seg_linear(seg, offset, 2), v)
+function seg_write32(seg, offset, v)  = mem_write32(seg_linear(seg, offset, 4), v)
+function seg_write64(seg, offset, v)  = mem_write64(seg_linear(seg, offset, 8), v)
+function seg_write128(seg, offset, v) = mem_write128(seg_linear(seg, offset, 16), v)
+function seg_write256(seg, offset, v) = mem_write256(seg_linear(seg, offset, 32), v)
+function seg_write512(seg, offset, v) = mem_write512(seg_linear(seg, offset, 64), v)
