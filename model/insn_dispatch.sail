@@ -820,6 +820,77 @@ function decode_execute() = {
         dispatch_opcode_2byte(opcode2, pfx)
       },
 
+      // 60: PUSHA/PUSHAD — Push All General-Purpose Registers
+      // #UD in 64-bit mode. Pushes AX..DI (OS16) or EAX..EDI (OS32).
+      // Push order: AX, CX, DX, BX, original SP, BP, SI, DI.
+      96 => {
+        if cur_mode == LongMode then {
+          raise_UD()
+        } else {
+          let os = get_operand_size(pfx);
+          let orig_sp = read_stack_ptr();
+          match os {
+            OS32 => {
+              push32(read_gpr32(RAX));
+              push32(read_gpr32(RCX));
+              push32(read_gpr32(RDX));
+              push32(read_gpr32(RBX));
+              push32(orig_sp[31..0] - get_seg_base(SS)[31..0]);
+              push32(read_gpr32(RBP));
+              push32(read_gpr32(RSI));
+              push32(read_gpr32(RDI))
+            },
+            _ => {
+              push16(read_gpr16(RAX));
+              push16(read_gpr16(RCX));
+              push16(read_gpr16(RDX));
+              push16(read_gpr16(RBX));
+              push16(orig_sp[15..0] - get_seg_base(SS)[15..0]);
+              push16(read_gpr16(RBP));
+              push16(read_gpr16(RSI));
+              push16(read_gpr16(RDI))
+            },
+          }
+        }
+      },
+
+      // 61: POPA/POPAD — Pop All General-Purpose Registers
+      // #UD in 64-bit mode. Pops DI..AX (OS16) or EDI..EAX (OS32).
+      // Pop order: EDI, ESI, EBP, skip ESP slot, EBX, EDX, ECX, EAX.
+      97 => {
+        if cur_mode == LongMode then {
+          raise_UD()
+        } else {
+          let os = get_operand_size(pfx);
+          match os {
+            OS32 => {
+              write_gpr32(RDI, pop32());
+              write_gpr32(RSI, pop32());
+              write_gpr32(RBP, pop32());
+              // Skip the ESP slot (increment past it)
+              let sp = read_stack_ptr();
+              write_stack_ptr(sp + 4 - get_seg_base(SS));
+              write_gpr32(RBX, pop32());
+              write_gpr32(RDX, pop32());
+              write_gpr32(RCX, pop32());
+              write_gpr32(RAX, pop32())
+            },
+            _ => {
+              write_gpr16(RDI, pop16());
+              write_gpr16(RSI, pop16());
+              write_gpr16(RBP, pop16());
+              // Skip the SP slot
+              let sp = read_stack_ptr();
+              write_stack_ptr(sp + 2 - get_seg_base(SS));
+              write_gpr16(RBX, pop16());
+              write_gpr16(RDX, pop16());
+              write_gpr16(RCX, pop16());
+              write_gpr16(RAX, pop16())
+            },
+          }
+        }
+      },
+
       // 62: EVEX prefix (in 64-bit mode; BOUND in 32-bit mode)
       98 => dispatch_evex(),
 

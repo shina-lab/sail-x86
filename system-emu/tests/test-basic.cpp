@@ -1315,6 +1315,166 @@ TEST(protected_mode_iret_same_privilege) {
 }
 
 // =========================================================================
+// PUSHA/POPA tests
+// =========================================================================
+
+TEST(pushad_popad_32bit) {
+  // PUSHAD pushes EAX,ECX,EDX,EBX,original_ESP,EBP,ESI,EDI (8 dwords).
+  // POPAD pops them back (skipping the ESP slot).
+  // Round-trip should restore all registers except ESP (which changes by push/pop).
+  x86::Model model;
+  init_model_32(model);
+
+  model.zGPR.data[0] = 0x11111111; // EAX
+  model.zGPR.data[1] = 0x22222222; // ECX
+  model.zGPR.data[2] = 0x33333333; // EDX
+  model.zGPR.data[3] = 0x44444444; // EBX
+  // ESP = 0x80000 (set by init_model_32)
+  model.zGPR.data[5] = 0x55555555; // EBP
+  model.zGPR.data[6] = 0x66666666; // ESI
+  model.zGPR.data[7] = 0x77777777; // EDI
+
+  // PUSHAD; POPAD; HLT
+  u8 code[] = { 0x60, 0x61, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // All GPRs should be restored
+  ASSERT_EQ((u64)(u32)model.zGPR.data[0], 0x11111111UL); // EAX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[1], 0x22222222UL); // ECX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[2], 0x33333333UL); // EDX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[3], 0x44444444UL); // EBX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[4], 0x80000UL);    // ESP restored
+  ASSERT_EQ((u64)(u32)model.zGPR.data[5], 0x55555555UL); // EBP
+  ASSERT_EQ((u64)(u32)model.zGPR.data[6], 0x66666666UL); // ESI
+  ASSERT_EQ((u64)(u32)model.zGPR.data[7], 0x77777777UL); // EDI
+
+  model.model_fini();
+}
+
+TEST(pushad_stack_layout_32bit) {
+  // Verify PUSHAD writes registers in the correct order on the stack.
+  // SDM: push order is EAX, ECX, EDX, EBX, original_ESP, EBP, ESI, EDI.
+  // Stack grows downward, so EDI is at lowest address.
+  x86::Model model;
+  init_model_32(model);
+
+  model.zGPR.data[0] = 0xAAAA0000; // EAX
+  model.zGPR.data[1] = 0xBBBB1111; // ECX
+  model.zGPR.data[2] = 0xCCCC2222; // EDX
+  model.zGPR.data[3] = 0xDDDD3333; // EBX
+  u64 orig_esp = model.zGPR.data[4]; // ESP = 0x80000
+  model.zGPR.data[5] = 0xEEEE4444; // EBP
+  model.zGPR.data[6] = 0xFFFF5555; // ESI
+  model.zGPR.data[7] = 0x00006666; // EDI
+
+  // PUSHAD; HLT
+  u8 code[] = { 0x60, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // ESP should have decreased by 32 (8 * 4 bytes)
+  u64 new_esp = (u32)model.zGPR.data[4];
+  ASSERT_EQ(new_esp, orig_esp - 32);
+
+  // Read the stack (top to bottom = last pushed to first pushed)
+  // Push order: EAX first (at highest addr), EDI last (at lowest addr)
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 28), 0xAAAA0000UL); // EAX (pushed first)
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 24), 0xBBBB1111UL); // ECX
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 20), 0xCCCC2222UL); // EDX
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 16), 0xDDDD3333UL); // EBX
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 12), (u32)orig_esp); // original ESP
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 8),  0xEEEE4444UL); // EBP
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 4),  0xFFFF5555UL); // ESI
+  ASSERT_EQ((u64)model.phys_mem.read32(new_esp + 0),  0x00006666UL); // EDI (pushed last)
+
+  model.model_fini();
+}
+
+TEST(pusha_popa_16bit) {
+  // PUSHA/POPA in 16-bit mode: pushes/pops AX,CX,DX,BX,SP,BP,SI,DI as words.
+  x86::Model model;
+  init_model_16(model);
+
+  model.zGPR.data[0] = 0x1111; // AX
+  model.zGPR.data[1] = 0x2222; // CX
+  model.zGPR.data[2] = 0x3333; // DX
+  model.zGPR.data[3] = 0x4444; // BX
+  model.zGPR.data[4] = 0x8000; // SP
+  model.zGPR.data[5] = 0x5555; // BP
+  model.zGPR.data[6] = 0x6666; // SI
+  model.zGPR.data[7] = 0x7777; // DI
+
+  // PUSHA; POPA; HLT
+  u8 code[] = { 0x60, 0x61, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  // All registers should be restored (SP restored to original)
+  ASSERT_EQ((u64)(model.zGPR.data[0] & 0xFFFF), 0x1111UL); // AX
+  ASSERT_EQ((u64)(model.zGPR.data[1] & 0xFFFF), 0x2222UL); // CX
+  ASSERT_EQ((u64)(model.zGPR.data[2] & 0xFFFF), 0x3333UL); // DX
+  ASSERT_EQ((u64)(model.zGPR.data[3] & 0xFFFF), 0x4444UL); // BX
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x8000UL); // SP
+  ASSERT_EQ((u64)(model.zGPR.data[5] & 0xFFFF), 0x5555UL); // BP
+  ASSERT_EQ((u64)(model.zGPR.data[6] & 0xFFFF), 0x6666UL); // SI
+  ASSERT_EQ((u64)(model.zGPR.data[7] & 0xFFFF), 0x7777UL); // DI
+
+  model.model_fini();
+}
+
+TEST(popad_skips_esp_slot) {
+  // POPAD should ignore the ESP value on the stack (skip that slot).
+  // Set up a stack with a different ESP value in the ESP slot and verify
+  // it gets ignored.
+  x86::Model model;
+  init_model_32(model);
+
+  // Manually build a POPAD frame on the stack
+  u64 sp = model.zGPR.data[4]; // 0x80000
+  // Push in PUSHAD order (EAX first = highest addr, EDI last = lowest addr)
+  sp -= 4; model.phys_mem.write32(sp, 0xAA000000); // EAX
+  sp -= 4; model.phys_mem.write32(sp, 0xBB000000); // ECX
+  sp -= 4; model.phys_mem.write32(sp, 0xCC000000); // EDX
+  sp -= 4; model.phys_mem.write32(sp, 0xDD000000); // EBX
+  sp -= 4; model.phys_mem.write32(sp, 0xDEADBEEF); // ESP slot (should be IGNORED)
+  sp -= 4; model.phys_mem.write32(sp, 0xEE000000); // EBP
+  sp -= 4; model.phys_mem.write32(sp, 0xFF000000); // ESI
+  sp -= 4; model.phys_mem.write32(sp, 0x11000000); // EDI
+  model.zGPR.data[4] = sp;
+
+  // POPAD; HLT
+  u8 code[] = { 0x61, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+
+  ASSERT_EQ((u64)(u32)model.zGPR.data[7], 0x11000000UL); // EDI
+  ASSERT_EQ((u64)(u32)model.zGPR.data[6], 0xFF000000UL); // ESI
+  ASSERT_EQ((u64)(u32)model.zGPR.data[5], 0xEE000000UL); // EBP
+  // ESP should be sp+32 (popped past all 8 slots), NOT 0xDEADBEEF
+  ASSERT_EQ((u64)(u32)model.zGPR.data[4], (u32)(sp + 32));
+  ASSERT_EQ((u64)(u32)model.zGPR.data[3], 0xDD000000UL); // EBX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[2], 0xCC000000UL); // EDX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[1], 0xBB000000UL); // ECX
+  ASSERT_EQ((u64)(u32)model.zGPR.data[0], 0xAA000000UL); // EAX
+
+  model.model_fini();
+}
+
+TEST(pusha_ud_in_64bit) {
+  // PUSHA/POPA are #UD in 64-bit mode
+  x86::Model model;
+  init_model(model);
+
+  u8 code[] = { 0x60, 0xF4 };  // PUSHA; HLT
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ((u64)model.zfault_vector, 6UL);  // #UD
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -1382,6 +1542,13 @@ int main() {
   run_test_real_mode_iret_no_pop_sp_ss();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
+
+  printf("\nPUSHA/POPA tests:\n");
+  run_test_pushad_popad_32bit();
+  run_test_pushad_stack_layout_32bit();
+  run_test_pusha_popa_16bit();
+  run_test_popad_skips_esp_slot();
+  run_test_pusha_ud_in_64bit();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
