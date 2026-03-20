@@ -733,33 +733,41 @@ function dispatch_2byte_gpr(op, pfx) = {
             // 64-bit: 10 bytes (2 limit + 8 base). SDM Vol.2A LGDT/LIDT.
             0 => match rm {
               RM_mem(seg, offset) => {
-                seg_write16(seg, offset, GDTR_limit);
-                if cur_mode == LongMode then seg_write64(seg, offset + 2, GDTR_base)
-                else seg_write32(seg, offset + 2, GDTR_base[31..0])
+                let total_size = if cur_mode == LongMode then 10 else 6;
+                let addr = seg_linear(seg, offset, total_size);
+                mem_write16(addr, GDTR_limit);
+                if cur_mode == LongMode then mem_write64(addr + 2, GDTR_base)
+                else mem_write32(addr + 2, GDTR_base[31..0])
               },
               _ => raise_UD(),
             },
             // 0F 01 /1: SIDT m — Store IDTR (memory only)
             1 => match rm {
               RM_mem(seg, offset) => {
-                seg_write16(seg, offset, IDTR_limit);
-                if cur_mode == LongMode then seg_write64(seg, offset + 2, IDTR_base)
-                else seg_write32(seg, offset + 2, IDTR_base[31..0])
+                let total_size = if cur_mode == LongMode then 10 else 6;
+                let addr = seg_linear(seg, offset, total_size);
+                mem_write16(addr, IDTR_limit);
+                if cur_mode == LongMode then mem_write64(addr + 2, IDTR_base)
+                else mem_write32(addr + 2, IDTR_base[31..0])
               },
               _ => raise_UD(),
             },
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
             // Non-64-bit: 6 bytes (2 limit + 4 base).
             // 64-bit: 10 bytes (2 limit + 8 base).
+            // Compute linear address once (handles RIP-relative), then
+            // read limit and base from consecutive memory locations.
             2 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  GDTR_limit = seg_read16(seg, offset);
+                  let total_size = if cur_mode == LongMode then 10 else 6;
+                  let addr = seg_linear(seg, offset, total_size);
+                  GDTR_limit = mem_read16(addr);
                   if cur_mode == LongMode then {
-                    GDTR_base = seg_read64(seg, offset + 2)
+                    GDTR_base = mem_read64(addr + 2)
                   } else {
-                    GDTR_base = zero_extend(seg_read32(seg, offset + 2))
+                    GDTR_base = zero_extend(mem_read32(addr + 2))
                   }
                 },
                 _ => raise_UD(),
@@ -770,11 +778,13 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  IDTR_limit = seg_read16(seg, offset);
+                  let total_size = if cur_mode == LongMode then 10 else 6;
+                  let addr = seg_linear(seg, offset, total_size);
+                  IDTR_limit = mem_read16(addr);
                   if cur_mode == LongMode then {
-                    IDTR_base = seg_read64(seg, offset + 2)
+                    IDTR_base = mem_read64(addr + 2)
                   } else {
-                    IDTR_base = zero_extend(seg_read32(seg, offset + 2))
+                    IDTR_base = zero_extend(mem_read32(addr + 2))
                   }
                 },
                 _ => raise_UD(),
