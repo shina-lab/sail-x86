@@ -820,6 +820,89 @@ function decode_execute() = {
         dispatch_opcode_2byte(opcode2, pfx)
       },
 
+      // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode. Operand size determines push width:
+      // OS32 → push zero-extended dword; OS16 → push word.
+      6 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          OS32 => push32(zero_extend(read_segreg(ES))),
+          _    => push16(read_segreg(ES)),
+        }
+      },
+
+      // 07: POP ES — Pop stack into ES (SDM Vol.2B POP)
+      // Invalid in 64-bit mode. Pops operand-size value, loads low 16 bits
+      // into ES and updates descriptor cache (load_segment_register).
+      7 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          OS32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(ES, v)
+      },
+
+      // 0E: PUSH CS — Push CS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      14 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          OS32 => push32(zero_extend(read_segreg(CS))),
+          _    => push16(read_segreg(CS)),
+        }
+      },
+
+      // 16: PUSH SS — Push SS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      22 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          OS32 => push32(zero_extend(read_segreg(SS))),
+          _    => push16(read_segreg(SS)),
+        }
+      },
+
+      // 17: POP SS — Pop stack into SS (SDM Vol.2B POP)
+      // Invalid in 64-bit mode. Loading SS inhibits interrupts until after
+      // the next instruction (SDM Vol.3A §7.8.3). Not modeled here.
+      23 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          OS32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(SS, v)
+      },
+
+      // 1E: PUSH DS — Push DS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      30 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          OS32 => push32(zero_extend(read_segreg(DS))),
+          _    => push16(read_segreg(DS)),
+        }
+      },
+
+      // 1F: POP DS — Pop stack into DS (SDM Vol.2B POP)
+      // Invalid in 64-bit mode.
+      31 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          OS32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(DS, v)
+      },
+
       // 60: PUSHA/PUSHAD — Push All General-Purpose Registers
       // #UD in 64-bit mode. Pushes AX..DI (OS16) or EAX..EDI (OS32).
       // Push order: AX, CX, DX, BX, original SP, BP, SI, DI.

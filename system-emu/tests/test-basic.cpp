@@ -1475,6 +1475,130 @@ TEST(pusha_ud_in_64bit) {
 }
 
 // =========================================================================
+// PUSH/POP segment register tests
+// =========================================================================
+
+TEST(push_es_16bit) {
+  // PUSH ES (opcode 06) in 16-bit mode pushes 2-byte selector onto stack.
+  x86::Model model;
+  init_model_16(model);
+
+  model.zSegReg.data[x86::SEG_ES] = 0x1234;
+  model.zGPR.data[4] = 0x8000;  // SP
+
+  // PUSH ES; HLT
+  u8 code[] = { 0x06, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // SP should decrease by 2
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x7FFEUL);
+  // Stack should contain ES selector
+  ASSERT_EQ((u64)model.phys_mem.read16(0x7FFE), 0x1234UL);
+
+  model.model_fini();
+}
+
+TEST(push_ds_pop_es_32bit) {
+  // PUSH DS (1E) then POP ES (07) in 32-bit mode: transfers DS to ES.
+  // SDM: PUSH seg with 32-bit operand size pushes zero-extended 32 bits.
+  // POP seg pops 32 bits, loads low 16 into segment register.
+  x86::Model model;
+  init_model_32(model);
+
+  model.zSegReg.data[x86::SEG_DS] = 0x0010;  // DS = 0x10 (data selector)
+  model.zSegReg.data[x86::SEG_ES] = 0x0000;  // ES = 0 initially
+
+  u64 orig_esp = model.zGPR.data[4];
+
+  // PUSH DS (1E); POP ES (07); HLT
+  u8 code[] = { 0x1E, 0x07, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // ESP should be unchanged (push then pop)
+  ASSERT_EQ((u64)(u32)model.zGPR.data[4], (u32)orig_esp);
+  // ES should now equal DS
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_ES], 0x0010UL);
+
+  model.model_fini();
+}
+
+TEST(push_cs_16bit) {
+  // PUSH CS (opcode 0E) in 16-bit real mode.
+  x86::Model model;
+  init_model_16(model);
+
+  model.zSegReg.data[x86::SEG_CS] = 0x9000;
+  model.zGPR.data[4] = 0x8000;
+
+  // PUSH CS; HLT
+  u8 code[] = { 0x0E, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x7FFEUL);
+  ASSERT_EQ((u64)model.phys_mem.read16(0x7FFE), 0x9000UL);
+
+  model.model_fini();
+}
+
+TEST(push_ss_pop_ss_16bit) {
+  // PUSH SS (16) then POP SS (17) round-trip in real mode.
+  x86::Model model;
+  init_model_16(model);
+
+  model.zSegReg.data[x86::SEG_SS] = 0x5000;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0x50000;
+  model.zGPR.data[4] = 0x8000;
+
+  // PUSH SS (16); POP SS (17); HLT
+  u8 code[] = { 0x16, 0x17, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // SS should be unchanged after round-trip
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x5000UL);
+  // SP should be unchanged
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x8000UL);
+
+  model.model_fini();
+}
+
+TEST(pop_ds_real_mode) {
+  // POP DS (1F) in real mode: pop 16-bit value, load into DS,
+  // and set DS.base = selector << 4.
+  x86::Model model;
+  init_model_16(model);
+
+  model.zGPR.data[4] = 0x8000;
+  // Push 0x2000 onto stack manually
+  model.phys_mem.write16(0x7FFE, 0x2000);
+  model.zGPR.data[4] = 0x7FFE;
+
+  // POP DS; HLT
+  u8 code[] = { 0x1F, 0xF4 };
+  int kind = run_code(model, 0x0000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_DS], 0x2000UL);
+  // In real mode, base = selector << 4
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_DS].zseg_base, 0x20000UL);
+  // SP should be restored
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x8000UL);
+
+  model.model_fini();
+}
+
+TEST(push_seg_ud_in_64bit) {
+  // PUSH ES (06) is #UD in 64-bit mode.
+  x86::Model model;
+  init_model(model);
+
+  u8 code[] = { 0x06, 0xF4 };
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ((u64)model.zfault_vector, 6UL);  // #UD
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -1549,6 +1673,14 @@ int main() {
   run_test_pusha_popa_16bit();
   run_test_popad_skips_esp_slot();
   run_test_pusha_ud_in_64bit();
+
+  printf("\nPUSH/POP segment register tests:\n");
+  run_test_push_es_16bit();
+  run_test_push_ds_pop_es_32bit();
+  run_test_push_cs_16bit();
+  run_test_push_ss_pop_ss_16bit();
+  run_test_pop_ds_real_mode();
+  run_test_push_seg_ud_in_64bit();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
