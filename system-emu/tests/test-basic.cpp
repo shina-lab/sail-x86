@@ -1196,6 +1196,125 @@ TEST(real_to_protected_mode_transition) {
 }
 
 // =========================================================================
+// IRET tests
+// =========================================================================
+
+TEST(real_mode_iret_no_pop_sp_ss) {
+  // In real mode, IRET pops only IP, CS, FLAGS (3 words).
+  // SP/SS must NOT be popped. Verify SP is only adjusted by 6 bytes.
+  x86::Model model;
+  init_model_16(model);
+
+  // Enable system_mode so INT delivers through IVT
+  model.zsystem_mode = true;
+
+  // Set up IVT entry for INT 0x80 at 0x0000:(0x80*4)
+  // Handler at 0x0500: just IRET
+  u16 handler_ip = 0x0500;
+  u16 handler_cs = 0x0000;
+  model.phys_mem.write16(0x80 * 4, handler_ip);
+  model.phys_mem.write16(0x80 * 4 + 2, handler_cs);
+
+  // Handler code: IRET
+  model.phys_mem.write_bytes(0x0500, (const u8[]){0xCF}, 1);
+
+  // Set SS:SP = 0x0000:0x8000
+  model.zSegReg.data[x86::SEG_SS] = 0x0000;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0;
+  model.zGPR.data[4] = 0x8000;  // SP
+
+  // Code: INT 0x80; HLT
+  // INT pushes FLAGS(2), CS(2), IP(2) = 6 bytes → SP -= 6
+  // IRET pops IP, CS, FLAGS = 6 bytes → SP += 6
+  // Net effect: SP unchanged at 0x8000
+  u8 code[] = { 0xCD, 0x80, 0xF4 };
+  int kind = run_code(model, 0x1000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // SP should be back to 0x8000 (INT pushed 6, IRET popped 6)
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x8000UL);
+  // CS should be restored to original
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x0000UL);
+
+  model.model_fini();
+}
+
+TEST(real_mode_int_iret_preserves_regs) {
+  // INT+IRET round-trip in real mode should return to the instruction
+  // after INT with the same CS:IP and FLAGS (except IF/TF cleared by INT).
+  x86::Model model;
+  init_model_16(model);
+  model.zsystem_mode = true;
+
+  // IVT entry for INT 0x21 → handler at 0x0600
+  model.phys_mem.write16(0x21 * 4, 0x0600);
+  model.phys_mem.write16(0x21 * 4 + 2, 0x0000);
+
+  // Handler: mov bx, 0xBEEF; iret
+  u8 handler[] = { 0xBB, 0xEF, 0xBE, 0xCF };
+  model.phys_mem.write_bytes(0x0600, handler, sizeof(handler));
+
+  model.zGPR.data[4] = 0x8000;  // SP
+
+  // Code at 0x2000: mov ax, 0x1234; int 0x21; hlt
+  u8 code[] = {
+    0xB8, 0x34, 0x12,  // mov ax, 0x1234
+    0xCD, 0x21,        // int 0x21
+    0xF4,              // hlt
+  };
+  int kind = run_code(model, 0x2000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // AX should still be 0x1234 (handler didn't change it)
+  ASSERT_EQ((u64)(model.zGPR.data[0] & 0xFFFF), 0x1234UL);
+  // BX should be 0xBEEF (set by handler)
+  ASSERT_EQ((u64)(model.zGPR.data[3] & 0xFFFF), 0xBEEFUL);
+  // SP should be back to 0x8000
+  ASSERT_EQ((u64)(model.zGPR.data[4] & 0xFFFF), 0x8000UL);
+  // RIP should have advanced past HLT (0x2006)
+  // (run_code checks for HLT state, so we're at the HLT instruction)
+
+  model.model_fini();
+}
+
+TEST(protected_mode_iret_same_privilege) {
+  // In protected mode same-privilege IRET (return RPL == CPL),
+  // only EIP, CS, EFLAGS are popped (not ESP/SS).
+  x86::Model model;
+  init_model_32(model);
+
+  // Manually push EFLAGS, CS (with RPL=0), EIP onto stack.
+  // CPL = 0 and CS RPL = 0 → same privilege, no SP/SS pop.
+  u64 sp = model.zGPR.data[4];  // ESP = 0x80000
+
+  // Push in reverse order (stack grows down):
+  // EFLAGS = 0x00000202 (IF=1, reserved bit 1=1)
+  // CS = 0x0008 (RPL=0, same as CPL=0)
+  // EIP = target (where HLT is)
+  u32 target_eip = 0x100100;
+  model.phys_mem.write_bytes(target_eip, (const u8[]){0xF4}, 1);  // HLT
+
+  sp -= 4; model.phys_mem.write32(sp, 0x00000202);   // EFLAGS
+  sp -= 4; model.phys_mem.write32(sp, 0x00000008);   // CS (RPL=0)
+  sp -= 4; model.phys_mem.write32(sp, target_eip);   // EIP
+  model.zGPR.data[4] = sp;
+
+  // Put sentinel values after the 3 dwords we pushed — if IRET
+  // incorrectly pops ESP/SS, it will pick up garbage.
+  // (We already have valid stack data above, so the sentinel
+  // test is that ESP ends up at sp+12, not sp+20.)
+  u64 expected_sp = sp + 12;  // 3 dwords popped
+
+  // Code: 66 CF = IRETD (32-bit operand size in 32-bit mode, prefix is redundant but harmless)
+  // Actually in 32-bit mode, CF is IRETD by default.
+  u8 code[] = { 0xCF };  // IRETD
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  // ESP should be sp + 12 (popped 3 dwords, not 5)
+  ASSERT_EQ((u64)(u32)model.zGPR.data[4], expected_sp);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("System emulator tests:\n");
@@ -1258,6 +1377,11 @@ int main() {
 
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
+
+  printf("\nIRET tests:\n");
+  run_test_real_mode_iret_no_pop_sp_ss();
+  run_test_real_mode_int_iret_preserves_regs();
+  run_test_protected_mode_iret_same_privilege();
 
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
