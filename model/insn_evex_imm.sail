@@ -520,8 +520,7 @@ function avx_valignd_128(src1, src2, imm) = {
   foreach (i from 0 to 3) {
     let src_idx : range(0, 7) = i + shift;
     let dst_lo : range(0, 96) = i * 32;
-    if src_idx < 4
-    then {
+    if src_idx < 4 then {
       let s : range(0, 96) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
     } else {
       let s : range(0, 96) = (src_idx - 4) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
@@ -538,8 +537,7 @@ function avx_valignd_256(src1, src2, imm) = {
   foreach (i from 0 to 7) {
     let src_idx : range(0, 15) = i + shift;
     let dst_lo : range(0, 224) = i * 32;
-    if src_idx < 8
-    then {
+    if src_idx < 8 then {
       let s : range(0, 224) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
     } else {
       let s : range(0, 224) = (src_idx - 8) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
@@ -557,8 +555,7 @@ function avx_valignd_512(src1, src2, imm) = {
   foreach (i from 0 to 15) {
     let src_idx : range(0, 31) = i + shift;
     let dst_lo : range(0, 480) = i * 32;
-    if src_idx < 16
-    then {
+    if src_idx < 16 then {
       let s : range(0, 480) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
     } else {
       let s : range(0, 480) = (src_idx - 16) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
@@ -577,8 +574,7 @@ function avx_valignq_128(src1, src2, imm) = {
   foreach (i from 0 to 1) {
     let src_idx : range(0, 3) = i + shift;
     let dst_lo : range(0, 64) = i * 64;
-    if src_idx < 2
-    then {
+    if src_idx < 2 then {
       let s : range(0, 64) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
     } else {
       let s : range(0, 64) = (src_idx - 2) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
@@ -595,8 +591,7 @@ function avx_valignq_256(src1, src2, imm) = {
   foreach (i from 0 to 3) {
     let src_idx : range(0, 7) = i + shift;
     let dst_lo : range(0, 192) = i * 64;
-    if src_idx < 4
-    then {
+    if src_idx < 4 then {
       let s : range(0, 192) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
     } else {
       let s : range(0, 192) = (src_idx - 4) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
@@ -613,8 +608,7 @@ function avx_valignq_512(src1, src2, imm) = {
   foreach (i from 0 to 7) {
     let src_idx : range(0, 15) = i + shift;
     let dst_lo : range(0, 448) = i * 64;
-    if src_idx < 8
-    then {
+    if src_idx < 8 then {
       let s : range(0, 448) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
     } else {
       let s : range(0, 448) = (src_idx - 8) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
