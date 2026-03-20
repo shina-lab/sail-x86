@@ -667,6 +667,107 @@ TEST(pm32_trap_gate_preserves_if) {
 }
 
 // =========================================================================
+// Real mode IVT tests
+// =========================================================================
+
+static void init_model_real(x86::Model &model, u64 ram_size = 1024 * 1024) {
+  model.model_init();
+  model.zinitializze_registers(UNIT);
+
+  model.zsystem_mode = true;
+  model.zcur_mode = x86::zRealMode;
+  model.zcur_cpl = 0;
+
+  // CR0: no PE, no PG
+  model.zCR0 = 0;
+  model.zCR4 = 0;
+  model.zEFER = 0;
+
+  assert(model.phys_mem.init(ram_size));
+
+  for (int i = 0; i < 16; i++)
+    model.zGPR.data[i] = 0;
+  model.zGPR.data[4] = 0xFFFE;  // SP
+
+  // Real mode segments: base = selector << 4, limit = 0xFFFF
+  for (int i = 0; i < 6; i++) {
+    model.zSegCache.data[i].zseg_base = 0;
+    model.zSegCache.data[i].zseg_limit = 0xFFFF;
+    model.zSegCache.data[i].zseg_present = 1;
+    model.zSegCache.data[i].zseg_s = 1;
+    model.zSegCache.data[i].zseg_db = 0;  // 16-bit default
+  }
+
+  // SS at segment 0x9000 → base = 0x90000
+  model.zSegReg.data[x86::SEG_SS] = 0x9000;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0x90000;
+
+  model.zKERNEL_GS_BASE = 0;
+  model.zNT = 0;
+  model.zRF = 0;
+}
+
+TEST(real_mode_ivt_delivery) {
+  // Real mode: DIV by zero triggers interrupt via IVT at physical address 0
+  x86::Model model;
+  init_model_real(model);
+
+  // Set up IVT entry for vector 0 (#DE): IP=0x0100, CS=0x1000
+  // At physical address 0: IP (2 bytes), CS (2 bytes)
+  u16 handler_ip = 0x0100;
+  u16 handler_cs = 0x1000;
+  model.phys_mem.write16(0, handler_ip);
+  model.phys_mem.write16(2, handler_cs);
+
+  // Handler at CS:IP = 0x1000:0x0100 = physical 0x10100
+  // hlt
+  model.phys_mem.write_bytes(0x10100, (const u8[]){0xF4}, 1);
+
+  // Code at CS=0x0000, IP=0x7C00 (typical boot location)
+  // div cx with cx=0 → #DE
+  model.zSegReg.data[x86::SEG_CS] = 0x0000;
+  model.zSegCache.data[x86::SEG_CS].zseg_base = 0;
+  model.zGPR.data[0] = 42;   // AX
+  model.zGPR.data[2] = 0;    // DX = 0
+  model.zGPR.data[1] = 0;    // CX = 0 → #DE
+
+  // div cx (16-bit: F7 F1)
+  u8 code[] = { 0xF7, 0xF1, 0xF4 };
+  model.phys_mem.write_bytes(0x7C00, code, sizeof(code));
+  model.zRIP = 0x7C00;
+
+  u64 count = 0;
+  while (count < 100) {
+    model.zstep(UNIT);
+    if (model.zfault_pending) break;
+    if (model.zsystem_state == x86::zSysHalted) break;
+    count++;
+  }
+
+  // Should halt at the handler
+  ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
+  ASSERT_EQ((u64)model.zRIP, (u64)handler_ip);
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], (u64)handler_cs);
+
+  // Verify 16-bit interrupt frame on stack: FLAGS, CS, IP
+  // Stack was at SS:SP = 0x9000:0xFFFE = 0x9FFFE
+  // After 3 pushes of 2 bytes each: SP = 0xFFFE - 6 = 0xFFF8
+  u16 sp = (u16)model.zGPR.data[4];
+  ASSERT_EQ((u64)sp, 0xFFF8UL);
+
+  u64 stack_base = 0x90000;
+  u16 frame_ip    = model.phys_mem.read16(stack_base + sp);
+  u16 frame_cs    = model.phys_mem.read16(stack_base + sp + 2);
+  ASSERT_EQ((u64)frame_ip, 0x7C00UL);  // Faulting IP
+  ASSERT_EQ((u64)frame_cs, 0x0000UL);  // Old CS
+
+  // IF should be cleared
+  ASSERT_EQ((u64)model.zIF_flag, 0UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("Exception delivery tests:\n");
@@ -686,6 +787,9 @@ int main() {
   run_test_pm32_divide_error_delivery();
   run_test_pm32_interrupt_gate_clears_if();
   run_test_pm32_trap_gate_preserves_if();
+
+  // Real mode IVT delivery
+  run_test_real_mode_ivt_delivery();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;

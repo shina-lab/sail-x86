@@ -253,17 +253,57 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
   RF = bitzero;
 }
 
-// IA-32e (64-bit) inner delivery: read 16-byte IDT gate, push 64-bit frame.
+// Real mode interrupt delivery via IVT (SDM Vol.3A §7.9).
+// IVT is at physical address 0, 256 × 4-byte entries (IP:CS, little-endian).
+// Pushes FLAGS, CS, IP (16-bit each). Clears IF and TF.
+// No error codes, no privilege checks.
+val deliver_exception_real : (exception_vector) -> unit
+function deliver_exception_real(vec) = {
+  let old_ip  : word = match sw_return_rip {
+    Some(addr) => addr[15..0],
+    None() => RIP[15..0],
+  };
+  sw_return_rip = None();
+  let old_cs    : word = read_segreg(CS);
+  let old_flags : word = read_rflags()[15..0];
+
+  // Read IVT entry: 2 bytes IP at vec*4, 2 bytes CS at vec*4+2
+  let ivt_addr : qword = to_bits(64, vec * 4);
+  let new_ip : word = phys_read(ivt_addr, 2);
+  let new_cs : word = phys_read(ivt_addr + 2, 2);
+
+  // Push FLAGS, CS, IP (16-bit each) onto SS:SP stack
+  var sp : qword = read_stack_ptr();
+  sp = push_to_stack_16(sp, old_flags);
+  sp = push_to_stack_16(sp, old_cs);
+  sp = push_to_stack_16(sp, old_ip);
+  write_stack_ptr(sp - get_seg_base(SS));
+
+  // Load new CS:IP
+  load_segment_register(CS, new_cs);
+  RIP = zero_extend(new_ip);
+
+  // Clear IF and TF
+  IF_flag = bitzero;
+  TF = bitzero;
+}
+
+// Top-level inner delivery: dispatches by mode.
 // May throw Fault if gate is not present or stack push faults.
 // software_int: true for INT n, INT3, INT1 — suppresses error code push
 //               and enables gate DPL check (for INT n and INT3, not INT1).
 val deliver_exception_inner : (exception_vector, dword, bool) -> unit
 function deliver_exception_inner(vec, err_code, software_int) = {
-  // Dispatch by mode: EFER.LMA determines IDT gate format
+  // Dispatch by mode
+  if cur_mode == RealMode then {
+    deliver_exception_real(vec);
+    return ()
+  };
   if EFER[10] != bitone then {
     deliver_exception_inner_32(vec, err_code, software_int);
     return ()
   };
+
   // IA-32e mode below
   // Save old state before doing anything.
   let old_rip : qword = match sw_return_rip {

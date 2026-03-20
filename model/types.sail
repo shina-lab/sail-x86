@@ -145,7 +145,10 @@ function fetch_byte() = {
   if unsigned(decode_pos) - unsigned(insn_start) >= 15 then {
     throw(Fault(EXN_GP, 0x00000000))
   };
-  let b = ifetch_read8(decode_pos);
+  // In non-long mode, add CS base to form the linear address for fetch.
+  // decode_pos holds the instruction pointer (IP/EIP), not the linear address.
+  let linear = decode_pos + get_seg_base(CS);
+  let b = ifetch_read8(linear);
   decode_pos = decode_pos + 1;
   b
 }
