@@ -306,7 +306,7 @@ static bool load_elf_kernel(x86::Model &model, const char *path,
   if (cmdline && strlen(cmdline) > 0) {
     model.phys_mem.write_bytes(cmdline_addr, cmdline, strlen(cmdline) + 1);
   } else {
-    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps noapic nolapic";
+    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
     model.phys_mem.write_bytes(cmdline_addr, default_cmdline, strlen(default_cmdline) + 1);
   }
   model.phys_mem.write32(boot_params_addr + 0x228, (u32)cmdline_addr);
@@ -508,7 +508,7 @@ static bool load_bzimage(x86::Model &model, const char *path,
     model.phys_mem.write_bytes(cmdline_addr, cmdline, strlen(cmdline) + 1);
   } else {
     // Default: earlycon for serial output, no quiet
-    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 nokaslr norandmaps noapic nolapic";
+    const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
     model.phys_mem.write_bytes(cmdline_addr, default_cmdline, strlen(default_cmdline) + 1);
   }
   model.phys_mem.write32(boot_params_addr + 0x228, (u32)cmdline_addr);
