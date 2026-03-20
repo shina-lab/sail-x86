@@ -769,31 +769,14 @@ static bool load_bzimage_realmode(x86::Model &model, const char *path,
     free(initrd);
   }
 
-  // E820 memory map in boot_params (offset 0x2D0 from start of boot_params).
-  // The setup code's boot_params IS the loaded setup image (zeroth sector).
-  struct E820Entry {
-    u64 addr;
-    u64 size;
-    u32 type;
-  } __attribute__((packed));
-
-  u64 ram_size = model.phys_mem.ram_size();
-  E820Entry entries[] = {
-    { 0x00000000, 0x0009FC00, 1 },
-    { 0x0009FC00, 0x00000400, 2 },
-    { 0x000E0000, 0x00020000, 2 },
-    { 0x00100000, ram_size - 0x100000, 1 },
-    { 0xFEC00000, 0x00010000, 2 },
-    { 0xFEE00000, 0x00010000, 2 },
-  };
-  int num_entries = sizeof(entries) / sizeof(entries[0]);
-  for (int i = 0; i < num_entries; i++) {
-    u64 off = setup_base + 0x2D0 + i * 20;
-    model.phys_mem.write64(off, entries[i].addr);
-    model.phys_mem.write64(off + 8, entries[i].size);
-    model.phys_mem.write32(off + 16, entries[i].type);
-  }
-  model.phys_mem.write8(setup_base + 0x1E8, num_entries);
+  // E820 memory map: NOT written into the setup image for real-mode boot.
+  // The setup code's boot_params overlaps the first sector (0x000-0x1FF),
+  // but the E820 table at offset 0x2D0 falls in the CODE section (past
+  // offset 0x200). Writing there would corrupt the setup code.
+  // Instead, detect_memory() in the setup code will query BIOS (INT 15h).
+  // Our IVT stub returns failure, so detect_memory gets 0 entries.
+  // The kernel handles this: compressed/misc.c uses mem_avoid_init()
+  // and the decompressor can read the E820 table populated later.
 
   // Set up IVT (Interrupt Vector Table) at 0x0000-0x03FF.
   // All 256 entries point to a single IRET at 0x0400.
@@ -991,10 +974,14 @@ int main(int argc, char *argv[]) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
-      fprintf(stderr, "[%lu] RIP=0x%lx RSP=0x%lx mode=%s CR0=0x%lx CR3=0x%lx\n",
-              insn_count, (u64)model.zRIP,
+      u64 cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
+      u64 lin = cs_base + (u64)model.zRIP;
+      fprintf(stderr, "[%lu] lin=0x%lx RSP=0x%lx mode=%s bytes=%02x%02x%02x%02x%02x%02x\n",
+              insn_count, lin,
               (u64)model.zGPR.data[4], mode_str,
-              (u64)model.zCR0, (u64)model.zCR3);
+              model.phys_mem.read8(lin), model.phys_mem.read8(lin+1),
+              model.phys_mem.read8(lin+2), model.phys_mem.read8(lin+3),
+              model.phys_mem.read8(lin+4), model.phys_mem.read8(lin+5));
     }
 
     model.zstep(UNIT);
