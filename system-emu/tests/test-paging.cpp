@@ -379,8 +379,8 @@ TEST(la57_identity_map_4kb) {
   model.zCR3 = pml5_addr;
 
   // Identity map 0x100000 through 5-level page tables
-  u64 alloc = setup_5level_4kb(model.phys_mem, pml5_addr, 0x20000,
-                               0x100000, 0x100000, 0x03);
+  setup_5level_4kb(model.phys_mem, pml5_addr, 0x20000,
+                   0x100000, 0x100000, 0x03);
 
   // Also identity map stack area 0x80000
   // Reuse existing PML5[0]→PML4[0]→PDPT[0]→PD[0] chain

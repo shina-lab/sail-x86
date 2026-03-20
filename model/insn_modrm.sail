@@ -212,19 +212,26 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
   if modbits == 3 then {
     RM_reg(extend_reg(rm_raw, pfx.rex_b))
   } else if modbits == 0 & rm_raw == 5 then {
-    // RIP-relative: [RIP + disp32] (no compression for disp32)
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
     let b3 = fetch_byte();
     let disp : qword = sign_extend(b3 @ b2 @ b1 @ b0);
-    rip_rel_pending = true;
-    rip_rel_disp = disp;
-    let ea : qword = decode_pos + disp;
-    let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
-    let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-    RM_mem(apply_segment(ea, pfx))
+    if cur_mode == LongMode then {
+      // RIP-relative: [RIP + disp32] (no compression for disp32)
+      rip_rel_pending = true;
+      rip_rel_disp = disp;
+      let ea : qword = decode_pos + disp;
+      let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
+      let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
+      RM_mem(apply_segment(ea, pfx))
+    } else {
+      // Compat/protected mode: [disp32] absolute
+      let ea : qword = disp & 0x00000000FFFFFFFF;
+      RM_mem(apply_segment(ea, pfx))
+    }
   } else {
+    let asz = get_address_size(pfx);
     let addr : qword =
       if rm_raw == 4 then {
         let sib = fetch_byte();
@@ -244,8 +251,11 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
         let b3 = fetch_byte();
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
-    let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
-    let addr : qword = addr & (ad_keep | 0x00000000FFFFFFFF);
+    let addr : qword = match asz {
+      AS16 => addr & 0x000000000000FFFF,
+      AS32 => addr & 0x00000000FFFFFFFF,
+      AS64 => addr,
+    };
     RM_mem(apply_segment(addr, pfx))
   }
 }
@@ -262,25 +272,30 @@ function decode_rm(modrm, pfx) = {
     // Register direct — no segment override
     RM_reg(extend_reg(rm_raw, pfx.rex_b))
   } else if modbits == 0 & rm_raw == 5 then {
-    // RIP-relative: [RIP + disp32]
-    // With 67h prefix in 64-bit mode, uses EIP + disp32 (truncated to 32 bits).
-    // Compute preliminary address using current decode_pos.
-    // If the instruction has trailing bytes (imm8/imm32),
-    // fixup_addr() will adjust by the delta at use time.
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
     let b3 = fetch_byte();
     let disp : qword = sign_extend(b3 @ b2 @ b1 @ b0);
-    rip_rel_pending = true;
-    rip_rel_disp = disp;
-    let ea : qword = decode_pos + disp;
-    // 67h prefix: truncate effective address to 32 bits, zero-extended
-    let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
-    let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-    RM_mem(apply_segment(ea, pfx))
+    if cur_mode == LongMode then {
+      // RIP-relative: [RIP + disp32]
+      // With 67h prefix, uses EIP + disp32 (truncated to 32 bits).
+      // If the instruction has trailing bytes (imm8/imm32),
+      // fixup_addr() will adjust by the delta at use time.
+      rip_rel_pending = true;
+      rip_rel_disp = disp;
+      let ea : qword = decode_pos + disp;
+      let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
+      let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
+      RM_mem(apply_segment(ea, pfx))
+    } else {
+      // Compat/protected mode: [disp32] absolute (no RIP-relative)
+      let ea : qword = disp & 0x00000000FFFFFFFF;
+      RM_mem(apply_segment(ea, pfx))
+    }
   } else {
     // Memory operand — compute address then apply segment override
+    let asz = get_address_size(pfx);
     let addr : qword =
       if rm_raw == 4 then {
         // SIB byte follows
@@ -301,9 +316,12 @@ function decode_rm(modrm, pfx) = {
         let b3 = fetch_byte();
         read_gpr64(extend_reg(rm_raw, pfx.rex_b)) + sign_extend(b3 @ b2 @ b1 @ b0)
       };
-    // 67h prefix: truncate effective address to 32 bits, zero-extended
-    let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
-    let addr : qword = addr & (ad_keep | 0x00000000FFFFFFFF);
+    // Truncate address based on address size
+    let addr : qword = match asz {
+      AS16 => addr & 0x000000000000FFFF,
+      AS32 => addr & 0x00000000FFFFFFFF,
+      AS64 => addr,
+    };
     RM_mem(apply_segment(addr, pfx))
   }
 }

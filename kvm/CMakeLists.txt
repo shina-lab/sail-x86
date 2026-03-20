@@ -13,6 +13,7 @@ add_executable(kvm_harness
   kvm-tests-evex2.cpp
   kvm-tests-mmx.cpp
   kvm-tests-features.cpp
+  kvm-tests-compat.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -266,6 +267,7 @@ set(KVM_CATEGORIES
   "MMX move"
   "MMX mem"
   "Feature gating"
+  "Compat"
 )
 
 foreach(cat ${KVM_CATEGORIES})

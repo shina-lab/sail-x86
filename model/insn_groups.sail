@@ -377,7 +377,8 @@ function dispatch_group5(reg_field, rm, pfx) = {
     },
     // JMP near indirect (f64)
     4 => {
-      let target = read_rm_val(rm, OS64, pfx.has_rex);
+      let os = get_operand_size_f64(pfx);
+      let target = read_rm_val(rm, os, pfx.has_rex);
       next_rip = Some(target)
     },
     // PUSH r/m (d64)

@@ -41,6 +41,14 @@ mkdir -p "$TMPDIR"/{bin,sbin,usr/bin,usr/sbin,proc,sys,dev,etc,tmp}
 cp "$BUSYBOX" "$TMPDIR/bin/busybox"
 chmod 755 "$TMPDIR/bin/busybox"
 
+# Copy 32-bit test binary if available
+HELLO32="$(dirname "$0")/hello32"
+if [ -x "$HELLO32" ]; then
+  cp "$HELLO32" "$TMPDIR/bin/hello32"
+  chmod 755 "$TMPDIR/bin/hello32"
+  echo "  Added hello32 (32-bit compat mode test)"
+fi
+
 # Create symlinks for all busybox applets
 for cmd in sh ash cat echo ls mkdir mount umount sleep clear \
            cp mv rm ln chmod chown id uname hostname dmesg \

@@ -938,6 +938,8 @@ function dispatch_2byte_gpr(op, pfx) = {
 
       // Return to ring 3
       cur_cpl = 3;
+      // REX.W -> 64-bit mode; without REX.W -> 32-bit compat mode
+      cur_mode = if pfx.rex_w then LongMode else CompatibilityMode;
       next_rip = Some(new_rip)
     },
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)

@@ -98,14 +98,15 @@ struct KvmVm {
     memset(guest_mem, 0, GUEST_MEM_SIZE);
 
     // Identity-map first 2MB with a single 2MB page.
+    // U/S bit set at all levels so user-mode (CPL 3) tests can work.
     u64 *pml4 = (u64 *)(guest_mem + PML4_ADDR);
-    pml4[0] = PDPT_ADDR | 0x3;
+    pml4[0] = PDPT_ADDR | 0x7;  // present + writable + user
 
     u64 *pdpt = (u64 *)(guest_mem + PDPT_ADDR);
-    pdpt[0] = PD_ADDR | 0x3;
+    pdpt[0] = PD_ADDR | 0x7;    // present + writable + user
 
     u64 *pd = (u64 *)(guest_mem + PD_ADDR);
-    pd[0] = 0x0 | 0x83;  // 2MB page, present + writable + PS
+    pd[0] = 0x0 | 0x87;  // 2MB page, present + writable + user + PS
 
     // IDT: exception handlers for vectors 0-31
     {
@@ -178,12 +179,25 @@ struct KvmVm {
     gdt[0] = 0;
     gdt[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08): type=0xA, S=1
     gdt[2] = 0x00CF92000000FFFF;  // data (selector 0x10): type=0x2, S=1
-    gdt[3] = 0x0000890000000000;  // 64-bit TSS (selector 0x18): type=0x9, S=0, P=1
-    gdt[4] = 0;                   // upper half of TSS descriptor
+    // 64-bit TSS at TSS_ADDR (selector 0x18): type=0x9, S=0, P=1
+    // Descriptor: base=TSS_ADDR, limit=0x67 (103 bytes)
+    gdt[3] = 0x0000890000000067ULL
+           | ((TSS_ADDR & 0x00FFFFFF) << 16)
+           | ((TSS_ADDR & 0xFF000000) << 32);
+    gdt[4] = 0;  // upper half: base[63:32] = 0
+
+    // Write TSS data: RSP0 at offset 4
+    u8 *tss = guest_mem + TSS_ADDR;
+    memset(tss, 0, 104);
+    u64 rsp0 = STACK_TOP;
+    memcpy(tss + 4, &rsp0, 8);
     gdt[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28): type=0xE, S=0, P=1
     gdt[6] = 0;                   // upper half
     gdt[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38): type=0x0, S=1, P=1
     gdt[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40): type=0x8, S=1, P=1
+    gdt[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48): type=0xA, S=1, D=1, L=0
+    gdt[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53): type=0xA, S=1, DPL=3, L=1
+    gdt[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B): type=0x2, S=1, DPL=3
 
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
@@ -194,7 +208,7 @@ struct KvmVm {
     sregs.cr3 = PML4_ADDR;
 
     sregs.gdt.base = GDT_ADDR;
-    sregs.gdt.limit = 9 * 8 - 1;
+    sregs.gdt.limit = 12 * 8 - 1;
 
     sregs.idt.base = IDT_ADDR;
     sregs.idt.limit = 32 * 16 - 1;
@@ -228,6 +242,15 @@ struct KvmVm {
     setup_ds(sregs.gs);
     setup_ds(sregs.ss);
 
+    // Task Register — needed for privilege-level changes (RSP0 from TSS)
+    sregs.tr = {};
+    sregs.tr.base = TSS_ADDR;
+    sregs.tr.limit = 103;
+    sregs.tr.selector = 0x18;
+    sregs.tr.type = 0xB;  // 64-bit TSS (busy)
+    sregs.tr.present = 1;
+    sregs.tr.s = 0;
+
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
 
     // Enable AVX in XCR0: bit 0 (x87), bit 1 (SSE), bit 2 (AVX)
@@ -252,6 +275,16 @@ struct KvmVm {
     struct kvm_sregs sregs_tmp;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp);
     sregs_tmp.cr4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+    // Set CS based on processor mode
+    if (tc.compat_mode) {
+      sregs_tmp.cs.selector = 0x48;
+      sregs_tmp.cs.l = 0;   // Not 64-bit
+      sregs_tmp.cs.db = 1;  // 32-bit default operand/address size
+    } else {
+      sregs_tmp.cs.selector = 0x08;
+      sregs_tmp.cs.l = 1;   // 64-bit
+      sregs_tmp.cs.db = 0;
+    }
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
@@ -447,7 +480,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.model_init();
   model.zinitializze_registers(UNIT);
   x86::enable_all_features(model);
-  model.zcur_mode = x86::zLongMode;
+  model.zcur_mode = tc.compat_mode ? x86::zCompatibilityMode : x86::zLongMode;
   model.zcur_cpl = 0;
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
@@ -505,16 +538,30 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // Use 0x14000 for Sail-side GDT (0x3000 is too low for mmap)
   static constexpr u64 SAIL_GDT_ADDR = 0x14000;
   model.zGDTR_base = SAIL_GDT_ADDR;
-  model.zGDTR_limit = 9 * 8 - 1;
+  model.zGDTR_limit = 12 * 8 - 1;
+
+  // Set up Sail-side TSS with RSP0
+  static constexpr u64 SAIL_TSS_ADDR = SAIL_GDT_ADDR + 0x800;
+  model.zTR_base = SAIL_TSS_ADDR;
+  memset((void *)SAIL_TSS_ADDR, 0, 104);
+  u64 sail_rsp0 = STACK_TOP;
+  memcpy((void *)(SAIL_TSS_ADDR + 4), &sail_rsp0, 8);
+
   ((u64 *)SAIL_GDT_ADDR)[0] = 0;
   ((u64 *)SAIL_GDT_ADDR)[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08)
   ((u64 *)SAIL_GDT_ADDR)[2] = 0x00CF92000000FFFF;  // data (selector 0x10)
-  ((u64 *)SAIL_GDT_ADDR)[3] = 0x0000890000000000;  // 64-bit TSS (selector 0x18)
-  ((u64 *)SAIL_GDT_ADDR)[4] = 0;                   // upper half of TSS
+  // 64-bit TSS descriptor at SAIL_TSS_ADDR
+  ((u64 *)SAIL_GDT_ADDR)[3] = 0x0000890000000067ULL
+    | ((SAIL_TSS_ADDR & 0x00FFFFFFULL) << 16)
+    | ((SAIL_TSS_ADDR & 0xFF000000ULL) << 32);
+  ((u64 *)SAIL_GDT_ADDR)[4] = 0;  // upper half: base[63:32] = 0
   ((u64 *)SAIL_GDT_ADDR)[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28)
   ((u64 *)SAIL_GDT_ADDR)[6] = 0;                   // upper half
   ((u64 *)SAIL_GDT_ADDR)[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38)
   ((u64 *)SAIL_GDT_ADDR)[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40)
+  ((u64 *)SAIL_GDT_ADDR)[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48)
+  ((u64 *)SAIL_GDT_ADDR)[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53)
+  ((u64 *)SAIL_GDT_ADDR)[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B)
 
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);
@@ -630,6 +677,7 @@ std::vector<TestCase> build_tests() {
   add_evex_tests_2(tests);
   add_mmx_tests(tests);
   add_feature_tests(tests);
+  add_compat_tests(tests);
 
   return tests;
 }

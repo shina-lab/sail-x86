@@ -348,11 +348,15 @@ function fetch_rel8() = sign_extend(fetch_byte())
 // Address size determination (for string ops, LOOP, XLAT, etc.)
 // =========================================================================
 
-// In 64-bit mode: default AS64, 67h -> AS32. AS16 not encodable.
+// 64-bit mode: default AS64, 67h -> AS32.
+// Compat/protected mode (CS.D=1): default AS32, 67h -> AS16.
 val get_address_size : Prefixes -> AddressSize
 function get_address_size(pfx) =
-  if pfx.has_adsize == bitone then AS32
-  else AS64
+  if cur_mode == LongMode then {
+    if pfx.has_adsize == bitone then AS32 else AS64
+  } else {
+    if pfx.has_adsize == bitone then AS16 else AS32
+  }
 
 // =========================================================================
 // Fetch a full moffs (memory offset) address — 64-bit in 64-bit mode,

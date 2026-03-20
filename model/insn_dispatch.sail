@@ -1229,6 +1229,15 @@ function decode_execute() = {
             if cur_cpl == 0 then IOPL = v[13..12];
             if cur_cpl <= unsigned(IOPL) then IF_flag = v[9];
           },
+          OS32 => {
+            let v : dword = pop32();
+            CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
+            TF = v[8]; DF = v[10]; OF = v[11];
+            NT = v[14];
+            AC_flag = v[18]; ID = v[21];
+            if cur_cpl == 0 then IOPL = v[13..12];
+            if cur_cpl <= unsigned(IOPL) then IF_flag = v[9];
+          },
           OS64 => {
             let v : qword = pop64();
             // Save IOPL and IF before write_rflags overwrites them
@@ -1614,6 +1623,13 @@ function decode_execute() = {
             // Load CS selector
             write_segreg(CS, new_cs[15..0]);
 
+            // Determine processor mode from CS descriptor's L bit (bit 53).
+            // Must read GDT before changing CPL — GDT access is an implicit
+            // supervisor-level access (SDM Vol.3 §5.5).
+            let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
+            let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+            cur_mode = if desc_hi[21] == bitone then LongMode else CompatibilityMode;
+
             // Determine new CPL from CS.RPL
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);
             cur_cpl = new_cpl;
@@ -1749,7 +1765,8 @@ function decode_execute() = {
         match os {
           OS8 => (),
           OS16 => push16(return_addr[15..0]),
-          OS32 => push64(zero_extend(return_addr[31..0])),
+          OS32 => if cur_mode == LongMode then push64(zero_extend(return_addr[31..0]))
+                  else push32(return_addr[31..0]),
           OS64 => push64(return_addr),
         };
         next_rip = Some(return_addr + offset)
@@ -1867,6 +1884,26 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, rm, false);
         dispatch_group5(reg_field, rm, pfx)
+      },
+
+      // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
+      op if 64 <= op & op <= 71 => {
+        let reg_field : range(0, 7) = op - 64;
+        let reg = extend_reg(reg_field, bitzero);
+        let os = get_operand_size(pfx);
+        let v = read_gpr(reg, os);
+        let result = exec_inc(v, os);
+        write_gpr(reg, os, result)
+      },
+
+      // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
+      op if 72 <= op & op <= 79 => {
+        let reg_field : range(0, 7) = op - 72;
+        let reg = extend_reg(reg_field, bitzero);
+        let os = get_operand_size(pfx);
+        let v = read_gpr(reg, os);
+        let result = exec_dec(v, os);
+        write_gpr(reg, os, result)
       },
 
       // 50-57: PUSH reg (d64)

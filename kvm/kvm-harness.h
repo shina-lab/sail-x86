@@ -49,6 +49,7 @@ static constexpr u64 PML4_ADDR      = 0x00000;
 static constexpr u64 PDPT_ADDR      = 0x01000;
 static constexpr u64 PD_ADDR        = 0x02000;
 static constexpr u64 GDT_ADDR       = 0x03000;
+static constexpr u64 TSS_ADDR       = 0x03800;  // 64-bit TSS (104 bytes, within GDT page)
 static constexpr u64 IDT_ADDR        = 0x04000;
 static constexpr u64 HANDLER_ADDR    = 0x05000;
 static constexpr u64 COMMON_HANDLER  = HANDLER_ADDR + 32 * 16;  // 0x05200
@@ -231,6 +232,7 @@ struct TestCase {
   u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
   u64 xcr0_override = 0;          // if nonzero, override XCR0 for this test
   u64 cr4_override = 0;           // if nonzero, override CR4 for this test
+  bool compat_mode = false;       // execute test code in 32-bit compatibility mode
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
@@ -247,5 +249,6 @@ void add_evex_tests(std::vector<TestCase> &tests);
 void add_evex_tests_2(std::vector<TestCase> &tests);
 void add_mmx_tests(std::vector<TestCase> &tests);
 void add_feature_tests(std::vector<TestCase> &tests);
+void add_compat_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

@@ -58,6 +58,7 @@ CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_FRAME_WARN=1024
 CONFIG_UNWINDER_GUESS=y
+CONFIG_IA32_EMULATION=y
 EOF
 
 "$SRC/scripts/kconfig/merge_config.sh" -m -O "$SRC" "$SRC/.config" "$SRC/.config.fragment"
