@@ -173,11 +173,17 @@ struct KvmVm {
       }
     }
 
-    // GDT: null, 64-bit code, data
+    // GDT: null, 64-bit code, data, plus test entries for LAR/LSL/VERR/VERW
     u64 *gdt = (u64 *)(guest_mem + GDT_ADDR);
     gdt[0] = 0;
-    gdt[1] = 0x00AF9A000000FFFF;  // 64-bit code
-    gdt[2] = 0x00CF92000000FFFF;  // data
+    gdt[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08): type=0xA, S=1
+    gdt[2] = 0x00CF92000000FFFF;  // data (selector 0x10): type=0x2, S=1
+    gdt[3] = 0x0000890000000000;  // 64-bit TSS (selector 0x18): type=0x9, S=0, P=1
+    gdt[4] = 0;                   // upper half of TSS descriptor
+    gdt[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28): type=0xE, S=0, P=1
+    gdt[6] = 0;                   // upper half
+    gdt[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38): type=0x0, S=1, P=1
+    gdt[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40): type=0x8, S=1, P=1
 
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
@@ -188,7 +194,7 @@ struct KvmVm {
     sregs.cr3 = PML4_ADDR;
 
     sregs.gdt.base = GDT_ADDR;
-    sregs.gdt.limit = 3 * 8 - 1;
+    sregs.gdt.limit = 9 * 8 - 1;
 
     sregs.idt.base = IDT_ADDR;
     sregs.idt.limit = 32 * 16 - 1;
@@ -499,10 +505,16 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // Use 0x14000 for Sail-side GDT (0x3000 is too low for mmap)
   static constexpr u64 SAIL_GDT_ADDR = 0x14000;
   model.zGDTR_base = SAIL_GDT_ADDR;
-  model.zGDTR_limit = 3 * 8 - 1;
+  model.zGDTR_limit = 9 * 8 - 1;
   ((u64 *)SAIL_GDT_ADDR)[0] = 0;
   ((u64 *)SAIL_GDT_ADDR)[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08)
   ((u64 *)SAIL_GDT_ADDR)[2] = 0x00CF92000000FFFF;  // data (selector 0x10)
+  ((u64 *)SAIL_GDT_ADDR)[3] = 0x0000890000000000;  // 64-bit TSS (selector 0x18)
+  ((u64 *)SAIL_GDT_ADDR)[4] = 0;                   // upper half of TSS
+  ((u64 *)SAIL_GDT_ADDR)[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28)
+  ((u64 *)SAIL_GDT_ADDR)[6] = 0;                   // upper half
+  ((u64 *)SAIL_GDT_ADDR)[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38)
+  ((u64 *)SAIL_GDT_ADDR)[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40)
 
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);

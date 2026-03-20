@@ -151,6 +151,49 @@ function bsr64(v) = {
   n - 1
 }
 
+// Descriptor type validation for LAR in IA-32e mode (SDM Table 1-49).
+// System segment types (S=0): valid = 2 (LDT), 9 (avail TSS), B (busy TSS), C (call gate).
+// Code/data segments (S=1): all valid.
+val lar_type_valid_64 : dword -> bool
+function lar_type_valid_64(desc_hi) = {
+  let s_bit : bit = desc_hi[12];
+  if s_bit == bitone then {
+    true
+  } else {
+    let typ : bits(4) = desc_hi[11..8];
+    typ == 0x2 | typ == 0x9 | typ == 0xB | typ == 0xC
+  }
+}
+
+// Descriptor type validation for LSL in IA-32e mode (SDM Table 1-53).
+// System segment types (S=0): valid = 2 (LDT), 9 (avail TSS), B (busy TSS).
+// Code/data segments (S=1): all valid.
+val lsl_type_valid_64 : dword -> bool
+function lsl_type_valid_64(desc_hi) = {
+  let s_bit : bit = desc_hi[12];
+  if s_bit == bitone then {
+    true
+  } else {
+    let typ : bits(4) = desc_hi[11..8];
+    typ == 0x2 | typ == 0x9 | typ == 0xB
+  }
+}
+
+// Privilege check for non-conforming segments: CPL ≤ DPL and RPL ≤ DPL.
+// Conforming code segments (S=1, type[3]=1, type[2]=1) bypass this check.
+val desc_privilege_ok : (dword, word) -> bool
+function desc_privilege_ok(desc_hi, selector) = {
+  let s_bit : bit = desc_hi[12];
+  let is_conforming : bool = s_bit == bitone & desc_hi[11] == bitone & desc_hi[10] == bitone;
+  if is_conforming then {
+    true
+  } else {
+    let dpl : range(0, 3) = unsigned(desc_hi[14..13]);
+    let rpl : range(0, 3) = unsigned(selector[1..0]);
+    cur_cpl <= dpl & rpl <= dpl
+  }
+}
+
 // CPUID — returns (EAX, EBX, ECX, EDX) for a given leaf/subleaf.
 // Feature-dependent leaves are built from has_* registers and XCR0.
 val cpuid : (dword, dword) -> (dword, dword, dword, dword)
@@ -561,14 +604,17 @@ function dispatch_2byte_gpr(op, pfx) = {
               ZF = bitzero
             } else {
               let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
-              // Check present bit (bit 15 of desc_hi = bit 47 of descriptor)
-              // and that it's a code/data segment (not system)
               let present : bit = desc_hi[15];
-              let s_bit : bit = desc_hi[12];  // S=1 means code/data
-              // Readable: data segments always readable; code segments readable if R bit set
+              let s_bit : bit = desc_hi[12];
+              // Readable: data segments always readable; code readable if R bit set
               let is_code : bit = desc_hi[11];
               let readable : bit = desc_hi[9] | ~(is_code);
-              ZF = present & s_bit & readable
+              if present == bitzero | s_bit == bitzero | readable == bitzero
+                | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+                ZF = bitzero
+              } else {
+                ZF = bitone
+              }
             }
           }
         },
@@ -592,7 +638,12 @@ function dispatch_2byte_gpr(op, pfx) = {
               let is_code : bit = desc_hi[11];
               // Writable: only data segments with W bit set
               let writable : bit = desc_hi[9] & ~(is_code);
-              ZF = present & s_bit & writable
+              if present == bitzero | s_bit == bitzero | writable == bitzero
+                | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+                ZF = bitzero
+              } else {
+                ZF = bitone
+              }
             }
           }
         },
@@ -755,7 +806,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
     // 0F 02: LAR r, r/m16 — Load Access Rights Byte
-    // Reads descriptor from GDT/LDT, loads access rights into dest, sets ZF.
+    // Reads descriptor from GDT, validates type and privilege, loads access rights.
     2 => {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
@@ -765,7 +816,6 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(r) => read_gpr16(r),
         RM_mem(addr) => mem_read16(fixup_addr(addr)),
       };
-      // Null selector → ZF=0
       if (selector & 0xFFFC) == zeros() then {
         ZF = bitzero
       } else {
@@ -775,15 +825,18 @@ function dispatch_2byte_gpr(op, pfx) = {
           ZF = bitzero
         } else {
           let desc_hi : dword = mem_read32(desc_addr + 4);
-          // Access rights = desc byte 5 and granularity bits of byte 6
-          let ar : dword = zero_extend(desc_hi[23..0]) & 0x00FFFF00;
-          write_gpr(reg, os, zero_extend(ar));
-          ZF = bitone
+          if not_bool(lar_type_valid_64(desc_hi)) | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+            ZF = bitzero
+          } else {
+            let ar : dword = zero_extend(desc_hi[23..0]) & 0x00FFFF00;
+            write_gpr(reg, os, zero_extend(ar));
+            ZF = bitone
+          }
         }
       }
     },
     // 0F 03: LSL r, r/m16 — Load Segment Limit
-    // Reads descriptor from GDT/LDT, loads segment limit into dest, sets ZF.
+    // Reads descriptor from GDT, validates type and privilege, loads segment limit.
     3 => {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
@@ -803,15 +856,19 @@ function dispatch_2byte_gpr(op, pfx) = {
         } else {
           let desc_lo : dword = mem_read32(desc_addr);
           let desc_hi : dword = mem_read32(desc_addr + 4);
-          let limit_lo : word = desc_lo[15..0];
-          let limit_hi : bits(4) = desc_hi[19..16];
-          let granularity : bit = desc_hi[23];
-          let limit : dword = zero_extend(limit_hi @ limit_lo);
-          let final_limit : dword = if granularity == bitone
-            then (limit << 12) | 0x00000FFF
-            else limit;
-          write_gpr(reg, os, zero_extend(final_limit));
-          ZF = bitone
+          if not_bool(lsl_type_valid_64(desc_hi)) | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+            ZF = bitzero
+          } else {
+            let limit_lo : word = desc_lo[15..0];
+            let limit_hi : bits(4) = desc_hi[19..16];
+            let granularity : bit = desc_hi[23];
+            let limit : dword = zero_extend(limit_hi @ limit_lo);
+            let final_limit : dword = if granularity == bitone
+              then (limit << 12) | 0x00000FFF
+              else limit;
+            write_gpr(reg, os, zero_extend(final_limit));
+            ZF = bitone
+          }
         }
       }
     },

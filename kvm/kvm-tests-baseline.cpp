@@ -1302,6 +1302,48 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // LSL EAX, EBX: 0F 03 C3 — load segment limit for CS selector
     tests.push_back({"lsl eax,bx (cs=0x08)", cat, {0x0F, 0x03, 0xC3},
                       {.rax = 0xDEADDEAD, .rbx = 0x08, .rflags = 0x2}, FL_ZF});
+
+    // LAR with 64-bit TSS descriptor (type=9, S=0) — valid for LAR in IA-32e
+    tests.push_back({"lar eax,bx (tss=0x18)", cat, {0x0F, 0x02, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x18, .rflags = 0x2}, FL_ZF});
+
+    // LAR with interrupt gate type (type=0xE, S=0) — INVALID for LAR in IA-32e
+    tests.push_back({"lar eax,bx (igate=0x28)", cat, {0x0F, 0x02, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x28, .rflags = 0x2}, FL_ZF});
+
+    // LAR with RPL=3 on DPL=0 non-conforming code — RPL > DPL → ZF=0
+    tests.push_back({"lar eax,bx (rpl=3)", cat, {0x0F, 0x02, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x0B, .rflags = 0x2}, FL_ZF});
+
+    // LSL with 64-bit TSS descriptor (type=9, S=0) — valid for LSL in IA-32e
+    tests.push_back({"lsl eax,bx (tss=0x18)", cat, {0x0F, 0x03, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x18, .rflags = 0x2}, FL_ZF});
+
+    // LSL with interrupt gate type (type=0xE, S=0) — INVALID for LSL in IA-32e
+    tests.push_back({"lsl eax,bx (igate=0x28)", cat, {0x0F, 0x03, 0xC3},
+                      {.rax = 0xDEADDEAD, .rbx = 0x28, .rflags = 0x2}, FL_ZF});
+
+    // VERR with execute-only code (type=8, S=1, no R bit) — ZF=0
+    // VERR BX: 0F 00 /4 → 0F 00 E3 (mod=11, reg=4, rm=BX)
+    tests.push_back({"verr bx (exec-only=0x40)", cat, {0x0F, 0x00, 0xE3},
+                      {.rbx = 0x40, .rflags = 0x2}, FL_ZF});
+
+    // VERR with readable code (type=0xA, S=1, R bit set) — ZF=1
+    tests.push_back({"verr bx (code=0x08)", cat, {0x0F, 0x00, 0xE3},
+                      {.rbx = 0x08, .rflags = 0x2}, FL_ZF});
+
+    // VERW with read-only data (type=0, S=1, no W bit) — ZF=0
+    // VERW BX: 0F 00 /5 → 0F 00 EB (mod=11, reg=5, rm=BX)
+    tests.push_back({"verw bx (ro-data=0x38)", cat, {0x0F, 0x00, 0xEB},
+                      {.rbx = 0x38, .rflags = 0x2}, FL_ZF});
+
+    // VERW with writable data (type=2, S=1, W bit set) — ZF=1
+    tests.push_back({"verw bx (rw-data=0x10)", cat, {0x0F, 0x00, 0xEB},
+                      {.rbx = 0x10, .rflags = 0x2}, FL_ZF});
+
+    // VERR with RPL=3 on DPL=0 code — RPL > DPL → ZF=0
+    tests.push_back({"verr bx (rpl=3)", cat, {0x0F, 0x00, 0xE3},
+                      {.rbx = 0x0B, .rflags = 0x2}, FL_ZF});
   }
 
   // =====================================================================
