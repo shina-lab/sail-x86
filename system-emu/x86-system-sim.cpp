@@ -929,8 +929,6 @@ int main(int argc, char *argv[]) {
   }
   bool poll_stdin = true;  // Always poll stdin for UART RX data
 
-  bool trampoline_dumped = false;
-
   u64 insn_count = 0;
 
   // PIT timer: tick every N instructions to generate periodic interrupts.
@@ -960,29 +958,14 @@ int main(int argc, char *argv[]) {
               insn_count / 1000000, (u64)model.zRIP);
     }
 
-    if (debug && !trampoline_dumped && (u64)model.zRIP < 0x100000 && (u64)model.zRIP >= 0x9e000) {
-      trampoline_dumped = true;
-      fprintf(stderr, "Trampoline bytes at 0x9e000 (dumped at insn %lu):\n", insn_count);
-      for (int i = 0; i < 128; i += 16) {
-        fprintf(stderr, "  %05x:", 0x9e000 + i);
-        for (int j = 0; j < 16; j++)
-          fprintf(stderr, " %02x", model.phys_mem.read8(0x9e000 + i + j));
-        fprintf(stderr, "\n");
-      }
-    }
-    if (debug && insn_count > 401300) {
+    if (debug) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
-      u64 cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
-      u64 lin = cs_base + (u64)model.zRIP;
-      fprintf(stderr, "[%lu] lin=0x%lx EAX=0x%lx RSP=0x%lx mode=%s IDTR=0x%lx bytes=%02x%02x%02x%02x%02x%02x\n",
-              insn_count, lin, (u64)model.zGPR.data[0],
+      fprintf(stderr, "[%lu] RIP=0x%lx RSP=0x%lx mode=%s CR0=0x%lx CR3=0x%lx\n",
+              insn_count, (u64)model.zRIP,
               (u64)model.zGPR.data[4], mode_str,
-              (u64)model.zIDTR_base,
-              model.phys_mem.read8(lin), model.phys_mem.read8(lin+1),
-              model.phys_mem.read8(lin+2), model.phys_mem.read8(lin+3),
-              model.phys_mem.read8(lin+4), model.phys_mem.read8(lin+5));
+              (u64)model.zCR0, (u64)model.zCR3);
     }
 
     model.zstep(UNIT);
