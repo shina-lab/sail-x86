@@ -721,6 +721,27 @@ int main(int argc, char *argv[]) {
       model.phys_mem.write16(i * 4 + 2, 0x0000);  // segment
     }
 
+    // Load VGA BIOS option ROM at C000:0000 (0xC0000).
+    // SeaBIOS scans for option ROMs starting at 0xC0000 during POST.
+    // The ROM provides INT 10h text mode services.
+    {
+      size_t vga_size;
+      u8 *vga = read_file("vgabios.bin", &vga_size);
+      if (vga) {
+        model.phys_mem.write_bytes(0xC0000, vga, vga_size);
+        // Compute and patch the checksum byte so the ROM validates.
+        // The sum of all bytes in the ROM must be 0 (mod 256).
+        u8 sum = 0;
+        for (size_t i = 0; i < vga_size; i++)
+          sum += model.phys_mem.read8(0xC0000 + i);
+        // Patch the last byte to make the sum zero
+        u8 last = model.phys_mem.read8(0xC0000 + vga_size - 1);
+        model.phys_mem.write8(0xC0000 + vga_size - 1, last - sum);
+        fprintf(stderr, "sail-x86-system: VGA BIOS loaded at 0xC0000 (%zu bytes)\n", vga_size);
+        free(vga);
+      }
+    }
+
     // Populate fw_cfg E820 table so SeaBIOS can discover RAM size
     model.fw_cfg.set_ram_size(ram_size);
     fprintf(stderr, "sail-x86-system: BIOS=%s (%zu bytes), RAM=%luMB\n",
