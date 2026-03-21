@@ -710,6 +710,17 @@ int main(int argc, char *argv[]) {
     init_cpu_state_bios(model);
     model.phys_mem.load_rom(rom, rom_size);
     free(rom);
+
+    // Install a minimal IVT stub so that BIOS INT calls made before
+    // SeaBIOS installs its own handlers don't crash (e.g., INT 10h
+    // video calls before a VGA option ROM is loaded).
+    // Place a single IRET at 0x0400 and point all 256 IVT entries to it.
+    model.phys_mem.write8(0x0400, 0xCF);  // IRET
+    for (int i = 0; i < 256; i++) {
+      model.phys_mem.write16(i * 4, 0x0400);      // offset
+      model.phys_mem.write16(i * 4 + 2, 0x0000);  // segment
+    }
+
     // Populate fw_cfg E820 table so SeaBIOS can discover RAM size
     model.fw_cfg.set_ram_size(ram_size);
     fprintf(stderr, "sail-x86-system: BIOS=%s (%zu bytes), RAM=%luMB\n",
@@ -748,8 +759,8 @@ int main(int argc, char *argv[]) {
   } else {
     // Serial mode: UART output to stdout.
     interactive = setup_raw_terminal();
+    model.uart.output_fn = uart_output_stdout;
     if (interactive) {
-      model.uart.output_fn = uart_output_stdout;
       fprintf(stderr, "sail-x86-system: interactive console on stdin/stdout\n");
       fprintf(stderr, "Press Ctrl-a x to exit the emulator.\n\n");
     } else {

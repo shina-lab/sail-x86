@@ -82,7 +82,6 @@ CONFIG_KEYBOARD=n
 CONFIG_KBD_CALL_INT15_4F=n
 CONFIG_LPT=n
 CONFIG_SERIAL=n
-CONFIG_DEBUG_LEVEL=0
 CONFIG_BOOT_MENU=n
 CONFIG_DEBUG_SERIAL=y
 CONFIG_DEBUG_SERIAL_PORT=0x3f8
@@ -226,21 +225,28 @@ code2 = bytes([
     0xB9, 0x04, 0x00,       # mov cx, 4
     # loop:
     0x80, 0x3C, 0x80,       # cmp byte [si], 0x80
-    0x74, 0x05,             # je found
+    0x74, 0x07,             # je found (skip add+loop+jmp$ = 3+2+2 bytes)
     0x83, 0xC6, 0x10,       # add si, 16
-    0xE2, 0xF6,             # loop
-    0xEB, 0xFE,             # jmp $ (halt)
-    # found: load partition boot sector using CHS from partition table entry
-    0x8A, 0x74, 0x01,       # mov dh, [si+1]  (start head)
-    0x8B, 0x4C, 0x02,       # mov cx, [si+2]  (start cyl/sector)
-    0xBB, 0x00, 0x7C,       # mov bx, 0x7C00
-    0xB8, 0x01, 0x02,       # mov ax, 0x0201 (read 1 sector)
-    0xBA, 0x80, 0x00,       # mov dx, 0x0080 (drive 0x80)
-    # Actually dh is head from partition entry
-    0x8A, 0x74, 0x01,       # mov dh, [si+1]
+    0xE2, 0xF6,             # loop (back to cmp)
+    0xEB, 0xFE,             # jmp $ (no active partition — halt)
+    # found: read partition boot sector using INT 13h LBA read (fn 42h)
+    # Build DAP (Disk Address Packet) on stack
+    0x8B, 0x44, 0x08,       # mov ax, [si+8]   (LBA low word)
+    0x8B, 0x54, 0x0A,       # mov dx, [si+10]  (LBA high word)
+    0x6A, 0x00,             # push 0            (LBA high dword = 0)
+    0x6A, 0x00,             # push 0
+    0x52,                   # push dx           (LBA high word)
+    0x50,                   # push ax           (LBA low word)
+    0x06,                   # push es           (buffer segment = 0)
+    0x68, 0x00, 0x7C,       # push 0x7C00       (buffer offset)
+    0x6A, 0x01,             # push 1            (sector count)
+    0x6A, 0x10,             # push 16           (DAP size)
+    0x89, 0xE6,             # mov si, sp        (SI = pointer to DAP)
+    0xB2, 0x80,             # mov dl, 0x80      (drive 0x80)
+    0xB4, 0x42,             # mov ah, 0x42      (extended read)
     0xCD, 0x13,             # int 0x13
-    0x72, 0xFE,             # jc $ (retry on error - just halt)
-    0xEA, 0x00, 0x7C, 0x00, 0x00,  # jmp 0000:7C00
+    0x72, 0xFE,             # jc $ (disk error — halt)
+    0xEA, 0x00, 0x7C, 0x00, 0x00,  # jmp far 0000:7C00
 ])
 mbr[:len(code2)] = code2
 mbr[510] = 0x55

@@ -1511,7 +1511,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             180 => FS,
             _   => GS,
           };
-          write_segreg(seg, selector)
+          load_segment_register(seg, selector)
         },
         RM_reg(_) => raise_UD(),
       }

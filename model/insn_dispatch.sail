@@ -171,11 +171,14 @@ function dispatch_alu_opcode(op, pfx) = {
 val exec_ins : (OperandSize, AddressSize) -> unit
 function exec_ins(os, asz) = {
   let port : word = read_gpr16(RDX);
-  let addr : qword = read_index_dst(asz);
+  let off : qword = read_index_dst(asz);
+  // INS destination is always ES:DI (not overridable).
+  let sz = operand_size_bits(os) / 8;
+  let lin = seg_linear(ES, off, sz);
   match os {
-    OS8  => mem_write8(addr, __port_in8(port)),
-    OS16 => mem_write16(addr, __port_in16(port)),
-    OS32 => mem_write32(addr, __port_in32(port)),
+    OS8  => mem_write8(lin, __port_in8(port)),
+    OS16 => mem_write16(lin, __port_in16(port)),
+    OS32 => mem_write32(lin, __port_in32(port)),
     OS64 => (),
   };
   let delta : qword = match os {
@@ -185,20 +188,27 @@ function exec_ins(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then
-    write_index_dst(asz, addr + delta)
+    write_index_dst(asz, off + delta)
   else
-    write_index_dst(asz, addr - delta)
+    write_index_dst(asz, off - delta)
 }
 
 // OUTS — Output from DS:[RSI] to port DX
-val exec_outs : (OperandSize, AddressSize) -> unit
-function exec_outs(os, asz) = {
+// SDM Vol.2B §OUTS: Source is DS:(E)SI, DS segment may be overridden.
+val exec_outs : (OperandSize, AddressSize, Prefixes) -> unit
+function exec_outs(os, asz, pfx) = {
   let port : word = read_gpr16(RDX);
-  let addr : qword = read_index_src(asz);
+  let off : qword = read_index_src(asz);
+  let src_seg : segreg_idx = match pfx.seg_override {
+    Some(s) => s,
+    None()  => DS,
+  };
+  let sz = operand_size_bits(os) / 8;
+  let lin = seg_linear(src_seg, off, sz);
   match os {
-    OS8  => __port_out8(port, mem_read8(addr)),
-    OS16 => __port_out16(port, mem_read16(addr)),
-    OS32 => __port_out32(port, mem_read32(addr)),
+    OS8  => __port_out8(port, mem_read8(lin)),
+    OS16 => __port_out16(port, mem_read16(lin)),
+    OS32 => __port_out32(port, mem_read32(lin)),
     OS64 => (),
   };
   let delta : qword = match os {
@@ -208,9 +218,9 @@ function exec_outs(os, asz) = {
     OS64 => 0x0000000000000008,
   };
   if DF == bitzero then
-    write_index_src(asz, addr + delta)
+    write_index_src(asz, off + delta)
   else
-    write_index_src(asz, addr - delta)
+    write_index_src(asz, off - delta)
 }
 
 val exec_movs : (OperandSize, AddressSize, Prefixes) -> unit
@@ -405,7 +415,7 @@ function exec_rep(prefix, op, os, asz, pfx) = {
         STR_cmps => exec_cmps(os, asz, pfx),
         STR_scas => exec_scas(os, asz),
         STR_ins  => exec_ins(os, asz),
-        STR_outs => exec_outs(os, asz),
+        STR_outs => exec_outs(os, asz, pfx),
       };
       let cnt = read_count_reg(asz);
       write_count_reg(asz, cnt - 1);
@@ -774,15 +784,16 @@ function exec_retf(pfx, maybe_imm) = {
   };
   let new_cs : word = new_cs_raw[15..0];
 
-  // Check for null CS selector
-  if new_cs == 0x0000 then {
+  // In protected/long mode, null CS selector is invalid.
+  // In real mode, CS=0x0000 is a valid segment (linear address 0).
+  if cur_mode != RealMode & new_cs == 0x0000 then {
     throw Fault(EXN_GP, 0x00000000)
   };
 
   let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
-  // RPL must not be less than current CPL
-  if return_rpl < cur_cpl then {
+  // RPL must not be less than current CPL (not applicable in real mode)
+  if cur_mode != RealMode & return_rpl < cur_cpl then {
     throw Fault(EXN_GP, zero_extend(new_cs))
   };
 
@@ -824,7 +835,8 @@ function exec_retf(pfx, maybe_imm) = {
     if SegCache[CS].seg_l == bitone then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   };
-  cur_cpl = return_rpl;
+  // In real mode, CPL is always 0 (no privilege levels).
+  if cur_mode != RealMode then cur_cpl = return_rpl;
 
   // Set RIP to return address
   next_rip = Some(new_rip)
@@ -1129,14 +1141,14 @@ function decode_execute() = {
       110 => {
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_outs, OS8, asz, pfx)
-        else exec_outs(OS8, asz)
+        else exec_outs(OS8, asz, pfx)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
       111 => {
         let os = get_operand_size(pfx);
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
-        else exec_outs(os, asz)
+        else exec_outs(os, asz, pfx)
       },
 
       // 80: Group 1 — ALU r/m8, imm8
@@ -1331,6 +1343,7 @@ function decode_execute() = {
             // We pop first so that decode_rm sees the updated RSP.
             let v : qword = match os {
               OS64 => pop64(),
+              OS32 => zero_extend(pop32()),
               OS16 => zero_extend(pop16()),
               _ => zeros(),
             };
@@ -1339,6 +1352,7 @@ function decode_execute() = {
               RM_mem(seg, offset) => {
                 match os {
                   OS64 => seg_write64(seg, offset, v),
+                  OS32 => seg_write32(seg, offset, v[31..0]),
                   OS16 => seg_write16(seg, offset, v[15..0]),
                   _ => (),
                 }
@@ -1816,7 +1830,9 @@ function decode_execute() = {
               load_segment_register(SS, new_ss)
             };
 
-            cur_cpl = return_rpl;
+            // In real mode, CPL is always 0 (no privilege levels).
+            // In protected mode, set CPL from the return CS selector RPL.
+            if cur_mode != RealMode then cur_cpl = return_rpl;
             let old_rflags = read_rflags();
             write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
             RF = bitzero
@@ -1840,7 +1856,7 @@ function decode_execute() = {
               load_segment_register(SS, new_ss[15..0])
             };
 
-            cur_cpl = return_rpl;
+            if cur_mode != RealMode then cur_cpl = return_rpl;
             write_rflags(zero_extend(new_eflags));
             RF = bitzero
           },
@@ -2224,11 +2240,53 @@ function decode_execute() = {
         write_gpr(reg, os, imm)
       },
 
-      // C4: 3-byte VEX prefix (in 64-bit mode)
-      196 => dispatch_vex(0xC4),
+      // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix (64-bit)
+      196 => {
+        if cur_mode == LongMode then dispatch_vex(0xC4)
+        else {
+          let os = get_operand_size(pfx);
+          let modrm = fetch_byte();
+          let reg = modrm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          match rm {
+            RM_mem(seg, ea) => {
+              let far_offset : qword = match os {
+                OS16 => zero_extend(seg_read16(seg, ea)),
+                _    => zero_extend(seg_read32(seg, ea)),
+              };
+              let sel_off : int = match os { OS16 => 2, _ => 4 };
+              let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+              write_gpr(reg, os, far_offset);
+              load_segment_register(ES, selector)
+            },
+            RM_reg(_) => raise_UD(),
+          }
+        }
+      },
 
-      // C5: 2-byte VEX prefix (in 64-bit mode)
-      197 => dispatch_vex(0xC5),
+      // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix (64-bit)
+      197 => {
+        if cur_mode == LongMode then dispatch_vex(0xC5)
+        else {
+          let os = get_operand_size(pfx);
+          let modrm = fetch_byte();
+          let reg = modrm_reg(modrm, pfx);
+          let rm = decode_rm(modrm, pfx);
+          match rm {
+            RM_mem(seg, ea) => {
+              let far_offset : qword = match os {
+                OS16 => zero_extend(seg_read16(seg, ea)),
+                _    => zero_extend(seg_read32(seg, ea)),
+              };
+              let sel_off : int = match os { OS16 => 2, _ => 4 };
+              let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+              write_gpr(reg, os, far_offset);
+              load_segment_register(DS, selector)
+            },
+            RM_reg(_) => raise_UD(),
+          }
+        }
+      },
 
       // Unhandled opcode
       _ => raise_UD(),

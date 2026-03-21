@@ -239,8 +239,8 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
   write_gpr32(RSP, new_esp[31..0]);
   if privilege_change then write_segreg(SS, new_ss);
 
-  // Load CS and handler address
-  write_segreg(CS, gate.gate_sel);
+  // Load CS with full descriptor cache update (sets CS.D/CS.L for handler)
+  load_segment_register(CS, gate.gate_sel);
   RIP = gate.gate_offset;
 
   // If interrupt gate, clear IF
