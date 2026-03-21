@@ -166,21 +166,32 @@ u64 Model::z__port_in8(u64 port) {
   if (pit.handles(p))        return pit.read(p);
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
+  if (ata.handles(p))        return ata.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A (A20 enabled)
   if (vga.handles(p))        return vga.read(p);
-  if (p == 0xCF8 || p == 0xCFC) return 0xFF; // PCI config (no devices)
-  if (0xCF9 <= p && p <= 0xCFF) return 0xFF; // PCI config data
+  // DMA controller (0x00-0x0F, 0x80-0x8F, 0xC0-0xDF)
+  if (p <= 0x0F)             return 0x00;
+  if (0x80 <= p && p <= 0x8F) return 0x00;
+  if (0xC0 <= p && p <= 0xDF) return 0x00;
+  // PCI config space
+  if (0xCF8 <= p && p <= 0xCFF) return 0xFF;
   return 0xFF; // Default: empty bus
 }
 
 u64 Model::z__port_in16(u64 port) {
+  u16 p = (u16)port;
+  // ATA data port must be read as an atomic 16-bit word
+  if (p == 0x1F0) return ata.read16(p);
   u16 lo = z__port_in8(port);
   u16 hi = z__port_in8(port + 1);
   return (hi << 8) | lo;
 }
 
 u64 Model::z__port_in32(u64 port) {
+  u16 p = (u16)port;
+  // PCI config address register: atomic 32-bit read
+  if (p == 0xCF8) return 0xFFFFFFFF;  // No PCI devices
   u32 b0 = z__port_in8(port);
   u32 b1 = z__port_in8(port + 1);
   u32 b2 = z__port_in8(port + 2);
@@ -191,25 +202,32 @@ u64 Model::z__port_in32(u64 port) {
 unit Model::z__port_out8(u64 port, u64 val) {
   u16 p = (u16)port;
   u8 v = (u8)val;
-  if (uart.handles(p))       uart.write(p, v);
+  if (uart.handles(p))            uart.write(p, v);
   else if (pic_master.handles(p)) pic_master.write(p, v);
   else if (pic_slave.handles(p))  pic_slave.write(p, v);
   else if (pit.handles(p))        pit.write(p, v);
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
+  else if (ata.handles(p))        ata.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
-  // else: ignore writes to unknown ports
+  // Port 0x402 (SeaBIOS debug), DMA, POST code, APM/SMI: silently absorb
   return UNIT;
 }
 
 unit Model::z__port_out16(u64 port, u64 val) {
+  u16 p = (u16)port;
+  // ATA data port must be written as an atomic 16-bit word
+  if (p == 0x1F0) { ata.write16(p, (u16)val); return UNIT; }
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   return UNIT;
 }
 
 unit Model::z__port_out32(u64 port, u64 val) {
+  u16 p = (u16)port;
+  // PCI config address register: atomic 32-bit write
+  if (p == 0xCF8) return UNIT;  // Absorb (no PCI)
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   z__port_out8(port + 2, (val >> 16) & 0xFF);
@@ -222,10 +240,27 @@ unit Model::z__port_out32(u64 port, u64 val) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
+  // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
+  if (ata.irq_pending)
+    pic_slave.raise_irq(6);
+
+  // Cascade: if slave has pending interrupts, raise IRQ 2 on master
+  if (pic_slave.has_pending())
+    pic_master.raise_irq(2);
+
   // Check master PIC for pending, unmasked interrupts
   if (pic_master.has_pending()) {
     int vec = pic_master.acknowledge();
-    if (vec >= 0) { mpz_set_si(*rop, vec); return; }
+    if (vec >= 0) {
+      // If this is the cascade IRQ (master IRQ 2), acknowledge slave instead
+      if ((vec & 7) == 2 && vec == pic_master.get_vector_offset() + 2) {
+        int slave_vec = pic_slave.acknowledge();
+        if (slave_vec >= 0) { mpz_set_si(*rop, slave_vec); return; }
+        // Spurious cascade — still need to EOI the master
+      }
+      mpz_set_si(*rop, vec);
+      return;
+    }
   }
   mpz_set_si(*rop, -1); // No interrupt pending
 }

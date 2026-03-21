@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <cstring>
 #include <queue>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 // =========================================================================
 // UART 16550A — Serial port (COM1 at 0x3F8-0x3FF)
@@ -686,37 +689,56 @@ private:
 
 class CMOS {
 public:
+  CMOS() {
+    memset(regs, 0, sizeof(regs));
+    // RTC time defaults
+    regs[0x00] = 0x00;  // Seconds
+    regs[0x02] = 0x00;  // Minutes
+    regs[0x04] = 0x12;  // Hours (12:00)
+    regs[0x06] = 0x01;  // Day of week
+    regs[0x07] = 0x01;  // Day of month
+    regs[0x08] = 0x01;  // Month
+    regs[0x09] = 0x24;  // Year (2024)
+    regs[0x0A] = 0x26;  // Status A: divider + rate
+    regs[0x0B] = 0x02;  // Status B: 24h mode
+    regs[0x0C] = 0x00;  // Status C: no interrupts
+    regs[0x0D] = 0x80;  // Status D: valid RAM/time
+    regs[0x0F] = 0x00;  // Shutdown status
+    regs[0x10] = 0x40;  // Floppy: drive A = 1.44MB 3.5", B = none
+    regs[0x14] = 0x06;  // Equipment: VGA 80x25, no floppy via bit 0
+    regs[0x15] = 0x80;  // Base memory low (640K)
+    regs[0x16] = 0x02;  // Base memory high
+    regs[0x32] = 0x20;  // Century (20)
+  }
+
+  // Populate extended memory registers from RAM size.
+  void set_ram_size(u64 bytes) {
+    // 0x30/0x31: extended memory above 1MB in 1KB units (capped at 0xFFFF = 64MB)
+    u64 ext_kb = (bytes > 0x100000) ? (bytes - 0x100000) / 1024 : 0;
+    if (ext_kb > 0xFFFF) ext_kb = 0xFFFF;
+    regs[0x30] = ext_kb & 0xFF;
+    regs[0x31] = (ext_kb >> 8) & 0xFF;
+    // Mirror in 0x17/0x18 (same meaning, different CMOS slots)
+    regs[0x17] = regs[0x30];
+    regs[0x18] = regs[0x31];
+    // 0x34/0x35: extended memory above 16MB in 64KB units
+    u64 ext16_64k = (bytes > 0x1000000) ? (bytes - 0x1000000) / 65536 : 0;
+    if (ext16_64k > 0xFFFF) ext16_64k = 0xFFFF;
+    regs[0x34] = ext16_64k & 0xFF;
+    regs[0x35] = (ext16_64k >> 8) & 0xFF;
+  }
+
   u8 read(u16 port) {
-    if (port == 0x71) {
-      switch (index) {
-      case 0x00: return 0x00;  // Seconds
-      case 0x02: return 0x00;  // Minutes
-      case 0x04: return 0x12;  // Hours (12:00)
-      case 0x06: return 0x01;  // Day of week
-      case 0x07: return 0x01;  // Day of month
-      case 0x08: return 0x01;  // Month
-      case 0x09: return 0x24;  // Year (2024)
-      case 0x0A: return 0x26;  // Status A: divider + rate
-      case 0x0B: return 0x02;  // Status B: 24h mode
-      case 0x0C: return 0x00;  // Status C: no interrupts
-      case 0x0D: return 0x80;  // Status D: valid RAM/time
-      case 0x0F: return 0x00;  // Shutdown status
-      case 0x10: return 0x00;  // Floppy types
-      case 0x15: return 0x80;  // Base memory low (640K)
-      case 0x16: return 0x02;  // Base memory high
-      case 0x17: return 0x00;  // Extended memory low
-      case 0x18: return 0xFC;  // Extended memory high (~64MB)
-      case 0x32: return 0x20;  // Century (20)
-      default:   return 0x00;
-      }
-    }
+    if (port == 0x71)
+      return regs[index & 0x7F];
     return 0xFF;
   }
 
   void write(u16 port, u8 val) {
     if (port == 0x70)
       index = val & 0x7F;  // Bit 7 is NMI mask
-    // Ignore writes to 0x71
+    else if (port == 0x71)
+      regs[index & 0x7F] = val;
   }
 
   bool handles(u16 port) const {
@@ -725,4 +747,296 @@ public:
 
 private:
   u8 index = 0;
+  u8 regs[128];
+};
+
+// =========================================================================
+// ATA/IDE PIO Disk Controller — Primary channel (0x1F0-0x1F7, 0x3F6)
+//
+// Supports PIO-mode READ SECTORS, WRITE SECTORS, IDENTIFY DEVICE,
+// FLUSH CACHE, and INITIALIZE DEVICE PARAMETERS commands.
+// =========================================================================
+
+class ATAController {
+public:
+  ~ATAController() {
+    if (disk_fd >= 0) close(disk_fd);
+  }
+
+  bool open(const char *path) {
+    disk_fd = ::open(path, O_RDWR);
+    if (disk_fd < 0) { perror(path); return false; }
+    struct stat st;
+    if (fstat(disk_fd, &st) < 0) { perror("fstat"); close(disk_fd); disk_fd = -1; return false; }
+    disk_size = st.st_size;
+    status = 0x40;  // DRDY
+    return true;
+  }
+
+  bool is_open() const { return disk_fd >= 0; }
+
+  bool handles(u16 port) const {
+    return (0x1F0 <= port && port <= 0x1F7) || port == 0x3F6;
+  }
+
+  u8 read(u16 port) {
+    // If drive 1 is selected and not data port, return 0
+    if ((drive_head & 0x10) && port != 0x1F0)
+      return 0x00;
+
+    switch (port) {
+    case 0x1F0: // Data (low byte of 16-bit — use read16 for real reads)
+      return 0xFF;
+    case 0x1F1: // Error
+      return error;
+    case 0x1F2: // Sector Count
+      return sector_count;
+    case 0x1F3: // LBA Low
+      return lba_low;
+    case 0x1F4: // LBA Mid
+      return lba_mid;
+    case 0x1F5: // LBA High
+      return lba_high;
+    case 0x1F6: // Drive/Head
+      return drive_head;
+    case 0x1F7: // Status (clears IRQ)
+      irq_pending = false;
+      return status;
+    case 0x3F6: // Alternate Status (does NOT clear IRQ)
+      return (drive_head & 0x10) ? 0x00 : status;
+    default:
+      return 0xFF;
+    }
+  }
+
+  void write(u16 port, u8 val) {
+    switch (port) {
+    case 0x1F0: // Data (low byte — use write16 for real writes)
+      break;
+    case 0x1F1: // Features
+      features = val;
+      break;
+    case 0x1F2: // Sector Count
+      sector_count = val;
+      break;
+    case 0x1F3: // LBA Low
+      lba_low = val;
+      break;
+    case 0x1F4: // LBA Mid
+      lba_mid = val;
+      break;
+    case 0x1F5: // LBA High
+      lba_high = val;
+      break;
+    case 0x1F6: // Drive/Head
+      drive_head = val;
+      break;
+    case 0x1F7: // Command
+      if (drive_head & 0x10) break;  // Drive 1: ignore
+      execute_command(val);
+      break;
+    case 0x3F6: // Device Control
+      nien = (val & 0x02) != 0;
+      if (val & 0x04) {
+        // SRST — software reset
+        status = 0x40;  // DRDY
+        error = 0x01;   // Diagnostic passed
+        sector_count = 0x01;
+        lba_low = 0x01;
+        lba_mid = 0x00;
+        lba_high = 0x00;
+        drive_head = 0x00;
+        buf_reading = false;
+        buf_writing = false;
+      }
+      break;
+    }
+  }
+
+  // 16-bit data port read (called from z__port_in16)
+  u16 read16(u16 port) {
+    if (port != 0x1F0 || !buf_reading) return 0xFFFF;
+    u16 val;
+    memcpy(&val, &data_buf[buf_pos * 2], 2);
+    buf_pos++;
+    if (buf_pos >= 256) {
+      // Sector transfer complete
+      buf_pos = 0;
+      sectors_remaining--;
+      if (sectors_remaining > 0) {
+        // Load next sector
+        current_lba++;
+        load_sector(current_lba);
+      } else {
+        buf_reading = false;
+        status = 0x40;  // DRDY, clear DRQ
+        raise_irq();
+      }
+    }
+    return val;
+  }
+
+  // 16-bit data port write (called from z__port_out16)
+  void write16(u16 port, u16 val) {
+    if (port != 0x1F0 || !buf_writing) return;
+    memcpy(&data_buf[buf_pos * 2], &val, 2);
+    buf_pos++;
+    if (buf_pos >= 256) {
+      // Sector received, write to disk
+      u64 offset = current_lba * 512;
+      if (offset + 512 <= disk_size)
+        (void)!pwrite(disk_fd, data_buf, 512, offset);
+      buf_pos = 0;
+      sectors_remaining--;
+      if (sectors_remaining > 0) {
+        current_lba++;
+        status = 0x48;  // DRDY | DRQ
+      } else {
+        buf_writing = false;
+        status = 0x40;  // DRDY
+      }
+      raise_irq();
+    }
+  }
+
+  bool irq_pending = false;
+
+private:
+  int disk_fd = -1;
+  u64 disk_size = 0;
+
+  // ATA registers
+  u8 error = 0;
+  u8 features = 0;
+  u8 sector_count = 0;
+  u8 lba_low = 0;
+  u8 lba_mid = 0;
+  u8 lba_high = 0;
+  u8 drive_head = 0;
+  u8 status = 0;
+  bool nien = false;  // nIEN bit from device control
+
+  // Data transfer state
+  u8 data_buf[512];
+  int buf_pos = 0;
+  bool buf_reading = false;
+  bool buf_writing = false;
+  u32 current_lba = 0;
+  int sectors_remaining = 0;
+
+  u32 get_lba() const {
+    if (drive_head & 0x40) {
+      // LBA mode
+      return lba_low | (lba_mid << 8) | (lba_high << 16) |
+             ((drive_head & 0x0F) << 24);
+    }
+    // CHS mode: convert to LBA
+    // C = (lba_high << 8) | lba_mid, H = drive_head & 0x0F, S = lba_low
+    u16 cyl = (lba_high << 8) | lba_mid;
+    u8 head = drive_head & 0x0F;
+    u8 sec = lba_low;
+    // Assume 16 heads, 63 sectors/track (standard geometry)
+    return (cyl * 16 + head) * 63 + (sec - 1);
+  }
+
+  void load_sector(u32 lba) {
+    u64 offset = (u64)lba * 512;
+    memset(data_buf, 0, 512);
+    if (offset + 512 <= disk_size)
+      (void)!pread(disk_fd, data_buf, 512, offset);
+    buf_pos = 0;
+    buf_reading = true;
+    status = 0x48;  // DRDY | DRQ
+  }
+
+  void raise_irq() {
+    if (!nien) irq_pending = true;
+  }
+
+  void execute_command(u8 cmd) {
+    switch (cmd) {
+    case 0x20: // READ SECTORS
+    case 0x21: // READ SECTORS (no retry)
+    {
+      current_lba = get_lba();
+      sectors_remaining = sector_count ? sector_count : 256;
+      load_sector(current_lba);
+      raise_irq();
+      break;
+    }
+    case 0x30: // WRITE SECTORS
+    case 0x31: // WRITE SECTORS (no retry)
+    {
+      current_lba = get_lba();
+      sectors_remaining = sector_count ? sector_count : 256;
+      buf_pos = 0;
+      buf_writing = true;
+      status = 0x48;  // DRDY | DRQ
+      break;
+    }
+    case 0x91: // INITIALIZE DEVICE PARAMETERS
+      status = 0x40;  // DRDY
+      raise_irq();
+      break;
+    case 0xE7: // FLUSH CACHE
+      status = 0x40;  // DRDY
+      raise_irq();
+      break;
+    case 0xEC: // IDENTIFY DEVICE
+      identify();
+      break;
+    default:
+      // Unknown command: set error
+      status = 0x41;  // DRDY | ERR
+      error = 0x04;   // ABRT
+      raise_irq();
+      break;
+    }
+  }
+
+  void identify() {
+    memset(data_buf, 0, 512);
+    u16 *id = reinterpret_cast<u16 *>(data_buf);
+    id[0] = 0x0040;    // General: fixed disk, non-removable
+    u32 total_sectors = disk_size / 512;
+    // CHS geometry (word 1=cylinders, 3=heads, 6=sectors)
+    id[1] = total_sectors / (16 * 63);  // cylinders
+    if (id[1] > 16383) id[1] = 16383;
+    id[3] = 16;   // heads
+    id[6] = 63;   // sectors per track
+
+    // Model string (words 27-46, 40 ASCII chars, swapped byte pairs)
+    const char *model = "Sail-x86 Virtual Disk                   ";
+    for (int i = 0; i < 20; i++)
+      id[27 + i] = (model[i * 2] << 8) | model[i * 2 + 1];
+
+    // Serial number (words 10-19)
+    const char *serial = "SAIL0001            ";
+    for (int i = 0; i < 10; i++)
+      id[10 + i] = (serial[i * 2] << 8) | serial[i * 2 + 1];
+
+    // Firmware rev (words 23-26)
+    const char *fwrev = "1.0     ";
+    for (int i = 0; i < 4; i++)
+      id[23 + i] = (fwrev[i * 2] << 8) | fwrev[i * 2 + 1];
+
+    id[47] = 0x8001;   // Max sectors per R/W MULTIPLE (1)
+    id[49] = 0x0200;   // Capabilities: LBA supported
+    id[51] = 0x0200;   // PIO timing mode
+    id[53] = 0x0007;   // Words 54-58, 64-70, 88 valid
+    id[54] = id[1];    // Current cylinders
+    id[55] = 16;       // Current heads
+    id[56] = 63;       // Current sectors
+    u32 cur_cap = (u32)id[54] * 16 * 63;
+    id[57] = cur_cap & 0xFFFF;
+    id[58] = (cur_cap >> 16) & 0xFFFF;
+    // Total LBA sectors (words 60-61)
+    id[60] = total_sectors & 0xFFFF;
+    id[61] = (total_sectors >> 16) & 0xFFFF;
+
+    buf_pos = 0;
+    buf_reading = true;
+    status = 0x48;  // DRDY | DRQ
+    raise_irq();
+  }
 };

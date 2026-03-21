@@ -26,6 +26,11 @@ public:
 
   bool init(u64 size = DEFAULT_RAM_SIZE);
 
+  // Load a BIOS ROM image. Mapped at both the high alias
+  // (0x100000000 - rom_size .. 0xFFFFFFFF) and the legacy area
+  // (0x100000 - rom_size .. 0xFFFFF).
+  void load_rom(const u8 *data, size_t len);
+
   u8 read8(u64 paddr) const;
   u16 read16(u64 paddr) const;
   u32 read32(u64 paddr) const;
@@ -46,9 +51,15 @@ public:
 
   bool in_ram(u64 paddr) const { return paddr < size; }
 
+  // ROM intercept: check if paddr falls in a ROM region, return byte if so.
+  bool rom_read(u64 paddr, u8 &out) const;
+  bool in_rom(u64 paddr) const;
+
 private:
   u8 *ram = nullptr;
   u64 size = 0;
+  u8 *rom_data = nullptr;
+  u64 rom_size = 0;
 };
 
 class X86PlatformBase {
@@ -73,6 +84,7 @@ public:
   KeyboardController kbd;
   CMOS cmos;
   VGAText vga;
+  ATAController ata;
 
   // Pending external interrupt (checked by Sail model)
   bool pending_irq = false;
