@@ -758,11 +758,15 @@ function dispatch_2byte_gpr(op, pfx) = {
             //   OS64: Limit := SRC[0:15]; Base := SRC[16:79];
             // OS16 and OS32 both read 6 bytes (2 limit + 4 base); OS16
             // masks the base to 24 bits. OS64 reads 10 bytes (2 + 8).
+            // In 64-bit mode, the operand size is forced to 64-bit
+            // regardless of REX.W (SDM: "In 64-bit mode, the instruction's
+            // operand size is fixed at 8+2 bytes").
             2 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  let gdt_os = get_operand_size(pfx);
+                  let gdt_os = if cur_mode == LongMode then OS64
+                               else get_operand_size(pfx);
                   let total_size : int = if gdt_os == OS64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
                   GDTR_limit = mem_read16(addr);
@@ -781,7 +785,8 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  let idt_os = get_operand_size(pfx);
+                  let idt_os = if cur_mode == LongMode then OS64
+                               else get_operand_size(pfx);
                   let total_size : int = if idt_os == OS64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
                   IDTR_limit = mem_read16(addr);
