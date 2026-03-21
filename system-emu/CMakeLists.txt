@@ -72,6 +72,16 @@ add_custom_target(linux
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 
+# =========================================================================
+# "make freedos" — download + build SeaBIOS, create FreeDOS disk image.
+# =========================================================================
+
+add_custom_target(freedos
+    DEPENDS sail-x86-system
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-freedos.sh" "${CMAKE_BINARY_DIR}"
+    COMMENT "Building SeaBIOS + FreeDOS disk image"
+)
+
 # Tests.
 add_executable(system_test_basic tests/test-basic.cpp)
 target_link_libraries(system_test_basic PRIVATE x86_system_model)
