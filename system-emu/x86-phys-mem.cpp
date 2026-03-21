@@ -30,16 +30,17 @@ void PhysicalMemory::load_rom(const u8 *data, size_t len) {
   if (legacy_base < size)
     memcpy(ram + legacy_base, data, std::min(len, (size_t)(size - legacy_base)));
 
-  // For ROMs > 64KB: also copy to the "unreal mode" extended area.
-  // SeaBIOS's .code16gcc code runs with CS=F000 (CS.base=0xF0000) but
-  // BUILD_BIOS_ADDR=0xE0000 for 128KB ROM. Code addresses are computed
-  // as func - BUILD_BIOS_ADDR, giving offsets > 0xFFFF for code in the
-  // lower 64KB of the ROM. With CS.base=0xF0000, linear address is
-  // 0xF0000 + offset, which maps to 0x100000+ for offsets > 0xFFFF.
-  // Copy the lower portion of the ROM there so it's accessible.
-  if (len > 0x10000 && size > 0x100000) {
-    size_t extra = len - 0x10000;  // bytes below 0xF0000
-    memcpy(ram + 0x100000, data, std::min(extra, (size_t)(size - 0x100000)));
+  // For ROMs > 64KB: mirror the entire ROM to 0x100000.
+  // SeaBIOS's .code16gcc code runs with CS=F000 (CS.base=0xF0000) and
+  // uses unreal mode (CS.limit=4GB) to access code at offsets > 0xFFFF.
+  // Offset = func - BUILD_BIOS_ADDR (e.g., 0xFA3C3 - 0xE0000 = 0x1A3C3).
+  // Linear address = CS.base + offset = 0xF0000 + 0x1A3C3 = 0x10A3C3.
+  // This needs to contain the same code as at flat address 0xFA3C3.
+  // Since 0xFA3C3 is at ROM[0x1A3C3] and 0x10A3C3 = 0x100000 + 0xA3C3,
+  // we need ram[0x100000 + X] = ROM[0x10000 + X] for X in [0, 0xFFFF].
+  // In other words: copy the UPPER 64KB of ROM to 0x100000-0x10FFFF.
+  if (len > 0x10000 && size > 0x110000) {
+    memcpy(ram + 0x100000, data + 0x10000, 0x10000);
   }
 }
 
