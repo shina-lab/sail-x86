@@ -55,13 +55,35 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
     out = rom_data[paddr - high_base];
     return true;
   }
+  // VGA ROM at PCI ROM BAR address AND at legacy C0000
+  if (vga_rom_data) {
+    if (paddr >= vga_rom_bar && paddr < vga_rom_bar + vga_rom_size) {
+      out = vga_rom_data[paddr - vga_rom_bar];
+      return true;
+    }
+    if (paddr >= 0xC0000 && paddr < 0xC0000 + vga_rom_size) {
+      out = vga_rom_data[paddr - 0xC0000];
+      return true;
+    }
+  }
   return false;
 }
 
+void PhysicalMemory::load_vga_rom(const u8 *data, size_t len, u64 bar_addr) {
+  vga_rom_data = new u8[len];
+  memcpy(vga_rom_data, data, len);
+  vga_rom_size = len;
+  vga_rom_bar = bar_addr;
+}
+
 bool PhysicalMemory::in_rom(u64 paddr) const {
-  if (!rom_data) return false;
-  u64 high_base = 0x100000000ULL - rom_size;
-  return paddr >= high_base && paddr <= 0xFFFFFFFF;
+  if (rom_data) {
+    u64 high_base = 0x100000000ULL - rom_size;
+    if (paddr >= high_base && paddr <= 0xFFFFFFFF) return true;
+  }
+  if (vga_rom_data && paddr >= vga_rom_bar && paddr < vga_rom_bar + vga_rom_size)
+    return true;
+  return false;
 }
 
 u8 PhysicalMemory::read8(u64 paddr) const {

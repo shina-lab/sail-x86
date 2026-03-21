@@ -12,6 +12,7 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <termios.h>
+#include <csignal>
 #include <curses.h>
 #include <term.h>
 
@@ -721,78 +722,25 @@ int main(int argc, char *argv[]) {
       model.phys_mem.write16(i * 4 + 2, 0x0000);  // segment
     }
 
-    // Load VGA BIOS at C000:0000. The VGA BIOS provides INT 10h text
-    // mode services. SeaBIOS with CONFIG_QEMU doesn't do legacy option
-    // ROM scanning (it uses PCI), so we also call the ROM's init code
-    // directly. The init code installs INT 10h into the IVT and
-    // initializes the BDA video fields. Since SeaBIOS calls
-    // ivt_init() early and then optionrom_setup() later, and our ROM
-    // init runs before either, SeaBIOS will overwrite IVT[0x10].
-    // To work around this, we re-install INT 10h after SeaBIOS runs
-    // by having the IVT stub (at 0x0400) chain to our handler when
-    // called for INT 10h. But the simplest approach: just run the
-    // VGA BIOS init as an option ROM that SeaBIOS discovers.
-    // We make SeaBIOS find it by writing the ROM with valid signature
-    // and also setting the CBFS/etc. For now, just load the ROM and
-    // install IVT[0x10] directly — SeaBIOS doesn't touch IVT[0x10]
-    // unless it has its own VGA driver (which it doesn't without
-    // CONFIG_VGA_*). It preserves existing INT 10h handlers.
+    // Load VGA BIOS option ROM at C000:0000 (standard VGA BIOS address).
+    // SeaBIOS with CONFIG_OPTIONROMS=y scans for ROMs starting at C0000
+    // during POST. It checks for the 55 AA signature, verifies the
+    // checksum, and calls the ROM's init entry (offset 3) via far CALL.
+    // The init code installs the INT 10h handler and initializes BDA.
     {
       size_t vga_size;
       u8 *vga = read_file("vgabios.bin", &vga_size);
       if (vga) {
-        model.phys_mem.write_bytes(0xC0000, vga, vga_size);
-        // Fix checksum
+        // Fix ROM checksum: sum of all bytes must be 0 (mod 256).
         u8 sum = 0;
-        for (size_t i = 0; i < vga_size; i++)
-          sum += model.phys_mem.read8(0xC0000 + i);
-        u8 last = model.phys_mem.read8(0xC0000 + vga_size - 1);
-        model.phys_mem.write8(0xC0000 + vga_size - 1, last - sum);
-        fprintf(stderr, "sail-x86-system: VGA BIOS loaded at 0xC0000 (%zu bytes)\n", vga_size);
+        for (size_t i = 0; i < vga_size; i++) sum += vga[i];
+        vga[vga_size - 1] -= sum;
+        // Store the ROM so it can be read at both C0000 (legacy) and
+        // the PCI ROM BAR address (0xFEB00000). The rom_read intercept
+        // serves this data for reads, surviving SeaBIOS's memset(C0000,0).
+        model.phys_mem.load_vga_rom(vga, vga_size, 0xFEB00000ULL);
+        fprintf(stderr, "sail-x86-system: VGA BIOS at 0xC0000 (%zu bytes, checksum OK)\n", vga_size);
         free(vga);
-
-        // Run the VGA BIOS init code: it installs INT 10h and sets up BDA.
-        // We simulate this by temporarily pointing the CPU at the ROM's
-        // init entry (C000:0003) and running until LRET.
-        // Save CPU state, run init, restore.
-        u64 save_rip = model.zRIP;
-        u16 save_cs = model.zSegReg.data[x86::SEG_CS];
-        u64 save_cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
-        u64 save_rsp = model.zGPR.data[4];
-
-        // Set up a return address on the stack for LRETW.
-        // Put a HLT at 0x0480, push 0000:0480 as far return address.
-        model.phys_mem.write8(0x0480, 0xF4);  // HLT
-        model.zGPR.data[4] = 0x7000;  // RSP
-        // Push far return address: segment then offset (for LRETW)
-        model.zGPR.data[4] -= 2;
-        model.phys_mem.write16(model.zGPR.data[4], 0x0000);  // return CS
-        model.zGPR.data[4] -= 2;
-        model.phys_mem.write16(model.zGPR.data[4], 0x0480);  // return IP
-
-        // Jump to C000:0003 (ROM init entry, skipping 55 AA size header)
-        model.zSegReg.data[x86::SEG_CS] = 0xC000;
-        model.zSegCache.data[x86::SEG_CS].zseg_base = 0xC0000;
-        model.zRIP = 0x0003;
-
-        // Run until HLT (the init's LRETW returns to 0000:0480 = HLT)
-        for (int i = 0; i < 100000; i++) {
-          model.zstep(UNIT);
-          if (model.zsystem_state == x86::zSysHalted) break;
-          if (model.zfault_pending) {
-            fprintf(stderr, "sail-x86-system: VGA BIOS init fault #%ld\n",
-                    (long)model.zfault_vector);
-            break;
-          }
-        }
-
-        // Restore CPU state for BIOS boot
-        model.zRIP = save_rip;
-        model.zSegReg.data[x86::SEG_CS] = save_cs;
-        model.zSegCache.data[x86::SEG_CS].zseg_base = save_cs_base;
-        model.zGPR.data[4] = save_rsp;
-        model.zsystem_state = x86::zSysRunning;
-        model.zfault_pending = false;
       }
     }
 
@@ -873,7 +821,11 @@ int main(int argc, char *argv[]) {
   u64 spin_total = 0;  // cumulative count across re-entries
   const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 50000000;
 
-  while (!model.should_exit) {
+  // Handle SIGTERM/SIGINT gracefully so the VGA dump runs on timeout
+  static volatile bool got_signal = false;
+  signal(SIGTERM, [](int) { got_signal = true; });
+
+  while (!model.should_exit && !got_signal) {
     // Print progress periodically
     if (curses_active) {
       if (insn_count % 1000000 == 0)
@@ -1116,6 +1068,26 @@ int main(int argc, char *argv[]) {
   }
 
   fprintf(stderr, "sail-x86-system: exited after %lu instructions\n", insn_count);
+
+  // Dump VGA framebuffer text content at exit
+  if (!curses_active) {
+    fprintf(stderr, "=== VGA text ===\n");
+    for (int row = 0; row < 25; row++) {
+      // Find last non-space character on this line
+      int last = -1;
+      for (int col = 79; col >= 0; col--) {
+        u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
+        if (ch != 0x20 && ch != 0x00) { last = col; break; }
+      }
+      if (last < 0) continue;  // skip blank lines
+      for (int col = 0; col <= last; col++) {
+        u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
+        fprintf(stderr, "%c", (ch >= 0x20 && ch < 0x7F) ? ch : ' ');
+      }
+      fprintf(stderr, "\n");
+    }
+  }
+
   model.model_fini();
   return model.exit_code;
 }

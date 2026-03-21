@@ -55,11 +55,18 @@ public:
   bool rom_read(u64 paddr, u8 &out) const;
   bool in_rom(u64 paddr) const;
 
+  // Load a VGA BIOS ROM at the given PCI ROM BAR address.
+  // Stored separately so SeaBIOS can read it even after clearing C0000.
+  void load_vga_rom(const u8 *data, size_t len, u64 bar_addr);
+
 private:
   u8 *ram = nullptr;
   u64 size = 0;
   u8 *rom_data = nullptr;
   u64 rom_size = 0;
+  u8 *vga_rom_data = nullptr;
+  u64 vga_rom_size = 0;
+  u64 vga_rom_bar = 0;
 };
 
 class X86PlatformBase {

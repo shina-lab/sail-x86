@@ -789,6 +789,24 @@ public:
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
 
+    // Device 0:2.0 — Simple VGA controller (for option ROM discovery)
+    // SeaBIOS scans PCI for VGA devices (class 0x0300) to load VGA BIOS.
+    // The ROM BAR (0x30) points to the ROM at C0000.
+    memset(dev2, 0, sizeof(dev2));
+    dev2[0x00] = 0x34; dev2[0x01] = 0x12;  // Vendor: 0x1234 (Bochs/QEMU VGA)
+    dev2[0x02] = 0x11; dev2[0x03] = 0x11;  // Device: 0x1111
+    dev2[0x04] = 0x03;                      // Command: I/O + mem
+    dev2[0x08] = 0x00;                      // Revision
+    dev2[0x0A] = 0x00;                      // Subclass: VGA compatible
+    dev2[0x0B] = 0x03;                      // Class: display controller
+    dev2[0x0E] = 0x00;                      // Header type 0
+    // No BAR0 — VGA framebuffer is at legacy ISA address 0xB8000.
+    // ROM BAR (0x30): point to 0xFEB00000 (in PCI memory space above RAM).
+    // The emulator stores a copy of vgabios.bin there so SeaBIOS can read it
+    // independently from the shadow RAM at C0000 (which SeaBIOS clears first).
+    // Bit 0 = enable.
+    dev2[0x30] = 0x01; dev2[0x31] = 0x00; dev2[0x32] = 0xB0; dev2[0x33] = 0xFE;
+
     // Device 0:1.3 — PIIX4 ACPI/Power Management (for SMM support)
     // SeaBIOS's smm_setup() looks for PCI_DEVICE_ID_INTEL_82371AB_3
     // (0x7113) to enable SMM via the APMC register.
@@ -845,6 +863,19 @@ public:
     } else if (cfg == dev1f3) {
       // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
       memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev2 && reg == 0x30) {
+      // VGA ROM BAR: handle sizing and address writes.
+      // When software writes 0xFFFFFFFF, return size mask.
+      // ROM is 2KB (0x800), so mask = ~(0x800-1) | 1 = 0xFFFFF801
+      if (val == 0xFFFFFFFF) {
+        u32 mask = ~(0x800 - 1) | 1;  // 2KB ROM, bit 0 = enable
+        memcpy(&cfg[reg], &mask, 4);
+      } else {
+        memcpy(&cfg[reg], &val, 4);
+      }
+    } else if (cfg == dev2) {
+      // VGA: allow other config writes (command, etc.)
+      memcpy(&cfg[reg], &val, 4);
     }
     // Absorb other writes silently
   }
@@ -854,18 +885,21 @@ private:
     if (dev == 0 && func == 0) return dev0;
     if (dev == 1 && func == 0) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
+    if (dev == 2 && func == 0) return dev2;
     return nullptr;
   }
   u8 *get_config_mut(int dev, int func) {
     if (dev == 0 && func == 0) return dev0;
     if (dev == 1 && func == 0) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
+    if (dev == 2 && func == 0) return dev2;
     return nullptr;
   }
 
   u32 addr = 0;
   u8 dev0[256];    // 0:0.0 — i440FX host bridge
   u8 dev1[256];    // 0:1.0 — PIIX3 IDE controller
+  u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 };
 
