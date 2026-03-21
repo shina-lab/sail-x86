@@ -1998,12 +1998,24 @@ function decode_execute() = {
                   else push32(return_addr[31..0]),
           OS64 => push64(return_addr),
         };
-        next_rip = Some(return_addr + offset)
+        // Truncate target to operand size (SDM: "truncated to 16 bits" in real mode)
+        let target = return_addr + offset;
+        next_rip = Some(match os {
+          OS16 => zero_extend(target[15..0]),
+          OS32 => zero_extend(target[31..0]),
+          _    => target,
+        })
       },
 
       // E9: JMP rel16/rel32 (f64)
       233 => {
-        next_rip = Some(decode_pos + fetch_rel_os(pfx))
+        let os = get_operand_size_f64(pfx);
+        let target = decode_pos + fetch_rel_os(pfx);
+        next_rip = Some(match os {
+          OS16 => zero_extend(target[15..0]),
+          OS32 => zero_extend(target[31..0]),
+          _    => target,
+        })
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
