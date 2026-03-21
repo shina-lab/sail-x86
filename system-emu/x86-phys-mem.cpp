@@ -29,6 +29,18 @@ void PhysicalMemory::load_rom(const u8 *data, size_t len) {
   u64 legacy_base = 0x100000 - len;
   if (legacy_base < size)
     memcpy(ram + legacy_base, data, std::min(len, (size_t)(size - legacy_base)));
+
+  // For ROMs > 64KB: also copy to the "unreal mode" extended area.
+  // SeaBIOS's .code16gcc code runs with CS=F000 (CS.base=0xF0000) but
+  // BUILD_BIOS_ADDR=0xE0000 for 128KB ROM. Code addresses are computed
+  // as func - BUILD_BIOS_ADDR, giving offsets > 0xFFFF for code in the
+  // lower 64KB of the ROM. With CS.base=0xF0000, linear address is
+  // 0xF0000 + offset, which maps to 0x100000+ for offsets > 0xFFFF.
+  // Copy the lower portion of the ROM there so it's accessible.
+  if (len > 0x10000 && size > 0x100000) {
+    size_t extra = len - 0x10000;  // bytes below 0xF0000
+    memcpy(ram + 0x100000, data, std::min(extra, (size_t)(size - 0x100000)));
+  }
 }
 
 // Check if paddr falls in the ROM high alias and return the byte.

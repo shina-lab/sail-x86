@@ -38,8 +38,8 @@ if [ ! -f "$BIOS_BIN" ]; then
   # Create minimal config.
   # CONFIG_QEMU=y is needed for CMOS-based RAM size detection.
   cat > "$SEABIOS_SRC/.config" <<'SEABIOS_CONFIG'
-CONFIG_QEMU=y
-CONFIG_QEMU_HARDWARE=y
+CONFIG_QEMU=n
+CONFIG_QEMU_HARDWARE=n
 CONFIG_COREBOOT=n
 CONFIG_CSM=n
 CONFIG_ATA=y
