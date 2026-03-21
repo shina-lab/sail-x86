@@ -196,7 +196,8 @@ function get_operand_size_d64(pfx) =
 // In non-64-bit modes, the 66h prefix works normally per CS.D setting.
 val get_operand_size_f64 : Prefixes -> OperandSize
 function get_operand_size_f64(pfx) =
-  if cur_mode == LongMode then {
+  if pfx.rex_w then OS64
+  else if cur_mode == LongMode then {
     if pfx.has_opsize then OS16 else OS64
   } else if get_cs_db() == bitone then {
     if pfx.has_opsize then OS16 else OS32
