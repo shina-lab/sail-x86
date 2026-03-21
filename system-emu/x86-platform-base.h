@@ -87,6 +87,10 @@ public:
   ATAController ata;
   PCIConfigSpace pci;
 
+  // Simulated TSC: incremented each instruction step.
+  // Used instead of host RDTSC so timer calibration matches PIT timing.
+  u64 tsc = 0;
+
   // Pending external interrupt (checked by Sail model)
   bool pending_irq = false;
   u8 pending_irq_vector = 0;

@@ -761,11 +761,12 @@ int main(int argc, char *argv[]) {
   u64 insn_count = 0;
 
   // PIT timer: tick every N instructions to generate periodic interrupts.
-  // The PIT runs at 1.193182 MHz. At ~1M interpreted instructions/sec,
-  // 10K instructions ≈ 10ms ≈ 11932 PIT cycles. We tick aggressively
-  // so timer-dependent code (calibrate_delay, jiffies) doesn't stall.
-  const u64 PIT_TICK_INTERVAL = 10000;  // Tick PIT every 10K instructions
-  const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
+  // The PIT runs at 1.193182 MHz. With a simulated TSC incrementing by
+  // 1000 per instruction (~1GHz virtual CPU), 1193 PIT cycles per 1000
+  // instructions matches the real PIT/CPU ratio, so SeaBIOS's timer
+  // calibration produces consistent results (~1GHz).
+  const u64 PIT_TICK_INTERVAL = 1000;   // Tick PIT every 1K instructions
+  const u64 PIT_CYCLES_PER_TICK = 1193; // ~1ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
   // VGA refresh: render framebuffer every 50K instructions (~20 fps at 1M ips)
@@ -810,6 +811,7 @@ int main(int argc, char *argv[]) {
     }
 
     model.zstep(UNIT);
+    model.tsc += 1000;  // ~1GHz virtual CPU
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.

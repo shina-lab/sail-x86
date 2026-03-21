@@ -129,7 +129,7 @@ u64 Model::z__rdmsr(u64 addr) {
   // Default values for common MSRs
   switch (msr) {
   case 0x1B:   return 0xFEE00900;  // IA32_APIC_BASE (APIC enabled, BSP)
-  case 0x10:   return __rdtsc();   // IA32_TSC
+  case 0x10:   return tsc;         // IA32_TSC
   case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
   case 0x1A0:  return 1;           // IA32_MISC_ENABLE (bit 0 = FAST_STRING)
   case 0xC0000103: return 0;       // IA32_TSC_AUX

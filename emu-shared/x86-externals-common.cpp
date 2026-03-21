@@ -944,6 +944,12 @@ u64 Model::z__stmxcsr(unit) {
 // =========================================================================
 
 u64 Model::z__rdtsc(unit) {
+  // In system mode, return a simulated TSC. The tsc counter is
+  // incremented by the main loop (once per step), so it tracks
+  // instruction count. This ensures timer calibration (comparing TSC
+  // deltas against PIT intervals) produces consistent results.
+  if (zsystem_mode)
+    return tsc;
   return __rdtsc();
 }
 
