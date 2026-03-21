@@ -264,6 +264,18 @@ unit Model::z__port_out32(u64 port, u64 val) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
+  // Suppress PIT IRQ during SeaBIOS's call16/call32 transitions.
+  // When code is in real mode executing from the F-segment (CS=F000),
+  // it's typically inside call16_helper or transition code. Delivering
+  // hardware interrupts here causes nested call32 which corrupts state.
+  // Only deliver IRQs when in PM or when CS is not F000 (boot code).
+  u16 cs_sel = zSegReg.data[x86::SEG_CS];
+  bool in_bios_rm = (zcur_mode == zRealMode && cs_sel == 0xF000);
+  if (in_bios_rm) {
+    mpz_set_si(*rop, -1);
+    return;
+  }
+
   // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
   if (ata.irq_pending)
     pic_slave.raise_irq(6);
