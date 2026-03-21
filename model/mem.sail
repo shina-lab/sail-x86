@@ -155,7 +155,11 @@ function pop16() = {
 
 // Load a segment register with a selector, updating both the visible
 // selector and the hidden descriptor cache (SDM Vol.3A §3.4.5).
-// In real mode: base = selector << 4, limit = 0xFFFF, present, R/W.
+// In real mode: base = selector << 4; limit and attributes are NOT changed.
+//   This preserves "unreal mode" / "big real mode" behavior where a segment
+//   retains its large limit from a prior protected-mode descriptor load.
+//   (SDM Vol.3A §3.4.5: "Every segment register has a 'visible' part and
+//    a 'hidden' part... in real-address mode, only the base is updated.")
 // In protected/compat mode: read 8-byte descriptor from GDT/LDT.
 // In long mode: just store the selector (FS/GS base set via MSR).
 val load_segment_register : (segreg_idx, word) -> unit
@@ -163,9 +167,7 @@ function load_segment_register(idx, selector) = {
   write_segreg(idx, selector);
   match cur_mode {
     RealMode => {
-      SegCache[idx].seg_base = zero_extend(selector) << 4;
-      SegCache[idx].seg_limit = 0x0000FFFF;
-      SegCache[idx].seg_present = bitone
+      SegCache[idx].seg_base = zero_extend(selector) << 4
     },
     _ => {
       // SDM §3.4.4: In all modes (including 64-bit), segment loads read the
