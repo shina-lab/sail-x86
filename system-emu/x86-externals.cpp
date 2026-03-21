@@ -136,6 +136,7 @@ u64 Model::z__rdmsr(u64 addr) {
   case 0x17:  return 0;           // IA32_PLATFORM_ID
   case 0x34:  return 0;           // MSR_SMI_COUNT
   case 0x3a:  return 0;           // IA32_FEATURE_CONTROL
+  case 0xfe:  return 0x508;        // IA32_MTRRCAP: 8 var ranges, fixed+WC supported
   case 0xce:  return 0;           // MSR_PLATFORM_INFO
   case 0x140: return 0;           // IA32_PERF_CAPABILITIES
   case 0x64e: return 0;           // MSR_PPERF
