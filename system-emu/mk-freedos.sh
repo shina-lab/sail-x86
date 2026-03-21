@@ -175,6 +175,17 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   dd if="$FLOPPY_IMG" of="$FREEDOS_IMG" bs=1 count=3 seek="$PART_OFFSET" conv=notrunc status=none
   dd if="$FLOPPY_IMG" of="$FREEDOS_IMG" bs=1 skip=62 count=450 seek=$((PART_OFFSET + 62)) conv=notrunc status=none
 
+  # Patch the BPB hidden sectors field (offset 0x1C, 4 bytes, little-endian)
+  # to match the partition's LBA start offset. Without this, the boot sector
+  # calculates wrong absolute sector numbers for FAT/root/data reads.
+  python3 -c "
+import struct
+with open('$FREEDOS_IMG', 'r+b') as f:
+    f.seek($PART_OFFSET + 0x1C)
+    f.write(struct.pack('<I', $PART_START))
+"
+  echo "Patched hidden sectors to $PART_START"
+
   # Write a minimal MBR boot code that loads the partition boot sector
   # This is a simple MBR that finds the active partition and chain-loads it
   python3 -c "
