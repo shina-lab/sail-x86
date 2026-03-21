@@ -3,6 +3,7 @@
 #include "integers.h"
 #include <cstdio>
 #include <cstring>
+#include <vector>
 #include <queue>
 #include <unistd.h>
 #include <fcntl.h>
@@ -867,11 +868,14 @@ public:
       // VGA ROM BAR: handle sizing and address writes.
       // When software writes 0xFFFFFFFF, return size mask.
       // ROM is 2KB (0x800), so mask = ~(0x800-1) | 1 = 0xFFFFF801
-      if (val == 0xFFFFFFFF) {
-        u32 mask = ~(0x800 - 1) | 1;  // 2KB ROM, bit 0 = enable
+      if (val == 0xFFFFFFFF || val == 0xFFFFFFFE) {
+        u32 mask = ~(u32)(0x800 - 1) | 1;  // 2KB ROM, bit 0 = enable
         memcpy(&cfg[reg], &mask, 4);
       } else {
         memcpy(&cfg[reg], &val, 4);
+        // Track the new BAR address (the emulator's main code needs to
+        // call phys_mem.set_vga_rom_bar() with this value)
+        vga_rom_bar_addr = val & ~(u32)1;  // mask off enable bit
       }
     } else if (cfg == dev2) {
       // VGA: allow other config writes (command, etc.)
@@ -901,6 +905,8 @@ private:
   u8 dev1[256];    // 0:1.0 — PIIX3 IDE controller
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
+public:
+  u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
 };
 
 // =========================================================================
@@ -913,6 +919,28 @@ private:
 
 class FwCfg {
 public:
+  void set_vga_rom(const u8 *data, size_t len) {
+    vga_rom.assign(data, data + len);
+    // Rebuild file directory with one entry for "vgaroms/vgabios.bin"
+    // Format: u32 count (BE), then per file: u32 size (BE), u16 select (BE), u16 reserved, char name[56]
+    memset(filedir_buf, 0, sizeof(filedir_buf));
+    // count = 1 (big-endian)
+    filedir_buf[0] = 0; filedir_buf[1] = 0; filedir_buf[2] = 0; filedir_buf[3] = 1;
+    // File entry at offset 4:
+    u8 *f = filedir_buf + 4;
+    // size (big-endian)
+    u32 sz = (u32)len;
+    f[0] = (sz >> 24) & 0xFF; f[1] = (sz >> 16) & 0xFF;
+    f[2] = (sz >> 8) & 0xFF;  f[3] = sz & 0xFF;
+    // select = 0x21 (big-endian) — first user file selector
+    f[4] = 0x00; f[5] = 0x21;
+    // reserved
+    f[6] = 0; f[7] = 0;
+    // name
+    strncpy((char *)f + 8, "vgaroms/vgabios.bin", 56);
+    filedir_len = 4 + 64;  // 4 bytes header + 64 bytes per file entry
+  }
+
   void set_ram_size(u64 bytes) {
     ram_size = bytes;
     // Build E820 table: one RAM entry (addr=0, size=ram_size, type=1)
@@ -951,13 +979,19 @@ public:
       data = id_buf;
       len = 4;
       break;
-    case 0x19:  // QEMU_CFG_E820_TABLE
+    case 0x19:  // QEMU_CFG_FILE_DIR
+      data = filedir_buf;
+      len = filedir_len;
+      break;
+    case 0x8003:  // QEMU_CFG_E820_TABLE (ARCH_LOCAL + 3)
       data = e820_buf;
       len = e820_len;
       break;
-    case 0x20:  // QEMU_CFG_FILE_DIR: empty file directory
-      data = filedir_buf;
-      len = 4;
+    case 0x21:  // First user file (vgaroms/vgabios.bin)
+      if (!vga_rom.empty()) {
+        data = vga_rom.data();
+        len = (u32)vga_rom.size();
+      }
       break;
     default:
       return 0x00;
@@ -983,8 +1017,12 @@ private:
   u8 e820_buf[20] = {};
   u32 e820_len = 0;
 
-  // File directory: u32 count = 0 (no files)
-  u8 filedir_buf[4] = { 0, 0, 0, 0 };
+  // File directory buffer (header + file entries)
+  u8 filedir_buf[128] = {};
+  u32 filedir_len = 4;  // default: just u32 count=0
+
+  // VGA ROM file data (loaded via set_vga_rom)
+  std::vector<u8> vga_rom;
 };
 
 // =========================================================================

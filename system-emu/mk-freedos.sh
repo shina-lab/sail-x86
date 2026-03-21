@@ -37,7 +37,7 @@ if [ ! -f "$BIOS_BIN" ]; then
 
   # Create minimal config.
   # CONFIG_QEMU=y is needed for CMOS-based RAM size detection.
-  cat > "$SEABIOS_SRC/.config" <<'SEABIOS_CONFIG'
+  cat > "$SEABIOS_SRC/.config" <<'EOF'
 CONFIG_QEMU=y
 CONFIG_QEMU_HARDWARE=y
 CONFIG_COREBOOT=n
@@ -91,15 +91,7 @@ CONFIG_ENTRY_EXTRASTACK=y
 CONFIG_PS2PORT=y
 CONFIG_CALL32_SMM=y
 CONFIG_THREADS=n
-SEABIOS_CONFIG
-
-  # SeaBIOS Makefile uses 'python' — ensure python3 is used
-  # Patch: skip GDTR restore in call32_post when uninitialized.
-  sed -i '/lgdt(&gdt);/s/lgdt(&gdt);/if (gdt.length) lgdt(\&gdt);/' \
-    "$SEABIOS_SRC/src/stacks.c"
-  # Initialize Call16Data.gdt in call16_override to prevent garbage GDTR.
-  sed -i '/if (big) {/a\        sgdt(\&Call16Data.gdt);' \
-    "$SEABIOS_SRC/src/stacks.c"
+EOF
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
   make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3

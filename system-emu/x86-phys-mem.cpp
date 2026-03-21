@@ -55,7 +55,8 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
     out = rom_data[paddr - high_base];
     return true;
   }
-  // VGA ROM at PCI ROM BAR address AND at legacy C0000
+  // VGA ROM: serve at legacy C0000 and at PCI ROM BAR address.
+  // The BAR address may change when SeaBIOS remaps PCI resources.
   if (vga_rom_data) {
     if (paddr >= vga_rom_bar && paddr < vga_rom_bar + vga_rom_size) {
       out = vga_rom_data[paddr - vga_rom_bar];

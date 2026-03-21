@@ -735,11 +735,12 @@ int main(int argc, char *argv[]) {
         u8 sum = 0;
         for (size_t i = 0; i < vga_size; i++) sum += vga[i];
         vga[vga_size - 1] -= sum;
-        // Store the ROM so it can be read at both C0000 (legacy) and
-        // the PCI ROM BAR address (0xFEB00000). The rom_read intercept
-        // serves this data for reads, surviving SeaBIOS's memset(C0000,0).
+        // Provide the ROM via fw_cfg as "vgaroms/vgabios.bin" so SeaBIOS
+        // can load it during option ROM scanning. Also store at C0000 and
+        // PCI ROM BAR for legacy access.
+        model.fw_cfg.set_vga_rom(vga, vga_size);
         model.phys_mem.load_vga_rom(vga, vga_size, 0xFEB00000ULL);
-        fprintf(stderr, "sail-x86-system: VGA BIOS at 0xC0000 (%zu bytes, checksum OK)\n", vga_size);
+        fprintf(stderr, "sail-x86-system: VGA BIOS loaded (%zu bytes, checksum OK)\n", vga_size);
         free(vga);
       }
     }
@@ -1071,6 +1072,9 @@ int main(int argc, char *argv[]) {
 
   // Dump VGA framebuffer text content at exit
   if (!curses_active) {
+    u16 int10_ip = model.phys_mem.read16(0x10 * 4);
+    u16 int10_cs = model.phys_mem.read16(0x10 * 4 + 2);
+    fprintf(stderr, "IVT[10h] = %04x:%04x\n", int10_cs, int10_ip);
     fprintf(stderr, "=== VGA text ===\n");
     for (int row = 0; row < 25; row++) {
       // Find last non-space character on this line
