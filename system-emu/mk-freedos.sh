@@ -65,7 +65,7 @@ CONFIG_BOOTSPLASH=n
 CONFIG_TCGBIOS=n
 CONFIG_XEN=n
 CONFIG_LZMA=n
-CONFIG_HARDWARE_IRQ=n
+CONFIG_HARDWARE_IRQ=y
 CONFIG_DRIVES=y
 CONFIG_CDROM_BOOT=n
 CONFIG_CDROM_EMU=n
@@ -79,17 +79,18 @@ CONFIG_DEBUG_SERIAL=y
 CONFIG_DEBUG_SERIAL_PORT=0x3f8
 CONFIG_SERCON=n
 CONFIG_OPTIONROMS=n
-CONFIG_ENTRY_EXTRASTACK=n
-CONFIG_PS2PORT=n
+CONFIG_ENTRY_EXTRASTACK=y
+CONFIG_PS2PORT=y
 CONFIG_CALL32_SMM=n
 CONFIG_THREADS=n
 SEABIOS_CONFIG
 
   # SeaBIOS Makefile uses 'python' — ensure python3 is used
-  # Patch: skip call32_post body to avoid state corruption.
-  # call32_post restores GDTR/FS/GS/A20/CMOS from Call16Data which is
-  # uninitialized on the first call, causing corruption.
-  sed -i '/u8 method = GET_LOW(Call16Data.method);/a\    return method;  // skip state restore (Sail emulator patch)' \
+  # Patch: skip GDTR restore in call32_post when uninitialized.
+  sed -i '/lgdt(&gdt);/s/lgdt(&gdt);/if (gdt.length) lgdt(\&gdt);/' \
+    "$SEABIOS_SRC/src/stacks.c"
+  # Initialize Call16Data.gdt in call16_override to prevent garbage GDTR.
+  sed -i '/if (big) {/a\        sgdt(\&Call16Data.gdt);' \
     "$SEABIOS_SRC/src/stacks.c"
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
