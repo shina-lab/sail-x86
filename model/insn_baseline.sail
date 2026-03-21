@@ -218,12 +218,13 @@ function cpuid(leaf, subleaf) = {
       ecx = ecx | 0x00002000;  // CX16 (bit 13)
       ecx = ecx | 0x00080000;  // SSE4.1 (bit 19)
       ecx = ecx | 0x00100000;  // SSE4.2 (bit 20)
+      ecx = ecx | 0x04000000;  // XSAVE (bit 26)
       if has_pclmulqdq then ecx = ecx | 0x00000002;  // bit 1
       if has_fma       then ecx = ecx | 0x00001000;  // bit 12
       if has_movbe     then ecx = ecx | 0x00400000;  // bit 22
       if has_popcnt    then ecx = ecx | 0x00800000;  // bit 23
       if has_aesni     then ecx = ecx | 0x02000000;  // bit 25
-      if CR4[18] == bitone then ecx = ecx | 0x0C000000;  // XSAVE+OSXSAVE (bits 26+27)
+      if CR4[18] == bitone then ecx = ecx | 0x08000000;  // OSXSAVE (bit 27)
       if XCR0[2] == bitone then ecx = ecx | 0x10000000;  // AVX (bit 28)
       if has_f16c      then ecx = ecx | 0x20000000;  // bit 29
       if has_rdrand    then ecx = ecx | 0x40000000;  // bit 30
@@ -232,7 +233,6 @@ function cpuid(leaf, subleaf) = {
       //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
       //       MMX, FXSR, SSE, SSE2)
       let edx : dword = 0x078BFBFD;
-
       (eax, ebx, ecx, edx)
     },
 
