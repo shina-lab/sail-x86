@@ -171,9 +171,9 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
   if (vga.handles(p))        return vga.read(p);
-  // DMA controller (0x00-0x0F, 0x80-0x8F, 0xC0-0xDF)
+  // DMA controller (0x00-0x0F, 0xC0-0xDF): return 0 so SeaBIOS
+  // doesn't detect phantom DMA channels.
   if (p <= 0x0F)             return 0x00;
-  if (0x80 <= p && p <= 0x8F) return 0x00;
   if (0xC0 <= p && p <= 0xDF) return 0x00;
   // PCI config data (0xCFC-0xCFF)
   if (0xCFC <= p && p <= 0xCFF) {
