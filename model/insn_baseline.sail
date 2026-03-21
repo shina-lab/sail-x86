@@ -672,7 +672,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           // Bit 0 (x87) must always be 1
           if new_xcr0[0] == bitzero then raise_GP0();
           // Can't set AVX (bit 2) without SSE (bit 1)
-          if new_xcr0[2] == bitone & new_xcr0[1] == bitzero then raise_GP0();
+          if new_xcr0[2..1] == 0b10 then raise_GP0();
           // Bits 7:5 (AVX-512) must be all-or-nothing, and require bits 2:1
           let avx512_bits : bits(3) = new_xcr0[7..5];
           if avx512_bits != 0b000 & avx512_bits != 0b111 then raise_GP0();
