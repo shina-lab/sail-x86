@@ -264,6 +264,12 @@ unit Model::z__port_out32(u64 port, u64 val) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
+  // Suppress ALL hardware IRQs during normal execution.
+  // SeaBIOS's irqentry mechanism can't handle nested call32 from IRQ
+  // handlers during call16 transitions. IRQs are delivered during HLT
+  // (the emulator's HLT handler polls for interrupts directly).
+  mpz_set_si(*rop, -1);
+  return;
 
   // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
   if (ata.irq_pending)
