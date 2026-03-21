@@ -19,12 +19,15 @@ enum DisplayMode { DISPLAY_SERIAL, DISPLAY_VGA };
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
+  fprintf(stderr, "       %s [options] -b <bios.bin> [-hda <disk.img>]\n", prog);
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -d              Enable debug trace\n");
   fprintf(stderr, "  -m <MB>         RAM size in MB (default 256)\n");
   fprintf(stderr, "  -a <args>       Kernel command line\n");
   fprintf(stderr, "  -i <file>       Initramfs image\n");
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
+  fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
+  fprintf(stderr, "  -hda <file>     Hard disk image\n");
   fprintf(stderr, "  -h              Show this help\n");
 }
 
@@ -157,6 +160,21 @@ static void init_cpu_state(x86::Model &model) {
   // Zero GPRs
   for (int i = 0; i < 16; i++)
     model.zGPR.data[i] = 0;
+}
+
+// Initialize CPU in real mode at the x86 reset vector.
+// CS.base = 0xFFFF0000 so that CS:IP = 0xF000:FFF0 → linear 0xFFFFFFF0.
+// SeaBIOS's first ljmpw $0xF000, $entry sets CS.base = 0xF0000 (normal real-mode).
+static void init_cpu_state_bios(x86::Model &model) {
+  init_cpu_state(model);
+
+  // CS selector = 0xF000, but base = 0xFFFF0000 (not sel<<4)
+  model.zSegReg.data[x86::SEG_CS] = 0xF000;
+  model.zSegCache.data[x86::SEG_CS].zseg_base = 0xFFFF0000;
+  model.zSegCache.data[x86::SEG_CS].zseg_limit = 0xFFFF;
+
+  // RIP = 0xFFF0 → first fetch at linear 0xFFFF0000 + 0xFFF0 = 0xFFFFFFF0
+  model.zRIP = 0xFFF0;
 }
 
 // Load bzImage and set up real-mode boot.
@@ -625,6 +643,8 @@ int main(int argc, char *argv[]) {
   const char *initrd_path = nullptr;
   const char *bzimage_path = nullptr;
   DisplayMode display_mode = DISPLAY_SERIAL;
+  const char *bios_path = nullptr;
+  const char *hda_path = nullptr;
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
@@ -643,6 +663,12 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[first_arg], "-vga") == 0) {
       display_mode = DISPLAY_VGA;
       first_arg++;
+    } else if (strcmp(argv[first_arg], "-b") == 0 && first_arg + 1 < argc) {
+      bios_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-hda") == 0 && first_arg + 1 < argc) {
+      hda_path = argv[first_arg + 1];
+      first_arg += 2;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
       usage(argv[0]);
@@ -654,31 +680,60 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (first_arg >= argc) {
+  if (!bios_path && first_arg >= argc) {
     usage(argv[0]);
     return 1;
   }
-  bzimage_path = argv[first_arg];
+  if (!bios_path)
+    bzimage_path = argv[first_arg];
 
   u64 ram_size = ram_mb * 1024 * 1024;
 
   x86::Model model;
-  init_cpu_state(model);
 
   if (!model.phys_mem.init(ram_size)) {
     fprintf(stderr, "Failed to allocate %lu MB guest RAM\n", ram_mb);
     return 1;
   }
 
-  fprintf(stderr, "sail-x86-system: loading %s\n", bzimage_path);
+  // Set CMOS memory size registers
+  model.cmos.set_ram_size(ram_size);
 
-  if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, display_mode, debug)) {
-    fprintf(stderr, "Failed to load kernel image\n");
-    return 1;
+  if (bios_path) {
+    // BIOS boot path: load ROM, start at reset vector
+    size_t rom_size;
+    u8 *rom = read_file(bios_path, &rom_size);
+    if (!rom) {
+      fprintf(stderr, "Failed to load BIOS ROM: %s\n", bios_path);
+      return 1;
+    }
+    init_cpu_state_bios(model);
+    model.phys_mem.load_rom(rom, rom_size);
+    free(rom);
+    fprintf(stderr, "sail-x86-system: BIOS=%s (%zu bytes), RAM=%luMB\n",
+            bios_path, rom_size, ram_mb);
+    fprintf(stderr, "sail-x86-system: reset vector CS:IP=%04x:%04lx (linear 0x%lx)\n",
+            (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP,
+            (u64)model.zSegCache.data[x86::SEG_CS].zseg_base + (u64)model.zRIP);
+
+    if (hda_path) {
+      if (!model.ata.open(hda_path)) {
+        fprintf(stderr, "Failed to open disk image: %s\n", hda_path);
+        return 1;
+      }
+      fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
+    }
+  } else {
+    // Linux bzImage boot path
+    init_cpu_state(model);
+    fprintf(stderr, "sail-x86-system: loading %s\n", bzimage_path);
+    if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, display_mode, debug)) {
+      fprintf(stderr, "Failed to load kernel image\n");
+      return 1;
+    }
+    fprintf(stderr, "sail-x86-system: RAM=%luMB, entry=0x%lx\n",
+            ram_mb, (u64)model.zRIP);
   }
-
-  fprintf(stderr, "sail-x86-system: RAM=%luMB, entry=0x%lx\n",
-          ram_mb, (u64)model.zRIP);
 
   // Set up interactive console.
   bool interactive;
