@@ -812,6 +812,15 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
+    // Debug: trace last 4 CS:IP values when we hit f000:fea5
+    {
+      static u64 prev_rip[4] = {};
+      static u16 prev_cs[4] = {};
+      static int idx = 0;
+      prev_rip[idx&3] = model.zRIP;
+      prev_cs[idx&3] = model.zSegReg.data[x86::SEG_CS];
+      idx++;
+    }
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.

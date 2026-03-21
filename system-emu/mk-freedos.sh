@@ -46,6 +46,7 @@ CONFIG_ATA=y
 CONFIG_ATA_DMA=n
 CONFIG_ATA_PIO32=n
 CONFIG_FLOPPY=n
+CONFIG_FLASH_FLOPPY=n
 CONFIG_USB=n
 CONFIG_USB_UHCI=n
 CONFIG_USB_OHCI=n
@@ -64,7 +65,7 @@ CONFIG_BOOTSPLASH=n
 CONFIG_TCGBIOS=n
 CONFIG_XEN=n
 CONFIG_LZMA=n
-CONFIG_HARDWARE_IRQ=y
+CONFIG_HARDWARE_IRQ=n
 CONFIG_DRIVES=y
 CONFIG_CDROM_BOOT=n
 CONFIG_CDROM_EMU=n
@@ -81,6 +82,14 @@ CONFIG_THREADS=n
 SEABIOS_CONFIG
 
   # SeaBIOS Makefile uses 'python' — ensure python3 is used
+  # Patch: initialize Call16Data.gdt in call16_override() so that
+  # call32_post() doesn't load GDTR=0:0 (which corrupts PM segments).
+  # Also skip lgdt when gdt.length is 0 as a safety net.
+  sed -i '/lgdt(&gdt);/s/lgdt(&gdt);/if (gdt.length) lgdt(\&gdt);/' \
+    "$SEABIOS_SRC/src/stacks.c"
+  sed -i '/if (big) {/a\        sgdt(\&Call16Data.gdt);' \
+    "$SEABIOS_SRC/src/stacks.c"
+
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
   make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3
   cp "$SEABIOS_SRC/out/bios.bin" "$BIOS_BIN"

@@ -187,11 +187,22 @@ function get_operand_size_d64(pfx) =
 // LongMode: always OS64, 66h ignored.
 // Non-LongMode, CS.D=1: always OS32.
 // Non-LongMode, CS.D=0: always OS16.
+// Operand size for f64 instructions (CALL near, RET near, JMP near).
+// In LongMode: forced to OS64 (66h prefix is accepted but overrides to OS16).
+// In non-LongMode: same as normal operand size, respecting 66h prefix.
+// SDM Vol.2A Table 3-4: "f64" means "64-Bit Mode: Forced to 64-bit operand
+// size when in 64-bit mode (prefixes that change operand size are ignored
+// for this instruction in 64-bit mode)."
+// In non-64-bit modes, the 66h prefix works normally per CS.D setting.
 val get_operand_size_f64 : Prefixes -> OperandSize
-function get_operand_size_f64(_pfx) =
-  if cur_mode == LongMode then OS64
-  else if get_cs_db() == bitone then OS32
-  else OS16
+function get_operand_size_f64(pfx) =
+  if cur_mode == LongMode then {
+    if pfx.has_opsize then OS16 else OS64
+  } else if get_cs_db() == bitone then {
+    if pfx.has_opsize then OS16 else OS32
+  } else {
+    if pfx.has_opsize then OS32 else OS16
+  }
 
 // =========================================================================
 // Register index helpers (extending 3-bit fields with REX bits)
