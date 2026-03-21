@@ -820,7 +820,7 @@ int main(int argc, char *argv[]) {
   u64 spin_base = 0;
   u64 spin_count = 0;
   u64 spin_total = 0;  // cumulative count across re-entries
-  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 50000000;
+  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 500000000;
 
   // Handle SIGTERM/SIGINT gracefully so the VGA dump runs on timeout
   static volatile bool got_signal = false;
@@ -834,7 +834,7 @@ int main(int argc, char *argv[]) {
                            insn_count / 1000000,
                            (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     } else {
-      if (insn_count % 5000000 == 0 && insn_count > 0)
+      if (insn_count % 1000000 == 0 && insn_count > 0)
         fprintf(stderr, "[progress] %luM insns, RIP=%04x:%016lx\n",
                 insn_count / 1000000,
                 (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
@@ -1075,13 +1075,28 @@ int main(int argc, char *argv[]) {
     u16 int10_ip = model.phys_mem.read16(0x10 * 4);
     u16 int10_cs = model.phys_mem.read16(0x10 * 4 + 2);
     fprintf(stderr, "IVT[10h] = %04x:%04x\n", int10_cs, int10_ip);
+    // Scan framebuffer for any non-null characters
+    int nonblank = 0;
+    for (int i = 0; i < 80*50; i++) {
+      u8 ch = model.phys_mem.read8(0xB8000 + i * 2);
+      if (ch != 0x00 && ch != 0x20) nonblank++;
+    }
+    fprintf(stderr, "Framebuffer: %d non-blank chars out of %d\n", nonblank, 80*50);
+    if (nonblank == 0) {
+      // Check BDA cursor position
+      u8 cur_col = model.phys_mem.read8(0x450);
+      u8 cur_row = model.phys_mem.read8(0x451);
+      fprintf(stderr, "BDA cursor: row=%d col=%d\n", cur_row, cur_col);
+    }
     fprintf(stderr, "=== VGA text ===\n");
-    for (int row = 0; row < 25; row++) {
+    for (int row = 0; row < 50; row++) {
       // Find last non-space character on this line
       int last = -1;
       for (int col = 79; col >= 0; col--) {
         u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
+        u8 at = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2 + 1);
         if (ch != 0x20 && ch != 0x00) { last = col; break; }
+        if (ch == 0x00 && at != 0x00) { last = col; break; }  // non-blank attr
       }
       if (last < 0) continue;  // skip blank lines
       for (int col = 0; col <= last; col++) {

@@ -464,10 +464,14 @@ int10_teletype:
     movb    0x50, %dl           # column
     movb    0x51, %dh           # row
 
-    # Get the character to write (from stack — original AL in pushal frame)
+    # Get the character to write (original AL from caller).
+    # Stack layout after pushw DS, pushw ES, pushaw:
+    #   SP+0: DI, SP+2: SI, SP+4: BP, SP+6: SP, SP+8: BX,
+    #   SP+10: DX, SP+12: CX, SP+14: AX (AL is low byte)
+    #   SP+16: ES, SP+18: DS, SP+20: return IP, SP+22: return CS, SP+24: FLAGS
     movw    %bp, %si            # save BP
     movw    %sp, %bp
-    movb    20(%bp), %al        # AL from pushal (EAX low byte on stack)
+    movb    28(%bp), %al        # AL from EAX in pushad frame (66 60 = 32-bit PUSHA)
     movw    %si, %bp            # restore BP
 
     cmpb    $0x0D, %al          # CR
