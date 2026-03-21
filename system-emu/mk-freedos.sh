@@ -162,6 +162,13 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   done
   rm -rf "$TMPDIR_FD"
 
+  # Copy COMMAND.COM to root directory (FreeDOS default location)
+  mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o "$(dirname "$FREEDOS_IMG")/freedos-build/freedos-zip/144m/x86BOOT.img"@@'::COMMAND.COM' ::/COMMAND.COM 2>/dev/null || \
+  mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" ::/FREEDOS/BIN/COMMAND.COM ::/COMMAND.COM 2>/dev/null || true
+
+  # Write minimal FDCONFIG.SYS (no interactive menu)
+  echo 'SHELL=\COMMAND.COM /E:2048 /P' | mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o - ::/FDCONFIG.SYS
+
   # Copy boot sector from floppy to HDD partition boot sector
   echo "Installing boot sector..."
   dd if="$FLOPPY_IMG" of="$FREEDOS_IMG" bs=1 count=3 seek="$PART_OFFSET" conv=notrunc status=none

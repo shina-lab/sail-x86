@@ -1076,6 +1076,23 @@ int main(int argc, char *argv[]) {
     u16 int10_ip = model.phys_mem.read16(0x10 * 4);
     u16 int10_cs = model.phys_mem.read16(0x10 * 4 + 2);
     fprintf(stderr, "IVT[10h] = %04x:%04x\n", int10_cs, int10_ip);
+    // Dump first 10 rows showing both printable and hex for non-printable
+    fprintf(stderr, "=== VGA rows ===\n");
+    for (int row = 0; row < 10; row++) {
+      bool has_content = false;
+      for (int col = 0; col < 80; col++) {
+        u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
+        u8 at = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2 + 1);
+        if (ch != 0 || at != 0) has_content = true;
+      }
+      if (!has_content) continue;
+      fprintf(stderr, "%2d: ", row);
+      for (int col = 0; col < 80; col++) {
+        u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
+        fprintf(stderr, "%c", (ch >= 0x20 && ch < 0x7F) ? ch : (ch == 0 ? ' ' : '.'));
+      }
+      fprintf(stderr, "\n");
+    }
     fprintf(stderr, "=== VGA text ===\n");
     for (int row = 0; row < 50; row++) {
       // Find last non-space character on this line
