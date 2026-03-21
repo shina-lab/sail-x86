@@ -809,7 +809,7 @@ int main(int argc, char *argv[]) {
       if (insn_count % 5000000 == 0 && insn_count > 0)
         fprintf(stderr, "[progress] %luM insns, %04x:%04lx\n",
                 insn_count / 1000000,
-                (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP); 562be35ac (Add PCI i440FX bridge, shadow RAM, VGA retrace fixes)
+                (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     }
 
     if (debug) {

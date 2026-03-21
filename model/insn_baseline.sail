@@ -10,7 +10,7 @@ function check_lock_rm(pfx, rm, is_cmp) = {
   if pfx.has_lock then {
     match rm {
       RM_reg(_) => raise_UD(),
-      RM_mem(_, _) => if is_cmp then raise_UD() else (),
+      RM_mem(seg, offset) => if is_cmp then raise_UD() else (),
     }
   }
 }
@@ -752,31 +752,23 @@ function dispatch_2byte_gpr(op, pfx) = {
               _ => raise_UD(),
             },
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
-            // Operand size 16: 5 bytes (2 limit + 3 base, 24-bit).
-            // Operand size 32: 6 bytes (2 limit + 4 base, 32-bit).
-            // Operand size 64: 10 bytes (2 limit + 8 base, 64-bit).
-            // SDM Vol.2A: "If the operand-size attribute is 16 bits,
-            // the register is loaded with a 16-bit limit and a 24-bit base."
+            // SDM Vol.2A §LGDT Operation:
+            //   OS16: Limit := SRC[0:15]; Base := SRC[16:47] AND 00FFFFFFH;
+            //   OS32: Limit := SRC[0:15]; Base := SRC[16:47];
+            //   OS64: Limit := SRC[0:15]; Base := SRC[16:79];
+            // OS16 and OS32 both read 6 bytes (2 limit + 4 base); OS16
+            // masks the base to 24 bits. OS64 reads 10 bytes (2 + 8).
             2 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
                   let gdt_os = get_operand_size(pfx);
-                  let total_size : int = match gdt_os {
-                    OS8  => 6,
-                    OS16 => 5,
-                    OS32 => 6,
-                    OS64 => 10,
-                  };
+                  let total_size : int = if gdt_os == OS64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
                   GDTR_limit = mem_read16(addr);
                   match gdt_os {
                     OS64 => GDTR_base = mem_read64(addr + 2),
-                    OS16 => {
-                      let lo : word = mem_read16(addr + 2);
-                      let hi : byte = mem_read8(addr + 4);
-                      GDTR_base = zero_extend(hi @ lo)
-                    },
+                    OS16 => GDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
                     _    => GDTR_base = zero_extend(mem_read32(addr + 2)),
                   }
                 },
@@ -790,21 +782,12 @@ function dispatch_2byte_gpr(op, pfx) = {
               match rm {
                 RM_mem(seg, offset) => {
                   let idt_os = get_operand_size(pfx);
-                  let total_size : int = match idt_os {
-                    OS8  => 6,
-                    OS16 => 5,
-                    OS32 => 6,
-                    OS64 => 10,
-                  };
+                  let total_size : int = if idt_os == OS64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
                   IDTR_limit = mem_read16(addr);
                   match idt_os {
                     OS64 => IDTR_base = mem_read64(addr + 2),
-                    OS16 => {
-                      let lo : word = mem_read16(addr + 2);
-                      let hi : byte = mem_read8(addr + 4);
-                      IDTR_base = zero_extend(hi @ lo)
-                    },
+                    OS16 => IDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
                     _    => IDTR_base = zero_extend(mem_read32(addr + 2)),
                   }
                 },
@@ -844,7 +827,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             7 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
-                RM_mem(_, _) => __tlb_flush(),
+                RM_mem(seg, offset) => __tlb_flush(),
                 _ => raise_UD(),
               }
             },
@@ -1244,7 +1227,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             (3, false) => SegCache[GS].seg_base = zero_extend(read_gpr32(r)),
             _ => raise_UD(),
           },
-          RM_mem(_, _) => raise_UD(),
+          RM_mem(seg, offset) => raise_UD(),
         }
       } else match reg_field {
         // FXSAVE m512byte
@@ -1271,14 +1254,14 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // XSAVE m
         4 => match rm {
-          RM_mem(_, _) => {
+          RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => raise_UD(),
         },
         5 => match rm {
-          RM_mem(_, _) => {
+          RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xrstor(seg_linear(seg, offset, 576), mask)
@@ -1290,7 +1273,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
         6 => match rm {
-          RM_mem(_, _) => {
+          RM_mem(seg, offset) => {
             // XSAVEOPT (NP) or CLWB (66) — both are NOPs for architectural state
             // XSAVEOPT: SDM says optimized XSAVE (we treat as regular XSAVE)
             // CLWB: SDM says Cache_Line_Write_Back(m8) — NOP for us
@@ -1305,7 +1288,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
         7 => match rm {
-          RM_mem(_, _) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
+          RM_mem(seg, offset) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
           RM_reg(_) => (),  // SFENCE
         },
       }
@@ -1804,7 +1787,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       match rm {
         RM_reg(dst) => exec_xadd(dst, reg, os),
-        RM_mem(_, _) => {
+        RM_mem(seg, offset) => {
           let mem_val = read_rm_val(rm, os, pfx.has_rex);
           let reg_val = read_gpr(reg, os);
           let sum = mem_val + reg_val;
@@ -1904,7 +1887,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: uses compacted format (XCOMP_BV bit 63 set)
         // We treat as equivalent to XSAVE for simplicity.
         4 => match rm {
-          RM_mem(_, _) => {
+          RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
           },
@@ -1914,7 +1897,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: RFBM = (XCR0 OR IA32_XSS) AND EDX:EAX; compacted format
         // We treat as equivalent to XSAVE for simplicity.
         5 => match rm {
-          RM_mem(_, _) => {
+          RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
             __xsave(seg_linear(seg, offset, 576), mask)
@@ -1943,7 +1926,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             CF = cf_val;
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
-          RM_mem(_, _) => raise_UD(),
+          RM_mem(seg, offset) => raise_UD(),
         },
         // /7 mod=11: RDSEED r16/r32/r64
         7 => match rm {
@@ -1967,7 +1950,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             CF = cf_val;
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
-          RM_mem(_, _) => raise_UD(),
+          RM_mem(seg, offset) => raise_UD(),
         },
         _ => raise_UD(),
       }
