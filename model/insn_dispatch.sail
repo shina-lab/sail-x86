@@ -2248,9 +2248,11 @@ function decode_execute() = {
       196 => {
         if cur_mode == LongMode then dispatch_vex(0xC4)
         else {
-          // Peek at second byte to distinguish VEX from LES
+          // Peek at second byte to distinguish VEX from LES.
+          // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
+          // mod≠11 (memory operand) is a valid LES encoding.
           let byte2 = fetch_byte();
-          if byte2[7] == bitone then {
+          if byte2[7..6] == 0b11 then {
             // mod=11: VEX prefix in non-64-bit mode
             dispatch_vex_with_byte2(0xC4, byte2)
           } else {
@@ -2281,7 +2283,7 @@ function decode_execute() = {
         if cur_mode == LongMode then dispatch_vex(0xC5)
         else {
           let byte2 = fetch_byte();
-          if byte2[7] == bitone then {
+          if byte2[7..6] == 0b11 then {
             dispatch_vex_with_byte2(0xC5, byte2)
           } else {
             let os = get_operand_size(pfx);

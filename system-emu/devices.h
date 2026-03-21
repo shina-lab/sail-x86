@@ -365,6 +365,7 @@ public:
 
   u8 get_imr() const { return imr; }
   u8 get_irr() const { return irr; }
+  u8 get_isr() const { return isr; }
   u8 get_vector_offset() const { return vector_offset; }
 
 private:
