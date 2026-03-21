@@ -10,7 +10,7 @@ function check_lock_rm(pfx, rm, is_cmp) = {
   if pfx.has_lock then {
     match rm {
       RM_reg(_) => raise_UD(),
-      RM_mem(seg, offset) => if is_cmp then raise_UD() else (),
+      RM_mem(_, _) => if is_cmp then raise_UD() else (),
     }
   }
 }
@@ -832,7 +832,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             7 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
-                RM_mem(seg, offset) => __tlb_flush(),
+                RM_mem(_, _) => __tlb_flush(),
                 _ => raise_UD(),
               }
             },
@@ -1232,7 +1232,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             (3, false) => SegCache[GS].seg_base = zero_extend(read_gpr32(r)),
             _ => raise_UD(),
           },
-          RM_mem(seg, offset) => raise_UD(),
+          RM_mem(_, _) => raise_UD(),
         }
       } else match reg_field {
         // FXSAVE m512byte
@@ -1293,7 +1293,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
         7 => match rm {
-          RM_mem(seg, offset) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
+          RM_mem(_, _) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
           RM_reg(_) => (),  // SFENCE
         },
       }
@@ -1797,7 +1797,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       match rm {
         RM_reg(dst) => exec_xadd(dst, reg, os),
-        RM_mem(seg, offset) => {
+        RM_mem(_, _) => {
           let mem_val = read_rm_val(rm, os, pfx.has_rex);
           let reg_val = read_gpr(reg, os);
           let sum = mem_val + reg_val;
@@ -1936,7 +1936,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             CF = cf_val;
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
-          RM_mem(seg, offset) => raise_UD(),
+          RM_mem(_, _) => raise_UD(),
         },
         // /7 mod=11: RDSEED r16/r32/r64
         7 => match rm {
@@ -1960,7 +1960,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             CF = cf_val;
             OF = bitzero; SF = bitzero; ZF = bitzero; AF = bitzero; PF = bitzero
           },
-          RM_mem(seg, offset) => raise_UD(),
+          RM_mem(_, _) => raise_UD(),
         },
         _ => raise_UD(),
       }
