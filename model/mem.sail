@@ -167,9 +167,12 @@ function load_segment_register(idx, selector) = {
       SegCache[idx].seg_limit = 0x0000FFFF;
       SegCache[idx].seg_present = bitone
     },
-    LongMode => (),
     _ => {
-      // Protected mode / compatibility mode: read descriptor from GDT or LDT
+      // SDM §3.4.4: In all modes (including 64-bit), segment loads read the
+      // GDT/LDT and populate the hidden descriptor cache. For DS/ES/SS in
+      // 64-bit mode, the cached values are ignored during address calculation
+      // (handled by get_seg_base). For FS/GS, the 32-bit base is loaded
+      // (upper bits cleared); WRMSR can then set the full 64-bit base.
       let ti : bit = selector[2];
       let index : bits(13) = selector[15..3];
       let table_base : qword = if ti == bitone then {
@@ -348,6 +351,11 @@ function exec_far_jmp_protected(selector, offset, os) = {
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
+  // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
+  if EFER[10] == bitone then {
+    if desc.seg_l == bitone then cur_mode = LongMode
+    else cur_mode = CompatibilityMode
+  };
   // Truncate offset based on operand size
   let target : qword = match os {
     OS8  => offset,
@@ -374,6 +382,11 @@ function exec_far_call_protected(selector, offset, os) = {
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
+  // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
+  if EFER[10] == bitone then {
+    if desc.seg_l == bitone then cur_mode = LongMode
+    else cur_mode = CompatibilityMode
+  };
   // Set EIP
   let target : qword = match os {
     OS8  => offset,

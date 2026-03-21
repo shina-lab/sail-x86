@@ -816,6 +816,11 @@ function exec_retf(pfx, maybe_imm) = {
 
   // Load new CS (selector + descriptor cache) and set CPL
   load_segment_register(CS, new_cs);
+  // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
+  if EFER[10] == bitone then {
+    if SegCache[CS].seg_l == bitone then cur_mode = LongMode
+    else cur_mode = CompatibilityMode
+  };
   cur_cpl = return_rpl;
 
   // Set RIP to return address

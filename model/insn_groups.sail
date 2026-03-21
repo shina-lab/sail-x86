@@ -405,13 +405,6 @@ function dispatch_group5(reg_field, rm, pfx) = {
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
-            LongMode => {
-              // 64-bit far CALL: push old CS:RIP, load new CS:RIP
-              push64(zero_extend(read_segreg(CS)));
-              push64(decode_pos);
-              load_segment_register(CS, far_selector);
-              next_rip = Some(far_offset)
-            },
             RealMode => {
               match os {
                 OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
@@ -447,10 +440,6 @@ function dispatch_group5(reg_field, rm, pfx) = {
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
-            LongMode => {
-              load_segment_register(CS, far_selector);
-              next_rip = Some(far_offset)
-            },
             RealMode => {
               load_segment_register(CS, far_selector);
               let target : qword = match os {

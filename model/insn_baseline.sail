@@ -255,6 +255,7 @@ function cpuid(leaf, subleaf) = {
         if has_adx     then ebx = ebx | 0x00080000;  // bit 19
         if has_sha     then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
+        if has_la57      then ecx = ecx | 0x00010000;  // bit 16 (LA57)
         if has_movdiri   then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b then ecx = ecx | 0x10000000;  // bit 28
         (0x00000000, ebx, ecx, 0x00000000)
@@ -314,9 +315,13 @@ function cpuid(leaf, subleaf) = {
     _ if leaf_val == 2147483655 =>      // 0x80000007
       (0x00000000, 0x00000000, 0x00000000, 0x00000100),
 
-    // Leaf 0x80000008: Address sizes (39-bit physical, 48-bit virtual)
-    _ if leaf_val == 2147483656 =>      // 0x80000008
-      (0x00003027, 0x00000000, 0x00000000, 0x00000000),
+    // Leaf 0x80000008: Address sizes
+    // EAX[7:0] = physical address bits (39), EAX[15:8] = virtual address bits
+    // Virtual: 57 with LA57, 48 without
+    _ if leaf_val == 2147483656 => {     // 0x80000008
+      let virt_bits : dword = if has_la57 then 0x00003900 else 0x00003000;
+      (virt_bits | 0x00000027, 0x00000000, 0x00000000, 0x00000000)
+    },
 
     // Unknown leaf: return zeros
     _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000),
@@ -1022,16 +1027,24 @@ function dispatch_2byte_gpr(op, pfx) = {
           let lme = EFER[8];
           let pg  = cr_val[31];
           EFER[10] = lme & pg;  // Update LMA
-          if lme == bitone & pg == bitone then
-            cur_mode = LongMode
-          else if cr_val[0] == bitone then
+          if lme == bitone & pg == bitone then {
+            // IA-32e mode: 64-bit if CS.L=1, compatibility if CS.L=0
+            if SegCache[CS].seg_l == bitone then
+              cur_mode = LongMode
+            else
+              cur_mode = CompatibilityMode
+          } else if cr_val[0] == bitone then
             cur_mode = ProtectedMode
           else
             cur_mode = RealMode
         },
         2 => CR2 = cr_val,
         3 => { CR3 = cr_val; __tlb_flush() },
-        4 => CR4 = cr_val,
+        4 => {
+          // SDM: #GP(0) if changing CR4.LA57 (bit 12) while paging is enabled
+          if CR0[31] == bitone & cr_val[12] != CR4[12] then raise_GP0();
+          CR4 = cr_val
+        },
         8 => CR8 = cr_val[3..0],
         _ => throw Fault(EXN_UD, 0x00000000),
       }

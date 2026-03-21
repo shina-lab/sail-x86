@@ -451,6 +451,7 @@ register has_movdiri   : bool
 register has_movdir64b : bool
 register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
+register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 
 // =========================================================================
 // XCR0 / feature check helpers
