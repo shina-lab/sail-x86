@@ -289,10 +289,10 @@ function cpuid(leaf, subleaf) = {
     },
 
     // Leaf 0x80000000: Max extended leaf
-    _ if leaf_val == 2147483648 => (0x80000008, 0x00000000, 0x00000000, 0x00000000),
+    2147483648 => (0x80000008, 0x00000000, 0x00000000, 0x00000000),
 
     // Leaf 0x80000001: Extended feature bits
-    _ if leaf_val == 2147483649 => {
+    2147483649 => {
       // ECX: LAHF(0), conditionally LZCNT(5)
       var ecx : dword = 0x00000001;  // LAHF
       if has_lzcnt then ecx = ecx | 0x00000020;  // bit 5
@@ -302,23 +302,17 @@ function cpuid(leaf, subleaf) = {
     },
 
     // Leaves 0x80000002-0x80000004: Processor brand string "Sail x86-64 Emulator"
-    _ if leaf_val == 2147483650 =>      // 0x80000002
-      (0x6C696153, 0x36387820, 0x2034362D, 0x6C756D45),
-    //  "Sail"      " x86"     "-64 "      "Emul"
-    _ if leaf_val == 2147483651 =>      // 0x80000003
-      (0x726F7461, 0x00000000, 0x00000000, 0x00000000),
-    //  "ator"
-    _ if leaf_val == 2147483652 =>      // 0x80000004
-      (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+    2147483650 => (0x6C696153, 0x36387820, 0x2034362D, 0x6C756D45),
+    2147483651 => (0x726F7461, 0x00000000, 0x00000000, 0x00000000),
+    2147483652 => (0x00000000, 0x00000000, 0x00000000, 0x00000000),
 
     // Leaf 0x80000007: Advanced power management — invariant TSC (bit 8)
-    _ if leaf_val == 2147483655 =>      // 0x80000007
-      (0x00000000, 0x00000000, 0x00000000, 0x00000100),
+    2147483655 => (0x00000000, 0x00000000, 0x00000000, 0x00000100),
 
     // Leaf 0x80000008: Address sizes
     // EAX[7:0] = physical address bits (39), EAX[15:8] = virtual address bits
     // Virtual: 57 with LA57, 48 without
-    _ if leaf_val == 2147483656 => {     // 0x80000008
+    2147483656 => {
       let virt_bits : dword = if has_la57 then 0x00003900 else 0x00003000;
       (virt_bits | 0x00000027, 0x00000000, 0x00000000, 0x00000000)
     },
