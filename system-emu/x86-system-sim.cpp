@@ -411,7 +411,7 @@ int main(int argc, char *argv[]) {
 
   while (!model.should_exit) {
     // Print progress every 5M instructions
-    if (insn_count % 5000000 == 0 && insn_count > 0) {
+    if (insn_count % 5000000 == 0) {
       fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
               insn_count / 1000000, (u64)model.zRIP);
     }
