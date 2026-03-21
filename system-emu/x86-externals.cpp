@@ -168,7 +168,7 @@ u64 Model::z__port_in8(u64 port) {
   if (cmos.handles(p))       return cmos.read(p);
   if (ata.handles(p))        return ata.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
-  if (p == 0x92)             return 0x02; // System Control Port A (A20 enabled)
+  if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
   if (vga.handles(p))        return vga.read(p);
   // DMA controller (0x00-0x0F, 0x80-0x8F, 0xC0-0xDF)
   if (p <= 0x0F)             return 0x00;

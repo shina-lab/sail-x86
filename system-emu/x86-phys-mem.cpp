@@ -96,14 +96,22 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 
 void PhysicalMemory::write8(u64 paddr, u8 val) {
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
-  if (paddr < size)
+  if (paddr < size) {
+    // (debug traces removed)
     ram[paddr] = val;
+  }
 }
 
 void PhysicalMemory::write16(u64 paddr, u16 val) {
   if (in_rom(paddr)) return;
-  if (paddr + 1 < size)
+  if (paddr + 1 < size) {
+    if (paddr >= 0x40 && paddr <= 0x42) {
+      u16 old; memcpy(&old, ram+paddr, 2);
+      if (old != val)
+        fprintf(stderr, "[IVT10] write16 addr=0x%lx 0x%04x→0x%04x\n", paddr, old, val);
+    }
     memcpy(ram + paddr, &val, 2);
+  }
 }
 
 void PhysicalMemory::write32(u64 paddr, u32 val) {

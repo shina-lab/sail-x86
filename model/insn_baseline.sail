@@ -752,38 +752,60 @@ function dispatch_2byte_gpr(op, pfx) = {
               _ => raise_UD(),
             },
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
-            // Non-64-bit: 6 bytes (2 limit + 4 base).
-            // 64-bit: 10 bytes (2 limit + 8 base).
-            // Compute linear address once (handles RIP-relative), then
-            // read limit and base from consecutive memory locations.
+            // Operand size 16: 5 bytes (2 limit + 3 base, 24-bit).
+            // Operand size 32: 6 bytes (2 limit + 4 base, 32-bit).
+            // Operand size 64: 10 bytes (2 limit + 8 base, 64-bit).
+            // SDM Vol.2A: "If the operand-size attribute is 16 bits,
+            // the register is loaded with a 16-bit limit and a 24-bit base."
             2 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  let total_size = if cur_mode == LongMode then 10 else 6;
+                  let gdt_os = get_operand_size(pfx);
+                  let total_size : int = match gdt_os {
+                    OS8  => 6,
+                    OS16 => 5,
+                    OS32 => 6,
+                    OS64 => 10,
+                  };
                   let addr = seg_linear(seg, offset, total_size);
                   GDTR_limit = mem_read16(addr);
-                  if cur_mode == LongMode then {
-                    GDTR_base = mem_read64(addr + 2)
-                  } else {
-                    GDTR_base = zero_extend(mem_read32(addr + 2))
+                  match gdt_os {
+                    OS64 => GDTR_base = mem_read64(addr + 2),
+                    OS16 => {
+                      let lo : word = mem_read16(addr + 2);
+                      let hi : byte = mem_read8(addr + 4);
+                      GDTR_base = zero_extend(hi @ lo)
+                    },
+                    _    => GDTR_base = zero_extend(mem_read32(addr + 2)),
                   }
                 },
                 _ => raise_UD(),
               }
             },
             // 0F 01 /3: LIDT m — Load IDTR (memory only, requires CPL=0)
+            // Same operand-size semantics as LGDT.
             3 => {
               if cur_cpl != 0 then raise_GP0();
               match rm {
                 RM_mem(seg, offset) => {
-                  let total_size = if cur_mode == LongMode then 10 else 6;
+                  let idt_os = get_operand_size(pfx);
+                  let total_size : int = match idt_os {
+                    OS8  => 6,
+                    OS16 => 5,
+                    OS32 => 6,
+                    OS64 => 10,
+                  };
                   let addr = seg_linear(seg, offset, total_size);
                   IDTR_limit = mem_read16(addr);
-                  if cur_mode == LongMode then {
-                    IDTR_base = mem_read64(addr + 2)
-                  } else {
-                    IDTR_base = zero_extend(mem_read32(addr + 2))
+                  match idt_os {
+                    OS64 => IDTR_base = mem_read64(addr + 2),
+                    OS16 => {
+                      let lo : word = mem_read16(addr + 2);
+                      let hi : byte = mem_read8(addr + 4);
+                      IDTR_base = zero_extend(hi @ lo)
+                    },
+                    _    => IDTR_base = zero_extend(mem_read32(addr + 2)),
                   }
                 },
                 _ => raise_UD(),
