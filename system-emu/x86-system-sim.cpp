@@ -802,12 +802,12 @@ int main(int argc, char *argv[]) {
     // Print progress periodically
     if (curses_active) {
       if (insn_count % 1000000 == 0)
-        update_status_line("%luM insns, %04x:%04lx",
+        update_status_line("%luM insns  RIP=%04x:%016lx",
                            insn_count / 1000000,
                            (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     } else {
       if (insn_count % 5000000 == 0 && insn_count > 0)
-        fprintf(stderr, "[progress] %luM insns, %04x:%04lx\n",
+        fprintf(stderr, "[progress] %luM insns, RIP=%04x:%016lx\n",
                 insn_count / 1000000,
                 (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     }
