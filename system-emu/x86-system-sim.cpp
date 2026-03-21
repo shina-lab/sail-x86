@@ -851,31 +851,6 @@ int main(int argc, char *argv[]) {
               (u64)model.zCR0);
     }
 
-    // Track when FreeDOS kernel (CS=0060) stops executing
-    {
-      static u16 prev_cs2 = 0;
-      u16 cs = model.zSegReg.data[x86::SEG_CS];
-      // Log last few kernel addresses before it goes idle
-      static u64 last_kernel_rip = 0;
-      if (cs == 0x0060) last_kernel_rip = (u64)model.zRIP;
-      // Log INT 10h calls (our VGA BIOS at C000:009d)
-      if (cs == 0xC000 && (u64)model.zRIP == 0x009d) {
-        u8 ah = ((u64)model.zGPR.data[0] >> 8) & 0xFF;
-        u8 al = (u64)model.zGPR.data[0] & 0xFF;
-        static int i10count = 0;
-        if (i10count++ < 100)
-          fprintf(stderr, "INT10h AH=%02x AL=%02x('%c')\n", ah, al,
-                  (al >= 0x20 && al < 0x7f) ? al : '.');
-      }
-      if (prev_cs2 == 0x0060 && cs != 0x0060) {
-        static int count = 0;
-        if (count++ < 500)
-          fprintf(stderr, "Kernel→%04x:%04lx (last kernel RIP=%04lx, AH=%02lx)\n",
-                  cs, (u64)model.zRIP, last_kernel_rip,
-                  ((u64)model.zGPR.data[0] >> 8) & 0xFF);
-      }
-      prev_cs2 = cs;
-    }
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
@@ -1101,21 +1076,6 @@ int main(int argc, char *argv[]) {
     u16 int10_ip = model.phys_mem.read16(0x10 * 4);
     u16 int10_cs = model.phys_mem.read16(0x10 * 4 + 2);
     fprintf(stderr, "IVT[10h] = %04x:%04x\n", int10_cs, int10_ip);
-    // Dump framebuffer rows with content
-    u8 cur_col = model.phys_mem.read8(0x450);
-    u8 cur_row = model.phys_mem.read8(0x451);
-    fprintf(stderr, "BDA cursor: row=%d col=%d\n", cur_row, cur_col);
-    // Raw hex dump of first 5 rows (char+attr pairs)
-    for (int row = 0; row < 5; row++) {
-      fprintf(stderr, "  row %d: ", row);
-      for (int col = 0; col < 20; col++) {
-        u8 ch = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2);
-        u8 at = model.phys_mem.read8(0xB8000 + (row * 80 + col) * 2 + 1);
-        if (ch >= 0x20 && ch < 0x7F) fprintf(stderr, "%c", ch);
-        else fprintf(stderr, "\\x%02x", ch);
-      }
-      fprintf(stderr, "\n");
-    }
     fprintf(stderr, "=== VGA text ===\n");
     for (int row = 0; row < 50; row++) {
       // Find last non-space character on this line

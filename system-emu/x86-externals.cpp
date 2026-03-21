@@ -235,18 +235,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
     d = (d & ~(0xFF << shift)) | ((u32)v << shift);
     pci.write_data(d);
     // If VGA ROM BAR was updated, sync the physical memory mapping
-    static u32 last_bar = 0;
-    if (pci.vga_rom_bar_addr != last_bar) {
-      last_bar = pci.vga_rom_bar_addr;
-      phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
-      // Verify ROM is readable at new address
-      u8 b0 = phys_mem.read8(pci.vga_rom_bar_addr);
-      u8 b1 = phys_mem.read8(pci.vga_rom_bar_addr + 1);
-      fprintf(stderr, "VGA ROM BAR: 0x%08x, first bytes: %02x %02x\n",
-              pci.vga_rom_bar_addr, b0, b1);
-    } else {
-      phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
-    }
+    phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
   } else if (p == 0xB2) {
     // APM Control: trigger SMI
     smi_pending = true;
