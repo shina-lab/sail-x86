@@ -1219,14 +1219,14 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else match reg_field {
         // FXSAVE m512byte
         0 => match (rm, pfx.rex_w) {
-          (RM_mem(seg, offset), true)  => __fxsave64(rm_linear_addr(rm)),
-          (RM_mem(seg, offset), false) => __fxsave(rm_linear_addr(rm)),
+          (RM_mem(seg, offset), true)  => __fxsave64(seg_linear(seg, offset, 512)),
+          (RM_mem(seg, offset), false) => __fxsave(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
         // FXRSTOR m512byte
         1 => match (rm, pfx.rex_w) {
-          (RM_mem(seg, offset), true)  => __fxrstor64(rm_linear_addr(rm)),
-          (RM_mem(seg, offset), false) => __fxrstor(rm_linear_addr(rm)),
+          (RM_mem(seg, offset), true)  => __fxrstor64(seg_linear(seg, offset, 512)),
+          (RM_mem(seg, offset), false) => __fxrstor(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
         // LDMXCSR m32
@@ -1243,7 +1243,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match rm {
           RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(rm_linear_addr(rm), mask)
+            __xsave(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => raise_UD(),
         },
@@ -1251,7 +1251,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xrstor(rm_linear_addr(rm), mask)
+            __xrstor(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => {
             // /5 mod=11: LFENCE
@@ -1268,7 +1268,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               ()  // CLWB: NOP (cache write-back, no architectural effect)
             } else {
               let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-              __xsave(rm_linear_addr(rm), mask)  // XSAVEOPT: treat as XSAVE
+              __xsave(seg_linear(seg, offset, 576), mask)  // XSAVEOPT: treat as XSAVE
             }
           },
           RM_reg(_) => (),  // MFENCE
@@ -1876,7 +1876,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match rm {
           RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(rm_linear_addr(rm), mask)
+            __xsave(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
         },
@@ -1887,7 +1887,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(rm_linear_addr(rm), mask)
+            __xsave(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
         },

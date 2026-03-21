@@ -81,15 +81,6 @@ function fixup_addr(addr) =
   if rip_rel_pending then decode_pos + rip_rel_disp
   else addr
 
-// Extract the linear memory address from an RM, applying segment base and
-// RIP-relative fixup.  Access size 1 is used for the limit check (caller
-// should use seg_linear directly if a precise size is needed).
-val rm_linear_addr : RM -> qword
-function rm_linear_addr(rm) = match rm {
-  RM_mem(seg, offset) => seg_linear(seg, offset, 1),
-  RM_reg(_) => zeros(),
-}
-
 // =========================================================================
 // ALU operation codes (for the regular 00-3F pattern + Group 1)
 // =========================================================================
