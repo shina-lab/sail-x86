@@ -2222,8 +2222,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F F0: LDDQU xmm, m128 (F2 prefix)
+    // 0F F0: LDDQU xmm, m128 (F2 prefix, SSE3)
     240 => {
+      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_F2 then raise_UD();
       let modrm = fetch_byte();

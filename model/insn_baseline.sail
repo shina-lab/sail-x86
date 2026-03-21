@@ -213,21 +213,21 @@ function cpuid(leaf, subleaf) = {
 
       // ECX: built dynamically from has_* flags and CR4/XCR0
       var ecx : dword = 0x00000000;
-      ecx = ecx | 0x00000001;  // SSE3 (bit 0)
-      ecx = ecx | 0x00000200;  // SSSE3 (bit 9)
-      ecx = ecx | 0x00002000;  // CX16 (bit 13)
-      ecx = ecx | 0x00080000;  // SSE4.1 (bit 19)
-      ecx = ecx | 0x00100000;  // SSE4.2 (bit 20)
-      ecx = ecx | 0x04000000;  // XSAVE (bit 26)
-      if has_pclmulqdq then ecx = ecx | 0x00000002;  // bit 1
-      if has_fma       then ecx = ecx | 0x00001000;  // bit 12
-      if has_movbe     then ecx = ecx | 0x00400000;  // bit 22
-      if has_popcnt    then ecx = ecx | 0x00800000;  // bit 23
-      if has_aesni     then ecx = ecx | 0x02000000;  // bit 25
-      if CR4[18] == bitone then ecx = ecx | 0x08000000;  // OSXSAVE (bit 27)
-      if XCR0[2] == bitone then ecx = ecx | 0x10000000;  // AVX (bit 28)
-      if has_f16c      then ecx = ecx | 0x20000000;  // bit 29
-      if has_rdrand    then ecx = ecx | 0x40000000;  // bit 30
+      if has_sse3      then ecx = ecx | 0x00000001;      // bit 0 (SSE3)
+      if has_pclmulqdq then ecx = ecx | 0x00000002;      // bit 1
+      if has_ssse3     then ecx = ecx | 0x00000200;      // bit 9 (SSSE3)
+      if has_fma       then ecx = ecx | 0x00001000;      // bit 12
+      if has_cx16      then ecx = ecx | 0x00002000;      // bit 13 (CX16)
+      if has_sse4_1    then ecx = ecx | 0x00080000;      // bit 19 (SSE4.1)
+      if has_sse4_2    then ecx = ecx | 0x00100000;      // bit 20 (SSE4.2)
+      if has_movbe     then ecx = ecx | 0x00400000;      // bit 22
+      if has_popcnt    then ecx = ecx | 0x00800000;      // bit 23
+      if has_aesni     then ecx = ecx | 0x02000000;      // bit 25
+      if has_xsave     then ecx = ecx | 0x04000000;      // bit 26 (XSAVE)
+      if CR4[18] == bitone then ecx = ecx | 0x08000000;  // bit 27 (OSXSAVE)
+      if XCR0[2] == bitone then ecx = ecx | 0x10000000;  // bit 28 (AVX)
+      if has_f16c      then ecx = ecx | 0x20000000;      // bit 29
+      if has_rdrand    then ecx = ecx | 0x40000000;      // bit 30
 
       // EDX: baseline features (FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8,
       //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
@@ -1842,6 +1842,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         1 => match rm {
           RM_mem(seg, offset) => {
             if pfx.rex_w then {
+              if ~(has_cx16) then raise_UD();
               let mem_lo : qword = seg_read64(seg, offset);
               let mem_hi : qword = seg_read64(seg, offset + 0x0000000000000008);
               if read_gpr64(RAX) == mem_lo & read_gpr64(RDX) == mem_hi then {

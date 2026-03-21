@@ -428,6 +428,11 @@ let XCR0_TILECFG   : int = 17
 let XCR0_TILEDATA  : int = 18
 
 // CPUID feature flag registers (concrete booleans, set at init)
+register has_sse3      : bool  // CPUID.01H:ECX[0]
+register has_ssse3     : bool  // CPUID.01H:ECX[9]
+register has_sse4_1    : bool  // CPUID.01H:ECX[19]
+register has_sse4_2    : bool  // CPUID.01H:ECX[20]
+register has_cx16      : bool  // CPUID.01H:ECX[13] — CMPXCHG16B
 register has_popcnt    : bool
 register has_lzcnt     : bool
 register has_bmi1      : bool
@@ -444,6 +449,7 @@ register has_rdseed    : bool
 register has_crc32     : bool
 register has_movdiri   : bool
 register has_movdir64b : bool
+register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 
 // =========================================================================
@@ -479,6 +485,11 @@ function enable_features_v1() = {
   XCR0_SUPPORTED = 0x0000000000000003;  // x87 + SSE
   XCR0 = 0x0000000000000003;
   // All CPUID features off
+  has_sse3 = false;
+  has_ssse3 = false;
+  has_sse4_1 = false;
+  has_sse4_2 = false;
+  has_cx16 = false;
   has_popcnt = false;
   has_lzcnt = false;
   has_bmi1 = false;
@@ -493,6 +504,7 @@ function enable_features_v1() = {
   has_rdrand = false;
   has_rdseed = false;
   has_crc32 = false;
+  has_xsave = false;
   has_avx512 = false
 }
 
@@ -500,6 +512,12 @@ function enable_features_v1() = {
 val enable_features_v2 : unit -> unit
 function enable_features_v2() = {
   enable_features_v1();
+  has_sse3 = true;
+  has_ssse3 = true;
+  has_sse4_1 = true;
+  has_sse4_2 = true;
+  has_cx16 = true;
+  has_xsave = true;
   has_popcnt = true;
   has_crc32 = true;
   has_pclmulqdq = true

@@ -479,8 +479,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           raise_UD()
         }
       } else if op3 == 20 | op3 == 21 then {
-        // BLENDVPS or BLENDVPD
+        // BLENDVPS or BLENDVPD (SSE4.1)
         if sse_em_blocked() then raise_UD();
+        if ~(has_sse4_1) then raise_UD();
         dispatch_3byte_38_sse_fp(opcode3, pfx)
       } else if op3 == 130 then {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
@@ -669,6 +670,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         }
       } else {
         if sse_em_blocked() then raise_UD();
+        if ~(has_ssse3) then raise_UD();
         dispatch_3byte_38_sse_int(opcode3, pfx)
       }
     },
@@ -678,28 +680,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       let opcode3 = fetch_byte();
       let op3 : range(0, 255) = unsigned(opcode3);
       match op3 {
-        // ROUNDPS xmm1, xmm2/m128, imm8
-        8  => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // ROUNDPD xmm1, xmm2/m128, imm8
-        9  => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // ROUNDSS xmm1, xmm2/m32, imm8
-        10 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // ROUNDSD xmm1, xmm2/m64, imm8
-        11 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // BLENDPS xmm1, xmm2/m128, imm8
-        12 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // BLENDPD xmm1, xmm2/m128, imm8
-        13 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // PEXTRW r/m16, xmm, imm8 (SSE4.1)
-        21 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // EXTRACTPS r/m32, xmm1, imm8
-        23 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // INSERTPS xmm1, xmm2/m32, imm8
-        33 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // DPPS xmm1, xmm2/m128, imm8
-        64 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
-        // DPPD xmm1, xmm2/m128, imm8
-        65 => dispatch_3byte_3a_sse_fp(opcode3, pfx),
+        // SSE4.1 FP: ROUNDPS/PD/SS/SD, BLENDPS/PD, PEXTRW, EXTRACTPS, INSERTPS, DPPS, DPPD
+        op3 if (8 <= op3 & op3 <= 13) | op3 == 21 | op3 == 23 | op3 == 33 | op3 == 64 | op3 == 65 => {
+          if ~(has_sse4_1) then raise_UD();
+          dispatch_3byte_3a_sse_fp(opcode3, pfx)
+        },
         204 if get_mandatory_prefix(pfx) == MP_NONE => {
           // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
           if ~(has_sha) then raise_UD();
@@ -710,7 +695,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let imm : byte = fetch_byte();
           write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm))
         },
-        _  => dispatch_3byte_3a_sse_int(opcode3, pfx),
+        _  => {
+          if ~(has_ssse3) then raise_UD();
+          dispatch_3byte_3a_sse_int(opcode3, pfx)
+        },
       }
     },
 

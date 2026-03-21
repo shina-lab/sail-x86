@@ -271,14 +271,16 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         MP_F3 => {
-          // MOVSLDUP xmm1, xmm2/m128
+          // MOVSLDUP xmm1, xmm2/m128 (SSE3)
+          if ~(has_sse3) then raise_UD();
           match rm {
             RM_reg(_) => exec_movsldup(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
             RM_mem(seg, offset) => exec_movsldup(xreg, seg_read128(seg, offset)),
           }
         },
         MP_F2 => {
-          // MOVDDUP xmm1, xmm2/m64
+          // MOVDDUP xmm1, xmm2/m64 (SSE3)
+          if ~(has_sse3) then raise_UD();
           match rm {
             RM_reg(_) => {
               let s = read_xmm(modrm_xmm_rm(modrm, pfx));
@@ -386,6 +388,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         MP_F3 => {
+          // MOVSHDUP xmm1, xmm2/m128 (SSE3)
+          if ~(has_sse3) then raise_UD();
           match rm {
             RM_reg(_) => exec_movshdup(xreg, read_xmm(modrm_xmm_rm(modrm, pfx))),
             RM_mem(seg, offset) => exec_movshdup(xreg, seg_read128(seg, offset)),
@@ -1157,8 +1161,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         RM_reg(_) => raise_UD(),
       }
     },
-    // 0F 7C: HADDPS/HADDPD
+    // 0F 7C: HADDPS/HADDPD (SSE3)
     124 => {
+      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
@@ -1182,8 +1187,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         _       => raise_UD(),
       }
     },
-    // 0F 7D: HSUBPS/HSUBPD
+    // 0F 7D: HSUBPS/HSUBPD (SSE3)
     125 => {
+      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
@@ -1257,8 +1263,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
       }
     },
-    // 0F D0: ADDSUBPS/ADDSUBPD
+    // 0F D0: ADDSUBPS/ADDSUBPD (SSE3)
     208 => {
+      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);

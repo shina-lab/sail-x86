@@ -45,6 +45,11 @@ add_custom_command(
         --c-include x86-platform-impl.h
         --c-preserve step
         --c-preserve run
+        --c-preserve enable_features_v1
+        --c-preserve enable_features_v2
+        --c-preserve enable_features_v3
+        --c-preserve enable_features_v4
+        --c-preserve enable_features_all
         --all-modules
         ${project_file}
 )

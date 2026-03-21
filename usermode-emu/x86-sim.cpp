@@ -10,18 +10,31 @@
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <elf-binary> [args...]\n", prog);
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "  -d    Enable debug trace\n");
-  fprintf(stderr, "  -h    Show this help\n");
+  fprintf(stderr, "  -d          Enable debug trace\n");
+  fprintf(stderr, "  -cpu <N>    Set x86-64 feature level (1-4, default: 4)\n");
+  fprintf(stderr, "  -h          Show this help\n");
 }
 
 int main(int argc, char *argv[], char *envp[]) {
   bool debug = false;
+  int cpu_level = 0;  // 0 = all features (default)
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
     if (strcmp(argv[first_arg], "-d") == 0) {
       debug = true;
       first_arg++;
+    } else if (strcmp(argv[first_arg], "-cpu") == 0) {
+      if (first_arg + 1 >= argc) {
+        fprintf(stderr, "Error: -cpu requires an argument (1-4)\n");
+        return 1;
+      }
+      cpu_level = atoi(argv[first_arg + 1]);
+      if (cpu_level < 1 || 4 < cpu_level) {
+        fprintf(stderr, "Error: -cpu must be 1, 2, 3, or 4\n");
+        return 1;
+      }
+      first_arg += 2;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
       usage(argv[0]);
@@ -43,7 +56,13 @@ int main(int argc, char *argv[], char *envp[]) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
-  enable_all_features(model);
+  switch (cpu_level) {
+    case 1: model.zenable_features_v1(UNIT); break;
+    case 2: model.zenable_features_v2(UNIT); break;
+    case 3: model.zenable_features_v3(UNIT); break;
+    case 4: model.zenable_features_v4(UNIT); break;
+    default: enable_all_features(model); break;
+  }
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 3;
   model.zSegCache.data[x86::SEG_CS].zseg_l = 1;

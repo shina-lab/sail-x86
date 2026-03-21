@@ -50,6 +50,20 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/avx512-test.c
 )
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test
+  COMMAND gcc -static -nostdlib -o ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpuid-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cpuid-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test
+  COMMAND gcc -static -nostdlib -o ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/insn-ud-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/insn-ud-test.c
+)
+
 add_custom_target(test-binaries ALL
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/hello
@@ -59,6 +73,8 @@ add_custom_target(test-binaries ALL
     ${CMAKE_CURRENT_BINARY_DIR}/auxv-test
     ${CMAKE_CURRENT_BINARY_DIR}/x87-test
     ${CMAKE_CURRENT_BINARY_DIR}/avx512-test
+    ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test
+    ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test
 )
 
 # Test: hello (raw syscall, no libc)
@@ -114,6 +130,29 @@ add_test(
   NAME avx512-test
   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/avx512-test
 )
+
+# Test: CPUID feature flags for each level
+add_test(NAME cpuid-v1 COMMAND ${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test 1)
+add_test(NAME cpuid-v2 COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test 2)
+add_test(NAME cpuid-v3 COMMAND ${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test 3)
+add_test(NAME cpuid-v4 COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test 4)
+
+# Test: Instructions #UD on v1 (no SSE3/SSSE3/SSE4)
+# Exit code 134 = 128 + 6 (#UD fault vector)
+add_test(NAME ud-v1-addsubps COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test addsubps 2>/dev/null; test $? -eq 134")
+add_test(NAME ud-v1-pshufb   COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pshufb   2>/dev/null; test $? -eq 134")
+add_test(NAME ud-v1-roundps  COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test roundps  2>/dev/null; test $? -eq 134")
+add_test(NAME ud-v1-blendvps COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test blendvps 2>/dev/null; test $? -eq 134")
+add_test(NAME ud-v1-pblendw  COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pblendw  2>/dev/null; test $? -eq 134")
+add_test(NAME ud-v1-popcnt   COMMAND sh -c "${SIM} -cpu 1 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test popcnt   2>/dev/null; test $? -eq 134")
+
+# Test: Same instructions succeed on v2+
+add_test(NAME ok-v2-addsubps COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test addsubps)
+add_test(NAME ok-v2-pshufb   COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pshufb)
+add_test(NAME ok-v2-roundps  COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test roundps)
+add_test(NAME ok-v2-blendvps COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test blendvps)
+add_test(NAME ok-v2-pblendw  COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pblendw)
+add_test(NAME ok-v2-popcnt   COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test popcnt)
 
 # Test: /usr/bin/wc (dynamic binary)
 add_test(

@@ -50,6 +50,12 @@ static inline void enable_all_features(Model &m) {
   m.zXCR0 = 0xE7;
 
   // CPUID feature flags
+  m.zhas_sse3 = true;
+  m.zhas_ssse3 = true;
+  m.zhas_sse4_1 = true;
+  m.zhas_sse4_2 = true;
+  m.zhas_cx16 = true;
+  m.zhas_xsave = true;
   m.zhas_popcnt = true;
   m.zhas_lzzcnt = true;
   m.zhas_bmi1 = true;
