@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <curses.h>
+#include <term.h>
 
 enum DisplayMode { DISPLAY_SERIAL, DISPLAY_VGA };
 
@@ -495,6 +496,12 @@ static void init_curses() {
   initscr();
   curses_active = true;
   atexit(curses_cleanup);
+
+  // Disable the REP escape sequence (ESC[Nb). Some terminals —
+  // especially macOS Terminal/iTerm2 over SSH — don't handle it,
+  // causing repeated characters (like the zeros in RIP) to vanish.
+  repeat_char = nullptr;
+
   raw();
   noecho();
   nodelay(stdscr, TRUE);  // non-blocking getch()
@@ -726,11 +733,11 @@ int main(int argc, char *argv[]) {
     // Print progress periodically
     if (curses_active) {
       if (insn_count % 1000000 == 0)
-        update_status_line("%luM insns, RIP=0x%lx",
+        update_status_line("%luM insns, RIP=0x%016lx",
                            insn_count / 1000000, (u64)model.zRIP);
     } else {
       if (insn_count % 5000000 == 0)
-        fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
+        fprintf(stderr, "[progress] %luM insns, RIP=0x%016lx\n",
                 insn_count / 1000000, (u64)model.zRIP);
     }
 
