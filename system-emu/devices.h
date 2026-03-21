@@ -751,6 +751,70 @@ private:
 };
 
 // =========================================================================
+// PCI Config Space — Minimal i440FX-like host bridge at 0:0.0
+//
+// SeaBIOS requires an i440FX PMC to manage shadow RAM (PAM registers).
+// We provide a minimal PCI config space that reports an i440FX bridge
+// and accepts PAM register writes (our RAM is already shadow-capable).
+// =========================================================================
+
+class PCIConfigSpace {
+public:
+  PCIConfigSpace() {
+    // Device 0:0.0 — i440FX Host Bridge
+    memset(dev0, 0, sizeof(dev0));
+    dev0[0x00] = 0x86; dev0[0x01] = 0x80;  // Vendor: Intel (0x8086)
+    dev0[0x02] = 0x37; dev0[0x03] = 0x12;  // Device: i440FX (0x1237)
+    dev0[0x04] = 0x06;                      // Command: mem + bus master
+    dev0[0x06] = 0x00; dev0[0x07] = 0x02;  // Status: devsel medium
+    dev0[0x08] = 0x02;                      // Revision
+    dev0[0x0A] = 0x00;                      // Subclass: host bridge
+    dev0[0x0B] = 0x06;                      // Class: bridge
+    dev0[0x0E] = 0x00;                      // Header type 0
+    // PAM registers (0x59-0x5F): default all-open (R/W to DRAM)
+    for (int i = 0x59; i <= 0x5F; i++)
+      dev0[i] = 0x33;  // R/W enabled for all regions
+  }
+
+  void write_addr(u32 val) { addr = val; }
+  u32 read_addr() const { return addr; }
+
+  u32 read_data() const {
+    if (!(addr & 0x80000000)) return 0xFFFFFFFF;  // Enable bit not set
+    int bus = (addr >> 16) & 0xFF;
+    int dev = (addr >> 11) & 0x1F;
+    int func = (addr >> 8) & 0x07;
+    int reg = addr & 0xFC;
+    if (bus != 0 || func != 0) return 0xFFFFFFFF;
+    if (dev == 0 && reg < 256) {
+      u32 val;
+      memcpy(&val, &dev0[reg], 4);
+      return val;
+    }
+    return 0xFFFFFFFF;  // No device present
+  }
+
+  void write_data(u32 val) {
+    if (!(addr & 0x80000000)) return;
+    int bus = (addr >> 16) & 0xFF;
+    int dev = (addr >> 11) & 0x1F;
+    int func = (addr >> 8) & 0x07;
+    int reg = addr & 0xFC;
+    if (bus != 0 || dev != 0 || func != 0) return;
+    // Allow writes to writable registers
+    if (reg >= 0x59 && reg < 0x60) {
+      // PAM registers — accept writes (no-op, our RAM is always writable)
+      memcpy(&dev0[reg], &val, 4);
+    }
+    // Ignore writes to other registers
+  }
+
+private:
+  u32 addr = 0;
+  u8 dev0[256];
+};
+
+// =========================================================================
 // ATA/IDE PIO Disk Controller — Primary channel (0x1F0-0x1F7, 0x3F6)
 //
 // Supports PIO-mode READ SECTORS, WRITE SECTORS, IDENTIFY DEVICE,

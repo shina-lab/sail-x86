@@ -174,8 +174,12 @@ u64 Model::z__port_in8(u64 port) {
   if (p <= 0x0F)             return 0x00;
   if (0x80 <= p && p <= 0x8F) return 0x00;
   if (0xC0 <= p && p <= 0xDF) return 0x00;
-  // PCI config space
-  if (0xCF8 <= p && p <= 0xCFF) return 0xFF;
+  // PCI config data (0xCFC-0xCFF)
+  if (0xCFC <= p && p <= 0xCFF) {
+    u32 val = pci.read_data();
+    return (val >> ((p - 0xCFC) * 8)) & 0xFF;
+  }
+  if (p == 0xCF8) return pci.read_addr() & 0xFF;
   return 0xFF; // Default: empty bus
 }
 
@@ -191,7 +195,9 @@ u64 Model::z__port_in16(u64 port) {
 u64 Model::z__port_in32(u64 port) {
   u16 p = (u16)port;
   // PCI config address register: atomic 32-bit read
-  if (p == 0xCF8) return 0xFFFFFFFF;  // No PCI devices
+  if (p == 0xCF8) return pci.read_addr();
+  // PCI config data register: atomic 32-bit read
+  if (p == 0xCFC) return pci.read_data();
   u32 b0 = z__port_in8(port);
   u32 b1 = z__port_in8(port + 1);
   u32 b2 = z__port_in8(port + 2);
@@ -211,7 +217,19 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (ata.handles(p))        ata.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
-  // Port 0x402 (SeaBIOS debug), DMA, POST code, APM/SMI: silently absorb
+  else if (p == 0xCF8 || p == 0xCF9 || p == 0xCFA || p == 0xCFB) {
+    u32 a = pci.read_addr();
+    int shift = (p - 0xCF8) * 8;
+    a = (a & ~(0xFF << shift)) | ((u32)v << shift);
+    pci.write_addr(a);
+  }
+  else if (0xCFC <= p && p <= 0xCFF) {
+    u32 d = pci.read_data();
+    int shift = (p - 0xCFC) * 8;
+    d = (d & ~(0xFF << shift)) | ((u32)v << shift);
+    pci.write_data(d);
+  }
+  // Port 0x402, DMA, POST code, APM/SMI: silently absorb
   return UNIT;
 }
 
@@ -227,7 +245,9 @@ unit Model::z__port_out16(u64 port, u64 val) {
 unit Model::z__port_out32(u64 port, u64 val) {
   u16 p = (u16)port;
   // PCI config address register: atomic 32-bit write
-  if (p == 0xCF8) return UNIT;  // Absorb (no PCI)
+  if (p == 0xCF8) { pci.write_addr((u32)val); return UNIT; }
+  // PCI config data register: atomic 32-bit write
+  if (p == 0xCFC) { pci.write_data((u32)val); return UNIT; }
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   z__port_out8(port + 2, (val >> 16) & 0xFF);

@@ -782,28 +782,31 @@ int main(int argc, char *argv[]) {
   u64 spin_base = 0;
   u64 spin_count = 0;
   u64 spin_total = 0;  // cumulative count across re-entries
-  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 10000000;
+  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 50000000;
 
   while (!model.should_exit) {
     // Print progress periodically
     if (curses_active) {
       if (insn_count % 1000000 == 0)
-        update_status_line("%luM insns, RIP=0x%016lx",
-                           insn_count / 1000000, (u64)model.zRIP);
+        update_status_line("%luM insns, %04x:%04lx",
+                           insn_count / 1000000,
+                           (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     } else {
-      if (insn_count % 5000000 == 0)
-        fprintf(stderr, "[progress] %luM insns, RIP=0x%016lx\n",
-                insn_count / 1000000, (u64)model.zRIP);
+      if (insn_count % 5000000 == 0 && insn_count > 0)
+        fprintf(stderr, "[progress] %luM insns, %04x:%04lx\n",
+                insn_count / 1000000,
+                (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP); 562be35ac (Add PCI i440FX bridge, shadow RAM, VGA retrace fixes)
     }
 
     if (debug) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
-      fprintf(stderr, "[%lu] RIP=0x%lx RSP=0x%lx mode=%s CR0=0x%lx CR3=0x%lx\n",
-              insn_count, (u64)model.zRIP,
+      fprintf(stderr, "[%lu] %04x:%04lx RSP=0x%lx mode=%s CR0=0x%lx\n",
+              insn_count, (u16)model.zSegReg.data[x86::SEG_CS],
+              (u64)model.zRIP,
               (u64)model.zGPR.data[4], mode_str,
-              (u64)model.zCR0, (u64)model.zCR3);
+              (u64)model.zCR0);
     }
 
     model.zstep(UNIT);
@@ -818,6 +821,18 @@ int main(int argc, char *argv[]) {
         if (spin_total >= SPIN_THRESHOLD) {
           fprintf(stderr, "sail-x86-system: spin loop detected at RIP=0x%lx after %lu insns\n",
                   rip, insn_count);
+          u64 cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
+          u64 linear = cs_base + rip;
+          fprintf(stderr, "  CS.base=0x%lx linear=0x%lx\n", cs_base, linear);
+          fprintf(stderr, "  bytes at linear:");
+          for (int b = 0; b < 16; b++)
+            fprintf(stderr, " %02x", model.phys_mem.read8(linear + b));
+          fprintf(stderr, "\n");
+          fprintf(stderr, "  RAX=0x%lx RCX=0x%lx RDX=0x%lx RBX=0x%lx\n",
+                  (u64)model.zGPR.data[0], (u64)model.zGPR.data[1],
+                  (u64)model.zGPR.data[2], (u64)model.zGPR.data[3]);
+          fprintf(stderr, "  RSI=0x%lx RDI=0x%lx\n",
+                  (u64)model.zGPR.data[6], (u64)model.zGPR.data[7]);
           model.model_fini();
           return 1;
         }

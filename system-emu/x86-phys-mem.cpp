@@ -22,38 +22,33 @@ void PhysicalMemory::load_rom(const u8 *data, size_t len) {
   rom_data = static_cast<u8 *>(malloc(len));
   memcpy(rom_data, data, len);
   rom_size = len;
+
+  // Copy ROM into the legacy area in RAM (shadow RAM).
+  // This makes 0x100000-rom_size..0xFFFFF readable AND writable,
+  // allowing SeaBIOS to shadow its runtime code there.
+  u64 legacy_base = 0x100000 - len;
+  if (legacy_base < size)
+    memcpy(ram + legacy_base, data, std::min(len, (size_t)(size - legacy_base)));
 }
 
-// Check if paddr falls in a ROM region and return the byte.
-// High alias: 0x100000000 - rom_size .. 0xFFFFFFFF
-// Legacy area: 0x100000 - rom_size .. 0xFFFFF
+// Check if paddr falls in the ROM high alias and return the byte.
+// High alias: 0x100000000 - rom_size .. 0xFFFFFFFF (read-only).
+// The legacy area (below 1MB) is copied into RAM by load_rom() and
+// is writable (shadow RAM), so it's NOT handled here.
 bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
   if (!rom_data) return false;
-
-  // High alias (just below 4GB)
   u64 high_base = 0x100000000ULL - rom_size;
   if (paddr >= high_base && paddr <= 0xFFFFFFFF) {
     out = rom_data[paddr - high_base];
     return true;
   }
-
-  // Legacy area (just below 1MB, e.g., 0xF0000-0xFFFFF for 64KB ROM)
-  u64 legacy_base = 0x100000 - rom_size;
-  if (paddr >= legacy_base && paddr < 0x100000) {
-    out = rom_data[paddr - legacy_base];
-    return true;
-  }
-
   return false;
 }
 
 bool PhysicalMemory::in_rom(u64 paddr) const {
   if (!rom_data) return false;
   u64 high_base = 0x100000000ULL - rom_size;
-  if (paddr >= high_base && paddr <= 0xFFFFFFFF) return true;
-  u64 legacy_base = 0x100000 - rom_size;
-  if (paddr >= legacy_base && paddr < 0x100000) return true;
-  return false;
+  return paddr >= high_base && paddr <= 0xFFFFFFFF;
 }
 
 u8 PhysicalMemory::read8(u64 paddr) const {

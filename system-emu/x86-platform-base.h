@@ -85,6 +85,7 @@ public:
   CMOS cmos;
   VGAText vga;
   ATAController ata;
+  PCIConfigSpace pci;
 
   // Pending external interrupt (checked by Sail model)
   bool pending_irq = false;

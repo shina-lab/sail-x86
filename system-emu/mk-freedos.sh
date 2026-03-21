@@ -35,10 +35,11 @@ if [ ! -f "$BIOS_BIN" ]; then
     tar -xzf "$WORK/seabios.tar.gz" -C "$WORK"
   fi
 
-  # Create minimal config
+  # Create minimal config.
+  # CONFIG_QEMU=y is needed for CMOS-based RAM size detection.
   cat > "$SEABIOS_SRC/.config" <<'SEABIOS_CONFIG'
-CONFIG_QEMU=n
-CONFIG_QEMU_HARDWARE=n
+CONFIG_QEMU=y
+CONFIG_QEMU_HARDWARE=y
 CONFIG_COREBOOT=n
 CONFIG_CSM=n
 CONFIG_ATA=y
@@ -68,13 +69,18 @@ CONFIG_DRIVES=y
 CONFIG_CDROM_BOOT=n
 CONFIG_CDROM_EMU=n
 CONFIG_DEBUG_LEVEL=3
+CONFIG_SMBIOS=n
+CONFIG_MPTABLE=n
+CONFIG_PIRTABLE=n
+CONFIG_ACPI=n
 CONFIG_DEBUG_SERIAL=y
 CONFIG_DEBUG_SERIAL_PORT=0x3f8
 CONFIG_SERCON=y
 SEABIOS_CONFIG
 
-  make -C "$SEABIOS_SRC" olddefconfig
-  make -C "$SEABIOS_SRC" -j"$(nproc)"
+  # SeaBIOS Makefile uses 'python' — ensure python3 is used
+  make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
+  make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3
   cp "$SEABIOS_SRC/out/bios.bin" "$BIOS_BIN"
   echo "SeaBIOS built: $BIOS_BIN ($(stat -c%s "$BIOS_BIN") bytes)"
 else
@@ -95,22 +101,16 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   if [ ! -f "$FLOPPY_IMG" ]; then
     echo "Downloading FreeDOS 1.3 Floppy Edition..."
     curl -L -o "$WORK/freedos-floppy.zip" "$FREEDOS_URL"
-    # Extract the 144m floppy image
+    # Extract the 144m boot floppy image
     unzip -o "$WORK/freedos-floppy.zip" -d "$WORK/freedos-zip"
-    # Find the 1.44MB floppy image
-    FLOPPY_FOUND=$(find "$WORK/freedos-zip" -iname "*.img" -size +1400k -size -1500k | head -1)
-    if [ -z "$FLOPPY_FOUND" ]; then
-      # Try looking for 144m directory
-      FLOPPY_FOUND=$(find "$WORK/freedos-zip" -path "*/144m*" -iname "*.img" | head -1)
-    fi
-    if [ -z "$FLOPPY_FOUND" ]; then
-      echo "Error: Could not find 1.44MB floppy image in FreeDOS zip"
-      echo "Contents:"
+    FLOPPY_FOUND="$WORK/freedos-zip/144m/x86BOOT.img"
+    if [ ! -f "$FLOPPY_FOUND" ]; then
+      echo "Error: Could not find 144m/x86BOOT.img in FreeDOS zip"
       find "$WORK/freedos-zip" -name "*.img" -ls
       exit 1
     fi
     cp "$FLOPPY_FOUND" "$FLOPPY_IMG"
-    echo "Found floppy image: $FLOPPY_FOUND"
+    echo "Using boot floppy: $FLOPPY_FOUND"
   fi
 
   # Create 32MB hard disk image
