@@ -134,6 +134,140 @@ private:
 };
 
 // =========================================================================
+// VGA Text Mode — emulates 80×25 text framebuffer at 0xB8000
+//
+// The framebuffer lives in guest physical memory (0xB8000-0xBFFFF).
+// This class handles VGA I/O port registers (CRTC, attribute controller,
+// sequencer, graphics controller, DAC).  The emulator periodically reads
+// the framebuffer from physical memory and renders it to the host terminal.
+// =========================================================================
+
+class VGAText {
+public:
+  static constexpr u64 FB_BASE = 0xB8000;
+  static constexpr u64 FB_SIZE = 0x8000;  // 32KB text window
+  static constexpr int COLS = 80;
+  static constexpr int ROWS = 50;
+
+  // CRTC registers (port 0x3D4 index, 0x3D5 data)
+  u8 crtc_index = 0;
+  u8 crtc_regs[256] = {};
+
+  // Attribute controller (port 0x3C0 index/data, 0x3C1 read)
+  u8 attr_index = 0;
+  bool attr_flip_flop = false;  // toggled by reading 0x3DA
+  u8 attr_regs[32] = {};
+
+  // Sequencer (port 0x3C4/0x3C5)
+  u8 seq_index = 0;
+  u8 seq_regs[8] = {};
+
+  // Graphics controller (port 0x3CE/0x3CF)
+  u8 gc_index = 0;
+  u8 gc_regs[16] = {};
+
+  // Misc output register (port 0x3C2 write, 0x3CC read)
+  u8 misc_output = 0x67;  // color mode, enable RAM, clock select
+
+  // DAC (ports 0x3C6-0x3C9)
+  u8 dac_mask = 0xFF;
+  u8 dac_read_index = 0;
+  u8 dac_write_index = 0;
+  u8 dac_state = 0;    // 0 = write mode, 3 = read mode
+  u8 dac_rgb_pos = 0;  // 0, 1, 2 for R, G, B
+  u8 dac_palette[256][3] = {};
+
+  // Retrace counter (for Input Status Register 1)
+  u8 isr1_counter = 0;
+
+  VGAText() {
+    // 80x50 color text CRTC defaults (8-pixel font)
+    crtc_regs[0x01] = 79;    // Horizontal display end (80 cols)
+    crtc_regs[0x09] = 0x07;  // Max scan line = 7 (8-pixel font)
+    crtc_regs[0x0A] = 6;     // Cursor start scan line
+    crtc_regs[0x0B] = 7;     // Cursor end scan line
+    // Sequencer defaults for text mode
+    seq_regs[1] = 0x00;  // Clocking mode
+    seq_regs[2] = 0x03;  // Map mask (planes 0,1)
+    seq_regs[4] = 0x02;  // Memory mode (text, odd/even)
+  }
+
+  u8 read(u16 port) {
+    switch (port) {
+    case 0x3C0: return attr_index;
+    case 0x3C1: return attr_regs[attr_index & 0x1F];
+    case 0x3C2: return 0x00;  // Input Status 0 (no interrupt)
+    case 0x3C4: return seq_index;
+    case 0x3C5: return seq_regs[seq_index & 0x07];
+    case 0x3C6: return dac_mask;
+    case 0x3C7: return dac_state;
+    case 0x3C8: return dac_write_index;
+    case 0x3C9: {
+      u8 val = dac_palette[dac_read_index][dac_rgb_pos];
+      if (++dac_rgb_pos >= 3) { dac_rgb_pos = 0; dac_read_index++; }
+      return val;
+    }
+    case 0x3CA: return 0x00;  // Feature Control (read)
+    case 0x3CC: return misc_output;
+    case 0x3CE: return gc_index;
+    case 0x3CF: return gc_regs[gc_index & 0x0F];
+    case 0x3D4: return crtc_index;
+    case 0x3D5: return crtc_regs[crtc_index];
+    case 0x3DA:
+      attr_flip_flop = false;  // reading ISR1 resets attribute flip-flop
+      isr1_counter++;
+      // Bit 0: display enable (1 during retrace), Bit 3: vertical retrace
+      return (isr1_counter & 1) ? 0x09 : 0x00;
+    default: return 0xFF;
+    }
+  }
+
+  void write(u16 port, u8 val) {
+    switch (port) {
+    case 0x3C0:
+      if (!attr_flip_flop)
+        attr_index = val;
+      else
+        attr_regs[attr_index & 0x1F] = val;
+      attr_flip_flop = !attr_flip_flop;
+      break;
+    case 0x3C2: misc_output = val; break;
+    case 0x3C4: seq_index = val; break;
+    case 0x3C5: seq_regs[seq_index & 0x07] = val; break;
+    case 0x3C6: dac_mask = val; break;
+    case 0x3C7: dac_read_index = val; dac_rgb_pos = 0; dac_state = 3; break;
+    case 0x3C8: dac_write_index = val; dac_rgb_pos = 0; dac_state = 0; break;
+    case 0x3C9:
+      dac_palette[dac_write_index][dac_rgb_pos] = val;
+      if (++dac_rgb_pos >= 3) { dac_rgb_pos = 0; dac_write_index++; }
+      break;
+    case 0x3CE: gc_index = val; break;
+    case 0x3CF: gc_regs[gc_index & 0x0F] = val; break;
+    case 0x3D4: crtc_index = val; break;
+    case 0x3D5: crtc_regs[crtc_index] = val; break;
+    case 0x3DA: /* Feature Control (write) — ignore */ break;
+    default: break;
+    }
+  }
+
+  bool handles(u16 port) const {
+    return (port >= 0x3C0 && port <= 0x3CF) ||
+           port == 0x3D4 || port == 0x3D5 || port == 0x3DA;
+  }
+
+  // Cursor position from CRTC regs 0x0E (high) and 0x0F (low)
+  u16 cursor_pos() const {
+    return ((u16)crtc_regs[0x0E] << 8) | crtc_regs[0x0F];
+  }
+
+  // Display start address from CRTC regs 0x0C (high) and 0x0D (low)
+  // Used for hardware scrolling within the 32KB text buffer.
+  u16 start_addr() const {
+    return ((u16)crtc_regs[0x0C] << 8) | crtc_regs[0x0D];
+  }
+};
+
+// =========================================================================
 // 8259 PIC — Programmable Interrupt Controller
 //
 // Two cascaded PICs: master (0x20-0x21), slave (0xA0-0xA1).
@@ -399,20 +533,35 @@ private:
 };
 
 // =========================================================================
-// 8042 Keyboard Controller — stub
+// 8042 Keyboard Controller
 //
-// Returns "no data available" so Linux doesn't hang probing it.
+// Emulates the i8042 PS/2 controller enough for Linux's atkbd driver.
+// Scancodes are pushed from the host side; the guest reads them via
+// port 0x60 and gets IRQ 1 when data is available.
+// Uses AT scan code set 1 (translated), which is what the i8042
+// presents to the CPU by default.
 // =========================================================================
 
 class KeyboardController {
 public:
   u8 read(u16 port) {
     if (port == 0x64) {
-      // Status register: bit 0 = output buffer full (0 = no data)
-      return 0x00;
+      // Status register:
+      //   bit 0 = output buffer full (data available at port 0x60)
+      //   bit 1 = input buffer full (0 = ready for commands)
+      //   bit 2 = system flag (POST passed)
+      //   bit 3 = command/data (0 = data written to 0x60)
+      u8 status = 0x14;  // system flag (bit 2) + keyboard unlocked (bit 4)
+      if (!out_buf.empty())
+        status |= 0x01;  // output buffer full
+      return status;
     }
     if (port == 0x60) {
-      // Data register: no data
+      if (!out_buf.empty()) {
+        u8 val = out_buf.front();
+        out_buf.pop();
+        return val;
+      }
       return 0x00;
     }
     return 0xFF;
@@ -420,12 +569,89 @@ public:
 
   void write(u16 port, u8 val) {
     if (port == 0x64) {
-      last_cmd = val;
+      // Controller commands
+      switch (val) {
+      case 0x20:  // Read controller configuration byte
+        out_buf.push(config_byte);
+        break;
+      case 0x60:  // Write controller configuration byte (next byte to 0x60)
+        last_cmd = 0x60;
+        break;
+      case 0xA7:  // Disable second PS/2 port (AUX)
+        config_byte |= 0x20;   // set AUXDIS bit
+        break;
+      case 0xA8:  // Enable second PS/2 port (AUX)
+        config_byte &= ~0x20;  // clear AUXDIS bit
+        break;
+      case 0xA9:  // Test second PS/2 port
+        out_buf.push(0x00);  // pass
+        break;
+      case 0xAA:  // Controller self-test
+        out_buf.push(0x55);  // pass
+        break;
+      case 0xAB:  // Test first PS/2 port
+        out_buf.push(0x00);  // pass
+        break;
+      case 0xAD:  // Disable first PS/2 port
+        kbd_enabled = false;
+        break;
+      case 0xAE:  // Enable first PS/2 port
+        kbd_enabled = true;
+        break;
+      case 0xD1:  // Write output port (next byte to 0x60)
+        last_cmd = 0xD1;
+        break;
+      default:
+        last_cmd = val;
+        break;
+      }
     } else if (port == 0x60) {
-      // Command data
-      if (last_cmd == 0xD1) {
-        // Write output port — used for A20 gate
-        // Ignore
+      if (last_cmd == 0x60) {
+        // Writing controller configuration byte
+        config_byte = val;
+        last_cmd = 0;
+      } else if (last_cmd == 0xD1) {
+        // Write output port — A20 gate etc., ignore
+        last_cmd = 0;
+      } else {
+        // Data sent to keyboard device — handle device commands
+        switch (val) {
+        case 0xED:  // Set LEDs (next byte is LED state)
+          last_kbd_cmd = 0xED;
+          out_buf.push(0xFA);  // ACK
+          break;
+        case 0xF0:  // Set scan code set (next byte is set number)
+          last_kbd_cmd = 0xF0;
+          out_buf.push(0xFA);  // ACK
+          break;
+        case 0xF2:  // Identify keyboard
+          out_buf.push(0xFA);  // ACK
+          out_buf.push(0xAB);  // keyboard ID byte 1
+          out_buf.push(0x83);  // keyboard ID byte 2 (MF2)
+          break;
+        case 0xF3:  // Set typematic rate (next byte is rate)
+          last_kbd_cmd = 0xF3;
+          out_buf.push(0xFA);  // ACK
+          break;
+        case 0xF4:  // Enable scanning
+          out_buf.push(0xFA);  // ACK
+          break;
+        case 0xF5:  // Disable scanning
+          out_buf.push(0xFA);  // ACK
+          break;
+        case 0xFF:  // Reset
+          out_buf.push(0xFA);  // ACK
+          out_buf.push(0xAA);  // self-test passed
+          break;
+        default:
+          if (last_kbd_cmd == 0xED || last_kbd_cmd == 0xF0 ||
+              last_kbd_cmd == 0xF3) {
+            // Second byte of a two-byte command — just ACK it
+            out_buf.push(0xFA);
+            last_kbd_cmd = 0;
+          }
+          break;
+        }
       }
     }
   }
@@ -434,8 +660,22 @@ public:
     return port == 0x60 || port == 0x64;
   }
 
+  // Push a scancode byte from the host side.
+  void push_scancode(u8 sc) {
+    out_buf.push(sc);
+  }
+
+  // Returns true if there's data waiting (for IRQ 1).
+  bool has_data() const {
+    return !out_buf.empty();
+  }
+
 private:
-  u8 last_cmd = 0;
+  std::queue<u8> out_buf;   // output buffer (scancodes + command responses)
+  u8 last_cmd = 0;          // last command written to port 0x64
+  u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
+  u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on
+  bool kbd_enabled = true;
 };
 
 // =========================================================================

@@ -77,9 +77,23 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export TERM=vt100
 export PS1='sail# '
 
-# Respawn getty on ttyS0 so Ctrl-D doesn't kill init (PID 1).
+# Determine console device from kernel command line.
+# "console=tty0" → VGA, "console=ttyS0" → serial.
+CONSOLE=ttyS0
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    console=tty0)  CONSOLE=tty0 ;;
+    console=ttyS*) CONSOLE="${arg#console=}"; CONSOLE="${CONSOLE%%,*}" ;;
+  esac
+done
+
+# Respawn getty so Ctrl-D doesn't kill init (PID 1).
 while true; do
-  setsid getty -n -l /bin/sh 115200 ttyS0 vt100
+  if [ "$CONSOLE" = "tty0" ]; then
+    setsid cttyhack /bin/sh
+  else
+    setsid getty -n -l /bin/sh 115200 "$CONSOLE" vt100
+  fi
 done
 INIT
 chmod 755 "$TMPDIR/init"
@@ -92,6 +106,7 @@ echo "root:x:0:" > "$TMPDIR/etc/group"
 cd "$TMPDIR"
 fakeroot sh -c '
   mknod dev/console c 5 1
+  mknod dev/tty0 c 4 0
   mknod dev/ttyS0 c 4 64
   mknod dev/null c 1 3
   chmod 666 dev/null

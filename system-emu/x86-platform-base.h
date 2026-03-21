@@ -72,6 +72,7 @@ public:
   PIT pit;
   KeyboardController kbd;
   CMOS cmos;
+  VGAText vga;
 
   // Pending external interrupt (checked by Sail model)
   bool pending_irq = false;

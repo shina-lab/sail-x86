@@ -12,15 +12,19 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <termios.h>
+#include <curses.h>
+
+enum DisplayMode { DISPLAY_SERIAL, DISPLAY_VGA };
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "  -d          Enable debug trace\n");
-  fprintf(stderr, "  -m <MB>     RAM size in MB (default 256)\n");
-  fprintf(stderr, "  -a <args>   Kernel command line\n");
-  fprintf(stderr, "  -i <file>   Initramfs image\n");
-  fprintf(stderr, "  -h          Show this help\n");
+  fprintf(stderr, "  -d              Enable debug trace\n");
+  fprintf(stderr, "  -m <MB>         RAM size in MB (default 256)\n");
+  fprintf(stderr, "  -a <args>       Kernel command line\n");
+  fprintf(stderr, "  -i <file>       Initramfs image\n");
+  fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
+  fprintf(stderr, "  -h              Show this help\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -163,7 +167,7 @@ static void init_cpu_state(x86::Model &model) {
 //   5. Jump to setup_seg+0x20:0x0000 (entry is at offset 0x200)
 static bool load_bzimage(x86::Model &model, const char *path,
                                    const char *cmdline, const char *initrd_path,
-                                   bool debug) {
+                                   DisplayMode display_mode, bool debug) {
   size_t bzimage_size;
   u8 *bzimage = read_file(path, &bzimage_size);
   if (!bzimage) return false;
@@ -241,14 +245,37 @@ static bool load_bzimage(x86::Model &model, const char *path,
   // Command line at setup_base + 0xE000 (within the same 64K segment)
   u64 cmdline_off = 0xE000;
   u64 cmdline_addr = setup_base + cmdline_off;
-  const char *default_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
+  const char *default_serial_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
+  const char *default_vga_cmdline = "console=tty0 noapic nolapic";
+  const char *default_cmdline = (display_mode == DISPLAY_VGA) ?
+                                 default_vga_cmdline : default_serial_cmdline;
   const char *use_cmdline = (cmdline && strlen(cmdline) > 0) ? cmdline : default_cmdline;
   model.phys_mem.write_bytes(cmdline_addr, use_cmdline, strlen(use_cmdline) + 1);
   // cmd_line_ptr: physical address of command line
   model.phys_mem.write32(setup_base + 0x228, (u32)cmdline_addr);
 
-  // vid_mode: normal (0xFFFF)
-  model.phys_mem.write16(setup_base + 0x1FA, 0xFFFF);
+  if (display_mode == DISPLAY_VGA) {
+    // vid_mode: VIDEO_8POINT (0x0F01) → 80x50 text with 8-pixel font.
+    // The setup code calls vga_set_8font() (INT 10h no-ops for us) and
+    // sets force_x=80, force_y=50 so store_mode_params() uses those.
+    model.phys_mem.write16(setup_base + 0x1FA, 0x0F01);
+
+    // Pre-populate BIOS Data Area (BDA) at 0x400-0x4FF so the setup code's
+    // store_mode_params() reads correct VGA 80x50 values into screen_info.
+    model.phys_mem.write8(0x449, 3);        // Current video mode: 80-col color text
+    model.phys_mem.write16(0x44A, 80);      // Number of screen columns
+    model.phys_mem.write16(0x44C, 0x2000);  // Video page size (8192 bytes)
+    model.phys_mem.write16(0x44E, 0);       // Current video page start address
+    model.phys_mem.write16(0x450, 0);       // Cursor position for page 0
+    model.phys_mem.write16(0x460, 0x0607);  // Cursor shape: start=6, end=7 (8px font)
+    model.phys_mem.write8(0x462, 0);        // Current video page number
+    model.phys_mem.write16(0x463, 0x3D4);   // CRTC port address (color)
+    model.phys_mem.write8(0x484, 49);       // Number of rows - 1 (50 rows)
+    model.phys_mem.write16(0x485, 8);       // Character height: 8 pixels
+  } else {
+    // vid_mode: normal (0xFFFF)
+    model.phys_mem.write16(setup_base + 0x1FA, 0xFFFF);
+  }
 
   // Load initramfs if provided
   if (initrd_path) {
@@ -287,6 +314,54 @@ static bool load_bzimage(x86::Model &model, const char *path,
     model.phys_mem.write16(i * 4 + 2, 0x0000);  // segment = 0x0000
   }
 
+  if (display_mode == DISPLAY_VGA) {
+    // INT 10h handler at 0x0500 — provides enough BIOS video services
+    // for the Linux setup code's vga_probe() to detect VGA hardware.
+    //
+    // Functions implemented:
+    //   AH=00h: Set Video Mode (no-op, return success)
+    //   AH=03h: Get Cursor Position → DH:DL=0:0, CX=0x0E0F
+    //   AH=0Fh: Get Video Mode → AL=3 (80x25 color), AH=80, BH=0
+    //   AH=12h,BL=10h: Get EGA Info → BL=3 (256K), BH=0 (color)
+    //   AH=1Ah: Get Display Combo → AL=0x1A (supported), BL=8 (VGA color)
+    static const u8 int10h[] = {
+      0x80, 0xFC, 0x0F,             // cmp ah, 0x0F
+      0x74, 0x10,                   // je get_mode      (+0x10 → offset 0x15)
+      0x80, 0xFC, 0x03,             // cmp ah, 0x03
+      0x74, 0x12,                   // je get_cursor    (+0x12 → offset 0x1C)
+      0x80, 0xFC, 0x12,             // cmp ah, 0x12
+      0x74, 0x13,                   // je ega_info      (+0x13 → offset 0x22)
+      0x80, 0xFC, 0x1A,             // cmp ah, 0x1A
+      0x74, 0x1A,                   // je display_combo (+0x1A → offset 0x2E)
+      0xCF,                         // iret (unhandled functions)
+      // get_mode (0x15): AH=0Fh — Get Current Video Mode
+      0xB0, 0x03,                   // mov al, 3    (mode 3: 80x25 color)
+      0xB4, 0x50,                   // mov ah, 80   (columns)
+      0xB7, 0x00,                   // mov bh, 0    (active page)
+      0xCF,                         // iret
+      // get_cursor (0x1C): AH=03h — Get Cursor Position
+      0xB9, 0x0F, 0x0E,             // mov cx, 0x0E0F (cursor shape)
+      0x31, 0xD2,                   // xor dx, dx  (row=0, col=0)
+      0xCF,                         // iret
+      // ega_info (0x22): AH=12h — Alternate Select (EGA/VGA info)
+      0x80, 0xFB, 0x10,             // cmp bl, 0x10
+      0x75, 0x06,                   // jne other (+6 → 0x2D)
+      0xBB, 0x03, 0x00,             // mov bx, 0x0003 (256K, color mode)
+      0xB1, 0x09,                   // mov cl, 9  (feature bits)
+      0xCF,                         // iret
+      0xCF,                         // other: iret
+      // display_combo (0x2E): AH=1Ah — Get Display Combination Code
+      0xB0, 0x1A,                   // mov al, 0x1A (function supported)
+      0xB3, 0x08,                   // mov bl, 8 (VGA + color analog)
+      0xB7, 0x00,                   // mov bh, 0 (no alternate display)
+      0xCF,                         // iret
+    };
+    model.phys_mem.write_bytes(0x0500, int10h, sizeof(int10h));
+    // Override IVT entry for INT 10h → 0x0000:0x0500
+    model.phys_mem.write16(0x10 * 4, 0x0500);
+    model.phys_mem.write16(0x10 * 4 + 2, 0x0000);
+  }
+
   // Set up CPU state for real-mode entry.
   // Per boot protocol: DS=ES=SS=FS=GS=setup_seg, SP=heap_end,
   // interrupts disabled, jump to setup_seg+0x20:0x0000.
@@ -313,6 +388,226 @@ static bool load_bzimage(x86::Model &model, const char *path,
 }
 
 // =========================================================================
+// Keyboard input — convert ASCII/curses keys to AT scan code set 1
+// =========================================================================
+
+// ASCII → AT scan code set 1 (make code).  Index is ASCII code.
+// 0 = no mapping.  The break code is make | 0x80.
+static const u8 ascii_to_scancode[128] = {
+  // 0x00-0x0F: control chars
+  0,    0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, // NUL ^A ^B ^C ^D ^E ^F ^G
+  0x0E, 0x0F, 0x1C, 0x25, 0x26, 0x1C, 0x31, 0x18, // BS  TAB LF  ^K ^L CR  ^N ^O
+  // 0x10-0x1F
+  0x19, 0x10, 0x13, 0x1F, 0x14, 0x16, 0x2F, 0x11, // ^P ^Q ^R ^S ^T ^U ^V ^W
+  0x2D, 0x15, 0x2C, 0x01, 0x2B, 0x1B, 0x07, 0x0C, // ^X ^Y ^Z ESC ^\ ^] ^^ ^_
+  // 0x20-0x2F: space ! " # $ % & ' ( ) * + , - . /
+  0x39, 0x02, 0x28, 0x04, 0x05, 0x06, 0x08, 0x28, // ' and " share key 0x28
+  0x0A, 0x0B, 0x09, 0x0D, 0x33, 0x0C, 0x34, 0x35,
+  // 0x30-0x39: 0-9
+  0x0B, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+  0x09, 0x0A,
+  // 0x3A-0x3F: : ; < = > ?
+  0x27, 0x27, 0x33, 0x0D, 0x34, 0x35,
+  // 0x40: @
+  0x03,
+  // 0x41-0x5A: A-Z (shifted)
+  0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23,
+  0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19,
+  0x10, 0x13, 0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D,
+  0x15, 0x2C,
+  // 0x5B-0x5F: [ \ ] ^ _
+  0x1A, 0x2B, 0x1B, 0x07, 0x0C,
+  // 0x60: `
+  0x29,
+  // 0x61-0x7A: a-z
+  0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23,
+  0x17, 0x24, 0x25, 0x26, 0x32, 0x31, 0x18, 0x19,
+  0x10, 0x13, 0x1F, 0x14, 0x16, 0x2F, 0x11, 0x2D,
+  0x15, 0x2C,
+  // 0x7B-0x7F: { | } ~ DEL
+  0x1A, 0x2B, 0x1B, 0x29, 0x0E,
+};
+
+// Characters that require Shift to be held
+static bool needs_shift(int ch) {
+  if (ch >= 'A' && ch <= 'Z') return true;
+  return ch == '!' || ch == '@' || ch == '#' || ch == '$' || ch == '%' ||
+         ch == '^' || ch == '&' || ch == '*' || ch == '(' || ch == ')' ||
+         ch == '_' || ch == '+' || ch == '{' || ch == '}' || ch == '|' ||
+         ch == ':' || ch == '"' || ch == '<' || ch == '>' || ch == '?' ||
+         ch == '~';
+}
+
+// Push scancodes for a character into the keyboard controller.
+// Generates make+break for the key, with Shift if needed.
+static void push_key(KeyboardController &kbd, int ch) {
+  if (ch < 0 || ch >= 128) return;
+  u8 sc = ascii_to_scancode[ch];
+  if (sc == 0) return;
+
+  bool shift = needs_shift(ch);
+  // Ctrl+letter: the ASCII code is 1-26, scancode is for the letter,
+  // and we need to send Ctrl (scancode 0x1D) make/break around it.
+  bool ctrl = (ch >= 1 && ch <= 26);
+
+  if (ctrl)  kbd.push_scancode(0x1D);       // Ctrl make
+  if (shift) kbd.push_scancode(0x2A);       // LShift make
+  kbd.push_scancode(sc);                     // key make
+  kbd.push_scancode(sc | 0x80);              // key break
+  if (shift) kbd.push_scancode(0x2A | 0x80); // LShift break
+  if (ctrl)  kbd.push_scancode(0x1D | 0x80); // Ctrl break
+}
+
+// =========================================================================
+// VGA text mode renderer — draws the 80×50 framebuffer using ncurses.
+// Row 50 (below the VGA area) is used as a status line.
+// =========================================================================
+
+static constexpr int VGA_COLS = 80;
+static constexpr int VGA_ROWS = 50;
+
+// Map VGA color index (BIOS order) → curses color constant.
+// VGA: 0=black 1=blue 2=green 3=cyan 4=red 5=magenta 6=brown 7=lgray
+static const short vga_to_curses_color[8] = {
+  COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN,
+  COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE
+};
+
+static bool curses_active = false;
+
+// Color pair number for a (fg, bg) combination.
+// We use pair = bg * 8 + fg + 1 (pair 0 is reserved by curses).
+static int vga_color_pair(int fg, int bg) {
+  return bg * 8 + fg + 1;
+}
+
+// Color pair for the status line (white on blue)
+static constexpr int STATUS_PAIR = 65;
+
+static void curses_cleanup() {
+  if (curses_active) {
+    endwin();
+    curses_active = false;
+  }
+}
+
+static void init_curses() {
+  initscr();
+  curses_active = true;
+  atexit(curses_cleanup);
+  raw();
+  noecho();
+  nodelay(stdscr, TRUE);  // non-blocking getch()
+  keypad(stdscr, TRUE);
+  scrollok(stdscr, FALSE);  // prevent scrolling past the bottom
+  curs_set(1);
+
+  if (has_colors()) {
+    start_color();
+    // Initialize all 64 color pairs (8 fg × 8 bg)
+    for (int bg = 0; bg < 8; bg++)
+      for (int fg = 0; fg < 8; fg++)
+        init_pair(vga_color_pair(fg, bg),
+                  vga_to_curses_color[fg], vga_to_curses_color[bg]);
+    // Status line: white on blue
+    init_pair(STATUS_PAIR, COLOR_WHITE, COLOR_BLUE);
+  }
+}
+
+static void update_status_line(const char *fmt, ...) {
+  if (!curses_active) return;
+  // Status line is at the row just below the VGA area, or the last
+  // terminal row — whichever is smaller.
+  int status_row = std::min(VGA_ROWS, LINES - 1);
+  int width = std::min(VGA_COLS, COLS);
+
+  char right[256];
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(right, sizeof(right), fmt, ap);
+  va_end(ap);
+
+  const char *left = "sail-x86 | Ctrl-a x to exit";
+  int rlen = strlen(right);
+
+  attron(COLOR_PAIR(STATUS_PAIR) | A_BOLD);
+  mvhline(status_row, 0, ' ', width);  // clear the line
+  mvaddnstr(status_row, 0, left, width);
+  if (width > rlen)
+    mvaddstr(status_row, width - rlen, right);
+  attroff(COLOR_PAIR(STATUS_PAIR) | A_BOLD);
+  refresh();
+}
+
+static u8 vga_shadow[VGA_COLS * VGA_ROWS * 2];
+static u16 vga_shadow_cursor = 0xFFFF;
+static bool vga_shadow_valid = false;
+
+static void render_vga_text(x86::Model &model) {
+  static constexpr u64 FB_BASE = 0xB8000;
+
+  // Get hardware scroll offset from CRTC start address registers
+  u16 start_off = model.vga.start_addr();
+
+  // Read visible framebuffer from physical memory, handling wrap-around
+  u8 current[VGA_COLS * VGA_ROWS * 2];
+  u32 byte_off = (u32)start_off * 2;
+  u32 fb_size = VGA_COLS * VGA_ROWS * 2;
+
+  if (byte_off + fb_size <= 0x8000) {
+    model.phys_mem.read_bytes(FB_BASE + byte_off, current, fb_size);
+  } else {
+    u32 first = 0x8000 - byte_off;
+    model.phys_mem.read_bytes(FB_BASE + byte_off, current, first);
+    model.phys_mem.read_bytes(FB_BASE, current + first, fb_size - first);
+  }
+
+  u16 cursor = model.vga.cursor_pos() - start_off;
+
+  // Skip if nothing changed
+  if (vga_shadow_valid &&
+      cursor == vga_shadow_cursor &&
+      memcmp(current, vga_shadow, sizeof(current)) == 0)
+    return;
+
+  // Clip to terminal size, leaving one row for status line
+  int max_row = std::min(VGA_ROWS, LINES - 1);
+  int max_col = std::min(VGA_COLS, COLS);
+
+  for (int row = 0; row < max_row; row++) {
+    for (int col = 0; col < max_col; col++) {
+      int idx = (row * VGA_COLS + col) * 2;
+      u8 ch = current[idx];
+      u8 attr = current[idx + 1];
+      int fg = attr & 0x07;       // base fg color (0-7)
+      bool bright = attr & 0x08;  // bright/bold bit
+      int bg = (attr >> 4) & 0x07;
+
+      // Replace non-printable characters with space
+      if (ch < 0x20 || ch == 0x7F) ch = ' ';
+
+      int pair = vga_color_pair(fg, bg);
+      attr_t a = COLOR_PAIR(pair);
+      if (bright) a |= A_BOLD;
+
+      mvaddch(row, col, ch | a);
+    }
+  }
+
+  // Position cursor
+  int crow = cursor / VGA_COLS;
+  int ccol = cursor % VGA_COLS;
+  if (crow >= 0 && crow < max_row && ccol >= 0 && ccol < max_col)
+    move(crow, ccol);
+
+  refresh();
+
+  memcpy(vga_shadow, current, sizeof(current));
+  vga_shadow_cursor = cursor;
+  vga_shadow_valid = true;
+}
+
+// =========================================================================
 // Main emulation loop
 // =========================================================================
 
@@ -322,6 +617,7 @@ int main(int argc, char *argv[]) {
   const char *cmdline = nullptr;
   const char *initrd_path = nullptr;
   const char *bzimage_path = nullptr;
+  DisplayMode display_mode = DISPLAY_SERIAL;
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
@@ -337,6 +633,9 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(argv[first_arg], "-i") == 0 && first_arg + 1 < argc) {
       initrd_path = argv[first_arg + 1];
       first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-vga") == 0) {
+      display_mode = DISPLAY_VGA;
+      first_arg++;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
       usage(argv[0]);
@@ -366,7 +665,7 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr, "sail-x86-system: loading %s\n", bzimage_path);
 
-  if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, debug)) {
+  if (!load_bzimage(model, bzimage_path, cmdline, initrd_path, display_mode, debug)) {
     fprintf(stderr, "Failed to load kernel image\n");
     return 1;
   }
@@ -374,16 +673,26 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "sail-x86-system: RAM=%luMB, entry=0x%lx\n",
           ram_mb, (u64)model.zRIP);
 
-  // Set up interactive console: raw terminal + UART output to stdout.
-  bool interactive = setup_raw_terminal();
-  if (interactive) {
-    model.uart.output_fn = uart_output_stdout;
-    fprintf(stderr, "sail-x86-system: interactive console on stdin/stdout\n");
-    fprintf(stderr, "Press Ctrl-a x to exit the emulator.\n\n");
+  // Set up interactive console.
+  bool interactive;
+  if (display_mode == DISPLAY_VGA) {
+    // VGA mode: ncurses handles the terminal.
+    fprintf(stderr, "sail-x86-system: VGA text mode display\n");
+    init_curses();
+    interactive = true;
+    model.uart.output_fn = nullptr;
   } else {
-    // Non-tty stdin: set non-blocking so we can still feed piped input to UART
-    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    // Serial mode: UART output to stdout.
+    interactive = setup_raw_terminal();
+    if (interactive) {
+      model.uart.output_fn = uart_output_stdout;
+      fprintf(stderr, "sail-x86-system: interactive console on stdin/stdout\n");
+      fprintf(stderr, "Press Ctrl-a x to exit the emulator.\n\n");
+    } else {
+      // Non-tty stdin: set non-blocking so we can still feed piped input to UART
+      int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+      fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+    }
   }
   bool poll_stdin = true;  // Always poll stdin for UART RX data
 
@@ -396,6 +705,10 @@ int main(int argc, char *argv[]) {
   const u64 PIT_TICK_INTERVAL = 10000;  // Tick PIT every 10K instructions
   const u64 PIT_CYCLES_PER_TICK = 11932; // ~10ms worth of PIT cycles
   u64 next_pit_tick = PIT_TICK_INTERVAL;
+
+  // VGA refresh: render framebuffer every 50K instructions (~20 fps at 1M ips)
+  const u64 VGA_REFRESH_INTERVAL = 50000;
+  u64 next_vga_refresh = VGA_REFRESH_INTERVAL;
 
   // Ctrl-a escape state: when Ctrl-a is pressed, the next key decides the action.
   // Ctrl-a x = quit. Ctrl-a Ctrl-a = send literal Ctrl-a.
@@ -410,10 +723,15 @@ int main(int argc, char *argv[]) {
   const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 10000000;
 
   while (!model.should_exit) {
-    // Print progress every 5M instructions
-    if (insn_count % 5000000 == 0) {
-      fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
-              insn_count / 1000000, (u64)model.zRIP);
+    // Print progress periodically
+    if (curses_active) {
+      if (insn_count % 1000000 == 0)
+        update_status_line("%luM insns, RIP=0x%lx",
+                           insn_count / 1000000, (u64)model.zRIP);
+    } else {
+      if (insn_count % 5000000 == 0)
+        fprintf(stderr, "[progress] %luM insns, RIP=0x%lx\n",
+                insn_count / 1000000, (u64)model.zRIP);
     }
 
     if (debug) {
@@ -496,27 +814,50 @@ int main(int argc, char *argv[]) {
         // Wait for an interrupt: poll stdin + tick PIT until something fires
         while (!model.pic_master.has_pending()) {
           if (poll_stdin) {
-            struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
-            if (poll(&pfd, 1, 10 /*ms*/) > 0) {
-              u8 buf[64];
-              ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
-              for (ssize_t i = 0; n > 0 && i < n; i++) {
+            if (curses_active) {
+              // In curses mode, use getch() and push scancodes to i8042
+              int ch;
+              while ((ch = getch()) != ERR) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
-                  if (buf[i] == 'x' || buf[i] == 'X') {
-                    fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
+                  if (ch == 'x' || ch == 'X') {
                     model.model_fini();
                     return 0;
                   }
-                  if (buf[i] == 0x01) model.uart.rx_push(0x01);
+                  if (ch == 0x01) push_key(model.kbd, 0x01);
                   continue;
                 }
-                if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
-                model.uart.rx_push(buf[i]);
+                if (ch == 0x01) { ctrl_a_pending = true; continue; }
+                push_key(model.kbd, ch);
               }
-              if (model.uart.has_irq())
-                model.pic_master.raise_irq(4);
+              if (model.kbd.has_data())
+                model.pic_master.raise_irq(1);
+              // Render VGA while waiting
+              render_vga_text(model);
+              napms(10);
+            } else {
+              struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
+              if (poll(&pfd, 1, 10 /*ms*/) > 0) {
+                u8 buf[64];
+                ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+                for (ssize_t i = 0; n > 0 && i < n; i++) {
+                  if (ctrl_a_pending) {
+                    ctrl_a_pending = false;
+                    if (buf[i] == 'x' || buf[i] == 'X') {
+                      fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
+                      model.model_fini();
+                      return 0;
+                    }
+                    if (buf[i] == 0x01) model.uart.rx_push(0x01);
+                    continue;
+                  }
+                  if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
+                  model.uart.rx_push(buf[i]);
+                }
+              }
             }
+            if (model.uart.has_irq())
+              model.pic_master.raise_irq(4);
           }
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pic_master.raise_irq(0);
@@ -540,29 +881,44 @@ int main(int argc, char *argv[]) {
     // Poll stdin for input and feed into UART RX FIFO.
     // Check every 1K instructions to avoid syscall overhead.
     if (poll_stdin && (insn_count & 0x3FF) == 0) {
-      u8 buf[64];
-      ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
-      // For pipes, n==0 means EOF. For TTYs with VMIN=0, n==0 means no data.
-      if (n == 0 && !interactive) poll_stdin = false;
-      for (ssize_t i = 0; n > 0 && i < n; i++) {
-        if (ctrl_a_pending) {
-          ctrl_a_pending = false;
-          if (buf[i] == 'x' || buf[i] == 'X') {
-            fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
-            model.should_exit = true;
-            break;
+      if (curses_active) {
+        int ch;
+        while ((ch = getch()) != ERR) {
+          if (ctrl_a_pending) {
+            ctrl_a_pending = false;
+            if (ch == 'x' || ch == 'X') {
+              model.should_exit = true;
+              break;
+            }
+            if (ch == 0x01) push_key(model.kbd, 0x01);
+            continue;
           }
-          if (buf[i] == 0x01) { // Ctrl-a Ctrl-a = literal Ctrl-a
-            model.uart.rx_push(0x01);
+          if (ch == 0x01) { ctrl_a_pending = true; continue; }
+          push_key(model.kbd, ch);
+        }
+        if (model.kbd.has_data())
+          model.pic_master.raise_irq(1);
+      } else {
+        u8 buf[64];
+        ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+        // For pipes, n==0 means EOF. For TTYs with VMIN=0, n==0 means no data.
+        if (n == 0 && !interactive) poll_stdin = false;
+        for (ssize_t i = 0; n > 0 && i < n; i++) {
+          if (ctrl_a_pending) {
+            ctrl_a_pending = false;
+            if (buf[i] == 'x' || buf[i] == 'X') {
+              fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
+              model.should_exit = true;
+              break;
+            }
+            if (buf[i] == 0x01) { // Ctrl-a Ctrl-a = literal Ctrl-a
+              model.uart.rx_push(0x01);
+            }
+            continue;
           }
-          // Other Ctrl-a sequences: ignore
-          continue;
+          if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
+          model.uart.rx_push(buf[i]);
         }
-        if (buf[i] == 0x01) {
-          ctrl_a_pending = true;
-          continue;
-        }
-        model.uart.rx_push(buf[i]);
       }
     }
 
@@ -577,6 +933,17 @@ int main(int argc, char *argv[]) {
     // UART interrupt (IRQ 4): RDA or THRE
     if (model.uart.has_irq()) {
       model.pic_master.raise_irq(4);
+    }
+
+    // Keyboard interrupt (IRQ 1): scancode available
+    if (model.kbd.has_data()) {
+      model.pic_master.raise_irq(1);
+    }
+
+    // Periodic VGA refresh
+    if (display_mode == DISPLAY_VGA && insn_count >= next_vga_refresh) {
+      render_vga_text(model);
+      next_vga_refresh = insn_count + VGA_REFRESH_INTERVAL;
     }
   }
 

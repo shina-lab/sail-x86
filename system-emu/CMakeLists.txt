@@ -31,8 +31,10 @@ set_source_files_properties(
 add_dependencies(x86_system_model generated_sail_x86_model)
 
 # System emulator binary.
+find_package(Curses REQUIRED)
 add_executable(sail-x86-system x86-system-sim.cpp)
-target_link_libraries(sail-x86-system PRIVATE x86_system_model)
+target_include_directories(sail-x86-system PRIVATE ${CURSES_INCLUDE_DIRS})
+target_link_libraries(sail-x86-system PRIVATE x86_system_model ${CURSES_LIBRARIES})
 add_dependencies(sail-x86-system generated_sail_x86_model)
 
 # =========================================================================
@@ -64,6 +66,9 @@ add_custom_target(linux
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Run:"
     COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -i initramfs.cpio bzImage"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "For VGA text mode display:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  ./system-emu/sail-x86-system -vga -i initramfs.cpio bzImage"
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 

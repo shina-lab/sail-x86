@@ -133,6 +133,12 @@ u64 Model::z__rdmsr(u64 addr) {
   case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
   case 0x1A0:  return 1;           // IA32_MISC_ENABLE (bit 0 = FAST_STRING)
   case 0xC0000103: return 0;       // IA32_TSC_AUX
+  case 0x17:  return 0;           // IA32_PLATFORM_ID
+  case 0x34:  return 0;           // MSR_SMI_COUNT
+  case 0x3a:  return 0;           // IA32_FEATURE_CONTROL
+  case 0xce:  return 0;           // MSR_PLATFORM_INFO
+  case 0x140: return 0;           // IA32_PERF_CAPABILITIES
+  case 0x64e: return 0;           // MSR_PPERF
   default:
     { static int rdmsr_warn = 0;
       if (rdmsr_warn++ < 10)
@@ -162,7 +168,7 @@ u64 Model::z__port_in8(u64 port) {
   if (cmos.handles(p))       return cmos.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A (A20 enabled)
-  if (p == 0x3DA)            return 0x00; // VGA status (not retrace)
+  if (vga.handles(p))        return vga.read(p);
   if (p == 0xCF8 || p == 0xCFC) return 0xFF; // PCI config (no devices)
   if (0xCF9 <= p && p <= 0xCFF) return 0xFF; // PCI config data
   return 0xFF; // Default: empty bus
@@ -192,6 +198,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
+  else if (vga.handles(p))        vga.write(p, v);
   // else: ignore writes to unknown ports
   return UNIT;
 }
