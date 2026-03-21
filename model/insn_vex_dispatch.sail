@@ -54,16 +54,17 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // Must come after dispatch_vex_0f/0f38/0f3a definitions.
 // =========================================================================
 
-val dispatch_vex : byte -> unit
-function dispatch_vex(first_byte) = {
+// Dispatch VEX-encoded instruction when the second byte has already been
+// fetched (needed for C4/C5 in non-64-bit mode where the second byte is
+// peeked at to distinguish VEX from LES/LDS).
+val dispatch_vex_with_byte2 : (byte, byte) -> unit
+function dispatch_vex_with_byte2(first_byte, b1) = {
   if ~(avx_enabled()) then raise_UD();
   let (pfx, map) : (Prefixes, range(0, 31)) =
     if first_byte == 0xC5 then {
-      let b1 = fetch_byte();
       decode_vex2(b1)
     } else {
       // C4 = 3-byte VEX
-      let b1 = fetch_byte();
       let b2 = fetch_byte();
       decode_vex3(b1, b2)
     };
@@ -76,4 +77,11 @@ function dispatch_vex(first_byte) = {
     3 => dispatch_vex_0f3a(opcode, pfx),
     _ => raise_UD(),
   }
+}
+
+val dispatch_vex : byte -> unit
+function dispatch_vex(first_byte) = {
+  if ~(avx_enabled()) then raise_UD();
+  let b1 = fetch_byte();
+  dispatch_vex_with_byte2(first_byte, b1)
 }

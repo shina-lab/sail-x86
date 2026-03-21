@@ -2240,50 +2240,66 @@ function decode_execute() = {
         write_gpr(reg, os, imm)
       },
 
-      // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix (64-bit)
+      // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
+      // SDM Vol.2A §2.3.5: In non-64-bit mode, if the second byte has
+      // bit 7 set (mod=11 in ModRM terms), it is a VEX prefix, not LES.
+      // This works because LES requires a memory operand (mod≠11),
+      // so mod=11 is an otherwise-invalid encoding reused for VEX.
       196 => {
         if cur_mode == LongMode then dispatch_vex(0xC4)
         else {
-          let os = get_operand_size(pfx);
-          let modrm = fetch_byte();
-          let reg = modrm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
-          match rm {
-            RM_mem(seg, ea) => {
-              let far_offset : qword = match os {
-                OS16 => zero_extend(seg_read16(seg, ea)),
-                _    => zero_extend(seg_read32(seg, ea)),
-              };
-              let sel_off : int = match os { OS16 => 2, _ => 4 };
-              let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
-              write_gpr(reg, os, far_offset);
-              load_segment_register(ES, selector)
-            },
-            RM_reg(_) => raise_UD(),
+          // Peek at second byte to distinguish VEX from LES
+          let byte2 = fetch_byte();
+          if byte2[7] == bitone then {
+            // mod=11: VEX prefix in non-64-bit mode
+            dispatch_vex_with_byte2(0xC4, byte2)
+          } else {
+            // mod≠11: LES r, m16:16/32
+            let os = get_operand_size(pfx);
+            let reg = modrm_reg(byte2, pfx);
+            let rm = decode_rm(byte2, pfx);
+            match rm {
+              RM_mem(seg, ea) => {
+                let far_offset : qword = match os {
+                  OS16 => zero_extend(seg_read16(seg, ea)),
+                  _    => zero_extend(seg_read32(seg, ea)),
+                };
+                let sel_off : int = match os { OS16 => 2, _ => 4 };
+                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                write_gpr(reg, os, far_offset);
+                load_segment_register(ES, selector)
+              },
+              RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
+            }
           }
         }
       },
 
-      // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix (64-bit)
+      // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix
+      // Same VEX/LDS distinction as C4/LES above.
       197 => {
         if cur_mode == LongMode then dispatch_vex(0xC5)
         else {
-          let os = get_operand_size(pfx);
-          let modrm = fetch_byte();
-          let reg = modrm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
-          match rm {
-            RM_mem(seg, ea) => {
-              let far_offset : qword = match os {
-                OS16 => zero_extend(seg_read16(seg, ea)),
-                _    => zero_extend(seg_read32(seg, ea)),
-              };
-              let sel_off : int = match os { OS16 => 2, _ => 4 };
-              let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
-              write_gpr(reg, os, far_offset);
-              load_segment_register(DS, selector)
-            },
-            RM_reg(_) => raise_UD(),
+          let byte2 = fetch_byte();
+          if byte2[7] == bitone then {
+            dispatch_vex_with_byte2(0xC5, byte2)
+          } else {
+            let os = get_operand_size(pfx);
+            let reg = modrm_reg(byte2, pfx);
+            let rm = decode_rm(byte2, pfx);
+            match rm {
+              RM_mem(seg, ea) => {
+                let far_offset : qword = match os {
+                  OS16 => zero_extend(seg_read16(seg, ea)),
+                  _    => zero_extend(seg_read32(seg, ea)),
+                };
+                let sel_off : int = match os { OS16 => 2, _ => 4 };
+                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                write_gpr(reg, os, far_offset);
+                load_segment_register(DS, selector)
+              },
+              RM_reg(_) => raise_UD(),
+            }
           }
         }
       },
