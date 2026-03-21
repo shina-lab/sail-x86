@@ -264,19 +264,6 @@ unit Model::z__port_out32(u64 port, u64 val) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
-  // Suppress hardware IRQ delivery during normal execution.
-  // SeaBIOS's irqentry_extrastack uses the current SS to pop the handler
-  // function pointer. If SS was changed by a prior call16 (to 0xE000),
-  // the POP reads from the wrong linear address. Hardware IRQs are only
-  // safe to deliver during HLT (where the emulator polls for pending
-  // interrupts with a known-good stack).
-  // The HLT handler in the main loop calls pic_master.raise_irq() and
-  // then re-checks pending interrupts in a loop, so IRQs ARE delivered
-  // during idle. They're just suppressed during normal instruction flow.
-  {
-    mpz_set_si(*rop, -1);
-    return;
-  }
 
   // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
   if (ata.irq_pending)

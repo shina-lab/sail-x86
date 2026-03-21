@@ -84,7 +84,10 @@ function exec_loop(rel8, variant, asz) = {
     LOOP_ne     => if count_nonzero then ZF == bitzero else false,
   };
   if take_branch then {
-    next_rip = Some(decode_pos + sign_extend(rel8));
+    let os = if cur_mode == LongMode then OS64
+             else if get_cs_db() == bitone then OS32
+             else OS16;
+    next_rip = Some(truncate_rip(decode_pos + sign_extend(rel8), os));
   }
 }
 
@@ -1954,7 +1957,8 @@ function decode_execute() = {
           AS64 => read_gpr64(RCX),
         };
         if count_reg == zeros() then {
-          next_rip = Some(decode_pos + rel)
+          let os = get_operand_size_f64(pfx);
+          next_rip = Some(truncate_rip(decode_pos + rel, os))
         } else {
           ()
         }
@@ -1998,24 +2002,13 @@ function decode_execute() = {
                   else push32(return_addr[31..0]),
           OS64 => push64(return_addr),
         };
-        // Truncate target to operand size (SDM: "truncated to 16 bits" in real mode)
-        let target = return_addr + offset;
-        next_rip = Some(match os {
-          OS16 => zero_extend(target[15..0]),
-          OS32 => zero_extend(target[31..0]),
-          _    => target,
-        })
+        next_rip = Some(truncate_rip(return_addr + offset, os))
       },
 
       // E9: JMP rel16/rel32 (f64)
       233 => {
         let os = get_operand_size_f64(pfx);
-        let target = decode_pos + fetch_rel_os(pfx);
-        next_rip = Some(match os {
-          OS16 => zero_extend(target[15..0]),
-          OS32 => zero_extend(target[31..0]),
-          _    => target,
-        })
+        next_rip = Some(truncate_rip(decode_pos + fetch_rel_os(pfx), os))
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
@@ -2046,7 +2039,8 @@ function decode_execute() = {
 
       // EB: JMP rel8 (f64)
       235 => {
-        next_rip = Some(decode_pos + fetch_rel8())
+        let os = get_operand_size_f64(pfx);
+        next_rip = Some(truncate_rip(decode_pos + fetch_rel8(), os))
       },
 
       // EC: IN AL, DX
@@ -2200,7 +2194,8 @@ function decode_execute() = {
         let cc : cc_idx = op - 112;
         let offset = fetch_rel8();
         if eval_cc(cc) == bitone then {
-          next_rip = Some(decode_pos + offset);
+          let os = get_operand_size_f64(pfx);
+          next_rip = Some(truncate_rip(decode_pos + offset, os));
         }
       },
 

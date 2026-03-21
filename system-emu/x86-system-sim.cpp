@@ -814,6 +814,23 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
+    // Debug: trace __farcall16 entry to check bregs.code
+    if ((u64)model.zRIP == 0xd285 && (u16)model.zSegReg.data[x86::SEG_CS] == 0xf000 &&
+        model.zcur_mode == x86::zRealMode) {
+      static int ff16 = 0;
+      if (ff16++ < 5) {
+        u64 eax = model.zGPR.data[0];  // callregs pointer
+        u64 ss_base = model.zSegCache.data[x86::SEG_SS].zseg_base;
+        u64 linear = ss_base + (eax & 0xFFFF);  // 16-bit addressing
+        // BREGS_code is at offset 0x20 (32 bytes) from struct start
+        u32 code_val;
+        memcpy(&code_val, model.phys_mem.ram_ptr() + linear + 0x20, 4);
+        u16 code_off = code_val & 0xFFFF;
+        u16 code_seg = (code_val >> 16) & 0xFFFF;
+        fprintf(stderr, "[__farcall16] EAX=0x%lx SS.base=0x%lx linear=0x%lx code=%04x:%04x\n",
+                eax, ss_base, linear, code_seg, code_off);
+      }
+    }
     // Debug: trace when irqentry_extrastack (d47d) is reached
     if ((u64)model.zRIP == 0xd47d && (u16)model.zSegReg.data[x86::SEG_CS] == 0xf000) {
       static int d47d_count = 0;

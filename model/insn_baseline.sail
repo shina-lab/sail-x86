@@ -1206,7 +1206,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel_os(pfx);
       if eval_cc(cc) == bitone then {
-        next_rip = Some(decode_pos + offset);
+        let os = get_operand_size_f64(pfx);
+        next_rip = Some(truncate_rip(decode_pos + offset, os));
       }
     },
     // 0F 90-9F: SETcc r/m8
