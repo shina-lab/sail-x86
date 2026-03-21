@@ -109,11 +109,11 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 void PhysicalMemory::write8(u64 paddr, u8 val) {
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
   if (paddr < size) {
-    // Watch for return address corruption at stack position 0x6e7c
-    if (paddr == 0x6e7c && val != ram[paddr]) {
-      static int watch_count = 0;
-      if (watch_count++ < 10)
-        fprintf(stderr, "[WATCH 0x6e7c] write8 old=0x%02x new=0x%02x\n", ram[paddr], val);
+    // Watch stack writes at 0xEFFA0 (linear address with SS.base=0xE0000)
+    if (paddr >= 0xEFFA0 && paddr <= 0xEFFA3) {
+      static int w8s = 0;
+      if (w8s++ < 20)
+        fprintf(stderr, "[W8 %05lx] 0x%02x→0x%02x\n", paddr, ram[paddr], val);
     }
     ram[paddr] = val;
   }
@@ -122,15 +122,6 @@ void PhysicalMemory::write8(u64 paddr, u8 val) {
 void PhysicalMemory::write16(u64 paddr, u16 val) {
   if (in_rom(paddr)) return;
   if (paddr + 1 < size) {
-    // Watch return address at 0x6e7c-0x6e7f
-    if (paddr >= 0x6e7c && paddr <= 0x6e7d) {
-      u16 old; memcpy(&old, ram+paddr, 2);
-      if (old != val) {
-        static int w16 = 0;
-        if (w16++ < 10)
-          fprintf(stderr, "[WATCH] write16 addr=0x%lx 0x%04x→0x%04x\n", paddr, old, val);
-      }
-    }
     memcpy(ram + paddr, &val, 2);
   }
 }
@@ -138,13 +129,13 @@ void PhysicalMemory::write16(u64 paddr, u16 val) {
 void PhysicalMemory::write32(u64 paddr, u32 val) {
   if (in_rom(paddr)) return;
   if (paddr + 3 < size) {
-    // Watch return address at 0x6e7c-0x6e7f
-    if (paddr >= 0x6e7c && paddr <= 0x6e7f) {
+    // Watch stack writes at 0xEFFA0
+    if (paddr >= 0xEFFA0 && paddr <= 0xEFFA3) {
       u32 old; memcpy(&old, ram+paddr, 4);
       if (old != val) {
-        static int w32 = 0;
-        if (w32++ < 10)
-          fprintf(stderr, "[WATCH] write32 addr=0x%lx 0x%08x→0x%08x\n", paddr, old, val);
+        static int w = 0;
+        if (w++ < 20)
+          fprintf(stderr, "[W32 %04lx] 0x%08x→0x%08x\n", paddr, old, val);
       }
     }
     memcpy(ram + paddr, &val, 4);

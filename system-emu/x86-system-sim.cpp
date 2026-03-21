@@ -814,20 +814,28 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
-    // Debug: trace when RSP transitions from 0x6e78 to 0x6e7c (POP EBP in call16_helper)
-    {
-      static u64 prev_rsp = 0;
-      u64 rsp = model.zGPR.data[4];
-      if (rsp >= 0x6e7c && rsp <= 0x6e80 && prev_rsp < 0x6e7c && model.zcur_mode == x86::zRealMode && insn_count > 164700) {
-        static int ret_trace = 0;
-        if (ret_trace++ < 3) {
-          u32 retaddr;
-          memcpy(&retaddr, model.phys_mem.ram_ptr() + 0x6e7c, 4);
-          fprintf(stderr, "[RET] RSP 0x6e78→0x6e7c RIP=0x%lx stack[6e7c]=0x%08x\n",
-                  (u64)model.zRIP, retaddr);
-        }
+    // Debug: trace when irqentry_extrastack (d47d) is reached
+    if ((u64)model.zRIP == 0xd47d && (u16)model.zSegReg.data[x86::SEG_CS] == 0xf000) {
+      static int d47d_count = 0;
+      if (d47d_count++ < 3)
+        fprintf(stderr, "[d47d] insn=%lu SS=%04x IF=%d prev_RIP was interrupted\n",
+                insn_count, (u16)model.zSegReg.data[x86::SEG_SS],
+                (int)model.zIF_flag);
+    }
+    // Debug: trace POPL ECX at f000:d4bc
+    if ((u64)model.zRIP == 0xd4bc && (u16)model.zSegReg.data[x86::SEG_CS] == 0xf000 &&
+        model.zcur_mode == x86::zRealMode) {
+      static int pop_trace = 0;
+      if (pop_trace++ < 3) {
+        u64 rsp = model.zGPR.data[4];
+        u16 ss = model.zSegReg.data[x86::SEG_SS];
+        u64 ss_base = model.zSegCache.data[x86::SEG_SS].zseg_base;
+        u64 linear = ss_base + rsp;
+        u32 stack_val;
+        memcpy(&stack_val, model.phys_mem.ram_ptr() + linear, 4);
+        fprintf(stderr, "[POP-ECX] RSP=0x%lx SS=%04x SS.base=0x%lx linear=0x%lx stack=0x%08x ECX=0x%lx\n",
+                rsp, ss, ss_base, linear, stack_val, (u64)model.zGPR.data[1]);
       }
-      prev_rsp = rsp;
     }
     // Debug: trace last 4 CS:IP values when we hit f000:fea5
     {
