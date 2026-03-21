@@ -574,3 +574,14 @@ register exception_depth : range(0, 3)
 
 // Class of the exception currently being delivered (for escalation decisions).
 register delivering_exc_class : ExceptionClass
+
+// =========================================================================
+// System Management Mode (SMM) — SDM Vol.3C Chapter 34
+//
+// in_smm: true when the processor is in SMM. RSM is only valid in SMM.
+// smbase: base physical address of SMRAM. Default 0x30000 after reset.
+//         Updated from SMRAM state save area (offset 7EF8h) on each RSM.
+// =========================================================================
+
+register in_smm : bool = false
+register smbase : dword = 0x00030000

@@ -1383,6 +1383,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       load_segment_register(GS, v)
     },
+    // 0F AA: RSM — Resume from System Management Mode
+    // SDM Vol.2B §RSM: #UD if not in SMM. Restores processor state from
+    // SMRAM and returns to the mode active before the SMI.
+    170 => exec_rsm(),
+
     // 0F AB: BTS r/m, r
     171 => {
       let os = get_operand_size(pfx);

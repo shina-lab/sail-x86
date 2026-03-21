@@ -171,6 +171,8 @@ u64 Model::z__port_in8(u64 port) {
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
+  if (p == 0xB2)             return 0x00; // APM Control (write triggers SMI)
+  if (p == 0xB3)             return apmc_status; // APM Status
   if (vga.handles(p))        return vga.read(p);
   // DMA controller (0x00-0x0F, 0xC0-0xDF): return 0 so SeaBIOS
   // doesn't detect phantom DMA channels.
@@ -225,14 +227,19 @@ unit Model::z__port_out8(u64 port, u64 val) {
     int shift = (p - 0xCF8) * 8;
     a = (a & ~(0xFF << shift)) | ((u32)v << shift);
     pci.write_addr(a);
-  }
-  else if (0xCFC <= p && p <= 0xCFF) {
+  } else if (0xCFC <= p && p <= 0xCFF) {
     u32 d = pci.read_data();
     int shift = (p - 0xCFC) * 8;
     d = (d & ~(0xFF << shift)) | ((u32)v << shift);
     pci.write_data(d);
+  } else if (p == 0xB2) {
+    // APM Control: trigger SMI
+    smi_pending = true;
+  } else if (p == 0xB3) {
+    // APM Status: store value
+    apmc_status = v;
   }
-  // Port 0x402, DMA, POST code, APM/SMI: silently absorb
+  // Port 0x402, DMA, POST code: silently absorb
   return UNIT;
 }
 
@@ -258,6 +265,15 @@ unit Model::z__port_out32(u64 port, u64 val) {
   z__port_out8(port + 2, (val >> 16) & 0xFF);
   z__port_out8(port + 3, (val >> 24) & 0xFF);
   return UNIT;
+}
+
+// =========================================================================
+// SMI check — called by Sail model at start of step()
+
+bool Model::z__check_pending_smi(unit) {
+  bool pending = smi_pending;
+  smi_pending = false;
+  return pending;
 }
 
 // =========================================================================

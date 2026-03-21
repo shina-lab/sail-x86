@@ -60,6 +60,7 @@ unit Model::z__tlb_flush(unit) { return UNIT; }
 
 u64 Model::z__rdmsr(u64) { return 0; }
 unit Model::z__wrmsr(u64, u64) { return UNIT; }
+bool Model::z__check_pending_smi(unit) { return false; }
 
 // =========================================================================
 // I/O ports (stub — user mode doesn't have port access)

@@ -15,6 +15,14 @@ val step : unit -> unit
 function step() = {
   fault_pending = false;
 
+  // Check for pending SMI before anything else.
+  // SDM §34.2: "The SMI takes precedence over [...] debug exceptions
+  // and external interrupts." SMIs are non-maskable (not blocked by IF).
+  if system_mode & ~(in_smm) & __check_pending_smi() then {
+    deliver_smi();
+    return ()
+  };
+
   // Check for pending external interrupts before fetching.
   // Only deliver if IF=1 (interrupts enabled) and in system mode.
   if system_mode & IF_flag == bitone then {

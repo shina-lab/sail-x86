@@ -25,6 +25,7 @@ decode {
     types.sail,
     insn_prefixes.sail,
     insn_modrm.sail,
+    smm.sail,
     insn_alu.sail,
     insn_x87.sail,
     insn_sse_fp.sail,

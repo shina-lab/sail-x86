@@ -96,6 +96,10 @@ public:
   bool pending_irq = false;
   u8 pending_irq_vector = 0;
 
+  // Pending SMI (set by port 0xB2 write, cleared by Sail model)
+  bool smi_pending = false;
+  u8 apmc_status = 0;  // APM Status register (port 0xB3)
+
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].
   // Each entry caches a 4KB page translation.
   static constexpr int TLB_SIZE = 1024;
