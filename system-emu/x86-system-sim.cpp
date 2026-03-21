@@ -832,21 +832,32 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, [](int) { got_signal = true; });
 
   while (!model.should_exit && !got_signal) {
-    // Update status line periodically (curses mode only)
-    if (curses_active && insn_count % 1000000 == 0)
-      update_status_line("%luM insns  RIP=%04x:%016lx",
-                         insn_count / 1000000,
-                         (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
+    // Print progress periodically
+    if (curses_active && insn_count % 1000000 == 0) {
+      if (model.zcur_mode == x86::zLongMode)
+        update_status_line("%luM insns  RIP=%016lx",
+                           insn_count / 1000000, (u64)model.zRIP);
+      else
+        update_status_line("%luM insns  RIP=%04x:%04lx",
+                           insn_count / 1000000,
+                           (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
+    }
 
     if (debug) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                              (model.zcur_mode == x86::zProtectedMode) ? "P" :
                              (model.zcur_mode == x86::zRealMode) ? "R" : "C";
-      fprintf(stderr, "[%lu] %04x:%04lx RSP=0x%lx mode=%s CR0=0x%lx\n",
-              insn_count, (u16)model.zSegReg.data[x86::SEG_CS],
-              (u64)model.zRIP,
-              (u64)model.zGPR.data[4], mode_str,
-              (u64)model.zCR0);
+      if (model.zcur_mode == x86::zLongMode)
+        fprintf(stderr, "[%lu] %016lx RSP=0x%lx mode=%s CR0=0x%lx\n",
+                insn_count, (u64)model.zRIP,
+                (u64)model.zGPR.data[4], mode_str,
+                (u64)model.zCR0);
+      else
+        fprintf(stderr, "[%lu] %04x:%04lx RSP=0x%lx mode=%s CR0=0x%lx\n",
+                insn_count, (u16)model.zSegReg.data[x86::SEG_CS],
+                (u64)model.zRIP,
+                (u64)model.zGPR.data[4], mode_str,
+                (u64)model.zCR0);
     }
 
 
