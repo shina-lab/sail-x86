@@ -264,14 +264,6 @@ unit Model::z__port_out32(u64 port, u64 val) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
-  // Suppress hardware IRQs when in BIOS transition code (CS=F000, RM).
-  // SeaBIOS's irqentry_extrastack has SS mismatch issues when IRQs
-  // fire during call16/call32 transitions.
-  if (zcur_mode == zRealMode &&
-      (u16)zSegReg.data[x86::SEG_CS] == 0xF000) {
-    mpz_set_si(*rop, -1);
-    return;
-  }
 
   // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
   if (ata.irq_pending)

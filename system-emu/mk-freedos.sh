@@ -75,6 +75,15 @@ CONFIG_MPTABLE=n
 CONFIG_PIRTABLE=n
 CONFIG_ACPI=n
 CONFIG_ACPI_PARSE=n
+CONFIG_ROM_SIZE=64
+CONFIG_MOUSE=n
+CONFIG_PNPBIOS=n
+CONFIG_KEYBOARD=n
+CONFIG_KBD_CALL_INT15_4F=n
+CONFIG_LPT=n
+CONFIG_SERIAL=n
+CONFIG_DEBUG_LEVEL=0
+CONFIG_BOOT_MENU=n
 CONFIG_DEBUG_SERIAL=y
 CONFIG_DEBUG_SERIAL_PORT=0x3f8
 CONFIG_SERCON=n
@@ -92,11 +101,6 @@ SEABIOS_CONFIG
   # Initialize Call16Data.gdt in call16_override to prevent garbage GDTR.
   sed -i '/if (big) {/a\        sgdt(\&Call16Data.gdt);' \
     "$SEABIOS_SRC/src/stacks.c"
-  # Patch: don't change SS in irqentry_extrastack/irqentry_arg.
-  # The SS switch to _zonelow_seg causes the handler function pointer
-  # POP to read from the wrong linear address. Keep SS at its original
-  # value so all stack operations use the same segment.
-  sed -i 's/movw %dx, %ss/nop; nop/' "$SEABIOS_SRC/src/romlayout.S"
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
   make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3
