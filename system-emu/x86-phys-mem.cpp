@@ -109,7 +109,12 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 void PhysicalMemory::write8(u64 paddr, u8 val) {
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
   if (paddr < size) {
-    // (debug traces removed)
+    // Watch for return address corruption at stack position 0x6e7c
+    if (paddr == 0x6e7c && val != ram[paddr]) {
+      static int watch_count = 0;
+      if (watch_count++ < 10)
+        fprintf(stderr, "[WATCH 0x6e7c] write8 old=0x%02x new=0x%02x\n", ram[paddr], val);
+    }
     ram[paddr] = val;
   }
 }
@@ -117,10 +122,14 @@ void PhysicalMemory::write8(u64 paddr, u8 val) {
 void PhysicalMemory::write16(u64 paddr, u16 val) {
   if (in_rom(paddr)) return;
   if (paddr + 1 < size) {
-    if (paddr >= 0x40 && paddr <= 0x42) {
+    // Watch return address at 0x6e7c-0x6e7f
+    if (paddr >= 0x6e7c && paddr <= 0x6e7d) {
       u16 old; memcpy(&old, ram+paddr, 2);
-      if (old != val)
-        fprintf(stderr, "[IVT10] write16 addr=0x%lx 0x%04x→0x%04x\n", paddr, old, val);
+      if (old != val) {
+        static int w16 = 0;
+        if (w16++ < 10)
+          fprintf(stderr, "[WATCH] write16 addr=0x%lx 0x%04x→0x%04x\n", paddr, old, val);
+      }
     }
     memcpy(ram + paddr, &val, 2);
   }
@@ -128,8 +137,18 @@ void PhysicalMemory::write16(u64 paddr, u16 val) {
 
 void PhysicalMemory::write32(u64 paddr, u32 val) {
   if (in_rom(paddr)) return;
-  if (paddr + 3 < size)
+  if (paddr + 3 < size) {
+    // Watch return address at 0x6e7c-0x6e7f
+    if (paddr >= 0x6e7c && paddr <= 0x6e7f) {
+      u32 old; memcpy(&old, ram+paddr, 4);
+      if (old != val) {
+        static int w32 = 0;
+        if (w32++ < 10)
+          fprintf(stderr, "[WATCH] write32 addr=0x%lx 0x%08x→0x%08x\n", paddr, old, val);
+      }
+    }
     memcpy(ram + paddr, &val, 4);
+  }
 }
 
 void PhysicalMemory::write64(u64 paddr, u64 val) {

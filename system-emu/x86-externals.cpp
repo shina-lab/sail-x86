@@ -167,6 +167,7 @@ u64 Model::z__port_in8(u64 port) {
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
   if (ata.handles(p))        return ata.read(p);
+  if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
   if (vga.handles(p))        return vga.read(p);
@@ -215,6 +216,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
   else if (ata.handles(p))        ata.write(p, v);
+  else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
   else if (p == 0xCF8 || p == 0xCF9 || p == 0xCFA || p == 0xCFB) {
@@ -237,6 +239,8 @@ unit Model::z__port_out16(u64 port, u64 val) {
   u16 p = (u16)port;
   // ATA data port must be written as an atomic 16-bit word
   if (p == 0x1F0) { ata.write16(p, (u16)val); return UNIT; }
+  // fw_cfg selector is a 16-bit register
+  if (p == 0x510) { fw_cfg.write(p, (u16)val); return UNIT; }
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   return UNIT;

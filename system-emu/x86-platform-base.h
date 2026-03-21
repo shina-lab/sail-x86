@@ -85,6 +85,7 @@ public:
   CMOS cmos;
   VGAText vga;
   ATAController ata;
+  FwCfg fw_cfg;
   PCIConfigSpace pci;
 
   // Simulated TSC: incremented each instruction step.

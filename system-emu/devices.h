@@ -843,6 +843,90 @@ private:
 };
 
 // =========================================================================
+// QEMU fw_cfg Device — Firmware Configuration Interface
+//
+// Provides configuration data to SeaBIOS via ports 0x510 (selector) and
+// 0x511 (data).  SeaBIOS reads the signature, ID, E820 table, and file
+// directory to detect QEMU and discover guest RAM layout.
+// =========================================================================
+
+class FwCfg {
+public:
+  void set_ram_size(u64 bytes) {
+    ram_size = bytes;
+    // Build E820 table: one RAM entry (addr=0, size=ram_size, type=1)
+    // Entry format: u64 addr, u64 size, u32 type = 20 bytes
+    memset(e820_buf, 0, sizeof(e820_buf));
+    u64 addr = 0;
+    u64 size = ram_size;
+    u32 type = 1;  // RAM
+    memcpy(e820_buf + 0, &addr, 8);
+    memcpy(e820_buf + 8, &size, 8);
+    memcpy(e820_buf + 16, &type, 4);
+    e820_len = 20;
+  }
+
+  // Port 0x510 write: set selector, reset data offset
+  void write(u16 port, u16 val) {
+    if (port == 0x510) {
+      selector = val;
+      offset = 0;
+    }
+  }
+
+  // Port 0x511 read: return next byte from selected entry
+  u8 read(u16 port) {
+    if (port != 0x511) return 0xFF;
+
+    const u8 *data = nullptr;
+    u32 len = 0;
+
+    switch (selector) {
+    case 0x00:  // QEMU_CFG_SIGNATURE: "QEMU"
+      data = reinterpret_cast<const u8 *>("QEMU");
+      len = 4;
+      break;
+    case 0x01:  // QEMU_CFG_ID: traditional interface
+      data = id_buf;
+      len = 4;
+      break;
+    case 0x19:  // QEMU_CFG_E820_TABLE
+      data = e820_buf;
+      len = e820_len;
+      break;
+    case 0x20:  // QEMU_CFG_FILE_DIR: empty file directory
+      data = filedir_buf;
+      len = 4;
+      break;
+    default:
+      return 0x00;
+    }
+
+    if (offset < len)
+      return data[offset++];
+    return 0x00;
+  }
+
+  bool handles_read(u16 port) const { return port == 0x511; }
+  bool handles_write(u16 port) const { return port == 0x510; }
+
+private:
+  u16 selector = 0;
+  u32 offset = 0;
+  u64 ram_size = 0;
+
+  // QEMU_CFG_ID = 0x00000001 (little-endian)
+  u8 id_buf[4] = { 0x01, 0x00, 0x00, 0x00 };
+
+  // E820 table buffer (one entry = 20 bytes max)
+  u8 e820_buf[20] = {};
+  u32 e820_len = 0;
+
+  // File directory: u32 count = 0 (no files)
+  u8 filedir_buf[4] = { 0, 0, 0, 0 };
+};
+
+// =========================================================================
 // ATA/IDE PIO Disk Controller — Primary channel (0x1F0-0x1F7, 0x3F6)
 //
 // Supports PIO-mode READ SECTORS, WRITE SECTORS, IDENTIFY DEVICE,

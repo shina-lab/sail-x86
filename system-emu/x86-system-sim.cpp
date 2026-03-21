@@ -710,6 +710,8 @@ int main(int argc, char *argv[]) {
     init_cpu_state_bios(model);
     model.phys_mem.load_rom(rom, rom_size);
     free(rom);
+    // Populate fw_cfg E820 table so SeaBIOS can discover RAM size
+    model.fw_cfg.set_ram_size(ram_size);
     fprintf(stderr, "sail-x86-system: BIOS=%s (%zu bytes), RAM=%luMB\n",
             bios_path, rom_size, ram_mb);
     fprintf(stderr, "sail-x86-system: reset vector CS:IP=%04x:%04lx (linear 0x%lx)\n",
@@ -812,6 +814,21 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
+    // Debug: trace when RSP transitions from 0x6e78 to 0x6e7c (POP EBP in call16_helper)
+    {
+      static u64 prev_rsp = 0;
+      u64 rsp = model.zGPR.data[4];
+      if (rsp >= 0x6e7c && rsp <= 0x6e80 && prev_rsp < 0x6e7c && model.zcur_mode == x86::zRealMode && insn_count > 164700) {
+        static int ret_trace = 0;
+        if (ret_trace++ < 3) {
+          u32 retaddr;
+          memcpy(&retaddr, model.phys_mem.ram_ptr() + 0x6e7c, 4);
+          fprintf(stderr, "[RET] RSP 0x6e78→0x6e7c RIP=0x%lx stack[6e7c]=0x%08x\n",
+                  (u64)model.zRIP, retaddr);
+        }
+      }
+      prev_rsp = rsp;
+    }
     // Debug: trace last 4 CS:IP values when we hit f000:fea5
     {
       static u64 prev_rip[4] = {};
