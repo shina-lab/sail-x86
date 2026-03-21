@@ -774,6 +774,19 @@ public:
     // PAM registers (0x59-0x5F): default all-open (R/W to DRAM)
     for (int i = 0x59; i <= 0x5F; i++)
       dev0[i] = 0x33;  // R/W enabled for all regions
+
+    // Device 0:1.0 — PIIX3 IDE Controller (ISA-compatible mode)
+    // SeaBIOS scans PCI for CLASS_STORAGE_IDE devices. This makes it
+    // find our ISA ATA controller at the standard ports 0x1F0/0x3F6.
+    memset(dev1, 0, sizeof(dev1));
+    dev1[0x00] = 0x86; dev1[0x01] = 0x80;  // Vendor: Intel (0x8086)
+    dev1[0x02] = 0x10; dev1[0x03] = 0x70;  // Device: PIIX3 IDE (0x7010)
+    dev1[0x04] = 0x01;                      // Command: I/O space enabled
+    dev1[0x08] = 0x00;                      // Revision
+    dev1[0x09] = 0x80;                      // Prog IF: ISA-compat (legacy ports)
+    dev1[0x0A] = 0x01;                      // Subclass: IDE
+    dev1[0x0B] = 0x01;                      // Class: mass storage
+    dev1[0x0E] = 0x00;                      // Header type 0
   }
 
   void write_addr(u32 val) { addr = val; }
@@ -785,10 +798,11 @@ public:
     int dev = (addr >> 11) & 0x1F;
     int func = (addr >> 8) & 0x07;
     int reg = addr & 0xFC;
-    if (bus != 0 || func != 0) return 0xFFFFFFFF;
-    if (dev == 0 && reg < 256) {
+    if (bus != 0) return 0xFFFFFFFF;
+    const u8 *cfg = get_config(dev, func);
+    if (cfg && reg < 256) {
       u32 val;
-      memcpy(&val, &dev0[reg], 4);
+      memcpy(&val, &cfg[reg], 4);
       return val;
     }
     return 0xFFFFFFFF;  // No device present
@@ -800,18 +814,32 @@ public:
     int dev = (addr >> 11) & 0x1F;
     int func = (addr >> 8) & 0x07;
     int reg = addr & 0xFC;
-    if (bus != 0 || dev != 0 || func != 0) return;
-    // Allow writes to writable registers
-    if (reg >= 0x59 && reg < 0x60) {
-      // PAM registers — accept writes (no-op, our RAM is always writable)
+    if (bus != 0) return;
+    u8 *cfg = get_config_mut(dev, func);
+    if (!cfg) return;
+    // Allow writes to specific registers
+    if (cfg == dev0 && reg >= 0x59 && reg < 0x60) {
+      // PAM registers on host bridge
       memcpy(&dev0[reg], &val, 4);
     }
-    // Ignore writes to other registers
+    // Absorb other writes silently
   }
 
 private:
+  const u8 *get_config(int dev, int func) const {
+    if (dev == 0 && func == 0) return dev0;
+    if (dev == 1 && func == 0) return dev1;
+    return nullptr;
+  }
+  u8 *get_config_mut(int dev, int func) {
+    if (dev == 0 && func == 0) return dev0;
+    if (dev == 1 && func == 0) return dev1;
+    return nullptr;
+  }
+
   u32 addr = 0;
-  u8 dev0[256];
+  u8 dev0[256];  // 0:0.0 — i440FX host bridge
+  u8 dev1[256];  // 0:1.0 — PIIX3 IDE controller
 };
 
 // =========================================================================
