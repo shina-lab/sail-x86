@@ -18,4 +18,7 @@ public:
   u64 brk_base = 0;
   u64 brk_current = 0;
   u64 brk_limit = 0;  // end of pre-allocated brk region
+
+  // Simulated TSC (unused in user mode — host RDTSC is used instead).
+  u64 tsc = 0;
 };
