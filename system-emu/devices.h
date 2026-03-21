@@ -787,6 +787,23 @@ public:
     dev1[0x0A] = 0x01;                      // Subclass: IDE
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
+
+    // Device 0:1.3 — PIIX4 ACPI/Power Management (for SMM support)
+    // SeaBIOS's smm_setup() looks for PCI_DEVICE_ID_INTEL_82371AB_3
+    // (0x7113) to enable SMM via the APMC register.
+    memset(dev1f3, 0, sizeof(dev1f3));
+    dev1f3[0x00] = 0x86; dev1f3[0x01] = 0x80;  // Vendor: Intel (0x8086)
+    dev1f3[0x02] = 0x13; dev1f3[0x03] = 0x71;  // Device: PIIX4 ACPI (0x7113)
+    dev1f3[0x04] = 0x01;                        // Command: I/O space enabled
+    dev1f3[0x08] = 0x03;                        // Revision
+    dev1f3[0x0A] = 0x80;                        // Subclass: other
+    dev1f3[0x0B] = 0x06;                        // Class: bridge
+    dev1f3[0x0E] = 0x00;                        // Header type 0
+    // PIIX_DEVACTB at offset 0x58: APMC_EN bit not set initially
+    dev1f3[0x58] = 0x00; dev1f3[0x59] = 0x00;
+    dev1f3[0x5A] = 0x00; dev1f3[0x5B] = 0x00;
+    // PM I/O base at offset 0x40 (PMBA): we use 0xB000
+    dev1f3[0x40] = 0x01; dev1f3[0x41] = 0xB0;  // 0xB001 (bit 0 = I/O space)
   }
 
   void write_addr(u32 val) { addr = val; }
@@ -820,7 +837,13 @@ public:
     // Allow writes to specific registers
     if (cfg == dev0 && reg >= 0x59 && reg < 0x60) {
       // PAM registers on host bridge
-      memcpy(&dev0[reg], &val, 4);
+      memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev0 && reg == 0x70) {
+      // I440FX_SMRAM register (0x72) and neighboring regs
+      memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1f3) {
+      // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
+      memcpy(&cfg[reg], &val, 4);
     }
     // Absorb other writes silently
   }
@@ -829,17 +852,20 @@ private:
   const u8 *get_config(int dev, int func) const {
     if (dev == 0 && func == 0) return dev0;
     if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 3) return dev1f3;
     return nullptr;
   }
   u8 *get_config_mut(int dev, int func) {
     if (dev == 0 && func == 0) return dev0;
     if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 3) return dev1f3;
     return nullptr;
   }
 
   u32 addr = 0;
-  u8 dev0[256];  // 0:0.0 — i440FX host bridge
-  u8 dev1[256];  // 0:1.0 — PIIX3 IDE controller
+  u8 dev0[256];    // 0:0.0 — i440FX host bridge
+  u8 dev1[256];    // 0:1.0 — PIIX3 IDE controller
+  u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 };
 
 // =========================================================================

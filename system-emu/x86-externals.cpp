@@ -173,6 +173,8 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
   if (p == 0xB2)             return 0x00; // APM Control (write triggers SMI)
   if (p == 0xB3)             return apmc_status; // APM Status
+  // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
+  if (0xB000 <= p && p < 0xB040) return 0x00;
   if (vga.handles(p))        return vga.read(p);
   // DMA controller (0x00-0x0F, 0xC0-0xDF): return 0 so SeaBIOS
   // doesn't detect phantom DMA channels.
@@ -238,6 +240,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   } else if (p == 0xB3) {
     // APM Status: store value
     apmc_status = v;
+  } else if (0xB000 <= p && p < 0xB040) {
+    // PIIX4 ACPI PM I/O: absorb writes
   }
   // Port 0x402, DMA, POST code: silently absorb
   return UNIT;
