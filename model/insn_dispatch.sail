@@ -868,22 +868,15 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let old_al = read_gpr8l(RAX);
         let old_cf = CF;
-        CF = bitzero;
-        if (unsigned(old_al[3..0]) > 9) | (AF == bitone) then {
-          let new_al : byte = read_gpr8l(RAX) + 0x06;
-          write_gpr8l(RAX, new_al);
-          CF = old_cf | bool_to_bit(unsigned(old_al) + 6 > 255);
-          AF = bitone
-        } else {
-          AF = bitzero
-        };
-        if (unsigned(old_al) > 153) | (old_cf == bitone) then {
-          write_gpr8l(RAX, read_gpr8l(RAX) + 0x60);
-          CF = bitone
-        } else {
-          CF = bitzero
-        };
-        update_SF_ZF_PF(read_gpr8l(RAX))
+        let lo : bits(4) = old_al[3..0];
+        let cond1 : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let al1 : byte = old_al + (0x06 & sign_extend(cond1));
+        AF = cond1[0];
+        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8..8]) | old_cf;
+        let al_final : byte = al1 + (0x60 & sign_extend(cond2));
+        CF = cond2[0];
+        write_gpr8l(RAX, al_final);
+        update_SF_ZF_PF(al_final)
       },
 
       // 2F: DAS — Decimal Adjust AL After Subtraction (SDM Vol.2A)
@@ -892,50 +885,40 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let old_al = read_gpr8l(RAX);
         let old_cf = CF;
-        CF = bitzero;
-        if (unsigned(old_al[3..0]) > 9) | (AF == bitone) then {
-          write_gpr8l(RAX, read_gpr8l(RAX) - 0x06);
-          CF = old_cf | bool_to_bit(unsigned(old_al[3..0]) < 6);
-          AF = bitone
-        } else {
-          AF = bitzero
-        };
-        if (unsigned(old_al) > 153) | (old_cf == bitone) then {
-          write_gpr8l(RAX, read_gpr8l(RAX) - 0x60);
-          CF = bitone
-        };
-        update_SF_ZF_PF(read_gpr8l(RAX))
+        let lo : bits(4) = old_al[3..0];
+        let cond1 : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let al1 : byte = old_al - (0x06 & sign_extend(cond1));
+        let borrow1 : bits(5) = (0b0 @ lo) - (0b0 @ 0b0110);
+        AF = cond1[0];
+        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8..8]) | old_cf;
+        let al_final : byte = al1 - (0x60 & sign_extend(cond2));
+        CF = (cond2 | (cond1 & (old_cf | borrow1[4..4])))[0];
+        write_gpr8l(RAX, al_final);
+        update_SF_ZF_PF(al_final)
       },
 
       // 37: AAA — ASCII Adjust After Addition (SDM Vol.2A)
       // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
       55 => {
         if cur_mode == LongMode then raise_UD();
-        if (unsigned(read_gpr8l(RAX)[3..0]) > 9) | (AF == bitone) then {
-          write_gpr16(RAX, read_gpr16(RAX) + 0x0106);
-          AF = bitone;
-          CF = bitone
-        } else {
-          AF = bitzero;
-          CF = bitzero
-        };
-        write_gpr8l(RAX, read_gpr8l(RAX) & 0x0F)
+        let lo : bits(4) = read_gpr8l(RAX)[3..0];
+        let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let new_ax : word = read_gpr16(RAX) + (0x0106 & sign_extend(cond));
+        write_gpr16(RAX, new_ax);
+        AF = cond[0]; CF = cond[0];
+        write_gpr8l(RAX, new_ax[7..0] & 0x0F)
       },
 
       // 3F: AAS — ASCII Adjust AL After Subtraction (SDM Vol.2A)
       // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
       63 => {
         if cur_mode == LongMode then raise_UD();
-        if (unsigned(read_gpr8l(RAX)[3..0]) > 9) | (AF == bitone) then {
-          write_gpr16(RAX, read_gpr16(RAX) - 0x0006);
-          write_gpr8h(RAX, read_gpr8h(RAX) - 0x01);
-          AF = bitone;
-          CF = bitone
-        } else {
-          AF = bitzero;
-          CF = bitzero
-        };
-        write_gpr8l(RAX, read_gpr8l(RAX) & 0x0F)
+        let lo : bits(4) = read_gpr8l(RAX)[3..0];
+        let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let new_ax : word = read_gpr16(RAX) - (0x0106 & sign_extend(cond));
+        write_gpr16(RAX, new_ax);
+        AF = cond[0]; CF = cond[0];
+        write_gpr8l(RAX, new_ax[7..0] & 0x0F)
       },
 
       // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
