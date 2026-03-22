@@ -262,16 +262,7 @@ function read_rm_val(rm, os, has_rex) = match rm {
     32 => zero_extend(read_gpr32(idx)),
     64 => read_gpr64(idx),
   },
-  RM_mem(seg, offset) => {
-    let sz = os / 8;
-    let a = seg_linear(seg, offset, sz);
-    match os {
-      8  => zero_extend(mem_read8(a)),
-      16 => zero_extend(mem_read16(a)),
-      32 => zero_extend(mem_read32(a)),
-      64 => mem_read64(a),
-    }
-  },
+  RM_mem(seg, offset) => seg_read(os, seg, offset),
 }
 
 val write_rm_val : (RM, operand_size, bool, qword) -> unit
@@ -282,16 +273,7 @@ function write_rm_val(rm, os, has_rex, v) = match rm {
     32 => write_gpr32(idx, v[31..0]),
     64 => write_gpr64(idx, v),
   },
-  RM_mem(seg, offset) => {
-    let sz = os / 8;
-    let a = seg_linear(seg, offset, sz);
-    match os {
-      8  => mem_write8(a, v[7..0]),
-      16 => mem_write16(a, v[15..0]),
-      32 => mem_write32(a, v[31..0]),
-      64 => mem_write64(a, v),
-    }
-  },
+  RM_mem(seg, offset) => seg_write(os, seg, offset, v),
 }
 
 // =========================================================================

@@ -1450,12 +1450,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       match rm {
         RM_mem(seg, ea) => {
-          let far_offset : qword = match os {
-            8  => zero_extend(seg_read8(seg, ea)),
-            16 => zero_extend(seg_read16(seg, ea)),
-            32 => zero_extend(seg_read32(seg, ea)),
-            64 => seg_read64(seg, ea),
-          };
+          let far_offset : qword = seg_read(os, seg, ea);
           let selector : word = seg_read16(seg, ea + to_bits_truncate(os / 8));
           write_gpr(os, reg, far_offset);
           let seg : segreg_idx = match op {

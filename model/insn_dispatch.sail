@@ -1426,14 +1426,7 @@ function decode_execute() = {
             };
             let rm = decode_rm(modrm, pfx);
             match rm {
-              RM_mem(seg, offset) => {
-                match os {
-                  64 => seg_write64(seg, offset, v),
-                  32 => seg_write32(seg, offset, v[31..0]),
-                  16 => seg_write16(seg, offset, v[15..0]),
-                  _ => (),
-                }
-              },
+              RM_mem(seg, offset) => seg_write(os, seg, offset, v),
               _ => raise_UD(),
             }
           }
