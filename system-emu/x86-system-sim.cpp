@@ -838,7 +838,7 @@ int main(int argc, char *argv[]) {
         update_status_line("%luM insns  RIP=%016lx",
                            insn_count / 1000000, (u64)model.zRIP);
       else
-        update_status_line("%luM insns  RIP=%04x:%04lx",
+        update_status_line("%luM insns  RIP=%04x:%08lx",
                            insn_count / 1000000,
                            (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     }
@@ -853,7 +853,7 @@ int main(int argc, char *argv[]) {
                 (u64)model.zGPR.data[4], mode_str,
                 (u64)model.zCR0);
       else
-        fprintf(stderr, "[%lu] %04x:%04lx RSP=0x%lx mode=%s CR0=0x%lx\n",
+        fprintf(stderr, "[%lu] %04x:%08lx RSP=0x%lx mode=%s CR0=0x%lx\n",
                 insn_count, (u16)model.zSegReg.data[x86::SEG_CS],
                 (u64)model.zRIP,
                 (u64)model.zGPR.data[4], mode_str,
@@ -864,12 +864,6 @@ int main(int argc, char *argv[]) {
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
 
-
-    // Trace INT 12h entry and return to see memory size
-    {
-      u16 cs = model.zSegReg.data[x86::SEG_CS];
-      u64 rip = model.zRIP;
-    }
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.
