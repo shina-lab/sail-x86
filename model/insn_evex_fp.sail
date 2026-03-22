@@ -931,7 +931,7 @@ function dispatch_evex_fp(op, pfx) = {
           },
           RM_mem(seg, offset) => {
             let a = seg_linear(seg, offset, 64);
-            let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 }};
+            let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
             evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, 4)
           },
         }
@@ -951,7 +951,7 @@ function dispatch_evex_fp(op, pfx) = {
           },
           RM_mem(seg, offset) => {
             let a = seg_linear(seg, offset, 64);
-            let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 }};
+            let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
             evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, 8)
           },
         }
@@ -1304,7 +1304,7 @@ function dispatch_evex_fp(op, pfx) = {
       RM_mem(seg, offset) => {
         let a = seg_linear(seg, offset, 64);
         let elem : {4, 8} = if mp == MP_66 then 8 else 4;
-        let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 }};
+        let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
         evex_masked_mem_store(a, read_zmm(src), evex_kmask64(pfx), nbytes, elem)
       },
     }

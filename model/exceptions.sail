@@ -16,30 +16,44 @@ register fault_pending : bool
 register fault_vector : exception_vector
 register fault_error_code : dword
 
-// Raise a fault with an error code.
-val raise_fault : (exception_vector, dword) -> unit
-function raise_fault(vec, err) = throw Fault(vec, err)
-
 // Raise #GP(0) — the most common fault.
-val raise_GP0 : unit -> unit
-function raise_GP0() = throw Fault(EXN_GP, 0x00000000)
+val raise_GP0 : forall ('a : Type). unit -> 'a
+function raise_GP0() = {
+  throw Fault(EXN_GP, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}
 
 // Raise #GP with a selector error code.
-val raise_GP : dword -> unit
-function raise_GP(sel) = throw Fault(EXN_GP, sel)
+val raise_GP : forall ('a : Type). dword -> 'a
+function raise_GP(sel) = {
+  throw Fault(EXN_GP, sel);
+  exit()  // never reached; satisfies type checker
+}
 
 // Raise #UD — invalid opcode.
-val raise_UD : unit -> unit
-function raise_UD() = throw Fault(EXN_UD, 0x00000000)
+val raise_UD : forall ('a : Type). unit -> 'a
+function raise_UD() = {
+  throw Fault(EXN_UD, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}
 
 // Raise #SS(0) — stack segment fault.
-val raise_SS0 : unit -> unit
-function raise_SS0() = throw Fault(EXN_SS, 0x00000000)
+val raise_SS0 : forall ('a : Type). unit -> 'a
+function raise_SS0() = {
+  throw Fault(EXN_SS, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}
 
 // Raise #DE — divide error.
-val raise_DE : unit -> unit
-function raise_DE() = throw Fault(EXN_DE, 0x00000000)
+val raise_DE : forall ('a : Type). unit -> 'a
+function raise_DE() = {
+  throw Fault(EXN_DE, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}
 
 // Raise #BR — BOUND range exceeded.
-val raise_BR : unit -> unit
-function raise_BR() = throw Fault(EXN_BR, 0x00000000)
+val raise_BR : forall ('a : Type). unit -> 'a
+function raise_BR() = {
+  throw Fault(EXN_BR, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}

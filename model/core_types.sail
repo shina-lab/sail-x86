@@ -4,7 +4,6 @@ val unreachable : forall ('a : Type). unit -> 'a
 function unreachable() = {
   assert(false, "unreachable");
   exit()  // never reached; satisfies type checker
-
 }
 
 // Operand sizes used in x86 instructions.

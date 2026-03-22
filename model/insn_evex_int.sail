@@ -1517,7 +1517,7 @@ function dispatch_evex_int(op, pfx) = {
         let elem_size : {1, 2, 4, 8} =
           if pfx.has_repne then (if pfx.rex_w then 2 else 1)
           else (if pfx.rex_w then 8 else 4);
-        let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 }};
+        let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
         evex_masked_mem_store(a, read_zmm(src), mask, nbytes, elem_size)
       },
     }

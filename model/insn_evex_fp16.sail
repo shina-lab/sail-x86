@@ -514,7 +514,7 @@ function evex_full_disp_n_fp16(pfx) =
     0 => 16,
     1 => 32,
     2 => 64,
-    3 => { raise_UD(); 16 },
+    3 => raise_UD(),
   }
 
 val dispatch_evex_map5 : (byte, Prefixes) -> unit
@@ -847,8 +847,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_NONE => {
           // VCVTPH2PD: packed FP16 to FP64
           let disp_n : range(2, 16) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 4, 1 => 8, 2 => 16,
-            3 => { raise_UD(); 4 },
+            0 => 4, 1 => 8, 2 => 16, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1010,8 +1009,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTPH2DQ: packed FP16 to int32 (rounding)
           let disp_n : range(2, 32) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 8, 1 => 16, 2 => 32,
-            3 => { raise_UD(); 8 },
+            0 => 8, 1 => 16, 2 => 32, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1056,8 +1054,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F3 => {
           // VCVTTPH2DQ: packed FP16 to int32 (truncation)
           let disp_n : range(2, 32) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 8, 1 => 16, 2 => 32,
-            3 => { raise_UD(); 8 },
+            0 => 8, 1 => 16, 2 => 32, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1262,8 +1259,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_NONE => {
           // VCVTTPH2UDQ: packed FP16 to uint32 (truncation)
           let disp_n : range(2, 32) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 8, 1 => 16, 2 => 32,
-            3 => { raise_UD(); 8 },
+            0 => 8, 1 => 16, 2 => 32, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1306,8 +1302,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTTPH2UQQ: packed FP16 to uint64 (truncation)
           let disp_n : range(2, 16) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 4, 1 => 8, 2 => 16,
-            3 => { raise_UD(); 4 },
+            0 => 4, 1 => 8, 2 => 16, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1368,8 +1363,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_NONE => {
           // VCVTPH2UDQ: packed FP16 to uint32 (rounding)
           let disp_n : range(2, 32) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 8, 1 => 16, 2 => 32,
-            3 => { raise_UD(); 8 },
+            0 => 8, 1 => 16, 2 => 32, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1414,8 +1408,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTPH2UQQ: packed FP16 to uint64 (rounding)
           let disp_n : range(2, 16) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 4, 1 => 8, 2 => 16,
-            3 => { raise_UD(); 4 },
+            0 => 4, 1 => 8, 2 => 16, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1478,8 +1471,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTTPH2QQ: packed FP16 to int64 (truncation)
           let disp_n : range(2, 16) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 4, 1 => 8, 2 => 16,
-            3 => { raise_UD(); 4 },
+            0 => 4, 1 => 8, 2 => 16, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -1589,8 +1581,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTPH2QQ: packed FP16 to int64 (rounding)
           let disp_n : range(2, 16) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 4, 1 => 8, 2 => 16,
-            3 => { raise_UD(); 4 },
+            0 => 4, 1 => 8, 2 => 16, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -2001,8 +1992,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_66 => {
           // VCVTPS2PHX: packed FP32 to FP16 (EVEX.66.MAP5.W0)
           let disp_n : range(4, 64) = if pfx.evex_b then 4 else match pfx.evex_ll {
-            0 => 16, 1 => 32, 2 => 64,
-            3 => { raise_UD(); 16 },
+            0 => 16, 1 => 32, 2 => 64, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
@@ -2584,8 +2574,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         MP_66 => {
           // VCVTPH2PSX: packed FP16 to FP32
           let disp_n : range(2, 32) = if pfx.evex_b then 2 else match pfx.evex_ll {
-            0 => 8, 1 => 16, 2 => 32,
-            3 => { raise_UD(); 8 },
+            0 => 8, 1 => 16, 2 => 32, 3 => raise_UD(),
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
