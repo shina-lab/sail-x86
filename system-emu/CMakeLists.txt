@@ -30,24 +30,13 @@ set_source_files_properties(
 
 add_dependencies(x86_system_model generated_sail_x86_model)
 
-# VGA BIOS option ROM (16-bit x86 assembly → raw binary).
-add_custom_command(
-    OUTPUT "${CMAKE_BINARY_DIR}/vgabios.bin"
-    COMMAND ${CMAKE_C_COMPILER} -c -m32 -o "${CMAKE_BINARY_DIR}/vgabios.o"
-        "${CMAKE_CURRENT_SOURCE_DIR}/vgabios.S"
-    COMMAND ld -m elf_i386 -Ttext=0 --oformat=binary
-        -o "${CMAKE_BINARY_DIR}/vgabios.bin" "${CMAKE_BINARY_DIR}/vgabios.o"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vgabios.S"
-    COMMENT "Assembling VGA BIOS option ROM"
-)
-add_custom_target(vgabios DEPENDS "${CMAKE_BINARY_DIR}/vgabios.bin")
-
 # System emulator binary.
-find_package(Curses REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(NCURSESW REQUIRED ncursesw)
 add_executable(sail-x86-system x86-system-sim.cpp)
-target_include_directories(sail-x86-system PRIVATE ${CURSES_INCLUDE_DIRS})
-target_link_libraries(sail-x86-system PRIVATE x86_system_model ${CURSES_LIBRARIES})
-add_dependencies(sail-x86-system generated_sail_x86_model vgabios)
+target_include_directories(sail-x86-system PRIVATE ${NCURSESW_INCLUDE_DIRS})
+target_link_libraries(sail-x86-system PRIVATE x86_system_model ${NCURSESW_LIBRARIES})
+add_dependencies(sail-x86-system generated_sail_x86_model)
 
 # =========================================================================
 # "make linux" — download + build kernel, build initramfs, print boot command.

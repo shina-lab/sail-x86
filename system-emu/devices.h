@@ -889,9 +889,12 @@ public:
     } else if (cfg == dev2 && reg == 0x30) {
       // VGA ROM BAR: handle sizing and address writes.
       // When software writes 0xFFFFFFFF, return size mask.
-      // ROM is 2KB (0x800), so mask = ~(0x800-1) | 1 = 0xFFFFF801
+      // Round ROM size up to power of 2 for PCI BAR alignment.
       if (val == 0xFFFFFFFF || val == 0xFFFFFFFE) {
-        u32 mask = ~(u32)(0x800 - 1) | 1;  // 2KB ROM, bit 0 = enable
+        u32 rom_sz = vga_rom_size ? vga_rom_size : 0x800;
+        u32 aligned = 1;
+        while (aligned < rom_sz) aligned <<= 1;
+        u32 mask = ~(aligned - 1) | 1;  // bit 0 = enable
         memcpy(&cfg[reg], &mask, 4);
       } else {
         memcpy(&cfg[reg], &val, 4);
@@ -929,6 +932,7 @@ private:
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
   u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
+  u32 vga_rom_size = 0;               // Actual VGA ROM size (for BAR sizing)
 };
 
 // =========================================================================

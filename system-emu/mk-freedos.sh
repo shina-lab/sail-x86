@@ -90,12 +90,17 @@ CONFIG_ENTRY_EXTRASTACK=y
 CONFIG_PS2PORT=y
 CONFIG_CALL32_SMM=y
 CONFIG_THREADS=n
+CONFIG_VGA_STANDARD_VGA=y
+CONFIG_VGA_VBE=n
+CONFIG_VGA_PCI=n
 EOF
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
   make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3
   cp "$SEABIOS_SRC/out/bios.bin" "$BIOS_BIN"
+  cp "$SEABIOS_SRC/out/vgabios.bin" "$BUILD_DIR/vgabios.bin"
   echo "SeaBIOS built: $BIOS_BIN ($(stat -c%s "$BIOS_BIN") bytes)"
+  echo "SeaVGABIOS built: $BUILD_DIR/vgabios.bin ($(stat -c%s "$BUILD_DIR/vgabios.bin") bytes)"
 else
   echo "=== SeaBIOS already built: $BIOS_BIN ==="
 fi

@@ -13,6 +13,8 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <csignal>
+#include <locale.h>
+#include <wchar.h>
 #include <curses.h>
 #include <term.h>
 
@@ -491,6 +493,47 @@ static void push_key(KeyboardController &kbd, int ch) {
 static constexpr int VGA_COLS = 80;
 static constexpr int VGA_ROWS = 50;
 
+// CP437 to Unicode mapping table.  The VGA text framebuffer stores CP437
+// character codes; the terminal expects Unicode.  Characters 0x20-0x7E are
+// identical to ASCII.  Everything else needs translation.
+static const wchar_t cp437_to_unicode[256] = {
+  // 0x00-0x1F: control-code region, but in CP437 these are graphical glyphs
+  L' ',      0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
+  0x25D8, 0x25CB, 0x25D9, 0x2642, 0x2640, 0x266A, 0x266B, 0x263C,
+  0x25BA, 0x25C4, 0x2195, 0x203C, 0x00B6, 0x00A7, 0x25AC, 0x21A8,
+  0x2191, 0x2193, 0x2192, 0x2190, 0x221F, 0x2194, 0x25B2, 0x25BC,
+  // 0x20-0x7E: standard ASCII (identity mapping)
+  L' ', L'!', L'"', L'#', L'$', L'%', L'&', L'\'',
+  L'(', L')', L'*', L'+', L',', L'-', L'.', L'/',
+  L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
+  L'8', L'9', L':', L';', L'<', L'=', L'>', L'?',
+  L'@', L'A', L'B', L'C', L'D', L'E', L'F', L'G',
+  L'H', L'I', L'J', L'K', L'L', L'M', L'N', L'O',
+  L'P', L'Q', L'R', L'S', L'T', L'U', L'V', L'W',
+  L'X', L'Y', L'Z', L'[', L'\\', L']', L'^', L'_',
+  L'`', L'a', L'b', L'c', L'd', L'e', L'f', L'g',
+  L'h', L'i', L'j', L'k', L'l', L'm', L'n', L'o',
+  L'p', L'q', L'r', L's', L't', L'u', L'v', L'w',
+  L'x', L'y', L'z', L'{', L'|', L'}', L'~', 0x2302,
+  // 0x80-0xFF: extended characters
+  0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7,
+  0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, 0x00C4, 0x00C5,
+  0x00C9, 0x00E6, 0x00C6, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9,
+  0x00FF, 0x00D6, 0x00DC, 0x00A2, 0x00A3, 0x00A5, 0x20A7, 0x0192,
+  0x00E1, 0x00ED, 0x00F3, 0x00FA, 0x00F1, 0x00D1, 0x00AA, 0x00BA,
+  0x00BF, 0x2310, 0x00AC, 0x00BD, 0x00BC, 0x00A1, 0x00AB, 0x00BB,
+  0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556,
+  0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510,
+  0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F,
+  0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
+  0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B,
+  0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580,
+  0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4,
+  0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229,
+  0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248,
+  0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0,
+};
+
 // Map VGA color index (BIOS order) → curses color constant.
 // VGA: 0=black 1=blue 2=green 3=cyan 4=red 5=magenta 6=brown 7=lgray
 static const short vga_to_curses_color[8] = {
@@ -517,6 +560,7 @@ static void curses_cleanup() {
 }
 
 static void init_curses() {
+  setlocale(LC_ALL, "");
   initscr();
   curses_active = true;
   atexit(curses_cleanup);
@@ -577,13 +621,21 @@ static bool vga_shadow_valid = false;
 static void render_vga_text(x86::Model &model) {
   static constexpr u64 FB_BASE = 0xB8000;
 
+  // Determine actual row count from CRTC max scan line register.
+  // Character height = (max_scan_line & 0x1F) + 1.  VGA has 400 scan lines
+  // in text mode, so rows = 400 / char_height.
+  int char_height = (model.vga.crtc_regs[0x09] & 0x1F) + 1;
+  int vga_rows = (char_height > 0) ? 400 / char_height : 25;
+  if (vga_rows < 1) vga_rows = 25;
+  if (vga_rows > VGA_ROWS) vga_rows = VGA_ROWS;
+
   // Get hardware scroll offset from CRTC start address registers
   u16 start_off = model.vga.start_addr();
 
   // Read visible framebuffer from physical memory, handling wrap-around
   u8 current[VGA_COLS * VGA_ROWS * 2];
   u32 byte_off = (u32)start_off * 2;
-  u32 fb_size = VGA_COLS * VGA_ROWS * 2;
+  u32 fb_size = VGA_COLS * vga_rows * 2;
 
   if (byte_off + fb_size <= 0x8000) {
     model.phys_mem.read_bytes(FB_BASE + byte_off, current, fb_size);
@@ -598,11 +650,11 @@ static void render_vga_text(x86::Model &model) {
   // Skip if nothing changed
   if (vga_shadow_valid &&
       cursor == vga_shadow_cursor &&
-      memcmp(current, vga_shadow, sizeof(current)) == 0)
+      memcmp(current, vga_shadow, fb_size) == 0)
     return;
 
   // Clip to terminal size, leaving one row for status line
-  int max_row = std::min(VGA_ROWS, LINES - 1);
+  int max_row = std::min(vga_rows, LINES - 1);
   int max_col = std::min(VGA_COLS, COLS);
 
   for (int row = 0; row < max_row; row++) {
@@ -614,14 +666,15 @@ static void render_vga_text(x86::Model &model) {
       bool bright = attr & 0x08;  // bright/bold bit
       int bg = (attr >> 4) & 0x07;
 
-      // Replace non-printable characters with space
-      if (ch < 0x20 || ch == 0x7F) ch = ' ';
-
+      wchar_t wch = cp437_to_unicode[ch];
       int pair = vga_color_pair(fg, bg);
       attr_t a = COLOR_PAIR(pair);
       if (bright) a |= A_BOLD;
 
-      mvaddch(row, col, ch | a);
+      cchar_t cc;
+      wchar_t wstr[2] = { wch, L'\0' };
+      setcchar(&cc, wstr, a, (short)pair, nullptr);
+      mvadd_wch(row, col, &cc);
     }
   }
 
@@ -633,7 +686,7 @@ static void render_vga_text(x86::Model &model) {
 
   refresh();
 
-  memcpy(vga_shadow, current, sizeof(current));
+  memcpy(vga_shadow, current, fb_size);
   vga_shadow_cursor = cursor;
   vga_shadow_valid = true;
 }
@@ -749,6 +802,7 @@ int main(int argc, char *argv[]) {
         // PCI ROM BAR for legacy access.
         model.fw_cfg.set_vga_rom(vga, vga_size);
         model.phys_mem.load_vga_rom(vga, vga_size, 0xFEB00000ULL);
+        model.pci.vga_rom_size = (u32)vga_size;
         fprintf(stderr, "sail-x86-system: VGA BIOS loaded (%zu bytes, checksum OK)\n", vga_size);
         free(vga);
       }
