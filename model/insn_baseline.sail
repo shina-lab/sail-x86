@@ -22,12 +22,7 @@ function exec_xadd(dst, src, os) = {
   let a : qword = read_gpr(os, dst);
   let b : qword = read_gpr(os, src);
   let sum : qword = a + b;
-  match os {
-    8  => update_flags_add(sum[7..0], a[7..0], b[7..0]),
-    16 => update_flags_add(sum[15..0], a[15..0], b[15..0]),
-    32 => update_flags_add(sum[31..0], a[31..0], b[31..0]),
-    64 => update_flags_add(sum, a, b),
-  };
+  update_flags_add(sum[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0]);
   write_gpr(os, src, a);
   write_gpr(os, dst, sum)
 }
@@ -1440,12 +1435,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let a = read_gpr(os, reg);
       let b = read_rm_val(rm, os, pfx.has_rex);
-      let product : int = match os {
-        8  => signed(a[7..0]) * signed(b[7..0]),
-        16 => signed(a[15..0]) * signed(b[15..0]),
-        32 => signed(a[31..0]) * signed(b[31..0]),
-        64 => signed(a) * signed(b),
-      };
+      let product : int = signed(a[os - 1 .. 0]) * signed(b[os - 1 .. 0]);
       let result : qword = to_bits_truncate(product);
       CF = match os {
         8  => {
@@ -1543,12 +1533,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let acc = read_gpr(os, RAX);
       let src = read_gpr(os, reg);
       let cmp_result = acc - dest;
-      match os {
-        8  => update_flags_sub(cmp_result[7..0], acc[7..0], dest[7..0]),
-        16 => update_flags_sub(cmp_result[15..0], acc[15..0], dest[15..0]),
-        32 => update_flags_sub(cmp_result[31..0], acc[31..0], dest[31..0]),
-        64 => update_flags_sub(cmp_result, acc, dest),
-      };
+      update_flags_sub(cmp_result[os - 1 .. 0], acc[os - 1 .. 0], dest[os - 1 .. 0]);
       if ZF == 0b1 then {
         write_rm_val(rm, os, pfx.has_rex, src);
       } else {
@@ -1662,12 +1647,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let is_zero : bool = match os {
-          8  => src_val[7..0] == zeros(),
-          16 => src_val[15..0] == zeros(),
-          32 => src_val[31..0] == zeros(),
-          64 => src_val == zeros(),
-        };
+        let is_zero : bool = src_val[os - 1 .. 0] == zeros();
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1712,12 +1692,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           32 => (~(or_reduce_32(src_val[31..0])))[0],
           64 => (~(or_reduce_64(src_val)))[0],
         };
-        ZF = match os {
-          8  => src_val[7],
-          16 => src_val[15],
-          32 => src_val[31],
-          64 => src_val[63],
-        }
+        ZF = src_val[os - 1]
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
         // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
@@ -1725,12 +1700,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let is_zero : bool = match os {
-          8  => src_val[7..0] == zeros(),
-          16 => src_val[15..0] == zeros(),
-          32 => src_val[31..0] == zeros(),
-          64 => src_val == zeros(),
-        };
+        let is_zero : bool = src_val[os - 1 .. 0] == zeros();
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1804,12 +1774,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let mem_val = read_rm_val(rm, os, pfx.has_rex);
           let reg_val = read_gpr(os, reg);
           let sum = mem_val + reg_val;
-          match os {
-            8  => update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]),
-            16 => update_flags_add(sum[15..0], mem_val[15..0], reg_val[15..0]),
-            32 => update_flags_add(sum[31..0], mem_val[31..0], reg_val[31..0]),
-            64 => update_flags_add(sum, mem_val, reg_val),
-          };
+          update_flags_add(sum[os - 1 .. 0], mem_val[os - 1 .. 0], reg_val[os - 1 .. 0]);
           write_gpr(os, reg, mem_val);
           write_rm_val(rm, os, pfx.has_rex, sum)
         },

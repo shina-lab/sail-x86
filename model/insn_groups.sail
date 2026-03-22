@@ -6,12 +6,7 @@ val exec_inc : (qword, operand_size) -> qword
 function exec_inc(a, os) = {
   let one : qword = zero_extend(0b1 : bits(1));
   let result : qword = a + one;
-  match os {
-    8  => update_flags_add_no_cf(result[7..0], a[7..0], one[7..0]),
-    16 => update_flags_add_no_cf(result[15..0], a[15..0], one[15..0]),
-    32 => update_flags_add_no_cf(result[31..0], a[31..0], one[31..0]),
-    64 => update_flags_add_no_cf(result, a, one),
-  };
+  update_flags_add_no_cf(result[os - 1 .. 0], a[os - 1 .. 0], one[os - 1 .. 0]);
   result
 }
 
@@ -23,12 +18,7 @@ val exec_dec : (qword, operand_size) -> qword
 function exec_dec(a, os) = {
   let one : qword = zero_extend(0b1 : bits(1));
   let result : qword = a - one;
-  match os {
-    8  => update_flags_sub_no_cf(result[7..0], a[7..0], one[7..0]),
-    16 => update_flags_sub_no_cf(result[15..0], a[15..0], one[15..0]),
-    32 => update_flags_sub_no_cf(result[31..0], a[31..0], one[31..0]),
-    64 => update_flags_sub_no_cf(result, a, one),
-  };
+  update_flags_sub_no_cf(result[os - 1 .. 0], a[os - 1 .. 0], one[os - 1 .. 0]);
   result
 }
 
@@ -303,12 +293,7 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     let imm = fetch_imm_z(os);
     let v = read_rm_val(rm, os, pfx.has_rex);
     let result = v & imm;
-    match os {
-      8  => update_flags_logic(result[7..0]),
-      16 => update_flags_logic(result[15..0]),
-      32 => update_flags_logic(result[31..0]),
-      64 => update_flags_logic(result),
-    }
+    update_flags_logic(result[os - 1 .. 0])
   } else {
     let v = read_rm_val(rm, os, pfx.has_rex);
     match reg_field {
@@ -323,12 +308,7 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
       3 => {
         let zero : qword = zeros();
         let result = zero - v;
-        match os {
-          8  => update_flags_sub(result[7..0], zero[7..0], v[7..0]),
-          16 => update_flags_sub(result[15..0], zero[15..0], v[15..0]),
-          32 => update_flags_sub(result[31..0], zero[31..0], v[31..0]),
-          64 => update_flags_sub(result, zero, v),
-        };
+        update_flags_sub(result[os - 1 .. 0], zero[os - 1 .. 0], v[os - 1 .. 0]);
         write_rm_val(rm, os, pfx.has_rex, result)
       },
       4 => exec_mul(v, os),
@@ -591,12 +571,7 @@ function exec_sar(a, count_raw, os) = {
       32 => zero_extend(shift_right_arith(a[31..0], count)),
       64 => shift_right_arith(a, count),
     };
-    match os {
-      8  => update_SF_ZF_PF(result[7..0]),
-      16 => update_SF_ZF_PF(result[15..0]),
-      32 => update_SF_ZF_PF(result[31..0]),
-      64 => update_SF_ZF_PF(result),
-    };
+    update_SF_ZF_PF(result[os - 1 .. 0]);
     if count == 1 then OF = 0b0
     else OF = undefined;
     AF = undefined;
@@ -637,12 +612,9 @@ function exec_rol(a, count_raw, os) = {
       64 => (a << count) | (a >> (64 - count)),
     };
     CF = result[0];
-    if count == 1 then match os {
-      8  => OF = (result[7..7] ^ CF)[0],
-      16 => OF = (result[15..15] ^ CF)[0],
-      32 => OF = (result[31..31] ^ CF)[0],
-      64 => OF = (result[63..63] ^ CF)[0],
-    } else {
+    if count == 1 then
+      OF = (result[os - 1 .. os - 1] ^ CF)[0]
+    else {
       OF = undefined;
     };
     result
@@ -673,18 +645,10 @@ function exec_ror(a, count_raw, os) = {
       },
       64 => (a >> count) | (a << (64 - count)),
     };
-    match os {
-      8  => CF = result[7],
-      16 => CF = result[15],
-      32 => CF = result[31],
-      64 => CF = result[63],
-    };
-    if count == 1 then match os {
-      8  => OF = (result[7..7] ^ result[6..6])[0],
-      16 => OF = (result[15..15] ^ result[14..14])[0],
-      32 => OF = (result[31..31] ^ result[30..30])[0],
-      64 => OF = (result[63..63] ^ result[62..62])[0],
-    } else {
+    CF = result[os - 1];
+    if count == 1 then
+      OF = (result[os - 1 .. os - 1] ^ result[os - 2 .. os - 2])[0]
+    else {
       OF = undefined;
     };
     result

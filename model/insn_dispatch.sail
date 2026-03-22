@@ -1149,12 +1149,7 @@ function decode_execute() = {
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
         let src = read_rm_val(rm, os, pfx.has_rex);
-        let product : int = match os {
-          8  => signed(src[7..0]) * signed(imm[7..0]),
-          16 => signed(src[15..0]) * signed(imm[15..0]),
-          32 => signed(src[31..0]) * signed(imm[31..0]),
-          64 => signed(src) * signed(imm),
-        };
+        let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
           8  => {
@@ -1194,12 +1189,7 @@ function decode_execute() = {
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
         let src = read_rm_val(rm, os, pfx.has_rex);
-        let product : int = match os {
-          8  => signed(src[7..0]) * signed(imm[7..0]),
-          16 => signed(src[15..0]) * signed(imm[15..0]),
-          32 => signed(src[31..0]) * signed(imm[31..0]),
-          64 => signed(src) * signed(imm),
-        };
+        let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
           8  => {
@@ -1305,12 +1295,7 @@ function decode_execute() = {
         let a = read_rm_val(rm, os, pfx.has_rex);
         let b = read_gpr(os, reg);
         let result = a & b;
-        match os {
-          8  => update_flags_logic(result[7..0]),
-          16 => update_flags_logic(result[15..0]),
-          32 => update_flags_logic(result[31..0]),
-          64 => update_flags_logic(result),
-        }
+        update_flags_logic(result[os - 1 .. 0])
       },
 
       // 86: XCHG r/m8, r8
@@ -1678,12 +1663,7 @@ function decode_execute() = {
         let imm = fetch_imm_z(os);
         let a = read_gpr(os, RAX);
         let result = a & imm;
-        match os {
-          8  => update_flags_logic(result[7..0]),
-          16 => update_flags_logic(result[15..0]),
-          32 => update_flags_logic(result[31..0]),
-          64 => update_flags_logic(result),
-        }
+        update_flags_logic(result[os - 1 .. 0])
       },
 
       // AA: STOSB

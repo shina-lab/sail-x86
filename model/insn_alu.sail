@@ -11,86 +11,46 @@ function alu_compute(op, a, b, os) = {
   match op {
     ALU_ADD => {
       let result : qword = a + b;
-      match os {
-        8  => update_flags_add(result[7..0], a[7..0], b[7..0]),
-        16 => update_flags_add(result[15..0], a[15..0], b[15..0]),
-        32 => update_flags_add(result[31..0], a[31..0], b[31..0]),
-        64 => update_flags_add(result, a, b),
-      };
+      update_flags_add(result[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0]);
       (result, true)
     },
     ALU_OR => {
       let result : qword = a | b;
-      match os {
-        8  => update_flags_logic(result[7..0]),
-        16 => update_flags_logic(result[15..0]),
-        32 => update_flags_logic(result[31..0]),
-        64 => update_flags_logic(result),
-      };
+      update_flags_logic(result[os - 1 .. 0]);
       (result, true)
     },
     ALU_ADC => {
       let carry_in = CF;
       let c : qword = zero_extend(carry_in);
       let result : qword = a + b + c;
-      match os {
-        8  => update_flags_adc(result[7..0], a[7..0], b[7..0], carry_in),
-        16 => update_flags_adc(result[15..0], a[15..0], b[15..0], carry_in),
-        32 => update_flags_adc(result[31..0], a[31..0], b[31..0], carry_in),
-        64 => update_flags_adc(result, a, b, carry_in),
-      };
+      update_flags_adc(result[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0], carry_in);
       (result, true)
     },
     ALU_SBB => {
       let borrow_in = CF;
       let bw : qword = zero_extend(borrow_in);
       let result : qword = a - b - bw;
-      match os {
-        8  => update_flags_sbb(result[7..0], a[7..0], b[7..0], borrow_in),
-        16 => update_flags_sbb(result[15..0], a[15..0], b[15..0], borrow_in),
-        32 => update_flags_sbb(result[31..0], a[31..0], b[31..0], borrow_in),
-        64 => update_flags_sbb(result, a, b, borrow_in),
-      };
+      update_flags_sbb(result[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0], borrow_in);
       (result, true)
     },
     ALU_AND => {
       let result : qword = a & b;
-      match os {
-        8  => update_flags_logic(result[7..0]),
-        16 => update_flags_logic(result[15..0]),
-        32 => update_flags_logic(result[31..0]),
-        64 => update_flags_logic(result),
-      };
+      update_flags_logic(result[os - 1 .. 0]);
       (result, true)
     },
     ALU_SUB => {
       let result : qword = a - b;
-      match os {
-        8  => update_flags_sub(result[7..0], a[7..0], b[7..0]),
-        16 => update_flags_sub(result[15..0], a[15..0], b[15..0]),
-        32 => update_flags_sub(result[31..0], a[31..0], b[31..0]),
-        64 => update_flags_sub(result, a, b),
-      };
+      update_flags_sub(result[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0]);
       (result, true)
     },
     ALU_XOR => {
       let result : qword = a ^ b;
-      match os {
-        8  => update_flags_logic(result[7..0]),
-        16 => update_flags_logic(result[15..0]),
-        32 => update_flags_logic(result[31..0]),
-        64 => update_flags_logic(result),
-      };
+      update_flags_logic(result[os - 1 .. 0]);
       (result, true)
     },
     ALU_CMP => {
       let result : qword = a - b;
-      match os {
-        8  => update_flags_sub(result[7..0], a[7..0], b[7..0]),
-        16 => update_flags_sub(result[15..0], a[15..0], b[15..0]),
-        32 => update_flags_sub(result[31..0], a[31..0], b[31..0]),
-        64 => update_flags_sub(result, a, b),
-      };
+      update_flags_sub(result[os - 1 .. 0], a[os - 1 .. 0], b[os - 1 .. 0]);
       (result, false)  // CMP: don't write back
     },
   }
