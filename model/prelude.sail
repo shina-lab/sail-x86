@@ -15,7 +15,7 @@ $include <hex_bits_signed.sail>
 overload ~ = {not_bool, not_vec}
 overload operator & = {and_vec}
 overload operator | = {or_vec}
-overload operator ^ = {xor_vec, concat_str}
+overload operator ^ = {xor_vec}
 
 val sub_vec = pure {c: "sub_bits", cpp: "sub_bits", _: "sub_vec"} : forall 'n. (bits('n), bits('n)) -> bits('n)
 val sub_vec_int = pure {c: "sub_bits_int", cpp: "sub_bits_int", _: "sub_vec_int"} : forall 'n. (bits('n), int) -> bits('n)

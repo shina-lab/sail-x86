@@ -789,8 +789,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // 0F 57: XORPS/XORPD
         7 => {
           match mp {
-            MP_NONE => write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)),
-            MP_66 => write_xmm_legacy(xreg, xor_vec(read_xmm(xreg), src_xmm)),
+            MP_NONE => write_xmm_legacy(xreg, (read_xmm(xreg) ^ src_xmm)),
+            MP_66 => write_xmm_legacy(xreg, (read_xmm(xreg) ^ src_xmm)),
             _       => raise_UD(),
           }
         },
@@ -1355,10 +1355,10 @@ function exec_insertps(dst, src, imm8) = {
   let m2 : dword = zeros() - zero_extend(~(x2[1..1] | x2[0..0]));
   let x3 : bits(2) = sel ^ 0b11;
   let m3 : dword = zeros() - zero_extend(~(x3[1..1] | x3[0..0]));
-  let t0 : dword = (src_float & m0) | (a[31..0] & not_vec(m0));
-  let t1 : dword = (src_float & m1) | (a[63..32] & not_vec(m1));
-  let t2 : dword = (src_float & m2) | (a[95..64] & not_vec(m2));
-  let t3 : dword = (src_float & m3) | (a[127..96] & not_vec(m3));
+  let t0 : dword = (src_float & m0) | (a[31..0] & ~(m0));
+  let t1 : dword = (src_float & m1) | (a[63..32] & ~(m1));
+  let t2 : dword = (src_float & m2) | (a[95..64] & ~(m2));
+  let t3 : dword = (src_float & m3) | (a[127..96] & ~(m3));
   // Zero lanes indicated by imm8[3:0] (branchless)
   write_xmm_legacy(dst,
     (t3 & sign_extend(~(imm8[3..3]))) @

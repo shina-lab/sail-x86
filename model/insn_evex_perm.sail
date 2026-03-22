@@ -1274,7 +1274,7 @@ function dispatch_evex_perm(op, pfx) = {
         3 => raise_UD(),
       }
     } else if mp == MP_F3 then {
-      if not_bool(pfx.rex_w) then {
+      if ~(pfx.rex_w) then {
         // VPBROADCASTMW2D: broadcast low word of k-register to all dword elements
         let modrm = fetch_byte();
         let dst = evex_reg_idx(modrm, pfx);

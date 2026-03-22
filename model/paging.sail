@@ -140,7 +140,7 @@ function pt_walk(linear, access, table_base, level) = {
 
   if is_leaf then {
     // 6. Permission check
-    if not_bool(check_pte_permissions(pte, access)) then {
+    if ~(check_pte_permissions(pte, access)) then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };
@@ -305,7 +305,7 @@ function pt_walk_pae(linear, access) = {
   };
 
   // Permission checks
-  if not_bool(check_pte_permissions(pde, access)) then {
+  if ~(check_pte_permissions(pde, access)) then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, true, false))
   };
@@ -327,7 +327,7 @@ function pt_walk_pae(linear, access) = {
       throw Fault(EXN_PF, mk_pf_error(access, false, false))
     };
 
-    if not_bool(check_pte_permissions(pte, access)) then {
+    if ~(check_pte_permissions(pte, access)) then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };

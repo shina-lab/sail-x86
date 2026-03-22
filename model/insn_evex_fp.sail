@@ -1317,7 +1317,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let os : OperandSize = if pfx.rex_w then OS64 else OS32;
     let src_val : qword = match rm {
       RM_reg(_) => read_gpr(modrm_rm_reg(modrm, pfx), os),
@@ -1384,7 +1384,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F3 => {
         let rm = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read32(seg, offset),
@@ -1399,7 +1399,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F2 => {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read64(seg, offset),
@@ -1425,7 +1425,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F3 => {
         let rm = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read32(seg, offset),
@@ -1440,7 +1440,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F2 => {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read64(seg, offset),
@@ -1549,7 +1549,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VADDPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_NONE => {
@@ -1623,7 +1623,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VMULPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_NONE => {
@@ -1681,7 +1681,7 @@ function dispatch_evex_fp(op, pfx) = {
         // only applies to reg-reg, for mem operands EVEX.b means broadcast and LL
         // is the real vector length. So we can peek at modrm to check reg vs mem.
         let is_mem : bool = modrm[7..6] != 0b11;
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match eff_ll {
           // XMM: 2 f32 (m64/xmm low) → 2 f64 (XMM)
           0 => {
@@ -1708,7 +1708,7 @@ function dispatch_evex_fp(op, pfx) = {
       // VCVTPD2PS: f64→f32, result is half-width — supports {er}
       MP_66 => {
         let is_mem : bool = modrm[7..6] != 0b11;
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match eff_ll {
           // XMM→XMM low: 2 f64 → 2 f32
           0 => {
@@ -1737,7 +1737,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F3 => {
         let rm = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
@@ -1752,7 +1752,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F2 => {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
@@ -1773,7 +1773,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       MP_NONE => {
         match (pfx.rex_w, eff_ll) {
@@ -1817,7 +1817,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VSUBPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_NONE => {
@@ -1874,7 +1874,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
         let result : xmmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_pd_xmm(dst, result, pfx)
       },
@@ -1883,7 +1883,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
         let result : ymmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_pd_ymm(dst, result, pfx)
       },
@@ -1892,7 +1892,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
         let result : zmmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_pd_zmm(dst, result, pfx)
       },
@@ -1902,7 +1902,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
         let result : xmmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_ps_xmm(dst, result, pfx)
       },
@@ -1911,7 +1911,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
         let result : ymmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_ps_ymm(dst, result, pfx)
       },
@@ -1920,7 +1920,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
         let result : zmmword = match op {
           84 => src1 & src2, 85 => ~(src1) & src2, 86 => src1 | src2,
-          _  => xor_vec(src1, src2),
+          _  => src1 ^ src2,
         };
         evex_write_ps_zmm(dst, result, pfx)
       },
@@ -1940,7 +1940,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match (pfx.rex_w, eff_ll) {
           // VCVTTPD2UDQ: f64→u32 trunc (narrowing)
           (true, 0) => {
@@ -1967,7 +1967,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F3 => {
         let rm2 = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
@@ -1981,7 +1981,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F2 => {
         let rm2 = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
@@ -1996,7 +1996,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match (pfx.rex_w, eff_ll) {
           // VCVTTPD2UQQ: f64→u64 trunc
           (true, 0) => evex_write_q_xmm(dst, avx_cvttpd2uqq_128(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem)), pfx),
@@ -2024,7 +2024,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match (pfx.rex_w, eff_ll) {
           // VCVTPD2UDQ: f64→u32 round (narrowing)
           (true, 0) => evex_write_d_xmm(dst, zero_extend(avx_cvtpd2udq_2(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem))), pfx),
@@ -2042,7 +2042,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F3 => {
         let rm2 = decode_rm_evex(modrm, pfx, 4);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
@@ -2056,7 +2056,7 @@ function dispatch_evex_fp(op, pfx) = {
       MP_F2 => {
         let rm2 = decode_rm_evex(modrm, pfx, 8);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
@@ -2071,7 +2071,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match (pfx.rex_w, eff_ll) {
           // VCVTPD2UQQ: f64→u64 round
           (true, 0) => evex_write_q_xmm(dst, avx_cvtpd2uqq_128(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem)), pfx),
@@ -2096,7 +2096,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VCVTTPS2QQ (W0) / VCVTTPD2QQ (W1) — supports {sae}
       MP_66 => {
@@ -2155,7 +2155,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst = evex_reg_idx(modrm, pfx);
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         match (pfx.rex_w, eff_ll) {
           // VCVTPD2QQ: f64→i64 round
           (true, 0) => evex_write_q_xmm(dst, avx_cvtpd2qq_128(evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem)), pfx),
@@ -2174,7 +2174,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_xmm = evex_reg_idx(modrm, pfx);
         let rm2 = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f32 : dword = match (rm2, pfx.rex_w) {
           // W1: u64→f32
@@ -2194,7 +2194,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_xmm = evex_reg_idx(modrm, pfx);
         let rm2 = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
         let is_mem : bool = match rm2 { RM_mem(_, _) => true, _ => false };
-        let (_, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+        let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f64 : qword = match (rm2, pfx.rex_w) {
           // W1: u64→f64
@@ -2220,7 +2220,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VSQRTPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_NONE => {
@@ -2318,7 +2318,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       // VDIVPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_NONE => {
@@ -2564,7 +2564,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, not_bool(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     match mp {
       MP_F3 => {
         match (pfx.rex_w, eff_ll) {

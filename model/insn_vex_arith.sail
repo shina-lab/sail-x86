@@ -398,7 +398,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // SDM: VEX.128 form #UDs, VEX.vvvv must be 1111b
   25 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -413,7 +413,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // SDM: VEX.vvvv must be 1111b
   26 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -506,7 +506,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 5A: VBROADCASTI128 ymm, m128 (VEX.256 only, vvvv must be 1111b)
   90 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -1358,7 +1358,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : ymmword = read_ymm(src1_idx);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
-      let tmp2 : ymmword = not_vec(src1) & src2;
+      let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
@@ -1366,7 +1366,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
-      let tmp2 : xmmword = not_vec(src1) & src2;
+      let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
@@ -1385,7 +1385,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : ymmword = read_ymm(src1_idx);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
-      let tmp2 : ymmword = not_vec(src1) & src2;
+      let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
@@ -1393,7 +1393,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
-      let tmp2 : xmmword = not_vec(src1) & src2;
+      let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
@@ -1404,7 +1404,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // VEX.256 only; L=0 → #UD
   22 => {
     if mp != MP_66 | pfx.vex_w then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -1523,7 +1523,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // VEX.256 only; L=0 → #UD
   54 => {
     if mp != MP_66 | pfx.vex_w then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -1935,7 +1935,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : ymmword = read_ymm(src1_idx);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
-      let tmp2 : ymmword = not_vec(src1) & src2;
+      let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
@@ -1943,7 +1943,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
-      let tmp2 : xmmword = not_vec(src1) & src2;
+      let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
       OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero

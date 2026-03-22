@@ -260,7 +260,7 @@ function avg16(a, b) = {
 
 val cmp_eq8 : (byte, byte) -> byte
 function cmp_eq8(a, b) = {
-  let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
+  let xd : bits(9) = (0b0 @ (a ^ b)) - 0b000000001;
   xd[7..0] & sign_extend(xd[8..8])
 }
 
@@ -277,7 +277,7 @@ function cmp_gt8(a, b) = {
 
 val cmp_eq16 : (word, word) -> word
 function cmp_eq16(a, b) = {
-  let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
+  let xd : bits(17) = (0b0 @ (a ^ b)) - 0b00000000000000001;
   xd[15..0] & sign_extend(xd[16..16])
 }
 
@@ -291,7 +291,7 @@ function cmp_gt16(a, b) = {
 
 val cmp_eq32 : (dword, dword) -> dword
 function cmp_eq32(a, b) = {
-  let xd : bits(33) = (0b0 @ xor_vec(a, b)) - 0b000000000000000000000000000000001;
+  let xd : bits(33) = (0b0 @ (a ^ b)) - 0b000000000000000000000000000000001;
   xd[31..0] & sign_extend(xd[32..32])
 }
 
@@ -305,7 +305,7 @@ function cmp_gt32(a, b) = {
 
 val cmp_eq64 : (qword, qword) -> qword
 function cmp_eq64(a, b) = {
-  let xd : bits(65) = (0b0 @ xor_vec(a, b)) - zero_extend(0b1 : bits(1));
+  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1));
   zeros() - zero_extend(xd[64..64])
 }
 
@@ -406,7 +406,7 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   let sign : bits(1) = wide[16..16];
   let of_mask : word = sign_extend(sign ^ wide[15..15]);
   let sat : word = sign_extend(sign) ^ 0x7FFF;
-  (sat & of_mask) | (wide[15..0] & not_vec(of_mask))
+  (sat & of_mask) | (wide[15..0] & ~(of_mask))
 }
 
 val max_s64 : (qword, qword) -> qword
@@ -2565,7 +2565,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let temp1 : xmmword = a & b;
-      let temp2 : xmmword = (not_vec(a)) & b;
+      let temp2 : xmmword = (~(a)) & b;
       ZF = (~(or_reduce_64(temp1[127..64] | temp1[63..0])))[0];
       CF = (~(or_reduce_64(temp2[127..64] | temp2[63..0])))[0];
       OF = bitzero;
@@ -2867,38 +2867,38 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
       let d1 : bits(17) = (0b0 @ w1) - (0b0 @ mv);
       let u1 : word = zeros() - zero_extend(d1[16..16]);
-      mv = (w1 & u1) | (mv & not_vec(u1));
-      mi = (0x0001 & u1) | (mi & not_vec(u1));
+      mv = (w1 & u1) | (mv & ~(u1));
+      mi = (0x0001 & u1) | (mi & ~(u1));
 
       let d2 : bits(17) = (0b0 @ w2) - (0b0 @ mv);
       let u2 : word = zeros() - zero_extend(d2[16..16]);
-      mv = (w2 & u2) | (mv & not_vec(u2));
-      mi = (0x0002 & u2) | (mi & not_vec(u2));
+      mv = (w2 & u2) | (mv & ~(u2));
+      mi = (0x0002 & u2) | (mi & ~(u2));
 
       let d3 : bits(17) = (0b0 @ w3) - (0b0 @ mv);
       let u3 : word = zeros() - zero_extend(d3[16..16]);
-      mv = (w3 & u3) | (mv & not_vec(u3));
-      mi = (0x0003 & u3) | (mi & not_vec(u3));
+      mv = (w3 & u3) | (mv & ~(u3));
+      mi = (0x0003 & u3) | (mi & ~(u3));
 
       let d4 : bits(17) = (0b0 @ w4) - (0b0 @ mv);
       let u4 : word = zeros() - zero_extend(d4[16..16]);
-      mv = (w4 & u4) | (mv & not_vec(u4));
-      mi = (0x0004 & u4) | (mi & not_vec(u4));
+      mv = (w4 & u4) | (mv & ~(u4));
+      mi = (0x0004 & u4) | (mi & ~(u4));
 
       let d5 : bits(17) = (0b0 @ w5) - (0b0 @ mv);
       let u5 : word = zeros() - zero_extend(d5[16..16]);
-      mv = (w5 & u5) | (mv & not_vec(u5));
-      mi = (0x0005 & u5) | (mi & not_vec(u5));
+      mv = (w5 & u5) | (mv & ~(u5));
+      mi = (0x0005 & u5) | (mi & ~(u5));
 
       let d6 : bits(17) = (0b0 @ w6) - (0b0 @ mv);
       let u6 : word = zeros() - zero_extend(d6[16..16]);
-      mv = (w6 & u6) | (mv & not_vec(u6));
-      mi = (0x0006 & u6) | (mi & not_vec(u6));
+      mv = (w6 & u6) | (mv & ~(u6));
+      mi = (0x0006 & u6) | (mi & ~(u6));
 
       let d7 : bits(17) = (0b0 @ w7) - (0b0 @ mv);
       let u7 : word = zeros() - zero_extend(d7[16..16]);
-      mv = (w7 & u7) | (mv & not_vec(u7));
-      mi = (0x0007 & u7) | (mi & not_vec(u7));
+      mv = (w7 & u7) | (mv & ~(u7));
+      mi = (0x0007 & u7) | (mi & ~(u7));
 
       write_xmm_legacy(xreg, zeros(96) @ mi @ mv)
     },

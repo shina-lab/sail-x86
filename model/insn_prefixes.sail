@@ -12,7 +12,7 @@ function scan_prefixes() = {
 
   // Loop scanning prefix bytes. The 15-byte instruction length limit is
   // enforced by fetch_byte(), which raises #GP(0) if exceeded.
-  while not_bool(done) do {
+  while ~(done) do {
     let b = fetch_byte();
     let bv : range(0, 255) = unsigned(b);
 

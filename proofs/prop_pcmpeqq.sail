@@ -10,7 +10,7 @@ overload zero_extend = {sail_zero_extend}
 
 val cmp_eq64 : (bits(64), bits(64)) -> bits(64)
 function cmp_eq64(a, b) = {
-  let xd : bits(65) = (0b0 @ xor_vec(a, b)) - zero_extend(0b1 : bits(1), 65);
+  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1), 65);
   zeros(64) - zero_extend(xd[64..64], 64)
 }
 

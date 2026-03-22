@@ -220,7 +220,7 @@ function avx_pmaddubsw_128(a, b) = {
     let sign : bits(1) = wide[16..16];
     let of_mask : word = sign_extend(sign ^ wide[15..15]);
     let sat_val : word = sign_extend(sign) ^ 0x7FFF;
-    r[(lo + 15)..lo] = (sat_val & of_mask) | (wide[15..0] & not_vec(of_mask));
+    r[(lo + 15)..lo] = (sat_val & of_mask) | (wide[15..0] & ~(of_mask));
   };
   r
 }
@@ -1976,7 +1976,7 @@ function sat_s32(v) = {
   let sign : bits(1) = wide[32..32];
   let of_mask : dword = sign_extend(sign ^ wide[31..31]);
   let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
-  (sat & of_mask) | (wide[31..0] & not_vec(of_mask))
+  (sat & of_mask) | (wide[31..0] & ~(of_mask))
 }
 
 val avx_vpdpwssds_elem : (dword, dword, dword) -> dword
@@ -4269,7 +4269,7 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 7D: VPERMT2W (66,W1) [BW] / VPERMT2B (66,W0) [VBMI]
   // 0F38 70: VPSHLDVW (66, W=1) [VBMI2]
   112 => {
-    if mp != MP_66 | not_bool(pfx.rex_w) then raise_UD();
+    if mp != MP_66 | ~(pfx.rex_w) then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
@@ -4309,7 +4309,7 @@ function dispatch_evex_arith(op, pfx) = {
     match mp {
       MP_66 => {
         // VPSHRDVW (W=1 required)
-        if not_bool(pfx.rex_w) then raise_UD();
+        if ~(pfx.rex_w) then raise_UD();
         let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         match pfx.evex_ll {
           0 => evex_write_w_xmm(dst, avx_vpshrdvw_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, rm, pfx)), pfx),
@@ -4379,7 +4379,7 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 83: VPMULTISHIFTQB (66,W1) [VBMI]
   // 0F38 83: VPMULTISHIFTQB (66,W1) [VBMI]
   131 => {
-    if mp != MP_66 | not_bool(pfx.rex_w) then raise_UD();
+    if mp != MP_66 | ~(pfx.rex_w) then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));

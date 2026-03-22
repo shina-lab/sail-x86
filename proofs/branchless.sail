@@ -18,7 +18,7 @@ $include "../model/prelude.sail"
 $property
 function prop_cmp_eq8(a: bits(8), b: bits(8)) -> bool = {
   let orig : bits(8) = if a == b then ones() else zeros();
-  let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
+  let xd : bits(9) = (0b0 @ (a ^ b)) - 0b000000001;
   let branchless : bits(8) = zeros() - zero_extend(xd[8..8]);
   orig == branchless
 }
@@ -26,7 +26,7 @@ function prop_cmp_eq8(a: bits(8), b: bits(8)) -> bool = {
 $property
 function prop_cmp_eq16(a: bits(16), b: bits(16)) -> bool = {
   let orig : bits(16) = if a == b then ones() else zeros();
-  let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
+  let xd : bits(17) = (0b0 @ (a ^ b)) - 0b00000000000000001;
   let branchless : bits(16) = zeros() - zero_extend(xd[16..16]);
   orig == branchless
 }

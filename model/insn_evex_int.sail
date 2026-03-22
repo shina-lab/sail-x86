@@ -1533,27 +1533,27 @@ function dispatch_evex_int(op, pfx) = {
     let mask = evex_get_mask16(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       (true, 0) => {
-        let result = xor_vec(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem));
+        let result = read_xmm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
         write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
       },
       (true, 1) => {
-        let result = xor_vec(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem));
+        let result = read_ymm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
         write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
       },
       (true, 2) => {
-        let result = xor_vec(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem));
+        let result = read_zmm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
         write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
       },
       (false, 0) => {
-        let result = xor_vec(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem));
+        let result = read_xmm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
         write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
       },
       (false, 1) => {
-        let result = xor_vec(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem));
+        let result = read_ymm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
         write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
       },
       (false, 2) => {
-        let result = xor_vec(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem));
+        let result = read_zmm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
         write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
       },
       _ => raise_UD(),

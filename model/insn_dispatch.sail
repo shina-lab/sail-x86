@@ -453,7 +453,7 @@ val dispatch_opcode_2byte : (byte, Prefixes) -> unit
 function dispatch_opcode_2byte(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   // LOCK prefix is only valid on specific 2-byte opcodes; #UD otherwise.
-  if pfx.has_lock & not_bool(is_lockable_2byte(op)) then raise_UD();
+  if pfx.has_lock & ~(is_lockable_2byte(op)) then raise_UD();
   match op {
     // 0F 38: 3-byte escape (SSSE3/SSE4/AES-NI)
     56 => {
@@ -850,7 +850,7 @@ function decode_execute() = {
 
   // LOCK prefix is only valid on specific opcodes; #UD otherwise.
   // (Per-instruction checks for register vs memory are done later.)
-  if pfx.has_lock & not_bool(is_lockable_1byte(op)) & op != 15 then raise_UD();
+  if pfx.has_lock & ~(is_lockable_1byte(op)) & op != 15 then raise_UD();
   if op <= 63 & op % 8 <= 5 then {
     // ALU instructions 00-3F (regular pattern, columns 0-5 only)
     dispatch_alu_opcode(op, pfx)
@@ -906,7 +906,8 @@ function decode_execute() = {
         let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
         let new_ax : word = read_gpr16(RAX) + (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
-        AF = cond[0]; CF = cond[0];
+        AF = cond[0];
+        CF = cond[0];
         write_gpr8l(RAX, new_ax[7..0] & 0x0F)
       },
 
@@ -918,7 +919,8 @@ function decode_execute() = {
         let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
         let new_ax : word = read_gpr16(RAX) - (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
-        AF = cond[0]; CF = cond[0];
+        AF = cond[0];
+        CF = cond[0];
         write_gpr8l(RAX, new_ax[7..0] & 0x0F)
       },
 

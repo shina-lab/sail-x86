@@ -722,7 +722,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         // VORPS/VORPD
         6 => write_ymm(dst, src1 | src2),
         // VXORPS/VXORPD
-        7 => write_ymm(dst, xor_vec(src1, src2)),
+        7 => write_ymm(dst, src1 ^ src2),
         // VADDPS/VADDPD
         8 => match mp {
           MP_NONE => write_ymm(dst, vaddps_xmm(src1[255..128], src2[255..128]) @ vaddps_xmm(src1[127..0], src2[127..0])),
@@ -837,7 +837,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         // VORPS/VORPD
         6 => write_xmm(dst, src1 | src2),
         // VXORPS/VXORPD
-        7 => write_xmm(dst, xor_vec(src1, src2)),
+        7 => write_xmm(dst, src1 ^ src2),
         // VADDPS/VADDPD/VADDSS/VADDSD
         8 => match mp {
           MP_NONE => write_xmm(dst, vaddps_xmm(src1, src2)),

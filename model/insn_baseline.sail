@@ -92,16 +92,16 @@ function clz64(v) = {
 
 // Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
 val ctz8 : byte -> range(0, 8)
-function ctz8(v) = popcount8(not_vec(v) & (v - 0x01))
+function ctz8(v) = popcount8(~(v) & (v - 0x01))
 
 val ctz16 : word -> range(0, 16)
-function ctz16(v) = popcount16(not_vec(v) & (v - 0x0001))
+function ctz16(v) = popcount16(~(v) & (v - 0x0001))
 
 val ctz32 : dword -> range(0, 32)
-function ctz32(v) = popcount32(not_vec(v) & (v - 0x00000001))
+function ctz32(v) = popcount32(~(v) & (v - 0x00000001))
 
 val ctz64 : qword -> range(0, 64)
-function ctz64(v) = popcount64(not_vec(v) & (v - 0x0000000000000001))
+function ctz64(v) = popcount64(~(v) & (v - 0x0000000000000001))
 
 // Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
 // Precondition: v != 0 (BSR is undefined for zero).
@@ -612,7 +612,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               let is_code : bit = desc_hi[11];
               let readable : bit = desc_hi[9] | ~(is_code);
               if present == bitzero | s_bit == bitzero | readable == bitzero
-                | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+                | ~(desc_privilege_ok(desc_hi, selector)) then {
                 ZF = bitzero
               } else {
                 ZF = bitone
@@ -641,7 +641,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               // Writable: only data segments with W bit set
               let writable : bit = desc_hi[9] & ~(is_code);
               if present == bitzero | s_bit == bitzero | writable == bitzero
-                | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+                | ~(desc_privilege_ok(desc_hi, selector)) then {
                 ZF = bitzero
               } else {
                 ZF = bitone
@@ -861,7 +861,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           ZF = bitzero
         } else {
           let desc_hi : dword = mem_read32(desc_addr + 4);
-          if not_bool(lar_type_valid_64(desc_hi)) | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+          if ~(lar_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = bitzero
           } else {
             let ar : dword = zero_extend(desc_hi[23..0]) & 0x00FFFF00;
@@ -892,7 +892,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         } else {
           let desc_lo : dword = mem_read32(desc_addr);
           let desc_hi : dword = mem_read32(desc_addr + 4);
-          if not_bool(lsl_type_valid_64(desc_hi)) | not_bool(desc_privilege_ok(desc_hi, selector)) then {
+          if ~(lsl_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = bitzero
           } else {
             let limit_lo : word = desc_lo[15..0];

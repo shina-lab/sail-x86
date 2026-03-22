@@ -154,10 +154,10 @@ function avx_insertps(dst, src, imm8, is_mem) = {
   let m2 : dword = zeros() - zero_extend(~(x2[1..1] | x2[0..0]));
   let x3 : bits(2) = sel ^ 0b11;
   let m3 : dword = zeros() - zero_extend(~(x3[1..1] | x3[0..0]));
-  let t0 : dword = (src_float & m0) | (dst[31..0] & not_vec(m0));
-  let t1 : dword = (src_float & m1) | (dst[63..32] & not_vec(m1));
-  let t2 : dword = (src_float & m2) | (dst[95..64] & not_vec(m2));
-  let t3 : dword = (src_float & m3) | (dst[127..96] & not_vec(m3));
+  let t0 : dword = (src_float & m0) | (dst[31..0] & ~(m0));
+  let t1 : dword = (src_float & m1) | (dst[63..32] & ~(m1));
+  let t2 : dword = (src_float & m2) | (dst[95..64] & ~(m2));
+  let t3 : dword = (src_float & m3) | (dst[127..96] & ~(m3));
   let d0 : dword = t0 & sign_extend(~(imm8[0..0]));
   let d1 : dword = t1 & sign_extend(~(imm8[1..1]));
   let d2 : dword = t2 & sign_extend(~(imm8[2..2]));
@@ -193,7 +193,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 18: VINSERTF128 ymm1, ymm2, xmm3/m128, imm8
   24 => {
     if mp != MP_66 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -213,7 +213,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 19: VEXTRACTF128 xmm1/m128, ymm2, imm8
   25 => {
     if mp != MP_66 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
@@ -349,8 +349,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 00: VPERMQ ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
   0 => {
     if mp != MP_66 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
-    if not_bool(pfx.vex_w) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_w) then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
@@ -363,8 +363,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 01: VPERMPD ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
   1 => {
     if mp != MP_66 then raise_UD();
-    if not_bool(pfx.vex_l) then raise_UD();
-    if not_bool(pfx.vex_w) then raise_UD();
+    if ~(pfx.vex_l) then raise_UD();
+    if ~(pfx.vex_w) then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);

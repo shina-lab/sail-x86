@@ -68,7 +68,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = ~(xor_vec(read_kreg(k2), read_kreg(k3)));
+    let result : qword = ~(read_kreg(k2) ^ read_kreg(k3));
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     write_kreg(k1, result & mask)
   },
@@ -79,7 +79,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = xor_vec(read_kreg(k2), read_kreg(k3));
+    let result : qword = read_kreg(k2) ^ read_kreg(k3);
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     write_kreg(k1, result & mask)
   },
@@ -101,11 +101,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = pfx.vex_vvvv % 8;
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    if mp == MP_66 & not_bool(pfx.vex_w) then {
+    if mp == MP_66 & ~(pfx.vex_w) then {
       // KUNPCKBW: byte → word
       let result : bits(16) = read_kreg(k2)[7..0] @ read_kreg(k3)[7..0];
       write_kreg(k1, zero_extend(result))
-    } else if mp == MP_NONE & not_bool(pfx.vex_w) then {
+    } else if mp == MP_NONE & ~(pfx.vex_w) then {
       // KUNPCKWD: word → dword
       let result : bits(32) = read_kreg(k2)[15..0] @ read_kreg(k3)[15..0];
       write_kreg(k1, zero_extend(result))
@@ -1508,11 +1508,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_reg);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
-      write_ymm(dst, xor_vec(src1, src2))
+      write_ymm(dst, (src1 ^ src2))
     } else {
       let src1 : xmmword = read_xmm(src1_reg);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
-      write_xmm(dst, xor_vec(src1, src2))
+      write_xmm(dst, (src1 ^ src2))
     }
   },
 

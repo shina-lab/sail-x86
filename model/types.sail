@@ -238,14 +238,14 @@ function modrm_rm_reg(modrm, pfx) = {
 
 val read_byte_reg : (gpr_idx, bool) -> byte
 function read_byte_reg(idx, has_rex) =
-  if not_bool(has_rex) & 4 <= idx & idx <= 7 then
+  if ~(has_rex) & 4 <= idx & idx <= 7 then
     read_gpr8h(idx - 4)
   else
     read_gpr8l(idx)
 
 val write_byte_reg : (gpr_idx, bool, byte) -> unit
 function write_byte_reg(idx, has_rex, v) =
-  if not_bool(has_rex) & 4 <= idx & idx <= 7 then
+  if ~(has_rex) & 4 <= idx & idx <= 7 then
     write_gpr8h(idx - 4, v)
   else
     write_gpr8l(idx, v)
@@ -386,7 +386,7 @@ function fetch_rel8() = sign_extend(fetch_byte())
 val fetch_rel_os : Prefixes -> qword
 function fetch_rel_os(pfx) = {
   let use_32 : bool = if cur_mode == LongMode then true
-    else if get_cs_db() == bitone then not_bool(pfx.has_opsize)
+    else if get_cs_db() == bitone then ~(pfx.has_opsize)
     else pfx.has_opsize;
   if use_32 then fetch_rel32() else fetch_rel16()
 }

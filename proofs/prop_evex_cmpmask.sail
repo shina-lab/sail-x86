@@ -12,7 +12,7 @@ overload sign_extend = {sail_sign_extend}
 
 val cmp_eq8 : (bits(8), bits(8)) -> bits(8)
 function cmp_eq8(a, b) = {
-  let xd : bits(9) = (0b0 @ xor_vec(a, b)) - 0b000000001;
+  let xd : bits(9) = (0b0 @ (a ^ b)) - 0b000000001;
   zeros(8) - zero_extend(xd[8..8], 8)
 }
 
@@ -26,7 +26,7 @@ function cmp_gt8(a, b) = {
 
 val cmp_eq16 : (bits(16), bits(16)) -> bits(16)
 function cmp_eq16(a, b) = {
-  let xd : bits(17) = (0b0 @ xor_vec(a, b)) - 0b00000000000000001;
+  let xd : bits(17) = (0b0 @ (a ^ b)) - 0b00000000000000001;
   zeros(16) - zero_extend(xd[16..16], 16)
 }
 
@@ -40,7 +40,7 @@ function cmp_gt16(a, b) = {
 
 val cmp_eq32 : (bits(32), bits(32)) -> bits(32)
 function cmp_eq32(a, b) = {
-  let xd : bits(33) = (0b0 @ xor_vec(a, b)) - 0b000000000000000000000000000000001;
+  let xd : bits(33) = (0b0 @ (a ^ b)) - 0b000000000000000000000000000000001;
   zeros(32) - zero_extend(xd[32..32], 32)
 }
 

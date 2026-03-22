@@ -532,7 +532,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem);
@@ -575,7 +575,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -622,7 +622,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -667,7 +667,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -712,7 +712,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -757,7 +757,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -802,7 +802,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src1 = read_xmm(pfx.evex_vvvvv);
@@ -899,7 +899,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTPD2PH: packed FP64 to FP16 (W=1)
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
@@ -1015,7 +1015,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src : qword = match rm {
@@ -1373,7 +1373,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src : qword = match rm {
@@ -1419,7 +1419,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src : dword = match rm {
@@ -1518,7 +1518,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F2 => {
           let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match (pfx.vex_w, eff_ll) {
             // VCVTUQQ2PH: packed uint64 to FP16
             (true, 0) => {
@@ -1594,7 +1594,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src : dword = match rm {
@@ -1772,7 +1772,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       match mp {
         MP_NONE => {
           // VCVTPH2UW: packed FP16 to uint16 (rounding), same width
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem);
@@ -1823,7 +1823,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_66 => {
           // VCVTPH2W: packed FP16 to int16 (rounding), same width
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem);
@@ -1874,7 +1874,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           // VCVTW2PH: packed int16 to FP16, same width
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem);
@@ -1925,7 +1925,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F2 => {
           // VCVTUW2PH: packed uint16 to FP16, same width
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem);
@@ -2006,7 +2006,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let rm = decode_rm_evex(modrm, pfx, disp_n);
           let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-          let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
               let src = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
@@ -2163,7 +2163,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2198,7 +2198,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2233,7 +2233,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2268,7 +2268,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2303,7 +2303,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2338,7 +2338,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2373,7 +2373,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2408,7 +2408,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2443,7 +2443,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2478,7 +2478,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2513,7 +2513,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2548,7 +2548,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2647,7 +2647,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let src1 = read_xmm(pfx.evex_vvvvv);
@@ -2820,7 +2820,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2855,7 +2855,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(dst);
@@ -2954,7 +2954,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(pfx.evex_vvvvv);
@@ -2989,7 +2989,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(pfx.evex_vvvvv);
@@ -3092,7 +3092,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(pfx.evex_vvvvv);
@@ -3127,7 +3127,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let rm = decode_rm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let is_mem : bool = match rm { RM_mem(_, _) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, not_bool(is_mem));
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
       match eff_ll {
         0 => {
           let a = read_xmm(pfx.evex_vvvvv);
