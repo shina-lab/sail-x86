@@ -124,11 +124,18 @@ function push_to_stack_32(esp, value) = {
   new_esp
 }
 
-// Push a 16-bit value onto a stack at the given address.
-// Returns the new stack pointer.
+// Push a 16-bit value onto the stack given as a linear address.
+// Wraps the offset within 16 bits (SS.B=0) or 32 bits (SS.B=1)
+// before adding SS.base, to avoid writing below the segment base
+// when SP is near zero. Returns the new linear stack pointer.
 val push_to_stack_16 : (qword, word) -> qword
 function push_to_stack_16(sp, value) = {
-  let new_sp = sp - 2;
+  let base = get_seg_base(SS);
+  let offset = sp - base;
+  let new_offset : qword = if SegCache[SS].seg_db == bitone
+    then (offset - 2) & 0x00000000FFFFFFFF
+    else (offset - 2) & 0x000000000000FFFF;
+  let new_sp = base + new_offset;
   mem_write16(new_sp, value);
   new_sp
 }
