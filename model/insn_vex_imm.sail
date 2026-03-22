@@ -99,11 +99,10 @@ function avx_roundpd_128(src, imm) = {
 // VDPPS 128-bit: dot product of packed singles
 val avx_dpps_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dpps_128(a, b, imm) = {
-  let zero : dword = 0x00000000;
-  let temp0 : dword = if imm[4] == bitone then __f32_mul(a[31..0], b[31..0]) else zero;
-  let temp1 : dword = if imm[5] == bitone then __f32_mul(a[63..32], b[63..32]) else zero;
-  let temp2 : dword = if imm[6] == bitone then __f32_mul(a[95..64], b[95..64]) else zero;
-  let temp3 : dword = if imm[7] == bitone then __f32_mul(a[127..96], b[127..96]) else zero;
+  let temp0 : dword = __f32_mul(a[31..0], b[31..0]) & sign_extend(imm[4..4]);
+  let temp1 : dword = __f32_mul(a[63..32], b[63..32]) & sign_extend(imm[5..5]);
+  let temp2 : dword = __f32_mul(a[95..64], b[95..64]) & sign_extend(imm[6..6]);
+  let temp3 : dword = __f32_mul(a[127..96], b[127..96]) & sign_extend(imm[7..7]);
   let sum01 : dword = __f32_add(temp0, temp1);
   let sum23 : dword = __f32_add(temp2, temp3);
   let sum : dword = __f32_add(sum01, sum23);
@@ -117,9 +116,8 @@ function avx_dpps_128(a, b, imm) = {
 // VDPPD 128-bit: dot product of packed doubles
 val avx_dppd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dppd_128(a, b, imm) = {
-  let zero : qword = 0x0000000000000000;
-  let temp0 : qword = if imm[4] == bitone then __f64_mul(a[63..0], b[63..0]) else zero;
-  let temp1 : qword = if imm[5] == bitone then __f64_mul(a[127..64], b[127..64]) else zero;
+  let temp0 : qword = __f64_mul(a[63..0], b[63..0]) & sign_extend(imm[4..4]);
+  let temp1 : qword = __f64_mul(a[127..64], b[127..64]) & sign_extend(imm[5..5]);
   let sum : qword = __f64_add(temp0, temp1);
   let lo : qword = sum & sign_extend(imm[0..0]);
   let hi : qword = sum & sign_extend(imm[1..1]);
