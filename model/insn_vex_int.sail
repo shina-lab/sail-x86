@@ -1514,11 +1514,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_reg);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
-      write_ymm(dst, (src1 ^ src2))
+      write_ymm(dst, src1 ^ src2)
     } else {
       let src1 : xmmword = read_xmm(src1_reg);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
-      write_xmm(dst, (src1 ^ src2))
+      write_xmm(dst, src1 ^ src2)
     }
   },
 
