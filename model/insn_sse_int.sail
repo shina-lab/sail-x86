@@ -251,7 +251,7 @@ function avg16(a, b) = {
 // (high bit + low bits) to prevent Isla from inlining the subtraction and
 // then incorrectly distributing extract over bvsub.
 //
-// cmp_eq: (0 @ (a^b)) - 1 borrows iff a^b == 0 iff a == b.
+// cmp_eq: (0 @ (a^b)) - 1 borrows iff a == b.
 //   When a==b: result = 0x1FF, low=0xFF, high=1 → 0xFF & 0xFF = 0xFF.
 //   When a!=b: result = [0,0xFE], low=xor-1, high=0 → anything & 0x00 = 0x00.
 //
@@ -260,7 +260,7 @@ function avg16(a, b) = {
 
 val cmp_eq8 : (byte, byte) -> byte
 function cmp_eq8(a, b) = {
-  let xd : bits(9) = (0b0 @ (a ^ b)) - 0b000000001;
+  let xd : bits(9) = (0b0 @ (a ^ b)) - 1;
   xd[7..0] & sign_extend(xd[8..8])
 }
 
@@ -271,13 +271,13 @@ function cmp_gt8(a, b) = {
   let d : byte = ds[7..0] & sign_extend(~(ds[8..8]));
   // d != 0 → borrow on d-1 is 0 → mask = ~(low & 0xFF) = 0xFF
   // d == 0 → borrow on d-1 is 1 → mask = ~(0xFF & 0xFF) = 0x00
-  let probe : bits(9) = (0b0 @ d) - 0b000000001;
+  let probe : bits(9) = (0b0 @ d) - 1;
   ~(probe[7..0] & sign_extend(probe[8..8]))
 }
 
 val cmp_eq16 : (word, word) -> word
 function cmp_eq16(a, b) = {
-  let xd : bits(17) = (0b0 @ (a ^ b)) - 0b00000000000000001;
+  let xd : bits(17) = (0b0 @ (a ^ b)) - 1;
   xd[15..0] & sign_extend(xd[16..16])
 }
 
@@ -285,13 +285,13 @@ val cmp_gt16 : (word, word) -> word
 function cmp_gt16(a, b) = {
   let ds : bits(17) = (0b0 @ (a ^ 0x8000)) - (0b0 @ (b ^ 0x8000));
   let d : word = ds[15..0] & sign_extend(~(ds[16..16]));
-  let probe : bits(17) = (0b0 @ d) - 0b00000000000000001;
+  let probe : bits(17) = (0b0 @ d) - 1;
   ~(probe[15..0] & sign_extend(probe[16..16]))
 }
 
 val cmp_eq32 : (dword, dword) -> dword
 function cmp_eq32(a, b) = {
-  let xd : bits(33) = (0b0 @ (a ^ b)) - 0b000000000000000000000000000000001;
+  let xd : bits(33) = (0b0 @ (a ^ b)) - 1;
   xd[31..0] & sign_extend(xd[32..32])
 }
 
@@ -299,7 +299,7 @@ val cmp_gt32 : (dword, dword) -> dword
 function cmp_gt32(a, b) = {
   let ds : bits(33) = (0b0 @ (a ^ 0x80000000)) - (0b0 @ (b ^ 0x80000000));
   let d : dword = ds[31..0] & sign_extend(~(ds[32..32]));
-  let probe : bits(33) = (0b0 @ d) - 0b000000000000000000000000000000001;
+  let probe : bits(33) = (0b0 @ d) - 1;
   ~(probe[31..0] & sign_extend(probe[32..32]))
 }
 
@@ -551,7 +551,7 @@ function select_low_word(v, sel) = {
 val psign8 : (byte, byte) -> byte
 function psign8(a, b) = {
   let neg_mask : byte = sign_extend(b[7..7]);
-  let borrow : bits(9) = (0b0 @ b) - 0b000000001;
+  let borrow : bits(9) = (0b0 @ b) - 1;
   let nonzero : byte = sign_extend(~(borrow[8..8]));
   ((a ^ neg_mask) - neg_mask) & nonzero
 }
