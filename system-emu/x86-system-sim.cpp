@@ -861,6 +861,12 @@ int main(int argc, char *argv[]) {
     }
 
 
+    // Trace INT 12h entry and return to see memory size
+    {
+      u16 cs = model.zSegReg.data[x86::SEG_CS];
+      u64 rip = model.zRIP;
+    }
+
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.
     {

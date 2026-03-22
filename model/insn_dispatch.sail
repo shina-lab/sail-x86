@@ -797,7 +797,10 @@ function exec_retf(pfx, maybe_imm) = {
     throw Fault(EXN_GP, zero_extend(new_cs))
   };
 
-  if return_rpl > cur_cpl then {
+  // In real mode, far return simply pops IP and CS — no privilege checks,
+  // no SS/RSP pop (SDM Vol.2B RET, "Real-address mode or virtual-8086 mode").
+  // In protected/long mode, check RPL for inter-privilege return.
+  if cur_mode != RealMode & return_rpl > cur_cpl then {
     // Outer-privilege return: also pop RSP and SS
     let new_rsp : qword = match os {
       OS64 => pop64(),
@@ -812,16 +815,13 @@ function exec_retf(pfx, maybe_imm) = {
     let new_ss : word = new_ss_raw[15..0];
     write_gpr64(RSP, new_rsp);
     load_segment_register(SS, new_ss);
-  } else {
-    // Same-privilege: adjust RSP for imm16 if present
+    // Adjust new RSP for imm16 if present
     match maybe_imm {
       Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
       None()    => (),
     }
-  };
-
-  // For outer-privilege return with imm16, adjust new RSP
-  if return_rpl > cur_cpl then {
+  } else {
+    // Same-privilege (or real mode): adjust RSP for imm16 if present
     match maybe_imm {
       Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
       None()    => (),
