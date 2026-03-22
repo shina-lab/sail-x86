@@ -90,8 +90,24 @@ bool PhysicalMemory::in_rom(u64 paddr) const {
 u8 PhysicalMemory::read8(u64 paddr) const {
   u8 rom_byte;
   if (rom_read(paddr, rom_byte)) return rom_byte;
-  if (paddr < size)
-    return ram[paddr];
+  if (paddr < size) {
+    u8 val = ram[paddr];
+    // IVT safety: if an IVT entry (0x000-0x3FF) reads as 0000:0000,
+    // return the IRET stub at 0x0400 instead. This prevents crashes
+    // when software clears IVT entries that are later called before
+    // being re-initialized (e.g., FreeDOS kernel zeroing INT 60h-66h).
+    if (paddr < 0x400 && val == 0 && (paddr & 3) < 2) {
+      // Check if the full 4-byte IVT entry is 0000:0000
+      u32 entry;
+      memcpy(&entry, &ram[paddr & ~3], 4);
+      if (entry == 0 && ram[0x400] == 0xCF) {
+        // Return IRET stub: IP=0x0400 for low word, CS=0x0000 for high word
+        if ((paddr & 3) == 0) return 0x00;  // IP low
+        if ((paddr & 3) == 1) return 0x04;  // IP high (0x0400)
+      }
+    }
+    return val;
+  }
   return 0xFF;
 }
 

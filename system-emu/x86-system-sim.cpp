@@ -1076,6 +1076,43 @@ int main(int argc, char *argv[]) {
     u16 int10_ip = model.phys_mem.read16(0x10 * 4);
     u16 int10_cs = model.phys_mem.read16(0x10 * 4 + 2);
     fprintf(stderr, "IVT[10h] = %04x:%04x\n", int10_cs, int10_ip);
+    // Track unique CS values and last non-timer RIP
+    {
+      static u16 last_non_timer_cs = 0;
+      static u64 last_non_timer_rip = 0;
+      static bool dumped = false;
+      u16 cs = model.zSegReg.data[x86::SEG_CS];
+      u64 rip = model.zRIP;
+      if (cs != 0xF000) {
+        last_non_timer_cs = cs;
+        last_non_timer_rip = rip;
+      }
+      // When we first enter the f000:ff53 idle loop, dump the last kernel state
+      if (cs == 0xF000 && rip == 0xff53 && !dumped && insn_count > 5000000) {
+        dumped = true;
+        fprintf(stderr, "*** Idle at insn %lu, last active: %04x:%04lx\n",
+                insn_count, last_non_timer_cs, last_non_timer_rip);
+        // Dump AX (contains INT function code)
+        fprintf(stderr, "  AX=%04lx BX=%04lx CX=%04lx DX=%04lx\n",
+                (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
+                (u64)model.zGPR.data[1], (u64)model.zGPR.data[2]);
+      }
+    }
+
+    // Dump IVT entries — show ALL that point to unusual addresses
+    fprintf(stderr, "=== IVT ===\n");
+    for (int vec = 0x58; vec <= 0x80; vec++) {
+      u16 ip = model.phys_mem.read16(vec * 4);
+      u16 cs = model.phys_mem.read16(vec * 4 + 2);
+      fprintf(stderr, "  INT %02Xh = %04x:%04x%s\n", vec, cs, ip,
+              (cs == 0 && ip == 0) ? " (!)" : "");
+    }
+    for (int vec : {0x08, 0x10, 0x13, 0x16, 0x19, 0x21, 0x29}) {
+      u16 ip = model.phys_mem.read16(vec * 4);
+      u16 cs = model.phys_mem.read16(vec * 4 + 2);
+      fprintf(stderr, "  INT %02Xh = %04x:%04x\n", vec, cs, ip);
+    }
+
     // Dump first 10 rows showing both printable and hex for non-printable
     fprintf(stderr, "=== VGA rows ===\n");
     for (int row = 0; row < 10; row++) {
