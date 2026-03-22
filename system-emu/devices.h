@@ -557,15 +557,20 @@ public:
       //   bit 2 = system flag (POST passed)
       //   bit 3 = command/data (0 = data written to 0x60)
       u8 status = 0x14;  // system flag (bit 2) + keyboard unlocked (bit 4)
-      if (!out_buf.empty())
+      if (!out_buf.empty() || !scancode_buf.empty())
         status |= 0x01;  // output buffer full
       return status;
     }
     if (port == 0x60) {
+      // Serve PS/2 command responses first, then actual scancodes.
       if (!out_buf.empty()) {
         u8 val = out_buf.front();
         out_buf.pop();
-        if (pending_scancodes > 0) pending_scancodes--;
+        return val;
+      }
+      if (!scancode_buf.empty()) {
+        u8 val = scancode_buf.front();
+        scancode_buf.pop();
         return val;
       }
       return 0x00;
@@ -668,21 +673,19 @@ public:
 
   // Push a scancode byte from the host side (actual keypress).
   void push_scancode(u8 sc) {
-    out_buf.push(sc);
-    pending_scancodes++;
+    scancode_buf.push(sc);
   }
 
   // Returns true if there are actual key scancodes waiting (for IRQ 1).
-  // PS/2 command ACKs don't count — SeaBIOS polls for those via port 0x64.
   bool has_data() const {
-    return pending_scancodes > 0;
+    return !scancode_buf.empty();
   }
 
-  size_t out_buf_size() const { return out_buf.size(); }
+  size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
 
 private:
-  std::queue<u8> out_buf;   // output buffer (scancodes + command responses)
-  int pending_scancodes = 0; // count of actual key scancodes (not PS/2 ACKs)
+  std::queue<u8> out_buf;      // PS/2 command responses (ACKs, IDs, etc.)
+  std::queue<u8> scancode_buf; // actual key scancodes from host
   u8 last_cmd = 0;          // last command written to port 0x64
   u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
   u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on

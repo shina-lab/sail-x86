@@ -469,7 +469,10 @@ static void push_key(KeyboardController &kbd, int ch) {
   if (sc == 0) return;
 
   bool shift = needs_shift(ch);
-  bool ctrl = (ch >= 1 && ch <= 26);
+  // Ctrl+letter: ASCII 1-26 EXCEPT keys that have their own scancodes
+  // (BS=0x08, TAB=0x09, LF=0x0A, CR=0x0D, ESC=0x1B)
+  bool ctrl = (ch >= 1 && ch <= 26) &&
+              ch != 0x08 && ch != 0x09 && ch != 0x0A && ch != 0x0D && ch != 0x1B;
 
   if (ctrl)  kbd.push_scancode(0x1D);       // Ctrl make
   if (shift) kbd.push_scancode(0x2A);       // LShift make
