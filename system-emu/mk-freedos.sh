@@ -207,7 +207,7 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   # Copy remaining files
   for f in "$TMPDIR_FD"/*; do
     if [ -e "$f" ]; then
-      mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -s -p -m -n "$f" ::/ 2>/dev/null || true
+      mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -s -p -m -o "$f" ::/ 2>/dev/null || true
     fi
   done
   rm -rf "$TMPDIR_FD"
@@ -318,7 +318,7 @@ fi
 
 echo ""
 echo "Done! To boot:"
-echo "  ./system-emu/sail-x86-system -b $BIOS_BIN -hda $FREEDOS_IMG"
+echo "  ./system-emu/sail-x86-system -vga -b $BIOS_BIN -hda $FREEDOS_IMG"
 echo ""
 echo "With debug output:"
-echo "  ./system-emu/sail-x86-system -d -b $BIOS_BIN -hda $FREEDOS_IMG"
+echo "  ./system-emu/sail-x86-system -d -vga -b $BIOS_BIN -hda $FREEDOS_IMG"
