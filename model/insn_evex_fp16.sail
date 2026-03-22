@@ -333,9 +333,9 @@ function vfmsubaddph_zmm(a, b, c) =
 val cmp_f16_pred : (word, word, range(0, 31)) -> bit
 function cmp_f16_pred(a, b, pred) = {
   let c = __compare_sh(a, b);
-  let unord : bit = match c { FP_UNORDERED => bitone, _ => bitzero };
-  let eq : bit = match c { FP_EQ => bitone, _ => bitzero };
-  let lt : bit = match c { FP_LT => bitone, _ => bitzero };
+  let unord : bit = match c { FP_UNORDERED => 0b1, _ => 0b0 };
+  let eq : bit = match c { FP_EQ => 0b1, _ => 0b0 };
+  let lt : bit = match c { FP_LT => 0b1, _ => 0b0 };
   let le : bit = lt | eq;
   match pred {
     0  => eq,                    // EQ_OQ
@@ -349,11 +349,11 @@ function cmp_f16_pred(a, b, pred) = {
     8  => eq | unord,            // EQ_UQ
     9  => lt | unord,            // NGE_US
     10 => le | unord,            // NGT_US
-    11 => bitzero,               // FALSE_OQ
+    11 => 0b0,               // FALSE_OQ
     12 => ~(eq) & ~(unord),      // NEQ_OQ
     13 => ~(lt) & ~(unord),      // GE_OS
     14 => ~(le) & ~(unord),      // GT_OS
-    15 => bitone,                // TRUE_UQ
+    15 => 0b1,                // TRUE_UQ
     16 => eq,                    // EQ_OS
     17 => lt,                    // LT_OQ
     18 => le,                    // LE_OQ
@@ -365,11 +365,11 @@ function cmp_f16_pred(a, b, pred) = {
     24 => eq | unord,            // EQ_US
     25 => lt | unord,            // NGE_UQ
     26 => le | unord,            // NGT_UQ
-    27 => bitzero,               // FALSE_OS
+    27 => 0b0,               // FALSE_OS
     28 => ~(eq) & ~(unord),      // NEQ_OS
     29 => ~(lt) & ~(unord),      // GE_OQ
     30 => ~(le) & ~(unord),      // GT_OQ
-    31 => bitone,                // TRUE_US
+    31 => 0b1,                // TRUE_US
   }
 }
 
@@ -1213,12 +1213,12 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(seg, offset) => seg_read16(seg, offset),
       };
       match __compare_sh(a, b) {
-        FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-        FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-        FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-        FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
+        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+        FP_EQ        => { ZF = 0b1;  PF = 0b0; CF = 0b0; },
       };
-      OF = bitzero; SF = bitzero; AF = bitzero
+      OF = 0b0; SF = 0b0; AF = 0b0
     },
 
     // MAP5 0x2F: VCOMISH (NP) — ordered compare scalar FP16, set EFLAGS
@@ -1233,12 +1233,12 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(seg, offset) => seg_read16(seg, offset),
       };
       match __compare_sh(a, b) {
-        FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-        FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-        FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-        FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+        FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
+        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+        FP_EQ        => { ZF = 0b1;  PF = 0b0; CF = 0b0; },
       };
-      OF = bitzero; SF = bitzero; AF = bitzero
+      OF = 0b0; SF = 0b0; AF = 0b0
     },
 
     // MAP5 0x6E: VMOVW (66) — load 16-bit value to XMM low, zero-extend

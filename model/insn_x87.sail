@@ -98,10 +98,10 @@ val x87_set_sw_cc : FPCompareResult -> unit
 function x87_set_sw_cc(cmp) = {
   var sw : word = x87_sw;
   match cmp {
-    FP_GT        => { sw[14] = bitzero; sw[10] = bitzero; sw[8] = bitzero; },
-    FP_LT        => { sw[14] = bitzero; sw[10] = bitzero; sw[8] = bitone;  },
-    FP_EQ        => { sw[14] = bitone;  sw[10] = bitzero; sw[8] = bitzero; },
-    FP_UNORDERED => { sw[14] = bitone;  sw[10] = bitone;  sw[8] = bitone;  },
+    FP_GT        => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b0; },
+    FP_LT        => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b1;  },
+    FP_EQ        => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b0; },
+    FP_UNORDERED => { sw[14] = 0b1; sw[10] = 0b1; sw[8] = 0b1;  },
   };
   x87_sw = sw
 }
@@ -110,14 +110,14 @@ function x87_set_sw_cc(cmp) = {
 val x87_set_rflags_cc : FPCompareResult -> unit
 function x87_set_rflags_cc(cmp) = {
   match cmp {
-    FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-    FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-    FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-    FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+    FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
+    FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+    FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+    FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
   };
-  OF = bitzero;
-  AF = bitzero;
-  SF = bitzero
+  OF = 0b0;
+  AF = 0b0;
+  SF = 0b0
 }
 
 // =========================================================================
@@ -209,13 +209,13 @@ function dispatch_x87_d9(modrm, rm, _) = {
               var sw : word = x87_sw;
               sw[9] = val80[79];  // C1 = sign bit
               match __f80_classify(val80) {
-                FP_Unsupported => { sw[14] = bitzero; sw[10] = bitzero; sw[8] = bitzero; },
-                FP_NaN         => { sw[14] = bitzero; sw[10] = bitzero; sw[8] = bitone;  },
-                FP_Normal      => { sw[14] = bitzero; sw[10] = bitone;  sw[8] = bitzero; },
-                FP_Infinity    => { sw[14] = bitzero; sw[10] = bitone;  sw[8] = bitone;  },
-                FP_Zero        => { sw[14] = bitone;  sw[10] = bitzero; sw[8] = bitzero; },
-                FP_Empty       => { sw[14] = bitone;  sw[10] = bitzero; sw[8] = bitone;  },
-                FP_Denormal    => { sw[14] = bitone;  sw[10] = bitone;  sw[8] = bitzero; },
+                FP_Unsupported => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b0; },
+                FP_NaN         => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b1;  },
+                FP_Normal      => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b0; },
+                FP_Infinity    => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b1;  },
+                FP_Zero        => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b0; },
+                FP_Empty       => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b1;  },
+                FP_Denormal    => { sw[14] = 0b1; sw[10] = 0b1; sw[8] = 0b0; },
               };
               x87_sw = sw
             },
@@ -321,10 +321,10 @@ function dispatch_x87_da(modrm, rm, _) = {
     },
     RM_reg(_) => {
       match reg {
-        0 => if CF == bitone then x87_write_st(0, x87_read_st(sti)),
-        1 => if ZF == bitone then x87_write_st(0, x87_read_st(sti)),
-        2 => if CF == bitone | ZF == bitone then x87_write_st(0, x87_read_st(sti)),
-        3 => if PF == bitone then x87_write_st(0, x87_read_st(sti)),
+        0 => if CF == 0b1 then x87_write_st(0, x87_read_st(sti)),
+        1 => if ZF == 0b1 then x87_write_st(0, x87_read_st(sti)),
+        2 => if CF == 0b1 | ZF == 0b1 then x87_write_st(0, x87_read_st(sti)),
+        3 => if PF == 0b1 then x87_write_st(0, x87_read_st(sti)),
         // FUCOMPP
         5 => {
           if sti == 1 then {
@@ -365,16 +365,16 @@ function dispatch_x87_db(modrm, rm, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
-        0 => if CF == bitzero then x87_write_st(0, x87_read_st(sti)),
-        1 => if ZF == bitzero then x87_write_st(0, x87_read_st(sti)),
-        2 => if CF == bitzero & ZF == bitzero then x87_write_st(0, x87_read_st(sti)),
-        3 => if PF == bitzero then x87_write_st(0, x87_read_st(sti)),
+        0 => if CF == 0b0 then x87_write_st(0, x87_read_st(sti)),
+        1 => if ZF == 0b0 then x87_write_st(0, x87_read_st(sti)),
+        2 => if CF == 0b0 & ZF == 0b0 then x87_write_st(0, x87_read_st(sti)),
+        3 => if PF == 0b0 then x87_write_st(0, x87_read_st(sti)),
         // FNCLEX — clear exception flags
         4 => {
           if modrm_val == 226 then {
             var sw : word = x87_sw;
             sw[7 .. 0] = 0x00;
-            sw[15] = bitzero;
+            sw[15] = 0b0;
             x87_sw = sw
           // FNINIT
           } else if modrm_val == 227 then {

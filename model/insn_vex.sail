@@ -155,7 +155,7 @@ function decode_vex2(byte1) = {
     // vvvv is bits 6:3 (inverted)
     vex_vvvv = 15 - unsigned(byte1[6..3]),
     // L is bit 2
-    vex_l = byte1[2] == bitone,
+    vex_l = byte1[2] == 0b1,
     // pp is bits 1:0 — map to mandatory prefix flags
     has_opsize = byte1[1..0] == 0b01,
     has_rep    = byte1[1..0] == 0b10,
@@ -176,12 +176,12 @@ function decode_vex3(byte1, byte2) = {
     rex_x = ~(byte1[6]),
     rex_b = ~(byte1[5]),
     // W is bit 7 of byte2
-    vex_w = byte2[7] == bitone,
-    rex_w = byte2[7] == bitone,
+    vex_w = byte2[7] == 0b1,
+    rex_w = byte2[7] == 0b1,
     // vvvv is bits 6:3 of byte2 (inverted)
     vex_vvvv = 15 - unsigned(byte2[6..3]),
     // L is bit 2 of byte2
-    vex_l = byte2[2] == bitone,
+    vex_l = byte2[2] == 0b1,
     // pp is bits 1:0 of byte2
     has_opsize = byte2[1..0] == 0b01,
     has_rep    = byte2[1..0] == 0b10,
@@ -225,7 +225,7 @@ function fp16_to_fp32(h) = {
       let f : bits(10) = frac10;
       var done : bool = false;
       foreach (i from 9 downto 0) {
-        if ~(done) & f[i] == bitzero then shift = shift + 1
+        if ~(done) & f[i] == 0b0 then shift = shift + 1
         else done = true
       };
       let new_exp : int = 112 - shift;
@@ -269,9 +269,9 @@ function fp32_to_fp16(f, rc) = {
         (get_slice_int(5, new_exp, 0) @ frac23[22..13], frac23[12], ~(sticky[12]))
       };
     let round_up : bool = match rc {
-      0b00 => round_bit == bitone & (sticky_bit == bitone | top15[0] == bitone),
-      0b01 => sign == 0b1 & (round_bit == bitone | sticky_bit == bitone),
-      0b10 => sign == 0b0 & (round_bit == bitone | sticky_bit == bitone),
+      0b00 => (round_bit == 0b1) & (sticky_bit == 0b1 | top15[0] == 0b1),
+      0b01 => (sign == 0b1) & (round_bit == 0b1 | sticky_bit == 0b1),
+      0b10 => (sign == 0b0) & (round_bit == 0b1 | sticky_bit == 0b1),
       0b11 => false
     };
     let result15 : bits(15) = if round_up then top15 + 1 else top15;

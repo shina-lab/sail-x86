@@ -87,8 +87,8 @@ function shift_right_arith(value, shift) =
   sign_extend('n + shift, value)[('n - 1 + shift) .. shift]
 
 mapping bool_bit : bool <-> bit = {
-  true  <-> bitone,
-  false <-> bitzero,
+  true  <-> 0b1,
+  false <-> 0b0,
 }
 
 function bool_to_bit(x : bool) -> bit = bool_bit(x)

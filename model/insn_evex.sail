@@ -41,7 +41,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
     var off : int = 0;
     var m : qword = mask;
     while off < nbytes do {
-      if m[0] == bitone then {
+      if m[0] == 0b1 then {
         var j : int = 0;
         while j < elem_bytes do {
           let idx : int = off + j;
@@ -367,9 +367,9 @@ function evex_write_pd_xmm(dst, result, pfx) = evex_write_q_xmm(dst, result, pfx
 val evex_write_ss : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_ss(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == bitone then {
+  if mask_bit == 0b1 then {
     write_xmm(dst, result)
-  } else if pfx.evex_z == bitone then {
+  } else if pfx.evex_z == 0b1 then {
     write_xmm(dst, result[127..32] @ zeros(32))
   } else {
     write_xmm(dst, result[127..32] @ read_xmm(dst)[31..0])
@@ -380,9 +380,9 @@ function evex_write_ss(dst, result, pfx) = {
 val evex_write_sh : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_sh(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == bitone then {
+  if mask_bit == 0b1 then {
     write_xmm(dst, result)
-  } else if pfx.evex_z == bitone then {
+  } else if pfx.evex_z == 0b1 then {
     write_xmm(dst, result[127..16] @ zeros(16))
   } else {
     write_xmm(dst, result[127..16] @ read_xmm(dst)[15..0])
@@ -393,9 +393,9 @@ function evex_write_sh(dst, result, pfx) = {
 val evex_write_sd : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_sd(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == bitone then {
+  if mask_bit == 0b1 then {
     write_xmm(dst, result)
-  } else if pfx.evex_z == bitone then {
+  } else if pfx.evex_z == 0b1 then {
     write_xmm(dst, result[127..64] @ zeros(64))
   } else {
     write_xmm(dst, result[127..64] @ read_xmm(dst)[63..0])

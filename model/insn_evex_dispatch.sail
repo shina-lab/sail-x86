@@ -23,8 +23,7 @@ function decode_evex() = {
 
   // Reserved field checks (SDM Vol.2 §2.6.1):
   // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
-  if p0[3] == bitone then throw Fault(EXN_UD, 0x00000000);
-  if p1[2] == bitzero then throw Fault(EXN_UD, 0x00000000);
+  if p0[3] == 0b1 | p1[2] == 0b0 then throw Fault(EXN_UD, 0x00000000);
 
   let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
@@ -36,8 +35,8 @@ function decode_evex() = {
     rex_b  = ~(p0[5]),
     evex_rr = ~(p0[4]),
     // P1: W, vvvv (inverted), pp
-    rex_w  = p1[7] == bitone,
-    vex_w  = p1[7] == bitone,
+    rex_w  = p1[7] == 0b1,
+    vex_w  = p1[7] == 0b1,
     evex_vvvvv = {
       let vprime : range(0, 1) = unsigned(zero_extend(~(p2[3])) : bits(1));
       let vvvv : range(0, 15) = unsigned(~(p1[6..3]));
@@ -50,7 +49,7 @@ function decode_evex() = {
     // P2: z, L'L, b, V', aaa
     evex_z   = p2[7],
     evex_ll  = unsigned(p2[6..5]),
-    evex_b   = p2[4] == bitone,
+    evex_b   = p2[4] == 0b1,
     evex_aaa = unsigned(p2[2..0]),
     // Also populate VEX fields for compatibility
     vex_present = true,

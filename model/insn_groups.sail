@@ -597,7 +597,7 @@ function exec_sar(a, count_raw, os) = {
       OS32 => update_SF_ZF_PF(result[31..0]),
       OS64 => update_SF_ZF_PF(result),
     };
-    if count == 1 then OF = bitzero
+    if count == 1 then OF = 0b0
     else OF = undefined;
     AF = undefined;
     result

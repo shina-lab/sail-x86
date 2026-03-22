@@ -38,11 +38,11 @@ function default_prefixes() = struct {
   has_rep = false,
   seg_override = None(),
   has_opsize = false,
-  has_adsize = bitzero,
+  has_adsize = 0b0,
   rex_w = false,
-  rex_r = bitzero,
-  rex_x = bitzero,
-  rex_b = bitzero,
+  rex_r = 0b0,
+  rex_x = 0b0,
+  rex_b = 0b0,
   has_rex = false,
   vex_present = false,
   vex_l = false,
@@ -52,9 +52,9 @@ function default_prefixes() = struct {
   evex_ll = 0,
   evex_vvvvv = 0,
   evex_aaa = 0,
-  evex_z = bitzero,
+  evex_z = 0b0,
   evex_b = false,
-  evex_rr = bitzero,
+  evex_rr = 0b0,
 }
 
 // =========================================================================
@@ -163,7 +163,7 @@ function get_operand_size(pfx) =
   if pfx.rex_w then OS64
   else if cur_mode == LongMode then {
     if pfx.has_opsize then OS16 else OS32
-  } else if get_cs_db() == bitone then {
+  } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then OS16 else OS32
   } else {
     if pfx.has_opsize then OS32 else OS16
@@ -177,7 +177,7 @@ val get_operand_size_d64 : Prefixes -> OperandSize
 function get_operand_size_d64(pfx) =
   if cur_mode == LongMode then {
     if pfx.has_opsize then OS16 else OS64
-  } else if get_cs_db() == bitone then {
+  } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then OS16 else OS32
   } else {
     if pfx.has_opsize then OS32 else OS16
@@ -199,7 +199,7 @@ function get_operand_size_f64(pfx) =
   if pfx.rex_w then OS64
   else if cur_mode == LongMode then {
     if pfx.has_opsize then OS16 else OS64
-  } else if get_cs_db() == bitone then {
+  } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then OS16 else OS32
   } else {
     if pfx.has_opsize then OS32 else OS16
@@ -386,7 +386,7 @@ function fetch_rel8() = sign_extend(fetch_byte())
 val fetch_rel_os : Prefixes -> qword
 function fetch_rel_os(pfx) = {
   let use_32 : bool = if cur_mode == LongMode then true
-    else if get_cs_db() == bitone then ~(pfx.has_opsize)
+    else if get_cs_db() == 0b1 then ~(pfx.has_opsize)
     else pfx.has_opsize;
   if use_32 then fetch_rel32() else fetch_rel16()
 }
@@ -414,11 +414,11 @@ function truncate_rip(target, os) =
 val get_address_size : Prefixes -> AddressSize
 function get_address_size(pfx) =
   if cur_mode == LongMode then {
-    if pfx.has_adsize == bitone then AS32 else AS64
-  } else if get_cs_db() == bitone then {
-    if pfx.has_adsize == bitone then AS16 else AS32
+    if pfx.has_adsize == 0b1 then AS32 else AS64
+  } else if get_cs_db() == 0b1 then {
+    if pfx.has_adsize == 0b1 then AS16 else AS32
   } else {
-    if pfx.has_adsize == bitone then AS32 else AS16
+    if pfx.has_adsize == 0b1 then AS32 else AS16
   }
 
 // Fetch a full moffs (memory offset) address.

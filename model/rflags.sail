@@ -25,7 +25,7 @@ val read_rflags : unit -> qword
 function read_rflags() = {
   var r : qword = zeros();
   r[0] = CF;
-  r[1] = bitone;  // reserved, always 1
+  r[1] = 0b1;  // reserved, always 1
   r[2] = PF;
   r[4] = AF;
   r[6] = ZF;
@@ -194,8 +194,8 @@ function eval_cc(cc) = {
 // CF and OF are cleared; AF is undefined per SDM.
 val update_flags_logic : forall 'n, 'n >= 8. bits('n) -> unit
 function update_flags_logic(result) = {
-  CF = bitzero;
-  OF = bitzero;
+  CF = 0b0;
+  OF = 0b0;
   AF = undefined;
   update_SF_ZF_PF(result)
 }

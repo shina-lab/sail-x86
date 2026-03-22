@@ -889,7 +889,10 @@ function dispatch_vex_0f_int(op, pfx) = {
     let result : qword = v1 | v2;
     ZF = (~(or_reduce_64(result)))[0];
     CF = (~(or_reduce_64(result ^ mask)))[0];
-    SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
+    SF = 0b0;
+    OF = 0b0;
+    PF = 0b0;
+    AF = 0b0
   },
 
   // 0F 99: KTEST{W,B,D,Q} k1, k2 — ZF if k1&k2==0, CF if (~k1)&k2==0
@@ -902,7 +905,10 @@ function dispatch_vex_0f_int(op, pfx) = {
     let v2 : qword = read_kreg(k2) & mask;
     ZF = (~(or_reduce_64(v1 & v2)))[0];
     CF = (~(or_reduce_64(~(v1) & v2 & mask)))[0];
-    SF = bitzero; OF = bitzero; PF = bitzero; AF = bitzero
+    SF = 0b0;
+    OF = 0b0;
+    PF = 0b0;
+    AF = 0b0
   },
 
   // 0F C4: VPINSRW xmm, xmm, r32/m16, imm8 (66 prefix, VEX.128 only)
@@ -1636,7 +1642,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         let mask : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
         let addr : bits(64) = read_gpr64(7); // RDI
         foreach (i from 0 to 15) {
-          if mask[(i * 8 + 7)] == bitone then
+          if mask[(i * 8 + 7)] == 0b1 then
             mem_write(addr + to_bits(64, i), 1, data[(i * 8 + 7) .. (i * 8)])
         }
       },

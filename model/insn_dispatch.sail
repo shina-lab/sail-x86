@@ -80,12 +80,12 @@ function exec_loop(rel8, variant, asz) = {
   };
   let take_branch : bool = match variant {
     LOOP_always => count_nonzero,
-    LOOP_e      => if count_nonzero then ZF == bitone else false,
-    LOOP_ne     => if count_nonzero then ZF == bitzero else false,
+    LOOP_e      => if count_nonzero then ZF == 0b1 else false,
+    LOOP_ne     => if count_nonzero then ZF == 0b0 else false,
   };
   if take_branch then {
     let os = if cur_mode == LongMode then OS64
-             else if get_cs_db() == bitone then OS32
+             else if get_cs_db() == 0b1 then OS32
              else OS16;
     next_rip = Some(truncate_rip(decode_pos + sign_extend(rel8), os));
   }
@@ -187,7 +187,7 @@ function exec_ins(os, asz) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then
+  if DF == 0b0 then
     write_index_dst(asz, off + delta)
   else
     write_index_dst(asz, off - delta)
@@ -217,7 +217,7 @@ function exec_outs(os, asz, pfx) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then
+  if DF == 0b0 then
     write_index_src(asz, off + delta)
   else
     write_index_src(asz, off - delta)
@@ -247,7 +247,7 @@ function exec_movs(os, asz, pfx) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then {
+  if DF == 0b0 then {
     write_index_src(asz, src_off + delta);
     write_index_dst(asz, dst_off + delta);
   } else {
@@ -274,7 +274,7 @@ function exec_stos(os, asz) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then
+  if DF == 0b0 then
     write_index_dst(asz, off + delta)
   else
     write_index_dst(asz, off - delta)
@@ -302,7 +302,7 @@ function exec_lods(os, asz, pfx) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then
+  if DF == 0b0 then
     write_index_src(asz, off + delta)
   else
     write_index_src(asz, off - delta)
@@ -342,7 +342,7 @@ function exec_scas(os, asz) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then
+  if DF == 0b0 then
     write_index_dst(asz, off + delta)
   else
     write_index_dst(asz, off - delta)
@@ -388,7 +388,7 @@ function exec_cmps(os, asz, pfx) = {
     OS32 => 0x0000000000000004,
     OS64 => 0x0000000000000008,
   };
-  if DF == bitzero then {
+  if DF == 0b0 then {
     write_index_src(asz, src_off + delta);
     write_index_dst(asz, dst_off + delta);
   } else {
@@ -422,8 +422,8 @@ function exec_rep(prefix, op, os, asz, pfx) = {
       if read_count_reg(asz) == zeros() then
         done = true
       else match prefix {
-        REP_repe  => if ZF == bitzero then done = true,
-        REP_repne => if ZF == bitone then done = true,
+        REP_repe  => if ZF == 0b0 then done = true,
+        REP_repne => if ZF == 0b1 then done = true,
         _         => (),
       };
     };
@@ -516,7 +516,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             let diff : bits(17) = top17 ^ sign_extend(top17[16..16]);
             let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
             let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
-            if fault == bitone then raise_GP0();
+            if fault == 0b1 then raise_GP0();
             __tlb_flush()
           },
           RM_reg(_) => raise_UD(),
@@ -832,8 +832,8 @@ function exec_retf(pfx, maybe_imm) = {
   // Load new CS (selector + descriptor cache) and set CPL
   load_segment_register(CS, new_cs);
   // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
-  if EFER[10] == bitone then {
-    if SegCache[CS].seg_l == bitone then cur_mode = LongMode
+  if EFER[10] == 0b1 then {
+    if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   };
   // In real mode, CPL is always 0 (no privilege levels).
@@ -1464,7 +1464,7 @@ function decode_execute() = {
       144 => {
         if pfx.has_rep then {
           ()
-        } else if pfx.rex_b == bitone then {
+        } else if pfx.rex_b == 0b1 then {
           let os = get_operand_size(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {
@@ -1569,7 +1569,7 @@ function decode_execute() = {
             let old_if = IF_flag;
             write_rflags(v);
             // RF always cleared; VIP, VIF, VM not modifiable
-            RF = bitzero;
+            RF = 0b0;
             // IOPL modifiable only at CPL 0; IF modifiable at CPL <= IOPL
             if cur_cpl != 0 then IOPL = old_iopl;
             if cur_cpl > unsigned(old_iopl) then IF_flag = old_if;
@@ -1586,7 +1586,7 @@ function decode_execute() = {
 
       // 9F: LAHF — AH := RFLAGS[7:0] = SF:ZF:0:AF:0:PF:1:CF
       159 => {
-        let v : byte = SF @ ZF @ bitzero @ AF @ bitzero @ PF @ bitone @ CF;
+        let v : byte = SF @ ZF @ 0b0 @ AF @ 0b0 @ PF @ 0b1 @ CF;
         write_gpr8h(RAX, v)
       },
 
@@ -1899,7 +1899,7 @@ function decode_execute() = {
       // #UD in 64-bit mode. If OF=1, generates #OF (vector 4).
       206 => {
         if cur_mode == LongMode then raise_UD();
-        if OF == bitone then {
+        if OF == 0b1 then {
           if system_mode then {
             sw_return_rip = Some(decode_pos);
             deliver_exception(EXN_OF, 0x00000000, true);
@@ -1917,7 +1917,7 @@ function decode_execute() = {
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
         let os = get_operand_size(pfx);
-        if NT == bitone then {
+        if NT == 0b1 then {
           throw Fault(EXN_GP, 0x00000000)
         };
         match os {
@@ -1945,7 +1945,7 @@ function decode_execute() = {
             if cur_mode != RealMode then cur_cpl = return_rpl;
             let old_rflags = read_rflags();
             write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
-            RF = bitzero
+            RF = 0b0
           },
           OS32 => {
             let new_eip    = pop32();
@@ -1968,7 +1968,7 @@ function decode_execute() = {
 
             if cur_mode != RealMode then cur_cpl = return_rpl;
             write_rflags(zero_extend(new_eflags));
-            RF = bitzero
+            RF = 0b0
           },
           OS64 => {
             let new_rip    = pop64();
@@ -1985,14 +1985,14 @@ function decode_execute() = {
             let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
             write_segreg(CS, new_cs[15..0]);
             SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
-            cur_mode = if SegCache[CS].seg_l == bitone then LongMode
+            cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
                        else CompatibilityMode;
 
             let new_cpl : cpl_t = unsigned(new_cs[1..0]);
             cur_cpl = new_cpl;
 
             write_rflags(new_rflags);
-            RF = bitzero;
+            RF = 0b0;
 
             write_gpr64(RSP, new_rsp);
             write_segreg(SS, new_ss[15..0]);
@@ -2259,22 +2259,22 @@ function decode_execute() = {
       },
 
       // F8: CLC
-      248 => CF = bitzero,
+      248 => CF = 0b0,
 
       // F9: STC
-      249 => CF = bitone,
+      249 => CF = 0b1,
 
       // FA: CLI
-      250 => IF_flag = bitzero,
+      250 => IF_flag = 0b0,
 
       // FB: STI
-      251 => IF_flag = bitone,
+      251 => IF_flag = 0b1,
 
       // FC: CLD
-      252 => DF = bitzero,
+      252 => DF = 0b0,
 
       // FD: STD
-      253 => DF = bitone,
+      253 => DF = 0b1,
 
       // FE: Group 4 — INC/DEC r/m8
       254 => {
@@ -2311,7 +2311,7 @@ function decode_execute() = {
       // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
       op if 64 <= op & op <= 71 => {
         let reg_field : range(0, 7) = op - 64;
-        let reg = extend_reg(reg_field, bitzero);
+        let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
         let v = read_gpr(reg, os);
         let result = exec_inc(v, os);
@@ -2321,7 +2321,7 @@ function decode_execute() = {
       // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
       op if 72 <= op & op <= 79 => {
         let reg_field : range(0, 7) = op - 72;
-        let reg = extend_reg(reg_field, bitzero);
+        let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
         let v = read_gpr(reg, os);
         let result = exec_dec(v, os);
@@ -2354,7 +2354,7 @@ function decode_execute() = {
       op if 112 <= op & op <= 127 => {
         let cc : cc_idx = op - 112;
         let offset = fetch_rel8();
-        if eval_cc(cc) == bitone then {
+        if eval_cc(cc) == 0b1 then {
           let os = get_operand_size_f64(pfx);
           next_rip = Some(truncate_rip(decode_pos + offset, os));
         }

@@ -2568,10 +2568,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let temp2 : xmmword = (~(a)) & b;
       ZF = (~(or_reduce_64(temp1[127..64] | temp1[63..0])))[0];
       CF = (~(or_reduce_64(temp2[127..64] | temp2[63..0])))[0];
-      OF = bitzero;
-      AF = bitzero;
-      PF = bitzero;
-      SF = bitzero
+      OF = 0b0;
+      AF = 0b0;
+      PF = 0b0;
+      SF = 0b0
     },
 
     // SSSE3 — PABSB
@@ -3089,8 +3089,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       ZF = zf_val;
       SF = sf_val;
       OF = of_val;
-      AF = bitzero;
-      PF = bitzero
+      AF = 0b0;
+      PF = 0b0
     },
     // SSE4.2 — PCMPESTRI
     97 => {
@@ -3106,8 +3106,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       ZF = zf_val;
       SF = sf_val;
       OF = of_val;
-      AF = bitzero;
-      PF = bitzero
+      AF = 0b0;
+      PF = 0b0
     },
     // SSE4.2 — PCMPISTRM
     98 => {
@@ -3121,8 +3121,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       ZF = zf_val;
       SF = sf_val;
       OF = of_val;
-      AF = bitzero;
-      PF = bitzero
+      AF = 0b0;
+      PF = 0b0
     },
     // SSE4.2 — PCMPISTRI
     99 => {
@@ -3136,8 +3136,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       ZF = zf_val;
       SF = sf_val;
       OF = of_val;
-      AF = bitzero;
-      PF = bitzero
+      AF = 0b0;
+      PF = 0b0
     },
 
     // AES-NI — AESKEYGENASSIST

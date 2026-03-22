@@ -25,7 +25,7 @@ function step() = {
 
   // Check for pending external interrupts before fetching.
   // Only deliver if IF=1 (interrupts enabled) and in system mode.
-  if system_mode & IF_flag == bitone then {
+  if system_mode & IF_flag == 0b1 then {
     let irq_vec = __check_pending_irq();
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;

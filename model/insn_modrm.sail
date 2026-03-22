@@ -60,7 +60,7 @@ function decode_sib(sib, modbits, pfx) = {
 
   // Compute index component: index=100 (RSP without REX.X) means no index
   let index_val : qword =
-    if index_raw == 4 & pfx.rex_x == bitzero then {
+    if index_raw == 4 & pfx.rex_x == 0b0 then {
       0x0000000000000000
     } else {
       let idx_reg = read_gpr64(index_idx);
@@ -153,7 +153,7 @@ function decode_sib_evex(sib, modbits, pfx, disp_n) = {
     };
 
   let index_val : qword =
-    if index_raw == 4 & pfx.rex_x == bitzero then {
+    if index_raw == 4 & pfx.rex_x == 0b0 then {
       0x0000000000000000
     } else {
       let idx_reg = read_gpr64(index_idx);

@@ -600,8 +600,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     write_gpr(dst, os, result);
     SF = if pfx.vex_w then result[63] else result[31];
     ZF = (~(or_reduce_64(result)))[0];
-    OF = bitzero;
-    CF = bitzero
+    OF = 0b0;
+    CF = 0b0
   },
 
   // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg
@@ -622,16 +622,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         SF = if pfx.vex_w then result[63] else result[31];
         ZF = (~(or_reduce_64(result)))[0];
         CF = (~(or_reduce_64(src)))[0];
-        OF = bitzero
+        OF = 0b0
       },
       // BLSMSK: dest = (src - 1) ^ src
       2 => {
         let result : qword = (src - 1) ^ src;
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = bitzero;
+        ZF = 0b0;
         CF = (~(or_reduce_64(src)))[0];
-        OF = bitzero
+        OF = 0b0
       },
       // BLSI: dest = (-src) & src (isolate lowest set bit)
       3 => {
@@ -641,7 +641,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         SF = if pfx.vex_w then result[63] else result[31];
         ZF = (~(or_reduce_64(result)))[0];
         CF = (or_reduce_64(src))[0];
-        OF = bitzero
+        OF = 0b0
       },
       _ => raise_UD(),
     }
@@ -731,16 +731,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         var result : qword = zeros();
         if index >= os_bits then {
           result = src1;
-          CF = bitone
+          CF = 0b1
         } else {
           let shift_amt : range(0, 255) = 64 - index;
           result = (src1 << shift_amt) >> shift_amt;
-          CF = bitzero
+          CF = 0b0
         };
         write_gpr(dst, os, result);
         SF = if pfx.vex_w then result[63] else result[31];
         ZF = (~(or_reduce_64(result)))[0];
-        OF = bitzero
+        OF = 0b0
       },
       MP_F2 => {
         // PDEP: VEX.NDS.LZ.F2.0F38.W0/W1 F5
@@ -750,7 +750,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
         foreach (i from 0 to 63) {
-          if mask[i] == bitone then {
+          if mask[i] == 0b1 then {
             temp[i] = src[k];
             k = (k + 1) % 64
           }
@@ -765,7 +765,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
         foreach (i from 0 to 63) {
-          if mask[i] == bitone then {
+          if mask[i] == 0b1 then {
             temp[k] = src[i];
             k = (k + 1) % 64
           }
@@ -831,8 +831,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         };
         write_gpr(dst, os, result);
         ZF = (~(or_reduce_64(result)))[0];
-        OF = bitzero;
-        CF = bitzero
+        OF = 0b0;
+        CF = 0b0
       },
       MP_F3 => {
         // SARX: VEX.NDS.LZ.F3.0F38.W0/W1 F7 — arithmetic right shift, no flags
@@ -1361,7 +1361,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
@@ -1369,8 +1368,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
-    }
+    };
+    OF = 0b0;
+    AF = 0b0;
+    PF = 0b0;
+    SF = 0b0
   },
 
   // 0F38 0F: VTESTPD xmm, xmm/m128 or ymm, ymm/m256 (VEX.128/256.66.0F38.W0)
@@ -1388,7 +1390,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
@@ -1396,8 +1397,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
-    }
+    };
+    OF = 0b0;
+    AF = 0b0;
+    PF = 0b0;
+    SF = 0b0
   },
 
   // 0F38 16: VPERMPS ymm, ymm, ymm/m256 (VEX.256.66.0F38.W0)
@@ -1474,14 +1478,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           let mask : ymmword = read_ymm(pfx.vex_vvvv);
           let src : ymmword = read_ymm(src_idx);
           foreach (i from 0 to 7) {
-            if mask[(i * 32 + 31)] == bitone then
+            if mask[(i * 32 + 31)] == 0b1 then
               mem_write32(a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
           }
         } else {
           let mask : xmmword = read_xmm(pfx.vex_vvvv);
           let src : xmmword = read_xmm(src_idx);
           foreach (i from 0 to 3) {
-            if mask[(i * 32 + 31)] == bitone then
+            if mask[(i * 32 + 31)] == 0b1 then
               mem_write32(a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
           }
         }
@@ -1504,14 +1508,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           let mask : ymmword = read_ymm(pfx.vex_vvvv);
           let src : ymmword = read_ymm(src_idx);
           foreach (i from 0 to 3) {
-            if mask[(i * 64 + 63)] == bitone then
+            if mask[(i * 64 + 63)] == 0b1 then
               mem_write64(a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
           }
         } else {
           let mask : xmmword = read_xmm(pfx.vex_vvvv);
           let src : xmmword = read_xmm(src_idx);
           foreach (i from 0 to 1) {
-            if mask[(i * 64 + 63)] == bitone then
+            if mask[(i * 64 + 63)] == 0b1 then
               mem_write64(a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
           }
         }
@@ -1601,7 +1605,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1614,7 +1618,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1630,7 +1634,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 7) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1643,7 +1647,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1669,7 +1673,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1682,7 +1686,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1698,7 +1702,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1711,7 +1715,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1737,7 +1741,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1750,7 +1754,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1766,7 +1770,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 7) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1779,7 +1783,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1805,7 +1809,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : ymmword = read_ymm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1818,7 +1822,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 64 + 63)] == bitone then {
+          if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
@@ -1834,7 +1838,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : ymmword = read_ymm(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1847,7 +1851,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : xmmword = read_xmm(mask_idx);
         let indices : xmmword = read_xmm(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
-          if mask[(i * 32 + 31)] == bitone then {
+          if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
@@ -1938,7 +1942,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
@@ -1946,8 +1949,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
       CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
-      OF = bitzero; AF = bitzero; PF = bitzero; SF = bitzero
-    }
+    };
+    OF = 0b0;
+    AF = 0b0;
+    PF = 0b0;
+    SF = 0b0
   },
 
   // 0F38 37: VPCMPGTQ xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -1995,7 +2001,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : ymmword = read_ymm(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 3) {
-              if mask[(i * 64 + 63)] == bitone then
+              if mask[(i * 64 + 63)] == 0b1 then
                 result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
             };
             write_ymm(dst, result)
@@ -2004,7 +2010,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : xmmword = read_xmm(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 1) {
-              if mask[(i * 64 + 63)] == bitone then
+              if mask[(i * 64 + 63)] == 0b1 then
                 result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
             };
             write_xmm(dst, result)
@@ -2014,7 +2020,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : ymmword = read_ymm(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 7) {
-              if mask[(i * 32 + 31)] == bitone then
+              if mask[(i * 32 + 31)] == 0b1 then
                 result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
             };
             write_ymm(dst, result)
@@ -2023,7 +2029,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : xmmword = read_xmm(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 3) {
-              if mask[(i * 32 + 31)] == bitone then
+              if mask[(i * 32 + 31)] == 0b1 then
                 result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
             };
             write_xmm(dst, result)
@@ -2050,7 +2056,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : ymmword = read_ymm(mask_idx);
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 3) {
-              if mask[(i * 64 + 63)] == bitone then
+              if mask[(i * 64 + 63)] == 0b1 then
                 mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
           },
@@ -2058,7 +2064,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : xmmword = read_xmm(mask_idx);
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 1) {
-              if mask[(i * 64 + 63)] == bitone then
+              if mask[(i * 64 + 63)] == 0b1 then
                 mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
           },
@@ -2067,7 +2073,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : ymmword = read_ymm(mask_idx);
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 7) {
-              if mask[(i * 32 + 31)] == bitone then
+              if mask[(i * 32 + 31)] == 0b1 then
                 mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
           },
@@ -2075,7 +2081,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let mask : xmmword = read_xmm(mask_idx);
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 3) {
-              if mask[(i * 32 + 31)] == bitone then
+              if mask[(i * 32 + 31)] == 0b1 then
                 mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
           },

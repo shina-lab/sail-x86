@@ -230,7 +230,7 @@ function get_seg_base(seg) =
   else SegCache[seg].seg_base
 
 // Get the CS.D bit (default operation size).
-// Returns bitone when CS.D=1 (32-bit default), bitzero when CS.D=0 (16-bit).
+// Returns 0b1 when CS.D=1 (32-bit default), 0b0 when CS.D=0 (16-bit).
 val get_cs_db : unit -> bit
 function get_cs_db() = SegCache[CS].seg_db
 
@@ -244,7 +244,7 @@ function parse_seg_descriptor(lo, hi) = {
   let raw_limit : bits(20) = hi[19..16] @ lo[15..0];
   // Granularity: if G=1, scale limit by 4KB (shift left 12, fill low bits)
   let g : bit = hi[23];
-  let limit : dword = if g == bitone then zero_extend(raw_limit) @ 0xFFF
+  let limit : dword = if g == 0b1 then zero_extend(raw_limit) @ 0xFFF
                       else zero_extend(raw_limit);
   struct {
     seg_base    = zero_extend(base),
@@ -460,17 +460,17 @@ register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 // AVX enabled: CR4.OSXSAVE(bit 18)=1 and XCR0.SSE(bit 1)=1, AVX(bit 2)=1
 val avx_enabled : unit -> bool
 function avx_enabled() =
-  CR4[18] == bitone & XCR0[2] == bitone & XCR0[1] == bitone
+  CR4[18] == 0b1 & XCR0[2] == 0b1 & XCR0[1] == 0b1
 
 // AVX-512 enabled: AVX enabled + silicon support + XCR0 bits 5,6,7
 val avx512_enabled : unit -> bool
 function avx512_enabled() =
   avx_enabled() & has_avx512 &
-  XCR0[5] == bitone & XCR0[6] == bitone & XCR0[7] == bitone
+  XCR0[5] == 0b1 & XCR0[6] == 0b1 & XCR0[7] == 0b1
 
 // Legacy SSE blocked by CR0.EM(bit 2)=1
 val sse_em_blocked : unit -> bool
-function sse_em_blocked() = CR0[2] == bitone
+function sse_em_blocked() = CR0[2] == 0b1
 
 // =========================================================================
 // Convenience functions: configure features by processor level

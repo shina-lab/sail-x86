@@ -66,7 +66,7 @@ function read_idt_gate(vec) = {
   let dpl : range(0, 3) = unsigned(lo[46..45]);
 
   // Present = lo[47]
-  let present : bool = lo[47] == bitone;
+  let present : bool = lo[47] == 0b1;
 
   struct {
     gate_offset = offset,
@@ -132,7 +132,7 @@ val push_to_stack_16 : (qword, word) -> qword
 function push_to_stack_16(sp, value) = {
   let base = get_seg_base(SS);
   let offset = sp - base;
-  let new_offset : qword = if SegCache[SS].seg_db == bitone
+  let new_offset : qword = if SegCache[SS].seg_db == 0b1
     then (offset - 2) & 0x00000000FFFFFFFF
     else (offset - 2) & 0x000000000000FFFF;
   let new_sp = base + new_offset;
@@ -154,7 +154,7 @@ function read_idt_gate_32(vec) = {
   let sel : word = lo[31..16];
   let gtype : bits(4) = hi[11..8];
   let dpl : range(0, 3) = unsigned(hi[14..13]);
-  let present : bool = hi[15] == bitone;
+  let present : bool = hi[15] == 0b1;
 
   struct {
     gate_offset = zero_extend(offset),
@@ -204,7 +204,7 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
 
   // Determine gate size: D bit (bit 3 of type field encodes 32 vs 16)
   // 0x0E/0x0F = 32-bit, 0x06/0x07 = 16-bit
-  let is_32bit : bool = gate.gate_type[3] == bitone;
+  let is_32bit : bool = gate.gate_type[3] == 0b1;
 
   // Determine new stack
   let privilege_change : bool = old_cpl != 0;
@@ -252,12 +252,12 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
 
   // If interrupt gate, clear IF
   if gate.gate_type == 0xE | gate.gate_type == 0x6 then {
-    IF_flag = bitzero
+    IF_flag = 0b0
   };
 
-  TF = bitzero;
-  NT = bitzero;
-  RF = bitzero;
+  TF = 0b0;
+  NT = 0b0;
+  RF = 0b0;
 }
 
 // Real mode interrupt delivery via IVT (SDM Vol.3A §7.9).
@@ -291,8 +291,8 @@ function deliver_exception_real(vec) = {
   RIP = zero_extend(new_ip);
 
   // Clear IF and TF
-  IF_flag = bitzero;
-  TF = bitzero;
+  IF_flag = 0b0;
+  TF = 0b0;
 }
 
 // Top-level inner delivery: dispatches by mode.
@@ -306,7 +306,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
     deliver_exception_real(vec);
     return ()
   };
-  if EFER[10] != bitone then {
+  if EFER[10] != 0b1 then {
     deliver_exception_inner_32(vec, err_code, software_int);
     return ()
   };
@@ -390,22 +390,22 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   // In IA-32e mode, all IDT gates reference 64-bit code segments.
   // Exception delivery always switches to 64-bit mode (SDM Vol.3 §12.17).
   cur_mode = LongMode;
-  SegCache[CS].seg_l = bitone;
-  SegCache[CS].seg_db = bitzero;
+  SegCache[CS].seg_l = 0b1;
+  SegCache[CS].seg_db = 0b0;
 
   // 9. Set new RIP to handler address
   RIP = gate.gate_offset;
 
   // 10. If interrupt gate (type 0xE), clear IF
   if gate.gate_type == 0xE then {
-    IF_flag = bitzero
+    IF_flag = 0b0
   };
 
   // 11. Clear TF, NT, RF (SDM Vol.3 §7.12.1.3: "the processor also
   //     clears the VM, RF, and NT flags after saving RFLAGS on the stack")
-  TF = bitzero;
-  NT = bitzero;
-  RF = bitzero;
+  TF = 0b0;
+  NT = 0b0;
+  RF = 0b0;
 }
 
 // Deliver an exception/interrupt through the IDT.

@@ -74,13 +74,13 @@ val default_seg_desc_cache : unit -> SegDescCache
 function default_seg_desc_cache() = struct {
   seg_base    = 0x0000000000000000,
   seg_limit   = 0x0000FFFF,
-  seg_type    = 0x3,         // data, R/W, accessed
-  seg_s       = bitone,      // code/data
+  seg_type    = 0x3, // data, R/W, accessed
+  seg_s       = 0b1, // code/data
   seg_dpl     = 0,
-  seg_present = bitone,
-  seg_db      = bitzero,     // 16-bit default
-  seg_l       = bitzero,
-  seg_g       = bitzero,     // byte granularity
+  seg_present = 0b1,
+  seg_db      = 0b0, // 16-bit default
+  seg_l       = 0b0,
+  seg_g       = 0b0, // byte granularity
 }
 
 // Exception class for double-fault escalation (SDM Vol.3 Table 7-4).

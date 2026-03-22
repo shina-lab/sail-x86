@@ -204,7 +204,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     };
     let imm = fetch_byte();
     // imm8[0] selects which 128-bit lane to replace
-    if imm[0] == bitzero then
+    if imm[0] == 0b0 then
       write_ymm(dst, src1[255..128] @ src2)
     else
       write_ymm(dst, src2 @ src1[127..0])
@@ -220,7 +220,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src_ymm : ymmword = read_ymm(src);
     let imm = fetch_byte();
     let extracted : xmmword =
-      if imm[0] == bitzero then src_ymm[127..0]
+      if imm[0] == 0b0 then src_ymm[127..0]
       else src_ymm[255..128];
     match rm {
       RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
@@ -293,7 +293,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
-    let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+    let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
     if pfx.vex_l then {
       let res : xmmword = avx_vcvtps2ph_256(read_ymm(src), rc);
       match rm {
@@ -868,7 +868,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1 : ymmword = read_ymm(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
     let imm = fetch_byte();
-    if imm[0] == bitzero then {
+    if imm[0] == 0b0 then {
       // Insert into lower 128 bits
       write_ymm(dst, src1[255..128] @ src2)
     } else {

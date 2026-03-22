@@ -42,15 +42,15 @@ val mk_pf_error : (PTAccess, bool, bool) -> dword
 function mk_pf_error(access, present, reserved) = {
   var ec : dword = 0x00000000;
   // Bit 0: P — page was present (permission violation vs not-present)
-  if present then ec[0] = bitone;
+  if present then ec[0] = 0b1;
   // Bit 1: W/R — write access caused the fault
-  if access == PT_Write then ec[1] = bitone;
+  if access == PT_Write then ec[1] = 0b1;
   // Bit 2: U/S — user-mode access caused the fault
-  if cur_cpl == 3 then ec[2] = bitone;
+  if cur_cpl == 3 then ec[2] = 0b1;
   // Bit 3: RSVD — reserved bit set in PTE
-  if reserved then ec[3] = bitone;
+  if reserved then ec[3] = 0b1;
   // Bit 4: I/D — instruction fetch caused the fault
-  if access == PT_Execute then ec[4] = bitone;
+  if access == PT_Execute then ec[4] = 0b1;
   ec
 }
 
@@ -62,16 +62,16 @@ function check_pte_permissions(pte, access) = {
   let xd    = pte[63]; // Execute-Disable bit (if EFER.NXE=1)
 
   // User-mode access to supervisor page: always denied
-  if cur_cpl == 3 & us == bitzero then false
+  if cur_cpl == 3 & us == 0b0 then false
   // Write to read-only page:
   // - In user mode: always denied
   // - In kernel mode: denied if CR0.WP=1, allowed if WP=0
-  else if access == PT_Write & rw == bitzero then {
+  else if access == PT_Write & rw == 0b0 then {
     if cur_cpl == 3 then false
-    else CR0[16] == bitzero  // WP=0 → allowed, WP=1 → denied
+    else CR0[16] == 0b0  // WP=0 → allowed, WP=1 → denied
   }
   // Execute from XD page: denied if EFER.NXE=1
-  else if access == PT_Execute & xd == bitone & EFER[11] == bitone then
+  else if access == PT_Execute & xd == 0b1 & EFER[11] == 0b1 then
     false
   else
     true
@@ -83,13 +83,13 @@ function update_accessed_dirty(pte_addr, pte, access) = {
   var new_pte = pte;
   var changed : bool = false;
   // Set Accessed bit if not already set
-  if pte[5] == bitzero then {
-    new_pte[5] = bitone;
+  if pte[5] == 0b0 then {
+    new_pte[5] = 0b1;
     changed = true
   };
   // Set Dirty bit for writes if not already set
-  if access == PT_Write & pte[6] == bitzero then {
-    new_pte[6] = bitone;
+  if access == PT_Write & pte[6] == 0b0 then {
+    new_pte[6] = 0b1;
     changed = true
   };
   if changed then phys_write64(pte_addr, new_pte)
@@ -120,7 +120,7 @@ function pt_walk(linear, access, table_base, level) = {
   let pte : qword = phys_read64(pte_addr);
 
   // 3. Check Present bit
-  if pte[0] == bitzero then {
+  if pte[0] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
@@ -128,14 +128,14 @@ function pt_walk(linear, access, table_base, level) = {
   // 4. Check reserved bits
   //    PML5E and PML4E: PS (bit 7) must be 0 (reserved)
   //    PDPTE/PDE: PS=1 allowed for huge pages
-  if (level == 4 | level == 3) & pte[7] == bitone then {
+  if (level == 4 | level == 3) & pte[7] == 0b1 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, true, true))
   };
 
   // 5. Check if this is a leaf entry
   let is_leaf : bool = if level == 0 then true
-    else if 1 <= level & level <= 2 & pte[7] == bitone then true  // PS=1
+    else if 1 <= level & level <= 2 & pte[7] == 0b1 then true  // PS=1
     else false;
 
   if is_leaf then {
@@ -162,7 +162,7 @@ function pt_walk(linear, access, table_base, level) = {
     // 9. Non-leaf: recurse to next level
     let next_base : qword = pte & 0x000FFFFFFFFFF000;
     // Update Accessed bit on non-leaf entries too
-    if pte[5] == bitzero then phys_write64(pte_addr, pte | 0x0000000000000020);
+    if pte[5] == 0b0 then phys_write64(pte_addr, pte | 0x0000000000000020);
     pt_walk(linear, access, next_base, level - 1)
   } else {
     // level 0 non-leaf = impossible (always leaf)
@@ -202,31 +202,31 @@ function pt_walk_32(linear, access) = {
   let pde : dword = phys_read(pde_addr, 4);
 
   // Check present
-  if pde[0] == bitzero then {
+  if pde[0] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
 
   // Check permissions (R/W, U/S)
-  if access == PT_Write & pde[1] == bitzero then {
-    if cur_cpl == 3 | CR0[16] == bitone then {
+  if access == PT_Write & pde[1] == 0b0 then {
+    if cur_cpl == 3 | CR0[16] == 0b1 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     }
   };
-  if cur_cpl == 3 & pde[2] == bitzero then {
+  if cur_cpl == 3 & pde[2] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, true, false))
   };
 
   // 4MB page (CR4.PSE=1 and PDE.PS=1)
-  if CR4[4] == bitone & pde[7] == bitone then {
+  if CR4[4] == 0b1 & pde[7] == 0b1 then {
     // Update A/D bits
     var new_pde = pde;
     var changed : bool = false;
-    if pde[5] == bitzero then { new_pde[5] = bitone; changed = true };
-    if access == PT_Write & pde[6] == bitzero then {
-      new_pde[6] = bitone; changed = true
+    if pde[5] == 0b0 then { new_pde[5] = 0b1; changed = true };
+    if access == PT_Write & pde[6] == 0b0 then {
+      new_pde[6] = 0b1; changed = true
     };
     if changed then phys_write(pde_addr, 4, new_pde);
     // Physical address: PDE[31:22] @ linear[21:0]
@@ -240,30 +240,30 @@ function pt_walk_32(linear, access) = {
     let pte : dword = phys_read(pte_addr, 4);
 
     // Check present
-    if pte[0] == bitzero then {
+    if pte[0] == 0b0 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, false, false))
     };
 
     // Check permissions
-    if access == PT_Write & pte[1] == bitzero then {
-      if cur_cpl == 3 | CR0[16] == bitone then {
+    if access == PT_Write & pte[1] == 0b0 then {
+      if cur_cpl == 3 | CR0[16] == 0b1 then {
         CR2 = linear;
         throw Fault(EXN_PF, mk_pf_error(access, true, false))
       }
     };
-    if cur_cpl == 3 & pte[2] == bitzero then {
+    if cur_cpl == 3 & pte[2] == 0b0 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };
 
     // Update A/D bits on PDE and PTE
-    if pde[5] == bitzero then phys_write(pde_addr, 4, pde | 0x00000020);
+    if pde[5] == 0b0 then phys_write(pde_addr, 4, pde | 0x00000020);
     var new_pte = pte;
     var pte_changed : bool = false;
-    if pte[5] == bitzero then { new_pte[5] = bitone; pte_changed = true };
-    if access == PT_Write & pte[6] == bitzero then {
-      new_pte[6] = bitone; pte_changed = true
+    if pte[5] == 0b0 then { new_pte[5] = 0b1; pte_changed = true };
+    if access == PT_Write & pte[6] == 0b0 then {
+      new_pte[6] = 0b1; pte_changed = true
     };
     if pte_changed then phys_write(pte_addr, 4, new_pte);
 
@@ -288,7 +288,7 @@ function pt_walk_pae(linear, access) = {
   let pdpte_addr : qword = pdpt_base + (pdpte_index << 3);
   let pdpte : qword = phys_read64(pdpte_addr);
 
-  if pdpte[0] == bitzero then {
+  if pdpte[0] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
@@ -299,7 +299,7 @@ function pt_walk_pae(linear, access) = {
   let pde_addr : qword = pd_base + (pde_index << 3);
   let pde : qword = phys_read64(pde_addr);
 
-  if pde[0] == bitzero then {
+  if pde[0] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
@@ -311,7 +311,7 @@ function pt_walk_pae(linear, access) = {
   };
 
   // 2MB page (PDE.PS=1)
-  if pde[7] == bitone then {
+  if pde[7] == 0b1 then {
     update_accessed_dirty(pde_addr, pde, access);
     let ppn : qword = pde & 0x000FFFFFFFE00000;
     ppn | zero_extend(linear[20..0])
@@ -322,7 +322,7 @@ function pt_walk_pae(linear, access) = {
     let pte_addr : qword = pt_base + (pte_index << 3);
     let pte : qword = phys_read64(pte_addr);
 
-    if pte[0] == bitzero then {
+    if pte[0] == 0b0 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, false, false))
     };
@@ -333,7 +333,7 @@ function pt_walk_pae(linear, access) = {
     };
 
     // Update A/D on PDE and PTE
-    if pde[5] == bitzero then phys_write64(pde_addr, pde | 0x0000000000000020);
+    if pde[5] == 0b0 then phys_write64(pde_addr, pde | 0x0000000000000020);
     update_accessed_dirty(pte_addr, pte, access);
 
     let ppn : qword = pte & 0x000FFFFFFFFFF000;
@@ -346,9 +346,9 @@ function pt_walk_pae(linear, access) = {
 // and CR4.PAE (SDM Vol.3A §4.1.1).
 val translate_addr : (qword, PTAccess) -> qword
 function translate_addr(linear, access) = {
-  if CR0[31] == bitzero then {
+  if CR0[31] == 0b0 then {
     linear  // Paging disabled: linear = physical
-  } else if EFER[10] == bitone then {
+  } else if EFER[10] == 0b1 then {
     // IA-32e mode (long mode): 4-level or 5-level paging
     let is_write = access == PT_Write;
     match __tlb_lookup(linear, is_write) {
@@ -356,13 +356,13 @@ function translate_addr(linear, access) = {
       None() => {
         let table_base : qword = CR3 & 0x000FFFFFFFFFF000;
         let start_level : range(0, 4) =
-          if CR4[12] == bitone then 4 else 3;
+          if CR4[12] == 0b1 then 4 else 3;
         let paddr = pt_walk(linear, access, table_base, start_level);
         __tlb_insert(linear, paddr, is_write);
         paddr
       },
     }
-  } else if CR4[5] == bitone then {
+  } else if CR4[5] == 0b1 then {
     // PAE paging (CR4.PAE=1, EFER.LMA=0)
     pt_walk_pae(linear, access)
   } else {

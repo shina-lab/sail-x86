@@ -90,7 +90,7 @@ val read_stack_ptr : unit -> qword
 function read_stack_ptr() =
   if cur_mode == LongMode then read_gpr64(RSP)
   else get_seg_base(SS) + (
-    if SegCache[SS].seg_db == bitone then zero_extend(read_gpr32(RSP))
+    if SegCache[SS].seg_db == 0b1 then zero_extend(read_gpr32(RSP))
     else zero_extend(read_gpr16(RSP))
   )
 
@@ -98,7 +98,7 @@ function read_stack_ptr() =
 val write_stack_ptr : qword -> unit
 function write_stack_ptr(v) =
   if cur_mode == LongMode then write_gpr64(RSP, v)
-  else if SegCache[SS].seg_db == bitone then write_gpr32(RSP, v[31..0])
+  else if SegCache[SS].seg_db == 0b1 then write_gpr32(RSP, v[31..0])
   else write_gpr16(RSP, v[15..0])
 
 // Stack push helper: compute new SP with proper wrapping for SS.B,
@@ -121,7 +121,7 @@ function push32(v) = {
     write_gpr64(RSP, sp)
   } else {
     let base = get_seg_base(SS);
-    let new_off : qword = if SegCache[SS].seg_db == bitone
+    let new_off : qword = if SegCache[SS].seg_db == 0b1
       then zero_extend(read_gpr32(RSP) - 0x00000004)
       else zero_extend(read_gpr16(RSP) - 0x0004);
     mem_write32(base + new_off, v);
@@ -153,7 +153,7 @@ function push16(v) = {
     write_gpr64(RSP, sp)
   } else {
     let base = get_seg_base(SS);
-    let new_off : qword = if SegCache[SS].seg_db == bitone
+    let new_off : qword = if SegCache[SS].seg_db == 0b1
       then zero_extend(read_gpr32(RSP) - 0x00000002)
       else zero_extend(read_gpr16(RSP) - 0x0002);
     mem_write16(base + new_off, v);
@@ -197,7 +197,7 @@ function load_segment_register(idx, selector) = {
       // (upper bits cleared); WRMSR can then set the full 64-bit base.
       let ti : bit = selector[2];
       let index : bits(13) = selector[15..3];
-      let table_base : qword = if ti == bitone then {
+      let table_base : qword = if ti == 0b1 then {
         // LDT: TODO — for now treat as GDT
         GDTR_base
       } else {
@@ -296,7 +296,7 @@ val read_descriptor : word -> SegDescCache
 function read_descriptor(selector) = {
   let ti : bit = selector[2];
   let index : bits(13) = selector[15..3];
-  let table_base : qword = if ti == bitone then GDTR_base  // TODO: LDT base
+  let table_base : qword = if ti == 0b1 then GDTR_base  // TODO: LDT base
                             else GDTR_base;
   let table_limit : word = GDTR_limit;
   let desc_offset : qword = zero_extend(index @ 0b000);
@@ -329,16 +329,16 @@ function validate_far_jmp_cs(selector) = {
   let desc = read_descriptor(selector);
 
   // Must be a code/data segment (S=1), not a system descriptor
-  if desc.seg_s == bitzero then {
+  if desc.seg_s == 0b0 then {
     throw Fault(EXN_GP, zero_extend(selector))
   };
   // Must be a code segment (type bit 3 set)
-  if desc.seg_type[3] == bitzero then {
+  if desc.seg_type[3] == 0b0 then {
     throw Fault(EXN_GP, zero_extend(selector))
   };
 
   let rpl : range(0, 3) = unsigned(selector[1..0]);
-  let conforming : bool = desc.seg_type[2] == bitone;
+  let conforming : bool = desc.seg_type[2] == 0b1;
 
   if conforming then {
     // Conforming: DPL must be <= CPL
@@ -356,7 +356,7 @@ function validate_far_jmp_cs(selector) = {
   };
 
   // Segment must be present
-  if desc.seg_present == bitzero then {
+  if desc.seg_present == 0b0 then {
     throw Fault(EXN_NP, zero_extend(selector))
   };
 
@@ -374,8 +374,8 @@ function exec_far_jmp_protected(selector, offset, os) = {
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
   // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
-  if EFER[10] == bitone then {
-    if desc.seg_l == bitone then cur_mode = LongMode
+  if EFER[10] == 0b1 then {
+    if desc.seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   };
   // Truncate offset based on operand size
@@ -405,8 +405,8 @@ function exec_far_call_protected(selector, offset, os) = {
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
   // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
-  if EFER[10] == bitone then {
-    if desc.seg_l == bitone then cur_mode = LongMode
+  if EFER[10] == 0b1 then {
+    if desc.seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   };
   // Set EIP

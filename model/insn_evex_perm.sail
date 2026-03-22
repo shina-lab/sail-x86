@@ -614,7 +614,7 @@ val avx_vcompress_dword_mem_512 : (qword, zmmword, word) -> unit
 function avx_vcompress_dword_mem_512(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : dword = truncate(src >> (i * 32), 32);
       mem_write32(addr + off, elem);
       off = off + 4;
@@ -626,7 +626,7 @@ val avx_vcompress_dword_mem_256 : (qword, ymmword, byte) -> unit
 function avx_vcompress_dword_mem_256(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : dword = truncate(src >> (i * 32), 32);
       mem_write32(addr + off, elem);
       off = off + 4;
@@ -638,7 +638,7 @@ val avx_vcompress_dword_mem_128 : (qword, xmmword, byte) -> unit
 function avx_vcompress_dword_mem_128(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : dword = truncate(src >> (i * 32), 32);
       mem_write32(addr + off, elem);
       off = off + 4;
@@ -650,7 +650,7 @@ val avx_vcompress_qword_mem_512 : (qword, zmmword, byte) -> unit
 function avx_vcompress_qword_mem_512(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : qword = truncate(src >> (i * 64), 64);
       mem_write64(addr + off, elem);
       off = off + 8;
@@ -662,7 +662,7 @@ val avx_vcompress_qword_mem_256 : (qword, ymmword, byte) -> unit
 function avx_vcompress_qword_mem_256(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 3) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : qword = truncate(src >> (i * 64), 64);
       mem_write64(addr + off, elem);
       off = off + 8;
@@ -674,7 +674,7 @@ val avx_vcompress_qword_mem_128 : (qword, xmmword, byte) -> unit
 function avx_vcompress_qword_mem_128(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 1) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : qword = truncate(src >> (i * 64), 64);
       mem_write64(addr + off, elem);
       off = off + 8;
@@ -863,7 +863,7 @@ val avx_vpcompressb_mem_128 : (qword, xmmword, word) -> unit
 function avx_vpcompressb_mem_128(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : byte = truncate(src >> (i * 8), 8);
       mem_write8(addr + off, elem);
       off = off + 1;
@@ -875,7 +875,7 @@ val avx_vpcompressb_mem_256 : (qword, ymmword, dword) -> unit
 function avx_vpcompressb_mem_256(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : byte = truncate(src >> (i * 8), 8);
       mem_write8(addr + off, elem);
       off = off + 1;
@@ -887,7 +887,7 @@ val avx_vpcompressb_mem_512 : (qword, zmmword, qword) -> unit
 function avx_vpcompressb_mem_512(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 63) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : byte = truncate(src >> (i * 8), 8);
       mem_write8(addr + off, elem);
       off = off + 1;
@@ -900,7 +900,7 @@ val avx_vpcompressw_mem_128 : (qword, xmmword, byte) -> unit
 function avx_vpcompressw_mem_128(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 7) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : word = truncate(src >> (i * 16), 16);
       mem_write16(addr + off, elem);
       off = off + 2;
@@ -912,7 +912,7 @@ val avx_vpcompressw_mem_256 : (qword, ymmword, word) -> unit
 function avx_vpcompressw_mem_256(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 15) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : word = truncate(src >> (i * 16), 16);
       mem_write16(addr + off, elem);
       off = off + 2;
@@ -924,7 +924,7 @@ val avx_vpcompressw_mem_512 : (qword, zmmword, dword) -> unit
 function avx_vpcompressw_mem_512(addr, src, mask) = {
   var off : qword = zeros();
   foreach (i from 0 to 31) {
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let elem : word = truncate(src >> (i * 16), 16);
       mem_write16(addr + off, elem);
       off = off + 2;

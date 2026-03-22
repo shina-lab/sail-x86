@@ -13,11 +13,11 @@ function cmp_ub_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -62,11 +62,11 @@ function cmp_sb_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -110,11 +110,11 @@ function cmp_uw_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -151,11 +151,11 @@ function cmp_sw_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -191,11 +191,11 @@ function cmp_ud_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -237,11 +237,11 @@ function cmp_sd_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -282,11 +282,11 @@ function cmp_uq_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -331,11 +331,11 @@ function cmp_sq_pred(a, b, pred) = {
     0 => eq[0],
     1 => lt[0],
     2 => (eq | lt)[0],
-    3 => bitzero,
+    3 => 0b0,
     4 => (~(eq))[0],
     5 => (~(lt))[0],
     6 => (~(eq) & ~(lt))[0],
-    7 => bitone,
+    7 => 0b1,
   }
 }
 
@@ -419,10 +419,10 @@ function vpternlog_512(a, b, c, imm) = {
 val cmp_pred5_f16 : (word, word, range(0, 31)) -> bit
 function cmp_pred5_f16(a, b, pred) = {
   let r = __compare_sh(a, b);
-  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
-  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
-  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
-  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
+  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
+  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
+  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
   let le : bit = lt | eq;
   match pred {
     0  => eq,                    // EQ_OQ
@@ -436,11 +436,11 @@ function cmp_pred5_f16(a, b, pred) = {
     8  => eq | unord,            // EQ_UQ
     9  => lt | unord,            // NGE_US
     10 => le | unord,            // NGT_US
-    11 => bitzero,               // FALSE_OQ
+    11 => 0b0,                   // FALSE_OQ
     12 => ~(eq),                 // NEQ_OQ
     13 => ~(lt),                 // GE_OS
     14 => gt | eq,               // GT_OS
-    15 => bitone,                // TRUE_UQ
+    15 => 0b1,                   // TRUE_UQ
     16 => eq,                    // EQ_OS
     17 => lt,                    // LT_OQ
     18 => le,                    // LE_OQ
@@ -452,11 +452,11 @@ function cmp_pred5_f16(a, b, pred) = {
     24 => eq | unord,            // EQ_US
     25 => lt | unord,            // NGE_UQ
     26 => le | unord,            // NGT_UQ
-    27 => bitzero,               // FALSE_OS
+    27 => 0b0,                   // FALSE_OS
     28 => ~(eq),                 // NEQ_OS
     29 => ~(lt),                 // GE_OQ
     30 => gt | eq,               // GT_OQ
-    31 => bitone,                // TRUE_US
+    31 => 0b1,                   // TRUE_US
   }
 }
 
@@ -1652,7 +1652,7 @@ function dispatch_evex_imm(op, pfx) = {
       1 => {
         // 256-bit: imm8[0] selects which 128-bit lane
         var result = read_ymm(pfx.evex_vvvvv);
-        if imm[0] == bitzero then result[127..0] = src2
+        if imm[0] == 0b0 then result[127..0] = src2
         else result[255..128] = src2;
         if pfx.vex_w then evex_write_q_ymm(dst, result, pfx)
         else evex_write_d_ymm(dst, result, pfx)
@@ -1734,7 +1734,7 @@ function dispatch_evex_imm(op, pfx) = {
       2 => {
         // 512-bit only: imm8[0] selects which 256-bit half
         var result = read_zmm(pfx.evex_vvvvv);
-        if imm[0] == bitzero then result[255..0] = src2
+        if imm[0] == 0b0 then result[255..0] = src2
         else result[511..256] = src2;
         if pfx.vex_w then evex_write_q_zmm(dst, result, pfx)
         else evex_write_d_zmm(dst, result, pfx)
@@ -1779,7 +1779,7 @@ function dispatch_evex_imm(op, pfx) = {
       0 => {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let imm = fetch_byte();
-        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph_128(read_xmm(src), rc);
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
@@ -1789,7 +1789,7 @@ function dispatch_evex_imm(op, pfx) = {
       1 => {
         let rm = decode_rm_evex(modrm, pfx, 16);
         let imm = fetch_byte();
-        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph_256(read_ymm(src), rc);
         match rm {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
@@ -1799,7 +1799,7 @@ function dispatch_evex_imm(op, pfx) = {
       2 => {
         let rm = decode_rm_evex(modrm, pfx, 32);
         let imm = fetch_byte();
-        let rc : bits(2) = if imm[2] == bitzero then imm[1..0] else __stmxcsr()[14..13];
+        let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph_512(read_zmm(src), rc);
         match rm {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
@@ -2054,7 +2054,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       1 => {
         var result = read_ymm(pfx.evex_vvvvv);
-        if imm[0] == bitzero then result[127..0] = src2
+        if imm[0] == 0b0 then result[127..0] = src2
         else result[255..128] = src2;
         if pfx.vex_w then evex_write_q_ymm(dst, result, pfx)
         else evex_write_d_ymm(dst, result, pfx)
@@ -2134,7 +2134,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       2 => {
         var result = read_zmm(pfx.evex_vvvvv);
-        if imm[0] == bitzero then result[255..0] = src2
+        if imm[0] == 0b0 then result[255..0] = src2
         else result[511..256] = src2;
         if pfx.vex_w then evex_write_q_zmm(dst, result, pfx)
         else evex_write_d_zmm(dst, result, pfx)

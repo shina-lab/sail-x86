@@ -172,11 +172,11 @@ function deliver_smi() = {
   SegCache[CS].seg_base = 0x00000000 @ smbase;
   SegCache[CS].seg_limit = 0xFFFFFFFF;
   SegCache[CS].seg_type = 0x3;
-  SegCache[CS].seg_s = bitone;
-  SegCache[CS].seg_present = bitone;
-  SegCache[CS].seg_db = bitzero;  // 16-bit default
-  SegCache[CS].seg_l = bitzero;
-  SegCache[CS].seg_g = bitzero;
+  SegCache[CS].seg_s = 0b1;
+  SegCache[CS].seg_present = 0b1;
+  SegCache[CS].seg_db = 0b0;  // 16-bit default
+  SegCache[CS].seg_l = 0b0;
+  SegCache[CS].seg_g = 0b0;
 
   // DS, ES, FS, GS, SS: selector = 0, base = 0, limit = 4GB
   // SDM Table 34-4: "Cleared to 0" for selectors, "000000000H" for bases,
@@ -187,11 +187,11 @@ function deliver_smi() = {
       SegCache[seg].seg_base = 0x0000000000000000;
       SegCache[seg].seg_limit = 0xFFFFFFFF;
       SegCache[seg].seg_type = 0x3;
-      SegCache[seg].seg_s = bitone;
-      SegCache[seg].seg_present = bitone;
-      SegCache[seg].seg_db = bitzero;
-      SegCache[seg].seg_l = bitzero;
-      SegCache[seg].seg_g = bitzero;
+      SegCache[seg].seg_s = 0b1;
+      SegCache[seg].seg_present = 0b1;
+      SegCache[seg].seg_db = 0b0;
+      SegCache[seg].seg_l = 0b0;
+      SegCache[seg].seg_g = 0b0;
     }
   };
 
@@ -279,11 +279,11 @@ function exec_rsm() = {
   // Determine operating mode from restored CR0/EFER
   // SDM §34.5.2: "Execution of the RSM instruction restores the pre-SMI
   // processor state from the SMRAM state-state map."
-  if EFER[10] == bitone then {
+  if EFER[10] == 0b1 then {
     // IA-32e mode active (LMA=1)
-    if SegCache[CS].seg_l == bitone then cur_mode = LongMode
+    if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
-  } else if CR0[0] == bitone then {
+  } else if CR0[0] == 0b1 then {
     cur_mode = ProtectedMode
   } else {
     cur_mode = RealMode
@@ -293,7 +293,7 @@ function exec_rsm() = {
 
   // Handle Auto HALT Restart (SDM §34.10)
   let halt_restart : word = smram_load16(0x7F02);
-  if halt_restart[0] == bitone then {
+  if halt_restart[0] == 0b1 then {
     // SMI occurred during HLT — re-enter HALT state
     system_state = SysHalted
   };

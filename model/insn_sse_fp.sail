@@ -82,10 +82,10 @@ val __f32_rcp : dword -> dword
 val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
 function cmp_pred_f32(a, b, pred) = {
   let r = __compare_ss(a, b);
-  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
-  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
-  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
-  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
+  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
+  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
+  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
   let le : bit = lt | eq;
   let cond : bit = match pred[3..0] {
     0x0 => eq,                      // EQ_OQ
@@ -99,11 +99,11 @@ function cmp_pred_f32(a, b, pred) = {
     0x8 => eq | unord,              // EQ_UQ (true for NaN)
     0x9 => lt | unord,              // NGE_US (true for NaN)
     0xA => le | unord,              // NGT_US
-    0xB => bitzero,                 // FALSE_OQ
+    0xB => 0b0,                     // FALSE_OQ
     0xC => ~(eq) & ~(unord),        // NEQ_OQ (false for NaN)
     0xD => ~(lt) & ~(unord),        // GE_OS (false for NaN)
     0xE => gt,                      // GT_OS (false for NaN)
-    0xF => bitone,                  // TRUE_UQ
+    0xF => 0b1,                     // TRUE_UQ
   };
   zeros() - zero_extend(cond)
 }
@@ -111,10 +111,10 @@ function cmp_pred_f32(a, b, pred) = {
 val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
 function cmp_pred_f64(a, b, pred) = {
   let r = __compare_sd(a, b);
-  let unord : bit = match r { FP_UNORDERED => bitone, _ => bitzero };
-  let eq : bit = match r { FP_EQ => bitone, _ => bitzero };
-  let lt : bit = match r { FP_LT => bitone, _ => bitzero };
-  let gt : bit = match r { FP_GT => bitone, _ => bitzero };
+  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
+  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
+  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
+  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
   let le : bit = lt | eq;
   let cond : bit = match pred[3..0] {
     0x0 => eq,
@@ -128,11 +128,11 @@ function cmp_pred_f64(a, b, pred) = {
     0x8 => eq | unord,
     0x9 => lt | unord,
     0xA => le | unord,
-    0xB => bitzero,
+    0xB => 0b0,
     0xC => ~(eq) & ~(unord),
     0xD => ~(lt) & ~(unord),
     0xE => gt,
-    0xF => bitone,
+    0xF => 0b1,
   };
   zeros() - zero_extend(cond)
 }
@@ -631,27 +631,27 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let a : dword = read_xmm(xreg)[31..0];
           let b : dword = src_xmm[31..0];
           match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
+            FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+            FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+            FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
           };
-          OF = bitzero;
-          AF = bitzero;
-          SF = bitzero
+          OF = 0b0;
+          AF = 0b0;
+          SF = 0b0
         },
         MP_66 => {
           let a : qword = read_xmm(xreg)[63..0];
           let b : qword = src_xmm[63..0];
           match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
+            FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+            FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+            FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
           };
-          OF = bitzero;
-          AF = bitzero;
-          SF = bitzero
+          OF = 0b0;
+          AF = 0b0;
+          SF = 0b0
         },
         _       => raise_UD(),
       }
@@ -675,27 +675,27 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let a : dword = read_xmm(xreg)[31..0];
           let b : dword = src_xmm[31..0];
           match __compare_ss(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
+            FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+            FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+            FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
           };
-          OF = bitzero;
-          AF = bitzero;
-          SF = bitzero
+          OF = 0b0;
+          AF = 0b0;
+          SF = 0b0
         },
         MP_66 => {
           let a : qword = read_xmm(xreg)[63..0];
           let b : qword = src_xmm[63..0];
           match __compare_sd(a, b) {
-            FP_UNORDERED => { ZF = bitone;  PF = bitone;  CF = bitone;  },
-            FP_GT        => { ZF = bitzero; PF = bitzero; CF = bitzero; },
-            FP_LT        => { ZF = bitzero; PF = bitzero; CF = bitone;  },
-            FP_EQ        => { ZF = bitone;  PF = bitzero; CF = bitzero; },
+            FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
+            FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
+            FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
+            FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
           };
-          OF = bitzero;
-          AF = bitzero;
-          SF = bitzero
+          OF = 0b0;
+          AF = 0b0;
+          SF = 0b0
         },
         _       => raise_UD(),
       }

@@ -12,7 +12,7 @@ function exec_gather_d32_512(dst, vsib, k_idx) = {
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -30,7 +30,7 @@ function exec_gather_d32_256(dst, vsib, k_idx) = {
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -48,7 +48,7 @@ function exec_gather_d32_128(dst, vsib, k_idx) = {
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -70,7 +70,7 @@ function exec_gather_d64_512(dst, vsib, k_idx) = {
   foreach (i from 0 to 7) {
     let ilo : range(0, 224) = i * 32;
     let olo : range(0, 448) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -89,7 +89,7 @@ function exec_gather_d64_256(dst, vsib, k_idx) = {
   foreach (i from 0 to 3) {
     let ilo : range(0, 96) = i * 32;
     let olo : range(0, 192) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -108,7 +108,7 @@ function exec_gather_d64_128(dst, vsib, k_idx) = {
   foreach (i from 0 to 1) {
     let ilo : range(0, 32) = i * 32;
     let olo : range(0, 64) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -130,7 +130,7 @@ function exec_gather_q32_512(dst, vsib, k_idx) = {
   foreach (i from 0 to 7) {
     let ilo : range(0, 448) = i * 64;
     let olo : range(0, 224) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -149,7 +149,7 @@ function exec_gather_q32_256(dst, vsib, k_idx) = {
   foreach (i from 0 to 3) {
     let ilo : range(0, 192) = i * 64;
     let olo : range(0, 96) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -169,7 +169,7 @@ function exec_gather_q32_128(dst, vsib, k_idx) = {
   foreach (i from 0 to 1) {
     let ilo : range(0, 64) = i * 64;
     let olo : range(0, 32) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : dword = mem_read32(addr);
@@ -189,7 +189,7 @@ function exec_gather_q64_512(dst, vsib, k_idx) = {
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -207,7 +207,7 @@ function exec_gather_q64_256(dst, vsib, k_idx) = {
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
     let lo : range(0, 192) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -225,7 +225,7 @@ function exec_gather_q64_128(dst, vsib, k_idx) = {
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       let v : qword = mem_read64(addr);
@@ -248,7 +248,7 @@ function exec_scatter_d32_512(src, vsib, k_idx) = {
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(lo + 31)..lo]);
@@ -264,7 +264,7 @@ function exec_scatter_d32_256(src, vsib, k_idx) = {
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(lo + 31)..lo]);
@@ -280,7 +280,7 @@ function exec_scatter_d32_128(src, vsib, k_idx) = {
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(lo + 31)..lo]);
@@ -299,7 +299,7 @@ function exec_scatter_d64_512(src, vsib, k_idx) = {
   foreach (i from 0 to 7) {
     let ilo : range(0, 224) = i * 32;
     let olo : range(0, 448) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(olo + 63)..olo]);
@@ -316,7 +316,7 @@ function exec_scatter_d64_256(src, vsib, k_idx) = {
   foreach (i from 0 to 3) {
     let ilo : range(0, 96) = i * 32;
     let olo : range(0, 192) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(olo + 63)..olo]);
@@ -333,7 +333,7 @@ function exec_scatter_d64_128(src, vsib, k_idx) = {
   foreach (i from 0 to 1) {
     let ilo : range(0, 32) = i * 32;
     let olo : range(0, 64) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(olo + 63)..olo]);
@@ -352,7 +352,7 @@ function exec_scatter_q32_512(src, vsib, k_idx) = {
   foreach (i from 0 to 7) {
     let ilo : range(0, 448) = i * 64;
     let olo : range(0, 224) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(olo + 31)..olo]);
@@ -369,7 +369,7 @@ function exec_scatter_q32_256(src, vsib, k_idx) = {
   foreach (i from 0 to 3) {
     let ilo : range(0, 192) = i * 64;
     let olo : range(0, 96) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(olo + 31)..olo]);
@@ -386,7 +386,7 @@ function exec_scatter_q32_128(src, vsib, k_idx) = {
   foreach (i from 0 to 1) {
     let ilo : range(0, 64) = i * 64;
     let olo : range(0, 32) = i * 32;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write32(addr, data[(olo + 31)..olo]);
@@ -404,7 +404,7 @@ function exec_scatter_q64_512(src, vsib, k_idx) = {
   let indices : zmmword = read_zmm(vsib.vsib_vidx);
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(lo + 63)..lo]);
@@ -420,7 +420,7 @@ function exec_scatter_q64_256(src, vsib, k_idx) = {
   let indices : ymmword = read_ymm(vsib.vsib_vidx);
   foreach (i from 0 to 3) {
     let lo : range(0, 192) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(lo + 63)..lo]);
@@ -436,7 +436,7 @@ function exec_scatter_q64_128(src, vsib, k_idx) = {
   let indices : xmmword = read_xmm(vsib.vsib_vidx);
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    if mask[i] == bitone then {
+    if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
       mem_write64(addr, data[(lo + 63)..lo]);
