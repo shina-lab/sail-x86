@@ -167,6 +167,7 @@ u64 Model::z__port_in8(u64 port) {
   if (pit.handles(p))        return pit.read(p);
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
+  if (floppy.handles(p))     return floppy.read(p);
   if (ata.handles(p))        return ata.read(p);
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
@@ -176,10 +177,11 @@ u64 Model::z__port_in8(u64 port) {
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
   if (0xB000 <= p && p < 0xB040) return 0x00;
   if (vga.handles(p))        return vga.read(p);
-  // DMA controller (0x00-0x0F, 0xC0-0xDF): return 0 so SeaBIOS
-  // doesn't detect phantom DMA channels.
-  if (p <= 0x0F)             return 0x00;
-  if (0xC0 <= p && p <= 0xDF) return 0x00;
+  // DMA controller (0x00-0x0F)
+  if (dma.handles(p))        return dma.read(p);
+  // DMA page registers
+  if (dma.handles_page(p))   return dma.read_page(p);
+  if (0xC0 <= p && p <= 0xDF) return 0x00; // High DMA (16-bit): stub
   // PCI config data (0xCFC-0xCFF)
   if (0xCFC <= p && p <= 0xCFF) {
     u32 val = pci.read_data();
@@ -220,10 +222,13 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (pit.handles(p))        pit.write(p, v);
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
+  else if (floppy.handles(p))     { floppy.write(p, v); floppy.do_dma_transfer(dma, phys_mem); }
   else if (ata.handles(p))        ata.write(p, v);
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
+  else if (dma.handles(p))        dma.write(p, v);
+  else if (dma.handles_page(p))   dma.write_page(p, v);
   else if (p == 0xCF8 || p == 0xCF9 || p == 0xCFA || p == 0xCFB) {
     u32 a = pci.read_addr();
     int shift = (p - 0xCF8) * 8;
@@ -287,6 +292,12 @@ bool Model::z__check_pending_smi(unit) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
+
+  // Raise floppy IRQ 6 on master PIC (edge-triggered: one-shot)
+  if (floppy.irq_pending) {
+    floppy.irq_pending = false;
+    pic_master.raise_irq(6);
+  }
 
   // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
   if (ata.irq_pending)

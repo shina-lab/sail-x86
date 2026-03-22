@@ -717,11 +717,22 @@ public:
     regs[0x0C] = 0x00;  // Status C: no interrupts
     regs[0x0D] = 0x80;  // Status D: valid RAM/time
     regs[0x0F] = 0x00;  // Shutdown status
-    regs[0x10] = 0x40;  // Floppy: drive A = 1.44MB 3.5", B = none
-    regs[0x14] = 0x06;  // Equipment: VGA 80x25, no floppy via bit 0
+    regs[0x10] = 0x00;  // Floppy: none (set by set_floppy() if -fda given)
+    regs[0x14] = 0x06;  // Equipment: VGA 80x25, no floppy (bit 0 clear)
     regs[0x15] = 0x80;  // Base memory low (640K)
     regs[0x16] = 0x02;  // Base memory high
     regs[0x32] = 0x20;  // Century (20)
+  }
+
+  // Configure floppy drive presence in CMOS.
+  void set_floppy(bool present) {
+    if (present) {
+      regs[0x10] = 0x40;  // Drive A = 1.44MB 3.5", B = none
+      regs[0x14] |= 0x01; // Equipment: floppy present
+    } else {
+      regs[0x10] = 0x00;
+      regs[0x14] &= ~0x01;
+    }
   }
 
   // Populate extended memory registers from RAM size.
@@ -1324,5 +1335,488 @@ private:
     buf_reading = true;
     status = 0x48;  // DRDY | DRQ
     raise_irq();
+  }
+};
+
+// =========================================================================
+// 8237 DMA Controller — ISA DMA (channels 0-3)
+//
+// The floppy controller uses DMA channel 2 to transfer sector data.
+// We implement just enough for SeaBIOS/DOS floppy access.
+// Ports 0x00-0x0F (address/count for channels 0-3, command, mode, etc.)
+// Page registers at 0x81 (ch2), 0x82 (ch3), 0x83 (ch1), 0x87 (ch0).
+// =========================================================================
+
+class DMAController {
+public:
+  struct Channel {
+    u16 base_addr = 0;
+    u16 base_count = 0;
+    u16 current_addr = 0;
+    u16 current_count = 0;
+    u8 page = 0;
+    u8 mode = 0;
+    bool masked = true;
+  };
+
+  Channel ch[4];
+  bool flip_flop = false;  // Low/high byte toggle for 16-bit registers
+  u8 status = 0;
+  u8 command = 0;
+
+  u8 read(u16 port) {
+    if (port <= 0x07) {
+      int c = (port >> 1) & 3;
+      bool is_count = port & 1;
+      u16 val = is_count ? ch[c].current_count : ch[c].current_addr;
+      u8 result;
+      if (!flip_flop)
+        result = val & 0xFF;
+      else
+        result = (val >> 8) & 0xFF;
+      flip_flop = !flip_flop;
+      return result;
+    }
+    switch (port) {
+    case 0x08: return status;   // Status register
+    case 0x0F: {                // Multi-channel mask register
+      u8 val = 0;
+      for (int i = 0; i < 4; i++)
+        if (ch[i].masked) val |= (1 << i);
+      return val;
+    }
+    default: return 0xFF;
+    }
+  }
+
+  void write(u16 port, u8 val) {
+    if (port <= 0x07) {
+      int c = (port >> 1) & 3;
+      bool is_count = port & 1;
+      if (is_count) {
+        if (!flip_flop)
+          ch[c].base_count = (ch[c].base_count & 0xFF00) | val;
+        else
+          ch[c].base_count = (ch[c].base_count & 0x00FF) | ((u16)val << 8);
+        ch[c].current_count = ch[c].base_count;
+      } else {
+        if (!flip_flop)
+          ch[c].base_addr = (ch[c].base_addr & 0xFF00) | val;
+        else
+          ch[c].base_addr = (ch[c].base_addr & 0x00FF) | ((u16)val << 8);
+        ch[c].current_addr = ch[c].base_addr;
+      }
+      flip_flop = !flip_flop;
+      return;
+    }
+    switch (port) {
+    case 0x08: command = val; break;           // Command register
+    case 0x09: ch[val & 3].mode = val; break;  // Mode register
+    case 0x0A:                                  // Single channel mask
+      ch[val & 3].masked = (val & 4) != 0;
+      break;
+    case 0x0B: ch[val & 3].mode = val; break;  // Mode register (alias)
+    case 0x0C: flip_flop = false; break;        // Clear flip-flop
+    case 0x0D:                                  // Master clear
+      flip_flop = false;
+      status = 0;
+      command = 0;
+      for (auto &c : ch) c.masked = true;
+      break;
+    case 0x0E:                                  // Clear all masks
+      for (auto &c : ch) c.masked = false;
+      break;
+    case 0x0F:                                  // Multi-channel mask
+      for (int i = 0; i < 4; i++)
+        ch[i].masked = (val & (1 << i)) != 0;
+      break;
+    }
+  }
+
+  // Page register ports
+  void write_page(u16 port, u8 val) {
+    switch (port) {
+    case 0x81: ch[2].page = val; break;
+    case 0x82: ch[3].page = val; break;
+    case 0x83: ch[1].page = val; break;
+    case 0x87: ch[0].page = val; break;
+    }
+  }
+
+  u8 read_page(u16 port) {
+    switch (port) {
+    case 0x81: return ch[2].page;
+    case 0x82: return ch[3].page;
+    case 0x83: return ch[1].page;
+    case 0x87: return ch[0].page;
+    default: return 0xFF;
+    }
+  }
+
+  bool handles(u16 port) const {
+    return port <= 0x0F;
+  }
+
+  bool handles_page(u16 port) const {
+    return port == 0x81 || port == 0x82 || port == 0x83 || port == 0x87;
+  }
+
+  // Get DMA channel physical address
+  u32 get_addr(int c) const {
+    return ((u32)ch[c].page << 16) | ch[c].current_addr;
+  }
+
+  u16 get_count(int c) const {
+    return ch[c].current_count;
+  }
+
+  // After a DMA transfer completes, set terminal count in status
+  void set_terminal_count(int c) {
+    status |= (1 << c);
+  }
+};
+
+// =========================================================================
+// Floppy Disk Controller (i8272/82077AA)
+//
+// Ports 0x3F0-0x3F5, 0x3F7. Uses DMA channel 2 and IRQ 6.
+// Supports 1.44MB 3.5" floppy (80 cylinders, 2 heads, 18 sectors/track).
+// =========================================================================
+
+class FloppyController {
+public:
+  ~FloppyController() {
+    if (disk_fd >= 0) close(disk_fd);
+  }
+
+  bool open(const char *path) {
+    disk_fd = ::open(path, O_RDWR);
+    if (disk_fd < 0) {
+      // Try read-only
+      disk_fd = ::open(path, O_RDONLY);
+      if (disk_fd < 0) { perror(path); return false; }
+      read_only = true;
+    }
+    struct stat st;
+    if (fstat(disk_fd, &st) < 0) { perror("fstat"); close(disk_fd); disk_fd = -1; return false; }
+    disk_size = st.st_size;
+    return true;
+  }
+
+  bool is_open() const { return disk_fd >= 0; }
+
+  u8 read(u16 port) {
+    switch (port) {
+    case 0x3F0: return 0x80;  // SRA — drive 0 selected
+    case 0x3F1: return 0x00;  // SRB
+    case 0x3F2: return dor;   // Digital Output Register
+    case 0x3F4:               // Main Status Register
+      return msr;
+    case 0x3F5:               // Data (FIFO)
+      return read_fifo();
+    case 0x3F7:               // Digital Input Register
+      // Bit 7 = disk change (cleared after seek)
+      return disk_changed ? 0x80 : 0x00;
+    default: return 0xFF;
+    }
+  }
+
+  void write(u16 port, u8 val) {
+    switch (port) {
+    case 0x3F2:  // Digital Output Register
+    {
+      bool was_reset = !(dor & 0x04);
+      dor = val;
+      bool in_reset = !(val & 0x04);
+      if (was_reset && !in_reset) {
+        // Coming out of reset — delay IRQ so floppy_wait_irq() can clear
+        // the BDA flag before the IRQ fires (matches real hardware delay)
+        reset_sensei_count = 4;
+        irq_delay = 100;  // Fire IRQ after ~100 instruction steps
+        msr = 0x80;  // RQM — ready for commands
+        cmd_pos = 0;
+        result_pos = 0;
+        result_len = 0;
+      }
+      if (in_reset) {
+        msr = 0x00;
+        cmd_pos = 0;
+        result_pos = 0;
+        result_len = 0;
+      }
+      break;
+    }
+    case 0x3F5:  // Data (FIFO) — command bytes
+      write_fifo(val);
+      break;
+    case 0x3F7:  // Configuration Control Register (data rate)
+      data_rate = val & 0x03;
+      break;
+    }
+  }
+
+  bool handles(u16 port) const {
+    return (0x3F0 <= port && port <= 0x3F5) || port == 0x3F7;
+  }
+
+  // Perform the DMA transfer for a completed read/write command.
+  // Returns true if a DMA transfer was performed.
+  template<typename PhysMem>
+  bool do_dma_transfer(DMAController &dma, PhysMem &mem) {
+    if (!dma_pending) return false;
+    dma_pending = false;
+
+    DMAController::Channel &dc = dma.ch[2];
+    u32 addr = dma.get_addr(2);
+    u16 count = dma.get_count(2) + 1;  // DMA count is N-1
+
+    if (dma_is_write) {
+      // Write: guest memory → disk
+      for (u16 i = 0; i < count && i < (u16)sizeof(dma_buf); i++)
+        dma_buf[i] = mem.read8(addr + i);
+      u64 offset = dma_disk_offset;
+      if (!read_only && offset + count <= disk_size)
+        (void)!pwrite(disk_fd, dma_buf, count, offset);
+    } else {
+      // Read: disk → guest memory
+      u64 offset = dma_disk_offset;
+      memset(dma_buf, 0, count);
+      if (offset + count <= disk_size)
+        (void)!pread(disk_fd, dma_buf, count, offset);
+      for (u16 i = 0; i < count; i++)
+        mem.write8(addr + i, dma_buf[i]);
+    }
+
+    // Update DMA current address/count
+    dc.current_addr += count;
+    dc.current_count = 0;
+    dma.set_terminal_count(2);
+
+    irq_pending = true;
+    return true;
+  }
+
+  // Called each instruction step to handle delayed IRQ
+  void tick() {
+    if (irq_delay > 0 && --irq_delay == 0)
+      irq_pending = true;
+  }
+
+  bool irq_pending = false;
+
+private:
+  int disk_fd = -1;
+  u64 disk_size = 0;
+  bool read_only = false;
+
+  // Geometry: 1.44MB = 80 cylinders × 2 heads × 18 sectors × 512 bytes
+  static constexpr int CYLINDERS = 80;
+  static constexpr int HEADS = 2;
+  static constexpr int SECTORS = 18;
+  static constexpr int SECTOR_SIZE = 512;
+
+  // Delayed IRQ counter (for reset completion)
+  int irq_delay = 0;
+
+  // Registers
+  u8 dor = 0;        // Digital Output Register
+  u8 msr = 0x80;     // Main Status Register (RQM set)
+  u8 data_rate = 0;   // CCR data rate
+
+  // Cylinder tracking (per drive, only drive 0 used)
+  u8 current_cylinder = 0;
+  bool disk_changed = true;
+
+  // Command FIFO
+  u8 cmd_buf[16] = {};
+  int cmd_pos = 0;
+  int cmd_expected = 0;
+
+  // Result FIFO
+  u8 result_buf[16] = {};
+  int result_pos = 0;
+  int result_len = 0;
+
+  // Reset sense interrupt counter
+  int reset_sensei_count = 0;
+
+  // DMA transfer state (set by command execution, performed by do_dma_transfer)
+  bool dma_pending = false;
+  bool dma_is_write = false;
+  u64 dma_disk_offset = 0;
+  u8 dma_buf[512 * 36] = {};  // Max: full track (18 sectors × 2 sides)
+
+  u8 read_fifo() {
+    if (result_pos < result_len) {
+      // Reading first result byte deasserts IRQ (matches real hardware)
+      if (result_pos == 0)
+        irq_pending = false;
+      u8 val = result_buf[result_pos++];
+      if (result_pos >= result_len) {
+        // All result bytes read — back to command phase
+        result_pos = 0;
+        result_len = 0;
+        msr = 0x80;  // RQM, host→controller direction
+      }
+      return val;
+    }
+    return 0xFF;
+  }
+
+  void write_fifo(u8 val) {
+    if (cmd_pos == 0) {
+      // First byte: decode command
+      cmd_buf[0] = val;
+      cmd_pos = 1;
+      cmd_expected = command_length(val & 0x1F);
+      if (cmd_expected <= 1)
+        execute_command();
+      else
+        msr = 0x90;  // RQM + CB (command busy, expecting more bytes)
+      return;
+    }
+
+    cmd_buf[cmd_pos++] = val;
+    if (cmd_pos >= cmd_expected)
+      execute_command();
+  }
+
+  static int command_length(u8 cmd) {
+    switch (cmd) {
+    case 0x03: return 3;  // SPECIFY
+    case 0x04: return 2;  // SENSE DRIVE STATUS
+    case 0x05: return 9;  // WRITE DATA
+    case 0x06: return 9;  // READ DATA
+    case 0x07: return 2;  // RECALIBRATE
+    case 0x08: return 1;  // SENSE INTERRUPT STATUS
+    case 0x0A: return 2;  // READ ID
+    case 0x0D: return 6;  // FORMAT TRACK
+    case 0x0F: return 3;  // SEEK
+    case 0x12: return 1;  // PERPENDICULAR MODE
+    case 0x13: return 4;  // CONFIGURE
+    case 0x14: return 1;  // LOCK
+    default:   return 9;  // Unknown — assume max length
+    }
+  }
+
+  void set_result_st012(u8 c, u8 h, u8 s) {
+    // ST0, ST1, ST2, C, H, R, N
+    result_buf[0] = 0x00;    // ST0: normal termination
+    result_buf[1] = 0x00;    // ST1: no errors
+    result_buf[2] = 0x00;    // ST2: no errors
+    result_buf[3] = c;
+    result_buf[4] = h;
+    result_buf[5] = s;
+    result_buf[6] = 0x02;    // N = 2 (512 bytes/sector)
+    result_len = 7;
+    result_pos = 0;
+    msr = 0xD0;  // RQM + DIO (controller→host) + CB
+  }
+
+  void execute_command() {
+    u8 cmd = cmd_buf[0] & 0x1F;  // Mask MT, MFM, SK bits
+
+    switch (cmd) {
+    case 0x03:  // SPECIFY
+      // SRT, HUT, HLT, ND — just absorb
+      cmd_pos = 0;
+      msr = 0x80;
+      break;
+
+    case 0x04:  // SENSE DRIVE STATUS
+      result_buf[0] = 0x20;  // ST3: track 0 + ready
+      if (current_cylinder == 0) result_buf[0] |= 0x10;
+      result_len = 1;
+      result_pos = 0;
+      cmd_pos = 0;
+      msr = 0xD0;
+      break;
+
+    case 0x05:  // WRITE DATA
+    case 0x06:  // READ DATA
+    {
+      u8 head = (cmd_buf[1] >> 2) & 1;
+      u8 cyl = cmd_buf[2];
+      u8 sec = cmd_buf[4];    // 1-based
+      u8 eot = cmd_buf[6];    // End of track
+
+      // Calculate disk offset: CHS → linear
+      u64 offset = ((u64)cyl * HEADS * SECTORS + (u64)head * SECTORS + (sec - 1)) * SECTOR_SIZE;
+
+      dma_pending = true;
+      dma_is_write = (cmd == 0x05);
+      dma_disk_offset = offset;
+
+      // After DMA, set result (will be read after IRQ)
+      current_cylinder = cyl;
+      set_result_st012(cyl, head, eot + 1 > SECTORS ? 1 : eot + 1);
+      if (eot + 1 > SECTORS) {
+        result_buf[3] = cyl + 1;  // Wrapped to next cylinder
+        result_buf[5] = 1;
+      }
+      cmd_pos = 0;
+      break;
+    }
+
+    case 0x07:  // RECALIBRATE
+      current_cylinder = 0;
+      disk_changed = false;
+      cmd_pos = 0;
+      msr = 0x80;
+      irq_pending = true;
+      break;
+
+    case 0x08:  // SENSE INTERRUPT STATUS
+      if (reset_sensei_count > 0) {
+        reset_sensei_count--;
+        result_buf[0] = 0xC0 | (4 - 1 - reset_sensei_count);  // ST0: ready changed
+        result_buf[1] = 0;  // PCN (current cylinder)
+      } else {
+        result_buf[0] = 0x20;  // ST0: seek end
+        result_buf[1] = current_cylinder;
+      }
+      result_len = 2;
+      result_pos = 0;
+      cmd_pos = 0;
+      msr = 0xD0;
+      irq_pending = false;  // Acknowledge
+      break;
+
+    case 0x0A:  // READ ID
+    {
+      u8 head = (cmd_buf[1] >> 2) & 1;
+      set_result_st012(current_cylinder, head, 1);
+      cmd_pos = 0;
+      irq_pending = true;
+      break;
+    }
+
+    case 0x0F:  // SEEK
+    {
+      u8 ncn = cmd_buf[2];  // New cylinder number
+      current_cylinder = ncn;
+      disk_changed = false;
+      cmd_pos = 0;
+      msr = 0x80;
+      irq_pending = true;
+      break;
+    }
+
+    case 0x12:  // PERPENDICULAR MODE
+    case 0x13:  // CONFIGURE
+    case 0x14:  // LOCK
+      cmd_pos = 0;
+      msr = 0x80;
+      break;
+
+    default:
+      // Unknown command — return invalid command status
+      result_buf[0] = 0x80;  // ST0: invalid command
+      result_len = 1;
+      result_pos = 0;
+      cmd_pos = 0;
+      msr = 0xD0;
+      break;
+    }
   }
 };

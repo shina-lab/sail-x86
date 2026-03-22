@@ -93,6 +93,8 @@ public:
   CMOS cmos;
   VGAText vga;
   ATAController ata;
+  DMAController dma;
+  FloppyController floppy;
   FwCfg fw_cfg;
   PCIConfigSpace pci;
 

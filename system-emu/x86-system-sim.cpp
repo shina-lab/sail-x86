@@ -29,6 +29,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image\n");
+  fprintf(stderr, "  -fda <file>     Floppy disk image (drive A:)\n");
   fprintf(stderr, "  -h              Show this help\n");
 }
 
@@ -650,6 +651,7 @@ int main(int argc, char *argv[]) {
   DisplayMode display_mode = DISPLAY_SERIAL;
   const char *bios_path = nullptr;
   const char *hda_path = nullptr;
+  const char *fda_path = nullptr;
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
@@ -673,6 +675,9 @@ int main(int argc, char *argv[]) {
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-hda") == 0 && first_arg + 1 < argc) {
       hda_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-fda") == 0 && first_arg + 1 < argc) {
+      fda_path = argv[first_arg + 1];
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
@@ -763,6 +768,18 @@ int main(int argc, char *argv[]) {
         return 1;
       }
       fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
+    }
+
+    if (fda_path) {
+      if (!model.floppy.open(fda_path)) {
+        fprintf(stderr, "Failed to open floppy image: %s\n", fda_path);
+        return 1;
+      }
+      // CMOS 0x10: floppy type. High nibble = drive A, low = drive B.
+      // 0x40 = 1.44MB 3.5" in drive A, no drive B.
+      // CMOS 0x14 bit 0: set = floppy drive present.
+      model.cmos.set_floppy(true);
+      fprintf(stderr, "sail-x86-system: FDA=%s\n", fda_path);
     }
 
   } else {
@@ -1060,6 +1077,9 @@ int main(int argc, char *argv[]) {
       }
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;
     }
+
+    // Floppy delayed IRQ tick
+    model.floppy.tick();
 
     // UART interrupt (IRQ 4): RDA or THRE
     if (model.uart.has_irq()) {

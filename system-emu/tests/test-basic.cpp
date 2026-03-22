@@ -598,10 +598,11 @@ TEST(rep_insd) {
   ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)model.zGPR.data[1], 0UL);        // RCX = 0
   ASSERT_EQ((u64)model.zGPR.data[7], 0x1FFFFCUL); // RDI decremented by 3*4=12
-  // Each dword should be 0xFFFFFFFF
-  ASSERT_EQ(model.phys_mem.read32(0x200008), 0xFFFFFFFFUL);
-  ASSERT_EQ(model.phys_mem.read32(0x200004), 0xFFFFFFFFUL);
-  ASSERT_EQ(model.phys_mem.read32(0x200000), 0xFFFFFFFFUL);
+  // Port 0x80 = 0xFF (POST code), 0x81-0x83 = DMA page registers (0x00).
+  // 32-bit INS reads 4 consecutive ports: 0x80,0x81,0x82,0x83 → 0x000000FF.
+  ASSERT_EQ(model.phys_mem.read32(0x200008), 0x000000FFUL);
+  ASSERT_EQ(model.phys_mem.read32(0x200004), 0x000000FFUL);
+  ASSERT_EQ(model.phys_mem.read32(0x200000), 0x000000FFUL);
 }
 
 TEST(insb_df_backward) {
