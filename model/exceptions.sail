@@ -39,3 +39,7 @@ function raise_SS0() = throw Fault(EXN_SS, 0x00000000)
 // Raise #DE — divide error.
 val raise_DE : unit -> unit
 function raise_DE() = throw Fault(EXN_DE, 0x00000000)
+
+// Raise #BR — BOUND range exceeded.
+val raise_BR : unit -> unit
+function raise_BR() = throw Fault(EXN_BR, 0x00000000)

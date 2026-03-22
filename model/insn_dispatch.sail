@@ -862,6 +862,82 @@ function decode_execute() = {
         dispatch_opcode_2byte(opcode2, pfx)
       },
 
+      // 27: DAA — Decimal Adjust AL After Addition (SDM Vol.2A)
+      // #UD in 64-bit mode. Adjusts packed BCD result in AL after ADD.
+      39 => {
+        if cur_mode == LongMode then raise_UD();
+        let old_al = read_gpr8l(RAX);
+        let old_cf = CF;
+        CF = bitzero;
+        if (unsigned(old_al[3..0]) > 9) | (AF == bitone) then {
+          let new_ax : word = read_gpr16(RAX) + 0x0006;
+          write_gpr16(RAX, new_ax);
+          CF = old_cf | bool_to_bit(unsigned(old_al[3..0]) + 6 > 15);
+          AF = bitone
+        } else {
+          AF = bitzero
+        };
+        if (unsigned(old_al) > 153) | (old_cf == bitone) then {
+          write_gpr8l(RAX, read_gpr8l(RAX) + 0x60);
+          CF = bitone
+        } else {
+          CF = bitzero
+        };
+        update_SF_ZF_PF(read_gpr8l(RAX))
+      },
+
+      // 2F: DAS — Decimal Adjust AL After Subtraction (SDM Vol.2A)
+      // #UD in 64-bit mode. Adjusts packed BCD result in AL after SUB.
+      47 => {
+        if cur_mode == LongMode then raise_UD();
+        let old_al = read_gpr8l(RAX);
+        let old_cf = CF;
+        CF = bitzero;
+        if (unsigned(old_al[3..0]) > 9) | (AF == bitone) then {
+          write_gpr8l(RAX, read_gpr8l(RAX) - 0x06);
+          CF = old_cf | bool_to_bit(unsigned(old_al[3..0]) < 6);
+          AF = bitone
+        } else {
+          AF = bitzero
+        };
+        if (unsigned(old_al) > 153) | (old_cf == bitone) then {
+          write_gpr8l(RAX, read_gpr8l(RAX) - 0x60);
+          CF = bitone
+        };
+        update_SF_ZF_PF(read_gpr8l(RAX))
+      },
+
+      // 37: AAA — ASCII Adjust After Addition (SDM Vol.2A)
+      // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
+      55 => {
+        if cur_mode == LongMode then raise_UD();
+        if (unsigned(read_gpr8l(RAX)[3..0]) > 9) | (AF == bitone) then {
+          write_gpr16(RAX, read_gpr16(RAX) + 0x0106);
+          AF = bitone;
+          CF = bitone
+        } else {
+          AF = bitzero;
+          CF = bitzero
+        };
+        write_gpr8l(RAX, read_gpr8l(RAX) & 0x0F)
+      },
+
+      // 3F: AAS — ASCII Adjust AL After Subtraction (SDM Vol.2A)
+      // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
+      63 => {
+        if cur_mode == LongMode then raise_UD();
+        if (unsigned(read_gpr8l(RAX)[3..0]) > 9) | (AF == bitone) then {
+          write_gpr16(RAX, read_gpr16(RAX) - 0x0006);
+          write_gpr8h(RAX, read_gpr8h(RAX) - 0x01);
+          AF = bitone;
+          CF = bitone
+        } else {
+          AF = bitzero;
+          CF = bitzero
+        };
+        write_gpr8l(RAX, read_gpr8l(RAX) & 0x0F)
+      },
+
       // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
       // Invalid in 64-bit mode. Operand size determines push width:
       // OS32 → push zero-extended dword; OS16 → push word.
@@ -1016,8 +1092,41 @@ function decode_execute() = {
         }
       },
 
-      // 62: EVEX prefix (in 64-bit mode; BOUND in 32-bit mode)
-      98 => dispatch_evex(),
+      // 62: EVEX prefix (in 64-bit mode); BOUND (in 16/32-bit mode)
+      // BOUND r16/r32, m16&16/m32&32: #BR if index out of bounds.
+      // In non-64-bit mode, the second byte is a ModR/M — if mod==11b
+      // (register operand), it's #UD (BOUND requires memory).
+      // In 64-bit mode, 0x62 is always EVEX prefix.
+      98 => {
+        if cur_mode == LongMode then {
+          dispatch_evex()
+        } else {
+          let modrm = fetch_byte();
+          let rm = decode_rm(modrm, pfx);
+          match rm {
+            RM_reg(_) => raise_UD(),  // BOUND requires memory operand
+            RM_mem(_, addr) => {
+              let os = get_operand_size(pfx);
+              let reg = modrm_reg(modrm, pfx);
+              let index : qword = read_gpr(reg, os);
+              match os {
+                OS32 => {
+                  let lower : dword = mem_read32(addr);
+                  let upper : dword = mem_read32(addr + 4);
+                  if signed(index[31..0]) < signed(lower) | signed(upper) < signed(index[31..0]) then
+                    raise_BR()
+                },
+                _ => {
+                  let lower : word = mem_read16(addr);
+                  let upper : word = mem_read16(addr + 2);
+                  if signed(index[15..0]) < signed(lower) | signed(upper) < signed(index[15..0]) then
+                    raise_BR()
+                },
+              }
+            },
+          }
+        }
+      },
 
       // 63: MOVSXD r64, r/m32 (in 64-bit mode)
       99 => {
@@ -1800,6 +1909,21 @@ function decode_execute() = {
         }
       },
 
+      // CE: INTO — Interrupt on Overflow (SDM Vol.2B)
+      // #UD in 64-bit mode. If OF=1, generates #OF (vector 4).
+      206 => {
+        if cur_mode == LongMode then raise_UD();
+        if OF == bitone then {
+          if system_mode then {
+            sw_return_rip = Some(decode_pos);
+            deliver_exception(EXN_OF, 0x00000000, true);
+            next_rip = Some(RIP)
+          } else {
+            __software_interrupt(0xCE)
+          }
+        }
+      },
+
       // CF: IRET/IRETD/IRETQ — Interrupt Return
       // Real mode: pop IP, CS, FLAGS (3 words, no SP/SS).
       // Protected mode same-privilege: pop EIP, CS, EFLAGS (no ESP/SS).
@@ -1924,6 +2048,34 @@ function decode_execute() = {
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count = read_gpr8l(RCX);
         exec_shift_rm(reg_field, rm, count, os, pfx)
+      },
+
+      // D4: AAM — ASCII Adjust AX After Multiply (SDM Vol.2A)
+      // #UD in 64-bit mode. D4 ib: AH := AL / imm8; AL := AL MOD imm8.
+      // #DE if imm8 == 0.
+      212 => {
+        if cur_mode == LongMode then raise_UD();
+        let imm = fetch_byte();
+        if imm == 0x00 then raise_DE();
+        let temp_al = read_gpr8l(RAX);
+        let divisor = unsigned(imm);
+        assert(divisor > 0);
+        write_gpr8h(RAX, to_bits(8, unsigned(temp_al) / divisor));
+        write_gpr8l(RAX, to_bits(8, unsigned(temp_al) % divisor));
+        update_SF_ZF_PF(read_gpr8l(RAX))
+      },
+
+      // D5: AAD — ASCII Adjust AX Before Division (SDM Vol.2A)
+      // #UD in 64-bit mode. D5 ib: AL := (AL + AH * imm8) AND FFH; AH := 0.
+      213 => {
+        if cur_mode == LongMode then raise_UD();
+        let imm = fetch_byte();
+        let temp_al = read_gpr8l(RAX);
+        let temp_ah = read_gpr8h(RAX);
+        let result : byte = to_bits(8, (unsigned(temp_al) + unsigned(temp_ah) * unsigned(imm)) % 256);
+        write_gpr8l(RAX, result);
+        write_gpr8h(RAX, 0x00);
+        update_SF_ZF_PF(result)
       },
 
       // D7: XLAT/XLATB
