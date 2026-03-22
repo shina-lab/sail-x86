@@ -98,3 +98,8 @@ add_executable(system_test_exceptions tests/test-exceptions.cpp)
 target_link_libraries(system_test_exceptions PRIVATE x86_system_model)
 add_dependencies(system_test_exceptions generated_sail_x86_model)
 add_test(NAME system_exceptions COMMAND system_test_exceptions)
+
+add_executable(system_test_a20 tests/test-a20.cpp)
+target_link_libraries(system_test_a20 PRIVATE x86_system_model)
+add_dependencies(system_test_a20 generated_sail_x86_model)
+add_test(NAME system_a20 COMMAND system_test_a20)

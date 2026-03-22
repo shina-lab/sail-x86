@@ -56,6 +56,7 @@ static void init_model(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   enable_all_features(model);
 
   model.zsystem_mode = true;
+  model.za20_enabled = true;
   model.zcur_mode = x86::zLongMode;
   model.zcur_cpl = 0;
   model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
@@ -528,6 +529,7 @@ static void init_model_32(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   enable_all_features(model);
 
   model.zsystem_mode = true;
+  model.za20_enabled = true;
   model.zcur_mode = x86::zProtectedMode;
   model.zcur_cpl = 0;
 

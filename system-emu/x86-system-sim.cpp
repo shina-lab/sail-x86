@@ -164,6 +164,9 @@ static void init_cpu_state(x86::Model &model) {
   // Zero GPRs
   for (int i = 0; i < 16; i++)
     model.zGPR.data[i] = 0;
+
+  // Wire keyboard controller A20 gate to Sail register (disabled by default)
+  model.kbd.a20_gate = &model.za20_enabled;
 }
 
 // Initialize CPU in real mode at the x86 reset vector.

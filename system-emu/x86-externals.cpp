@@ -171,7 +171,7 @@ u64 Model::z__port_in8(u64 port) {
   if (ata.handles(p))        return ata.read(p);
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
-  if (p == 0x92)             return 0x02; // System Control Port A: A20 always enabled
+  if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
   if (p == 0xB2)             return 0x00; // APM Control (write triggers SMI)
   if (p == 0xB3)             return apmc_status; // APM Status
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
@@ -244,6 +244,9 @@ unit Model::z__port_out8(u64 port, u64 val) {
     pci.write_data(d);
     // If VGA ROM BAR was updated, sync the physical memory mapping
     phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
+  } else if (p == 0x92) {
+    // System Control Port A: bit 1 = A20 gate
+    za20_enabled = (v & 0x02) != 0;
   } else if (p == 0xB2) {
     // APM Control: trigger SMI
     smi_pending = true;

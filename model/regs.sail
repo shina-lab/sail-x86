@@ -585,3 +585,13 @@ register delivering_exc_class : ExceptionClass
 
 register in_smm : bool = false
 register smbase : dword = 0x00030000
+
+// =========================================================================
+// A20 gate
+//
+// When disabled, physical address bit 20 is forced to zero, causing
+// the 1MB address space to wrap around (real-mode compatibility).
+// On reset, A20 is disabled. Enabled via port 0x92 or keyboard controller.
+// =========================================================================
+
+register a20_enabled : bool = false

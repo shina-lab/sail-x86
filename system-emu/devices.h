@@ -549,6 +549,9 @@ private:
 
 class KeyboardController {
 public:
+  // Pointer to Sail model's A20 register, set during platform init.
+  bool *a20_gate = nullptr;
+
   u8 read(u16 port) {
     if (port == 0x64) {
       // Status register:
@@ -625,7 +628,9 @@ public:
         config_byte = val;
         last_cmd = 0;
       } else if (last_cmd == 0xD1) {
-        // Write output port — A20 gate etc., ignore
+        // Write output port — bit 1 = A20 gate
+        if (a20_gate)
+          *a20_gate = (val & 0x02) != 0;
         last_cmd = 0;
       } else {
         // Data sent to keyboard device — handle device commands

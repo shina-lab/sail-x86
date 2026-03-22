@@ -13,13 +13,20 @@
 val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
 val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
 
+// Apply A20 gate masking: when A20 is disabled, bit 20 of the physical
+// address is forced to zero, wrapping the address space at 1MB.
+val a20_mask : qword -> qword
+function a20_mask(addr) =
+  if ~(a20_enabled) & system_mode then addr & 0xFFFFFFFFFFEFFFFF
+  else addr
+
 // Physical memory access (bypass translation).
 // Used by page table walks and by mem_read/mem_write when paging is off.
 val phys_read : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-function phys_read(addr, n) = __read_mem(addr, n)
+function phys_read(addr, n) = __read_mem(a20_mask(addr), n)
 
 val phys_write : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
-function phys_write(addr, n, data) = __write_mem(addr, n, data)
+function phys_write(addr, n, data) = __write_mem(a20_mask(addr), n, data)
 
 val phys_read64 : qword -> qword
 function phys_read64(addr) = phys_read(addr, 8)
