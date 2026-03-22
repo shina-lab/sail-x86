@@ -565,6 +565,7 @@ public:
       if (!out_buf.empty()) {
         u8 val = out_buf.front();
         out_buf.pop();
+        if (pending_scancodes > 0) pending_scancodes--;
         return val;
       }
       return 0x00;
@@ -602,10 +603,6 @@ public:
         break;
       case 0xAE:  // Enable first PS/2 port
         kbd_enabled = true;
-        // Drain any leftover ACK/response bytes from PS/2 init commands.
-        // These would otherwise be misinterpreted as scancodes and cause
-        // spurious IRQ1 interrupts that the keyboard ISR can't process.
-        while (!out_buf.empty()) out_buf.pop();
         break;
       case 0xD1:  // Write output port (next byte to 0x60)
         last_cmd = 0xD1;
@@ -669,20 +666,23 @@ public:
     return port == 0x60 || port == 0x64;
   }
 
-  // Push a scancode byte from the host side.
+  // Push a scancode byte from the host side (actual keypress).
   void push_scancode(u8 sc) {
     out_buf.push(sc);
+    pending_scancodes++;
   }
 
-  // Returns true if there's data waiting (for IRQ 1).
+  // Returns true if there are actual key scancodes waiting (for IRQ 1).
+  // PS/2 command ACKs don't count — SeaBIOS polls for those via port 0x64.
   bool has_data() const {
-    return !out_buf.empty();
+    return pending_scancodes > 0;
   }
 
   size_t out_buf_size() const { return out_buf.size(); }
 
 private:
   std::queue<u8> out_buf;   // output buffer (scancodes + command responses)
+  int pending_scancodes = 0; // count of actual key scancodes (not PS/2 ACKs)
   u8 last_cmd = 0;          // last command written to port 0x64
   u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
   u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on
