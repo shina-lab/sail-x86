@@ -828,18 +828,11 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, [](int) { got_signal = true; });
 
   while (!model.should_exit && !got_signal) {
-    // Print progress periodically
-    if (curses_active) {
-      if (insn_count % 1000000 == 0)
-        update_status_line("%luM insns  RIP=%04x:%016lx",
-                           insn_count / 1000000,
-                           (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
-    } else {
-      if (insn_count % 1000000 == 0 && insn_count > 0)
-        fprintf(stderr, "[progress] %luM insns, RIP=%04x:%016lx\n",
-                insn_count / 1000000,
-                (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
-    }
+    // Update status line periodically (curses mode only)
+    if (curses_active && insn_count % 1000000 == 0)
+      update_status_line("%luM insns  RIP=%04x:%016lx",
+                         insn_count / 1000000,
+                         (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
 
     if (debug) {
       const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
