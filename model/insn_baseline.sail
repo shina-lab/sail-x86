@@ -1993,6 +1993,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = extend_reg(reg_field, pfx.rex_b);
       let os = get_operand_size(pfx);
       match os {
+        OS8  => unreachable(),
+        OS16 => {
+          // SDM says "result is undefined" for 16-bit operand, but real
+          // hardware zeroes the low 16 bits.
+          write_gpr16(reg, zeros())
+        },
         OS32 => {
           let v : dword = read_gpr32(reg);
           write_gpr32(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
@@ -2001,8 +2007,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let v : qword = read_gpr64(reg);
           write_gpr64(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                            v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
-        },
-        _ => (),
+        }
       }
     },
     // 0F 77: EMMS — set x87 tag word to all empty

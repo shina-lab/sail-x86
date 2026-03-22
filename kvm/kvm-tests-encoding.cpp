@@ -480,6 +480,15 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // BSWAP with value 0x01000000 -> 0x00000001
     tests.push_back({"bswap eax endian", cat, {0x0F, 0xC8},
                       {.rax = 0x01000000, .rflags = 0x2}, FL_NONE});
+
+    // BSWAP AX (16-bit, 66h prefix): 66 0F C8
+    // SDM says "result is undefined" but real hardware zeroes the low 16 bits.
+    tests.push_back({"bswap ax (r16 undefined)", cat, {0x66, 0x0F, 0xC8},
+                      {.rax = 0x0123456789ABCDEF, .rflags = 0x2}, FL_NONE});
+
+    // BSWAP R8W (16-bit, 66 REX.B): 66 41 0F C8
+    tests.push_back({"bswap r8w (r16 undefined)", cat, {0x66, 0x41, 0x0F, 0xC8},
+                      {.r8 = 0xFEDCBA9876543210, .rflags = 0x2}, FL_NONE});
   }
 
   // =====================================================================
