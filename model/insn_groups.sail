@@ -233,10 +233,9 @@ function exec_imul_1(src, os) = {
 
 // PUSH imm
 
-val exec_push_imm : (qword, operand_size) -> unit
+val exec_push_imm : (qword, {16, 32, 64}) -> unit
 function exec_push_imm(imm, os) = {
   match os {
-    8  => unreachable(),
     16 => push16(imm[15..0]),
     32 => if cur_mode == LongMode then push64(imm) else push32(imm[31..0]),
     64 => push64(imm),
@@ -285,7 +284,7 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
 // Group 3 (F7): Unary word/dword/qword operations
 // =========================================================================
 
-val dispatch_group3 : (range(0, 7), RM, operand_size, Prefixes) -> unit
+val dispatch_group3 : (range(0, 7), RM, {16, 32, 64}, Prefixes) -> unit
 function dispatch_group3(reg_field, rm, os, pfx) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m, imm (Iz)
@@ -348,7 +347,6 @@ function dispatch_group5(reg_field, rm, pfx) = {
       let target = read_rm_val(rm, os, pfx.has_rex);
       let return_addr = decode_pos;
       match os {
-        8  => unreachable(),
         16 => push16(return_addr[15..0]),
         32 => push32(return_addr[31..0]),
         64 => push64(return_addr),

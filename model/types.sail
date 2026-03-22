@@ -303,7 +303,7 @@ val fetch_imm8_sx : unit -> qword
 function fetch_imm8_sx() = sign_extend(fetch_byte())
 
 // Fetch an immediate Iz: 16-bit if opsize=16, else 32-bit, sign-extended to 64.
-val fetch_imm_z : operand_size -> qword
+val fetch_imm_z : {16, 32, 64} -> qword
 function fetch_imm_z(os) = match os {
   16 => {
     let lo = fetch_byte();

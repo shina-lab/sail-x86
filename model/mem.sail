@@ -366,7 +366,7 @@ function validate_far_jmp_cs(selector) = {
 // Execute far JMP in protected mode.
 // Validates the target code segment, loads CS with descriptor cache,
 // and sets EIP. Call gates and task switches are not supported (#GP).
-val exec_far_jmp_protected : (word, qword, operand_size) -> unit
+val exec_far_jmp_protected : (word, qword, {16, 32, 64}) -> unit
 function exec_far_jmp_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Load CS: write selector with RPL set to CPL
@@ -390,12 +390,11 @@ function exec_far_jmp_protected(selector, offset, os) = {
 
 // Execute far CALL in protected mode.
 // Same validation as far JMP, but pushes old CS:EIP first.
-val exec_far_call_protected : (word, qword, operand_size) -> unit
+val exec_far_call_protected : (word, qword, {16, 32, 64}) -> unit
 function exec_far_call_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Push old CS and EIP/IP
   match os {
-    8  => unreachable(),
     16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
     32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
     64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },

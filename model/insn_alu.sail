@@ -66,7 +66,7 @@ function exec_alu_rm_reg_byte(op, rm, reg, pfx) = {
 }
 
 // Execute ALU: dst_rm OP= src_reg (word/dword/qword)
-val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, operand_size, Prefixes) -> unit
+val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, {16, 32, 64}, Prefixes) -> unit
 function exec_alu_rm_reg(op, rm, reg, os, pfx) = {
   let a = read_rm_val(rm, os, pfx.has_rex);
   let b = read_gpr(os, reg);
@@ -84,7 +84,7 @@ function exec_alu_reg_rm_byte(op, reg, rm, pfx) = {
 }
 
 // Execute ALU: dst_reg OP= src_rm (word/dword/qword)
-val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, operand_size, Prefixes) -> unit
+val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, {16, 32, 64}, Prefixes) -> unit
 function exec_alu_reg_rm(op, reg, rm, os, pfx) = {
   let a = read_gpr(os, reg);
   let b = read_rm_val(rm, os, pfx.has_rex);

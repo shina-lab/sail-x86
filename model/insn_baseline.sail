@@ -341,7 +341,7 @@ val __xrstor : (qword, qword) -> unit
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
 
-val exec_shld : (qword, qword, byte, operand_size) -> qword
+val exec_shld : (qword, qword, byte, {16, 32, 64}) -> qword
 function exec_shld(d, s, count_raw, os) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
@@ -406,7 +406,7 @@ function exec_shld(d, s, count_raw, os) = {
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
 
-val exec_shrd : (qword, qword, byte, operand_size) -> qword
+val exec_shrd : (qword, qword, byte, {16, 32, 64}) -> qword
 function exec_shrd(d, s, count_raw, os) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
@@ -1279,7 +1279,6 @@ function dispatch_2byte_gpr(op, pfx) = {
     160 => {
       let os = get_operand_size_d64(pfx);
       match os {
-        8  => unreachable(),
         16 => push16(read_segreg(FS)),
         32 => push32(zero_extend(read_segreg(FS))),
         64 => push64(zero_extend(read_segreg(FS))),
@@ -1289,7 +1288,6 @@ function dispatch_2byte_gpr(op, pfx) = {
     161 => {
       let os = get_operand_size_d64(pfx);
       let v : word = match os {
-        8  => unreachable(),
         16 => pop16(),
         32 => pop32()[15..0],
         64 => pop64()[15..0],
@@ -1335,7 +1333,6 @@ function dispatch_2byte_gpr(op, pfx) = {
     168 => {
       let os = get_operand_size_d64(pfx);
       match os {
-        8  => unreachable(),
         16 => push16(read_segreg(GS)),
         32 => push32(zero_extend(read_segreg(GS))),
         64 => push64(zero_extend(read_segreg(GS))),
@@ -1345,7 +1342,6 @@ function dispatch_2byte_gpr(op, pfx) = {
     169 => {
       let os = get_operand_size_d64(pfx);
       let v : word = match os {
-        8  => unreachable(),
         16 => pop16(),
         32 => pop32()[15..0],
         64 => pop64()[15..0],
@@ -1787,7 +1783,6 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_mem(seg, offset) => {
           let v = read_gpr(os, reg);
           match os {
-            8  => unreachable(),
             16 => seg_write32(seg, offset, v[31..0]),
             32 => seg_write32(seg, offset, v[31..0]),
             64 => seg_write64(seg, offset, v),
@@ -1902,7 +1897,6 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = extend_reg(reg_field, pfx.rex_b);
       let os = get_operand_size(pfx);
       match os {
-        8  => unreachable(),
         16 => {
           // SDM says "result is undefined" for 16-bit operand, but real
           // hardware zeroes the low 16 bits.
