@@ -468,16 +468,11 @@ function exec_shrd(d, s, count_raw, os) = {
 // For memory rm: the full signed bit offset indexes into an arbitrarily long
 // bit string, so the effective address is displaced by (offset / op_bits) words.
 // Returns (possibly-adjusted RM, bit number within the accessed word).
-val bt_adjust : (RM, qword, operand_size) -> (RM, range(0, 63))
+val bt_adjust : (RM, qword, {16, 32, 64}) -> (RM, range(0, 63))
 function bt_adjust(rm, bit_idx, os) = {
   match rm {
     RM_reg(_) => {
-      let bit_num : range(0, 63) = match os {
-        8  => unsigned(bit_idx[4..0]),
-        16 => unsigned(bit_idx[3..0]),
-        32 => unsigned(bit_idx[4..0]),
-        64 => unsigned(bit_idx[5..0]),
-      };
+      let bit_num : range(0, 63) = unsigned(bit_idx) % os;
       (rm, bit_num)
     },
     RM_mem(seg, offset) => {
@@ -489,32 +484,11 @@ function bt_adjust(rm, bit_idx, os) = {
       // For memory operands, the full signed bit offset indexes into a bit
       // string starting at the effective address. Compute the word displacement
       // (Euclidean: bit_num is always in [0, op_bits)).
-      let (byte_disp, bit_num_int) : (int, int) = match os {
-        8 => {
-          let off = signed(bit_idx[31..0]);
-          let r = rem_round_zero(off, 32);
-          let q = quot_round_zero(off, 32);
-          if r >= 0 then (q * 4, r) else ((q - 1) * 4, r + 32)
-        },
-        16 => {
-          let off = signed(bit_idx[15..0]);
-          let r = rem_round_zero(off, 16);
-          let q = quot_round_zero(off, 16);
-          if r >= 0 then (q * 2, r) else ((q - 1) * 2, r + 16)
-        },
-        32 => {
-          let off = signed(bit_idx[31..0]);
-          let r = rem_round_zero(off, 32);
-          let q = quot_round_zero(off, 32);
-          if r >= 0 then (q * 4, r) else ((q - 1) * 4, r + 32)
-        },
-        64 => {
-          let off = signed(bit_idx);
-          let r = rem_round_zero(off, 64);
-          let q = quot_round_zero(off, 64);
-          if r >= 0 then (q * 8, r) else ((q - 1) * 8, r + 64)
-        },
-      };
+      let off = signed(bit_idx[os - 1 .. 0]);
+      let r = rem_round_zero(off, os);
+      let q = quot_round_zero(off, os);
+      let (byte_disp, bit_num_int) : (int, int) =
+        if r >= 0 then (q * (os / 8), r) else ((q - 1) * (os / 8), r + os);
       let new_addr : qword = base_addr + get_slice_int(64, byte_disp, 0);
       // bit_num_int is in [0, 63] by construction; extract as 6-bit value
       let bit_num : range(0, 63) = unsigned(get_slice_int(6, bit_num_int, 0));
