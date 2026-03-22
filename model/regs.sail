@@ -72,21 +72,21 @@ function write_gpr8h(idx, v) = {
 }
 
 // Polymorphic GPR read by operand size.
-val read_gpr : (gpr_idx, OperandSize) -> qword
-function read_gpr(idx, os) = match os {
-  OS8  => zero_extend(read_gpr8l(idx)),
-  OS16 => zero_extend(read_gpr16(idx)),
-  OS32 => zero_extend(read_gpr32(idx)),
-  OS64 => read_gpr64(idx),
+val read_gpr : (operand_size, gpr_idx) -> qword
+function read_gpr(os, idx) = match os {
+  8  => zero_extend(read_gpr8l(idx)),
+  16 => zero_extend(read_gpr16(idx)),
+  32 => zero_extend(read_gpr32(idx)),
+  64 => read_gpr64(idx),
 }
 
 // Polymorphic GPR write by operand size.
-val write_gpr : (gpr_idx, OperandSize, qword) -> unit
-function write_gpr(idx, os, v) = match os {
-  OS8  => write_gpr8l(idx, v[7..0]),
-  OS16 => write_gpr16(idx, v[15..0]),
-  OS32 => write_gpr32(idx, v[31..0]),
-  OS64 => write_gpr64(idx, v),
+val write_gpr : (operand_size, gpr_idx, qword) -> unit
+function write_gpr(os, idx, v) = match os {
+  8  => write_gpr8l(idx, v[7..0]),
+  16 => write_gpr16(idx, v[15..0]),
+  32 => write_gpr32(idx, v[31..0]),
+  64 => write_gpr64(idx, v),
 }
 
 // Named GPR indices for readability.

@@ -158,29 +158,29 @@ function fetch_byte() = {
 // LongMode: default OS32, REX.W → OS64, 66h → OS16.
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
-val get_operand_size : Prefixes -> OperandSize
+val get_operand_size : Prefixes -> {16, 32, 64}
 function get_operand_size(pfx) =
-  if pfx.rex_w then OS64
+  if pfx.rex_w then 64
   else if cur_mode == LongMode then {
-    if pfx.has_opsize then OS16 else OS32
+    if pfx.has_opsize then 16 else 32
   } else if get_cs_db() == 0b1 then {
-    if pfx.has_opsize then OS16 else OS32
+    if pfx.has_opsize then 16 else 32
   } else {
-    if pfx.has_opsize then OS32 else OS16
+    if pfx.has_opsize then 32 else 16
   }
 
 // Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
 // LongMode: default OS64, 66h → OS16 (OS32 not encodable).
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
-val get_operand_size_d64 : Prefixes -> OperandSize
+val get_operand_size_d64 : Prefixes -> {16, 32, 64}
 function get_operand_size_d64(pfx) =
   if cur_mode == LongMode then {
-    if pfx.has_opsize then OS16 else OS64
+    if pfx.has_opsize then 16 else 64
   } else if get_cs_db() == 0b1 then {
-    if pfx.has_opsize then OS16 else OS32
+    if pfx.has_opsize then 16 else 32
   } else {
-    if pfx.has_opsize then OS32 else OS16
+    if pfx.has_opsize then 32 else 16
   }
 
 // Operand size for instructions forced to 64-bit (JMP rel, CALL rel, Jcc rel).
@@ -194,15 +194,15 @@ function get_operand_size_d64(pfx) =
 // size when in 64-bit mode (prefixes that change operand size are ignored
 // for this instruction in 64-bit mode)."
 // In non-64-bit modes, the 66h prefix works normally per CS.D setting.
-val get_operand_size_f64 : Prefixes -> OperandSize
+val get_operand_size_f64 : Prefixes -> {16, 32, 64}
 function get_operand_size_f64(pfx) =
-  if pfx.rex_w then OS64
+  if pfx.rex_w then 64
   else if cur_mode == LongMode then {
-    if pfx.has_opsize then OS16 else OS64
+    if pfx.has_opsize then 16 else 64
   } else if get_cs_db() == 0b1 then {
-    if pfx.has_opsize then OS16 else OS32
+    if pfx.has_opsize then 16 else 32
   } else {
-    if pfx.has_opsize then OS32 else OS16
+    if pfx.has_opsize then 32 else 16
   }
 
 // =========================================================================
@@ -254,42 +254,42 @@ function write_byte_reg(idx, has_rex, v) =
 // Generic operand read/write through RM union
 // =========================================================================
 
-val read_rm_val : (RM, OperandSize, bool) -> qword
+val read_rm_val : (RM, operand_size, bool) -> qword
 function read_rm_val(rm, os, has_rex) = match rm {
   RM_reg(idx) => match os {
-    OS8  => zero_extend(read_byte_reg(idx, has_rex)),
-    OS16 => zero_extend(read_gpr16(idx)),
-    OS32 => zero_extend(read_gpr32(idx)),
-    OS64 => read_gpr64(idx),
+    8  => zero_extend(read_byte_reg(idx, has_rex)),
+    16 => zero_extend(read_gpr16(idx)),
+    32 => zero_extend(read_gpr32(idx)),
+    64 => read_gpr64(idx),
   },
   RM_mem(seg, offset) => {
-    let sz = operand_size_bits(os) / 8;
+    let sz = os / 8;
     let a = seg_linear(seg, offset, sz);
     match os {
-      OS8  => zero_extend(mem_read8(a)),
-      OS16 => zero_extend(mem_read16(a)),
-      OS32 => zero_extend(mem_read32(a)),
-      OS64 => mem_read64(a),
+      8  => zero_extend(mem_read8(a)),
+      16 => zero_extend(mem_read16(a)),
+      32 => zero_extend(mem_read32(a)),
+      64 => mem_read64(a),
     }
   },
 }
 
-val write_rm_val : (RM, OperandSize, bool, qword) -> unit
+val write_rm_val : (RM, operand_size, bool, qword) -> unit
 function write_rm_val(rm, os, has_rex, v) = match rm {
   RM_reg(idx) => match os {
-    OS8  => write_byte_reg(idx, has_rex, v[7..0]),
-    OS16 => write_gpr16(idx, v[15..0]),
-    OS32 => write_gpr32(idx, v[31..0]),
-    OS64 => write_gpr64(idx, v),
+    8  => write_byte_reg(idx, has_rex, v[7..0]),
+    16 => write_gpr16(idx, v[15..0]),
+    32 => write_gpr32(idx, v[31..0]),
+    64 => write_gpr64(idx, v),
   },
   RM_mem(seg, offset) => {
-    let sz = operand_size_bits(os) / 8;
+    let sz = os / 8;
     let a = seg_linear(seg, offset, sz);
     match os {
-      OS8  => mem_write8(a, v[7..0]),
-      OS16 => mem_write16(a, v[15..0]),
-      OS32 => mem_write32(a, v[31..0]),
-      OS64 => mem_write64(a, v),
+      8  => mem_write8(a, v[7..0]),
+      16 => mem_write16(a, v[15..0]),
+      32 => mem_write32(a, v[31..0]),
+      64 => mem_write64(a, v),
     }
   },
 }
@@ -303,9 +303,9 @@ val fetch_imm8_sx : unit -> qword
 function fetch_imm8_sx() = sign_extend(fetch_byte())
 
 // Fetch an immediate Iz: 16-bit if opsize=16, else 32-bit, sign-extended to 64.
-val fetch_imm_z : OperandSize -> qword
+val fetch_imm_z : operand_size -> qword
 function fetch_imm_z(os) = match os {
-  OS16 => {
+  16 => {
     let lo = fetch_byte();
     let hi = fetch_byte();
     sign_extend(hi @ lo)
@@ -320,22 +320,22 @@ function fetch_imm_z(os) = match os {
 }
 
 // Fetch an immediate Iv: matches operand size. 64-bit only for MOV reg,imm with REX.W.
-val fetch_imm_v : OperandSize -> qword
+val fetch_imm_v : operand_size -> qword
 function fetch_imm_v(os) = match os {
-  OS8 => zero_extend(fetch_byte()),
-  OS16 => {
+  8 => zero_extend(fetch_byte()),
+  16 => {
     let lo = fetch_byte();
     let hi = fetch_byte();
     zero_extend(hi @ lo)
   },
-  OS32 => {
+  32 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
     let b3 = fetch_byte();
     zero_extend(b3 @ b2 @ b1 @ b0)
   },
-  OS64 => {
+  64 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
@@ -395,12 +395,12 @@ function fetch_rel_os(pfx) = {
 // SDM: "In Real-Address Mode, the target operand is truncated to 16 bits."
 // In 32-bit protected mode, truncated to 32 bits.
 // In 64-bit mode, no truncation.
-val truncate_rip : (qword, OperandSize) -> qword
+val truncate_rip : (qword, {16, 32, 64}) -> qword
 function truncate_rip(target, os) =
   match os {
-    OS16 => zero_extend(target[15..0]),
-    OS32 => zero_extend(target[31..0]),
-    _    => target,
+    16 => zero_extend(target[15..0]),
+    32 => zero_extend(target[31..0]),
+    64 => target,
   }
 
 // =========================================================================

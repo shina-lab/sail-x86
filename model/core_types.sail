@@ -6,18 +6,10 @@ function unreachable() = {
   exit()  // never reached; satisfies type checker
 }
 
-// Operand sizes used in x86 instructions.
-// This determines the width of register/memory operations.
-enum OperandSize = { OS8, OS16, OS32, OS64 }
-
-// Return the bit-width corresponding to an operand size.
-val operand_size_bits : OperandSize -> {8, 16, 32, 64}
-function operand_size_bits(os) = match os {
-  OS8  => 8,
-  OS16 => 16,
-  OS32 => 32,
-  OS64 => 64,
-}
+// Operand size in bits. Used throughout the model to select register
+// and memory access widths. Replaces a dedicated enum so that subset
+// types like {16, 32, 64} work naturally with Sail's type system.
+type operand_size = {8, 16, 32, 64}
 
 // Address sizes for memory operands.
 enum AddressSize = { AS16, AS32, AS64 }

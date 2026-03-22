@@ -366,7 +366,7 @@ function validate_far_jmp_cs(selector) = {
 // Execute far JMP in protected mode.
 // Validates the target code segment, loads CS with descriptor cache,
 // and sets EIP. Call gates and task switches are not supported (#GP).
-val exec_far_jmp_protected : (word, qword, OperandSize) -> unit
+val exec_far_jmp_protected : (word, qword, operand_size) -> unit
 function exec_far_jmp_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Load CS: write selector with RPL set to CPL
@@ -380,25 +380,25 @@ function exec_far_jmp_protected(selector, offset, os) = {
   };
   // Truncate offset based on operand size
   let target : qword = match os {
-    OS8  => offset,
-    OS16 => zero_extend(offset[15..0]),
-    OS32 => zero_extend(offset[31..0]),
-    OS64 => offset,
+    8  => offset,
+    16 => zero_extend(offset[15..0]),
+    32 => zero_extend(offset[31..0]),
+    64 => offset,
   };
   next_rip = Some(target)
 }
 
 // Execute far CALL in protected mode.
 // Same validation as far JMP, but pushes old CS:EIP first.
-val exec_far_call_protected : (word, qword, OperandSize) -> unit
+val exec_far_call_protected : (word, qword, operand_size) -> unit
 function exec_far_call_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Push old CS and EIP/IP
   match os {
-    OS8  => unreachable(),
-    OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-    OS32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
-    OS64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },
+    8  => unreachable(),
+    16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
+    32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+    64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },
   };
   // Load CS
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
@@ -411,10 +411,10 @@ function exec_far_call_protected(selector, offset, os) = {
   };
   // Set EIP
   let target : qword = match os {
-    OS8  => offset,
-    OS16 => zero_extend(offset[15..0]),
-    OS32 => zero_extend(offset[31..0]),
-    OS64 => offset,
+    8  => offset,
+    16 => zero_extend(offset[15..0]),
+    32 => zero_extend(offset[31..0]),
+    64 => offset,
   };
   next_rip = Some(target)
 }

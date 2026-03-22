@@ -2,15 +2,15 @@
 //
 // Computes dest := dest + 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 
-val exec_inc : (qword, OperandSize) -> qword
+val exec_inc : (qword, operand_size) -> qword
 function exec_inc(a, os) = {
   let one : qword = zero_extend(0b1 : bits(1));
   let result : qword = a + one;
   match os {
-    OS8  => update_flags_add_no_cf(result[7..0], a[7..0], one[7..0]),
-    OS16 => update_flags_add_no_cf(result[15..0], a[15..0], one[15..0]),
-    OS32 => update_flags_add_no_cf(result[31..0], a[31..0], one[31..0]),
-    OS64 => update_flags_add_no_cf(result, a, one),
+    8  => update_flags_add_no_cf(result[7..0], a[7..0], one[7..0]),
+    16 => update_flags_add_no_cf(result[15..0], a[15..0], one[15..0]),
+    32 => update_flags_add_no_cf(result[31..0], a[31..0], one[31..0]),
+    64 => update_flags_add_no_cf(result, a, one),
   };
   result
 }
@@ -19,25 +19,25 @@ function exec_inc(a, os) = {
 //
 // Computes dest := dest - 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 
-val exec_dec : (qword, OperandSize) -> qword
+val exec_dec : (qword, operand_size) -> qword
 function exec_dec(a, os) = {
   let one : qword = zero_extend(0b1 : bits(1));
   let result : qword = a - one;
   match os {
-    OS8  => update_flags_sub_no_cf(result[7..0], a[7..0], one[7..0]),
-    OS16 => update_flags_sub_no_cf(result[15..0], a[15..0], one[15..0]),
-    OS32 => update_flags_sub_no_cf(result[31..0], a[31..0], one[31..0]),
-    OS64 => update_flags_sub_no_cf(result, a, one),
+    8  => update_flags_sub_no_cf(result[7..0], a[7..0], one[7..0]),
+    16 => update_flags_sub_no_cf(result[15..0], a[15..0], one[15..0]),
+    32 => update_flags_sub_no_cf(result[31..0], a[31..0], one[31..0]),
+    64 => update_flags_sub_no_cf(result, a, one),
   };
   result
 }
 
 // MUL — Unsigned Multiply
 
-val exec_mul : (qword, OperandSize) -> unit
+val exec_mul : (qword, operand_size) -> unit
 function exec_mul(src, os) = {
   match os {
-    OS8 => {
+    8 => {
       let a : int = unsigned(read_gpr8l(RAX));
       let b : int = unsigned(src[7..0]);
       let result : word = to_bits_truncate(a * b);
@@ -45,7 +45,7 @@ function exec_mul(src, os) = {
       CF = (or_reduce_8(result[15..8]))[0];
       OF = CF;
     },
-    OS16 => {
+    16 => {
       let a : int = unsigned(read_gpr16(RAX));
       let b : int = unsigned(src[15..0]);
       let result : dword = to_bits_truncate(a * b);
@@ -54,7 +54,7 @@ function exec_mul(src, os) = {
       CF = (or_reduce_16(result[31..16]))[0];
       OF = CF;
     },
-    OS32 => {
+    32 => {
       let a : int = unsigned(read_gpr32(RAX));
       let b : int = unsigned(src[31..0]);
       let result : qword = to_bits_truncate(a * b);
@@ -63,7 +63,7 @@ function exec_mul(src, os) = {
       CF = (or_reduce_32(result[63..32]))[0];
       OF = CF;
     },
-    OS64 => {
+    64 => {
       let a : int = unsigned(read_gpr64(RAX));
       let b : int = unsigned(src);
       let product : int = a * b;
@@ -79,10 +79,10 @@ function exec_mul(src, os) = {
 // DIV — Unsigned Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after DIV.
 
-val exec_div : (qword, OperandSize) -> unit
+val exec_div : (qword, operand_size) -> unit
 function exec_div(src, os) = {
   match os {
-    OS8 => {
+    8 => {
       let divisor = unsigned(src[7..0]);
       if divisor == 0 then raise_DE();
       assert(divisor > 0);
@@ -93,7 +93,7 @@ function exec_div(src, os) = {
       write_gpr8l(RAX, to_bits_truncate(quotient));
       write_gpr8h(RAX, to_bits_truncate(remainder))
     },
-    OS16 => {
+    16 => {
       let divisor = unsigned(src[15..0]);
       if divisor == 0 then raise_DE();
       assert(divisor > 0);
@@ -104,7 +104,7 @@ function exec_div(src, os) = {
       write_gpr16(RAX, to_bits_truncate(quotient));
       write_gpr16(RDX, to_bits_truncate(remainder))
     },
-    OS32 => {
+    32 => {
       let divisor = unsigned(src[31..0]);
       if divisor == 0 then raise_DE();
       assert(divisor > 0);
@@ -115,7 +115,7 @@ function exec_div(src, os) = {
       write_gpr32(RAX, to_bits_truncate(quotient));
       write_gpr32(RDX, to_bits_truncate(remainder))
     },
-    OS64 => {
+    64 => {
       let divisor = unsigned(src);
       if divisor == 0 then raise_DE();
       assert(divisor > 0);
@@ -138,10 +138,10 @@ function exec_div(src, os) = {
 // IDIV — Signed Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after IDIV.
 
-val exec_idiv : (qword, OperandSize) -> unit
+val exec_idiv : (qword, operand_size) -> unit
 function exec_idiv(src, os) = {
   match os {
-    OS8 => {
+    8 => {
       let divisor = signed(src[7..0]);
       if divisor == 0 then raise_DE();
       assert(divisor != 0);
@@ -152,7 +152,7 @@ function exec_idiv(src, os) = {
       write_gpr8l(RAX, to_bits_truncate(quotient));
       write_gpr8h(RAX, to_bits_truncate(remainder))
     },
-    OS16 => {
+    16 => {
       let divisor = signed(src[15..0]);
       if divisor == 0 then raise_DE();
       assert(divisor != 0);
@@ -163,7 +163,7 @@ function exec_idiv(src, os) = {
       write_gpr16(RAX, to_bits_truncate(quotient));
       write_gpr16(RDX, to_bits_truncate(remainder))
     },
-    OS32 => {
+    32 => {
       let divisor = signed(src[31..0]);
       if divisor == 0 then raise_DE();
       assert(divisor != 0);
@@ -174,7 +174,7 @@ function exec_idiv(src, os) = {
       write_gpr32(RAX, to_bits_truncate(quotient));
       write_gpr32(RDX, to_bits_truncate(remainder))
     },
-    OS64 => {
+    64 => {
       let divisor = signed(src);
       if divisor == 0 then raise_DE();
       assert(divisor != 0);
@@ -196,10 +196,10 @@ function exec_idiv(src, os) = {
 
 // IMUL — Signed Multiply (one-operand form)
 
-val exec_imul_1 : (qword, OperandSize) -> unit
+val exec_imul_1 : (qword, operand_size) -> unit
 function exec_imul_1(src, os) = {
   match os {
-    OS8 => {
+    8 => {
       let a : int = signed(read_gpr8l(RAX));
       let b : int = signed(src[7..0]);
       let product : int = a * b;
@@ -208,7 +208,7 @@ function exec_imul_1(src, os) = {
       CF = (or_reduce_8(result[15..8] ^ sign_extend(result[7..7])))[0];
       OF = CF;
     },
-    OS16 => {
+    16 => {
       let a : int = signed(read_gpr16(RAX));
       let b : int = signed(src[15..0]);
       let product : int = a * b;
@@ -218,7 +218,7 @@ function exec_imul_1(src, os) = {
       CF = (or_reduce_16(result[31..16] ^ sign_extend(result[15..15])))[0];
       OF = CF;
     },
-    OS32 => {
+    32 => {
       let a : int = signed(read_gpr32(RAX));
       let b : int = signed(src[31..0]);
       let product : int = a * b;
@@ -228,7 +228,7 @@ function exec_imul_1(src, os) = {
       CF = (or_reduce_32(result[63..32] ^ sign_extend(result[31..31])))[0];
       OF = CF;
     },
-    OS64 => {
+    64 => {
       let a : int = signed(read_gpr64(RAX));
       let b : int = signed(src);
       let product : int = a * b;
@@ -243,13 +243,13 @@ function exec_imul_1(src, os) = {
 
 // PUSH imm
 
-val exec_push_imm : (qword, OperandSize) -> unit
+val exec_push_imm : (qword, operand_size) -> unit
 function exec_push_imm(imm, os) = {
   match os {
-    OS8  => unreachable(),
-    OS16 => push16(imm[15..0]),
-    OS32 => if cur_mode == LongMode then push64(imm) else push32(imm[31..0]),
-    OS64 => push64(imm),
+    8  => unreachable(),
+    16 => push16(imm[15..0]),
+    32 => if cur_mode == LongMode then push64(imm) else push32(imm[31..0]),
+    64 => push64(imm),
   }
 }
 
@@ -263,30 +263,30 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
     let imm : qword = zero_extend(fetch_byte());
-    let v = read_rm_val(rm, OS8, pfx.has_rex);
+    let v = read_rm_val(rm, 8, pfx.has_rex);
     let result = v & imm;
     update_flags_logic(result[7..0])
   } else {
-    let v = read_rm_val(rm, OS8, pfx.has_rex);
+    let v = read_rm_val(rm, 8, pfx.has_rex);
     match reg_field {
       0 => (),  // unreachable, handled above
       1 => (),  // unreachable, handled above
       // NOT r/m8
       2 => {
         let result = v ^ 0x00000000000000FF;
-        write_rm_val(rm, OS8, pfx.has_rex, result)
+        write_rm_val(rm, 8, pfx.has_rex, result)
       },
       // NEG r/m8
       3 => {
         let zero : qword = zeros();
         let result = zero - v;
         update_flags_sub(result[7..0], zero[7..0], v[7..0]);
-        write_rm_val(rm, OS8, pfx.has_rex, result)
+        write_rm_val(rm, 8, pfx.has_rex, result)
       },
-      4 => exec_mul(v, OS8),
-      5 => exec_imul_1(v, OS8),
-      6 => exec_div(v, OS8),
-      7 => exec_idiv(v, OS8),
+      4 => exec_mul(v, 8),
+      5 => exec_imul_1(v, 8),
+      6 => exec_div(v, 8),
+      7 => exec_idiv(v, 8),
     }
   }
 }
@@ -295,7 +295,7 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
 // Group 3 (F7): Unary word/dword/qword operations
 // =========================================================================
 
-val dispatch_group3 : (range(0, 7), RM, OperandSize, Prefixes) -> unit
+val dispatch_group3 : (range(0, 7), RM, operand_size, Prefixes) -> unit
 function dispatch_group3(reg_field, rm, os, pfx) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m, imm (Iz)
@@ -304,10 +304,10 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     let v = read_rm_val(rm, os, pfx.has_rex);
     let result = v & imm;
     match os {
-      OS8  => update_flags_logic(result[7..0]),
-      OS16 => update_flags_logic(result[15..0]),
-      OS32 => update_flags_logic(result[31..0]),
-      OS64 => update_flags_logic(result),
+      8  => update_flags_logic(result[7..0]),
+      16 => update_flags_logic(result[15..0]),
+      32 => update_flags_logic(result[31..0]),
+      64 => update_flags_logic(result),
     }
   } else {
     let v = read_rm_val(rm, os, pfx.has_rex);
@@ -324,10 +324,10 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
         let zero : qword = zeros();
         let result = zero - v;
         match os {
-          OS8  => update_flags_sub(result[7..0], zero[7..0], v[7..0]),
-          OS16 => update_flags_sub(result[15..0], zero[15..0], v[15..0]),
-          OS32 => update_flags_sub(result[31..0], zero[31..0], v[31..0]),
-          OS64 => update_flags_sub(result, zero, v),
+          8  => update_flags_sub(result[7..0], zero[7..0], v[7..0]),
+          16 => update_flags_sub(result[15..0], zero[15..0], v[15..0]),
+          32 => update_flags_sub(result[31..0], zero[31..0], v[31..0]),
+          64 => update_flags_sub(result, zero, v),
         };
         write_rm_val(rm, os, pfx.has_rex, result)
       },
@@ -368,10 +368,10 @@ function dispatch_group5(reg_field, rm, pfx) = {
       let target = read_rm_val(rm, os, pfx.has_rex);
       let return_addr = decode_pos;
       match os {
-        OS8  => unreachable(),
-        OS16 => push16(return_addr[15..0]),
-        OS32 => push32(return_addr[31..0]),
-        OS64 => push64(return_addr),
+        8  => unreachable(),
+        16 => push16(return_addr[15..0]),
+        32 => push32(return_addr[31..0]),
+        64 => push64(return_addr),
       };
       next_rip = Some(target)
     },
@@ -395,24 +395,24 @@ function dispatch_group5(reg_field, rm, pfx) = {
         RM_reg(_) => raise_UD(),
         RM_mem(seg, offset) => {
           let os = get_operand_size(pfx);
-          let off_size : int = operand_size_bits(os) / 8;
+          let off_size : int = os / 8;
           let a = seg_linear(seg, offset, off_size + 2);
           let far_offset : qword = match os {
-            OS16 => zero_extend(mem_read16(a)),
-            OS32 => zero_extend(mem_read32(a)),
-            OS64 => mem_read64(a),
-            OS8  => zeros(),
+            16 => zero_extend(mem_read16(a)),
+            32 => zero_extend(mem_read32(a)),
+            64 => mem_read64(a),
+            8  => zeros(),
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
             RealMode => {
               match os {
-                OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-                _    => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+                16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
+                _  => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
               };
               load_segment_register(CS, far_selector);
               let target : qword = match os {
-                OS16 => zero_extend(far_offset[15..0]),
+                16 => zero_extend(far_offset[15..0]),
                 _    => zero_extend(far_offset[31..0]),
               };
               next_rip = Some(target)
@@ -430,20 +430,20 @@ function dispatch_group5(reg_field, rm, pfx) = {
         RM_reg(_) => raise_UD(),
         RM_mem(seg, offset) => {
           let os = get_operand_size(pfx);
-          let off_size : int = operand_size_bits(os) / 8;
+          let off_size : int = os / 8;
           let a = seg_linear(seg, offset, off_size + 2);
           let far_offset : qword = match os {
-            OS16 => zero_extend(mem_read16(a)),
-            OS32 => zero_extend(mem_read32(a)),
-            OS64 => mem_read64(a),
-            OS8  => zeros(),
+            16 => zero_extend(mem_read16(a)),
+            32 => zero_extend(mem_read32(a)),
+            64 => mem_read64(a),
+            8  => zeros(),
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
             RealMode => {
               load_segment_register(CS, far_selector);
               let target : qword = match os {
-                OS16 => zero_extend(far_offset[15..0]),
+                16 => zero_extend(far_offset[15..0]),
                 _    => zero_extend(far_offset[31..0]),
               };
               next_rip = Some(target)
@@ -464,32 +464,32 @@ function dispatch_group5(reg_field, rm, pfx) = {
 // If count=0, flags unchanged. If count=1, OF = MSB(result) XOR CF.
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_shl : (qword, byte, OperandSize) -> qword
+val exec_shl : (qword, byte, operand_size) -> qword
 function exec_shl(a, count_raw, os) = {
   let count : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     a
   } else {
     let result : qword = a << count;
     match os {
-      OS8 => {
+      8 => {
         CF = if count <= 8 then a[8 - count] else undefined;
         update_SF_ZF_PF(result[7..0]);
         if count == 1 then
           OF = (result[7..7] ^ CF)[0]
         else OF = undefined
       },
-      OS16 => {
+      16 => {
         CF = if count <= 16 then a[16 - count] else undefined;
         update_SF_ZF_PF(result[15..0]);
         if count == 1 then
           OF = (result[15..15] ^ CF)[0]
         else OF = undefined
       },
-      OS32 => {
+      32 => {
         let c : range(0, 31) = unsigned(count_raw) % 32;
         assert(c > 0);
         CF = a[32 - c];
@@ -498,7 +498,7 @@ function exec_shl(a, count_raw, os) = {
           OF = (result[31..31] ^ CF)[0]
         else OF = undefined
       },
-      OS64 => {
+      64 => {
         let c : range(0, 63) = unsigned(count_raw) % 64;
         assert(c > 0);
         CF = a[64 - c];
@@ -519,28 +519,28 @@ function exec_shl(a, count_raw, os) = {
 // CF = last bit shifted out. If count=1, OF = MSB(original).
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_shr : (qword, byte, OperandSize) -> qword
+val exec_shr : (qword, byte, operand_size) -> qword
 function exec_shr(a, count_raw, os) = {
-  let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
+  let mod_val : range(32, 64) = if os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
     a
   } else {
     let result : qword = a >> count;
     match os {
-      OS8 => {
+      8 => {
         CF = if count <= 8 then a[count - 1] else undefined;
         update_SF_ZF_PF(result[7..0]);
         if count == 1 then OF = a[7]
         else OF = undefined
       },
-      OS16 => {
+      16 => {
         CF = if count <= 16 then a[count - 1] else undefined;
         update_SF_ZF_PF(result[15..0]);
         if count == 1 then OF = a[15]
         else OF = undefined
       },
-      OS32 => {
+      32 => {
         let c : range(0, 31) = unsigned(count_raw) % 32;
         assert(c > 0);
         CF = a[c - 1];
@@ -548,7 +548,7 @@ function exec_shr(a, count_raw, os) = {
         if count == 1 then OF = a[31]
         else OF = undefined
       },
-      OS64 => {
+      64 => {
         let c : range(0, 63) = unsigned(count_raw) % 64;
         assert(c > 0);
         CF = a[c - 1];
@@ -568,9 +568,9 @@ function exec_shr(a, count_raw, os) = {
 // CF = last bit shifted out. OF cleared for count=1.
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_sar : (qword, byte, OperandSize) -> qword
+val exec_sar : (qword, byte, operand_size) -> qword
 function exec_sar(a, count_raw, os) = {
-  let mod_val : range(32, 64) = if os == OS64 then 64 else 32;
+  let mod_val : range(32, 64) = if os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
     a
@@ -579,23 +579,23 @@ function exec_sar(a, count_raw, os) = {
     // the result is all-sign-bits, so CF = sign bit of the original value.
     // SDM pseudocode iterates: CF := LSB(DEST) each step with signed divide.
     let cf_idx : range(0, 63) = match os {
-      OS8  => if count >= 8  then 7  else count - 1,
-      OS16 => if count >= 16 then 15 else count - 1,
-      OS32 => if count >= 32 then 31 else count - 1,
-      OS64 => count - 1,
+      8  => if count >= 8  then 7  else count - 1,
+      16 => if count >= 16 then 15 else count - 1,
+      32 => if count >= 32 then 31 else count - 1,
+      64 => count - 1,
     };
     CF = a[cf_idx];
     let result : qword = match os {
-      OS8  => zero_extend(shift_right_arith(a[7..0], count)),
-      OS16 => zero_extend(shift_right_arith(a[15..0], count)),
-      OS32 => zero_extend(shift_right_arith(a[31..0], count)),
-      OS64 => shift_right_arith(a, count),
+      8  => zero_extend(shift_right_arith(a[7..0], count)),
+      16 => zero_extend(shift_right_arith(a[15..0], count)),
+      32 => zero_extend(shift_right_arith(a[31..0], count)),
+      64 => shift_right_arith(a, count),
     };
     match os {
-      OS8  => update_SF_ZF_PF(result[7..0]),
-      OS16 => update_SF_ZF_PF(result[15..0]),
-      OS32 => update_SF_ZF_PF(result[31..0]),
-      OS64 => update_SF_ZF_PF(result),
+      8  => update_SF_ZF_PF(result[7..0]),
+      16 => update_SF_ZF_PF(result[15..0]),
+      32 => update_SF_ZF_PF(result[31..0]),
+      64 => update_SF_ZF_PF(result),
     };
     if count == 1 then OF = 0b0
     else OF = undefined;
@@ -612,36 +612,36 @@ function exec_sar(a, count_raw, os) = {
 // OF defined only for count=1. SF, ZF, AF, PF unaffected.
 // Count is masked to 5 bits (6 bits for 64-bit operands).
 
-val exec_rol : (qword, byte, OperandSize) -> qword
+val exec_rol : (qword, byte, operand_size) -> qword
 function exec_rol(a, count_raw, os) = {
   let count : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     a
   } else {
     let result : qword = match os {
-      OS8 => {
+      8 => {
         let c : range(0, 7) = count % 8;
         zero_extend((a[7..0] << c) | (a[7..0] >> (8 - c)))
       },
-      OS16 => {
+      16 => {
         let c : range(0, 15) = count % 16;
         zero_extend((a[15..0] << c) | (a[15..0] >> (16 - c)))
       },
-      OS32 => {
+      32 => {
         let c : range(0, 31) = count % 32;
         zero_extend((a[31..0] << c) | (a[31..0] >> (32 - c)))
       },
-      OS64 => (a << count) | (a >> (64 - count)),
+      64 => (a << count) | (a >> (64 - count)),
     };
     CF = result[0];
     if count == 1 then match os {
-      OS8  => OF = (result[7..7] ^ CF)[0],
-      OS16 => OF = (result[15..15] ^ CF)[0],
-      OS32 => OF = (result[31..31] ^ CF)[0],
-      OS64 => OF = (result[63..63] ^ CF)[0],
+      8  => OF = (result[7..7] ^ CF)[0],
+      16 => OF = (result[15..15] ^ CF)[0],
+      32 => OF = (result[31..31] ^ CF)[0],
+      64 => OF = (result[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };
@@ -649,41 +649,41 @@ function exec_rol(a, count_raw, os) = {
   }
 }
 
-val exec_ror : (qword, byte, OperandSize) -> qword
+val exec_ror : (qword, byte, operand_size) -> qword
 function exec_ror(a, count_raw, os) = {
   let count : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     a
   } else {
     let result : qword = match os {
-      OS8 => {
+      8 => {
         let c : range(0, 7) = count % 8;
         zero_extend((a[7..0] >> c) | (a[7..0] << (8 - c)))
       },
-      OS16 => {
+      16 => {
         let c : range(0, 15) = count % 16;
         zero_extend((a[15..0] >> c) | (a[15..0] << (16 - c)))
       },
-      OS32 => {
+      32 => {
         let c : range(0, 31) = count % 32;
         zero_extend((a[31..0] >> c) | (a[31..0] << (32 - c)))
       },
-      OS64 => (a >> count) | (a << (64 - count)),
+      64 => (a >> count) | (a << (64 - count)),
     };
     match os {
-      OS8  => CF = result[7],
-      OS16 => CF = result[15],
-      OS32 => CF = result[31],
-      OS64 => CF = result[63],
+      8  => CF = result[7],
+      16 => CF = result[15],
+      32 => CF = result[31],
+      64 => CF = result[63],
     };
     if count == 1 then match os {
-      OS8  => OF = (result[7..7] ^ result[6..6])[0],
-      OS16 => OF = (result[15..15] ^ result[14..14])[0],
-      OS32 => OF = (result[31..31] ^ result[30..30])[0],
-      OS64 => OF = (result[63..63] ^ result[62..62])[0],
+      8  => OF = (result[7..7] ^ result[6..6])[0],
+      16 => OF = (result[15..15] ^ result[14..14])[0],
+      32 => OF = (result[31..31] ^ result[30..30])[0],
+      64 => OF = (result[63..63] ^ result[62..62])[0],
     } else {
       OF = undefined;
     };
@@ -698,17 +698,17 @@ function exec_ror(a, count_raw, os) = {
 // RCR: Rotates (n+1)-bit value (CF:dest) right by count.
 // OF defined only for count=1. Count masked to 5 bits (6 for 64-bit).
 
-val exec_rcl : (qword, byte, OperandSize) -> qword
+val exec_rcl : (qword, byte, operand_size) -> qword
 function exec_rcl(a, count_raw, os) = {
   let masked : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   let tempcount : int = match os {
-    OS8  => masked % 9,
-    OS16 => masked % 17,
-    OS32 => masked,
-    OS64 => masked,
+    8  => masked % 9,
+    16 => masked % 17,
+    32 => masked,
+    64 => masked,
   };
   if tempcount == 0 then {
     a
@@ -721,22 +721,22 @@ function exec_rcl(a, count_raw, os) = {
     var i : int = tempcount;
     while i > 0 do {
       match os {
-        OS8 => {
+        8 => {
           let tcf : bit = val8[7];
           val8 = val8[6..0] @ cf_bit;
           cf_bit = tcf;
         },
-        OS16 => {
+        16 => {
           let tcf : bit = val16[15];
           val16 = val16[14..0] @ cf_bit;
           cf_bit = tcf;
         },
-        OS32 => {
+        32 => {
           let tcf : bit = val32[31];
           val32 = val32[30..0] @ cf_bit;
           cf_bit = tcf;
         },
-        OS64 => {
+        64 => {
           let tcf : bit = val64[63];
           val64 = val64[62..0] @ cf_bit;
           cf_bit = tcf;
@@ -746,34 +746,34 @@ function exec_rcl(a, count_raw, os) = {
     };
     CF = cf_bit;
     if masked == 1 then match os {
-      OS8  => OF = (val8[7..7] ^ CF)[0],
-      OS16 => OF = (val16[15..15] ^ CF)[0],
-      OS32 => OF = (val32[31..31] ^ CF)[0],
-      OS64 => OF = (val64[63..63] ^ CF)[0],
+      8  => OF = (val8[7..7] ^ CF)[0],
+      16 => OF = (val16[15..15] ^ CF)[0],
+      32 => OF = (val32[31..31] ^ CF)[0],
+      64 => OF = (val64[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };
     let result : qword = match os {
-      OS8  => zero_extend(val8),
-      OS16 => zero_extend(val16),
-      OS32 => zero_extend(val32),
-      OS64 => val64,
+      8  => zero_extend(val8),
+      16 => zero_extend(val16),
+      32 => zero_extend(val32),
+      64 => val64,
     };
     result
   }
 }
 
-val exec_rcr : (qword, byte, OperandSize) -> qword
+val exec_rcr : (qword, byte, operand_size) -> qword
 function exec_rcr(a, count_raw, os) = {
   let masked : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   let tempcount : int = match os {
-    OS8  => masked % 9,
-    OS16 => masked % 17,
-    OS32 => masked,
-    OS64 => masked,
+    8  => masked % 9,
+    16 => masked % 17,
+    32 => masked,
+    64 => masked,
   };
   if tempcount == 0 then {
     a
@@ -785,32 +785,32 @@ function exec_rcr(a, count_raw, os) = {
     var val64 : qword = a;
     // OF is set before the rotate for RCR
     if masked == 1 then match os {
-      OS8  => OF = (val8[7..7] ^ CF)[0],
-      OS16 => OF = (val16[15..15] ^ CF)[0],
-      OS32 => OF = (val32[31..31] ^ CF)[0],
-      OS64 => OF = (val64[63..63] ^ CF)[0],
+      8  => OF = (val8[7..7] ^ CF)[0],
+      16 => OF = (val16[15..15] ^ CF)[0],
+      32 => OF = (val32[31..31] ^ CF)[0],
+      64 => OF = (val64[63..63] ^ CF)[0],
     } else {
       OF = undefined;
     };
     var i : int = tempcount;
     while i > 0 do {
       match os {
-        OS8 => {
+        8 => {
           let tcf : bit = val8[0];
           val8 = cf_bit @ val8[7..1];
           cf_bit = tcf;
         },
-        OS16 => {
+        16 => {
           let tcf : bit = val16[0];
           val16 = cf_bit @ val16[15..1];
           cf_bit = tcf;
         },
-        OS32 => {
+        32 => {
           let tcf : bit = val32[0];
           val32 = cf_bit @ val32[31..1];
           cf_bit = tcf;
         },
-        OS64 => {
+        64 => {
           let tcf : bit = val64[0];
           val64 = cf_bit @ val64[63..1];
           cf_bit = tcf;
@@ -820,10 +820,10 @@ function exec_rcr(a, count_raw, os) = {
     };
     CF = cf_bit;
     let result : qword = match os {
-      OS8  => zero_extend(val8),
-      OS16 => zero_extend(val16),
-      OS32 => zero_extend(val32),
-      OS64 => val64,
+      8  => zero_extend(val8),
+      16 => zero_extend(val16),
+      32 => zero_extend(val32),
+      64 => val64,
     };
     result
   }
@@ -836,17 +836,17 @@ function exec_rcr(a, count_raw, os) = {
 // For memory operands, reads/shifts/writes back inline.
 // =========================================================================
 
-val exec_shift_rm : (range(0, 7), RM, byte, OperandSize, Prefixes) -> unit
+val exec_shift_rm : (range(0, 7), RM, byte, operand_size, Prefixes) -> unit
 function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
   // Mask count first — if zero, the entire operation is a no-op (no
   // flags change, no memory write).
   let masked : range(0, 63) = match os {
-    OS64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    64 => unsigned(count_raw) % 64,
+    _  => unsigned(count_raw) % 32,
   };
   if masked == 0 then {
     // Even with count=0, 32-bit operations zero-extend the upper 32 bits.
-    if os == OS32 then {
+    if os == 32 then {
       let src_val = read_rm_val(rm, os, pfx.has_rex);
       write_rm_val(rm, os, pfx.has_rex, src_val)
     }

@@ -461,9 +461,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let os = get_operand_size(pfx);
       let src_val : qword = match rm {
-        RM_reg(_) => read_gpr(modrm_rm_reg(modrm, pfx), os),
+        RM_reg(_) => read_gpr(os, modrm_rm_reg(modrm, pfx)),
         RM_mem(seg, offset) => match os {
-          OS64 => seg_read64(seg, offset),
+          64 => seg_read64(seg, offset),
           _    => zero_extend(seg_read32(seg, offset)),
         },
       };
@@ -471,7 +471,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // CVTSI2SS xmm, r/m32/64 (F3 prefix)
         MP_F3 => {
           let result : dword = match os {
-            OS64 => __int64_to_f32(src_val),
+            64 => __int64_to_f32(src_val),
             _    => __int32_to_f32(src_val[31..0]),
           };
           var xmm : xmmword = read_xmm(xreg);
@@ -481,7 +481,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // CVTSI2SD xmm, r/m32/64 (F2 prefix)
         MP_F2 => {
           let result : qword = match os {
-            OS64 => __int64_to_f64(src_val),
+            64 => __int64_to_f64(src_val),
             _    => __int32_to_f64(src_val[31..0]),
           };
           var xmm : xmmword = read_xmm(xreg);
@@ -530,13 +530,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            OS64 => write_gpr64(reg, __f32_to_int64_trunc(src_xmm[31..0])),
+            64 => write_gpr64(reg, __f32_to_int64_trunc(src_xmm[31..0])),
             _    => write_gpr32(reg, __f32_to_int32_trunc(src_xmm[31..0])),
           }
         },
         MP_F2 => {
           match os {
-            OS64 => write_gpr64(reg, __f64_to_int64_trunc(src_xmm[63..0])),
+            64 => write_gpr64(reg, __f64_to_int64_trunc(src_xmm[63..0])),
             _    => write_gpr32(reg, __f64_to_int32_trunc(src_xmm[63..0])),
           }
         },
@@ -580,13 +580,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            OS64 => write_gpr64(reg, __f32_to_int64(src_xmm[31..0])),
+            64 => write_gpr64(reg, __f32_to_int64(src_xmm[31..0])),
             _    => write_gpr32(reg, __f32_to_int32(src_xmm[31..0])),
           }
         },
         MP_F2 => {
           match os {
-            OS64 => write_gpr64(reg, __f64_to_int64(src_xmm[63..0])),
+            64 => write_gpr64(reg, __f64_to_int64(src_xmm[63..0])),
             _    => write_gpr32(reg, __f64_to_int32(src_xmm[63..0])),
           }
         },

@@ -330,19 +330,19 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let os : OperandSize = if pfx.vex_w then OS64 else OS32;
+    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     let src : qword = read_rm_val(rm, os, true);
     let imm = fetch_byte();
     if pfx.vex_w then {
       // 64-bit rotate right
       let rot : range(0, 63) = unsigned(imm[5..0]);
       let result : bits(64) = (src[63..0] >> rot) | (src[63..0] << (64 - rot));
-      write_gpr(dst, OS64, zero_extend(result));
+      write_gpr(64, dst, zero_extend(result));
     } else {
       // 32-bit rotate right
       let rot : range(0, 31) = unsigned(imm[4..0]);
       let result : bits(32) = (src[31..0] >> rot) | (src[31..0] << (32 - rot));
-      write_gpr(dst, OS32, zero_extend(result));
+      write_gpr(32, dst, zero_extend(result));
     }
   },
 
