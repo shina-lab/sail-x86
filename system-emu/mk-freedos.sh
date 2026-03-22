@@ -190,6 +190,10 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   printf 'LASTDRIVE=Z\r\nFILES=20\r\nSHELL=\\COMMAND.COM /E:2048 /P\r\n' | \
     mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o - ::/FDCONFIG.SYS
 
+  # Write empty AUTOEXEC.BAT to suppress date/time prompt at boot
+  printf '@ECHO OFF\r\nSET PATH=C:\\FREEDOS\\BIN\r\n' | \
+    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o - ::/AUTOEXEC.BAT
+
   # Install standard FreeDOS FAT16 boot sector from the kernel source.
   # This is the official boot.asm from the FreeDOS kernel project,
   # assembled with -DISFAT16 for FAT16 support.
@@ -293,6 +297,3 @@ fi
 echo ""
 echo "Done! To boot:"
 echo "  ./system-emu/sail-x86-system -vga -b $BIOS_BIN -hda $FREEDOS_IMG"
-echo ""
-echo "With debug output:"
-echo "  ./system-emu/sail-x86-system -d -vga -b $BIOS_BIN -hda $FREEDOS_IMG"
