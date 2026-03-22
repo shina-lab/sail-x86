@@ -107,35 +107,17 @@ fi
 FREEDOS_IMG="$BUILD_DIR/freedos.img"
 
 # =========================================================================
-# FreeDOS kernel (built from source, uncompressed)
+# FreeDOS kernel boot sector source (needed for FAT16 boot sector)
 # =========================================================================
 
 FDKERN_VER="ke2043"
 FDKERN_URL="https://github.com/FDOS/kernel/archive/refs/tags/${FDKERN_VER}.tar.gz"
 FDKERN_SRC="$WORK/kernel-${FDKERN_VER}"
 
-if [ ! -f "$FDKERN_SRC/bin/kernel.sys" ]; then
-  echo "=== Building FreeDOS kernel from source ==="
-  if [ ! -d "$FDKERN_SRC" ]; then
-    echo "Downloading FreeDOS kernel source..."
-    curl -L -o "$WORK/kernel-src.tar.gz" "$FDKERN_URL"
-    tar -xzf "$WORK/kernel-src.tar.gz" -C "$WORK"
-  fi
-  cat > "$FDKERN_SRC/config.mak" << 'KMAK'
-COMPILER=gcc
-XCPU=86
-XFAT=16
-XUPX=
-KMAK
-  # Adjust makefiles for GCC cross-compiler, then build
-  (cd "$FDKERN_SRC" && \
-   for i in utils lib drivers boot sys kernel setver; do
-     sed 's@!include "\(.*\)"@include ../mkfiles/gcc.mak@' < $i/makefile > $i/GNUmakefile
-   done && \
-   make all COMPILER=gcc)
-  echo "FreeDOS kernel built: $FDKERN_SRC/bin/kernel.sys ($(stat -c%s "$FDKERN_SRC/bin/kernel.sys") bytes)"
-else
-  echo "=== FreeDOS kernel already built ==="
+if [ ! -d "$FDKERN_SRC" ]; then
+  echo "Downloading FreeDOS kernel source (for boot sector)..."
+  curl -L -o "$WORK/kernel-src.tar.gz" "$FDKERN_URL"
+  tar -xzf "$WORK/kernel-src.tar.gz" -C "$WORK"
 fi
 
 if [ ! -f "$FREEDOS_IMG" ]; then
@@ -184,18 +166,10 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   # Extract all files from floppy image
   mcopy -i "$FLOPPY_IMG" -s -p -m -n ::/ "$TMPDIR_FD/" 2>/dev/null || true
 
-  # Use the uncompressed KERNEL.SYS built from source (not the UPX-compressed
-  # one from the floppy, which requires in-place decompression that conflicts
-  # with the kernel's own relocation code).
-  # Copy KERNEL.SYS FIRST so it gets cluster 2.
-  BUILT_KERNEL="$FDKERN_SRC/bin/kernel.sys"
-  if [ -f "$BUILT_KERNEL" ]; then
-    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$BUILT_KERNEL" ::/KERNEL.SYS 2>/dev/null || true
-    echo "Using built kernel: $BUILT_KERNEL ($(stat -c%s "$BUILT_KERNEL") bytes)"
-  else
-    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$TMPDIR_FD/KERNEL.SYS" ::/ 2>/dev/null || true
-    echo "WARNING: using floppy kernel (UPX compressed)"
-  fi
+  # Copy the stock FreeDOS KERNEL.SYS from the floppy.
+  # KERNEL.SYS must be the first file on disk (cluster 2).
+  mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$TMPDIR_FD/KERNEL.SYS" ::/ 2>/dev/null || true
+  echo "Using stock kernel: $(stat -c%s "$TMPDIR_FD/KERNEL.SYS") bytes"
 
   # Copy COMMAND.COM to root directory (case-insensitive find)
   CMDCOM=$(find "$TMPDIR_FD" -iname 'command.com' -print -quit)
