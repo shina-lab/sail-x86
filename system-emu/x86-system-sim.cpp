@@ -1144,6 +1144,20 @@ int main(int argc, char *argv[]) {
     if (model.kbd.has_data())
       model.pic_master.raise_irq(1);
 
+    // System reboot: keyboard 0xFE, PCI 0xCF9, or JMP FFFF:0000 (reset vector)
+    if ((u16)model.zSegReg.data[x86::SEG_CS] == 0xFFFF && (u64)model.zRIP == 0x0000)
+      model.reboot_pending = true;
+    if (model.kbd.reboot_requested || model.reboot_pending) {
+      model.kbd.reboot_requested = false;
+      model.reboot_pending = false;
+      init_cpu_state_bios(model);
+      vga_shadow_valid = false;
+      insn_count = 0;
+      next_pit_tick = PIT_TICK_INTERVAL;
+      if (display_mode == DISPLAY_VGA)
+        next_vga_refresh = VGA_REFRESH_INTERVAL;
+    }
+
     // Periodic VGA refresh
     if (display_mode == DISPLAY_VGA && insn_count >= next_vga_refresh) {
       render_vga_text(model);

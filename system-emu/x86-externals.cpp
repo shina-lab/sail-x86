@@ -229,7 +229,10 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (vga.handles(p))        vga.write(p, v);
   else if (dma.handles(p))        dma.write(p, v);
   else if (dma.handles_page(p))   dma.write_page(p, v);
-  else if (p == 0xCF8 || p == 0xCF9 || p == 0xCFA || p == 0xCFB) {
+  else if (p == 0xCF9) {
+    // PCI reset control register: bit 1 = reset, bit 2 = full reset
+    if (v & 0x04) reboot_pending = true;
+  } else if (p == 0xCF8 || p == 0xCFA || p == 0xCFB) {
     u32 a = pci.read_addr();
     int shift = (p - 0xCF8) * 8;
     a = (a & ~(0xFF << shift)) | ((u32)v << shift);

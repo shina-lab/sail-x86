@@ -110,6 +110,9 @@ public:
   bool smi_pending = false;
   u8 apmc_status = 0;  // APM Status register (port 0xB3)
 
+  // Reboot pending (set by port 0xCF9 write or keyboard 0xFE)
+  bool reboot_pending = false;
+
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].
   // Each entry caches a 4KB page translation.
   static constexpr int TLB_SIZE = 1024;

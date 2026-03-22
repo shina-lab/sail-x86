@@ -612,6 +612,9 @@ public:
       case 0xD1:  // Write output port (next byte to 0x60)
         last_cmd = 0xD1;
         break;
+      case 0xFE:  // Pulse CPU reset line (system reboot)
+        reboot_requested = true;
+        break;
       default:
         last_cmd = val;
         break;
@@ -684,6 +687,8 @@ public:
   }
 
   size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
+
+  bool reboot_requested = false;
 
 private:
   std::queue<u8> out_buf;      // PS/2 command responses (ACKs, IDs, etc.)
