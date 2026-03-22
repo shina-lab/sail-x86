@@ -855,10 +855,6 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
-    if (insn_count >= 5000000 && insn_count % 500000 == 0 && insn_count < 10000000) {
-      model.kbd.push_scancode(0x1C); model.kbd.push_scancode(0x9C);
-      model.pic_master.raise_irq(1);
-    }
 
 
     // Trace INT 12h entry and return to see memory size
