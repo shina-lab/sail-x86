@@ -101,20 +101,32 @@ function write_stack_ptr(v) =
   else if SegCache[SS].seg_db == bitone then write_gpr32(RSP, v[31..0])
   else write_gpr16(RSP, v[15..0])
 
+// Stack push helper: compute new SP with proper wrapping for SS.B,
+// write value to SS:new_SP, update SP register.
+// In non-64-bit modes with SS.B=0, SP is 16-bit and wraps at 0xFFFF.
+// Without wrapping, SP=2 minus 4 would produce linear address SS.base-2,
+// which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
 val push64 : qword -> unit
 function push64(v) = {
-  let sp = read_stack_ptr();
-  let new_sp = sp - 8;
-  mem_write64(new_sp, v);
-  write_stack_ptr(new_sp - get_seg_base(SS))
+  let sp = read_gpr64(RSP) - 8;
+  mem_write64(sp, v);
+  write_gpr64(RSP, sp)
 }
 
 val push32 : dword -> unit
 function push32(v) = {
-  let sp = read_stack_ptr();
-  let new_sp = sp - 4;
-  mem_write32(new_sp, v);
-  write_stack_ptr(new_sp - get_seg_base(SS))
+  if cur_mode == LongMode then {
+    let sp = read_gpr64(RSP) - 4;
+    mem_write32(sp, v);
+    write_gpr64(RSP, sp)
+  } else {
+    let base = get_seg_base(SS);
+    let new_off : qword = if SegCache[SS].seg_db == bitone
+      then zero_extend(read_gpr32(RSP) - 0x00000004)
+      else zero_extend(read_gpr16(RSP) - 0x0004);
+    mem_write32(base + new_off, v);
+    write_stack_ptr(new_off)
+  }
 }
 
 val pop64 : unit -> qword
@@ -135,10 +147,18 @@ function pop32() = {
 
 val push16 : word -> unit
 function push16(v) = {
-  let sp = read_stack_ptr();
-  let new_sp = sp - 2;
-  mem_write16(new_sp, v);
-  write_stack_ptr(new_sp - get_seg_base(SS))
+  if cur_mode == LongMode then {
+    let sp = read_gpr64(RSP) - 2;
+    mem_write16(sp, v);
+    write_gpr64(RSP, sp)
+  } else {
+    let base = get_seg_base(SS);
+    let new_off : qword = if SegCache[SS].seg_db == bitone
+      then zero_extend(read_gpr32(RSP) - 0x00000002)
+      else zero_extend(read_gpr16(RSP) - 0x0002);
+    mem_write16(base + new_off, v);
+    write_stack_ptr(new_off)
+  }
 }
 
 val pop16 : unit -> word
