@@ -261,12 +261,12 @@ function fp32_to_fp16(f, rc) = {
         let shift_amt : int = 113 - exp_val;
         let wide : bits(37) = (0b1 @ frac23) @ 0b0000000000000;
         let shifted : bits(37) = sail_shiftright(wide, shift_amt);
-        (0b00000 @ shifted[35..26], shifted[25],
-         if shifted[24..0] != zeros() then bitone else bitzero)
+        let sticky : bits(26) = (0b0 @ shifted[24..0]) - 1;
+        (0b00000 @ shifted[35..26], shifted[25], ~(sticky[25]))
       } else {
         let new_exp : int = exp_val - 112;
-        (get_slice_int(5, new_exp, 0) @ frac23[22..13], frac23[12],
-         if frac23[11..0] != zeros() then bitone else bitzero)
+        let sticky : bits(13) = (0b0 @ frac23[11..0]) - 1;
+        (get_slice_int(5, new_exp, 0) @ frac23[22..13], frac23[12], ~(sticky[12]))
       };
     let round_up : bool = match rc {
       0b00 => round_bit == bitone & (sticky_bit == bitone | top15[0] == bitone),

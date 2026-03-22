@@ -510,10 +510,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             let top17 : bits(17) = desc[127..111];
             // types 0,1: reserved bits must be zero
             // type 0: linear address must be canonical
-            let is_type_01 : bit = bool_to_bit(unsigned(inv_type) <= 1);
-            let is_type_0 : bit = bool_to_bit(inv_type == zeros());
-            let bad_reserved : bit = bool_to_bit(reserved != zeros());
-            let non_canonical : bit = bool_to_bit(top17 != zeros() & top17 != ones());
+            let is_type_01 : bit = ~(inv_type[1]);
+            let is_type_0 : bit = ~(inv_type[1] | inv_type[0]);
+            let bad_reserved : bit = ~(((0b0 @ reserved) - 1)[52]);
+            let diff : bits(17) = top17 ^ sign_extend(top17[16..16]);
+            let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
             let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
             if fault == bitone then raise_GP0();
             __tlb_flush()
