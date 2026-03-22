@@ -676,9 +676,11 @@ public:
     scancode_buf.push(sc);
   }
 
-  // Returns true if there are actual key scancodes waiting (for IRQ 1).
+  // Returns true if the output buffer has data (for IRQ 1).
+  // Real i8042 raises IRQ 1 whenever the output buffer is full,
+  // whether it's a scancode or a command response.
   bool has_data() const {
-    return !scancode_buf.empty();
+    return !out_buf.empty() || !scancode_buf.empty();
   }
 
   size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
