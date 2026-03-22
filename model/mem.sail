@@ -122,8 +122,8 @@ function push32(v) = {
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(read_gpr32(RSP) - 0x00000004)
-      else zero_extend(read_gpr16(RSP) - 0x0004);
+      then zero_extend(read_gpr32(RSP) - 4)
+      else zero_extend(read_gpr16(RSP) - 4);
     mem_write32(base + new_off, v);
     write_stack_ptr(new_off)
   }
@@ -154,8 +154,8 @@ function push16(v) = {
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(read_gpr32(RSP) - 0x00000002)
-      else zero_extend(read_gpr16(RSP) - 0x0002);
+      then zero_extend(read_gpr32(RSP) - 2)
+      else zero_extend(read_gpr16(RSP) - 2);
     mem_write16(base + new_off, v);
     write_stack_ptr(new_off)
   }

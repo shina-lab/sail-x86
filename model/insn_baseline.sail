@@ -92,16 +92,16 @@ function clz64(v) = {
 
 // Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
 val ctz8 : byte -> range(0, 8)
-function ctz8(v) = popcount8(~(v) & (v - 0x01))
+function ctz8(v) = popcount8(~(v) & (v - 1))
 
 val ctz16 : word -> range(0, 16)
-function ctz16(v) = popcount16(~(v) & (v - 0x0001))
+function ctz16(v) = popcount16(~(v) & (v - 1))
 
 val ctz32 : dword -> range(0, 32)
-function ctz32(v) = popcount32(~(v) & (v - 0x00000001))
+function ctz32(v) = popcount32(~(v) & (v - 1))
 
 val ctz64 : qword -> range(0, 64)
-function ctz64(v) = popcount64(~(v) & (v - 0x0000000000000001))
+function ctz64(v) = popcount64(~(v) & (v - 1))
 
 // Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
 // Precondition: v != 0 (BSR is undefined for zero).
@@ -1831,7 +1831,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         OS8  => popcount8(src_val[7..0]),
         OS16 => popcount16(src_val[15..0]),
         OS32 => popcount32(src_val[31..0]),
-        OS64 => popcount32(src_val[31..0]) + popcount32(src_val[63..32]),
+        OS64 => popcount64(src_val)
       };
       OF = 0b0;
       SF = 0b0;
@@ -1877,11 +1877,11 @@ function dispatch_2byte_gpr(op, pfx) = {
             if pfx.rex_w then {
               if ~(has_cx16) then raise_UD();
               let mem_lo : qword = seg_read64(seg, offset);
-              let mem_hi : qword = seg_read64(seg, offset + 0x0000000000000008);
+              let mem_hi : qword = seg_read64(seg, offset + 8);
               if read_gpr64(RAX) == mem_lo & read_gpr64(RDX) == mem_hi then {
                 ZF = 0b1;
                 seg_write64(seg, offset, read_gpr64(RBX));
-                seg_write64(seg, offset + 0x0000000000000008, read_gpr64(RCX));
+                seg_write64(seg, offset + 8, read_gpr64(RCX));
               } else {
                 ZF = 0b0;
                 write_gpr64(RAX, mem_lo);
@@ -1889,11 +1889,11 @@ function dispatch_2byte_gpr(op, pfx) = {
               }
             } else {
               let mem_lo : dword = seg_read32(seg, offset);
-              let mem_hi : dword = seg_read32(seg, offset + 0x0000000000000004);
+              let mem_hi : dword = seg_read32(seg, offset + 4);
               if read_gpr32(RAX) == mem_lo & read_gpr32(RDX) == mem_hi then {
                 ZF = 0b1;
                 seg_write32(seg, offset, read_gpr32(RBX));
-                seg_write32(seg, offset + 0x0000000000000004, read_gpr32(RCX));
+                seg_write32(seg, offset + 4, read_gpr32(RCX));
               } else {
                 ZF = 0b0;
                 write_gpr32(RAX, mem_lo);
