@@ -90,7 +90,7 @@ add_custom_target(linux
 
 add_custom_target(freedos
     DEPENDS sail-x86-system
-    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-freedos.sh" "${CMAKE_BINARY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/mk-freedos.sh" .
     COMMENT "Building SeaBIOS + FreeDOS disk image"
 )
 
