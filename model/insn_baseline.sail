@@ -473,10 +473,10 @@ function bt_adjust(rm, bit_idx, os) = {
   match rm {
     RM_reg(_) => {
       let bit_num : range(0, 63) = match os {
+        8  => unsigned(bit_idx[4..0]),
         16 => unsigned(bit_idx[3..0]),
         32 => unsigned(bit_idx[4..0]),
         64 => unsigned(bit_idx[5..0]),
-        _    => unsigned(bit_idx[4..0]),
       };
       (rm, bit_num)
     },
@@ -801,12 +801,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             4 => match rm {
               RM_reg(r) => {
                 let os = get_operand_size(pfx);
-                match os {
-                  8  => unreachable(),
-                  16 => write_gpr16(r, CR0[15..0]),
-                  32 => write_gpr32(r, CR0[31..0]),
-                  64 => write_gpr64(r, CR0),
-                }
+                write_gpr(os, r, CR0)
               },
               RM_mem(seg, offset) => seg_write16(seg, offset, CR0[15..0]),
             },
@@ -1491,8 +1486,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             32 => zero_extend(seg_read32(seg, ea)),
             64 => seg_read64(seg, ea),
           };
-          let sel_off : int = match os { 8 => 1, 16 => 2, 32 => 4, 64 => 8 };
-          let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+          let selector : word = seg_read16(seg, ea + to_bits_truncate(os / 8));
           write_gpr(os, reg, far_offset);
           let seg : segreg_idx = match op {
             178 => SS,
@@ -1893,21 +1887,10 @@ function dispatch_2byte_gpr(op, pfx) = {
             if ~(has_rdrand) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdrand64();
-            if cf_val == 0b1 then {
-              match os {
-                8  => unreachable(),
-                16 => write_gpr(16, r, zero_extend(rnd[15..0])),
-                32 => write_gpr(32, r, zero_extend(rnd[31..0])),
-                64 => write_gpr(64, r, rnd),
-              }
-            } else {
-              match os {
-                8  => unreachable(),
-                16 => write_gpr(16, r, zeros()),
-                32 => write_gpr(32, r, zeros()),
-                64 => write_gpr(64, r, zeros()),
-              }
-            };
+            if cf_val == 0b1 then
+              write_gpr(os, r, rnd)
+            else
+              write_gpr(os, r, zeros());
             CF = cf_val;
             OF = 0b0;
             SF = 0b0;
@@ -1923,21 +1906,10 @@ function dispatch_2byte_gpr(op, pfx) = {
             if ~(has_rdseed) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdseed64();
-            if cf_val == 0b1 then {
-              match os {
-                8  => unreachable(),
-                16 => write_gpr(16, r, zero_extend(rnd[15..0])),
-                32 => write_gpr(32, r, zero_extend(rnd[31..0])),
-                64 => write_gpr(64, r, rnd),
-              }
-            } else {
-              match os {
-                8  => unreachable(),
-                16 => write_gpr(16, r, zeros()),
-                32 => write_gpr(32, r, zeros()),
-                64 => write_gpr(64, r, zeros()),
-              }
-            };
+            if cf_val == 0b1 then
+              write_gpr(os, r, rnd)
+            else
+              write_gpr(os, r, zeros());
             CF = cf_val;
             OF = 0b0;
             SF = 0b0;
