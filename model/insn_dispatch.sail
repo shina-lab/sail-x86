@@ -54,7 +54,7 @@ function exec_out(port, os) = {
 val exec_pop_reg : (gpr_idx, OperandSize) -> unit
 function exec_pop_reg(dst, os) = {
   match os {
-    OS8 => (),
+    OS8  => unreachable(),
     OS16 => write_gpr16(dst, pop16()),
     OS32 => if cur_mode == LongMode then write_gpr32(dst, pop64()[31..0])
             else write_gpr32(dst, pop32()),
@@ -578,7 +578,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             match rm {
               RM_mem(seg, offset) => {
                 match os {
-                  OS8 => (),
+                  OS8  => unreachable(),
                   OS16 => {
                     let v = seg_read16(seg, offset);
                     write_gpr(reg, OS16, zero_extend(v[7..0] @ v[15..8]))
@@ -601,7 +601,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             match rm {
               RM_mem(seg, offset) => {
                 match os {
-                  OS8 => (),
+                  OS8  => unreachable(),
                   OS16 => {
                     let v : word = read_gpr(reg, OS16)[15..0];
                     seg_write16(seg, offset, v[7..0] @ v[15..8])
@@ -1476,7 +1476,7 @@ function decode_execute() = {
       152 => {
         let os = get_operand_size(pfx);
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => { let v : word = sign_extend(read_gpr8l(RAX)); write_gpr16(RAX, v) },
           OS32 => { let v : dword = sign_extend(read_gpr16(RAX)); write_gpr32(RAX, v) },
           OS64 => { let v : qword = sign_extend(read_gpr32(RAX)); write_gpr64(RAX, v) },
@@ -1487,7 +1487,7 @@ function decode_execute() = {
       153 => {
         let os = get_operand_size(pfx);
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15..15])),
           OS32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31..31])),
           OS64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63..63])),
@@ -1852,7 +1852,7 @@ function decode_execute() = {
         let os = get_operand_size_d64(pfx);
         write_gpr64(RSP, read_gpr64(RBP));
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => write_gpr16(RBP, pop16()),
           OS32 => {
             let v : qword = pop64();
@@ -1921,7 +1921,7 @@ function decode_execute() = {
           throw Fault(EXN_GP, 0x00000000)
         };
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => {
             let new_ip     = pop16();
             let new_cs     = pop16();
@@ -2157,7 +2157,7 @@ function decode_execute() = {
         let os = get_operand_size_f64(pfx);
         let return_addr = decode_pos;
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => push16(return_addr[15..0]),
           OS32 => if cur_mode == LongMode then push64(zero_extend(return_addr[31..0]))
                   else push32(return_addr[31..0]),
@@ -2334,7 +2334,7 @@ function decode_execute() = {
         let reg = extend_reg(reg_field, pfx.rex_b);
         let os = get_operand_size_d64(pfx);
         match os {
-          OS8 => (),
+          OS8  => unreachable(),
           OS16 => push16(read_gpr16(reg)),
           OS32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
                   else push32(read_gpr32(reg)),

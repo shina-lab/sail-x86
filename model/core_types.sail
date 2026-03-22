@@ -1,5 +1,12 @@
 // x86-64 — Core Types
 
+val unreachable : forall ('a : Type). unit -> 'a
+function unreachable() = {
+  assert(false, "unreachable");
+  exit()  // never reached; satisfies type checker
+
+}
+
 // Operand sizes used in x86 instructions.
 // This determines the width of register/memory operations.
 enum OperandSize = { OS8, OS16, OS32, OS64 }

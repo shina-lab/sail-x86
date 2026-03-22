@@ -395,7 +395,7 @@ function exec_far_call_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Push old CS and EIP/IP
   match os {
-    OS8  => (),
+    OS8  => unreachable(),
     OS16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
     OS32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
     OS64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },

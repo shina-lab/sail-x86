@@ -246,7 +246,7 @@ function exec_imul_1(src, os) = {
 val exec_push_imm : (qword, OperandSize) -> unit
 function exec_push_imm(imm, os) = {
   match os {
-    OS8 => (),
+    OS8  => unreachable(),
     OS16 => push16(imm[15..0]),
     OS32 => if cur_mode == LongMode then push64(imm) else push32(imm[31..0]),
     OS64 => push64(imm),
@@ -368,7 +368,7 @@ function dispatch_group5(reg_field, rm, pfx) = {
       let target = read_rm_val(rm, os, pfx.has_rex);
       let return_addr = decode_pos;
       match os {
-        OS8 => (),
+        OS8  => unreachable(),
         OS16 => push16(return_addr[15..0]),
         OS32 => push32(return_addr[31..0]),
         OS64 => push64(return_addr),

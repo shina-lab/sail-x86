@@ -1926,15 +1926,17 @@ function dispatch_2byte_gpr(op, pfx) = {
             let (rnd, cf_val) = __rdrand64();
             if cf_val == 0b1 then {
               match os {
+                OS8  => unreachable(),
                 OS16 => write_gpr(r, OS16, zero_extend(rnd[15..0])),
+                OS32 => write_gpr(r, OS32, zero_extend(rnd[31..0])),
                 OS64 => write_gpr(r, OS64, rnd),
-                _    => write_gpr(r, OS32, zero_extend(rnd[31..0])),
               }
             } else {
               match os {
+                OS8  => unreachable(),
                 OS16 => write_gpr(r, OS16, zeros()),
+                OS32 => write_gpr(r, OS32, zeros()),
                 OS64 => write_gpr(r, OS64, zeros()),
-                _    => write_gpr(r, OS32, zeros()),
               }
             };
             CF = cf_val;
@@ -1954,15 +1956,17 @@ function dispatch_2byte_gpr(op, pfx) = {
             let (rnd, cf_val) = __rdseed64();
             if cf_val == 0b1 then {
               match os {
+                OS8  => unreachable(),
                 OS16 => write_gpr(r, OS16, zero_extend(rnd[15..0])),
+                OS32 => write_gpr(r, OS32, zero_extend(rnd[31..0])),
                 OS64 => write_gpr(r, OS64, rnd),
-                _    => write_gpr(r, OS32, zero_extend(rnd[31..0])),
               }
             } else {
               match os {
+                OS8  => unreachable(),
                 OS16 => write_gpr(r, OS16, zeros()),
+                OS32 => write_gpr(r, OS32, zeros()),
                 OS64 => write_gpr(r, OS64, zeros()),
-                _    => write_gpr(r, OS32, zeros()),
               }
             };
             CF = cf_val;
