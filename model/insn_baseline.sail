@@ -807,9 +807,10 @@ function dispatch_2byte_gpr(op, pfx) = {
               RM_reg(r) => {
                 let os = get_operand_size(pfx);
                 match os {
+                  OS8  => unreachable(),
                   OS16 => write_gpr16(r, CR0[15..0]),
+                  OS32 => write_gpr32(r, CR0[31..0]),
                   OS64 => write_gpr64(r, CR0),
-                  _    => write_gpr32(r, CR0[31..0]),
                 }
               },
               RM_mem(seg, offset) => seg_write16(seg, offset, CR0[15..0]),
@@ -1314,18 +1315,20 @@ function dispatch_2byte_gpr(op, pfx) = {
     160 => {
       let os = get_operand_size_d64(pfx);
       match os {
-        OS64 => push64(zero_extend(read_segreg(FS))),
+        OS8  => unreachable(),
+        OS16 => push16(read_segreg(FS)),
         OS32 => push32(zero_extend(read_segreg(FS))),
-        _    => push16(read_segreg(FS)),
+        OS64 => push64(zero_extend(read_segreg(FS))),
       }
     },
     // 0F A1: POP FS (d64)
     161 => {
       let os = get_operand_size_d64(pfx);
       let v : word = match os {
-        OS64 => pop64()[15..0],
+        OS8  => unreachable(),
+        OS16 => pop16(),
         OS32 => pop32()[15..0],
-        _    => pop16(),
+        OS64 => pop64()[15..0],
       };
       load_segment_register(FS, v)
     },
@@ -1368,18 +1371,20 @@ function dispatch_2byte_gpr(op, pfx) = {
     168 => {
       let os = get_operand_size_d64(pfx);
       match os {
-        OS64 => push64(zero_extend(read_segreg(GS))),
+        OS8  => unreachable(),
+        OS16 => push16(read_segreg(GS)),
         OS32 => push32(zero_extend(read_segreg(GS))),
-        _    => push16(read_segreg(GS)),
+        OS64 => push64(zero_extend(read_segreg(GS))),
       }
     },
     // 0F A9: POP GS (d64)
     169 => {
       let os = get_operand_size_d64(pfx);
       let v : word = match os {
-        OS64 => pop64()[15..0],
+        OS8  => unreachable(),
+        OS16 => pop16(),
         OS32 => pop32()[15..0],
-        _    => pop16(),
+        OS64 => pop64()[15..0],
       };
       load_segment_register(GS, v)
     },
@@ -1851,9 +1856,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_mem(seg, offset) => {
           let v = read_gpr(reg, os);
           match os {
+            OS8  => unreachable(),
+            OS16 => seg_write32(seg, offset, v[31..0]),
             OS32 => seg_write32(seg, offset, v[31..0]),
             OS64 => seg_write64(seg, offset, v),
-            _    => seg_write32(seg, offset, v[31..0]),
           }
         },
         RM_reg(_) => raise_UD(),

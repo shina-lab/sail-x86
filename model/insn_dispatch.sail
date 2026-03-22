@@ -774,14 +774,16 @@ function exec_retf(pfx, maybe_imm) = {
 
   // Pop return RIP and CS
   let new_rip : qword = match os {
-    OS64 => pop64(),
+    OS8  => unreachable(),
+    OS16 => zero_extend(pop16()),
     OS32 => zero_extend(pop32()),
-    _    => zero_extend(pop16()),
+    OS64 => pop64(),
   };
   let new_cs_raw : qword = match os {
-    OS64 => pop64(),
+    OS8  => unreachable(),
+    OS16 => zero_extend(pop16()),
     OS32 => zero_extend(pop32()),
-    _    => zero_extend(pop16()),
+    OS64 => pop64(),
   };
   let new_cs : word = new_cs_raw[15..0];
 
@@ -804,14 +806,16 @@ function exec_retf(pfx, maybe_imm) = {
   if cur_mode != RealMode & return_rpl > cur_cpl then {
     // Outer-privilege return: also pop RSP and SS
     let new_rsp : qword = match os {
-      OS64 => pop64(),
+      OS8  => unreachable(),
+      OS16 => zero_extend(pop16()),
       OS32 => zero_extend(pop32()),
-      _    => zero_extend(pop16()),
+      OS64 => pop64(),
     };
     let new_ss_raw : qword = match os {
-      OS64 => pop64(),
+      OS8  => unreachable(),
+      OS16 => zero_extend(pop16()),
       OS32 => zero_extend(pop32()),
-      _    => zero_extend(pop16()),
+      OS64 => pop64(),
     };
     let new_ss : word = new_ss_raw[15..0];
     write_gpr64(RSP, new_rsp);
