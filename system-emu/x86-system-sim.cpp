@@ -760,6 +760,7 @@ int main(int argc, char *argv[]) {
       }
       fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
     }
+
   } else {
     // Linux bzImage boot path
     init_cpu_state(model);
@@ -854,6 +855,32 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
+
+    // Detect kernel stall: if we see 0060:19EE2 repeatedly, dump state
+    {
+      static int stall_count = 0;
+      u16 cs = model.zSegReg.data[x86::SEG_CS];
+      u64 rip = model.zRIP;
+      if (cs == 0x0060 && rip >= 0x19E00 && rip <= 0x19F00) {
+        stall_count++;
+        if (stall_count == 10) {
+          u64 lin = 0x600 + rip;
+          fprintf(stderr, "Kernel stall at %04x:%04lx (linear 0x%lx)\n", cs, rip, lin);
+          fprintf(stderr, "  bytes:");
+          for (int b = 0; b < 16; b++)
+            fprintf(stderr, " %02x", model.phys_mem.read8(lin + b));
+          fprintf(stderr, "\n  AX=%04lx BX=%04lx CX=%04lx DX=%04lx SP=%04lx\n",
+                  (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
+                  (u64)model.zGPR.data[1], (u64)model.zGPR.data[2],
+                  (u64)model.zGPR.data[4]);
+          fprintf(stderr, "  SI=%04lx DI=%04lx BP=%04lx DS=%04x ES=%04x\n",
+                  (u64)model.zGPR.data[6], (u64)model.zGPR.data[7],
+                  (u64)model.zGPR.data[5],
+                  (u16)model.zSegReg.data[x86::SEG_DS],
+                  (u16)model.zSegReg.data[x86::SEG_ES]);
+        }
+      }
+    }
 
 
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.

@@ -33,12 +33,14 @@ rom_init:
     pushw   %ds
     pushw   %es
 
-    # Install INT 10h handler: IVT[0x10] = CS:int10_handler
+    # Install INT 10h and INT 29h handlers
     xorw    %ax, %ax
     movw    %ax, %ds
     movw    %cs, %ax
-    movw    $int10_handler, (0x10 * 4)      # IP
-    movw    %ax, (0x10 * 4 + 2)             # CS
+    movw    $int10_handler, (0x10 * 4)      # IVT[10h] IP
+    movw    %ax, (0x10 * 4 + 2)             # IVT[10h] CS
+    movw    $int29_handler, (0x29 * 4)      # IVT[29h] IP
+    movw    %ax, (0x29 * 4 + 2)             # IVT[29h] CS
 
     # Initialize BDA video fields at 0040:xxxx
     movw    $0x0040, %ax
@@ -650,6 +652,22 @@ set_cursor_hw:
     popw    %bx
     popw    %dx
     ret
+
+# =========================================================================
+# INT 29h — Fast Console Output (DOS)
+#
+# Called by FreeDOS kernel for console output. AL = character to display.
+# Simply calls INT 10h AH=0Eh (teletype output) to write the character.
+# =========================================================================
+int29_handler:
+    pushw   %ax
+    pushw   %bx
+    movb    $0x0E, %ah          # INT 10h teletype output
+    movb    $0x00, %bh          # page 0
+    int     $0x10
+    popw    %bx
+    popw    %ax
+    iretw
 
 # =========================================================================
 # ROM padding and size calculation
