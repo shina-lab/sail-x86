@@ -1909,7 +1909,7 @@ function decode_execute() = {
         }
       },
 
-      // CE: INTO — Interrupt on Overflow (SDM Vol.2B)
+      // CE: INTO — Interrupt on Overflow (SDM Vol.2A INT n/INTO/INT3/INT1)
       // #UD in 64-bit mode. If OF=1, generates #OF (vector 4).
       206 => {
         if cur_mode == LongMode then raise_UD();
@@ -1919,7 +1919,7 @@ function decode_execute() = {
             deliver_exception(EXN_OF, 0x00000000, true);
             next_rip = Some(RIP)
           } else {
-            __software_interrupt(0xCE)
+            __software_interrupt(0x04)
           }
         }
       },
