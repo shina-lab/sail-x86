@@ -461,6 +461,9 @@ static bool needs_shift(int ch) {
 // Push scancodes for a character into the keyboard controller.
 // Generates make+break for the key, with Shift if needed.
 static void push_key(KeyboardController &kbd, int ch) {
+  // Handle ncurses special keys (KEY_xxx constants >= 256)
+  if (ch == KEY_ENTER) ch = '\r';
+  else if (ch == KEY_BACKSPACE) ch = 0x08;
   if (ch < 0 || ch >= 128) return;
   u8 sc = ascii_to_scancode[ch];
   if (sc == 0) return;
