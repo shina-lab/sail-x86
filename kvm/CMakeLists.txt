@@ -268,6 +268,7 @@ set(KVM_CATEGORIES
   "MMX mem"
   "Feature gating"
   "Compat"
+  BCD
 )
 
 foreach(cat ${KVM_CATEGORIES})

@@ -1187,4 +1187,241 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.compat_mode = false;
     tests.push_back(std::move(tc));
   }
+
+  // =====================================================================
+  // BCD Instructions (DAA, DAS, AAA, AAS, AAM, AAD)
+  // These are invalid in 64-bit mode; must run in compat mode.
+  // OF is undefined for DAA/DAS; OF/SF/ZF/PF are undefined for AAA/AAS.
+  // =====================================================================
+  cat = "BCD";
+  {
+    // Flag masks for BCD instructions
+    constexpr u64 FL_DAA_DAS = FL_CF | FL_AF | FL_SF | FL_ZF | FL_PF;  // OF undefined
+    constexpr u64 FL_AAA_AAS = FL_CF | FL_AF;  // OF, SF, ZF, PF undefined
+    constexpr u64 FL_AAM_AAD = FL_SF | FL_ZF | FL_PF;  // OF, AF, CF undefined
+
+    // --- DAA (opcode 0x27) ---
+    // SDM example: AL=AEh, AF=0, CF=0 -> AL=14h, AF=1, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0xAE;
+      s.rflags = 0x2;
+      add("daa AE -> 14h CF=1 AF=1", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0x79, AF=0, CF=0 -> low nibble 9, no adjust for low nibble
+    // 0x79 > 0x99 -> no high nibble adjust either; result=0x79
+    {
+      ArchState s = {};
+      s.rax = 0x79;
+      s.rflags = 0x2;
+      add("daa 79 -> 79", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0x09 with AF=1: low nibble adjust -> 0x0F
+    {
+      ArchState s = {};
+      s.rax = 0x09;
+      s.rflags = 0x2 | FL_AF;
+      add("daa 09 AF=1 -> 0F", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0x9A: low nibble > 9 -> AL=A0h, AF=1; A0>99 with old_CF=0? old_AL=9A>99 -> +60 -> result=00, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0x9A;
+      s.rflags = 0x2;
+      add("daa 9A -> 00 CF=1", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0x00 with CF=1: high nibble adjust -> +60h -> 60h, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0x00;
+      s.rflags = 0x2 | FL_CF;
+      add("daa 00 CF=1 -> 60", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0xFF with CF=0, AF=0: low>9 -> +6=05, carry=1; old_AL=FF>99 -> +60=65, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0xFF;
+      s.rflags = 0x2;
+      add("daa FF -> 65 CF=1", {0x27}, s, FL_DAA_DAS);
+    }
+    // AL=0x73, AF=0, CF=0: no adjustments
+    {
+      ArchState s = {};
+      s.rax = 0x73;
+      s.rflags = 0x2;
+      add("daa 73 -> 73", {0x27}, s, FL_DAA_DAS);
+    }
+
+    // --- DAS (opcode 0x2F) ---
+    // AL=0x35 with CF=0, AF=0: no adjustments
+    {
+      ArchState s = {};
+      s.rax = 0x35;
+      s.rflags = 0x2;
+      add("das 35 -> 35", {0x2F}, s, FL_DAA_DAS);
+    }
+    // AL=0x00 with CF=1: old_CF=1 -> -60h = A0h, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0x00;
+      s.rflags = 0x2 | FL_CF;
+      add("das 00 CF=1 -> A0", {0x2F}, s, FL_DAA_DAS);
+    }
+    // AL=0x0A: low nibble > 9 -> -6 = 04, AF=1
+    {
+      ArchState s = {};
+      s.rax = 0x0A;
+      s.rflags = 0x2;
+      add("das 0A -> 04", {0x2F}, s, FL_DAA_DAS);
+    }
+    // AL=0xFF with CF=0, AF=0: low>9 -> -6=F9, borrow=0 (FF-6=F9, no borrow)
+    // old_AL=FF > 99 -> -60=99, CF=1
+    {
+      ArchState s = {};
+      s.rax = 0xFF;
+      s.rflags = 0x2;
+      add("das FF -> 99", {0x2F}, s, FL_DAA_DAS);
+    }
+    // AL=0x05, AF=1 -> -6 = FF (borrow), CF=old_CF|borrow=1; old_AL=05 <= 99 -> no high adj
+    {
+      ArchState s = {};
+      s.rax = 0x05;
+      s.rflags = 0x2 | FL_AF;
+      add("das 05 AF=1 -> FF CF=1", {0x2F}, s, FL_DAA_DAS);
+    }
+
+    // --- AAA (opcode 0x37) ---
+    // AX=0x0109: low nibble 9 <= 9, AF=0 -> no adjust, AL=09&0F=09
+    {
+      ArchState s = {};
+      s.rax = 0x0109;
+      s.rflags = 0x2;
+      add("aaa AX=0109 -> AX=0109", {0x37}, s, FL_AAA_AAS);
+    }
+    // AX=0x010A: low nibble A > 9 -> AX+=106h=0210h, AL&=0F -> AL=00, AH=02
+    {
+      ArchState s = {};
+      s.rax = 0x010A;
+      s.rflags = 0x2;
+      add("aaa AX=010A -> AX=0200", {0x37}, s, FL_AAA_AAS);
+    }
+    // AX=0x0005 with AF=1 -> AX+=106h=010Bh, AL&=0F -> AL=0B, AH=01
+    {
+      ArchState s = {};
+      s.rax = 0x0005;
+      s.rflags = 0x2 | FL_AF;
+      add("aaa AX=0005 AF=1 -> AX=010B", {0x37}, s, FL_AAA_AAS);
+    }
+    // AX=0xFF0F with AF=0: low nibble F > 9 -> AX+=106h=0015h, AL&=0F -> AL=05, AH=00
+    {
+      ArchState s = {};
+      s.rax = 0xFF0F;
+      s.rflags = 0x2;
+      add("aaa AX=FF0F -> AX=0005", {0x37}, s, FL_AAA_AAS);
+    }
+
+    // --- AAS (opcode 0x3F) ---
+    // AX=0x0109: low nibble 9, AF=0 -> no adjust, AL&=0F -> AL=09
+    {
+      ArchState s = {};
+      s.rax = 0x0109;
+      s.rflags = 0x2;
+      add("aas AX=0109 -> AX=0109", {0x3F}, s, FL_AAA_AAS);
+    }
+    // AX=0x020A: low nibble A > 9 -> AX-=6=0204, AH-=1=0104, AL&=0F=04
+    {
+      ArchState s = {};
+      s.rax = 0x020A;
+      s.rflags = 0x2;
+      add("aas AX=020A -> AX=0104", {0x3F}, s, FL_AAA_AAS);
+    }
+    // AX=0x0100 with AF=1 -> AX-=6=00FA, AH-=1=FFFA, AL&=0F=0A -> AX=FF0A
+    {
+      ArchState s = {};
+      s.rax = 0x0100;
+      s.rflags = 0x2 | FL_AF;
+      add("aas AX=0100 AF=1 -> AX=FF0A", {0x3F}, s, FL_AAA_AAS);
+    }
+
+    // --- AAM (opcode 0xD4 imm8) ---
+    // Standard AAM (imm8=0x0A): AL=35 -> AH=35/10=3, AL=35%10=5 -> AX=0305
+    {
+      ArchState s = {};
+      s.rax = 0x23;  // 35 decimal
+      s.rflags = 0x2;
+      add("aam 0A AL=23h(35) -> AX=0305", {0xD4, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAM with AL=0: AH=0, AL=0
+    {
+      ArchState s = {};
+      s.rax = 0x00;
+      s.rflags = 0x2;
+      add("aam 0A AL=00 -> AX=0000", {0xD4, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAM with AL=FF (255): AH=255/10=25, AL=255%10=5 -> AH=0x19, AL=0x05
+    {
+      ArchState s = {};
+      s.rax = 0xFF;
+      s.rflags = 0x2;
+      add("aam 0A AL=FF -> AX=1905", {0xD4, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAM with non-standard base (imm8=0x10): AL=0x37 -> AH=0x37/16=3, AL=0x37%16=7
+    {
+      ArchState s = {};
+      s.rax = 0x37;
+      s.rflags = 0x2;
+      add("aam 10 AL=37h -> AX=0307", {0xD4, 0x10}, s, FL_AAM_AAD);
+    }
+    // AAM with imm8=0: should #DE
+    {
+      TestCase tc;
+      tc.name = "aam 00 -> #DE";
+      tc.category = cat;
+      tc.code = {0xD4, 0x00};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = FL_NONE;
+      tc.compat_mode = true;
+      tc.expect_fault = true;
+      tc.expected_vector = 0;  // #DE = vector 0
+      tests.push_back(std::move(tc));
+    }
+
+    // --- AAD (opcode 0xD5 imm8) ---
+    // Standard AAD (imm8=0x0A): AX=0305 -> AL=(5+3*10)&FF=35=0x23, AH=0
+    {
+      ArchState s = {};
+      s.rax = 0x0305;
+      s.rflags = 0x2;
+      add("aad 0A AX=0305 -> AL=23h", {0xD5, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAD with AX=0000 -> AL=0, AH=0
+    {
+      ArchState s = {};
+      s.rax = 0x0000;
+      s.rflags = 0x2;
+      add("aad 0A AX=0000 -> AL=00", {0xD5, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAD with AX=0901 -> AL=(1+9*10)&FF=91=0x5B, AH=0
+    {
+      ArchState s = {};
+      s.rax = 0x0901;
+      s.rflags = 0x2;
+      add("aad 0A AX=0901 -> AL=5Bh", {0xD5, 0x0A}, s, FL_AAM_AAD);
+    }
+    // AAD with non-standard base (imm8=0x10): AX=0305 -> AL=(5+3*16)&FF=53=0x35, AH=0
+    {
+      ArchState s = {};
+      s.rax = 0x0305;
+      s.rflags = 0x2;
+      add("aad 10 AX=0305 -> AL=35h", {0xD5, 0x10}, s, FL_AAM_AAD);
+    }
+    // AAD overflow: AX=FF01 -> AL=(1+255*10)&FF=(2551)&FF=0xF7, AH=0
+    {
+      ArchState s = {};
+      s.rax = 0xFF01;
+      s.rflags = 0x2;
+      add("aad 0A AX=FF01 -> AL=F7h", {0xD5, 0x0A}, s, FL_AAM_AAD);
+    }
+  }
 }
