@@ -855,31 +855,9 @@ int main(int argc, char *argv[]) {
 
     model.zstep(UNIT);
     model.tsc += 1000;  // ~1GHz virtual CPU
-
-    // Detect kernel stall: if we see 0060:19EE2 repeatedly, dump state
-    {
-      static int stall_count = 0;
-      u16 cs = model.zSegReg.data[x86::SEG_CS];
-      u64 rip = model.zRIP;
-      if (cs == 0x0060 && rip >= 0x19E00 && rip <= 0x19F00) {
-        stall_count++;
-        if (stall_count == 10) {
-          u64 lin = 0x600 + rip;
-          fprintf(stderr, "Kernel stall at %04x:%04lx (linear 0x%lx)\n", cs, rip, lin);
-          fprintf(stderr, "  bytes:");
-          for (int b = 0; b < 16; b++)
-            fprintf(stderr, " %02x", model.phys_mem.read8(lin + b));
-          fprintf(stderr, "\n  AX=%04lx BX=%04lx CX=%04lx DX=%04lx SP=%04lx\n",
-                  (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
-                  (u64)model.zGPR.data[1], (u64)model.zGPR.data[2],
-                  (u64)model.zGPR.data[4]);
-          fprintf(stderr, "  SI=%04lx DI=%04lx BP=%04lx DS=%04x ES=%04x\n",
-                  (u64)model.zGPR.data[6], (u64)model.zGPR.data[7],
-                  (u64)model.zGPR.data[5],
-                  (u16)model.zSegReg.data[x86::SEG_DS],
-                  (u16)model.zSegReg.data[x86::SEG_ES]);
-        }
-      }
+    if (insn_count >= 5000000 && insn_count % 500000 == 0 && insn_count < 10000000) {
+      model.kbd.push_scancode(0x1C); model.kbd.push_scancode(0x9C);
+      model.pic_master.raise_irq(1);
     }
 
 
@@ -1128,6 +1106,13 @@ int main(int argc, char *argv[]) {
 
     // Dump IVT entries — show ALL that point to unusual addresses
     fprintf(stderr, "=== IVT ===\n");
+    // Find kernel-installed handlers (CS=0060 or nearby)
+    for (int vec = 0; vec < 256; vec++) {
+      u16 ip = model.phys_mem.read16(vec * 4);
+      u16 cs = model.phys_mem.read16(vec * 4 + 2);
+      if (cs >= 0x0050 && cs <= 0x0070)
+        fprintf(stderr, "  INT %02Xh = %04x:%04x (kernel)\n", vec, cs, ip);
+    }
     for (int vec = 0x58; vec <= 0x80; vec++) {
       u16 ip = model.phys_mem.read16(vec * 4);
       u16 cs = model.phys_mem.read16(vec * 4 + 2);

@@ -107,6 +107,38 @@ fi
 
 FREEDOS_IMG="$BUILD_DIR/freedos.img"
 
+# =========================================================================
+# FreeDOS kernel (built from source, uncompressed)
+# =========================================================================
+
+FDKERN_VER="ke2043"
+FDKERN_URL="https://github.com/FDOS/kernel/archive/refs/tags/${FDKERN_VER}.tar.gz"
+FDKERN_SRC="$WORK/kernel-${FDKERN_VER}"
+
+if [ ! -f "$FDKERN_SRC/bin/kernel.sys" ]; then
+  echo "=== Building FreeDOS kernel from source ==="
+  if [ ! -d "$FDKERN_SRC" ]; then
+    echo "Downloading FreeDOS kernel source..."
+    curl -L -o "$WORK/kernel-src.tar.gz" "$FDKERN_URL"
+    tar -xzf "$WORK/kernel-src.tar.gz" -C "$WORK"
+  fi
+  cat > "$FDKERN_SRC/config.mak" << 'KMAK'
+COMPILER=gcc
+XCPU=86
+XFAT=16
+XUPX=
+KMAK
+  # Adjust makefiles for GCC cross-compiler, then build
+  (cd "$FDKERN_SRC" && \
+   for i in utils lib drivers boot sys kernel setver; do
+     sed 's@!include "\(.*\)"@include ../mkfiles/gcc.mak@' < $i/makefile > $i/GNUmakefile
+   done && \
+   make all COMPILER=gcc)
+  echo "FreeDOS kernel built: $FDKERN_SRC/bin/kernel.sys ($(stat -c%s "$FDKERN_SRC/bin/kernel.sys") bytes)"
+else
+  echo "=== FreeDOS kernel already built ==="
+fi
+
 if [ ! -f "$FREEDOS_IMG" ]; then
   echo "=== Building FreeDOS disk image ==="
 
@@ -153,8 +185,27 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   # Extract all files from floppy image
   mcopy -i "$FLOPPY_IMG" -s -p -m -n ::/ "$TMPDIR_FD/" 2>/dev/null || true
 
-  # Copy files to HDD partition
-  # mcopy with @@offset notation to access partition within disk image
+  # Use the uncompressed KERNEL.SYS built from source (not the UPX-compressed
+  # one from the floppy, which requires in-place decompression that conflicts
+  # with the kernel's own relocation code).
+  # Copy KERNEL.SYS FIRST so it gets cluster 2.
+  BUILT_KERNEL="$FDKERN_SRC/bin/kernel.sys"
+  if [ -f "$BUILT_KERNEL" ]; then
+    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$BUILT_KERNEL" ::/KERNEL.SYS 2>/dev/null || true
+    echo "Using built kernel: $BUILT_KERNEL ($(stat -c%s "$BUILT_KERNEL") bytes)"
+  else
+    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$TMPDIR_FD/KERNEL.SYS" ::/ 2>/dev/null || true
+    echo "WARNING: using floppy kernel (UPX compressed)"
+  fi
+
+  # Copy COMMAND.COM to root directory (case-insensitive find)
+  CMDCOM=$(find "$TMPDIR_FD" -iname 'command.com' -print -quit)
+  if [ -n "$CMDCOM" ]; then
+    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" "$CMDCOM" ::/COMMAND.COM 2>/dev/null || true
+    echo "Copied COMMAND.COM from $CMDCOM"
+  fi
+
+  # Copy remaining files
   for f in "$TMPDIR_FD"/*; do
     if [ -e "$f" ]; then
       mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -s -p -m -n "$f" ::/ 2>/dev/null || true
@@ -162,107 +213,104 @@ if [ ! -f "$FREEDOS_IMG" ]; then
   done
   rm -rf "$TMPDIR_FD"
 
-  # Copy COMMAND.COM to root directory (FreeDOS default location)
-  mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o "$(dirname "$FREEDOS_IMG")/freedos-build/freedos-zip/144m/x86BOOT.img"@@'::COMMAND.COM' ::/COMMAND.COM 2>/dev/null || \
-  mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" ::/FREEDOS/BIN/COMMAND.COM ::/COMMAND.COM 2>/dev/null || true
+  # Write minimal FDCONFIG.SYS (no interactive menu, no drivers)
+  printf 'LASTDRIVE=Z\r\nFILES=20\r\nSHELL=\\COMMAND.COM /E:2048 /P\r\n' | \
+    mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o - ::/FDCONFIG.SYS
 
-  # Write minimal FDCONFIG.SYS (no interactive menu)
-  echo 'SHELL=\COMMAND.COM /E:2048 /P' | mcopy -i "$FREEDOS_IMG@@$PART_OFFSET" -o - ::/FDCONFIG.SYS
+  # Install standard FreeDOS FAT16 boot sector from the kernel source.
+  # This is the official boot.asm from the FreeDOS kernel project,
+  # assembled with -DISFAT16 for FAT16 support.
+  echo "Installing FreeDOS FAT16 boot sector..."
+  BOOT_BIN="$WORK/boot16.bin"
+  nasm -DISFAT16 -o "$BOOT_BIN" "$FDKERN_SRC/boot/boot.asm"
 
-  # Copy boot sector from floppy to HDD partition boot sector
-  echo "Installing boot sector..."
-  dd if="$FLOPPY_IMG" of="$FREEDOS_IMG" bs=1 count=3 seek="$PART_OFFSET" conv=notrunc status=none
-  dd if="$FLOPPY_IMG" of="$FREEDOS_IMG" bs=1 skip=62 count=450 seek=$((PART_OFFSET + 62)) conv=notrunc status=none
-
-  # Patch the BPB hidden sectors field (offset 0x1C, 4 bytes, little-endian)
-  # to match the partition's LBA start offset. Without this, the boot sector
-  # calculates wrong absolute sector numbers for FAT/root/data reads.
+  # Merge: keep BPB (bytes 3-61) from mkfs.fat, use FreeDOS boot code
   python3 -c "
 import struct
+with open('$BOOT_BIN', 'rb') as f:
+    boot = bytearray(f.read())
 with open('$FREEDOS_IMG', 'r+b') as f:
-    f.seek($PART_OFFSET + 0x1C)
-    f.write(struct.pack('<I', $PART_START))
+    f.seek($PART_OFFSET)
+    bpb = f.read(62)
+    # Preserve BPB from mkfs.fat (bytes 3-61)
+    boot[3:62] = bpb[3:62]
+    # mkfs.fat --offset doesn't set hidden_sectors; patch it manually
+    struct.pack_into('<I', boot, 0x1C, $PART_START)
+    f.seek($PART_OFFSET)
+    f.write(bytes(boot))
 "
-  echo "Patched hidden sectors to $PART_START"
+  echo "FreeDOS FAT16 boot sector installed"
 
   # Write a minimal MBR boot code that loads the partition boot sector
   # This is a simple MBR that finds the active partition and chain-loads it
-  python3 -c "
-import struct, sys
-mbr = bytearray(512)
+  # Write MBR using nasm. The MBR relocates itself from 0x7C00 to 0x0600,
+  # then loads the partition boot sector at 0x7C00 and jumps to it.
+  # Standard MBR behavior — avoids overwriting the JMP FAR instruction.
+  MBR_ASM="$WORK/mbr.asm"
+  MBR_BIN="$WORK/mbr.bin"
+  cat > "$MBR_ASM" << 'MBREOF'
+[BITS 16]
+[ORG 0x7C00]
+    cli
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, 0x7C00
+    sti
 
-# MBR boot code: find active partition, load its boot sector, jump to it
-code = bytes([
-    0xFA,                   # cli
-    0x31, 0xC0,             # xor ax, ax
-    0x8E, 0xD8,             # mov ds, ax
-    0x8E, 0xD0,             # mov ss, ax
-    0xBC, 0x00, 0x7C,       # mov sp, 0x7C00
-    0xFB,                   # sti
-    0x8E, 0xC0,             # mov es, ax
-    # Find active partition in partition table at 0x7DBE
-    0xBE, 0xBE, 0x7D,       # mov si, 0x7DBE
-    0xB9, 0x04, 0x00,       # mov cx, 4
-    # loop:
-    0x80, 0x3C, 0x80,       # cmp byte [si], 0x80
-    0x74, 0x05,             # je found
-    0x83, 0xC6, 0x10,       # add si, 16
-    0xE2, 0xF6,             # loop (back to cmp)
-    0xEB, 0xFE,             # jmp $ (no active partition)
-    # found: read boot sector from partition
-    0x8B, 0x44, 0x08,       # mov ax, [si+8]  (LBA low word)
-    0x8B, 0x54, 0x0A,       # mov dx, [si+10] (LBA high word - actually CHS start head)
-    # Use INT 13h extended read (LBA)
-    0x66, 0x50,             # push eax (save LBA)
-    0x06,                   # push es
-    0x53,                   # push bx
-    0x6A, 0x01,             # push 1 (count)
-    0x6A, 0x10,             # push 16 (packet size)
-    0x89, 0xE6,             # mov si, sp
-    # Actually use CHS-based INT 13h for compatibility
-])
-# Simpler approach: use INT 13h CHS read
-code2 = bytes([
-    0xFA,                   # cli
-    0x31, 0xC0,             # xor ax, ax
-    0x8E, 0xD8,             # mov ds, ax
-    0x8E, 0xD0,             # mov ss, ax
-    0xBC, 0x00, 0x7C,       # mov sp, 0x7C00
-    0xFB,                   # sti
-    0x8E, 0xC0,             # mov es, ax
-    # Find active partition
-    0xBE, 0xBE, 0x7D,       # mov si, 0x7DBE
-    0xB9, 0x04, 0x00,       # mov cx, 4
-    # loop:
-    0x80, 0x3C, 0x80,       # cmp byte [si], 0x80
-    0x74, 0x07,             # je found (skip add+loop+jmp$ = 3+2+2 bytes)
-    0x83, 0xC6, 0x10,       # add si, 16
-    0xE2, 0xF6,             # loop (back to cmp)
-    0xEB, 0xFE,             # jmp $ (no active partition — halt)
-    # found: read partition boot sector using INT 13h LBA read (fn 42h)
-    # Build DAP (Disk Address Packet) on stack
-    0x8B, 0x44, 0x08,       # mov ax, [si+8]   (LBA low word)
-    0x8B, 0x54, 0x0A,       # mov dx, [si+10]  (LBA high word)
-    0x6A, 0x00,             # push 0            (LBA high dword = 0)
-    0x6A, 0x00,             # push 0
-    0x52,                   # push dx           (LBA high word)
-    0x50,                   # push ax           (LBA low word)
-    0x06,                   # push es           (buffer segment = 0)
-    0x68, 0x00, 0x7C,       # push 0x7C00       (buffer offset)
-    0x6A, 0x01,             # push 1            (sector count)
-    0x6A, 0x10,             # push 16           (DAP size)
-    0x89, 0xE6,             # mov si, sp        (SI = pointer to DAP)
-    0xB2, 0x80,             # mov dl, 0x80      (drive 0x80)
-    0xB4, 0x42,             # mov ah, 0x42      (extended read)
-    0xCD, 0x13,             # int 0x13
-    0x72, 0xFE,             # jc $ (disk error — halt)
-    0xEA, 0x00, 0x7C, 0x00, 0x00,  # jmp far 0000:7C00
-])
-mbr[:len(code2)] = code2
-mbr[510] = 0x55
-mbr[511] = 0xAA
-sys.stdout.buffer.write(bytes(mbr[:446]))
-" | dd of="$FREEDOS_IMG" bs=1 count=446 conv=notrunc status=none
+    ; Preserve boot drive in BP across relocation
+    mov bp, dx
+
+    ; Relocate MBR from 0x7C00 to 0x0600
+    mov si, 0x7C00
+    mov di, 0x0600
+    mov cx, 256
+    rep movsw
+    jmp 0x0000:(relocated)
+
+relocated equ 0x0600 + (.here - 0x7C00)
+.here:
+    ; Now running from 0x0600+. DS=ES=0. DL still in BP.
+    ; Find active partition (table is at 0x0600 + 0x1BE = 0x07BE)
+    mov si, 0x07BE
+    mov cx, 4
+.find:
+    cmp byte [si], 0x80
+    je .found
+    add si, 16
+    loop .find
+    jmp short .halt       ; no active partition
+
+.found:
+    ; Build DAP on stack for INT 13h extended read
+    ; Partition LBA start is at [si+8] (4 bytes)
+    mov eax, [si + 8]      ; LBA start (32-bit)
+    push dword 0            ; LBA high dword = 0
+    push eax                ; LBA low dword
+    push word 0x0000        ; buffer segment
+    push word 0x7C00        ; buffer offset
+    push word 1             ; sector count
+    push word 16            ; DAP size + reserved
+    mov si, sp
+    mov dx, bp              ; restore boot drive
+    mov ah, 0x42
+    int 0x13
+    jc short .halt
+
+    ; Jump to loaded boot sector, DL = boot drive
+    mov dx, bp
+    jmp 0x0000:0x7C00
+
+.halt:
+    jmp short .halt
+
+    times 446 - ($ - $$) db 0
+    ; Partition table (64 bytes) and signature (2 bytes) are NOT included —
+    ; we only write the first 446 bytes of code area.
+MBREOF
+  nasm -f bin "$MBR_ASM" -o "$MBR_BIN"
+  dd if="$MBR_BIN" of="$FREEDOS_IMG" bs=1 count=446 conv=notrunc status=none
 
   echo "FreeDOS disk image created: $FREEDOS_IMG ($(stat -c%s "$FREEDOS_IMG") bytes)"
 else
