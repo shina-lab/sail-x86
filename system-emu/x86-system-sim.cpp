@@ -459,7 +459,7 @@ static bool needs_shift(int ch) {
 }
 
 // Push scancodes for a character into the keyboard controller.
-// Generates make+break for the key, with Shift if needed.
+// Generates make+break for the key, with Shift/Ctrl if needed.
 static void push_key(KeyboardController &kbd, int ch) {
   // Handle ncurses special keys (KEY_xxx constants >= 256)
   if (ch == KEY_ENTER) ch = '\r';
@@ -469,8 +469,6 @@ static void push_key(KeyboardController &kbd, int ch) {
   if (sc == 0) return;
 
   bool shift = needs_shift(ch);
-  // Ctrl+letter: the ASCII code is 1-26, scancode is for the letter,
-  // and we need to send Ctrl (scancode 0x1D) make/break around it.
   bool ctrl = (ch >= 1 && ch <= 26);
 
   if (ctrl)  kbd.push_scancode(0x1D);       // Ctrl make
@@ -1061,9 +1059,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Keyboard interrupt (IRQ 1): scancode available
-    if (model.kbd.has_data()) {
+    if (model.kbd.has_data())
       model.pic_master.raise_irq(1);
-    }
 
     // Periodic VGA refresh
     if (display_mode == DISPLAY_VGA && insn_count >= next_vga_refresh) {

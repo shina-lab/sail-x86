@@ -602,6 +602,10 @@ public:
         break;
       case 0xAE:  // Enable first PS/2 port
         kbd_enabled = true;
+        // Drain any leftover ACK/response bytes from PS/2 init commands.
+        // These would otherwise be misinterpreted as scancodes and cause
+        // spurious IRQ1 interrupts that the keyboard ISR can't process.
+        while (!out_buf.empty()) out_buf.pop();
         break;
       case 0xD1:  // Write output port (next byte to 0x60)
         last_cmd = 0xD1;
@@ -674,6 +678,8 @@ public:
   bool has_data() const {
     return !out_buf.empty();
   }
+
+  size_t out_buf_size() const { return out_buf.size(); }
 
 private:
   std::queue<u8> out_buf;   // output buffer (scancodes + command responses)
