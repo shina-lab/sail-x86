@@ -450,40 +450,10 @@ function exec_shl(a, count_raw, os) = {
     a
   } else {
     let result : qword = a << count;
-    match os {
-      8 => {
-        CF = if count <= 8 then a[8 - count] else undefined;
-        update_SF_ZF_PF(result[7..0]);
-        if count == 1 then
-          OF = (result[7] ^ CF)[0]
-        else OF = undefined
-      },
-      16 => {
-        CF = if count <= 16 then a[16 - count] else undefined;
-        update_SF_ZF_PF(result[15..0]);
-        if count == 1 then
-          OF = (result[15] ^ CF)[0]
-        else OF = undefined
-      },
-      32 => {
-        let c : range(0, 31) = unsigned(count_raw) % 32;
-        assert(c > 0);
-        CF = a[32 - c];
-        update_SF_ZF_PF(result[31..0]);
-        if count == 1 then
-          OF = (result[31] ^ CF)[0]
-        else OF = undefined
-      },
-      64 => {
-        let c : range(0, 63) = unsigned(count_raw) % 64;
-        assert(c > 0);
-        CF = a[64 - c];
-        update_SF_ZF_PF(result);
-        if count == 1 then
-          OF = (result[63] ^ CF)[0]
-        else OF = undefined
-      },
-    };
+    CF = if count <= os then a[os - count] else undefined;
+    update_SF_ZF_PF(result[(os - 1)..0]);
+    if count == 1 then OF = result[os - 1] ^ CF
+    else OF = undefined;
     AF = undefined;
     result
   }
@@ -503,36 +473,10 @@ function exec_shr(a, count_raw, os) = {
     a
   } else {
     let result : qword = a >> count;
-    match os {
-      8 => {
-        CF = if count <= 8 then a[count - 1] else undefined;
-        update_SF_ZF_PF(result[7..0]);
-        if count == 1 then OF = a[7]
-        else OF = undefined
-      },
-      16 => {
-        CF = if count <= 16 then a[count - 1] else undefined;
-        update_SF_ZF_PF(result[15..0]);
-        if count == 1 then OF = a[15]
-        else OF = undefined
-      },
-      32 => {
-        let c : range(0, 31) = unsigned(count_raw) % 32;
-        assert(c > 0);
-        CF = a[c - 1];
-        update_SF_ZF_PF(result[31..0]);
-        if count == 1 then OF = a[31]
-        else OF = undefined
-      },
-      64 => {
-        let c : range(0, 63) = unsigned(count_raw) % 64;
-        assert(c > 0);
-        CF = a[c - 1];
-        update_SF_ZF_PF(result);
-        if count == 1 then OF = a[63]
-        else OF = undefined
-      },
-    };
+    CF = if count <= os then a[count - 1] else undefined;
+    update_SF_ZF_PF(result[(os - 1)..0]);
+    if count == 1 then OF = a[os - 1]
+    else OF = undefined;
     AF = undefined;
     result
   }
@@ -554,20 +498,10 @@ function exec_sar(a, count_raw, os) = {
     // CF = last bit shifted out. For SAR, when count >= operand width,
     // the result is all-sign-bits, so CF = sign bit of the original value.
     // SDM pseudocode iterates: CF := LSB(DEST) each step with signed divide.
-    let cf_idx : range(0, 63) = match os {
-      8  => if count >= 8  then 7  else count - 1,
-      16 => if count >= 16 then 15 else count - 1,
-      32 => if count >= 32 then 31 else count - 1,
-      64 => count - 1,
-    };
+    let cf_idx : range(0, 63) = if count >= os then os - 1 else count - 1;
     CF = a[cf_idx];
-    let result : qword = match os {
-      8  => zero_extend(a[7..0] >>> count),
-      16 => zero_extend(a[15..0] >>> count),
-      32 => zero_extend(a[31..0] >>> count),
-      64 => a >>> count,
-    };
-    update_SF_ZF_PF(result[os - 1 .. 0]);
+    let result : qword = zero_extend(a[(os - 1)..0] >>> count);
+    update_SF_ZF_PF(result[(os - 1)..0]);
     if count == 1 then OF = 0b0
     else OF = undefined;
     AF = undefined;
@@ -592,27 +526,12 @@ function exec_rol(a, count_raw, os) = {
   if count == 0 then {
     a
   } else {
-    let result : qword = match os {
-      8 => {
-        let c : range(0, 7) = count % 8;
-        zero_extend((a[7..0] << c) | (a[7..0] >> (8 - c)))
-      },
-      16 => {
-        let c : range(0, 15) = count % 16;
-        zero_extend((a[15..0] << c) | (a[15..0] >> (16 - c)))
-      },
-      32 => {
-        let c : range(0, 31) = count % 32;
-        zero_extend((a[31..0] << c) | (a[31..0] >> (32 - c)))
-      },
-      64 => (a << count) | (a >> (64 - count)),
-    };
+    let result : qword = zero_extend(rotl(a[(os - 1)..0], count % os));
     CF = result[0];
     if count == 1 then
-      OF = (result[os - 1 .. os - 1] ^ CF)[0]
-    else {
+      OF = result[os - 1 .. os - 1] ^ CF
+    else
       OF = undefined;
-    };
     result
   }
 }
@@ -626,27 +545,12 @@ function exec_ror(a, count_raw, os) = {
   if count == 0 then {
     a
   } else {
-    let result : qword = match os {
-      8 => {
-        let c : range(0, 7) = count % 8;
-        zero_extend((a[7..0] >> c) | (a[7..0] << (8 - c)))
-      },
-      16 => {
-        let c : range(0, 15) = count % 16;
-        zero_extend((a[15..0] >> c) | (a[15..0] << (16 - c)))
-      },
-      32 => {
-        let c : range(0, 31) = count % 32;
-        zero_extend((a[31..0] >> c) | (a[31..0] << (32 - c)))
-      },
-      64 => (a >> count) | (a << (64 - count)),
-    };
+    let result : qword = zero_extend(rotr(a[(os - 1)..0], count % os));
     CF = result[os - 1];
     if count == 1 then
-      OF = (result[os - 1 .. os - 1] ^ result[os - 2 .. os - 2])[0]
-    else {
+      OF = result[os - 1 .. os - 1] ^ result[os - 2 .. os - 2]
+    else
       OF = undefined;
-    };
     result
   }
 }
@@ -664,62 +568,18 @@ function exec_rcl(a, count_raw, os) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let tempcount : int = match os {
-    8  => masked % 9,
-    16 => masked % 17,
-    32 => masked,
-    64 => masked,
-  };
-  if tempcount == 0 then {
+  let c = masked % (os + 1);
+  if c == 0 then {
     a
   } else {
-    var cf_bit : bit = CF;
-    var val8  : byte  = a[7..0];
-    var val16 : word = a[15..0];
-    var val32 : dword = a[31..0];
-    var val64 : qword = a;
-    var i : int = tempcount;
-    while i > 0 do {
-      match os {
-        8 => {
-          let tcf : bit = val8[7];
-          val8 = val8[6..0] @ cf_bit;
-          cf_bit = tcf;
-        },
-        16 => {
-          let tcf : bit = val16[15];
-          val16 = val16[14..0] @ cf_bit;
-          cf_bit = tcf;
-        },
-        32 => {
-          let tcf : bit = val32[31];
-          val32 = val32[30..0] @ cf_bit;
-          cf_bit = tcf;
-        },
-        64 => {
-          let tcf : bit = val64[63];
-          val64 = val64[62..0] @ cf_bit;
-          cf_bit = tcf;
-        },
-      };
-      i = i - 1;
-    };
-    CF = cf_bit;
-    if masked == 1 then match os {
-      8  => OF = (val8[7] ^ CF)[0],
-      16 => OF = (val16[15] ^ CF)[0],
-      32 => OF = (val32[31] ^ CF)[0],
-      64 => OF = (val64[63] ^ CF)[0],
-    } else {
+    let wide = a[(os - 1)..0] @ CF;
+    let rotated = rotl(wide, c);
+    CF = rotated[0];
+    if masked == 1 then
+      OF = rotated[os] ^ rotated[0]
+    else
       OF = undefined;
-    };
-    let result : qword = match os {
-      8  => zero_extend(val8),
-      16 => zero_extend(val16),
-      32 => zero_extend(val32),
-      64 => val64,
-    };
-    result
+    zero_extend(rotated[os..1])
   }
 }
 
@@ -729,63 +589,19 @@ function exec_rcr(a, count_raw, os) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let tempcount : int = match os {
-    8  => masked % 9,
-    16 => masked % 17,
-    32 => masked,
-    64 => masked,
-  };
-  if tempcount == 0 then {
+  let c = masked % (os + 1);
+  if c == 0 then {
     a
   } else {
-    var cf_bit : bit = CF;
-    var val8  : byte  = a[7..0];
-    var val16 : word = a[15..0];
-    var val32 : dword = a[31..0];
-    var val64 : qword = a;
-    // OF is set before the rotate for RCR
-    if masked == 1 then match os {
-      8  => OF = (val8[7] ^ CF)[0],
-      16 => OF = (val16[15] ^ CF)[0],
-      32 => OF = (val32[31] ^ CF)[0],
-      64 => OF = (val64[63] ^ CF)[0],
-    } else {
+    // OF is set from original value before rotation for RCR
+    if masked == 1 then
+      OF = a[os - 1] ^ CF
+    else
       OF = undefined;
-    };
-    var i : int = tempcount;
-    while i > 0 do {
-      match os {
-        8 => {
-          let tcf : bit = val8[0];
-          val8 = cf_bit @ val8[7..1];
-          cf_bit = tcf;
-        },
-        16 => {
-          let tcf : bit = val16[0];
-          val16 = cf_bit @ val16[15..1];
-          cf_bit = tcf;
-        },
-        32 => {
-          let tcf : bit = val32[0];
-          val32 = cf_bit @ val32[31..1];
-          cf_bit = tcf;
-        },
-        64 => {
-          let tcf : bit = val64[0];
-          val64 = cf_bit @ val64[63..1];
-          cf_bit = tcf;
-        },
-      };
-      i = i - 1;
-    };
-    CF = cf_bit;
-    let result : qword = match os {
-      8  => zero_extend(val8),
-      16 => zero_extend(val16),
-      32 => zero_extend(val32),
-      64 => val64,
-    };
-    result
+    let wide = a[(os - 1)..0] @ CF;
+    let rotated = rotr(wide, c);
+    CF = rotated[0];
+    zero_extend(rotated[os..1])
   }
 }
 

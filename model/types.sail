@@ -503,6 +503,13 @@ function is_gt_u(a, b) = {
   diff['n]
 }
 
+// Rotate left/right by a bounded integer amount.
+val rotl : forall 'm 'n, 'm >= 'n >= 0. (bits('m), int('n)) -> bits('m)
+function rotl(v, shift) = (v << shift) | (v >> ('m - shift))
+
+val rotr : forall 'm 'n, 'm >= 'n >= 0. (bits('m), int('n)) -> bits('m)
+function rotr(v, shift) = (v >> shift) | (v << ('m - shift))
+
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
 val blend : forall 'n, 0 < 'n. (bits('n), bits('n), bit) -> bits('n)
