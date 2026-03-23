@@ -439,11 +439,13 @@ function exec_rep(prefix, op, os, asz, pfx) = {
 val is_lockable_2byte : range(0, 255) -> bool
 function is_lockable_2byte(op) = match op {
   171 => true,  // 0F AB: BTS
-  176 => true, 177 => true,  // 0F B0-B1: CMPXCHG
+  176 => true,  // 0F B0: CMPXCHG
+  177 => true,  // 0F B1: CMPXCHG
   179 => true,  // 0F B3: BTR
   186 => true,  // 0F BA: Group 8 (BTS/BTR/BTC imm, not BT)
   187 => true,  // 0F BB: BTC
-  192 => true, 193 => true,  // 0F C0-C1: XADD
+  192 => true,  // 0F C0: XADD
+  193 => true,  // 0F C1: XADD
   199 => true,  // 0F C7: CMPXCHG8B/16B
   _ => false,
 }
@@ -728,13 +730,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
     // CR0.EM=1 blocks all legacy SSE instructions with #UD
     op if (16 <= op & op <= 23) | (40 <= op & op <= 47) | (80 <= op & op <= 95)
         | op == 124 | op == 125 | op == 194 | op == 198
-        | op == 208 | op == 214 | op == 230
-      => { if sse_em_blocked() then raise_UD(); dispatch_2byte_sse_fp(op, pfx) },
+        | op == 208 | op == 214 | op == 230 => {
+      if sse_em_blocked() then raise_UD();
+      dispatch_2byte_sse_fp(op, pfx)
+    },
 
     // SSE integer (packed integer arithmetic, logical, shift, pack/unpack)
     op if (96 <= op & op <= 118) | op == 126 | op == 127 | op == 196 | op == 197
-        | (209 <= op & op <= 213) | (215 <= op & op <= 229) | (231 <= op & op <= 255)
-      => { if sse_em_blocked() then raise_UD(); dispatch_2byte_sse_int(op, pfx) },
+        | (209 <= op & op <= 213) | (215 <= op & op <= 229)
+        | (231 <= op & op <= 255) => {
+      if sse_em_blocked() then raise_UD();
+      dispatch_2byte_sse_int(op, pfx)
+    },
 
     // GPR and system operations (everything else)
     _ => dispatch_2byte_gpr(op, pfx),
@@ -864,11 +871,93 @@ function decode_execute() = {
     dispatch_alu_opcode(op, pfx)
   } else {
     match op {
+      // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode. Operand size determines push width:
+      // 32 → push zero-extended dword; 16 → push word.
+      6 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          32 => push32(zero_extend(read_segreg(ES))),
+          _    => push16(read_segreg(ES)),
+        }
+      },
+
+      // 07: POP ES — Pop stack into ES (SDM Vol.2B POP)
+      // Invalid in 64-bit mode. Pops operand-size value, loads low 16 bits
+      // into ES and updates descriptor cache (load_segment_register).
+      7 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(ES, v)
+      },
+
+      // 0E: PUSH CS — Push CS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      14 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          32 => push32(zero_extend(read_segreg(CS))),
+          _    => push16(read_segreg(CS)),
+        }
+      },
 
       // 0F: Two-byte escape
       15 => {
         let opcode2 = fetch_byte();
         dispatch_opcode_2byte(opcode2, pfx)
+      },
+
+      // 16: PUSH SS — Push SS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      22 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          32 => push32(zero_extend(read_segreg(SS))),
+          _    => push16(read_segreg(SS)),
+        }
+      },
+
+      // 17: POP SS — Pop stack into SS (SDM Vol.2B POP)
+      // Invalid in 64-bit mode. Loading SS inhibits interrupts until after
+      // the next instruction (SDM Vol.3A §7.8.3). Not modeled here.
+      23 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(SS, v)
+      },
+
+      // 1E: PUSH DS — Push DS selector onto stack (SDM Vol.2B PUSH)
+      // Invalid in 64-bit mode.
+      30 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        match os {
+          32 => push32(zero_extend(read_segreg(DS))),
+          _    => push16(read_segreg(DS)),
+        }
+      },
+
+      // 1F: POP DS — Pop stack into DS (SDM Vol.2B POP)
+      // Invalid in 64-bit mode.
+      31 => {
+        if cur_mode == LongMode then raise_UD();
+        let os = get_operand_size(pfx);
+        let v : word = match os {
+          32 => pop32()[15..0],
+          _    => pop16(),
+        };
+        load_segment_register(DS, v)
       },
 
       // 27: DAA — Decimal Adjust AL After Addition (SDM Vol.2A)
@@ -932,87 +1021,45 @@ function decode_execute() = {
         write_gpr8l(RAX, new_ax[7..0] & 0x0F)
       },
 
-      // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
-      // Invalid in 64-bit mode. Operand size determines push width:
-      // 32 → push zero-extended dword; 16 → push word.
-      6 => {
-        if cur_mode == LongMode then raise_UD();
+      // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
+      op if 64 <= op & op <= 71 => {
+        let reg_field : range(0, 7) = op - 64;
+        let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
+        let v = read_gpr(os, reg);
+        let result = exec_inc(v, os);
+        write_gpr(os, reg, result)
+      },
+
+      // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
+      op if 72 <= op & op <= 79 => {
+        let reg_field : range(0, 7) = op - 72;
+        let reg = extend_reg(reg_field, 0b0);
+        let os = get_operand_size(pfx);
+        let v = read_gpr(os, reg);
+        let result = exec_dec(v, os);
+        write_gpr(os, reg, result)
+      },
+
+      // 50-57: PUSH reg (d64)
+      op if 80 <= op & op <= 87 => {
+        let reg_field : range(0, 7) = op - 80;
+        let reg = extend_reg(reg_field, pfx.rex_b);
+        let os = get_operand_size_d64(pfx);
         match os {
-          32 => push32(zero_extend(read_segreg(ES))),
-          _    => push16(read_segreg(ES)),
+          16 => push16(read_gpr16(reg)),
+          32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
+                  else push32(read_gpr32(reg)),
+          64 => push64(read_gpr64(reg)),
         }
       },
 
-      // 07: POP ES — Pop stack into ES (SDM Vol.2B POP)
-      // Invalid in 64-bit mode. Pops operand-size value, loads low 16 bits
-      // into ES and updates descriptor cache (load_segment_register).
-      7 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        let v : word = match os {
-          32 => pop32()[15..0],
-          _    => pop16(),
-        };
-        load_segment_register(ES, v)
-      },
-
-      // 0E: PUSH CS — Push CS selector onto stack (SDM Vol.2B PUSH)
-      // Invalid in 64-bit mode.
-      14 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        match os {
-          32 => push32(zero_extend(read_segreg(CS))),
-          _    => push16(read_segreg(CS)),
-        }
-      },
-
-      // 16: PUSH SS — Push SS selector onto stack (SDM Vol.2B PUSH)
-      // Invalid in 64-bit mode.
-      22 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        match os {
-          32 => push32(zero_extend(read_segreg(SS))),
-          _    => push16(read_segreg(SS)),
-        }
-      },
-
-      // 17: POP SS — Pop stack into SS (SDM Vol.2B POP)
-      // Invalid in 64-bit mode. Loading SS inhibits interrupts until after
-      // the next instruction (SDM Vol.3A §7.8.3). Not modeled here.
-      23 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        let v : word = match os {
-          32 => pop32()[15..0],
-          _    => pop16(),
-        };
-        load_segment_register(SS, v)
-      },
-
-      // 1E: PUSH DS — Push DS selector onto stack (SDM Vol.2B PUSH)
-      // Invalid in 64-bit mode.
-      30 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        match os {
-          32 => push32(zero_extend(read_segreg(DS))),
-          _    => push16(read_segreg(DS)),
-        }
-      },
-
-      // 1F: POP DS — Pop stack into DS (SDM Vol.2B POP)
-      // Invalid in 64-bit mode.
-      31 => {
-        if cur_mode == LongMode then raise_UD();
-        let os = get_operand_size(pfx);
-        let v : word = match os {
-          32 => pop32()[15..0],
-          _    => pop16(),
-        };
-        load_segment_register(DS, v)
+      // 58-5F: POP reg (d64)
+      op if 88 <= op & op <= 95 => {
+        let reg_field : range(0, 7) = op - 88;
+        let reg = extend_reg(reg_field, pfx.rex_b);
+        let os = get_operand_size_d64(pfx);
+        exec_pop_reg(reg, os)
       },
 
       // 60: PUSHA/PUSHAD — Push All General-Purpose Registers
@@ -1244,6 +1291,16 @@ function decode_execute() = {
         else exec_outs(os, asz, pfx)
       },
 
+      // 70-7F: Jcc rel8 (f64)
+      op if 112 <= op & op <= 127 => {
+        let cc : cc_idx = op - 112;
+        let offset = fetch_rel8();
+        if eval_cc(cc) == 0b1 then {
+          let os = get_operand_size_f64(pfx);
+          next_rip = Some(truncate_rip(decode_pos + offset, os));
+        }
+      },
+
       // 80: Group 1 — ALU r/m8, imm8
       128 => {
         let modrm = fetch_byte();
@@ -1380,6 +1437,18 @@ function decode_execute() = {
         }
       },
 
+      // 8D: LEA r, m
+      141 => {
+        let os = get_operand_size(pfx);
+        let modrm = fetch_byte();
+        let reg = modrm_reg(modrm, pfx);
+        let rm = decode_rm(modrm, pfx);
+        match rm {
+          RM_mem(_, offset) => write_gpr(os, reg, offset),
+          RM_reg(_) => raise_UD(),
+        }
+      },
+
       // 8E: MOV sreg, r/m16
       142 => {
         let modrm = fetch_byte();
@@ -1395,18 +1464,6 @@ function decode_execute() = {
           };
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
-        }
-      },
-
-      // 8D: LEA r, m
-      141 => {
-        let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        match rm {
-          RM_mem(_, offset) => write_gpr(os, reg, offset),
-          RM_reg(_) => raise_UD(),
         }
       },
 
@@ -1456,6 +1513,14 @@ function decode_execute() = {
         } else {
           ()
         }
+      },
+
+      // 91-97: XCHG rAX, r
+      op if 145 <= op & op <= 151 => {
+        let reg_field : range(0, 7) = op - 144;
+        let reg = extend_reg(reg_field, pfx.rex_b);
+        let os = get_operand_size(pfx);
+        exec_xchg_reg_reg(RAX, reg, os)
       },
 
       // 98: CBW/CWDE/CDQE
@@ -1708,6 +1773,23 @@ function decode_execute() = {
         else exec_scas(os, asz)
       },
 
+      // B0-B7: MOV r8, imm8
+      op if 176 <= op & op <= 183 => {
+        let reg_field : range(0, 7) = op - 176;
+        let reg = extend_reg(reg_field, pfx.rex_b);
+        let imm = fetch_byte();
+        write_byte_reg(reg, pfx.has_rex, imm)
+      },
+
+      // B8-BF: MOV r, imm (Iv)
+      op if 184 <= op & op <= 191 => {
+        let reg_field : range(0, 7) = op - 184;
+        let reg = extend_reg(reg_field, pfx.rex_b);
+        let os = get_operand_size(pfx);
+        let imm = fetch_imm_v(os);
+        write_gpr(os, reg, imm)
+      },
+
       // C0: Group 2 — shift r/m8 by imm8
       192 => {
         let modrm = fetch_byte();
@@ -1755,6 +1837,72 @@ function decode_execute() = {
           8 => zeros(),
         };
         next_rip = Some(target)
+      },
+
+      // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
+      // SDM Vol.2A §2.3.5: In non-64-bit mode, if the second byte has
+      // bit 7 set (mod=11 in ModRM terms), it is a VEX prefix, not LES.
+      // This works because LES requires a memory operand (mod≠11),
+      // so mod=11 is an otherwise-invalid encoding reused for VEX.
+      196 => {
+        if cur_mode == LongMode then dispatch_vex(0xC4)
+        else {
+          // Peek at second byte to distinguish VEX from LES.
+          // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
+          // mod≠11 (memory operand) is a valid LES encoding.
+          let byte2 = fetch_byte();
+          if byte2[7..6] == 0b11 then {
+            // mod=11: VEX prefix in non-64-bit mode
+            dispatch_vex_with_byte2(0xC4, byte2)
+          } else {
+            // mod≠11: LES r, m16:16/32
+            let os = get_operand_size(pfx);
+            let reg = modrm_reg(byte2, pfx);
+            let rm = decode_rm(byte2, pfx);
+            match rm {
+              RM_mem(seg, ea) => {
+                let far_offset : qword = match os {
+                  16 => zero_extend(seg_read16(seg, ea)),
+                  _    => zero_extend(seg_read32(seg, ea)),
+                };
+                let sel_off : int = match os { 16 => 2, _ => 4 };
+                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                write_gpr(os, reg, far_offset);
+                load_segment_register(ES, selector)
+              },
+              RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
+            }
+          }
+        }
+      },
+
+      // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix
+      // Same VEX/LDS distinction as C4/LES above.
+      197 => {
+        if cur_mode == LongMode then dispatch_vex(0xC5)
+        else {
+          let byte2 = fetch_byte();
+          if byte2[7..6] == 0b11 then {
+            dispatch_vex_with_byte2(0xC5, byte2)
+          } else {
+            let os = get_operand_size(pfx);
+            let reg = modrm_reg(byte2, pfx);
+            let rm = decode_rm(byte2, pfx);
+            match rm {
+              RM_mem(seg, ea) => {
+                let far_offset : qword = match os {
+                  16 => zero_extend(seg_read16(seg, ea)),
+                  _    => zero_extend(seg_read32(seg, ea)),
+                };
+                let sel_off : int = match os { 16 => 2, _ => 4 };
+                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                write_gpr(os, reg, far_offset);
+                load_segment_register(DS, selector)
+              },
+              RM_reg(_) => raise_UD(),
+            }
+          }
+        }
       },
 
       // C6 /0: MOV r/m8, imm8
@@ -2282,148 +2430,6 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, rm, false);
         dispatch_group5(reg_field, rm, pfx)
-      },
-
-      // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
-      op if 64 <= op & op <= 71 => {
-        let reg_field : range(0, 7) = op - 64;
-        let reg = extend_reg(reg_field, 0b0);
-        let os = get_operand_size(pfx);
-        let v = read_gpr(os, reg);
-        let result = exec_inc(v, os);
-        write_gpr(os, reg, result)
-      },
-
-      // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
-      op if 72 <= op & op <= 79 => {
-        let reg_field : range(0, 7) = op - 72;
-        let reg = extend_reg(reg_field, 0b0);
-        let os = get_operand_size(pfx);
-        let v = read_gpr(os, reg);
-        let result = exec_dec(v, os);
-        write_gpr(os, reg, result)
-      },
-
-      // 50-57: PUSH reg (d64)
-      op if 80 <= op & op <= 87 => {
-        let reg_field : range(0, 7) = op - 80;
-        let reg = extend_reg(reg_field, pfx.rex_b);
-        let os = get_operand_size_d64(pfx);
-        match os {
-          16 => push16(read_gpr16(reg)),
-          32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
-                  else push32(read_gpr32(reg)),
-          64 => push64(read_gpr64(reg)),
-        }
-      },
-
-      // 58-5F: POP reg (d64)
-      op if 88 <= op & op <= 95 => {
-        let reg_field : range(0, 7) = op - 88;
-        let reg = extend_reg(reg_field, pfx.rex_b);
-        let os = get_operand_size_d64(pfx);
-        exec_pop_reg(reg, os)
-      },
-
-      // 70-7F: Jcc rel8 (f64)
-      op if 112 <= op & op <= 127 => {
-        let cc : cc_idx = op - 112;
-        let offset = fetch_rel8();
-        if eval_cc(cc) == 0b1 then {
-          let os = get_operand_size_f64(pfx);
-          next_rip = Some(truncate_rip(decode_pos + offset, os));
-        }
-      },
-
-      // 91-97: XCHG rAX, r
-      op if 145 <= op & op <= 151 => {
-        let reg_field : range(0, 7) = op - 144;
-        let reg = extend_reg(reg_field, pfx.rex_b);
-        let os = get_operand_size(pfx);
-        exec_xchg_reg_reg(RAX, reg, os)
-      },
-
-      // B0-B7: MOV r8, imm8
-      op if 176 <= op & op <= 183 => {
-        let reg_field : range(0, 7) = op - 176;
-        let reg = extend_reg(reg_field, pfx.rex_b);
-        let imm = fetch_byte();
-        write_byte_reg(reg, pfx.has_rex, imm)
-      },
-
-      // B8-BF: MOV r, imm (Iv)
-      op if 184 <= op & op <= 191 => {
-        let reg_field : range(0, 7) = op - 184;
-        let reg = extend_reg(reg_field, pfx.rex_b);
-        let os = get_operand_size(pfx);
-        let imm = fetch_imm_v(os);
-        write_gpr(os, reg, imm)
-      },
-
-      // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
-      // SDM Vol.2A §2.3.5: In non-64-bit mode, if the second byte has
-      // bit 7 set (mod=11 in ModRM terms), it is a VEX prefix, not LES.
-      // This works because LES requires a memory operand (mod≠11),
-      // so mod=11 is an otherwise-invalid encoding reused for VEX.
-      196 => {
-        if cur_mode == LongMode then dispatch_vex(0xC4)
-        else {
-          // Peek at second byte to distinguish VEX from LES.
-          // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
-          // mod≠11 (memory operand) is a valid LES encoding.
-          let byte2 = fetch_byte();
-          if byte2[7..6] == 0b11 then {
-            // mod=11: VEX prefix in non-64-bit mode
-            dispatch_vex_with_byte2(0xC4, byte2)
-          } else {
-            // mod≠11: LES r, m16:16/32
-            let os = get_operand_size(pfx);
-            let reg = modrm_reg(byte2, pfx);
-            let rm = decode_rm(byte2, pfx);
-            match rm {
-              RM_mem(seg, ea) => {
-                let far_offset : qword = match os {
-                  16 => zero_extend(seg_read16(seg, ea)),
-                  _    => zero_extend(seg_read32(seg, ea)),
-                };
-                let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
-                write_gpr(os, reg, far_offset);
-                load_segment_register(ES, selector)
-              },
-              RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
-            }
-          }
-        }
-      },
-
-      // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix
-      // Same VEX/LDS distinction as C4/LES above.
-      197 => {
-        if cur_mode == LongMode then dispatch_vex(0xC5)
-        else {
-          let byte2 = fetch_byte();
-          if byte2[7..6] == 0b11 then {
-            dispatch_vex_with_byte2(0xC5, byte2)
-          } else {
-            let os = get_operand_size(pfx);
-            let reg = modrm_reg(byte2, pfx);
-            let rm = decode_rm(byte2, pfx);
-            match rm {
-              RM_mem(seg, ea) => {
-                let far_offset : qword = match os {
-                  16 => zero_extend(seg_read16(seg, ea)),
-                  _    => zero_extend(seg_read32(seg, ea)),
-                };
-                let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
-                write_gpr(os, reg, far_offset);
-                load_segment_register(DS, selector)
-              },
-              RM_reg(_) => raise_UD(),
-            }
-          }
-        }
       },
 
       // Unhandled opcode

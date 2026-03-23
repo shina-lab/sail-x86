@@ -427,6 +427,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             RM_mem(seg, offset) => seg_write16(seg, offset, LDTR),
           }
         },
+
         // 0F 00 /1: STR r/m16 — Store Task Register
         1 => {
           let rm = decode_rm(modrm, pfx);
@@ -435,6 +436,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             RM_mem(seg, offset) => seg_write16(seg, offset, TR),
           }
         },
+
         // 0F 00 /2: LLDT r/m16 — Load LDT Register (requires CPL=0)
         2 => {
           if cur_cpl != 0 then raise_GP0();
@@ -445,6 +447,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           };
           LDTR = sel
         },
+
         // 0F 00 /3: LTR r/m16 — Load Task Register (requires CPL=0)
         3 => {
           if cur_cpl != 0 then raise_GP0();
@@ -474,6 +477,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
             else zero_extend(limit_hi @ limit_lo)
         },
+
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
         4 => {
           let rm = decode_rm(modrm, pfx);
@@ -503,6 +507,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             }
           }
         },
+
         // 0F 00 /5: VERW r/m16 — Verify segment writable, set ZF
         5 => {
           let rm = decode_rm(modrm, pfx);
@@ -535,6 +540,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         _ => raise_UD(),
       }
     },
+
     // 0F 01: Group 7 (privileged/system instructions)
     1 => {
       let modrm = fetch_byte();
@@ -564,6 +570,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           if new_xcr0[17] != new_xcr0[18] then raise_GP0();
           XCR0 = new_xcr0
         },
+
         // 0F 01 D0: XGETBV — Read XCR0
         208 => {
           let ecx_val : dword = read_gpr32(RCX);
@@ -574,12 +581,16 @@ function dispatch_2byte_gpr(op, pfx) = {
             raise_GP0()
           }
         },
+
         // 0F 01 CA: CLAC — Clear AC flag (SMAP)
         202 => AC_flag = 0b0,
+
         // 0F 01 CB: STAC — Set AC flag (SMAP)
         203 => AC_flag = 0b1,
+
         // 0F 01 E8: SERIALIZE — NOP in sequential interpreter
         232 => (),
+
         // 0F 01 EE: RDPKRU — Read Protection Key Rights (ECX must be 0)
         // Returns PKRU in EAX, 0 in EDX.  We don't implement PKU, so
         // return 0 (all access allowed).
@@ -587,8 +598,10 @@ function dispatch_2byte_gpr(op, pfx) = {
           write_gpr32(RAX, 0x00000000);
           write_gpr32(RDX, 0x00000000)
         },
+
         // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
         239 => (),
+
         // 0F 01 F9: RDTSCP — Read TSC and IA32_TSC_AUX
         // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
         249 => {
@@ -599,6 +612,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let tsc_aux : qword = __rdmsr(0xC0000103);
           write_gpr32(RCX, tsc_aux[31..0])
         },
+
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
           if cur_cpl != 0 then raise_GP0();
@@ -606,6 +620,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           SegCache[GS].seg_base = KERNEL_GS_BASE;
           KERNEL_GS_BASE = tmp
         },
+
         _ => {
           // Group 7: dispatch by reg_field, then check memory vs register
           let rm = decode_rm(modrm, pfx);
@@ -623,6 +638,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               },
               _ => raise_UD(),
             },
+
             // 0F 01 /1: SIDT m — Store IDTR (memory only)
             1 => match rm {
               RM_mem(seg, offset) => {
@@ -634,6 +650,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               },
               _ => raise_UD(),
             },
+
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
             // SDM Vol.2A §LGDT Operation:
             //   16: Limit := SRC[0:15]; Base := SRC[16:47] AND 00FFFFFFH;
@@ -662,6 +679,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 _ => raise_UD(),
               }
             },
+
             // 0F 01 /3: LIDT m — Load IDTR (memory only, requires CPL=0)
             // Same operand-size semantics as LGDT.
             3 => {
@@ -682,6 +700,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 _ => raise_UD(),
               }
             },
+
             // 0F 01 /4: SMSW r/m16 — Store Machine Status Word
             // No privilege check required (accessible from any CPL).
             // SDM: stores low 16 bits of CR0 to r/m16. With 32-bit
@@ -693,6 +712,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               },
               RM_mem(seg, offset) => seg_write16(seg, offset, CR0[15..0]),
             },
+
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
             6 => {
               if cur_cpl != 0 then raise_GP0();
@@ -707,6 +727,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               new_cr0[0] = msw[0] | CR0[0];
               CR0 = new_cr0
             },
+
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
             7 => {
               if cur_cpl != 0 then raise_GP0();
@@ -720,6 +741,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
       }
     },
+
     // 0F 02: LAR r, r/m16 — Load Access Rights Byte
     // Reads descriptor from GDT, validates type and privilege, loads access rights.
     2 => {
@@ -750,6 +772,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       }
     },
+
     // 0F 03: LSL r, r/m16 — Load Segment Limit
     // Reads descriptor from GDT, validates type and privilege, loads segment limit.
     3 => {
@@ -787,6 +810,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       }
     },
+
     // 0F 05: SYSCALL
     // SDM: #UD if EFER.SCE (bit 0) = 0
     5 => {
@@ -821,11 +845,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         __syscall(RIP, read_rflags())
       }
     },
+
     // 0F 06: CLTS — Clear TS flag in CR0 (requires CPL=0)
     6 => {
       if cur_cpl != 0 then raise_GP0();
       CR0[3] = 0b0  // TS = bit 3
     },
+
     // 0F 07: SYSRET (requires CPL=0)
     7 => {
       if cur_cpl != 0 then raise_GP0();
@@ -862,20 +888,25 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       next_rip = Some(new_rip)
     },
+
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)
     // 0F 08: INVD — Invalidate Internal Caches (requires CPL=0)
     // SDM: Flush(InternalCaches); SignalFlush(ExternalCaches); Continue
     // Destructive: dirty cache lines discarded (not written back).
     8 => if cur_cpl != 0 then raise_GP0(),
+
     // 0F 09: WBINVD — Write Back and Invalidate Cache (requires CPL=0)
     9 => if cur_cpl != 0 then raise_GP0(),
+
     // 0F 0B: UD2
     11 => raise_UD(),
+
     // 0F 1F: Multi-byte NOP r/m (prefetch hint)
     31 => {
       let modrm = fetch_byte();
       let _ = decode_rm(modrm, pfx)  // consume ModR/M + SIB + disp
     },
+
     // 0F 20: MOV reg, CRn — Read control register (requires CPL=0)
     // REX.R extends reg field to access CR8
     32 => {
@@ -894,6 +925,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       write_gpr64(rm_idx, cr_val)
     },
+
     // 0F 22: MOV CRn, reg — Write control register (requires CPL=0)
     // REX.R extends reg field to access CR8
     34 => {
@@ -932,6 +964,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         _ => throw Fault(EXN_UD, 0x00000000),
       }
     },
+
     // 0F 21: MOV reg, DRn — Read debug register (requires CPL=0)
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     33 => {
@@ -952,6 +985,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       write_gpr64(rm_idx, dr_val)
     },
+
     // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     35 => {
@@ -972,6 +1006,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         7 => DR7 = dr_val,
       }
     },
+
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
     48 => {
       if cur_cpl != 0 then raise_GP0();
@@ -984,12 +1019,14 @@ function dispatch_2byte_gpr(op, pfx) = {
       else if ecx == 0xC0000102 then KERNEL_GS_BASE = msr_val
       else __wrmsr(ecx, msr_val)
     },
+
     // 0F 18-1E: Prefetch hints / multi-byte NOPs
     // These all consume ModR/M and do nothing.
     op if 24 <= op & op <= 30 => {
       let modrm = fetch_byte();
       let _ = decode_rm(modrm, pfx)
     },
+
     // 0F 31: RDTSC
     // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
     49 => {
@@ -998,6 +1035,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_gpr32(RAX, tsc[31..0]);
       write_gpr32(RDX, tsc[63..32])
     },
+
     // 0F 33: RDPMC — Read Performance-Monitoring Counter
     // SDM pseudocode:
     //   IF (((CR4.PCE = 1) or (CPL = 0)) and (ECX indicates a supported counter))
@@ -1007,6 +1045,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // No performance counters are modeled, so ECX always indicates an
     // unsupported counter → unconditional #GP(0).
     51 => raise_GP0(),
+
     // 0F 34: SYSENTER — Fast System Call (legacy, used in compat mode)
     // SDM: loads CS/SS/EIP/ESP from MSRs IA32_SYSENTER_CS/ESP/EIP
     52 => {
@@ -1021,6 +1060,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       IF_flag = 0b0;
       next_rip = Some(sysenter_eip)
     },
+
     // 0F 35: SYSEXIT — Fast Return from System Call (companion to SYSENTER)
     // SDM: requires CPL=0; loads CS/SS from IA32_SYSENTER_CS, RIP from RDX, RSP from RCX
     53 => {
@@ -1043,6 +1083,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_gpr64(RSP, zero_extend(read_gpr32(RCX)))
       }
     },
+
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {
       if cur_cpl != 0 then raise_GP0();
@@ -1056,6 +1097,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_gpr32(RAX, msr_val[31..0]);
       write_gpr32(RDX, msr_val[63..32])
     },
+
     // 0F 40-4F: CMOVcc r, r/m
     op if 64 <= op & op <= 79 => {
       let cc : cc_idx = op - 64;
@@ -1068,6 +1110,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let mask : qword = sign_extend(eval_cc(cc));
       write_gpr(os, reg, (src & mask) | (dst & ~(mask)))
     },
+
+    // 0F 77: EMMS — set x87 tag word to all empty
+    119 => x87_tw = 0xFFFF,
+
     // 0F 80-8F: Jcc rel16/rel32 (f64)
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
@@ -1077,6 +1123,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         next_rip = Some(truncate_rip(decode_pos + offset, os));
       }
     },
+
     // 0F 90-9F: SETcc r/m8
     op if 144 <= op & op <= 159 => {
       let cc : cc_idx = op - 144;
@@ -1085,6 +1132,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let v : qword = zero_extend(eval_cc(cc));
       write_rm_val(rm, 8, pfx.has_rex, v)
     },
+
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
     //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
@@ -1120,22 +1168,26 @@ function dispatch_2byte_gpr(op, pfx) = {
           (RM_mem(seg, offset), false) => __fxsave(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
+
         // FXRSTOR m512byte
         1 => match (rm, pfx.rex_w) {
           (RM_mem(seg, offset), true)  => __fxrstor64(seg_linear(seg, offset, 512)),
           (RM_mem(seg, offset), false) => __fxrstor(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
+
         // LDMXCSR m32
         2 => match rm {
           RM_mem(seg, offset) => __ldmxcsr(seg_read32(seg, offset)),
           RM_reg(_) => raise_UD(),
         },
+
         // STMXCSR m32
         3 => match rm {
           RM_mem(seg, offset) => seg_write32(seg, offset, __stmxcsr()),
           RM_reg(_) => raise_UD(),
         },
+
         // XSAVE m
         4 => match rm {
           RM_mem(seg, offset) => {
@@ -1144,6 +1196,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => raise_UD(),
         },
+
         5 => match rm {
           RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
@@ -1155,6 +1208,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             ()
           },
         },
+
         // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
         6 => match rm {
           RM_mem(seg, offset) => {
@@ -1170,6 +1224,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => (),  // MFENCE
         },
+
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
         7 => match rm {
           RM_mem(_, _) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
@@ -1177,6 +1232,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
       }
     },
+
     // 0F A2: CPUID
     162 => {
       let leaf : dword = read_gpr32(RAX);
@@ -1187,6 +1243,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_gpr32(RCX, out_ecx);
       write_gpr32(RDX, out_edx)
     },
+
     // 0F A0: PUSH FS (d64)
     // SDM: pushes FS selector. d64 = default 64 in long mode.
     // Non-64-bit mode: operand size from CS.D and 66h prefix.
@@ -1198,6 +1255,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         64 => push64(zero_extend(read_segreg(FS))),
       }
     },
+
     // 0F A1: POP FS (d64)
     161 => {
       let os = get_operand_size_d64(pfx);
@@ -1208,6 +1266,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       load_segment_register(FS, v)
     },
+
     // 0F A3: BT r/m, r
     163 => {
       let os = get_operand_size(pfx);
@@ -1219,6 +1278,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let v = read_rm_val(adj_rm, os, pfx.has_rex);
       CF = v[bit_num]
     },
+
     // 0F A4: SHLD r/m, r, imm8
     164 => {
       let os = get_operand_size(pfx);
@@ -1231,6 +1291,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let new_val = exec_shld(dst_val, src_val, count, os);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
+
     // 0F A5: SHLD r/m, r, CL
     165 => {
       let os = get_operand_size(pfx);
@@ -1243,6 +1304,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let new_val = exec_shld(dst_val, src_val, count, os);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
+
     // 0F A8: PUSH GS (d64)
     168 => {
       let os = get_operand_size_d64(pfx);
@@ -1252,6 +1314,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         64 => push64(zero_extend(read_segreg(GS))),
       }
     },
+
     // 0F A9: POP GS (d64)
     169 => {
       let os = get_operand_size_d64(pfx);
@@ -1262,6 +1325,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       load_segment_register(GS, v)
     },
+
     // 0F AA: RSM — Resume from System Management Mode
     // SDM Vol.2B §RSM: #UD if not in SMM. Restores processor state from
     // SMRAM and returns to the mode active before the SMI.
@@ -1282,6 +1346,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       result[bit_num] = 0b1;
       write_rm_val(adj_rm, os, pfx.has_rex, result)
     },
+
     // 0F AC: SHRD r/m, r, imm8
     172 => {
       let os = get_operand_size(pfx);
@@ -1294,6 +1359,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let new_val = exec_shrd(dst_val, src_val, count, os);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
+
     // 0F AD: SHRD r/m, r, CL
     173 => {
       let os = get_operand_size(pfx);
@@ -1306,6 +1372,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let new_val = exec_shrd(dst_val, src_val, count, os);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
+
     // 0F AF: IMUL r, r/m (2-operand)
     175 => {
       let os = get_operand_size(pfx);
@@ -1333,6 +1400,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       OF = CF;
       write_gpr(os, reg, result)
     },
+
     // 0F B3: BTR r/m, r
     179 => {
       let os = get_operand_size(pfx);
@@ -1348,6 +1416,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       result[bit_num] = 0b0;
       write_rm_val(adj_rm, os, pfx.has_rex, result)
     },
+
     // 0F B2: LSS r, m16:16/32/64 — Load far pointer into SS
     // 0F B4: LFS r, m16:16/32/64 — Load far pointer into FS
     // 0F B5: LGS r, m16:16/32/64 — Load far pointer into GS
@@ -1373,6 +1442,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(_) => raise_UD(),
       }
     },
+
     // 0F B0: CMPXCHG r/m8, r8
     176 => {
       let modrm = fetch_byte();
@@ -1391,6 +1461,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_rm_val(rm, 8, pfx.has_rex, dest);
       }
     },
+
     // 0F B1: CMPXCHG r/m, r
     177 => {
       let os = get_operand_size(pfx);
@@ -1410,6 +1481,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_rm_val(rm, os, pfx.has_rex, dest);
       }
     },
+
     // 0F B6: MOVZX r, r/m8
     182 => {
       let os = get_operand_size(pfx);
@@ -1419,6 +1491,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let v = read_rm_val(rm, 8, pfx.has_rex);
       write_gpr(os, reg, v)  // already zero-extended in read_rm_val
     },
+
     // 0F B7: MOVZX r, r/m16
     183 => {
       let os = get_operand_size(pfx);
@@ -1428,6 +1501,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let v = read_rm_val(rm, 16, pfx.has_rex);
       write_gpr(os, reg, v)
     },
+
     // 0F BA: Group 8 — BT/BTS/BTR/BTC r/m, imm8
     186 => {
       let os = get_operand_size(pfx);
@@ -1465,6 +1539,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         _ => raise_UD(),
       }
     },
+
     // 0F BB: BTC r/m, r
     187 => {
       let os = get_operand_size(pfx);
@@ -1480,6 +1555,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       result[bit_num] = ~(v[bit_num]);
       write_rm_val(adj_rm, os, pfx.has_rex, result)
     },
+
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)
     188 => {
       let os = get_operand_size(pfx);
@@ -1517,6 +1593,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       }
     },
+
     // 0F BD: BSR r, r/m (or LZCNT with F3 prefix)
     189 => {
       let os = get_operand_size(pfx);
@@ -1554,6 +1631,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       }
     },
+
     // 0F BE: MOVSX r, r/m8
     190 => {
       let os = get_operand_size(pfx);
@@ -1564,6 +1642,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let sx : qword = sign_extend(v[7..0]);
       write_gpr(os, reg, sx)
     },
+
     // 0F BF: MOVSX r, r/m16
     191 => {
       let os = get_operand_size(pfx);
@@ -1574,6 +1653,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let sx : qword = sign_extend(v[15..0]);
       write_gpr(os, reg, sx)
     },
+
     // 0F C0: XADD r/m8, r8
     192 => {
       let modrm = fetch_byte();
@@ -1593,6 +1673,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
       }
     },
+
     // 0F C1: XADD r/m, r
     193 => {
       let os = get_operand_size(pfx);
@@ -1612,6 +1693,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
       }
     },
+
     // 0F B8: POPCNT r, r/m (F3 prefix)
     184 => {
       let mp = get_mandatory_prefix(pfx);
@@ -1631,6 +1713,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       ZF = is_zero(src_val);
       write_gpr(os, reg, to_bits_truncate(count))
     },
+
     // 0F C3: MOVNTI m32/64, r
     195 => {
       let os = get_operand_size(pfx);
@@ -1649,6 +1732,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(_) => raise_UD(),
       }
     },
+
     // 0F C7 /1: CMPXCHG8B/CMPXCHG16B m64/m128
     199 => {
       let modrm = fetch_byte();
@@ -1749,6 +1833,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         _ => raise_UD(),
       }
     },
+
     // 0F C8-CF: BSWAP r32/r64 (register in opcode)
     op if 200 <= op & op <= 207 => {
       let reg_field : range(0, 7) = op - 200;
@@ -1771,8 +1856,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       }
     },
-    // 0F 77: EMMS — set x87 tag word to all empty
-    119 => x87_tw = 0xFFFF,
+
     _ => raise_UD(),
   }
 }
