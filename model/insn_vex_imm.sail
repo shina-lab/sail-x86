@@ -330,14 +330,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let src : qword = zero_extend(read_rm_val(rm, os, true));
+    let os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let src = read_rm_val(rm, os, true);
     let imm = fetch_byte();
-    if pfx.vex_w then {
-      write_gpr64(dst, rotr(src, unsigned(imm[5..0])));
-    } else {
-      write_gpr32(dst, rotr(src[31..0], unsigned(imm[4..0])));
-    }
+    let shift : range(0, 63) = unsigned(imm[(if pfx.vex_w then 5 else 4)..0]);
+    assert(shift < os);
+    write_gpr(os, dst, rotr(src, shift));
   },
 
   // 0F3A 00: VPERMQ ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
