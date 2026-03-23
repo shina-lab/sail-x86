@@ -562,10 +562,10 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, avg8(d[63..56], s[63..56]) @ avg8(d[55..48], s[55..48]) @
-                     avg8(d[47..40], s[47..40]) @ avg8(d[39..32], s[39..32]) @
-                     avg8(d[31..24], s[31..24]) @ avg8(d[23..16], s[23..16]) @
-                     avg8(d[15..8],  s[15..8])  @ avg8(d[7..0],   s[7..0]));
+      write_mm(dst, avg(d[63..56], s[63..56]) @ avg(d[55..48], s[55..48]) @
+                     avg(d[47..40], s[47..40]) @ avg(d[39..32], s[39..32]) @
+                     avg(d[31..24], s[31..24]) @ avg(d[23..16], s[23..16]) @
+                     avg(d[15..8],  s[15..8])  @ avg(d[7..0],   s[7..0]));
       mmx_touch()
     },
 
@@ -599,8 +599,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, avg16(d[63..48], s[63..48]) @ avg16(d[47..32], s[47..32]) @
-                     avg16(d[31..16], s[31..16]) @ avg16(d[15..0],  s[15..0]));
+      write_mm(dst, avg(d[63..48], s[63..48]) @ avg(d[47..32], s[47..32]) @
+                     avg(d[31..16], s[31..16]) @ avg(d[15..0],  s[15..0]));
       mmx_touch()
     },
 
