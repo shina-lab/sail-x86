@@ -13,33 +13,13 @@ val dispatch_mmx : (range(0, 255), Prefixes) -> unit
 // CRC32 — Accumulate CRC32C (Castagnoli) value
 // Polynomial: 0x1EDC6F41 (reflected: 0x82F63B78)
 // Processes one byte at a time using the reflected algorithm.
-val crc32c_byte : (bits(32), byte) -> bits(32)
-function crc32c_byte(crc, data) = {
+val crc32c : (bits(32), byte) -> bits(32)
+function crc32c(crc, data) = {
   var c : bits(32) = crc ^ zero_extend(data);
   foreach (i from 0 to 7) {
-    c = (0b0 @ c[31..1]) ^ (sign_extend(c[0..0]) & 0x82F63B78)
+    c = (0b0 @ c[31..1]) ^ (sign_extend(c[0]) & 0x82F63B78)
   };
   c
-}
-
-val crc32c_16 : (bits(32), bits(16)) -> bits(32)
-function crc32c_16(crc, data) = {
-  let c1 = crc32c_byte(crc, data[7..0]);
-  crc32c_byte(c1, data[15..8])
-}
-
-val crc32c_32 : (bits(32), bits(32)) -> bits(32)
-function crc32c_32(crc, data) = {
-  let c1 = crc32c_byte(crc, data[7..0]);
-  let c2 = crc32c_byte(c1, data[15..8]);
-  let c3 = crc32c_byte(c2, data[23..16]);
-  crc32c_byte(c3, data[31..24])
-}
-
-val crc32c_64 : (bits(32), bits(64)) -> bits(32)
-function crc32c_64(crc, data) = {
-  let c1 = crc32c_32(crc, data[31..0]);
-  crc32c_32(c1, data[63..32])
 }
 
 // PABSB/PABSW/PABSD — Packed Absolute Value (SSSE3)

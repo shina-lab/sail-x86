@@ -528,14 +528,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
-          let crc : bits(32) = read_gpr(32, reg)[31..0];
+          var crc : bits(32) = read_gpr(32, reg)[31..0];
           if op3 == 240 then {
             // CRC32 r32/r64, r/m8
             let src : byte = match rm {
               RM_reg(_) => read_rm_val(rm, 8, pfx.has_rex)[7..0],
               RM_mem(seg, offset) => seg_read8(seg, offset),
             };
-            let result : bits(32) = crc32c_byte(crc, src);
+            let result : bits(32) = crc32c(crc, src);
             write_gpr(if pfx.rex_w then 64 else 32, reg, zero_extend(result))
           } else {
             // CRC32 r32/r64, r/m16/r/m32/r/m64
@@ -546,21 +546,32 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                   RM_reg(_) => read_rm_val(rm, 16, pfx.has_rex)[15..0],
                   RM_mem(seg, offset) => seg_read16(seg, offset),
                 };
-                crc32c_16(crc, src)
+                crc = crc32c(crc, src[7..0]);
+                crc32c(crc, src[15..8])
               },
               32 => {
                 let src : bits(32) = match rm {
                   RM_reg(_) => read_rm_val(rm, 32, pfx.has_rex)[31..0],
                   RM_mem(seg, offset) => seg_read32(seg, offset),
                 };
-                crc32c_32(crc, src)
+                crc = crc32c(crc, src[7..0]);
+                crc = crc32c(crc, src[15..8]);
+                crc = crc32c(crc, src[23..16]);
+                crc32c(crc, src[31..24])
               },
               64 => {
                 let src : bits(64) = match rm {
                   RM_reg(_) => read_rm_val(rm, 64, pfx.has_rex),
                   RM_mem(seg, offset) => seg_read64(seg, offset),
                 };
-                crc32c_64(crc, src)
+                crc = crc32c(crc, src[7..0]);
+                crc = crc32c(crc, src[15..8]);
+                crc = crc32c(crc, src[23..16]);
+                crc = crc32c(crc, src[31..24]);
+                crc = crc32c(crc, src[39..32]);
+                crc = crc32c(crc, src[47..40]);
+                crc = crc32c(crc, src[55..48]);
+                crc32c(crc, src[63..56])
               },
             };
             write_gpr(if pfx.rex_w then 64 else 32, reg, zero_extend(result))
