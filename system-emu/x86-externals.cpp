@@ -389,16 +389,6 @@ static u32 virt_read32(Model &m, u64 vaddr) {
   return val;
 }
 
-static void virt_write64(Model &m, u64 vaddr, u64 val) {
-  virt_write_bytes(m, vaddr, &val, 8);
-}
-
-static u64 virt_read64(Model &m, u64 vaddr) {
-  u64 val;
-  virt_read_bytes(m, vaddr, &val, 8);
-  return val;
-}
-
 // =========================================================================
 // FXSAVE / FXRSTOR — save/restore FPU+SSE state to/from 512-byte area
 // =========================================================================
