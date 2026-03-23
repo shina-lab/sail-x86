@@ -260,55 +260,30 @@ val exec_shld : (qword, qword, byte, {16, 32, 64}) -> qword
 function exec_shld(d, s, count_raw, os) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     d
-  } else {
-    let result : qword = match os {
-      16 => {
-        if count > 16 then {
-          // SDM: result and flags undefined when count > operand size
-          CF = undefined; OF = undefined;
-          SF = undefined; ZF = undefined; PF = undefined; AF = undefined;
-          undefined
-        } else {
-          let wide : dword = d[15..0] @ s[15..0];
-          let shifted : dword = wide << count;
-          let r : word = shifted[31..16];
-          CF = wide[32 - count];
-          update_SF_ZF_PF(r);
-          if count == 1 then
-            OF = r[15] ^ d[15]
-          else OF = undefined;
-          zero_extend(r)
-        }
-      },
-      32 => {
-        let wide : qword = d[31..0] @ s[31..0];
-        let shifted : qword = wide << count;
-        let r : dword = shifted[63..32];
-        CF = wide[64 - count];
-        update_SF_ZF_PF(r);
-        if count == 1 then
-          OF = r[31] ^ d[31]
-        else OF = undefined;
-        zero_extend(r)
-      },
-      64 => {
-        let wide : xmmword = d @ s;
-        let shifted : xmmword = wide << count;
-        let r : qword = shifted[127..64];
-        CF = wide[128 - count];
-        update_SF_ZF_PF(r);
-        if count == 1 then
-          OF = r[63] ^ d[63]
-        else OF = undefined;
-        r
-      },
-    };
+  } else if count > os then {
+    // SDM: result and flags undefined when count > operand size
+    CF = undefined;
+    OF = undefined;
+    SF = undefined;
+    ZF = undefined;
+    PF = undefined;
     AF = undefined;
-    result
+    undefined
+  } else {
+    let wide = d[(os - 1)..0] @ s[(os - 1)..0];
+    let shifted = wide << count;
+    let r = shifted[(os * 2 - 1)..os];
+    CF = wide[os * 2 - count];
+    update_SF_ZF_PF(r);
+    if count == 1 then
+      OF = r[os - 1] ^ d[os - 1]
+    else OF = undefined;
+    AF = undefined;
+    zero_extend(r)
   }
 }
 
@@ -324,55 +299,30 @@ val exec_shrd : (qword, qword, byte, {16, 32, 64}) -> qword
 function exec_shrd(d, s, count_raw, os) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
-    _    => unsigned(count_raw) % 32,
+    _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     d
-  } else {
-    let result : qword = match os {
-      16 => {
-        if count > 16 then {
-          // SDM: result and flags undefined when count > operand size
-          CF = undefined; OF = undefined;
-          SF = undefined; ZF = undefined; PF = undefined; AF = undefined;
-          undefined
-        } else {
-          let wide : dword = s[15..0] @ d[15..0];
-          let shifted : dword = wide >> count;
-          let r : word = shifted[15..0];
-          CF = d[count - 1];
-          update_SF_ZF_PF(r);
-          if count == 1 then
-            OF = r[15] ^ d[15]
-          else OF = undefined;
-          zero_extend(r)
-        }
-      },
-      32 => {
-        let wide : qword = s[31..0] @ d[31..0];
-        let shifted : qword = wide >> count;
-        let r : dword = shifted[31..0];
-        CF = d[count - 1];
-        update_SF_ZF_PF(r);
-        if count == 1 then
-          OF = r[31] ^ d[31]
-        else OF = undefined;
-        zero_extend(r)
-      },
-      64 => {
-        let wide : xmmword = s @ d;
-        let shifted : xmmword = wide >> count;
-        let r : qword = shifted[63..0];
-        CF = d[count - 1];
-        update_SF_ZF_PF(r);
-        if count == 1 then
-          OF = r[63] ^ d[63]
-        else OF = undefined;
-        r
-      },
-    };
+  } else if count > os then {
+    // SDM: result and flags undefined when count > operand size
+    CF = undefined;
+    OF = undefined;
+    SF = undefined;
+    ZF = undefined;
+    PF = undefined;
     AF = undefined;
-    result
+    undefined
+  } else {
+    let wide = s[(os - 1)..0] @ d[(os - 1)..0];
+    let shifted = wide >> count;
+    let r = shifted[(os - 1)..0];
+    CF = d[count - 1];
+    update_SF_ZF_PF(r);
+    if count == 1 then
+      OF = r[os - 1] ^ d[os - 1]
+    else OF = undefined;
+    AF = undefined;
+    zero_extend(r)
   }
 }
 
