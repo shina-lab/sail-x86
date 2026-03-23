@@ -219,7 +219,7 @@ function fp16_to_fp32(h) = {
     sign @ 0xFF @ frac10 @ 0b0000000000000
   } else if exp5 == 0b00000 then {
     if frac10 == zeros() then {
-      sign @ 0x00000000[30..0]
+      sign @ zeros(31)
     } else {
       var shift : int = 0;
       let f : bits(10) = frac10;
