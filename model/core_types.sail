@@ -1,11 +1,5 @@
 // x86-64 — Core Types
 
-val unreachable : forall ('a : Type). unit -> 'a
-function unreachable() = {
-  assert(false, "unreachable");
-  exit()  // never reached; satisfies type checker
-}
-
 // Operand size in bits. Used throughout the model to select register
 // and memory access widths. Replaces a dedicated enum so that subset
 // types like {16, 32, 64} work naturally with Sail's type system.
