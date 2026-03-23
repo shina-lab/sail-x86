@@ -138,7 +138,7 @@ private:
 };
 
 // =========================================================================
-// VGA Text Mode — emulates 80×25 text framebuffer at 0xB8000
+// VGA Text Mode — emulates 80×25 (or 80×50) text framebuffer at 0xB8000
 //
 // The framebuffer lives in guest physical memory (0xB8000-0xBFFFF).
 // This class handles VGA I/O port registers (CRTC, attribute controller,
@@ -151,7 +151,7 @@ public:
   static constexpr u64 FB_BASE = 0xB8000;
   static constexpr u64 FB_SIZE = 0x8000;  // 32KB text window
   static constexpr int COLS = 80;
-  static constexpr int ROWS = 50;
+  static constexpr int ROWS = 25;
 
   // CRTC registers (port 0x3D4 index, 0x3D5 data)
   u8 crtc_index = 0;
@@ -185,11 +185,11 @@ public:
   u8 isr1_counter = 0;
 
   VGAText() {
-    // 80x50 color text CRTC defaults (8-pixel font)
+    // 80x25 color text CRTC defaults (16-pixel font, matching SeaVGABIOS)
     crtc_regs[0x01] = 79;    // Horizontal display end (80 cols)
-    crtc_regs[0x09] = 0x07;  // Max scan line = 7 (8-pixel font)
-    crtc_regs[0x0A] = 6;     // Cursor start scan line
-    crtc_regs[0x0B] = 7;     // Cursor end scan line
+    crtc_regs[0x09] = 0x0F;  // Max scan line = 15 (16-pixel font)
+    crtc_regs[0x0A] = 13;    // Cursor start scan line
+    crtc_regs[0x0B] = 14;    // Cursor end scan line
     // Sequencer defaults for text mode
     seq_regs[1] = 0x00;  // Clocking mode
     seq_regs[2] = 0x03;  // Map mask (planes 0,1)

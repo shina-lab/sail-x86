@@ -281,23 +281,26 @@ static bool load_bzimage(x86::Model &model, const char *path,
   model.phys_mem.write32(setup_base + 0x228, (u32)cmdline_addr);
 
   if (display_mode == DISPLAY_VGA) {
-    // vid_mode: VIDEO_8POINT (0x0F01) → 80x50 text with 8-pixel font.
-    // The setup code calls vga_set_8font() (INT 10h no-ops for us) and
-    // sets force_x=80, force_y=50 so store_mode_params() uses those.
-    model.phys_mem.write16(setup_base + 0x1FA, 0x0F01);
+    // vid_mode: NORMAL (0xFFFF) — use whatever mode SeaVGABIOS set up.
+    // SeaVGABIOS initializes standard 80x25 text mode with 16-pixel font.
+    // Using VIDEO_8POINT (0x0F01) would ask Linux to switch to 80x50 via
+    // INT 10h AX=1112h, but that conflicts with what SeaVGABIOS configured.
+    model.phys_mem.write16(setup_base + 0x1FA, 0xFFFF);
 
     // Pre-populate BIOS Data Area (BDA) at 0x400-0x4FF so the setup code's
-    // store_mode_params() reads correct VGA 80x50 values into screen_info.
+    // store_mode_params() reads correct VGA 80x25 values into screen_info.
+    // SeaVGABIOS will overwrite these during its init, but we set them here
+    // as fallback in case the option ROM doesn't load.
     model.phys_mem.write8(0x449, 3);        // Current video mode: 80-col color text
     model.phys_mem.write16(0x44A, 80);      // Number of screen columns
-    model.phys_mem.write16(0x44C, 0x2000);  // Video page size (8192 bytes)
+    model.phys_mem.write16(0x44C, 0x1000);  // Video page size (4096 bytes = 80*25*2 + padding)
     model.phys_mem.write16(0x44E, 0);       // Current video page start address
     model.phys_mem.write16(0x450, 0);       // Cursor position for page 0
-    model.phys_mem.write16(0x460, 0x0607);  // Cursor shape: start=6, end=7 (8px font)
+    model.phys_mem.write16(0x460, 0x0D0E);  // Cursor shape: start=13, end=14 (16px font)
     model.phys_mem.write8(0x462, 0);        // Current video page number
     model.phys_mem.write16(0x463, 0x3D4);   // CRTC port address (color)
-    model.phys_mem.write8(0x484, 49);       // Number of rows - 1 (50 rows)
-    model.phys_mem.write16(0x485, 8);       // Character height: 8 pixels
+    model.phys_mem.write8(0x484, 24);       // Number of rows - 1 (25 rows)
+    model.phys_mem.write16(0x485, 16);      // Character height: 16 pixels
   } else {
     // vid_mode: normal (0xFFFF)
     model.phys_mem.write16(setup_base + 0x1FA, 0xFFFF);
@@ -489,12 +492,12 @@ static void push_key(KeyboardController &kbd, int ch) {
 }
 
 // =========================================================================
-// VGA text mode renderer — draws the 80×50 framebuffer using ncurses.
-// Row 50 (below the VGA area) is used as a status line.
+// VGA text mode renderer — draws the framebuffer using ncurses.
+// Row count is dynamic (25 or 50 depending on font height).
 // =========================================================================
 
 static constexpr int VGA_COLS = 80;
-static constexpr int VGA_ROWS = 50;
+static constexpr int VGA_ROWS = 25;
 
 // CP437 to Unicode mapping table.  The VGA text framebuffer stores CP437
 // character codes; the terminal expects Unicode.  Characters 0x20-0x7E are
@@ -624,21 +627,13 @@ static bool vga_shadow_valid = false;
 static void render_vga_text(x86::Model &model) {
   static constexpr u64 FB_BASE = 0xB8000;
 
-  // Determine actual row count from CRTC max scan line register.
-  // Character height = (max_scan_line & 0x1F) + 1.  VGA has 400 scan lines
-  // in text mode, so rows = 400 / char_height.
-  int char_height = (model.vga.crtc_regs[0x09] & 0x1F) + 1;
-  int vga_rows = (char_height > 0) ? 400 / char_height : 25;
-  if (vga_rows < 1) vga_rows = 25;
-  if (vga_rows > VGA_ROWS) vga_rows = VGA_ROWS;
-
   // Get hardware scroll offset from CRTC start address registers
   u16 start_off = model.vga.start_addr();
 
   // Read visible framebuffer from physical memory, handling wrap-around
   u8 current[VGA_COLS * VGA_ROWS * 2];
   u32 byte_off = (u32)start_off * 2;
-  u32 fb_size = VGA_COLS * vga_rows * 2;
+  u32 fb_size = VGA_COLS * VGA_ROWS * 2;
 
   if (byte_off + fb_size <= 0x8000) {
     model.phys_mem.read_bytes(FB_BASE + byte_off, current, fb_size);
@@ -657,7 +652,7 @@ static void render_vga_text(x86::Model &model) {
     return;
 
   // Clip to terminal size, leaving one row for status line
-  int max_row = std::min(vga_rows, LINES - 1);
+  int max_row = std::min(VGA_ROWS, LINES - 1);
   int max_col = std::min(VGA_COLS, COLS);
 
   for (int row = 0; row < max_row; row++) {
