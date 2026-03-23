@@ -288,20 +288,14 @@ function mulhrsw(a, b) = {
 // PMULLD — Multiply Packed Signed Dword Integers and Store Low Result (SSE4.1)
 // No flags affected.
 val mul_lo32 : (dword, dword) -> dword
-function mul_lo32(a, b) = {
-  let product : int = signed(a) * signed(b);
-  to_bits_truncate(product)
-}
+function mul_lo32(a, b) = to_bits_truncate(signed(a) * signed(b))
 
 // PMULLW — Multiply Packed Signed Integers and Store Low Result (16-bit)
 // PMULHW — Multiply Packed Signed Integers and Store High Result (16-bit)
 // PMULHUW — Multiply Packed Unsigned Integers and Store High Result (16-bit)
 // No flags affected.
 val mul_lo16 : (word, word) -> word
-function mul_lo16(a, b) = {
-  let product : int = signed(a) * signed(b);
-  to_bits_truncate(product)
-}
+function mul_lo16(a, b) = to_bits_truncate(signed(a) * signed(b))
 
 val mul_hi16s : (word, word) -> word
 function mul_hi16s(a, b) = {
