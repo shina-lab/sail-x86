@@ -313,7 +313,7 @@ function exec_scas(os, asz) = {
   // SCAS destination is always ES:DI (not overridable).
   let sz = os / 8;
   let lin = seg_linear(ES, off, sz);
-  let a = read_gpr(os, RAX)[(os - 1)..0];
+  let a = read_gpr(os, RAX);
   let b = mem_read(lin, os / 8);
   update_flags_sub(a - b, a, b);
   if DF == 0b0 then
@@ -975,9 +975,9 @@ function decode_execute() = {
         let reg_field : range(0, 7) = op - 64;
         let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
-        let v : qword = zero_extend(read_gpr(os, reg));
+        let v = read_gpr(os, reg);
         let result = exec_inc(v, os);
-        write_gpr(os, reg, result[(os - 1) .. 0])
+        write_gpr(os, reg, result)
       },
 
       // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
@@ -985,9 +985,9 @@ function decode_execute() = {
         let reg_field : range(0, 7) = op - 72;
         let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
-        let v : qword = zero_extend(read_gpr(os, reg));
+        let v = read_gpr(os, reg);
         let result = exec_dec(v, os);
-        write_gpr(os, reg, result[(os - 1) .. 0])
+        write_gpr(os, reg, result)
       },
 
       // 50-57: PUSH reg (d64)
@@ -1137,7 +1137,7 @@ function decode_execute() = {
       104 => {
         let os = get_operand_size_d64(pfx);
         let imm = fetch_imm_z(os);
-        exec_push_imm(imm, os)
+        exec_push_imm(imm[(os - 1) .. 0], os)
       },
 
       // 69: IMUL r, r/m, imm (3-operand, Iz)
@@ -1177,7 +1177,7 @@ function decode_execute() = {
       106 => {
         let os = get_operand_size_d64(pfx);
         let imm = fetch_imm8_sx();
-        exec_push_imm(imm, os)
+        exec_push_imm(imm[(os - 1) .. 0], os)
       },
 
       // 6B: IMUL r, r/m, imm8 (3-operand, Ib sign-extended)
@@ -1532,7 +1532,7 @@ function decode_execute() = {
       156 => {
         let os = get_operand_size_d64(pfx);
         let flags = read_rflags() & 0x0000000000FCFFFF;
-        exec_push_imm(flags, os)
+        exec_push_imm(flags[(os - 1) .. 0], os)
       },
 
       // 9D: POPF (d64)
@@ -2357,13 +2357,13 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, rm, false);
         if reg_field == 0 then {
-          let v : qword = zero_extend(read_rm_val(rm, 8, pfx.has_rex));
+          let v = read_rm_val(rm, 8, pfx.has_rex);
           let result = exec_inc(v, 8);
-          write_rm_val(rm, 8, pfx.has_rex, result[7..0])
+          write_rm_val(rm, 8, pfx.has_rex, result)
         } else if reg_field == 1 then {
-          let v : qword = zero_extend(read_rm_val(rm, 8, pfx.has_rex));
+          let v = read_rm_val(rm, 8, pfx.has_rex);
           let result = exec_dec(v, 8);
-          write_rm_val(rm, 8, pfx.has_rex, result[7..0])
+          write_rm_val(rm, 8, pfx.has_rex, result)
         } else {
           raise_UD()
         }
