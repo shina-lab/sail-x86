@@ -614,7 +614,7 @@ function avx_pabsb_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = abs8(a[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = abs(a[(lo + 7)..lo]);
   };
   r
 }
@@ -636,7 +636,7 @@ function avx_pabsw_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = abs16(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = abs(a[(lo + 15)..lo]);
   };
   r
 }
@@ -658,7 +658,7 @@ function avx_pabsd_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = abs32(a[(lo + 31)..lo]);
+    r[(lo + 31)..lo] = abs(a[(lo + 31)..lo]);
   };
   r
 }
@@ -680,7 +680,7 @@ function avx_pabsq_128(a) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    r[(lo + 63)..lo] = abs64(a[(lo + 63)..lo]);
+    r[(lo + 63)..lo] = abs(a[(lo + 63)..lo]);
   };
   r
 }

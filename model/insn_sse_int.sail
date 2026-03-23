@@ -45,17 +45,11 @@ function crc32c_64(crc, data) = {
 // PABSB/PABSW/PABSD — Packed Absolute Value (SSSE3)
 // No flags affected.
 // Branchless: mask = sign-extend of MSB; (x ^ mask) - mask
-val abs8 : byte -> byte
-function abs8(x) = { let m : byte = sign_extend(x[7..7]); (x ^ m) - m }
-
-val abs16 : word -> word
-function abs16(x) = { let m : word = sign_extend(x[15..15]); (x ^ m) - m }
-
-val abs32 : dword -> dword
-function abs32(x) = { let m : dword = sign_extend(x[31..31]); (x ^ m) - m }
-
-val abs64 : qword -> qword
-function abs64(x) = { let m : qword = sign_extend(x[63..63]); (x ^ m) - m }
+val abs : forall 'n, 'n > 0. bits('n) -> bits('n)
+function abs(x) = {
+  let m : bits('n) = sign_extend(x['n - 1]);
+  (x ^ m) - m
+}
 
 // PACKSSWB — Pack with Signed Saturation (words to bytes)
 // PACKSSDW — Pack with Signed Saturation (dwords to words)
@@ -2578,32 +2572,32 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     28 => {
       let b : xmmword = src_xmm;
       let r : xmmword =
-        abs8(b[127..120]) @ abs8(b[119..112]) @
-        abs8(b[111..104]) @ abs8(b[103..96]) @
-        abs8(b[95..88]) @ abs8(b[87..80]) @
-        abs8(b[79..72]) @ abs8(b[71..64]) @
-        abs8(b[63..56]) @ abs8(b[55..48]) @
-        abs8(b[47..40]) @ abs8(b[39..32]) @
-        abs8(b[31..24]) @ abs8(b[23..16]) @
-        abs8(b[15..8]) @ abs8(b[7..0]);
+        abs(b[127..120]) @ abs(b[119..112]) @
+        abs(b[111..104]) @ abs(b[103..96]) @
+        abs(b[95..88]) @ abs(b[87..80]) @
+        abs(b[79..72]) @ abs(b[71..64]) @
+        abs(b[63..56]) @ abs(b[55..48]) @
+        abs(b[47..40]) @ abs(b[39..32]) @
+        abs(b[31..24]) @ abs(b[23..16]) @
+        abs(b[15..8]) @ abs(b[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PABSW xmm1, xmm2/m128
     29 => {
       let b : xmmword = src_xmm;
       let r : xmmword =
-        abs16(b[127..112]) @ abs16(b[111..96]) @
-        abs16(b[95..80]) @ abs16(b[79..64]) @
-        abs16(b[63..48]) @ abs16(b[47..32]) @
-        abs16(b[31..16]) @ abs16(b[15..0]);
+        abs(b[127..112]) @ abs(b[111..96]) @
+        abs(b[95..80]) @ abs(b[79..64]) @
+        abs(b[63..48]) @ abs(b[47..32]) @
+        abs(b[31..16]) @ abs(b[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PABSD xmm1, xmm2/m128
     30 => {
       let b : xmmword = src_xmm;
       let r : xmmword =
-        abs32(b[127..96]) @ abs32(b[95..64]) @
-        abs32(b[63..32]) @ abs32(b[31..0]);
+        abs(b[127..96]) @ abs(b[95..64]) @
+        abs(b[63..32]) @ abs(b[31..0]);
       write_xmm_legacy(xreg, r)
     },
 

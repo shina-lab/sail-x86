@@ -355,14 +355,14 @@ function vex_pmulhrsw_256(a, b) =
 // VPABSB: absolute value of packed signed bytes
 val vex_pabsb_128 : xmmword -> xmmword
 function vex_pabsb_128(a) =
-  abs8(a[127..120]) @ abs8(a[119..112]) @
-  abs8(a[111..104]) @ abs8(a[103..96])  @
-  abs8(a[95..88])   @ abs8(a[87..80])   @
-  abs8(a[79..72])   @ abs8(a[71..64])   @
-  abs8(a[63..56])   @ abs8(a[55..48])   @
-  abs8(a[47..40])   @ abs8(a[39..32])   @
-  abs8(a[31..24])   @ abs8(a[23..16])   @
-  abs8(a[15..8])    @ abs8(a[7..0])
+  abs(a[127..120]) @ abs(a[119..112]) @
+  abs(a[111..104]) @ abs(a[103..96])  @
+  abs(a[95..88])   @ abs(a[87..80])   @
+  abs(a[79..72])   @ abs(a[71..64])   @
+  abs(a[63..56])   @ abs(a[55..48])   @
+  abs(a[47..40])   @ abs(a[39..32])   @
+  abs(a[31..24])   @ abs(a[23..16])   @
+  abs(a[15..8])    @ abs(a[7..0])
 
 val vex_pabsb_256 : ymmword -> ymmword
 function vex_pabsb_256(a) =
@@ -371,10 +371,10 @@ function vex_pabsb_256(a) =
 // VPABSW: absolute value of packed signed words
 val vex_pabsw_128 : xmmword -> xmmword
 function vex_pabsw_128(a) =
-  abs16(a[127..112]) @ abs16(a[111..96]) @
-  abs16(a[95..80])   @ abs16(a[79..64])  @
-  abs16(a[63..48])   @ abs16(a[47..32])  @
-  abs16(a[31..16])   @ abs16(a[15..0])
+  abs(a[127..112]) @ abs(a[111..96]) @
+  abs(a[95..80])   @ abs(a[79..64])  @
+  abs(a[63..48])   @ abs(a[47..32])  @
+  abs(a[31..16])   @ abs(a[15..0])
 
 val vex_pabsw_256 : ymmword -> ymmword
 function vex_pabsw_256(a) =
@@ -383,8 +383,8 @@ function vex_pabsw_256(a) =
 // VPABSD: absolute value of packed signed dwords
 val vex_pabsd_128 : xmmword -> xmmword
 function vex_pabsd_128(a) =
-  abs32(a[127..96]) @ abs32(a[95..64]) @
-  abs32(a[63..32])  @ abs32(a[31..0])
+  abs(a[127..96]) @ abs(a[95..64]) @
+  abs(a[63..32])  @ abs(a[31..0])
 
 val vex_pabsd_256 : ymmword -> ymmword
 function vex_pabsd_256(a) =
