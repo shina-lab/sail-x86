@@ -1488,7 +1488,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 15) {
         let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
         let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = max_s16(a, b)
+        result[(i * 16 + 15) .. (i * 16)] = max_s(a, b)
       };
       write_ymm(dst, result)
     } else {
@@ -1498,7 +1498,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 7) {
         let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
         let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = max_s16(a, b)
+        result[(i * 16 + 15) .. (i * 16)] = max_s(a, b)
       };
       write_xmm(dst, result)
     }

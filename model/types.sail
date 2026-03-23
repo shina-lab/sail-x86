@@ -496,6 +496,13 @@ function is_gt(a, b) = {
   diff['n]
 }
 
+// is_gt_u: 1 if a > b (unsigned), 0 otherwise.
+val is_gt_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_gt_u(a, b) = {
+  let diff : bits('n + 1) = zero_extend(b) - zero_extend(a);
+  diff['n]
+}
+
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
 val blend : forall 'n, 0 < 'n. (bits('n), bits('n), bit) -> bits('n)

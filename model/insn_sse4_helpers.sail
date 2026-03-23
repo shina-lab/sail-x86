@@ -173,7 +173,7 @@ function avx_pminsb_128(a, b) = {
     let lo : range(0, 120) = i * 8;
     let va = a[(lo + 7)..lo];
     let vb = b[(lo + 7)..lo];
-    r[(lo + 7)..lo] = min_s8(va, vb);
+    r[(lo + 7)..lo] = min_s(va, vb);
   };
   r
 }
@@ -189,7 +189,7 @@ function avx_pminsd_128(a, b) = {
     let lo : range(0, 96) = i * 32;
     let va = a[(lo + 31)..lo];
     let vb = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = min_s32(va, vb);
+    r[(lo + 31)..lo] = min_s(va, vb);
   };
   r
 }
@@ -205,7 +205,7 @@ function avx_pminud_128(a, b) = {
     let lo : range(0, 96) = i * 32;
     let av : dword = a[(lo + 31)..lo];
     let bv : dword = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = min_u32(av, bv)
+    r[(lo + 31)..lo] = min_u(av, bv)
   };
   r
 }
@@ -221,7 +221,7 @@ function avx_pmaxsb_128(a, b) = {
     let lo : range(0, 120) = i * 8;
     let va = a[(lo + 7)..lo];
     let vb = b[(lo + 7)..lo];
-    r[(lo + 7)..lo] = max_s8(va, vb);
+    r[(lo + 7)..lo] = max_s(va, vb);
   };
   r
 }
@@ -237,7 +237,7 @@ function avx_pmaxsd_128(a, b) = {
     let lo : range(0, 96) = i * 32;
     let va = a[(lo + 31)..lo];
     let vb = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = max_s32(va, vb);
+    r[(lo + 31)..lo] = max_s(va, vb);
   };
   r
 }
@@ -253,7 +253,7 @@ function avx_pmaxud_128(a, b) = {
     let lo : range(0, 96) = i * 32;
     let av : dword = a[(lo + 31)..lo];
     let bv : dword = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = max_u32(av, bv)
+    r[(lo + 31)..lo] = max_u(av, bv)
   };
   r
 }

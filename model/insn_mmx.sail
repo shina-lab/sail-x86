@@ -488,10 +488,10 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, min_u8(d[63..56], s[63..56]) @ min_u8(d[55..48], s[55..48]) @
-                     min_u8(d[47..40], s[47..40]) @ min_u8(d[39..32], s[39..32]) @
-                     min_u8(d[31..24], s[31..24]) @ min_u8(d[23..16], s[23..16]) @
-                     min_u8(d[15..8],  s[15..8])  @ min_u8(d[7..0],   s[7..0]));
+      write_mm(dst, min_u(d[63..56], s[63..56]) @ min_u(d[55..48], s[55..48]) @
+                     min_u(d[47..40], s[47..40]) @ min_u(d[39..32], s[39..32]) @
+                     min_u(d[31..24], s[31..24]) @ min_u(d[23..16], s[23..16]) @
+                     min_u(d[15..8],  s[15..8])  @ min_u(d[7..0],   s[7..0]));
       mmx_touch()
     },
 
@@ -538,10 +538,10 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, max_u8(d[63..56], s[63..56]) @ max_u8(d[55..48], s[55..48]) @
-                     max_u8(d[47..40], s[47..40]) @ max_u8(d[39..32], s[39..32]) @
-                     max_u8(d[31..24], s[31..24]) @ max_u8(d[23..16], s[23..16]) @
-                     max_u8(d[15..8],  s[15..8])  @ max_u8(d[7..0],   s[7..0]));
+      write_mm(dst, max_u(d[63..56], s[63..56]) @ max_u(d[55..48], s[55..48]) @
+                     max_u(d[47..40], s[47..40]) @ max_u(d[39..32], s[39..32]) @
+                     max_u(d[31..24], s[31..24]) @ max_u(d[23..16], s[23..16]) @
+                     max_u(d[15..8],  s[15..8])  @ max_u(d[7..0],   s[7..0]));
       mmx_touch()
     },
 
@@ -672,8 +672,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, min_s16(d[63..48], s[63..48]) @ min_s16(d[47..32], s[47..32]) @
-                     min_s16(d[31..16], s[31..16]) @ min_s16(d[15..0],  s[15..0]));
+      write_mm(dst, min_s(d[63..48], s[63..48]) @ min_s(d[47..32], s[47..32]) @
+                     min_s(d[31..16], s[31..16]) @ min_s(d[15..0],  s[15..0]));
       mmx_touch()
     },
 
@@ -720,8 +720,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, max_s16(d[63..48], s[63..48]) @ max_s16(d[47..32], s[47..32]) @
-                     max_s16(d[31..16], s[31..16]) @ max_s16(d[15..0],  s[15..0]));
+      write_mm(dst, max_s(d[63..48], s[63..48]) @ max_s(d[47..32], s[47..32]) @
+                     max_s(d[31..16], s[31..16]) @ max_s(d[15..0],  s[15..0]));
       mmx_touch()
     },
 

@@ -341,33 +341,17 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   (sat & of_mask) | (wide[15..0] & ~(of_mask))
 }
 
-val max_s64 : (qword, qword) -> qword
-function max_s64(a, b) = {
-  let diff : bits(65) = sign_extend(b) - sign_extend(a);
-  let mask : qword = sign_extend(diff[64..64]);
-  (a & mask) | (b & ~(mask))
-}
+val max_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function max_s(a, b) = blend(a, b, is_gt(b, a))
 
-val min_s64 : (qword, qword) -> qword
-function min_s64(a, b) = {
-  let diff : bits(65) = sign_extend(a) - sign_extend(b);
-  let mask : qword = sign_extend(diff[64..64]);
-  (a & mask) | (b & ~(mask))
-}
+val min_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function min_s(a, b) = blend(a, b, is_gt(a, b))
 
-val max_u64 : (qword, qword) -> qword
-function max_u64(a, b) = {
-  let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
-  let mask : qword = sign_extend(diff[64..64]);
-  (b & mask) | (a & ~(mask))
-}
+val max_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function max_u(a, b) = blend(a, b, is_gt_u(b, a))
 
-val min_u64 : (qword, qword) -> qword
-function min_u64(a, b) = {
-  let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
-  let mask : qword = sign_extend(diff[64..64]);
-  (a & mask) | (b & ~(mask))
-}
+val min_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function min_u(a, b) = blend(a, b, is_gt_u(a, b))
 
 // PMOVSX — Packed Move with Sign Extend (SSE4.1)
 // Sign-extends packed integers from smaller to larger element sizes.
@@ -577,60 +561,6 @@ function sat_sub_u32(a, b) = {
   let mask : dword = sign_extend(~(wide[32..32]));
   wide[31..0] & mask
 }
-
-// Unsigned min/max expressed via sat_sub to avoid an Isla symbolic execution
-// bug where extract(N,N) is incorrectly distributed over bvsub when the
-// (N+1)-bit intermediate has only one reference.
-//
-// min_u(a, b) = a - sat_sub_u(a, b):
-//   if a >= b: a - (a - b) = b = min(a, b)
-//   if a <  b: a - 0       = a = min(a, b)
-//
-// max_u(a, b) = a + sat_sub_u(b, a):
-//   if a >= b: a + 0       = a = max(a, b)
-//   if a <  b: a + (b - a) = b = max(a, b)
-
-// PMINUB/PMINUW/PMINUD — Packed Minimum Unsigned Integers
-val min_u8 : (byte, byte) -> byte
-function min_u8(a, b) = a - sat_sub_u8(a, b)
-
-val min_u16 : (word, word) -> word
-function min_u16(a, b) = a - sat_sub_u16(a, b)
-
-val min_u32 : (dword, dword) -> dword
-function min_u32(a, b) = a - sat_sub_u32(a, b)
-
-// PMAXUB/PMAXUW/PMAXUD — Packed Maximum Unsigned Integers
-val max_u8 : (byte, byte) -> byte
-function max_u8(a, b) = a + sat_sub_u8(b, a)
-
-val max_u16 : (word, word) -> word
-function max_u16(a, b) = a + sat_sub_u16(b, a)
-
-val max_u32 : (dword, dword) -> dword
-function max_u32(a, b) = a + sat_sub_u32(b, a)
-
-// Signed min/max use XOR with sign bit to convert to unsigned comparison.
-
-// PMINSB/PMINSW/PMINSD — Packed Minimum Signed Integers
-val min_s8 : (byte, byte) -> byte
-function min_s8(a, b) = min_u8(a ^ 0x80, b ^ 0x80) ^ 0x80
-
-val min_s16 : (word, word) -> word
-function min_s16(a, b) = min_u16(a ^ 0x8000, b ^ 0x8000) ^ 0x8000
-
-val min_s32 : (dword, dword) -> dword
-function min_s32(a, b) = min_u32(a ^ 0x80000000, b ^ 0x80000000) ^ 0x80000000
-
-// PMAXSB/PMAXSW/PMAXSD — Packed Maximum Signed Integers
-val max_s8 : (byte, byte) -> byte
-function max_s8(a, b) = max_u8(a ^ 0x80, b ^ 0x80) ^ 0x80
-
-val max_s16 : (word, word) -> word
-function max_s16(a, b) = max_u16(a ^ 0x8000, b ^ 0x8000) ^ 0x8000
-
-val max_s32 : (dword, dword) -> dword
-function max_s32(a, b) = max_u32(a ^ 0x80000000, b ^ 0x80000000) ^ 0x80000000
 
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
 //
@@ -1637,14 +1567,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          min_u8(a[127..120], b[127..120]) @ min_u8(a[119..112], b[119..112]) @
-          min_u8(a[111..104], b[111..104]) @ min_u8(a[103..96], b[103..96]) @
-          min_u8(a[95..88], b[95..88]) @ min_u8(a[87..80], b[87..80]) @
-          min_u8(a[79..72], b[79..72]) @ min_u8(a[71..64], b[71..64]) @
-          min_u8(a[63..56], b[63..56]) @ min_u8(a[55..48], b[55..48]) @
-          min_u8(a[47..40], b[47..40]) @ min_u8(a[39..32], b[39..32]) @
-          min_u8(a[31..24], b[31..24]) @ min_u8(a[23..16], b[23..16]) @
-          min_u8(a[15..8], b[15..8]) @ min_u8(a[7..0], b[7..0]);
+          min_u(a[127..120], b[127..120]) @ min_u(a[119..112], b[119..112]) @
+          min_u(a[111..104], b[111..104]) @ min_u(a[103..96], b[103..96]) @
+          min_u(a[95..88], b[95..88]) @ min_u(a[87..80], b[87..80]) @
+          min_u(a[79..72], b[79..72]) @ min_u(a[71..64], b[71..64]) @
+          min_u(a[63..56], b[63..56]) @ min_u(a[55..48], b[55..48]) @
+          min_u(a[47..40], b[47..40]) @ min_u(a[39..32], b[39..32]) @
+          min_u(a[31..24], b[31..24]) @ min_u(a[23..16], b[23..16]) @
+          min_u(a[15..8], b[15..8]) @ min_u(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1665,14 +1595,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          max_u8(a[127..120], b[127..120]) @ max_u8(a[119..112], b[119..112]) @
-          max_u8(a[111..104], b[111..104]) @ max_u8(a[103..96], b[103..96]) @
-          max_u8(a[95..88], b[95..88]) @ max_u8(a[87..80], b[87..80]) @
-          max_u8(a[79..72], b[79..72]) @ max_u8(a[71..64], b[71..64]) @
-          max_u8(a[63..56], b[63..56]) @ max_u8(a[55..48], b[55..48]) @
-          max_u8(a[47..40], b[47..40]) @ max_u8(a[39..32], b[39..32]) @
-          max_u8(a[31..24], b[31..24]) @ max_u8(a[23..16], b[23..16]) @
-          max_u8(a[15..8], b[15..8]) @ max_u8(a[7..0], b[7..0]);
+          max_u(a[127..120], b[127..120]) @ max_u(a[119..112], b[119..112]) @
+          max_u(a[111..104], b[111..104]) @ max_u(a[103..96], b[103..96]) @
+          max_u(a[95..88], b[95..88]) @ max_u(a[87..80], b[87..80]) @
+          max_u(a[79..72], b[79..72]) @ max_u(a[71..64], b[71..64]) @
+          max_u(a[63..56], b[63..56]) @ max_u(a[55..48], b[55..48]) @
+          max_u(a[47..40], b[47..40]) @ max_u(a[39..32], b[39..32]) @
+          max_u(a[31..24], b[31..24]) @ max_u(a[23..16], b[23..16]) @
+          max_u(a[15..8], b[15..8]) @ max_u(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2280,10 +2210,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          max_s16(a[127..112], b[127..112]) @ max_s16(a[111..96], b[111..96]) @
-          max_s16(a[95..80], b[95..80]) @ max_s16(a[79..64], b[79..64]) @
-          max_s16(a[63..48], b[63..48]) @ max_s16(a[47..32], b[47..32]) @
-          max_s16(a[31..16], b[31..16]) @ max_s16(a[15..0], b[15..0]);
+          max_s(a[127..112], b[127..112]) @ max_s(a[111..96], b[111..96]) @
+          max_s(a[95..80], b[95..80]) @ max_s(a[79..64], b[79..64]) @
+          max_s(a[63..48], b[63..48]) @ max_s(a[47..32], b[47..32]) @
+          max_s(a[31..16], b[31..16]) @ max_s(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2301,10 +2231,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          min_s16(a[127..112], b[127..112]) @ min_s16(a[111..96], b[111..96]) @
-          min_s16(a[95..80], b[95..80]) @ min_s16(a[79..64], b[79..64]) @
-          min_s16(a[63..48], b[63..48]) @ min_s16(a[47..32], b[47..32]) @
-          min_s16(a[31..16], b[31..16]) @ min_s16(a[15..0], b[15..0]);
+          min_s(a[127..112], b[127..112]) @ min_s(a[111..96], b[111..96]) @
+          min_s(a[95..80], b[95..80]) @ min_s(a[79..64], b[79..64]) @
+          min_s(a[63..48], b[63..48]) @ min_s(a[47..32], b[47..32]) @
+          min_s(a[31..16], b[31..16]) @ min_s(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2688,14 +2618,14 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        min_s8(a[127..120], b[127..120]) @ min_s8(a[119..112], b[119..112]) @
-        min_s8(a[111..104], b[111..104]) @ min_s8(a[103..96], b[103..96]) @
-        min_s8(a[95..88], b[95..88]) @ min_s8(a[87..80], b[87..80]) @
-        min_s8(a[79..72], b[79..72]) @ min_s8(a[71..64], b[71..64]) @
-        min_s8(a[63..56], b[63..56]) @ min_s8(a[55..48], b[55..48]) @
-        min_s8(a[47..40], b[47..40]) @ min_s8(a[39..32], b[39..32]) @
-        min_s8(a[31..24], b[31..24]) @ min_s8(a[23..16], b[23..16]) @
-        min_s8(a[15..8], b[15..8]) @ min_s8(a[7..0], b[7..0]);
+        min_s(a[127..120], b[127..120]) @ min_s(a[119..112], b[119..112]) @
+        min_s(a[111..104], b[111..104]) @ min_s(a[103..96], b[103..96]) @
+        min_s(a[95..88], b[95..88]) @ min_s(a[87..80], b[87..80]) @
+        min_s(a[79..72], b[79..72]) @ min_s(a[71..64], b[71..64]) @
+        min_s(a[63..56], b[63..56]) @ min_s(a[55..48], b[55..48]) @
+        min_s(a[47..40], b[47..40]) @ min_s(a[39..32], b[39..32]) @
+        min_s(a[31..24], b[31..24]) @ min_s(a[23..16], b[23..16]) @
+        min_s(a[15..8], b[15..8]) @ min_s(a[7..0], b[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMINSD xmm1, xmm2/m128
@@ -2703,8 +2633,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        min_s32(a[127..96], b[127..96]) @ min_s32(a[95..64], b[95..64]) @
-        min_s32(a[63..32], b[63..32]) @ min_s32(a[31..0], b[31..0]);
+        min_s(a[127..96], b[127..96]) @ min_s(a[95..64], b[95..64]) @
+        min_s(a[63..32], b[63..32]) @ min_s(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMINUW xmm1, xmm2/m128
@@ -2712,10 +2642,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        min_u16(a[127..112], b[127..112]) @ min_u16(a[111..96], b[111..96]) @
-        min_u16(a[95..80], b[95..80]) @ min_u16(a[79..64], b[79..64]) @
-        min_u16(a[63..48], b[63..48]) @ min_u16(a[47..32], b[47..32]) @
-        min_u16(a[31..16], b[31..16]) @ min_u16(a[15..0], b[15..0]);
+        min_u(a[127..112], b[127..112]) @ min_u(a[111..96], b[111..96]) @
+        min_u(a[95..80], b[95..80]) @ min_u(a[79..64], b[79..64]) @
+        min_u(a[63..48], b[63..48]) @ min_u(a[47..32], b[47..32]) @
+        min_u(a[31..16], b[31..16]) @ min_u(a[15..0], b[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMINUD xmm1, xmm2/m128
@@ -2723,8 +2653,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        min_u32(a[127..96], b[127..96]) @ min_u32(a[95..64], b[95..64]) @
-        min_u32(a[63..32], b[63..32]) @ min_u32(a[31..0], b[31..0]);
+        min_u(a[127..96], b[127..96]) @ min_u(a[95..64], b[95..64]) @
+        min_u(a[63..32], b[63..32]) @ min_u(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMAXSB xmm1, xmm2/m128
@@ -2732,14 +2662,14 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        max_s8(a[127..120], b[127..120]) @ max_s8(a[119..112], b[119..112]) @
-        max_s8(a[111..104], b[111..104]) @ max_s8(a[103..96], b[103..96]) @
-        max_s8(a[95..88], b[95..88]) @ max_s8(a[87..80], b[87..80]) @
-        max_s8(a[79..72], b[79..72]) @ max_s8(a[71..64], b[71..64]) @
-        max_s8(a[63..56], b[63..56]) @ max_s8(a[55..48], b[55..48]) @
-        max_s8(a[47..40], b[47..40]) @ max_s8(a[39..32], b[39..32]) @
-        max_s8(a[31..24], b[31..24]) @ max_s8(a[23..16], b[23..16]) @
-        max_s8(a[15..8], b[15..8]) @ max_s8(a[7..0], b[7..0]);
+        max_s(a[127..120], b[127..120]) @ max_s(a[119..112], b[119..112]) @
+        max_s(a[111..104], b[111..104]) @ max_s(a[103..96], b[103..96]) @
+        max_s(a[95..88], b[95..88]) @ max_s(a[87..80], b[87..80]) @
+        max_s(a[79..72], b[79..72]) @ max_s(a[71..64], b[71..64]) @
+        max_s(a[63..56], b[63..56]) @ max_s(a[55..48], b[55..48]) @
+        max_s(a[47..40], b[47..40]) @ max_s(a[39..32], b[39..32]) @
+        max_s(a[31..24], b[31..24]) @ max_s(a[23..16], b[23..16]) @
+        max_s(a[15..8], b[15..8]) @ max_s(a[7..0], b[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMAXSD xmm1, xmm2/m128
@@ -2747,8 +2677,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        max_s32(a[127..96], b[127..96]) @ max_s32(a[95..64], b[95..64]) @
-        max_s32(a[63..32], b[63..32]) @ max_s32(a[31..0], b[31..0]);
+        max_s(a[127..96], b[127..96]) @ max_s(a[95..64], b[95..64]) @
+        max_s(a[63..32], b[63..32]) @ max_s(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMAXUW xmm1, xmm2/m128
@@ -2756,10 +2686,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        max_u16(a[127..112], b[127..112]) @ max_u16(a[111..96], b[111..96]) @
-        max_u16(a[95..80], b[95..80]) @ max_u16(a[79..64], b[79..64]) @
-        max_u16(a[63..48], b[63..48]) @ max_u16(a[47..32], b[47..32]) @
-        max_u16(a[31..16], b[31..16]) @ max_u16(a[15..0], b[15..0]);
+        max_u(a[127..112], b[127..112]) @ max_u(a[111..96], b[111..96]) @
+        max_u(a[95..80], b[95..80]) @ max_u(a[79..64], b[79..64]) @
+        max_u(a[63..48], b[63..48]) @ max_u(a[47..32], b[47..32]) @
+        max_u(a[31..16], b[31..16]) @ max_u(a[15..0], b[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMAXUD xmm1, xmm2/m128
@@ -2767,8 +2697,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        max_u32(a[127..96], b[127..96]) @ max_u32(a[95..64], b[95..64]) @
-        max_u32(a[63..32], b[63..32]) @ max_u32(a[31..0], b[31..0]);
+        max_u(a[127..96], b[127..96]) @ max_u(a[95..64], b[95..64]) @
+        max_u(a[63..32], b[63..32]) @ max_u(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
 

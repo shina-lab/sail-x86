@@ -109,7 +109,7 @@ function avx_pminub_128(a, b) = {
     let hi = lo + 7;
     let av : byte = a[hi..lo];
     let bv : byte = b[hi..lo];
-    r[hi..lo] = min_u8(av, bv)
+    r[hi..lo] = min_u(av, bv)
   };
   r
 }
@@ -482,7 +482,7 @@ function avx_pmaxub_128(a, b) = {
     let lo : range(0, 120) = i * 8;
     let va = a[(lo + 7)..lo];
     let vb = b[(lo + 7)..lo];
-    r[(lo + 7)..lo] = max_u8(va, vb);
+    r[(lo + 7)..lo] = max_u(va, vb);
   };
   r
 }
@@ -506,7 +506,7 @@ function avx_pminsw_128(a, b) = {
     let lo : range(0, 112) = i * 16;
     let va = a[(lo + 15)..lo];
     let vb = b[(lo + 15)..lo];
-    r[(lo + 15)..lo] = min_s16(va, vb);
+    r[(lo + 15)..lo] = min_s(va, vb);
   };
   r
 }
@@ -530,7 +530,7 @@ function avx_pmaxsw_128(a, b) = {
     let lo : range(0, 112) = i * 16;
     let va = a[(lo + 15)..lo];
     let vb = b[(lo + 15)..lo];
-    r[(lo + 15)..lo] = max_s16(va, vb);
+    r[(lo + 15)..lo] = max_s(va, vb);
   };
   r
 }
