@@ -201,7 +201,7 @@ function avx_paddsb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = sat_add_s8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_add_s(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -219,7 +219,7 @@ function avx_paddsw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = sat_add_s16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_add_s(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -273,7 +273,7 @@ function avx_paddusb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = sat_add_u8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_add_u(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -291,7 +291,7 @@ function avx_paddusw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = sat_add_u16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_add_u(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }

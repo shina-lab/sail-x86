@@ -416,10 +416,10 @@ function avx_phaddd_256(a, b) =
 // VPHADDSW: horizontal add packed signed words with saturation (one 128-bit lane)
 val avx_phaddsw_128 : (xmmword, xmmword) -> xmmword
 function avx_phaddsw_128(a, b) =
-  sat_add_s16(b[127..112], b[111..96]) @ sat_add_s16(b[95..80], b[79..64]) @
-  sat_add_s16(b[63..48], b[47..32]) @ sat_add_s16(b[31..16], b[15..0]) @
-  sat_add_s16(a[127..112], a[111..96]) @ sat_add_s16(a[95..80], a[79..64]) @
-  sat_add_s16(a[63..48], a[47..32]) @ sat_add_s16(a[31..16], a[15..0])
+  sat_add_s(b[127..112], b[111..96]) @ sat_add_s(b[95..80], b[79..64]) @
+  sat_add_s(b[63..48], b[47..32]) @ sat_add_s(b[31..16], b[15..0]) @
+  sat_add_s(a[127..112], a[111..96]) @ sat_add_s(a[95..80], a[79..64]) @
+  sat_add_s(a[63..48], a[47..32]) @ sat_add_s(a[31..16], a[15..0])
 
 val avx_phaddsw_256 : (ymmword, ymmword) -> ymmword
 function avx_phaddsw_256(a, b) =
@@ -890,39 +890,39 @@ function vex_pminsw_128(a, b) = {
 // Saturation add/sub for packed bytes and words (128-bit lanes)
 val vex_paddsb_128 : (xmmword, xmmword) -> xmmword
 function vex_paddsb_128(a, b) =
-  sat_add_s8(a[127..120], b[127..120]) @ sat_add_s8(a[119..112], b[119..112]) @
-  sat_add_s8(a[111..104], b[111..104]) @ sat_add_s8(a[103..96],  b[103..96])  @
-  sat_add_s8(a[95..88],   b[95..88])   @ sat_add_s8(a[87..80],   b[87..80])   @
-  sat_add_s8(a[79..72],   b[79..72])   @ sat_add_s8(a[71..64],   b[71..64])   @
-  sat_add_s8(a[63..56],   b[63..56])   @ sat_add_s8(a[55..48],   b[55..48])   @
-  sat_add_s8(a[47..40],   b[47..40])   @ sat_add_s8(a[39..32],   b[39..32])   @
-  sat_add_s8(a[31..24],   b[31..24])   @ sat_add_s8(a[23..16],   b[23..16])   @
-  sat_add_s8(a[15..8],    b[15..8])    @ sat_add_s8(a[7..0],     b[7..0])
+  sat_add_s(a[127..120], b[127..120]) @ sat_add_s(a[119..112], b[119..112]) @
+  sat_add_s(a[111..104], b[111..104]) @ sat_add_s(a[103..96],  b[103..96])  @
+  sat_add_s(a[95..88],   b[95..88])   @ sat_add_s(a[87..80],   b[87..80])   @
+  sat_add_s(a[79..72],   b[79..72])   @ sat_add_s(a[71..64],   b[71..64])   @
+  sat_add_s(a[63..56],   b[63..56])   @ sat_add_s(a[55..48],   b[55..48])   @
+  sat_add_s(a[47..40],   b[47..40])   @ sat_add_s(a[39..32],   b[39..32])   @
+  sat_add_s(a[31..24],   b[31..24])   @ sat_add_s(a[23..16],   b[23..16])   @
+  sat_add_s(a[15..8],    b[15..8])    @ sat_add_s(a[7..0],     b[7..0])
 
 val vex_paddsw_128 : (xmmword, xmmword) -> xmmword
 function vex_paddsw_128(a, b) =
-  sat_add_s16(a[127..112], b[127..112]) @ sat_add_s16(a[111..96], b[111..96]) @
-  sat_add_s16(a[95..80],   b[95..80])   @ sat_add_s16(a[79..64],  b[79..64])  @
-  sat_add_s16(a[63..48],   b[63..48])   @ sat_add_s16(a[47..32],  b[47..32])  @
-  sat_add_s16(a[31..16],   b[31..16])   @ sat_add_s16(a[15..0],   b[15..0])
+  sat_add_s(a[127..112], b[127..112]) @ sat_add_s(a[111..96], b[111..96]) @
+  sat_add_s(a[95..80],   b[95..80])   @ sat_add_s(a[79..64],  b[79..64])  @
+  sat_add_s(a[63..48],   b[63..48])   @ sat_add_s(a[47..32],  b[47..32])  @
+  sat_add_s(a[31..16],   b[31..16])   @ sat_add_s(a[15..0],   b[15..0])
 
 val vex_paddusb_128 : (xmmword, xmmword) -> xmmword
 function vex_paddusb_128(a, b) =
-  sat_add_u8(a[127..120], b[127..120]) @ sat_add_u8(a[119..112], b[119..112]) @
-  sat_add_u8(a[111..104], b[111..104]) @ sat_add_u8(a[103..96],  b[103..96])  @
-  sat_add_u8(a[95..88],   b[95..88])   @ sat_add_u8(a[87..80],   b[87..80])   @
-  sat_add_u8(a[79..72],   b[79..72])   @ sat_add_u8(a[71..64],   b[71..64])   @
-  sat_add_u8(a[63..56],   b[63..56])   @ sat_add_u8(a[55..48],   b[55..48])   @
-  sat_add_u8(a[47..40],   b[47..40])   @ sat_add_u8(a[39..32],   b[39..32])   @
-  sat_add_u8(a[31..24],   b[31..24])   @ sat_add_u8(a[23..16],   b[23..16])   @
-  sat_add_u8(a[15..8],    b[15..8])    @ sat_add_u8(a[7..0],     b[7..0])
+  sat_add_u(a[127..120], b[127..120]) @ sat_add_u(a[119..112], b[119..112]) @
+  sat_add_u(a[111..104], b[111..104]) @ sat_add_u(a[103..96],  b[103..96])  @
+  sat_add_u(a[95..88],   b[95..88])   @ sat_add_u(a[87..80],   b[87..80])   @
+  sat_add_u(a[79..72],   b[79..72])   @ sat_add_u(a[71..64],   b[71..64])   @
+  sat_add_u(a[63..56],   b[63..56])   @ sat_add_u(a[55..48],   b[55..48])   @
+  sat_add_u(a[47..40],   b[47..40])   @ sat_add_u(a[39..32],   b[39..32])   @
+  sat_add_u(a[31..24],   b[31..24])   @ sat_add_u(a[23..16],   b[23..16])   @
+  sat_add_u(a[15..8],    b[15..8])    @ sat_add_u(a[7..0],     b[7..0])
 
 val vex_paddusw_128 : (xmmword, xmmword) -> xmmword
 function vex_paddusw_128(a, b) =
-  sat_add_u16(a[127..112], b[127..112]) @ sat_add_u16(a[111..96], b[111..96]) @
-  sat_add_u16(a[95..80],   b[95..80])   @ sat_add_u16(a[79..64],  b[79..64])  @
-  sat_add_u16(a[63..48],   b[63..48])   @ sat_add_u16(a[47..32],  b[47..32])  @
-  sat_add_u16(a[31..16],   b[31..16])   @ sat_add_u16(a[15..0],   b[15..0])
+  sat_add_u(a[127..112], b[127..112]) @ sat_add_u(a[111..96], b[111..96]) @
+  sat_add_u(a[95..80],   b[95..80])   @ sat_add_u(a[79..64],  b[79..64])  @
+  sat_add_u(a[63..48],   b[63..48])   @ sat_add_u(a[47..32],  b[47..32])  @
+  sat_add_u(a[31..16],   b[31..16])   @ sat_add_u(a[15..0],   b[15..0])
 
 val vex_psubsb_128 : (xmmword, xmmword) -> xmmword
 function vex_psubsb_128(a, b) =

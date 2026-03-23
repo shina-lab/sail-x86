@@ -35,39 +35,20 @@ function abs(x) = {
 // PADDUSB/PADDUSW — Add Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
 // Branchless: detect overflow/underflow via sign bits of wide sum.
-val sat_add_s8 : (byte, byte) -> byte
-function sat_add_s8(a, b) = {
-  let wide : bits(9) = sign_extend(a) + sign_extend(b);
-  let ov : bits(1) = ~(wide[8]) & wide[7];
-  let uf : bits(1) = wide[8] & ~(wide[7]);
-  let ov_mask : byte = sign_extend(ov);
-  let uf_mask : byte = sign_extend(uf);
-  (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
+val sat_add_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_add_s(a, b) = {
+  let wide : bits('n + 1) = sign_extend(a) + sign_extend(b);
+  let result : bits('n) = wide[('n - 1) .. 0];
+  let overflow : bit = wide['n] ^ result['n - 1];
+  let msb_only : bits('n) = zero_extend(0b1) << ('n - 1);
+  let clamp : bits('n) = msb_only ^ sign_extend(~(wide['n]));
+  blend(result, clamp, overflow)
 }
 
-val sat_add_s16 : (word, word) -> word
-function sat_add_s16(a, b) = {
-  let wide : bits(17) = sign_extend(a) + sign_extend(b);
-  let ov : bits(1) = ~(wide[16]) & wide[15];
-  let uf : bits(1) = wide[16] & ~(wide[15]);
-  let ov_mask : word = sign_extend(ov);
-  let uf_mask : word = sign_extend(uf);
-  (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
-}
-
-// Branchless: carry bit of wide sum → saturate to all-1s.
-val sat_add_u8 : (byte, byte) -> byte
-function sat_add_u8(a, b) = {
-  let wide : bits(9) = (0b0 @ a) + (0b0 @ b);
-  let sat : byte = sign_extend(wide[8]);
-  wide[7..0] | sat
-}
-
-val sat_add_u16 : (word, word) -> word
-function sat_add_u16(a, b) = {
-  let wide : bits(17) = (0b0 @ a) + (0b0 @ b);
-  let sat : word = sign_extend(wide[16]);
-  wide[15..0] | sat
+val sat_add_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_add_u(a, b) = {
+  let wide : bits('n + 1) = zero_extend(a) + zero_extend(b);
+  wide[('n - 1) .. 0] | sign_extend(wide['n])
 }
 
 // PAVGB/PAVGW — Average Packed Integers with Rounding
@@ -1680,14 +1661,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_add_u8(a[127..120], b[127..120]) @ sat_add_u8(a[119..112], b[119..112]) @
-          sat_add_u8(a[111..104], b[111..104]) @ sat_add_u8(a[103..96], b[103..96]) @
-          sat_add_u8(a[95..88], b[95..88]) @ sat_add_u8(a[87..80], b[87..80]) @
-          sat_add_u8(a[79..72], b[79..72]) @ sat_add_u8(a[71..64], b[71..64]) @
-          sat_add_u8(a[63..56], b[63..56]) @ sat_add_u8(a[55..48], b[55..48]) @
-          sat_add_u8(a[47..40], b[47..40]) @ sat_add_u8(a[39..32], b[39..32]) @
-          sat_add_u8(a[31..24], b[31..24]) @ sat_add_u8(a[23..16], b[23..16]) @
-          sat_add_u8(a[15..8], b[15..8]) @ sat_add_u8(a[7..0], b[7..0]);
+          sat_add_u(a[127..120], b[127..120]) @ sat_add_u(a[119..112], b[119..112]) @
+          sat_add_u(a[111..104], b[111..104]) @ sat_add_u(a[103..96], b[103..96]) @
+          sat_add_u(a[95..88], b[95..88]) @ sat_add_u(a[87..80], b[87..80]) @
+          sat_add_u(a[79..72], b[79..72]) @ sat_add_u(a[71..64], b[71..64]) @
+          sat_add_u(a[63..56], b[63..56]) @ sat_add_u(a[55..48], b[55..48]) @
+          sat_add_u(a[47..40], b[47..40]) @ sat_add_u(a[39..32], b[39..32]) @
+          sat_add_u(a[31..24], b[31..24]) @ sat_add_u(a[23..16], b[23..16]) @
+          sat_add_u(a[15..8], b[15..8]) @ sat_add_u(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1705,10 +1686,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_add_u16(a[127..112], b[127..112]) @ sat_add_u16(a[111..96], b[111..96]) @
-          sat_add_u16(a[95..80], b[95..80]) @ sat_add_u16(a[79..64], b[79..64]) @
-          sat_add_u16(a[63..48], b[63..48]) @ sat_add_u16(a[47..32], b[47..32]) @
-          sat_add_u16(a[31..16], b[31..16]) @ sat_add_u16(a[15..0], b[15..0]);
+          sat_add_u(a[127..112], b[127..112]) @ sat_add_u(a[111..96], b[111..96]) @
+          sat_add_u(a[95..80], b[95..80]) @ sat_add_u(a[79..64], b[79..64]) @
+          sat_add_u(a[63..48], b[63..48]) @ sat_add_u(a[47..32], b[47..32]) @
+          sat_add_u(a[31..16], b[31..16]) @ sat_add_u(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1854,14 +1835,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_add_s8(a[127..120], b[127..120]) @ sat_add_s8(a[119..112], b[119..112]) @
-          sat_add_s8(a[111..104], b[111..104]) @ sat_add_s8(a[103..96], b[103..96]) @
-          sat_add_s8(a[95..88], b[95..88]) @ sat_add_s8(a[87..80], b[87..80]) @
-          sat_add_s8(a[79..72], b[79..72]) @ sat_add_s8(a[71..64], b[71..64]) @
-          sat_add_s8(a[63..56], b[63..56]) @ sat_add_s8(a[55..48], b[55..48]) @
-          sat_add_s8(a[47..40], b[47..40]) @ sat_add_s8(a[39..32], b[39..32]) @
-          sat_add_s8(a[31..24], b[31..24]) @ sat_add_s8(a[23..16], b[23..16]) @
-          sat_add_s8(a[15..8], b[15..8]) @ sat_add_s8(a[7..0], b[7..0]);
+          sat_add_s(a[127..120], b[127..120]) @ sat_add_s(a[119..112], b[119..112]) @
+          sat_add_s(a[111..104], b[111..104]) @ sat_add_s(a[103..96], b[103..96]) @
+          sat_add_s(a[95..88], b[95..88]) @ sat_add_s(a[87..80], b[87..80]) @
+          sat_add_s(a[79..72], b[79..72]) @ sat_add_s(a[71..64], b[71..64]) @
+          sat_add_s(a[63..56], b[63..56]) @ sat_add_s(a[55..48], b[55..48]) @
+          sat_add_s(a[47..40], b[47..40]) @ sat_add_s(a[39..32], b[39..32]) @
+          sat_add_s(a[31..24], b[31..24]) @ sat_add_s(a[23..16], b[23..16]) @
+          sat_add_s(a[15..8], b[15..8]) @ sat_add_s(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1879,10 +1860,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_add_s16(a[127..112], b[127..112]) @ sat_add_s16(a[111..96], b[111..96]) @
-          sat_add_s16(a[95..80], b[95..80]) @ sat_add_s16(a[79..64], b[79..64]) @
-          sat_add_s16(a[63..48], b[63..48]) @ sat_add_s16(a[47..32], b[47..32]) @
-          sat_add_s16(a[31..16], b[31..16]) @ sat_add_s16(a[15..0], b[15..0]);
+          sat_add_s(a[127..112], b[127..112]) @ sat_add_s(a[111..96], b[111..96]) @
+          sat_add_s(a[95..80], b[95..80]) @ sat_add_s(a[79..64], b[79..64]) @
+          sat_add_s(a[63..48], b[63..48]) @ sat_add_s(a[47..32], b[47..32]) @
+          sat_add_s(a[31..16], b[31..16]) @ sat_add_s(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2103,10 +2084,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        sat_add_s16(b[127..112], b[111..96]) @ sat_add_s16(b[95..80], b[79..64]) @
-        sat_add_s16(b[63..48], b[47..32]) @ sat_add_s16(b[31..16], b[15..0]) @
-        sat_add_s16(a[127..112], a[111..96]) @ sat_add_s16(a[95..80], a[79..64]) @
-        sat_add_s16(a[63..48], a[47..32]) @ sat_add_s16(a[31..16], a[15..0]);
+        sat_add_s(b[127..112], b[111..96]) @ sat_add_s(b[95..80], b[79..64]) @
+        sat_add_s(b[63..48], b[47..32]) @ sat_add_s(b[31..16], b[15..0]) @
+        sat_add_s(a[127..112], a[111..96]) @ sat_add_s(a[95..80], a[79..64]) @
+        sat_add_s(a[63..48], a[47..32]) @ sat_add_s(a[31..16], a[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMADDUBSW xmm1, xmm2/m128
