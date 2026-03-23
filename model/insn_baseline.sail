@@ -176,27 +176,27 @@ function cpuid(leaf, subleaf) = {
     },
 
     // Leaf 0xD: XSAVE state component info
-    13 => match sub_val {
+    13 => match (has_xsave, sub_val) {
       // EAX = XCR0_SUPPORTED
       // EBX = standard size for currently enabled components (dynamic)
       // ECX = max standard size for all supported components
-      0 => (XCR0_SUPPORTED[31..0],
-            xsave_area_size_standard(XCR0),
-            xsave_area_size_standard(XCR0_SUPPORTED),
-            0x00000000),
-      // XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
+      (true, 0) => (XCR0_SUPPORTED[31..0],
+                    xsave_area_size_standard(XCR0),
+                    xsave_area_size_standard(XCR0_SUPPORTED),
+                    0x00000000),
+      // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
       // EBX = compacted size for currently enabled components (dynamic)
-      1 => (0x0000000F,
-            xsave_area_size_compacted(XCR0),
-            0x00000000, 0x00000000),
+      // ECX = supported IA32_XSS bits [31:0] (none)
+      // EDX = supported IA32_XSS bits [63:32] (none)
+      (true, 1) => (0x0000000F, xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
       // AVX state (component 2): 256 bytes at offset 576
-      2 => (0x00000100, 0x00000240, 0x00000000, 0x00000000),
+      (true, 2) => (0x00000100, 0x00000240, 0x00000000, 0x00000000),
       // Opmask state (component 5): 64 bytes at offset 832
-      5 => (0x00000040, 0x00000340, 0x00000000, 0x00000000),
+      (true, 5) => (0x00000040, 0x00000340, 0x00000000, 0x00000000),
       // ZMM_Hi256 (component 6): 512 bytes at offset 896
-      6 => (0x00000200, 0x00000380, 0x00000000, 0x00000000),
+      (true, 6) => (0x00000200, 0x00000380, 0x00000000, 0x00000000),
       // Hi16_ZMM (component 7): 1024 bytes at offset 1408
-      7 => (0x00000400, 0x00000580, 0x00000000, 0x00000000),
+      (true, 7) => (0x00000400, 0x00000580, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
 
