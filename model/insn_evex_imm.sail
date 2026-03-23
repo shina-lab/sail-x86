@@ -6,17 +6,16 @@
 
 val cmp_ub_pred : (byte, byte, range(0, 7)) -> bit
 function cmp_ub_pred(a, b, pred) = {
-  let eq : bits(1) = is_zero(a ^ b);
-  let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let lt : bits(1) = diff[8..8];
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt_u(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -54,18 +53,16 @@ function avx_pcmpub_512(a, b, pred) =
 
 val cmp_sb_pred : (byte, byte, range(0, 7)) -> bit
 function cmp_sb_pred(a, b, pred) = {
-  let diff : byte = a - b;
-  let eq : bits(1) = is_zero(a ^ b);
-  let of_bit : bits(1) = (a[7..7] ^ b[7..7]) & (diff[7..7] ^ a[7..7]);
-  let lt : bits(1) = diff[7..7] ^ of_bit;
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -103,17 +100,16 @@ function avx_pcmpb_512(a, b, pred) =
 
 val cmp_uw_pred : (word, word, range(0, 7)) -> bit
 function cmp_uw_pred(a, b, pred) = {
-  let eq : bits(1) = is_zero(a ^ b);
-  let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let lt : bits(1) = diff[16..16];
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt_u(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -143,18 +139,16 @@ function avx_pcmpuw_512(a, b, pred) =
 
 val cmp_sw_pred : (word, word, range(0, 7)) -> bit
 function cmp_sw_pred(a, b, pred) = {
-  let diff : word = a - b;
-  let eq : bits(1) = is_zero(a ^ b);
-  let of_bit : bits(1) = (a[15..15] ^ b[15..15]) & (diff[15..15] ^ a[15..15]);
-  let lt : bits(1) = diff[15..15] ^ of_bit;
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -184,17 +178,16 @@ function avx_pcmpw_512(a, b, pred) =
 
 val cmp_ud_pred : (dword, dword, range(0, 7)) -> bit
 function cmp_ud_pred(a, b, pred) = {
-  let eq : bits(1) = is_zero(a ^ b);
-  let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let lt : bits(1) = diff[32..32];
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt_u(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -229,18 +222,16 @@ function avx_pcmpud_512(a, b, pred) =
 
 val cmp_sd_pred : (dword, dword, range(0, 7)) -> bit
 function cmp_sd_pred(a, b, pred) = {
-  let diff : dword = a - b;
-  let eq : bits(1) = is_zero(a ^ b);
-  let of_bit : bits(1) = (a[31..31] ^ b[31..31]) & (diff[31..31] ^ a[31..31]);
-  let lt : bits(1) = diff[31..31] ^ of_bit;
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -275,17 +266,16 @@ function avx_pcmpd_512(a, b, pred) =
 
 val cmp_uq_pred : (qword, qword, range(0, 7)) -> bit
 function cmp_uq_pred(a, b, pred) = {
-  let eq : bits(1) = is_zero(a ^ b);
-  let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
-  let lt : bits(1) = diff[64..64];
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt_u(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -323,18 +313,16 @@ function avx_pcmpuq_512(a, b, pred) =
 
 val cmp_sq_pred : (qword, qword, range(0, 7)) -> bit
 function cmp_sq_pred(a, b, pred) = {
-  let diff : qword = a - b;
-  let eq : bits(1) = is_zero(a ^ b);
-  let of_bit : bits(1) = (a[63..63] ^ b[63..63]) & (diff[63..63] ^ a[63..63]);
-  let lt : bits(1) = diff[63..63] ^ of_bit;
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt(b, a);
   match pred {
-    0 => eq[0],
-    1 => lt[0],
-    2 => (eq | lt)[0],
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
     3 => 0b0,
-    4 => (~(eq))[0],
-    5 => (~(lt))[0],
-    6 => (~(eq) & ~(lt))[0],
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
     7 => 0b1,
   }
 }
@@ -569,7 +557,7 @@ function avx_valignd_512(src1, src2, imm) = {
 val avx_valignq_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_valignq_128(src1, src2, imm) = {
   // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 1) = unsigned(imm[0..0]);
+  let shift : range(0, 1) = unsigned(imm[0]);
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let src_idx : range(0, 3) = i + shift;
@@ -651,8 +639,8 @@ function avx_vpermilps_imm_512(src, imm) = {
 
 val avx_vpermilpd_imm_128 : (xmmword, byte) -> xmmword
 function avx_vpermilpd_imm_128(src, imm) = {
-  let s0 : range(0, 1) = unsigned(imm[0..0]);
-  let s1 : range(0, 1) = unsigned(imm[1..1]);
+  let s0 : range(0, 1) = unsigned(imm[0]);
+  let s1 : range(0, 1) = unsigned(imm[1]);
   let lo0 : range(0, 64) = s0 * 64;
   let lo1 : range(0, 64) = s1 * 64;
   src[(lo1 + 63)..lo1] @ src[(lo0 + 63)..lo0]
@@ -717,8 +705,8 @@ function select_lane_128_from_512(src, sel) = {
 
 val avx_shuf_f32x4_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_shuf_f32x4_256(src1, src2, imm) = {
-  let s0 : range(0, 1) = unsigned(imm[0..0]);
-  let s1 : range(0, 1) = unsigned(imm[1..1]);
+  let s0 : range(0, 1) = unsigned(imm[0]);
+  let s1 : range(0, 1) = unsigned(imm[1]);
   let lane0 : xmmword = (src1 >> (s0 * 128))[127..0];
   let lane1 : xmmword = (src2 >> (s1 * 128))[127..0];
   lane1 @ lane0
@@ -1097,7 +1085,7 @@ function avx_range_f32(src1, src2, imm) = {
     };
   // Phase 2: apply sign control (SDM: SignSelCtl)
   match sign_ctl {
-    0 => src1[31..31] @ tmp[30..0],  // preserve src1 sign
+    0 => src1[31] @ tmp[30..0],  // preserve src1 sign
     1 => tmp,                          // preserve compare result sign
     2 => 0b0 @ tmp[30..0],            // force positive
     3 => 0b1 @ tmp[30..0],            // force negative
@@ -1129,7 +1117,7 @@ function avx_range_f64(src1, src2, imm) = {
       },
     };
   match sign_ctl {
-    0 => src1[63..63] @ tmp[62..0],
+    0 => src1[63] @ tmp[62..0],
     1 => tmp,
     2 => 0b0 @ tmp[62..0],
     3 => 0b1 @ tmp[62..0],
@@ -1356,7 +1344,7 @@ function gf2p8_affine(src, matrix, imm8) = {
     // XOR-reduce via tree fold
     let x4 : bits(4) = product[7..4] ^ product[3..0];
     let x2 : bits(2) = x4[3..2] ^ x4[1..0];
-    let bit : bit = (x2[1..1] ^ x2[0..0])[0];
+    let bit : bit = (x2[1] ^ x2[0])[0];
     // XOR with imm8 bit
     r[i] = bit ^ imm8[i];
   };
@@ -1600,7 +1588,7 @@ function dispatch_evex_imm(op, pfx) = {
       // VPEXTRQ: imm8[0] selects qword
       let rm = decode_rm_evex(modrm, pfx, 8);
       let imm = fetch_byte();
-      let sel : range(0, 1) = unsigned(imm[0..0]);
+      let sel : range(0, 1) = unsigned(imm[0]);
       let lo : range(0, 64) = sel * 64;
       let extracted : qword = src_xmm[(lo + 63)..lo];
       match rm {
@@ -1685,7 +1673,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       1 => {
         let src_ymm = read_ymm(src);
-        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
+        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
         match rm {
           RM_reg(_) => {
             if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
@@ -1754,7 +1742,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       2 => {
         let src_zmm = read_zmm(src);
-        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 256))[255..0];
+        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0]) : bits(1)) * 256))[255..0];
         match rm {
           RM_reg(_) => {
             if pfx.vex_w then evex_write_q_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
@@ -2000,10 +1988,10 @@ function dispatch_evex_imm(op, pfx) = {
     var result = read_xmm(pfx.evex_vvvvv);
     result[(dlo + 31)..dlo] = src_float;
     // imm8[3:0] = zero mask for each float (branchless)
-    result[31..0]   = result[31..0]   & sign_extend(~(imm[0..0]));
-    result[63..32]  = result[63..32]  & sign_extend(~(imm[1..1]));
-    result[95..64]  = result[95..64]  & sign_extend(~(imm[2..2]));
-    result[127..96] = result[127..96] & sign_extend(~(imm[3..3]));
+    result[31..0]   = result[31..0]   & sign_extend(~(imm[0]));
+    result[63..32]  = result[63..32]  & sign_extend(~(imm[1]));
+    result[95..64]  = result[95..64]  & sign_extend(~(imm[2]));
+    result[127..96] = result[127..96] & sign_extend(~(imm[3]));
     write_xmm(dst, result)
   },
 
@@ -2021,7 +2009,7 @@ function dispatch_evex_imm(op, pfx) = {
         RM_mem(seg, offset) => seg_read64(seg, offset),
       };
       let imm = fetch_byte();
-      let sel : range(0, 1) = unsigned(imm[0..0]);
+      let sel : range(0, 1) = unsigned(imm[0]);
       var result = read_xmm(pfx.evex_vvvvv);
       let lo : range(0, 64) = sel * 64;
       result[(lo + 63)..lo] = qword_val;
@@ -2086,7 +2074,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       1 => {
         let src_ymm = read_ymm(src);
-        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
+        let extracted : xmmword = (src_ymm >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
         match rm {
           RM_reg(_) => {
             if pfx.vex_w then evex_write_q_xmm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
@@ -2154,7 +2142,7 @@ function dispatch_evex_imm(op, pfx) = {
     match pfx.evex_ll {
       2 => {
         let src_zmm = read_zmm(src);
-        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 256))[255..0];
+        let extracted : ymmword = (src_zmm >> (unsigned(zero_extend(imm[0]) : bits(1)) * 256))[255..0];
         match rm {
           RM_reg(_) => {
             if pfx.vex_w then evex_write_q_ymm(evex_rm_reg_idx(modrm, pfx), extracted, pfx)
