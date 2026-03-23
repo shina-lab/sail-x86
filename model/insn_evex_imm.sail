@@ -4,10 +4,26 @@
 // classify, shift-imm, GFNI, and FP16 compare.
 // Called from dispatch_evex in insn_evex.sail.
 
-val cmp_ub_pred : (byte, byte, range(0, 7)) -> bit
-function cmp_ub_pred(a, b, pred) = {
+val cmp_u_pred : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n), range(0, 7)) -> bit
+function cmp_u_pred(a, b, pred) = {
   let eq : bit = is_eq(a, b);
   let lt : bit = is_gt_u(b, a);
+  match pred {
+    0 => eq,
+    1 => lt,
+    2 => eq | lt,
+    3 => 0b0,
+    4 => ~(eq),
+    5 => ~(lt),
+    6 => ~(eq) & ~(lt),
+    7 => 0b1,
+  }
+}
+
+val cmp_s_pred : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n), range(0, 7)) -> bit
+function cmp_s_pred(a, b, pred) = {
+  let eq : bit = is_eq(a, b);
+  let lt : bit = is_gt(b, a);
   match pred {
     0 => eq,
     1 => lt,
@@ -22,22 +38,22 @@ function cmp_ub_pred(a, b, pred) = {
 
 val avx_pcmpub_128 : (xmmword, xmmword, range(0, 7)) -> word
 function avx_pcmpub_128(a, b, pred) =
-  cmp_ub_pred(a[127..120], b[127..120], pred) @
-  cmp_ub_pred(a[119..112], b[119..112], pred) @
-  cmp_ub_pred(a[111..104], b[111..104], pred) @
-  cmp_ub_pred(a[103..96], b[103..96], pred) @
-  cmp_ub_pred(a[95..88], b[95..88], pred) @
-  cmp_ub_pred(a[87..80], b[87..80], pred) @
-  cmp_ub_pred(a[79..72], b[79..72], pred) @
-  cmp_ub_pred(a[71..64], b[71..64], pred) @
-  cmp_ub_pred(a[63..56], b[63..56], pred) @
-  cmp_ub_pred(a[55..48], b[55..48], pred) @
-  cmp_ub_pred(a[47..40], b[47..40], pred) @
-  cmp_ub_pred(a[39..32], b[39..32], pred) @
-  cmp_ub_pred(a[31..24], b[31..24], pred) @
-  cmp_ub_pred(a[23..16], b[23..16], pred) @
-  cmp_ub_pred(a[15..8], b[15..8], pred) @
-  cmp_ub_pred(a[7..0], b[7..0], pred)
+  cmp_u_pred(a[127..120], b[127..120], pred) @
+  cmp_u_pred(a[119..112], b[119..112], pred) @
+  cmp_u_pred(a[111..104], b[111..104], pred) @
+  cmp_u_pred(a[103..96], b[103..96], pred) @
+  cmp_u_pred(a[95..88], b[95..88], pred) @
+  cmp_u_pred(a[87..80], b[87..80], pred) @
+  cmp_u_pred(a[79..72], b[79..72], pred) @
+  cmp_u_pred(a[71..64], b[71..64], pred) @
+  cmp_u_pred(a[63..56], b[63..56], pred) @
+  cmp_u_pred(a[55..48], b[55..48], pred) @
+  cmp_u_pred(a[47..40], b[47..40], pred) @
+  cmp_u_pred(a[39..32], b[39..32], pred) @
+  cmp_u_pred(a[31..24], b[31..24], pred) @
+  cmp_u_pred(a[23..16], b[23..16], pred) @
+  cmp_u_pred(a[15..8], b[15..8], pred) @
+  cmp_u_pred(a[7..0], b[7..0], pred)
 
 val avx_pcmpub_256 : (ymmword, ymmword, range(0, 7)) -> dword
 function avx_pcmpub_256(a, b, pred) =
@@ -51,40 +67,24 @@ function avx_pcmpub_512(a, b, pred) =
 
 // VPCMPB: signed byte compare
 
-val cmp_sb_pred : (byte, byte, range(0, 7)) -> bit
-function cmp_sb_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpb_128 : (xmmword, xmmword, range(0, 7)) -> word
 function avx_pcmpb_128(a, b, pred) =
-  cmp_sb_pred(a[127..120], b[127..120], pred) @
-  cmp_sb_pred(a[119..112], b[119..112], pred) @
-  cmp_sb_pred(a[111..104], b[111..104], pred) @
-  cmp_sb_pred(a[103..96], b[103..96], pred) @
-  cmp_sb_pred(a[95..88], b[95..88], pred) @
-  cmp_sb_pred(a[87..80], b[87..80], pred) @
-  cmp_sb_pred(a[79..72], b[79..72], pred) @
-  cmp_sb_pred(a[71..64], b[71..64], pred) @
-  cmp_sb_pred(a[63..56], b[63..56], pred) @
-  cmp_sb_pred(a[55..48], b[55..48], pred) @
-  cmp_sb_pred(a[47..40], b[47..40], pred) @
-  cmp_sb_pred(a[39..32], b[39..32], pred) @
-  cmp_sb_pred(a[31..24], b[31..24], pred) @
-  cmp_sb_pred(a[23..16], b[23..16], pred) @
-  cmp_sb_pred(a[15..8], b[15..8], pred) @
-  cmp_sb_pred(a[7..0], b[7..0], pred)
+  cmp_s_pred(a[127..120], b[127..120], pred) @
+  cmp_s_pred(a[119..112], b[119..112], pred) @
+  cmp_s_pred(a[111..104], b[111..104], pred) @
+  cmp_s_pred(a[103..96], b[103..96], pred) @
+  cmp_s_pred(a[95..88], b[95..88], pred) @
+  cmp_s_pred(a[87..80], b[87..80], pred) @
+  cmp_s_pred(a[79..72], b[79..72], pred) @
+  cmp_s_pred(a[71..64], b[71..64], pred) @
+  cmp_s_pred(a[63..56], b[63..56], pred) @
+  cmp_s_pred(a[55..48], b[55..48], pred) @
+  cmp_s_pred(a[47..40], b[47..40], pred) @
+  cmp_s_pred(a[39..32], b[39..32], pred) @
+  cmp_s_pred(a[31..24], b[31..24], pred) @
+  cmp_s_pred(a[23..16], b[23..16], pred) @
+  cmp_s_pred(a[15..8], b[15..8], pred) @
+  cmp_s_pred(a[7..0], b[7..0], pred)
 
 val avx_pcmpb_256 : (ymmword, ymmword, range(0, 7)) -> dword
 function avx_pcmpb_256(a, b, pred) =
@@ -98,32 +98,16 @@ function avx_pcmpb_512(a, b, pred) =
 
 // VPCMPUW: unsigned word compare
 
-val cmp_uw_pred : (word, word, range(0, 7)) -> bit
-function cmp_uw_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt_u(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpuw_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpuw_128(a, b, pred) =
-  cmp_uw_pred(a[127..112], b[127..112], pred) @
-  cmp_uw_pred(a[111..96], b[111..96], pred) @
-  cmp_uw_pred(a[95..80], b[95..80], pred) @
-  cmp_uw_pred(a[79..64], b[79..64], pred) @
-  cmp_uw_pred(a[63..48], b[63..48], pred) @
-  cmp_uw_pred(a[47..32], b[47..32], pred) @
-  cmp_uw_pred(a[31..16], b[31..16], pred) @
-  cmp_uw_pred(a[15..0], b[15..0], pred)
+  cmp_u_pred(a[127..112], b[127..112], pred) @
+  cmp_u_pred(a[111..96], b[111..96], pred) @
+  cmp_u_pred(a[95..80], b[95..80], pred) @
+  cmp_u_pred(a[79..64], b[79..64], pred) @
+  cmp_u_pred(a[63..48], b[63..48], pred) @
+  cmp_u_pred(a[47..32], b[47..32], pred) @
+  cmp_u_pred(a[31..16], b[31..16], pred) @
+  cmp_u_pred(a[15..0], b[15..0], pred)
 
 val avx_pcmpuw_256 : (ymmword, ymmword, range(0, 7)) -> word
 function avx_pcmpuw_256(a, b, pred) =
@@ -137,32 +121,16 @@ function avx_pcmpuw_512(a, b, pred) =
 
 // VPCMPW: signed word compare
 
-val cmp_sw_pred : (word, word, range(0, 7)) -> bit
-function cmp_sw_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpw_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpw_128(a, b, pred) =
-  cmp_sw_pred(a[127..112], b[127..112], pred) @
-  cmp_sw_pred(a[111..96], b[111..96], pred) @
-  cmp_sw_pred(a[95..80], b[95..80], pred) @
-  cmp_sw_pred(a[79..64], b[79..64], pred) @
-  cmp_sw_pred(a[63..48], b[63..48], pred) @
-  cmp_sw_pred(a[47..32], b[47..32], pred) @
-  cmp_sw_pred(a[31..16], b[31..16], pred) @
-  cmp_sw_pred(a[15..0], b[15..0], pred)
+  cmp_s_pred(a[127..112], b[127..112], pred) @
+  cmp_s_pred(a[111..96], b[111..96], pred) @
+  cmp_s_pred(a[95..80], b[95..80], pred) @
+  cmp_s_pred(a[79..64], b[79..64], pred) @
+  cmp_s_pred(a[63..48], b[63..48], pred) @
+  cmp_s_pred(a[47..32], b[47..32], pred) @
+  cmp_s_pred(a[31..16], b[31..16], pred) @
+  cmp_s_pred(a[15..0], b[15..0], pred)
 
 val avx_pcmpw_256 : (ymmword, ymmword, range(0, 7)) -> word
 function avx_pcmpw_256(a, b, pred) =
@@ -176,42 +144,26 @@ function avx_pcmpw_512(a, b, pred) =
 
 // VPCMPUD: unsigned dword compare producing kmask
 
-val cmp_ud_pred : (dword, dword, range(0, 7)) -> bit
-function cmp_ud_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt_u(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpud_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpud_128(a, b, pred) = {
   let r : bits(4) =
-    cmp_ud_pred(a[127..96], b[127..96], pred) @
-    cmp_ud_pred(a[95..64], b[95..64], pred) @
-    cmp_ud_pred(a[63..32], b[63..32], pred) @
-    cmp_ud_pred(a[31..0], b[31..0], pred);
+    cmp_u_pred(a[127..96], b[127..96], pred) @
+    cmp_u_pred(a[95..64], b[95..64], pred) @
+    cmp_u_pred(a[63..32], b[63..32], pred) @
+    cmp_u_pred(a[31..0], b[31..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpud_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpud_256(a, b, pred) =
-  cmp_ud_pred(a[255..224], b[255..224], pred) @
-  cmp_ud_pred(a[223..192], b[223..192], pred) @
-  cmp_ud_pred(a[191..160], b[191..160], pred) @
-  cmp_ud_pred(a[159..128], b[159..128], pred) @
-  cmp_ud_pred(a[127..96], b[127..96], pred) @
-  cmp_ud_pred(a[95..64], b[95..64], pred) @
-  cmp_ud_pred(a[63..32], b[63..32], pred) @
-  cmp_ud_pred(a[31..0], b[31..0], pred)
+  cmp_u_pred(a[255..224], b[255..224], pred) @
+  cmp_u_pred(a[223..192], b[223..192], pred) @
+  cmp_u_pred(a[191..160], b[191..160], pred) @
+  cmp_u_pred(a[159..128], b[159..128], pred) @
+  cmp_u_pred(a[127..96], b[127..96], pred) @
+  cmp_u_pred(a[95..64], b[95..64], pred) @
+  cmp_u_pred(a[63..32], b[63..32], pred) @
+  cmp_u_pred(a[31..0], b[31..0], pred)
 
 val avx_pcmpud_512 : (zmmword, zmmword, range(0, 7)) -> word
 function avx_pcmpud_512(a, b, pred) =
@@ -220,42 +172,26 @@ function avx_pcmpud_512(a, b, pred) =
 
 // VPCMPD: signed dword compare
 
-val cmp_sd_pred : (dword, dword, range(0, 7)) -> bit
-function cmp_sd_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpd_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpd_128(a, b, pred) = {
   let r : bits(4) =
-    cmp_sd_pred(a[127..96], b[127..96], pred) @
-    cmp_sd_pred(a[95..64], b[95..64], pred) @
-    cmp_sd_pred(a[63..32], b[63..32], pred) @
-    cmp_sd_pred(a[31..0], b[31..0], pred);
+    cmp_s_pred(a[127..96], b[127..96], pred) @
+    cmp_s_pred(a[95..64], b[95..64], pred) @
+    cmp_s_pred(a[63..32], b[63..32], pred) @
+    cmp_s_pred(a[31..0], b[31..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpd_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpd_256(a, b, pred) =
-  cmp_sd_pred(a[255..224], b[255..224], pred) @
-  cmp_sd_pred(a[223..192], b[223..192], pred) @
-  cmp_sd_pred(a[191..160], b[191..160], pred) @
-  cmp_sd_pred(a[159..128], b[159..128], pred) @
-  cmp_sd_pred(a[127..96], b[127..96], pred) @
-  cmp_sd_pred(a[95..64], b[95..64], pred) @
-  cmp_sd_pred(a[63..32], b[63..32], pred) @
-  cmp_sd_pred(a[31..0], b[31..0], pred)
+  cmp_s_pred(a[255..224], b[255..224], pred) @
+  cmp_s_pred(a[223..192], b[223..192], pred) @
+  cmp_s_pred(a[191..160], b[191..160], pred) @
+  cmp_s_pred(a[159..128], b[159..128], pred) @
+  cmp_s_pred(a[127..96], b[127..96], pred) @
+  cmp_s_pred(a[95..64], b[95..64], pred) @
+  cmp_s_pred(a[63..32], b[63..32], pred) @
+  cmp_s_pred(a[31..0], b[31..0], pred)
 
 val avx_pcmpd_512 : (zmmword, zmmword, range(0, 7)) -> word
 function avx_pcmpd_512(a, b, pred) =
@@ -264,97 +200,65 @@ function avx_pcmpd_512(a, b, pred) =
 
 // VPCMPUQ: unsigned qword compare
 
-val cmp_uq_pred : (qword, qword, range(0, 7)) -> bit
-function cmp_uq_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt_u(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
-
 val avx_pcmpuq_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpuq_128(a, b, pred) = {
   let r : bits(2) =
-    cmp_uq_pred(a[127..64], b[127..64], pred) @
-    cmp_uq_pred(a[63..0], b[63..0], pred);
+    cmp_u_pred(a[127..64], b[127..64], pred) @
+    cmp_u_pred(a[63..0], b[63..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpuq_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpuq_256(a, b, pred) = {
   let r : bits(4) =
-    cmp_uq_pred(a[255..192], b[255..192], pred) @
-    cmp_uq_pred(a[191..128], b[191..128], pred) @
-    cmp_uq_pred(a[127..64], b[127..64], pred) @
-    cmp_uq_pred(a[63..0], b[63..0], pred);
+    cmp_u_pred(a[255..192], b[255..192], pred) @
+    cmp_u_pred(a[191..128], b[191..128], pred) @
+    cmp_u_pred(a[127..64], b[127..64], pred) @
+    cmp_u_pred(a[63..0], b[63..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpuq_512 : (zmmword, zmmword, range(0, 7)) -> byte
 function avx_pcmpuq_512(a, b, pred) =
-  cmp_uq_pred(a[511..448], b[511..448], pred) @
-  cmp_uq_pred(a[447..384], b[447..384], pred) @
-  cmp_uq_pred(a[383..320], b[383..320], pred) @
-  cmp_uq_pred(a[319..256], b[319..256], pred) @
-  cmp_uq_pred(a[255..192], b[255..192], pred) @
-  cmp_uq_pred(a[191..128], b[191..128], pred) @
-  cmp_uq_pred(a[127..64], b[127..64], pred) @
-  cmp_uq_pred(a[63..0], b[63..0], pred)
+  cmp_u_pred(a[511..448], b[511..448], pred) @
+  cmp_u_pred(a[447..384], b[447..384], pred) @
+  cmp_u_pred(a[383..320], b[383..320], pred) @
+  cmp_u_pred(a[319..256], b[319..256], pred) @
+  cmp_u_pred(a[255..192], b[255..192], pred) @
+  cmp_u_pred(a[191..128], b[191..128], pred) @
+  cmp_u_pred(a[127..64], b[127..64], pred) @
+  cmp_u_pred(a[63..0], b[63..0], pred)
 
 // VPCMPQ: signed qword compare
-
-val cmp_sq_pred : (qword, qword, range(0, 7)) -> bit
-function cmp_sq_pred(a, b, pred) = {
-  let eq : bit = is_eq(a, b);
-  let lt : bit = is_gt(b, a);
-  match pred {
-    0 => eq,
-    1 => lt,
-    2 => eq | lt,
-    3 => 0b0,
-    4 => ~(eq),
-    5 => ~(lt),
-    6 => ~(eq) & ~(lt),
-    7 => 0b1,
-  }
-}
 
 val avx_pcmpq_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpq_128(a, b, pred) = {
   let r : bits(2) =
-    cmp_sq_pred(a[127..64], b[127..64], pred) @
-    cmp_sq_pred(a[63..0], b[63..0], pred);
+    cmp_s_pred(a[127..64], b[127..64], pred) @
+    cmp_s_pred(a[63..0], b[63..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpq_256 : (ymmword, ymmword, range(0, 7)) -> byte
 function avx_pcmpq_256(a, b, pred) = {
   let r : bits(4) =
-    cmp_sq_pred(a[255..192], b[255..192], pred) @
-    cmp_sq_pred(a[191..128], b[191..128], pred) @
-    cmp_sq_pred(a[127..64], b[127..64], pred) @
-    cmp_sq_pred(a[63..0], b[63..0], pred);
+    cmp_s_pred(a[255..192], b[255..192], pred) @
+    cmp_s_pred(a[191..128], b[191..128], pred) @
+    cmp_s_pred(a[127..64], b[127..64], pred) @
+    cmp_s_pred(a[63..0], b[63..0], pred);
   zero_extend(r)
 }
 
 val avx_pcmpq_512 : (zmmword, zmmword, range(0, 7)) -> byte
 function avx_pcmpq_512(a, b, pred) =
-  cmp_sq_pred(a[511..448], b[511..448], pred) @
-  cmp_sq_pred(a[447..384], b[447..384], pred) @
-  cmp_sq_pred(a[383..320], b[383..320], pred) @
-  cmp_sq_pred(a[319..256], b[319..256], pred) @
-  cmp_sq_pred(a[255..192], b[255..192], pred) @
-  cmp_sq_pred(a[191..128], b[191..128], pred) @
-  cmp_sq_pred(a[127..64], b[127..64], pred) @
-  cmp_sq_pred(a[63..0], b[63..0], pred)
+  cmp_s_pred(a[511..448], b[511..448], pred) @
+  cmp_s_pred(a[447..384], b[447..384], pred) @
+  cmp_s_pred(a[383..320], b[383..320], pred) @
+  cmp_s_pred(a[319..256], b[319..256], pred) @
+  cmp_s_pred(a[255..192], b[255..192], pred) @
+  cmp_s_pred(a[191..128], b[191..128], pred) @
+  cmp_s_pred(a[127..64], b[127..64], pred) @
+  cmp_s_pred(a[63..0], b[63..0], pred)
 
 // =========================================================================
 // VPTERNLOGD: ternary logic on 3 dword operands using 8-bit truth table
