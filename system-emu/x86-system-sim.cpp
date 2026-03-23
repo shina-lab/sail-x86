@@ -148,13 +148,6 @@ static void init_cpu_state(x86::Model &model) {
   model.zTR_limit = 0;
   model.zKERNEL_GS_BASE = 0;
 
-  // Debug registers
-  model.zDR0 = 0;
-  model.zDR1 = 0;
-  model.zDR2 = 0;
-  model.zDR3 = 0;
-  model.zDR6 = 0xFFFF0FF0;
-  model.zDR7 = 0x00000400;
 
   // Disable interrupts
   model.zIF_flag = 0;

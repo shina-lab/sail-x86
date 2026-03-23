@@ -362,12 +362,13 @@ register CR8  : bits(4) // Task Priority Register (TPR), bits 3:0
 register EFER : qword  // Extended Feature Enable Register
 
 // Debug registers
-register DR0  : qword  // Linear breakpoint address 0
-register DR1  : qword  // Linear breakpoint address 1
-register DR2  : qword  // Linear breakpoint address 2
-register DR3  : qword  // Linear breakpoint address 3
-register DR6  : qword  // Debug status
-register DR7  : qword  // Debug control
+// Default values are specified by SDM
+register DR0  : qword = 0x0000000000000000  // Linear breakpoint address 0
+register DR1  : qword = 0x0000000000000000  // Linear breakpoint address 1
+register DR2  : qword = 0x0000000000000000  // Linear breakpoint address 2
+register DR3  : qword = 0x0000000000000000  // Linear breakpoint address 3
+register DR6  : qword = 0x00000000FFFF0FF0  // Debug status
+register DR7  : qword = 0x0000000000000400  // Debug control
 
 // CR0 bit positions
 let CR0_PE : int = 0    // Protection Enable
@@ -383,21 +384,21 @@ let CR0_CD : int = 30   // Cache Disable
 let CR0_PG : int = 31   // Paging
 
 // CR4 bit positions
-let CR4_VME       : int = 0   // Virtual-8086 Mode Extensions
-let CR4_PVI       : int = 1   // Protected-Mode Virtual Interrupts
-let CR4_TSD       : int = 2   // Time Stamp Disable
-let CR4_DE        : int = 3   // Debugging Extensions
-let CR4_PSE       : int = 4   // Page Size Extensions
-let CR4_PAE       : int = 5   // Physical Address Extension
-let CR4_MCE       : int = 6   // Machine-Check Enable
-let CR4_PGE       : int = 7   // Page Global Enable
-let CR4_PCE       : int = 8   // Performance-Monitoring Counter Enable
-let CR4_OSFXSR    : int = 9   // OS Support for FXSAVE/FXRSTOR
-let CR4_OSXMMEXCPT : int = 10 // OS Support for Unmasked SIMD FP Exceptions
-let CR4_LA57      : int = 12  // 5-Level Paging
-let CR4_FSGSBASE  : int = 16  // FSGSBASE Enable
-let CR4_PCIDE     : int = 17  // PCID Enable
-let CR4_OSXSAVE   : int = 18  // XSAVE and Processor Extended States Enable
+let CR4_VME        : int = 0   // Virtual-8086 Mode Extensions
+let CR4_PVI        : int = 1   // Protected-Mode Virtual Interrupts
+let CR4_TSD        : int = 2   // Time Stamp Disable
+let CR4_DE         : int = 3   // Debugging Extensions
+let CR4_PSE        : int = 4   // Page Size Extensions
+let CR4_PAE        : int = 5   // Physical Address Extension
+let CR4_MCE        : int = 6   // Machine-Check Enable
+let CR4_PGE        : int = 7   // Page Global Enable
+let CR4_PCE        : int = 8   // Performance-Monitoring Counter Enable
+let CR4_OSFXSR     : int = 9   // OS Support for FXSAVE/FXRSTOR
+let CR4_OSXMMEXCPT : int = 10  // OS Support for Unmasked SIMD FP Exceptions
+let CR4_LA57       : int = 12  // 5-Level Paging
+let CR4_FSGSBASE   : int = 16  // FSGSBASE Enable
+let CR4_PCIDE      : int = 17  // PCID Enable
+let CR4_OSXSAVE    : int = 18  // XSAVE and Processor Extended States Enable
 
 // EFER bit positions
 let EFER_SCE : int = 0   // SYSCALL Enable
