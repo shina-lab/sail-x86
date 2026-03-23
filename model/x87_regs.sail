@@ -49,7 +49,7 @@ function x87_write_st(i, v) = {
 // Push a value onto the x87 stack (decrement TOP, write to new ST(0)).
 val x87_push : fp80 -> unit
 function x87_push(v) = {
-  let new_top = x87_physical(negate(1));
+  let new_top = x87_physical(-1);
   x87_set_top(new_top);
   x87_ST[new_top] = v;
   x87_mark_valid(new_top)
@@ -71,7 +71,7 @@ function x87_free(i) = x87_mark_empty(x87_physical(i))
 
 // Decrement TOP (used by FDECSTP).
 val x87_dec_top : unit -> unit
-function x87_dec_top() = x87_set_top(x87_physical(negate(1)))
+function x87_dec_top() = x87_set_top(x87_physical(-1))
 
 // Increment TOP (used by FINCSTP).
 val x87_inc_top : unit -> unit

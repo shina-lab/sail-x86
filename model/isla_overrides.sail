@@ -18,7 +18,7 @@ function phys_write(addr, n, data) = {
 }
 
 function translate_addr(linear, access) = linear
-function __check_pending_irq() = negate(1)
+function __check_pending_irq() = -1
 function __mem_read_crossing(addr, n) = phys_read(addr, n)
 function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
 
