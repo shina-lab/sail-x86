@@ -976,7 +976,7 @@ function decode_execute() = {
         let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
         let v = read_gpr(os, reg);
-        let result = exec_inc(v, os);
+        let result = exec_inc(v);
         write_gpr(os, reg, result)
       },
 
@@ -986,7 +986,7 @@ function decode_execute() = {
         let reg = extend_reg(reg_field, 0b0);
         let os = get_operand_size(pfx);
         let v = read_gpr(os, reg);
-        let result = exec_dec(v, os);
+        let result = exec_dec(v);
         write_gpr(os, reg, result)
       },
 
@@ -2358,11 +2358,11 @@ function decode_execute() = {
         check_lock_rm(pfx, rm, false);
         if reg_field == 0 then {
           let v = read_rm_val(rm, 8, pfx.has_rex);
-          let result = exec_inc(v, 8);
+          let result = exec_inc(v);
           write_rm_val(rm, 8, pfx.has_rex, result)
         } else if reg_field == 1 then {
           let v = read_rm_val(rm, 8, pfx.has_rex);
-          let result = exec_dec(v, 8);
+          let result = exec_dec(v);
           write_rm_val(rm, 8, pfx.has_rex, result)
         } else {
           raise_UD()

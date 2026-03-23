@@ -2,11 +2,10 @@
 //
 // Computes dest := dest + 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 
-val exec_inc : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), int('os)) -> bits('os)
-function exec_inc(a, os) = {
-  let one : bits('os) = zero_extend(0b1 : bits(1));
-  let result : bits('os) = a + one;
-  update_flags_add_no_cf(result, a, one);
+val exec_inc : forall 'os, 'os in {8, 16, 32, 64}. (bits('os)) -> bits('os)
+function exec_inc(a) = {
+  let result = a + 1;
+  update_flags_add_no_cf(result, a, zero_extend(0b1));
   result
 }
 
@@ -14,29 +13,28 @@ function exec_inc(a, os) = {
 //
 // Computes dest := dest - 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 
-val exec_dec : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), int('os)) -> bits('os)
-function exec_dec(a, os) = {
-  let one : bits('os) = zero_extend(0b1 : bits(1));
-  let result : bits('os) = a - one;
-  update_flags_sub_no_cf(result, a, one);
+val exec_dec : forall 'os, 'os in {8, 16, 32, 64}. (bits('os)) -> bits('os)
+function exec_dec(a) = {
+  let result = a - 1;
+  update_flags_sub_no_cf(result, a, zero_extend(0b1));
   result
 }
 
 // MUL — Unsigned Multiply
 
-val exec_mul : (qword, operand_size) -> unit
-function exec_mul(src, os) = {
+val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
+function exec_mul(os, src) = {
   if os == 8 then {
     let a : int = unsigned(read_gpr8l(RAX));
-    let b : int = unsigned(src[7..0]);
+    let b : int = unsigned(src);
     let result : word = to_bits_truncate(a * b);
     write_gpr16(RAX, result);
     CF = is_nonzero(result[15..8]);
     OF = CF;
   } else {
     let a : int = unsigned(read_gpr(os, RAX));
-    let b : int = unsigned(src[(os - 1)..0]);
-    let result : bits(128) = to_bits_truncate(a * b);
+    let b : int = unsigned(src);
+    let result : bits('os * 2) = to_bits_truncate(a * b);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
     write_gpr(os, RAX, lo);
@@ -49,10 +47,10 @@ function exec_mul(src, os) = {
 // DIV — Unsigned Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after DIV.
 
-val exec_div : (qword, operand_size) -> unit
-function exec_div(src, os) = {
+val exec_div : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
+function exec_div(os, src) = {
   if os == 8 then {
-    let divisor = unsigned(src[7..0]);
+    let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
     let dividend = unsigned(read_gpr16(RAX));
@@ -62,17 +60,15 @@ function exec_div(src, os) = {
     write_gpr8l(RAX, to_bits_truncate(quotient));
     write_gpr8h(RAX, to_bits_truncate(remainder))
   } else {
-    let divisor = unsigned(src[(os - 1)..0]);
+    let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
-    let rdx_bits : bits(64) = zero_extend(read_gpr(os, RDX));
-    let rax_bits : bits(64) = zero_extend(read_gpr(os, RAX));
-    let dividend = unsigned(rdx_bits[(os - 1)..0] @ rax_bits[(os - 1)..0]);
+    let dividend = unsigned(read_gpr(os, RDX) @ read_gpr(os, RAX));
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > (pow2(os) - 1) then raise_DE();
-    let q_bits : bits(128) = to_bits_truncate(quotient);
-    let r_bits : bits(128) = to_bits_truncate(remainder);
+    let q_bits : bits('os * 2) = to_bits_truncate(quotient);
+    let r_bits : bits('os * 2) = to_bits_truncate(remainder);
     write_gpr(os, RAX, q_bits[(os - 1)..0]);
     write_gpr(os, RDX, r_bits[(os - 1)..0])
   };
@@ -87,10 +83,10 @@ function exec_div(src, os) = {
 // IDIV — Signed Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after IDIV.
 
-val exec_idiv : (qword, operand_size) -> unit
-function exec_idiv(src, os) = {
+val exec_idiv : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
+function exec_idiv(os, src) = {
   if os == 8 then {
-    let divisor = signed(src[7..0]);
+    let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
     let dividend = signed(read_gpr16(RAX));
@@ -100,17 +96,15 @@ function exec_idiv(src, os) = {
     write_gpr8l(RAX, to_bits_truncate(quotient));
     write_gpr8h(RAX, to_bits_truncate(remainder))
   } else {
-    let divisor = signed(src[(os - 1)..0]);
+    let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
-    let rdx_bits : bits(64) = zero_extend(read_gpr(os, RDX));
-    let rax_bits : bits(64) = zero_extend(read_gpr(os, RAX));
-    let dividend = signed(rdx_bits[(os - 1)..0] @ rax_bits[(os - 1)..0]);
+    let dividend = signed(read_gpr(os, RDX) @ read_gpr(os, RAX));
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
-    let q_bits : bits(128) = to_bits_truncate(quotient);
-    let r_bits : bits(128) = to_bits_truncate(remainder);
+    let q_bits : bits('os * 2) = to_bits_truncate(quotient);
+    let r_bits : bits('os * 2) = to_bits_truncate(remainder);
     write_gpr(os, RAX, q_bits[(os - 1)..0]);
     write_gpr(os, RDX, r_bits[(os - 1)..0])
   };
@@ -124,11 +118,11 @@ function exec_idiv(src, os) = {
 
 // IMUL — Signed Multiply (one-operand form)
 
-val exec_imul_1 : (qword, operand_size) -> unit
-function exec_imul_1(src, os) = {
+val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
+function exec_imul_1(os, src) = {
   if os == 8 then {
     let a : int = signed(read_gpr8l(RAX));
-    let b : int = signed(src[7..0]);
+    let b : int = signed(src);
     let product : int = a * b;
     let result : word = to_bits_truncate(product);
     write_gpr16(RAX, result);
@@ -136,9 +130,9 @@ function exec_imul_1(src, os) = {
     OF = CF;
   } else {
     let a : int = signed(read_gpr(os, RAX));
-    let b : int = signed(src[(os - 1)..0]);
+    let b : int = signed(src);
     let product : int = a * b;
-    let result : bits(128) = to_bits_truncate(product);
+    let result : bits('os * 2) = to_bits_truncate(product);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
     write_gpr(os, RAX, lo);
@@ -189,10 +183,10 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
         update_flags_sub(result, zero, v);
         write_rm_val(rm, 8, pfx.has_rex, result)
       },
-      4 => exec_mul(zero_extend(v), 8),
-      5 => exec_imul_1(zero_extend(v), 8),
-      6 => exec_div(zero_extend(v), 8),
-      7 => exec_idiv(zero_extend(v), 8),
+      4 => exec_mul(v),
+      5 => exec_imul_1(v),
+      6 => exec_div(v),
+      7 => exec_idiv(v),
     }
   }
 }
@@ -211,26 +205,25 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     let result = v & imm;
     update_flags_logic(result[os - 1 .. 0])
   } else {
-    let v : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+    let v = read_rm_val(rm, os, pfx.has_rex);
     match reg_field {
       0 => (),  // unreachable
       1 => (),  // unreachable
       // NOT r/m
       2 => {
         let result = ~(v);
-        write_rm_val(rm, os, pfx.has_rex, result[(os - 1) .. 0])
+        write_rm_val(rm, os, pfx.has_rex, result)
       },
       // NEG r/m
       3 => {
-        let zero : qword = zeros();
-        let result = zero - v;
-        update_flags_sub(result[os - 1 .. 0], zero[os - 1 .. 0], v[os - 1 .. 0]);
-        write_rm_val(rm, os, pfx.has_rex, result[(os - 1) .. 0])
+        let result = zeros() - v;
+        update_flags_sub(result, zeros(), v);
+        write_rm_val(rm, os, pfx.has_rex, result)
       },
-      4 => exec_mul(v, os),
-      5 => exec_imul_1(v, os),
-      6 => exec_div(v, os),
-      7 => exec_idiv(v, os),
+      4 => exec_mul(v),
+      5 => exec_imul_1(v),
+      6 => exec_div(v),
+      7 => exec_idiv(v),
     }
   }
 }
@@ -246,14 +239,14 @@ function dispatch_group5(reg_field, rm, pfx) = {
     0 => {
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
-      let result = exec_inc(v, os);
+      let result = exec_inc(v);
       write_rm_val(rm, os, pfx.has_rex, result)
     },
     // DEC r/m
     1 => {
       let os = get_operand_size(pfx);
       let v = read_rm_val(rm, os, pfx.has_rex);
-      let result = exec_dec(v, os);
+      let result = exec_dec(v);
       write_rm_val(rm, os, pfx.has_rex, result)
     },
     // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
@@ -357,8 +350,8 @@ function dispatch_group5(reg_field, rm, pfx) = {
 // If count=0, flags unchanged. If count=1, OF = MSB(result) XOR CF.
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_shl : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_shl(a, count_raw, os) = {
+val exec_shl : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_shl(os, a, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -382,8 +375,8 @@ function exec_shl(a, count_raw, os) = {
 // CF = last bit shifted out. If count=1, OF = MSB(original).
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_shr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_shr(a, count_raw, os) = {
+val exec_shr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_shr(os, a, count_raw) = {
   let mod_val : range(32, 64) = if os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
@@ -405,8 +398,8 @@ function exec_shr(a, count_raw, os) = {
 // CF = last bit shifted out. OF cleared for count=1.
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_sar(a, count_raw, os) = {
+val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_sar(os, a, count_raw) = {
   let mod_val : range(32, 64) = if os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
@@ -435,8 +428,8 @@ function exec_sar(a, count_raw, os) = {
 // OF defined only for count=1. SF, ZF, AF, PF unaffected.
 // Count is masked to 5 bits (6 bits for 64-bit operands).
 
-val exec_rol : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_rol(a, count_raw, os) = {
+val exec_rol : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_rol(os, a, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -454,8 +447,8 @@ function exec_rol(a, count_raw, os) = {
   }
 }
 
-val exec_ror : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_ror(a, count_raw, os) = {
+val exec_ror : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_ror(os, a, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -480,8 +473,8 @@ function exec_ror(a, count_raw, os) = {
 // RCR: Rotates (n+1)-bit value (CF:dest) right by count.
 // OF defined only for count=1. Count masked to 5 bits (6 for 64-bit).
 
-val exec_rcl : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_rcl(a, count_raw, os) = {
+val exec_rcl : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_rcl(os, a, count_raw) = {
   let masked : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -501,8 +494,8 @@ function exec_rcl(a, count_raw, os) = {
   }
 }
 
-val exec_rcr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte, int('os)) -> bits('os)
-function exec_rcr(a, count_raw, os) = {
+val exec_rcr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
+function exec_rcr(os, a, count_raw) = {
   let masked : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -547,14 +540,14 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
   } else {
     let src_val = read_rm_val(rm, os, pfx.has_rex);
     let new_val : bits('os) = match shift_op {
-      0 => exec_rol(src_val, count_raw, os),
-      1 => exec_ror(src_val, count_raw, os),
-      2 => exec_rcl(src_val, count_raw, os),
-      3 => exec_rcr(src_val, count_raw, os),
-      4 => exec_shl(src_val, count_raw, os),
-      5 => exec_shr(src_val, count_raw, os),
-      6 => exec_shl(src_val, count_raw, os),  // SAL = SHL
-      7 => exec_sar(src_val, count_raw, os),
+      0 => exec_rol(src_val, count_raw),
+      1 => exec_ror(src_val, count_raw),
+      2 => exec_rcl(src_val, count_raw),
+      3 => exec_rcr(src_val, count_raw),
+      4 => exec_shl(src_val, count_raw),
+      5 => exec_shr(src_val, count_raw),
+      6 => exec_shl(src_val, count_raw),  // SAL = SHL
+      7 => exec_sar(src_val, count_raw),
     };
     write_rm_val(rm, os, pfx.has_rex, new_val)
   }

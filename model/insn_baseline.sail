@@ -256,8 +256,8 @@ val __fxrstor64 : qword -> unit
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
 
-val exec_shld : forall 'os, 'os in {16, 32, 64}. (bits('os), bits('os), byte, int('os)) -> bits('os)
-function exec_shld(d, s, count_raw, os) = {
+val exec_shld : forall 'os, 'os in {16, 32, 64}. (implicit('os), bits('os), bits('os), byte) -> bits('os)
+function exec_shld(os, d, s, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -295,8 +295,8 @@ function exec_shld(d, s, count_raw, os) = {
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
 
-val exec_shrd : forall 'os, 'os in {16, 32, 64}. (bits('os), bits('os), byte, int('os)) -> bits('os)
-function exec_shrd(d, s, count_raw, os) = {
+val exec_shrd : forall 'os, 'os in {16, 32, 64}. (implicit('os), bits('os), bits('os), byte) -> bits('os)
+function exec_shrd(os, d, s, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
@@ -331,8 +331,8 @@ function exec_shrd(d, s, count_raw, os) = {
 // For memory rm: the full signed bit offset indexes into an arbitrarily long
 // bit string, so the effective address is displaced by (offset / op_bits) words.
 // Returns (possibly-adjusted RM, bit number within the accessed word).
-val bt_adjust : forall 'os, 'os in {16, 32, 64}. (RM, bits('os), int('os)) -> (RM, range(0, 63))
-function bt_adjust(rm, bit_idx, os) = {
+val bt_adjust : forall 'os, 'os in {16, 32, 64}. (implicit('os), RM, bits('os)) -> (RM, range(0, 63))
+function bt_adjust(os, rm, bit_idx) = {
   match rm {
     RM_reg(_) => {
       let bit_num : range(0, 63) = unsigned(bit_idx) % os;
@@ -1238,7 +1238,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       let bit_idx = read_gpr(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx, os);
+      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
       let v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
       CF = v[bit_num]
     },
@@ -1252,7 +1252,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let count = fetch_byte();
       let dst_val = read_rm_val(rm, os, pfx.has_rex);
       let src_val = read_gpr(os, reg);
-      let new_val = exec_shld(dst_val, src_val, count, os);
+      let new_val = exec_shld(dst_val, src_val, count);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
 
@@ -1265,7 +1265,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let count = read_gpr8l(RCX);
       let dst_val = read_rm_val(rm, os, pfx.has_rex);
       let src_val = read_gpr(os, reg);
-      let new_val = exec_shld(dst_val, src_val, count, os);
+      let new_val = exec_shld(dst_val, src_val, count);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
 
@@ -1303,7 +1303,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx, os);
+      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
       var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
       CF = v[bit_num];
       v[bit_num] = 0b1;
@@ -1319,7 +1319,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let count = fetch_byte();
       let dst_val = read_rm_val(rm, os, pfx.has_rex);
       let src_val = read_gpr(os, reg);
-      let new_val = exec_shrd(dst_val, src_val, count, os);
+      let new_val = exec_shrd(dst_val, src_val, count);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
 
@@ -1332,7 +1332,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let count = read_gpr8l(RCX);
       let dst_val = read_rm_val(rm, os, pfx.has_rex);
       let src_val = read_gpr(os, reg);
-      let new_val = exec_shrd(dst_val, src_val, count, os);
+      let new_val = exec_shrd(dst_val, src_val, count);
       write_rm_val(rm, os, pfx.has_rex, new_val)
     },
 
@@ -1372,7 +1372,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx, os);
+      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
       var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
       CF = v[bit_num];
       v[bit_num] = 0b0;
@@ -1507,7 +1507,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx, os);
+      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
       var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
       CF = v[bit_num];
       v[bit_num] = ~(v[bit_num]);
