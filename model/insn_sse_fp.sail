@@ -461,10 +461,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let os = get_operand_size(pfx);
       let src_val : qword = match rm {
-        RM_reg(_) => read_gpr(os, modrm_rm_reg(modrm, pfx)),
+        RM_reg(_) => zero_extend(read_gpr(os, modrm_rm_reg(modrm, pfx))),
         RM_mem(seg, offset) => match os {
           64 => seg_read64(seg, offset),
-          _    => zero_extend(seg_read32(seg, offset)),
+          _  => zero_extend(seg_read32(seg, offset)),
         },
       };
       match mp {
@@ -472,7 +472,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F3 => {
           let result : dword = match os {
             64 => __int64_to_f32(src_val),
-            _    => __int32_to_f32(src_val[31..0]),
+            _  => __int32_to_f32(src_val[31..0]),
           };
           var xmm : xmmword = read_xmm(xreg);
           xmm[31..0] = result;
@@ -482,7 +482,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F2 => {
           let result : qword = match os {
             64 => __int64_to_f64(src_val),
-            _    => __int32_to_f64(src_val[31..0]),
+            _  => __int32_to_f64(src_val[31..0]),
           };
           var xmm : xmmword = read_xmm(xreg);
           xmm[63..0] = result;

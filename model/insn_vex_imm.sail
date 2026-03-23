@@ -331,7 +331,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let src : qword = read_rm_val(rm, os, true);
+    let src : qword = zero_extend(read_rm_val(rm, os, true));
     let imm = fetch_byte();
     if pfx.vex_w then {
       write_gpr64(dst, rotr(src, unsigned(imm[5..0])));

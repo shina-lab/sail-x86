@@ -254,18 +254,18 @@ function seg_linear(seg, offset, access_size) = {
 }
 
 // Polymorphic segmented memory read/write by operand size.
-val seg_read : (operand_size, segreg_idx, qword) -> qword
+val seg_read : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword) -> bits('os)
 function seg_read(os, seg, offset) = {
   let n = os / 8;
   let a = seg_linear(seg, offset, n);
-  zero_extend(mem_read(a, n))
+  mem_read(a, n)
 }
 
-val seg_write : (operand_size, segreg_idx, qword, qword) -> unit
+val seg_write : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword, bits('os)) -> unit
 function seg_write(os, seg, offset, v) = {
   let n = os / 8;
   let a = seg_linear(seg, offset, n);
-  mem_write(a, n, v[os - 1 .. 0])
+  mem_write(a, n, v)
 }
 
 // Sized segmented memory read: check limit, compute linear, read.

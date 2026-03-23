@@ -254,23 +254,23 @@ function write_byte_reg(idx, has_rex, v) =
 // Generic operand read/write through RM union
 // =========================================================================
 
-val read_rm_val : (RM, operand_size, bool) -> qword
+val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (RM, int('os), bool) -> bits('os)
 function read_rm_val(rm, os, has_rex) = match rm {
   RM_reg(idx) => match os {
-    8  => zero_extend(read_byte_reg(idx, has_rex)),
-    16 => zero_extend(read_gpr16(idx)),
-    32 => zero_extend(read_gpr32(idx)),
+    8  => read_byte_reg(idx, has_rex),
+    16 => read_gpr16(idx),
+    32 => read_gpr32(idx),
     64 => read_gpr64(idx),
   },
   RM_mem(seg, offset) => seg_read(os, seg, offset),
 }
 
-val write_rm_val : (RM, operand_size, bool, qword) -> unit
+val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (RM, int('os), bool, bits('os)) -> unit
 function write_rm_val(rm, os, has_rex, v) = match rm {
   RM_reg(idx) => match os {
-    8  => write_byte_reg(idx, has_rex, v[7..0]),
-    16 => write_gpr16(idx, v[15..0]),
-    32 => write_gpr32(idx, v[31..0]),
+    8  => write_byte_reg(idx, has_rex, v),
+    16 => write_gpr16(idx, v),
+    32 => write_gpr32(idx, v),
     64 => write_gpr64(idx, v),
   },
   RM_mem(seg, offset) => seg_write(os, seg, offset, v),
