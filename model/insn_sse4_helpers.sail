@@ -302,12 +302,12 @@ function avx_packusdw_128(a, b) = {
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
     let dst_lo : range(0, 48) = i * 16;
-    r[(dst_lo + 15)..dst_lo] = sat_s32_to_u16(a[(src_lo + 31)..src_lo]);
+    r[(dst_lo + 15)..dst_lo] = sat_su16(a[(src_lo + 31)..src_lo]);
   };
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
     let dst_lo : range(64, 112) = 64 + i * 16;
-    r[(dst_lo + 15)..dst_lo] = sat_s32_to_u16(b[(src_lo + 31)..src_lo]);
+    r[(dst_lo + 15)..dst_lo] = sat_su16(b[(src_lo + 31)..src_lo]);
   };
   r
 }

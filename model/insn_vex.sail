@@ -742,32 +742,32 @@ function vex_pcmpeqw_128(a, b) =
 // VPACKSSWB/VPACKUSWB/VPACKSSDW: pack with saturation
 val vex_packsswb_128 : (xmmword, xmmword) -> xmmword
 function vex_packsswb_128(a, b) =
-  sat_s16_to_s8(b[127..112]) @ sat_s16_to_s8(b[111..96]) @
-  sat_s16_to_s8(b[95..80])   @ sat_s16_to_s8(b[79..64])  @
-  sat_s16_to_s8(b[63..48])   @ sat_s16_to_s8(b[47..32])  @
-  sat_s16_to_s8(b[31..16])   @ sat_s16_to_s8(b[15..0])   @
-  sat_s16_to_s8(a[127..112]) @ sat_s16_to_s8(a[111..96]) @
-  sat_s16_to_s8(a[95..80])   @ sat_s16_to_s8(a[79..64])  @
-  sat_s16_to_s8(a[63..48])   @ sat_s16_to_s8(a[47..32])  @
-  sat_s16_to_s8(a[31..16])   @ sat_s16_to_s8(a[15..0])
+  sat_s8(b[127..112]) @ sat_s8(b[111..96]) @
+  sat_s8(b[95..80])   @ sat_s8(b[79..64])  @
+  sat_s8(b[63..48])   @ sat_s8(b[47..32])  @
+  sat_s8(b[31..16])   @ sat_s8(b[15..0])   @
+  sat_s8(a[127..112]) @ sat_s8(a[111..96]) @
+  sat_s8(a[95..80])   @ sat_s8(a[79..64])  @
+  sat_s8(a[63..48])   @ sat_s8(a[47..32])  @
+  sat_s8(a[31..16])   @ sat_s8(a[15..0])
 
 val vex_packuswb_128 : (xmmword, xmmword) -> xmmword
 function vex_packuswb_128(a, b) =
-  sat_s16_to_u8(b[127..112]) @ sat_s16_to_u8(b[111..96]) @
-  sat_s16_to_u8(b[95..80])   @ sat_s16_to_u8(b[79..64])  @
-  sat_s16_to_u8(b[63..48])   @ sat_s16_to_u8(b[47..32])  @
-  sat_s16_to_u8(b[31..16])   @ sat_s16_to_u8(b[15..0])   @
-  sat_s16_to_u8(a[127..112]) @ sat_s16_to_u8(a[111..96]) @
-  sat_s16_to_u8(a[95..80])   @ sat_s16_to_u8(a[79..64])  @
-  sat_s16_to_u8(a[63..48])   @ sat_s16_to_u8(a[47..32])  @
-  sat_s16_to_u8(a[31..16])   @ sat_s16_to_u8(a[15..0])
+  sat_su8(b[127..112]) @ sat_su8(b[111..96]) @
+  sat_su8(b[95..80])   @ sat_su8(b[79..64])  @
+  sat_su8(b[63..48])   @ sat_su8(b[47..32])  @
+  sat_su8(b[31..16])   @ sat_su8(b[15..0])   @
+  sat_su8(a[127..112]) @ sat_su8(a[111..96]) @
+  sat_su8(a[95..80])   @ sat_su8(a[79..64])  @
+  sat_su8(a[63..48])   @ sat_su8(a[47..32])  @
+  sat_su8(a[31..16])   @ sat_su8(a[15..0])
 
 val vex_packssdw_128 : (xmmword, xmmword) -> xmmword
 function vex_packssdw_128(a, b) =
-  sat_s32_to_s16(b[127..96]) @ sat_s32_to_s16(b[95..64]) @
-  sat_s32_to_s16(b[63..32])  @ sat_s32_to_s16(b[31..0])  @
-  sat_s32_to_s16(a[127..96]) @ sat_s32_to_s16(a[95..64]) @
-  sat_s32_to_s16(a[63..32])  @ sat_s32_to_s16(a[31..0])
+  sat_s16(b[127..96]) @ sat_s16(b[95..64]) @
+  sat_s16(b[63..32])  @ sat_s16(b[31..0])  @
+  sat_s16(a[127..96]) @ sat_s16(a[95..64]) @
+  sat_s16(a[63..32])  @ sat_s16(a[31..0])
 
 // VPUNPCK*: interleave operations (one 128-bit lane)
 val vex_punpcklbw_128 : (xmmword, xmmword) -> xmmword

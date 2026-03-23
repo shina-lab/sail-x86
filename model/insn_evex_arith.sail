@@ -1081,7 +1081,7 @@ function avx_pmovuswb_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 112) = i * 16;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1092,7 +1092,7 @@ function avx_pmovuswb_256(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 240) = i * 16;
     let dlo : range(0, 120) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1103,7 +1103,7 @@ function avx_pmovuswb_512(src) = {
   foreach (i from 0 to 31) {
     let slo : range(0, 496) = i * 16;
     let dlo : range(0, 248) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_w2b(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1116,7 +1116,7 @@ function avx_pmovusdb_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 24) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1127,7 +1127,7 @@ function avx_pmovusdb_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1138,7 +1138,7 @@ function avx_pmovusdb_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 120) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_d2b(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1151,7 +1151,7 @@ function avx_pmovusqb_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 8) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1162,7 +1162,7 @@ function avx_pmovusqb_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 24) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1173,7 +1173,7 @@ function avx_pmovusqb_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_trunc_u_q2b(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1186,7 +1186,7 @@ function avx_pmovusdw_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 48) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1197,7 +1197,7 @@ function avx_pmovusdw_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 112) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1208,7 +1208,7 @@ function avx_pmovusdw_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 240) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_d2w(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1221,7 +1221,7 @@ function avx_pmovusqw_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 16) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1232,7 +1232,7 @@ function avx_pmovusqw_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 48) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1243,7 +1243,7 @@ function avx_pmovusqw_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 112) = i * 16;
-    r[(dlo + 15)..dlo] = sat_trunc_u_q2w(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1256,7 +1256,7 @@ function avx_pmovusqd_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 32) = i * 32;
-    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_u32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1267,7 +1267,7 @@ function avx_pmovusqd_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 96) = i * 32;
-    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_u32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1278,7 +1278,7 @@ function avx_pmovusqd_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 224) = i * 32;
-    r[(dlo + 31)..dlo] = sat_trunc_u_q2d(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_u32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1291,7 +1291,7 @@ function avx_pmovswb_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 112) = i * 16;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1302,7 +1302,7 @@ function avx_pmovswb_256(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 240) = i * 16;
     let dlo : range(0, 120) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1313,7 +1313,7 @@ function avx_pmovswb_512(src) = {
   foreach (i from 0 to 31) {
     let slo : range(0, 496) = i * 16;
     let dlo : range(0, 248) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s16_to_s8(src[(slo + 15)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 15)..slo]);
   };
   r
 }
@@ -1326,7 +1326,7 @@ function avx_pmovsdb_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 24) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1337,7 +1337,7 @@ function avx_pmovsdb_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1348,7 +1348,7 @@ function avx_pmovsdb_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 120) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s32_to_s8(src[(slo + 31)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1361,7 +1361,7 @@ function avx_pmovsqb_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 8) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1372,7 +1372,7 @@ function avx_pmovsqb_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 24) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1383,7 +1383,7 @@ function avx_pmovsqb_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 56) = i * 8;
-    r[(dlo + 7)..dlo] = sat_s64_to_s8(src[(slo + 63)..slo]);
+    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1396,7 +1396,7 @@ function avx_pmovsdw_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 96) = i * 32;
     let dlo : range(0, 48) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1407,7 +1407,7 @@ function avx_pmovsdw_256(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 224) = i * 32;
     let dlo : range(0, 112) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1418,7 +1418,7 @@ function avx_pmovsdw_512(src) = {
   foreach (i from 0 to 15) {
     let slo : range(0, 480) = i * 32;
     let dlo : range(0, 240) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s32_to_s16(src[(slo + 31)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 31)..slo]);
   };
   r
 }
@@ -1431,7 +1431,7 @@ function avx_pmovsqw_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 16) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1442,7 +1442,7 @@ function avx_pmovsqw_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 48) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1453,7 +1453,7 @@ function avx_pmovsqw_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 112) = i * 16;
-    r[(dlo + 15)..dlo] = sat_s64_to_s16(src[(slo + 63)..slo]);
+    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1466,7 +1466,7 @@ function avx_pmovsqd_128(src) = {
   foreach (i from 0 to 1) {
     let slo : range(0, 64) = i * 64;
     let dlo : range(0, 32) = i * 32;
-    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_s32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1477,7 +1477,7 @@ function avx_pmovsqd_256(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 192) = i * 64;
     let dlo : range(0, 96) = i * 32;
-    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_s32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1488,7 +1488,7 @@ function avx_pmovsqd_512(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 448) = i * 64;
     let dlo : range(0, 224) = i * 32;
-    r[(dlo + 31)..dlo] = sat_s64_to_s32(src[(slo + 63)..slo]);
+    r[(dlo + 31)..dlo] = sat_s32(src[(slo + 63)..slo]);
   };
   r
 }
@@ -1969,8 +1969,8 @@ function avx_vpdpwssd_512(dst, src1, src2) = {
 
 /* ---- VPDPWSSDS: Same as VPDPWSSD but with signed dword saturation ---- */
 
-val sat_s32 : int -> dword
-function sat_s32(v) = {
+val sat_s32_int : int -> dword
+function sat_s32_int(v) = {
   // Branchless signed saturation to 32-bit via 33-bit overflow detection
   let wide : bits(33) = get_slice_int(33, v, 0);
   let sign : bits(1) = wide[32..32];
@@ -1984,7 +1984,7 @@ function avx_vpdpwssds_elem(dst, s1, s2) = {
   let p0 : int = signed(s1[15..0]) * signed(s2[15..0]);
   let p1 : int = signed(s1[31..16]) * signed(s2[31..16]);
   let sum : int = signed(dst) + p0 + p1;
-  sat_s32(sum)
+  sat_s32_int(sum)
 }
 
 val avx_vpdpwssds_128 : (xmmword, xmmword, xmmword) -> xmmword
@@ -2016,7 +2016,7 @@ function avx_vpdpbusds_elem(dst, s1, s2) = {
   let p2 : int = unsigned(s1[23..16]) * signed(s2[23..16]);
   let p3 : int = unsigned(s1[31..24]) * signed(s2[31..24]);
   let sum : int = signed(dst) + p0 + p1 + p2 + p3;
-  sat_s32(sum)
+  sat_s32_int(sum)
 }
 
 val avx_vpdpbusds_128 : (xmmword, xmmword, xmmword) -> xmmword

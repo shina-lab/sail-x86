@@ -51,139 +51,6 @@ function abs(x) = {
   (x ^ m) - m
 }
 
-// PACKSSWB — Pack with Signed Saturation (words to bytes)
-// PACKSSDW — Pack with Signed Saturation (dwords to words)
-// No flags affected.
-// Branchless: check if upper bits are sign-extension of truncated value.
-val sat_s16_to_s8 : word -> byte
-function sat_s16_to_s8(x) = {
-  let sign : bits(1) = x[15..15];
-  let diff : byte = x[14..7] ^ sign_extend(sign);
-  let out_of_range : bit = is_nonzero(diff);
-  let out_mask : byte = sign_extend(out_of_range);
-  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
-  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
-}
-
-val sat_s32_to_s16 : dword -> word
-function sat_s32_to_s16(x) = {
-  let sign : bits(1) = x[31..31];
-  let diff : word = x[30..15] ^ sign_extend(sign);
-  let out_of_range : bit = is_nonzero(diff);
-  let out_mask : word = sign_extend(out_of_range);
-  let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
-  (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
-}
-
-// VPMOVS — Signed saturation truncation (wider → narrower)
-// Branchless: check if bits above target width are proper sign-extension.
-
-val sat_s32_to_s8 : dword -> byte
-function sat_s32_to_s8(x) = {
-  let sign : bits(1) = x[31..31];
-  let diff : bits(24) = x[30..7] ^ sign_extend(sign);
-  let out_of_range : bit = is_nonzero(diff[23..16] | diff[15..8] | diff[7..0]);
-  let out_mask : byte = sign_extend(out_of_range);
-  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
-  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
-}
-
-val sat_s64_to_s8 : qword -> byte
-function sat_s64_to_s8(x) = {
-  let sign : bits(1) = x[63..63];
-  let diff : bits(56) = x[62..7] ^ sign_extend(sign);
-  let folded : byte = diff[55..48] | diff[47..40] | diff[39..32] | diff[31..24] | diff[23..16] | diff[15..8] | diff[7..0];
-  let out_of_range : bit = is_nonzero(folded);
-  let out_mask : byte = sign_extend(out_of_range);
-  let clamp_val : byte = sign_extend(sign) ^ 0x7F;
-  (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
-}
-
-val sat_s64_to_s16 : qword -> word
-function sat_s64_to_s16(x) = {
-  let sign : bits(1) = x[63..63];
-  let diff : bits(48) = x[62..15] ^ sign_extend(sign);
-  let folded : word = diff[47..32] | diff[31..16] | diff[15..0];
-  let out_of_range : bit = is_nonzero(folded);
-  let out_mask : word = sign_extend(out_of_range);
-  let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
-  (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
-}
-
-val sat_s64_to_s32 : qword -> dword
-function sat_s64_to_s32(x) = {
-  let sign : bits(1) = x[63..63];
-  let diff : dword = x[62..31] ^ sign_extend(sign);
-  let out_of_range : bit = is_nonzero(diff);
-  let out_mask : dword = sign_extend(out_of_range);
-  let clamp_val : dword = sign_extend(sign) ^ 0x7FFFFFFF;
-  (clamp_val & out_mask) | (x[31..0] & ~(out_mask))
-}
-
-// PACKUSDW — Pack Dwords to Words with Unsigned Saturation (SSE4.1)
-// Packs 4 signed dwords from dst and 4 from src into 8 unsigned words.
-// No flags affected.
-// Branchless: zero negative values, then saturate positive overflow.
-val sat_s32_to_u16 : dword -> word
-function sat_s32_to_u16(v) = {
-  let neg_mask : dword = sign_extend(v[31..31]);
-  let pos_val : dword = v & ~(neg_mask);
-  let overflow : bit = is_nonzero(pos_val[31..16]);
-  let over_mask : word = sign_extend(overflow);
-  pos_val[15..0] | over_mask
-}
-
-// PACKUSWB — Pack with Unsigned Saturation (words to bytes)
-// No flags affected.
-// Branchless: zero negative values, then saturate positive overflow.
-val sat_s16_to_u8 : word -> byte
-function sat_s16_to_u8(x) = {
-  let neg_mask : word = sign_extend(x[15..15]);
-  let pos_val : word = x & ~(neg_mask);
-  let overflow : bit = is_nonzero(pos_val[15..8]);
-  let over_mask : byte = sign_extend(overflow);
-  pos_val[7..0] | over_mask
-}
-
-// VPMOVUS — Unsigned saturation truncation (wider → narrower)
-// Branchless: if any upper bit is set, OR result with all-ones.
-
-val sat_trunc_u_w2b : word -> byte
-function sat_trunc_u_w2b(x) = {
-  let overflow : byte = sign_extend(is_nonzero(x[15..8]));
-  x[7..0] | overflow
-}
-
-val sat_trunc_u_d2w : dword -> word
-function sat_trunc_u_d2w(x) = {
-  let overflow : word = sign_extend(is_nonzero(x[31..16]));
-  x[15..0] | overflow
-}
-
-val sat_trunc_u_d2b : dword -> byte
-function sat_trunc_u_d2b(x) = {
-  let overflow : byte = sign_extend(is_nonzero(x[31..24] | x[23..16] | x[15..8]));
-  x[7..0] | overflow
-}
-
-val sat_trunc_u_q2b : qword -> byte
-function sat_trunc_u_q2b(x) = {
-  let overflow : byte = sign_extend(is_nonzero(x[63..56] | x[55..48] | x[47..40] | x[39..32] | x[31..24] | x[23..16] | x[15..8]));
-  x[7..0] | overflow
-}
-
-val sat_trunc_u_q2w : qword -> word
-function sat_trunc_u_q2w(x) = {
-  let overflow : word = sign_extend(is_nonzero(x[63..48] | x[47..32] | x[31..16]));
-  x[15..0] | overflow
-}
-
-val sat_trunc_u_q2d : qword -> dword
-function sat_trunc_u_q2d(x) = {
-  let overflow : dword = sign_extend(is_nonzero(x[63..32]));
-  x[31..0] | overflow
-}
-
 // PADDSB/PADDSW — Add Packed Signed Integers with Signed Saturation
 // PADDUSB/PADDUSW — Add Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
@@ -352,6 +219,60 @@ function max_u(a, b) = blend(a, b, is_gt_u(b, a))
 
 val min_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
 function min_u(a, b) = blend(a, b, is_gt_u(a, b))
+
+// Signed saturation: clamp to target signed range, truncate.
+val sat_s8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
+function sat_s8(x) = {
+  let lo : bits('n) = sign_extend(0x80);
+  let hi : bits('n) = sign_extend(0x7F);
+  min_s(max_s(x, lo), hi)[7..0]
+}
+
+val sat_s16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
+function sat_s16(x) = {
+  let lo : bits('n) = sign_extend(0x8000);
+  let hi : bits('n) = sign_extend(0x7FFF);
+  min_s(max_s(x, lo), hi)[15..0]
+}
+
+val sat_s32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
+function sat_s32(x) = {
+  let lo : bits('n) = sign_extend(0x80000000);
+  let hi : bits('n) = sign_extend(0x7FFFFFFF);
+  min_s(max_s(x, lo), hi)[31..0]
+}
+
+// Signed-to-unsigned saturation: clamp to [0, max_unsigned], truncate.
+val sat_su8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
+function sat_su8(x) = {
+  let hi : bits('n) = zero_extend(0xFF);
+  min_s(max_s(x, zeros()), hi)[7..0]
+}
+
+val sat_su16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
+function sat_su16(x) = {
+  let hi : bits('n) = zero_extend(0xFFFF);
+  min_s(max_s(x, zeros()), hi)[15..0]
+}
+
+// Unsigned saturation: clamp to target unsigned range, truncate.
+val sat_u8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
+function sat_u8(x) = {
+  let hi : bits('n) = zero_extend(0xFF);
+  min_u(x, hi)[7..0]
+}
+
+val sat_u16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
+function sat_u16(x) = {
+  let hi : bits('n) = zero_extend(0xFFFF);
+  min_u(x, hi)[15..0]
+}
+
+val sat_u32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
+function sat_u32(x) = {
+  let hi : bits('n) = zero_extend(0xFFFFFFFF);
+  min_u(x, hi)[31..0]
+}
 
 // PMOVSX — Packed Move with Sign Extend (SSE4.1)
 // Sign-extends packed integers from smaller to larger element sizes.
@@ -637,14 +558,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_s16_to_s8(s[127..112]) @ sat_s16_to_s8(s[111..96]) @
-              sat_s16_to_s8(s[95..80])   @ sat_s16_to_s8(s[79..64]) @
-              sat_s16_to_s8(s[63..48])   @ sat_s16_to_s8(s[47..32]) @
-              sat_s16_to_s8(s[31..16])   @ sat_s16_to_s8(s[15..0]) @
-              sat_s16_to_s8(d[127..112]) @ sat_s16_to_s8(d[111..96]) @
-              sat_s16_to_s8(d[95..80])   @ sat_s16_to_s8(d[79..64]) @
-              sat_s16_to_s8(d[63..48])   @ sat_s16_to_s8(d[47..32]) @
-              sat_s16_to_s8(d[31..16])   @ sat_s16_to_s8(d[15..0]);
+              sat_s8(s[127..112]) @ sat_s8(s[111..96]) @
+              sat_s8(s[95..80])   @ sat_s8(s[79..64]) @
+              sat_s8(s[63..48])   @ sat_s8(s[47..32]) @
+              sat_s8(s[31..16])   @ sat_s8(s[15..0]) @
+              sat_s8(d[127..112]) @ sat_s8(d[111..96]) @
+              sat_s8(d[95..80])   @ sat_s8(d[79..64]) @
+              sat_s8(d[63..48])   @ sat_s8(d[47..32]) @
+              sat_s8(d[31..16])   @ sat_s8(d[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPGTB xmm1, xmm2/m128
@@ -689,14 +610,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_s16_to_u8(s[127..112]) @ sat_s16_to_u8(s[111..96]) @
-              sat_s16_to_u8(s[95..80])   @ sat_s16_to_u8(s[79..64]) @
-              sat_s16_to_u8(s[63..48])   @ sat_s16_to_u8(s[47..32]) @
-              sat_s16_to_u8(s[31..16])   @ sat_s16_to_u8(s[15..0]) @
-              sat_s16_to_u8(d[127..112]) @ sat_s16_to_u8(d[111..96]) @
-              sat_s16_to_u8(d[95..80])   @ sat_s16_to_u8(d[79..64]) @
-              sat_s16_to_u8(d[63..48])   @ sat_s16_to_u8(d[47..32]) @
-              sat_s16_to_u8(d[31..16])   @ sat_s16_to_u8(d[15..0]);
+              sat_su8(s[127..112]) @ sat_su8(s[111..96]) @
+              sat_su8(s[95..80])   @ sat_su8(s[79..64]) @
+              sat_su8(s[63..48])   @ sat_su8(s[47..32]) @
+              sat_su8(s[31..16])   @ sat_su8(s[15..0]) @
+              sat_su8(d[127..112]) @ sat_su8(d[111..96]) @
+              sat_su8(d[95..80])   @ sat_su8(d[79..64]) @
+              sat_su8(d[63..48])   @ sat_su8(d[47..32]) @
+              sat_su8(d[31..16])   @ sat_su8(d[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PUNPCKHBW xmm1, xmm2/m128
@@ -739,10 +660,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_s32_to_s16(s[127..96]) @ sat_s32_to_s16(s[95..64]) @
-              sat_s32_to_s16(s[63..32])  @ sat_s32_to_s16(s[31..0]) @
-              sat_s32_to_s16(d[127..96]) @ sat_s32_to_s16(d[95..64]) @
-              sat_s32_to_s16(d[63..32])  @ sat_s32_to_s16(d[31..0]);
+              sat_s16(s[127..96]) @ sat_s16(s[95..64]) @
+              sat_s16(s[63..32])  @ sat_s16(s[31..0]) @
+              sat_s16(d[127..96]) @ sat_s16(d[95..64]) @
+              sat_s16(d[63..32])  @ sat_s16(d[31..0]);
             write_xmm_legacy(xreg, r)
           },
           _ => raise_UD(),
@@ -2498,14 +2419,14 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     43 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let w0 : word = sat_s32_to_u16(a[31..0]);
-      let w1 : word = sat_s32_to_u16(a[63..32]);
-      let w2 : word = sat_s32_to_u16(a[95..64]);
-      let w3 : word = sat_s32_to_u16(a[127..96]);
-      let w4 : word = sat_s32_to_u16(b[31..0]);
-      let w5 : word = sat_s32_to_u16(b[63..32]);
-      let w6 : word = sat_s32_to_u16(b[95..64]);
-      let w7 : word = sat_s32_to_u16(b[127..96]);
+      let w0 : word = sat_su16(a[31..0]);
+      let w1 : word = sat_su16(a[63..32]);
+      let w2 : word = sat_su16(a[95..64]);
+      let w3 : word = sat_su16(a[127..96]);
+      let w4 : word = sat_su16(b[31..0]);
+      let w5 : word = sat_su16(b[63..32]);
+      let w6 : word = sat_su16(b[95..64]);
+      let w7 : word = sat_su16(b[127..96]);
       write_xmm_legacy(xreg, w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0)
     },
 

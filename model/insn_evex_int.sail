@@ -880,8 +880,8 @@ function avx_packsswb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let src_lo : range(0, 112) = i * 16;
-    r[(i * 8 + 7)..(i * 8)] = sat_s16_to_s8(a[(src_lo + 15)..src_lo]);
-    r[(i * 8 + 71)..(i * 8 + 64)] = sat_s16_to_s8(b[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 7)..(i * 8)] = sat_s8(a[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 71)..(i * 8 + 64)] = sat_s8(b[(src_lo + 15)..src_lo]);
   };
   r
 }
@@ -901,8 +901,8 @@ function avx_packssdw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let src_lo : range(0, 96) = i * 32;
-    r[(i * 16 + 15)..(i * 16)] = sat_s32_to_s16(a[(src_lo + 31)..src_lo]);
-    r[(i * 16 + 79)..(i * 16 + 64)] = sat_s32_to_s16(b[(src_lo + 31)..src_lo]);
+    r[(i * 16 + 15)..(i * 16)] = sat_s16(a[(src_lo + 31)..src_lo]);
+    r[(i * 16 + 79)..(i * 16 + 64)] = sat_s16(b[(src_lo + 31)..src_lo]);
   };
   r
 }
@@ -922,8 +922,8 @@ function avx_packuswb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let src_lo : range(0, 112) = i * 16;
-    r[(i * 8 + 7)..(i * 8)] = sat_s16_to_u8(a[(src_lo + 15)..src_lo]);
-    r[(i * 8 + 71)..(i * 8 + 64)] = sat_s16_to_u8(b[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 7)..(i * 8)] = sat_su8(a[(src_lo + 15)..src_lo]);
+    r[(i * 8 + 71)..(i * 8 + 64)] = sat_su8(b[(src_lo + 15)..src_lo]);
   };
   r
 }
