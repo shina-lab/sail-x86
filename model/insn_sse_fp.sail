@@ -105,7 +105,7 @@ function cmp_pred_f32(a, b, pred) = {
     0xE => gt,                      // GT_OS (false for NaN)
     0xF => 0b1,                     // TRUE_UQ
   };
-  zeros() - zero_extend(cond)
+  sign_extend(cond)
 }
 
 val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
@@ -134,7 +134,7 @@ function cmp_pred_f64(a, b, pred) = {
     0xE => gt,
     0xF => 0b1,
   };
-  zeros() - zero_extend(cond)
+  sign_extend(cond)
 }
 
 // SHUFPS helper: select one of four dwords by 2-bit index
@@ -1348,13 +1348,13 @@ function exec_insertps(dst, src, imm8) = {
   let src_float : dword = b[(src_sel * 32 + 31) .. (src_sel * 32)];
   // Insert at destination position using imm8[5:4]
   let sel = imm8[5..4];
-  let m0 : dword = zeros() - zero_extend(~(sel[1..1] | sel[0..0]));
+  let m0 : dword = sign_extend(~(sel[1..1] | sel[0..0]));
   let x1 : bits(2) = sel ^ 0b01;
-  let m1 : dword = zeros() - zero_extend(~(x1[1..1] | x1[0..0]));
+  let m1 : dword = sign_extend(~(x1[1..1] | x1[0..0]));
   let x2 : bits(2) = sel ^ 0b10;
-  let m2 : dword = zeros() - zero_extend(~(x2[1..1] | x2[0..0]));
+  let m2 : dword = sign_extend(~(x2[1..1] | x2[0..0]));
   let x3 : bits(2) = sel ^ 0b11;
-  let m3 : dword = zeros() - zero_extend(~(x3[1..1] | x3[0..0]));
+  let m3 : dword = sign_extend(~(x3[1..1] | x3[0..0]));
   let t0 : dword = (src_float & m0) | (a[31..0] & ~(m0));
   let t1 : dword = (src_float & m1) | (a[63..32] & ~(m1));
   let t2 : dword = (src_float & m2) | (a[95..64] & ~(m2));

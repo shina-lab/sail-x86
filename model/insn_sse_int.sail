@@ -306,7 +306,7 @@ function cmp_gt32(a, b) = {
 val cmp_eq64 : (qword, qword) -> qword
 function cmp_eq64(a, b) = {
   let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1));
-  zeros() - zero_extend(xd[64..64])
+  sign_extend(xd[64..64])
 }
 
 val cmp_gt64 : (qword, qword) -> qword
@@ -314,7 +314,7 @@ function cmp_gt64(a, b) = {
   let a65 : bits(65) = sign_extend(a);
   let b65 : bits(65) = sign_extend(b);
   let diff : bits(65) = b65 - a65;
-  zeros() - zero_extend(diff[64..64])
+  sign_extend(diff[64..64])
 }
 
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
@@ -412,28 +412,28 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
 val max_s64 : (qword, qword) -> qword
 function max_s64(a, b) = {
   let diff : bits(65) = sign_extend(b) - sign_extend(a);
-  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  let mask : qword = sign_extend(diff[64..64]);
   (a & mask) | (b & ~(mask))
 }
 
 val min_s64 : (qword, qword) -> qword
 function min_s64(a, b) = {
   let diff : bits(65) = sign_extend(a) - sign_extend(b);
-  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  let mask : qword = sign_extend(diff[64..64]);
   (a & mask) | (b & ~(mask))
 }
 
 val max_u64 : (qword, qword) -> qword
 function max_u64(a, b) = {
   let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
-  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  let mask : qword = sign_extend(diff[64..64]);
   (b & mask) | (a & ~(mask))
 }
 
 val min_u64 : (qword, qword) -> qword
 function min_u64(a, b) = {
   let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
-  let mask : qword = zeros() - zero_extend(diff[64..64]);
+  let mask : qword = sign_extend(diff[64..64]);
   (a & mask) | (b & ~(mask))
 }
 
@@ -2866,37 +2866,37 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       var mi : word = 0x0000;
 
       let d1 : bits(17) = (0b0 @ w1) - (0b0 @ mv);
-      let u1 : word = zeros() - zero_extend(d1[16..16]);
+      let u1 : word = sign_extend(d1[16..16]);
       mv = (w1 & u1) | (mv & ~(u1));
       mi = (0x0001 & u1) | (mi & ~(u1));
 
       let d2 : bits(17) = (0b0 @ w2) - (0b0 @ mv);
-      let u2 : word = zeros() - zero_extend(d2[16..16]);
+      let u2 : word = sign_extend(d2[16..16]);
       mv = (w2 & u2) | (mv & ~(u2));
       mi = (0x0002 & u2) | (mi & ~(u2));
 
       let d3 : bits(17) = (0b0 @ w3) - (0b0 @ mv);
-      let u3 : word = zeros() - zero_extend(d3[16..16]);
+      let u3 : word = sign_extend(d3[16..16]);
       mv = (w3 & u3) | (mv & ~(u3));
       mi = (0x0003 & u3) | (mi & ~(u3));
 
       let d4 : bits(17) = (0b0 @ w4) - (0b0 @ mv);
-      let u4 : word = zeros() - zero_extend(d4[16..16]);
+      let u4 : word = sign_extend(d4[16..16]);
       mv = (w4 & u4) | (mv & ~(u4));
       mi = (0x0004 & u4) | (mi & ~(u4));
 
       let d5 : bits(17) = (0b0 @ w5) - (0b0 @ mv);
-      let u5 : word = zeros() - zero_extend(d5[16..16]);
+      let u5 : word = sign_extend(d5[16..16]);
       mv = (w5 & u5) | (mv & ~(u5));
       mi = (0x0005 & u5) | (mi & ~(u5));
 
       let d6 : bits(17) = (0b0 @ w6) - (0b0 @ mv);
-      let u6 : word = zeros() - zero_extend(d6[16..16]);
+      let u6 : word = sign_extend(d6[16..16]);
       mv = (w6 & u6) | (mv & ~(u6));
       mi = (0x0006 & u6) | (mi & ~(u6));
 
       let d7 : bits(17) = (0b0 @ w7) - (0b0 @ mv);
-      let u7 : word = zeros() - zero_extend(d7[16..16]);
+      let u7 : word = sign_extend(d7[16..16]);
       mv = (w7 & u7) | (mv & ~(u7));
       mi = (0x0007 & u7) | (mi & ~(u7));
 

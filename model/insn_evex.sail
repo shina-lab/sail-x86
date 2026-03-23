@@ -61,7 +61,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
 function evex_kmask64(pfx) = {
-  let no_mask : qword = zeros() - zero_extend(is_zero(to_bits(3, pfx.evex_aaa)));
+  let no_mask : qword = sign_extend(is_zero(to_bits(3, pfx.evex_aaa)));
   no_mask | read_kreg(pfx.evex_aaa)
 }
 
@@ -110,7 +110,7 @@ function evex_src_m64(modrm, rm, pfx) = match rm {
 
 val apply_writemask_ps_zmm : (zmmword, zmmword, word, bit) -> zmmword
 function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(~(zeroing));
+  let keep : zmmword = sign_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   blend(base[511..480], result[511..480], mask_val[15]) @
   blend(base[479..448], result[479..448], mask_val[14]) @
@@ -134,7 +134,7 @@ function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_pd_zmm : (zmmword, zmmword, byte, bit) -> zmmword
 function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(~(zeroing));
+  let keep : zmmword = sign_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   blend(base[511..448], result[511..448], mask_val[7]) @
   blend(base[447..384], result[447..384], mask_val[6]) @
@@ -150,7 +150,7 @@ function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_ps_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(~(zeroing));
+  let keep : xmmword = sign_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   blend(base[127..96], result[127..96], mask_val[3]) @
   blend(base[95..64],  result[95..64],  mask_val[2]) @
@@ -162,7 +162,7 @@ function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_ps_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(~(zeroing));
+  let keep : ymmword = sign_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   blend(base[255..224], result[255..224], mask_val[7]) @
   blend(base[223..192], result[223..192], mask_val[6]) @
@@ -178,7 +178,7 @@ function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(~(zeroing));
+  let keep : xmmword = sign_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   blend(base[127..64], result[127..64], mask_val[1]) @
   blend(base[63..0],   result[63..0],   mask_val[0])
@@ -188,7 +188,7 @@ function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bit) -> ymmword
 function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(~(zeroing));
+  let keep : ymmword = sign_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   blend(base[255..192], result[255..192], mask_val[3]) @
   blend(base[191..128], result[191..128], mask_val[2]) @
@@ -202,7 +202,7 @@ function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_b_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(~(zeroing));
+  let keep : xmmword = sign_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
@@ -215,7 +215,7 @@ function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_b_ymm : (ymmword, ymmword, dword, bit) -> ymmword
 function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(~(zeroing));
+  let keep : ymmword = sign_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   var r : ymmword = zeros();
   foreach (i from 0 to 31) {
@@ -228,7 +228,7 @@ function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_b_zmm : (zmmword, zmmword, qword, bit) -> zmmword
 function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(~(zeroing));
+  let keep : zmmword = sign_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   var r : zmmword = zeros();
   foreach (i from 0 to 63) {
@@ -245,7 +245,7 @@ function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_w_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
-  let keep : xmmword = zeros() - zero_extend(~(zeroing));
+  let keep : xmmword = sign_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
@@ -258,7 +258,7 @@ function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_w_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
-  let keep : ymmword = zeros() - zero_extend(~(zeroing));
+  let keep : ymmword = sign_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
   var r : ymmword = zeros();
   foreach (i from 0 to 15) {
@@ -271,7 +271,7 @@ function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
 
 val apply_writemask_w_zmm : (zmmword, zmmword, dword, bit) -> zmmword
 function apply_writemask_w_zmm(result, old_dst, mask_val, zeroing) = {
-  let keep : zmmword = zeros() - zero_extend(~(zeroing));
+  let keep : zmmword = sign_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
   var r : zmmword = zeros();
   foreach (i from 0 to 31) {

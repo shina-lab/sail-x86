@@ -1065,7 +1065,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let src = read_rm_val(rm, os, pfx.has_rex);
       let dst = read_gpr(os, reg);
-      let mask : qword = zeros() - zero_extend(eval_cc(cc));
+      let mask : qword = sign_extend(eval_cc(cc));
       write_gpr(os, reg, (src & mask) | (dst & ~(mask)))
     },
     // 0F 80-8F: Jcc rel16/rel32 (f64)

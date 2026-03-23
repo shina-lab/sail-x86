@@ -233,7 +233,7 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
       rip_rel_pending = true;
       rip_rel_disp = disp;
       let ea : qword = decode_pos + disp;
-      let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
+      let ad_keep : qword = sign_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
       RM_mem(resolve_seg(pfx, DS), ea)
     } else {
@@ -359,7 +359,7 @@ function decode_rm(modrm, pfx) = {
       rip_rel_pending = true;
       rip_rel_disp = disp;
       let ea : qword = decode_pos + disp;
-      let ad_keep : qword = zeros() - zero_extend(~(pfx.has_adsize));
+      let ad_keep : qword = sign_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
       RM_mem(resolve_seg(pfx, DS), ea)
     } else {

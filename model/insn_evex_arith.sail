@@ -1502,7 +1502,7 @@ function avx_vpmovm2b_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 7)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1512,7 +1512,7 @@ function avx_vpmovm2b_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 248) = i * 8;
-    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 7)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1522,7 +1522,7 @@ function avx_vpmovm2b_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 63) {
     let lo : range(0, 504) = i * 8;
-    result[(lo + 7)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 7)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1536,7 +1536,7 @@ function avx_vpmovm2w_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 15)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1546,7 +1546,7 @@ function avx_vpmovm2w_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 15)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1556,7 +1556,7 @@ function avx_vpmovm2w_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    result[(lo + 15)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 15)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1570,7 +1570,7 @@ function avx_vpmovm2d_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 31)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1580,7 +1580,7 @@ function avx_vpmovm2d_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 31)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1590,7 +1590,7 @@ function avx_vpmovm2d_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    result[(lo + 31)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 31)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1604,7 +1604,7 @@ function avx_vpmovm2q_128(k) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 63)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1614,7 +1614,7 @@ function avx_vpmovm2q_256(k) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 192) = i * 64;
-    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 63)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -1624,7 +1624,7 @@ function avx_vpmovm2q_512(k) = {
   var result : zmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 448) = i * 64;
-    result[(lo + 63)..lo] = zeros() - zero_extend([k[i]]);
+    result[(lo + 63)..lo] = sign_extend([k[i]]);
   };
   result
 }
@@ -2470,21 +2470,21 @@ function dispatch_evex_arith(op, pfx) = {
       (true, 0) => {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
-        let mask : byte = avx_ptestmw_128(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmw_128(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (true, 1) => {
         let src1 = read_ymm(pfx.evex_vvvvv);
         let src2 = evex_src_ymm(modrm, rm, pfx);
-        let mask : word = avx_ptestmw_256(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : word = avx_ptestmw_256(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (true, 2) => {
         let src1 = read_zmm(pfx.evex_vvvvv);
         let src2 = evex_src_zmm(modrm, rm, pfx);
-        let mask : dword = avx_ptestmw_512(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : dword = avx_ptestmw_512(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
@@ -2492,21 +2492,21 @@ function dispatch_evex_arith(op, pfx) = {
       (false, 0) => {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src_xmm(modrm, rm, pfx);
-        let mask : word = avx_ptestmb_128(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : word = avx_ptestmb_128(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (false, 1) => {
         let src1 = read_ymm(pfx.evex_vvvvv);
         let src2 = evex_src_ymm(modrm, rm, pfx);
-        let mask : dword = avx_ptestmb_256(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : dword = avx_ptestmb_256(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (false, 2) => {
         let src1 = read_zmm(pfx.evex_vvvvv);
         let src2 = evex_src_zmm(modrm, rm, pfx);
-        let mask : qword = avx_ptestmb_512(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : qword = avx_ptestmb_512(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = mask & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
@@ -2528,21 +2528,21 @@ function dispatch_evex_arith(op, pfx) = {
       (true, 0) => {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem);
-        let mask : byte = avx_ptestmq_128(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmq_128(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (true, 1) => {
         let src1 = read_ymm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem);
-        let mask : byte = avx_ptestmq_256(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmq_256(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (true, 2) => {
         let src1 = read_zmm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem);
-        let mask : byte = avx_ptestmq_512(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmq_512(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
@@ -2550,21 +2550,21 @@ function dispatch_evex_arith(op, pfx) = {
       (false, 0) => {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem);
-        let mask : byte = avx_ptestmd_128(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmd_128(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (false, 1) => {
         let src1 = read_ymm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem);
-        let mask : byte = avx_ptestmd_256(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : byte = avx_ptestmd_256(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       (false, 2) => {
         let src1 = read_zmm(pfx.evex_vvvvv);
         let src2 = evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem);
-        let mask : word = avx_ptestmd_512(src1, src2) ^ (zeros() - zero_extend(neg_bit));
+        let mask : word = avx_ptestmd_512(src1, src2) ^ (sign_extend(neg_bit));
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
@@ -4527,7 +4527,7 @@ function dispatch_evex_arith(op, pfx) = {
       (true, 0) => {
         let src1 : xmmword = read_xmm(src1_idx);
         let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
-        let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 7) {
@@ -4538,7 +4538,7 @@ function dispatch_evex_arith(op, pfx) = {
       (true, 1) => {
         let src1 : ymmword = read_ymm(src1_idx);
         let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
-        let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 15) {
@@ -4549,7 +4549,7 @@ function dispatch_evex_arith(op, pfx) = {
       (true, 2) => {
         let src1 : zmmword = read_zmm(src1_idx);
         let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
-        let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 31) {
@@ -4561,7 +4561,7 @@ function dispatch_evex_arith(op, pfx) = {
       (false, 0) => {
         let src1 : xmmword = read_xmm(src1_idx);
         let src2 : xmmword = evex_src_xmm(modrm, rm, pfx);
-        let z_keep : xmmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 15) {
@@ -4572,7 +4572,7 @@ function dispatch_evex_arith(op, pfx) = {
       (false, 1) => {
         let src1 : ymmword = read_ymm(src1_idx);
         let src2 : ymmword = evex_src_ymm(modrm, rm, pfx);
-        let z_keep : ymmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 31) {
@@ -4583,7 +4583,7 @@ function dispatch_evex_arith(op, pfx) = {
       (false, 2) => {
         let src1 : zmmword = read_zmm(src1_idx);
         let src2 : zmmword = evex_src_zmm(modrm, rm, pfx);
-        let z_keep : zmmword = zeros() - zero_extend(~(pfx.evex_z));
+        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 63) {

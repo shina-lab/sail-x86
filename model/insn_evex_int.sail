@@ -1335,7 +1335,7 @@ function evex_vprorq_512(a, b) =
 val clamp_shift_bv64 : bits(64) -> range(0, 255)
 function clamp_shift_bv64(raw) = {
   let hi_nonzero : bit = is_nonzero(raw[63..56] | raw[55..48] | raw[47..40] | raw[39..32] | raw[31..24] | raw[23..16] | raw[15..8]);
-  let sat_mask : bits(8) = zeros() - zero_extend(hi_nonzero);
+  let sat_mask : bits(8) = sign_extend(hi_nonzero);
   unsigned(raw[7..0] | sat_mask)
 }
 
