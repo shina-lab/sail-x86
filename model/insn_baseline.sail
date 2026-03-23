@@ -177,11 +177,18 @@ function cpuid(leaf, subleaf) = {
 
     // Leaf 0xD: XSAVE state component info
     13 => match sub_val {
-      // EAX = XCR0_SUPPORTED, EBX/ECX = max XSAVE area size
-      0 => (XCR0_SUPPORTED[31..0], 0x00000980, 0x00000980, 0x00000000),
+      // EAX = XCR0_SUPPORTED
+      // EBX = standard size for currently enabled components (dynamic)
+      // ECX = max standard size for all supported components
+      0 => (XCR0_SUPPORTED[31..0],
+            xsave_area_size_standard(XCR0),
+            xsave_area_size_standard(XCR0_SUPPORTED),
+            0x00000000),
       // XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
-      // EBX = size of XSAVE area for currently enabled components
-      1 => (0x0000000F, 0x00000980, 0x00000000, 0x00000000),
+      // EBX = compacted size for currently enabled components (dynamic)
+      1 => (0x0000000F,
+            xsave_area_size_compacted(XCR0),
+            0x00000000, 0x00000000),
       // AVX state (component 2): 256 bytes at offset 576
       2 => (0x00000100, 0x00000240, 0x00000000, 0x00000000),
       // Opmask state (component 5): 64 bytes at offset 832

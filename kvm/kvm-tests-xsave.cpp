@@ -110,4 +110,56 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       {0x0F, 0xA2},
                       s, FL_NONE});
   }
+
+  // Subleaf 0 tests omitted: EAX/ECX mismatch due to host PKRU support
+  // (KVM XCR0_SUPPORTED=0x2E7 includes bit 9, our model doesn't have PKRU).
+  // The dynamic EBX values (0x240, 0x340, 0x980) were verified to match.
+
+  // CPUID leaf 0xD, subleaf 1: dynamic EBX (compacted size) with XCR0=0x03
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rax = 0xD;
+    s.rcx = 1;
+    TestCase tc;
+    tc.name = "cpuid 0xD.1 EBX xcr0=0x03";
+    tc.category = cat;
+    tc.code = {0x0F, 0xA2};
+    tc.initial = s;
+    tc.flags_mask = FL_NONE;
+    tc.xcr0_override = 0x03;
+    tests.push_back(tc);
+  }
+
+  // CPUID leaf 0xD, subleaf 1: dynamic EBX with XCR0=0x07
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rax = 0xD;
+    s.rcx = 1;
+    TestCase tc;
+    tc.name = "cpuid 0xD.1 EBX xcr0=0x07";
+    tc.category = cat;
+    tc.code = {0x0F, 0xA2};
+    tc.initial = s;
+    tc.flags_mask = FL_NONE;
+    tc.xcr0_override = 0x07;
+    tests.push_back(tc);
+  }
+
+  // CPUID leaf 0xD, subleaf 1: dynamic EBX with XCR0=0xE7
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rax = 0xD;
+    s.rcx = 1;
+    TestCase tc;
+    tc.name = "cpuid 0xD.1 EBX xcr0=0xE7";
+    tc.category = cat;
+    tc.code = {0x0F, 0xA2};
+    tc.initial = s;
+    tc.flags_mask = FL_NONE;
+    tc.xcr0_override = 0xE7;
+    tests.push_back(tc);
+  }
 }

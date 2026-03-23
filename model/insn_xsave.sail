@@ -6,6 +6,42 @@
 // =========================================================================
 
 // -------------------------------------------------------------------------
+// XSAVE area size computation (CPUID leaf 0xD)
+//
+// Standard format: each component has a fixed offset (from CPUID.0DH.n:EBX)
+// and size (from CPUID.0DH.n:EAX). The total size is max(offset+size) over
+// all enabled components. The minimum is 576 (legacy 512 + header 64).
+//
+// Compacted format: components are packed contiguously with 64-byte alignment
+// for components that require it (CPUID.0DH.n:ECX bit 1).
+// -------------------------------------------------------------------------
+
+// Standard format XSAVE area size for a given feature mask.
+// Component offsets and sizes (from our CPUID.0DH.n values):
+//   2 (AVX):       offset=576,  size=256  → end=832
+//   5 (opmask):    offset=832,  size=64   → end=896
+//   6 (ZMM_Hi256): offset=896,  size=512  → end=1408
+//   7 (Hi16_ZMM):  offset=1408, size=1024 → end=2432
+val xsave_area_size_standard : qword -> dword
+function xsave_area_size_standard(mask) = {
+  // Standard format: each component at a fixed offset.
+  // Return offset + size of the highest enabled component.
+  if mask[7] == bitone then to_bits(32, 1408 + 1024)     // Hi16_ZMM
+  else if mask[6] == bitone then to_bits(32, 896 + 512)  // ZMM_Hi256
+  else if mask[5] == bitone then to_bits(32, 832 + 64)   // opmask
+  else if mask[2] == bitone then to_bits(32, 576 + 256)  // AVX
+  else to_bits(32, 512 + 64)                             // legacy + header
+}
+
+// Compacted format XSAVE area size for a given feature mask.
+// Components packed contiguously starting at offset 576, with
+// 64-byte alignment for components 5, 6, 7 (per CPUID.0DH.n:ECX[1]).
+// For our supported components, compacted and standard sizes are identical
+// because there are no gaps (components 3, 4 not supported).
+val xsave_area_size_compacted : qword -> dword
+function xsave_area_size_compacted(mask) = xsave_area_size_standard(mask)
+
+// -------------------------------------------------------------------------
 // FTW conversion: full 16-bit tag word <-> abridged 8-bit tag word
 //
 // Full: 2 bits per register (0=valid, 1=zero, 2=special, 3=empty)
