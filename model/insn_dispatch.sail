@@ -68,14 +68,14 @@ enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
 val exec_loop : (byte, LoopVariant, AddressSize) -> unit
 function exec_loop(rel8, variant, asz) = {
   match asz {
+    AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
     AS64 => write_gpr64(RCX, read_gpr64(RCX) - 1),
     AS32 => write_gpr32(RCX, read_gpr32(RCX) - 1),
-    AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
   };
   let count_nonzero : bool = match asz {
+    AS16 => read_gpr16(RCX) != zeros(),
     AS64 => read_gpr64(RCX) != zeros(),
     AS32 => read_gpr32(RCX) != zeros(),
-    AS16 => read_gpr16(RCX) != zeros(),
   };
   let take_branch : bool = match variant {
     LOOP_always => count_nonzero,
@@ -2053,9 +2053,9 @@ function decode_execute() = {
         let asz = get_address_size(pfx);
         let al : qword = zero_extend(read_gpr8l(RAX));
         let addr : qword = match asz {
+          AS16 => zero_extend(read_gpr16(RBX)) + al,
           AS64 => read_gpr64(RBX) + al,
           AS32 => zero_extend(read_gpr32(RBX)) + al,
-          AS16 => zero_extend(read_gpr16(RBX)) + al,
         };
         write_gpr8l(RAX, mem_read8(addr))
       },
