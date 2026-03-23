@@ -718,8 +718,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let os_bits : {32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {32, 64} = if pfx.vex_w then 64 else 32;
     match mp {
       MP_NONE => {
         // BZHI: VEX.NDS.LZ.0F38.W0/W1 F5
@@ -729,11 +728,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let src2 = read_gpr(os, v);
         let index : range(0, 255) = unsigned(src2[7..0]);
         var result = zeros(os);
-        if index >= os_bits then {
+        if index >= os then {
           result = src1;
           CF = 0b1
         } else {
-          let shift_amt : range(0, 255) = os_bits - index;
+          let shift_amt : range(0, 255) = os - index;
           result = (src1 << shift_amt) >> shift_amt;
           CF = 0b0
         };
@@ -749,11 +748,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : qword = zero_extend(read_rm_val(rm, os, true));
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
-        foreach (i from 0 to 63) {
-          if mask[i] == 0b1 then {
-            temp[i] = src[k];
-            k = (k + 1) % 64
-          }
+        foreach (i from 0 to (os - 1)) {
+          temp[i] = src[k] & mask[i];
+          k = (k + unsigned(mask[i])) % 64
         };
         write_gpr(os, dst, temp[(os - 1) .. 0])
       },
@@ -764,11 +761,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let mask : qword = zero_extend(read_rm_val(rm, os, true));
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
-        foreach (i from 0 to 63) {
-          if mask[i] == 0b1 then {
-            temp[k] = src[i];
-            k = (k + 1) % 64
-          }
+        foreach (i from 0 to (os - 1)) {
+          temp[k] = src[i] & mask[i];
+          k = (k + unsigned(mask[i])) % 64
         };
         write_gpr(os, dst, temp[(os - 1) .. 0])
       },
