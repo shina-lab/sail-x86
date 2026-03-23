@@ -274,30 +274,6 @@ function sat_u32(x) = {
   min_u(x, hi)[31..0]
 }
 
-// PMOVSX — Packed Move with Sign Extend (SSE4.1)
-// Sign-extends packed integers from smaller to larger element sizes.
-// No flags affected.
-val sx8_16 : byte -> word
-function sx8_16(v) = sign_extend(v)
-
-val sx8_32 : byte -> dword
-function sx8_32(v) = sign_extend(v)
-
-val sx16_32 : word -> dword
-function sx16_32(v) = sign_extend(v)
-
-// PMOVZX — Packed Move with Zero Extend (SSE4.1)
-// Zero-extends packed integers from smaller to larger element sizes.
-// No flags affected.
-val zx8_16 : byte -> word
-function zx8_16(v) = zero_extend(v)
-
-val zx8_32 : byte -> dword
-function zx8_32(v) = zero_extend(v)
-
-val zx16_32 : word -> dword
-function zx16_32(v) = zero_extend(v)
-
 // PMULHRSW — Packed Multiply High with Round and Scale (SSSE3)
 // No flags affected.
 val mulhrsw : (word, word) -> word
@@ -2346,18 +2322,18 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     32 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        sx8_16(s[63..56]) @ sx8_16(s[55..48]) @
-        sx8_16(s[47..40]) @ sx8_16(s[39..32]) @
-        sx8_16(s[31..24]) @ sx8_16(s[23..16]) @
-        sx8_16(s[15..8])  @ sx8_16(s[7..0]);
+        sign_extend(16, s[63..56]) @ sign_extend(16, s[55..48]) @
+        sign_extend(16, s[47..40]) @ sign_extend(16, s[39..32]) @
+        sign_extend(16, s[31..24]) @ sign_extend(16, s[23..16]) @
+        sign_extend(16, s[15..8])  @ sign_extend(16, s[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVSXBD xmm1, xmm2/m32
     33 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        sx8_32(s[31..24]) @ sx8_32(s[23..16]) @
-        sx8_32(s[15..8])  @ sx8_32(s[7..0]);
+        sign_extend(32, s[31..24]) @ sign_extend(32, s[23..16]) @
+        sign_extend(32, s[15..8])  @ sign_extend(32, s[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVSXBQ xmm1, xmm2/m16
@@ -2371,8 +2347,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     35 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        sx16_32(s[63..48]) @ sx16_32(s[47..32]) @
-        sx16_32(s[31..16]) @ sx16_32(s[15..0]);
+        sign_extend(32, s[63..48]) @ sign_extend(32, s[47..32]) @
+        sign_extend(32, s[31..16]) @ sign_extend(32, s[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVSXWQ xmm1, xmm2/m32
@@ -2434,18 +2410,18 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     48 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        zx8_16(s[63..56]) @ zx8_16(s[55..48]) @
-        zx8_16(s[47..40]) @ zx8_16(s[39..32]) @
-        zx8_16(s[31..24]) @ zx8_16(s[23..16]) @
-        zx8_16(s[15..8])  @ zx8_16(s[7..0]);
+        zero_extend(16, s[63..56]) @ zero_extend(16, s[55..48]) @
+        zero_extend(16, s[47..40]) @ zero_extend(16, s[39..32]) @
+        zero_extend(16, s[31..24]) @ zero_extend(16, s[23..16]) @
+        zero_extend(16, s[15..8])  @ zero_extend(16, s[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVZXBD xmm1, xmm2/m32
     49 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        zx8_32(s[31..24]) @ zx8_32(s[23..16]) @
-        zx8_32(s[15..8])  @ zx8_32(s[7..0]);
+        zero_extend(32, s[31..24]) @ zero_extend(32, s[23..16]) @
+        zero_extend(32, s[15..8])  @ zero_extend(32, s[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVZXBQ xmm1, xmm2/m16
@@ -2459,8 +2435,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     51 => {
       let s : xmmword = src_xmm;
       let r : xmmword =
-        zx16_32(s[63..48]) @ zx16_32(s[47..32]) @
-        zx16_32(s[31..16]) @ zx16_32(s[15..0]);
+        zero_extend(32, s[63..48]) @ zero_extend(32, s[47..32]) @
+        zero_extend(32, s[31..16]) @ zero_extend(32, s[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMOVZXWQ xmm1, xmm2/m32
