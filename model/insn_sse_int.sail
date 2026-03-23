@@ -240,17 +240,14 @@ function mulhrsw(a, b) = {
   rounded[30..15]
 }
 
-// PMULLD — Multiply Packed Signed Dword Integers and Store Low Result (SSE4.1)
+// PMULLW/PMULLD — Multiply Packed Signed Integers and Store Low Result
 // No flags affected.
-val mul_lo32 : (dword, dword) -> dword
-function mul_lo32(a, b) = to_bits_truncate(signed(a) * signed(b))
+val mul_lo : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function mul_lo(a, b) = to_bits_truncate(signed(a) * signed(b))
 
-// PMULLW — Multiply Packed Signed Integers and Store Low Result (16-bit)
 // PMULHW — Multiply Packed Signed Integers and Store High Result (16-bit)
 // PMULHUW — Multiply Packed Unsigned Integers and Store High Result (16-bit)
 // No flags affected.
-val mul_lo16 : (word, word) -> word
-function mul_lo16(a, b) = to_bits_truncate(signed(a) * signed(b))
 
 val mul_hi16s : (word, word) -> word
 function mul_hi16s(a, b) = {
@@ -1568,10 +1565,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          mul_lo16(a[127..112], b[127..112]) @ mul_lo16(a[111..96], b[111..96]) @
-          mul_lo16(a[95..80], b[95..80]) @ mul_lo16(a[79..64], b[79..64]) @
-          mul_lo16(a[63..48], b[63..48]) @ mul_lo16(a[47..32], b[47..32]) @
-          mul_lo16(a[31..16], b[31..16]) @ mul_lo16(a[15..0], b[15..0]);
+          mul_lo(a[127..112], b[127..112]) @ mul_lo(a[111..96], b[111..96]) @
+          mul_lo(a[95..80], b[95..80]) @ mul_lo(a[79..64], b[79..64]) @
+          mul_lo(a[63..48], b[63..48]) @ mul_lo(a[47..32], b[47..32]) @
+          mul_lo(a[31..16], b[31..16]) @ mul_lo(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2485,8 +2482,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        mul_lo32(a[127..96], b[127..96]) @ mul_lo32(a[95..64], b[95..64]) @
-        mul_lo32(a[63..32], b[63..32]) @ mul_lo32(a[31..0], b[31..0]);
+        mul_lo(a[127..96], b[127..96]) @ mul_lo(a[95..64], b[95..64]) @
+        mul_lo(a[63..32], b[63..32]) @ mul_lo(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
     // PHMINPOSUW xmm1, xmm2/m128

@@ -615,8 +615,7 @@ function vex_pavgb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    let avg : int = (unsigned(a[(lo + 7)..lo]) + unsigned(b[(lo + 7)..lo]) + 1) / 2;
-    r[(lo + 7)..lo] = get_slice_int(8, avg, 0);
+    r[(lo + 7)..lo] = avg(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -631,8 +630,7 @@ function vex_pavgw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    let avg : int = (unsigned(a[(lo + 15)..lo]) + unsigned(b[(lo + 15)..lo]) + 1) / 2;
-    r[(lo + 15)..lo] = get_slice_int(16, avg, 0);
+    r[(lo + 15)..lo] = avg(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -813,10 +811,10 @@ function vex_punpckhqdq_128(a, b) =
 // VPMULLW: multiply packed signed words, store low 16 bits
 val vex_pmullw_128 : (xmmword, xmmword) -> xmmword
 function vex_pmullw_128(a, b) =
-  mul_lo16(a[127..112], b[127..112]) @ mul_lo16(a[111..96], b[111..96]) @
-  mul_lo16(a[95..80],   b[95..80])   @ mul_lo16(a[79..64],  b[79..64])  @
-  mul_lo16(a[63..48],   b[63..48])   @ mul_lo16(a[47..32],  b[47..32])  @
-  mul_lo16(a[31..16],   b[31..16])   @ mul_lo16(a[15..0],   b[15..0])
+  mul_lo(a[127..112], b[127..112]) @ mul_lo(a[111..96], b[111..96]) @
+  mul_lo(a[95..80],   b[95..80])   @ mul_lo(a[79..64],  b[79..64])  @
+  mul_lo(a[63..48],   b[63..48])   @ mul_lo(a[47..32],  b[47..32])  @
+  mul_lo(a[31..16],   b[31..16])   @ mul_lo(a[15..0],   b[15..0])
 
 val vex_pmullw_256 : (ymmword, ymmword) -> ymmword
 function vex_pmullw_256(a, b) =

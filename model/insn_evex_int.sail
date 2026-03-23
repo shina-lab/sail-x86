@@ -438,8 +438,7 @@ function avx_pavgb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    let avg : int = (unsigned(a[(lo + 7)..lo]) + unsigned(b[(lo + 7)..lo]) + 1) / 2;
-    r[(lo + 7)..lo] = get_slice_int(8, avg, 0);
+    r[(lo + 7)..lo] = avg(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -457,8 +456,7 @@ function avx_pavgw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    let avg : int = (unsigned(a[(lo + 15)..lo]) + unsigned(b[(lo + 15)..lo]) + 1) / 2;
-    r[(lo + 15)..lo] = get_slice_int(16, avg, 0);
+    r[(lo + 15)..lo] = avg(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }

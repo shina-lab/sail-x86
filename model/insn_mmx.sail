@@ -437,8 +437,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, mul_lo16(d[63..48], s[63..48]) @ mul_lo16(d[47..32], s[47..32]) @
-                     mul_lo16(d[31..16], s[31..16]) @ mul_lo16(d[15..0],  s[15..0]));
+      write_mm(dst, mul_lo(d[63..48], s[63..48]) @ mul_lo(d[47..32], s[47..32]) @
+                     mul_lo(d[31..16], s[31..16]) @ mul_lo(d[15..0],  s[15..0]));
       mmx_touch()
     },
 
