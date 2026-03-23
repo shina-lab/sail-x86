@@ -68,7 +68,7 @@ val compute_PF : byte -> bit
 function compute_PF(val8) = {
   let r4 : bits(4) = val8[7..4] ^ val8[3..0];
   let r2 : bits(2) = r4[3..2] ^ r4[1..0];
-  let r1 : bits(1) = r2[1..1] ^ r2[0..0];
+  let r1 : bits(1) = r2[1] ^ r2[0];
   // PF=1 means even parity, so invert
   (~(r1))[0]
 }

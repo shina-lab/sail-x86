@@ -217,8 +217,8 @@ function avx_pmaddubsw_128(a, b) = {
     let sum : int = prod0 + prod1;
     // Branchless signed saturation to 16-bit via 17-bit overflow detection
     let wide : bits(17) = get_slice_int(17, sum, 0);
-    let sign : bits(1) = wide[16..16];
-    let of_mask : word = sign_extend(sign ^ wide[15..15]);
+    let sign : bit = wide[16];
+    let of_mask : word = sign_extend(sign ^ wide[15]);
     let sat_val : word = sign_extend(sign) ^ 0x7FFF;
     r[(lo + 15)..lo] = (sat_val & of_mask) | (wide[15..0] & ~(of_mask));
   };
@@ -1636,10 +1636,10 @@ function avx_vpmovm2q_512(k) = {
 val avx_vpmovb2m_128 : xmmword -> qword
 function avx_vpmovb2m_128(src) = {
   let mask : word =
-    src[127..127] @ src[119..119] @ src[111..111] @ src[103..103] @
-    src[95..95] @ src[87..87] @ src[79..79] @ src[71..71] @
-    src[63..63] @ src[55..55] @ src[47..47] @ src[39..39] @
-    src[31..31] @ src[23..23] @ src[15..15] @ src[7..7];
+    src[127] @ src[119] @ src[111] @ src[103] @
+    src[95] @ src[87] @ src[79] @ src[71] @
+    src[63] @ src[55] @ src[47] @ src[39] @
+    src[31] @ src[23] @ src[15] @ src[7];
   zero_extend(mask)
 }
 
@@ -1665,8 +1665,8 @@ function avx_vpmovb2m_512(src) =
 val avx_vpmovw2m_128 : xmmword -> qword
 function avx_vpmovw2m_128(src) = {
   let mask : byte =
-    src[127..127] @ src[111..111] @ src[95..95] @ src[79..79] @
-    src[63..63] @ src[47..47] @ src[31..31] @ src[15..15];
+    src[127] @ src[111] @ src[95] @ src[79] @
+    src[63] @ src[47] @ src[31] @ src[15];
   zero_extend(mask)
 }
 
@@ -1694,7 +1694,7 @@ function avx_vpmovw2m_512(src) = {
 
 val avx_vpmovd2m_128 : xmmword -> qword
 function avx_vpmovd2m_128(src) = {
-  let mask : bits(4) = src[127..127] @ src[95..95] @ src[63..63] @ src[31..31];
+  let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
   zero_extend(mask)
 }
 
@@ -1722,7 +1722,7 @@ function avx_vpmovd2m_512(src) = {
 
 val avx_vpmovq2m_128 : xmmword -> qword
 function avx_vpmovq2m_128(src) = {
-  let mask : bits(2) = src[127..127] @ src[63..63];
+  let mask : bits(2) = src[127] @ src[63];
   zero_extend(mask)
 }
 
@@ -1973,8 +1973,8 @@ val sat_s32_int : int -> dword
 function sat_s32_int(v) = {
   // Branchless signed saturation to 32-bit via 33-bit overflow detection
   let wide : bits(33) = get_slice_int(33, v, 0);
-  let sign : bits(1) = wide[32..32];
-  let of_mask : dword = sign_extend(sign ^ wide[31..31]);
+  let sign : bit = wide[32];
+  let of_mask : dword = sign_extend(sign ^ wide[31]);
   let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
   (sat & of_mask) | (wide[31..0] & ~(of_mask))
 }
@@ -2048,7 +2048,7 @@ function convert_fp32_to_bf16(x) = {
   let mant : bits(23) = x[22..0];
   if exp == 0x00 then {
     // Zero or denormal → signed zero
-    x[31..31] @ 0x0000[14..0]
+    x[31] @ zeros(15)
   } else if exp == 0xFF & mant != zeros() then {
     // NaN → truncate and force QNaN (set bit 6 of result = MSB of BF16 mantissa)
     let truncated : word = x[31..16];

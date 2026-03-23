@@ -73,7 +73,7 @@ function setup_and_exec(bytes) = {
 // ADD r64, imm32: REX.W + 81 /0 + ModR/M + imm32
 val isla_test_add_r64_imm32 : (bits(4), bits(32)) -> unit
 function isla_test_add_r64_imm32(reg, imm) = {
-  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3]);
   let modrm : bits(8) = 0xC0 | (0b00000 @ reg[2..0]);
   let bytes : bits(120) =
     0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
@@ -85,7 +85,7 @@ function isla_test_add_r64_imm32(reg, imm) = {
 // MOV r64, imm64: REX.W + B8+rd + imm64
 val isla_test_mov_r64_imm64 : (bits(4), bits(64)) -> unit
 function isla_test_mov_r64_imm64(reg, imm) = {
-  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3]);
   let opcode : bits(8) = 0xB8 | (0b00000 @ reg[2..0]);
   let bytes : bits(120) =
     0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @
@@ -98,7 +98,7 @@ function isla_test_mov_r64_imm64(reg, imm) = {
 // SHL r64, imm8: REX.W + C1 /4 + ModR/M + imm8
 val isla_test_shl_r64_imm8 : (bits(4), bits(8)) -> unit
 function isla_test_shl_r64_imm8(reg, imm) = {
-  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3..3]);
+  let rex : bits(8) = 0x48 | (0b0000000 @ reg[3]);
   let modrm : bits(8) = 0xE0 | (0b00000 @ reg[2..0]);
   let bytes : bits(120) =
     0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @ 0xF4 @

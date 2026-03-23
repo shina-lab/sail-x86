@@ -280,7 +280,7 @@ function exec_shld(d, s, count_raw, os) = {
           CF = wide[32 - count];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = (r[15..15] ^ d[15..15])[0]
+            OF = r[15] ^ d[15]
           else OF = undefined;
           zero_extend(r)
         }
@@ -292,7 +292,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[64 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = (r[31..31] ^ d[31..31])[0]
+          OF = r[31] ^ d[31]
         else OF = undefined;
         zero_extend(r)
       },
@@ -303,7 +303,7 @@ function exec_shld(d, s, count_raw, os) = {
         CF = wide[128 - count];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = (r[63..63] ^ d[63..63])[0]
+          OF = r[63] ^ d[63]
         else OF = undefined;
         r
       },
@@ -344,7 +344,7 @@ function exec_shrd(d, s, count_raw, os) = {
           CF = d[count - 1];
           update_SF_ZF_PF(r);
           if count == 1 then
-            OF = (r[15..15] ^ d[15..15])[0]
+            OF = r[15] ^ d[15]
           else OF = undefined;
           zero_extend(r)
         }
@@ -356,7 +356,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = (r[31..31] ^ d[31..31])[0]
+          OF = r[31] ^ d[31]
         else OF = undefined;
         zero_extend(r)
       },
@@ -367,7 +367,7 @@ function exec_shrd(d, s, count_raw, os) = {
         CF = d[count - 1];
         update_SF_ZF_PF(r);
         if count == 1 then
-          OF = (r[63..63] ^ d[63..63])[0]
+          OF = r[63] ^ d[63]
         else OF = undefined;
         r
       },
@@ -1319,15 +1319,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       CF = match os {
         16 => {
           let w : bits(32) = to_bits_truncate(product);
-          is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
+          is_nonzero(w[31..16] ^ sign_extend(w[15]))
         },
         32 => {
           let w : bits(64) = to_bits_truncate(product);
-          is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
+          is_nonzero(w[63..32] ^ sign_extend(w[31]))
         },
         64 => {
           let w : bits(128) = to_bits_truncate(product);
-          is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
+          is_nonzero(w[127..64] ^ sign_extend(w[63]))
         },
       };
       OF = CF;

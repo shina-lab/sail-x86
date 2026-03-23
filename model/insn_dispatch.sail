@@ -512,7 +512,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             let is_type_01 : bit = ~(inv_type[1]);
             let is_type_0 : bit = ~(inv_type[1] | inv_type[0]);
             let bad_reserved : bit = ~(((0b0 @ reserved) - 1)[52]);
-            let diff : bits(17) = top17 ^ sign_extend(top17[16..16]);
+            let diff : bits(17) = top17 ^ sign_extend(top17[16]);
             let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
             let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
             if fault == 0b1 then raise_GP0();
@@ -878,10 +878,10 @@ function decode_execute() = {
         let old_al = read_gpr8l(RAX);
         let old_cf = CF;
         let lo : bits(4) = old_al[3..0];
-        let cond1 : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let cond1 : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let al1 : byte = old_al + (0x06 & sign_extend(cond1));
         AF = cond1[0];
-        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8..8]) | old_cf;
+        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8]) | old_cf;
         let al_final : byte = al1 + (0x60 & sign_extend(cond2));
         CF = cond2[0];
         write_gpr8l(RAX, al_final);
@@ -895,13 +895,13 @@ function decode_execute() = {
         let old_al = read_gpr8l(RAX);
         let old_cf = CF;
         let lo : bits(4) = old_al[3..0];
-        let cond1 : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let cond1 : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let al1 : byte = old_al - (0x06 & sign_extend(cond1));
         let borrow1 : bits(5) = (0b0 @ lo) - (0b0 @ 0b0110);
         AF = cond1[0];
-        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8..8]) | old_cf;
+        let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8]) | old_cf;
         let al_final : byte = al1 - (0x60 & sign_extend(cond2));
-        CF = (cond2 | (cond1 & (old_cf | borrow1[4..4])))[0];
+        CF = (cond2 | (cond1 & (old_cf | borrow1[4])))[0];
         write_gpr8l(RAX, al_final);
         update_SF_ZF_PF(al_final)
       },
@@ -911,7 +911,7 @@ function decode_execute() = {
       55 => {
         if cur_mode == LongMode then raise_UD();
         let lo : bits(4) = read_gpr8l(RAX)[3..0];
-        let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let new_ax : word = read_gpr16(RAX) + (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
         AF = cond[0];
@@ -924,7 +924,7 @@ function decode_execute() = {
       63 => {
         if cur_mode == LongMode then raise_UD();
         let lo : bits(4) = read_gpr8l(RAX)[3..0];
-        let cond : bits(1) = (lo[3..3] & (lo[2..2] | lo[1..1])) | AF;
+        let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let new_ax : word = read_gpr16(RAX) - (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
         AF = cond[0];
@@ -1158,19 +1158,19 @@ function decode_execute() = {
         CF = match os {
           8  => {
             let w : bits(16) = to_bits_truncate(product);
-            is_nonzero(w[15..8] ^ sign_extend(w[7..7]))
+            is_nonzero(w[15..8] ^ sign_extend(w[7]))
           },
           16 => {
             let w : bits(32) = to_bits_truncate(product);
-            is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
+            is_nonzero(w[31..16] ^ sign_extend(w[15]))
           },
           32 => {
             let w : bits(64) = to_bits_truncate(product);
-            is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
+            is_nonzero(w[63..32] ^ sign_extend(w[31]))
           },
           64 => {
             let w : bits(128) = to_bits_truncate(product);
-            is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
+            is_nonzero(w[127..64] ^ sign_extend(w[63]))
           },
         };
         OF = CF;
@@ -1198,19 +1198,19 @@ function decode_execute() = {
         CF = match os {
           8  => {
             let w : bits(16) = to_bits_truncate(product);
-            is_nonzero(w[15..8] ^ sign_extend(w[7..7]))
+            is_nonzero(w[15..8] ^ sign_extend(w[7]))
           },
           16 => {
             let w : bits(32) = to_bits_truncate(product);
-            is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
+            is_nonzero(w[31..16] ^ sign_extend(w[15]))
           },
           32 => {
             let w : bits(64) = to_bits_truncate(product);
-            is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
+            is_nonzero(w[63..32] ^ sign_extend(w[31]))
           },
           64 => {
             let w : bits(128) = to_bits_truncate(product);
-            is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
+            is_nonzero(w[127..64] ^ sign_extend(w[63]))
           },
         };
         OF = CF;
@@ -1472,9 +1472,9 @@ function decode_execute() = {
       153 => {
         let os = get_operand_size(pfx);
         match os {
-          16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15..15])),
-          32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31..31])),
-          64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63..63])),
+          16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15])),
+          32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31])),
+          64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63])),
         }
       },
 

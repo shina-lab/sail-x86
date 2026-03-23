@@ -1908,22 +1908,22 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let ctrl : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       var result : ymmword = zeros();
       // Per 128-bit lane, select from 2 qwords within that lane using bit 1
-      let s0 : range(0, 1) = unsigned(ctrl[1..1]);
+      let s0 : range(0, 1) = unsigned(ctrl[1]);
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(ctrl[65..65]);
+      let s1 : range(0, 1) = unsigned(ctrl[65]);
       result[127..64] = src[(s1 * 64 + 63 + 0) .. (s1 * 64 + 0)];
-      let s2 : range(0, 1) = unsigned(ctrl[129..129]);
+      let s2 : range(0, 1) = unsigned(ctrl[129]);
       result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
-      let s3 : range(0, 1) = unsigned(ctrl[193..193]);
+      let s3 : range(0, 1) = unsigned(ctrl[193]);
       result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
       write_ymm(dst, result)
     } else {
       let src : xmmword = read_xmm(pfx.vex_vvvv);
       let ctrl : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       var result : xmmword = zeros();
-      let s0 : range(0, 1) = unsigned(ctrl[1..1]);
+      let s0 : range(0, 1) = unsigned(ctrl[1]);
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(ctrl[65..65]);
+      let s1 : range(0, 1) = unsigned(ctrl[65]);
       result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
       write_xmm(dst, result)
     }

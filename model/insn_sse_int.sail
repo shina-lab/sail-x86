@@ -38,8 +38,8 @@ function abs(x) = {
 val sat_add_s8 : (byte, byte) -> byte
 function sat_add_s8(a, b) = {
   let wide : bits(9) = sign_extend(a) + sign_extend(b);
-  let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
-  let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
+  let ov : bits(1) = ~(wide[8]) & wide[7];
+  let uf : bits(1) = wide[8] & ~(wide[7]);
   let ov_mask : byte = sign_extend(ov);
   let uf_mask : byte = sign_extend(uf);
   (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
@@ -48,8 +48,8 @@ function sat_add_s8(a, b) = {
 val sat_add_s16 : (word, word) -> word
 function sat_add_s16(a, b) = {
   let wide : bits(17) = sign_extend(a) + sign_extend(b);
-  let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
-  let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
+  let ov : bits(1) = ~(wide[16]) & wide[15];
+  let uf : bits(1) = wide[16] & ~(wide[15]);
   let ov_mask : word = sign_extend(ov);
   let uf_mask : word = sign_extend(uf);
   (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
@@ -59,14 +59,14 @@ function sat_add_s16(a, b) = {
 val sat_add_u8 : (byte, byte) -> byte
 function sat_add_u8(a, b) = {
   let wide : bits(9) = (0b0 @ a) + (0b0 @ b);
-  let sat : byte = sign_extend(wide[8..8]);
+  let sat : byte = sign_extend(wide[8]);
   wide[7..0] | sat
 }
 
 val sat_add_u16 : (word, word) -> word
 function sat_add_u16(a, b) = {
   let wide : bits(17) = (0b0 @ a) + (0b0 @ b);
-  let sat : word = sign_extend(wide[16..16]);
+  let sat : word = sign_extend(wide[16]);
   wide[15..0] | sat
 }
 
@@ -182,8 +182,8 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   let sum : int = p1 + p2;
   // Branchless signed saturation to 16-bit via 17-bit overflow detection
   let wide : bits(17) = get_slice_int(17, sum, 0);
-  let sign : bits(1) = wide[16..16];
-  let of_mask : word = sign_extend(sign ^ wide[15..15]);
+  let sign : bits(1) = wide[16];
+  let of_mask : word = sign_extend(sign ^ wide[15]);
   let sat : word = sign_extend(sign) ^ 0x7FFF;
   (sat & of_mask) | (wide[15..0] & ~(of_mask))
 }
@@ -296,8 +296,8 @@ val abs_diff8 : (byte, byte) -> int
 function abs_diff8(a, b) = {
   let d1 : bits(9) = (0b0 @ a) - (0b0 @ b);
   let d2 : bits(9) = (0b0 @ b) - (0b0 @ a);
-  let m1 : byte = sign_extend(~(d1[8..8]));
-  let m2 : byte = sign_extend(~(d2[8..8]));
+  let m1 : byte = sign_extend(~(d1[8]));
+  let m2 : byte = sign_extend(~(d2[8]));
   unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
 }
 
@@ -310,7 +310,7 @@ val pshufb_byte : (xmmword, byte) -> byte
 function pshufb_byte(data, mask) = {
   let idx : range(0, 15) = unsigned(mask[3..0]);
   let selected : byte = (data >> (idx * 8))[7..0];
-  selected & sign_extend(~(mask[7..7]))
+  selected & sign_extend(~(mask[7]))
 }
 
 // PSHUFHW — Shuffle Packed High Words
@@ -2206,22 +2206,22 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     16 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7..7]);
-      let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15..15]);
-      let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23..23]);
-      let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31..31]);
-      let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39..39]);
-      let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47..47]);
-      let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55..55]);
-      let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63..63]);
-      let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71..71]);
-      let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79..79]);
-      let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87..87]);
-      let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95..95]);
-      let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103..103]);
-      let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111..111]);
-      let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119..119]);
-      let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127..127]);
+      let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7]);
+      let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15]);
+      let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23]);
+      let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31]);
+      let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39]);
+      let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47]);
+      let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55]);
+      let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63]);
+      let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71]);
+      let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79]);
+      let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87]);
+      let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95]);
+      let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103]);
+      let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111]);
+      let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119]);
+      let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127]);
       write_xmm_legacy(xreg, r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
     },
 
@@ -2531,37 +2531,37 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       var mi : word = 0x0000;
 
       let d1 : bits(17) = (0b0 @ w1) - (0b0 @ mv);
-      let u1 : word = sign_extend(d1[16..16]);
+      let u1 : word = sign_extend(d1[16]);
       mv = (w1 & u1) | (mv & ~(u1));
       mi = (0x0001 & u1) | (mi & ~(u1));
 
       let d2 : bits(17) = (0b0 @ w2) - (0b0 @ mv);
-      let u2 : word = sign_extend(d2[16..16]);
+      let u2 : word = sign_extend(d2[16]);
       mv = (w2 & u2) | (mv & ~(u2));
       mi = (0x0002 & u2) | (mi & ~(u2));
 
       let d3 : bits(17) = (0b0 @ w3) - (0b0 @ mv);
-      let u3 : word = sign_extend(d3[16..16]);
+      let u3 : word = sign_extend(d3[16]);
       mv = (w3 & u3) | (mv & ~(u3));
       mi = (0x0003 & u3) | (mi & ~(u3));
 
       let d4 : bits(17) = (0b0 @ w4) - (0b0 @ mv);
-      let u4 : word = sign_extend(d4[16..16]);
+      let u4 : word = sign_extend(d4[16]);
       mv = (w4 & u4) | (mv & ~(u4));
       mi = (0x0004 & u4) | (mi & ~(u4));
 
       let d5 : bits(17) = (0b0 @ w5) - (0b0 @ mv);
-      let u5 : word = sign_extend(d5[16..16]);
+      let u5 : word = sign_extend(d5[16]);
       mv = (w5 & u5) | (mv & ~(u5));
       mi = (0x0005 & u5) | (mi & ~(u5));
 
       let d6 : bits(17) = (0b0 @ w6) - (0b0 @ mv);
-      let u6 : word = sign_extend(d6[16..16]);
+      let u6 : word = sign_extend(d6[16]);
       mv = (w6 & u6) | (mv & ~(u6));
       mi = (0x0006 & u6) | (mi & ~(u6));
 
       let d7 : bits(17) = (0b0 @ w7) - (0b0 @ mv);
-      let u7 : word = sign_extend(d7[16..16]);
+      let u7 : word = sign_extend(d7[16]);
       mv = (w7 & u7) | (mv & ~(u7));
       mi = (0x0007 & u7) | (mi & ~(u7));
 
@@ -2700,7 +2700,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
           RM_mem(seg, offset) => seg_read64(seg, offset),
         };
         let v_0 : xmmword = read_xmm(xreg);
-        let sel : range(0, 1) = unsigned(imm[0..0]);
+        let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
           0 => v_0[127..64] @ v,
           1 => v @ v_0[63..0]

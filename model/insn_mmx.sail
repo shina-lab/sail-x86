@@ -449,8 +449,8 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_mm_rm(modrm);
       let v : qword = read_mm(src);
       let mask : byte =
-        v[63..63] @ v[55..55] @ v[47..47] @ v[39..39] @
-        v[31..31] @ v[23..23] @ v[15..15] @ v[7..7];
+        v[63] @ v[55] @ v[47] @ v[39] @
+        v[31] @ v[23] @ v[15] @ v[7];
       write_gpr32(dst_gpr, zero_extend(mask));
       mmx_touch()
     },

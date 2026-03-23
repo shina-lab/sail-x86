@@ -212,7 +212,7 @@ function decode_vex_src_ymm(modrm, rm, pfx) = match rm {
 
 val fp16_to_fp32 : bits(16) -> bits(32)
 function fp16_to_fp32(h) = {
-  let sign : bits(1) = h[15..15];
+  let sign : bits(1) = h[15];
   let exp5 : bits(5) = h[14..10];
   let frac10 : bits(10) = h[9..0];
   if exp5 == 0b11111 then {
@@ -241,7 +241,7 @@ function fp16_to_fp32(h) = {
 // rc: imm8[1:0] rounding control — 00=RNE, 01=round down, 10=round up, 11=truncate
 val fp32_to_fp16 : (bits(32), bits(2)) -> bits(16)
 function fp32_to_fp16(f, rc) = {
-  let sign : bits(1) = f[31..31];
+  let sign : bits(1) = f[31];
   let exp8 : bits(8) = f[30..23];
   let frac23 : bits(23) = f[22..0];
   let exp_val : int = unsigned(exp8);
@@ -562,43 +562,43 @@ function avx_phminposuw_128(src) = {
 
   let v1 : word = src[31..16];
   let d1 : bits(17) = (0b0 @ v1) - (0b0 @ mv);
-  let u1 : word = sign_extend(d1[16..16]);
+  let u1 : word = sign_extend(d1[16]);
   mv = (v1 & u1) | (mv & ~(u1));
   mi = (0b001 & u1[2..0]) | (mi & ~(u1[2..0]));
 
   let v2 : word = src[47..32];
   let d2 : bits(17) = (0b0 @ v2) - (0b0 @ mv);
-  let u2 : word = sign_extend(d2[16..16]);
+  let u2 : word = sign_extend(d2[16]);
   mv = (v2 & u2) | (mv & ~(u2));
   mi = (0b010 & u2[2..0]) | (mi & ~(u2[2..0]));
 
   let v3 : word = src[63..48];
   let d3 : bits(17) = (0b0 @ v3) - (0b0 @ mv);
-  let u3 : word = sign_extend(d3[16..16]);
+  let u3 : word = sign_extend(d3[16]);
   mv = (v3 & u3) | (mv & ~(u3));
   mi = (0b011 & u3[2..0]) | (mi & ~(u3[2..0]));
 
   let v4 : word = src[79..64];
   let d4 : bits(17) = (0b0 @ v4) - (0b0 @ mv);
-  let u4 : word = sign_extend(d4[16..16]);
+  let u4 : word = sign_extend(d4[16]);
   mv = (v4 & u4) | (mv & ~(u4));
   mi = (0b100 & u4[2..0]) | (mi & ~(u4[2..0]));
 
   let v5 : word = src[95..80];
   let d5 : bits(17) = (0b0 @ v5) - (0b0 @ mv);
-  let u5 : word = sign_extend(d5[16..16]);
+  let u5 : word = sign_extend(d5[16]);
   mv = (v5 & u5) | (mv & ~(u5));
   mi = (0b101 & u5[2..0]) | (mi & ~(u5[2..0]));
 
   let v6 : word = src[111..96];
   let d6 : bits(17) = (0b0 @ v6) - (0b0 @ mv);
-  let u6 : word = sign_extend(d6[16..16]);
+  let u6 : word = sign_extend(d6[16]);
   mv = (v6 & u6) | (mv & ~(u6));
   mi = (0b110 & u6[2..0]) | (mi & ~(u6[2..0]));
 
   let v7 : word = src[127..112];
   let d7 : bits(17) = (0b0 @ v7) - (0b0 @ mv);
-  let u7 : word = sign_extend(d7[16..16]);
+  let u7 : word = sign_extend(d7[16]);
   mv = (v7 & u7) | (mv & ~(u7));
   mi = (0b111 & u7[2..0]) | (mi & ~(u7[2..0]));
 

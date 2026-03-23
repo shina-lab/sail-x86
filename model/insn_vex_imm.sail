@@ -99,28 +99,28 @@ function avx_roundpd_128(src, imm) = {
 // VDPPS 128-bit: dot product of packed singles
 val avx_dpps_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dpps_128(a, b, imm) = {
-  let temp0 : dword = __f32_mul(a[31..0], b[31..0]) & sign_extend(imm[4..4]);
-  let temp1 : dword = __f32_mul(a[63..32], b[63..32]) & sign_extend(imm[5..5]);
-  let temp2 : dword = __f32_mul(a[95..64], b[95..64]) & sign_extend(imm[6..6]);
-  let temp3 : dword = __f32_mul(a[127..96], b[127..96]) & sign_extend(imm[7..7]);
+  let temp0 : dword = __f32_mul(a[31..0], b[31..0]) & sign_extend(imm[4]);
+  let temp1 : dword = __f32_mul(a[63..32], b[63..32]) & sign_extend(imm[5]);
+  let temp2 : dword = __f32_mul(a[95..64], b[95..64]) & sign_extend(imm[6]);
+  let temp3 : dword = __f32_mul(a[127..96], b[127..96]) & sign_extend(imm[7]);
   let sum01 : dword = __f32_add(temp0, temp1);
   let sum23 : dword = __f32_add(temp2, temp3);
   let sum : dword = __f32_add(sum01, sum23);
-  let d0 : dword = sum & sign_extend(imm[0..0]);
-  let d1 : dword = sum & sign_extend(imm[1..1]);
-  let d2 : dword = sum & sign_extend(imm[2..2]);
-  let d3 : dword = sum & sign_extend(imm[3..3]);
+  let d0 : dword = sum & sign_extend(imm[0]);
+  let d1 : dword = sum & sign_extend(imm[1]);
+  let d2 : dword = sum & sign_extend(imm[2]);
+  let d3 : dword = sum & sign_extend(imm[3]);
   d3 @ d2 @ d1 @ d0
 }
 
 // VDPPD 128-bit: dot product of packed doubles
 val avx_dppd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dppd_128(a, b, imm) = {
-  let temp0 : qword = __f64_mul(a[63..0], b[63..0]) & sign_extend(imm[4..4]);
-  let temp1 : qword = __f64_mul(a[127..64], b[127..64]) & sign_extend(imm[5..5]);
+  let temp0 : qword = __f64_mul(a[63..0], b[63..0]) & sign_extend(imm[4]);
+  let temp1 : qword = __f64_mul(a[127..64], b[127..64]) & sign_extend(imm[5]);
   let sum : qword = __f64_add(temp0, temp1);
-  let lo : qword = sum & sign_extend(imm[0..0]);
-  let hi : qword = sum & sign_extend(imm[1..1]);
+  let lo : qword = sum & sign_extend(imm[0]);
+  let hi : qword = sum & sign_extend(imm[1]);
   hi @ lo
 }
 
@@ -147,21 +147,21 @@ function avx_insertps(dst, src, imm8, is_mem) = {
     match src_sel { 0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96] }
   };
   let sel = imm8[5..4];
-  let m0 : dword = sign_extend(~(sel[1..1] | sel[0..0]));
+  let m0 : dword = sign_extend(~(sel[1] | sel[0]));
   let x1 : bits(2) = sel ^ 0b01;
-  let m1 : dword = sign_extend(~(x1[1..1] | x1[0..0]));
+  let m1 : dword = sign_extend(~(x1[1] | x1[0]));
   let x2 : bits(2) = sel ^ 0b10;
-  let m2 : dword = sign_extend(~(x2[1..1] | x2[0..0]));
+  let m2 : dword = sign_extend(~(x2[1] | x2[0]));
   let x3 : bits(2) = sel ^ 0b11;
-  let m3 : dword = sign_extend(~(x3[1..1] | x3[0..0]));
+  let m3 : dword = sign_extend(~(x3[1] | x3[0]));
   let t0 : dword = (src_float & m0) | (dst[31..0] & ~(m0));
   let t1 : dword = (src_float & m1) | (dst[63..32] & ~(m1));
   let t2 : dword = (src_float & m2) | (dst[95..64] & ~(m2));
   let t3 : dword = (src_float & m3) | (dst[127..96] & ~(m3));
-  let d0 : dword = t0 & sign_extend(~(imm8[0..0]));
-  let d1 : dword = t1 & sign_extend(~(imm8[1..1]));
-  let d2 : dword = t2 & sign_extend(~(imm8[2..2]));
-  let d3 : dword = t3 & sign_extend(~(imm8[3..3]));
+  let d0 : dword = t0 & sign_extend(~(imm8[0]));
+  let d1 : dword = t1 & sign_extend(~(imm8[1]));
+  let d2 : dword = t2 & sign_extend(~(imm8[2]));
+  let d3 : dword = t3 & sign_extend(~(imm8[3]));
   d3 @ d2 @ d1 @ d0
 }
 
@@ -675,7 +675,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         RM_reg(_) => read_gpr64(modrm_rm_reg(modrm, pfx)),
         RM_mem(seg, addr) => seg_read64(seg, addr),
       };
-      let sel : range(0, 1) = unsigned(imm[0..0]);
+      let sel : range(0, 1) = unsigned(imm[0]);
       let r : xmmword = match sel {
         0 => src1[127..64] @ v,
         1 => v @ src1[63..0]
@@ -809,21 +809,21 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       var result : ymmword = zeros();
       // Bit 0 selects for element 0, bit 1 for element 1 (lane 0)
       // Bit 2 selects for element 2, bit 3 for element 3 (lane 1)
-      let s0 : range(0, 1) = unsigned(imm[0..0]);
+      let s0 : range(0, 1) = unsigned(imm[0]);
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(imm[1..1]);
+      let s1 : range(0, 1) = unsigned(imm[1]);
       result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      let s2 : range(0, 1) = unsigned(imm[2..2]);
+      let s2 : range(0, 1) = unsigned(imm[2]);
       result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
-      let s3 : range(0, 1) = unsigned(imm[3..3]);
+      let s3 : range(0, 1) = unsigned(imm[3]);
       result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
       write_ymm(dst, result)
     } else {
       let src : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       var result : xmmword = zeros();
-      let s0 : range(0, 1) = unsigned(imm[0..0]);
+      let s0 : range(0, 1) = unsigned(imm[0]);
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(imm[1..1]);
+      let s1 : range(0, 1) = unsigned(imm[1]);
       result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
       write_xmm(dst, result)
     }
@@ -846,7 +846,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       2 => src2[127..0],
       3 => src2[255..128],
     };
-    let lo_result : xmmword = lo_selected & sign_extend(~(imm[3..3]));
+    let lo_result : xmmword = lo_selected & sign_extend(~(imm[3]));
     // High 128-bit result selected by imm8[5:4], zeroed if imm8[7]
     let sel_hi : range(0, 3) = unsigned(imm[5..4]);
     let hi_selected : xmmword = match sel_hi {
@@ -855,7 +855,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       2 => src2[127..0],
       3 => src2[255..128],
     };
-    let hi_result : xmmword = hi_selected & sign_extend(~(imm[7..7]));
+    let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
     write_ymm(dst, hi_result @ lo_result)
   },
 
@@ -885,7 +885,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let imm = fetch_byte();
     let v : ymmword = read_ymm(src);
-    let extracted : xmmword = (v >> (unsigned(zero_extend(imm[0..0]) : bits(1)) * 128))[127..0];
+    let extracted : xmmword = (v >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
     match rm {
       RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
       RM_mem(seg, addr) => seg_write128(seg, addr, extracted),
@@ -909,7 +909,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       2 => src2[127..0],
       3 => src2[255..128],
     };
-    let lo_result : xmmword = lo_selected & sign_extend(~(imm[3..3]));
+    let lo_result : xmmword = lo_selected & sign_extend(~(imm[3]));
     let sel_hi : range(0, 3) = unsigned(imm[5..4]);
     let hi_selected : xmmword = match sel_hi {
       0 => src1[127..0],
@@ -917,7 +917,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       2 => src2[127..0],
       3 => src2[255..128],
     };
-    let hi_result : xmmword = hi_selected & sign_extend(~(imm[7..7]));
+    let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
     write_ymm(dst, hi_result @ lo_result)
   },
 

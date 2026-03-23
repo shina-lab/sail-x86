@@ -195,7 +195,7 @@ function exec_imul_1(src, os) = {
       let product : int = a * b;
       let result : word = to_bits_truncate(product);
       write_gpr16(RAX, result);
-      CF = is_nonzero(result[15..8] ^ sign_extend(result[7..7]));
+      CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
       OF = CF;
     },
     16 => {
@@ -205,7 +205,7 @@ function exec_imul_1(src, os) = {
       let result : dword = to_bits_truncate(product);
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
-      CF = is_nonzero(result[31..16] ^ sign_extend(result[15..15]));
+      CF = is_nonzero(result[31..16] ^ sign_extend(result[15]));
       OF = CF;
     },
     32 => {
@@ -215,7 +215,7 @@ function exec_imul_1(src, os) = {
       let result : qword = to_bits_truncate(product);
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
-      CF = is_nonzero(result[63..32] ^ sign_extend(result[31..31]));
+      CF = is_nonzero(result[63..32] ^ sign_extend(result[31]));
       OF = CF;
     },
     64 => {
@@ -225,7 +225,7 @@ function exec_imul_1(src, os) = {
       let result : xmmword = to_bits_truncate(product);
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
-      CF = is_nonzero(result[127..64] ^ sign_extend(result[63..63]));
+      CF = is_nonzero(result[127..64] ^ sign_extend(result[63]));
       OF = CF;
     },
   }
@@ -455,14 +455,14 @@ function exec_shl(a, count_raw, os) = {
         CF = if count <= 8 then a[8 - count] else undefined;
         update_SF_ZF_PF(result[7..0]);
         if count == 1 then
-          OF = (result[7..7] ^ CF)[0]
+          OF = (result[7] ^ CF)[0]
         else OF = undefined
       },
       16 => {
         CF = if count <= 16 then a[16 - count] else undefined;
         update_SF_ZF_PF(result[15..0]);
         if count == 1 then
-          OF = (result[15..15] ^ CF)[0]
+          OF = (result[15] ^ CF)[0]
         else OF = undefined
       },
       32 => {
@@ -471,7 +471,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[32 - c];
         update_SF_ZF_PF(result[31..0]);
         if count == 1 then
-          OF = (result[31..31] ^ CF)[0]
+          OF = (result[31] ^ CF)[0]
         else OF = undefined
       },
       64 => {
@@ -480,7 +480,7 @@ function exec_shl(a, count_raw, os) = {
         CF = a[64 - c];
         update_SF_ZF_PF(result);
         if count == 1 then
-          OF = (result[63..63] ^ CF)[0]
+          OF = (result[63] ^ CF)[0]
         else OF = undefined
       },
     };
@@ -706,10 +706,10 @@ function exec_rcl(a, count_raw, os) = {
     };
     CF = cf_bit;
     if masked == 1 then match os {
-      8  => OF = (val8[7..7] ^ CF)[0],
-      16 => OF = (val16[15..15] ^ CF)[0],
-      32 => OF = (val32[31..31] ^ CF)[0],
-      64 => OF = (val64[63..63] ^ CF)[0],
+      8  => OF = (val8[7] ^ CF)[0],
+      16 => OF = (val16[15] ^ CF)[0],
+      32 => OF = (val32[31] ^ CF)[0],
+      64 => OF = (val64[63] ^ CF)[0],
     } else {
       OF = undefined;
     };
@@ -745,10 +745,10 @@ function exec_rcr(a, count_raw, os) = {
     var val64 : qword = a;
     // OF is set before the rotate for RCR
     if masked == 1 then match os {
-      8  => OF = (val8[7..7] ^ CF)[0],
-      16 => OF = (val16[15..15] ^ CF)[0],
-      32 => OF = (val32[31..31] ^ CF)[0],
-      64 => OF = (val64[63..63] ^ CF)[0],
+      8  => OF = (val8[7] ^ CF)[0],
+      16 => OF = (val16[15] ^ CF)[0],
+      32 => OF = (val32[31] ^ CF)[0],
+      64 => OF = (val64[63] ^ CF)[0],
     } else {
       OF = undefined;
     };

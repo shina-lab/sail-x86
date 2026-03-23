@@ -1331,7 +1331,7 @@ function extract_dword_from_xmm(s, imm8) = {
 
 val extract_qword_from_xmm : (xmmword, byte) -> qword
 function extract_qword_from_xmm(s, imm8) = {
-  let sel : range(0, 1) = unsigned(imm8[0..0]);
+  let sel : range(0, 1) = unsigned(imm8[0]);
   match sel {
     0 => s[63..0],
     1 => s[127..64]
@@ -1348,23 +1348,23 @@ function exec_insertps(dst, src, imm8) = {
   let src_float : dword = b[(src_sel * 32 + 31) .. (src_sel * 32)];
   // Insert at destination position using imm8[5:4]
   let sel = imm8[5..4];
-  let m0 : dword = sign_extend(~(sel[1..1] | sel[0..0]));
+  let m0 : dword = sign_extend(~(sel[1] | sel[0]));
   let x1 : bits(2) = sel ^ 0b01;
-  let m1 : dword = sign_extend(~(x1[1..1] | x1[0..0]));
+  let m1 : dword = sign_extend(~(x1[1] | x1[0]));
   let x2 : bits(2) = sel ^ 0b10;
-  let m2 : dword = sign_extend(~(x2[1..1] | x2[0..0]));
+  let m2 : dword = sign_extend(~(x2[1] | x2[0]));
   let x3 : bits(2) = sel ^ 0b11;
-  let m3 : dword = sign_extend(~(x3[1..1] | x3[0..0]));
+  let m3 : dword = sign_extend(~(x3[1] | x3[0]));
   let t0 : dword = (src_float & m0) | (a[31..0] & ~(m0));
   let t1 : dword = (src_float & m1) | (a[63..32] & ~(m1));
   let t2 : dword = (src_float & m2) | (a[95..64] & ~(m2));
   let t3 : dword = (src_float & m3) | (a[127..96] & ~(m3));
   // Zero lanes indicated by imm8[3:0] (branchless)
   write_xmm_legacy(dst,
-    (t3 & sign_extend(~(imm8[3..3]))) @
-    (t2 & sign_extend(~(imm8[2..2]))) @
-    (t1 & sign_extend(~(imm8[1..1]))) @
-    (t0 & sign_extend(~(imm8[0..0]))))
+    (t3 & sign_extend(~(imm8[3]))) @
+    (t2 & sign_extend(~(imm8[2]))) @
+    (t1 & sign_extend(~(imm8[1]))) @
+    (t0 & sign_extend(~(imm8[0]))))
 }
 
 // =========================================================================
@@ -1515,29 +1515,29 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
-      let temp0 : dword = __f32_mul(a[31..0], src_xmm[31..0]) & sign_extend(imm[4..4]);
-      let temp1 : dword = __f32_mul(a[63..32], src_xmm[63..32]) & sign_extend(imm[5..5]);
-      let temp2 : dword = __f32_mul(a[95..64], src_xmm[95..64]) & sign_extend(imm[6..6]);
-      let temp3 : dword = __f32_mul(a[127..96], src_xmm[127..96]) & sign_extend(imm[7..7]);
+      let temp0 : dword = __f32_mul(a[31..0], src_xmm[31..0]) & sign_extend(imm[4]);
+      let temp1 : dword = __f32_mul(a[63..32], src_xmm[63..32]) & sign_extend(imm[5]);
+      let temp2 : dword = __f32_mul(a[95..64], src_xmm[95..64]) & sign_extend(imm[6]);
+      let temp3 : dword = __f32_mul(a[127..96], src_xmm[127..96]) & sign_extend(imm[7]);
       let sum01 : dword = __f32_add(temp0, temp1);
       let sum23 : dword = __f32_add(temp2, temp3);
       let sum : dword = __f32_add(sum01, sum23);
       write_xmm_legacy(xreg,
-        (sum & sign_extend(imm[3..3])) @
-        (sum & sign_extend(imm[2..2])) @
-        (sum & sign_extend(imm[1..1])) @
-        (sum & sign_extend(imm[0..0])))
+        (sum & sign_extend(imm[3])) @
+        (sum & sign_extend(imm[2])) @
+        (sum & sign_extend(imm[1])) @
+        (sum & sign_extend(imm[0])))
     },
     65 => {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
-      let temp0 : qword = __f64_mul(a[63..0], src_xmm[63..0]) & sign_extend(imm[4..4]);
-      let temp1 : qword = __f64_mul(a[127..64], src_xmm[127..64]) & sign_extend(imm[5..5]);
+      let temp0 : qword = __f64_mul(a[63..0], src_xmm[63..0]) & sign_extend(imm[4]);
+      let temp1 : qword = __f64_mul(a[127..64], src_xmm[127..64]) & sign_extend(imm[5]);
       let sum : qword = __f64_add(temp0, temp1);
       write_xmm_legacy(xreg,
-        (sum & sign_extend(imm[1..1])) @
-        (sum & sign_extend(imm[0..0])))
+        (sum & sign_extend(imm[1])) @
+        (sum & sign_extend(imm[0])))
     },
 
     _ => raise_UD(),

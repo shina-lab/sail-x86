@@ -527,7 +527,7 @@ function gf2p8_mul(a, b) = {
   foreach (i from 0 to 7) {
     result = result ^ (sign_extend(b[i..i]) & aa);
     aa = aa << 1;
-    aa = aa ^ (sign_extend(aa[8..8]) & 0b100011011) // 0x11B
+    aa = aa ^ (sign_extend(aa[8]) & 0b100011011) // 0x11B
   };
   result[7..0]
 }
