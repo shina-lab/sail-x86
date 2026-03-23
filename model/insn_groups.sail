@@ -26,43 +26,23 @@ function exec_dec(a, os) = {
 
 val exec_mul : (qword, operand_size) -> unit
 function exec_mul(src, os) = {
-  match os {
-    8 => {
-      let a : int = unsigned(read_gpr8l(RAX));
-      let b : int = unsigned(src[7..0]);
-      let result : word = to_bits_truncate(a * b);
-      write_gpr16(RAX, result);
-      CF = is_nonzero(result[15..8]);
-      OF = CF;
-    },
-    16 => {
-      let a : int = unsigned(read_gpr16(RAX));
-      let b : int = unsigned(src[15..0]);
-      let result : dword = to_bits_truncate(a * b);
-      write_gpr16(RAX, result[15..0]);
-      write_gpr16(RDX, result[31..16]);
-      CF = is_nonzero(result[31..16]);
-      OF = CF;
-    },
-    32 => {
-      let a : int = unsigned(read_gpr32(RAX));
-      let b : int = unsigned(src[31..0]);
-      let result : qword = to_bits_truncate(a * b);
-      write_gpr32(RAX, result[31..0]);
-      write_gpr32(RDX, result[63..32]);
-      CF = is_nonzero(result[63..32]);
-      OF = CF;
-    },
-    64 => {
-      let a : int = unsigned(read_gpr64(RAX));
-      let b : int = unsigned(src);
-      let product : int = a * b;
-      let result : xmmword = to_bits_truncate(product);
-      write_gpr64(RAX, result[63..0]);
-      write_gpr64(RDX, result[127..64]);
-      CF = is_nonzero(result[127..64]);
-      OF = CF;
-    },
+  if os == 8 then {
+    let a : int = unsigned(read_gpr8l(RAX));
+    let b : int = unsigned(src[7..0]);
+    let result : word = to_bits_truncate(a * b);
+    write_gpr16(RAX, result);
+    CF = is_nonzero(result[15..8]);
+    OF = CF;
+  } else {
+    let a : int = unsigned(read_gpr(os, RAX)[(os - 1)..0]);
+    let b : int = unsigned(src[(os - 1)..0]);
+    let result : bits(128) = to_bits_truncate(a * b);
+    let lo = result[(os - 1)..0];
+    let hi = result[(os * 2 - 1)..os];
+    write_gpr(os, RAX, zero_extend(lo));
+    write_gpr(os, RDX, zero_extend(hi));
+    CF = is_nonzero(hi);
+    OF = CF;
   }
 }
 
@@ -71,51 +51,26 @@ function exec_mul(src, os) = {
 
 val exec_div : (qword, operand_size) -> unit
 function exec_div(src, os) = {
-  match os {
-    8 => {
-      let divisor = unsigned(src[7..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor > 0);
-      let dividend = unsigned(read_gpr16(RAX));
-      let quotient = dividend / divisor;
-      let remainder = dividend - quotient * divisor;
-      if quotient > 255 then raise_DE();
-      write_gpr8l(RAX, to_bits_truncate(quotient));
-      write_gpr8h(RAX, to_bits_truncate(remainder))
-    },
-    16 => {
-      let divisor = unsigned(src[15..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor > 0);
-      let dividend = unsigned(read_gpr16(RDX) @ read_gpr16(RAX));
-      let quotient = dividend / divisor;
-      let remainder = dividend - quotient * divisor;
-      if quotient > 65535 then raise_DE();
-      write_gpr16(RAX, to_bits_truncate(quotient));
-      write_gpr16(RDX, to_bits_truncate(remainder))
-    },
-    32 => {
-      let divisor = unsigned(src[31..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor > 0);
-      let dividend = unsigned(read_gpr32(RDX) @ read_gpr32(RAX));
-      let quotient = dividend / divisor;
-      let remainder = dividend - quotient * divisor;
-      if quotient > (pow2(32) - 1) then raise_DE();
-      write_gpr32(RAX, to_bits_truncate(quotient));
-      write_gpr32(RDX, to_bits_truncate(remainder))
-    },
-    64 => {
-      let divisor = unsigned(src);
-      if divisor == 0 then raise_DE();
-      assert(divisor > 0);
-      let dividend = unsigned(read_gpr64(RDX) @ read_gpr64(RAX));
-      let quotient = dividend / divisor;
-      let remainder = dividend - quotient * divisor;
-      if quotient > (pow2(64) - 1) then raise_DE();
-      write_gpr64(RAX, to_bits_truncate(quotient));
-      write_gpr64(RDX, to_bits_truncate(remainder))
-    },
+  if os == 8 then {
+    let divisor = unsigned(src[7..0]);
+    if divisor == 0 then raise_DE();
+    assert(divisor > 0);
+    let dividend = unsigned(read_gpr16(RAX));
+    let quotient = dividend / divisor;
+    let remainder = dividend - quotient * divisor;
+    if quotient > 255 then raise_DE();
+    write_gpr8l(RAX, to_bits_truncate(quotient));
+    write_gpr8h(RAX, to_bits_truncate(remainder))
+  } else {
+    let divisor = unsigned(src[(os - 1)..0]);
+    if divisor == 0 then raise_DE();
+    assert(divisor > 0);
+    let dividend = unsigned(read_gpr(os, RDX)[(os - 1)..0] @ read_gpr(os, RAX)[(os - 1)..0]);
+    let quotient = dividend / divisor;
+    let remainder = dividend - quotient * divisor;
+    if quotient > (pow2(os) - 1) then raise_DE();
+    write_gpr(os, RAX, to_bits_truncate(quotient));
+    write_gpr(os, RDX, to_bits_truncate(remainder))
   };
   CF = undefined;
   OF = undefined;
@@ -130,51 +85,26 @@ function exec_div(src, os) = {
 
 val exec_idiv : (qword, operand_size) -> unit
 function exec_idiv(src, os) = {
-  match os {
-    8 => {
-      let divisor = signed(src[7..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor != 0);
-      let dividend = signed(read_gpr16(RAX));
-      let quotient = quot_round_zero(dividend, divisor);
-      let remainder = rem_round_zero(dividend, divisor);
-      if quotient > 127 | quotient < negate(128) then raise_DE();
-      write_gpr8l(RAX, to_bits_truncate(quotient));
-      write_gpr8h(RAX, to_bits_truncate(remainder))
-    },
-    16 => {
-      let divisor = signed(src[15..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor != 0);
-      let dividend = signed(read_gpr16(RDX) @ read_gpr16(RAX));
-      let quotient = quot_round_zero(dividend, divisor);
-      let remainder = rem_round_zero(dividend, divisor);
-      if quotient > 32767 | quotient < negate(32768) then raise_DE();
-      write_gpr16(RAX, to_bits_truncate(quotient));
-      write_gpr16(RDX, to_bits_truncate(remainder))
-    },
-    32 => {
-      let divisor = signed(src[31..0]);
-      if divisor == 0 then raise_DE();
-      assert(divisor != 0);
-      let dividend = signed(read_gpr32(RDX) @ read_gpr32(RAX));
-      let quotient = quot_round_zero(dividend, divisor);
-      let remainder = rem_round_zero(dividend, divisor);
-      if quotient > (pow2(31) - 1) | quotient < negate(pow2(31)) then raise_DE();
-      write_gpr32(RAX, to_bits_truncate(quotient));
-      write_gpr32(RDX, to_bits_truncate(remainder))
-    },
-    64 => {
-      let divisor = signed(src);
-      if divisor == 0 then raise_DE();
-      assert(divisor != 0);
-      let dividend = signed(read_gpr64(RDX) @ read_gpr64(RAX));
-      let quotient = quot_round_zero(dividend, divisor);
-      let remainder = rem_round_zero(dividend, divisor);
-      if quotient > (pow2(63) - 1) | quotient < negate(pow2(63)) then raise_DE();
-      write_gpr64(RAX, to_bits_truncate(quotient));
-      write_gpr64(RDX, to_bits_truncate(remainder))
-    },
+  if os == 8 then {
+    let divisor = signed(src[7..0]);
+    if divisor == 0 then raise_DE();
+    assert(divisor != 0);
+    let dividend = signed(read_gpr16(RAX));
+    let quotient = quot_round_zero(dividend, divisor);
+    let remainder = rem_round_zero(dividend, divisor);
+    if quotient < -128 | 127 < quotient then raise_DE();
+    write_gpr8l(RAX, to_bits_truncate(quotient));
+    write_gpr8h(RAX, to_bits_truncate(remainder))
+  } else {
+    let divisor = signed(src[(os - 1)..0]);
+    if divisor == 0 then raise_DE();
+    assert(divisor != 0);
+    let dividend = signed(read_gpr(os, RDX)[(os - 1)..0] @ read_gpr(os, RAX)[(os - 1)..0]);
+    let quotient = quot_round_zero(dividend, divisor);
+    let remainder = rem_round_zero(dividend, divisor);
+    if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
+    write_gpr(os, RAX, to_bits_truncate(quotient));
+    write_gpr(os, RDX, to_bits_truncate(remainder))
   };
   CF = undefined;
   OF = undefined;
@@ -188,46 +118,25 @@ function exec_idiv(src, os) = {
 
 val exec_imul_1 : (qword, operand_size) -> unit
 function exec_imul_1(src, os) = {
-  match os {
-    8 => {
-      let a : int = signed(read_gpr8l(RAX));
-      let b : int = signed(src[7..0]);
-      let product : int = a * b;
-      let result : word = to_bits_truncate(product);
-      write_gpr16(RAX, result);
-      CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
-      OF = CF;
-    },
-    16 => {
-      let a : int = signed(read_gpr16(RAX));
-      let b : int = signed(src[15..0]);
-      let product : int = a * b;
-      let result : dword = to_bits_truncate(product);
-      write_gpr16(RAX, result[15..0]);
-      write_gpr16(RDX, result[31..16]);
-      CF = is_nonzero(result[31..16] ^ sign_extend(result[15]));
-      OF = CF;
-    },
-    32 => {
-      let a : int = signed(read_gpr32(RAX));
-      let b : int = signed(src[31..0]);
-      let product : int = a * b;
-      let result : qword = to_bits_truncate(product);
-      write_gpr32(RAX, result[31..0]);
-      write_gpr32(RDX, result[63..32]);
-      CF = is_nonzero(result[63..32] ^ sign_extend(result[31]));
-      OF = CF;
-    },
-    64 => {
-      let a : int = signed(read_gpr64(RAX));
-      let b : int = signed(src);
-      let product : int = a * b;
-      let result : xmmword = to_bits_truncate(product);
-      write_gpr64(RAX, result[63..0]);
-      write_gpr64(RDX, result[127..64]);
-      CF = is_nonzero(result[127..64] ^ sign_extend(result[63]));
-      OF = CF;
-    },
+  if os == 8 then {
+    let a : int = signed(read_gpr8l(RAX));
+    let b : int = signed(src[7..0]);
+    let product : int = a * b;
+    let result : word = to_bits_truncate(product);
+    write_gpr16(RAX, result);
+    CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
+    OF = CF;
+  } else {
+    let a : int = signed(read_gpr(os, RAX)[(os - 1)..0]);
+    let b : int = signed(src[(os - 1)..0]);
+    let product : int = a * b;
+    let result : bits(128) = to_bits_truncate(product);
+    let lo = result[(os - 1)..0];
+    let hi = result[(os * 2 - 1)..os];
+    write_gpr(os, RAX, zero_extend(lo));
+    write_gpr(os, RDX, zero_extend(hi));
+    CF = is_nonzero(hi ^ sign_extend(lo[os - 1]));
+    OF = CF;
   }
 }
 
