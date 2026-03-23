@@ -508,62 +508,6 @@ unit Model::z__fxrstor64(u64 addr) {
   return UNIT;
 }
 
-// =========================================================================
-// XSAVE / XRSTOR — save/restore extended state (x87+SSE+AVX)
-// =========================================================================
-//
-// XSAVE area layout:
-//   0x000–0x1FF: Legacy region (same as FXSAVE)
-//   0x200–0x23F: XSAVE header
-//   0x200: XSTATE_BV (8 bytes) — which components are saved
-//   0x208: XCOMP_BV (8 bytes) — compaction mode (0 for standard XSAVE)
-//   0x210–0x23F: reserved (must be zero)
-//   0x240–0x33F: AVX state (YMM upper 128 bits) — if bit 2 set
-
-unit Model::z__xsave(u64 addr, u64 mask) {
-  u64 rfbm = mask & zXCR0;
-
-  // Read old XSTATE_BV (XSAVE merges, not overwrites).
-  u64 old_bv = virt_read64(*this, addr + 0x200);
-
-  if (rfbm & 3)
-    fxsave_common(*this, addr);
-
-  u64 xstate_bv = (old_bv & ~rfbm) | (zXCR0 & rfbm);
-  virt_write64(*this, addr + 0x200, xstate_bv);
-  // XCOMP_BV = 0, reserved = 0.
-  u8 zero[56] = {};
-  virt_write_bytes(*this, addr + 0x208, zero, 56);
-
-  return UNIT;
-}
-
-unit Model::z__xrstor(u64 addr, u64 mask) {
-  u64 rfbm = mask & zXCR0;
-  u64 xstate_bv = virt_read64(*this, addr + 0x200);
-
-  u64 to_restore = rfbm & xstate_bv;
-  u64 to_init = rfbm & ~xstate_bv;
-
-  if (to_restore & 3)
-    fxrstor_common(*this, addr);
-
-  if (to_init & 1)
-    zx87_init(UNIT);
-
-  if (to_init & 2) {
-    u8 zero[16] = {};
-    for (int i = 0; i < 16; i++) {
-      RECREATE(lbits)(&zZMM.data[i]);
-      bytes_to_bits(&zZMM.data[i], zero, 16, 128);
-    }
-    mxcsr_state.mxcsr = 0x1F80;
-  }
-
-  if ((rfbm & 6) && (xstate_bv & 2))
-    mxcsr_state.mxcsr = virt_read32(*this, addr + 0x18);
-
-  return UNIT;
-}
+// XSAVE/XRSTOR are now implemented in Sail (insn_xsave.sail)
 
 } // namespace x86

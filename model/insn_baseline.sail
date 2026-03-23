@@ -176,27 +176,21 @@ function cpuid(leaf, subleaf) = {
     },
 
     // Leaf 0xD: XSAVE state component info
-    13 => {
-      if sub_val == 0 then {
-        // EAX = XCR0_SUPPORTED, EBX/ECX = max XSAVE area size
-        (XCR0_SUPPORTED[31..0], 0x00000980, 0x00000980, 0x00000000)
-      } else if sub_val == 1 then {
-        (0x00000000, 0x00000000, 0x00000000, 0x00000000)
-      } else if sub_val == 2 then {
-        // AVX state (component 2): 256 bytes at offset 576
-        (0x00000100, 0x00000240, 0x00000000, 0x00000000)
-      } else if sub_val == 5 then {
-        // Opmask state (component 5): 64 bytes at offset 832
-        (0x00000040, 0x00000340, 0x00000000, 0x00000000)
-      } else if sub_val == 6 then {
-        // ZMM_Hi256 (component 6): 512 bytes at offset 896
-        (0x00000200, 0x00000380, 0x00000000, 0x00000000)
-      } else if sub_val == 7 then {
-        // Hi16_ZMM (component 7): 1024 bytes at offset 1408
-        (0x00000400, 0x00000580, 0x00000000, 0x00000000)
-      } else {
-        (0x00000000, 0x00000000, 0x00000000, 0x00000000)
-      }
+    13 => match sub_val {
+      // EAX = XCR0_SUPPORTED, EBX/ECX = max XSAVE area size
+      0 => (XCR0_SUPPORTED[31..0], 0x00000980, 0x00000980, 0x00000000),
+      // XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
+      // EBX = size of XSAVE area for currently enabled components
+      1 => (0x0000000F, 0x00000980, 0x00000000, 0x00000000),
+      // AVX state (component 2): 256 bytes at offset 576
+      2 => (0x00000100, 0x00000240, 0x00000000, 0x00000000),
+      // Opmask state (component 5): 64 bytes at offset 832
+      5 => (0x00000040, 0x00000340, 0x00000000, 0x00000000),
+      // ZMM_Hi256 (component 6): 512 bytes at offset 896
+      6 => (0x00000200, 0x00000380, 0x00000000, 0x00000000),
+      // Hi16_ZMM (component 7): 1024 bytes at offset 1408
+      7 => (0x00000400, 0x00000580, 0x00000000, 0x00000000),
+      _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
 
     // Leaf 0x80000000: Max extended leaf
@@ -246,8 +240,6 @@ val __fxsave : qword -> unit
 val __fxsave64 : qword -> unit
 val __fxrstor : qword -> unit
 val __fxrstor64 : qword -> unit
-val __xsave : (qword, qword) -> unit
-val __xrstor : (qword, qword) -> unit
 
 // SHLD — Double Precision Shift Left
 //
@@ -574,7 +566,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 D0: XGETBV — Read XCR0
         208 => {
           let ecx_val : dword = read_gpr32(RCX);
-          if ecx_val == 0x00000000 then {
+          if ecx_val == 0x00000000 | ecx_val == 0x00000001 then {
+            // ECX=0: read XCR0; ECX=1: read XCR0 | IA32_XSS (IA32_XSS is 0)
             write_gpr32(RAX, XCR0[31..0]);
             write_gpr32(RDX, XCR0[63..32])
           } else {
@@ -1192,7 +1185,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match rm {
           RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(seg_linear(seg, offset, 576), mask)
+            exec_xsave(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => raise_UD(),
         },
@@ -1201,7 +1194,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xrstor(seg_linear(seg, offset, 576), mask)
+            exec_xrstor(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => {
             // /5 mod=11: LFENCE
@@ -1212,14 +1205,12 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
         6 => match rm {
           RM_mem(seg, offset) => {
-            // XSAVEOPT (NP) or CLWB (66) — both are NOPs for architectural state
-            // XSAVEOPT: SDM says optimized XSAVE (we treat as regular XSAVE)
-            // CLWB: SDM says Cache_Line_Write_Back(m8) — NOP for us
             if pfx.has_opsize then {
               ()  // CLWB: NOP (cache write-back, no architectural effect)
             } else {
+              // XSAVEOPT: architecturally equivalent to XSAVE
               let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-              __xsave(seg_linear(seg, offset, 576), mask)  // XSAVEOPT: treat as XSAVE
+              exec_xsaveopt(seg_linear(seg, offset, 576), mask)
             }
           },
           RM_reg(_) => (),  // MFENCE
@@ -1772,23 +1763,29 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_reg(_) => raise_UD(),
         },
         // /4 mem: XSAVEC — save extended state with compaction
-        // SDM: uses compacted format (XCOMP_BV bit 63 set)
-        // We treat as equivalent to XSAVE for simplicity.
+        // /3 mem: XRSTORS — restore extended state (supervisor, requires CPL=0)
+        3 => match rm {
+          RM_mem(seg, offset) => {
+            if cur_cpl != 0 then raise_GP0();
+            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            exec_xrstors(seg_linear(seg, offset, 576), mask)
+          },
+          _ => raise_UD(),
+        },
+        // /4 mem: XSAVEC — save extended state with compaction
         4 => match rm {
           RM_mem(seg, offset) => {
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(seg_linear(seg, offset, 576), mask)
+            exec_xsavec(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
         },
         // /5 mem: XSAVES — save extended state (supervisor, requires CPL=0)
-        // SDM: RFBM = (XCR0 OR IA32_XSS) AND EDX:EAX; compacted format
-        // We treat as equivalent to XSAVE for simplicity.
         5 => match rm {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
-            __xsave(seg_linear(seg, offset, 576), mask)
+            exec_xsaves(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
         },

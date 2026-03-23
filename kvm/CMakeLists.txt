@@ -14,6 +14,7 @@ add_executable(kvm_harness
   kvm-tests-mmx.cpp
   kvm-tests-features.cpp
   kvm-tests-compat.cpp
+  kvm-tests-xsave.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -269,6 +270,9 @@ set(KVM_CATEGORIES
   "Feature gating"
   "Compat"
   BCD
+  "XSAVEC roundtrip"
+  XGETBV
+  "CPUID XSAVE"
 )
 
 foreach(cat ${KVM_CATEGORIES})

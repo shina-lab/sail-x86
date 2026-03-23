@@ -250,5 +250,6 @@ void add_evex_tests_2(std::vector<TestCase> &tests);
 void add_mmx_tests(std::vector<TestCase> &tests);
 void add_feature_tests(std::vector<TestCase> &tests);
 void add_compat_tests(std::vector<TestCase> &tests);
+void add_xsave_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

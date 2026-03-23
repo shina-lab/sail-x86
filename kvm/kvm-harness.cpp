@@ -697,6 +697,7 @@ std::vector<TestCase> build_tests() {
   add_mmx_tests(tests);
   add_feature_tests(tests);
   add_compat_tests(tests);
+  add_xsave_tests(tests);
 
   return tests;
 }
