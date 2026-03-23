@@ -2202,47 +2202,8 @@ function avx_vdpbf16ps_512(dst, src1, src2) = {
 
 /* ---- VPOPCNT: population count per element ---- */
 
-// Hacker's Delight population count (branchless).
-val popcnt8 : byte -> byte
-function popcnt8(v) = {
-  var x : byte = v;
-  x = x - ((x >> 1) & 0x55);
-  x = (x & 0x33) + ((x >> 2) & 0x33);
-  (x + (x >> 4)) & 0x0F
-}
-
-val popcnt16 : word -> word
-function popcnt16(v) = {
-  var x : word = v;
-  x = x - ((x >> 1) & 0x5555);
-  x = (x & 0x3333) + ((x >> 2) & 0x3333);
-  x = (x + (x >> 4)) & 0x0F0F;
-  x = x + (x >> 8);
-  x & 0x001F
-}
-
-val popcnt32 : dword -> dword
-function popcnt32(v) = {
-  var x : dword = v;
-  x = x - ((x >> 1) & 0x55555555);
-  x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
-  x = (x + (x >> 4)) & 0x0F0F0F0F;
-  x = x + (x >> 8);
-  x = x + (x >> 16);
-  x & 0x0000003F
-}
-
-val popcnt64 : qword -> qword
-function popcnt64(v) = {
-  var x : qword = v;
-  x = x - ((x >> 1) & 0x5555555555555555);
-  x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
-  x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0F;
-  x = x + (x >> 8);
-  x = x + (x >> 16);
-  x = x + (x >> 32);
-  x & 0x000000000000007F
-}
+val popcnt_bits : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bits('n)
+function popcnt_bits(v) = to_bits(popcount(v))
 
 // VPOPCNTB (byte elements)
 
@@ -2251,7 +2212,7 @@ function avx_vpopcntb_128(src) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = popcnt8(src[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = popcnt_bits(src[(lo + 7)..lo]);
   };
   r
 }
@@ -2273,7 +2234,7 @@ function avx_vpopcntw_128(src) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = popcnt16(src[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = popcnt_bits(src[(lo + 15)..lo]);
   };
   r
 }
@@ -2292,7 +2253,7 @@ function avx_vpopcntw_512(src) = {
 
 val avx_vpopcntd_128 : xmmword -> xmmword
 function avx_vpopcntd_128(src) = {
-  popcnt32(src[127..96]) @ popcnt32(src[95..64]) @ popcnt32(src[63..32]) @ popcnt32(src[31..0])
+  popcnt_bits(src[127..96]) @ popcnt_bits(src[95..64]) @ popcnt_bits(src[63..32]) @ popcnt_bits(src[31..0])
 }
 
 val avx_vpopcntd_256 : ymmword -> ymmword
@@ -2309,7 +2270,7 @@ function avx_vpopcntd_512(src) = {
 
 val avx_vpopcntq_128 : xmmword -> xmmword
 function avx_vpopcntq_128(src) = {
-  popcnt64(src[127..64]) @ popcnt64(src[63..0])
+  popcnt_bits(src[127..64]) @ popcnt_bits(src[63..0])
 }
 
 val avx_vpopcntq_256 : ymmword -> ymmword

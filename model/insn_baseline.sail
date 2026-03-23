@@ -27,17 +27,18 @@ function exec_xadd(dst, src, os) = {
 }
 
 // Branchless POPCNT
-val popcount : qword -> range(0, 64)
+val popcount : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
 function popcount(v) = {
-  let x1 = (v & 0x5555555555555555)  + ((v >> 1)   & 0x5555555555555555);
-  let x2 = (x1 & 0x3333333333333333) + ((x1 >> 2)  & 0x3333333333333333);
-  let x3 = (x2 & 0x0f0f0f0f0f0f0f0f) + ((x2 >> 4)  & 0x0f0f0f0f0f0f0f0f);
-  let x4 = (x3 & 0x00ff00ff00ff00ff) + ((x3 >> 8)  & 0x00ff00ff00ff00ff);
-  let x5 = (x4 & 0x0000ffff0000ffff) + ((x4 >> 16) & 0x0000ffff0000ffff);
-  let x6 = (x5 & 0x00000000ffffffff) + ((x5 >> 32) & 0x00000000ffffffff);
-  let n = unsigned(x6);
-  assert(n <= 64);
-  n
+  let x1 : qword = zero_extend(v);
+  let x2 = (x1 & 0x5555555555555555) + ((x1 >> 1)  & 0x5555555555555555);
+  let x3 = (x2 & 0x3333333333333333) + ((x2 >> 2)  & 0x3333333333333333);
+  let x4 = (x3 & 0x0f0f0f0f0f0f0f0f) + ((x3 >> 4)  & 0x0f0f0f0f0f0f0f0f);
+  let x5 = (x4 & 0x00ff00ff00ff00ff) + ((x4 >> 8)  & 0x00ff00ff00ff00ff);
+  let x6 = (x5 & 0x0000ffff0000ffff) + ((x5 >> 16) & 0x0000ffff0000ffff);
+  let x7 = (x6 & 0x00000000ffffffff) + ((x6 >> 32) & 0x00000000ffffffff);
+  let x = unsigned(x7);
+  assert(x <= 'n);
+  x
 }
 
 // Branchless CLZ via smear (fill all bits below MSB) then popcount.
