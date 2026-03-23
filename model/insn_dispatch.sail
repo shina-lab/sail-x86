@@ -1147,19 +1147,19 @@ function decode_execute() = {
         CF = match os {
           8  => {
             let w : bits(16) = to_bits_truncate(product);
-            (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
+            is_nonzero(w[15..8] ^ sign_extend(w[7..7]))
           },
           16 => {
             let w : bits(32) = to_bits_truncate(product);
-            (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+            is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
           },
           32 => {
             let w : bits(64) = to_bits_truncate(product);
-            (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+            is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
           },
           64 => {
             let w : bits(128) = to_bits_truncate(product);
-            (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+            is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
           },
         };
         OF = CF;
@@ -1187,19 +1187,19 @@ function decode_execute() = {
         CF = match os {
           8  => {
             let w : bits(16) = to_bits_truncate(product);
-            (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
+            is_nonzero(w[15..8] ^ sign_extend(w[7..7]))
           },
           16 => {
             let w : bits(32) = to_bits_truncate(product);
-            (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+            is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
           },
           32 => {
             let w : bits(64) = to_bits_truncate(product);
-            (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+            is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
           },
           64 => {
             let w : bits(128) = to_bits_truncate(product);
-            (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+            is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
           },
         };
         OF = CF;

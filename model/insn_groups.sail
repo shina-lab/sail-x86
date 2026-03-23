@@ -32,7 +32,7 @@ function exec_mul(src, os) = {
       let b : int = unsigned(src[7..0]);
       let result : word = to_bits_truncate(a * b);
       write_gpr16(RAX, result);
-      CF = (or_reduce_8(result[15..8]))[0];
+      CF = is_nonzero(result[15..8]);
       OF = CF;
     },
     16 => {
@@ -41,7 +41,7 @@ function exec_mul(src, os) = {
       let result : dword = to_bits_truncate(a * b);
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
-      CF = (or_reduce_16(result[31..16]))[0];
+      CF = is_nonzero(result[31..16]);
       OF = CF;
     },
     32 => {
@@ -50,7 +50,7 @@ function exec_mul(src, os) = {
       let result : qword = to_bits_truncate(a * b);
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
-      CF = (or_reduce_32(result[63..32]))[0];
+      CF = is_nonzero(result[63..32]);
       OF = CF;
     },
     64 => {
@@ -60,7 +60,7 @@ function exec_mul(src, os) = {
       let result : xmmword = to_bits_truncate(product);
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
-      CF = (or_reduce_64(result[127..64]))[0];
+      CF = is_nonzero(result[127..64]);
       OF = CF;
     },
   }
@@ -195,7 +195,7 @@ function exec_imul_1(src, os) = {
       let product : int = a * b;
       let result : word = to_bits_truncate(product);
       write_gpr16(RAX, result);
-      CF = (or_reduce_8(result[15..8] ^ sign_extend(result[7..7])))[0];
+      CF = is_nonzero(result[15..8] ^ sign_extend(result[7..7]));
       OF = CF;
     },
     16 => {
@@ -205,7 +205,7 @@ function exec_imul_1(src, os) = {
       let result : dword = to_bits_truncate(product);
       write_gpr16(RAX, result[15..0]);
       write_gpr16(RDX, result[31..16]);
-      CF = (or_reduce_16(result[31..16] ^ sign_extend(result[15..15])))[0];
+      CF = is_nonzero(result[31..16] ^ sign_extend(result[15..15]));
       OF = CF;
     },
     32 => {
@@ -215,7 +215,7 @@ function exec_imul_1(src, os) = {
       let result : qword = to_bits_truncate(product);
       write_gpr32(RAX, result[31..0]);
       write_gpr32(RDX, result[63..32]);
-      CF = (or_reduce_32(result[63..32] ^ sign_extend(result[31..31])))[0];
+      CF = is_nonzero(result[63..32] ^ sign_extend(result[31..31]));
       OF = CF;
     },
     64 => {
@@ -225,7 +225,7 @@ function exec_imul_1(src, os) = {
       let result : xmmword = to_bits_truncate(product);
       write_gpr64(RAX, result[63..0]);
       write_gpr64(RDX, result[127..64]);
-      CF = (or_reduce_64(result[127..64] ^ sign_extend(result[63..63])))[0];
+      CF = is_nonzero(result[127..64] ^ sign_extend(result[63..63]));
       OF = CF;
     },
   }

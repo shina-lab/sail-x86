@@ -1067,8 +1067,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_66 => {
           let d : xmmword = read_xmm(xreg);
-          let low : qword = blend64(d[63..0], d[127..64], imm[0..0]);
-          let high : qword = blend64(src_xmm[63..0], src_xmm[127..64], imm[1..1]);
+          let low : qword = blend(d[63..0], d[127..64], imm[0]);
+          let high : qword = blend(src_xmm[63..0], src_xmm[127..64], imm[1]);
           write_xmm_legacy(xreg, high @ low)
         },
         _       => raise_UD(),
@@ -1389,18 +1389,18 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
     20 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let d0 : dword = blend32(a[31..0], src_xmm[31..0], m[31..31]);
-      let d1 : dword = blend32(a[63..32], src_xmm[63..32], m[63..63]);
-      let d2 : dword = blend32(a[95..64], src_xmm[95..64], m[95..95]);
-      let d3 : dword = blend32(a[127..96], src_xmm[127..96], m[127..127]);
+      let d0 : dword = blend(a[31..0], src_xmm[31..0], m[31]);
+      let d1 : dword = blend(a[63..32], src_xmm[63..32], m[63]);
+      let d2 : dword = blend(a[95..64], src_xmm[95..64], m[95]);
+      let d3 : dword = blend(a[127..96], src_xmm[127..96], m[127]);
       write_xmm_legacy(xreg, d3 @ d2 @ d1 @ d0)
     },
     // BLENDVPD xmm1, xmm2/m128, <XMM0>
     21 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let lo : qword = blend64(a[63..0], src_xmm[63..0], m[63..63]);
-      let hi : qword = blend64(a[127..64], src_xmm[127..64], m[127..127]);
+      let lo : qword = blend(a[63..0], src_xmm[63..0], m[63]);
+      let hi : qword = blend(a[127..64], src_xmm[127..64], m[127]);
       write_xmm_legacy(xreg, hi @ lo)
     },
     _ => raise_UD(),
@@ -1455,18 +1455,18 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       write_xmm_legacy(xreg,
-        blend32(a[127..96], src_xmm[127..96], imm[3..3]) @
-        blend32(a[95..64],  src_xmm[95..64],  imm[2..2]) @
-        blend32(a[63..32],  src_xmm[63..32],  imm[1..1]) @
-        blend32(a[31..0],   src_xmm[31..0],   imm[0..0]))
+        blend(a[127..96], src_xmm[127..96], imm[3]) @
+        blend(a[95..64],  src_xmm[95..64],  imm[2]) @
+        blend(a[63..32],  src_xmm[63..32],  imm[1]) @
+        blend(a[31..0],   src_xmm[31..0],   imm[0]))
     },
     13 => {
       let src_xmm = decode_xmm_src(modrm, rm, pfx);
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       write_xmm_legacy(xreg,
-        blend64(a[127..64], src_xmm[127..64], imm[1..1]) @
-        blend64(a[63..0],   src_xmm[63..0],   imm[0..0]))
+        blend(a[127..64], src_xmm[127..64], imm[1]) @
+        blend(a[63..0],   src_xmm[63..0],   imm[0]))
     },
 
     // PEXTRW r/m16, xmm, imm8 (SSE4.1, 66 0F 3A 15)

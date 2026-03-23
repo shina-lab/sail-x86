@@ -10,65 +10,65 @@
 // VBLENDPS 128-bit: for each dword i, select from src1 or src2 based on imm8[i]
 val avx_blendps_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_blendps_128(src1, src2, imm) =
-  blend32(src1[127..96], src2[127..96], imm[3..3]) @
-  blend32(src1[95..64],  src2[95..64],  imm[2..2]) @
-  blend32(src1[63..32],  src2[63..32],  imm[1..1]) @
-  blend32(src1[31..0],   src2[31..0],   imm[0..0])
+  blend(src1[127..96], src2[127..96], imm[3]) @
+  blend(src1[95..64],  src2[95..64],  imm[2]) @
+  blend(src1[63..32],  src2[63..32],  imm[1]) @
+  blend(src1[31..0],   src2[31..0],   imm[0])
 
 val avx_blendps_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_blendps_256(src1, src2, imm) =
-  blend32(src1[255..224], src2[255..224], imm[7..7]) @
-  blend32(src1[223..192], src2[223..192], imm[6..6]) @
-  blend32(src1[191..160], src2[191..160], imm[5..5]) @
-  blend32(src1[159..128], src2[159..128], imm[4..4]) @
-  blend32(src1[127..96],  src2[127..96],  imm[3..3]) @
-  blend32(src1[95..64],   src2[95..64],   imm[2..2]) @
-  blend32(src1[63..32],   src2[63..32],   imm[1..1]) @
-  blend32(src1[31..0],    src2[31..0],    imm[0..0])
+  blend(src1[255..224], src2[255..224], imm[7]) @
+  blend(src1[223..192], src2[223..192], imm[6]) @
+  blend(src1[191..160], src2[191..160], imm[5]) @
+  blend(src1[159..128], src2[159..128], imm[4]) @
+  blend(src1[127..96],  src2[127..96],  imm[3]) @
+  blend(src1[95..64],   src2[95..64],   imm[2]) @
+  blend(src1[63..32],   src2[63..32],   imm[1]) @
+  blend(src1[31..0],    src2[31..0],    imm[0])
 
 // VBLENDPD 128-bit: for each qword i, select based on imm8[i]
 val avx_blendpd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_blendpd_128(src1, src2, imm) =
-  blend64(src1[127..64], src2[127..64], imm[1..1]) @
-  blend64(src1[63..0],   src2[63..0],   imm[0..0])
+  blend(src1[127..64], src2[127..64], imm[1]) @
+  blend(src1[63..0],   src2[63..0],   imm[0])
 
 val avx_blendpd_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_blendpd_256(src1, src2, imm) =
-  blend64(src1[255..192], src2[255..192], imm[3..3]) @
-  blend64(src1[191..128], src2[191..128], imm[2..2]) @
-  blend64(src1[127..64],  src2[127..64],  imm[1..1]) @
-  blend64(src1[63..0],    src2[63..0],    imm[0..0])
+  blend(src1[255..192], src2[255..192], imm[3]) @
+  blend(src1[191..128], src2[191..128], imm[2]) @
+  blend(src1[127..64],  src2[127..64],  imm[1]) @
+  blend(src1[63..0],    src2[63..0],    imm[0])
 
 // VPBLENDW 128-bit: for each word i, select based on imm8[i]
 val avx_pblendw_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_pblendw_128(src1, src2, imm) =
-  blend16(src1[127..112], src2[127..112], imm[7..7]) @
-  blend16(src1[111..96],  src2[111..96],  imm[6..6]) @
-  blend16(src1[95..80],   src2[95..80],   imm[5..5]) @
-  blend16(src1[79..64],   src2[79..64],   imm[4..4]) @
-  blend16(src1[63..48],   src2[63..48],   imm[3..3]) @
-  blend16(src1[47..32],   src2[47..32],   imm[2..2]) @
-  blend16(src1[31..16],   src2[31..16],   imm[1..1]) @
-  blend16(src1[15..0],    src2[15..0],    imm[0..0])
+  blend(src1[127..112], src2[127..112], imm[7]) @
+  blend(src1[111..96],  src2[111..96],  imm[6]) @
+  blend(src1[95..80],   src2[95..80],   imm[5]) @
+  blend(src1[79..64],   src2[79..64],   imm[4]) @
+  blend(src1[63..48],   src2[63..48],   imm[3]) @
+  blend(src1[47..32],   src2[47..32],   imm[2]) @
+  blend(src1[31..16],   src2[31..16],   imm[1]) @
+  blend(src1[15..0],    src2[15..0],    imm[0])
 
 // VPBLENDD 128-bit: for each dword i, select based on imm8[i]
 val avx_pblendd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_pblendd_128(src1, src2, imm) =
-  blend32(src1[127..96], src2[127..96], imm[3..3]) @
-  blend32(src1[95..64],  src2[95..64],  imm[2..2]) @
-  blend32(src1[63..32],  src2[63..32],  imm[1..1]) @
-  blend32(src1[31..0],   src2[31..0],   imm[0..0])
+  blend(src1[127..96], src2[127..96], imm[3]) @
+  blend(src1[95..64],  src2[95..64],  imm[2]) @
+  blend(src1[63..32],  src2[63..32],  imm[1]) @
+  blend(src1[31..0],   src2[31..0],   imm[0])
 
 val avx_pblendd_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_pblendd_256(src1, src2, imm) =
-  blend32(src1[255..224], src2[255..224], imm[7..7]) @
-  blend32(src1[223..192], src2[223..192], imm[6..6]) @
-  blend32(src1[191..160], src2[191..160], imm[5..5]) @
-  blend32(src1[159..128], src2[159..128], imm[4..4]) @
-  blend32(src1[127..96],  src2[127..96],  imm[3..3]) @
-  blend32(src1[95..64],   src2[95..64],   imm[2..2]) @
-  blend32(src1[63..32],   src2[63..32],   imm[1..1]) @
-  blend32(src1[31..0],    src2[31..0],    imm[0..0])
+  blend(src1[255..224], src2[255..224], imm[7]) @
+  blend(src1[223..192], src2[223..192], imm[6]) @
+  blend(src1[191..160], src2[191..160], imm[5]) @
+  blend(src1[159..128], src2[159..128], imm[4]) @
+  blend(src1[127..96],  src2[127..96],  imm[3]) @
+  blend(src1[95..64],   src2[95..64],   imm[2]) @
+  blend(src1[63..32],   src2[63..32],   imm[1]) @
+  blend(src1[31..0],    src2[31..0],    imm[0])
 
 // VPALIGNR 128-bit: concatenate src1(high):src2(low), shift right by imm bytes, take low 128 bits
 val avx_palignr_128 : (xmmword, xmmword, byte) -> xmmword
@@ -760,8 +760,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
     let imm = fetch_byte();
-    let sel_a : qword = blend64(src1[63..0], src1[127..64], imm[0..0]);
-    let sel_b : qword = blend64(src2[63..0], src2[127..64], imm[4..4]);
+    let sel_a : qword = blend(src1[63..0], src1[127..64], imm[0]);
+    let sel_b : qword = blend(src2[63..0], src2[127..64], imm[4]);
     let result : xmmword = __pclmulqdq(sel_a, sel_b);
     write_xmm(dst, result)
   },

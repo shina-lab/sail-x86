@@ -449,45 +449,46 @@ function modrm_xmm_rm(modrm, pfx) =
 // Branchless helpers (used across multiple instruction files)
 // =========================================================================
 
-// or_reduce: 1 if any bit is set, 0 otherwise (branchless tree reduction).
-val or_reduce_8 : byte -> bits(1)
-function or_reduce_8(v) = {
-  let r4 : bits(4) = v[7..4] | v[3..0];
-  let r2 : bits(2) = r4[3..2] | r4[1..0];
-  r2[1..1] | r2[0..0]
+// Branchless POPCNT
+val popcount : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
+function popcount(v) = {
+  let x1 : qword = zero_extend(v);
+  let x2 = (x1 & 0x5555555555555555) + ((x1 >> 1)  & 0x5555555555555555);
+  let x3 = (x2 & 0x3333333333333333) + ((x2 >> 2)  & 0x3333333333333333);
+  let x4 = (x3 & 0x0f0f0f0f0f0f0f0f) + ((x3 >> 4)  & 0x0f0f0f0f0f0f0f0f);
+  let x5 = (x4 & 0x00ff00ff00ff00ff) + ((x4 >> 8)  & 0x00ff00ff00ff00ff);
+  let x6 = (x5 & 0x0000ffff0000ffff) + ((x5 >> 16) & 0x0000ffff0000ffff);
+  let x7 = (x6 & 0x00000000ffffffff) + ((x6 >> 32) & 0x00000000ffffffff);
+  let x = unsigned(x7);
+  assert(x <= 'n);
+  x
 }
 
-val or_reduce_16 : word -> bits(1)
-function or_reduce_16(v) = or_reduce_8(v[15..8] | v[7..0])
+// or_reduce: 1 if any bit is set, 0 otherwise (branchless tree reduction).
+val or_reduce : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bits(1)
+function or_reduce(v) = {
+  let x1 : qword = zero_extend(v);
+  let x2 = x1 | (x1 >> 1);
+  let x3 = x2 | (x2 >> 2);
+  let x4 = x3 | (x3 >> 4);
+  let x5 = x4 | (x4 >> 8);
+  let x6 = x5 | (x5 >> 16);
+  let x7 = x6 | (x6 >> 32);
+  x7[0]
+}
 
-val or_reduce_32 : dword -> bits(1)
-function or_reduce_32(v) = or_reduce_16(v[31..16] | v[15..0])
+// is_nonzero: 0 if all bits are zero, 1 otherwise.
+val is_nonzero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
+function is_nonzero(v) = or_reduce(v)[0]
 
-val or_reduce_64 : qword -> bits(1)
-function or_reduce_64(v) = or_reduce_32(v[63..32] | v[31..0])
+// is_zero: 1 if all bits are zero, 0 otherwise.
+val is_zero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
+function is_zero(v) = (~(or_reduce(v)))[0]
 
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
-val blend8 : (byte, byte, bits(1)) -> byte
-function blend8(a, b, sel) = {
-  let m : byte = sign_extend(sel);
-  (a & ~(m)) | (b & m)
-}
-
-val blend16 : (word, word, bits(1)) -> word
-function blend16(a, b, sel) = {
-  let m : word = sign_extend(sel);
-  (a & ~(m)) | (b & m)
-}
-
-val blend32 : (dword, dword, bits(1)) -> dword
-function blend32(a, b, sel) = {
-  let m : dword = sign_extend(sel);
-  (a & ~(m)) | (b & m)
-}
-
-val blend64 : (qword, qword, bits(1)) -> qword
-function blend64(a, b, sel) = {
-  let m : qword = sign_extend(sel);
+val blend : forall 'n, 0 < 'n. (bits('n), bits('n), bit) -> bits('n)
+function blend(a, b, sel) = {
+  let m : bits('n) = sign_extend(sel);
   (a & ~(m)) | (b & m)
 }

@@ -10,10 +10,10 @@
 // VMASKMOVPS load 128-bit: conditional load of dword lanes based on sign bit of mask
 val vex_maskmovps_load_128 : (xmmword, xmmword) -> xmmword
 function vex_maskmovps_load_128(mask, data) =
-  blend32(0x00000000, data[127..96], mask[127..127]) @
-  blend32(0x00000000, data[95..64],  mask[95..95]) @
-  blend32(0x00000000, data[63..32],  mask[63..63]) @
-  blend32(0x00000000, data[31..0],   mask[31..31])
+  blend(0x00000000, data[127..96], mask[127]) @
+  blend(0x00000000, data[95..64],  mask[95]) @
+  blend(0x00000000, data[63..32],  mask[63]) @
+  blend(0x00000000, data[31..0],   mask[31])
 
 val vex_maskmovps_load_256 : (ymmword, ymmword) -> ymmword
 function vex_maskmovps_load_256(mask, data) =
@@ -23,8 +23,8 @@ function vex_maskmovps_load_256(mask, data) =
 // VMASKMOVPD load 128-bit: conditional load of qword lanes based on sign bit of mask
 val vex_maskmovpd_load_128 : (xmmword, xmmword) -> xmmword
 function vex_maskmovpd_load_128(mask, data) =
-  blend64(0x0000000000000000, data[127..64], mask[127..127]) @
-  blend64(0x0000000000000000, data[63..0],   mask[63..63])
+  blend(0x0000000000000000, data[127..64], mask[127]) @
+  blend(0x0000000000000000, data[63..0],   mask[63])
 
 val vex_maskmovpd_load_256 : (ymmword, ymmword) -> ymmword
 function vex_maskmovpd_load_256(mask, data) =
@@ -599,7 +599,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let result : qword = ~(vval) & src;
     write_gpr(os, dst, result);
     SF = if pfx.vex_w then result[63] else result[31];
-    ZF = (~(or_reduce_64(result)))[0];
+    ZF = is_zero(result);
     OF = 0b0;
     CF = 0b0
   },
@@ -620,8 +620,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let result : qword = (src - 1) & src;
         write_gpr(os, dst, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = (~(or_reduce_64(result)))[0];
-        CF = (~(or_reduce_64(src)))[0];
+        ZF = is_zero(result);
+        CF = is_zero(src);
         OF = 0b0
       },
       // BLSMSK: dest = (src - 1) ^ src
@@ -630,7 +630,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_gpr(os, dst, result);
         SF = if pfx.vex_w then result[63] else result[31];
         ZF = 0b0;
-        CF = (~(or_reduce_64(src)))[0];
+        CF = is_zero(src);
         OF = 0b0
       },
       // BLSI: dest = (-src) & src (isolate lowest set bit)
@@ -639,8 +639,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let result : qword = neg_src & src;
         write_gpr(os, dst, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = (~(or_reduce_64(result)))[0];
-        CF = (or_reduce_64(src))[0];
+        ZF = is_zero(result);
+        CF = is_nonzero(src);
         OF = 0b0
       },
       _ => raise_UD(),
@@ -739,7 +739,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         };
         write_gpr(os, dst, result);
         SF = if pfx.vex_w then result[63] else result[31];
-        ZF = (~(or_reduce_64(result)))[0];
+        ZF = is_zero(result);
         OF = 0b0
       },
       MP_F2 => {
@@ -830,7 +830,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           }
         };
         write_gpr(os, dst, result);
-        ZF = (~(or_reduce_64(result)))[0];
+        ZF = is_zero(result);
         OF = 0b0;
         CF = 0b0
       },
@@ -1359,15 +1359,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[127..64] | tmp2[63..0]);
     };
     OF = 0b0;
     AF = 0b0;
@@ -1388,15 +1388,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[127..64] | tmp2[63..0]);
     };
     OF = 0b0;
     AF = 0b0;
@@ -1940,15 +1940,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
-      ZF = (~(or_reduce_64(tmp1[127..64] | tmp1[63..0])))[0];
-      CF = (~(or_reduce_64(tmp2[127..64] | tmp2[63..0])))[0];
+      ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
+      CF = is_zero(tmp2[127..64] | tmp2[63..0]);
     };
     OF = 0b0;
     AF = 0b0;

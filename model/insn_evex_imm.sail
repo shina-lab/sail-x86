@@ -6,7 +6,7 @@
 
 val cmp_ub_pred : (byte, byte, range(0, 7)) -> bit
 function cmp_ub_pred(a, b, pred) = {
-  let eq : bits(1) = ~(or_reduce_8(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let diff : bits(9) = (0b0 @ a) - (0b0 @ b);
   let lt : bits(1) = diff[8..8];
   match pred {
@@ -55,7 +55,7 @@ function avx_pcmpub_512(a, b, pred) =
 val cmp_sb_pred : (byte, byte, range(0, 7)) -> bit
 function cmp_sb_pred(a, b, pred) = {
   let diff : byte = a - b;
-  let eq : bits(1) = ~(or_reduce_8(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let of_bit : bits(1) = (a[7..7] ^ b[7..7]) & (diff[7..7] ^ a[7..7]);
   let lt : bits(1) = diff[7..7] ^ of_bit;
   match pred {
@@ -103,7 +103,7 @@ function avx_pcmpb_512(a, b, pred) =
 
 val cmp_uw_pred : (word, word, range(0, 7)) -> bit
 function cmp_uw_pred(a, b, pred) = {
-  let eq : bits(1) = ~(or_reduce_16(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let diff : bits(17) = (0b0 @ a) - (0b0 @ b);
   let lt : bits(1) = diff[16..16];
   match pred {
@@ -144,7 +144,7 @@ function avx_pcmpuw_512(a, b, pred) =
 val cmp_sw_pred : (word, word, range(0, 7)) -> bit
 function cmp_sw_pred(a, b, pred) = {
   let diff : word = a - b;
-  let eq : bits(1) = ~(or_reduce_16(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let of_bit : bits(1) = (a[15..15] ^ b[15..15]) & (diff[15..15] ^ a[15..15]);
   let lt : bits(1) = diff[15..15] ^ of_bit;
   match pred {
@@ -184,7 +184,7 @@ function avx_pcmpw_512(a, b, pred) =
 
 val cmp_ud_pred : (dword, dword, range(0, 7)) -> bit
 function cmp_ud_pred(a, b, pred) = {
-  let eq : bits(1) = ~(or_reduce_32(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let diff : bits(33) = (0b0 @ a) - (0b0 @ b);
   let lt : bits(1) = diff[32..32];
   match pred {
@@ -230,7 +230,7 @@ function avx_pcmpud_512(a, b, pred) =
 val cmp_sd_pred : (dword, dword, range(0, 7)) -> bit
 function cmp_sd_pred(a, b, pred) = {
   let diff : dword = a - b;
-  let eq : bits(1) = ~(or_reduce_32(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let of_bit : bits(1) = (a[31..31] ^ b[31..31]) & (diff[31..31] ^ a[31..31]);
   let lt : bits(1) = diff[31..31] ^ of_bit;
   match pred {
@@ -275,7 +275,7 @@ function avx_pcmpd_512(a, b, pred) =
 
 val cmp_uq_pred : (qword, qword, range(0, 7)) -> bit
 function cmp_uq_pred(a, b, pred) = {
-  let eq : bits(1) = ~(or_reduce_64(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let diff : bits(65) = (0b0 @ a) - (0b0 @ b);
   let lt : bits(1) = diff[64..64];
   match pred {
@@ -324,7 +324,7 @@ function avx_pcmpuq_512(a, b, pred) =
 val cmp_sq_pred : (qword, qword, range(0, 7)) -> bit
 function cmp_sq_pred(a, b, pred) = {
   let diff : qword = a - b;
-  let eq : bits(1) = ~(or_reduce_64(a ^ b));
+  let eq : bits(1) = is_zero(a ^ b);
   let of_bit : bits(1) = (a[63..63] ^ b[63..63]) & (diff[63..63] ^ a[63..63]);
   let lt : bits(1) = diff[63..63] ^ of_bit;
   match pred {
@@ -960,9 +960,9 @@ function avx_fpclass_f32(src, imm) = {
   let sign : bit = src[31];
   let exp : byte = src[30..23];
   let frac : bits(23) = src[22..0];
-  let exp_all : bit = (~(or_reduce_8(~(exp))))[0];
-  let exp_zero : bit = (~(or_reduce_8(exp)))[0];
-  let frac_nz : bit = (or_reduce_32(zero_extend(frac)))[0];
+  let exp_all : bit = is_zero(~(exp));
+  let exp_zero : bit = is_zero(exp);
+  let frac_nz : bit = is_nonzero(frac);
   let frac_zero : bit = ~(frac_nz);
   let is_qnan : bit = exp_all & frac_nz & frac[22];
   let is_snan : bit = exp_all & frac_nz & ~(frac[22]);
@@ -987,9 +987,9 @@ function avx_fpclass_f64(src, imm) = {
   let sign : bit = src[63];
   let exp : bits(11) = src[62..52];
   let frac : bits(52) = src[51..0];
-  let exp_all : bit = (~(or_reduce_16(zero_extend(~(exp)))))[0];
-  let exp_zero : bit = (~(or_reduce_16(zero_extend(exp))))[0];
-  let frac_nz : bit = (or_reduce_64(zero_extend(frac)))[0];
+  let exp_all : bit = is_zero(~(exp));
+  let exp_zero : bit = is_zero(exp);
+  let frac_nz : bit = is_nonzero(frac);
   let frac_zero : bit = ~(frac_nz);
   let is_qnan : bit = exp_all & frac_nz & frac[51];
   let is_snan : bit = exp_all & frac_nz & ~(frac[51]);
@@ -1191,8 +1191,8 @@ function avx_vcvtps2ph_512(src, rc) = {
 
 val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
 function avx_vpclmulqdq_lane(src1, src2, imm8) = {
-  let sel_a : qword = blend64(src1[63..0], src1[127..64], imm8[0..0]);
-  let sel_b : qword = blend64(src2[63..0], src2[127..64], imm8[4..4]);
+  let sel_a : qword = blend(src1[63..0], src1[127..64], imm8[0]);
+  let sel_b : qword = blend(src2[63..0], src2[127..64], imm8[4]);
   __pclmulqdq(sel_a, sel_b)
 }
 

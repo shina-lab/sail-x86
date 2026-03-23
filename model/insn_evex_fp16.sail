@@ -124,14 +124,14 @@ val apply_writemask_ph_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_ph_xmm(result, old_dst, mask_val, zeroing) = {
   let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
-  blend16(base[127..112], result[127..112], mask_val[7..7]) @
-  blend16(base[111..96],  result[111..96],  mask_val[6..6]) @
-  blend16(base[95..80],   result[95..80],   mask_val[5..5]) @
-  blend16(base[79..64],   result[79..64],   mask_val[4..4]) @
-  blend16(base[63..48],   result[63..48],   mask_val[3..3]) @
-  blend16(base[47..32],   result[47..32],   mask_val[2..2]) @
-  blend16(base[31..16],   result[31..16],   mask_val[1..1]) @
-  blend16(base[15..0],    result[15..0],    mask_val[0..0])
+  blend(base[127..112], result[127..112], mask_val[7]) @
+  blend(base[111..96],  result[111..96],  mask_val[6]) @
+  blend(base[95..80],   result[95..80],   mask_val[5]) @
+  blend(base[79..64],   result[79..64],   mask_val[4]) @
+  blend(base[63..48],   result[63..48],   mask_val[3]) @
+  blend(base[47..32],   result[47..32],   mask_val[2]) @
+  blend(base[31..16],   result[31..16],   mask_val[1]) @
+  blend(base[15..0],    result[15..0],    mask_val[0])
 }
 
 // Apply 16-bit writemask to 256-bit YMM (16 × 16-bit FP16)
@@ -396,9 +396,9 @@ function fpclass_f16(v, imm) = {
   let sign : bit = v[15];
   let exp : bits(5) = v[14..10];
   let mant : bits(10) = v[9..0];
-  let exp_all : bit = (~(or_reduce_8(zero_extend(~(exp)))))[0];
-  let exp_zero : bit = (~(or_reduce_8(zero_extend(exp))))[0];
-  let mant_nz : bit = (or_reduce_16(zero_extend(mant)))[0];
+  let exp_all : bit = is_zero(~(exp));
+  let exp_zero : bit = is_zero(exp);
+  let mant_nz : bit = is_nonzero(mant);
   let mant_zero : bit = ~(mant_nz);
   let is_qnan : bit = exp_all & mant_nz & mant[9];
   let is_snan : bit = exp_all & mant_nz & ~(mant[9]);

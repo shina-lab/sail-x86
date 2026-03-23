@@ -1045,16 +1045,16 @@ function dispatch_vex_0f_fp(op, pfx) = {
           // 256-bit: 4 qwords, each selected by one imm8 bit
           let src1 : ymmword = read_ymm(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
-          let r0 : qword = blend64(src1[63..0],    src1[127..64],  imm[0..0]);
-          let r1 : qword = blend64(src2[63..0],    src2[127..64],  imm[1..1]);
-          let r2 : qword = blend64(src1[191..128], src1[255..192], imm[2..2]);
-          let r3 : qword = blend64(src2[191..128], src2[255..192], imm[3..3]);
+          let r0 : qword = blend(src1[63..0],    src1[127..64],  imm[0]);
+          let r1 : qword = blend(src2[63..0],    src2[127..64],  imm[1]);
+          let r2 : qword = blend(src1[191..128], src1[255..192], imm[2]);
+          let r3 : qword = blend(src2[191..128], src2[255..192], imm[3]);
           write_ymm(dst, r3 @ r2 @ r1 @ r0)
         } else {
           let src1 : xmmword = read_xmm(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
-          let r0 : qword = blend64(src1[63..0], src1[127..64], imm[0..0]);
-          let r1 : qword = blend64(src2[63..0], src2[127..64], imm[1..1]);
+          let r0 : qword = blend(src1[63..0], src1[127..64], imm[0]);
+          let r1 : qword = blend(src2[63..0], src2[127..64], imm[1]);
           write_xmm(dst, r1 @ r0)
         }
       },

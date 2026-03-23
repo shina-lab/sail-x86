@@ -26,21 +26,6 @@ function exec_xadd(dst, src, os) = {
   write_gpr(os, dst, sum)
 }
 
-// Branchless POPCNT
-val popcount : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
-function popcount(v) = {
-  let x1 : qword = zero_extend(v);
-  let x2 = (x1 & 0x5555555555555555) + ((x1 >> 1)  & 0x5555555555555555);
-  let x3 = (x2 & 0x3333333333333333) + ((x2 >> 2)  & 0x3333333333333333);
-  let x4 = (x3 & 0x0f0f0f0f0f0f0f0f) + ((x3 >> 4)  & 0x0f0f0f0f0f0f0f0f);
-  let x5 = (x4 & 0x00ff00ff00ff00ff) + ((x4 >> 8)  & 0x00ff00ff00ff00ff);
-  let x6 = (x5 & 0x0000ffff0000ffff) + ((x5 >> 16) & 0x0000ffff0000ffff);
-  let x7 = (x6 & 0x00000000ffffffff) + ((x6 >> 32) & 0x00000000ffffffff);
-  let x = unsigned(x7);
-  assert(x <= 'n);
-  x
-}
-
 // Branchless CLZ via smear (fill all bits below MSB) then popcount.
 val clz : ({16, 32, 64}, qword) -> range(0, 64)
 function clz(os, v) = {
@@ -1334,15 +1319,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       CF = match os {
         16 => {
           let w : bits(32) = to_bits_truncate(product);
-          (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
+          is_nonzero(w[31..16] ^ sign_extend(w[15..15]))
         },
         32 => {
           let w : bits(64) = to_bits_truncate(product);
-          (or_reduce_32(w[63..32] ^ sign_extend(w[31..31])))[0]
+          is_nonzero(w[63..32] ^ sign_extend(w[31..31]))
         },
         64 => {
           let w : bits(128) = to_bits_truncate(product);
-          (or_reduce_64(w[127..64] ^ sign_extend(w[63..63])))[0]
+          is_nonzero(w[127..64] ^ sign_extend(w[63..63]))
         },
       };
       OF = CF;
@@ -1507,7 +1492,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let count : range(0, 64) = ctz(os, src_val);
         write_gpr(os, reg, to_bits_truncate(count));
-        CF = (~(or_reduce_64(src_val)))[0];
+        CF = is_zero(src_val);
         ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
@@ -1516,12 +1501,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let is_zero : bool = src_val[os - 1 .. 0] == zeros();
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
         AF = 0b0;
-        if is_zero then {
+        if src_val[os - 1 .. 0] == zeros() then {
           ZF = 0b1;
           PF = compute_PF(0x00);
         } else {
@@ -1545,7 +1529,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         let src_val = read_rm_val(rm, os, pfx.has_rex);
         let count : range(0, 64) = clz(os, src_val);
         write_gpr(os, reg, to_bits_truncate(count));
-        CF = (~(or_reduce_64(src_val)))[0];
+        CF = is_zero(src_val);
         ZF = src_val[os - 1]
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
@@ -1554,12 +1538,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let is_zero : bool = src_val[os - 1 .. 0] == zeros();
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
         AF = 0b0;
-        if is_zero then {
+        if src_val[os - 1 .. 0] == zeros() then {
           ZF = 0b1;
           PF = compute_PF(0x00);
         } else {
@@ -1645,7 +1628,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       AF = 0b0;
       CF = 0b0;
       PF = 0b0;
-      ZF = (~(or_reduce_64(src_val)))[0];
+      ZF = is_zero(src_val);
       write_gpr(os, reg, to_bits_truncate(count))
     },
     // 0F C3: MOVNTI m32/64, r

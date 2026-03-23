@@ -16,41 +16,41 @@ function avx_pminud_512(a, b) =
 
 val avx_ptestmb_128 : (xmmword, xmmword) -> word
 function avx_ptestmb_128(a, b) =
-  or_reduce_8(a[127..120] & b[127..120]) @
-  or_reduce_8(a[119..112] & b[119..112]) @
-  or_reduce_8(a[111..104] & b[111..104]) @
-  or_reduce_8(a[103..96]  & b[103..96]) @
-  or_reduce_8(a[95..88]   & b[95..88]) @
-  or_reduce_8(a[87..80]   & b[87..80]) @
-  or_reduce_8(a[79..72]   & b[79..72]) @
-  or_reduce_8(a[71..64]   & b[71..64]) @
-  or_reduce_8(a[63..56]   & b[63..56]) @
-  or_reduce_8(a[55..48]   & b[55..48]) @
-  or_reduce_8(a[47..40]   & b[47..40]) @
-  or_reduce_8(a[39..32]   & b[39..32]) @
-  or_reduce_8(a[31..24]   & b[31..24]) @
-  or_reduce_8(a[23..16]   & b[23..16]) @
-  or_reduce_8(a[15..8]    & b[15..8]) @
-  or_reduce_8(a[7..0]     & b[7..0])
+  is_nonzero(a[127..120] & b[127..120]) @
+  is_nonzero(a[119..112] & b[119..112]) @
+  is_nonzero(a[111..104] & b[111..104]) @
+  is_nonzero(a[103..96]  & b[103..96]) @
+  is_nonzero(a[95..88]   & b[95..88]) @
+  is_nonzero(a[87..80]   & b[87..80]) @
+  is_nonzero(a[79..72]   & b[79..72]) @
+  is_nonzero(a[71..64]   & b[71..64]) @
+  is_nonzero(a[63..56]   & b[63..56]) @
+  is_nonzero(a[55..48]   & b[55..48]) @
+  is_nonzero(a[47..40]   & b[47..40]) @
+  is_nonzero(a[39..32]   & b[39..32]) @
+  is_nonzero(a[31..24]   & b[31..24]) @
+  is_nonzero(a[23..16]   & b[23..16]) @
+  is_nonzero(a[15..8]    & b[15..8]) @
+  is_nonzero(a[7..0]     & b[7..0])
 
 val avx_ptestnmb_128 : (xmmword, xmmword) -> word
 function avx_ptestnmb_128(a, b) =
-  (~(or_reduce_8(a[127..120] & b[127..120]))) @
-  (~(or_reduce_8(a[119..112] & b[119..112]))) @
-  (~(or_reduce_8(a[111..104] & b[111..104]))) @
-  (~(or_reduce_8(a[103..96]  & b[103..96]))) @
-  (~(or_reduce_8(a[95..88]   & b[95..88]))) @
-  (~(or_reduce_8(a[87..80]   & b[87..80]))) @
-  (~(or_reduce_8(a[79..72]   & b[79..72]))) @
-  (~(or_reduce_8(a[71..64]   & b[71..64]))) @
-  (~(or_reduce_8(a[63..56]   & b[63..56]))) @
-  (~(or_reduce_8(a[55..48]   & b[55..48]))) @
-  (~(or_reduce_8(a[47..40]   & b[47..40]))) @
-  (~(or_reduce_8(a[39..32]   & b[39..32]))) @
-  (~(or_reduce_8(a[31..24]   & b[31..24]))) @
-  (~(or_reduce_8(a[23..16]   & b[23..16]))) @
-  (~(or_reduce_8(a[15..8]    & b[15..8]))) @
-  (~(or_reduce_8(a[7..0]     & b[7..0])))
+  is_zero(a[127..120] & b[127..120]) @
+  is_zero(a[119..112] & b[119..112]) @
+  is_zero(a[111..104] & b[111..104]) @
+  is_zero(a[103..96]  & b[103..96]) @
+  is_zero(a[95..88]   & b[95..88]) @
+  is_zero(a[87..80]   & b[87..80]) @
+  is_zero(a[79..72]   & b[79..72]) @
+  is_zero(a[71..64]   & b[71..64]) @
+  is_zero(a[63..56]   & b[63..56]) @
+  is_zero(a[55..48]   & b[55..48]) @
+  is_zero(a[47..40]   & b[47..40]) @
+  is_zero(a[39..32]   & b[39..32]) @
+  is_zero(a[31..24]   & b[31..24]) @
+  is_zero(a[23..16]   & b[23..16]) @
+  is_zero(a[15..8]    & b[15..8]) @
+  is_zero(a[7..0]     & b[7..0])
 
 val avx_ptestmb_256 : (ymmword, ymmword) -> dword
 function avx_ptestmb_256(a, b) =
@@ -79,18 +79,18 @@ function avx_ptestnmb_512(a, b) =
 val avx_ptestmd_128 : (xmmword, xmmword) -> byte
 function avx_ptestmd_128(a, b) =
   0x0 @
-  or_reduce_32(a[127..96] & b[127..96]) @
-  or_reduce_32(a[95..64]  & b[95..64]) @
-  or_reduce_32(a[63..32]  & b[63..32]) @
-  or_reduce_32(a[31..0]   & b[31..0])
+  is_nonzero(a[127..96] & b[127..96]) @
+  is_nonzero(a[95..64]  & b[95..64]) @
+  is_nonzero(a[63..32]  & b[63..32]) @
+  is_nonzero(a[31..0]   & b[31..0])
 
 val avx_ptestnmd_128 : (xmmword, xmmword) -> byte
 function avx_ptestnmd_128(a, b) =
   0x0 @
-  (~(or_reduce_32(a[127..96] & b[127..96]))) @
-  (~(or_reduce_32(a[95..64]  & b[95..64]))) @
-  (~(or_reduce_32(a[63..32]  & b[63..32]))) @
-  (~(or_reduce_32(a[31..0]   & b[31..0])))
+  is_zero(a[127..96] & b[127..96]) @
+  is_zero(a[95..64]  & b[95..64]) @
+  is_zero(a[63..32]  & b[63..32]) @
+  is_zero(a[31..0]   & b[31..0])
 
 val avx_ptestmd_256 : (ymmword, ymmword) -> byte
 function avx_ptestmd_256(a, b) =
@@ -118,25 +118,25 @@ function avx_ptestnmd_512(a, b) =
 
 val avx_ptestmw_128 : (xmmword, xmmword) -> byte
 function avx_ptestmw_128(a, b) =
-  or_reduce_16(a[127..112] & b[127..112]) @
-  or_reduce_16(a[111..96]  & b[111..96]) @
-  or_reduce_16(a[95..80]   & b[95..80]) @
-  or_reduce_16(a[79..64]   & b[79..64]) @
-  or_reduce_16(a[63..48]   & b[63..48]) @
-  or_reduce_16(a[47..32]   & b[47..32]) @
-  or_reduce_16(a[31..16]   & b[31..16]) @
-  or_reduce_16(a[15..0]    & b[15..0])
+  is_nonzero(a[127..112] & b[127..112]) @
+  is_nonzero(a[111..96]  & b[111..96]) @
+  is_nonzero(a[95..80]   & b[95..80]) @
+  is_nonzero(a[79..64]   & b[79..64]) @
+  is_nonzero(a[63..48]   & b[63..48]) @
+  is_nonzero(a[47..32]   & b[47..32]) @
+  is_nonzero(a[31..16]   & b[31..16]) @
+  is_nonzero(a[15..0]    & b[15..0])
 
 val avx_ptestnmw_128 : (xmmword, xmmword) -> byte
 function avx_ptestnmw_128(a, b) =
-  (~(or_reduce_16(a[127..112] & b[127..112]))) @
-  (~(or_reduce_16(a[111..96]  & b[111..96]))) @
-  (~(or_reduce_16(a[95..80]   & b[95..80]))) @
-  (~(or_reduce_16(a[79..64]   & b[79..64]))) @
-  (~(or_reduce_16(a[63..48]   & b[63..48]))) @
-  (~(or_reduce_16(a[47..32]   & b[47..32]))) @
-  (~(or_reduce_16(a[31..16]   & b[31..16]))) @
-  (~(or_reduce_16(a[15..0]    & b[15..0])))
+  is_zero(a[127..112] & b[127..112]) @
+  is_zero(a[111..96]  & b[111..96]) @
+  is_zero(a[95..80]   & b[95..80]) @
+  is_zero(a[79..64]   & b[79..64]) @
+  is_zero(a[63..48]   & b[63..48]) @
+  is_zero(a[47..32]   & b[47..32]) @
+  is_zero(a[31..16]   & b[31..16]) @
+  is_zero(a[15..0]    & b[15..0])
 
 val avx_ptestmw_256 : (ymmword, ymmword) -> word
 function avx_ptestmw_256(a, b) =
@@ -165,14 +165,14 @@ function avx_ptestnmw_512(a, b) =
 val avx_ptestmq_128 : (xmmword, xmmword) -> byte
 function avx_ptestmq_128(a, b) =
   0b000000 @
-  or_reduce_64(a[127..64] & b[127..64]) @
-  or_reduce_64(a[63..0]   & b[63..0])
+  is_nonzero(a[127..64] & b[127..64]) @
+  is_nonzero(a[63..0]   & b[63..0])
 
 val avx_ptestnmq_128 : (xmmword, xmmword) -> byte
 function avx_ptestnmq_128(a, b) =
   0b000000 @
-  (~(or_reduce_64(a[127..64] & b[127..64]))) @
-  (~(or_reduce_64(a[63..0]   & b[63..0])))
+  is_zero(a[127..64] & b[127..64]) @
+  is_zero(a[63..0]   & b[63..0])
 
 val avx_ptestmq_256 : (ymmword, ymmword) -> byte
 function avx_ptestmq_256(a, b) =
@@ -1798,7 +1798,7 @@ function avx_vpconflictd_128(src) = {
       if j < i then {
         let jlo : range(0, 96) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1817,7 +1817,7 @@ function avx_vpconflictd_256(src) = {
       if j < i then {
         let jlo : range(0, 224) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1836,7 +1836,7 @@ function avx_vpconflictd_512(src) = {
       if j < i then {
         let jlo : range(0, 480) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = (~(or_reduce_32(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1855,7 +1855,7 @@ function avx_vpconflictq_128(src) = {
       if j < i then {
         let jlo : range(0, 64) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1874,7 +1874,7 @@ function avx_vpconflictq_256(src) = {
       if j < i then {
         let jlo : range(0, 192) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1893,7 +1893,7 @@ function avx_vpconflictq_512(src) = {
       if j < i then {
         let jlo : range(0, 448) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = (~(or_reduce_64(elem_i ^ elem_j)))[0];
+        mask[j] = is_zero(elem_i ^ elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -4531,7 +4531,7 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 16 + 15) .. (i * 16)] = blend16(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i..i])
+          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
         };
         evex_write_w_xmm(dst, result, pfx)
       },
@@ -4542,7 +4542,7 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 15) {
-          result[(i * 16 + 15) .. (i * 16)] = blend16(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i..i])
+          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
         };
         evex_write_w_ymm(dst, result, pfx)
       },
@@ -4553,7 +4553,7 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 31) {
-          result[(i * 16 + 15) .. (i * 16)] = blend16(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i..i])
+          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
         };
         evex_write_w_zmm(dst, result, pfx)
       },

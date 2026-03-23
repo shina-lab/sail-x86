@@ -61,7 +61,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
 function evex_kmask64(pfx) = {
-  let no_mask : qword = zeros() - zero_extend(~(or_reduce_8(zero_extend(to_bits(3, pfx.evex_aaa)))));
+  let no_mask : qword = zeros() - zero_extend(is_zero(to_bits(3, pfx.evex_aaa)));
   no_mask | read_kreg(pfx.evex_aaa)
 }
 
@@ -112,22 +112,22 @@ val apply_writemask_ps_zmm : (zmmword, zmmword, word, bit) -> zmmword
 function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
   let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
-  blend32(base[511..480], result[511..480], mask_val[15..15]) @
-  blend32(base[479..448], result[479..448], mask_val[14..14]) @
-  blend32(base[447..416], result[447..416], mask_val[13..13]) @
-  blend32(base[415..384], result[415..384], mask_val[12..12]) @
-  blend32(base[383..352], result[383..352], mask_val[11..11]) @
-  blend32(base[351..320], result[351..320], mask_val[10..10]) @
-  blend32(base[319..288], result[319..288], mask_val[9..9]) @
-  blend32(base[287..256], result[287..256], mask_val[8..8]) @
-  blend32(base[255..224], result[255..224], mask_val[7..7]) @
-  blend32(base[223..192], result[223..192], mask_val[6..6]) @
-  blend32(base[191..160], result[191..160], mask_val[5..5]) @
-  blend32(base[159..128], result[159..128], mask_val[4..4]) @
-  blend32(base[127..96],  result[127..96],  mask_val[3..3]) @
-  blend32(base[95..64],   result[95..64],   mask_val[2..2]) @
-  blend32(base[63..32],   result[63..32],   mask_val[1..1]) @
-  blend32(base[31..0],    result[31..0],    mask_val[0..0])
+  blend(base[511..480], result[511..480], mask_val[15]) @
+  blend(base[479..448], result[479..448], mask_val[14]) @
+  blend(base[447..416], result[447..416], mask_val[13]) @
+  blend(base[415..384], result[415..384], mask_val[12]) @
+  blend(base[383..352], result[383..352], mask_val[11]) @
+  blend(base[351..320], result[351..320], mask_val[10]) @
+  blend(base[319..288], result[319..288], mask_val[9]) @
+  blend(base[287..256], result[287..256], mask_val[8]) @
+  blend(base[255..224], result[255..224], mask_val[7]) @
+  blend(base[223..192], result[223..192], mask_val[6]) @
+  blend(base[191..160], result[191..160], mask_val[5]) @
+  blend(base[159..128], result[159..128], mask_val[4]) @
+  blend(base[127..96],  result[127..96],  mask_val[3]) @
+  blend(base[95..64],   result[95..64],   mask_val[2]) @
+  blend(base[63..32],   result[63..32],   mask_val[1]) @
+  blend(base[31..0],    result[31..0],    mask_val[0])
 }
 
 // Apply 8-bit writemask to a 512-bit ZMM result (64-bit elements, 8 lanes).
@@ -136,14 +136,14 @@ val apply_writemask_pd_zmm : (zmmword, zmmword, byte, bit) -> zmmword
 function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
   let keep : zmmword = zeros() - zero_extend(~(zeroing));
   let base : zmmword = old_dst & keep;
-  blend64(base[511..448], result[511..448], mask_val[7..7]) @
-  blend64(base[447..384], result[447..384], mask_val[6..6]) @
-  blend64(base[383..320], result[383..320], mask_val[5..5]) @
-  blend64(base[319..256], result[319..256], mask_val[4..4]) @
-  blend64(base[255..192], result[255..192], mask_val[3..3]) @
-  blend64(base[191..128], result[191..128], mask_val[2..2]) @
-  blend64(base[127..64],  result[127..64],  mask_val[1..1]) @
-  blend64(base[63..0],    result[63..0],    mask_val[0..0])
+  blend(base[511..448], result[511..448], mask_val[7]) @
+  blend(base[447..384], result[447..384], mask_val[6]) @
+  blend(base[383..320], result[383..320], mask_val[5]) @
+  blend(base[319..256], result[319..256], mask_val[4]) @
+  blend(base[255..192], result[255..192], mask_val[3]) @
+  blend(base[191..128], result[191..128], mask_val[2]) @
+  blend(base[127..64],  result[127..64],  mask_val[1]) @
+  blend(base[63..0],    result[63..0],    mask_val[0])
 }
 
 // Apply 4-bit writemask to a 128-bit XMM result (32-bit elements, 4 lanes).
@@ -152,10 +152,10 @@ val apply_writemask_ps_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
   let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
-  blend32(base[127..96], result[127..96], mask_val[3..3]) @
-  blend32(base[95..64],  result[95..64],  mask_val[2..2]) @
-  blend32(base[63..32],  result[63..32],  mask_val[1..1]) @
-  blend32(base[31..0],   result[31..0],   mask_val[0..0])
+  blend(base[127..96], result[127..96], mask_val[3]) @
+  blend(base[95..64],  result[95..64],  mask_val[2]) @
+  blend(base[63..32],  result[63..32],  mask_val[1]) @
+  blend(base[31..0],   result[31..0],   mask_val[0])
 }
 
 // Apply 8-bit writemask to a 256-bit YMM result (32-bit elements, 8 lanes).
@@ -164,14 +164,14 @@ val apply_writemask_ps_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
   let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
-  blend32(base[255..224], result[255..224], mask_val[7..7]) @
-  blend32(base[223..192], result[223..192], mask_val[6..6]) @
-  blend32(base[191..160], result[191..160], mask_val[5..5]) @
-  blend32(base[159..128], result[159..128], mask_val[4..4]) @
-  blend32(base[127..96],  result[127..96],  mask_val[3..3]) @
-  blend32(base[95..64],   result[95..64],   mask_val[2..2]) @
-  blend32(base[63..32],   result[63..32],   mask_val[1..1]) @
-  blend32(base[31..0],    result[31..0],    mask_val[0..0])
+  blend(base[255..224], result[255..224], mask_val[7]) @
+  blend(base[223..192], result[223..192], mask_val[6]) @
+  blend(base[191..160], result[191..160], mask_val[5]) @
+  blend(base[159..128], result[159..128], mask_val[4]) @
+  blend(base[127..96],  result[127..96],  mask_val[3]) @
+  blend(base[95..64],   result[95..64],   mask_val[2]) @
+  blend(base[63..32],   result[63..32],   mask_val[1]) @
+  blend(base[31..0],    result[31..0],    mask_val[0])
 }
 
 // Apply 2-bit writemask to a 128-bit XMM result (64-bit elements, 2 lanes).
@@ -180,8 +180,8 @@ val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
   let keep : xmmword = zeros() - zero_extend(~(zeroing));
   let base : xmmword = old_dst & keep;
-  blend64(base[127..64], result[127..64], mask_val[1..1]) @
-  blend64(base[63..0],   result[63..0],   mask_val[0..0])
+  blend(base[127..64], result[127..64], mask_val[1]) @
+  blend(base[63..0],   result[63..0],   mask_val[0])
 }
 
 // Apply 4-bit writemask to a 256-bit YMM result (64-bit elements, 4 lanes).
@@ -190,10 +190,10 @@ val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bit) -> ymmword
 function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
   let keep : ymmword = zeros() - zero_extend(~(zeroing));
   let base : ymmword = old_dst & keep;
-  blend64(base[255..192], result[255..192], mask_val[3..3]) @
-  blend64(base[191..128], result[191..128], mask_val[2..2]) @
-  blend64(base[127..64],  result[127..64],  mask_val[1..1]) @
-  blend64(base[63..0],    result[63..0],    mask_val[0..0])
+  blend(base[255..192], result[255..192], mask_val[3]) @
+  blend(base[191..128], result[191..128], mask_val[2]) @
+  blend(base[127..64],  result[127..64],  mask_val[1]) @
+  blend(base[63..0],    result[63..0],    mask_val[0])
 }
 
 // =========================================================================
@@ -208,7 +208,7 @@ function apply_writemask_b_xmm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 15) {
     let hi = i * 8 + 7;
     let lo = i * 8;
-    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }
@@ -221,7 +221,7 @@ function apply_writemask_b_ymm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 31) {
     let hi = i * 8 + 7;
     let lo = i * 8;
-    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }
@@ -234,7 +234,7 @@ function apply_writemask_b_zmm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 63) {
     let hi = i * 8 + 7;
     let lo = i * 8;
-    r[hi..lo] = blend8(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }
@@ -251,7 +251,7 @@ function apply_writemask_w_xmm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 7) {
     let hi = i * 16 + 15;
     let lo = i * 16;
-    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }
@@ -264,7 +264,7 @@ function apply_writemask_w_ymm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 15) {
     let hi = i * 16 + 15;
     let lo = i * 16;
-    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }
@@ -277,7 +277,7 @@ function apply_writemask_w_zmm(result, old_dst, mask_val, zeroing) = {
   foreach (i from 0 to 31) {
     let hi = i * 16 + 15;
     let lo = i * 16;
-    r[hi..lo] = blend16(base[hi..lo], result[hi..lo], mask_val[i..i])
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask_val[i])
   };
   r
 }

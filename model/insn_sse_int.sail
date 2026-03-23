@@ -65,7 +65,7 @@ val sat_s16_to_s8 : word -> byte
 function sat_s16_to_s8(x) = {
   let sign : bits(1) = x[15..15];
   let diff : byte = x[14..7] ^ sign_extend(sign);
-  let out_of_range : bits(1) = or_reduce_8(diff);
+  let out_of_range : bit = is_nonzero(diff);
   let out_mask : byte = sign_extend(out_of_range);
   let clamp_val : byte = sign_extend(sign) ^ 0x7F;
   (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
@@ -75,7 +75,7 @@ val sat_s32_to_s16 : dword -> word
 function sat_s32_to_s16(x) = {
   let sign : bits(1) = x[31..31];
   let diff : word = x[30..15] ^ sign_extend(sign);
-  let out_of_range : bits(1) = or_reduce_16(diff);
+  let out_of_range : bit = is_nonzero(diff);
   let out_mask : word = sign_extend(out_of_range);
   let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
   (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
@@ -88,7 +88,7 @@ val sat_s32_to_s8 : dword -> byte
 function sat_s32_to_s8(x) = {
   let sign : bits(1) = x[31..31];
   let diff : bits(24) = x[30..7] ^ sign_extend(sign);
-  let out_of_range : bits(1) = or_reduce_8(diff[23..16] | diff[15..8] | diff[7..0]);
+  let out_of_range : bit = is_nonzero(diff[23..16] | diff[15..8] | diff[7..0]);
   let out_mask : byte = sign_extend(out_of_range);
   let clamp_val : byte = sign_extend(sign) ^ 0x7F;
   (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
@@ -99,7 +99,7 @@ function sat_s64_to_s8(x) = {
   let sign : bits(1) = x[63..63];
   let diff : bits(56) = x[62..7] ^ sign_extend(sign);
   let folded : byte = diff[55..48] | diff[47..40] | diff[39..32] | diff[31..24] | diff[23..16] | diff[15..8] | diff[7..0];
-  let out_of_range : bits(1) = or_reduce_8(folded);
+  let out_of_range : bit = is_nonzero(folded);
   let out_mask : byte = sign_extend(out_of_range);
   let clamp_val : byte = sign_extend(sign) ^ 0x7F;
   (clamp_val & out_mask) | (x[7..0] & ~(out_mask))
@@ -110,7 +110,7 @@ function sat_s64_to_s16(x) = {
   let sign : bits(1) = x[63..63];
   let diff : bits(48) = x[62..15] ^ sign_extend(sign);
   let folded : word = diff[47..32] | diff[31..16] | diff[15..0];
-  let out_of_range : bits(1) = or_reduce_16(folded);
+  let out_of_range : bit = is_nonzero(folded);
   let out_mask : word = sign_extend(out_of_range);
   let clamp_val : word = sign_extend(sign) ^ 0x7FFF;
   (clamp_val & out_mask) | (x[15..0] & ~(out_mask))
@@ -120,7 +120,7 @@ val sat_s64_to_s32 : qword -> dword
 function sat_s64_to_s32(x) = {
   let sign : bits(1) = x[63..63];
   let diff : dword = x[62..31] ^ sign_extend(sign);
-  let out_of_range : bits(1) = or_reduce_32(diff);
+  let out_of_range : bit = is_nonzero(diff);
   let out_mask : dword = sign_extend(out_of_range);
   let clamp_val : dword = sign_extend(sign) ^ 0x7FFFFFFF;
   (clamp_val & out_mask) | (x[31..0] & ~(out_mask))
@@ -134,7 +134,7 @@ val sat_s32_to_u16 : dword -> word
 function sat_s32_to_u16(v) = {
   let neg_mask : dword = sign_extend(v[31..31]);
   let pos_val : dword = v & ~(neg_mask);
-  let overflow : bits(1) = or_reduce_16(pos_val[31..16]);
+  let overflow : bit = is_nonzero(pos_val[31..16]);
   let over_mask : word = sign_extend(overflow);
   pos_val[15..0] | over_mask
 }
@@ -146,7 +146,7 @@ val sat_s16_to_u8 : word -> byte
 function sat_s16_to_u8(x) = {
   let neg_mask : word = sign_extend(x[15..15]);
   let pos_val : word = x & ~(neg_mask);
-  let overflow : bits(1) = or_reduce_8(pos_val[15..8]);
+  let overflow : bit = is_nonzero(pos_val[15..8]);
   let over_mask : byte = sign_extend(overflow);
   pos_val[7..0] | over_mask
 }
@@ -156,37 +156,37 @@ function sat_s16_to_u8(x) = {
 
 val sat_trunc_u_w2b : word -> byte
 function sat_trunc_u_w2b(x) = {
-  let overflow : byte = sign_extend(or_reduce_8(x[15..8]));
+  let overflow : byte = sign_extend(is_nonzero(x[15..8]));
   x[7..0] | overflow
 }
 
 val sat_trunc_u_d2w : dword -> word
 function sat_trunc_u_d2w(x) = {
-  let overflow : word = sign_extend(or_reduce_16(x[31..16]));
+  let overflow : word = sign_extend(is_nonzero(x[31..16]));
   x[15..0] | overflow
 }
 
 val sat_trunc_u_d2b : dword -> byte
 function sat_trunc_u_d2b(x) = {
-  let overflow : byte = sign_extend(or_reduce_8(x[31..24] | x[23..16] | x[15..8]));
+  let overflow : byte = sign_extend(is_nonzero(x[31..24] | x[23..16] | x[15..8]));
   x[7..0] | overflow
 }
 
 val sat_trunc_u_q2b : qword -> byte
 function sat_trunc_u_q2b(x) = {
-  let overflow : byte = sign_extend(or_reduce_8(x[63..56] | x[55..48] | x[47..40] | x[39..32] | x[31..24] | x[23..16] | x[15..8]));
+  let overflow : byte = sign_extend(is_nonzero(x[63..56] | x[55..48] | x[47..40] | x[39..32] | x[31..24] | x[23..16] | x[15..8]));
   x[7..0] | overflow
 }
 
 val sat_trunc_u_q2w : qword -> word
 function sat_trunc_u_q2w(x) = {
-  let overflow : word = sign_extend(or_reduce_16(x[63..48] | x[47..32] | x[31..16]));
+  let overflow : word = sign_extend(is_nonzero(x[63..48] | x[47..32] | x[31..16]));
   x[15..0] | overflow
 }
 
 val sat_trunc_u_q2d : qword -> dword
 function sat_trunc_u_q2d(x) = {
-  let overflow : dword = sign_extend(or_reduce_32(x[63..32]));
+  let overflow : dword = sign_extend(is_nonzero(x[63..32]));
   x[31..0] | overflow
 }
 
@@ -2566,8 +2566,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let b : xmmword = src_xmm;
       let temp1 : xmmword = a & b;
       let temp2 : xmmword = (~(a)) & b;
-      ZF = (~(or_reduce_64(temp1[127..64] | temp1[63..0])))[0];
-      CF = (~(or_reduce_64(temp2[127..64] | temp2[63..0])))[0];
+      ZF = is_zero(temp1[127..64] | temp1[63..0]);
+      CF = is_zero(temp2[127..64] | temp2[63..0]);
       OF = 0b0;
       AF = 0b0;
       PF = 0b0;
@@ -2966,14 +2966,14 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       write_xmm_legacy(xreg,
-        blend16(a[127..112], b[127..112], imm[7..7]) @
-        blend16(a[111..96],  b[111..96],  imm[6..6]) @
-        blend16(a[95..80],   b[95..80],   imm[5..5]) @
-        blend16(a[79..64],   b[79..64],   imm[4..4]) @
-        blend16(a[63..48],   b[63..48],   imm[3..3]) @
-        blend16(a[47..32],   b[47..32],   imm[2..2]) @
-        blend16(a[31..16],   b[31..16],   imm[1..1]) @
-        blend16(a[15..0],    b[15..0],    imm[0..0]))
+        blend(a[127..112], b[127..112], imm[7]) @
+        blend(a[111..96],  b[111..96],  imm[6]) @
+        blend(a[95..80],   b[95..80],   imm[5]) @
+        blend(a[79..64],   b[79..64],   imm[4]) @
+        blend(a[63..48],   b[63..48],   imm[3]) @
+        blend(a[47..32],   b[47..32],   imm[2]) @
+        blend(a[31..16],   b[31..16],   imm[1]) @
+        blend(a[15..0],    b[15..0],    imm[0]))
     },
 
     // SSSE3 — PALIGNR
@@ -3069,8 +3069,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let sel_a : qword = blend64(a[63..0], a[127..64], imm[0..0]);
-      let sel_b : qword = blend64(b[63..0], b[127..64], imm[4..4]);
+      let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
+      let sel_b : qword = blend(b[63..0], b[127..64], imm[4]);
       let result : xmmword = __pclmulqdq(sel_a, sel_b);
       write_xmm_legacy(xreg, result)
     },
