@@ -371,11 +371,11 @@ function dispatch_vex_0f_int(op, pfx) = {
           if pfx.vex_l then {
             let a = seg_linear(seg, addr, 32);
             if unsigned(a) % 32 != 0 then raise_GP0();
-            write_ymm(dst, mem_read256(a))
+            write_ymm(dst, mem_read(a))
           } else {
             let a = seg_linear(seg, addr, 16);
             if unsigned(a) % 16 != 0 then raise_GP0();
-            write_xmm(dst, mem_read128(a))
+            write_xmm(dst, mem_read(a))
           }
         },
       },
@@ -1373,12 +1373,12 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a = seg_linear(seg, addr, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
-          mem_write128(a, v[127..0]);
-          mem_write128(a + 16, v[255..128])
+          mem_write(16, a, v[127..0]);
+          mem_write(16, a + 16, v[255..128])
         } else {
           let a = seg_linear(seg, addr, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          mem_write128(a, read_xmm(src))
+          mem_write(a, read_xmm(src))
         }
       },
       RM_reg(_) => raise_UD(),
@@ -1530,11 +1530,11 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_mem(seg, addr) => {
         let a = seg_linear(seg, addr, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
-          let lo : xmmword = mem_read128(a);
-          let hi : xmmword = mem_read128(a + 16);
+          let lo : xmmword = mem_read(a);
+          let hi : xmmword = mem_read(a + 16);
           write_ymm(dst, hi @ lo)
         } else {
-          write_xmm(dst, mem_read128(a))
+          write_xmm(dst, mem_read(a))
         }
       },
       RM_reg(_) => raise_UD(),
@@ -1641,7 +1641,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         let addr : bits(64) = read_gpr64(7); // RDI
         foreach (i from 0 to 15) {
           if mask[(i * 8 + 7)] == 0b1 then
-            mem_write(addr + to_bits(64, i), 1, data[(i * 8 + 7) .. (i * 8)])
+            mem_write(1, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
         }
       },
       RM_mem(_, _) => raise_UD(),

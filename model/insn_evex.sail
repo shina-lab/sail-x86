@@ -32,9 +32,9 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
   if mask == ones() then {
     // Fast path: no masking, write the full vector
     match nbytes {
-      64 => mem_write512(addr, data),
-      32 => mem_write256(addr, data[255..0]),
-      _  => mem_write128(addr, data[127..0]),
+      64 => mem_write(addr, data),
+      32 => mem_write(32, addr, data[255..0]),
+      _  => mem_write(16, addr, data[127..0]),
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1
@@ -47,7 +47,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
           let idx : int = off + j;
           assert(0 <= idx & idx < 512);
           let byte_val : byte = get_slice_int(8, unsigned(data), idx * 8);
-          mem_write8(addr + to_bits(64, idx), byte_val);
+          mem_write(addr + to_bits(64, idx), byte_val);
           j = j + 1;
         }
       };

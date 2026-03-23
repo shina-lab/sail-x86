@@ -822,8 +822,10 @@ function dispatch_mmx(op, pfx) = {
           let mask : qword = read_mm(mask_reg);
           let addr : qword = read_gpr64(7);  // RDI
           foreach (i from 0 to 7) {
-            if mask[(i * 8 + 7) .. (i * 8 + 7)] == 0b1 then {
-              mem_write8(addr + zero_extend(to_bits(64, i)), data[(i * 8 + 7) .. (i * 8)])
+            let base = i * 8;
+            if mask[base + 7] == 0b1 then {
+              let b : byte = data[(base + 7) .. base];
+              mem_write(addr + zero_extend(to_bits(64, i)), b)
             }
           };
           mmx_touch()

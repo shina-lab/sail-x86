@@ -133,7 +133,7 @@ enum MandatoryPrefix = {
 val ifetch_read8 : qword -> byte
 function ifetch_read8(addr) = {
   let paddr = translate_addr(addr, PT_Execute);
-  phys_read(paddr, 1)
+  phys_read(paddr)
 }
 
 val fetch_byte : unit -> byte

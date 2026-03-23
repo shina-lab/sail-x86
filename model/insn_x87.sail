@@ -72,22 +72,22 @@ val __wait : unit -> unit
 // =========================================================================
 
 val seg_read_fp80 : (segreg_idx, qword) -> fp80
-function seg_read_fp80(seg, offset) = mem_read(seg_linear(seg, offset, 10), 10)
+function seg_read_fp80(seg, offset) = mem_read(seg_linear(seg, offset, 10))
 
 val seg_write_fp80 : (segreg_idx, qword, fp80) -> unit
-function seg_write_fp80(seg, offset, v) = mem_write(seg_linear(seg, offset, 10), 10, v)
+function seg_write_fp80(seg, offset, v) = mem_write(seg_linear(seg, offset, 10), v)
 
 val seg_read_224 : (segreg_idx, qword) -> bits(224)
-function seg_read_224(seg, offset) = mem_read(seg_linear(seg, offset, 28), 28)
+function seg_read_224(seg, offset) = mem_read(seg_linear(seg, offset, 28))
 
 val seg_write_224 : (segreg_idx, qword, bits(224)) -> unit
-function seg_write_224(seg, offset, v) = mem_write(seg_linear(seg, offset, 28), 28, v)
+function seg_write_224(seg, offset, v) = mem_write(seg_linear(seg, offset, 28), v)
 
 val seg_read_864 : (segreg_idx, qword) -> bits(864)
-function seg_read_864(seg, offset) = mem_read(seg_linear(seg, offset, 108), 108)
+function seg_read_864(seg, offset) = mem_read(seg_linear(seg, offset, 108))
 
 val seg_write_864 : (segreg_idx, qword, bits(864)) -> unit
-function seg_write_864(seg, offset, v) = mem_write(seg_linear(seg, offset, 108), 108, v)
+function seg_write_864(seg, offset, v) = mem_write(seg_linear(seg, offset, 108), v)
 
 // =========================================================================
 // Status word condition code helpers

@@ -1364,9 +1364,9 @@ function dispatch_evex_fp(op, pfx) = {
       RM_mem(seg, offset) => {
         let a = seg_linear(seg, offset, 64);
         match pfx.evex_ll {
-          0 => mem_write128(a, read_xmm(src)),
-          1 => mem_write256(a, read_ymm(src)),
-          2 => mem_write512(a, read_zmm(src)),
+          0 => mem_write(a, read_xmm(src)),
+          1 => mem_write(a, read_ymm(src)),
+          2 => mem_write(a, read_zmm(src)),
           3 => raise_UD(),
         }
       },

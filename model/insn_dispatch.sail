@@ -172,24 +172,17 @@ function exec_ins(os, asz) = {
   let port : word = read_gpr16(RDX);
   let off : qword = read_index_dst(asz);
   // INS destination is always ES:DI (not overridable).
-  let sz = os / 8;
-  let lin = seg_linear(ES, off, sz);
+  let lin = seg_linear(ES, off, os / 8);
   match os {
-    8  => mem_write8(lin, __port_in8(port)),
-    16 => mem_write16(lin, __port_in16(port)),
-    32 => mem_write32(lin, __port_in32(port)),
+    8  => mem_write(lin, __port_in8(port)),
+    16 => mem_write(lin, __port_in16(port)),
+    32 => mem_write(lin, __port_in32(port)),
     64 => (),
   };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
   if DF == 0b0 then
-    write_index_dst(asz, off + delta)
+    write_index_dst(asz, off + os / 8)
   else
-    write_index_dst(asz, off - delta)
+    write_index_dst(asz, off - os / 8)
 }
 
 // OUTS — Output from DS:[RSI] to port DX
@@ -202,24 +195,17 @@ function exec_outs(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let sz = os / 8;
-  let lin = seg_linear(src_seg, off, sz);
+  let lin = seg_linear(src_seg, off, os / 8);
   match os {
-    8  => __port_out8(port, mem_read8(lin)),
-    16 => __port_out16(port, mem_read16(lin)),
-    32 => __port_out32(port, mem_read32(lin)),
+    8  => __port_out8(port, mem_read(lin)),
+    16 => __port_out16(port, mem_read(lin)),
+    32 => __port_out32(port, mem_read(lin)),
     64 => (),
   };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
   if DF == 0b0 then
-    write_index_src(asz, off + delta)
+    write_index_src(asz, off + os / 8)
   else
-    write_index_src(asz, off - delta)
+    write_index_src(asz, off - os / 8)
 }
 
 val exec_movs : (operand_size, AddressSize, Prefixes) -> unit
@@ -231,27 +217,15 @@ function exec_movs(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let sz = os / 8;
-  let src_lin = seg_linear(src_seg, src_off, sz);
-  let dst_lin = seg_linear(ES, dst_off, sz);
-  match os {
-    8  => mem_write8(dst_lin, mem_read8(src_lin)),
-    16 => mem_write16(dst_lin, mem_read16(src_lin)),
-    32 => mem_write32(dst_lin, mem_read32(src_lin)),
-    64 => mem_write64(dst_lin, mem_read64(src_lin)),
-  };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
+  let src_lin = seg_linear(src_seg, src_off, os / 8);
+  let dst_lin = seg_linear(ES, dst_off, os / 8);
+  mem_write(dst_lin, mem_read(os, src_lin));
   if DF == 0b0 then {
-    write_index_src(asz, src_off + delta);
-    write_index_dst(asz, dst_off + delta);
+    write_index_src(asz, src_off + os / 8);
+    write_index_dst(asz, dst_off + os / 8);
   } else {
-    write_index_src(asz, src_off - delta);
-    write_index_dst(asz, dst_off - delta);
+    write_index_src(asz, src_off - os / 8);
+    write_index_dst(asz, dst_off - os / 8);
   }
 }
 
@@ -259,24 +233,12 @@ val exec_stos : (operand_size, AddressSize) -> unit
 function exec_stos(os, asz) = {
   let off : qword = read_index_dst(asz);
   // STOS destination is always ES:DI (not overridable).
-  let sz = os / 8;
-  let lin = seg_linear(ES, off, sz);
-  match os {
-    8  => mem_write8(lin, read_gpr8l(RAX)),
-    16 => mem_write16(lin, read_gpr16(RAX)),
-    32 => mem_write32(lin, read_gpr32(RAX)),
-    64 => mem_write64(lin, read_gpr64(RAX)),
-  };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
+  let lin = seg_linear(ES, off, os / 8);
+  mem_write(lin, read_gpr(os, RAX));
   if DF == 0b0 then
-    write_index_dst(asz, off + delta)
+    write_index_dst(asz, off + os / 8)
   else
-    write_index_dst(asz, off - delta)
+    write_index_dst(asz, off - os / 8)
 }
 
 val exec_lods : (operand_size, AddressSize, Prefixes) -> unit
@@ -287,34 +249,21 @@ function exec_lods(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let sz = os / 8;
-  let lin = seg_linear(src_seg, off, sz);
-  match os {
-    8  => write_gpr8l(RAX, mem_read8(lin)),
-    16 => write_gpr16(RAX, mem_read16(lin)),
-    32 => write_gpr32(RAX, mem_read32(lin)),
-    64 => write_gpr64(RAX, mem_read64(lin)),
-  };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
+  let lin = seg_linear(src_seg, off, os / 8);
+  write_gpr(os, RAX, mem_read(lin));
   if DF == 0b0 then
-    write_index_src(asz, off + delta)
+    write_index_src(asz, off + os / 8)
   else
-    write_index_src(asz, off - delta)
+    write_index_src(asz, off - os / 8)
 }
 
 val exec_scas : (operand_size, AddressSize) -> unit
 function exec_scas(os, asz) = {
   let off : qword = read_index_dst(asz);
   // SCAS destination is always ES:DI (not overridable).
-  let sz = os / 8;
-  let lin = seg_linear(ES, off, sz);
+  let lin = seg_linear(ES, off, os / 8);
   let a = read_gpr(os, RAX);
-  let b = mem_read(lin, os / 8);
+  let b = mem_read(os / 8, lin);
   update_flags_sub(a - b, a, b);
   if DF == 0b0 then
     write_index_dst(asz, off + os / 8)
@@ -331,11 +280,10 @@ function exec_cmps(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let sz = os / 8;
-  let src_lin = seg_linear(src_seg, src_off, sz);
-  let dst_lin = seg_linear(ES, dst_off, sz);
-  let a = mem_read(src_lin, os / 8);
-  let b = mem_read(dst_lin, os / 8);
+  let src_lin = seg_linear(src_seg, src_off, os / 8);
+  let dst_lin = seg_linear(ES, dst_off, os / 8);
+  let a = mem_read(os / 8, src_lin);
+  let b = mem_read(os / 8, dst_lin);
   update_flags_sub(a - b, a, b);
   if DF == 0b0 then {
     write_index_src(asz, src_off + os / 8);
@@ -609,7 +557,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             };
             // Destination must be 64-byte aligned
             if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
-            mem_write512(dst_addr, src)
+            mem_write(dst_addr, src)
           },
           RM_reg(_) => raise_UD(),
         }
@@ -1576,37 +1524,27 @@ function decode_execute() = {
       // A0: MOV AL, moffs8
       160 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        write_gpr8l(RAX, mem_read8(addr))
+        write_gpr8l(RAX, mem_read(addr))
       },
 
       // A1: MOV rAX, moffs
       161 => {
         let os = get_operand_size(pfx);
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        match os {
-          8  => write_gpr(8, RAX, mem_read8(addr)),
-          16 => write_gpr(16, RAX, mem_read16(addr)),
-          32 => write_gpr(32, RAX, mem_read32(addr)),
-          64 => write_gpr(64, RAX, mem_read64(addr)),
-        }
+        write_gpr(os, RAX, mem_read(addr))
       },
 
       // A2: MOV moffs8, AL
       162 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        mem_write8(addr, read_gpr8l(RAX))
+        mem_write(addr, read_gpr8l(RAX))
       },
 
       // A3: MOV moffs, rAX
       163 => {
         let os = get_operand_size(pfx);
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        match os {
-          8  => mem_write8(addr, read_gpr(8, RAX)),
-          16 => mem_write16(addr, read_gpr(16, RAX)),
-          32 => mem_write32(addr, read_gpr(32, RAX)),
-          64 => mem_write64(addr, read_gpr(64, RAX)),
-        }
+        mem_write(addr, read_gpr(os, RAX))
       },
 
       // A4: MOVSB
@@ -1877,7 +1815,7 @@ function decode_execute() = {
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 write_gpr64(RBP, read_gpr64(RBP) - 8);
-                push64(mem_read64(read_gpr64(RBP)));
+                push64(mem_read(read_gpr64(RBP)));
               };
             };
             if nesting >= 1 then
@@ -1891,7 +1829,7 @@ function decode_execute() = {
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 write_gpr16(RBP, read_gpr16(RBP) - 2);
-                push16(mem_read16(zero_extend(read_gpr16(RBP))));
+                push16(mem_read(zero_extend(read_gpr16(RBP))));
               };
             };
             if nesting >= 1 then
@@ -2038,8 +1976,8 @@ function decode_execute() = {
 
             // Load CS selector and descriptor cache from GDT.
             let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
-            let desc_lo : dword = mem_read32(GDTR_base + sel_offset);
-            let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+            let desc_lo : dword = mem_read(GDTR_base + sel_offset);
+            let desc_hi : dword = mem_read(GDTR_base + sel_offset + 4);
             write_segreg(CS, new_cs[15..0]);
             SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
             cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
@@ -2137,7 +2075,7 @@ function decode_execute() = {
           AS64 => read_gpr64(RBX) + al,
           AS32 => zero_extend(read_gpr32(RBX)) + al,
         };
-        write_gpr8l(RAX, mem_read8(addr))
+        write_gpr8l(RAX, mem_read(addr))
       },
 
       // D8-DF: x87 FPU

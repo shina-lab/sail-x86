@@ -41,37 +41,37 @@ val __check_pending_smi : unit -> bool
 val smram_save64 : (bits(16), qword) -> unit
 function smram_save64(offset, v) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, 8, v)
+  phys_write(addr, v)
 }
 
 val smram_save32 : (bits(16), dword) -> unit
 function smram_save32(offset, v) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, 4, v)
+  phys_write(addr, v)
 }
 
 val smram_save16 : (bits(16), word) -> unit
 function smram_save16(offset, v) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, 2, v)
+  phys_write(addr, v)
 }
 
 val smram_load64 : bits(16) -> qword
 function smram_load64(offset) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr, 8)
+  phys_read(addr)
 }
 
 val smram_load32 : bits(16) -> dword
 function smram_load32(offset) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr, 4)
+  phys_read(addr)
 }
 
 val smram_load16 : bits(16) -> word
 function smram_load16(offset) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr, 2)
+  phys_read(addr)
 }
 
 val deliver_smi : unit -> unit

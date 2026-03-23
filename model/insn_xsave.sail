@@ -77,19 +77,19 @@ function ftw_abridged_to_full(ab) = {
 
 val xsave_x87 : qword -> unit
 function xsave_x87(base) = {
-  mem_write16(base, x87_cw);
-  mem_write16(base + 2, x87_sw);
-  mem_write8(base + 4, ftw_full_to_abridged(x87_tw));
-  mem_write8(base + 5, 0x00);    // reserved
-  mem_write16(base + 6, 0x0000); // FOP
-  mem_write64(base + 8, zeros()); // FIP
-  mem_write64(base + 16, zeros()); // FDP
+  mem_write(base, x87_cw);
+  mem_write(base + 2, x87_sw);
+  mem_write(base + 4, ftw_full_to_abridged(x87_tw));
+  mem_write(base + 5, 0x00);    // reserved
+  mem_write(base + 6, 0x0000); // FOP
+  mem_write(base + 8, zeros() : qword); // FIP
+  mem_write(base + 16, zeros() : qword); // FDP
   // ST0-ST7 at offset 32, 16 bytes each (10 bytes used, 6 reserved)
   foreach (i from 0 to 7) {
     let st_val : fp80 = x87_ST[i];
-    mem_write(base + 32 + 16 * i, 10, st_val);
+    mem_write(base + 32 + 16 * i, st_val);
     // Zero the reserved 6 bytes
-    mem_write(base + 32 + 16 * i + 10, 6, zeros())
+    mem_write(6, base + 32 + 16 * i + 10, zeros())
   }
 }
 
@@ -101,8 +101,8 @@ function xsave_x87(base) = {
 // Save just MXCSR and MXCSR_MASK (shared between SSE and AVX)
 val xsave_mxcsr : qword -> unit
 function xsave_mxcsr(base) = {
-  mem_write32(base + 24, __stmxcsr());
-  mem_write32(base + 28, 0x0002FFFF) // MXCSR_MASK
+  mem_write(base + 24, __stmxcsr());
+  mem_write(base + 28, 0x0002FFFF) // MXCSR_MASK
 }
 
 val xsave_sse : qword -> unit
@@ -110,7 +110,7 @@ function xsave_sse(base) = {
   xsave_mxcsr(base);
   // XMM0-XMM15 at offset 160, 16 bytes each
   foreach (i from 0 to 15) {
-    mem_write128(base + 160 + 16 * i, ZMM[i][127..0])
+    mem_write(16, base + 160 + 16 * i, ZMM[i][127..0])
   }
 }
 
@@ -120,20 +120,20 @@ function xsave_sse(base) = {
 
 val xrstor_x87 : qword -> unit
 function xrstor_x87(base) = {
-  x87_cw = mem_read16(base);
-  x87_sw = mem_read16(base + 2);
-  x87_tw = ftw_abridged_to_full(mem_read8(base + 4));
+  x87_cw = mem_read(base);
+  x87_sw = mem_read(base + 2);
+  x87_tw = ftw_abridged_to_full(mem_read(base + 4));
   // FOP, FIP, FDP are not modeled (they're for debugging only)
   // ST0-ST7
   foreach (i from 0 to 7) {
-    x87_ST[i] = mem_read(base + 32 + 16 * i, 10)
+    x87_ST[i] = mem_read(base + 32 + 16 * i)
   }
 }
 
 // Restore just MXCSR
 val xrstor_mxcsr : qword -> unit
 function xrstor_mxcsr(base) = {
-  __ldmxcsr(mem_read32(base + 24))
+  __ldmxcsr(mem_read(base + 24))
 }
 
 val xrstor_sse : qword -> unit
@@ -141,7 +141,7 @@ function xrstor_sse(base) = {
   xrstor_mxcsr(base);
   // XMM0-XMM15
   foreach (i from 0 to 15) {
-    let xmm_val : xmmword = mem_read128(base + 160 + 16 * i);
+    let xmm_val : xmmword = mem_read(base + 160 + 16 * i);
     ZMM[i] = zero_extend(xmm_val)
   }
 }
@@ -153,35 +153,35 @@ function xrstor_sse(base) = {
 val xsave_avx_at : qword -> unit
 function xsave_avx_at(addr) = {
   foreach (i from 0 to 15) {
-    mem_write128(addr + 16 * i, ZMM[i][255..128])
+    mem_write(16, addr + 16 * i, ZMM[i][255..128])
   }
 }
 
 val xsave_opmask_at : qword -> unit
 function xsave_opmask_at(addr) = {
   foreach (i from 0 to 7) {
-    mem_write64(addr + 8 * i, KREG[i])
+    mem_write(addr + 8 * i, KREG[i])
   }
 }
 
 val xsave_zmm_hi256_at : qword -> unit
 function xsave_zmm_hi256_at(addr) = {
   foreach (i from 0 to 15) {
-    mem_write256(addr + 32 * i, ZMM[i][511..256])
+    mem_write(32, addr + 32 * i, ZMM[i][511..256])
   }
 }
 
 val xsave_hi16_zmm_at : qword -> unit
 function xsave_hi16_zmm_at(addr) = {
   foreach (i from 0 to 15) {
-    mem_write512(addr + 64 * i, ZMM[16 + i])
+    mem_write(addr + 64 * i, ZMM[16 + i])
   }
 }
 
 val xrstor_avx_at : qword -> unit
 function xrstor_avx_at(addr) = {
   foreach (i from 0 to 15) {
-    let upper : xmmword = mem_read128(addr + 16 * i);
+    let upper : xmmword = mem_read(addr + 16 * i);
     ZMM[i] = ZMM[i][511..256] @ upper @ ZMM[i][127..0]
   }
 }
@@ -189,14 +189,14 @@ function xrstor_avx_at(addr) = {
 val xrstor_opmask_at : qword -> unit
 function xrstor_opmask_at(addr) = {
   foreach (i from 0 to 7) {
-    KREG[i] = mem_read64(addr + 8 * i)
+    KREG[i] = mem_read(addr + 8 * i)
   }
 }
 
 val xrstor_zmm_hi256_at : qword -> unit
 function xrstor_zmm_hi256_at(addr) = {
   foreach (i from 0 to 15) {
-    let upper : ymmword = mem_read256(addr + 32 * i);
+    let upper : ymmword = mem_read(addr + 32 * i);
     ZMM[i] = upper @ ZMM[i][255..0]
   }
 }
@@ -204,7 +204,7 @@ function xrstor_zmm_hi256_at(addr) = {
 val xrstor_hi16_zmm_at : qword -> unit
 function xrstor_hi16_zmm_at(addr) = {
   foreach (i from 0 to 15) {
-    ZMM[16 + i] = mem_read512(addr + 64 * i)
+    ZMM[16 + i] = mem_read(addr + 64 * i)
   }
 }
 
@@ -309,15 +309,15 @@ function exec_xsave(base, mask) = {
 
   // Update XSAVE header
   // Read old XSTATE_BV, merge with RFBM
-  let old_bv : qword = mem_read64(base + 512);
+  let old_bv : qword = mem_read(base + 512);
   // XINUSE = XCR0 (no init optimization)
   let xstate_bv : qword = (old_bv & ~(rfbm)) | (XCR0 & rfbm);
-  mem_write64(base + 512, xstate_bv);
+  mem_write(base + 512, xstate_bv);
   // XCOMP_BV = 0 (standard format)
-  mem_write64(base + 520, zeros());
+  mem_write(base + 520, zeros() : qword);
   // Zero reserved bytes 16-63 of header (offsets 528-575)
   foreach (i from 0 to 5) {
-    mem_write64(base + 528 + 8 * i, zeros())
+    mem_write(base + 528 + 8 * i, zeros() : qword)
   }
 }
 
@@ -386,9 +386,9 @@ function exec_xsavec(base, mask) = {
 
   // Write XSAVE header
   // XSTATE_BV = XINUSE & RFBM = RFBM (since XINUSE = XCR0, RFBM <= XCR0)
-  mem_write64(base + 512, rfbm);
+  mem_write(base + 512, rfbm);
   // XCOMP_BV = RFBM | bit 63
-  mem_write64(base + 520, rfbm | 0x8000000000000000)
+  mem_write(base + 520, rfbm | 0x8000000000000000)
 }
 
 // =========================================================================
@@ -509,15 +509,15 @@ val exec_xrstor : (qword, qword) -> unit
 function exec_xrstor(base, mask) = {
   let rfbm : qword = mask & XCR0;
 
-  let xstate_bv : qword = mem_read64(base + 512);
-  let xcomp_bv : qword = mem_read64(base + 520);
+  let xstate_bv : qword = mem_read(base + 512);
+  let xcomp_bv : qword = mem_read(base + 520);
 
   if xcomp_bv[63] == bitone then {
     // Compacted form (Section 13.8.2)
     if (xcomp_bv & 0x7FFFFFFFFFFFFFFF & ~(XCR0)) != zeros() then raise_GP0();
     if (xstate_bv & ~(xcomp_bv & 0x7FFFFFFFFFFFFFFF)) != zeros() then raise_GP0();
     foreach (i from 0 to 5) {
-      if mem_read64(base + 528 + 8 * i) != zeros() then raise_GP0()
+      if mem_read(8, base + 528 + 8 * i) != zeros() then raise_GP0()
     };
     xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
   } else {
@@ -539,15 +539,15 @@ val exec_xrstors : (qword, qword) -> unit
 function exec_xrstors(base, mask) = {
   let rfbm : qword = mask & XCR0;
 
-  let xstate_bv : qword = mem_read64(base + 512);
-  let xcomp_bv : qword = mem_read64(base + 520);
+  let xstate_bv : qword = mem_read(base + 512);
+  let xcomp_bv : qword = mem_read(base + 520);
 
   // XRSTORS requires compacted format
   if xcomp_bv[63] == bitzero then raise_GP0();
   if (xcomp_bv & 0x7FFFFFFFFFFFFFFF & ~(XCR0)) != zeros() then raise_GP0();
   if (xstate_bv & ~(xcomp_bv & 0x7FFFFFFFFFFFFFFF)) != zeros() then raise_GP0();
   foreach (i from 0 to 5) {
-    if mem_read64(base + 528 + 8 * i) != zeros() then raise_GP0()
+    if mem_read(8, base + 528 + 8 * i) != zeros() then raise_GP0()
   };
   xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
 }

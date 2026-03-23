@@ -408,15 +408,15 @@ function dispatch_2byte_gpr(op, pfx) = {
           TR = sel;
           // Load TSS base/limit from GDT descriptor
           let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
-          let desc_lo : dword = mem_read32(desc_addr);
-          let desc_hi : dword = mem_read32(desc_addr + 4);
+          let desc_lo : dword = mem_read(desc_addr);
+          let desc_hi : dword = mem_read(desc_addr + 4);
           // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
           let base_lo : dword = desc_lo[31..16] @ 0x0000;
           let base_mid : byte = desc_hi[7..0];
           let base_hi : byte = desc_hi[31..24];
           TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
           // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
-          let desc_ext : dword = mem_read32(desc_addr + 8);
+          let desc_ext : dword = mem_read(desc_addr + 8);
           TR_base = zero_extend(desc_ext) @ TR_base[31..0];
           // Limit = desc[51:48] @ desc[15:0] (with granularity)
           let limit_lo : word = desc_lo[15..0];
@@ -441,7 +441,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = mem_read(GDTR_base + sel_offset + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               // Readable: data segments always readable; code readable if R bit set
@@ -471,7 +471,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = mem_read32(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = mem_read(GDTR_base + sel_offset + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               let is_code : bit = desc_hi[11];
@@ -582,9 +582,9 @@ function dispatch_2byte_gpr(op, pfx) = {
               RM_mem(seg, offset) => {
                 let total_size = if cur_mode == LongMode then 10 else 6;
                 let addr = seg_linear(seg, offset, total_size);
-                mem_write16(addr, GDTR_limit);
-                if cur_mode == LongMode then mem_write64(addr + 2, GDTR_base)
-                else mem_write32(addr + 2, GDTR_base[31..0])
+                mem_write(addr, GDTR_limit);
+                if cur_mode == LongMode then mem_write(addr + 2, GDTR_base)
+                else mem_write(4, addr + 2, GDTR_base[31..0])
               },
               _ => raise_UD(),
             },
@@ -594,9 +594,9 @@ function dispatch_2byte_gpr(op, pfx) = {
               RM_mem(seg, offset) => {
                 let total_size = if cur_mode == LongMode then 10 else 6;
                 let addr = seg_linear(seg, offset, total_size);
-                mem_write16(addr, IDTR_limit);
-                if cur_mode == LongMode then mem_write64(addr + 2, IDTR_base)
-                else mem_write32(addr + 2, IDTR_base[31..0])
+                mem_write(addr, IDTR_limit);
+                if cur_mode == LongMode then mem_write(addr + 2, IDTR_base)
+                else mem_write(4, addr + 2, IDTR_base[31..0])
               },
               _ => raise_UD(),
             },
@@ -619,11 +619,11 @@ function dispatch_2byte_gpr(op, pfx) = {
                                else get_operand_size(pfx);
                   let total_size : int = if gdt_os == 64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
-                  GDTR_limit = mem_read16(addr);
+                  GDTR_limit = mem_read(addr);
                   match gdt_os {
-                    16 => GDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
-                    32 => GDTR_base = zero_extend(mem_read32(addr + 2)),
-                    64 => GDTR_base = mem_read64(addr + 2),
+                    16 => GDTR_base = zero_extend(mem_read(addr + 2) & 0x00FFFFFF),
+                    32 => GDTR_base = zero_extend(mem_read(4, addr + 2)),
+                    64 => GDTR_base = mem_read(addr + 2),
                   }
                 },
                 _ => raise_UD(),
@@ -640,11 +640,11 @@ function dispatch_2byte_gpr(op, pfx) = {
                                else get_operand_size(pfx);
                   let total_size : int = if idt_os == 64 then 10 else 6;
                   let addr = seg_linear(seg, offset, total_size);
-                  IDTR_limit = mem_read16(addr);
+                  IDTR_limit = mem_read(addr);
                   match idt_os {
-                    16 => IDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
-                    32 => IDTR_base = zero_extend(mem_read32(addr + 2)),
-                    64 => IDTR_base = mem_read64(addr + 2),
+                    16 => IDTR_base = zero_extend(mem_read(addr + 2) & 0x00FFFFFF),
+                    32 => IDTR_base = zero_extend(mem_read(4, addr + 2)),
+                    64 => IDTR_base = mem_read(addr + 2),
                   }
                 },
                 _ => raise_UD(),
@@ -711,7 +711,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
           ZF = 0b0
         } else {
-          let desc_hi : dword = mem_read32(desc_addr + 4);
+          let desc_hi : dword = mem_read(desc_addr + 4);
           if ~(lar_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = 0b0
           } else {
@@ -742,8 +742,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
           ZF = 0b0
         } else {
-          let desc_lo : dword = mem_read32(desc_addr);
-          let desc_hi : dword = mem_read32(desc_addr + 4);
+          let desc_lo : dword = mem_read(desc_addr);
+          let desc_hi : dword = mem_read(desc_addr + 4);
           if ~(lsl_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = 0b0
           } else {

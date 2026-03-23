@@ -1457,14 +1457,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           let src : ymmword = read_ymm(src_idx);
           foreach (i from 0 to 7) {
             if mask[(i * 32 + 31)] == 0b1 then
-              mem_write32(a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
+              mem_write(4, a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
           }
         } else {
           let mask : xmmword = read_xmm(pfx.vex_vvvv);
           let src : xmmword = read_xmm(src_idx);
           foreach (i from 0 to 3) {
             if mask[(i * 32 + 31)] == 0b1 then
-              mem_write32(a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
+              mem_write(4, a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
           }
         }
       },
@@ -1487,14 +1487,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           let src : ymmword = read_ymm(src_idx);
           foreach (i from 0 to 3) {
             if mask[(i * 64 + 63)] == 0b1 then
-              mem_write64(a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
+              mem_write(8, a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
           }
         } else {
           let mask : xmmword = read_xmm(pfx.vex_vvvv);
           let src : xmmword = read_xmm(src_idx);
           foreach (i from 0 to 1) {
             if mask[(i * 64 + 63)] == 0b1 then
-              mem_write64(a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
+              mem_write(8, a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
           }
         }
       },
@@ -1586,7 +1586,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_ymm(dst, result);
@@ -1599,7 +1599,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_xmm(dst, result);
@@ -1615,7 +1615,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_ymm(dst, result);
@@ -1628,7 +1628,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1654,7 +1654,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_ymm(dst, result);
@@ -1667,7 +1667,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_xmm(dst, result);
@@ -1683,7 +1683,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1696,7 +1696,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1722,7 +1722,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_ymm(dst, result);
@@ -1735,7 +1735,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_xmm(dst, result);
@@ -1751,7 +1751,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_ymm(dst, result);
@@ -1764,7 +1764,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
             let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1790,7 +1790,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_ymm(dst, result);
@@ -1803,7 +1803,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 64 + 63) .. (i * 64)] = mem_read64(addr)
+            result[(i * 64 + 63) .. (i * 64)] = mem_read(8, addr)
           }
         };
         write_xmm(dst, result);
@@ -1819,7 +1819,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1832,7 +1832,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
             let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-            result[(i * 32 + 31) .. (i * 32)] = mem_read32(addr)
+            result[(i * 32 + 31) .. (i * 32)] = mem_read(4, addr)
           }
         };
         write_xmm(dst, result);
@@ -1980,7 +1980,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             var result : ymmword = zeros();
             foreach (i from 0 to 3) {
               if mask[(i * 64 + 63)] == 0b1 then
-                result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
+                result[(i * 64 + 63) .. (i * 64)] = mem_read(8, a + to_bits(64, i * 8))
             };
             write_ymm(dst, result)
           },
@@ -1989,7 +1989,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             var result : xmmword = zeros();
             foreach (i from 0 to 1) {
               if mask[(i * 64 + 63)] == 0b1 then
-                result[(i * 64 + 63) .. (i * 64)] = mem_read64(a + to_bits(64, i * 8))
+                result[(i * 64 + 63) .. (i * 64)] = mem_read(8, a + to_bits(64, i * 8))
             };
             write_xmm(dst, result)
           },
@@ -1999,7 +1999,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             var result : ymmword = zeros();
             foreach (i from 0 to 7) {
               if mask[(i * 32 + 31)] == 0b1 then
-                result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
+                result[(i * 32 + 31) .. (i * 32)] = mem_read(4, a + to_bits(64, i * 4))
             };
             write_ymm(dst, result)
           },
@@ -2008,7 +2008,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             var result : xmmword = zeros();
             foreach (i from 0 to 3) {
               if mask[(i * 32 + 31)] == 0b1 then
-                result[(i * 32 + 31) .. (i * 32)] = mem_read32(a + to_bits(64, i * 4))
+                result[(i * 32 + 31) .. (i * 32)] = mem_read(4, a + to_bits(64, i * 4))
             };
             write_xmm(dst, result)
           },
@@ -2035,7 +2035,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 3) {
               if mask[(i * 64 + 63)] == 0b1 then
-                mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
+                mem_write(8, a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
           },
           (false, true) => {
@@ -2043,7 +2043,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 1) {
               if mask[(i * 64 + 63)] == 0b1 then
-                mem_write64(a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
+                mem_write(8, a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
           },
           // VPMASKMOVD: dword elements
@@ -2052,7 +2052,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let data : ymmword = read_ymm(src);
             foreach (i from 0 to 7) {
               if mask[(i * 32 + 31)] == 0b1 then
-                mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
+                mem_write(4, a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
           },
           (false, false) => {
@@ -2060,7 +2060,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             let data : xmmword = read_xmm(src);
             foreach (i from 0 to 3) {
               if mask[(i * 32 + 31)] == 0b1 then
-                mem_write32(a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
+                mem_write(4, a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
           },
         }

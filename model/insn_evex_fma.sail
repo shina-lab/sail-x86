@@ -15,7 +15,7 @@ function exec_gather_d32_512(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (lo + 31)..lo = v];
     }
   };
@@ -33,7 +33,7 @@ function exec_gather_d32_256(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (lo + 31)..lo = v];
     }
   };
@@ -51,7 +51,7 @@ function exec_gather_d32_128(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (lo + 31)..lo = v];
     }
   };
@@ -73,7 +73,7 @@ function exec_gather_d64_512(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (olo + 63)..olo = v];
     }
   };
@@ -92,7 +92,7 @@ function exec_gather_d64_256(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (olo + 63)..olo = v];
     }
   };
@@ -111,7 +111,7 @@ function exec_gather_d64_128(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (olo + 63)..olo = v];
     }
   };
@@ -133,7 +133,7 @@ function exec_gather_q32_512(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (olo + 31)..olo = v];
     }
   };
@@ -152,7 +152,7 @@ function exec_gather_q32_256(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (olo + 31)..olo = v];
     }
   };
@@ -172,7 +172,7 @@ function exec_gather_q32_128(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : dword = mem_read32(addr);
+      let v : dword = mem_read(addr);
       result = [result with (olo + 31)..olo = v];
     }
   };
@@ -192,7 +192,7 @@ function exec_gather_q64_512(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (lo + 63)..lo = v];
     }
   };
@@ -210,7 +210,7 @@ function exec_gather_q64_256(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (lo + 63)..lo = v];
     }
   };
@@ -228,7 +228,7 @@ function exec_gather_q64_128(dst, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      let v : qword = mem_read64(addr);
+      let v : qword = mem_read(addr);
       result = [result with (lo + 63)..lo = v];
     }
   };
@@ -251,7 +251,7 @@ function exec_scatter_d32_512(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(lo + 31)..lo]);
+      mem_write(4, addr, data[(lo + 31)..lo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -267,7 +267,7 @@ function exec_scatter_d32_256(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(lo + 31)..lo]);
+      mem_write(4, addr, data[(lo + 31)..lo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -283,7 +283,7 @@ function exec_scatter_d32_128(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(lo + 31)..lo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(lo + 31)..lo]);
+      mem_write(4, addr, data[(lo + 31)..lo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -302,7 +302,7 @@ function exec_scatter_d64_512(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(olo + 63)..olo]);
+      mem_write(8, addr, data[(olo + 63)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -319,7 +319,7 @@ function exec_scatter_d64_256(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(olo + 63)..olo]);
+      mem_write(8, addr, data[(olo + 63)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -336,7 +336,7 @@ function exec_scatter_d64_128(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : dword = indices[(ilo + 31)..ilo];
       let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(olo + 63)..olo]);
+      mem_write(8, addr, data[(olo + 63)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -355,7 +355,7 @@ function exec_scatter_q32_512(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(olo + 31)..olo]);
+      mem_write(4, addr, data[(olo + 31)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -372,7 +372,7 @@ function exec_scatter_q32_256(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(olo + 31)..olo]);
+      mem_write(4, addr, data[(olo + 31)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -389,7 +389,7 @@ function exec_scatter_q32_128(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(ilo + 63)..ilo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write32(addr, data[(olo + 31)..olo]);
+      mem_write(4, addr, data[(olo + 31)..olo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -407,7 +407,7 @@ function exec_scatter_q64_512(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(lo + 63)..lo]);
+      mem_write(8, addr, data[(lo + 63)..lo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -423,7 +423,7 @@ function exec_scatter_q64_256(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(lo + 63)..lo]);
+      mem_write(8, addr, data[(lo + 63)..lo]);
     }
   };
   write_kreg(k_idx, zeros())
@@ -439,7 +439,7 @@ function exec_scatter_q64_128(src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : qword = indices[(lo + 63)..lo];
       let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
-      mem_write64(addr, data[(lo + 63)..lo]);
+      mem_write(8, addr, data[(lo + 63)..lo]);
     }
   };
   write_kreg(k_idx, zeros())

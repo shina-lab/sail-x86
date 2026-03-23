@@ -388,11 +388,11 @@ function dispatch_vex_0f_fp(op, pfx) = {
         if pfx.vex_l then {
           let a = seg_linear(seg, addr, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
-          write_ymm(dst, mem_read256(a))
+          write_ymm(dst, mem_read(a))
         } else {
           let a = seg_linear(seg, addr, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          write_xmm(dst, mem_read128(a))
+          write_xmm(dst, mem_read(a))
         }
       },
     }
@@ -419,11 +419,11 @@ function dispatch_vex_0f_fp(op, pfx) = {
         if pfx.vex_l then {
           let a = seg_linear(seg, addr, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
-          mem_write256(a, read_ymm(src))
+          mem_write(a, read_ymm(src))
         } else {
           let a = seg_linear(seg, addr, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          mem_write128(a, read_xmm(src))
+          mem_write(a, read_xmm(src))
         }
       },
     }
@@ -473,12 +473,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let a = seg_linear(seg, addr, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
-          mem_write128(a, v[127..0]);
-          mem_write128(a + 16, v[255..128])
+          mem_write(16, a, v[127..0]);
+          mem_write(16, a + 16, v[255..128])
         } else {
           let a = seg_linear(seg, addr, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          mem_write128(a, read_xmm(src))
+          mem_write(a, read_xmm(src))
         }
       },
       RM_reg(_) => raise_UD(),

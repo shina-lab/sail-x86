@@ -21,12 +21,12 @@ val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> 
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
 // separately to handle non-contiguous physical pages.
-val mem_read : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-function mem_read(addr, n) = {
+val mem_read : forall 'n, 'n > 0. (implicit('n), qword) -> bits(8 * 'n)
+function mem_read(n, addr) = {
   let page_offset = unsigned(addr & 0x0000000000000FFF);
   if page_offset + n <= 4096 then {
     let paddr = translate_addr(addr, PT_Read);
-    phys_read(paddr, n)
+    phys_read(n, paddr)
   } else {
     __mem_read_crossing(addr, n)
   }
@@ -34,50 +34,16 @@ function mem_read(addr, n) = {
 
 // Write 'n bytes to memory at the given virtual address.
 // Same page-crossing logic as mem_read.
-val mem_write : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
-function mem_write(addr, n, data) = {
+val mem_write : forall 'n, 'n > 0. (implicit('n), qword, bits(8 * 'n)) -> unit
+function mem_write(n, addr, data) = {
   let page_offset = unsigned(addr & 0x0000000000000FFF);
   if page_offset + n <= 4096 then {
     let paddr = translate_addr(addr, PT_Write);
-    phys_write(paddr, n, data)
+    phys_write(n, paddr, data)
   } else {
     __mem_write_crossing(addr, n, data)
   }
 }
-
-// Convenience functions for common access sizes.
-val mem_read8  : qword -> byte
-val mem_read16 : qword -> word
-val mem_read32 : qword -> dword
-val mem_read64 : qword -> qword
-function mem_read8(addr)  = mem_read(addr, 1)
-function mem_read16(addr) = mem_read(addr, 2)
-function mem_read32(addr) = mem_read(addr, 4)
-function mem_read64(addr) = mem_read(addr, 8)
-
-val mem_write8  : (qword, byte)  -> unit
-val mem_write16 : (qword, word) -> unit
-val mem_write32 : (qword, dword) -> unit
-val mem_write64 : (qword, qword) -> unit
-function mem_write8(addr, v)  = mem_write(addr, 1, v)
-function mem_write16(addr, v) = mem_write(addr, 2, v)
-function mem_write32(addr, v) = mem_write(addr, 4, v)
-function mem_write64(addr, v) = mem_write(addr, 8, v)
-
-val mem_read128 : qword -> xmmword
-val mem_write128 : (qword, xmmword) -> unit
-function mem_read128(addr) = mem_read(addr, 16)
-function mem_write128(addr, v) = mem_write(addr, 16, v)
-
-val mem_read256 : qword -> ymmword
-val mem_write256 : (qword, ymmword) -> unit
-function mem_read256(addr) = mem_read(addr, 32)
-function mem_write256(addr, v) = mem_write(addr, 32, v)
-
-val mem_read512 : qword -> zmmword
-val mem_write512 : (qword, zmmword) -> unit
-function mem_read512(addr) = mem_read(addr, 64)
-function mem_write512(addr, v) = mem_write(addr, 64, v)
 
 // Stack operations.
 // In long mode, uses RSP directly (SS base is 0).
@@ -109,7 +75,7 @@ function write_stack_ptr(v) =
 val push64 : qword -> unit
 function push64(v) = {
   let sp = read_gpr64(RSP) - 8;
-  mem_write64(sp, v);
+  mem_write(sp, v);
   write_gpr64(RSP, sp)
 }
 
@@ -117,14 +83,14 @@ val push32 : dword -> unit
 function push32(v) = {
   if cur_mode == LongMode then {
     let sp = read_gpr64(RSP) - 4;
-    mem_write32(sp, v);
+    mem_write(sp, v);
     write_gpr64(RSP, sp)
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
       then zero_extend(read_gpr32(RSP) - 4)
       else zero_extend(read_gpr16(RSP) - 4);
-    mem_write32(base + new_off, v);
+    mem_write(base + new_off, v);
     write_stack_ptr(new_off)
   }
 }
@@ -132,7 +98,7 @@ function push32(v) = {
 val pop64 : unit -> qword
 function pop64() = {
   let sp = read_stack_ptr();
-  let v = mem_read64(sp);
+  let v : qword = mem_read(sp);
   write_stack_ptr(sp + 8 - get_seg_base(SS));
   v
 }
@@ -140,7 +106,7 @@ function pop64() = {
 val pop32 : unit -> dword
 function pop32() = {
   let sp = read_stack_ptr();
-  let v = mem_read32(sp);
+  let v : dword = mem_read(sp);
   write_stack_ptr(sp + 4 - get_seg_base(SS));
   v
 }
@@ -149,14 +115,14 @@ val push16 : word -> unit
 function push16(v) = {
   if cur_mode == LongMode then {
     let sp = read_gpr64(RSP) - 2;
-    mem_write16(sp, v);
+    mem_write(sp, v);
     write_gpr64(RSP, sp)
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
       then zero_extend(read_gpr32(RSP) - 2)
       else zero_extend(read_gpr16(RSP) - 2);
-    mem_write16(base + new_off, v);
+    mem_write(base + new_off, v);
     write_stack_ptr(new_off)
   }
 }
@@ -164,7 +130,7 @@ function push16(v) = {
 val pop16 : unit -> word
 function pop16() = {
   let sp = read_stack_ptr();
-  let v = mem_read16(sp);
+  let v : word = mem_read(sp);
   write_stack_ptr(sp + 2 - get_seg_base(SS));
   v
 }
@@ -204,8 +170,8 @@ function load_segment_register(idx, selector) = {
         GDTR_base
       };
       let desc_offset : qword = zero_extend(index @ 0b000);
-      let desc_lo : dword = mem_read32(table_base + desc_offset);
-      let desc_hi : dword = mem_read32(table_base + desc_offset + 4);
+      let desc_lo : dword = mem_read(table_base + desc_offset);
+      let desc_hi : dword = mem_read(table_base + desc_offset + 4);
       SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
     },
   }
@@ -258,14 +224,14 @@ val seg_read : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword)
 function seg_read(os, seg, offset) = {
   let n = os / 8;
   let a = seg_linear(seg, offset, n);
-  mem_read(a, n)
+  mem_read(n, a)
 }
 
 val seg_write : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword, bits('os)) -> unit
 function seg_write(os, seg, offset, v) = {
   let n = os / 8;
   let a = seg_linear(seg, offset, n);
-  mem_write(a, n, v)
+  mem_write(n, a, v)
 }
 
 // Sized segmented memory read: check limit, compute linear, read.
@@ -276,13 +242,13 @@ val seg_read64 : (segreg_idx, qword) -> qword
 val seg_read128 : (segreg_idx, qword) -> xmmword
 val seg_read256 : (segreg_idx, qword) -> ymmword
 val seg_read512 : (segreg_idx, qword) -> zmmword
-function seg_read8(seg, offset)   = mem_read8(seg_linear(seg, offset, 1))
-function seg_read16(seg, offset)  = mem_read16(seg_linear(seg, offset, 2))
-function seg_read32(seg, offset)  = mem_read32(seg_linear(seg, offset, 4))
-function seg_read64(seg, offset)  = mem_read64(seg_linear(seg, offset, 8))
-function seg_read128(seg, offset) = mem_read128(seg_linear(seg, offset, 16))
-function seg_read256(seg, offset) = mem_read256(seg_linear(seg, offset, 32))
-function seg_read512(seg, offset) = mem_read512(seg_linear(seg, offset, 64))
+function seg_read8(seg, offset)   = mem_read(seg_linear(seg, offset, 1))
+function seg_read16(seg, offset)  = mem_read(seg_linear(seg, offset, 2))
+function seg_read32(seg, offset)  = mem_read(seg_linear(seg, offset, 4))
+function seg_read64(seg, offset)  = mem_read(seg_linear(seg, offset, 8))
+function seg_read128(seg, offset) = mem_read(seg_linear(seg, offset, 16))
+function seg_read256(seg, offset) = mem_read(seg_linear(seg, offset, 32))
+function seg_read512(seg, offset) = mem_read(seg_linear(seg, offset, 64))
 
 // Segmented memory write: check limit, compute linear, write.
 val seg_write8   : (segreg_idx, qword, byte)    -> unit
@@ -292,13 +258,13 @@ val seg_write64  : (segreg_idx, qword, qword)  -> unit
 val seg_write128 : (segreg_idx, qword, xmmword) -> unit
 val seg_write256 : (segreg_idx, qword, ymmword) -> unit
 val seg_write512 : (segreg_idx, qword, zmmword) -> unit
-function seg_write8(seg, offset, v)   = mem_write8(seg_linear(seg, offset, 1), v)
-function seg_write16(seg, offset, v)  = mem_write16(seg_linear(seg, offset, 2), v)
-function seg_write32(seg, offset, v)  = mem_write32(seg_linear(seg, offset, 4), v)
-function seg_write64(seg, offset, v)  = mem_write64(seg_linear(seg, offset, 8), v)
-function seg_write128(seg, offset, v) = mem_write128(seg_linear(seg, offset, 16), v)
-function seg_write256(seg, offset, v) = mem_write256(seg_linear(seg, offset, 32), v)
-function seg_write512(seg, offset, v) = mem_write512(seg_linear(seg, offset, 64), v)
+function seg_write8(seg, offset, v)   = mem_write(seg_linear(seg, offset, 1), v)
+function seg_write16(seg, offset, v)  = mem_write(seg_linear(seg, offset, 2), v)
+function seg_write32(seg, offset, v)  = mem_write(seg_linear(seg, offset, 4), v)
+function seg_write64(seg, offset, v)  = mem_write(seg_linear(seg, offset, 8), v)
+function seg_write128(seg, offset, v) = mem_write(seg_linear(seg, offset, 16), v)
+function seg_write256(seg, offset, v) = mem_write(seg_linear(seg, offset, 32), v)
+function seg_write512(seg, offset, v) = mem_write(seg_linear(seg, offset, 64), v)
 
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)
@@ -319,8 +285,8 @@ function read_descriptor(selector) = {
   if unsigned(desc_offset) + 7 > unsigned(table_limit) then {
     throw Fault(EXN_GP, zero_extend(selector))
   };
-  let desc_lo : dword = mem_read32(table_base + desc_offset);
-  let desc_hi : dword = mem_read32(table_base + desc_offset + 4);
+  let desc_lo : dword = mem_read(table_base + desc_offset);
+  let desc_hi : dword = mem_read(table_base + desc_offset + 4);
   parse_seg_descriptor(desc_lo, desc_hi)
 }
 

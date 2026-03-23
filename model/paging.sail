@@ -4,7 +4,7 @@
 //   4-level (default):  Virtual address → PML4 → PDPT → PD → PT → Physical address
 //   5-level (CR4.LA57): Virtual address → PML5 → PML4 → PDPT → PD → PT → Physical address
 //
-// Page table walks use phys_read64 to avoid recursion through mem_read.
+// Page table walks use phys_read to avoid recursion through mem_read.
 // Follows the sail-riscv pattern: translate_addr() returns physical address
 // or throws Fault(EXN_PF, error_code) on failure.
 
@@ -22,17 +22,11 @@ function a20_mask(addr) =
 
 // Physical memory access (bypass translation).
 // Used by page table walks and by mem_read/mem_write when paging is off.
-val phys_read : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-function phys_read(addr, n) = __read_mem(a20_mask(addr), n)
+val phys_read : forall 'n, 'n > 0. (implicit('n), qword) -> bits(8 * 'n)
+function phys_read(n, addr) = __read_mem(a20_mask(addr), n)
 
-val phys_write : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
-function phys_write(addr, n, data) = __write_mem(a20_mask(addr), n, data)
-
-val phys_read64 : qword -> qword
-function phys_read64(addr) = phys_read(addr, 8)
-
-val phys_write64 : (qword, qword) -> unit
-function phys_write64(addr, v) = phys_write(addr, 8, v)
+val phys_write : forall 'n, 'n > 0. (implicit('n), qword, bits(8 * 'n)) -> unit
+function phys_write(n, addr, data) = __write_mem(a20_mask(addr), n, data)
 
 // Access type for page table permission checks.
 enum PTAccess = { PT_Read, PT_Write, PT_Execute }
@@ -92,7 +86,7 @@ function update_accessed_dirty(pte_addr, pte, access) = {
     new_pte[6] = 0b1;
     changed = true
   };
-  if changed then phys_write64(pte_addr, new_pte)
+  if changed then phys_write(pte_addr, new_pte)
 }
 
 // Page table walk.
@@ -117,7 +111,7 @@ function pt_walk(linear, access, table_base, level) = {
   let pte_addr : qword = table_base + (index << 3);
 
   // 2. Read PTE from physical memory (bypasses translation)
-  let pte : qword = phys_read64(pte_addr);
+  let pte : qword = phys_read(pte_addr);
 
   // 3. Check Present bit
   if pte[0] == 0b0 then {
@@ -162,7 +156,7 @@ function pt_walk(linear, access, table_base, level) = {
     // 9. Non-leaf: recurse to next level
     let next_base : qword = pte & 0x000FFFFFFFFFF000;
     // Update Accessed bit on non-leaf entries too
-    if pte[5] == 0b0 then phys_write64(pte_addr, pte | 0x0000000000000020);
+    if pte[5] == 0b0 then phys_write(pte_addr, pte | 0x0000000000000020);
     pt_walk(linear, access, next_base, level - 1)
   } else {
     // level 0 non-leaf = impossible (always leaf)
@@ -199,7 +193,7 @@ function pt_walk_32(linear, access) = {
   // 1. PDE lookup: index = linear[31:22]
   let pde_index : qword = zero_extend((linear[31..22]) : bits(10));
   let pde_addr : qword = pd_base + (pde_index << 2);
-  let pde : dword = phys_read(pde_addr, 4);
+  let pde : dword = phys_read(pde_addr);
 
   // Check present
   if pde[0] == 0b0 then {
@@ -228,7 +222,7 @@ function pt_walk_32(linear, access) = {
     if access == PT_Write & pde[6] == 0b0 then {
       new_pde[6] = 0b1; changed = true
     };
-    if changed then phys_write(pde_addr, 4, new_pde);
+    if changed then phys_write(pde_addr, new_pde);
     // Physical address: PDE[31:22] @ linear[21:0]
     let ppn : dword = pde & 0xFFC00000;
     zero_extend(ppn | zero_extend(linear[21..0]))
@@ -237,7 +231,7 @@ function pt_walk_32(linear, access) = {
     let pt_base : qword = zero_extend(pde & 0xFFFFF000);
     let pte_index : qword = zero_extend((linear[21..12]) : bits(10));
     let pte_addr : qword = pt_base + (pte_index << 2);
-    let pte : dword = phys_read(pte_addr, 4);
+    let pte : dword = phys_read(pte_addr);
 
     // Check present
     if pte[0] == 0b0 then {
@@ -258,14 +252,14 @@ function pt_walk_32(linear, access) = {
     };
 
     // Update A/D bits on PDE and PTE
-    if pde[5] == 0b0 then phys_write(pde_addr, 4, pde | 0x00000020);
+    if pde[5] == 0b0 then phys_write(pde_addr, pde | 0x00000020);
     var new_pte = pte;
     var pte_changed : bool = false;
     if pte[5] == 0b0 then { new_pte[5] = 0b1; pte_changed = true };
     if access == PT_Write & pte[6] == 0b0 then {
       new_pte[6] = 0b1; pte_changed = true
     };
-    if pte_changed then phys_write(pte_addr, 4, new_pte);
+    if pte_changed then phys_write(pte_addr, new_pte);
 
     // Physical address: PTE[31:12] @ linear[11:0]
     zero_extend((pte & 0xFFFFF000) | zero_extend(linear[11..0]))
@@ -286,7 +280,7 @@ function pt_walk_pae(linear, access) = {
   let pdpt_base : qword = CR3 & 0x00000000FFFFFFE0;
   let pdpte_index : qword = zero_extend((linear[31..30]) : bits(2));
   let pdpte_addr : qword = pdpt_base + (pdpte_index << 3);
-  let pdpte : qword = phys_read64(pdpte_addr);
+  let pdpte : qword = phys_read(pdpte_addr);
 
   if pdpte[0] == 0b0 then {
     CR2 = linear;
@@ -297,7 +291,7 @@ function pt_walk_pae(linear, access) = {
   let pd_base : qword = pdpte & 0x000FFFFFFFFFF000;
   let pde_index : qword = zero_extend((linear[29..21]) : bits(9));
   let pde_addr : qword = pd_base + (pde_index << 3);
-  let pde : qword = phys_read64(pde_addr);
+  let pde : qword = phys_read(pde_addr);
 
   if pde[0] == 0b0 then {
     CR2 = linear;
@@ -320,7 +314,7 @@ function pt_walk_pae(linear, access) = {
     let pt_base : qword = pde & 0x000FFFFFFFFFF000;
     let pte_index : qword = zero_extend((linear[20..12]) : bits(9));
     let pte_addr : qword = pt_base + (pte_index << 3);
-    let pte : qword = phys_read64(pte_addr);
+    let pte : qword = phys_read(pte_addr);
 
     if pte[0] == 0b0 then {
       CR2 = linear;
@@ -333,7 +327,7 @@ function pt_walk_pae(linear, access) = {
     };
 
     // Update A/D on PDE and PTE
-    if pde[5] == 0b0 then phys_write64(pde_addr, pde | 0x0000000000000020);
+    if pde[5] == 0b0 then phys_write(pde_addr, pde | 0x0000000000000020);
     update_accessed_dirty(pte_addr, pte, access);
 
     let ppn : qword = pte & 0x000FFFFFFFFFF000;
