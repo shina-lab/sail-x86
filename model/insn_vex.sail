@@ -545,8 +545,8 @@ function avx_maxuw_256(a, b) =
 
 val avx_pcmpeqq_128 : (xmmword, xmmword) -> xmmword
 function avx_pcmpeqq_128(a, b) =
-  cmp_eq64(a[127..64], b[127..64]) @
-  cmp_eq64(a[63..0], b[63..0])
+  cmp_eq(a[127..64], b[127..64]) @
+  cmp_eq(a[63..0], b[63..0])
 
 val avx_pcmpeqq_256 : (ymmword, ymmword) -> ymmword
 function avx_pcmpeqq_256(a, b) =
@@ -697,47 +697,47 @@ function vex_pmaddwd_256(a, b) =
 // VPCMPGTB/W/D: compare packed signed for greater-than
 val vex_pcmpgtb_128 : (xmmword, xmmword) -> xmmword
 function vex_pcmpgtb_128(a, b) =
-  cmp_gt8(a[127..120], b[127..120]) @ cmp_gt8(a[119..112], b[119..112]) @
-  cmp_gt8(a[111..104], b[111..104]) @ cmp_gt8(a[103..96],  b[103..96])  @
-  cmp_gt8(a[95..88],   b[95..88])   @ cmp_gt8(a[87..80],   b[87..80])   @
-  cmp_gt8(a[79..72],   b[79..72])   @ cmp_gt8(a[71..64],   b[71..64])   @
-  cmp_gt8(a[63..56],   b[63..56])   @ cmp_gt8(a[55..48],   b[55..48])   @
-  cmp_gt8(a[47..40],   b[47..40])   @ cmp_gt8(a[39..32],   b[39..32])   @
-  cmp_gt8(a[31..24],   b[31..24])   @ cmp_gt8(a[23..16],   b[23..16])   @
-  cmp_gt8(a[15..8],    b[15..8])    @ cmp_gt8(a[7..0],     b[7..0])
+  cmp_gt(a[127..120], b[127..120]) @ cmp_gt(a[119..112], b[119..112]) @
+  cmp_gt(a[111..104], b[111..104]) @ cmp_gt(a[103..96],  b[103..96])  @
+  cmp_gt(a[95..88],   b[95..88])   @ cmp_gt(a[87..80],   b[87..80])   @
+  cmp_gt(a[79..72],   b[79..72])   @ cmp_gt(a[71..64],   b[71..64])   @
+  cmp_gt(a[63..56],   b[63..56])   @ cmp_gt(a[55..48],   b[55..48])   @
+  cmp_gt(a[47..40],   b[47..40])   @ cmp_gt(a[39..32],   b[39..32])   @
+  cmp_gt(a[31..24],   b[31..24])   @ cmp_gt(a[23..16],   b[23..16])   @
+  cmp_gt(a[15..8],    b[15..8])    @ cmp_gt(a[7..0],     b[7..0])
 
 val vex_pcmpgtw_128 : (xmmword, xmmword) -> xmmword
 function vex_pcmpgtw_128(a, b) =
-  cmp_gt16(a[127..112], b[127..112]) @ cmp_gt16(a[111..96], b[111..96]) @
-  cmp_gt16(a[95..80],   b[95..80])   @ cmp_gt16(a[79..64],  b[79..64])  @
-  cmp_gt16(a[63..48],   b[63..48])   @ cmp_gt16(a[47..32],  b[47..32])  @
-  cmp_gt16(a[31..16],   b[31..16])   @ cmp_gt16(a[15..0],   b[15..0])
+  cmp_gt(a[127..112], b[127..112]) @ cmp_gt(a[111..96], b[111..96]) @
+  cmp_gt(a[95..80],   b[95..80])   @ cmp_gt(a[79..64],  b[79..64])  @
+  cmp_gt(a[63..48],   b[63..48])   @ cmp_gt(a[47..32],  b[47..32])  @
+  cmp_gt(a[31..16],   b[31..16])   @ cmp_gt(a[15..0],   b[15..0])
 
 val vex_pcmpgtd_128 : (xmmword, xmmword) -> xmmword
 function vex_pcmpgtd_128(a, b) =
-  cmp_gt32(a[127..96], b[127..96]) @
-  cmp_gt32(a[95..64], b[95..64]) @
-  cmp_gt32(a[63..32], b[63..32]) @
-  cmp_gt32(a[31..0], b[31..0])
+  cmp_gt(a[127..96], b[127..96]) @
+  cmp_gt(a[95..64], b[95..64]) @
+  cmp_gt(a[63..32], b[63..32]) @
+  cmp_gt(a[31..0], b[31..0])
 
 // VPCMPEQB/W: compare packed for equality
 val vex_pcmpeqb_128 : (xmmword, xmmword) -> xmmword
 function vex_pcmpeqb_128(a, b) =
-  cmp_eq8(a[127..120], b[127..120]) @ cmp_eq8(a[119..112], b[119..112]) @
-  cmp_eq8(a[111..104], b[111..104]) @ cmp_eq8(a[103..96],  b[103..96])  @
-  cmp_eq8(a[95..88],   b[95..88])   @ cmp_eq8(a[87..80],   b[87..80])   @
-  cmp_eq8(a[79..72],   b[79..72])   @ cmp_eq8(a[71..64],   b[71..64])   @
-  cmp_eq8(a[63..56],   b[63..56])   @ cmp_eq8(a[55..48],   b[55..48])   @
-  cmp_eq8(a[47..40],   b[47..40])   @ cmp_eq8(a[39..32],   b[39..32])   @
-  cmp_eq8(a[31..24],   b[31..24])   @ cmp_eq8(a[23..16],   b[23..16])   @
-  cmp_eq8(a[15..8],    b[15..8])    @ cmp_eq8(a[7..0],     b[7..0])
+  cmp_eq(a[127..120], b[127..120]) @ cmp_eq(a[119..112], b[119..112]) @
+  cmp_eq(a[111..104], b[111..104]) @ cmp_eq(a[103..96],  b[103..96])  @
+  cmp_eq(a[95..88],   b[95..88])   @ cmp_eq(a[87..80],   b[87..80])   @
+  cmp_eq(a[79..72],   b[79..72])   @ cmp_eq(a[71..64],   b[71..64])   @
+  cmp_eq(a[63..56],   b[63..56])   @ cmp_eq(a[55..48],   b[55..48])   @
+  cmp_eq(a[47..40],   b[47..40])   @ cmp_eq(a[39..32],   b[39..32])   @
+  cmp_eq(a[31..24],   b[31..24])   @ cmp_eq(a[23..16],   b[23..16])   @
+  cmp_eq(a[15..8],    b[15..8])    @ cmp_eq(a[7..0],     b[7..0])
 
 val vex_pcmpeqw_128 : (xmmword, xmmword) -> xmmword
 function vex_pcmpeqw_128(a, b) =
-  cmp_eq16(a[127..112], b[127..112]) @ cmp_eq16(a[111..96], b[111..96]) @
-  cmp_eq16(a[95..80],   b[95..80])   @ cmp_eq16(a[79..64],  b[79..64])  @
-  cmp_eq16(a[63..48],   b[63..48])   @ cmp_eq16(a[47..32],  b[47..32])  @
-  cmp_eq16(a[31..16],   b[31..16])   @ cmp_eq16(a[15..0],   b[15..0])
+  cmp_eq(a[127..112], b[127..112]) @ cmp_eq(a[111..96], b[111..96]) @
+  cmp_eq(a[95..80],   b[95..80])   @ cmp_eq(a[79..64],  b[79..64])  @
+  cmp_eq(a[63..48],   b[63..48])   @ cmp_eq(a[47..32],  b[47..32])  @
+  cmp_eq(a[31..16],   b[31..16])   @ cmp_eq(a[15..0],   b[15..0])
 
 // VPACKSSWB/VPACKUSWB/VPACKSSDW: pack with saturation
 val vex_packsswb_128 : (xmmword, xmmword) -> xmmword

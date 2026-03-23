@@ -77,10 +77,10 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt8(d[63..56], s[63..56]) @ cmp_gt8(d[55..48], s[55..48]) @
-                     cmp_gt8(d[47..40], s[47..40]) @ cmp_gt8(d[39..32], s[39..32]) @
-                     cmp_gt8(d[31..24], s[31..24]) @ cmp_gt8(d[23..16], s[23..16]) @
-                     cmp_gt8(d[15..8],  s[15..8])  @ cmp_gt8(d[7..0],   s[7..0]));
+      write_mm(dst, cmp_gt(d[63..56], s[63..56]) @ cmp_gt(d[55..48], s[55..48]) @
+                     cmp_gt(d[47..40], s[47..40]) @ cmp_gt(d[39..32], s[39..32]) @
+                     cmp_gt(d[31..24], s[31..24]) @ cmp_gt(d[23..16], s[23..16]) @
+                     cmp_gt(d[15..8],  s[15..8])  @ cmp_gt(d[7..0],   s[7..0]));
       mmx_touch()
     },
 
@@ -91,8 +91,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt16(d[63..48], s[63..48]) @ cmp_gt16(d[47..32], s[47..32]) @
-                     cmp_gt16(d[31..16], s[31..16]) @ cmp_gt16(d[15..0],  s[15..0]));
+      write_mm(dst, cmp_gt(d[63..48], s[63..48]) @ cmp_gt(d[47..32], s[47..32]) @
+                     cmp_gt(d[31..16], s[31..16]) @ cmp_gt(d[15..0],  s[15..0]));
       mmx_touch()
     },
 
@@ -103,7 +103,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt32(d[63..32], s[63..32]) @ cmp_gt32(d[31..0], s[31..0]));
+      write_mm(dst, cmp_gt(d[63..32], s[63..32]) @ cmp_gt(d[31..0], s[31..0]));
       mmx_touch()
     },
 
@@ -295,10 +295,10 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq8(d[63..56], s[63..56]) @ cmp_eq8(d[55..48], s[55..48]) @
-                     cmp_eq8(d[47..40], s[47..40]) @ cmp_eq8(d[39..32], s[39..32]) @
-                     cmp_eq8(d[31..24], s[31..24]) @ cmp_eq8(d[23..16], s[23..16]) @
-                     cmp_eq8(d[15..8],  s[15..8])  @ cmp_eq8(d[7..0],   s[7..0]));
+      write_mm(dst, cmp_eq(d[63..56], s[63..56]) @ cmp_eq(d[55..48], s[55..48]) @
+                     cmp_eq(d[47..40], s[47..40]) @ cmp_eq(d[39..32], s[39..32]) @
+                     cmp_eq(d[31..24], s[31..24]) @ cmp_eq(d[23..16], s[23..16]) @
+                     cmp_eq(d[15..8],  s[15..8])  @ cmp_eq(d[7..0],   s[7..0]));
       mmx_touch()
     },
 
@@ -309,8 +309,8 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq16(d[63..48], s[63..48]) @ cmp_eq16(d[47..32], s[47..32]) @
-                     cmp_eq16(d[31..16], s[31..16]) @ cmp_eq16(d[15..0], s[15..0]));
+      write_mm(dst, cmp_eq(d[63..48], s[63..48]) @ cmp_eq(d[47..32], s[47..32]) @
+                     cmp_eq(d[31..16], s[31..16]) @ cmp_eq(d[15..0], s[15..0]));
       mmx_touch()
     },
 
@@ -321,7 +321,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, rm);
       let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq32(d[63..32], s[63..32]) @ cmp_eq32(d[31..0], s[31..0]));
+      write_mm(dst, cmp_eq(d[63..32], s[63..32]) @ cmp_eq(d[31..0], s[31..0]));
       mmx_touch()
     },
 

@@ -485,6 +485,17 @@ function is_nonzero(v) = or_reduce(v)[0]
 val is_zero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
 function is_zero(v) = (~(or_reduce(v)))[0]
 
+// is_eq: 1 if a == b, 0 otherwise.
+val is_eq : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_eq(a, b) = is_zero(a ^ b)
+
+// is_gt: 1 if a > b (signed), 0 otherwise.
+val is_gt : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_gt(a, b) = {
+  let diff : bits('n + 1) = sign_extend(b) - sign_extend(a);
+  diff['n]
+}
+
 // Branchless blend: select a or b per element based on a single bit.
 // sel=0 → a, sel=1 → b.
 val blend : forall 'n, 0 < 'n. (bits('n), bits('n), bit) -> bits('n)

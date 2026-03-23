@@ -1798,7 +1798,7 @@ function avx_vpconflictd_128(src) = {
       if j < i then {
         let jlo : range(0, 96) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1817,7 +1817,7 @@ function avx_vpconflictd_256(src) = {
       if j < i then {
         let jlo : range(0, 224) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1836,7 +1836,7 @@ function avx_vpconflictd_512(src) = {
       if j < i then {
         let jlo : range(0, 480) = j * 32;
         let elem_j : dword = src[(jlo + 31)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 31)..ilo] = mask;
@@ -1855,7 +1855,7 @@ function avx_vpconflictq_128(src) = {
       if j < i then {
         let jlo : range(0, 64) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1874,7 +1874,7 @@ function avx_vpconflictq_256(src) = {
       if j < i then {
         let jlo : range(0, 192) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -1893,7 +1893,7 @@ function avx_vpconflictq_512(src) = {
       if j < i then {
         let jlo : range(0, 448) = j * 64;
         let elem_j : qword = src[(jlo + 63)..jlo];
-        mask[j] = is_zero(elem_i ^ elem_j);
+        mask[j] = is_eq(elem_i, elem_j);
       }
     };
     result[(ilo + 63)..ilo] = mask;
@@ -2603,7 +2603,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 1) {
             let lo : range(0, 64) = i * 64;
-            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
@@ -2614,7 +2614,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 3) {
             let lo : range(0, 192) = i * 64;
-            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
@@ -2625,7 +2625,7 @@ function dispatch_evex_arith(op, pfx) = {
           var mask : byte = 0x00;
           foreach (i from 0 to 7) {
             let lo : range(0, 448) = i * 64;
-            mask[i] = cmp_eq64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
           };
           let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
           write_kreg(dst_k, k_mask)
@@ -2652,7 +2652,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 1) {
           let lo : range(0, 64) = i * 64;
-          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
         };
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
@@ -2663,7 +2663,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 3) {
           let lo : range(0, 192) = i * 64;
-          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
         };
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
@@ -2674,7 +2674,7 @@ function dispatch_evex_arith(op, pfx) = {
         var mask : byte = 0x00;
         foreach (i from 0 to 7) {
           let lo : range(0, 448) = i * 64;
-          mask[i] = cmp_gt64(src1[(lo + 63)..lo], src2[(lo + 63)..lo])[0];
+          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
         };
         let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)

@@ -107,9 +107,9 @@ function avx_pminub_128(a, b) = {
   foreach (i from 0 to 15) {
     let lo = i * 8;
     let hi = lo + 7;
-    let av : byte = a[(hi)..(lo)];
-    let bv : byte = b[(hi)..(lo)];
-    r[(hi)..(lo)] = min_u8(av, bv)
+    let av : byte = a[hi..lo];
+    let bv : byte = b[hi..lo];
+    r[hi..lo] = min_u8(av, bv)
   };
   r
 }
@@ -133,7 +133,7 @@ function avx_pcmpeqb_mask_128(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo = i * 8; let hi = lo + 7;
-    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -143,7 +143,7 @@ function avx_pcmpeqb_mask_256(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo = i * 8; let hi = lo + 7;
-    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -153,7 +153,7 @@ function avx_pcmpeqb_mask_512(a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to 63) {
     let lo = i * 8; let hi = lo + 7;
-    r[i] = cmp_eq8(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -168,7 +168,7 @@ function avx_pcmpeqd_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 3) {
     let lo = i * 32; let hi = lo + 31;
-    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -178,7 +178,7 @@ function avx_pcmpeqd_mask_256(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo = i * 32; let hi = lo + 31;
-    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -188,7 +188,7 @@ function avx_pcmpeqd_mask_512(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo = i * 32; let hi = lo + 31;
-    r[i] = cmp_eq32(a[(hi)..(lo)], b[(hi)..(lo)])[0];
+    r[i] = is_eq(a[hi..lo], b[hi..lo]);
   };
   r
 }
@@ -604,7 +604,7 @@ function avx_pcmpgtb_mask_128(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
+    r[i] = is_gt(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -614,7 +614,7 @@ function avx_pcmpgtb_mask_256(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 248) = i * 8;
-    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
+    r[i] = is_gt(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -624,7 +624,7 @@ function avx_pcmpgtb_mask_512(a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to 63) {
     let lo : range(0, 504) = i * 8;
-    r[i] = cmp_gt8(a[(lo + 7)..lo], b[(lo + 7)..lo])[0];
+    r[i] = is_gt(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -634,7 +634,7 @@ function avx_pcmpgtw_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_gt(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -644,7 +644,7 @@ function avx_pcmpgtw_mask_256(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_gt(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -654,7 +654,7 @@ function avx_pcmpgtw_mask_512(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    r[i] = cmp_gt16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_gt(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -664,7 +664,7 @@ function avx_pcmpgtd_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
+    r[i] = is_gt(a[(lo + 31)..lo], b[(lo + 31)..lo]);
   };
   r
 }
@@ -674,7 +674,7 @@ function avx_pcmpgtd_mask_256(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 224) = i * 32;
-    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
+    r[i] = is_gt(a[(lo + 31)..lo], b[(lo + 31)..lo]);
   };
   r
 }
@@ -684,7 +684,7 @@ function avx_pcmpgtd_mask_512(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 480) = i * 32;
-    r[i] = cmp_gt32(a[(lo + 31)..lo], b[(lo + 31)..lo])[0];
+    r[i] = is_gt(a[(lo + 31)..lo], b[(lo + 31)..lo]);
   };
   r
 }
@@ -696,7 +696,7 @@ function avx_pcmpeqw_mask_128(a, b) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_eq(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -706,7 +706,7 @@ function avx_pcmpeqw_mask_256(a, b) = {
   var r : word = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 240) = i * 16;
-    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_eq(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -716,7 +716,7 @@ function avx_pcmpeqw_mask_512(a, b) = {
   var r : dword = zeros();
   foreach (i from 0 to 31) {
     let lo : range(0, 496) = i * 16;
-    r[i] = cmp_eq16(a[(lo + 15)..lo], b[(lo + 15)..lo])[0];
+    r[i] = is_eq(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }

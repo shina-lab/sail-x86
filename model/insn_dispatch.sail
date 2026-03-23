@@ -548,19 +548,19 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                 };
                 crc32c_16(crc, src)
               },
+              32 => {
+                let src : bits(32) = match rm {
+                  RM_reg(_) => read_rm_val(rm, 32, pfx.has_rex)[31..0],
+                  RM_mem(seg, offset) => seg_read32(seg, offset),
+                };
+                crc32c_32(crc, src)
+              },
               64 => {
                 let src : bits(64) = match rm {
                   RM_reg(_) => read_rm_val(rm, 64, pfx.has_rex),
                   RM_mem(seg, offset) => seg_read64(seg, offset),
                 };
                 crc32c_64(crc, src)
-              },
-              _ => {
-                let src : bits(32) = match rm {
-                  RM_reg(_) => read_rm_val(rm, 32, pfx.has_rex)[31..0],
-                  RM_mem(seg, offset) => seg_read32(seg, offset),
-                };
-                crc32c_32(crc, src)
               },
             };
             write_gpr(if pfx.rex_w then 64 else 32, reg, zero_extend(result))

@@ -1969,7 +1969,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       foreach (i from 0 to 3) {
         let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];
         let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
-        result[(i * 64 + 63) .. (i * 64)] = cmp_gt64(a, b)
+        result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
       };
       write_ymm(dst, result)
     } else {
@@ -1979,7 +1979,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       foreach (i from 0 to 1) {
         let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];
         let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
-        result[(i * 64 + 63) .. (i * 64)] = cmp_gt64(a, b)
+        result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
       };
       write_xmm(dst, result)
     }

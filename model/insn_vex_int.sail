@@ -595,16 +595,16 @@ function dispatch_vex_0f_int(op, pfx) = {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src_ymm(modrm, rm, pfx);
       write_ymm(dst,
-        cmp_eq32(src1[255..224], src2[255..224]) @ cmp_eq32(src1[223..192], src2[223..192]) @
-        cmp_eq32(src1[191..160], src2[191..160]) @ cmp_eq32(src1[159..128], src2[159..128]) @
-        cmp_eq32(src1[127..96], src2[127..96])   @ cmp_eq32(src1[95..64], src2[95..64]) @
-        cmp_eq32(src1[63..32], src2[63..32])     @ cmp_eq32(src1[31..0], src2[31..0]))
+        cmp_eq(src1[255..224], src2[255..224]) @ cmp_eq(src1[223..192], src2[223..192]) @
+        cmp_eq(src1[191..160], src2[191..160]) @ cmp_eq(src1[159..128], src2[159..128]) @
+        cmp_eq(src1[127..96], src2[127..96])   @ cmp_eq(src1[95..64], src2[95..64]) @
+        cmp_eq(src1[63..32], src2[63..32])     @ cmp_eq(src1[31..0], src2[31..0]))
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src_xmm(modrm, rm, pfx);
       write_xmm(dst,
-        cmp_eq32(src1[127..96], src2[127..96]) @ cmp_eq32(src1[95..64], src2[95..64]) @
-        cmp_eq32(src1[63..32], src2[63..32])   @ cmp_eq32(src1[31..0], src2[31..0]))
+        cmp_eq(src1[127..96], src2[127..96]) @ cmp_eq(src1[95..64], src2[95..64]) @
+        cmp_eq(src1[63..32], src2[63..32])   @ cmp_eq(src1[31..0], src2[31..0]))
     }
   },
 

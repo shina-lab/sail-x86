@@ -237,79 +237,17 @@ function avg16(a, b) = {
   sum[16..1]
 }
 
-// PCMPEQB/PCMPEQW/PCMPEQD — Compare Packed Integers for Equal
-// PCMPGTB/PCMPGTW/PCMPGTD — Compare Packed Signed Integers for Greater Than
+// PCMPEQB/PCMPEQW/PCMPEQD/PCMPEQQ — Compare Packed Integers for Equal
+// PCMPGTB/PCMPGTW/PCMPGTD/PCMPGTQ — Compare Packed Signed Integers for Greater Than
 // Result is all-ones if true, all-zeros if false per lane.
-//
-// All comparison helpers use the wide intermediate in TWO extract positions
-// (high bit + low bits) to prevent Isla from inlining the subtraction and
-// then incorrectly distributing extract over bvsub.
-//
-// cmp_eq: (0 @ (a^b)) - 1 borrows iff a == b.
-//   When a==b: result = 0x1FF, low=0xFF, high=1 → 0xFF & 0xFF = 0xFF.
-//   When a!=b: result = [0,0xFE], low=xor-1, high=0 → anything & 0x00 = 0x00.
-//
-// cmp_gt (signed): convert to unsigned via XOR sign bit, compute sat_sub,
-//   then convert nonzero to all-ones mask using the borrow trick.
 
-val cmp_eq8 : (byte, byte) -> byte
-function cmp_eq8(a, b) = {
-  let xd : bits(9) = (0b0 @ (a ^ b)) - 1;
-  xd[7..0] & sign_extend(xd[8..8])
-}
+// All-ones if a == b, all-zeros otherwise
+val cmp_eq : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function cmp_eq(a, b) = sign_extend(is_eq(a, b))
 
-val cmp_gt8 : (byte, byte) -> byte
-function cmp_gt8(a, b) = {
-  // a > b signed iff (a^0x80) > (b^0x80) unsigned iff sat_sub > 0
-  let ds : bits(9) = (0b0 @ (a ^ 0x80)) - (0b0 @ (b ^ 0x80));
-  let d : byte = ds[7..0] & sign_extend(~(ds[8..8]));
-  // d != 0 → borrow on d-1 is 0 → mask = ~(low & 0xFF) = 0xFF
-  // d == 0 → borrow on d-1 is 1 → mask = ~(0xFF & 0xFF) = 0x00
-  let probe : bits(9) = (0b0 @ d) - 1;
-  ~(probe[7..0] & sign_extend(probe[8..8]))
-}
-
-val cmp_eq16 : (word, word) -> word
-function cmp_eq16(a, b) = {
-  let xd : bits(17) = (0b0 @ (a ^ b)) - 1;
-  xd[15..0] & sign_extend(xd[16..16])
-}
-
-val cmp_gt16 : (word, word) -> word
-function cmp_gt16(a, b) = {
-  let ds : bits(17) = (0b0 @ (a ^ 0x8000)) - (0b0 @ (b ^ 0x8000));
-  let d : word = ds[15..0] & sign_extend(~(ds[16..16]));
-  let probe : bits(17) = (0b0 @ d) - 1;
-  ~(probe[15..0] & sign_extend(probe[16..16]))
-}
-
-val cmp_eq32 : (dword, dword) -> dword
-function cmp_eq32(a, b) = {
-  let xd : bits(33) = (0b0 @ (a ^ b)) - 1;
-  xd[31..0] & sign_extend(xd[32..32])
-}
-
-val cmp_gt32 : (dword, dword) -> dword
-function cmp_gt32(a, b) = {
-  let ds : bits(33) = (0b0 @ (a ^ 0x80000000)) - (0b0 @ (b ^ 0x80000000));
-  let d : dword = ds[31..0] & sign_extend(~(ds[32..32]));
-  let probe : bits(33) = (0b0 @ d) - 1;
-  ~(probe[31..0] & sign_extend(probe[32..32]))
-}
-
-val cmp_eq64 : (qword, qword) -> qword
-function cmp_eq64(a, b) = {
-  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1));
-  sign_extend(xd[64..64])
-}
-
-val cmp_gt64 : (qword, qword) -> qword
-function cmp_gt64(a, b) = {
-  let a65 : bits(65) = sign_extend(a);
-  let b65 : bits(65) = sign_extend(b);
-  let diff : bits(65) = b65 - a65;
-  sign_extend(diff[64..64])
-}
+// All-ones if a > b (signed), all-zeros otherwise
+val cmp_gt : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function cmp_gt(a, b) = sign_extend(is_gt(a, b))
 
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
 //
@@ -832,14 +770,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_gt8(a[127..120], b[127..120]) @ cmp_gt8(a[119..112], b[119..112]) @
-              cmp_gt8(a[111..104], b[111..104]) @ cmp_gt8(a[103..96], b[103..96]) @
-              cmp_gt8(a[95..88], b[95..88]) @ cmp_gt8(a[87..80], b[87..80]) @
-              cmp_gt8(a[79..72], b[79..72]) @ cmp_gt8(a[71..64], b[71..64]) @
-              cmp_gt8(a[63..56], b[63..56]) @ cmp_gt8(a[55..48], b[55..48]) @
-              cmp_gt8(a[47..40], b[47..40]) @ cmp_gt8(a[39..32], b[39..32]) @
-              cmp_gt8(a[31..24], b[31..24]) @ cmp_gt8(a[23..16], b[23..16]) @
-              cmp_gt8(a[15..8], b[15..8]) @ cmp_gt8(a[7..0], b[7..0]);
+              cmp_gt(a[127..120], b[127..120]) @ cmp_gt(a[119..112], b[119..112]) @
+              cmp_gt(a[111..104], b[111..104]) @ cmp_gt(a[103..96], b[103..96]) @
+              cmp_gt(a[95..88], b[95..88]) @ cmp_gt(a[87..80], b[87..80]) @
+              cmp_gt(a[79..72], b[79..72]) @ cmp_gt(a[71..64], b[71..64]) @
+              cmp_gt(a[63..56], b[63..56]) @ cmp_gt(a[55..48], b[55..48]) @
+              cmp_gt(a[47..40], b[47..40]) @ cmp_gt(a[39..32], b[39..32]) @
+              cmp_gt(a[31..24], b[31..24]) @ cmp_gt(a[23..16], b[23..16]) @
+              cmp_gt(a[15..8], b[15..8]) @ cmp_gt(a[7..0], b[7..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPGTW xmm1, xmm2/m128
@@ -847,10 +785,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_gt16(a[127..112], b[127..112]) @ cmp_gt16(a[111..96], b[111..96]) @
-              cmp_gt16(a[95..80], b[95..80]) @ cmp_gt16(a[79..64], b[79..64]) @
-              cmp_gt16(a[63..48], b[63..48]) @ cmp_gt16(a[47..32], b[47..32]) @
-              cmp_gt16(a[31..16], b[31..16]) @ cmp_gt16(a[15..0], b[15..0]);
+              cmp_gt(a[127..112], b[127..112]) @ cmp_gt(a[111..96], b[111..96]) @
+              cmp_gt(a[95..80], b[95..80]) @ cmp_gt(a[79..64], b[79..64]) @
+              cmp_gt(a[63..48], b[63..48]) @ cmp_gt(a[47..32], b[47..32]) @
+              cmp_gt(a[31..16], b[31..16]) @ cmp_gt(a[15..0], b[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPGTD xmm1, xmm2/m128
@@ -858,10 +796,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_gt32(a[127..96], b[127..96]) @
-              cmp_gt32(a[95..64], b[95..64]) @
-              cmp_gt32(a[63..32], b[63..32]) @
-              cmp_gt32(a[31..0], b[31..0]);
+              cmp_gt(a[127..96], b[127..96]) @
+              cmp_gt(a[95..64], b[95..64]) @
+              cmp_gt(a[63..32], b[63..32]) @
+              cmp_gt(a[31..0], b[31..0]);
             write_xmm_legacy(xreg, r)
           },
           // PACKUSWB xmm1, xmm2/m128
@@ -1215,14 +1153,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_eq8(a[127..120], b[127..120]) @ cmp_eq8(a[119..112], b[119..112]) @
-              cmp_eq8(a[111..104], b[111..104]) @ cmp_eq8(a[103..96], b[103..96]) @
-              cmp_eq8(a[95..88], b[95..88]) @ cmp_eq8(a[87..80], b[87..80]) @
-              cmp_eq8(a[79..72], b[79..72]) @ cmp_eq8(a[71..64], b[71..64]) @
-              cmp_eq8(a[63..56], b[63..56]) @ cmp_eq8(a[55..48], b[55..48]) @
-              cmp_eq8(a[47..40], b[47..40]) @ cmp_eq8(a[39..32], b[39..32]) @
-              cmp_eq8(a[31..24], b[31..24]) @ cmp_eq8(a[23..16], b[23..16]) @
-              cmp_eq8(a[15..8], b[15..8]) @ cmp_eq8(a[7..0], b[7..0]);
+              cmp_eq(a[127..120], b[127..120]) @ cmp_eq(a[119..112], b[119..112]) @
+              cmp_eq(a[111..104], b[111..104]) @ cmp_eq(a[103..96], b[103..96]) @
+              cmp_eq(a[95..88], b[95..88]) @ cmp_eq(a[87..80], b[87..80]) @
+              cmp_eq(a[79..72], b[79..72]) @ cmp_eq(a[71..64], b[71..64]) @
+              cmp_eq(a[63..56], b[63..56]) @ cmp_eq(a[55..48], b[55..48]) @
+              cmp_eq(a[47..40], b[47..40]) @ cmp_eq(a[39..32], b[39..32]) @
+              cmp_eq(a[31..24], b[31..24]) @ cmp_eq(a[23..16], b[23..16]) @
+              cmp_eq(a[15..8], b[15..8]) @ cmp_eq(a[7..0], b[7..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPEQW xmm1, xmm2/m128
@@ -1230,10 +1168,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_eq16(a[127..112], b[127..112]) @ cmp_eq16(a[111..96], b[111..96]) @
-              cmp_eq16(a[95..80], b[95..80]) @ cmp_eq16(a[79..64], b[79..64]) @
-              cmp_eq16(a[63..48], b[63..48]) @ cmp_eq16(a[47..32], b[47..32]) @
-              cmp_eq16(a[31..16], b[31..16]) @ cmp_eq16(a[15..0], b[15..0]);
+              cmp_eq(a[127..112], b[127..112]) @ cmp_eq(a[111..96], b[111..96]) @
+              cmp_eq(a[95..80], b[95..80]) @ cmp_eq(a[79..64], b[79..64]) @
+              cmp_eq(a[63..48], b[63..48]) @ cmp_eq(a[47..32], b[47..32]) @
+              cmp_eq(a[31..16], b[31..16]) @ cmp_eq(a[15..0], b[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPEQD xmm1, xmm2/m128
@@ -1241,10 +1179,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let a : xmmword = read_xmm(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
-              cmp_eq32(a[127..96], b[127..96]) @
-              cmp_eq32(a[95..64], b[95..64]) @
-              cmp_eq32(a[63..32], b[63..32]) @
-              cmp_eq32(a[31..0], b[31..0]);
+              cmp_eq(a[127..96], b[127..96]) @
+              cmp_eq(a[95..64], b[95..64]) @
+              cmp_eq(a[63..32], b[63..32]) @
+              cmp_eq(a[31..0], b[31..0]);
             write_xmm_legacy(xreg, r)
           },
         }
@@ -2662,7 +2600,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     41 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let r : xmmword = cmp_eq64(a[127..64], b[127..64]) @ cmp_eq64(a[63..0], b[63..0]);
+      let r : xmmword = cmp_eq(a[127..64], b[127..64]) @ cmp_eq(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
     },
     // MOVNTDQA xmm, m128
@@ -2741,7 +2679,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     55 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let r : xmmword = cmp_gt64(a[127..64], b[127..64]) @ cmp_gt64(a[63..0], b[63..0]);
+      let r : xmmword = cmp_gt(a[127..64], b[127..64]) @ cmp_gt(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
     },
 
