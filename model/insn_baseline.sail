@@ -1012,12 +1012,23 @@ function dispatch_2byte_gpr(op, pfx) = {
       if cur_cpl != 0 then raise_GP0();
       let ecx : dword = read_gpr32(RCX);
       let msr_val : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
+
       // Handle EFER specially since it has a Sail register
-      if ecx == 0xC0000080 then EFER = msr_val
-      else if ecx == 0xC0000100 then SegCache[FS].seg_base = msr_val
-      else if ecx == 0xC0000101 then SegCache[GS].seg_base = msr_val
-      else if ecx == 0xC0000102 then KERNEL_GS_BASE = msr_val
-      else __wrmsr(ecx, msr_val)
+      if ecx == 0xC0000080 then {
+        EFER = msr_val
+      } else if ecx == 0xC0000100 then {
+        SegCache[FS].seg_base = msr_val
+      } else if ecx == 0xC0000101 then {
+        SegCache[GS].seg_base = msr_val
+      } else if ecx == 0xC0000102 then {
+        KERNEL_GS_BASE = msr_val
+      } else if ecx == 0x00000DA0 then {
+        // IA32_XSS (0xDA0): supervisor state components for XSAVES/XRSTORS.
+        // No supervisor components supported, so only 0 is valid.
+        if msr_val != zeros() then raise_GP0()
+      } else {
+        __wrmsr(ecx, msr_val)
+      }
     },
 
     // 0F 18-1E: Prefetch hints / multi-byte NOPs
@@ -1093,6 +1104,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         else if ecx == 0xC0000100 then SegCache[FS].seg_base
         else if ecx == 0xC0000101 then SegCache[GS].seg_base
         else if ecx == 0xC0000102 then KERNEL_GS_BASE
+        // IA32_XSS (0xDA0): always 0 (no supervisor state components supported)
+        else if ecx == 0x00000DA0 then zeros()
         else __rdmsr(ecx);
       write_gpr32(RAX, msr_val[31..0]);
       write_gpr32(RDX, msr_val[63..32])

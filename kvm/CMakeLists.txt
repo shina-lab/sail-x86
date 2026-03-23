@@ -272,6 +272,7 @@ set(KVM_CATEGORIES
   BCD
   "XSAVEC roundtrip"
   XGETBV
+  IA32_XSS
   "CPUID XSAVE"
 )
 

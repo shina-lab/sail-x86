@@ -111,6 +111,54 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       s, FL_NONE});
   }
 
+  // =====================================================================
+  // IA32_XSS MSR (0xDA0) — supervisor state components
+  // =====================================================================
+  cat = "IA32_XSS";
+
+  // RDMSR IA32_XSS: should return 0 (no supervisor components supported)
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rcx = 0xDA0;           // IA32_XSS
+    // 0F 32 = RDMSR
+    tests.push_back({"rdmsr IA32_XSS", cat,
+                      {0x0F, 0x32},
+                      s, FL_NONE});
+  }
+
+  // WRMSR IA32_XSS with 0: should succeed (no-op)
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rcx = 0xDA0;
+    s.rax = 0;               // low 32 bits = 0
+    s.rdx = 0;               // high 32 bits = 0
+    // 0F 30 = WRMSR
+    tests.push_back({"wrmsr IA32_XSS zero", cat,
+                      {0x0F, 0x30},
+                      s, FL_NONE});
+  }
+
+  // WRMSR IA32_XSS with nonzero: should #GP (no bits supported)
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rcx = 0xDA0;
+    s.rax = 0x100;           // bit 8 (PT state) — not supported
+    s.rdx = 0;
+
+    TestCase tc;
+    tc.name = "wrmsr IA32_XSS nonzero #GP";
+    tc.category = cat;
+    tc.code = {0x0F, 0x30};
+    tc.initial = s;
+    tc.flags_mask = FL_NONE;
+    tc.expect_fault = true;
+    tc.expected_vector = 13;  // #GP
+    tests.push_back(tc);
+  }
+
   // Subleaf 0 tests omitted: EAX/ECX mismatch due to host PKRU support
   // (KVM XCR0_SUPPORTED=0x2E7 includes bit 9, our model doesn't have PKRU).
   // The dynamic EBX values (0x240, 0x340, 0x980) were verified to match.
