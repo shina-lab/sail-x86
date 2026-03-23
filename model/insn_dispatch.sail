@@ -313,38 +313,13 @@ function exec_scas(os, asz) = {
   // SCAS destination is always ES:DI (not overridable).
   let sz = os / 8;
   let lin = seg_linear(ES, off, sz);
-  match os {
-    8 => {
-      let a : byte = read_gpr8l(RAX);
-      let b : byte = mem_read8(lin);
-      update_flags_sub(a - b, a, b);
-    },
-    16 => {
-      let a : word = read_gpr16(RAX);
-      let b : word = mem_read16(lin);
-      update_flags_sub(a - b, a, b);
-    },
-    32 => {
-      let a : dword = read_gpr32(RAX);
-      let b : dword = mem_read32(lin);
-      update_flags_sub(a - b, a, b);
-    },
-    64 => {
-      let a : qword = read_gpr64(RAX);
-      let b : qword = mem_read64(lin);
-      update_flags_sub(a - b, a, b);
-    },
-  };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
+  let a = read_gpr(os, RAX)[(os - 1)..0];
+  let b = mem_read(lin, os / 8);
+  update_flags_sub(a - b, a, b);
   if DF == 0b0 then
-    write_index_dst(asz, off + delta)
+    write_index_dst(asz, off + os / 8)
   else
-    write_index_dst(asz, off - delta)
+    write_index_dst(asz, off - os / 8)
 }
 
 val exec_cmps : (operand_size, AddressSize, Prefixes) -> unit
@@ -359,40 +334,15 @@ function exec_cmps(os, asz, pfx) = {
   let sz = os / 8;
   let src_lin = seg_linear(src_seg, src_off, sz);
   let dst_lin = seg_linear(ES, dst_off, sz);
-  match os {
-    8 => {
-      let a : byte = mem_read8(src_lin);
-      let b : byte = mem_read8(dst_lin);
-      update_flags_sub(a - b, a, b);
-    },
-    16 => {
-      let a : word = mem_read16(src_lin);
-      let b : word = mem_read16(dst_lin);
-      update_flags_sub(a - b, a, b);
-    },
-    32 => {
-      let a : dword = mem_read32(src_lin);
-      let b : dword = mem_read32(dst_lin);
-      update_flags_sub(a - b, a, b);
-    },
-    64 => {
-      let a : qword = mem_read64(src_lin);
-      let b : qword = mem_read64(dst_lin);
-      update_flags_sub(a - b, a, b);
-    },
-  };
-  let delta : qword = match os {
-    8  => 0x0000000000000001,
-    16 => 0x0000000000000002,
-    32 => 0x0000000000000004,
-    64 => 0x0000000000000008,
-  };
+  let a = mem_read(src_lin, os / 8);
+  let b = mem_read(dst_lin, os / 8);
+  update_flags_sub(a - b, a, b);
   if DF == 0b0 then {
-    write_index_src(asz, src_off + delta);
-    write_index_dst(asz, dst_off + delta);
+    write_index_src(asz, src_off + os / 8);
+    write_index_dst(asz, dst_off + os / 8);
   } else {
-    write_index_src(asz, src_off - delta);
-    write_index_dst(asz, dst_off - delta);
+    write_index_src(asz, src_off - os / 8);
+    write_index_dst(asz, dst_off - os / 8);
   }
 }
 
