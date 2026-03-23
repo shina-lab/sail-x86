@@ -451,10 +451,10 @@ function avx_phsubd_256(a, b) =
 // VPHSUBSW: horizontal subtract packed signed words with saturation (one 128-bit lane)
 val avx_phsubsw_128 : (xmmword, xmmword) -> xmmword
 function avx_phsubsw_128(a, b) =
-  sat_sub_s16(b[111..96], b[127..112]) @ sat_sub_s16(b[79..64], b[95..80]) @
-  sat_sub_s16(b[47..32], b[63..48]) @ sat_sub_s16(b[15..0], b[31..16]) @
-  sat_sub_s16(a[111..96], a[127..112]) @ sat_sub_s16(a[79..64], a[95..80]) @
-  sat_sub_s16(a[47..32], a[63..48]) @ sat_sub_s16(a[15..0], a[31..16])
+  sat_sub_s(b[111..96], b[127..112]) @ sat_sub_s(b[79..64], b[95..80]) @
+  sat_sub_s(b[47..32], b[63..48]) @ sat_sub_s(b[15..0], b[31..16]) @
+  sat_sub_s(a[111..96], a[127..112]) @ sat_sub_s(a[79..64], a[95..80]) @
+  sat_sub_s(a[47..32], a[63..48]) @ sat_sub_s(a[15..0], a[31..16])
 
 val avx_phsubsw_256 : (ymmword, ymmword) -> ymmword
 function avx_phsubsw_256(a, b) =
@@ -926,82 +926,82 @@ function vex_paddusw_128(a, b) =
 
 val vex_psubsb_128 : (xmmword, xmmword) -> xmmword
 function vex_psubsb_128(a, b) =
-  sat_sub_s8(a[127..120], b[127..120]) @ sat_sub_s8(a[119..112], b[119..112]) @
-  sat_sub_s8(a[111..104], b[111..104]) @ sat_sub_s8(a[103..96],  b[103..96])  @
-  sat_sub_s8(a[95..88],   b[95..88])   @ sat_sub_s8(a[87..80],   b[87..80])   @
-  sat_sub_s8(a[79..72],   b[79..72])   @ sat_sub_s8(a[71..64],   b[71..64])   @
-  sat_sub_s8(a[63..56],   b[63..56])   @ sat_sub_s8(a[55..48],   b[55..48])   @
-  sat_sub_s8(a[47..40],   b[47..40])   @ sat_sub_s8(a[39..32],   b[39..32])   @
-  sat_sub_s8(a[31..24],   b[31..24])   @ sat_sub_s8(a[23..16],   b[23..16])   @
-  sat_sub_s8(a[15..8],    b[15..8])    @ sat_sub_s8(a[7..0],     b[7..0])
+  sat_sub_s(a[127..120], b[127..120]) @ sat_sub_s(a[119..112], b[119..112]) @
+  sat_sub_s(a[111..104], b[111..104]) @ sat_sub_s(a[103..96],  b[103..96])  @
+  sat_sub_s(a[95..88],   b[95..88])   @ sat_sub_s(a[87..80],   b[87..80])   @
+  sat_sub_s(a[79..72],   b[79..72])   @ sat_sub_s(a[71..64],   b[71..64])   @
+  sat_sub_s(a[63..56],   b[63..56])   @ sat_sub_s(a[55..48],   b[55..48])   @
+  sat_sub_s(a[47..40],   b[47..40])   @ sat_sub_s(a[39..32],   b[39..32])   @
+  sat_sub_s(a[31..24],   b[31..24])   @ sat_sub_s(a[23..16],   b[23..16])   @
+  sat_sub_s(a[15..8],    b[15..8])    @ sat_sub_s(a[7..0],     b[7..0])
 
 val vex_psubsw_128 : (xmmword, xmmword) -> xmmword
 function vex_psubsw_128(a, b) =
-  sat_sub_s16(a[127..112], b[127..112]) @ sat_sub_s16(a[111..96], b[111..96]) @
-  sat_sub_s16(a[95..80],   b[95..80])   @ sat_sub_s16(a[79..64],  b[79..64])  @
-  sat_sub_s16(a[63..48],   b[63..48])   @ sat_sub_s16(a[47..32],  b[47..32])  @
-  sat_sub_s16(a[31..16],   b[31..16])   @ sat_sub_s16(a[15..0],   b[15..0])
+  sat_sub_s(a[127..112], b[127..112]) @ sat_sub_s(a[111..96], b[111..96]) @
+  sat_sub_s(a[95..80],   b[95..80])   @ sat_sub_s(a[79..64],  b[79..64])  @
+  sat_sub_s(a[63..48],   b[63..48])   @ sat_sub_s(a[47..32],  b[47..32])  @
+  sat_sub_s(a[31..16],   b[31..16])   @ sat_sub_s(a[15..0],   b[15..0])
 
 val vex_psubusb_128 : (xmmword, xmmword) -> xmmword
 function vex_psubusb_128(a, b) =
-  sat_sub_u8(a[127..120], b[127..120]) @ sat_sub_u8(a[119..112], b[119..112]) @
-  sat_sub_u8(a[111..104], b[111..104]) @ sat_sub_u8(a[103..96],  b[103..96])  @
-  sat_sub_u8(a[95..88],   b[95..88])   @ sat_sub_u8(a[87..80],   b[87..80])   @
-  sat_sub_u8(a[79..72],   b[79..72])   @ sat_sub_u8(a[71..64],   b[71..64])   @
-  sat_sub_u8(a[63..56],   b[63..56])   @ sat_sub_u8(a[55..48],   b[55..48])   @
-  sat_sub_u8(a[47..40],   b[47..40])   @ sat_sub_u8(a[39..32],   b[39..32])   @
-  sat_sub_u8(a[31..24],   b[31..24])   @ sat_sub_u8(a[23..16],   b[23..16])   @
-  sat_sub_u8(a[15..8],    b[15..8])    @ sat_sub_u8(a[7..0],     b[7..0])
+  sat_sub_u(a[127..120], b[127..120]) @ sat_sub_u(a[119..112], b[119..112]) @
+  sat_sub_u(a[111..104], b[111..104]) @ sat_sub_u(a[103..96],  b[103..96])  @
+  sat_sub_u(a[95..88],   b[95..88])   @ sat_sub_u(a[87..80],   b[87..80])   @
+  sat_sub_u(a[79..72],   b[79..72])   @ sat_sub_u(a[71..64],   b[71..64])   @
+  sat_sub_u(a[63..56],   b[63..56])   @ sat_sub_u(a[55..48],   b[55..48])   @
+  sat_sub_u(a[47..40],   b[47..40])   @ sat_sub_u(a[39..32],   b[39..32])   @
+  sat_sub_u(a[31..24],   b[31..24])   @ sat_sub_u(a[23..16],   b[23..16])   @
+  sat_sub_u(a[15..8],    b[15..8])    @ sat_sub_u(a[7..0],     b[7..0])
 
 val vex_psubusw_128 : (xmmword, xmmword) -> xmmword
 function vex_psubusw_128(a, b) =
-  sat_sub_u16(a[127..112], b[127..112]) @ sat_sub_u16(a[111..96], b[111..96]) @
-  sat_sub_u16(a[95..80],   b[95..80])   @ sat_sub_u16(a[79..64],  b[79..64])  @
-  sat_sub_u16(a[63..48],   b[63..48])   @ sat_sub_u16(a[47..32],  b[47..32])  @
-  sat_sub_u16(a[31..16],   b[31..16])   @ sat_sub_u16(a[15..0],   b[15..0])
+  sat_sub_u(a[127..112], b[127..112]) @ sat_sub_u(a[111..96], b[111..96]) @
+  sat_sub_u(a[95..80],   b[95..80])   @ sat_sub_u(a[79..64],  b[79..64])  @
+  sat_sub_u(a[63..48],   b[63..48])   @ sat_sub_u(a[47..32],  b[47..32])  @
+  sat_sub_u(a[31..16],   b[31..16])   @ sat_sub_u(a[15..0],   b[15..0])
 
 // Packed shift helpers for 128-bit lanes
-val vex_psrlw_128 : (xmmword, int) -> xmmword
+val vex_psrlw_128 : (xmmword, nat) -> xmmword
 function vex_psrlw_128(a, c) =
-  srl16(a[127..112], c) @ srl16(a[111..96], c) @
-  srl16(a[95..80], c)   @ srl16(a[79..64], c)  @
-  srl16(a[63..48], c)   @ srl16(a[47..32], c)  @
-  srl16(a[31..16], c)   @ srl16(a[15..0], c)
+  (a[127..112] >> c) @ (a[111..96] >> c) @
+  (a[95..80] >> c)   @ (a[79..64] >> c)  @
+  (a[63..48] >> c)   @ (a[47..32] >> c)  @
+  (a[31..16] >> c)   @ (a[15..0] >> c)
 
-val vex_psrld_128 : (xmmword, int) -> xmmword
+val vex_psrld_128 : (xmmword, nat) -> xmmword
 function vex_psrld_128(a, c) =
-  srl32(a[127..96], c) @ srl32(a[95..64], c) @
-  srl32(a[63..32], c)  @ srl32(a[31..0], c)
+  (a[127..96] >> c) @ (a[95..64] >> c) @
+  (a[63..32] >> c)  @ (a[31..0] >> c)
 
-val vex_psrlq_128 : (xmmword, int) -> xmmword
+val vex_psrlq_128 : (xmmword, nat) -> xmmword
 function vex_psrlq_128(a, c) =
-  srl64(a[127..64], c) @ srl64(a[63..0], c)
+  (a[127..64] >> c) @ (a[63..0] >> c)
 
-val vex_psraw_128 : (xmmword, int) -> xmmword
+val vex_psraw_128 : (xmmword, nat) -> xmmword
 function vex_psraw_128(a, c) =
-  sra16(a[127..112], c) @ sra16(a[111..96], c) @
-  sra16(a[95..80], c)   @ sra16(a[79..64], c)  @
-  sra16(a[63..48], c)   @ sra16(a[47..32], c)  @
-  sra16(a[31..16], c)   @ sra16(a[15..0], c)
+  (a[127..112] >>> c) @ (a[111..96] >>> c) @
+  (a[95..80] >>> c)   @ (a[79..64] >>> c)  @
+  (a[63..48] >>> c)   @ (a[47..32] >>> c)  @
+  (a[31..16] >>> c)   @ (a[15..0] >>> c)
 
-val vex_psrad_128 : (xmmword, int) -> xmmword
+val vex_psrad_128 : (xmmword, nat) -> xmmword
 function vex_psrad_128(a, c) =
-  sra32(a[127..96], c) @ sra32(a[95..64], c) @
-  sra32(a[63..32], c)  @ sra32(a[31..0], c)
+  (a[127..96] >>> c) @ (a[95..64] >>> c) @
+  (a[63..32] >>> c)  @ (a[31..0] >>> c)
 
-val vex_psllw_128 : (xmmword, int) -> xmmword
+val vex_psllw_128 : (xmmword, nat) -> xmmword
 function vex_psllw_128(a, c) =
-  sll16(a[127..112], c) @ sll16(a[111..96], c) @
-  sll16(a[95..80], c)   @ sll16(a[79..64], c)  @
-  sll16(a[63..48], c)   @ sll16(a[47..32], c)  @
-  sll16(a[31..16], c)   @ sll16(a[15..0], c)
+  (a[127..112] << c) @ (a[111..96] << c) @
+  (a[95..80] << c)   @ (a[79..64] << c)  @
+  (a[63..48] << c)   @ (a[47..32] << c)  @
+  (a[31..16] << c)   @ (a[15..0] << c)
 
-val vex_pslld_128 : (xmmword, int) -> xmmword
+val vex_pslld_128 : (xmmword, nat) -> xmmword
 function vex_pslld_128(a, c) =
-  sll32(a[127..96], c) @ sll32(a[95..64], c) @
-  sll32(a[63..32], c)  @ sll32(a[31..0], c)
+  (a[127..96] << c) @ (a[95..64] << c) @
+  (a[63..32] << c)  @ (a[31..0] << c)
 
-val vex_psllq_128 : (xmmword, int) -> xmmword
+val vex_psllq_128 : (xmmword, nat) -> xmmword
 function vex_psllq_128(a, c) =
-  sll64(a[127..64], c) @ sll64(a[63..0], c)
+  (a[127..64] << c) @ (a[63..0] << c)
 

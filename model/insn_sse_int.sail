@@ -492,74 +492,26 @@ function psign32(a, b) = {
 // PSRLW/PSRLD/PSRLQ — Shift Packed Data Right Logical
 // PSRAW/PSRAD — Shift Packed Data Right Arithmetic
 // Shift count from imm8 or XMM. No flags affected.
-val sll16 : (word, int) -> word
-function sll16(v, count) = { assert(count >= 0); v << count }
-
-val sll32 : (dword, int) -> dword
-function sll32(v, count) = { assert(count >= 0); v << count }
-
-val sll64 : (qword, int) -> qword
-function sll64(v, count) = { assert(count >= 0); v << count }
-
-val srl16 : (word, int) -> word
-function srl16(v, count) = { assert(count >= 0); v >> count }
-
-val srl32 : (dword, int) -> dword
-function srl32(v, count) = { assert(count >= 0); v >> count }
-
-val srl64 : (qword, int) -> qword
-function srl64(v, count) = { assert(count >= 0); v >> count }
-
-val sra16 : (word, int) -> word
-function sra16(v, count) = { assert(count >= 0); sail_arith_shiftright(v, count) }
-
-val sra32 : (dword, int) -> dword
-function sra32(v, count) = { assert(count >= 0); sail_arith_shiftright(v, count) }
 
 // PSUBSB/PSUBSW — Subtract Packed Signed Integers with Signed Saturation
 // PSUBUSB/PSUBUSW — Subtract Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
 // Branchless: detect overflow/underflow via sign bits of wide difference.
-val sat_sub_s8 : (byte, byte) -> byte
-function sat_sub_s8(a, b) = {
-  let wide : bits(9) = sign_extend(a) - sign_extend(b);
-  let ov : bits(1) = ~(wide[8..8]) & wide[7..7];
-  let uf : bits(1) = wide[8..8] & ~(wide[7..7]);
-  let ov_mask : byte = sign_extend(ov);
-  let uf_mask : byte = sign_extend(uf);
-  (0x7F & ov_mask) | (0x80 & uf_mask) | (wide[7..0] & ~(ov_mask) & ~(uf_mask))
-}
-
-val sat_sub_s16 : (word, word) -> word
-function sat_sub_s16(a, b) = {
-  let wide : bits(17) = sign_extend(a) - sign_extend(b);
-  let ov : bits(1) = ~(wide[16..16]) & wide[15..15];
-  let uf : bits(1) = wide[16..16] & ~(wide[15..15]);
-  let ov_mask : word = sign_extend(ov);
-  let uf_mask : word = sign_extend(uf);
-  (0x7FFF & ov_mask) | (0x8000 & uf_mask) | (wide[15..0] & ~(ov_mask) & ~(uf_mask))
+val sat_sub_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_sub_s(a, b) = {
+  let wide : bits('n + 1) = sign_extend(a) - sign_extend(b);
+  let result : bits('n) = wide[('n - 1) .. 0];
+  let overflow : bit = wide['n] ^ result['n - 1];
+  let msb_only : bits('n) = zero_extend(0b1) << ('n - 1);
+  let clamp : bits('n) = msb_only ^ sign_extend(~(wide['n]));
+  blend(result, clamp, overflow)
 }
 
 // Branchless: borrow bit of wide difference → mask to zero.
-val sat_sub_u8 : (byte, byte) -> byte
-function sat_sub_u8(a, b) = {
-  let wide : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let mask : byte = sign_extend(~(wide[8..8]));
-  wide[7..0] & mask
-}
-
-val sat_sub_u16 : (word, word) -> word
-function sat_sub_u16(a, b) = {
-  let wide : bits(17) = (0b0 @ a) - (0b0 @ b);
-  let mask : word = sign_extend(~(wide[16..16]));
-  wide[15..0] & mask
-}
-
-val sat_sub_u32 : (dword, dword) -> dword
-function sat_sub_u32(a, b) = {
-  let wide : bits(33) = (0b0 @ a) - (0b0 @ b);
-  let mask : dword = sign_extend(~(wide[32..32]));
-  wide[31..0] & mask
+val sat_sub_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_sub_u(a, b) = {
+  let wide : bits('n + 1) = zero_extend(a) - zero_extend(b);
+  wide[('n - 1) .. 0] & sign_extend(~(wide['n]))
 }
 
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
@@ -939,35 +891,35 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match reg_field {
           // PSRLW xmm1, imm8
           2 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              srl16(a[127..112], c) @ srl16(a[111..96], c) @
-              srl16(a[95..80], c) @ srl16(a[79..64], c) @
-              srl16(a[63..48], c) @ srl16(a[47..32], c) @
-              srl16(a[31..16], c) @ srl16(a[15..0], c);
+              (a[127..112] >> c) @ (a[111..96] >> c) @
+              (a[95..80] >> c) @ (a[79..64] >> c) @
+              (a[63..48] >> c) @ (a[47..32] >> c) @
+              (a[31..16] >> c) @ (a[15..0] >> c);
             write_xmm_legacy(xreg, r)
           },
           // PSRAW xmm1, imm8
           4 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              sra16(a[127..112], c) @ sra16(a[111..96], c) @
-              sra16(a[95..80], c) @ sra16(a[79..64], c) @
-              sra16(a[63..48], c) @ sra16(a[47..32], c) @
-              sra16(a[31..16], c) @ sra16(a[15..0], c);
+              (a[127..112] >>> c) @ (a[111..96] >>> c) @
+              (a[95..80] >>> c) @ (a[79..64] >>> c) @
+              (a[63..48] >>> c) @ (a[47..32] >>> c) @
+              (a[31..16] >>> c) @ (a[15..0] >>> c);
             write_xmm_legacy(xreg, r)
           },
           // PSLLW xmm1, imm8
           6 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              sll16(a[127..112], c) @ sll16(a[111..96], c) @
-              sll16(a[95..80], c) @ sll16(a[79..64], c) @
-              sll16(a[63..48], c) @ sll16(a[47..32], c) @
-              sll16(a[31..16], c) @ sll16(a[15..0], c);
+              (a[127..112] << c) @ (a[111..96] << c) @
+              (a[95..80] << c) @ (a[79..64] << c) @
+              (a[63..48] << c) @ (a[47..32] << c) @
+              (a[31..16] << c) @ (a[15..0] << c);
             write_xmm_legacy(xreg, r)
           },
           _ => raise_UD(),
@@ -990,29 +942,29 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match reg_field {
           // PSRLD xmm1, imm8
           2 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              srl32(a[127..96], c) @ srl32(a[95..64], c) @
-              srl32(a[63..32], c) @ srl32(a[31..0], c);
+              (a[127..96] >> c) @ (a[95..64] >> c) @
+              (a[63..32] >> c) @ (a[31..0] >> c);
             write_xmm_legacy(xreg, r)
           },
           // PSRAD xmm1, imm8
           4 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              sra32(a[127..96], c) @ sra32(a[95..64], c) @
-              sra32(a[63..32], c) @ sra32(a[31..0], c);
+              (a[127..96] >>> c) @ (a[95..64] >>> c) @
+              (a[63..32] >>> c) @ (a[31..0] >>> c);
             write_xmm_legacy(xreg, r)
           },
           // PSLLD xmm1, imm8
           6 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
             let r : xmmword =
-              sll32(a[127..96], c) @ sll32(a[95..64], c) @
-              sll32(a[63..32], c) @ sll32(a[31..0], c);
+              (a[127..96] << c) @ (a[95..64] << c) @
+              (a[63..32] << c) @ (a[31..0] << c);
             write_xmm_legacy(xreg, r)
           },
           _ => raise_UD(),
@@ -1035,9 +987,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match reg_field {
           // PSRLQ xmm1, imm8
           2 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
-            let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
+            let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
             write_xmm_legacy(xreg, r)
           },
           // PSRLDQ xmm1, imm8
@@ -1048,9 +1000,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PSLLQ xmm1, imm8
           6 => {
-            let c : int = unsigned(imm);
+            let c : nat = unsigned(imm);
             let a : xmmword = read_xmm(xreg);
-            let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
+            let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
             write_xmm_legacy(xreg, r)
           },
           // PSLLDQ xmm1, imm8
@@ -1730,13 +1682,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          srl16(a[127..112], c) @ srl16(a[111..96], c) @
-          srl16(a[95..80], c) @ srl16(a[79..64], c) @
-          srl16(a[63..48], c) @ srl16(a[47..32], c) @
-          srl16(a[31..16], c) @ srl16(a[15..0], c);
+          (a[127..112] >> c) @ (a[111..96] >> c) @
+          (a[95..80] >> c) @ (a[79..64] >> c) @
+          (a[63..48] >> c) @ (a[47..32] >> c) @
+          (a[31..16] >> c) @ (a[15..0] >> c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1751,11 +1703,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          srl32(a[127..96], c) @ srl32(a[95..64], c) @
-          srl32(a[63..32], c) @ srl32(a[31..0], c);
+          (a[127..96] >> c) @ (a[95..64] >> c) @
+          (a[63..32] >> c) @ (a[31..0] >> c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1770,9 +1722,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
-        let r : xmmword = srl64(a[127..64], c) @ srl64(a[63..0], c);
+        let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1831,14 +1783,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_sub_u8(a[127..120], b[127..120]) @ sat_sub_u8(a[119..112], b[119..112]) @
-          sat_sub_u8(a[111..104], b[111..104]) @ sat_sub_u8(a[103..96], b[103..96]) @
-          sat_sub_u8(a[95..88], b[95..88]) @ sat_sub_u8(a[87..80], b[87..80]) @
-          sat_sub_u8(a[79..72], b[79..72]) @ sat_sub_u8(a[71..64], b[71..64]) @
-          sat_sub_u8(a[63..56], b[63..56]) @ sat_sub_u8(a[55..48], b[55..48]) @
-          sat_sub_u8(a[47..40], b[47..40]) @ sat_sub_u8(a[39..32], b[39..32]) @
-          sat_sub_u8(a[31..24], b[31..24]) @ sat_sub_u8(a[23..16], b[23..16]) @
-          sat_sub_u8(a[15..8], b[15..8]) @ sat_sub_u8(a[7..0], b[7..0]);
+          sat_sub_u(a[127..120], b[127..120]) @ sat_sub_u(a[119..112], b[119..112]) @
+          sat_sub_u(a[111..104], b[111..104]) @ sat_sub_u(a[103..96], b[103..96]) @
+          sat_sub_u(a[95..88], b[95..88]) @ sat_sub_u(a[87..80], b[87..80]) @
+          sat_sub_u(a[79..72], b[79..72]) @ sat_sub_u(a[71..64], b[71..64]) @
+          sat_sub_u(a[63..56], b[63..56]) @ sat_sub_u(a[55..48], b[55..48]) @
+          sat_sub_u(a[47..40], b[47..40]) @ sat_sub_u(a[39..32], b[39..32]) @
+          sat_sub_u(a[31..24], b[31..24]) @ sat_sub_u(a[23..16], b[23..16]) @
+          sat_sub_u(a[15..8], b[15..8]) @ sat_sub_u(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1856,10 +1808,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_sub_u16(a[127..112], b[127..112]) @ sat_sub_u16(a[111..96], b[111..96]) @
-          sat_sub_u16(a[95..80], b[95..80]) @ sat_sub_u16(a[79..64], b[79..64]) @
-          sat_sub_u16(a[63..48], b[63..48]) @ sat_sub_u16(a[47..32], b[47..32]) @
-          sat_sub_u16(a[31..16], b[31..16]) @ sat_sub_u16(a[15..0], b[15..0]);
+          sat_sub_u(a[127..112], b[127..112]) @ sat_sub_u(a[111..96], b[111..96]) @
+          sat_sub_u(a[95..80], b[95..80]) @ sat_sub_u(a[79..64], b[79..64]) @
+          sat_sub_u(a[63..48], b[63..48]) @ sat_sub_u(a[47..32], b[47..32]) @
+          sat_sub_u(a[31..16], b[31..16]) @ sat_sub_u(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1920,13 +1872,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          sra16(a[127..112], c) @ sra16(a[111..96], c) @
-          sra16(a[95..80], c) @ sra16(a[79..64], c) @
-          sra16(a[63..48], c) @ sra16(a[47..32], c) @
-          sra16(a[31..16], c) @ sra16(a[15..0], c);
+          (a[127..112] >>> c) @ (a[111..96] >>> c) @
+          (a[95..80] >>> c) @ (a[79..64] >>> c) @
+          (a[63..48] >>> c) @ (a[47..32] >>> c) @
+          (a[31..16] >>> c) @ (a[15..0] >>> c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -1941,11 +1893,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          sra32(a[127..96], c) @ sra32(a[95..64], c) @
-          sra32(a[63..32], c) @ sra32(a[31..0], c);
+          (a[127..96] >>> c) @ (a[95..64] >>> c) @
+          (a[63..32] >>> c) @ (a[31..0] >>> c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2005,14 +1957,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_sub_s8(a[127..120], b[127..120]) @ sat_sub_s8(a[119..112], b[119..112]) @
-          sat_sub_s8(a[111..104], b[111..104]) @ sat_sub_s8(a[103..96], b[103..96]) @
-          sat_sub_s8(a[95..88], b[95..88]) @ sat_sub_s8(a[87..80], b[87..80]) @
-          sat_sub_s8(a[79..72], b[79..72]) @ sat_sub_s8(a[71..64], b[71..64]) @
-          sat_sub_s8(a[63..56], b[63..56]) @ sat_sub_s8(a[55..48], b[55..48]) @
-          sat_sub_s8(a[47..40], b[47..40]) @ sat_sub_s8(a[39..32], b[39..32]) @
-          sat_sub_s8(a[31..24], b[31..24]) @ sat_sub_s8(a[23..16], b[23..16]) @
-          sat_sub_s8(a[15..8], b[15..8]) @ sat_sub_s8(a[7..0], b[7..0]);
+          sat_sub_s(a[127..120], b[127..120]) @ sat_sub_s(a[119..112], b[119..112]) @
+          sat_sub_s(a[111..104], b[111..104]) @ sat_sub_s(a[103..96], b[103..96]) @
+          sat_sub_s(a[95..88], b[95..88]) @ sat_sub_s(a[87..80], b[87..80]) @
+          sat_sub_s(a[79..72], b[79..72]) @ sat_sub_s(a[71..64], b[71..64]) @
+          sat_sub_s(a[63..56], b[63..56]) @ sat_sub_s(a[55..48], b[55..48]) @
+          sat_sub_s(a[47..40], b[47..40]) @ sat_sub_s(a[39..32], b[39..32]) @
+          sat_sub_s(a[31..24], b[31..24]) @ sat_sub_s(a[23..16], b[23..16]) @
+          sat_sub_s(a[15..8], b[15..8]) @ sat_sub_s(a[7..0], b[7..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2030,10 +1982,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let a : xmmword = read_xmm(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
-          sat_sub_s16(a[127..112], b[127..112]) @ sat_sub_s16(a[111..96], b[111..96]) @
-          sat_sub_s16(a[95..80], b[95..80]) @ sat_sub_s16(a[79..64], b[79..64]) @
-          sat_sub_s16(a[63..48], b[63..48]) @ sat_sub_s16(a[47..32], b[47..32]) @
-          sat_sub_s16(a[31..16], b[31..16]) @ sat_sub_s16(a[15..0], b[15..0]);
+          sat_sub_s(a[127..112], b[127..112]) @ sat_sub_s(a[111..96], b[111..96]) @
+          sat_sub_s(a[95..80], b[95..80]) @ sat_sub_s(a[79..64], b[79..64]) @
+          sat_sub_s(a[63..48], b[63..48]) @ sat_sub_s(a[47..32], b[47..32]) @
+          sat_sub_s(a[31..16], b[31..16]) @ sat_sub_s(a[15..0], b[15..0]);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2110,13 +2062,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          sll16(a[127..112], c) @ sll16(a[111..96], c) @
-          sll16(a[95..80], c) @ sll16(a[79..64], c) @
-          sll16(a[63..48], c) @ sll16(a[47..32], c) @
-          sll16(a[31..16], c) @ sll16(a[15..0], c);
+          (a[127..112] << c) @ (a[111..96] << c) @
+          (a[95..80] << c) @ (a[79..64] << c) @
+          (a[63..48] << c) @ (a[47..32] << c) @
+          (a[31..16] << c) @ (a[15..0] << c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2131,11 +2083,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
         let r : xmmword =
-          sll32(a[127..96], c) @ sll32(a[95..64], c) @
-          sll32(a[63..32], c) @ sll32(a[31..0], c);
+          (a[127..96] << c) @ (a[95..64] << c) @
+          (a[63..32] << c) @ (a[31..0] << c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2150,9 +2102,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
-        let c : int = unsigned(src_xmm[63..0]);
+        let c : nat = unsigned(src_xmm[63..0]);
         let a : xmmword = read_xmm(xreg);
-        let r : xmmword = sll64(a[127..64], c) @ sll64(a[63..0], c);
+        let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
         write_xmm_legacy(xreg, r)
       }
     },
@@ -2346,10 +2298,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        sat_sub_s16(b[111..96], b[127..112]) @ sat_sub_s16(b[79..64], b[95..80]) @
-        sat_sub_s16(b[47..32], b[63..48]) @ sat_sub_s16(b[15..0], b[31..16]) @
-        sat_sub_s16(a[111..96], a[127..112]) @ sat_sub_s16(a[79..64], a[95..80]) @
-        sat_sub_s16(a[47..32], a[63..48]) @ sat_sub_s16(a[15..0], a[31..16]);
+        sat_sub_s(b[111..96], b[127..112]) @ sat_sub_s(b[79..64], b[95..80]) @
+        sat_sub_s(b[47..32], b[63..48]) @ sat_sub_s(b[15..0], b[31..16]) @
+        sat_sub_s(a[111..96], a[127..112]) @ sat_sub_s(a[79..64], a[95..80]) @
+        sat_sub_s(a[47..32], a[63..48]) @ sat_sub_s(a[15..0], a[31..16]);
       write_xmm_legacy(xreg, r)
     },
     // PSIGNB xmm1, xmm2/m128

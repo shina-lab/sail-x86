@@ -72,9 +72,11 @@ function operator <=_u (x, y) = unsigned(x) <= unsigned(y)
 function operator >=_u (x, y) = unsigned(x) >= unsigned(y)
 
 infix 7 >>
+infix 7 >>>
 infix 7 <<
 
 val "shift_bits_right" : forall 'n 'm. (bits('n), bits('m)) -> bits('n)
+val "shift_bits_right_arith" : forall 'n 'm. (bits('n), bits('m)) -> bits('n)
 val "shift_bits_left"  : forall 'n 'm. (bits('n), bits('m)) -> bits('n)
 val "shiftl" : forall 'm 'n, 'n >= 0. (bits('m), int('n)) -> bits('m)
 val "shiftr" : forall 'm 'n, 'n >= 0. (bits('m), int('n)) -> bits('m)
@@ -82,8 +84,10 @@ val "shiftr" : forall 'm 'n, 'n >= 0. (bits('m), int('n)) -> bits('m)
 overload operator >> = {shift_bits_right, shiftr}
 overload operator << = {shift_bits_left, shiftl}
 
-val shift_right_arith : forall 'm 'n, 'n >= 1 & 'm >= 0. (bits('n), int('m)) -> bits('n)
-function shift_right_arith(value, shift) =
+// Arithmetic right shift: sign-extend, shift, truncate.
+// Unlike sail_arith_shiftright, this handles shift >= width correctly.
+val operator >>> : forall 'n 'm, 'n >= 1 & 'm >= 0. (bits('n), int('m)) -> bits('n)
+function operator >>>(value, shift) =
   sign_extend('n + shift, value)[('n - 1 + shift) .. shift]
 
 mapping bool_bit : bool <-> bit = {

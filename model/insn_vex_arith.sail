@@ -93,7 +93,7 @@ function vex_psravd_128(data, shift) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_arith_shiftright(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)] >>> count
   };
   result
 }
@@ -103,7 +103,7 @@ function vex_psravd_256(data, shift) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_arith_shiftright(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)] >>> count
   };
   result
 }
@@ -841,11 +841,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let count_val : qword = read_gpr(os, v);
         if pfx.vex_w then {
           let count : range(0, 63) = unsigned(count_val[5..0]);
-          let result : bits(64) = sail_arith_shiftright(src1[63..0], count);
+          let result : bits(64) = src1[63..0] >>> count;
           write_gpr(64, dst, zero_extend(result));
         } else {
           let count : range(0, 31) = unsigned(count_val[4..0]);
-          let result : bits(32) = sail_arith_shiftright(src1[31..0], count);
+          let result : bits(32) = src1[31..0] >>> count;
           write_gpr(32, dst, zero_extend(result));
         }
       },

@@ -234,7 +234,7 @@ function avx_pmaddubsw_512(a, b) =
   avx_pmaddubsw_256(a[511..256], b[511..256]) @ avx_pmaddubsw_256(a[255..0], b[255..0])
 
 // VPMULHRSW: packed multiply high with round and scale (signed words)
-// Result = (((a[i] * b[i]) >> 14) + 1) >> 1, truncated to 16 bits
+// Result = ((a[i] * b[i] >> 14) + 1) >> 1, truncated to 16 bits
 
 val avx_pmulhrsw_128 : (xmmword, xmmword) -> xmmword
 function avx_pmulhrsw_128(a, b) = {
@@ -246,9 +246,9 @@ function avx_pmulhrsw_128(a, b) = {
     let bv : bits(32) = sign_extend(b[(lo + 15)..lo]);
     let prod : bits(32) = to_bits_truncate(signed(av) * signed(bv));
     // Arithmetic right shift by 14, add 1, arithmetic right shift by 1
-    let shifted14 : bits(32) = sail_arith_shiftright(prod, 14);
+    let shifted14 : bits(32) = prod >>> 14;
     let plus1 : bits(32) = to_bits_truncate(signed(shifted14) + 1);
-    let result : bits(32) = sail_arith_shiftright(plus1, 1);
+    let result : bits(32) = plus1 >>> 1;
     r[(lo + 15)..lo] = result[15..0];
   };
   r
@@ -394,10 +394,10 @@ function avx_psrlvq_512(a, b) =
 
 val avx_psravd_128 : (xmmword, xmmword) -> xmmword
 function avx_psravd_128(src, cnt) =
-  sail_arith_shiftright(src[127..96], unsigned(cnt[127..96])) @
-  sail_arith_shiftright(src[95..64], unsigned(cnt[95..64])) @
-  sail_arith_shiftright(src[63..32], unsigned(cnt[63..32])) @
-  sail_arith_shiftright(src[31..0], unsigned(cnt[31..0]))
+  (src[127..96] >>> unsigned(cnt[127..96])) @
+  (src[95..64] >>> unsigned(cnt[95..64])) @
+  (src[63..32] >>> unsigned(cnt[63..32])) @
+  (src[31..0] >>> unsigned(cnt[31..0]))
 
 val avx_psravd_256 : (ymmword, ymmword) -> ymmword
 function avx_psravd_256(a, b) =
@@ -411,8 +411,8 @@ function avx_psravd_512(a, b) =
 
 val avx_psravq_128 : (xmmword, xmmword) -> xmmword
 function avx_psravq_128(src, cnt) =
-  sail_arith_shiftright(src[127..64], unsigned(cnt[127..64])) @
-  sail_arith_shiftright(src[63..0], unsigned(cnt[63..0]))
+  (src[127..64] >>> unsigned(cnt[127..64])) @
+  (src[63..0] >>> unsigned(cnt[63..0]))
 
 val avx_psravq_256 : (ymmword, ymmword) -> ymmword
 function avx_psravq_256(a, b) =
@@ -479,14 +479,14 @@ function avx_psrlvw_512(a, b) =
 
 val avx_psravw_128 : (xmmword, xmmword) -> xmmword
 function avx_psravw_128(src, cnt) =
-  sail_arith_shiftright(src[127..112], unsigned(cnt[127..112])) @
-  sail_arith_shiftright(src[111..96], unsigned(cnt[111..96])) @
-  sail_arith_shiftright(src[95..80], unsigned(cnt[95..80])) @
-  sail_arith_shiftright(src[79..64], unsigned(cnt[79..64])) @
-  sail_arith_shiftright(src[63..48], unsigned(cnt[63..48])) @
-  sail_arith_shiftright(src[47..32], unsigned(cnt[47..32])) @
-  sail_arith_shiftright(src[31..16], unsigned(cnt[31..16])) @
-  sail_arith_shiftright(src[15..0], unsigned(cnt[15..0]))
+  (src[127..112] >>> unsigned(cnt[127..112])) @
+  (src[111..96] >>> unsigned(cnt[111..96])) @
+  (src[95..80] >>> unsigned(cnt[95..80])) @
+  (src[79..64] >>> unsigned(cnt[79..64])) @
+  (src[63..48] >>> unsigned(cnt[63..48])) @
+  (src[47..32] >>> unsigned(cnt[47..32])) @
+  (src[31..16] >>> unsigned(cnt[31..16])) @
+  (src[15..0] >>> unsigned(cnt[15..0]))
 
 val avx_psravw_256 : (ymmword, ymmword) -> ymmword
 function avx_psravw_256(a, b) =

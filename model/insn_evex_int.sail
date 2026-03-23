@@ -237,7 +237,7 @@ function avx_psubsb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = sat_sub_s8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_sub_s(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -255,7 +255,7 @@ function avx_psubsw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = sat_sub_s16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_sub_s(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -309,7 +309,7 @@ function avx_psubusb_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
     let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = sat_sub_u8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = sat_sub_u(a[(lo + 7)..lo], b[(lo + 7)..lo]);
   };
   r
 }
@@ -327,7 +327,7 @@ function avx_psubusw_128(a, b) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = sat_sub_u16(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = sat_sub_u(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -1134,33 +1134,33 @@ function avx_psllq_imm_512(a, count) =
 
 val arith_shr_words_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_words_128b(a, count) =
-  sail_arith_shiftright(a[127..112], count) @
-  sail_arith_shiftright(a[111..96], count) @
-  sail_arith_shiftright(a[95..80], count) @
-  sail_arith_shiftright(a[79..64], count) @
-  sail_arith_shiftright(a[63..48], count) @
-  sail_arith_shiftright(a[47..32], count) @
-  sail_arith_shiftright(a[31..16], count) @
-  sail_arith_shiftright(a[15..0], count)
+  (a[127..112] >>> count) @
+  (a[111..96] >>> count) @
+  (a[95..80] >>> count) @
+  (a[79..64] >>> count) @
+  (a[63..48] >>> count) @
+  (a[47..32] >>> count) @
+  (a[31..16] >>> count) @
+  (a[15..0] >>> count)
 
 val arith_shr_words_256b : (ymmword, range(0, 255)) -> ymmword
 function arith_shr_words_256b(a, count) =
-  sail_arith_shiftright(a[255..240], count) @
-  sail_arith_shiftright(a[239..224], count) @
-  sail_arith_shiftright(a[223..208], count) @
-  sail_arith_shiftright(a[207..192], count) @
-  sail_arith_shiftright(a[191..176], count) @
-  sail_arith_shiftright(a[175..160], count) @
-  sail_arith_shiftright(a[159..144], count) @
-  sail_arith_shiftright(a[143..128], count) @
-  sail_arith_shiftright(a[127..112], count) @
-  sail_arith_shiftright(a[111..96], count) @
-  sail_arith_shiftright(a[95..80], count) @
-  sail_arith_shiftright(a[79..64], count) @
-  sail_arith_shiftright(a[63..48], count) @
-  sail_arith_shiftright(a[47..32], count) @
-  sail_arith_shiftright(a[31..16], count) @
-  sail_arith_shiftright(a[15..0], count)
+  (a[255..240] >>> count) @
+  (a[239..224] >>> count) @
+  (a[223..208] >>> count) @
+  (a[207..192] >>> count) @
+  (a[191..176] >>> count) @
+  (a[175..160] >>> count) @
+  (a[159..144] >>> count) @
+  (a[143..128] >>> count) @
+  (a[127..112] >>> count) @
+  (a[111..96] >>> count) @
+  (a[95..80] >>> count) @
+  (a[79..64] >>> count) @
+  (a[63..48] >>> count) @
+  (a[47..32] >>> count) @
+  (a[31..16] >>> count) @
+  (a[15..0] >>> count)
 
 val arith_shr_words_512b : (zmmword, range(0, 255)) -> zmmword
 function arith_shr_words_512b(a, count) =
@@ -1170,21 +1170,21 @@ function arith_shr_words_512b(a, count) =
 
 val arith_shr_dwords_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_dwords_128b(a, count) =
-  sail_arith_shiftright(a[127..96], count) @
-  sail_arith_shiftright(a[95..64], count) @
-  sail_arith_shiftright(a[63..32], count) @
-  sail_arith_shiftright(a[31..0], count)
+  (a[127..96] >>> count) @
+  (a[95..64] >>> count) @
+  (a[63..32] >>> count) @
+  (a[31..0] >>> count)
 
 val arith_shr_dwords_256b : (ymmword, range(0, 255)) -> ymmword
 function arith_shr_dwords_256b(a, count) =
-  sail_arith_shiftright(a[255..224], count) @
-  sail_arith_shiftright(a[223..192], count) @
-  sail_arith_shiftright(a[191..160], count) @
-  sail_arith_shiftright(a[159..128], count) @
-  sail_arith_shiftright(a[127..96], count) @
-  sail_arith_shiftright(a[95..64], count) @
-  sail_arith_shiftright(a[63..32], count) @
-  sail_arith_shiftright(a[31..0], count)
+  (a[255..224] >>> count) @
+  (a[223..192] >>> count) @
+  (a[191..160] >>> count) @
+  (a[159..128] >>> count) @
+  (a[127..96] >>> count) @
+  (a[95..64] >>> count) @
+  (a[63..32] >>> count) @
+  (a[31..0] >>> count)
 
 val arith_shr_dwords_512b : (zmmword, range(0, 255)) -> zmmword
 function arith_shr_dwords_512b(a, count) =
@@ -1194,26 +1194,26 @@ function arith_shr_dwords_512b(a, count) =
 
 val arith_shr_qwords_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_qwords_128b(a, count) =
-  sail_arith_shiftright(a[127..64], count) @
-  sail_arith_shiftright(a[63..0], count)
+  (a[127..64] >>> count) @
+  (a[63..0] >>> count)
 
 val arith_shr_qwords_256b : (ymmword, range(0, 255)) -> ymmword
 function arith_shr_qwords_256b(a, count) =
-  sail_arith_shiftright(a[255..192], count) @
-  sail_arith_shiftright(a[191..128], count) @
-  sail_arith_shiftright(a[127..64], count) @
-  sail_arith_shiftright(a[63..0], count)
+  (a[255..192] >>> count) @
+  (a[191..128] >>> count) @
+  (a[127..64] >>> count) @
+  (a[63..0] >>> count)
 
 val arith_shr_qwords_512b : (zmmword, range(0, 255)) -> zmmword
 function arith_shr_qwords_512b(a, count) =
-  sail_arith_shiftright(a[511..448], count) @
-  sail_arith_shiftright(a[447..384], count) @
-  sail_arith_shiftright(a[383..320], count) @
-  sail_arith_shiftright(a[319..256], count) @
-  sail_arith_shiftright(a[255..192], count) @
-  sail_arith_shiftright(a[191..128], count) @
-  sail_arith_shiftright(a[127..64], count) @
-  sail_arith_shiftright(a[63..0], count)
+  (a[511..448] >>> count) @
+  (a[447..384] >>> count) @
+  (a[383..320] >>> count) @
+  (a[319..256] >>> count) @
+  (a[255..192] >>> count) @
+  (a[191..128] >>> count) @
+  (a[127..64] >>> count) @
+  (a[63..0] >>> count)
 
 
 // VPSLLDQ: byte shift left per 128-bit lane

@@ -562,10 +562,10 @@ function exec_sar(a, count_raw, os) = {
     };
     CF = a[cf_idx];
     let result : qword = match os {
-      8  => zero_extend(shift_right_arith(a[7..0], count)),
-      16 => zero_extend(shift_right_arith(a[15..0], count)),
-      32 => zero_extend(shift_right_arith(a[31..0], count)),
-      64 => shift_right_arith(a, count),
+      8  => zero_extend(a[7..0] >>> count),
+      16 => zero_extend(a[15..0] >>> count),
+      32 => zero_extend(a[31..0] >>> count),
+      64 => a >>> count,
     };
     update_SF_ZF_PF(result[os - 1 .. 0]);
     if count == 1 then OF = 0b0
