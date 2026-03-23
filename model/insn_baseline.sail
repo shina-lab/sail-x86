@@ -16,7 +16,6 @@ function check_lock_rm(pfx, rm, is_cmp) = {
 }
 
 // XADD — Exchange and Add
-
 val exec_xadd : (gpr_idx, gpr_idx, operand_size) -> unit
 function exec_xadd(dst, src, os) = {
   let a : qword = read_gpr(os, dst);
@@ -27,121 +26,52 @@ function exec_xadd(dst, src, os) = {
   write_gpr(os, dst, sum)
 }
 
-// POPCNT helpers
-
-val popcount8 : byte -> range(0, 8)
-function popcount8(v) =
-  unsigned(v[0..0]) + unsigned(v[1..1]) + unsigned(v[2..2]) + unsigned(v[3..3]) +
-  unsigned(v[4..4]) + unsigned(v[5..5]) + unsigned(v[6..6]) + unsigned(v[7..7])
-
-val popcount16 : word -> range(0, 16)
-function popcount16(v) =
-  popcount8(v[7..0]) + popcount8(v[15..8])
-
-val popcount32 : dword -> range(0, 32)
-function popcount32(v) =
-  popcount16(v[15..0]) + popcount16(v[31..16])
-
-val popcount64 : qword -> range(0, 64)
-function popcount64(v) =
-  popcount32(v[31..0]) + popcount32(v[63..32])
+// Branchless POPCNT
+val popcount : qword -> range(0, 64)
+function popcount(v) = {
+  let x1 = (v & 0x5555555555555555)  + ((v >> 1)   & 0x5555555555555555);
+  let x2 = (x1 & 0x3333333333333333) + ((x1 >> 2)  & 0x3333333333333333);
+  let x3 = (x2 & 0x0f0f0f0f0f0f0f0f) + ((x2 >> 4)  & 0x0f0f0f0f0f0f0f0f);
+  let x4 = (x3 & 0x00ff00ff00ff00ff) + ((x3 >> 8)  & 0x00ff00ff00ff00ff);
+  let x5 = (x4 & 0x0000ffff0000ffff) + ((x4 >> 16) & 0x0000ffff0000ffff);
+  let x6 = (x5 & 0x00000000ffffffff) + ((x5 >> 32) & 0x00000000ffffffff);
+  let n = unsigned(x6);
+  assert(n <= 64);
+  n
+}
 
 // Branchless CLZ via smear (fill all bits below MSB) then popcount.
-val clz8 : byte -> range(0, 8)
-function clz8(v) = {
-  let x1 : byte = v  | (v  >> 1);
-  let x2 : byte = x1 | (x1 >> 2);
-  let x3 : byte = x2 | (x2 >> 4);
-  8 - popcount8(x3)
-}
-
-val clz16 : word -> range(0, 16)
-function clz16(v) = {
-  let x1 : word = v  | (v  >> 1);
-  let x2 : word = x1 | (x1 >> 2);
-  let x3 : word = x2 | (x2 >> 4);
-  let x4 : word = x3 | (x3 >> 8);
-  16 - popcount16(x4)
-}
-
-val clz32 : dword -> range(0, 32)
-function clz32(v) = {
-  let x1 : dword = v  | (v  >> 1);
-  let x2 : dword = x1 | (x1 >> 2);
-  let x3 : dword = x2 | (x2 >> 4);
-  let x4 : dword = x3 | (x3 >> 8);
-  let x5 : dword = x4 | (x4 >> 16);
-  32 - popcount32(x5)
-}
-
-val clz64 : qword -> range(0, 64)
-function clz64(v) = {
+val clz : ({16, 32, 64}, qword) -> range(0, 64)
+function clz(os, v) = {
   let x1 : qword = v  | (v  >> 1);
   let x2 : qword = x1 | (x1 >> 2);
   let x3 : qword = x2 | (x2 >> 4);
   let x4 : qword = x3 | (x3 >> 8);
   let x5 : qword = x4 | (x4 >> 16);
   let x6 : qword = x5 | (x5 >> 32);
-  64 - popcount64(x6)
+  let pc = popcount(x6);
+  assert(pc <= os);
+  os - pc
 }
 
 // Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
-val ctz8 : byte -> range(0, 8)
-function ctz8(v) = popcount8(~(v) & (v - 1))
-
-val ctz16 : word -> range(0, 16)
-function ctz16(v) = popcount16(~(v) & (v - 1))
-
-val ctz32 : dword -> range(0, 32)
-function ctz32(v) = popcount32(~(v) & (v - 1))
-
-val ctz64 : qword -> range(0, 64)
-function ctz64(v) = popcount64(~(v) & (v - 1))
+val ctz : ({16, 32, 64}, qword) -> range(0, 64)
+function ctz(os, v) = {
+  let masked : qword = v | (0xFFFFFFFFFFFFFFFF << os);
+  popcount(~(masked) & (masked - 1))
+}
 
 // Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
 // Precondition: v != 0 (BSR is undefined for zero).
-val bsr8 : byte -> range(0, 7)
-function bsr8(v) = {
-  let x1 : byte = v  | (v  >> 1);
-  let x2 : byte = x1 | (x1 >> 2);
-  let x3 : byte = x2 | (x2 >> 4);
-  let n = popcount8(x3);
-  assert(n > 0);
-  n - 1
-}
-
-val bsr16 : word -> range(0, 15)
-function bsr16(v) = {
-  let x1 : word = v  | (v  >> 1);
-  let x2 : word = x1 | (x1 >> 2);
-  let x3 : word = x2 | (x2 >> 4);
-  let x4 : word = x3 | (x3 >> 8);
-  let n = popcount16(x4);
-  assert(n > 0);
-  n - 1
-}
-
-val bsr32 : dword -> range(0, 31)
-function bsr32(v) = {
-  let x1 : dword = v  | (v  >> 1);
-  let x2 : dword = x1 | (x1 >> 2);
-  let x3 : dword = x2 | (x2 >> 4);
-  let x4 : dword = x3 | (x3 >> 8);
-  let x5 : dword = x4 | (x4 >> 16);
-  let n = popcount32(x5);
-  assert(n > 0);
-  n - 1
-}
-
-val bsr64 : qword -> range(0, 63)
-function bsr64(v) = {
+val bsr : qword -> range(0, 63)
+function bsr(v) = {
   let x1 : qword = v  | (v  >> 1);
   let x2 : qword = x1 | (x1 >> 2);
   let x3 : qword = x2 | (x2 >> 4);
   let x4 : qword = x3 | (x3 >> 8);
   let x5 : qword = x4 | (x4 >> 16);
   let x6 : qword = x5 | (x5 >> 32);
-  let n = popcount64(x6);
+  let n = popcount(x6);
   assert(n > 0);
   n - 1
 }
@@ -351,7 +281,6 @@ function exec_shld(d, s, count_raw, os) = {
     d
   } else {
     let result : qword = match os {
-      8 => d,
       16 => {
         if count > 16 then {
           // SDM: result and flags undefined when count > operand size
@@ -416,7 +345,6 @@ function exec_shrd(d, s, count_raw, os) = {
     d
   } else {
     let result : qword = match os {
-      8 => d,
       16 => {
         if count > 16 then {
           // SDM: result and flags undefined when count > operand size
@@ -740,9 +668,9 @@ function dispatch_2byte_gpr(op, pfx) = {
                   let addr = seg_linear(seg, offset, total_size);
                   GDTR_limit = mem_read16(addr);
                   match gdt_os {
-                    64 => GDTR_base = mem_read64(addr + 2),
                     16 => GDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
-                    _    => GDTR_base = zero_extend(mem_read32(addr + 2)),
+                    32 => GDTR_base = zero_extend(mem_read32(addr + 2)),
+                    64 => GDTR_base = mem_read64(addr + 2),
                   }
                 },
                 _ => raise_UD(),
@@ -760,9 +688,9 @@ function dispatch_2byte_gpr(op, pfx) = {
                   let addr = seg_linear(seg, offset, total_size);
                   IDTR_limit = mem_read16(addr);
                   match idt_os {
-                    64 => IDTR_base = mem_read64(addr + 2),
                     16 => IDTR_base = zero_extend(mem_read32(addr + 2) & 0x00FFFFFF),
-                    _    => IDTR_base = zero_extend(mem_read32(addr + 2)),
+                    32 => IDTR_base = zero_extend(mem_read32(addr + 2)),
+                    64 => IDTR_base = mem_read64(addr + 2),
                   }
                 },
                 _ => raise_UD(),
@@ -1403,10 +1331,6 @@ function dispatch_2byte_gpr(op, pfx) = {
       let product : int = signed(a[os - 1 .. 0]) * signed(b[os - 1 .. 0]);
       let result : qword = to_bits_truncate(product);
       CF = match os {
-        8  => {
-          let w : bits(16) = to_bits_truncate(product);
-          (or_reduce_8(w[15..8] ^ sign_extend(w[7..7])))[0]
-        },
         16 => {
           let w : bits(32) = to_bits_truncate(product);
           (or_reduce_16(w[31..16] ^ sign_extend(w[15..15])))[0]
@@ -1529,12 +1453,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       let imm = fetch_byte();
       let v = read_rm_val(rm, os, pfx.has_rex);
-      let bit_num : range(0, 63) = match os {
-        8  => unsigned(imm[4..0]),
-        16 => unsigned(imm[3..0]),
-        32 => unsigned(imm[4..0]),
-        64 => unsigned(imm[5..0]),
-      };
+      let bit_num : range(0, 63) = unsigned(imm) % os;
       CF = v[bit_num];
       match reg_field {
         // BT — just test, no modification
@@ -1585,19 +1504,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_bmi1) then raise_UD();
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let count : range(0, 64) = match os {
-          8  => ctz8(src_val[7..0]),
-          16 => ctz16(src_val[15..0]),
-          32 => ctz32(src_val[31..0]),
-          64 => ctz64(src_val),
-        };
+        let count : range(0, 64) = ctz(os, src_val);
         write_gpr(os, reg, to_bits_truncate(count));
-        CF = match os {
-          8  => (~(or_reduce_8(src_val[7..0])))[0],
-          16 => (~(or_reduce_16(src_val[15..0])))[0],
-          32 => (~(or_reduce_32(src_val[31..0])))[0],
-          64 => (~(or_reduce_64(src_val)))[0],
-        };
+        CF = (~(or_reduce_64(src_val)))[0];
         ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
@@ -1616,12 +1525,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           PF = compute_PF(0x00);
         } else {
           ZF = 0b0;
-          let idx : range(0, 64) = match os {
-            8  => ctz8(src_val[7..0]),
-            16 => ctz16(src_val[15..0]),
-            32 => ctz32(src_val[31..0]),
-            64 => ctz64(src_val),
-          };
+          let idx : range(0, 64) = ctz(os, src_val);
           let result : qword = to_bits_truncate(idx);
           PF = compute_PF(result[7..0]);
           write_gpr(os, reg, result);
@@ -1638,19 +1542,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_lzcnt) then raise_UD();
         let src_val = read_rm_val(rm, os, pfx.has_rex);
-        let count : range(0, 64) = match os {
-          8  => clz8(src_val[7..0]),
-          16 => clz16(src_val[15..0]),
-          32 => clz32(src_val[31..0]),
-          64 => clz64(src_val),
-        };
+        let count : range(0, 64) = clz(os, src_val);
         write_gpr(os, reg, to_bits_truncate(count));
-        CF = match os {
-          8  => (~(or_reduce_8(src_val[7..0])))[0],
-          16 => (~(or_reduce_16(src_val[15..0])))[0],
-          32 => (~(or_reduce_32(src_val[31..0])))[0],
-          64 => (~(or_reduce_64(src_val)))[0],
-        };
+        CF = (~(or_reduce_64(src_val)))[0];
         ZF = src_val[os - 1]
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
@@ -1669,12 +1563,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           PF = compute_PF(0x00);
         } else {
           ZF = 0b0;
-          let idx : range(0, 63) = match os {
-            8  => bsr8(src_val[7..0]),
-            16 => bsr16(src_val[15..0]),
-            32 => bsr32(src_val[31..0]),
-            64 => bsr64(src_val),
-          };
+          let idx : range(0, 63) = bsr(src_val);
           let result : qword = to_bits_truncate(idx);
           PF = compute_PF(result[7..0]);
           write_gpr(os, reg, result);
@@ -1749,23 +1638,13 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
       let src_val = read_rm_val(rm, os, pfx.has_rex);
-      let count : range(0, 64) = match os {
-        8  => popcount8(src_val[7..0]),
-        16 => popcount16(src_val[15..0]),
-        32 => popcount32(src_val[31..0]),
-        64 => popcount64(src_val)
-      };
+      let count : range(0, 64) = popcount(src_val);
       OF = 0b0;
       SF = 0b0;
       AF = 0b0;
       CF = 0b0;
       PF = 0b0;
-      ZF = match os {
-        8  => (~(or_reduce_8(src_val[7..0])))[0],
-        16 => (~(or_reduce_16(src_val[15..0])))[0],
-        32 => (~(or_reduce_32(src_val[31..0])))[0],
-        64 => (~(or_reduce_64(src_val)))[0],
-      };
+      ZF = (~(or_reduce_64(src_val)))[0];
       write_gpr(os, reg, to_bits_truncate(count))
     },
     // 0F C3: MOVNTI m32/64, r

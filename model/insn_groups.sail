@@ -379,7 +379,6 @@ function dispatch_group5(reg_field, rm, pfx) = {
             16 => zero_extend(mem_read16(a)),
             32 => zero_extend(mem_read32(a)),
             64 => mem_read64(a),
-            8  => zeros(),
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
@@ -414,7 +413,6 @@ function dispatch_group5(reg_field, rm, pfx) = {
             16 => zero_extend(mem_read16(a)),
             32 => zero_extend(mem_read32(a)),
             64 => mem_read64(a),
-            8  => zeros(),
           };
           let far_selector : word = mem_read16(a + off_size);
           match cur_mode {
