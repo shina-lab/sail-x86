@@ -848,58 +848,10 @@ function avx_vfixupimmpd_512(dst, src1, src2, imm) = {
 /* ---- VPLZCNTD/Q: count leading zeros per element ---- */
 
 val avx_fpclass_f32 : (dword, byte) -> bit
-function avx_fpclass_f32(src, imm) = {
-  let sign : bit = src[31];
-  let exp : byte = src[30..23];
-  let frac : bits(23) = src[22..0];
-  let exp_all : bit = is_zero(~(exp));
-  let exp_zero : bit = is_zero(exp);
-  let frac_nz : bit = is_nonzero(frac);
-  let frac_zero : bit = ~(frac_nz);
-  let is_qnan : bit = exp_all & frac_nz & frac[22];
-  let is_snan : bit = exp_all & frac_nz & ~(frac[22]);
-  let is_pos_zero : bit = ~(sign) & exp_zero & frac_zero;
-  let is_neg_zero : bit = sign & exp_zero & frac_zero;
-  let is_pos_inf : bit = ~(sign) & exp_all & frac_zero;
-  let is_neg_inf : bit = sign & exp_all & frac_zero;
-  let is_denorm : bit = exp_zero & frac_nz;
-  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & frac_zero);
-  (imm[0] & is_qnan) |
-  (imm[1] & is_pos_zero) |
-  (imm[2] & is_neg_zero) |
-  (imm[3] & is_pos_inf) |
-  (imm[4] & is_neg_inf) |
-  (imm[5] & is_denorm) |
-  (imm[6] & is_neg_finite) |
-  (imm[7] & is_snan)
-}
+function avx_fpclass_f32(src, imm) = fpclass(src[31], src[30..23], src[22..0], imm)
 
 val avx_fpclass_f64 : (qword, byte) -> bit
-function avx_fpclass_f64(src, imm) = {
-  let sign : bit = src[63];
-  let exp : bits(11) = src[62..52];
-  let frac : bits(52) = src[51..0];
-  let exp_all : bit = is_zero(~(exp));
-  let exp_zero : bit = is_zero(exp);
-  let frac_nz : bit = is_nonzero(frac);
-  let frac_zero : bit = ~(frac_nz);
-  let is_qnan : bit = exp_all & frac_nz & frac[51];
-  let is_snan : bit = exp_all & frac_nz & ~(frac[51]);
-  let is_pos_zero : bit = ~(sign) & exp_zero & frac_zero;
-  let is_neg_zero : bit = sign & exp_zero & frac_zero;
-  let is_pos_inf : bit = ~(sign) & exp_all & frac_zero;
-  let is_neg_inf : bit = sign & exp_all & frac_zero;
-  let is_denorm : bit = exp_zero & frac_nz;
-  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & frac_zero);
-  (imm[0] & is_qnan) |
-  (imm[1] & is_pos_zero) |
-  (imm[2] & is_neg_zero) |
-  (imm[3] & is_pos_inf) |
-  (imm[4] & is_neg_inf) |
-  (imm[5] & is_denorm) |
-  (imm[6] & is_neg_finite) |
-  (imm[7] & is_snan)
-}
+function avx_fpclass_f64(src, imm) = fpclass(src[63], src[62..52], src[51..0], imm)
 
 // VFPCLASSPS/PD packed versions
 

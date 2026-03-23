@@ -391,32 +391,28 @@ function vcmpph_xmm(a, b, pred) =
 //   bit 4: -Inf, bit 5: Denormal, bit 6: Negative finite, bit 7: SNaN
 // =========================================================================
 
-val fpclass_f16 : (word, byte) -> bit
-function fpclass_f16(v, imm) = {
-  let sign : bit = v[15];
-  let exp : bits(5) = v[14..10];
-  let mant : bits(10) = v[9..0];
-  let exp_all : bit = is_zero(~(exp));
+// VFPCLASS: classify IEEE 754 float against imm8 predicates.
+val fpclass : forall 'e 'f, 'e > 0 & 'f > 0 & 'e <= 64 & 'f <= 64.
+  (bit, bits('e), bits('f), byte) -> bit
+function fpclass(sign, exp, frac, imm) = {
+  let exp_all  : bit = is_zero(~(exp));
   let exp_zero : bit = is_zero(exp);
-  let mant_nz : bit = is_nonzero(mant);
-  let mant_zero : bit = ~(mant_nz);
-  let is_qnan : bit = exp_all & mant_nz & mant[9];
-  let is_snan : bit = exp_all & mant_nz & ~(mant[9]);
-  let is_pos_zero : bit = ~(sign) & exp_zero & mant_zero;
-  let is_neg_zero : bit = sign & exp_zero & mant_zero;
-  let is_pos_inf : bit = ~(sign) & exp_all & mant_zero;
-  let is_neg_inf : bit = sign & exp_all & mant_zero;
-  let is_denorm : bit = exp_zero & mant_nz;
-  let is_neg_finite : bit = sign & ~(exp_all) & ~(exp_zero & mant_zero);
+  let frac_nz  : bit = is_nonzero(frac);
+  let frac_zero : bit = ~(frac_nz);
+  let is_qnan  : bit = exp_all & frac_nz & frac['f - 1];
+  let is_snan  : bit = exp_all & frac_nz & ~(frac['f - 1]);
   (imm[0] & is_qnan) |
-  (imm[1] & is_pos_zero) |
-  (imm[2] & is_neg_zero) |
-  (imm[3] & is_pos_inf) |
-  (imm[4] & is_neg_inf) |
-  (imm[5] & is_denorm) |
-  (imm[6] & is_neg_finite) |
+  (imm[1] & ~(sign) & exp_zero & frac_zero) |
+  (imm[2] & sign & exp_zero & frac_zero) |
+  (imm[3] & ~(sign) & exp_all & frac_zero) |
+  (imm[4] & sign & exp_all & frac_zero) |
+  (imm[5] & exp_zero & frac_nz) |
+  (imm[6] & sign & ~(exp_all) & ~(exp_zero & frac_zero)) |
   (imm[7] & is_snan)
 }
+
+val fpclass_f16 : (word, byte) -> bit
+function fpclass_f16(v, imm) = fpclass(v[15], v[14..10], v[9..0], imm)
 
 val vfpclassph_xmm : (xmmword, byte) -> byte
 function vfpclassph_xmm(a, imm) =
