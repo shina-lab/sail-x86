@@ -352,31 +352,11 @@ function select_low_word(v, sel) = {
 }
 
 // PSIGNB/PSIGNW/PSIGND — Packed Sign (SSSE3)
-// For each lane: if src < 0, negate dst; if src == 0, zero; if src > 0, keep dst.
-// No flags affected.
-// Branchless: neg_mask selects negation, nonzero mask zeros when b==0.
-val psign8 : (byte, byte) -> byte
-function psign8(a, b) = {
-  let neg_mask : byte = sign_extend(b[7..7]);
-  let borrow : bits(9) = (0b0 @ b) - 1;
-  let nonzero : byte = sign_extend(~(borrow[8..8]));
-  ((a ^ neg_mask) - neg_mask) & nonzero
-}
-
-val psign16 : (word, word) -> word
-function psign16(a, b) = {
-  let neg_mask : word = sign_extend(b[15..15]);
-  let borrow : bits(17) = (0b0 @ b) - zero_extend(0b1);
-  let nonzero : word = sign_extend(~(borrow[16..16]));
-  ((a ^ neg_mask) - neg_mask) & nonzero
-}
-
-val psign32 : (dword, dword) -> dword
-function psign32(a, b) = {
-  let neg_mask : dword = sign_extend(b[31..31]);
-  let borrow : bits(33) = (0b0 @ b) - zero_extend(0b1);
-  let nonzero : dword = sign_extend(~(borrow[32..32]));
-  ((a ^ neg_mask) - neg_mask) & nonzero
+// Per lane: if b < 0, result = -a; if b == 0, result = 0; if b > 0, result = a.
+val psign : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function psign(a, b) = {
+  let neg_mask : bits('n) = sign_extend(b['n - 1]);
+  ((a ^ neg_mask) - neg_mask) & sign_extend(is_nonzero(b))
 }
 
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
@@ -2200,14 +2180,14 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        psign8(a[127..120], b[127..120]) @ psign8(a[119..112], b[119..112]) @
-        psign8(a[111..104], b[111..104]) @ psign8(a[103..96], b[103..96]) @
-        psign8(a[95..88], b[95..88]) @ psign8(a[87..80], b[87..80]) @
-        psign8(a[79..72], b[79..72]) @ psign8(a[71..64], b[71..64]) @
-        psign8(a[63..56], b[63..56]) @ psign8(a[55..48], b[55..48]) @
-        psign8(a[47..40], b[47..40]) @ psign8(a[39..32], b[39..32]) @
-        psign8(a[31..24], b[31..24]) @ psign8(a[23..16], b[23..16]) @
-        psign8(a[15..8], b[15..8]) @ psign8(a[7..0], b[7..0]);
+        psign(a[127..120], b[127..120]) @ psign(a[119..112], b[119..112]) @
+        psign(a[111..104], b[111..104]) @ psign(a[103..96], b[103..96]) @
+        psign(a[95..88], b[95..88]) @ psign(a[87..80], b[87..80]) @
+        psign(a[79..72], b[79..72]) @ psign(a[71..64], b[71..64]) @
+        psign(a[63..56], b[63..56]) @ psign(a[55..48], b[55..48]) @
+        psign(a[47..40], b[47..40]) @ psign(a[39..32], b[39..32]) @
+        psign(a[31..24], b[31..24]) @ psign(a[23..16], b[23..16]) @
+        psign(a[15..8], b[15..8]) @ psign(a[7..0], b[7..0]);
       write_xmm_legacy(xreg, r)
     },
     // PSIGNW xmm1, xmm2/m128
@@ -2215,10 +2195,10 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        psign16(a[127..112], b[127..112]) @ psign16(a[111..96], b[111..96]) @
-        psign16(a[95..80], b[95..80]) @ psign16(a[79..64], b[79..64]) @
-        psign16(a[63..48], b[63..48]) @ psign16(a[47..32], b[47..32]) @
-        psign16(a[31..16], b[31..16]) @ psign16(a[15..0], b[15..0]);
+        psign(a[127..112], b[127..112]) @ psign(a[111..96], b[111..96]) @
+        psign(a[95..80], b[95..80]) @ psign(a[79..64], b[79..64]) @
+        psign(a[63..48], b[63..48]) @ psign(a[47..32], b[47..32]) @
+        psign(a[31..16], b[31..16]) @ psign(a[15..0], b[15..0]);
       write_xmm_legacy(xreg, r)
     },
     // PSIGND xmm1, xmm2/m128
@@ -2226,8 +2206,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
-        psign32(a[127..96], b[127..96]) @ psign32(a[95..64], b[95..64]) @
-        psign32(a[63..32], b[63..32]) @ psign32(a[31..0], b[31..0]);
+        psign(a[127..96], b[127..96]) @ psign(a[95..64], b[95..64]) @
+        psign(a[63..32], b[63..32]) @ psign(a[31..0], b[31..0]);
       write_xmm_legacy(xreg, r)
     },
     // PMULHRSW xmm1, xmm2/m128
