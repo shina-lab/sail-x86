@@ -331,11 +331,11 @@ function exec_shrd(os, d, s, count_raw) = {
 // For memory rm: the full signed bit offset indexes into an arbitrarily long
 // bit string, so the effective address is displaced by (offset / op_bits) words.
 // Returns (possibly-adjusted RM, bit number within the accessed word).
-val bt_adjust : forall 'os, 'os in {16, 32, 64}. (implicit('os), RM, bits('os)) -> (RM, range(0, 63))
+val bt_adjust : forall 'os, 'os in {16, 32, 64}. (implicit('os), RM, bits('os)) -> (RM, range(0, 'os - 1))
 function bt_adjust(os, rm, bit_idx) = {
   match rm {
     RM_reg(_) => {
-      let bit_num : range(0, 63) = unsigned(bit_idx) % os;
+      let bit_num : range(0, 'os - 1) = unsigned(bit_idx) % os;
       (rm, bit_num)
     },
     RM_mem(seg, offset) => {
@@ -353,8 +353,8 @@ function bt_adjust(os, rm, bit_idx) = {
       let (byte_disp, bit_num_int) : (int, int) =
         if r >= 0 then (q * (os / 8), r) else ((q - 1) * (os / 8), r + os);
       let new_addr : qword = base_addr + get_slice_int(64, byte_disp, 0);
-      // bit_num_int is in [0, 63] by construction; extract as 6-bit value
       let bit_num : range(0, 63) = unsigned(get_slice_int(6, bit_num_int, 0));
+      assert(bit_num < os);
       (RM_mem(seg, new_addr), bit_num)
     },
   }
@@ -1239,7 +1239,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let bit_idx = read_gpr(os, reg);
       let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
-      let v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
+      let v = read_rm_val(adj_rm, os, pfx.has_rex);
       CF = v[bit_num]
     },
 
@@ -1304,10 +1304,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
       let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
-      var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
+      var v = read_rm_val(adj_rm, os, pfx.has_rex);
       CF = v[bit_num];
       v[bit_num] = 0b1;
-      write_rm_val(adj_rm, os, pfx.has_rex, v[(os - 1) .. 0])
+      write_rm_val(adj_rm, os, pfx.has_rex, v)
     },
 
     // 0F AC: SHRD r/m, r, imm8
@@ -1373,10 +1373,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
       let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
-      var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
+      var v = read_rm_val(adj_rm, os, pfx.has_rex);
       CF = v[bit_num];
       v[bit_num] = 0b0;
-      write_rm_val(adj_rm, os, pfx.has_rex, v[(os - 1) .. 0])
+      write_rm_val(adj_rm, os, pfx.has_rex, v)
     },
 
     // 0F B2: LSS r, m16:16/32/64 — Load far pointer into SS
@@ -1474,8 +1474,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_lock & reg_field == 4 then raise_UD();
       check_lock_rm(pfx, rm, false);
       let imm = fetch_byte();
-      var v : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+      var v = read_rm_val(rm, os, pfx.has_rex);
       let bit_num : range(0, 63) = unsigned(imm) % os;
+      assert(bit_num < os);
       CF = v[bit_num];
       match reg_field {
         // BT — just test, no modification
@@ -1483,17 +1484,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BTS — set bit
         5 => {
           v[bit_num] = 0b1;
-          write_rm_val(rm, os, pfx.has_rex, v[(os - 1) .. 0])
+          write_rm_val(rm, os, pfx.has_rex, v)
         },
         // BTR — reset bit
         6 => {
           v[bit_num] = 0b0;
-          write_rm_val(rm, os, pfx.has_rex, v[(os - 1) .. 0])
+          write_rm_val(rm, os, pfx.has_rex, v)
         },
         // BTC — complement bit
         7 => {
           v[bit_num] = ~(v[bit_num]);
-          write_rm_val(rm, os, pfx.has_rex, v[(os - 1) .. 0])
+          write_rm_val(rm, os, pfx.has_rex, v)
         },
         _ => raise_UD(),
       }
@@ -1508,10 +1509,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       let bit_idx = read_gpr(os, reg);
       let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
-      var v : qword = zero_extend(read_rm_val(adj_rm, os, pfx.has_rex));
+      var v = read_rm_val(adj_rm, os, pfx.has_rex);
       CF = v[bit_num];
       v[bit_num] = ~(v[bit_num]);
-      write_rm_val(adj_rm, os, pfx.has_rex, v[(os - 1) .. 0])
+      write_rm_val(adj_rm, os, pfx.has_rex, v)
     },
 
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)

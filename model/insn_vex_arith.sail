@@ -585,6 +585,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_xmm(dst, vex_pabsd_128(src))
     }
   },
+
   // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src
   242 => {
     if ~(has_bmi1) then raise_UD();
@@ -592,13 +593,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let src : qword = zero_extend(read_rm_val(rm, os, true));
+    let os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let src = read_rm_val(rm, os, true);
     let v : gpr_idx = pfx.vex_vvvv % 16;
-    let vval : qword = zero_extend(read_gpr(os, v));
-    let result : qword = ~(vval) & src;
-    write_gpr(os, dst, result[(os - 1) .. 0]);
-    SF = if pfx.vex_w then result[63] else result[31];
+    let vval = read_gpr(os, v);
+    let result = ~(vval) & src;
+    write_gpr(os, dst, result);
+    SF = result[os - 1];
     ZF = is_zero(result);
     OF = 0b0;
     CF = 0b0
@@ -612,33 +613,32 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm(modrm, pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let src : qword = zero_extend(read_rm_val(rm, os, true));
+    let src = read_rm_val(rm, os, true);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
     match reg_field {
       // BLSR: dest = (src - 1) & src
       1 => {
-        let result : qword = (src - 1) & src;
-        write_gpr(os, dst, result[(os - 1) .. 0]);
-        SF = if pfx.vex_w then result[63] else result[31];
+        let result = (src - 1) & src;
+        write_gpr(os, dst, result);
+        SF = result[os - 1];
         ZF = is_zero(result);
         CF = is_zero(src);
         OF = 0b0
       },
       // BLSMSK: dest = (src - 1) ^ src
       2 => {
-        let result : qword = (src - 1) ^ src;
-        write_gpr(os, dst, result[(os - 1) .. 0]);
-        SF = if pfx.vex_w then result[63] else result[31];
+        let result = (src - 1) ^ src;
+        write_gpr(os, dst, result);
+        SF = result[os - 1];
         ZF = 0b0;
         CF = is_zero(src);
         OF = 0b0
       },
       // BLSI: dest = (-src) & src (isolate lowest set bit)
       3 => {
-        let neg_src : qword = ~(src) + 1;
-        let result : qword = neg_src & src;
-        write_gpr(os, dst, result[(os - 1) .. 0]);
-        SF = if pfx.vex_w then result[63] else result[31];
+        let result = (~(src) + 1) & src;
+        write_gpr(os, dst, result);
+        SF = result[os - 1];
         ZF = is_zero(result);
         CF = is_nonzero(src);
         OF = 0b0
@@ -724,21 +724,21 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       MP_NONE => {
         // BZHI: VEX.NDS.LZ.0F38.W0/W1 F5
         // dest = src1 & ((1 << src2[7:0]) - 1), if index < operand size
-        let src1 : qword = zero_extend(read_rm_val(rm, os, true));
+        let src1 = read_rm_val(rm, os, true);
         let v : gpr_idx = pfx.vex_vvvv % 16;
-        let src2 : qword = zero_extend(read_gpr(os, v));
+        let src2 = read_gpr(os, v);
         let index : range(0, 255) = unsigned(src2[7..0]);
-        var result : qword = zeros();
+        var result = zeros(os);
         if index >= os_bits then {
           result = src1;
           CF = 0b1
         } else {
-          let shift_amt : range(0, 255) = 64 - index;
+          let shift_amt : range(0, 255) = os_bits - index;
           result = (src1 << shift_amt) >> shift_amt;
           CF = 0b0
         };
-        write_gpr(os, dst, result[(os - 1) .. 0]);
-        SF = if pfx.vex_w then result[63] else result[31];
+        write_gpr(os, dst, result);
+        SF = result[os - 1];
         ZF = is_zero(result);
         OF = 0b0
       },
@@ -786,19 +786,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     let dst_lo : gpr_idx = pfx.vex_vvvv % 16;
     // Implicit source is EDX/RDX
-    let src1 : qword = zero_extend(read_gpr(os, 2));   // RDX = GPR index 2
-    let src2 : qword = zero_extend(read_rm_val(rm, os, true));
-    if pfx.vex_w then {
-      // 64-bit multiply -> 128-bit result
-      let product : bits(128) = to_bits(128, unsigned(src1[63..0]) * unsigned(src2[63..0]));
-      write_gpr(64, dst_lo, product[63..0]);
-      write_gpr(64, dst_hi, product[127..64]);
-    } else {
-      // 32-bit multiply -> 64-bit result
-      let product : bits(64) = to_bits(64, unsigned(src1[31..0]) * unsigned(src2[31..0]));
-      write_gpr(32, dst_lo, product[31..0]);
-      write_gpr(32, dst_hi, product[63..32]);
-    }
+    let src1 = read_gpr(os, RDX);
+    let src2 = read_rm_val(rm, os, true);
+    let product = to_bits_truncate(os * 2, unsigned(src1) * unsigned(src2));
+    write_gpr(os, dst_lo, product[(os - 1)..0]);
+    write_gpr(os, dst_hi, product[(os * 2 - 1)..os])
   },
 
   // 0F38 F7: BEXTR (NP) / SARX (F3) / SHLX (66) / SHRX (F2) — multiplexed by prefix
@@ -812,62 +804,53 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     match mp {
       MP_NONE => {
         // BEXTR: VEX.NDS.LZ.0F38 F7 — bit field extract
-        let src : qword = zero_extend(read_rm_val(rm, os, true));
+        let src = read_rm_val(rm, os, true);
         let v : gpr_idx = pfx.vex_vvvv % 16;
-        let ctrl : qword = zero_extend(read_gpr(os, v));
+        let ctrl = read_gpr(os, v);
         let start : range(0, 255) = unsigned(ctrl[7..0]);
         let len : range(0, 255) = unsigned(ctrl[15..8]);
-        let os_bits : {32, 64} = if pfx.vex_w then 64 else 32;
-        var result : qword = zeros();
-        if start < os_bits then {
-          let shifted : qword = src >> start;
-          if len >= os_bits then {
+        var result = zeros(os);
+        if start < os then {
+          let shifted = src >> start;
+          if len >= os then {
             result = shifted
           } else {
             // Create mask with len low bits set
-            let shift_amt : range(0, 255) = 64 - len;
+            let shift_amt : range(0, 255) = os - len;
             result = (shifted << shift_amt) >> shift_amt
           }
         };
-        write_gpr(os, dst, result[(os - 1) .. 0]);
+        write_gpr(os, dst, result);
         ZF = is_zero(result);
         OF = 0b0;
         CF = 0b0
       },
       MP_F3 => {
         // SARX: VEX.NDS.LZ.F3.0F38.W0/W1 F7 — arithmetic right shift, no flags
-        let src1 : qword = zero_extend(read_rm_val(rm, os, true));
+        let src1 = read_rm_val(rm, os, true);
         let v : gpr_idx = pfx.vex_vvvv % 16;
-        let count_val : qword = zero_extend(read_gpr(os, v));
-        if pfx.vex_w then {
-          let count : range(0, 63) = unsigned(count_val[5..0]);
-          let result : bits(64) = src1[63..0] >>> count;
-          write_gpr(64, dst, result);
-        } else {
-          let count : range(0, 31) = unsigned(count_val[4..0]);
-          let result : bits(32) = src1[31..0] >>> count;
-          write_gpr(32, dst, result);
-        }
+        let count_val = read_gpr(os, v);
+        let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
+                                    else unsigned(count_val[4..0]);
+        write_gpr(os, dst, src1 >>> count)
       },
       MP_66 => {
         // SHLX: VEX.NDS.LZ.66.0F38.W0/W1 F7 — logical left shift, no flags
-        let src1 : qword = zero_extend(read_rm_val(rm, os, true));
+        let src1 = read_rm_val(rm, os, true);
         let v : gpr_idx = pfx.vex_vvvv % 16;
-        let count_val : qword = zero_extend(read_gpr(os, v));
+        let count_val = read_gpr(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
-        let result : qword = src1 << count;
-        write_gpr(os, dst, result[(os - 1) .. 0])
+        write_gpr(os, dst, src1 << count)
       },
       MP_F2 => {
         // SHRX: VEX.NDS.LZ.F2.0F38.W0/W1 F7 — logical right shift, no flags
-        let src1 : qword = zero_extend(read_rm_val(rm, os, true));
+        let src1 = read_rm_val(rm, os, true);
         let v : gpr_idx = pfx.vex_vvvv % 16;
-        let count_val : qword = zero_extend(read_gpr(os, v));
+        let count_val = read_gpr(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
-        let result : qword = src1 >> count;
-        write_gpr(os, dst, result[(os - 1) .. 0])
+        write_gpr(os, dst, src1 >> count)
       },
     }
   },

@@ -420,25 +420,19 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let src_val : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+        let src_val = read_rm_val(rm, os, pfx.has_rex);
         if mp == MP_66 then {
-          let a : qword = zero_extend(read_gpr(os, reg));
-          let result : qword = a + src_val + zero_extend(CF);
-          match os {
-            32 => { let w : bits(33) = (0b0 @ a[31..0]) + (0b0 @ src_val[31..0]) + zero_extend(CF); CF = w[32] },
-            64 => { let w : bits(65) = (0b0 @ a) + (0b0 @ src_val) + zero_extend(CF); CF = w[64] },
-            _ => (),
-          };
-          write_gpr(os, reg, result[(os - 1) .. 0])
+          let a = read_gpr(os, reg);
+          let result = a + src_val + zero_extend(CF);
+          let w = (0b0 @ a) + (0b0 @ src_val) + zero_extend(CF);
+          CF = w[os];
+          write_gpr(os, reg, result)
         } else if mp == MP_F3 then {
-          let a : qword = zero_extend(read_gpr(os, reg));
-          let result : qword = a + src_val + zero_extend(OF);
-          match os {
-            32 => { let w : bits(33) = (0b0 @ a[31..0]) + (0b0 @ src_val[31..0]) + zero_extend(OF); OF = w[32] },
-            64 => { let w : bits(65) = (0b0 @ a) + (0b0 @ src_val) + zero_extend(OF); OF = w[64] },
-            _ => (),
-          };
-          write_gpr(os, reg, result[(os - 1) .. 0])
+          let a = read_gpr(os, reg);
+          let result = a + src_val + zero_extend(OF);
+          let w = (0b0 @ a) + (0b0 @ src_val) + zero_extend(OF);
+          OF = w[os];
+          write_gpr(os, reg, result)
         } else {
           raise_UD()
         }
@@ -1098,21 +1092,11 @@ function decode_execute() = {
             RM_mem(_, addr) => {
               let os = get_operand_size(pfx);
               let reg = modrm_reg(modrm, pfx);
-              let index : qword = zero_extend(read_gpr(os, reg));
-              match os {
-                32 => {
-                  let lower : dword = mem_read32(addr);
-                  let upper : dword = mem_read32(addr + 4);
-                  if signed(index[31..0]) < signed(lower) | signed(upper) < signed(index[31..0]) then
-                    raise_BR()
-                },
-                _ => {
-                  let lower : word = mem_read16(addr);
-                  let upper : word = mem_read16(addr + 2);
-                  if signed(index[15..0]) < signed(lower) | signed(upper) < signed(index[15..0]) then
-                    raise_BR()
-                },
-              }
+              let index = read_gpr(os, reg);
+              let lower = seg_read(os, DS, addr);
+              let upper = seg_read(os, DS, addr + os / 8);
+              if signed(index) < signed(lower) | signed(upper) < signed(index) then
+                raise_BR()
             },
           }
         }
@@ -1148,7 +1132,7 @@ function decode_execute() = {
         let rm = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
-        let src : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+        let src = read_rm_val(rm, os, pfx.has_rex);
         let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -1188,7 +1172,7 @@ function decode_execute() = {
         let rm = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
-        let src : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+        let src = read_rm_val(rm, os, pfx.has_rex);
         let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -1669,9 +1653,9 @@ function decode_execute() = {
       169 => {
         let os = get_operand_size(pfx);
         let imm = fetch_imm_z(os);
-        let a : qword = zero_extend(read_gpr(os, RAX));
-        let result = a & imm;
-        update_flags_logic(result[os - 1 .. 0])
+        let a = read_gpr(os, RAX);
+        let result = a & imm[(os - 1) .. 0];
+        update_flags_logic(result)
       },
 
       // AA: STOSB

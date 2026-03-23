@@ -201,9 +201,9 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
     let imm = fetch_imm_z(os);
-    let v : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
-    let result = v & imm;
-    update_flags_logic(result[os - 1 .. 0])
+    let v = read_rm_val(rm, os, pfx.has_rex);
+    let result = v & imm[(os - 1) .. 0];
+    update_flags_logic(result)
   } else {
     let v = read_rm_val(rm, os, pfx.has_rex);
     match reg_field {
