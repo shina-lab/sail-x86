@@ -27,7 +27,7 @@ function exec_in(port, os) = {
     8  => write_gpr8l(RAX, __port_in8(port)),
     16 => write_gpr16(RAX, __port_in16(port)),
     32 => write_gpr32(RAX, __port_in32(port)),
-    64 => (),
+    64 => write_gpr32(RAX, __port_in32(port))
   }
 }
 
@@ -43,7 +43,7 @@ function exec_out(port, os) = {
     8  => __port_out8(port, read_gpr8l(RAX)),
     16 => __port_out16(port, read_gpr16(RAX)),
     32 => __port_out32(port, read_gpr32(RAX)),
-    64 => (),
+    64 => __port_out32(port, read_gpr32(RAX))
   }
 }
 
@@ -1953,17 +1953,10 @@ function decode_execute() = {
       },
 
       // E4: IN AL, imm8
-      228 => {
-        let port : word = zero_extend(fetch_byte());
-        exec_in(port, 8)
-      },
+      228 => exec_in(zero_extend(fetch_byte()), 8),
 
       // E5: IN eAX, imm8
-      229 => {
-        let port : word = zero_extend(fetch_byte());
-        let os = get_operand_size(pfx);
-        exec_in(port, os)
-      },
+      229 => exec_in(zero_extend(fetch_byte()), get_operand_size(pfx)),
 
       // E6: OUT imm8, AL
       230 => {
@@ -2034,10 +2027,7 @@ function decode_execute() = {
       236 => exec_in(read_gpr16(RDX), 8),
 
       // ED: IN eAX, DX
-      237 => {
-        let os = get_operand_size(pfx);
-        exec_in(read_gpr16(RDX), os)
-      },
+      237 => exec_in(read_gpr16(RDX), get_operand_size(pfx)),
 
       // EE: OUT DX, AL
       238 => exec_out(read_gpr16(RDX), 8),
