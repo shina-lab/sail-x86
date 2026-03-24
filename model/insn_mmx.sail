@@ -173,9 +173,9 @@ function dispatch_mmx(op, pfx) = {
       let dst = modrm_mm_reg(modrm);
       let src = decode_rm(modrm, pfx);
       match (src, pfx.rex_w) {
-        (RM_reg(r), true)   => write_mm(dst, reg(64, r)),
+        (RM_reg(r), true)   => write_mm(dst, v(64, r)),
         (RM_mem(m), true)  => write_mm(dst, read_mem(m)),
-        (RM_reg(r), false)  => write_mm(dst, zero_extend(reg(32, r))),
+        (RM_reg(r), false)  => write_mm(dst, zero_extend(v(32, r))),
         (RM_mem(m), false) => write_mm(dst, zero_extend(read_mem(4, m))),
       };
       mmx_touch()
@@ -332,9 +332,9 @@ function dispatch_mmx(op, pfx) = {
       let dest = decode_rm(modrm, pfx);
       let v : qword = read_mm(src);
       match (dest, pfx.rex_w) {
-        (RM_reg(r), true)   => reg(r) = v,
+        (RM_reg(r), true)   => v(r) = v,
         (RM_mem(m), true)  => write_mem(m,v),
-        (RM_reg(r), false)  => reg(r) = v[31..0],
+        (RM_reg(r), false)  => v(r) = v[31..0],
         (RM_mem(m), false) => write_mem(4, m,v[31..0]),
       };
       mmx_touch()
@@ -359,7 +359,7 @@ function dispatch_mmx(op, pfx) = {
       let dst = modrm_mm_reg(modrm);
       let src = decode_rm(modrm, pfx);
       let w : word = match src {
-        RM_reg(r) => reg(32, r)[15..0],
+        RM_reg(r) => v(32, r)[15..0],
         RM_mem(m) => read_mem(m),
       };
       let imm = fetch_byte();
@@ -381,7 +381,7 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       let lo = sel * 16;
       let w : word = v[(lo + 15) .. lo];
-      reg(32, dst_gpr) = zero_extend(w);
+      v(32, dst_gpr) = zero_extend(w);
       mmx_touch()
     },
 
@@ -451,7 +451,7 @@ function dispatch_mmx(op, pfx) = {
       let mask : byte =
         v[63] @ v[55] @ v[47] @ v[39] @
         v[31] @ v[23] @ v[15] @ v[7];
-      reg(32, dst_gpr) = zero_extend(mask);
+      v(32, dst_gpr) = zero_extend(mask);
       mmx_touch()
     },
 
@@ -817,7 +817,7 @@ function dispatch_mmx(op, pfx) = {
         RM_reg(_) => {
           let data : qword = read_mm(src);
           let mask : qword = read_mm(mask_reg);
-          let addr : qword = reg(7);  // RDI
+          let addr : qword = v(7);  // RDI
           foreach (i from 0 to 7) {
             let base = i * 8;
             if mask[base + 7] == 0b1 then {

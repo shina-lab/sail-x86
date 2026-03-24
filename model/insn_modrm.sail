@@ -30,27 +30,27 @@ function decode_sib(sib, modbits, pfx) = {
     } else if sib[2..0] == 0b101 & modbits == 1 then {
       // mod=01, base=101: [RBP/R13] + disp8
       let d8 = fetch_byte();
-      reg(64, base_idx) + sign_extend(d8)
+      v(64, base_idx) + sign_extend(d8)
     } else if sib[2..0] == 0b101 & modbits == 2 then {
       // mod=10, base=101: [RBP/R13] + disp32
       let b0 = fetch_byte();
       let b1 = fetch_byte();
       let b2 = fetch_byte();
       let b3 = fetch_byte();
-      reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+      v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     } else {
       // Normal base register with displacement handled by caller
       if modbits == 0 then
-        reg(64, base_idx)
+        v(64, base_idx)
       else if modbits == 1 then {
         let d8 = fetch_byte();
-        reg(64, base_idx) + sign_extend(d8)
+        v(64, base_idx) + sign_extend(d8)
       } else {
         let b0 = fetch_byte();
         let b1 = fetch_byte();
         let b2 = fetch_byte();
         let b3 = fetch_byte();
-        reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+        v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
       }
     };
 
@@ -59,7 +59,7 @@ function decode_sib(sib, modbits, pfx) = {
     if sib[5..3] == 0b100 & pfx.rex_x == 0b0 then {
       0x0000000000000000
     } else {
-      let idx_reg = reg(64, index_idx);
+      let idx_reg = v(64, index_idx);
       match scale {
         0 => idx_reg,
         1 => idx_reg << 1,
@@ -123,26 +123,26 @@ function decode_sib_evex(sib, modbits, pfx, disp_n) = {
     } else if sib[2..0] == 0b101 & modbits == 1 then {
       let d8 = fetch_byte();
       let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
-      reg(64, base_idx) + scaled_disp
+      v(64, base_idx) + scaled_disp
     } else if sib[2..0] == 0b101 & modbits == 2 then {
       let b0 = fetch_byte();
       let b1 = fetch_byte();
       let b2 = fetch_byte();
       let b3 = fetch_byte();
-      reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+      v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     } else {
       if modbits == 0 then
-        reg(64, base_idx)
+        v(64, base_idx)
       else if modbits == 1 then {
         let d8 = fetch_byte();
         let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
-        reg(64, base_idx) + scaled_disp
+        v(64, base_idx) + scaled_disp
       } else {
         let b0 = fetch_byte();
         let b1 = fetch_byte();
         let b2 = fetch_byte();
         let b3 = fetch_byte();
-        reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+        v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
       }
     };
 
@@ -150,7 +150,7 @@ function decode_sib_evex(sib, modbits, pfx, disp_n) = {
     if sib[5..3] == 0b100 & pfx.rex_x == 0b0 then {
       0x0000000000000000
     } else {
-      let idx_reg = reg(64, index_idx);
+      let idx_reg = v(64, index_idx);
       match scale {
         0 => idx_reg,
         1 => idx_reg << 1,
@@ -186,17 +186,17 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
       let b3 = fetch_byte();
       sign_extend(b3 @ b2 @ b1 @ b0)
     } else if modbits == 0 then {
-      reg(64, base_idx)
+      v(64, base_idx)
     } else if modbits == 1 then {
       let d8 = fetch_byte();
       let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
-      reg(64, base_idx) + scaled_disp
+      v(64, base_idx) + scaled_disp
     } else {
       let b0 = fetch_byte();
       let b1 = fetch_byte();
       let b2 = fetch_byte();
       let b3 = fetch_byte();
-      reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+      v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     };
 
   struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }
@@ -239,21 +239,21 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
           default_seg = SS;
         decode_sib_evex(sib, modbits, pfx, disp_n)
       } else if modbits == 0 then {
-        reg(64, unsigned(pfx.rex_b @ rm_raw))
+        v(64, unsigned(pfx.rex_b @ rm_raw))
       } else {
         if rm_raw == 0b101 then default_seg = SS;
         if modbits == 1 then {
           // disp8 * N
           let d8 = fetch_byte();
           let scaled_disp : qword = get_slice_int(64, signed(d8) * disp_n, 0);
-          reg(64, unsigned(pfx.rex_b @ rm_raw)) + scaled_disp
+          v(64, unsigned(pfx.rex_b @ rm_raw)) + scaled_disp
         } else {
           // disp32 (no compression)
           let b0 = fetch_byte();
           let b1 = fetch_byte();
           let b2 = fetch_byte();
           let b3 = fetch_byte();
-          reg(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(b3 @ b2 @ b1 @ b0)
+          v(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(b3 @ b2 @ b1 @ b0)
         }
       };
     let addr : qword = match asz {
@@ -280,14 +280,14 @@ function decode_rm_16(modrm, pfx) = {
   } else {
     // Compute base address from register pair
     let base : word = match rm_raw {
-      0 => reg(16, RBX) + reg(16, RSI),
-      1 => reg(16, RBX) + reg(16, RDI),
-      2 => reg(16, RBP) + reg(16, RSI),
-      3 => reg(16, RBP) + reg(16, RDI),
-      4 => reg(16, RSI),
-      5 => reg(16, RDI),
-      6 => if modbits == 0 then 0x0000 else reg(16, RBP),
-      7 => reg(16, RBX),
+      0 => v(16, RBX) + v(16, RSI),
+      1 => v(16, RBX) + v(16, RDI),
+      2 => v(16, RBP) + v(16, RSI),
+      3 => v(16, RBP) + v(16, RDI),
+      4 => v(16, RSI),
+      5 => v(16, RDI),
+      6 => if modbits == 0 then 0x0000 else v(16, RBP),
+      7 => v(16, RBX),
     };
     // Add displacement
     let ea : word = if modbits == 0 & rm_raw == 6 then {
@@ -369,21 +369,21 @@ function decode_rm(modrm, pfx) = {
         decode_sib(sib, modbits, pfx)
       } else if modbits == 0 then {
         // [reg] no displacement
-        reg(64, unsigned(pfx.rex_b @ rm_raw))
+        v(64, unsigned(pfx.rex_b @ rm_raw))
       } else {
         // rm_raw = 101 is EBP/RBP → SS default
         if rm_raw == 0b101 then default_seg = SS;
         if modbits == 1 then {
           // [reg] + disp8
           let d8 = fetch_byte();
-          reg(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(d8)
+          v(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(d8)
         } else {
           // modbits == 2: [reg] + disp32
           let b0 = fetch_byte();
           let b1 = fetch_byte();
           let b2 = fetch_byte();
           let b3 = fetch_byte();
-          reg(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(b3 @ b2 @ b1 @ b0)
+          v(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(b3 @ b2 @ b1 @ b0)
         }
       };
     // Truncate address based on address size

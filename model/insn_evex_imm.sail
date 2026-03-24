@@ -1410,7 +1410,7 @@ function dispatch_evex_imm(op, pfx) = {
     let lo : range(0, 120) = sel * 8;
     let extracted_byte : byte = src_xmm[(lo + 7)..lo];
     match dest {
-      RM_reg(_) => reg(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_byte),
+      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_byte),
       RM_mem(m) => write_mem(m,extracted_byte),
     }
   },
@@ -1428,7 +1428,7 @@ function dispatch_evex_imm(op, pfx) = {
     let lo : range(0, 112) = sel * 16;
     let extracted_word : word = src_xmm[(lo + 15)..lo];
     match dest {
-      RM_reg(_) => reg(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_word),
+      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_word),
       RM_mem(m) => write_mem(m,extracted_word),
     }
   },
@@ -1448,7 +1448,7 @@ function dispatch_evex_imm(op, pfx) = {
       let lo : range(0, 64) = sel * 64;
       let extracted : qword = src_xmm[(lo + 63)..lo];
       match dest {
-        RM_reg(_) => reg(modrm_rm_reg(modrm, pfx)) = extracted,
+        RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
         RM_mem(m) => write_mem(m,extracted),
       }
     } else {
@@ -1459,7 +1459,7 @@ function dispatch_evex_imm(op, pfx) = {
       let lo : range(0, 96) = sel * 32;
       let extracted : dword = src_xmm[(lo + 31)..lo];
       match dest {
-        RM_reg(_) => reg(modrm_rm_reg(modrm, pfx)) = extracted,
+        RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
         RM_mem(m) => write_mem(m,extracted),
       }
     }
@@ -1478,7 +1478,7 @@ function dispatch_evex_imm(op, pfx) = {
     let lo : range(0, 96) = sel * 32;
     let extracted : dword = src_xmm[(lo + 31)..lo];
     match dest {
-      RM_reg(_) => reg(modrm_rm_reg(modrm, pfx)) = extracted,
+      RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
       RM_mem(m) => write_mem(m,extracted),
     }
   },
@@ -1808,7 +1808,7 @@ function dispatch_evex_imm(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = decode_rm_evex(modrm, pfx, 1);
     let byte_val : byte = match src {
-      RM_reg(_) => reg(32, modrm_rm_reg(modrm, pfx))[7..0],
+      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx))[7..0],
       RM_mem(m) => read_mem(m),
     };
     let imm = fetch_byte();

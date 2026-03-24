@@ -734,8 +734,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         // VMOVD/VMOVQ xmm -> r/m
         let src = read_xmm(modrm_xmm_reg(modrm, pfx));
         match (src2, pfx.vex_w) {
-          (RM_reg(r), true)  => reg(r) = src[63..0],
-          (RM_reg(r), false) => reg(r) = src[31..0],
+          (RM_reg(r), true)  => v(r) = src[63..0],
+          (RM_reg(r), false) => v(r) = src[31..0],
           (RM_mem(m), true)  => write_mem(8, m,src[63..0]),
           (RM_mem(m), false) => write_mem(4, m,src[31..0]),
         }
@@ -843,12 +843,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     match src {
       RM_reg(r) => {
         if mp == MP_F2 then {
-          if pfx.vex_w then write_kreg(k1, reg(64, r))                   // KMOVQ
-          else write_kreg(k1, zero_extend(reg(32, r)))                   // KMOVD
+          if pfx.vex_w then write_kreg(k1, v(64, r))                   // KMOVQ
+          else write_kreg(k1, zero_extend(v(32, r)))                   // KMOVD
         } else if mp == MP_66 then {
-          write_kreg(k1, zero_extend(reg(32, r)[7..0]))                  // KMOVB
+          write_kreg(k1, zero_extend(v(32, r)[7..0]))                  // KMOVB
         } else {
-          write_kreg(k1, zero_extend(reg(32, r)[15..0]))                 // KMOVW
+          write_kreg(k1, zero_extend(v(32, r)[15..0]))                 // KMOVW
         }
       },
       _ => raise_UD(),
@@ -861,12 +861,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst_gpr = modrm_reg(modrm, pfx);
     let k1 : range(0, 7) = unsigned(modrm[2..0]);
     if mp == MP_F2 then {
-      if pfx.vex_w then reg(dst_gpr) = read_kreg(k1)                       // KMOVQ
-      else reg(dst_gpr) = read_kreg(k1)[31..0]                             // KMOVD
+      if pfx.vex_w then v(dst_gpr) = read_kreg(k1)                       // KMOVQ
+      else v(dst_gpr) = read_kreg(k1)[31..0]                             // KMOVD
     } else if mp == MP_66 then {
-      reg(32, dst_gpr) = zero_extend(read_kreg(k1)[7..0])                  // KMOVB
+      v(32, dst_gpr) = zero_extend(read_kreg(k1)[7..0])                  // KMOVB
     } else {
-      reg(32, dst_gpr) = zero_extend(read_kreg(k1)[15..0])                 // KMOVW
+      v(32, dst_gpr) = zero_extend(read_kreg(k1)[15..0])                 // KMOVW
     }
   },
 
@@ -911,7 +911,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = decode_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : word = match src {
-      RM_reg(r) => reg(32, r)[15..0],
+      RM_reg(r) => v(32, r)[15..0],
       RM_mem(m) => read_mem(m),
     };
     let imm = fetch_byte();
@@ -930,7 +930,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let result : word = src[(16 * sel + 15) .. (16 * sel)];
-    reg(32, dst_gpr) = zero_extend(result)
+    v(32, dst_gpr) = zero_extend(result)
   },
 
   // 0F D0: VADDSUBPS (F2) / VADDSUBPD (66) — alternating sub/add
@@ -1094,14 +1094,14 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 31) {
         mask[i] = src[(i * 8 + 7)]
       };
-      reg(64, reg) = zero_extend(mask)
+      v(64, reg) = zero_extend(mask)
     } else {
       let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
       let mask : word = src[127] @ src[119] @ src[111] @ src[103] @
                         src[95]  @ src[87]  @ src[79]  @ src[71] @
                         src[63]  @ src[55]  @ src[47]  @ src[39] @
                         src[31]  @ src[23]  @ src[15]  @ src[7];
-      reg(32, reg) = zero_extend(mask)
+      v(32, reg) = zero_extend(mask)
     }
   },
 
@@ -1632,7 +1632,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_reg(_) => {
         let data : xmmword = read_xmm(src);
         let mask : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
-        let addr : bits(64) = reg(7); // RDI
+        let addr : bits(64) = v(7); // RDI
         foreach (i from 0 to 15) {
           if mask[(i * 8 + 7)] == 0b1 then
             write_mem(1, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])

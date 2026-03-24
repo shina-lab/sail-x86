@@ -1167,9 +1167,9 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(m) => read_mem(m),
       };
       if pfx.vex_w then
-        reg(dst_gpr) = __f16_to_int64_trunc(src)
+        v(dst_gpr) = __f16_to_int64_trunc(src)
       else
-        reg(dst_gpr) = __f16_to_int32_trunc(src)
+        v(dst_gpr) = __f16_to_int32_trunc(src)
     },
 
     // MAP5 0x2D: VCVTSH2SI (F3) — FP16 to int with rounding
@@ -1183,9 +1183,9 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(m) => read_mem(m),
       };
       if pfx.vex_w then
-        reg(dst_gpr) = __f16_to_int64(src)
+        v(dst_gpr) = __f16_to_int64(src)
       else
-        reg(dst_gpr) = __f16_to_int32(src)
+        v(dst_gpr) = __f16_to_int32(src)
     },
 
     // MAP5 0x2E: VUCOMISH (NP) — unordered compare scalar FP16, set EFLAGS
@@ -1235,7 +1235,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = decode_rm_evex(modrm, pfx, 2);
       let src : word = match src {
-        RM_reg(_) => reg(64, modrm_rm_reg(modrm, pfx))[15..0],
+        RM_reg(_) => v(64, modrm_rm_reg(modrm, pfx))[15..0],
         RM_mem(m) => read_mem(m),
       };
       write_xmm(dst, zero_extend(src))
@@ -1337,9 +1337,9 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => read_mem(m),
           };
           if pfx.vex_w then
-            reg(dst_gpr) = __f16_to_uint64_trunc(src)
+            v(dst_gpr) = __f16_to_uint64_trunc(src)
           else
-            reg(dst_gpr) = __f16_to_uint32_trunc(src)
+            v(dst_gpr) = __f16_to_uint32_trunc(src)
         },
         _ => raise_UD(),
       }
@@ -1445,9 +1445,9 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => read_mem(m),
           };
           if pfx.vex_w then
-            reg(dst_gpr) = __f16_to_uint64(src)
+            v(dst_gpr) = __f16_to_uint64(src)
           else
-            reg(dst_gpr) = __f16_to_uint32(src)
+            v(dst_gpr) = __f16_to_uint32(src)
         },
         _ => raise_UD(),
       }
@@ -1963,7 +1963,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(m) => write_mem(m,v),
         RM_reg(_) => {
           let dst_gpr = modrm_rm_reg(modrm, pfx);
-          reg(32, dst_gpr) = zero_extend(v)
+          v(32, dst_gpr) = zero_extend(v)
         },
       }
     },

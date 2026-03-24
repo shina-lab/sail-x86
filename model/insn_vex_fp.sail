@@ -483,8 +483,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.vex_w then reg(dst_gpr) = __f32_to_int64_trunc(src)
-        else reg(dst_gpr) = __f32_to_int32_trunc(src)
+        if pfx.vex_w then v(dst_gpr) = __f32_to_int64_trunc(src)
+        else v(dst_gpr) = __f32_to_int32_trunc(src)
       },
       // VCVTTSD2SI r32/r64, xmm1/m64
       MP_F2 => {
@@ -492,8 +492,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.vex_w then reg(dst_gpr) = __f64_to_int64_trunc(src)
-        else reg(dst_gpr) = __f64_to_int32_trunc(src)
+        if pfx.vex_w then v(dst_gpr) = __f64_to_int64_trunc(src)
+        else v(dst_gpr) = __f64_to_int32_trunc(src)
       },
       _ => raise_UD(),
     }
@@ -511,9 +511,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         if pfx.vex_w then
-          reg(reg) = __f32_to_int64(src)
+          v(reg) = __f32_to_int64(src)
         else
-          reg(reg) = __f32_to_int32(src)
+          v(reg) = __f32_to_int32(src)
       },
       MP_F2 => {
         let src : qword = match src2 {
@@ -521,9 +521,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         if pfx.vex_w then
-          reg(reg) = __f64_to_int64(src)
+          v(reg) = __f64_to_int64(src)
         else
-          reg(reg) = __f64_to_int32(src)
+          v(reg) = __f64_to_int32(src)
       },
       _ => raise_UD(),
     }
@@ -637,22 +637,22 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
           let mask : byte = src[255] @ src[223] @ src[191] @ src[159] @
                             src[127] @ src[95] @ src[63] @ src[31];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         } else {
           let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         }
       },
       MP_66 => {
         if pfx.vex_l then {
           let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[255] @ src[191] @ src[127] @ src[63];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         } else {
           let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(2) = src[127] @ src[63];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         }
       },
       _ => raise_UD(),

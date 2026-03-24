@@ -286,7 +286,7 @@ function read_memref_val(os, m) = read_mem(m)
 val write_memref_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), MemRef, bits('os)) -> unit
 function write_memref_val(os, m, x) = write_mem(m, x)
 
-overload v = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref, read_memref_val, write_memref_val, read_rm_val, write_rm_val}
+overload v = {read_memref_val, write_memref_val, read_rm_val, write_rm_val}
 
 // =========================================================================
 // Immediate fetch helpers

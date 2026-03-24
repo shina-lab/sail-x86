@@ -25,20 +25,20 @@ function exec_dec(a) = {
 val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_mul(os, src) = {
   if os == 8 then {
-    let a : int = unsigned(reg(8, RAX));
+    let a : int = unsigned(v(8, RAX));
     let b : int = unsigned(src);
     let result : word = to_bits_truncate(a * b);
-    reg(RAX) = result;
+    v(RAX) = result;
     CF = is_nonzero(result[15..8]);
     OF = CF;
   } else {
-    let a : int = unsigned(reg(os, RAX));
+    let a : int = unsigned(v(os, RAX));
     let b : int = unsigned(src);
     let result : bits('os * 2) = to_bits_truncate(a * b);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    reg(RAX) = lo;
-    reg(RDX) = hi;
+    v(RAX) = lo;
+    v(RDX) = hi;
     CF = is_nonzero(hi);
     OF = CF;
   }
@@ -53,23 +53,23 @@ function exec_div(os, src) = {
     let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
-    let dividend = unsigned(reg(16, RAX));
+    let dividend = unsigned(v(16, RAX));
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > 255 then raise_DE();
-    reg(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient);
+    v(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient);
   } else {
     let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
-    let dividend = unsigned(reg(os, RDX) @ reg(os, RAX));
+    let dividend = unsigned(v(os, RDX) @ v(os, RAX));
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > (pow2(os) - 1) then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    reg(RAX) = q_bits[(os - 1)..0];
-    reg(RDX) = r_bits[(os - 1)..0]
+    v(RAX) = q_bits[(os - 1)..0];
+    v(RDX) = r_bits[(os - 1)..0]
   };
   CF = undefined;
   OF = undefined;
@@ -88,23 +88,23 @@ function exec_idiv(os, src) = {
     let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
-    let dividend = signed(reg(16, RAX));
+    let dividend = signed(v(16, RAX));
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -128 | 127 < quotient then raise_DE();
-    reg(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient)
+    v(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient)
   } else {
     let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
-    let dividend = signed(reg(os, RDX) @ reg(os, RAX));
+    let dividend = signed(v(os, RDX) @ v(os, RAX));
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    reg(RAX) = q_bits[(os - 1)..0];
-    reg(RDX) = r_bits[(os - 1)..0]
+    v(RAX) = q_bits[(os - 1)..0];
+    v(RDX) = r_bits[(os - 1)..0]
   };
   CF = undefined;
   OF = undefined;
@@ -119,22 +119,22 @@ function exec_idiv(os, src) = {
 val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_imul_1(os, src) = {
   if os == 8 then {
-    let a : int = signed(reg(8, RAX));
+    let a : int = signed(v(8, RAX));
     let b : int = signed(src);
     let product : int = a * b;
     let result : word = to_bits_truncate(product);
-    reg(RAX) = result;
+    v(RAX) = result;
     CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
     OF = CF;
   } else {
-    let a : int = signed(reg(os, RAX));
+    let a : int = signed(v(os, RAX));
     let b : int = signed(src);
     let product : int = a * b;
     let result : bits('os * 2) = to_bits_truncate(product);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    reg(RAX) = lo;
-    reg(RDX) = hi;
+    v(RAX) = lo;
+    v(RDX) = hi;
     CF = is_nonzero(hi ^ sign_extend(lo[os - 1]));
     OF = CF;
   }

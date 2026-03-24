@@ -1297,7 +1297,7 @@ function dispatch_evex_fp(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
     let src_val : qword = match src {
-      RM_reg(_) => zero_extend(reg(os, modrm_rm_reg(modrm, pfx))),
+      RM_reg(_) => zero_extend(v(os, modrm_rm_reg(modrm, pfx))),
       RM_mem(m) => match os {
         64 => read_mem(m),
         _    => zero_extend(read_mem(4, m)),
@@ -1367,8 +1367,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         match os {
-          64 => reg(dst_gpr) = __f32_to_int64_trunc(src_f32),
-          _  => reg(32, dst_gpr) = zero_extend(__f32_to_int32_trunc(src_f32)),
+          64 => v(dst_gpr) = __f32_to_int64_trunc(src_f32),
+          _  => v(32, dst_gpr) = zero_extend(__f32_to_int32_trunc(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1382,8 +1382,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         match os {
-          64 => reg(dst_gpr) = __f64_to_int64_trunc(src_f64),
-          _  => reg(32, dst_gpr) = zero_extend(__f64_to_int32_trunc(src_f64)),
+          64 => v(dst_gpr) = __f64_to_int64_trunc(src_f64),
+          _  => v(32, dst_gpr) = zero_extend(__f64_to_int32_trunc(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1408,8 +1408,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         match os {
-          64 => reg(dst_gpr) = __f32_to_int64(src_f32),
-          _  => reg(32, dst_gpr) = zero_extend(__f32_to_int32(src_f32)),
+          64 => v(dst_gpr) = __f32_to_int64(src_f32),
+          _  => v(32, dst_gpr) = zero_extend(__f32_to_int32(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1423,8 +1423,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => read_mem(m),
         };
         match os {
-          64 => reg(dst_gpr) = __f64_to_int64(src_f64),
-          _  => reg(32, dst_gpr) = zero_extend(__f64_to_int32(src_f64)),
+          64 => v(dst_gpr) = __f64_to_int64(src_f64),
+          _  => v(32, dst_gpr) = zero_extend(__f64_to_int32(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1958,8 +1958,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.rex_w then reg(dst_gpr) = __f32_to_uint64_trunc(src_f32)
-        else reg(32, dst_gpr) = zero_extend(__f32_to_uint32_trunc(src_f32));
+        if pfx.rex_w then v(dst_gpr) = __f32_to_uint64_trunc(src_f32)
+        else v(32, dst_gpr) = zero_extend(__f32_to_uint32_trunc(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTSD2USI: scalar f64→unsigned GPR trunc — supports {sae}
@@ -1972,8 +1972,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.rex_w then reg(dst_gpr) = __f64_to_uint64_trunc(src_f64)
-        else reg(32, dst_gpr) = zero_extend(__f64_to_uint32_trunc(src_f64));
+        if pfx.rex_w then v(dst_gpr) = __f64_to_uint64_trunc(src_f64)
+        else v(32, dst_gpr) = zero_extend(__f64_to_uint32_trunc(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTPS2UQQ (W0) / VCVTTPD2UQQ (W1) — supports {sae}
@@ -2033,8 +2033,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.rex_w then reg(dst_gpr) = __f32_to_uint64(src_f32)
-        else reg(32, dst_gpr) = zero_extend(__f32_to_uint32(src_f32));
+        if pfx.rex_w then v(dst_gpr) = __f32_to_uint64(src_f32)
+        else v(32, dst_gpr) = zero_extend(__f32_to_uint32(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTSD2USI: scalar f64→unsigned GPR round — supports {er}
@@ -2047,8 +2047,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => read_mem(m),
         };
-        if pfx.rex_w then reg(dst_gpr) = __f64_to_uint64(src_f64)
-        else reg(32, dst_gpr) = zero_extend(__f64_to_uint32(src_f64));
+        if pfx.rex_w then v(dst_gpr) = __f64_to_uint64(src_f64)
+        else v(32, dst_gpr) = zero_extend(__f64_to_uint32(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTPS2UQQ (W0) / VCVTPD2UQQ (W1) — supports {er}
@@ -2163,10 +2163,10 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f32 : dword = match (rm2, pfx.rex_w) {
           // W1: u64→f32
-          (RM_reg(_), true) => __uint64_to_f32(reg(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), true) => __uint64_to_f32(v(modrm_rm_reg(modrm, pfx))),
           (RM_mem(m), true) => __uint64_to_f32(read_mem(m)),
           // W0: u32→f32
-          (RM_reg(_), false) => __uint32_to_f32(reg(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), false) => __uint32_to_f32(v(modrm_rm_reg(modrm, pfx))),
           (RM_mem(m), false) => __uint32_to_f32(read_mem(m)),
         };
         var dst_val = src1;
@@ -2183,10 +2183,10 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f64 : qword = match (rm2, pfx.rex_w) {
           // W1: u64→f64
-          (RM_reg(_), true) => __uint64_to_f64(reg(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), true) => __uint64_to_f64(v(modrm_rm_reg(modrm, pfx))),
           (RM_mem(m), true) => __uint64_to_f64(read_mem(m)),
           // W0: u32→f64
-          (RM_reg(_), false) => __uint32_to_f64(reg(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), false) => __uint32_to_f64(v(modrm_rm_reg(modrm, pfx))),
           (RM_mem(m), false) => __uint32_to_f64(read_mem(m)),
         };
         var dst_val = src1;

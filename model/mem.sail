@@ -62,18 +62,18 @@ function write_mem_linear(n, addr, data) = {
 // Read the stack pointer as a linear address (SS base + ESP/RSP/SP).
 val read_stack_ptr : unit -> qword
 function read_stack_ptr() =
-  if cur_mode == LongMode then reg(64, RSP)
+  if cur_mode == LongMode then v(64, RSP)
   else get_seg_base(SS) + (
-    if SegCache[SS].seg_db == 0b1 then zero_extend(reg(32, RSP))
-    else zero_extend(reg(16, RSP))
+    if SegCache[SS].seg_db == 0b1 then zero_extend(v(32, RSP))
+    else zero_extend(v(16, RSP))
   )
 
 // Write the stack pointer (only the SP/ESP/RSP portion, not the base).
 val write_stack_ptr : qword -> unit
 function write_stack_ptr(v) =
-  if cur_mode == LongMode then reg(RSP) = v
-  else if SegCache[SS].seg_db == 0b1 then reg(RSP) = v[31..0]
-  else reg(RSP) = v[15..0]
+  if cur_mode == LongMode then v(RSP) = v
+  else if SegCache[SS].seg_db == 0b1 then v(RSP) = v[31..0]
+  else v(RSP) = v[15..0]
 
 // Stack push helper: compute new SP with proper wrapping for SS.B,
 // write value to SS:new_SP, update SP register.
@@ -82,22 +82,22 @@ function write_stack_ptr(v) =
 // which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
 val push64 : qword -> unit
 function push64(v) = {
-  let sp = reg(64, RSP) - 8;
+  let sp = v(64, RSP) - 8;
   write_mem(sp, v);
-  reg(RSP) = sp
+  v(RSP) = sp
 }
 
 val push32 : dword -> unit
 function push32(v) = {
   if cur_mode == LongMode then {
-    let sp = reg(64, RSP) - 4;
+    let sp = v(64, RSP) - 4;
     write_mem(sp, v);
-    reg(RSP) = sp
+    v(RSP) = sp
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(reg(32, RSP) - 4)
-      else zero_extend(reg(16, RSP) - 4);
+      then zero_extend(v(32, RSP) - 4)
+      else zero_extend(v(16, RSP) - 4);
     write_mem(base + new_off, v);
     write_stack_ptr(new_off)
   }
@@ -122,14 +122,14 @@ function pop32() = {
 val push16 : word -> unit
 function push16(v) = {
   if cur_mode == LongMode then {
-    let sp = reg(64, RSP) - 2;
+    let sp = v(64, RSP) - 2;
     write_mem(sp, v);
-    reg(RSP) = sp
+    v(RSP) = sp
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(reg(32, RSP) - 2)
-      else zero_extend(reg(16, RSP) - 2);
+      then zero_extend(v(32, RSP) - 2)
+      else zero_extend(v(16, RSP) - 2);
     write_mem(base + new_off, v);
     write_stack_ptr(new_off)
   }

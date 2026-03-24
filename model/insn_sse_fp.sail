@@ -441,7 +441,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let src = decode_rm(modrm, pfx);
       let os = get_operand_size(pfx);
       let src_val : qword = match src {
-        RM_reg(_) => zero_extend(reg(os, modrm_rm_reg(modrm, pfx))),
+        RM_reg(_) => zero_extend(v(os, modrm_rm_reg(modrm, pfx))),
         RM_mem(m) => match os {
           64 => read_mem(m),
           _  => zero_extend(read_mem(4, m)),
@@ -510,14 +510,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            64 => reg(reg) = __f32_to_int64_trunc(src_xmm[31..0]),
-            _  => reg(reg) = __f32_to_int32_trunc(src_xmm[31..0]),
+            64 => v(reg) = __f32_to_int64_trunc(src_xmm[31..0]),
+            _  => v(reg) = __f32_to_int32_trunc(src_xmm[31..0]),
           }
         },
         MP_F2 => {
           match os {
-            64 => reg(reg) = __f64_to_int64_trunc(src_xmm[63..0]),
-            _  => reg(reg) = __f64_to_int32_trunc(src_xmm[63..0]),
+            64 => v(reg) = __f64_to_int64_trunc(src_xmm[63..0]),
+            _  => v(reg) = __f64_to_int32_trunc(src_xmm[63..0]),
           }
         },
         // CVTTPS2PI mm, xmm/m64 (NP) — SDM: truncate 2 floats to 2 dwords in MM
@@ -560,14 +560,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            64 => reg(reg) = __f32_to_int64(src_xmm[31..0]),
-            _    => reg(reg) = __f32_to_int32(src_xmm[31..0]),
+            64 => v(reg) = __f32_to_int64(src_xmm[31..0]),
+            _    => v(reg) = __f32_to_int32(src_xmm[31..0]),
           }
         },
         MP_F2 => {
           match os {
-            64 => reg(reg) = __f64_to_int64(src_xmm[63..0]),
-            _    => reg(reg) = __f64_to_int32(src_xmm[63..0]),
+            64 => v(reg) = __f64_to_int64(src_xmm[63..0]),
+            _    => v(reg) = __f64_to_int32(src_xmm[63..0]),
           }
         },
         // CVTPS2PI mm, xmm/m64 (NP) — SDM: round 2 floats to 2 dwords in MM
@@ -690,11 +690,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => {
           let mask : bits(4) = src_xmm[127] @ src_xmm[95] @ src_xmm[63] @ src_xmm[31];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         },
         MP_66 => {
           let mask : bits(2) = src_xmm[127] @ src_xmm[63];
-          reg(32, reg) = zero_extend(mask)
+          v(32, reg) = zero_extend(mask)
         },
         _       => raise_UD(),
       }
@@ -1446,7 +1446,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          reg(32, dst_reg) = zero_extend(w)
+          v(32, dst_reg) = zero_extend(w)
         },
         RM_mem(m) => write_mem(m,w),
       }
@@ -1459,7 +1459,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          reg(dst_reg) = v;
+          v(dst_reg) = v;
         },
         RM_mem(m) => write_mem(m,v),
       }

@@ -1040,7 +1040,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let elem : word = reg(32, modrm_rm_reg(modrm, pfx))[15..0];
+    let elem : word = v(32, modrm_rm_reg(modrm, pfx))[15..0];
     let w : dword = elem @ elem;
     let q : qword = w @ w;
     let x : xmmword = q @ q;
@@ -1062,7 +1062,7 @@ function dispatch_evex_perm(op, pfx) = {
     let elem : dword = match src {
       RM_reg(_) => {
         // Source is a GPR (r/m field selects GPR, not XMM)
-        reg(modrm_rm_reg(modrm, pfx))
+        v(modrm_rm_reg(modrm, pfx))
       },
       RM_mem(m) => read_mem(m),
     };
@@ -1255,7 +1255,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let elem : byte = reg(32, modrm_rm_reg(modrm, pfx))[7..0];
+    let elem : byte = v(32, modrm_rm_reg(modrm, pfx))[7..0];
     match pfx.evex_ll {
       0 => evex_write_b_xmm(dst, broadcast_byte_xmm(elem), pfx),
       1 => evex_write_b_ymm(dst, broadcast_byte_ymm(elem), pfx),

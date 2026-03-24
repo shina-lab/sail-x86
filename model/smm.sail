@@ -77,22 +77,22 @@ function smram_load16(offset) = {
 val deliver_smi : unit -> unit
 function deliver_smi() = {
   // Save general-purpose registers (Table 34-3, Intel 64 format)
-  smram_save64(0x7F5C, reg(RAX));
-  smram_save64(0x7F64, reg(RCX));
-  smram_save64(0x7F6C, reg(RDX));
-  smram_save64(0x7F74, reg(RBX));
-  smram_save64(0x7F7C, reg(RSP));
-  smram_save64(0x7F84, reg(RBP));
-  smram_save64(0x7F8C, reg(RSI));
-  smram_save64(0x7F94, reg(RDI));
-  smram_save64(0x7F54, reg(R8));
-  smram_save64(0x7F4C, reg(R9));
-  smram_save64(0x7F44, reg(R10));
-  smram_save64(0x7F3C, reg(R11));
-  smram_save64(0x7F34, reg(R12));
-  smram_save64(0x7F2C, reg(R13));
-  smram_save64(0x7F24, reg(R14));
-  smram_save64(0x7F1C, reg(R15));
+  smram_save64(0x7F5C, v(RAX));
+  smram_save64(0x7F64, v(RCX));
+  smram_save64(0x7F6C, v(RDX));
+  smram_save64(0x7F74, v(RBX));
+  smram_save64(0x7F7C, v(RSP));
+  smram_save64(0x7F84, v(RBP));
+  smram_save64(0x7F8C, v(RSI));
+  smram_save64(0x7F94, v(RDI));
+  smram_save64(0x7F54, v(R8));
+  smram_save64(0x7F4C, v(R9));
+  smram_save64(0x7F44, v(R10));
+  smram_save64(0x7F3C, v(R11));
+  smram_save64(0x7F34, v(R12));
+  smram_save64(0x7F2C, v(R13));
+  smram_save64(0x7F24, v(R14));
+  smram_save64(0x7F1C, v(R15));
 
   // Save RIP
   smram_save64(0x7FD8, RIP);
@@ -240,22 +240,22 @@ function exec_rsm() = {
   DR7 = smram_load64(0x7FC8);
 
   // Restore general-purpose registers
-  reg(RAX) = smram_load64(0x7F5C);
-  reg(RCX) = smram_load64(0x7F64);
-  reg(RDX) = smram_load64(0x7F6C);
-  reg(RBX) = smram_load64(0x7F74);
-  reg(RSP) = smram_load64(0x7F7C);
-  reg(RBP) = smram_load64(0x7F84);
-  reg(RSI) = smram_load64(0x7F8C);
-  reg(RDI) = smram_load64(0x7F94);
-  reg(R8)  = smram_load64(0x7F54);
-  reg(R9)  = smram_load64(0x7F4C);
-  reg(R10) = smram_load64(0x7F44);
-  reg(R11) = smram_load64(0x7F3C);
-  reg(R12) = smram_load64(0x7F34);
-  reg(R13) = smram_load64(0x7F2C);
-  reg(R14) = smram_load64(0x7F24);
-  reg(R15) = smram_load64(0x7F1C);
+  v(RAX) = smram_load64(0x7F5C);
+  v(RCX) = smram_load64(0x7F64);
+  v(RDX) = smram_load64(0x7F6C);
+  v(RBX) = smram_load64(0x7F74);
+  v(RSP) = smram_load64(0x7F7C);
+  v(RBP) = smram_load64(0x7F84);
+  v(RSI) = smram_load64(0x7F8C);
+  v(RDI) = smram_load64(0x7F94);
+  v(R8)  = smram_load64(0x7F54);
+  v(R9)  = smram_load64(0x7F4C);
+  v(R10) = smram_load64(0x7F44);
+  v(R11) = smram_load64(0x7F3C);
+  v(R12) = smram_load64(0x7F34);
+  v(R13) = smram_load64(0x7F2C);
+  v(R14) = smram_load64(0x7F24);
+  v(R15) = smram_load64(0x7F1C);
 
   // Restore segment selectors
   // SDM §34.3.2: "The RSM instruction restores the processor's context

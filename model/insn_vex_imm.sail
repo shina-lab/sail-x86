@@ -335,7 +335,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let shift : range(0, 63) = unsigned(imm[(if pfx.vex_w then 5 else 4)..0]);
     assert(shift < os);
-    reg(os, dst) = rotr(src, shift);
+    v(os, dst) = rotr(src, shift);
   },
 
   // 0F3A 00: VPERMQ ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
@@ -555,7 +555,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        reg(32, dst_reg) = zero_extend(v);
+        v(32, dst_reg) = zero_extend(v);
       },
       RM_mem(m) => write_mem(m,v),
     }
@@ -575,7 +575,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        reg(32, dst_reg) = zero_extend(w);
+        v(32, dst_reg) = zero_extend(w);
       },
       RM_mem(m) => write_mem(m,w),
     }
@@ -592,8 +592,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let src_xmm : xmmword = read_xmm(src);
     match (dest, pfx.rex_w) {
-      (RM_reg(_), true)     => reg(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(src_xmm, imm),
-      (RM_reg(_), false)    => reg(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(src_xmm, imm),
+      (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(src_xmm, imm),
+      (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(src_xmm, imm),
       (RM_mem(m), true)  => write_mem(m,extract_qword_from_xmm(src_xmm, imm)),
       (RM_mem(m), false) => write_mem(m,extract_dword_from_xmm(src_xmm, imm)),
     }
@@ -612,7 +612,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        reg(dst_reg) = v;
+        v(dst_reg) = v;
       },
       RM_mem(m) => write_mem(m,v),
     }
@@ -627,7 +627,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = decode_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : byte = match src {
-      RM_reg(_) => reg(modrm_rm_reg(modrm, pfx)),
+      RM_reg(_) => v(modrm_rm_reg(modrm, pfx)),
       RM_mem(m) => read_mem(m),
     };
     let imm = fetch_byte();
