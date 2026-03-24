@@ -135,6 +135,14 @@ function pop16() = {
   v
 }
 
+// Pop a value from the stack, zero-extended to qword.
+val pop_qword : {16, 32, 64} -> qword
+function pop_qword(os) = match os {
+  16 => zero_extend(pop16()),
+  32 => zero_extend(pop32()),
+  64 => pop64(),
+}
+
 // =========================================================================
 // Segment register loading
 // =========================================================================

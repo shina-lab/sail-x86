@@ -67,16 +67,9 @@ enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
 
 val exec_loop : (byte, LoopVariant, AddressSize) -> unit
 function exec_loop(rel8, variant, asz) = {
-  match asz {
-    AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
-    AS64 => write_gpr64(RCX, read_gpr64(RCX) - 1),
-    AS32 => write_gpr32(RCX, read_gpr32(RCX) - 1),
-  };
-  let count_nonzero : bool = match asz {
-    AS16 => read_gpr16(RCX) != zeros(),
-    AS64 => read_gpr64(RCX) != zeros(),
-    AS32 => read_gpr32(RCX) != zeros(),
-  };
+  let os = asz_val(asz);
+  write_gpr(os, RCX, read_gpr(os, RCX) - 1);
+  let count_nonzero : bool = read_gpr(os, RCX) != zeros();
   let take_branch : bool = match variant {
     LOOP_always => count_nonzero,
     LOOP_e      => if count_nonzero then ZF == 0b1 else false,
@@ -454,10 +447,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let src : zmmword = read_mem_rm(rm);
         let asz = get_address_size(pfx);
         let reg = modrm_reg(modrm, pfx);
-        let dst_addr : qword = match asz {
-          AS32 => zero_extend(read_gpr32(reg)),
-          _    => read_gpr64(reg),
-        };
+        let dst_addr : qword = zero_extend(read_gpr(asz_val(asz), reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
         mem_write(dst_addr, src)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
@@ -578,16 +568,8 @@ function exec_retf(pfx, maybe_imm) = {
   };
 
   // Pop return RIP and CS
-  let new_rip : qword = match os {
-    16 => zero_extend(pop16()),
-    32 => zero_extend(pop32()),
-    64 => pop64(),
-  };
-  let new_cs_raw : qword = match os {
-    16 => zero_extend(pop16()),
-    32 => zero_extend(pop32()),
-    64 => pop64(),
-  };
+  let new_rip : qword = pop_qword(os);
+  let new_cs_raw : qword = pop_qword(os);
   let new_cs : word = new_cs_raw[15..0];
 
   // In protected/long mode, null CS selector is invalid.
@@ -608,16 +590,8 @@ function exec_retf(pfx, maybe_imm) = {
   // In protected/long mode, check RPL for inter-privilege return.
   if cur_mode != RealMode & return_rpl > cur_cpl then {
     // Outer-privilege return: also pop RSP and SS
-    let new_rsp : qword = match os {
-      16 => zero_extend(pop16()),
-      32 => zero_extend(pop32()),
-      64 => pop64(),
-    };
-    let new_ss_raw : qword = match os {
-      16 => zero_extend(pop16()),
-      32 => zero_extend(pop32()),
-      64 => pop64(),
-    };
+    let new_rsp : qword = pop_qword(os);
+    let new_ss_raw : qword = pop_qword(os);
     let new_ss : word = new_ss_raw[15..0];
     write_gpr64(RSP, new_rsp);
     load_segment_register(SS, new_ss);
@@ -1264,11 +1238,7 @@ function decode_execute() = {
             // Memory destination: pop first, THEN compute effective address
             // (SDM requires RSP-relative addresses use the post-pop RSP).
             // We pop first so that decode_rm sees the updated RSP.
-            let v : qword = match os {
-              16 => zero_extend(pop16()),
-              32 => zero_extend(pop32()),
-              64 => pop64(),
-            };
+            let v : qword = pop_qword(os);
             let rm = decode_rm(modrm, pfx);
             match rm {
               RM_mem(seg, offset) => seg_write(os / 8, seg, offset, v[(os - 1) .. 0]),
@@ -1301,21 +1271,13 @@ function decode_execute() = {
       // 98: CBW/CWDE/CDQE
       152 => {
         let os = get_operand_size(pfx);
-        match os {
-          16 => { let v : word = sign_extend(read_gpr8l(RAX)); write_gpr16(RAX, v) },
-          32 => { let v : dword = sign_extend(read_gpr16(RAX)); write_gpr32(RAX, v) },
-          64 => { let v : qword = sign_extend(read_gpr32(RAX)); write_gpr64(RAX, v) },
-        }
+        write_gpr(os, RAX, sign_extend(read_gpr(os / 2, RAX)))
       },
 
       // 99: CWD/CDQ/CQO
       153 => {
         let os = get_operand_size(pfx);
-        match os {
-          16 => write_gpr16(RDX, sign_extend(read_gpr16(RAX)[15])),
-          32 => write_gpr32(RDX, sign_extend(read_gpr32(RAX)[31])),
-          64 => write_gpr64(RDX, sign_extend(read_gpr64(RAX)[63])),
-        }
+        write_gpr(os, RDX, sign_extend(read_gpr(os, RAX)[os - 1]))
       },
 
       // 9A: CALL ptr16:16/ptr16:32 — Far call, immediate
@@ -1578,13 +1540,7 @@ function decode_execute() = {
       194 => {
         let imm = fetch_imm16();
         let os = get_operand_size_f64(pfx);
-        let target : qword = match os {
-          64 => pop64(),
-          32 => zero_extend(pop32()),
-          16 => zero_extend(pop16()),
-          8 => zeros(),
-        };
-        next_rip = Some(target);
+        next_rip = Some(pop_qword(os));
         GPR[RSP] = GPR[RSP] + zero_extend(imm)
       },
 
@@ -1592,14 +1548,7 @@ function decode_execute() = {
       // SDM: In 64-bit mode, operand size = stack-address size = 64.
       // 66h prefix is ignored; 16/32-bit forms are not encodable.
       195 => {
-        let os = get_operand_size_f64(pfx);
-        let target : qword = match os {
-          64 => pop64(),
-          32 => zero_extend(pop32()),
-          16 => zero_extend(pop16()),
-          8 => zeros(),
-        };
-        next_rip = Some(target)
+        next_rip = Some(pop_qword(get_operand_size_f64(pfx)))
       },
 
       // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
@@ -1961,13 +1910,8 @@ function decode_execute() = {
 
       // D7: XLAT/XLATB
       215 => {
-        let asz = get_address_size(pfx);
         let al : qword = zero_extend(read_gpr8l(RAX));
-        let addr : qword = match asz {
-          AS16 => zero_extend(read_gpr16(RBX)) + al,
-          AS64 => read_gpr64(RBX) + al,
-          AS32 => zero_extend(read_gpr32(RBX)) + al,
-        };
+        let addr : qword = zero_extend(read_gpr(asz_val(get_address_size(pfx)), RBX)) + al;
         write_gpr8l(RAX, mem_read(addr))
       },
 
@@ -1999,12 +1943,7 @@ function decode_execute() = {
       // Address size selects CX (AS16), ECX (AS32), or RCX (AS64).
       227 => {
         let rel = fetch_rel8();
-        let asz = get_address_size(pfx);
-        let count_reg : qword = match asz {
-          AS16 => zero_extend(read_gpr16(RCX)),
-          AS32 => zero_extend(read_gpr32(RCX)),
-          AS64 => read_gpr64(RCX),
-        };
+        let count_reg : qword = zero_extend(read_gpr(asz_val(get_address_size(pfx)), RCX));
         if count_reg == zeros() then {
           let os = get_operand_size_f64(pfx);
           next_rip = Some(truncate_rip(decode_pos + rel, os))
