@@ -880,12 +880,12 @@ function decode_execute() = {
           let src = decode_rm(modrm, pfx);
           match src {
             RM_reg(_, _) => raise_UD(),  // BOUND requires memory operand
-            RM_mem(_, addr) => {
+            RM_mem(seg, addr) => {
               let os = get_operand_size(pfx);
               let reg = modrm_reg(modrm, pfx);
               let index = reg(os, reg);
-              let lower = seg_read(os / 8, DS, addr);
-              let upper = seg_read(os / 8, DS, addr + os / 8);
+              let lower = seg_read(os / 8, seg, addr);
+              let upper = seg_read(os / 8, seg, addr + os / 8);
               if signed(index) < signed(lower) | signed(upper) < signed(index) then
                 raise_BR()
             },
