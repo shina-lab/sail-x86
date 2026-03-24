@@ -301,20 +301,6 @@ register rip_rel_disp : qword
 // Placed here so all string instruction files can use them.
 // =========================================================================
 
-val read_count_reg : AddressSize -> qword
-function read_count_reg(asz) = match asz {
-  AS16 => zero_extend(read_gpr16(RCX)),
-  AS32 => zero_extend(read_gpr32(RCX)),
-  AS64 => read_gpr64(RCX),
-}
-
-val write_count_reg : (AddressSize, qword) -> unit
-function write_count_reg(asz, v) = match asz {
-  AS16 => write_gpr16(RCX, v[15..0]),
-  AS32 => write_gpr32(RCX, v[31..0]),
-  AS64 => write_gpr64(RCX, v),
-}
-
 val read_index_src : AddressSize -> qword
 function read_index_src(asz) = match asz {
   AS16 => zero_extend(read_gpr16(RSI)),

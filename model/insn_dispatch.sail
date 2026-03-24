@@ -276,7 +276,12 @@ enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR
 
 val exec_rep : (RepPrefix, StringOp, operand_size, AddressSize, Prefixes) -> unit
 function exec_rep(prefix, op, os, asz, pfx) = {
-  while read_count_reg(asz) != zeros() do {
+  var done : bool = match asz {
+    AS16 => read_gpr16(RCX) == zeros(),
+    AS32 => read_gpr32(RCX) == zeros(),
+    AS64 => read_gpr64(RCX) == zeros(),
+  };
+  while ~(done) do {
     match op {
       STR_movs => exec_movs(os, asz, pfx),
       STR_stos => exec_stos(os, asz),
@@ -286,10 +291,18 @@ function exec_rep(prefix, op, os, asz, pfx) = {
       STR_ins  => exec_ins(os, asz),
       STR_outs => exec_outs(os, asz, pfx),
     };
-    let cnt = read_count_reg(asz);
-    write_count_reg(asz, cnt - 1);
+    match asz {
+      AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
+      AS32 => write_gpr32(RCX, read_gpr32(RCX) - 1),
+      AS64 => write_gpr64(RCX, read_gpr64(RCX) - 1),
+    };
     if prefix == REP_repe  & ZF == 0b0 then return ();
-    if prefix == REP_repne & ZF == 0b1 then return ()
+    if prefix == REP_repne & ZF == 0b1 then return ();
+    done = match asz {
+      AS16 => read_gpr16(RCX) == zeros(),
+      AS32 => read_gpr32(RCX) == zeros(),
+      AS64 => read_gpr64(RCX) == zeros(),
+    }
   }
 }
 
