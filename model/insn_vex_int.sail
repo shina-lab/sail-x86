@@ -338,11 +338,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = decode_rm(modrm, pfx);
     if pfx.vex_w then {
       // VMOVQ xmm, r/m64
-      let v : qword = rm(src);
+      let v : qword = v(src);
       write_xmm(dst, zero_extend(v))
     } else {
       // VMOVD xmm, r/m32
-      let v : dword = rm(src);
+      let v : dword = v(src);
       write_xmm(dst, zero_extend(v))
     }
   },

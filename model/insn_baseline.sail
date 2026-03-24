@@ -393,7 +393,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         2 => {
           if cur_cpl != 0 then raise_GP0();
           let src = decode_rm(modrm, pfx);
-          let sel : word = rm(src);
+          let sel : word = v(src);
           LDTR = sel
         },
 
@@ -401,7 +401,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         3 => {
           if cur_cpl != 0 then raise_GP0();
           let src = decode_rm(modrm, pfx);
-          let sel : word = rm(src);
+          let sel : word = v(src);
           TR = sel;
           // Load TSS base/limit from GDT descriptor
           let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
@@ -427,7 +427,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
         4 => {
           let src = decode_rm(modrm, pfx);
-          let selector : word = rm(src);
+          let selector : word = v(src);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -454,7 +454,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 00 /5: VERW r/m16 — Verify segment writable, set ZF
         5 => {
           let src = decode_rm(modrm, pfx);
-          let selector : word = rm(src);
+          let selector : word = v(src);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -649,7 +649,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
             6 => {
               if cur_cpl != 0 then raise_GP0();
-              let msw : word = rm(dest);
+              let msw : word = v(dest);
               // LMSW sets low 4 bits of CR0; only PE (bit 0) is sticky
               // (cannot clear PE once set). MP/EM/TS are freely assignable.
               var new_cr0 = CR0;
@@ -679,7 +679,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let selector : word = rm(src);
+      let selector : word = v(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
@@ -707,7 +707,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let selector : word = rm(src);
+      let selector : word = v(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
@@ -1043,7 +1043,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let src_val = rm(os, src);
+      let src_val = v(os, src);
       let dst = v(os, reg);
       if eval_cc(cc) == 0b1 then
         v(reg) = src_val
@@ -1070,7 +1070,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let dest = decode_rm(modrm, pfx);
       let v : byte = zero_extend(eval_cc(cc));
-      rm(dest) = v
+      v(dest) = v
     },
 
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
@@ -1207,7 +1207,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let src = decode_rm(modrm, pfx);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(src, bit_idx);
-      let v = rm(os, adj_rm);
+      let v = v(os, adj_rm);
       CF = v[bit_num]
     },
 
@@ -1218,10 +1218,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let count = fetch_byte();
-      let dst_val = rm(os, dest);
+      let dst_val = v(os, dest);
       let src_val = v(os, reg);
       let new_val = exec_shld(dst_val, src_val, count);
-      rm(os, dest) = new_val
+      v(os, dest) = new_val
     },
 
     // 0F A5: SHLD r/m, r, CL
@@ -1231,10 +1231,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let count : byte = v(RCX);
-      let dst_val = rm(os, dest);
+      let dst_val = v(os, dest);
       let src_val = v(os, reg);
       let new_val = exec_shld(dst_val, src_val, count);
-      rm(os, dest) = new_val
+      v(os, dest) = new_val
     },
 
     // 0F A8: PUSH GS (d64)
@@ -1272,10 +1272,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var v = rm(os, adj_rm);
+      var v = v(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = 0b1;
-      rm(os, adj_rm) = v
+      v(os, adj_rm) = v
     },
 
     // 0F AC: SHRD r/m, r, imm8
@@ -1285,10 +1285,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let count = fetch_byte();
-      let dst_val = rm(os, dest);
+      let dst_val = v(os, dest);
       let src_val = v(os, reg);
       let new_val = exec_shrd(dst_val, src_val, count);
-      rm(os, dest) = new_val
+      v(os, dest) = new_val
     },
 
     // 0F AD: SHRD r/m, r, CL
@@ -1298,10 +1298,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let count : byte = v(RCX);
-      let dst_val = rm(os, dest);
+      let dst_val = v(os, dest);
       let src_val = v(os, reg);
       let new_val = exec_shrd(dst_val, src_val, count);
-      rm(os, dest) = new_val
+      v(os, dest) = new_val
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
@@ -1311,7 +1311,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
       let a = v(os, reg);
-      let b = rm(os, src);
+      let b = v(os, src);
       let product : int = signed(sign_extend(a) : qword) * signed(sign_extend(b) : qword);
       let result : qword = to_bits_truncate(product);
       CF = match os {
@@ -1341,10 +1341,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var v = rm(os, adj_rm);
+      var v = v(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = 0b0;
-      rm(os, adj_rm) = v
+      v(os, adj_rm) = v
     },
 
     // 0F B2: LSS r, m16:16/32/64 — Load far pointer into SS
@@ -1382,16 +1382,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, false);
-      let dest_val = rm(8, dest);
+      let dest_val = v(8, dest);
       let acc : byte = v(RAX);
       let src : byte = v(reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
       if ZF == 0b1 then {
-        rm(dest) = src;
+        v(dest) = src;
       } else {
         v(RAX) = dest_val;
-        rm(dest) = dest_val;
+        v(dest) = dest_val;
       }
     },
 
@@ -1402,16 +1402,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, false);
-      let dest_val = rm(os, dest);
+      let dest_val = v(os, dest);
       let acc = v(os, RAX);
       let src = v(os, reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
       if ZF == 0b1 then {
-        rm(os, dest) = src;
+        v(os, dest) = src;
       } else {
         v(RAX) = dest_val;
-        rm(os, dest) = dest_val;
+        v(os, dest) = dest_val;
       }
     },
 
@@ -1421,7 +1421,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let v = rm(8, src);
+      let v = v(8, src);
       v(os, reg) = zero_extend(v)
     },
 
@@ -1431,7 +1431,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let v = rm(16, src);
+      let v = v(16, src);
       v(os, reg) = zero_extend(v)
     },
 
@@ -1445,7 +1445,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_lock & reg_field == 4 then raise_UD();
       check_lock_rm(pfx, dest, false);
       let imm = fetch_byte();
-      var v = rm(os, dest);
+      var v = v(os, dest);
       let bit_num : range(0, 63) = unsigned(imm) % os;
       assert(bit_num < os);
       CF = v[bit_num];
@@ -1455,17 +1455,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BTS — set bit
         5 => {
           v[bit_num] = 0b1;
-          rm(os, dest) = v
+          v(os, dest) = v
         },
         // BTR — reset bit
         6 => {
           v[bit_num] = 0b0;
-          rm(os, dest) = v
+          v(os, dest) = v
         },
         // BTC — complement bit
         7 => {
           v[bit_num] = ~(v[bit_num]);
-          rm(os, dest) = v
+          v(os, dest) = v
         },
         _ => raise_UD(),
       }
@@ -1480,10 +1480,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var v = rm(os, adj_rm);
+      var v = v(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = ~(v[bit_num]);
-      rm(os, adj_rm) = v
+      v(os, adj_rm) = v
     },
 
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)
@@ -1495,7 +1495,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_rep then {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_bmi1) then raise_UD();
-        let src_val = rm(os, src);
+        let src_val = v(os, src);
         let count : range(0, 64) = ctz(os, zero_extend(src_val));
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
@@ -1507,7 +1507,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // PF set from result parity (verified against real hardware).
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
-        let src_val = rm(os, src);
+        let src_val = v(os, src);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1534,7 +1534,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_rep then {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_lzcnt) then raise_UD();
-        let src_val = rm(os, src);
+        let src_val = v(os, src);
         let count : range(0, 64) = clz(os, zero_extend(src_val));
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
@@ -1546,7 +1546,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // PF set from result parity (verified against real hardware).
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
-        let src_val = rm(os, src);
+        let src_val = v(os, src);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1570,7 +1570,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let v = rm(8, src);
+      let v = v(8, src);
       let sx : qword = sign_extend(v);
       v(reg) = sx[(os - 1) .. 0]
     },
@@ -1581,7 +1581,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let v = rm(16, src);
+      let v = v(16, src);
       let sx : qword = sign_extend(v);
       v(reg) = sx[(os - 1) .. 0]
     },
@@ -1616,12 +1616,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       match dest {
         RM_reg(dst) => exec_xadd(dst, reg, os),
         RM_mem(_) => {
-          let mem_val = rm(os, dest);
+          let mem_val = v(os, dest);
           let reg_val = v(os, reg);
           let sum = mem_val + reg_val;
           update_flags_add(sum, mem_val, reg_val);
           v(reg) = mem_val;
-          rm(os, dest) = sum
+          v(os, dest) = sum
         },
       }
     },
@@ -1635,7 +1635,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      let src_val = rm(os, src);
+      let src_val = v(os, src);
       let count : range(0, 64) = popcount(zero_extend(src_val) : qword);
       OF = 0b0;
       SF = 0b0;

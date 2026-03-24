@@ -1439,7 +1439,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let v : word = rm(src);
+        let v : word = v(src);
         let imm = fetch_byte();
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
@@ -2645,7 +2645,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     34 => {
       let imm = fetch_byte();
       if pfx.rex_w then {
-        let v : qword = rm(src);
+        let v : qword = v(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
@@ -2654,7 +2654,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         };
         write_xmm_legacy(xreg, r)
       } else {
-        let v : dword = rm(src);
+        let v : dword = v(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 3) = unsigned(imm[1..0]);
         let r : xmmword = insert_dword(v_0, v, sel);

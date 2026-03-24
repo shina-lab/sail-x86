@@ -1860,7 +1860,7 @@ function dispatch_evex_imm(op, pfx) = {
     if pfx.vex_w then {
       // VPINSRQ: imm8[0] selects qword position
       let src = decode_rm_evex(modrm, pfx, 8);
-      let qword_val : qword = rm(src);
+      let qword_val : qword = v(src);
       let imm = fetch_byte();
       let sel : range(0, 1) = unsigned(imm[0]);
       var result = read_xmm(pfx.evex_vvvvv);
@@ -1870,7 +1870,7 @@ function dispatch_evex_imm(op, pfx) = {
     } else {
       // VPINSRD: imm8[1:0] selects dword position
       let src = decode_rm_evex(modrm, pfx, 4);
-      let dword_val : dword = rm(src);
+      let dword_val : dword = v(src);
       let imm = fetch_byte();
       let sel : range(0, 3) = unsigned(imm[1..0]);
       var result = read_xmm(pfx.evex_vvvvv);
