@@ -163,25 +163,25 @@ function dispatch_group3_byte(reg_field, rm, pfx) = {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
     let imm : byte = fetch_byte();
-    let v = read_rm_val(rm, 8, pfx.has_rex);
+    let v = read_rm_val(8, rm, pfx.has_rex);
     let result = v & imm;
     update_flags_logic(result)
   } else {
-    let v = read_rm_val(rm, 8, pfx.has_rex);
+    let v = read_rm_val(8, rm, pfx.has_rex);
     match reg_field {
       0 => (),  // unreachable, handled above
       1 => (),  // unreachable, handled above
       // NOT r/m8
       2 => {
         let result = v ^ 0xFF;
-        write_rm_val(rm, 8, pfx.has_rex, result)
+        write_rm_val(rm, pfx.has_rex, result)
       },
       // NEG r/m8
       3 => {
         let zero : byte = zeros();
         let result = zero - v;
         update_flags_sub(result, zero, v);
-        write_rm_val(rm, 8, pfx.has_rex, result)
+        write_rm_val(rm, pfx.has_rex, result)
       },
       4 => exec_mul(v),
       5 => exec_imul_1(v),
@@ -201,24 +201,24 @@ function dispatch_group3(reg_field, rm, os, pfx) = {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
     let imm = fetch_imm_z(os);
-    let v = read_rm_val(rm, os, pfx.has_rex);
+    let v = read_rm_val(os, rm, pfx.has_rex);
     let result = v & imm[(os - 1) .. 0];
     update_flags_logic(result)
   } else {
-    let v = read_rm_val(rm, os, pfx.has_rex);
+    let v = read_rm_val(os, rm, pfx.has_rex);
     match reg_field {
       0 => (),  // unreachable
       1 => (),  // unreachable
       // NOT r/m
       2 => {
         let result = ~(v);
-        write_rm_val(rm, os, pfx.has_rex, result)
+        write_rm_val(os, rm, pfx.has_rex, result)
       },
       // NEG r/m
       3 => {
         let result = zeros() - v;
         update_flags_sub(result, zeros(), v);
-        write_rm_val(rm, os, pfx.has_rex, result)
+        write_rm_val(os, rm, pfx.has_rex, result)
       },
       4 => exec_mul(v),
       5 => exec_imul_1(v),
@@ -238,23 +238,23 @@ function dispatch_group5(reg_field, rm, pfx) = {
     // INC r/m
     0 => {
       let os = get_operand_size(pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
+      let v = read_rm_val(os, rm, pfx.has_rex);
       let result = exec_inc(v);
-      write_rm_val(rm, os, pfx.has_rex, result)
+      write_rm_val(os, rm, pfx.has_rex, result)
     },
     // DEC r/m
     1 => {
       let os = get_operand_size(pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
+      let v = read_rm_val(os, rm, pfx.has_rex);
       let result = exec_dec(v);
-      write_rm_val(rm, os, pfx.has_rex, result)
+      write_rm_val(os, rm, pfx.has_rex, result)
     },
     // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
     // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
     2 => {
       let os = get_operand_size_f64(pfx);
-      let target : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+      let target : qword = zero_extend(read_rm_val(os, rm, pfx.has_rex));
       let return_addr = decode_pos;
       match os {
         16 => push16(return_addr[15..0]),
@@ -266,13 +266,13 @@ function dispatch_group5(reg_field, rm, pfx) = {
     // JMP near indirect (f64)
     4 => {
       let os = get_operand_size_f64(pfx);
-      let target : qword = zero_extend(read_rm_val(rm, os, pfx.has_rex));
+      let target : qword = zero_extend(read_rm_val(os, rm, pfx.has_rex));
       next_rip = Some(target)
     },
     // PUSH r/m (d64)
     6 => {
       let os = get_operand_size_d64(pfx);
-      let v = read_rm_val(rm, os, pfx.has_rex);
+      let v = read_rm_val(os, rm, pfx.has_rex);
       exec_push_imm(v, os)
     },
     // CALL far indirect m16:16/m16:32/m16:64
@@ -526,11 +526,11 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
   if masked == 0 then {
     // Even with count=0, 32-bit operations zero-extend the upper 32 bits.
     if os == 32 then {
-      let src_val = read_rm_val(rm, os, pfx.has_rex);
-      write_rm_val(rm, os, pfx.has_rex, src_val)
+      let src_val = read_rm_val(os, rm, pfx.has_rex);
+      write_rm_val(os, rm, pfx.has_rex, src_val)
     }
   } else {
-    let src_val = read_rm_val(rm, os, pfx.has_rex);
+    let src_val = read_rm_val(os, rm, pfx.has_rex);
     let new_val : bits('os) = match shift_op {
       0 => exec_rol(src_val, count_raw),
       1 => exec_ror(src_val, count_raw),
@@ -541,6 +541,6 @@ function exec_shift_rm(shift_op, rm, count_raw, os, pfx) = {
       6 => exec_shl(src_val, count_raw),  // SAL = SHL
       7 => exec_sar(src_val, count_raw),
     };
-    write_rm_val(rm, os, pfx.has_rex, new_val)
+    write_rm_val(os, rm, pfx.has_rex, new_val)
   }
 }

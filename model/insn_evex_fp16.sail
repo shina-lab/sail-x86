@@ -1145,12 +1145,12 @@ function dispatch_evex_map5(opcode, pfx) = {
       let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
       if pfx.vex_w then {
         // VCVTSI2SH r64 → FP16
-        let v : qword = read_rm_val(rm, 64, pfx.has_rex);
+        let v : qword = read_rm_val(rm, pfx.has_rex);
         let r : word = __int64_to_f16(v);
         evex_write_sh(dst, src1[127..16] @ r, pfx)
       } else {
         // VCVTSI2SH r32 → FP16
-        let v : dword = read_rm_val(rm, 32, pfx.has_rex);
+        let v : dword = read_rm_val(rm, pfx.has_rex);
         let r : word = __int32_to_f16(v);
         evex_write_sh(dst, src1[127..16] @ r, pfx)
       }
@@ -1615,12 +1615,12 @@ function dispatch_evex_map5(opcode, pfx) = {
           let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
           if pfx.vex_w then {
             // VCVTUSI2SH r64 → FP16
-            let v : qword = read_rm_val(rm, 64, pfx.has_rex);
+            let v : qword = read_rm_val(rm, pfx.has_rex);
             let r : word = __uint64_to_f16(v);
             evex_write_sh(dst, src1[127..16] @ r, pfx)
           } else {
             // VCVTUSI2SH r32 → FP16
-            let v : dword = read_rm_val(rm, 32, pfx.has_rex);
+            let v : dword = read_rm_val(rm, pfx.has_rex);
             let r : word = __uint32_to_f16(v);
             evex_write_sh(dst, src1[127..16] @ r, pfx)
           }

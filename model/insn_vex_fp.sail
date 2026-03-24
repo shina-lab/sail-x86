@@ -439,20 +439,20 @@ function dispatch_vex_0f_fp(op, pfx) = {
       // VCVTSI2SS xmm1, xmm2, r/m32
       MP_F3 => {
         if pfx.vex_w then {
-          let v : qword = read_rm_val(rm, 64, pfx.has_rex);
+          let v : qword = read_rm_val(rm, pfx.has_rex);
           write_xmm(dst, src1[127..32] @ __int64_to_f32(v));
         } else {
-          let v : dword = read_rm_val(rm, 32, pfx.has_rex);
+          let v : dword = read_rm_val(rm, pfx.has_rex);
           write_xmm(dst, src1[127..32] @ __int32_to_f32(v));
         }
       },
       // VCVTSI2SD xmm1, xmm2, r/m32
       MP_F2 => {
         if pfx.vex_w then {
-          let v : qword = read_rm_val(rm, 64, pfx.has_rex);
+          let v : qword = read_rm_val(rm, pfx.has_rex);
           write_xmm(dst, src1[127..64] @ __int64_to_f64(v));
         } else {
-          let v : dword = read_rm_val(rm, 32, pfx.has_rex);
+          let v : dword = read_rm_val(rm, pfx.has_rex);
           write_xmm(dst, src1[127..64] @ __int32_to_f64(v));
         }
       },

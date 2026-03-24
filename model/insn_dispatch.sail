@@ -368,7 +368,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let src_val = read_rm_val(rm, os, pfx.has_rex);
+        let src_val = read_rm_val(os, rm, pfx.has_rex);
         if mp == MP_66 then {
           let a = read_gpr(os, reg);
           let result = a + src_val + zero_extend(CF);
@@ -425,14 +425,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let crc : bits(32) = read_gpr(32, reg);
           if op3 == 240 then {
             // CRC32 r32/r64, r/m8
-            let src : byte = read_rm_val(rm, 8, pfx.has_rex);
+            let src : byte = read_rm_val(rm, pfx.has_rex);
             let result : bits(32) = crc32c(crc, src);
             if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
             else write_gpr(32, reg, result)
           } else {
             // CRC32 r32/r64, r/m16/r/m32/r/m64
             let os = get_operand_size(pfx);
-            let src = read_rm_val(rm, os, pfx.has_rex);
+            let src = read_rm_val(os, rm, pfx.has_rex);
             let result : bits(32) = crc32c(crc, src);
             if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
             else write_gpr(32, reg, result)
@@ -448,7 +448,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             // MOVBE r, m — load from memory and byte-swap
             match rm {
               RM_mem(_, _) => {
-                let v = read_rm_val(rm, os, pfx.has_rex);
+                let v = read_rm_val(os, rm, pfx.has_rex);
                 write_gpr(os, reg, bswap(v))
               },
               RM_reg(_) => raise_UD(),
@@ -995,11 +995,11 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         if pfx.rex_w then {
-          let src = read_rm_val(rm, 32, pfx.has_rex);
+          let src = read_rm_val(32, rm, pfx.has_rex);
           write_gpr64(reg, sign_extend(src))
         } else {
           let os = get_operand_size(pfx);
-          let src = read_rm_val(rm, os, pfx.has_rex);
+          let src = read_rm_val(os, rm, pfx.has_rex);
           write_gpr(os, reg, src)
         }
       },
@@ -1019,7 +1019,7 @@ function decode_execute() = {
         let rm = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
-        let src = read_rm_val(rm, os, pfx.has_rex);
+        let src = read_rm_val(os, rm, pfx.has_rex);
         let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -1059,7 +1059,7 @@ function decode_execute() = {
         let rm = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
-        let src = read_rm_val(rm, os, pfx.has_rex);
+        let src = read_rm_val(os, rm, pfx.has_rex);
         let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -1161,7 +1161,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(rm, 8, pfx.has_rex);
+        let a = read_rm_val(8, rm, pfx.has_rex);
         let b : byte = read_byte_reg(reg, pfx.has_rex);
         let result = a & b;
         update_flags_logic(result)
@@ -1173,7 +1173,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(rm, os, pfx.has_rex);
+        let a = read_rm_val(os, rm, pfx.has_rex);
         let b = read_gpr(os, reg);
         let result = a & b;
         update_flags_logic(result)
@@ -1184,9 +1184,9 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(rm, 8, pfx.has_rex);
+        let a = read_rm_val(8, rm, pfx.has_rex);
         let b : byte = read_byte_reg(reg, pfx.has_rex);
-        write_rm_val(rm, 8, pfx.has_rex, b);
+        write_rm_val(rm, pfx.has_rex, b);
         write_byte_reg(reg, pfx.has_rex, a)
       },
 
@@ -1196,9 +1196,9 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(rm, os, pfx.has_rex);
+        let a = read_rm_val(os, rm, pfx.has_rex);
         let b = read_gpr(os, reg);
-        write_rm_val(rm, os, pfx.has_rex, b);
+        write_rm_val(os, rm, pfx.has_rex, b);
         write_gpr(os, reg, a)
       },
 
@@ -1208,7 +1208,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let v : byte = read_byte_reg(reg, pfx.has_rex);
-        write_rm_val(rm, 8, pfx.has_rex, v)
+        write_rm_val(rm, pfx.has_rex, v)
       },
 
       // 89: MOV r/m, r
@@ -1217,7 +1217,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        write_rm_val(rm, os, pfx.has_rex, read_gpr(os, reg))
+        write_rm_val(os, rm, pfx.has_rex, read_gpr(os, reg))
       },
 
       // 8A: MOV r8, r/m8
@@ -1225,7 +1225,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let v = read_rm_val(rm, 8, pfx.has_rex);
+        let v = read_rm_val(8, rm, pfx.has_rex);
         write_byte_reg(reg, pfx.has_rex, v[7..0])
       },
 
@@ -1235,7 +1235,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        write_gpr(os, reg, read_rm_val(rm, os, pfx.has_rex))
+        write_gpr(os, reg, read_rm_val(os, rm, pfx.has_rex))
       },
 
       // 8C: MOV r/m16, sreg
@@ -1279,7 +1279,7 @@ function decode_execute() = {
         } else {
           let seg : segreg_idx = reg_field;
           let rm = decode_rm(modrm, pfx);
-          let v : word = read_rm_val(rm, 16, pfx.has_rex);
+          let v : word = read_rm_val(rm, pfx.has_rex);
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
         }
@@ -1718,7 +1718,7 @@ function decode_execute() = {
         if reg_field == 0 then {
           let rm = decode_rm(modrm, pfx);
           let imm : byte = fetch_byte();
-          write_rm_val(rm, 8, pfx.has_rex, imm)
+          write_rm_val(rm, pfx.has_rex, imm)
         } else {
           raise_UD()
         }
@@ -1732,7 +1732,7 @@ function decode_execute() = {
           let os = get_operand_size(pfx);
           let rm = decode_rm(modrm, pfx);
           let imm = fetch_imm_z(os);
-          write_rm_val(rm, os, pfx.has_rex, imm[(os - 1) .. 0])
+          write_rm_val(os, rm, pfx.has_rex, imm[(os - 1) .. 0])
         } else {
           raise_UD()
         }
@@ -2215,13 +2215,13 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, rm, false);
         if reg_field == 0 then {
-          let v = read_rm_val(rm, 8, pfx.has_rex);
+          let v = read_rm_val(8, rm, pfx.has_rex);
           let result = exec_inc(v);
-          write_rm_val(rm, 8, pfx.has_rex, result)
+          write_rm_val(rm, pfx.has_rex, result)
         } else if reg_field == 1 then {
-          let v = read_rm_val(rm, 8, pfx.has_rex);
+          let v = read_rm_val(8, rm, pfx.has_rex);
           let result = exec_dec(v);
-          write_rm_val(rm, 8, pfx.has_rex, result)
+          write_rm_val(rm, pfx.has_rex, result)
         } else {
           raise_UD()
         }
