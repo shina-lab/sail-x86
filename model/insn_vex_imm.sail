@@ -335,7 +335,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let shift : range(0, 63) = unsigned(imm[(if pfx.vex_w then 5 else 4)..0]);
     assert(shift < os);
-    write_gpr(os, dst, rotr(src, shift));
+    reg(os, dst) = rotr(src, shift);
   },
 
   // 0F3A 00: VPERMQ ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only

@@ -74,20 +74,22 @@ function write_gpr8h(idx, v) = {
 // Polymorphic GPR read by operand size.
 val read_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx) -> bits('os)
 function read_gpr(os, idx) = match os {
-  8  => read_gpr8l(idx),
-  16 => read_gpr16(idx),
-  32 => read_gpr32(idx),
-  64 => read_gpr64(idx),
+  8  => GPR[idx][7..0],
+  16 => GPR[idx][15..0],
+  32 => GPR[idx][31..0],
+  64 => GPR[idx]
 }
 
 // Polymorphic GPR write by operand size.
 val write_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx, bits('os)) -> unit
 function write_gpr(os, idx, v) = match os {
-  8  => write_gpr8l(idx, v),
-  16 => write_gpr16(idx, v),
-  32 => write_gpr32(idx, v),
-  64 => write_gpr64(idx, v),
+  8  => GPR[idx] = GPR[idx][63..8] @ v,
+  16 => GPR[idx] = GPR[idx][63..16] @ v,
+  32 => GPR[idx] = zero_extend(v),
+  64 => GPR[idx] = v
 }
+
+overload reg = {read_gpr, write_gpr}
 
 // Named GPR indices for readability.
 let RAX : gpr_idx = 0

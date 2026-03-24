@@ -1300,7 +1300,7 @@ function dispatch_evex_fp(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
     let src_val : qword = match rm {
-      RM_reg(_) => zero_extend(read_gpr(os, modrm_rm_reg(modrm, pfx))),
+      RM_reg(_) => zero_extend(reg(os, modrm_rm_reg(modrm, pfx))),
       RM_mem(seg, offset) => match os {
         64 => seg_read(seg, offset),
         _    => zero_extend(seg_read(4,seg, offset)),
@@ -1370,8 +1370,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(dst_gpr, __f32_to_int64_trunc(src_f32)),
-          _  => write_gpr(32, dst_gpr, zero_extend(__f32_to_int32_trunc(src_f32))),
+          64 => reg(dst_gpr) = __f32_to_int64_trunc(src_f32),
+          _  => reg(32, dst_gpr) = zero_extend(__f32_to_int32_trunc(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1385,8 +1385,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(dst_gpr, __f64_to_int64_trunc(src_f64)),
-          _  => write_gpr(32, dst_gpr, zero_extend(__f64_to_int32_trunc(src_f64))),
+          64 => reg(dst_gpr) = __f64_to_int64_trunc(src_f64),
+          _  => reg(32, dst_gpr) = zero_extend(__f64_to_int32_trunc(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1411,8 +1411,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(dst_gpr, __f32_to_int64(src_f32)),
-          _  => write_gpr(32, dst_gpr, zero_extend(__f32_to_int32(src_f32))),
+          64 => reg(dst_gpr) = __f32_to_int64(src_f32),
+          _  => reg(32, dst_gpr) = zero_extend(__f32_to_int32(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1426,8 +1426,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(dst_gpr, __f64_to_int64(src_f64)),
-          _  => write_gpr(32, dst_gpr, zero_extend(__f64_to_int32(src_f64))),
+          64 => reg(dst_gpr) = __f64_to_int64(src_f64),
+          _  => reg(32, dst_gpr) = zero_extend(__f64_to_int32(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1961,8 +1961,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(dst_gpr, __f32_to_uint64_trunc(src_f32))
-        else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32_trunc(src_f32)));
+        if pfx.rex_w then reg(dst_gpr) = __f32_to_uint64_trunc(src_f32)
+        else reg(32, dst_gpr) = zero_extend(__f32_to_uint32_trunc(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTSD2USI: scalar f64→unsigned GPR trunc — supports {sae}
@@ -1975,8 +1975,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(dst_gpr, __f64_to_uint64_trunc(src_f64))
-        else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32_trunc(src_f64)));
+        if pfx.rex_w then reg(dst_gpr) = __f64_to_uint64_trunc(src_f64)
+        else reg(32, dst_gpr) = zero_extend(__f64_to_uint32_trunc(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTPS2UQQ (W0) / VCVTTPD2UQQ (W1) — supports {sae}
@@ -2036,8 +2036,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(dst_gpr, __f32_to_uint64(src_f32))
-        else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32(src_f32)));
+        if pfx.rex_w then reg(dst_gpr) = __f32_to_uint64(src_f32)
+        else reg(32, dst_gpr) = zero_extend(__f32_to_uint32(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTSD2USI: scalar f64→unsigned GPR round — supports {er}
@@ -2050,8 +2050,8 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(dst_gpr, __f64_to_uint64(src_f64))
-        else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32(src_f64)));
+        if pfx.rex_w then reg(dst_gpr) = __f64_to_uint64(src_f64)
+        else reg(32, dst_gpr) = zero_extend(__f64_to_uint32(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTPS2UQQ (W0) / VCVTPD2UQQ (W1) — supports {er}

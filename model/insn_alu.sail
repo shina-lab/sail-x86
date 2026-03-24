@@ -65,7 +65,7 @@ function exec_alu_rm_reg_byte(op, rm, reg, pfx) = {
 val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, {16, 32, 64}, Prefixes) -> unit
 function exec_alu_rm_reg(op, rm, reg, os, pfx) = {
   let a = read_rm_val(os, rm, pfx.has_rex);
-  let b = read_gpr(os, reg);
+  let b = reg(os, reg);
   let (result, wb) = alu_compute(op, a, b, os);
   if wb then write_rm_val(os, rm, pfx.has_rex, result)
 }
@@ -82,18 +82,18 @@ function exec_alu_reg_rm_byte(op, reg, rm, pfx) = {
 // Execute ALU: dst_reg OP= src_rm (word/dword/qword)
 val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, {16, 32, 64}, Prefixes) -> unit
 function exec_alu_reg_rm(op, reg, rm, os, pfx) = {
-  let a = read_gpr(os, reg);
+  let a = reg(os, reg);
   let b = read_rm_val(os, rm, pfx.has_rex);
   let (result, wb) = alu_compute(op, a, b, os);
-  if wb then write_gpr(reg, result)
+  if wb then reg(reg) = result
 }
 
 // Execute ALU: AL/AX/EAX/RAX OP= imm (accumulator short forms)
 val exec_alu_acc_imm : forall 'os, 'os in {8, 16, 32, 64}. (ALUOp, bits('os), int('os), Prefixes) -> unit
 function exec_alu_acc_imm(op, imm, os, _) = {
-  let a = read_gpr(os, RAX);
+  let a = reg(os, RAX);
   let (result, wb) = alu_compute(op, a, imm, os);
-  if wb then write_gpr(RAX, result)
+  if wb then reg(RAX) = result
 }
 
 // Execute ALU: rm OP= imm (Group 1: opcodes 80, 81, 83)

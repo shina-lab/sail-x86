@@ -32,13 +32,13 @@ function exec_mul(os, src) = {
     CF = is_nonzero(result[15..8]);
     OF = CF;
   } else {
-    let a : int = unsigned(read_gpr(os, RAX));
+    let a : int = unsigned(reg(os, RAX));
     let b : int = unsigned(src);
     let result : bits('os * 2) = to_bits_truncate(a * b);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    write_gpr(RAX, lo);
-    write_gpr(RDX, hi);
+    reg(RAX) = lo;
+    reg(RDX) = hi;
     CF = is_nonzero(hi);
     OF = CF;
   }
@@ -63,14 +63,14 @@ function exec_div(os, src) = {
     let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
-    let dividend = unsigned(read_gpr(os, RDX) @ read_gpr(os, RAX));
+    let dividend = unsigned(reg(os, RDX) @ reg(os, RAX));
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > (pow2(os) - 1) then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    write_gpr(RAX, q_bits[(os - 1)..0]);
-    write_gpr(RDX, r_bits[(os - 1)..0])
+    reg(RAX) = q_bits[(os - 1)..0];
+    reg(RDX) = r_bits[(os - 1)..0]
   };
   CF = undefined;
   OF = undefined;
@@ -99,14 +99,14 @@ function exec_idiv(os, src) = {
     let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
-    let dividend = signed(read_gpr(os, RDX) @ read_gpr(os, RAX));
+    let dividend = signed(reg(os, RDX) @ reg(os, RAX));
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    write_gpr(RAX, q_bits[(os - 1)..0]);
-    write_gpr(RDX, r_bits[(os - 1)..0])
+    reg(RAX) = q_bits[(os - 1)..0];
+    reg(RDX) = r_bits[(os - 1)..0]
   };
   CF = undefined;
   OF = undefined;
@@ -129,14 +129,14 @@ function exec_imul_1(os, src) = {
     CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
     OF = CF;
   } else {
-    let a : int = signed(read_gpr(os, RAX));
+    let a : int = signed(reg(os, RAX));
     let b : int = signed(src);
     let product : int = a * b;
     let result : bits('os * 2) = to_bits_truncate(product);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    write_gpr(RAX, lo);
-    write_gpr(RDX, hi);
+    reg(RAX) = lo;
+    reg(RDX) = hi;
     CF = is_nonzero(hi ^ sign_extend(lo[os - 1]));
     OF = CF;
   }
