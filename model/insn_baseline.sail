@@ -372,7 +372,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         0 => {
           let rm = decode_rm(modrm, pfx);
           match rm {
-            RM_reg(r) => write_gpr16(r, LDTR),
+            RM_reg(r) => reg(r) = LDTR,
             RM_mem(seg, offset) => seg_write(seg, offset, LDTR),
           }
         },
@@ -381,7 +381,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         1 => {
           let rm = decode_rm(modrm, pfx);
           match rm {
-            RM_reg(r) => write_gpr16(r, TR),
+            RM_reg(r) => reg(r) = TR,
             RM_mem(seg, offset) => seg_write(seg, offset, TR),
           }
         },
@@ -490,9 +490,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // #GP(0) if attempting to set unsupported bits or violating constraints.
         209 => {
           if cur_cpl != 0 then raise_GP0();
-          let ecx_val : dword = read_gpr32(RCX);
+          let ecx_val : dword = reg(RCX);
           if ecx_val != 0x00000000 then raise_GP0();
-          let new_xcr0 : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
+          let new_xcr0 : qword = reg(32, RDX) @ reg(32, RAX);
           // Any bit set that is not in XCR0_SUPPORTED → #GP
           if (new_xcr0 & ~(XCR0_SUPPORTED)) != zeros() then raise_GP0();
           // Bit 0 (x87) must always be 1
@@ -510,11 +510,11 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 01 D0: XGETBV — Read XCR0
         208 => {
-          let ecx_val : dword = read_gpr32(RCX);
+          let ecx_val : dword = reg(RCX);
           if ecx_val == 0x00000000 | ecx_val == 0x00000001 then {
             // ECX=0: read XCR0; ECX=1: read XCR0 | IA32_XSS (IA32_XSS is 0)
-            write_gpr32(RAX, XCR0[31..0]);
-            write_gpr32(RDX, XCR0[63..32])
+            reg(RAX) = XCR0[31..0];
+            reg(RDX) = XCR0[63..32]
           } else {
             raise_GP0()
           }
@@ -533,8 +533,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         // Returns PKRU in EAX, 0 in EDX.  We don't implement PKU, so
         // return 0 (all access allowed).
         238 => {
-          write_gpr32(RAX, 0x00000000);
-          write_gpr32(RDX, 0x00000000)
+          reg(RAX) = 0x00000000;
+          reg(RDX) = 0x00000000
         },
 
         // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
@@ -545,10 +545,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         249 => {
           if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
           let tsc : qword = __rdtsc();
-          write_gpr32(RAX, tsc[31..0]);
-          write_gpr32(RDX, tsc[63..32]);
+          reg(RAX) = tsc[31..0];
+          reg(RDX) = tsc[63..32];
           let tsc_aux : qword = __rdmsr(0xC0000103);
-          write_gpr32(RCX, tsc_aux[31..0])
+          reg(RCX) = tsc_aux[31..0]
         },
 
         // 0F 01 F8: SWAPGS (requires CPL=0)
@@ -748,9 +748,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       if system_mode then {
         // Full hardware SYSCALL per Intel SDM Vol.2.
         // RCX = return address, R11 = RFLAGS
-        write_gpr64(RCX, decode_pos);
+        reg(RCX) = decode_pos;
         let saved_rflags = read_rflags();
-        write_gpr64(R11, saved_rflags);
+        reg(R11) = saved_rflags;
 
         // Read MSRs
         let star  : qword = __rdmsr(0xC0000081);
@@ -786,8 +786,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     7 => {
       if cur_cpl != 0 then raise_GP0();
       // SYSRET: restore RIP from RCX, RFLAGS from R11
-      let new_rip = read_gpr64(RCX);
-      let new_rflags = read_gpr64(R11);
+      let new_rip : qword = reg(RCX);
+      let new_rflags : qword = reg(R11);
 
       // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
       // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
@@ -853,7 +853,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         8 => zero_extend(CR8),
         _ => throw Fault(EXN_UD, 0x00000000),
       };
-      write_gpr64(rm_idx, cr_val)
+      reg(rm_idx) = cr_val
     },
 
     // 0F 22: MOV CRn, reg — Write control register (requires CPL=0)
@@ -864,7 +864,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else 0b0;
       let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
-      let cr_val : qword = read_gpr64(rm_idx);
+      let cr_val : qword = reg(rm_idx);
       match cr_idx {
         0 => {
           CR0 = cr_val;
@@ -913,7 +913,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         6 => DR6,
         7 => DR7,
       };
-      write_gpr64(rm_idx, dr_val)
+      reg(rm_idx) = dr_val
     },
 
     // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
@@ -924,7 +924,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
-      let dr_val : qword = read_gpr64(rm_idx);
+      let dr_val : qword = reg(rm_idx);
       match dr_idx {
         0 => DR0 = dr_val,
         1 => DR1 = dr_val,
@@ -940,8 +940,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
     48 => {
       if cur_cpl != 0 then raise_GP0();
-      let ecx : dword = read_gpr32(RCX);
-      let msr_val : qword = zero_extend(read_gpr32(RDX)) @ read_gpr32(RAX);
+      let ecx : dword = reg(RCX);
+      let msr_val : qword = reg(32, RDX) @ reg(32, RAX);
 
       // Handle EFER specially since it has a Sail register
       if ecx == 0xC0000080 then {
@@ -973,8 +973,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     49 => {
       if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
       let tsc : qword = __rdtsc();
-      write_gpr32(RAX, tsc[31..0]);
-      write_gpr32(RDX, tsc[63..32])
+      reg(RAX) = tsc[31..0];
+      reg(RDX) = tsc[63..32]
     },
 
     // 0F 33: RDPMC — Read Performance-Monitoring Counter
@@ -997,7 +997,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       write_segreg(SS, (sysenter_cs[15..0] + 0x0008) & 0xFFFC);
       let sysenter_esp : qword = __rdmsr(0x00000175);
       let sysenter_eip : qword = __rdmsr(0x00000176);
-      write_gpr64(RSP, sysenter_esp);
+      reg(RSP) = sysenter_esp;
       IF_flag = 0b0;
       next_rip = Some(sysenter_eip)
     },
@@ -1013,22 +1013,22 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_segreg(CS, (sysenter_cs[15..0] + 0x0020) | 0x0003);
         write_segreg(SS, (sysenter_cs[15..0] + 0x0028) | 0x0003);
         cur_cpl = 3;
-        next_rip = Some(read_gpr64(RDX));
-        write_gpr64(RSP, read_gpr64(RCX))
+        next_rip = Some(reg(64, RDX));
+        reg(RSP) = reg(64, RCX)
       } else {
         // 32-bit: CS.sel = IA32_SYSENTER_CS + 16, SS.sel = IA32_SYSENTER_CS + 24
         write_segreg(CS, (sysenter_cs[15..0] + 0x0010) | 0x0003);
         write_segreg(SS, (sysenter_cs[15..0] + 0x0018) | 0x0003);
         cur_cpl = 3;
-        next_rip = Some(zero_extend(read_gpr32(RDX)));
-        write_gpr64(RSP, zero_extend(read_gpr32(RCX)))
+        next_rip = Some(zero_extend(reg(32, RDX)));
+        reg(64, RSP) = zero_extend(reg(32, RCX))
       }
     },
 
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {
       if cur_cpl != 0 then raise_GP0();
-      let ecx : dword = read_gpr32(RCX);
+      let ecx : dword = reg(RCX);
       // Handle registers with Sail state specially
       let msr_val : qword = if ecx == 0xC0000080 then EFER
         else if ecx == 0xC0000100 then SegCache[FS].seg_base
@@ -1037,8 +1037,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         // IA32_XSS (0xDA0): always 0 (no supervisor state components supported)
         else if ecx == 0x00000DA0 then zeros()
         else __rdmsr(ecx);
-      write_gpr32(RAX, msr_val[31..0]);
-      write_gpr32(RDX, msr_val[63..32])
+      reg(RAX) = msr_val[31..0];
+      reg(RDX) = msr_val[63..32]
     },
 
     // 0F 40-4F: CMOVcc r, r/m
@@ -1091,17 +1091,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         match rm {
           RM_reg(r) => match (reg_field, pfx.rex_w) {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64
-            (0, true)  => write_gpr64(r, SegCache[FS].seg_base),
-            (0, false) => write_gpr32(r, SegCache[FS].seg_base[31..0]),
+            (0, true)  => reg(r) = SegCache[FS].seg_base,
+            (0, false) => reg(r) = SegCache[FS].seg_base[31..0],
             // F3 0F AE /1 mod=11: RDGSBASE r32/r64
-            (1, true)  => write_gpr64(r, SegCache[GS].seg_base),
-            (1, false) => write_gpr32(r, SegCache[GS].seg_base[31..0]),
+            (1, true)  => reg(r) = SegCache[GS].seg_base,
+            (1, false) => reg(r) = SegCache[GS].seg_base[31..0],
             // F3 0F AE /2 mod=11: WRFSBASE r32/r64
-            (2, true)  => SegCache[FS].seg_base = read_gpr64(r),
-            (2, false) => SegCache[FS].seg_base = zero_extend(read_gpr32(r)),
+            (2, true)  => SegCache[FS].seg_base = reg(64, r),
+            (2, false) => SegCache[FS].seg_base = zero_extend(reg(32, r)),
             // F3 0F AE /3 mod=11: WRGSBASE r32/r64
-            (3, true)  => SegCache[GS].seg_base = read_gpr64(r),
-            (3, false) => SegCache[GS].seg_base = zero_extend(read_gpr32(r)),
+            (3, true)  => SegCache[GS].seg_base = reg(64, r),
+            (3, false) => SegCache[GS].seg_base = zero_extend(reg(32, r)),
             _ => raise_UD(),
           },
           RM_mem(_, _) => raise_UD(),
@@ -1130,7 +1130,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // XSAVE m
         4 => match rm {
           RM_mem(seg, offset) => {
-            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsave(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => raise_UD(),
@@ -1139,7 +1139,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         5 => match rm {
           RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
-            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xrstor(seg_linear(seg, offset, 576), mask)
           },
           RM_reg(_) => {
@@ -1155,7 +1155,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               ()  // CLWB: NOP (cache write-back, no architectural effect)
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
-              let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+              let mask : qword = reg(32, RDX) @ reg(32, RAX);
               exec_xsaveopt(seg_linear(seg, offset, 576), mask)
             }
           },
@@ -1172,13 +1172,13 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F A2: CPUID
     162 => {
-      let leaf : dword = read_gpr32(RAX);
-      let subleaf : dword = read_gpr32(RCX);
+      let leaf : dword = reg(RAX);
+      let subleaf : dword = reg(RCX);
       let (out_eax, out_ebx, out_ecx, out_edx) = cpuid(leaf, subleaf);
-      write_gpr32(RAX, out_eax);
-      write_gpr32(RBX, out_ebx);
-      write_gpr32(RCX, out_ecx);
-      write_gpr32(RDX, out_edx)
+      reg(RAX) = out_eax;
+      reg(RBX) = out_ebx;
+      reg(RCX) = out_ecx;
+      reg(RDX) = out_edx
     },
 
     // 0F A0: PUSH FS (d64)
@@ -1672,26 +1672,26 @@ function dispatch_2byte_gpr(op, pfx) = {
               if ~(has_cx16) then raise_UD();
               let mem_lo : qword = seg_read(seg, offset);
               let mem_hi : qword = seg_read(seg, offset + 8);
-              if read_gpr64(RAX) == mem_lo & read_gpr64(RDX) == mem_hi then {
+              if reg(64, RAX) == mem_lo & reg(64, RDX) == mem_hi then {
                 ZF = 0b1;
-                seg_write(seg, offset, read_gpr64(RBX));
-                seg_write(seg, offset + 8, read_gpr64(RCX));
+                seg_write(seg, offset, reg(64, RBX));
+                seg_write(seg, offset + 8, reg(64, RCX));
               } else {
                 ZF = 0b0;
-                write_gpr64(RAX, mem_lo);
-                write_gpr64(RDX, mem_hi);
+                reg(RAX) = mem_lo;
+                reg(RDX) = mem_hi;
               }
             } else {
               let mem_lo : dword = seg_read(seg, offset);
               let mem_hi : dword = seg_read(seg, offset + 4);
-              if read_gpr32(RAX) == mem_lo & read_gpr32(RDX) == mem_hi then {
+              if reg(32, RAX) == mem_lo & reg(32, RDX) == mem_hi then {
                 ZF = 0b1;
-                seg_write(seg, offset, read_gpr32(RBX));
-                seg_write(seg, offset + 4, read_gpr32(RCX));
+                seg_write(seg, offset, reg(32, RBX));
+                seg_write(seg, offset + 4, reg(32, RCX));
               } else {
                 ZF = 0b0;
-                write_gpr32(RAX, mem_lo);
-                write_gpr32(RDX, mem_hi);
+                reg(RAX) = mem_lo;
+                reg(RDX) = mem_hi;
               }
             }
           },
@@ -1702,7 +1702,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         3 => match rm {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
-            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xrstors(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
@@ -1710,7 +1710,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /4 mem: XSAVEC — save extended state with compaction
         4 => match rm {
           RM_mem(seg, offset) => {
-            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsavec(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
@@ -1719,7 +1719,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         5 => match rm {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
-            let mask : qword = read_gpr32(RDX) @ read_gpr32(RAX);
+            let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsaves(seg_linear(seg, offset, 576), mask)
           },
           _ => raise_UD(),
@@ -1774,7 +1774,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if os == 16 then {
         // SDM says "result is undefined" for 16-bit operand, but real
         // hardware zeroes the low 16 bits.
-        write_gpr16(reg, zeros())
+        reg(reg) = zeros() : word
       } else {
         reg(os, reg) = bswap(reg(os, reg))
       }

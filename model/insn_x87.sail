@@ -578,7 +578,7 @@ function dispatch_x87_df(modrm, rm, _) = {
         // FNSTSW AX
         4 => {
           if modrm_val == 224 then {
-            write_gpr16(RAX, x87_sw)
+            reg(RAX) = x87_sw
           } else {
             raise_UD()
           }

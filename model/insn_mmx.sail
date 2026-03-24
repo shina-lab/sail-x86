@@ -173,9 +173,9 @@ function dispatch_mmx(op, pfx) = {
       let dst = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
       match (rm, pfx.rex_w) {
-        (RM_reg(idx), true)   => write_mm(dst, read_gpr64(idx)),
+        (RM_reg(idx), true)   => write_mm(dst, reg(64, idx)),
         (RM_mem(seg, offset), true)  => write_mm(dst, seg_read(seg, offset)),
-        (RM_reg(idx), false)  => write_mm(dst, zero_extend(read_gpr32(idx))),
+        (RM_reg(idx), false)  => write_mm(dst, zero_extend(reg(32, idx))),
         (RM_mem(seg, offset), false) => write_mm(dst, zero_extend(seg_read(4,seg, offset))),
       };
       mmx_touch()
@@ -332,9 +332,9 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let v : qword = read_mm(src);
       match (rm, pfx.rex_w) {
-        (RM_reg(idx), true)   => write_gpr64(idx, v),
+        (RM_reg(idx), true)   => reg(idx) = v,
         (RM_mem(seg, offset), true)  => seg_write(seg, offset, v),
-        (RM_reg(idx), false)  => write_gpr32(idx, v[31..0]),
+        (RM_reg(idx), false)  => reg(idx) = v[31..0],
         (RM_mem(seg, offset), false) => seg_write(4, seg, offset, v[31..0]),
       };
       mmx_touch()
@@ -359,7 +359,7 @@ function dispatch_mmx(op, pfx) = {
       let dst = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
       let w : word = match rm {
-        RM_reg(idx) => read_gpr32(idx)[15..0],
+        RM_reg(idx) => reg(32, idx)[15..0],
         RM_mem(seg, offset) => seg_read(seg, offset),
       };
       let imm = fetch_byte();
@@ -381,7 +381,7 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       let lo = sel * 16;
       let w : word = v[(lo + 15) .. lo];
-      write_gpr32(dst_gpr, zero_extend(w));
+      reg(32, dst_gpr) = zero_extend(w);
       mmx_touch()
     },
 
@@ -451,7 +451,7 @@ function dispatch_mmx(op, pfx) = {
       let mask : byte =
         v[63] @ v[55] @ v[47] @ v[39] @
         v[31] @ v[23] @ v[15] @ v[7];
-      write_gpr32(dst_gpr, zero_extend(mask));
+      reg(32, dst_gpr) = zero_extend(mask);
       mmx_touch()
     },
 
@@ -817,7 +817,7 @@ function dispatch_mmx(op, pfx) = {
         RM_reg(_) => {
           let data : qword = read_mm(src);
           let mask : qword = read_mm(mask_reg);
-          let addr : qword = read_gpr64(7);  // RDI
+          let addr : qword = reg(7);  // RDI
           foreach (i from 0 to 7) {
             let base = i * 8;
             if mask[base + 7] == 0b1 then {

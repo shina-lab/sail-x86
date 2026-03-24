@@ -28,7 +28,7 @@ function exec_mul(os, src) = {
     let a : int = unsigned(reg(8, RAX));
     let b : int = unsigned(src);
     let result : word = to_bits_truncate(a * b);
-    write_gpr16(RAX, result);
+    reg(RAX) = result;
     CF = is_nonzero(result[15..8]);
     OF = CF;
   } else {
@@ -53,7 +53,7 @@ function exec_div(os, src) = {
     let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
     assert(divisor > 0);
-    let dividend = unsigned(read_gpr16(RAX));
+    let dividend = unsigned(reg(16, RAX));
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > 255 then raise_DE();
@@ -88,7 +88,7 @@ function exec_idiv(os, src) = {
     let divisor = signed(src);
     if divisor == 0 then raise_DE();
     assert(divisor != 0);
-    let dividend = signed(read_gpr16(RAX));
+    let dividend = signed(reg(16, RAX));
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -128 | 127 < quotient then raise_DE();
@@ -123,7 +123,7 @@ function exec_imul_1(os, src) = {
     let b : int = signed(src);
     let product : int = a * b;
     let result : word = to_bits_truncate(product);
-    write_gpr16(RAX, result);
+    reg(RAX) = result;
     CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
     OF = CF;
   } else {

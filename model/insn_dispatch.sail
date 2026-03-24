@@ -161,7 +161,7 @@ val exec_ins : (operand_size, address_size) -> unit
 function exec_ins(os_in, asz) = {
   // SDM: INS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
-  let port : word = read_gpr16(RDX);
+  let port : word = reg(RDX);
   let off : qword = zero_extend(reg(asz, RDI));
   // INS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
@@ -180,7 +180,7 @@ val exec_outs : (operand_size, address_size, Prefixes) -> unit
 function exec_outs(os_in, asz, pfx) = {
   // SDM: OUTS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
-  let port : word = read_gpr16(RDX);
+  let port : word = reg(RDX);
   let off : qword = zero_extend(reg(asz, RSI));
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
@@ -358,7 +358,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         let desc : xmmword = read_mem_rm(rm);
-        let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
+        let inv_type : qword = reg(modrm_reg(modrm, pfx));
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
         let top17 : bits(17) = desc[127..111];
@@ -563,17 +563,17 @@ function exec_retf(pfx, maybe_imm) = {
     let new_rsp : qword = pop_qword(os);
     let new_ss_raw : qword = pop_qword(os);
     let new_ss : word = new_ss_raw[15..0];
-    write_gpr64(RSP, new_rsp);
+    reg(RSP) = new_rsp;
     load_segment_register(SS, new_ss);
     // Adjust new RSP for imm16 if present
     match maybe_imm {
-      Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
+      Some(imm) => reg(RSP) = reg(64, RSP) + zero_extend(imm),
       None()    => (),
     }
   } else {
     // Same-privilege (or real mode): adjust RSP for imm16 if present
     match maybe_imm {
-      Some(imm) => write_gpr64(RSP, read_gpr64(RSP) + zero_extend(imm)),
+      Some(imm) => reg(RSP) = reg(64, RSP) + zero_extend(imm),
       None()    => (),
     }
   };
@@ -613,7 +613,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         match os {
           32 => push32(zero_extend(read_segreg(ES))),
-          _    => push16(read_segreg(ES)),
+          _  => push16(read_segreg(ES)),
         }
       },
 
@@ -625,7 +625,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let v : word = match os {
           32 => pop32()[15..0],
-          _    => pop16(),
+          _  => pop16(),
         };
         load_segment_register(ES, v)
       },
@@ -637,7 +637,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         match os {
           32 => push32(zero_extend(read_segreg(CS))),
-          _    => push16(read_segreg(CS)),
+          _  => push16(read_segreg(CS)),
         }
       },
 
@@ -654,7 +654,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         match os {
           32 => push32(zero_extend(read_segreg(SS))),
-          _    => push16(read_segreg(SS)),
+          _  => push16(read_segreg(SS)),
         }
       },
 
@@ -666,7 +666,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let v : word = match os {
           32 => pop32()[15..0],
-          _    => pop16(),
+          _  => pop16(),
         };
         load_segment_register(SS, v)
       },
@@ -678,7 +678,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         match os {
           32 => push32(zero_extend(read_segreg(DS))),
-          _    => push16(read_segreg(DS)),
+          _  => push16(read_segreg(DS)),
         }
       },
 
@@ -689,7 +689,7 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let v : word = match os {
           32 => pop32()[15..0],
-          _    => pop16(),
+          _  => pop16(),
         };
         load_segment_register(DS, v)
       },
@@ -735,8 +735,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let lo : bits(4) = reg(8, RAX)[3..0];
         let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
-        let new_ax : word = read_gpr16(RAX) + (0x0106 & sign_extend(cond));
-        write_gpr16(RAX, new_ax);
+        let new_ax : word = reg(RAX) + (0x0106 & sign_extend(cond));
+        reg(RAX) = new_ax;
         AF = cond[0];
         CF = cond[0];
         reg(RAX) = new_ax[7..0] & 0x0F;
@@ -748,8 +748,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let lo : bits(4) = reg(8, RAX)[3..0];
         let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
-        let new_ax : word = read_gpr16(RAX) - (0x0106 & sign_extend(cond));
-        write_gpr16(RAX, new_ax);
+        let new_ax : word = reg(RAX) - (0x0106 & sign_extend(cond));
+        reg(RAX) = new_ax;
         AF = cond[0];
         CF = cond[0];
         reg(RAX) = new_ax[7..0] & 0x0F;
@@ -781,10 +781,10 @@ function decode_execute() = {
         let reg = extend_reg(reg_field, pfx.rex_b);
         let os = get_operand_size_d64(pfx);
         match os {
-          16 => push16(read_gpr16(reg)),
-          32 => if cur_mode == LongMode then push64(zero_extend(read_gpr32(reg)))
-                  else push32(read_gpr32(reg)),
-          64 => push64(read_gpr64(reg)),
+          16 => push16(reg(reg)),
+          32 => if cur_mode == LongMode then push64(zero_extend(reg(32, reg)))
+                  else push32(reg(reg)),
+          64 => push64(reg(reg)),
         }
       },
 
@@ -807,24 +807,24 @@ function decode_execute() = {
           let orig_sp = read_stack_ptr();
           match os {
             32 => {
-              push32(read_gpr32(RAX));
-              push32(read_gpr32(RCX));
-              push32(read_gpr32(RDX));
-              push32(read_gpr32(RBX));
+              push32(reg(RAX));
+              push32(reg(RCX));
+              push32(reg(RDX));
+              push32(reg(RBX));
               push32(orig_sp[31..0] - get_seg_base(SS)[31..0]);
-              push32(read_gpr32(RBP));
-              push32(read_gpr32(RSI));
-              push32(read_gpr32(RDI))
+              push32(reg(RBP));
+              push32(reg(RSI));
+              push32(reg(RDI))
             },
             _ => {
-              push16(read_gpr16(RAX));
-              push16(read_gpr16(RCX));
-              push16(read_gpr16(RDX));
-              push16(read_gpr16(RBX));
+              push16(reg(RAX));
+              push16(reg(RCX));
+              push16(reg(RDX));
+              push16(reg(RBX));
               push16(orig_sp[15..0] - get_seg_base(SS)[15..0]);
-              push16(read_gpr16(RBP));
-              push16(read_gpr16(RSI));
-              push16(read_gpr16(RDI))
+              push16(reg(RBP));
+              push16(reg(RSI));
+              push16(reg(RDI))
             },
           }
         }
@@ -840,28 +840,28 @@ function decode_execute() = {
           let os = get_operand_size(pfx);
           match os {
             32 => {
-              write_gpr32(RDI, pop32());
-              write_gpr32(RSI, pop32());
-              write_gpr32(RBP, pop32());
+              reg(RDI) = pop32();
+              reg(RSI) = pop32();
+              reg(RBP) = pop32();
               // Skip the ESP slot (increment past it)
               let sp = read_stack_ptr();
               write_stack_ptr(sp + 4 - get_seg_base(SS));
-              write_gpr32(RBX, pop32());
-              write_gpr32(RDX, pop32());
-              write_gpr32(RCX, pop32());
-              write_gpr32(RAX, pop32())
+              reg(RBX) = pop32();
+              reg(RDX) = pop32();
+              reg(RCX) = pop32();
+              reg(RAX) = pop32()
             },
             _ => {
-              write_gpr16(RDI, pop16());
-              write_gpr16(RSI, pop16());
-              write_gpr16(RBP, pop16());
+              reg(RDI) = pop16();
+              reg(RSI) = pop16();
+              reg(RBP) = pop16();
               // Skip the SP slot
               let sp = read_stack_ptr();
               write_stack_ptr(sp + 2 - get_seg_base(SS));
-              write_gpr16(RBX, pop16());
-              write_gpr16(RDX, pop16());
-              write_gpr16(RCX, pop16());
-              write_gpr16(RAX, pop16())
+              reg(RBX) = pop16();
+              reg(RDX) = pop16();
+              reg(RCX) = pop16();
+              reg(RAX) = pop16()
             },
           }
         }
@@ -900,7 +900,8 @@ function decode_execute() = {
         let rm = decode_rm(modrm, pfx);
         if pfx.rex_w then {
           let src = read_rm_val(32, rm, pfx.has_rex);
-          write_gpr64(reg, sign_extend(src))
+          let v : qword = sign_extend(src);
+          reg(reg) = v
         } else {
           let os = get_operand_size(pfx);
           let src = read_rm_val(os, rm, pfx.has_rex);
@@ -1623,32 +1624,32 @@ function decode_execute() = {
         let nesting : range(0, 31) = unsigned(level) % 32;
         match os {
           64 => {
-            push64(read_gpr64(RBP));
-            let frame_temp : qword = read_gpr64(RSP);
+            push64(reg(RBP));
+            let frame_temp : qword = reg(RSP);
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
-                write_gpr64(RBP, read_gpr64(RBP) - 8);
-                push64(mem_read(read_gpr64(RBP)));
+                reg(RBP) = reg(64, RBP) - 8;
+                push64(mem_read(reg(64, RBP)));
               };
             };
             if nesting >= 1 then
               push64(frame_temp);
-            write_gpr64(RBP, frame_temp);
-            write_gpr64(RSP, read_gpr64(RSP) - zero_extend(size));
+            reg(RBP) = frame_temp;
+            reg(RSP) = reg(64, RSP) - zero_extend(size);
           },
           16 => {
-            push16(read_gpr16(RBP));
-            let frame_temp : word = read_gpr16(RSP);
+            push16(reg(RBP));
+            let frame_temp : word = reg(RSP);
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
-                write_gpr16(RBP, read_gpr16(RBP) - 2);
-                push16(mem_read(zero_extend(read_gpr16(RBP))));
+                reg(RBP) = reg(16, RBP) - 2;
+                push16(mem_read(zero_extend(reg(16, RBP))));
               };
             };
             if nesting >= 1 then
               push16(frame_temp);
-            write_gpr16(RBP, frame_temp);
-            write_gpr64(RSP, read_gpr64(RSP) - zero_extend(size));
+            reg(RBP) = frame_temp;
+            reg(RSP) = reg(64, RSP) - zero_extend(size);
           },
           _ => (),
         }
@@ -1660,14 +1661,11 @@ function decode_execute() = {
       // is affected by operand size (16 vs 64).
       201 => {
         let os = get_operand_size_d64(pfx);
-        write_gpr64(RSP, read_gpr64(RBP));
+        reg(RSP) = reg(64, RBP);
         match os {
-          16 => write_gpr16(RBP, pop16()),
-          32 => {
-            let v : qword = pop64();
-            write_gpr32(RBP, v[31..0]);
-          },
-          64 => write_gpr64(RBP, pop64()),
+          16 => reg(RBP) = pop16(),
+          32 => reg(RBP) = pop64()[31..0],
+          64 => reg(RBP) = pop64(),
         }
       },
 
@@ -1744,7 +1742,7 @@ function decode_execute() = {
             if cur_mode != RealMode & return_rpl > cur_cpl then {
               let new_sp = pop16();
               let new_ss = pop16();
-              write_gpr64(RSP, zero_extend(new_sp));
+              reg(RSP) = zero_extend(64, new_sp);
               load_segment_register(SS, new_ss)
             };
 
@@ -1770,7 +1768,7 @@ function decode_execute() = {
             if cur_mode != RealMode & return_rpl > cur_cpl then {
               let new_esp = pop32();
               let new_ss  = pop32();
-              write_gpr64(RSP, zero_extend(new_esp));
+              reg(RSP) = zero_extend(64, new_esp);
               load_segment_register(SS, new_ss[15..0])
             };
 
@@ -1802,7 +1800,7 @@ function decode_execute() = {
             write_rflags(new_rflags);
             RF = 0b0;
 
-            write_gpr64(RSP, new_rsp);
+            reg(RSP) = new_rsp;
             write_segreg(SS, new_ss[15..0]);
           },
         }
@@ -1993,19 +1991,16 @@ function decode_execute() = {
       },
 
       // EC: IN AL, DX
-      236 => exec_in(read_gpr16(RDX), 8),
+      236 => exec_in(reg(RDX), 8),
 
       // ED: IN eAX, DX
-      237 => exec_in(read_gpr16(RDX), get_operand_size(pfx)),
+      237 => exec_in(reg(RDX), get_operand_size(pfx)),
 
       // EE: OUT DX, AL
-      238 => exec_out(read_gpr16(RDX), 8),
+      238 => exec_out(reg(RDX), 8),
 
       // EF: OUT DX, eAX
-      239 => {
-        let os = get_operand_size(pfx);
-        exec_out(read_gpr16(RDX), os)
-      },
+      239 => exec_out(reg(RDX), get_operand_size(pfx)),
 
       // F1: INT1 / ICEBP — Generate #DB (vector 1) without setting DR6 bits.
       // SDM: delivers interrupt/exception to vector 1.

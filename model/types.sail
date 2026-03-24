@@ -255,62 +255,48 @@ function write_gpr8(idx, has_rex, v) =
 // =========================================================================
 
 val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
-function read_rm_val(os, rm, has_rex) = match rm {
-  RM_reg(idx) => match os {
-    8  => read_gpr8(idx, has_rex),
-    16 => read_gpr16(idx),
-    32 => read_gpr32(idx),
-    64 => read_gpr64(idx),
-  },
-  RM_mem(seg, offset) => seg_read(seg, offset),
-}
+function read_rm_val(os, rm, has_rex) =
+  match rm {
+    RM_reg(idx) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_mem(seg, offset) => seg_read(seg, offset),
+  }
 
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
-function write_rm_val(os, rm, has_rex, v) = match rm {
-  RM_reg(idx) => match os {
-    8  => write_gpr8(idx, has_rex, v),
-    16 => write_gpr16(idx, v),
-    32 => write_gpr32(idx, v),
-    64 => write_gpr64(idx, v),
-  },
-  RM_mem(seg, offset) => seg_write(seg, offset, v),
-}
+function write_rm_val(os, rm, has_rex, v) =
+  match rm {
+    RM_reg(idx) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_mem(seg, offset) => seg_write(seg, offset, v),
+  }
 
 // Memory-only RM read/write: raise #UD if register operand.
 val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits(8 * 'n)
-function read_mem_rm(n, rm) = match rm {
-  RM_mem(seg, offset) => seg_read(seg, offset),
-  RM_reg(_) => raise_UD(),
-}
+function read_mem_rm(n, rm) =
+  match rm {
+    RM_reg(_) => raise_UD(),
+    RM_mem(seg, offset) => seg_read(seg, offset),
+  }
 
 val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits(8 * 'n)) -> unit
-function write_mem_rm(n, rm, v) = match rm {
-  RM_mem(seg, offset) => seg_write(seg, offset, v),
-  RM_reg(_) => raise_UD(),
-}
+function write_mem_rm(n, rm, v) =
+  match rm {
+    RM_reg(_) => raise_UD(),
+    RM_mem(seg, offset) => seg_write(seg, offset, v),
+  }
 
 // Register-only RM read/write: raise #UD if memory operand.
 val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
-function read_reg_rm(os, rm, has_rex) = match rm {
-  RM_reg(idx) => match os {
-    8  => read_gpr8(idx, has_rex),
-    16 => read_gpr16(idx),
-    32 => read_gpr32(idx),
-    64 => read_gpr64(idx),
-  },
-  RM_mem(_, _) => raise_UD(),
-}
+function read_reg_rm(os, rm, has_rex) =
+  match rm {
+    RM_reg(idx) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_mem(_, _) => raise_UD(),
+  }
 
 val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
-function write_reg_rm(os, rm, has_rex, v) = match rm {
-  RM_reg(idx) => match os {
-    8  => write_gpr8(idx, has_rex, v),
-    16 => write_gpr16(idx, v),
-    32 => write_gpr32(idx, v),
-    64 => write_gpr64(idx, v),
-  },
-  RM_mem(_, _) => raise_UD(),
-}
+function write_reg_rm(os, rm, has_rex, v) =
+  match rm {
+    RM_reg(idx) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_mem(_, _) => raise_UD(),
+  }
 
 // =========================================================================
 // Immediate fetch helpers

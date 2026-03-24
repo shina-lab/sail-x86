@@ -2166,10 +2166,10 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f32 : dword = match (rm2, pfx.rex_w) {
           // W1: u64→f32
-          (RM_reg(_), true) => __uint64_to_f32(read_gpr64(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), true) => __uint64_to_f32(reg(modrm_rm_reg(modrm, pfx))),
           (RM_mem(seg, offset), true) => __uint64_to_f32(seg_read(seg, offset)),
           // W0: u32→f32
-          (RM_reg(_), false) => __uint32_to_f32(read_gpr32(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), false) => __uint32_to_f32(reg(modrm_rm_reg(modrm, pfx))),
           (RM_mem(seg, offset), false) => __uint32_to_f32(seg_read(seg, offset)),
         };
         var dst_val = src1;
@@ -2186,10 +2186,10 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let result_f64 : qword = match (rm2, pfx.rex_w) {
           // W1: u64→f64
-          (RM_reg(_), true) => __uint64_to_f64(read_gpr64(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), true) => __uint64_to_f64(reg(modrm_rm_reg(modrm, pfx))),
           (RM_mem(seg, offset), true) => __uint64_to_f64(seg_read(seg, offset)),
           // W0: u32→f64
-          (RM_reg(_), false) => __uint32_to_f64(read_gpr32(modrm_rm_reg(modrm, pfx))),
+          (RM_reg(_), false) => __uint32_to_f64(reg(modrm_rm_reg(modrm, pfx))),
           (RM_mem(seg, offset), false) => __uint32_to_f64(seg_read(seg, offset)),
         };
         var dst_val = src1;

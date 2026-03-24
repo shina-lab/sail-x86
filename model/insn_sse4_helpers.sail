@@ -363,16 +363,16 @@ function decode_vsib_vex(modrm, pfx) = {
       let b3 = fetch_byte();
       sign_extend(b3 @ b2 @ b1 @ b0)
     } else if modbits == 0 then {
-      read_gpr64(base_idx)
+      reg(64, base_idx)
     } else if modbits == 1 then {
       let d8 = fetch_byte();
-      read_gpr64(base_idx) + sign_extend(d8)
+      reg(64, base_idx) + sign_extend(d8)
     } else {
       let b0 = fetch_byte();
       let b1 = fetch_byte();
       let b2 = fetch_byte();
       let b3 = fetch_byte();
-      read_gpr64(base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
+      reg(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     };
 
   struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }

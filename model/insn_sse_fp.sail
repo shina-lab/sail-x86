@@ -510,14 +510,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            64 => write_gpr64(reg, __f32_to_int64_trunc(src_xmm[31..0])),
-            _    => write_gpr32(reg, __f32_to_int32_trunc(src_xmm[31..0])),
+            64 => reg(reg) = __f32_to_int64_trunc(src_xmm[31..0]),
+            _  => reg(reg) = __f32_to_int32_trunc(src_xmm[31..0]),
           }
         },
         MP_F2 => {
           match os {
-            64 => write_gpr64(reg, __f64_to_int64_trunc(src_xmm[63..0])),
-            _    => write_gpr32(reg, __f64_to_int32_trunc(src_xmm[63..0])),
+            64 => reg(reg) = __f64_to_int64_trunc(src_xmm[63..0]),
+            _  => reg(reg) = __f64_to_int32_trunc(src_xmm[63..0]),
           }
         },
         // CVTTPS2PI mm, xmm/m64 (NP) — SDM: truncate 2 floats to 2 dwords in MM
@@ -560,14 +560,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_F3 => {
           match os {
-            64 => write_gpr64(reg, __f32_to_int64(src_xmm[31..0])),
-            _    => write_gpr32(reg, __f32_to_int32(src_xmm[31..0])),
+            64 => reg(reg) = __f32_to_int64(src_xmm[31..0]),
+            _    => reg(reg) = __f32_to_int32(src_xmm[31..0]),
           }
         },
         MP_F2 => {
           match os {
-            64 => write_gpr64(reg, __f64_to_int64(src_xmm[63..0])),
-            _    => write_gpr32(reg, __f64_to_int32(src_xmm[63..0])),
+            64 => reg(reg) = __f64_to_int64(src_xmm[63..0]),
+            _    => reg(reg) = __f64_to_int32(src_xmm[63..0]),
           }
         },
         // CVTPS2PI mm, xmm/m64 (NP) — SDM: round 2 floats to 2 dwords in MM
@@ -690,11 +690,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => {
           let mask : bits(4) = src_xmm[127] @ src_xmm[95] @ src_xmm[63] @ src_xmm[31];
-          write_gpr32(reg, zero_extend(mask))
+          reg(32, reg) = zero_extend(mask)
         },
         MP_66 => {
           let mask : bits(2) = src_xmm[127] @ src_xmm[63];
-          write_gpr32(reg, zero_extend(mask))
+          reg(32, reg) = zero_extend(mask)
         },
         _       => raise_UD(),
       }
@@ -1446,7 +1446,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       match rm {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          write_gpr32(dst_reg, zero_extend(w))
+          reg(32, dst_reg) = zero_extend(w)
         },
         RM_mem(seg, offset) => seg_write(seg, offset, w),
       }
@@ -1459,7 +1459,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       match rm {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          write_gpr32(dst_reg, v);
+          reg(dst_reg) = v;
         },
         RM_mem(seg, offset) => seg_write(seg, offset, v),
       }

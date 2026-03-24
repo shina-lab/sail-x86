@@ -19,35 +19,6 @@ register next_rip : option(qword) = None()
 
 register GPR : vector(16, qword)
 
-// Read a full 64-bit GPR.
-val read_gpr64 : gpr_idx -> qword
-function read_gpr64(idx) = GPR[idx]
-
-// Write a full 64-bit GPR.
-val write_gpr64 : (gpr_idx, qword) -> unit
-function write_gpr64(idx, v) = GPR[idx] = v
-
-// Read the low 32 bits of a GPR.
-val read_gpr32 : gpr_idx -> dword
-function read_gpr32(idx) = GPR[idx][31..0]
-
-// Write to the low 32 bits of a GPR.
-// Per x86-64 convention, writing a 32-bit register zero-extends to 64 bits.
-val write_gpr32 : (gpr_idx, dword) -> unit
-function write_gpr32(idx, v) = GPR[idx] = zero_extend(v)
-
-// Read the low 16 bits of a GPR.
-val read_gpr16 : gpr_idx -> word
-function read_gpr16(idx) = GPR[idx][15..0]
-
-// Write to the low 16 bits of a GPR.
-// 16-bit writes do NOT zero-extend; upper bits are preserved.
-val write_gpr16 : (gpr_idx, word) -> unit
-function write_gpr16(idx, v) = {
-  let old = GPR[idx];
-  GPR[idx] = old[63..16] @ v
-}
-
 // Polymorphic GPR read by operand size.
 val read_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx) -> bits('os)
 function read_gpr(os, idx) = match os {

@@ -186,7 +186,7 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
   sw_return_rip = None();
   let old_cs     : word  = read_segreg(CS);
   let old_eflags : dword = read_rflags()[31..0];
-  let old_esp    : dword = read_gpr32(RSP);
+  let old_esp    : dword = reg(RSP);
   let old_ss     : word  = read_segreg(SS);
   let old_cpl    : cpl_t = cur_cpl;
 
@@ -243,7 +243,7 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
   };
 
   // Update stack pointer and SS
-  write_gpr32(RSP, new_esp[31..0]);
+  reg(RSP) = new_esp[31..0];
   if privilege_change then write_segreg(SS, new_ss);
 
   // Load CS with full descriptor cache update (sets CS.D/CS.L for handler)
@@ -320,7 +320,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   sw_return_rip = None();
   let old_cs  : word  = read_segreg(CS);
   let old_rflags : qword = read_rflags();
-  let old_rsp : qword = read_gpr64(RSP);
+  let old_rsp : qword = reg(RSP);
   let old_ss  : word  = read_segreg(SS);
   let old_cpl : cpl_t = cur_cpl;
 
@@ -376,7 +376,7 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   };
 
   // 6. Update RSP
-  write_gpr64(RSP, new_rsp);
+  reg(RSP) = new_rsp;
 
   // 7. Set SS to NULL selector with RPL = new CPL on privilege change
   //    or IST switch (SDM Vol.3 §7.14.4).

@@ -555,7 +555,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match rm {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        write_gpr32(dst_reg, zero_extend(v));
+        reg(32, dst_reg) = zero_extend(v);
       },
       RM_mem(seg, addr) => seg_write(seg, addr, v),
     }
@@ -575,7 +575,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match rm {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        write_gpr32(dst_reg, zero_extend(w));
+        reg(32, dst_reg) = zero_extend(w);
       },
       RM_mem(seg, addr) => seg_write(seg, addr, w),
     }
@@ -592,8 +592,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let src_xmm : xmmword = read_xmm(src);
     match (rm, pfx.rex_w) {
-      (RM_reg(_), true)     => write_gpr64(modrm_rm_reg(modrm, pfx), extract_qword_from_xmm(src_xmm, imm)),
-      (RM_reg(_), false)    => write_gpr32(modrm_rm_reg(modrm, pfx), extract_dword_from_xmm(src_xmm, imm)),
+      (RM_reg(_), true)     => reg(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(src_xmm, imm),
+      (RM_reg(_), false)    => reg(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(src_xmm, imm),
       (RM_mem(seg, addr), true)  => seg_write(seg, addr, extract_qword_from_xmm(src_xmm, imm)),
       (RM_mem(seg, addr), false) => seg_write(seg, addr, extract_dword_from_xmm(src_xmm, imm)),
     }
@@ -612,7 +612,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match rm {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        write_gpr32(dst_reg, v);
+        reg(dst_reg) = v;
       },
       RM_mem(seg, addr) => seg_write(seg, addr, v),
     }
