@@ -2632,7 +2632,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     32 => {
       let imm = fetch_byte();
       let v : byte = match rm {
-        RM_reg(idx) => read_gpr8l(idx),
+        RM_reg(idx) => reg(idx),
         RM_mem(seg, offset) => seg_read(seg, offset),
       };
       let v_0 : xmmword = read_xmm(xreg);

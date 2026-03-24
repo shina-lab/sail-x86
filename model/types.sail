@@ -239,16 +239,16 @@ function modrm_rm_reg(modrm, pfx) = {
 val read_gpr8 : (gpr_idx, bool) -> byte
 function read_gpr8(idx, has_rex) =
   if ~(has_rex) & 4 <= idx & idx <= 7 then
-    read_gpr8h(idx - 4)
+    GPR[idx - 4][15..8]
   else
-    read_gpr8l(idx)
+    GPR[idx][7..0]
 
 val write_gpr8 : (gpr_idx, bool, byte) -> unit
 function write_gpr8(idx, has_rex, v) =
   if ~(has_rex) & 4 <= idx & idx <= 7 then
-    write_gpr8h(idx - 4, v)
+    GPR[idx - 4][15..8] = v
   else
-    write_gpr8l(idx, v)
+    GPR[idx][7..0] = v
 
 // =========================================================================
 // Generic operand read/write through RM union

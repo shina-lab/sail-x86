@@ -627,7 +627,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let rm = decode_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : byte = match rm {
-      RM_reg(_) => read_gpr8l(modrm_rm_reg(modrm, pfx)),
+      RM_reg(_) => reg(modrm_rm_reg(modrm, pfx)),
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     let imm = fetch_byte();

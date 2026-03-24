@@ -698,7 +698,7 @@ function decode_execute() = {
       // #UD in 64-bit mode. Adjusts packed BCD result in AL after ADD.
       39 => {
         if cur_mode == LongMode then raise_UD();
-        let old_al = read_gpr8l(RAX);
+        let old_al : byte = reg(RAX);
         let old_cf = CF;
         let lo : bits(4) = old_al[3..0];
         let cond1 : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
@@ -707,7 +707,7 @@ function decode_execute() = {
         let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8]) | old_cf;
         let al_final : byte = al1 + (0x60 & sign_extend(cond2));
         CF = cond2[0];
-        write_gpr8l(RAX, al_final);
+        reg(RAX) = al_final;
         update_SF_ZF_PF(al_final)
       },
 
@@ -715,7 +715,7 @@ function decode_execute() = {
       // #UD in 64-bit mode. Adjusts packed BCD result in AL after SUB.
       47 => {
         if cur_mode == LongMode then raise_UD();
-        let old_al = read_gpr8l(RAX);
+        let old_al : byte = reg(RAX);
         let old_cf = CF;
         let lo : bits(4) = old_al[3..0];
         let cond1 : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
@@ -725,7 +725,7 @@ function decode_execute() = {
         let cond2 : bits(1) = ~(((0b0 @ old_al) - 0b0_1001_1010)[8]) | old_cf;
         let al_final : byte = al1 - (0x60 & sign_extend(cond2));
         CF = (cond2 | (cond1 & (old_cf | borrow1[4])))[0];
-        write_gpr8l(RAX, al_final);
+        reg(RAX) = al_final;
         update_SF_ZF_PF(al_final)
       },
 
@@ -733,26 +733,26 @@ function decode_execute() = {
       // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
       55 => {
         if cur_mode == LongMode then raise_UD();
-        let lo : bits(4) = read_gpr8l(RAX)[3..0];
+        let lo : bits(4) = reg(8, RAX)[3..0];
         let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let new_ax : word = read_gpr16(RAX) + (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
         AF = cond[0];
         CF = cond[0];
-        write_gpr8l(RAX, new_ax[7..0] & 0x0F)
+        reg(RAX) = new_ax[7..0] & 0x0F;
       },
 
       // 3F: AAS — ASCII Adjust AL After Subtraction (SDM Vol.2A)
       // #UD in 64-bit mode. Adjusts unpacked BCD result in AL/AH.
       63 => {
         if cur_mode == LongMode then raise_UD();
-        let lo : bits(4) = read_gpr8l(RAX)[3..0];
+        let lo : bits(4) = reg(8, RAX)[3..0];
         let cond : bits(1) = (lo[3] & (lo[2] | lo[1])) | AF;
         let new_ax : word = read_gpr16(RAX) - (0x0106 & sign_extend(cond));
         write_gpr16(RAX, new_ax);
         AF = cond[0];
         CF = cond[0];
-        write_gpr8l(RAX, new_ax[7..0] & 0x0F)
+        reg(RAX) = new_ax[7..0] & 0x0F;
       },
 
       // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
@@ -1336,20 +1336,21 @@ function decode_execute() = {
 
       // 9E: SAHF
       158 => {
-        let ah : byte = read_gpr8h(RAX);
-        CF = ah[0]; PF = ah[2]; AF = ah[4]; ZF = ah[6]; SF = ah[7]
+        let ah : byte = reg(16, RAX)[15..8];
+        CF = ah[0];
+        PF = ah[2];
+        AF = ah[4];
+        ZF = ah[6];
+        SF = ah[7]
       },
 
       // 9F: LAHF — AH := RFLAGS[7:0] = SF:ZF:0:AF:0:PF:1:CF
-      159 => {
-        let v : byte = SF @ ZF @ 0b0 @ AF @ 0b0 @ PF @ 0b1 @ CF;
-        write_gpr8h(RAX, v)
-      },
+      159 => reg(16, RAX) = SF @ ZF @ 0b0 @ AF @ 0b0 @ PF @ 0b1 @ CF @ reg(8, RAX),
 
       // A0: MOV AL, moffs8
       160 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        write_gpr8l(RAX, mem_read(addr))
+        reg(8, RAX) = mem_read(addr);
       },
 
       // A1: MOV rAX, moffs
@@ -1362,7 +1363,7 @@ function decode_execute() = {
       // A2: MOV moffs8, AL
       162 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        mem_write(addr, read_gpr8l(RAX))
+        mem_write(addr, reg(8, RAX))
       },
 
       // A3: MOV moffs, rAX
@@ -1407,7 +1408,7 @@ function decode_execute() = {
       // A8: TEST AL, imm8
       168 => {
         let imm : qword = zero_extend(fetch_byte());
-        let a : qword = zero_extend(read_gpr8l(RAX));
+        let a : qword = zero_extend(reg(8, RAX));
         let result = a & imm;
         update_flags_logic(result[7..0])
       },
@@ -1511,7 +1512,7 @@ function decode_execute() = {
         let imm = fetch_imm16();
         let os = get_operand_size_f64(pfx);
         next_rip = Some(pop_qword(os));
-        GPR[RSP] = GPR[RSP] + zero_extend(imm)
+        reg(64, RSP) = reg(RSP) + zero_extend(imm)
       },
 
       // C3: RET near
@@ -1829,7 +1830,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let count = read_gpr8l(RCX);
+        let count : byte = reg(RCX);
         exec_shift_rm(reg_field, rm, count, 8, pfx)
       },
 
@@ -1839,7 +1840,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let count = read_gpr8l(RCX);
+        let count : byte = reg(RCX);
         exec_shift_rm(reg_field, rm, count, os, pfx)
       },
 
@@ -1850,12 +1851,11 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let imm = fetch_byte();
         if imm == 0x00 then raise_DE();
-        let temp_al = read_gpr8l(RAX);
+        let temp_al : byte = reg(RAX);
         let divisor = unsigned(imm);
         assert(divisor > 0);
-        write_gpr8h(RAX, to_bits(8, unsigned(temp_al) / divisor));
-        write_gpr8l(RAX, to_bits(8, unsigned(temp_al) % divisor));
-        update_SF_ZF_PF(read_gpr8l(RAX))
+        reg(RAX) = to_bits(8, unsigned(temp_al) / divisor) @ to_bits(8, unsigned(temp_al) % divisor);
+        update_SF_ZF_PF(reg(8, RAX))
       },
 
       // D5: AAD — ASCII Adjust AX Before Division (SDM Vol.2A)
@@ -1863,11 +1863,10 @@ function decode_execute() = {
       213 => {
         if cur_mode == LongMode then raise_UD();
         let imm = fetch_byte();
-        let temp_al = read_gpr8l(RAX);
-        let temp_ah = read_gpr8h(RAX);
+        let temp_al = reg(8, RAX);
+        let temp_ah = reg(16, RAX)[15..8];
         let result : byte = to_bits(8, (unsigned(temp_al) + unsigned(temp_ah) * unsigned(imm)) % 256);
-        write_gpr8l(RAX, result);
-        write_gpr8h(RAX, 0x00);
+        reg(RAX) = 0x00 @ result;
         update_SF_ZF_PF(result)
       },
 
@@ -1875,14 +1874,14 @@ function decode_execute() = {
       // AL := 0 - CF (0xFF if CF=1, 0x00 if CF=0). No flags affected.
       214 => {
         if cur_mode == LongMode then raise_UD();
-        write_gpr8l(RAX, sign_extend(CF))
+        reg(8, RAX) = sign_extend(CF);
       },
 
       // D7: XLAT/XLATB
       215 => {
-        let al : qword = zero_extend(read_gpr8l(RAX));
+        let al : qword = zero_extend(reg(8, RAX));
         let addr : qword = zero_extend(reg(get_address_size(pfx), RBX)) + al;
-        write_gpr8l(RAX, mem_read(addr))
+        reg(8, RAX) = mem_read(addr)
       },
 
       // D8-DF: x87 FPU

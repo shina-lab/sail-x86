@@ -48,29 +48,6 @@ function write_gpr16(idx, v) = {
   GPR[idx] = old[63..16] @ v
 }
 
-// Read the low 8 bits of a GPR.
-val read_gpr8l : gpr_idx -> byte
-function read_gpr8l(idx) = GPR[idx][7..0]
-
-// Write to the low 8 bits of a GPR.
-// 8-bit writes preserve upper bits.
-val write_gpr8l : (gpr_idx, byte) -> unit
-function write_gpr8l(idx, v) = {
-  let old = GPR[idx];
-  GPR[idx] = old[63..8] @ v
-}
-
-// Read bits [15:8] of a GPR (AH, BH, CH, DH — only for GPR 0-3).
-val read_gpr8h : gpr_idx -> byte
-function read_gpr8h(idx) = GPR[idx][15..8]
-
-// Write to bits [15:8] of a GPR.
-val write_gpr8h : (gpr_idx, byte) -> unit
-function write_gpr8h(idx, v) = {
-  let old = GPR[idx];
-  GPR[idx] = old[63..16] @ v @ old[7..0]
-}
-
 // Polymorphic GPR read by operand size.
 val read_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx) -> bits('os)
 function read_gpr(os, idx) = match os {

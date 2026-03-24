@@ -1235,7 +1235,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let count = read_gpr8l(RCX);
+      let count : byte = reg(RCX);
       let dst_val = read_rm_val(os, rm, pfx.has_rex);
       let src_val = reg(os, reg);
       let new_val = exec_shld(dst_val, src_val, count);
@@ -1302,7 +1302,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let count = read_gpr8l(RCX);
+      let count : byte = reg(RCX);
       let dst_val = read_rm_val(os, rm, pfx.has_rex);
       let src_val = reg(os, reg);
       let new_val = exec_shrd(dst_val, src_val, count);
@@ -1385,14 +1385,14 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       check_lock_rm(pfx, rm, false);
       let dest = read_rm_val(8, rm, pfx.has_rex);
-      let acc : byte = read_gpr8l(RAX);
+      let acc : byte = reg(RAX);
       let src : byte = read_gpr8(reg, pfx.has_rex);
       let cmp_result = acc - dest;
       update_flags_sub(cmp_result, acc, dest);
       if ZF == 0b1 then {
         write_rm_val(rm, pfx.has_rex, src);
       } else {
-        write_gpr8l(RAX, dest);
+        reg(RAX) = dest;
         write_rm_val(rm, pfx.has_rex, dest);
       }
     },

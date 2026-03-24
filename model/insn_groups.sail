@@ -25,7 +25,7 @@ function exec_dec(a) = {
 val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_mul(os, src) = {
   if os == 8 then {
-    let a : int = unsigned(read_gpr8l(RAX));
+    let a : int = unsigned(reg(8, RAX));
     let b : int = unsigned(src);
     let result : word = to_bits_truncate(a * b);
     write_gpr16(RAX, result);
@@ -57,8 +57,7 @@ function exec_div(os, src) = {
     let quotient = dividend / divisor;
     let remainder = dividend - quotient * divisor;
     if quotient > 255 then raise_DE();
-    write_gpr8l(RAX, to_bits_truncate(quotient));
-    write_gpr8h(RAX, to_bits_truncate(remainder))
+    reg(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient);
   } else {
     let divisor = unsigned(src);
     if divisor == 0 then raise_DE();
@@ -93,8 +92,7 @@ function exec_idiv(os, src) = {
     let quotient = quot_round_zero(dividend, divisor);
     let remainder = rem_round_zero(dividend, divisor);
     if quotient < -128 | 127 < quotient then raise_DE();
-    write_gpr8l(RAX, to_bits_truncate(quotient));
-    write_gpr8h(RAX, to_bits_truncate(remainder))
+    reg(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient)
   } else {
     let divisor = signed(src);
     if divisor == 0 then raise_DE();
@@ -121,7 +119,7 @@ function exec_idiv(os, src) = {
 val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_imul_1(os, src) = {
   if os == 8 then {
-    let a : int = signed(read_gpr8l(RAX));
+    let a : int = signed(reg(8, RAX));
     let b : int = signed(src);
     let product : int = a * b;
     let result : word = to_bits_truncate(product);
