@@ -1265,10 +1265,9 @@ function decode_execute() = {
             // (SDM requires RSP-relative addresses use the post-pop RSP).
             // We pop first so that decode_rm sees the updated RSP.
             let v : qword = match os {
-              64 => pop64(),
-              32 => zero_extend(pop32()),
               16 => zero_extend(pop16()),
-              _ => zeros(),
+              32 => zero_extend(pop32()),
+              64 => pop64(),
             };
             let rm = decode_rm(modrm, pfx);
             match rm {
