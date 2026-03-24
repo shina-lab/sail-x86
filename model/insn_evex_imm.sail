@@ -1537,7 +1537,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 16), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 16, elem)
           },
         }
       },
@@ -1557,7 +1557,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 16), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 16, elem)
           },
         }
       },
@@ -1606,7 +1606,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 32), zero_extend(extracted), evex_kmask64(pfx), 32, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 32, elem)
           },
         }
       },
@@ -1627,7 +1627,7 @@ function dispatch_evex_imm(op, pfx) = {
         let res = avx_vcvtps2ph_128(read_xmm(src), rc);
         match dest {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
-          RM_mem(m) => evex_masked_mem_store(seg_linear(m.seg, m.addr, 8), zero_extend(res), evex_kmask64(pfx), 8, 2)
+          RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 8, 2)
         }
       },
       1 => {
@@ -1637,7 +1637,7 @@ function dispatch_evex_imm(op, pfx) = {
         let res = avx_vcvtps2ph_256(read_ymm(src), rc);
         match dest {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
-          RM_mem(m) => evex_masked_mem_store(seg_linear(m.seg, m.addr, 16), zero_extend(res), evex_kmask64(pfx), 16, 2)
+          RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 16, 2)
         }
       },
       2 => {
@@ -1647,7 +1647,7 @@ function dispatch_evex_imm(op, pfx) = {
         let res = avx_vcvtps2ph_512(read_zmm(src), rc);
         match dest {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
-          RM_mem(m) => evex_masked_mem_store(seg_linear(m.seg, m.addr, 32), zero_extend(res), evex_kmask64(pfx), 32, 2)
+          RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 32, 2)
         }
       },
       3 => raise_UD(),
@@ -1932,7 +1932,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 16), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 16, elem)
           },
         }
       },
@@ -1952,7 +1952,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 16), zero_extend(extracted), evex_kmask64(pfx), 16, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 16, elem)
           },
         }
       },
@@ -2000,7 +2000,7 @@ function dispatch_evex_imm(op, pfx) = {
           },
           RM_mem(m) => {
             let elem : {4, 8} = if pfx.vex_w then 8 else 4;
-            evex_masked_mem_store(seg_linear(m.seg, m.addr, 32), zero_extend(extracted), evex_kmask64(pfx), 32, elem)
+            evex_masked_mem_store(m, zero_extend(extracted), evex_kmask64(pfx), 32, elem)
           },
         }
       },

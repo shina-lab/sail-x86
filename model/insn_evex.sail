@@ -27,21 +27,22 @@ function evex_rm_reg_idx(modrm, pfx) = {
 // Masked memory store: write only bytes where mask bit = 1.
 // elem_bytes: element size (1=byte, 2=word, 4=dword, 8=qword).
 // One mask bit per element.
-val evex_masked_mem_store : (qword, zmmword, qword, int, int) -> unit
-function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
+val evex_masked_mem_store : (MemRef, zmmword, qword, int, int) -> unit
+function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
   if mask == ones() then {
     // Fast path: no masking, write the full vector
     match nbytes {
-      64 => write_mem(addr, data),
-      32 => write_mem(32, addr, data[255..0]),
-      _  => write_mem(16, addr, data[127..0]),
+      64 => write_mem(m, data),
+      32 => write_mem(32, m, data[255..0]),
+      _  => write_mem(16, m, data[127..0]),
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1
+    let addr = seg_linear(m.seg, m.addr, nbytes);
     var off : int = 0;
-    var m : qword = mask;
+    var k : qword = mask;
     while off < nbytes do {
-      if m[0] == 0b1 then {
+      if k[0] == 0b1 then {
         var j : int = 0;
         while j < elem_bytes do {
           let idx : int = off + j;
@@ -52,7 +53,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
         }
       };
       off = off + elem_bytes;
-      m = m >> 1;
+      k = k >> 1;
     }
   }
 }
