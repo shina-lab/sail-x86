@@ -160,8 +160,9 @@ function fetch_byte() = {
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
 val get_operand_size : Prefixes -> {16, 32, 64}
 function get_operand_size(pfx) =
-  if pfx.rex_w then 64
-  else if cur_mode == LongMode then {
+  if pfx.rex_w then {
+    64
+  } else if cur_mode == LongMode then {
     if pfx.has_opsize then 16 else 32
   } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then 16 else 32
@@ -196,8 +197,9 @@ function get_operand_size_d64(pfx) =
 // In non-64-bit modes, the 66h prefix works normally per CS.D setting.
 val get_operand_size_f64 : Prefixes -> {16, 32, 64}
 function get_operand_size_f64(pfx) =
-  if pfx.rex_w then 64
-  else if cur_mode == LongMode then {
+  if pfx.rex_w then {
+    64
+  } else if cur_mode == LongMode then {
     if pfx.has_opsize then 16 else 64
   } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then 16 else 32

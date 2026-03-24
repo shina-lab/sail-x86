@@ -62,8 +62,8 @@ function exec_alu_rm_reg_byte(op, dest, reg, pfx) = {
 }
 
 // Execute ALU: dst_rm OP= src_reg (word/dword/qword)
-val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, {16, 32, 64}, Prefixes) -> unit
-function exec_alu_rm_reg(op, dest, reg, os, pfx) = {
+val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, {16, 32, 64}) -> unit
+function exec_alu_rm_reg(op, dest, reg, os) = {
   let a = rm(os, dest);
   let b = reg(os, reg);
   let (result, wb) = alu_compute(op, a, b, os);
@@ -80,8 +80,8 @@ function exec_alu_reg_rm_byte(op, reg, src, pfx) = {
 }
 
 // Execute ALU: dst_reg OP= src_rm (word/dword/qword)
-val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, {16, 32, 64}, Prefixes) -> unit
-function exec_alu_reg_rm(op, reg, src, os, pfx) = {
+val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, {16, 32, 64}) -> unit
+function exec_alu_reg_rm(op, reg, src, os) = {
   let a = reg(os, reg);
   let b = rm(os, src);
   let (result, wb) = alu_compute(op, a, b, os);
@@ -97,8 +97,8 @@ function exec_alu_acc_imm(op, imm, os, _) = {
 }
 
 // Execute ALU: dest OP= imm (Group 1: opcodes 80, 81, 83)
-val exec_alu_rm_imm : forall 'os, 'os in {8, 16, 32, 64}. (ALUOp, RM, bits('os), int('os), Prefixes) -> unit
-function exec_alu_rm_imm(op, dest, imm, os, pfx) = {
+val exec_alu_rm_imm : forall 'os, 'os in {8, 16, 32, 64}. (ALUOp, RM, bits('os), int('os)) -> unit
+function exec_alu_rm_imm(op, dest, imm, os) = {
   let a = rm(os, dest);
   let (result, wb) = alu_compute(op, a, imm, os);
   if wb then rm(os, dest) = result

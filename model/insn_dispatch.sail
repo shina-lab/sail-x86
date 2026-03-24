@@ -120,7 +120,7 @@ function dispatch_alu_opcode(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-      exec_alu_rm_reg(alu_op, dest, reg, os, pfx)
+      exec_alu_rm_reg(alu_op, dest, reg, os)
     },
     // OP r8, r/m8
     2 => {
@@ -135,7 +135,7 @@ function dispatch_alu_opcode(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      exec_alu_reg_rm(alu_op, reg, src, os, pfx)
+      exec_alu_reg_rm(alu_op, reg, src, os)
     },
     // OP AL, imm8
     4 => {
@@ -999,7 +999,7 @@ function decode_execute() = {
         let imm : byte = fetch_byte();
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, dest, imm, 8, pfx)
+        exec_alu_rm_imm(alu_op, dest, imm, 8)
       },
 
       // 81: Group 1 — ALU r/m, imm (Iz)
@@ -1011,7 +1011,7 @@ function decode_execute() = {
         let imm = fetch_imm_z(os);
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os, pfx)
+        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os)
       },
 
       // 83: Group 1 — ALU r/m, imm8 (sign-extended)
@@ -1023,7 +1023,7 @@ function decode_execute() = {
         let imm = fetch_imm8_sx();
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os, pfx)
+        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os)
       },
 
       // 84: TEST r/m8, r8
@@ -1458,7 +1458,7 @@ function decode_execute() = {
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count = fetch_byte();
-        exec_shift_rm(reg_field, dest, count, 8, pfx)
+        exec_shift_rm(reg_field, dest, count, 8)
       },
 
       // C1: Group 2 — shift r/m by imm8
@@ -1468,7 +1468,7 @@ function decode_execute() = {
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count = fetch_byte();
-        exec_shift_rm(reg_field, dest, count, os, pfx)
+        exec_shift_rm(reg_field, dest, count, os)
       },
 
       // C2: RET near imm16
@@ -1776,7 +1776,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        exec_shift_rm(reg_field, dest, 0x01, 8, pfx)
+        exec_shift_rm(reg_field, dest, 0x01, 8)
       },
 
       // D1: Group 2 — shift r/m by 1
@@ -1785,7 +1785,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        exec_shift_rm(reg_field, dest, 0x01, os, pfx)
+        exec_shift_rm(reg_field, dest, 0x01, os)
       },
 
       // D2: Group 2 — shift r/m8 by CL
@@ -1794,7 +1794,7 @@ function decode_execute() = {
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count : byte = reg(RCX);
-        exec_shift_rm(reg_field, dest, count, 8, pfx)
+        exec_shift_rm(reg_field, dest, count, 8)
       },
 
       // D3: Group 2 — shift r/m by CL
@@ -1804,7 +1804,7 @@ function decode_execute() = {
         let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count : byte = reg(RCX);
-        exec_shift_rm(reg_field, dest, count, os, pfx)
+        exec_shift_rm(reg_field, dest, count, os)
       },
 
       // D4: AAM — ASCII Adjust AX After Multiply (SDM Vol.2A)
@@ -1988,7 +1988,7 @@ function decode_execute() = {
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
         check_lock_rm(pfx, dest, false);
-        dispatch_group3_byte(reg_field, dest, pfx)
+        dispatch_group3_byte(reg_field, dest)
       },
 
       // F7: Group 3 — unary word/dword/qword operations
@@ -2000,7 +2000,7 @@ function decode_execute() = {
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
         check_lock_rm(pfx, dest, false);
-        dispatch_group3(reg_field, dest, os, pfx)
+        dispatch_group3(reg_field, dest, os)
       },
 
       // F8: CLC

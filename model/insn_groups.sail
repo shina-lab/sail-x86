@@ -155,8 +155,8 @@ function exec_push_imm(imm, os) = {
 // Group 3 (F6): Unary byte operations
 // =========================================================================
 
-val dispatch_group3_byte : (range(0, 7), RM, Prefixes) -> unit
-function dispatch_group3_byte(reg_field, dest, pfx) = {
+val dispatch_group3_byte : (range(0, 7), RM) -> unit
+function dispatch_group3_byte(reg_field, dest) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
@@ -193,8 +193,8 @@ function dispatch_group3_byte(reg_field, dest, pfx) = {
 // Group 3 (F7): Unary word/dword/qword operations
 // =========================================================================
 
-val dispatch_group3 : (range(0, 7), RM, {16, 32, 64}, Prefixes) -> unit
-function dispatch_group3(reg_field, dest, os, pfx) = {
+val dispatch_group3 : (range(0, 7), RM, {16, 32, 64}) -> unit
+function dispatch_group3(reg_field, dest, os) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
@@ -513,8 +513,8 @@ function exec_rcr(os, a, count_raw) = {
 // For memory operands, reads/shifts/writes back inline.
 // =========================================================================
 
-val exec_shift_rm : forall 'os, 'os in {8, 16, 32, 64}. (range(0, 7), RM, byte, int('os), Prefixes) -> unit
-function exec_shift_rm(shift_op, dest, count_raw, os, pfx) = {
+val exec_shift_rm : forall 'os, 'os in {8, 16, 32, 64}. (range(0, 7), RM, byte, int('os)) -> unit
+function exec_shift_rm(shift_op, dest, count_raw, os) = {
   // Mask count first — if zero, the entire operation is a no-op (no
   // flags change, no memory write).
   let masked : range(0, 63) = match os {
