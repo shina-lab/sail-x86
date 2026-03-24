@@ -160,7 +160,9 @@ function dispatch_alu_opcode(op, pfx) = {
 
 // INS — Input from port DX to ES:[RDI]
 val exec_ins : (operand_size, AddressSize) -> unit
-function exec_ins(os, asz) = {
+function exec_ins(os_in, asz) = {
+  // SDM: INS only supports 8/16/32-bit I/O; REX.W is ignored.
+  let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = read_gpr16(RDX);
   let off : qword = read_index_dst(asz);
   // INS destination is always ES:DI (not overridable).
@@ -169,7 +171,6 @@ function exec_ins(os, asz) = {
     8  => mem_write(lin, __port_in8(port)),
     16 => mem_write(lin, __port_in16(port)),
     32 => mem_write(lin, __port_in32(port)),
-    64 => (),
   };
   if DF == 0b0 then
     write_index_dst(asz, off + os / 8)
@@ -180,7 +181,9 @@ function exec_ins(os, asz) = {
 // OUTS — Output from DS:[RSI] to port DX
 // SDM Vol.2B §OUTS: Source is DS:(E)SI, DS segment may be overridden.
 val exec_outs : (operand_size, AddressSize, Prefixes) -> unit
-function exec_outs(os, asz, pfx) = {
+function exec_outs(os_in, asz, pfx) = {
+  // SDM: OUTS only supports 8/16/32-bit I/O; REX.W is ignored.
+  let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = read_gpr16(RDX);
   let off : qword = read_index_src(asz);
   let src_seg : segreg_idx = match pfx.seg_override {
@@ -192,7 +195,6 @@ function exec_outs(os, asz, pfx) = {
     8  => __port_out8(port, mem_read(lin)),
     16 => __port_out16(port, mem_read(lin)),
     32 => __port_out32(port, mem_read(lin)),
-    64 => (),
   };
   if DF == 0b0 then
     write_index_src(asz, off + os / 8)
