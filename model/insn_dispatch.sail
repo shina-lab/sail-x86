@@ -422,20 +422,13 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
-          let crc : bits(32) = read_gpr(32, reg);
-          if op3 == 240 then {
-            // CRC32 r32/r64, r/m8
-            let src : byte = read_rm_val(rm, pfx.has_rex);
-            let result : bits(32) = crc32c(crc, src);
-            if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
-            else write_gpr(32, reg, result)
+          let os = if op3 == 240 then 8 else get_operand_size(pfx);
+          let src = read_rm_val(os, rm, pfx.has_rex);
+          let result : bits(32) = crc32c(read_gpr(32, reg), src);
+          if pfx.rex_w then {
+            write_gpr(64, reg, zero_extend(result))
           } else {
-            // CRC32 r32/r64, r/m16/r/m32/r/m64
-            let os = get_operand_size(pfx);
-            let src = read_rm_val(os, rm, pfx.has_rex);
-            let result : bits(32) = crc32c(crc, src);
-            if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
-            else write_gpr(32, reg, result)
+            write_gpr(32, reg, result)
           }
         } else {
           // MOVBE (0F 38 F0/F1) — load/store with byte swap
@@ -445,23 +438,19 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
           if op3 == 240 then {
-            // MOVBE r, m — load from memory and byte-swap
             write_gpr(os, reg, bswap(read_mem_rm(os / 8, rm)))
           } else {
-            // MOVBE m, r — byte-swap register and store to memory
-            let v = read_gpr(os, reg);
-            write_mem_rm(rm, bswap(v))
+            write_mem_rm(rm, bswap(read_gpr(os, reg)))
           }
         }
       } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
         // MOVDIRI m32/m64, r32/r64 (NP 0F 38 F9)
         if ~(has_movdiri) then raise_UD();
-        let os = if pfx.rex_w then 64 else 32;
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let v = read_gpr(os, reg);
-        write_mem_rm(rm, v)
+        let os = if pfx.rex_w then 64 else 32;
+        write_mem_rm(rm, read_gpr(os, reg))
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
         if ~(has_movdir64b) then raise_UD();
