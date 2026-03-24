@@ -1282,9 +1282,7 @@ function decode_execute() = {
 
       // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
       144 => {
-        if pfx.has_rep then {
-          ()
-        } else if pfx.rex_b == 0b1 then {
+        if ~(pfx.has_rep) & pfx.rex_b == 0b1 then {
           let os = get_operand_size(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {
