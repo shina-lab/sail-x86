@@ -1423,7 +1423,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     match src2 {
       RM_reg(_) => raise_UD(),
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
           let mask : ymmword = read_ymm(pfx.vex_vvvv);
           let src : ymmword = read_ymm(src_idx);
@@ -1453,7 +1453,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     match src2 {
       RM_reg(_) => raise_UD(),
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
           let mask : ymmword = read_ymm(pfx.vex_vvvv);
           let src : ymmword = read_ymm(src_idx);
@@ -1943,7 +1943,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = decode_rm(modrm, pfx);
     match src {
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         let mask_idx = pfx.vex_vvvv;
         match (pfx.vex_l, pfx.rex_w) {
           // VPMASKMOVQ: qword elements
@@ -1998,7 +1998,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dest = decode_rm(modrm, pfx);
     match dest {
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         let mask_idx = pfx.vex_vvvv;
         match (pfx.vex_l, pfx.rex_w) {
           // VPMASKMOVQ: qword elements

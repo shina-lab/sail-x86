@@ -1104,15 +1104,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else match reg_field {
         // FXSAVE m512byte
         0 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxsave64(seg_linear(m.seg, m.addr, 512)),
-          (RM_mem(m), false) => __fxsave(seg_linear(m.seg, m.addr, 512)),
+          (RM_mem(m), true)  => __fxsave64(seg_linear(m, 512)),
+          (RM_mem(m), false) => __fxsave(seg_linear(m, 512)),
           _ => raise_UD(),
         },
 
         // FXRSTOR m512byte
         1 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxrstor64(seg_linear(m.seg, m.addr, 512)),
-          (RM_mem(m), false) => __fxrstor(seg_linear(m.seg, m.addr, 512)),
+          (RM_mem(m), true)  => __fxrstor64(seg_linear(m, 512)),
+          (RM_mem(m), false) => __fxrstor(seg_linear(m, 512)),
           _ => raise_UD(),
         },
 
@@ -1126,7 +1126,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match dest {
           RM_mem(m) => {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
-            exec_xsave(seg_linear(m.seg, m.addr, 576), mask)
+            exec_xsave(seg_linear(m, 576), mask)
           },
           RM_reg(_) => raise_UD(),
         },
@@ -1135,7 +1135,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             // /5 mem: XRSTOR m
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
-            exec_xrstor(seg_linear(m.seg, m.addr, 576), mask)
+            exec_xrstor(seg_linear(m, 576), mask)
           },
           RM_reg(_) => {
             // /5 mod=11: LFENCE
@@ -1151,7 +1151,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
               let mask : qword = reg(32, RDX) @ reg(32, RAX);
-              exec_xsaveopt(seg_linear(m.seg, m.addr, 576), mask)
+              exec_xsaveopt(seg_linear(m, 576), mask)
             }
           },
           RM_reg(_) => (),  // MFENCE
@@ -1701,7 +1701,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
-            exec_xrstors(seg_linear(m.seg, m.addr, 576), mask)
+            exec_xrstors(seg_linear(m, 576), mask)
           },
           _ => raise_UD(),
         },
@@ -1709,7 +1709,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match dest {
           RM_mem(m) => {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
-            exec_xsavec(seg_linear(m.seg, m.addr, 576), mask)
+            exec_xsavec(seg_linear(m, 576), mask)
           },
           _ => raise_UD(),
         },
@@ -1718,7 +1718,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
-            exec_xsaves(seg_linear(m.seg, m.addr, 576), mask)
+            exec_xsaves(seg_linear(m, 576), mask)
           },
           _ => raise_UD(),
         },

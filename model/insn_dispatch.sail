@@ -164,11 +164,11 @@ function exec_ins(os_in, asz) = {
   let port : word = reg(RDX);
   let off : qword = zero_extend(reg(asz, RDI));
   // INS destination is always ES:DI (not overridable).
-  let lin = seg_linear(ES, off, os / 8);
+  let dst : MemRef = struct { seg = ES, addr = off };
   match os {
-    8  => write_mem(lin, __port_in8(port)),
-    16 => write_mem(lin, __port_in16(port)),
-    32 => write_mem(lin, __port_in32(port)),
+    8  => write_mem(dst, __port_in8(port)),
+    16 => write_mem(dst, __port_in16(port)),
+    32 => write_mem(dst, __port_in32(port)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
@@ -186,11 +186,11 @@ function exec_outs(os_in, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let lin = seg_linear(src_seg, off, os / 8);
+  let src : MemRef = struct { seg = src_seg, addr = off };
   match os {
-    8  => __port_out8(port,  read_mem(lin)),
-    16 => __port_out16(port, read_mem(lin)),
-    32 => __port_out32(port, read_mem(lin)),
+    8  => __port_out8(port,  read_mem(src)),
+    16 => __port_out16(port, read_mem(src)),
+    32 => __port_out32(port, read_mem(src)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (off + step)[asz - 1 .. 0]
@@ -205,9 +205,9 @@ function exec_movs(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let src_lin = seg_linear(src_seg, src_off, os / 8);
-  let dst_lin = seg_linear(ES, dst_off, os / 8);
-  write_mem(dst_lin, read_mem(os, src_lin));
+  let src : MemRef = struct { seg = src_seg, addr = src_off };
+  let dst : MemRef = struct { seg = ES, addr = dst_off };
+  write_mem(dst, read_mem(os / 8, src));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (src_off + step)[asz - 1 .. 0];
   reg(RDI) = (dst_off + step)[asz - 1 .. 0];
@@ -217,8 +217,8 @@ val exec_stos : (operand_size, address_size) -> unit
 function exec_stos(os, asz) = {
   let off : qword = zero_extend(reg(asz, RDI));
   // STOS destination is always ES:DI (not overridable).
-  let lin = seg_linear(ES, off, os / 8);
-  write_mem(lin, reg(os, RAX));
+  let dst : MemRef = struct { seg = ES, addr = off };
+  write_mem(dst, reg(os, RAX));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
 }
@@ -231,8 +231,8 @@ function exec_lods(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let lin = seg_linear(src_seg, off, os / 8);
-  reg(os, RAX) = read_mem(lin);
+  let src : MemRef = struct { seg = src_seg, addr = off };
+  reg(os, RAX) = read_mem(src);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (off + step)[asz - 1 .. 0]
 }
@@ -241,9 +241,9 @@ val exec_scas : (operand_size, address_size) -> unit
 function exec_scas(os, asz) = {
   let off : qword = zero_extend(reg(asz, RDI));
   // SCAS destination is always ES:DI (not overridable).
-  let lin = seg_linear(ES, off, os / 8);
+  let dst : MemRef = struct { seg = ES, addr = off };
   let a = reg(os, RAX);
-  let b = read_mem(os / 8, lin);
+  let b = read_mem(os / 8, dst);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
@@ -258,10 +258,10 @@ function exec_cmps(os, asz, pfx) = {
     Some(s) => s,
     None()  => DS,
   };
-  let src_lin = seg_linear(src_seg, src_off, os / 8);
-  let dst_lin = seg_linear(ES, dst_off, os / 8);
-  let a = read_mem(os / 8, src_lin);
-  let b = read_mem(os / 8, dst_lin);
+  let src : MemRef = struct { seg = src_seg, addr = src_off };
+  let dst : MemRef = struct { seg = ES, addr = dst_off };
+  let a = read_mem(os / 8, src);
+  let b = read_mem(os / 8, dst);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (src_off + step)[asz - 1 .. 0];

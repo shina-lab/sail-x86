@@ -282,7 +282,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_mem(m) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;
-          let a = seg_linear(m.seg, m.addr, off_size + 2);
+          let a = seg_linear(m, off_size + 2);
           let far_offset : qword = zero_extend(read_mem(os / 8, a));
           let far_selector : word = read_mem(a + off_size);
           match cur_mode {
@@ -312,7 +312,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_mem(m) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;
-          let a = seg_linear(m.seg, m.addr, off_size + 2);
+          let a = seg_linear(m, off_size + 2);
           let far_offset : qword = zero_extend(read_mem(os / 8, a));
           let far_selector : word = read_mem(a + off_size);
           match cur_mode {

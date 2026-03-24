@@ -71,23 +71,6 @@ val __wait : unit -> unit
 // Memory access helpers for x87 data sizes
 // =========================================================================
 
-val seg_read_fp80 : (segreg_idx, qword) -> fp80
-function seg_read_fp80(seg, offset) = read_mem(seg_linear(seg, offset, 10))
-
-val seg_write_fp80 : (segreg_idx, qword, fp80) -> unit
-function seg_write_fp80(seg, offset, v) = write_mem(seg_linear(seg, offset, 10), v)
-
-val seg_read_224 : (segreg_idx, qword) -> bits(224)
-function seg_read_224(seg, offset) = read_mem(seg_linear(seg, offset, 28))
-
-val seg_write_224 : (segreg_idx, qword, bits(224)) -> unit
-function seg_write_224(seg, offset, v) = write_mem(seg_linear(seg, offset, 28), v)
-
-val seg_read_864 : (segreg_idx, qword) -> bits(864)
-function seg_read_864(seg, offset) = read_mem(seg_linear(seg, offset, 108))
-
-val seg_write_864 : (segreg_idx, qword, bits(864)) -> unit
-function seg_write_864(seg, offset, v) = write_mem(seg_linear(seg, offset, 108), v)
 
 // =========================================================================
 // Status word condition code helpers
@@ -176,9 +159,9 @@ function dispatch_x87_d9(modrm, operand, _) = {
         1 => raise_UD(),
         2 => write_mem(m,__f80_to_f32(x87_read_st(0))),
         3 => write_mem(m,__f80_to_f32(x87_pop())),
-        4 => x87_load_env(seg_read_224(m.seg, m.addr)),
+        4 => x87_load_env(read_mem(m)),
         5 => x87_cw = read_mem(m),
-        6 => seg_write_224(m.seg, m.addr, x87_save_env()),
+        6 => write_mem(m, x87_save_env()),
         7 => write_mem(m,x87_cw),
       }
     },
@@ -357,9 +340,9 @@ function dispatch_x87_db(modrm, operand, _) = {
         2 => write_mem(m,__f80_to_int32(x87_read_st(0))),
         3 => write_mem(m,__f80_to_int32(x87_pop())),
         4 => raise_UD(),
-        5 => x87_push(seg_read_fp80(m.seg, m.addr)),
+        5 => x87_push(read_mem(m)),
         6 => raise_UD(),
-        7 => seg_write_fp80(m.seg, m.addr, x87_pop()),
+        7 => write_mem(m, x87_pop()),
       }
     },
     RM_reg(_) => {
@@ -445,13 +428,13 @@ function dispatch_x87_dd(modrm, operand, _) = {
         1 => write_mem(m,__f80_to_int64_trunc(x87_pop())),
         2 => write_mem(m,__f80_to_f64(x87_read_st(0))),
         3 => write_mem(m,__f80_to_f64(x87_pop())),
-        4 => x87_load_state(seg_read_864(m.seg, m.addr)),
+        4 => x87_load_state(read_mem(m)),
         5 => raise_UD(),
         // FNSAVE — save state, then reinitialize
         6 => {
           let state = x87_save_state();
           x87_init();
-          seg_write_864(m.seg, m.addr, state)
+          write_mem(m, state)
         },
         7 => write_mem(m,x87_sw),
       }
@@ -566,9 +549,9 @@ function dispatch_x87_df(modrm, operand, _) = {
         1 => write_mem(m,__f80_to_int16_trunc(x87_pop())),
         2 => write_mem(m,__f80_to_int16(x87_read_st(0))),
         3 => write_mem(m,__f80_to_int16(x87_pop())),
-        4 => x87_push(__f80_from_bcd(seg_read_fp80(m.seg, m.addr))),
+        4 => x87_push(__f80_from_bcd(read_mem(m))),
         5 => x87_push(__f80_from_int64(read_mem(m))),
-        6 => seg_write_fp80(m.seg, m.addr, __f80_to_bcd(x87_pop())),
+        6 => write_mem(m, __f80_to_bcd(x87_pop())),
         7 => write_mem(m,__f80_to_int64(x87_pop())),
       }
     },

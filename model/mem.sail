@@ -226,18 +226,18 @@ function check_seg_limit(seg, offset, access_size) = {
 // Translate a logical (segment, offset) pair to a linear address,
 // performing segment limit checking with the given access size.
 // Also applies the RIP-relative fixup if pending.
-val seg_linear : (segreg_idx, qword, int) -> qword
-function seg_linear(seg, offset, access_size) = {
+val seg_linear : (MemRef, int) -> qword
+function seg_linear(m, access_size) = {
   // Apply RIP-relative fixup if pending (only in LongMode, where
   // mod=00 rm=101 means [RIP+disp32])
-  let offset = if rip_rel_pending then decode_pos + rip_rel_disp else offset;
-  check_seg_limit(seg, offset, access_size);
-  offset + get_seg_base(seg)
+  let offset = if rip_rel_pending then decode_pos + rip_rel_disp else m.addr;
+  check_seg_limit(m.seg, offset, access_size);
+  offset + get_seg_base(m.seg)
 }
 
 // Segmented memory read/write via MemRef.
-function read_mem_ref(n, m) = read_mem_linear(seg_linear(m.seg, m.addr, n))
-function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m.seg, m.addr, n), v)
+function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n))
+function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m, n), v)
 
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)

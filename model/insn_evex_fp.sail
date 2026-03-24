@@ -1339,7 +1339,7 @@ function dispatch_evex_fp(op, pfx) = {
     match dest {
       RM_reg(_) => raise_UD(),
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, 64);
+        let a = seg_linear(m, 64);
         match pfx.evex_ll {
           0 => write_mem(a, read_xmm(src)),
           1 => write_mem(a, read_ymm(src)),

@@ -1525,7 +1525,7 @@ function dispatch_evex_perm(op, pfx) = {
         }
       },
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, 64);
+        let a = seg_linear(m, 64);
         match (pfx.rex_w, pfx.evex_ll) {
           // VPCOMPRESSW mem
           (true, 0) => avx_vpcompressw_mem_128(a, read_xmm(src), k[7..0]),
@@ -1730,7 +1730,7 @@ function dispatch_evex_perm(op, pfx) = {
         }
       },
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, 64);
+        let a = seg_linear(m, 64);
         match (pfx.rex_w, pfx.evex_ll) {
           (true, 0) => avx_vcompress_qword_mem_128(a, read_xmm(src), k[7..0]),
           (true, 1) => avx_vcompress_qword_mem_256(a, read_ymm(src), k[7..0]),
@@ -1766,7 +1766,7 @@ function dispatch_evex_perm(op, pfx) = {
         }
       },
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, 64);
+        let a = seg_linear(m, 64);
         match (pfx.rex_w, pfx.evex_ll) {
           (true, 0) => avx_vcompress_qword_mem_128(a, read_xmm(src), k[7..0]),
           (true, 1) => avx_vcompress_qword_mem_256(a, read_ymm(src), k[7..0]),

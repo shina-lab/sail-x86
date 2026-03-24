@@ -363,11 +363,11 @@ function dispatch_vex_0f_int(op, pfx) = {
           else write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx))),
         RM_mem(m) => {
           if pfx.vex_l then {
-            let a = seg_linear(m.seg, m.addr, 32);
+            let a = seg_linear(m, 32);
             if unsigned(a) % 32 != 0 then raise_GP0();
             write_ymm(dst, read_mem(a))
           } else {
-            let a = seg_linear(m.seg, m.addr, 16);
+            let a = seg_linear(m, 16);
             if unsigned(a) % 16 != 0 then raise_GP0();
             write_xmm(dst, read_mem(a))
           }
@@ -777,7 +777,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(m) => {
         if mp == MP_66 then {
-          let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+          let a = seg_linear(m, if pfx.vex_l then 32 else 16);
           if pfx.vex_l then {
             if unsigned(a) % 32 != 0 then raise_GP0();
           } else {
@@ -1364,13 +1364,13 @@ function dispatch_vex_0f_int(op, pfx) = {
     match dest {
       RM_mem(m) => {
         if pfx.vex_l then {
-          let a = seg_linear(m.seg, m.addr, 32);
+          let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
           write_mem(16, a, v[127..0]);
           write_mem(16, a + 16, v[255..128])
         } else {
-          let a = seg_linear(m.seg, m.addr, 16);
+          let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
           write_mem(a, read_xmm(src))
         }
@@ -1522,7 +1522,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = decode_rm(modrm, pfx);
     match src {
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
+        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
           let lo : xmmword = read_mem(a);
           let hi : xmmword = read_mem(a + 16);

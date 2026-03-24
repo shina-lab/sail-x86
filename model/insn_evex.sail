@@ -38,7 +38,7 @@ function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1
-    let addr = seg_linear(m.seg, m.addr, nbytes);
+    let addr = seg_linear(m, nbytes);
     var off : int = 0;
     var k : qword = mask;
     while off < nbytes do {

@@ -380,11 +380,11 @@ function dispatch_vex_0f_fp(op, pfx) = {
       RM_mem(m) => {
         // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
         if pfx.vex_l then {
-          let a = seg_linear(m.seg, m.addr, 32);
+          let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           write_ymm(dst, read_mem(a))
         } else {
-          let a = seg_linear(m.seg, m.addr, 16);
+          let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
           write_xmm(dst, read_mem(a))
         }
@@ -411,11 +411,11 @@ function dispatch_vex_0f_fp(op, pfx) = {
       RM_mem(m) => {
         // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
         if pfx.vex_l then {
-          let a = seg_linear(m.seg, m.addr, 32);
+          let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           write_mem(a, read_ymm(src))
         } else {
-          let a = seg_linear(m.seg, m.addr, 16);
+          let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
           write_mem(a, read_xmm(src))
         }
@@ -464,13 +464,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
     match dest {
       RM_mem(m) => {
         if pfx.vex_l then {
-          let a = seg_linear(m.seg, m.addr, 32);
+          let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
           write_mem(16, a, v[127..0]);
           write_mem(16, a + 16, v[255..128])
         } else {
-          let a = seg_linear(m.seg, m.addr, 16);
+          let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
           write_mem(a, read_xmm(src))
         }

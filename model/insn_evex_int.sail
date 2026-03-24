@@ -1857,7 +1857,7 @@ function dispatch_evex_int(op, pfx) = {
     let dest = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match dest {
       RM_mem(m) => {
-        let a = seg_linear(m.seg, m.addr, 64);
+        let a = seg_linear(m, 64);
         match pfx.evex_ll {
           0 => write_mem(a, read_xmm(src)),
           1 => write_mem(a, read_ymm(src)),
