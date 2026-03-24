@@ -172,10 +172,8 @@ function exec_ins(os_in, asz) = {
     16 => mem_write(lin, __port_in16(port)),
     32 => mem_write(lin, __port_in32(port)),
   };
-  if DF == 0b0 then
-    write_index_dst(asz, off + os / 8)
-  else
-    write_index_dst(asz, off - os / 8)
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_dst(asz, off + step)
 }
 
 // OUTS — Output from DS:[RSI] to port DX
@@ -192,14 +190,12 @@ function exec_outs(os_in, asz, pfx) = {
   };
   let lin = seg_linear(src_seg, off, os / 8);
   match os {
-    8  => __port_out8(port, mem_read(lin)),
+    8  => __port_out8(port,  mem_read(lin)),
     16 => __port_out16(port, mem_read(lin)),
     32 => __port_out32(port, mem_read(lin)),
   };
-  if DF == 0b0 then
-    write_index_src(asz, off + os / 8)
-  else
-    write_index_src(asz, off - os / 8)
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_src(asz, off + step)
 }
 
 val exec_movs : (operand_size, AddressSize, Prefixes) -> unit
@@ -214,13 +210,9 @@ function exec_movs(os, asz, pfx) = {
   let src_lin = seg_linear(src_seg, src_off, os / 8);
   let dst_lin = seg_linear(ES, dst_off, os / 8);
   mem_write(dst_lin, mem_read(os, src_lin));
-  if DF == 0b0 then {
-    write_index_src(asz, src_off + os / 8);
-    write_index_dst(asz, dst_off + os / 8);
-  } else {
-    write_index_src(asz, src_off - os / 8);
-    write_index_dst(asz, dst_off - os / 8);
-  }
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_src(asz, src_off + step);
+  write_index_dst(asz, dst_off + step);
 }
 
 val exec_stos : (operand_size, AddressSize) -> unit
@@ -229,10 +221,8 @@ function exec_stos(os, asz) = {
   // STOS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   mem_write(lin, read_gpr(os, RAX));
-  if DF == 0b0 then
-    write_index_dst(asz, off + os / 8)
-  else
-    write_index_dst(asz, off - os / 8)
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_dst(asz, off + step)
 }
 
 val exec_lods : (operand_size, AddressSize, Prefixes) -> unit
@@ -245,10 +235,8 @@ function exec_lods(os, asz, pfx) = {
   };
   let lin = seg_linear(src_seg, off, os / 8);
   write_gpr(os, RAX, mem_read(lin));
-  if DF == 0b0 then
-    write_index_src(asz, off + os / 8)
-  else
-    write_index_src(asz, off - os / 8)
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_src(asz, off + step)
 }
 
 val exec_scas : (operand_size, AddressSize) -> unit
@@ -259,10 +247,8 @@ function exec_scas(os, asz) = {
   let a = read_gpr(os, RAX);
   let b = mem_read(os / 8, lin);
   update_flags_sub(a - b, a, b);
-  if DF == 0b0 then
-    write_index_dst(asz, off + os / 8)
-  else
-    write_index_dst(asz, off - os / 8)
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_dst(asz, off + step)
 }
 
 val exec_cmps : (operand_size, AddressSize, Prefixes) -> unit
@@ -279,13 +265,9 @@ function exec_cmps(os, asz, pfx) = {
   let a = mem_read(os / 8, src_lin);
   let b = mem_read(os / 8, dst_lin);
   update_flags_sub(a - b, a, b);
-  if DF == 0b0 then {
-    write_index_src(asz, src_off + os / 8);
-    write_index_dst(asz, dst_off + os / 8);
-  } else {
-    write_index_src(asz, src_off - os / 8);
-    write_index_dst(asz, dst_off - os / 8);
-  }
+  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  write_index_src(asz, src_off + step);
+  write_index_dst(asz, dst_off + step)
 }
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
