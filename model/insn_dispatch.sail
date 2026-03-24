@@ -422,7 +422,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
           let rm = decode_rm(modrm, pfx);
-          var crc : bits(32) = read_gpr(32, reg);
+          let crc : bits(32) = read_gpr(32, reg);
           if op3 == 240 then {
             // CRC32 r32/r64, r/m8
             let src : byte = match rm {
@@ -435,40 +435,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           } else {
             // CRC32 r32/r64, r/m16/r/m32/r/m64
             let os = get_operand_size(pfx);
-            let result : bits(32) = match os {
-              16 => {
-                let src : bits(16) = match rm {
-                  RM_reg(_) => read_rm_val(rm, 16, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read(seg, offset),
-                };
-                crc = crc32c(crc, src[7..0]);
-                crc32c(crc, src[15..8])
-              },
-              32 => {
-                let src : bits(32) = match rm {
-                  RM_reg(_) => read_rm_val(rm, 32, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read(seg, offset),
-                };
-                crc = crc32c(crc, src[7..0]);
-                crc = crc32c(crc, src[15..8]);
-                crc = crc32c(crc, src[23..16]);
-                crc32c(crc, src[31..24])
-              },
-              64 => {
-                let src : bits(64) = match rm {
-                  RM_reg(_) => read_rm_val(rm, 64, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read(seg, offset),
-                };
-                crc = crc32c(crc, src[7..0]);
-                crc = crc32c(crc, src[15..8]);
-                crc = crc32c(crc, src[23..16]);
-                crc = crc32c(crc, src[31..24]);
-                crc = crc32c(crc, src[39..32]);
-                crc = crc32c(crc, src[47..40]);
-                crc = crc32c(crc, src[55..48]);
-                crc32c(crc, src[63..56])
-              },
-            };
+            let src = read_rm_val(rm, os, pfx.has_rex);
+            let result : bits(32) = crc32c(crc, src);
             if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
             else write_gpr(32, reg, result)
           }
