@@ -228,14 +228,14 @@ function modrm_rm_reg(modrm, pfx) =
 val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
 function read_rm_val(os, rm) =
   match rm {
-    RM_reg(r) => reg(r),
+    RM_reg(r) => read_gpr_ref(r),
     RM_mem(m) => read_mem(m),
   }
 
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_rm_val(os, rm, v) =
   match rm {
-    RM_reg(r) => reg(r) = v,
+    RM_reg(r) => write_gpr_ref(r) = v,
     RM_mem(m) => write_mem(m,v),
   }
 
@@ -258,14 +258,14 @@ function write_mem_rm(n, rm, v) =
 val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
 function read_reg_rm(os, rm) =
   match rm {
-    RM_reg(r) => reg(r),
+    RM_reg(r) => read_gpr_ref(r),
     RM_mem(_) => raise_UD(),
   }
 
 val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_reg_rm(os, rm, v) =
   match rm {
-    RM_reg(r) => reg(r) = v,
+    RM_reg(r) => write_gpr_ref(r) = v,
     RM_mem(_) => raise_UD(),
   }
 

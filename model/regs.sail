@@ -67,7 +67,6 @@ function write_gpr_ref(os, r, v) = {
   }
 }
 
-overload reg = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref}
 overload v = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref}
 
 // Named GPR indices for readability.
