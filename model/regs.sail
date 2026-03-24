@@ -266,7 +266,7 @@ register insn_buf : bits(120) = zeros()
 // Output register for ISLA equivalence proofs.
 register Final_result : bits(128) = zeros()
 
-// RIP-relative fixup state: when decode_rm sees mod=00 rm=101 (RIP+disp32),
+// RIP-relative fixup state: when modrm_rm sees mod=00 rm=101 (RIP+disp32),
 // it saves decode_pos after consuming the displacement bytes. If the
 // instruction has trailing bytes (imm8, imm32), decode_pos will advance
 // further. The fixup delta (decode_pos - rip_rel_saved_pos) is added to

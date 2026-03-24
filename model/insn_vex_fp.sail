@@ -17,7 +17,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   16 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     match mp {
       // VMOVUPS (vvvv reserved)
       MP_NONE => {
@@ -77,7 +77,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   17 => {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = decode_rm(modrm, pfx);
+    let dest = modrm_rm(modrm, pfx);
     match mp {
       // VMOVUPS (vvvv reserved)
       MP_NONE => {
@@ -160,7 +160,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   18 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     match mp {
       MP_NONE => {
         match src2 {
@@ -228,7 +228,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = decode_rm(modrm, pfx);
+    let dest = modrm_rm(modrm, pfx);
     rm_mem(8, dest) = read_xmm(src)[63..0]
   },
 
@@ -236,7 +236,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   20 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
@@ -270,7 +270,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   21 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
@@ -304,7 +304,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   22 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     match mp {
       MP_NONE => {
         match src2 {
@@ -358,7 +358,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = decode_rm(modrm, pfx);
+    let dest = modrm_rm(modrm, pfx);
     rm_mem(8, dest) = read_xmm(src)[127..64]
   },
 
@@ -368,7 +368,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     match src {
       RM_reg(_) => {
         if pfx.vex_l then {
@@ -396,7 +396,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = decode_rm(modrm, pfx);
+    let dest = modrm_rm(modrm, pfx);
     match dest {
       RM_reg(_) => {
         let dst = modrm_xmm_rm(modrm, pfx);
@@ -423,7 +423,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   42 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     match mp {
       // VCVTSI2SS xmm1, xmm2, r/m32
@@ -456,7 +456,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = decode_rm(modrm, pfx);
+    let dest = modrm_rm(modrm, pfx);
     match dest {
       RM_mem(m) => {
         if pfx.vex_l then {
@@ -474,7 +474,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 2C: VCVTTSS2SI (F3) / VCVTTSD2SI (F2) — truncating scalar float to int
   44 => {
     let modrm = fetch_byte();
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     let dst_gpr = modrm_reg(modrm, pfx);
     match mp {
       // VCVTTSS2SI r32/r64, xmm1/m32
@@ -503,7 +503,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   45 => {
     let modrm = fetch_byte();
     let reg = modrm_reg(modrm, pfx);
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     match mp {
       MP_F3 => {
         let src : dword = match src2 {
@@ -535,7 +535,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src_reg = modrm_xmm_reg(modrm, pfx);
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     match mp {
       // VUCOMISS xmm1, xmm2/m32
       MP_NONE => {
@@ -583,7 +583,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch_byte();
     let src_reg = modrm_xmm_reg(modrm, pfx);
-    let src2 = decode_rm(modrm, pfx);
+    let src2 = modrm_rm(modrm, pfx);
     match mp {
       // VCOMISS xmm1, xmm2/m32
       MP_NONE => {
@@ -629,7 +629,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   80 => {
     let modrm = fetch_byte();
     let reg = modrm_reg(modrm, pfx);
-    let _ = decode_rm(modrm, pfx);
+    let _ = modrm_rm(modrm, pfx);
     if pfx.vex_vvvv != 0 then raise_UD();
     match mp {
       MP_NONE => {
@@ -664,7 +664,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   op if 81 <= op & op <= 95 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let col : range(0, 15) = op - 80;
 
     if pfx.vex_l then {
@@ -930,7 +930,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   194 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let imm = fetch_byte();
     let pred : bits(5) = imm[4..0];
     match mp {
@@ -991,7 +991,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   198 => {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let imm = fetch_byte();
     match mp {
       // VSHUFPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8

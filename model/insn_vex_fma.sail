@@ -35,7 +35,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -50,7 +50,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -65,7 +65,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -80,7 +80,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmadd132sd(dst, src2, src3)
@@ -92,7 +92,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -107,7 +107,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmsub132sd(dst, src2, src3)
@@ -119,7 +119,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -134,7 +134,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmadd132sd(dst, src2, src3)
@@ -146,7 +146,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
@@ -161,7 +161,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmsub132sd(dst, src2, src3)
@@ -173,7 +173,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -188,7 +188,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -203,7 +203,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -218,7 +218,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmadd213sd(dst, src2, src3)
@@ -230,7 +230,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -245,7 +245,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmsub213sd(dst, src2, src3)
@@ -257,7 +257,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -272,7 +272,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmadd213sd(dst, src2, src3)
@@ -284,7 +284,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
@@ -299,7 +299,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmsub213sd(dst, src2, src3)
@@ -311,7 +311,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -326,7 +326,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -341,7 +341,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -356,7 +356,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmadd231sd(dst, src2, src3)
@@ -368,7 +368,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -383,7 +383,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfmsub231sd(dst, src2, src3)
@@ -395,7 +395,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -410,7 +410,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmadd231sd(dst, src2, src3)
@@ -422,7 +422,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let v = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
       (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
@@ -437,7 +437,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = decode_rm(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
     if pfx.vex_w then exec_vfnmsub231sd(dst, src2, src3)

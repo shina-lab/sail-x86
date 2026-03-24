@@ -203,8 +203,8 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
 }
 
 // Decode ModR/M with EVEX compressed disp8. disp_n is the scale factor.
-val decode_rm_evex : (byte, Prefixes, range(1, 64)) -> RM
-function decode_rm_evex(modrm, pfx, disp_n) = {
+val modrm_rm_evex : (byte, Prefixes, range(1, 64)) -> RM
+function modrm_rm_evex(modrm, pfx, disp_n) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
   let rm_raw : bits(3) = modrm[2..0];
 
@@ -270,8 +270,8 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
 //   rm=0: [BX+SI], 1: [BX+DI], 2: [BP+SI], 3: [BP+DI],
 //   4: [SI], 5: [DI], 6: [disp16] (mod=00) or [BP], 7: [BX]
 // Default segment: BP-based → SS, others → DS.
-val decode_rm_16 : (byte, Prefixes) -> RM
-function decode_rm_16(modrm, pfx) = {
+val modrm_rm_16 : (byte, Prefixes) -> RM
+function modrm_rm_16(modrm, pfx) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
   let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
 
@@ -319,11 +319,11 @@ function decode_rm_16(modrm, pfx) = {
 // Decode ModR/M byte and return the r/m operand (register or memory address).
 // The reg field is decoded separately by the caller via modrm_reg().
 // The modrm byte has already been fetched by the caller.
-val decode_rm : (byte, Prefixes) -> RM
-function decode_rm(modrm, pfx) = {
+val modrm_rm : (byte, Prefixes) -> RM
+function modrm_rm(modrm, pfx) = {
   // 16-bit addressing uses a completely different table (SDM Table 2-1)
   if get_address_size(pfx) == 16 then {
-    return decode_rm_16(modrm, pfx)
+    return modrm_rm_16(modrm, pfx)
   };
 
   let modbits : range(0, 3) = unsigned(modrm[7..6]);

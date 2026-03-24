@@ -1001,7 +1001,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     // Tuple1 Scalar: disp_n = 4 for dword
-    let src = decode_rm_evex(modrm, pfx, 4);
+    let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : dword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
       RM_mem(m) => read_mem(m),
@@ -1021,7 +1021,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     // Tuple1 Scalar: disp_n = 8 for qword
-    let src = decode_rm_evex(modrm, pfx, 8);
+    let src = modrm_rm_evex(modrm, pfx, 8);
     let elem : qword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
       RM_mem(m) => read_mem(m),
@@ -1058,7 +1058,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 4);
+    let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : dword = match src {
       RM_reg(_) => {
         // Source is a GPR (r/m field selects GPR, not XMM)
@@ -1080,7 +1080,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 4);
+    let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : dword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
       RM_mem(m) => read_mem(m),
@@ -1099,7 +1099,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 8);
+    let src = modrm_rm_evex(modrm, pfx, 8);
     let elem : qword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
       RM_mem(m) => read_mem(m),
@@ -1118,7 +1118,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 4);
+    let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : byte = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[7..0],
       RM_mem(m) => read_mem(m),
@@ -1137,7 +1137,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 4);
+    let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : word = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
       RM_mem(m) => read_mem(m),
@@ -1159,7 +1159,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 16);
+    let src = modrm_rm_evex(modrm, pfx, 16);
     let src : xmmword = rm_mem(src);
     match (pfx.rex_w, pfx.evex_ll) {
       (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
@@ -1176,7 +1176,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 32);
+    let src = modrm_rm_evex(modrm, pfx, 32);
     let src : ymmword = rm_mem(src);
     if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
     else evex_write_d_zmm(dst, src @ src, pfx)
@@ -1188,7 +1188,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 16);
+    let src = modrm_rm_evex(modrm, pfx, 16);
     let src : xmmword = rm_mem(src);
     match (pfx.rex_w, pfx.evex_ll) {
       (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
@@ -1205,7 +1205,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 32);
+    let src = modrm_rm_evex(modrm, pfx, 32);
     let src : ymmword = rm_mem(src);
     if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
     else evex_write_d_zmm(dst, src @ src, pfx)
@@ -1217,7 +1217,7 @@ function dispatch_evex_perm(op, pfx) = {
       // VPMINUW: packed minimum of unsigned words
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+      let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
       match pfx.evex_ll {
         0 => evex_write_w_xmm(dst, avx_pminuw_128(read_xmm(src1_idx), evex_src_xmm(modrm, src, pfx)), pfx),
@@ -1270,7 +1270,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     match pfx.evex_ll {
@@ -1287,7 +1287,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     match pfx.evex_ll {
@@ -1304,7 +1304,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1324,7 +1324,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1344,7 +1344,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let src1_idx = pfx.evex_vvvvv;
     match pfx.evex_ll {
       0 => evex_write_b_xmm(dst, avx_pshufb_128(read_xmm(src1_idx), evex_src_xmm(modrm, src, pfx)), pfx),
@@ -1359,7 +1359,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let src1_idx = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMI2W
@@ -1379,7 +1379,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1401,7 +1401,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1423,7 +1423,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1445,7 +1445,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1467,7 +1467,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMT2W
@@ -1487,7 +1487,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, 1);
+    let src = modrm_rm_evex(modrm, pfx, 1);
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPEXPANDW
@@ -1507,7 +1507,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
-    let dest = decode_rm_evex(modrm, pfx, 1);
+    let dest = modrm_rm_evex(modrm, pfx, 1);
     let k : qword = evex_kmask64(pfx);
     match dest {
       RM_reg(_) => {
@@ -1547,7 +1547,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let ctrl = read_zmm(pfx.evex_vvvvv);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMW
@@ -1569,7 +1569,7 @@ function dispatch_evex_perm(op, pfx) = {
       // VMOVNTDQA: memory source only (SDM: ModRM.MOD != 11b)
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+      let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       match src {
         RM_reg(_) => raise_UD(),
         RM_mem(_) => {
@@ -1610,7 +1610,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch_byte();
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match pfx.evex_ll {
       0 => {
         let r = avx_vpshufbitqmb_128(read_xmm(pfx.evex_vvvvv), evex_src_xmm(modrm, src, pfx));
@@ -1651,7 +1651,7 @@ function dispatch_evex_perm(op, pfx) = {
       // VMOVNTDQA (already handled if present, otherwise fallthrough)
       let modrm = fetch_byte();
       let dst = evex_reg_idx(modrm, pfx);
-      let src = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+      let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       match (pfx.rex_w, pfx.evex_ll) {
         (true, 0) => evex_write_q_xmm(dst, evex_src_xmm(modrm, src, pfx), pfx),
         (true, 1) => evex_write_q_ymm(dst, evex_src_ymm(modrm, src, pfx), pfx),
@@ -1672,7 +1672,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VEXPANDPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
@@ -1693,7 +1693,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPEXPANDQ — same as VEXPANDPD (qword elements)
@@ -1714,7 +1714,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
-    let dest = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let dest = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let k : qword = evex_kmask64(pfx);
     match dest {
       RM_reg(_) => {
@@ -1750,7 +1750,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let src = evex_reg_idx(modrm, pfx);
-    let dest = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let dest = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let k : qword = evex_kmask64(pfx);
     match dest {
       RM_reg(_) => {
@@ -1785,7 +1785,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     let k : qword = evex_kmask64(pfx);
@@ -1867,7 +1867,7 @@ function dispatch_evex_perm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
-    let src = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
     let k : qword = evex_kmask64(pfx);
