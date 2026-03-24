@@ -757,8 +757,7 @@ function decode_execute() = {
 
       // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
       op if 64 <= op & op <= 71 => {
-        let reg_field : range(0, 7) = op - 64;
-        let reg = extend_reg(reg_field, 0b0);
+        let reg : range(0, 7) = op - 64;
         let os = get_operand_size(pfx);
         let v = reg(os, reg);
         let result = exec_inc(v);
@@ -767,8 +766,7 @@ function decode_execute() = {
 
       // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
       op if 72 <= op & op <= 79 => {
-        let reg_field : range(0, 7) = op - 72;
-        let reg = extend_reg(reg_field, 0b0);
+        let reg : range(0, 7) = op - 72;
         let os = get_operand_size(pfx);
         let v = reg(os, reg);
         let result = exec_dec(v);
@@ -778,7 +776,7 @@ function decode_execute() = {
       // 50-57: PUSH reg (d64)
       op if 80 <= op & op <= 87 => {
         let reg_field : range(0, 7) = op - 80;
-        let reg = extend_reg(reg_field, pfx.rex_b);
+        let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = get_operand_size_d64(pfx);
         match os {
           16 => push16(reg(reg)),
@@ -791,7 +789,7 @@ function decode_execute() = {
       // 58-5F: POP reg (d64)
       op if 88 <= op & op <= 95 => {
         let reg_field : range(0, 7) = op - 88;
-        let reg = extend_reg(reg_field, pfx.rex_b);
+        let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = get_operand_size_d64(pfx);
         exec_pop_reg(reg, os)
       },
@@ -1174,10 +1172,9 @@ function decode_execute() = {
         if reg_field == 0 then {
           let os = get_operand_size_d64(pfx);
           let mod_field : range(0, 3) = unsigned(modrm[7..6]);
-          let rm_field : range(0, 7) = unsigned(modrm[2..0]);
           if mod_field == 3 then {
             // Register destination — no address computation issue
-            let idx = extend_reg(rm_field, pfx.rex_b);
+            let idx = unsigned(pfx.rex_b @ modrm[2..0]);
             exec_pop_reg(idx, os)
           } else {
             // Memory destination: pop first, THEN compute effective address
@@ -1208,7 +1205,7 @@ function decode_execute() = {
       // 91-97: XCHG rAX, r
       op if 145 <= op & op <= 151 => {
         let reg_field : range(0, 7) = op - 144;
-        let reg = extend_reg(reg_field, pfx.rex_b);
+        let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = get_operand_size(pfx);
         exec_xchg_reg_reg(RAX, reg, os)
       },
@@ -1447,7 +1444,7 @@ function decode_execute() = {
       // B0-B7: MOV r8, imm8
       op if 176 <= op & op <= 183 => {
         let reg_field : range(0, 7) = op - 176;
-        let reg = struct { gpr_idx = extend_reg(reg_field, pfx.rex_b), has_rex = pfx.has_rex } : GPRRef;
+        let reg = struct { gpr_idx = unsigned(pfx.rex_b @ to_bits(3, reg_field)), has_rex = pfx.has_rex } : GPRRef;
         let imm = fetch_byte();
         reg(reg) = imm
       },
@@ -1455,7 +1452,7 @@ function decode_execute() = {
       // B8-BF: MOV r, imm (Iv)
       op if 184 <= op & op <= 191 => {
         let reg_field : range(0, 7) = op - 184;
-        let reg = extend_reg(reg_field, pfx.rex_b);
+        let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = get_operand_size(pfx);
         let imm = fetch_imm_v(os);
         reg(reg) = imm[(os - 1) .. 0]

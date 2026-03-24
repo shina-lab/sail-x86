@@ -1767,7 +1767,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F C8-CF: BSWAP r32/r64 (register in opcode)
     op if 200 <= op & op <= 207 => {
       let reg_field : range(0, 7) = op - 200;
-      let reg = extend_reg(reg_field, pfx.rex_b);
+      let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
       let os = get_operand_size(pfx);
       if os == 16 then {
         // SDM says "result is undefined" for 16-bit operand, but real

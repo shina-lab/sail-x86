@@ -349,14 +349,12 @@ function decode_vsib_vex(modrm, pfx) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
   let sib = fetch_byte();
   let scale : range(0, 3) = unsigned(sib[7..6]);
-  let index_raw : range(0, 7) = unsigned(sib[5..3]);
-  let base_raw : range(0, 7) = unsigned(sib[2..0]);
 
-  let base_idx : gpr_idx = extend_reg(base_raw, pfx.rex_b);
-  let vidx : simd_idx = extend_reg(index_raw, pfx.rex_x);
+  let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
+  let vidx : simd_idx = unsigned(pfx.rex_x @ sib[5..3]);
 
   let base_val : qword =
-    if base_raw == 5 & modbits == 0 then {
+    if sib[2..0] == 0b101 & modbits == 0 then {
       let b0 = fetch_byte();
       let b1 = fetch_byte();
       let b2 = fetch_byte();

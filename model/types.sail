@@ -211,24 +211,15 @@ function get_operand_size_f64(pfx) =
 // Register index helpers (extending 3-bit fields with REX bits)
 // =========================================================================
 
-// Extend a 3-bit register field with a REX extension bit to get gpr_idx.
-val extend_reg : (range(0, 7), bit) -> gpr_idx
-function extend_reg(base, rex_bit) =
-  unsigned(rex_bit @ to_bits(3, base))
-
 // Decode the ModR/M reg field (bits 5:3) with REX.R.
 val modrm_reg : (byte, Prefixes) -> GPRRef
-function modrm_reg(modrm, pfx) = {
-  let r : range(0, 7) = unsigned(modrm[5..3]);
-  struct { gpr_idx = extend_reg(r, pfx.rex_r), has_rex = pfx.has_rex }
-}
+function modrm_reg(modrm, pfx) =
+  struct { gpr_idx = unsigned(pfx.rex_r @ modrm[5..3]), has_rex = pfx.has_rex }
 
 // Decode the ModR/M r/m field (bits 2:0) with REX.B.
 val modrm_rm_reg : (byte, Prefixes) -> gpr_idx
-function modrm_rm_reg(modrm, pfx) = {
-  let r : range(0, 7) = unsigned(modrm[2..0]);
-  extend_reg(r, pfx.rex_b)
-}
+function modrm_rm_reg(modrm, pfx) =
+  unsigned(pfx.rex_b @ modrm[2..0])
 
 // =========================================================================
 // Generic operand read/write through RM union
