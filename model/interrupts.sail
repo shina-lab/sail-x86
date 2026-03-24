@@ -44,8 +44,8 @@ function read_idt_gate(vec) = {
   let base : qword = IDTR_base + vec_offset;
   // IDT reads go through virtual address translation because the kernel
   // stores IDTR_base as a virtual address.
-  let lo : qword = mem_read(base);
-  let hi : qword = mem_read(base + 8);
+  let lo : qword = read_mem(base);
+  let hi : qword = read_mem(base + 8);
 
   // Offset = hi[31:0] @ lo[63:48] @ lo[15:0]
   let offset_lo  : word  = lo[15..0];
@@ -83,7 +83,7 @@ val read_tss_rsp0 : unit -> qword
 function read_tss_rsp0() = {
   // RSP0 is at offset 4 in the 64-bit TSS.
   // TR_base is a linear (virtual) address set by LTR.
-  mem_read(TR_base + 4)
+  read_mem(TR_base + 4)
 }
 
 // Read IST entry from the TSS.
@@ -92,7 +92,7 @@ function read_tss_ist(ist_idx) = {
   // IST1 is at offset 36 (0x24) in the 64-bit TSS, each entry is 8 bytes.
   // TR_base is a linear (virtual) address.
   let offset : qword = to_bits(64, 36 + (ist_idx - 1) * 8);
-  mem_read(TR_base + offset)
+  read_mem(TR_base + offset)
 }
 
 // Check if an exception vector has an error code.
@@ -106,7 +106,7 @@ function has_error_code(vec) =
 val push_to_stack : (qword, qword) -> qword
 function push_to_stack(rsp, value) = {
   let new_rsp = rsp - 8;
-  mem_write(new_rsp, value);
+  write_mem(new_rsp, value);
   new_rsp
 }
 
@@ -120,7 +120,7 @@ register sw_return_rip : option(qword) = None()
 val push_to_stack_32 : (qword, dword) -> qword
 function push_to_stack_32(esp, value) = {
   let new_esp = esp - 4;
-  mem_write(new_esp, value);
+  write_mem(new_esp, value);
   new_esp
 }
 
@@ -136,7 +136,7 @@ function push_to_stack_16(sp, value) = {
     then (offset - 2) & 0x00000000FFFFFFFF
     else (offset - 2) & 0x000000000000FFFF;
   let new_sp = base + new_offset;
-  mem_write(new_sp, value);
+  write_mem(new_sp, value);
   new_sp
 }
 
@@ -146,8 +146,8 @@ val read_idt_gate_32 : exception_vector -> IDTGate
 function read_idt_gate_32(vec) = {
   let vec_offset : qword = to_bits(64, vec * 8);
   let base : qword = IDTR_base + vec_offset;
-  let lo : dword = mem_read(base);
-  let hi : dword = mem_read(base + 4);
+  let lo : dword = read_mem(base);
+  let hi : dword = read_mem(base + 4);
 
   // Offset = hi[31:16] @ lo[15:0]
   let offset : dword = hi[31..16] @ lo[15..0];
@@ -170,8 +170,8 @@ function read_idt_gate_32(vec) = {
 // ESP0 is at offset 4, SS0 is at offset 8 (low 16 bits).
 val read_tss_esp0_32 : unit -> (dword, word)
 function read_tss_esp0_32() = {
-  let esp0 : dword = mem_read(TR_base + 4);
-  let ss0  : word  = mem_read(TR_base + 8);
+  let esp0 : dword = read_mem(TR_base + 4);
+  let ss0  : word  = read_mem(TR_base + 8);
   (esp0, ss0)
 }
 

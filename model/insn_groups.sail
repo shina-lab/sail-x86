@@ -279,12 +279,12 @@ function dispatch_group5(reg_field, dest, pfx) = {
     3 => {
       match dest {
         RM_reg(_) => raise_UD(),
-        RM_mem(seg, offset) => {
+        RM_mem(m) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;
-          let a = seg_linear(seg, offset, off_size + 2);
-          let far_offset : qword = zero_extend(mem_read(os / 8, a));
-          let far_selector : word = mem_read(a + off_size);
+          let a = seg_linear(m.seg, m.addr, off_size + 2);
+          let far_offset : qword = zero_extend(read_mem(os / 8, a));
+          let far_selector : word = read_mem(a + off_size);
           match cur_mode {
             RealMode => {
               match os {
@@ -309,12 +309,12 @@ function dispatch_group5(reg_field, dest, pfx) = {
     5 => {
       match dest {
         RM_reg(_) => raise_UD(),
-        RM_mem(seg, offset) => {
+        RM_mem(m) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;
-          let a = seg_linear(seg, offset, off_size + 2);
-          let far_offset : qword = zero_extend(mem_read(os / 8, a));
-          let far_selector : word = mem_read(a + off_size);
+          let a = seg_linear(m.seg, m.addr, off_size + 2);
+          let far_offset : qword = zero_extend(read_mem(os / 8, a));
+          let far_selector : word = read_mem(a + off_size);
           match cur_mode {
             RealMode => {
               load_segment_register(CS, far_selector);

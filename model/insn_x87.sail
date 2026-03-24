@@ -72,22 +72,22 @@ val __wait : unit -> unit
 // =========================================================================
 
 val seg_read_fp80 : (segreg_idx, qword) -> fp80
-function seg_read_fp80(seg, offset) = mem_read(seg_linear(seg, offset, 10))
+function seg_read_fp80(seg, offset) = read_mem(seg_linear(seg, offset, 10))
 
 val seg_write_fp80 : (segreg_idx, qword, fp80) -> unit
-function seg_write_fp80(seg, offset, v) = mem_write(seg_linear(seg, offset, 10), v)
+function seg_write_fp80(seg, offset, v) = write_mem(seg_linear(seg, offset, 10), v)
 
 val seg_read_224 : (segreg_idx, qword) -> bits(224)
-function seg_read_224(seg, offset) = mem_read(seg_linear(seg, offset, 28))
+function seg_read_224(seg, offset) = read_mem(seg_linear(seg, offset, 28))
 
 val seg_write_224 : (segreg_idx, qword, bits(224)) -> unit
-function seg_write_224(seg, offset, v) = mem_write(seg_linear(seg, offset, 28), v)
+function seg_write_224(seg, offset, v) = write_mem(seg_linear(seg, offset, 28), v)
 
 val seg_read_864 : (segreg_idx, qword) -> bits(864)
-function seg_read_864(seg, offset) = mem_read(seg_linear(seg, offset, 108))
+function seg_read_864(seg, offset) = read_mem(seg_linear(seg, offset, 108))
 
 val seg_write_864 : (segreg_idx, qword, bits(864)) -> unit
-function seg_write_864(seg, offset, v) = mem_write(seg_linear(seg, offset, 108), v)
+function seg_write_864(seg, offset, v) = write_mem(seg_linear(seg, offset, 108), v)
 
 // =========================================================================
 // Status word condition code helpers
@@ -129,8 +129,8 @@ function dispatch_x87_d8(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match src {
-    RM_mem(seg, offset) => {
-      let src : fp80 = __f80_from_f32(seg_read(seg, offset));
+    RM_mem(m) => {
+      let src : fp80 = __f80_from_f32(read_mem(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -170,16 +170,16 @@ function dispatch_x87_d9(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
-    RM_mem(seg, offset) => {
+    RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f32(seg_read(seg, offset))),
+        0 => x87_push(__f80_from_f32(read_mem(m))),
         1 => raise_UD(),
-        2 => seg_write(seg, offset, __f80_to_f32(x87_read_st(0))),
-        3 => seg_write(seg, offset, __f80_to_f32(x87_pop())),
-        4 => x87_load_env(seg_read_224(seg, offset)),
-        5 => x87_cw = seg_read(seg, offset),
-        6 => seg_write_224(seg, offset, x87_save_env()),
-        7 => seg_write(seg, offset, x87_cw),
+        2 => write_mem(m,__f80_to_f32(x87_read_st(0))),
+        3 => write_mem(m,__f80_to_f32(x87_pop())),
+        4 => x87_load_env(seg_read_224(m.seg, m.addr)),
+        5 => x87_cw = read_mem(m),
+        6 => seg_write_224(m.seg, m.addr, x87_save_env()),
+        7 => write_mem(m,x87_cw),
       }
     },
     RM_reg(_) => {
@@ -305,8 +305,8 @@ function dispatch_x87_da(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match src {
-    RM_mem(seg, offset) => {
-      let src : fp80 = __f80_from_int32(seg_read(seg, offset));
+    RM_mem(m) => {
+      let src : fp80 = __f80_from_int32(read_mem(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -350,16 +350,16 @@ function dispatch_x87_db(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
-    RM_mem(seg, offset) => {
+    RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int32(seg_read(seg, offset))),
-        1 => seg_write(seg, offset, __f80_to_int32_trunc(x87_pop())),
-        2 => seg_write(seg, offset, __f80_to_int32(x87_read_st(0))),
-        3 => seg_write(seg, offset, __f80_to_int32(x87_pop())),
+        0 => x87_push(__f80_from_int32(read_mem(m))),
+        1 => write_mem(m,__f80_to_int32_trunc(x87_pop())),
+        2 => write_mem(m,__f80_to_int32(x87_read_st(0))),
+        3 => write_mem(m,__f80_to_int32(x87_pop())),
         4 => raise_UD(),
-        5 => x87_push(seg_read_fp80(seg, offset)),
+        5 => x87_push(seg_read_fp80(m.seg, m.addr)),
         6 => raise_UD(),
-        7 => seg_write_fp80(seg, offset, x87_pop()),
+        7 => seg_write_fp80(m.seg, m.addr, x87_pop()),
       }
     },
     RM_reg(_) => {
@@ -400,8 +400,8 @@ function dispatch_x87_dc(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match src {
-    RM_mem(seg, offset) => {
-      let src : fp80 = __f80_from_f64(seg_read(seg, offset));
+    RM_mem(m) => {
+      let src : fp80 = __f80_from_f64(read_mem(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -439,21 +439,21 @@ function dispatch_x87_dd(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
-    RM_mem(seg, offset) => {
+    RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f64(seg_read(seg, offset))),
-        1 => seg_write(seg, offset, __f80_to_int64_trunc(x87_pop())),
-        2 => seg_write(seg, offset, __f80_to_f64(x87_read_st(0))),
-        3 => seg_write(seg, offset, __f80_to_f64(x87_pop())),
-        4 => x87_load_state(seg_read_864(seg, offset)),
+        0 => x87_push(__f80_from_f64(read_mem(m))),
+        1 => write_mem(m,__f80_to_int64_trunc(x87_pop())),
+        2 => write_mem(m,__f80_to_f64(x87_read_st(0))),
+        3 => write_mem(m,__f80_to_f64(x87_pop())),
+        4 => x87_load_state(seg_read_864(m.seg, m.addr)),
         5 => raise_UD(),
         // FNSAVE — save state, then reinitialize
         6 => {
           let state = x87_save_state();
           x87_init();
-          seg_write_864(seg, offset, state)
+          seg_write_864(m.seg, m.addr, state)
         },
-        7 => seg_write(seg, offset, x87_sw),
+        7 => write_mem(m,x87_sw),
       }
     },
     RM_reg(_) => {
@@ -483,8 +483,8 @@ function dispatch_x87_de(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match src {
-    RM_mem(seg, offset) => {
-      let src : fp80 = __f80_from_int16(seg_read(seg, offset));
+    RM_mem(m) => {
+      let src : fp80 = __f80_from_int16(read_mem(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -560,16 +560,16 @@ function dispatch_x87_df(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
-    RM_mem(seg, offset) => {
+    RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int16(seg_read(seg, offset))),
-        1 => seg_write(seg, offset, __f80_to_int16_trunc(x87_pop())),
-        2 => seg_write(seg, offset, __f80_to_int16(x87_read_st(0))),
-        3 => seg_write(seg, offset, __f80_to_int16(x87_pop())),
-        4 => x87_push(__f80_from_bcd(seg_read_fp80(seg, offset))),
-        5 => x87_push(__f80_from_int64(seg_read(seg, offset))),
-        6 => seg_write_fp80(seg, offset, __f80_to_bcd(x87_pop())),
-        7 => seg_write(seg, offset, __f80_to_int64(x87_pop())),
+        0 => x87_push(__f80_from_int16(read_mem(m))),
+        1 => write_mem(m,__f80_to_int16_trunc(x87_pop())),
+        2 => write_mem(m,__f80_to_int16(x87_read_st(0))),
+        3 => write_mem(m,__f80_to_int16(x87_pop())),
+        4 => x87_push(__f80_from_bcd(seg_read_fp80(m.seg, m.addr))),
+        5 => x87_push(__f80_from_int64(read_mem(m))),
+        6 => seg_write_fp80(m.seg, m.addr, __f80_to_bcd(x87_pop())),
+        7 => write_mem(m,__f80_to_int64(x87_pop())),
       }
     },
     RM_reg(_) => {

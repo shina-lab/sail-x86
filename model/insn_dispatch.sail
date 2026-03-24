@@ -166,9 +166,9 @@ function exec_ins(os_in, asz) = {
   // INS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   match os {
-    8  => mem_write(lin, __port_in8(port)),
-    16 => mem_write(lin, __port_in16(port)),
-    32 => mem_write(lin, __port_in32(port)),
+    8  => write_mem(lin, __port_in8(port)),
+    16 => write_mem(lin, __port_in16(port)),
+    32 => write_mem(lin, __port_in32(port)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
@@ -188,9 +188,9 @@ function exec_outs(os_in, asz, pfx) = {
   };
   let lin = seg_linear(src_seg, off, os / 8);
   match os {
-    8  => __port_out8(port,  mem_read(lin)),
-    16 => __port_out16(port, mem_read(lin)),
-    32 => __port_out32(port, mem_read(lin)),
+    8  => __port_out8(port,  read_mem(lin)),
+    16 => __port_out16(port, read_mem(lin)),
+    32 => __port_out32(port, read_mem(lin)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (off + step)[asz - 1 .. 0]
@@ -207,7 +207,7 @@ function exec_movs(os, asz, pfx) = {
   };
   let src_lin = seg_linear(src_seg, src_off, os / 8);
   let dst_lin = seg_linear(ES, dst_off, os / 8);
-  mem_write(dst_lin, mem_read(os, src_lin));
+  write_mem(dst_lin, read_mem(os, src_lin));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (src_off + step)[asz - 1 .. 0];
   reg(RDI) = (dst_off + step)[asz - 1 .. 0];
@@ -218,7 +218,7 @@ function exec_stos(os, asz) = {
   let off : qword = zero_extend(reg(asz, RDI));
   // STOS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
-  mem_write(lin, reg(os, RAX));
+  write_mem(lin, reg(os, RAX));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
 }
@@ -232,7 +232,7 @@ function exec_lods(os, asz, pfx) = {
     None()  => DS,
   };
   let lin = seg_linear(src_seg, off, os / 8);
-  reg(os, RAX) = mem_read(lin);
+  reg(os, RAX) = read_mem(lin);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (off + step)[asz - 1 .. 0]
 }
@@ -243,7 +243,7 @@ function exec_scas(os, asz) = {
   // SCAS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   let a = reg(os, RAX);
-  let b = mem_read(os / 8, lin);
+  let b = read_mem(os / 8, lin);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RDI) = (off + step)[asz - 1 .. 0]
@@ -260,8 +260,8 @@ function exec_cmps(os, asz, pfx) = {
   };
   let src_lin = seg_linear(src_seg, src_off, os / 8);
   let dst_lin = seg_linear(ES, dst_off, os / 8);
-  let a = mem_read(os / 8, src_lin);
-  let b = mem_read(os / 8, dst_lin);
+  let a = read_mem(os / 8, src_lin);
+  let b = read_mem(os / 8, dst_lin);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   reg(RSI) = (src_off + step)[asz - 1 .. 0];
@@ -419,7 +419,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let reg = modrm_reg(modrm, pfx);
         let dst_addr : qword = zero_extend(reg(asz, reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
-        mem_write(dst_addr, src_val)
+        write_mem(dst_addr, src_val)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
@@ -880,14 +880,23 @@ function decode_execute() = {
           let src = decode_rm(modrm, pfx);
           match src {
             RM_reg(_) => raise_UD(),  // BOUND requires memory operand
-            RM_mem(seg, addr) => {
+            RM_mem(m) => {
               let os = get_operand_size(pfx);
               let reg = modrm_reg(modrm, pfx);
               let index = reg(os, reg);
-              let lower = seg_read(os / 8, seg, addr);
-              let upper = seg_read(os / 8, seg, addr + os / 8);
-              if signed(index) < signed(lower) | signed(upper) < signed(index) then
-                raise_BR()
+              // BOUND reads two consecutive os-bit values (lower, upper bounds)
+              match os {
+                16 => {
+                  let d : dword = read_mem(m);
+                  if signed(index) < signed(d[15..0]) | signed(d[31..16]) < signed(index) then
+                    raise_BR();
+                },
+                _ => {
+                  let d : qword = read_mem(m);
+                  if signed(index) < signed(d[31..0]) | signed(d[63..32]) < signed(index) then
+                    raise_BR();
+                },
+              }
             },
           }
         }
@@ -1123,7 +1132,7 @@ function decode_execute() = {
               let seg_val : qword = zero_extend(read_segreg(seg));
               reg(r) = seg_val[(os - 1) .. 0]
             },
-            RM_mem(s, offset) => seg_write(s, offset, read_segreg(seg)),
+            RM_mem(m) => write_mem(m,read_segreg(seg)),
           }
         }
       },
@@ -1135,7 +1144,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
         match src {
-          RM_mem(_, offset) => reg(reg) = offset[(os - 1) .. 0],
+          RM_mem(m) => reg(reg) = m.addr[(os - 1) .. 0],
           RM_reg(_) => raise_UD(),
         }
       },
@@ -1177,7 +1186,7 @@ function decode_execute() = {
             let v : qword = pop_qword(os);
             let dest = decode_rm(modrm, pfx);
             match dest {
-              RM_mem(seg, offset) => seg_write(os / 8, seg, offset, v[(os - 1) .. 0]),
+              RM_mem(m) => write_mem(os / 8, m, v[(os - 1) .. 0]),
               _ => raise_UD(),
             }
           }
@@ -1316,27 +1325,27 @@ function decode_execute() = {
       // A0: MOV AL, moffs8
       160 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        reg(8, RAX) = mem_read(addr);
+        reg(8, RAX) = read_mem(addr);
       },
 
       // A1: MOV rAX, moffs
       161 => {
         let os = get_operand_size(pfx);
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        reg(os, RAX) = mem_read(addr)
+        reg(os, RAX) = read_mem(addr)
       },
 
       // A2: MOV moffs8, AL
       162 => {
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        mem_write(addr, reg(8, RAX))
+        write_mem(addr, reg(8, RAX))
       },
 
       // A3: MOV moffs, rAX
       163 => {
         let os = get_operand_size(pfx);
         let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
-        mem_write(addr, reg(os, RAX))
+        write_mem(addr, reg(os, RAX))
       },
 
       // A4: MOVSB
@@ -1509,14 +1518,12 @@ function decode_execute() = {
             let reg = modrm_reg(byte2, pfx);
             let src = decode_rm(byte2, pfx);
             match src {
-              RM_mem(seg, ea) => {
-                let far_offset : qword = match os {
-                  16 => zero_extend(seg_read(2,seg, ea)),
-                  _    => zero_extend(seg_read(4,seg, ea)),
+              RM_mem(m) => {
+                let (far_offset, selector) : (qword, word) = match os {
+                  16 => { let d : bits(32) = read_mem(m); (zero_extend(d[15..0]), d[31..16]) },
+                  _  => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
                 };
-                let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read(seg, ea + to_bits_truncate(sel_off));
-                reg(reg) = far_offset[(os - 1) .. 0];
+                reg(reg) = far_offset;
                 load_segment_register(ES, selector)
               },
               RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
@@ -1538,14 +1545,12 @@ function decode_execute() = {
             let reg = modrm_reg(byte2, pfx);
             let src = decode_rm(byte2, pfx);
             match src {
-              RM_mem(seg, ea) => {
-                let far_offset : qword = match os {
-                  16 => zero_extend(seg_read(2,seg, ea)),
-                  _    => zero_extend(seg_read(4,seg, ea)),
+              RM_mem(m) => {
+                let (far_offset, selector) : (qword, word) = match os {
+                  16 => { let d : bits(32) = read_mem(m); (zero_extend(d[15..0]), d[31..16]) },
+                  _  => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
                 };
-                let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read(seg, ea + to_bits_truncate(sel_off));
-                reg(reg) = far_offset[(os - 1) .. 0];
+                reg(reg) = far_offset;
                 load_segment_register(DS, selector)
               },
               RM_reg(_) => raise_UD(),
@@ -1594,7 +1599,7 @@ function decode_execute() = {
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 reg(RBP) = reg(64, RBP) - 8;
-                push64(mem_read(reg(64, RBP)));
+                push64(read_mem(reg(64, RBP)));
               };
             };
             if nesting >= 1 then
@@ -1608,7 +1613,7 @@ function decode_execute() = {
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 reg(RBP) = reg(16, RBP) - 2;
-                push16(mem_read(zero_extend(reg(16, RBP))));
+                push16(read_mem(zero_extend(reg(16, RBP))));
               };
             };
             if nesting >= 1 then
@@ -1752,8 +1757,8 @@ function decode_execute() = {
 
             // Load CS selector and descriptor cache from GDT.
             let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
-            let desc_lo : dword = mem_read(GDTR_base + sel_offset);
-            let desc_hi : dword = mem_read(GDTR_base + sel_offset + 4);
+            let desc_lo : dword = read_mem(GDTR_base + sel_offset);
+            let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
             write_segreg(CS, new_cs[15..0]);
             SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
             cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
@@ -1844,7 +1849,7 @@ function decode_execute() = {
       215 => {
         let al : qword = zero_extend(reg(8, RAX));
         let addr : qword = zero_extend(reg(get_address_size(pfx), RBX)) + al;
-        reg(8, RAX) = mem_read(addr)
+        reg(8, RAX) = read_mem(addr)
       },
 
       // D8-DF: x87 FPU

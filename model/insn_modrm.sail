@@ -235,11 +235,11 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
       let ea : qword = decode_pos + disp;
       let ad_keep : qword = sign_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-      RM_mem(resolve_seg(pfx, DS), ea)
+      RM_mem(struct { seg = resolve_seg(pfx, DS), addr = ea })
     } else {
       // Compat/protected mode: [disp32] absolute
       let ea : qword = disp & 0x00000000FFFFFFFF;
-      RM_mem(resolve_seg(pfx, DS), ea)
+      RM_mem(struct { seg = resolve_seg(pfx, DS), addr = ea })
     }
   } else {
     let asz = get_address_size(pfx);
@@ -274,7 +274,7 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
       32 => addr & 0x00000000FFFFFFFF,
       64 => addr,
     };
-    RM_mem(resolve_seg(pfx, default_seg), addr)
+    RM_mem(struct { seg = resolve_seg(pfx, default_seg), addr = addr })
   }
 }
 
@@ -325,7 +325,7 @@ function decode_rm_16(modrm, pfx) = {
       if rm_raw == 2 | rm_raw == 3 then SS          // [BP+SI], [BP+DI]
       else if rm_raw == 6 & modbits != 0 then SS    // [BP]+disp
       else DS;
-    RM_mem(resolve_seg(pfx, default_seg), zero_extend(ea))
+    RM_mem(struct { seg = resolve_seg(pfx, default_seg), addr = zero_extend(ea) })
   }
 }
 
@@ -361,11 +361,11 @@ function decode_rm(modrm, pfx) = {
       let ea : qword = decode_pos + disp;
       let ad_keep : qword = sign_extend(~(pfx.has_adsize));
       let ea : qword = ea & (ad_keep | 0x00000000FFFFFFFF);
-      RM_mem(resolve_seg(pfx, DS), ea)
+      RM_mem(struct { seg = resolve_seg(pfx, DS), addr = ea })
     } else {
       // Compat/protected mode: [disp32] absolute (no RIP-relative)
       let ea : qword = disp & 0x00000000FFFFFFFF;
-      RM_mem(resolve_seg(pfx, DS), ea)
+      RM_mem(struct { seg = resolve_seg(pfx, DS), addr = ea })
     }
   } else {
     // Memory operand — compute address then apply segment
@@ -406,7 +406,7 @@ function decode_rm(modrm, pfx) = {
       32 => addr & 0x00000000FFFFFFFF,
       64 => addr,
     };
-    RM_mem(resolve_seg(pfx, default_seg), addr)
+    RM_mem(struct { seg = resolve_seg(pfx, default_seg), addr = addr })
   }
 }
 
@@ -414,5 +414,5 @@ function decode_rm(modrm, pfx) = {
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, src, pfx) = match src {
   RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }

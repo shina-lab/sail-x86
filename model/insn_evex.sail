@@ -32,9 +32,9 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
   if mask == ones() then {
     // Fast path: no masking, write the full vector
     match nbytes {
-      64 => mem_write(addr, data),
-      32 => mem_write(32, addr, data[255..0]),
-      _  => mem_write(16, addr, data[127..0]),
+      64 => write_mem(addr, data),
+      32 => write_mem(32, addr, data[255..0]),
+      _  => write_mem(16, addr, data[127..0]),
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1
@@ -47,7 +47,7 @@ function evex_masked_mem_store(addr, data, mask, nbytes, elem_bytes) = {
           let idx : int = off + j;
           assert(0 <= idx & idx < 512);
           let byte_val : byte = get_slice_int(8, unsigned(data), idx * 8);
-          mem_write(addr + to_bits(64, idx), byte_val);
+          write_mem(addr + to_bits(64, idx), byte_val);
           j = j + 1;
         }
       };
@@ -75,33 +75,33 @@ function evex_get_mask8(pfx) = evex_kmask64(pfx)[7..0]
 val evex_src_zmm : (byte, RM, Prefixes) -> zmmword
 function evex_src_zmm(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_zmm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }
 
 val evex_src_ymm : (byte, RM, Prefixes) -> ymmword
 function evex_src_ymm(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }
 
 val evex_src_xmm : (byte, RM, Prefixes) -> xmmword
 function evex_src_xmm(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }
 
 // Read a 32-bit value from r/m for broadcast.
 val evex_src_m32 : (byte, RM, Prefixes) -> dword
 function evex_src_m32(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }
 
 // Read a 64-bit value from r/m for broadcast.
 val evex_src_m64 : (byte, RM, Prefixes) -> qword
 function evex_src_m64(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-  RM_mem(seg, offset) => seg_read(seg, offset),
+  RM_mem(m) => read_mem(m),
 }
 
 // =========================================================================

@@ -51,6 +51,13 @@ let DS : segreg_idx = 3
 let FS : segreg_idx = 4
 let GS : segreg_idx = 5
 
+// Memory reference: segment + linear/effective address.
+// Every x86 memory access is relative to a segment.
+struct MemRef = {
+  seg  : segreg_idx,
+  addr : qword,
+}
+
 // Segment descriptor cache (hidden part of segment registers).
 // Per SDM Vol.3A §3.4.3, each segment register has a visible part
 // (16-bit selector) and a hidden part loaded from the GDT/LDT descriptor.

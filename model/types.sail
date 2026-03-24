@@ -69,7 +69,7 @@ function default_prefixes() = struct {
 // Both steps happen at memory-access time, not during decode.
 union RM = {
   RM_reg : GPRRef,
-  RM_mem : (segreg_idx, qword),   // (segment, effective address / offset)
+  RM_mem : MemRef,
 }
 
 // RIP-relative fixup for effective addresses.  When rip_rel_pending is true,
@@ -238,14 +238,14 @@ val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bit
 function read_rm_val(os, rm) =
   match rm {
     RM_reg(r) => reg(r),
-    RM_mem(seg, offset) => seg_read(seg, offset),
+    RM_mem(m) => read_mem(m),
   }
 
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_rm_val(os, rm, v) =
   match rm {
     RM_reg(r) => reg(r) = v,
-    RM_mem(seg, offset) => seg_write(seg, offset, v),
+    RM_mem(m) => write_mem(m,v),
   }
 
 // Memory-only RM read/write: raise #UD if register operand.
@@ -253,14 +253,14 @@ val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits(8 * 'n)
 function read_mem_rm(n, rm) =
   match rm {
     RM_reg(_) => raise_UD(),
-    RM_mem(seg, offset) => seg_read(seg, offset),
+    RM_mem(m) => read_mem(m),
   }
 
 val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits(8 * 'n)) -> unit
 function write_mem_rm(n, rm, v) =
   match rm {
     RM_reg(_) => raise_UD(),
-    RM_mem(seg, offset) => seg_write(seg, offset, v),
+    RM_mem(m) => write_mem(m,v),
   }
 
 // Register-only RM read/write: raise #UD if memory operand.
@@ -268,14 +268,14 @@ val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bit
 function read_reg_rm(os, rm) =
   match rm {
     RM_reg(r) => reg(r),
-    RM_mem(_, _) => raise_UD(),
+    RM_mem(_) => raise_UD(),
   }
 
 val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_reg_rm(os, rm, v) =
   match rm {
     RM_reg(r) => reg(r) = v,
-    RM_mem(_, _) => raise_UD(),
+    RM_mem(_) => raise_UD(),
   }
 
 overload rm = {read_rm_val, write_rm_val}

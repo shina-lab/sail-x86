@@ -361,15 +361,15 @@ function dispatch_vex_0f_int(op, pfx) = {
         RM_reg(_) =>
           if pfx.vex_l then write_ymm(dst, read_ymm(modrm_xmm_rm(modrm, pfx)))
           else write_xmm(dst, read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(seg, addr) => {
+        RM_mem(m) => {
           if pfx.vex_l then {
-            let a = seg_linear(seg, addr, 32);
+            let a = seg_linear(m.seg, m.addr, 32);
             if unsigned(a) % 32 != 0 then raise_GP0();
-            write_ymm(dst, mem_read(a))
+            write_ymm(dst, read_mem(a))
           } else {
-            let a = seg_linear(seg, addr, 16);
+            let a = seg_linear(m.seg, m.addr, 16);
             if unsigned(a) % 16 != 0 then raise_GP0();
-            write_xmm(dst, mem_read(a))
+            write_xmm(dst, read_mem(a))
           }
         },
       },
@@ -736,8 +736,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         match (src2, pfx.vex_w) {
           (RM_reg(r), true)  => reg(r) = src[63..0],
           (RM_reg(r), false) => reg(r) = src[31..0],
-          (RM_mem(seg, addr), true)  => seg_write(8, seg, addr, src[63..0]),
-          (RM_mem(seg, addr), false) => seg_write(4, seg, addr, src[31..0]),
+          (RM_mem(m), true)  => write_mem(8, m,src[63..0]),
+          (RM_mem(m), false) => write_mem(4, m,src[31..0]),
         }
       },
       MP_F3 => {
@@ -748,8 +748,8 @@ function dispatch_vex_0f_int(op, pfx) = {
             let src = read_xmm(modrm_xmm_rm(modrm, pfx));
             write_xmm(dst, zero_extend(src[63..0]))
           },
-          RM_mem(seg, addr) => {
-            let v : qword = seg_read(seg, addr);
+          RM_mem(m) => {
+            let v : qword = read_mem(m);
             write_xmm(dst, zero_extend(v))
           },
         }
@@ -775,9 +775,9 @@ function dispatch_vex_0f_int(op, pfx) = {
           write_xmm(dst, read_xmm(src))
         }
       },
-      RM_mem(seg, addr) => {
+      RM_mem(m) => {
         if mp == MP_66 then {
-          let a = seg_linear(seg, addr, if pfx.vex_l then 32 else 16);
+          let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
           if pfx.vex_l then {
             if unsigned(a) % 32 != 0 then raise_GP0();
           } else {
@@ -785,9 +785,9 @@ function dispatch_vex_0f_int(op, pfx) = {
           }
         };
         if pfx.vex_l then {
-          seg_write(seg, addr, read_ymm(src))
+          write_mem(m,read_ymm(src))
         } else {
-          seg_write(seg, addr, read_xmm(src))
+          write_mem(m,read_xmm(src))
         }
       },
     }
@@ -806,12 +806,12 @@ function dispatch_vex_0f_int(op, pfx) = {
         let k_src : range(0, 7) = r.gpr_idx % 8;
         write_kreg(k1, read_kreg(k_src) & mask)
       },
-      RM_mem(seg, addr) => {
+      RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => write_kreg(k1, seg_read(seg, addr)),                // KMOVQ
-          (_,       true) => write_kreg(k1, zero_extend(seg_read(4,seg, addr))), // KMOVD
-          (MP_66,  false) => write_kreg(k1, zero_extend(seg_read(1,seg, addr))), // KMOVB
-          (_,      false) => write_kreg(k1, zero_extend(seg_read(2,seg, addr))), // KMOVW
+          (MP_NONE, true) => write_kreg(k1, read_mem(m)),                // KMOVQ
+          (_,       true) => write_kreg(k1, zero_extend(read_mem(4, m))), // KMOVD
+          (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(1, m))), // KMOVB
+          (_,      false) => write_kreg(k1, zero_extend(read_mem(2, m))), // KMOVW
         }
       },
     }
@@ -823,12 +823,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let src = decode_rm(modrm, pfx);
     match src {
-      RM_mem(seg, addr) => {
+      RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => seg_write(seg, addr, read_kreg(k1)),              // KMOVQ
-          (_,       true) => seg_write(4, seg, addr, read_kreg(k1)[31..0]),    // KMOVD
-          (MP_66,  false) => seg_write(1, seg, addr, read_kreg(k1)[7..0]),     // KMOVB
-          (_,      false) => seg_write(2, seg, addr, read_kreg(k1)[15..0]),    // KMOVW
+          (MP_NONE, true) => write_mem(m,read_kreg(k1)),              // KMOVQ
+          (_,       true) => write_mem(4, m,read_kreg(k1)[31..0]),    // KMOVD
+          (MP_66,  false) => write_mem(1, m,read_kreg(k1)[7..0]),     // KMOVB
+          (_,      false) => write_mem(2, m,read_kreg(k1)[15..0]),    // KMOVW
         }
       },
       _ => raise_UD(),
@@ -912,7 +912,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : word = match src {
       RM_reg(r) => reg(32, r)[15..0],
-      RM_mem(seg, addr) => seg_read(seg, addr),
+      RM_mem(m) => read_mem(m),
     };
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
@@ -1078,7 +1078,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_reg(_) => {
         write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(v))
       },
-      RM_mem(seg, addr) => seg_write(seg, addr, v),
+      RM_mem(m) => write_mem(m,v),
     }
   },
 
@@ -1362,17 +1362,17 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = decode_rm(modrm, pfx);
     match dest {
-      RM_mem(seg, addr) => {
+      RM_mem(m) => {
         if pfx.vex_l then {
-          let a = seg_linear(seg, addr, 32);
+          let a = seg_linear(m.seg, m.addr, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
-          mem_write(16, a, v[127..0]);
-          mem_write(16, a + 16, v[255..128])
+          write_mem(16, a, v[127..0]);
+          write_mem(16, a + 16, v[255..128])
         } else {
-          let a = seg_linear(seg, addr, 16);
+          let a = seg_linear(m.seg, m.addr, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          mem_write(a, read_xmm(src))
+          write_mem(a, read_xmm(src))
         }
       },
       RM_reg(_) => raise_UD(),
@@ -1521,14 +1521,14 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = decode_rm(modrm, pfx);
     match src {
-      RM_mem(seg, addr) => {
-        let a = seg_linear(seg, addr, if pfx.vex_l then 32 else 16);
+      RM_mem(m) => {
+        let a = seg_linear(m.seg, m.addr, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
-          let lo : xmmword = mem_read(a);
-          let hi : xmmword = mem_read(a + 16);
+          let lo : xmmword = read_mem(a);
+          let hi : xmmword = read_mem(a + 16);
           write_ymm(dst, hi @ lo)
         } else {
-          write_xmm(dst, mem_read(a))
+          write_xmm(dst, read_mem(a))
         }
       },
       RM_reg(_) => raise_UD(),
@@ -1635,10 +1635,10 @@ function dispatch_vex_0f_int(op, pfx) = {
         let addr : bits(64) = reg(7); // RDI
         foreach (i from 0 to 15) {
           if mask[(i * 8 + 7)] == 0b1 then
-            mem_write(1, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
+            write_mem(1, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
         }
       },
-      RM_mem(_, _) => raise_UD(),
+      RM_mem(_) => raise_UD(),
     }
   },
 
