@@ -13,6 +13,14 @@ function evex_reg_idx(modrm, pfx) = {
   rr_ext * 16 + r_ext * 8 + base
 }
 
+// Fetch and decode ModR/M byte with EVEX compressed disp8.
+// Returns 5-bit destination register index and RM operand.
+val fetch_modrm_evex : (Prefixes, range(1, 64)) -> (simd_idx, RM)
+function fetch_modrm_evex(pfx, disp_n) = {
+  let modrm = fetch_byte();
+  (evex_reg_idx(modrm, pfx), modrm_rm_evex(modrm, pfx, disp_n))
+}
+
 // Compute 5-bit r/m register index (for register operands only).
 // For memory operands, B extends the base register (4 bits, not 5).
 val evex_rm_reg_idx : (byte, Prefixes) -> simd_idx

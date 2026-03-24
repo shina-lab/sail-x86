@@ -1139,9 +1139,7 @@ function dispatch_evex_map5(opcode, pfx) = {
     // MAP5 0x2A: VCVTSI2SH (F3) — int to scalar FP16
     42 => {
       if mp != MP_F3 then raise_UD();
-      let modrm = fetch_byte();
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
+      let (dst, src) = fetch_modrm_evex(pfx, if pfx.vex_w then 8 else 4);
       let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
       if pfx.vex_w then {
         // VCVTSI2SH r64 → FP16

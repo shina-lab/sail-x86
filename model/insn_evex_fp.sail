@@ -1333,9 +1333,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2B: VMOVNTPS (NP) / VMOVNTPD (66) — non-temporal store
   // 0F 2B: VMOVNTPS (NP) / VMOVNTPD (66) — non-temporal store
   43 => {
-    let modrm = fetch_byte();
-    let src = evex_reg_idx(modrm, pfx);
-    let dest = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let (src, dest) = fetch_modrm_evex(pfx, evex_full_disp_n(pfx));
     match dest {
       RM_reg(_) => raise_UD(),
       RM_mem(m) => {

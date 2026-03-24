@@ -396,6 +396,22 @@ function modrm_rm(modrm, pfx) = {
   }
 }
 
+// Fetch and decode ModR/M byte, returning GPRRef reg and RM operand.
+val fetch_modrm : Prefixes -> (GPRRef, RM)
+function fetch_modrm(pfx) = {
+  let modrm = fetch_byte();
+  (modrm_reg(modrm, pfx), modrm_rm(modrm, pfx))
+}
+
+// Fetch and decode ModR/M byte, returning raw reg field and RM operand.
+// Use for group opcodes and segment register instructions.
+val fetch_modrm_raw : Prefixes -> (range(0, 7), RM)
+function fetch_modrm_raw(pfx) = {
+  let modrm = fetch_byte();
+  let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+  (reg_field, modrm_rm(modrm, pfx))
+}
+
 // Helper: decode XMM src operand value (read from register or memory).
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, src, pfx) = match src {

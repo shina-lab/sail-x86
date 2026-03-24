@@ -1157,9 +1157,7 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 1A: VBROADCASTF32X4 (66,W0) / VBROADCASTF64X2 (66,W1) [F]
   26 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch_byte();
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, 16);
+    let (dst, src) = fetch_modrm_evex(pfx, 16);
     let src : xmmword = rm_mem(src);
     match (pfx.rex_w, pfx.evex_ll) {
       (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
@@ -1174,9 +1172,7 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 1B: VBROADCASTF32X8 (66,W0) / VBROADCASTF64X4 (66,W1) [F] (512-bit only)
   27 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch_byte();
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, 32);
+    let (dst, src) = fetch_modrm_evex(pfx, 32);
     let src : ymmword = rm_mem(src);
     if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
     else evex_write_d_zmm(dst, src @ src, pfx)
@@ -1186,9 +1182,7 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 5A: VBROADCASTI32X4 (66,W0) / VBROADCASTI64X2 (66,W1) [F]
   90 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch_byte();
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, 16);
+    let (dst, src) = fetch_modrm_evex(pfx, 16);
     let src : xmmword = rm_mem(src);
     match (pfx.rex_w, pfx.evex_ll) {
       (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
@@ -1203,9 +1197,7 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 5B: VBROADCASTI32X8 (66,W0) / VBROADCASTI64X4 (66,W1) [F] (512-bit only)
   91 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch_byte();
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, 32);
+    let (dst, src) = fetch_modrm_evex(pfx, 32);
     let src : ymmword = rm_mem(src);
     if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
     else evex_write_d_zmm(dst, src @ src, pfx)

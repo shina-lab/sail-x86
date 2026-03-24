@@ -580,9 +580,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   242 => {
     if ~(has_bmi1) then raise_UD();
     if mp != MP_NONE then raise_UD();
-    let modrm = fetch_byte();
-    let dst = modrm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
+    let (dst, src2) = fetch_modrm(pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
     let src = v(os, src2);
     let v : gpr_idx = pfx.vex_vvvv % 16;
@@ -599,9 +597,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   243 => {
     if ~(has_bmi1) then raise_UD();
     if mp != MP_NONE then raise_UD();
-    let modrm = fetch_byte();
-    let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    let src2 = modrm_rm(modrm, pfx);
+    let (reg_field, src2) = fetch_modrm_raw(pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     let src = v(os, src2);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
@@ -705,9 +701,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 F5: BZHI (NP) / PDEP (F2) / PEXT (F3) — multiplexed by mandatory prefix
   245 => {
     if ~(has_bmi2) then raise_UD();
-    let modrm = fetch_byte();
-    let dst = modrm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
+    let (dst, src2) = fetch_modrm(pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
     match mp {
       MP_NONE => {
@@ -765,9 +759,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   246 => {
     if ~(has_bmi2) then raise_UD();
     if mp != MP_F2 then raise_UD();
-    let modrm = fetch_byte();
-    let dst_hi = modrm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let (dst_hi, src) = fetch_modrm(pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     let dst_lo : gpr_idx = pfx.vex_vvvv % 16;
     // Implicit source is EDX/RDX
@@ -782,9 +774,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   247 => {
     if mp == MP_NONE then { if ~(has_bmi1) then raise_UD() }
     else { if ~(has_bmi2) then raise_UD() };
-    let modrm = fetch_byte();
-    let dst = modrm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
+    let (dst, src2) = fetch_modrm(pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     match mp {
       MP_NONE => {

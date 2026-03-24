@@ -676,9 +676,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // Reads descriptor from GDT, validates type and privilege, loads access rights.
     2 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let selector : word = v(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
@@ -704,9 +702,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // Reads descriptor from GDT, validates type and privilege, loads segment limit.
     3 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let selector : word = v(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
@@ -1040,9 +1036,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     op if 64 <= op & op <= 79 => {
       let cc : cc_idx = op - 64;
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let src_val = v(os, src);
       let dst = v(os, reg);
       if eval_cc(cc) == 0b1 then
@@ -1076,9 +1070,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
     //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg_field, dest) = fetch_modrm_raw(pfx);
       // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
       // SDM: #UD if CR4.FSGSBASE (bit 16) = 0
       if pfx.has_rep & reg_field <= 3 then {
@@ -1202,9 +1194,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A3: BT r/m, r
     163 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(src, bit_idx);
       let v = v(os, adj_rm);
@@ -1214,9 +1204,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A4: SHLD r/m, r, imm8
     164 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       let count = fetch_byte();
       let dst_val = v(os, dest);
       let src_val = v(os, reg);
@@ -1227,9 +1215,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A5: SHLD r/m, r, CL
     165 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
       let dst_val = v(os, dest);
       let src_val = v(os, reg);
@@ -1266,9 +1252,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AB: BTS r/m, r
     171 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
@@ -1281,9 +1265,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AC: SHRD r/m, r, imm8
     172 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       let count = fetch_byte();
       let dst_val = v(os, dest);
       let src_val = v(os, reg);
@@ -1294,9 +1276,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AD: SHRD r/m, r, CL
     173 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
       let dst_val = v(os, dest);
       let src_val = v(os, reg);
@@ -1307,9 +1287,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AF: IMUL r, r/m (2-operand)
     175 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let a = v(os, reg);
       let b = v(os, src);
       let product : int = signed(sign_extend(a) : qword) * signed(sign_extend(b) : qword);
@@ -1335,9 +1313,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B3: BTR r/m, r
     179 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
@@ -1354,9 +1330,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // Register operand only (memory source); #UD for register source.
     op if op == 178 | op == 180 | op == 181 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       match src {
         RM_mem(m) => {
           let (far_offset, selector) : (qword, word) = match os {
@@ -1378,9 +1352,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F B0: CMPXCHG r/m8, r8
     176 => {
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       let dest_val = v(8, dest);
       let acc : byte = v(RAX);
@@ -1398,9 +1370,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B1: CMPXCHG r/m, r
     177 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       let dest_val = v(os, dest);
       let acc = v(os, RAX);
@@ -1418,9 +1388,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B6: MOVZX r, r/m8
     182 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let v = v(8, src);
       v(os, reg) = zero_extend(v)
     },
@@ -1428,9 +1396,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B7: MOVZX r, r/m16
     183 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let v = v(16, src);
       v(os, reg) = zero_extend(v)
     },
@@ -1438,9 +1404,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BA: Group 8 — BT/BTS/BTR/BTC r/m, imm8
     186 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg_field, dest) = fetch_modrm_raw(pfx);
       // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
       if pfx.has_lock & reg_field == 4 then raise_UD();
       check_lock_rm(pfx, dest, false);
@@ -1474,9 +1438,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BB: BTC r/m, r
     187 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
@@ -1489,9 +1451,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)
     188 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       if pfx.has_rep then {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_bmi1) then raise_UD();
@@ -1528,9 +1488,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BD: BSR r, r/m (or LZCNT with F3 prefix)
     189 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       if pfx.has_rep then {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_lzcnt) then raise_UD();
@@ -1567,9 +1525,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BE: MOVSX r, r/m8
     190 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let v = v(8, src);
       let sx : qword = sign_extend(v);
       v(reg) = sx[(os - 1) .. 0]
@@ -1578,9 +1534,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F BF: MOVSX r, r/m16
     191 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let v = v(16, src);
       let sx : qword = sign_extend(v);
       v(reg) = sx[(os - 1) .. 0]
@@ -1588,9 +1542,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F C0: XADD r/m8, r8
     192 => {
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       match dest {
         RM_reg(dst) => exec_xadd(dst, reg, 8),
@@ -1609,9 +1561,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F C1: XADD r/m, r
     193 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
       match dest {
         RM_reg(dst) => exec_xadd(dst, reg, os),
@@ -1632,9 +1582,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if mp != MP_F3 then raise_UD();
       if ~(has_popcnt) then raise_UD();
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       let src_val = v(os, src);
       let count : range(0, 64) = popcount(zero_extend(src_val) : qword);
       OF = 0b0;
@@ -1650,18 +1598,14 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F C3: MOVNTI m32/64, r
     195 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       let v = v(os, reg);
       rm_mem(dest) = v
     },
 
     // 0F C7 /1: CMPXCHG8B/CMPXCHG16B m64/m128
     199 => {
-      let modrm = fetch_byte();
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg_field, dest) = fetch_modrm_raw(pfx);
       match reg_field {
         // CMPXCHG8B/CMPXCHG16B m64/m128
         1 => match dest {

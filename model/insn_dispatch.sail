@@ -107,34 +107,26 @@ function dispatch_alu_opcode(op, pfx) = {
   match col {
     // OP r/m8, r8
     0 => {
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, alu_op == ALU_CMP);
       exec_alu_rm_reg_byte(alu_op, dest, reg)
     },
     // OP r/m, r (word/dword/qword)
     1 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let dest = modrm_rm(modrm, pfx);
+      let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, alu_op == ALU_CMP);
       exec_alu_rm_reg(alu_op, dest, reg, os)
     },
     // OP r8, r/m8
     2 => {
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       exec_alu_reg_rm_byte(alu_op, reg, src)
     },
     // OP r, r/m (word/dword/qword)
     3 => {
       let os = get_operand_size(pfx);
-      let modrm = fetch_byte();
-      let reg = modrm_reg(modrm, pfx);
-      let src = modrm_rm(modrm, pfx);
+      let (reg, src) = fetch_modrm(pfx);
       exec_alu_reg_rm(alu_op, reg, src, os)
     },
     // OP AL, imm8
@@ -328,9 +320,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if ~(has_adx) then raise_UD();
         let mp = get_mandatory_prefix(pfx);
         let os : {32, 64} = if pfx.rex_w then 64 else 32;
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         let src_val = v(os, src);
         if mp == MP_66 then {
           let a = v(os, reg);
@@ -355,10 +345,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if op3 == 130 then {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
         if cur_cpl != 0 then raise_GP0();
-        let modrm = fetch_byte();
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         let desc : xmmword = rm_mem(src);
-        let inv_type : qword = v(modrm_reg(modrm, pfx));
+        let inv_type : qword = v(reg);
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
         let top17 : bits(17) = desc[127..111];
@@ -377,9 +366,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let mp = get_mandatory_prefix(pfx);
         if mp == MP_F2 then {
           if ~(has_crc32) then raise_UD();
-          let modrm = fetch_byte();
-          let reg = modrm_reg(modrm, pfx);
-          let src = modrm_rm(modrm, pfx);
+          let (reg, src) = fetch_modrm(pfx);
           let os = if op3 == 240 then 8 else get_operand_size(pfx);
           let src_val = v(os, src);
           let result : bits(32) = crc32c(v(32, reg), src_val);
@@ -392,9 +379,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           // MOVBE (0F 38 F0/F1) — load/store with byte swap
           if ~(has_movbe) then raise_UD();
           let os = get_operand_size(pfx);
-          let modrm = fetch_byte();
-          let reg = modrm_reg(modrm, pfx);
-          let dest = modrm_rm(modrm, pfx);
+          let (reg, dest) = fetch_modrm(pfx);
           if op3 == 240 then {
             v(os, reg) = bswap(rm_mem(os / 8, dest))
           } else {
@@ -404,19 +389,15 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
         // MOVDIRI m32/m64, r32/r64 (NP 0F 38 F9)
         if ~(has_movdiri) then raise_UD();
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg, dest) = fetch_modrm(pfx);
         let os = if pfx.rex_w then 64 else 32;
         rm_mem(dest) = v(os, reg)
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
         if ~(has_movdir64b) then raise_UD();
-        let modrm = fetch_byte();
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         let src_val : zmmword = rm_mem(src);
         let asz = get_address_size(pfx);
-        let reg = modrm_reg(modrm, pfx);
         let dst_addr : qword = zero_extend(v(asz, reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
         write_mem(dst_addr, src_val)
@@ -902,9 +883,7 @@ function decode_execute() = {
 
       // 63: MOVSXD r64, r/m32 (in 64-bit mode)
       99 => {
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         if pfx.rex_w then {
           v(reg) = sign_extend(64, v(32, src))
         } else {
@@ -923,9 +902,7 @@ function decode_execute() = {
       // 69: IMUL r, r/m, imm (3-operand, Iz)
       105 => {
         let 'os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
         let src_val = v(os, src);
@@ -947,9 +924,7 @@ function decode_execute() = {
       // 6B: IMUL r, r/m, imm8 (3-operand, Ib sign-extended)
       107 => {
         let 'os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
         let src_val = v(os, src);
@@ -1000,9 +975,7 @@ function decode_execute() = {
 
       // 80: Group 1 — ALU r/m8, imm8
       128 => {
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm : byte = fetch_byte();
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
@@ -1012,9 +985,7 @@ function decode_execute() = {
       // 81: Group 1 — ALU r/m, imm (Iz)
       129 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm = fetch_imm_z(os);
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
@@ -1024,9 +995,7 @@ function decode_execute() = {
       // 83: Group 1 — ALU r/m, imm8 (sign-extended)
       131 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm = fetch_imm8_sx();
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
@@ -1035,9 +1004,7 @@ function decode_execute() = {
 
       // 84: TEST r/m8, r8
       132 => {
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         let a : byte = v(src);
         let b : byte = v(reg);
         let result = a & b;
@@ -1047,9 +1014,7 @@ function decode_execute() = {
       // 85: TEST r/m, r
       133 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         let a = v(os, src);
         let b = v(os, reg);
         let result = a & b;
@@ -1058,9 +1023,7 @@ function decode_execute() = {
 
       // 86: XCHG r/m8, r8
       134 => {
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg, dest) = fetch_modrm(pfx);
         let a : byte = v(dest);
         let b : byte = v(reg);
         v(dest) = b;
@@ -1070,9 +1033,7 @@ function decode_execute() = {
       // 87: XCHG r/m, r
       135 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg, dest) = fetch_modrm(pfx);
         let a = v(os, dest);
         let b = v(os, reg);
         v(dest) = b;
@@ -1081,46 +1042,36 @@ function decode_execute() = {
 
       // 88: MOV r/m8, r8
       136 => {
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg, dest) = fetch_modrm(pfx);
         v(dest) = v(8, reg)
       },
 
       // 89: MOV r/m, r
       137 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg, dest) = fetch_modrm(pfx);
         v(dest) = v(os, reg)
       },
 
       // 8A: MOV r8, r/m8
       138 => {
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         v(reg) = v(8, src)
       },
 
       // 8B: MOV r, r/m
       139 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         v(reg) = v(os, src)
       },
 
       // 8C: MOV r/m16, sreg
       140 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         if reg_field > 5 then raise_UD();
         assert(reg_field <= 5);
         let seg : segreg_idx = reg_field;
-        let dest = modrm_rm(modrm, pfx);
         match dest {
           RM_reg(r) => {
             let os = get_operand_size(pfx);
@@ -1133,9 +1084,7 @@ function decode_execute() = {
       // 8D: LEA r, m
       141 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg = modrm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
+        let (reg, src) = fetch_modrm(pfx);
         match src {
           RM_mem(m) => v(reg) = m.addr[(os - 1) .. 0],
           RM_reg(_) => raise_UD(),
@@ -1144,13 +1093,11 @@ function decode_execute() = {
 
       // 8E: MOV sreg, r/m16
       142 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, src) = fetch_modrm_raw(pfx);
         if reg_field > 5 then {
           raise_UD()
         } else {
           let seg : segreg_idx = reg_field;
-          let src = modrm_rm(modrm, pfx);
           if seg == CS then raise_UD();
           load_segment_register(seg, v(src))
         }
@@ -1454,9 +1401,7 @@ function decode_execute() = {
 
       // C0: Group 2 — shift r/m8 by imm8
       192 => {
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let count = fetch_byte();
         exec_shift_rm(reg_field, dest, count, 8)
       },
@@ -1464,9 +1409,7 @@ function decode_execute() = {
       // C1: Group 2 — shift r/m by imm8
       193 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let count = fetch_byte();
         exec_shift_rm(reg_field, dest, count, os)
       },
@@ -1552,10 +1495,8 @@ function decode_execute() = {
 
       // C6 /0: MOV r/m8, imm8
       198 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         if reg_field == 0 then {
-          let dest = modrm_rm(modrm, pfx);
           let imm : byte = fetch_byte();
           v(dest) = imm
         } else {
@@ -1565,11 +1506,9 @@ function decode_execute() = {
 
       // C7 /0: MOV r/m, imm (Iz)
       199 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         if reg_field == 0 then {
           let os = get_operand_size(pfx);
-          let dest = modrm_rm(modrm, pfx);
           let imm = fetch_imm_z(os);
           v(dest) = imm[(os - 1) .. 0]
         } else {
@@ -1769,26 +1708,20 @@ function decode_execute() = {
 
       // D0: Group 2 — shift r/m8 by 1
       208 => {
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         exec_shift_rm(reg_field, dest, 0x01, 8)
       },
 
       // D1: Group 2 — shift r/m by 1
       209 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         exec_shift_rm(reg_field, dest, 0x01, os)
       },
 
       // D2: Group 2 — shift r/m8 by CL
       210 => {
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let count : byte = v(RCX);
         exec_shift_rm(reg_field, dest, count, 8)
       },
@@ -1796,9 +1729,7 @@ function decode_execute() = {
       // D3: Group 2 — shift r/m by CL
       211 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let dest = modrm_rm(modrm, pfx);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         let count : byte = v(RCX);
         exec_shift_rm(reg_field, dest, count, os)
       },
@@ -1978,9 +1909,7 @@ function decode_execute() = {
 
       // F6: Group 3 — unary byte operations
       246 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
         check_lock_rm(pfx, dest, false);
@@ -1990,9 +1919,7 @@ function decode_execute() = {
       // F7: Group 3 — unary word/dword/qword operations
       247 => {
         let os = get_operand_size(pfx);
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
         check_lock_rm(pfx, dest, false);
@@ -2019,9 +1946,7 @@ function decode_execute() = {
 
       // FE: Group 4 — INC/DEC r/m8
       254 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         // LOCK valid only for INC (/0) and DEC (/1) with memory
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);
@@ -2040,9 +1965,7 @@ function decode_execute() = {
 
       // FF: Group 5 — INC/DEC/CALL/JMP/PUSH r/m
       255 => {
-        let modrm = fetch_byte();
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let dest = modrm_rm(modrm, pfx);
+        let (reg_field, dest) = fetch_modrm_raw(pfx);
         // LOCK valid only for INC (/0) and DEC (/1) with memory
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);

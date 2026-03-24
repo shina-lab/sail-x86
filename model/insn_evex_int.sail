@@ -1852,9 +1852,7 @@ function dispatch_evex_int(op, pfx) = {
   // 0F E7: VMOVNTDQ (66, EVEX) — non-temporal store (we just do a regular store)
   231 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch_byte();
-    let src = evex_reg_idx(modrm, pfx);
-    let dest = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let (src, dest) = fetch_modrm_evex(pfx, evex_full_disp_n(pfx));
     match dest {
       RM_mem(m) => {
         let a = seg_linear(m, 64);
