@@ -85,7 +85,7 @@ function exec_alu_reg_rm(op, reg, rm, os, pfx) = {
   let a = read_gpr(os, reg);
   let b = read_rm_val(os, rm, pfx.has_rex);
   let (result, wb) = alu_compute(op, a, b, os);
-  if wb then write_gpr(os, reg, result)
+  if wb then write_gpr(reg, result)
 }
 
 // Execute ALU: AL/AX/EAX/RAX OP= imm (accumulator short forms)
@@ -93,7 +93,7 @@ val exec_alu_acc_imm : forall 'os, 'os in {8, 16, 32, 64}. (ALUOp, bits('os), in
 function exec_alu_acc_imm(op, imm, os, _) = {
   let a = read_gpr(os, RAX);
   let (result, wb) = alu_compute(op, a, imm, os);
-  if wb then write_gpr(os, RAX, result)
+  if wb then write_gpr(RAX, result)
 }
 
 // Execute ALU: rm OP= imm (Group 1: opcodes 80, 81, 83)

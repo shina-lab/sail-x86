@@ -72,7 +72,7 @@ function write_gpr8h(idx, v) = {
 }
 
 // Polymorphic GPR read by operand size.
-val read_gpr : forall 'os, 'os in {8, 16, 32, 64}. (int('os), gpr_idx) -> bits('os)
+val read_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx) -> bits('os)
 function read_gpr(os, idx) = match os {
   8  => read_gpr8l(idx),
   16 => read_gpr16(idx),
@@ -81,7 +81,7 @@ function read_gpr(os, idx) = match os {
 }
 
 // Polymorphic GPR write by operand size.
-val write_gpr : forall 'os, 'os in {8, 16, 32, 64}. (int('os), gpr_idx, bits('os)) -> unit
+val write_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx, bits('os)) -> unit
 function write_gpr(os, idx, v) = match os {
   8  => write_gpr8l(idx, v),
   16 => write_gpr16(idx, v),

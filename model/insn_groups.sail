@@ -37,8 +37,8 @@ function exec_mul(os, src) = {
     let result : bits('os * 2) = to_bits_truncate(a * b);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    write_gpr(os, RAX, lo);
-    write_gpr(os, RDX, hi);
+    write_gpr(RAX, lo);
+    write_gpr(RDX, hi);
     CF = is_nonzero(hi);
     OF = CF;
   }
@@ -69,8 +69,8 @@ function exec_div(os, src) = {
     if quotient > (pow2(os) - 1) then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    write_gpr(os, RAX, q_bits[(os - 1)..0]);
-    write_gpr(os, RDX, r_bits[(os - 1)..0])
+    write_gpr(RAX, q_bits[(os - 1)..0]);
+    write_gpr(RDX, r_bits[(os - 1)..0])
   };
   CF = undefined;
   OF = undefined;
@@ -105,8 +105,8 @@ function exec_idiv(os, src) = {
     if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
     let q_bits : bits('os * 2) = to_bits_truncate(quotient);
     let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    write_gpr(os, RAX, q_bits[(os - 1)..0]);
-    write_gpr(os, RDX, r_bits[(os - 1)..0])
+    write_gpr(RAX, q_bits[(os - 1)..0]);
+    write_gpr(RDX, r_bits[(os - 1)..0])
   };
   CF = undefined;
   OF = undefined;
@@ -135,8 +135,8 @@ function exec_imul_1(os, src) = {
     let result : bits('os * 2) = to_bits_truncate(product);
     let lo = result[(os - 1)..0];
     let hi = result[(os * 2 - 1)..os];
-    write_gpr(os, RAX, lo);
-    write_gpr(os, RDX, hi);
+    write_gpr(RAX, lo);
+    write_gpr(RDX, hi);
     CF = is_nonzero(hi ^ sign_extend(lo[os - 1]));
     OF = CF;
   }

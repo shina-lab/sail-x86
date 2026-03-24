@@ -588,7 +588,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let v : gpr_idx = pfx.vex_vvvv % 16;
     let vval = read_gpr(os, v);
     let result = ~(vval) & src;
-    write_gpr(os, dst, result);
+    write_gpr(dst, result);
     SF = result[os - 1];
     ZF = is_zero(result);
     OF = 0b0;
@@ -609,7 +609,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       // BLSR: dest = (src - 1) & src
       1 => {
         let result = (src - 1) & src;
-        write_gpr(os, dst, result);
+        write_gpr(dst, result);
         SF = result[os - 1];
         ZF = is_zero(result);
         CF = is_zero(src);
@@ -618,7 +618,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       // BLSMSK: dest = (src - 1) ^ src
       2 => {
         let result = (src - 1) ^ src;
-        write_gpr(os, dst, result);
+        write_gpr(dst, result);
         SF = result[os - 1];
         ZF = 0b0;
         CF = is_zero(src);
@@ -627,7 +627,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       // BLSI: dest = (-src) & src (isolate lowest set bit)
       3 => {
         let result = (~(src) + 1) & src;
-        write_gpr(os, dst, result);
+        write_gpr(dst, result);
         SF = result[os - 1];
         ZF = is_zero(result);
         CF = is_nonzero(src);
@@ -726,7 +726,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           result = (src1 << shift_amt) >> shift_amt;
           CF = 0b0
         };
-        write_gpr(os, dst, result);
+        write_gpr(dst, result);
         SF = result[os - 1];
         ZF = is_zero(result);
         OF = 0b0
@@ -742,7 +742,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           temp[i] = src[k] & mask[i];
           k = (k + unsigned(mask[i])) % 64
         };
-        write_gpr(os, dst, temp[(os - 1) .. 0])
+        write_gpr(dst, temp[(os - 1) .. 0])
       },
       MP_F3 => {
         // PEXT: VEX.NDS.LZ.F3.0F38.W0/W1 F5
@@ -755,7 +755,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           temp[k] = src[i] & mask[i];
           k = (k + unsigned(mask[i])) % 64
         };
-        write_gpr(os, dst, temp[(os - 1) .. 0])
+        write_gpr(dst, temp[(os - 1) .. 0])
       },
       _ => raise_UD(),
     }
@@ -774,8 +774,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1 = read_gpr(os, RDX);
     let src2 = read_rm_val(os, rm, true);
     let product = to_bits_truncate(os * 2, unsigned(src1) * unsigned(src2));
-    write_gpr(os, dst_lo, product[(os - 1)..0]);
-    write_gpr(os, dst_hi, product[(os * 2 - 1)..os])
+    write_gpr(dst_lo, product[(os - 1)..0]);
+    write_gpr(dst_hi, product[(os * 2 - 1)..os])
   },
 
   // 0F38 F7: BEXTR (NP) / SARX (F3) / SHLX (66) / SHRX (F2) — multiplexed by prefix
@@ -805,7 +805,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result = (shifted << shift_amt) >> shift_amt
           }
         };
-        write_gpr(os, dst, result);
+        write_gpr(dst, result);
         ZF = is_zero(result);
         OF = 0b0;
         CF = 0b0
@@ -817,7 +817,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let count_val = read_gpr(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
-        write_gpr(os, dst, src1 >>> count)
+        write_gpr(dst, src1 >>> count)
       },
       MP_66 => {
         // SHLX: VEX.NDS.LZ.66.0F38.W0/W1 F7 — logical left shift, no flags
@@ -826,7 +826,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let count_val = read_gpr(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
-        write_gpr(os, dst, src1 << count)
+        write_gpr(dst, src1 << count)
       },
       MP_F2 => {
         // SHRX: VEX.NDS.LZ.F2.0F38.W0/W1 F7 — logical right shift, no flags
@@ -835,7 +835,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let count_val = read_gpr(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
-        write_gpr(os, dst, src1 >> count)
+        write_gpr(dst, src1 >> count)
       },
     }
   },

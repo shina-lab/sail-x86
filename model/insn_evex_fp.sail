@@ -1370,7 +1370,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(64, dst_gpr, __f32_to_int64_trunc(src_f32)),
+          64 => write_gpr(dst_gpr, __f32_to_int64_trunc(src_f32)),
           _  => write_gpr(32, dst_gpr, zero_extend(__f32_to_int32_trunc(src_f32))),
         };
         evex_end_rc(saved_mxcsr)
@@ -1385,7 +1385,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(64, dst_gpr, __f64_to_int64_trunc(src_f64)),
+          64 => write_gpr(dst_gpr, __f64_to_int64_trunc(src_f64)),
           _  => write_gpr(32, dst_gpr, zero_extend(__f64_to_int32_trunc(src_f64))),
         };
         evex_end_rc(saved_mxcsr)
@@ -1411,7 +1411,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(64, dst_gpr, __f32_to_int64(src_f32)),
+          64 => write_gpr(dst_gpr, __f32_to_int64(src_f32)),
           _  => write_gpr(32, dst_gpr, zero_extend(__f32_to_int32(src_f32))),
         };
         evex_end_rc(saved_mxcsr)
@@ -1426,7 +1426,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
-          64 => write_gpr(64, dst_gpr, __f64_to_int64(src_f64)),
+          64 => write_gpr(dst_gpr, __f64_to_int64(src_f64)),
           _  => write_gpr(32, dst_gpr, zero_extend(__f64_to_int32(src_f64))),
         };
         evex_end_rc(saved_mxcsr)
@@ -1961,7 +1961,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(64, dst_gpr, __f32_to_uint64_trunc(src_f32))
+        if pfx.rex_w then write_gpr(dst_gpr, __f32_to_uint64_trunc(src_f32))
         else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32_trunc(src_f32)));
         evex_end_rc(saved_mxcsr)
       },
@@ -1975,7 +1975,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(64, dst_gpr, __f64_to_uint64_trunc(src_f64))
+        if pfx.rex_w then write_gpr(dst_gpr, __f64_to_uint64_trunc(src_f64))
         else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32_trunc(src_f64)));
         evex_end_rc(saved_mxcsr)
       },
@@ -2036,7 +2036,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(64, dst_gpr, __f32_to_uint64(src_f32))
+        if pfx.rex_w then write_gpr(dst_gpr, __f32_to_uint64(src_f32))
         else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32(src_f32)));
         evex_end_rc(saved_mxcsr)
       },
@@ -2050,7 +2050,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(seg, offset) => seg_read(seg, offset),
         };
-        if pfx.rex_w then write_gpr(64, dst_gpr, __f64_to_uint64(src_f64))
+        if pfx.rex_w then write_gpr(dst_gpr, __f64_to_uint64(src_f64))
         else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32(src_f64)));
         evex_end_rc(saved_mxcsr)
       },
