@@ -398,7 +398,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           RM_mem(seg, offset) => {
             let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
             if unsigned(inv_type) > 3 then raise_GP0();
-            let desc : xmmword = seg_read128(seg, offset);
+            let desc : xmmword = seg_read(seg, offset);
             let reserved : bits(52) = desc[63..12];
             let top17 : bits(17) = desc[127..111];
             // types 0,1: reserved bits must be zero
@@ -427,7 +427,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             // CRC32 r32/r64, r/m8
             let src : byte = match rm {
               RM_reg(_) => read_rm_val(rm, 8, pfx.has_rex),
-              RM_mem(seg, offset) => seg_read8(seg, offset),
+              RM_mem(seg, offset) => seg_read(seg, offset),
             };
             let result : bits(32) = crc32c(crc, src);
             if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
@@ -439,7 +439,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               16 => {
                 let src : bits(16) = match rm {
                   RM_reg(_) => read_rm_val(rm, 16, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read16(seg, offset),
+                  RM_mem(seg, offset) => seg_read(seg, offset),
                 };
                 crc = crc32c(crc, src[7..0]);
                 crc32c(crc, src[15..8])
@@ -447,7 +447,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               32 => {
                 let src : bits(32) = match rm {
                   RM_reg(_) => read_rm_val(rm, 32, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read32(seg, offset),
+                  RM_mem(seg, offset) => seg_read(seg, offset),
                 };
                 crc = crc32c(crc, src[7..0]);
                 crc = crc32c(crc, src[15..8]);
@@ -457,7 +457,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               64 => {
                 let src : bits(64) = match rm {
                   RM_reg(_) => read_rm_val(rm, 64, pfx.has_rex),
-                  RM_mem(seg, offset) => seg_read64(seg, offset),
+                  RM_mem(seg, offset) => seg_read(seg, offset),
                 };
                 crc = crc32c(crc, src[7..0]);
                 crc = crc32c(crc, src[15..8]);
@@ -485,15 +485,15 @@ function dispatch_opcode_2byte(opcode, pfx) = {
               RM_mem(seg, offset) => {
                 match os {
                   16 => {
-                    let v = seg_read16(seg, offset);
+                    let v = seg_read(2, seg, offset);
                     write_gpr(16, reg, zero_extend(v[7..0] @ v[15..8]))
                   },
                   32 => {
-                    let v = seg_read32(seg, offset);
+                    let v = seg_read(4, seg, offset);
                     write_gpr(32, reg, zero_extend(v[7..0] @ v[15..8] @ v[23..16] @ v[31..24]))
                   },
                   64 => {
-                    let v = seg_read64(seg, offset);
+                    let v = seg_read(8, seg, offset);
                     write_gpr(64, reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                          v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
@@ -508,15 +508,15 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                 match os {
                   16 => {
                     let v : word = read_gpr(16, reg)[15..0];
-                    seg_write16(seg, offset, v[7..0] @ v[15..8])
+                    seg_write(2, seg, offset, v[7..0] @ v[15..8])
                   },
                   32 => {
                     let v : dword = read_gpr(32, reg)[31..0];
-                    seg_write32(seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
+                    seg_write(4, seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
                   },
                   64 => {
                     let v : qword = read_gpr(64, reg);
-                    seg_write64(seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
+                    seg_write(8, seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
                                       v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
                   },
                 }
@@ -535,7 +535,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         match rm {
           RM_mem(seg, offset) => {
             let v = read_gpr(os, reg);
-            seg_write(os, seg, offset, v)
+            seg_write(seg, offset, v)
           },
           RM_reg(_) => raise_UD(),
         }
@@ -547,7 +547,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         match rm {
           RM_mem(seg, offset) => {
             // Source: 64 bytes from ModRM:r/m memory address
-            let src : zmmword = seg_read512(seg, offset);
+            let src : zmmword = seg_read(seg, offset);
             // Destination: address from ModRM:reg (ES-relative, no override)
             let asz = get_address_size(pfx);
             let reg = modrm_reg(modrm, pfx);
@@ -1041,8 +1041,8 @@ function decode_execute() = {
               let os = get_operand_size(pfx);
               let reg = modrm_reg(modrm, pfx);
               let index = read_gpr(os, reg);
-              let lower = seg_read(os, DS, addr);
-              let upper = seg_read(os, DS, addr + os / 8);
+              let lower = seg_read(os / 8, DS, addr);
+              let upper = seg_read(os / 8, DS, addr + os / 8);
               if signed(index) < signed(lower) | signed(upper) < signed(index) then
                 raise_BR()
             },
@@ -1314,7 +1314,7 @@ function decode_execute() = {
               let seg_val : qword = zero_extend(read_segreg(seg));
               write_gpr(os, idx, seg_val[(os - 1) .. 0])
             },
-            RM_mem(s, offset) => seg_write16(s, offset, read_segreg(seg)),
+            RM_mem(s, offset) => seg_write(s, offset, read_segreg(seg)),
           }
         }
       },
@@ -1342,7 +1342,7 @@ function decode_execute() = {
           let rm = decode_rm(modrm, pfx);
           let v : word = match rm {
             RM_reg(idx) => read_gpr16(idx),
-            RM_mem(s, offset) => seg_read16(s, offset),
+            RM_mem(s, offset) => seg_read(s, offset),
           };
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
@@ -1376,7 +1376,7 @@ function decode_execute() = {
             };
             let rm = decode_rm(modrm, pfx);
             match rm {
-              RM_mem(seg, offset) => seg_write(os, seg, offset, v[(os - 1) .. 0]),
+              RM_mem(seg, offset) => seg_write(os / 8, seg, offset, v[(os - 1) .. 0]),
               _ => raise_UD(),
             }
           }
@@ -1732,11 +1732,11 @@ function decode_execute() = {
             match rm {
               RM_mem(seg, ea) => {
                 let far_offset : qword = match os {
-                  16 => zero_extend(seg_read16(seg, ea)),
-                  _    => zero_extend(seg_read32(seg, ea)),
+                  16 => zero_extend(seg_read(2,seg, ea)),
+                  _    => zero_extend(seg_read(4,seg, ea)),
                 };
                 let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                let selector : word = seg_read(seg, ea + to_bits_truncate(sel_off));
                 write_gpr(os, reg, far_offset[(os - 1) .. 0]);
                 load_segment_register(ES, selector)
               },
@@ -1761,11 +1761,11 @@ function decode_execute() = {
             match rm {
               RM_mem(seg, ea) => {
                 let far_offset : qword = match os {
-                  16 => zero_extend(seg_read16(seg, ea)),
-                  _    => zero_extend(seg_read32(seg, ea)),
+                  16 => zero_extend(seg_read(2,seg, ea)),
+                  _    => zero_extend(seg_read(4,seg, ea)),
                 };
                 let sel_off : int = match os { 16 => 2, _ => 4 };
-                let selector : word = seg_read16(seg, ea + to_bits_truncate(sel_off));
+                let selector : word = seg_read(seg, ea + to_bits_truncate(sel_off));
                 write_gpr(os, reg, far_offset[(os - 1) .. 0]);
                 load_segment_register(DS, selector)
               },

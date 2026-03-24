@@ -373,7 +373,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           match rm {
             RM_reg(r) => write_gpr16(r, LDTR),
-            RM_mem(seg, offset) => seg_write16(seg, offset, LDTR),
+            RM_mem(seg, offset) => seg_write(seg, offset, LDTR),
           }
         },
 
@@ -382,7 +382,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           match rm {
             RM_reg(r) => write_gpr16(r, TR),
-            RM_mem(seg, offset) => seg_write16(seg, offset, TR),
+            RM_mem(seg, offset) => seg_write(seg, offset, TR),
           }
         },
 
@@ -392,7 +392,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           let sel : word = match rm {
             RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read16(seg, offset),
+            RM_mem(seg, offset) => seg_read(seg, offset),
           };
           LDTR = sel
         },
@@ -403,7 +403,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           let sel : word = match rm {
             RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read16(seg, offset),
+            RM_mem(seg, offset) => seg_read(seg, offset),
           };
           TR = sel;
           // Load TSS base/limit from GDT descriptor
@@ -432,7 +432,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           let selector : word = match rm {
             RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read16(seg, offset),
+            RM_mem(seg, offset) => seg_read(seg, offset),
           };
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
@@ -462,7 +462,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let rm = decode_rm(modrm, pfx);
           let selector : word = match rm {
             RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read16(seg, offset),
+            RM_mem(seg, offset) => seg_read(seg, offset),
           };
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
@@ -660,7 +660,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 let os = get_operand_size(pfx);
                 write_gpr(os, r, CR0[(os - 1) .. 0])
               },
-              RM_mem(seg, offset) => seg_write16(seg, offset, CR0[15..0]),
+              RM_mem(seg, offset) => seg_write(2, seg, offset, CR0[15..0]),
             },
 
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
@@ -668,7 +668,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               let msw : word = match rm {
                 RM_reg(r) => read_gpr16(r),
-                RM_mem(seg, offset) => seg_read16(seg, offset),
+                RM_mem(seg, offset) => seg_read(seg, offset),
               };
               // LMSW sets low 4 bits of CR0; only PE (bit 0) is sticky
               // (cannot clear PE once set). MP/EM/TS are freely assignable.
@@ -701,7 +701,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let selector : word = match rm {
         RM_reg(r) => read_gpr16(r),
-        RM_mem(seg, offset) => seg_read16(seg, offset),
+        RM_mem(seg, offset) => seg_read(seg, offset),
       };
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
@@ -732,7 +732,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let selector : word = match rm {
         RM_reg(r) => read_gpr16(r),
-        RM_mem(seg, offset) => seg_read16(seg, offset),
+        RM_mem(seg, offset) => seg_read(seg, offset),
       };
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
@@ -1144,13 +1144,13 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // LDMXCSR m32
         2 => match rm {
-          RM_mem(seg, offset) => __ldmxcsr(seg_read32(seg, offset)),
+          RM_mem(seg, offset) => __ldmxcsr(seg_read(seg, offset)),
           RM_reg(_) => raise_UD(),
         },
 
         // STMXCSR m32
         3 => match rm {
-          RM_mem(seg, offset) => seg_write32(seg, offset, __stmxcsr()),
+          RM_mem(seg, offset) => seg_write(seg, offset, __stmxcsr()),
           RM_reg(_) => raise_UD(),
         },
 
@@ -1391,8 +1391,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       match rm {
         RM_mem(seg, ea) => {
-          let far_offset = seg_read(os, seg, ea);
-          let selector : word = seg_read16(seg, ea + to_bits_truncate(os / 8));
+          let far_offset = seg_read(os / 8, seg, ea);
+          let selector : word = seg_read(seg, ea + to_bits_truncate(os / 8));
           write_gpr(os, reg, far_offset);
           let seg : segreg_idx = match op {
             178 => SS,
@@ -1625,12 +1625,12 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(dst) => exec_xadd(dst, reg, 8),
         RM_mem(seg, offset) => {
           // Memory operand: read, exchange, add, write back
-          let mem_val : qword = zero_extend(seg_read8(seg, offset));
+          let mem_val : qword = zero_extend(seg_read(1,seg, offset));
           let reg_val : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
           let sum : qword = mem_val + reg_val;
           update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]);
           write_byte_reg(reg, pfx.has_rex, mem_val[7..0]);
-          seg_write8(seg, offset, sum[7..0])
+          seg_write(1, seg, offset, sum[7..0])
         },
       }
     },
@@ -1685,7 +1685,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       match rm {
         RM_mem(seg, offset) => {
           let v = read_gpr(os, reg);
-          seg_write(os, seg, offset, v)
+          seg_write(seg, offset, v)
         },
         RM_reg(_) => raise_UD(),
       }
@@ -1702,24 +1702,24 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(seg, offset) => {
             if pfx.rex_w then {
               if ~(has_cx16) then raise_UD();
-              let mem_lo : qword = seg_read64(seg, offset);
-              let mem_hi : qword = seg_read64(seg, offset + 8);
+              let mem_lo : qword = seg_read(seg, offset);
+              let mem_hi : qword = seg_read(seg, offset + 8);
               if read_gpr64(RAX) == mem_lo & read_gpr64(RDX) == mem_hi then {
                 ZF = 0b1;
-                seg_write64(seg, offset, read_gpr64(RBX));
-                seg_write64(seg, offset + 8, read_gpr64(RCX));
+                seg_write(seg, offset, read_gpr64(RBX));
+                seg_write(seg, offset + 8, read_gpr64(RCX));
               } else {
                 ZF = 0b0;
                 write_gpr64(RAX, mem_lo);
                 write_gpr64(RDX, mem_hi);
               }
             } else {
-              let mem_lo : dword = seg_read32(seg, offset);
-              let mem_hi : dword = seg_read32(seg, offset + 4);
+              let mem_lo : dword = seg_read(seg, offset);
+              let mem_hi : dword = seg_read(seg, offset + 4);
               if read_gpr32(RAX) == mem_lo & read_gpr32(RDX) == mem_hi then {
                 ZF = 0b1;
-                seg_write32(seg, offset, read_gpr32(RBX));
-                seg_write32(seg, offset + 4, read_gpr32(RCX));
+                seg_write(seg, offset, read_gpr32(RBX));
+                seg_write(seg, offset + 4, read_gpr32(RCX));
               } else {
                 ZF = 0b0;
                 write_gpr32(RAX, mem_lo);

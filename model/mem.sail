@@ -219,52 +219,13 @@ function seg_linear(seg, offset, access_size) = {
   offset + get_seg_base(seg)
 }
 
-// Polymorphic segmented memory read/write by operand size.
-val seg_read : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword) -> bits('os)
-function seg_read(os, seg, offset) = {
-  let n = os / 8;
-  let a = seg_linear(seg, offset, n);
-  mem_read(n, a)
-}
-
-val seg_write : forall 'os, 'os in {8, 16, 32, 64}. (int('os), segreg_idx, qword, bits('os)) -> unit
-function seg_write(os, seg, offset, v) = {
-  let n = os / 8;
-  let a = seg_linear(seg, offset, n);
-  mem_write(n, a, v)
-}
-
-// Sized segmented memory read: check limit, compute linear, read.
-val seg_read8  : (segreg_idx, qword) -> byte
-val seg_read16 : (segreg_idx, qword) -> word
-val seg_read32 : (segreg_idx, qword) -> dword
-val seg_read64 : (segreg_idx, qword) -> qword
-val seg_read128 : (segreg_idx, qword) -> xmmword
-val seg_read256 : (segreg_idx, qword) -> ymmword
-val seg_read512 : (segreg_idx, qword) -> zmmword
-function seg_read8(seg, offset)   = mem_read(seg_linear(seg, offset, 1))
-function seg_read16(seg, offset)  = mem_read(seg_linear(seg, offset, 2))
-function seg_read32(seg, offset)  = mem_read(seg_linear(seg, offset, 4))
-function seg_read64(seg, offset)  = mem_read(seg_linear(seg, offset, 8))
-function seg_read128(seg, offset) = mem_read(seg_linear(seg, offset, 16))
-function seg_read256(seg, offset) = mem_read(seg_linear(seg, offset, 32))
-function seg_read512(seg, offset) = mem_read(seg_linear(seg, offset, 64))
+// Segmented memory read: check limit, compute linear, read.
+val seg_read : forall 'n, 'n > 0. (implicit('n), segreg_idx, qword) -> bits(8 * 'n)
+function seg_read(n, seg, offset) = mem_read(seg_linear(seg, offset, n))
 
 // Segmented memory write: check limit, compute linear, write.
-val seg_write8   : (segreg_idx, qword, byte)    -> unit
-val seg_write16  : (segreg_idx, qword, word)   -> unit
-val seg_write32  : (segreg_idx, qword, dword)  -> unit
-val seg_write64  : (segreg_idx, qword, qword)  -> unit
-val seg_write128 : (segreg_idx, qword, xmmword) -> unit
-val seg_write256 : (segreg_idx, qword, ymmword) -> unit
-val seg_write512 : (segreg_idx, qword, zmmword) -> unit
-function seg_write8(seg, offset, v)   = mem_write(seg_linear(seg, offset, 1), v)
-function seg_write16(seg, offset, v)  = mem_write(seg_linear(seg, offset, 2), v)
-function seg_write32(seg, offset, v)  = mem_write(seg_linear(seg, offset, 4), v)
-function seg_write64(seg, offset, v)  = mem_write(seg_linear(seg, offset, 8), v)
-function seg_write128(seg, offset, v) = mem_write(seg_linear(seg, offset, 16), v)
-function seg_write256(seg, offset, v) = mem_write(seg_linear(seg, offset, 32), v)
-function seg_write512(seg, offset, v) = mem_write(seg_linear(seg, offset, 64), v)
+val seg_write : forall 'n, 'n > 0. (implicit('n), segreg_idx, qword, bits(8 * 'n)) -> unit
+function seg_write(n, seg, offset, v) = mem_write(seg_linear(seg, offset, n), v)
 
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)

@@ -414,5 +414,5 @@ function decode_rm(modrm, pfx) = {
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(seg, offset) => seg_read128(seg, offset),
+  RM_mem(seg, offset) => seg_read(seg, offset),
 }

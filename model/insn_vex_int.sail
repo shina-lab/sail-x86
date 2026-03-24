@@ -340,14 +340,14 @@ function dispatch_vex_0f_int(op, pfx) = {
       // VMOVQ xmm, r/m64
       let v : qword = match rm {
         RM_reg(idx) => read_gpr64(idx),
-        RM_mem(seg, addr) => seg_read64(seg, addr),
+        RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, zero_extend(v))
     } else {
       // VMOVD xmm, r/m32
       let v : dword = match rm {
         RM_reg(idx) => read_gpr32(idx),
-        RM_mem(seg, addr) => seg_read32(seg, addr),
+        RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, zero_extend(v))
     }
@@ -742,8 +742,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         match (rm, pfx.vex_w) {
           (RM_reg(idx), true)  => write_gpr64(idx, src[63..0]),
           (RM_reg(idx), false) => write_gpr32(idx, src[31..0]),
-          (RM_mem(seg, addr), true)  => seg_write64(seg, addr, src[63..0]),
-          (RM_mem(seg, addr), false) => seg_write32(seg, addr, src[31..0]),
+          (RM_mem(seg, addr), true)  => seg_write(8, seg, addr, src[63..0]),
+          (RM_mem(seg, addr), false) => seg_write(4, seg, addr, src[31..0]),
         }
       },
       MP_F3 => {
@@ -755,7 +755,7 @@ function dispatch_vex_0f_int(op, pfx) = {
             write_xmm(dst, zero_extend(src[63..0]))
           },
           RM_mem(seg, addr) => {
-            let v : qword = seg_read64(seg, addr);
+            let v : qword = seg_read(seg, addr);
             write_xmm(dst, zero_extend(v))
           },
         }
@@ -791,9 +791,9 @@ function dispatch_vex_0f_int(op, pfx) = {
           }
         };
         if pfx.vex_l then {
-          seg_write256(seg, addr, read_ymm(src))
+          seg_write(seg, addr, read_ymm(src))
         } else {
-          seg_write128(seg, addr, read_xmm(src))
+          seg_write(seg, addr, read_xmm(src))
         }
       },
     }
@@ -814,10 +814,10 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(seg, addr) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => write_kreg(k1, seg_read64(seg, addr)),              // KMOVQ
-          (_,       true) => write_kreg(k1, zero_extend(seg_read32(seg, addr))), // KMOVD
-          (MP_66,  false) => write_kreg(k1, zero_extend(seg_read8(seg, addr))),  // KMOVB
-          (_,      false) => write_kreg(k1, zero_extend(seg_read16(seg, addr))), // KMOVW
+          (MP_NONE, true) => write_kreg(k1, seg_read(seg, addr)),              // KMOVQ
+          (_,       true) => write_kreg(k1, zero_extend(seg_read(4,seg, addr))), // KMOVD
+          (MP_66,  false) => write_kreg(k1, zero_extend(seg_read(1,seg, addr))),  // KMOVB
+          (_,      false) => write_kreg(k1, zero_extend(seg_read(2,seg, addr))), // KMOVW
         }
       },
     }
@@ -831,10 +831,10 @@ function dispatch_vex_0f_int(op, pfx) = {
     match rm {
       RM_mem(seg, addr) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => seg_write64(seg, addr, read_kreg(k1)),              // KMOVQ
-          (_,       true) => seg_write32(seg, addr, read_kreg(k1)[31..0]),       // KMOVD
-          (MP_66,  false) => seg_write8(seg, addr, read_kreg(k1)[7..0]),         // KMOVB
-          (_,      false) => seg_write16(seg, addr, read_kreg(k1)[15..0]),       // KMOVW
+          (MP_NONE, true) => seg_write(seg, addr, read_kreg(k1)),              // KMOVQ
+          (_,       true) => seg_write(4, seg, addr, read_kreg(k1)[31..0]),       // KMOVD
+          (MP_66,  false) => seg_write(1, seg, addr, read_kreg(k1)[7..0]),         // KMOVB
+          (_,      false) => seg_write(2, seg, addr, read_kreg(k1)[15..0]),       // KMOVW
         }
       },
       _ => raise_UD(),
@@ -918,7 +918,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : word = match rm {
       RM_reg(idx) => read_gpr32(idx)[15..0],
-      RM_mem(seg, addr) => seg_read16(seg, addr),
+      RM_mem(seg, addr) => seg_read(seg, addr),
     };
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
@@ -1084,7 +1084,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_reg(_) => {
         write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(v))
       },
-      RM_mem(seg, addr) => seg_write64(seg, addr, v),
+      RM_mem(seg, addr) => seg_write(seg, addr, v),
     }
   },
 

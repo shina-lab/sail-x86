@@ -12,7 +12,7 @@ val mmx_read_rm : (byte, RM) -> qword
 function mmx_read_rm(modrm, rm) = {
   match rm {
     RM_reg(_) => read_mm(modrm_mm_rm(modrm)),
-    RM_mem(seg, offset) => seg_read64(seg, offset),
+    RM_mem(seg, offset) => seg_read(seg, offset),
   }
 }
 
@@ -174,9 +174,9 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       match (rm, pfx.rex_w) {
         (RM_reg(idx), true)   => write_mm(dst, read_gpr64(idx)),
-        (RM_mem(seg, offset), true)  => write_mm(dst, seg_read64(seg, offset)),
+        (RM_mem(seg, offset), true)  => write_mm(dst, seg_read(seg, offset)),
         (RM_reg(idx), false)  => write_mm(dst, zero_extend(read_gpr32(idx))),
-        (RM_mem(seg, offset), false) => write_mm(dst, zero_extend(seg_read32(seg, offset))),
+        (RM_mem(seg, offset), false) => write_mm(dst, zero_extend(seg_read(4,seg, offset))),
       };
       mmx_touch()
     },
@@ -333,9 +333,9 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       match (rm, pfx.rex_w) {
         (RM_reg(idx), true)   => write_gpr64(idx, v),
-        (RM_mem(seg, offset), true)  => seg_write64(seg, offset, v),
+        (RM_mem(seg, offset), true)  => seg_write(seg, offset, v),
         (RM_reg(idx), false)  => write_gpr32(idx, v[31..0]),
-        (RM_mem(seg, offset), false) => seg_write32(seg, offset, v[31..0]),
+        (RM_mem(seg, offset), false) => seg_write(4, seg, offset, v[31..0]),
       };
       mmx_touch()
     },
@@ -348,7 +348,7 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       match rm {
         RM_reg(_) => write_mm(modrm_mm_rm(modrm), v),
-        RM_mem(seg, offset) => seg_write64(seg, offset, v),
+        RM_mem(seg, offset) => seg_write(seg, offset, v),
       };
       mmx_touch()
     },
@@ -360,7 +360,7 @@ function dispatch_mmx(op, pfx) = {
       let rm = decode_rm(modrm, pfx);
       let w : word = match rm {
         RM_reg(idx) => read_gpr32(idx)[15..0],
-        RM_mem(seg, offset) => seg_read16(seg, offset),
+        RM_mem(seg, offset) => seg_read(seg, offset),
       };
       let imm = fetch_byte();
       let sel : range(0, 3) = unsigned(imm[1..0]);
@@ -634,7 +634,7 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_mm_reg(modrm);
       let rm = decode_rm(modrm, pfx);
       match rm {
-        RM_mem(seg, offset) => { seg_write64(seg, offset, read_mm(src)); mmx_touch() },
+        RM_mem(seg, offset) => { seg_write(seg, offset, read_mm(src)); mmx_touch() },
         RM_reg(_) => raise_UD(),
       }
     },

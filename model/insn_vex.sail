@@ -197,13 +197,13 @@ function decode_vex3(byte1, byte2) = {
 val decode_vex_src_xmm : (byte, RM, Prefixes) -> xmmword
 function decode_vex_src_xmm(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(seg, addr) => seg_read128(seg, addr),
+  RM_mem(seg, addr) => seg_read(seg, addr),
 }
 
 val decode_vex_src_ymm : (byte, RM, Prefixes) -> ymmword
 function decode_vex_src_ymm(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(seg, addr) => seg_read256(seg, addr),
+  RM_mem(seg, addr) => seg_read(seg, addr),
 }
 
 // =========================================================================

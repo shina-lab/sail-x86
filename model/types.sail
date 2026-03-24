@@ -262,7 +262,7 @@ function read_rm_val(rm, os, has_rex) = match rm {
     32 => read_gpr32(idx),
     64 => read_gpr64(idx),
   },
-  RM_mem(seg, offset) => seg_read(os, seg, offset),
+  RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (RM, int('os), bool, bits('os)) -> unit
@@ -273,7 +273,7 @@ function write_rm_val(rm, os, has_rex, v) = match rm {
     32 => write_gpr32(idx, v),
     64 => write_gpr64(idx, v),
   },
-  RM_mem(seg, offset) => seg_write(os, seg, offset, v),
+  RM_mem(seg, offset) => seg_write(seg, offset, v),
 }
 
 // =========================================================================

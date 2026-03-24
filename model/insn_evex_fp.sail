@@ -881,7 +881,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Register: xmm1 = xmm2[127:32] @ xmm3[31:0]
         match rm {
           RM_mem(seg, offset) => {
-            let v : dword = seg_read32(seg, offset);
+            let v : dword = seg_read(seg, offset);
             write_xmm(dst, zero_extend(v))
           },
           RM_reg(_) => {
@@ -897,7 +897,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Register: xmm1 = xmm2[127:64] @ xmm3[63:0]
         match rm {
           RM_mem(seg, offset) => {
-            let v : qword = seg_read64(seg, offset);
+            let v : qword = seg_read(seg, offset);
             write_xmm(dst, zero_extend(v))
           },
           RM_reg(_) => {
@@ -961,7 +961,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Memory: m32 = xmm1[31:0]
         // Register: xmm1{k1}{z} = xmm2[127:32] @ xmm3[31:0]
         match rm {
-          RM_mem(seg, offset) => seg_write32(seg, offset, read_xmm(src)[31..0]),
+          RM_mem(seg, offset) => seg_write(4, seg, offset, read_xmm(src)[31..0]),
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -975,7 +975,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Memory: m64 = xmm1[63:0]
         // Register: xmm1{k1}{z} = xmm2[127:64] @ xmm3[63:0]
         match rm {
-          RM_mem(seg, offset) => seg_write64(seg, offset, read_xmm(src)[63..0]),
+          RM_mem(seg, offset) => seg_write(8, seg, offset, read_xmm(src)[63..0]),
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -1008,7 +1008,7 @@ function dispatch_evex_fp(op, pfx) = {
           // VMOVLPS xmm2, xmm1, m64
           RM_mem(seg, offset) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = seg_read64(seg, offset);
+            let m64val = seg_read(8, seg, offset);
             let result : xmmword = src1[127..64] @ m64val;
             write_xmm(dst, result)
           },
@@ -1022,7 +1022,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => raise_UD(),
           RM_mem(seg, offset) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = seg_read64(seg, offset);
+            let m64val = seg_read(8, seg, offset);
             let result : xmmword = src1[127..64] @ m64val;
             write_xmm(dst, result)
           },
@@ -1047,7 +1047,7 @@ function dispatch_evex_fp(op, pfx) = {
             let src : xmmword = match rm {
               RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
               RM_mem(seg, offset) => {
-                let v = seg_read64(seg, offset);
+                let v = seg_read(8, seg, offset);
                 v @ v
               },
             };
@@ -1071,7 +1071,7 @@ function dispatch_evex_fp(op, pfx) = {
       RM_reg(_) => raise_UD(),
       RM_mem(seg, offset) => {
         let src = read_xmm(evex_reg_idx(modrm, pfx));
-        seg_write64(seg, offset, src[63..0])
+        seg_write(8, seg, offset, src[63..0])
       },
     }
   },
@@ -1207,7 +1207,7 @@ function dispatch_evex_fp(op, pfx) = {
           // VMOVHPS xmm2, xmm1, m64
           RM_mem(seg, offset) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = seg_read64(seg, offset);
+            let m64val = seg_read(8, seg, offset);
             let result : xmmword = m64val @ src1[63..0];
             write_xmm(dst, result)
           },
@@ -1221,7 +1221,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => raise_UD(),
           RM_mem(seg, offset) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = seg_read64(seg, offset);
+            let m64val = seg_read(8, seg, offset);
             let result : xmmword = m64val @ src1[63..0];
             write_xmm(dst, result)
           },
@@ -1251,7 +1251,7 @@ function dispatch_evex_fp(op, pfx) = {
       RM_reg(_) => raise_UD(),
       RM_mem(seg, offset) => {
         let src = read_xmm(evex_reg_idx(modrm, pfx));
-        seg_write64(seg, offset, src[127..64])
+        seg_write(8, seg, offset, src[127..64])
       },
     }
   },
@@ -1322,8 +1322,8 @@ function dispatch_evex_fp(op, pfx) = {
     let src_val : qword = match rm {
       RM_reg(_) => zero_extend(read_gpr(os, modrm_rm_reg(modrm, pfx))),
       RM_mem(seg, offset) => match os {
-        64 => seg_read64(seg, offset),
-        _    => zero_extend(seg_read32(seg, offset)),
+        64 => seg_read(seg, offset),
+        _    => zero_extend(seg_read(4,seg, offset)),
       },
     };
     let src1 = read_xmm(pfx.evex_vvvvv);
@@ -1387,7 +1387,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
           64 => write_gpr(64, dst_gpr, __f32_to_int64_trunc(src_f32)),
@@ -1402,7 +1402,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
           64 => write_gpr(64, dst_gpr, __f64_to_int64_trunc(src_f64)),
@@ -1428,7 +1428,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
           64 => write_gpr(64, dst_gpr, __f32_to_int64(src_f32)),
@@ -1443,7 +1443,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         match os {
           64 => write_gpr(64, dst_gpr, __f64_to_int64(src_f64)),
@@ -1466,7 +1466,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, 4);
         let src : xmmword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(seg, offset) => zero_extend(seg_read32(seg, offset)),
+          RM_mem(seg, offset) => zero_extend(seg_read(4,seg, offset)),
         };
         let a : dword = read_xmm(dst)[31..0];
         let b : dword = src[31..0];
@@ -1485,7 +1485,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let src : xmmword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(seg, offset) => zero_extend(seg_read64(seg, offset)),
+          RM_mem(seg, offset) => zero_extend(seg_read(8,seg, offset)),
         };
         let a : qword = read_xmm(dst)[63..0];
         let b : qword = src[63..0];
@@ -1514,7 +1514,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, 4);
         let src : xmmword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(seg, offset) => zero_extend(seg_read32(seg, offset)),
+          RM_mem(seg, offset) => zero_extend(seg_read(4,seg, offset)),
         };
         let a : dword = read_xmm(dst)[31..0];
         let b : dword = src[31..0];
@@ -1533,7 +1533,7 @@ function dispatch_evex_fp(op, pfx) = {
         let rm = decode_rm_evex(modrm, pfx, 8);
         let src : xmmword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(seg, offset) => zero_extend(seg_read64(seg, offset)),
+          RM_mem(seg, offset) => zero_extend(seg_read(8,seg, offset)),
         };
         let a : qword = read_xmm(dst)[63..0];
         let b : qword = src[63..0];
@@ -1608,7 +1608,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_add(src1[31..0], src2_f32), pfx)
       },
@@ -1617,7 +1617,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_add(src1[63..0], src2_f64), pfx)
       },
@@ -1658,7 +1658,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_mul(src1[31..0], src2_f32), pfx)
       },
@@ -1667,7 +1667,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_mul(src1[63..0], src2_f64), pfx)
       },
@@ -1749,7 +1749,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         var result : xmmword = src1;
         result[63..0] = __f32_to_f64(src_f32);
@@ -1764,7 +1764,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         var result : xmmword = src1;
         result[31..0] = __f64_to_f32(src_f64);
@@ -1852,7 +1852,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_sub(src1[31..0], src2_f32), pfx)
       },
@@ -1861,7 +1861,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_sub(src1[63..0], src2_f64), pfx)
       },
@@ -1979,7 +1979,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         if pfx.rex_w then write_gpr(64, dst_gpr, __f32_to_uint64_trunc(src_f32))
         else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32_trunc(src_f32)));
@@ -1993,7 +1993,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         if pfx.rex_w then write_gpr(64, dst_gpr, __f64_to_uint64_trunc(src_f64))
         else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32_trunc(src_f64)));
@@ -2054,7 +2054,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         if pfx.rex_w then write_gpr(64, dst_gpr, __f32_to_uint64(src_f32))
         else write_gpr(32, dst_gpr, zero_extend(__f32_to_uint32(src_f32)));
@@ -2068,7 +2068,7 @@ function dispatch_evex_fp(op, pfx) = {
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         if pfx.rex_w then write_gpr(64, dst_gpr, __f64_to_uint64(src_f64))
         else write_gpr(32, dst_gpr, zero_extend(__f64_to_uint32(src_f64)));
@@ -2187,10 +2187,10 @@ function dispatch_evex_fp(op, pfx) = {
         let result_f32 : dword = match (rm2, pfx.rex_w) {
           // W1: u64→f32
           (RM_reg(_), true) => __uint64_to_f32(read_gpr64(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(seg, offset), true) => __uint64_to_f32(seg_read64(seg, offset)),
+          (RM_mem(seg, offset), true) => __uint64_to_f32(seg_read(seg, offset)),
           // W0: u32→f32
           (RM_reg(_), false) => __uint32_to_f32(read_gpr32(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(seg, offset), false) => __uint32_to_f32(seg_read32(seg, offset)),
+          (RM_mem(seg, offset), false) => __uint32_to_f32(seg_read(seg, offset)),
         };
         var dst_val = src1;
         dst_val[31..0] = result_f32;
@@ -2207,10 +2207,10 @@ function dispatch_evex_fp(op, pfx) = {
         let result_f64 : qword = match (rm2, pfx.rex_w) {
           // W1: u64→f64
           (RM_reg(_), true) => __uint64_to_f64(read_gpr64(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(seg, offset), true) => __uint64_to_f64(seg_read64(seg, offset)),
+          (RM_mem(seg, offset), true) => __uint64_to_f64(seg_read(seg, offset)),
           // W0: u32→f64
           (RM_reg(_), false) => __uint32_to_f64(read_gpr32(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(seg, offset), false) => __uint32_to_f64(seg_read32(seg, offset)),
+          (RM_mem(seg, offset), false) => __uint32_to_f64(seg_read(seg, offset)),
         };
         var dst_val = src1;
         dst_val[63..0] = result_f64;
@@ -2255,7 +2255,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_sqrt(src2_f32), pfx)
       },
@@ -2264,7 +2264,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_sqrt(src2_f64), pfx)
       },
@@ -2304,7 +2304,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_min(src1[31..0], src2_f32), pfx)
       },
@@ -2313,7 +2313,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_min(src1[63..0], src2_f64), pfx)
       },
@@ -2353,7 +2353,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_div(src1[31..0], src2_f32), pfx)
       },
@@ -2362,7 +2362,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_div(src1[63..0], src2_f64), pfx)
       },
@@ -2402,7 +2402,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f32 : dword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_ss(dst, src1[127..32] @ __f32_max(src1[31..0], src2_f32), pfx)
       },
@@ -2411,7 +2411,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2_f64 : qword = match rm {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         evex_write_sd(dst, src1[127..64] @ __f64_max(src1[63..0], src2_f64), pfx)
       },
@@ -2489,7 +2489,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1_f32 = read_xmm(src1_idx)[31..0];
         let src2_f32 : dword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-          RM_mem(seg, offset) => seg_read32(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         write_kreg(dst_k, zero_extend(cmp_pred5_f32(src1_f32, src2_f32, pred)))
       },
@@ -2501,7 +2501,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1_f64 = read_xmm(src1_idx)[63..0];
         let src2_f64 : qword = match rm2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-          RM_mem(seg, offset) => seg_read64(seg, offset),
+          RM_mem(seg, offset) => seg_read(seg, offset),
         };
         write_kreg(dst_k, zero_extend(cmp_pred5_f64(src1_f64, src2_f64, pred)))
       },
