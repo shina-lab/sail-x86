@@ -915,7 +915,7 @@ function decode_execute() = {
 
       // 69: IMUL r, r/m, imm (3-operand, Iz)
       105 => {
-        let os = get_operand_size(pfx);
+        let 'os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
@@ -924,24 +924,8 @@ function decode_execute() = {
         let src_val = rm(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
-        CF = match os {
-          8  => {
-            let w : bits(16) = to_bits_truncate(product);
-            is_nonzero(w[15..8] ^ sign_extend(w[7]))
-          },
-          16 => {
-            let w : bits(32) = to_bits_truncate(product);
-            is_nonzero(w[31..16] ^ sign_extend(w[15]))
-          },
-          32 => {
-            let w : bits(64) = to_bits_truncate(product);
-            is_nonzero(w[63..32] ^ sign_extend(w[31]))
-          },
-          64 => {
-            let w : bits(128) = to_bits_truncate(product);
-            is_nonzero(w[127..64] ^ sign_extend(w[63]))
-          },
-        };
+        let w : bits('os * 2) = to_bits_truncate(product);
+        CF = is_nonzero(w['os * 2 - 1 .. 'os] ^ sign_extend(w['os - 1]));
         OF = CF;
         reg(reg) = result[(os - 1) .. 0]
       },
@@ -955,7 +939,7 @@ function decode_execute() = {
 
       // 6B: IMUL r, r/m, imm8 (3-operand, Ib sign-extended)
       107 => {
-        let os = get_operand_size(pfx);
+        let 'os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
@@ -964,24 +948,8 @@ function decode_execute() = {
         let src_val = rm(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
-        CF = match os {
-          8  => {
-            let w : bits(16) = to_bits_truncate(product);
-            is_nonzero(w[15..8] ^ sign_extend(w[7]))
-          },
-          16 => {
-            let w : bits(32) = to_bits_truncate(product);
-            is_nonzero(w[31..16] ^ sign_extend(w[15]))
-          },
-          32 => {
-            let w : bits(64) = to_bits_truncate(product);
-            is_nonzero(w[63..32] ^ sign_extend(w[31]))
-          },
-          64 => {
-            let w : bits(128) = to_bits_truncate(product);
-            is_nonzero(w[127..64] ^ sign_extend(w[63]))
-          },
-        };
+        let w : bits('os * 2) = to_bits_truncate(product);
+        CF = is_nonzero(w['os * 2 - 1 .. 'os] ^ sign_extend(w['os - 1]));
         OF = CF;
         reg(reg) = result[(os - 1) .. 0]
       },
