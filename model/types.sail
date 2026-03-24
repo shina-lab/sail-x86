@@ -426,37 +426,37 @@ function truncate_rip(target, os) =
 // =========================================================================
 
 // Address size (SDM Vol.1 §3.6).
-// LongMode: default AS64, 67h → AS32.
-// Non-LongMode, CS.D=1: default AS32, 67h → AS16.
-// Non-LongMode, CS.D=0: default AS16, 67h → AS32.
-val get_address_size : Prefixes -> AddressSize
+// LongMode: default 64, 67h → 32.
+// Non-LongMode, CS.D=1: default 32, 67h → 16.
+// Non-LongMode, CS.D=0: default 16, 67h → 32.
+val get_address_size : Prefixes -> address_size
 function get_address_size(pfx) =
   if cur_mode == LongMode then {
-    if pfx.has_adsize == 0b1 then AS32 else AS64
+    if pfx.has_adsize == 0b1 then 32 else 64
   } else if get_cs_db() == 0b1 then {
-    if pfx.has_adsize == 0b1 then AS16 else AS32
+    if pfx.has_adsize == 0b1 then 16 else 32
   } else {
-    if pfx.has_adsize == 0b1 then AS32 else AS16
+    if pfx.has_adsize == 0b1 then 32 else 16
   }
 
 // Fetch a full moffs (memory offset) address.
-// Size depends on effective address size: AS64 → 8 bytes, AS32 → 4 bytes,
-// AS16 → 2 bytes.
+// Size depends on effective address size: 64 → 8 bytes, 32 → 4 bytes,
+// 16 → 2 bytes.
 val fetch_moffs : Prefixes -> qword
 function fetch_moffs(pfx) = match get_address_size(pfx) {
-  AS16 => {
+  16 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     zero_extend(b1 @ b0)
   },
-  AS32 => {
+  32 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();
     let b3 = fetch_byte();
     zero_extend(b3 @ b2 @ b1 @ b0)
   },
-  AS64 => {
+  64 => {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
     let b2 = fetch_byte();

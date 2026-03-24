@@ -6,15 +6,7 @@
 type operand_size = {8, 16, 32, 64}
 
 // Address sizes for memory operands.
-enum AddressSize = { AS16, AS32, AS64 }
-
-// Convert AddressSize to integer operand size.
-val asz_val : AddressSize -> {16, 32, 64}
-function asz_val(asz) = match asz {
-  AS16 => 16,
-  AS32 => 32,
-  AS64 => 64,
-}
+type address_size = {16, 32, 64}
 
 // Processor operating modes.
 enum ProcessorMode = {

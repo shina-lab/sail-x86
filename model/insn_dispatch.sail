@@ -64,11 +64,10 @@ function exec_pop_reg(dst, os) = {
 
 enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
 
-val exec_loop : (byte, LoopVariant, AddressSize) -> unit
+val exec_loop : (byte, LoopVariant, address_size) -> unit
 function exec_loop(rel8, variant, asz) = {
-  let os = asz_val(asz);
-  write_gpr(os, RCX, read_gpr(os, RCX) - 1);
-  let count_nonzero : bool = read_gpr(os, RCX) != zeros();
+  write_gpr(asz, RCX, read_gpr(asz, RCX) - 1);
+  let count_nonzero : bool = read_gpr(asz, RCX) != zeros();
   let take_branch : bool = match variant {
     LOOP_always => count_nonzero,
     LOOP_e      => if count_nonzero then ZF == 0b1 else false,
@@ -159,7 +158,7 @@ function dispatch_alu_opcode(op, pfx) = {
 // =========================================================================
 
 // INS — Input from port DX to ES:[RDI]
-val exec_ins : (operand_size, AddressSize) -> unit
+val exec_ins : (operand_size, address_size) -> unit
 function exec_ins(os_in, asz) = {
   // SDM: INS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
@@ -178,7 +177,7 @@ function exec_ins(os_in, asz) = {
 
 // OUTS — Output from DS:[RSI] to port DX
 // SDM Vol.2B §OUTS: Source is DS:(E)SI, DS segment may be overridden.
-val exec_outs : (operand_size, AddressSize, Prefixes) -> unit
+val exec_outs : (operand_size, address_size, Prefixes) -> unit
 function exec_outs(os_in, asz, pfx) = {
   // SDM: OUTS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
@@ -198,7 +197,7 @@ function exec_outs(os_in, asz, pfx) = {
   write_index_src(asz, off + step)
 }
 
-val exec_movs : (operand_size, AddressSize, Prefixes) -> unit
+val exec_movs : (operand_size, address_size, Prefixes) -> unit
 function exec_movs(os, asz, pfx) = {
   let src_off : qword = read_index_src(asz);
   let dst_off : qword = read_index_dst(asz);
@@ -215,7 +214,7 @@ function exec_movs(os, asz, pfx) = {
   write_index_dst(asz, dst_off + step);
 }
 
-val exec_stos : (operand_size, AddressSize) -> unit
+val exec_stos : (operand_size, address_size) -> unit
 function exec_stos(os, asz) = {
   let off : qword = read_index_dst(asz);
   // STOS destination is always ES:DI (not overridable).
@@ -225,7 +224,7 @@ function exec_stos(os, asz) = {
   write_index_dst(asz, off + step)
 }
 
-val exec_lods : (operand_size, AddressSize, Prefixes) -> unit
+val exec_lods : (operand_size, address_size, Prefixes) -> unit
 function exec_lods(os, asz, pfx) = {
   let off : qword = read_index_src(asz);
   // LODS source is DS:SI (overridable).
@@ -239,7 +238,7 @@ function exec_lods(os, asz, pfx) = {
   write_index_src(asz, off + step)
 }
 
-val exec_scas : (operand_size, AddressSize) -> unit
+val exec_scas : (operand_size, address_size) -> unit
 function exec_scas(os, asz) = {
   let off : qword = read_index_dst(asz);
   // SCAS destination is always ES:DI (not overridable).
@@ -251,7 +250,7 @@ function exec_scas(os, asz) = {
   write_index_dst(asz, off + step)
 }
 
-val exec_cmps : (operand_size, AddressSize, Prefixes) -> unit
+val exec_cmps : (operand_size, address_size, Prefixes) -> unit
 function exec_cmps(os, asz, pfx) = {
   let src_off : qword = read_index_src(asz);
   let dst_off : qword = read_index_dst(asz);
@@ -274,14 +273,9 @@ enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
-val exec_rep : (RepPrefix, StringOp, operand_size, AddressSize, Prefixes) -> unit
+val exec_rep : (RepPrefix, StringOp, operand_size, address_size, Prefixes) -> unit
 function exec_rep(prefix, op, os, asz, pfx) = {
-  var done : bool = match asz {
-    AS16 => read_gpr16(RCX) == zeros(),
-    AS32 => read_gpr32(RCX) == zeros(),
-    AS64 => read_gpr64(RCX) == zeros(),
-  };
-  while ~(done) do {
+  while read_gpr(asz, RCX) != zeros() do {
     match op {
       STR_movs => exec_movs(os, asz, pfx),
       STR_stos => exec_stos(os, asz),
@@ -291,18 +285,9 @@ function exec_rep(prefix, op, os, asz, pfx) = {
       STR_ins  => exec_ins(os, asz),
       STR_outs => exec_outs(os, asz, pfx),
     };
-    match asz {
-      AS16 => write_gpr16(RCX, read_gpr16(RCX) - 1),
-      AS32 => write_gpr32(RCX, read_gpr32(RCX) - 1),
-      AS64 => write_gpr64(RCX, read_gpr64(RCX) - 1),
-    };
+    write_gpr(asz, RCX, read_gpr(asz, RCX) - 1);
     if prefix == REP_repe  & ZF == 0b0 then return ();
-    if prefix == REP_repne & ZF == 0b1 then return ();
-    done = match asz {
-      AS16 => read_gpr16(RCX) == zeros(),
-      AS32 => read_gpr32(RCX) == zeros(),
-      AS64 => read_gpr64(RCX) == zeros(),
-    }
+    if prefix == REP_repne & ZF == 0b1 then return ()
   }
 }
 
@@ -433,7 +418,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let src : zmmword = read_mem_rm(rm);
         let asz = get_address_size(pfx);
         let reg = modrm_reg(modrm, pfx);
-        let dst_addr : qword = zero_extend(read_gpr(asz_val(asz), reg));
+        let dst_addr : qword = zero_extend(read_gpr(asz, reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
         mem_write(dst_addr, src)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
@@ -1897,7 +1882,7 @@ function decode_execute() = {
       // D7: XLAT/XLATB
       215 => {
         let al : qword = zero_extend(read_gpr8l(RAX));
-        let addr : qword = zero_extend(read_gpr(asz_val(get_address_size(pfx)), RBX)) + al;
+        let addr : qword = zero_extend(read_gpr(get_address_size(pfx), RBX)) + al;
         write_gpr8l(RAX, mem_read(addr))
       },
 
@@ -1926,10 +1911,10 @@ function decode_execute() = {
       },
 
       // E3: JCXZ/JECXZ/JRCXZ rel8
-      // Address size selects CX (AS16), ECX (AS32), or RCX (AS64).
+      // Address size selects CX (16), ECX (32), or RCX (64).
       227 => {
         let rel = fetch_rel8();
-        let count_reg : qword = zero_extend(read_gpr(asz_val(get_address_size(pfx)), RCX));
+        let count_reg : qword = zero_extend(read_gpr(get_address_size(pfx), RCX));
         if count_reg == zeros() then {
           let os = get_operand_size_f64(pfx);
           next_rip = Some(truncate_rip(decode_pos + rel, os))

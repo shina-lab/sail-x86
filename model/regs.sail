@@ -301,33 +301,17 @@ register rip_rel_disp : qword
 // Placed here so all string instruction files can use them.
 // =========================================================================
 
-val read_index_src : AddressSize -> qword
-function read_index_src(asz) = match asz {
-  AS16 => zero_extend(read_gpr16(RSI)),
-  AS32 => zero_extend(read_gpr32(RSI)),
-  AS64 => read_gpr64(RSI),
-}
+val read_index_src : address_size -> qword
+function read_index_src(asz) = zero_extend(read_gpr(asz, RSI))
 
-val write_index_src : (AddressSize, qword) -> unit
-function write_index_src(asz, v) = match asz {
-  AS16 => write_gpr16(RSI, v[15..0]),
-  AS32 => write_gpr32(RSI, v[31..0]),
-  AS64 => write_gpr64(RSI, v),
-}
+val write_index_src : (address_size, qword) -> unit
+function write_index_src(asz, v) = write_gpr(asz, RSI, v[asz - 1 .. 0])
 
-val read_index_dst : AddressSize -> qword
-function read_index_dst(asz) = match asz {
-  AS16 => zero_extend(read_gpr16(RDI)),
-  AS32 => zero_extend(read_gpr32(RDI)),
-  AS64 => read_gpr64(RDI),
-}
+val read_index_dst : address_size -> qword
+function read_index_dst(asz) = zero_extend(read_gpr(asz, RDI))
 
-val write_index_dst : (AddressSize, qword) -> unit
-function write_index_dst(asz, v) = match asz {
-  AS16 => write_gpr16(RDI, v[15..0]),
-  AS32 => write_gpr32(RDI, v[31..0]),
-  AS64 => write_gpr64(RDI, v),
-}
+val write_index_dst : (address_size, qword) -> unit
+function write_index_dst(asz, v) = write_gpr(asz, RDI, v[asz - 1 .. 0])
 
 // VSIB (Vector SIB) addressing info for gather/scatter
 struct VSIB = {

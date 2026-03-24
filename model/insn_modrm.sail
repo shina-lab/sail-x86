@@ -270,9 +270,9 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
         }
       };
     let addr : qword = match asz {
-      AS16 => addr & 0x000000000000FFFF,
-      AS32 => addr & 0x00000000FFFFFFFF,
-      AS64 => addr,
+      16 => addr & 0x000000000000FFFF,
+      32 => addr & 0x00000000FFFFFFFF,
+      64 => addr,
     };
     RM_mem(resolve_seg(pfx, default_seg), addr)
   }
@@ -335,7 +335,7 @@ function decode_rm_16(modrm, pfx) = {
 val decode_rm : (byte, Prefixes) -> RM
 function decode_rm(modrm, pfx) = {
   // 16-bit addressing uses a completely different table (SDM Table 2-1)
-  if get_address_size(pfx) == AS16 then {
+  if get_address_size(pfx) == 16 then {
     return decode_rm_16(modrm, pfx)
   };
 
@@ -402,9 +402,9 @@ function decode_rm(modrm, pfx) = {
       };
     // Truncate address based on address size
     let addr : qword = match asz {
-      AS16 => addr & 0x000000000000FFFF,
-      AS32 => addr & 0x00000000FFFFFFFF,
-      AS64 => addr,
+      16 => addr & 0x000000000000FFFF,
+      32 => addr & 0x00000000FFFFFFFF,
+      64 => addr,
     };
     RM_mem(resolve_seg(pfx, default_seg), addr)
   }
