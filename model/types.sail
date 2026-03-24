@@ -274,6 +274,21 @@ overload rm_mem = {read_mem_rm, write_mem_rm}
 overload rm_reg = {read_reg_rm, write_reg_rm}
 
 // =========================================================================
+// Universal operand accessor v()
+// =========================================================================
+//
+// Mirrors SDM pseudocode style: v(dest) = v(src) + v(dest)
+// Works uniformly on gpr_idx, GPRRef, RM, and MemRef operands.
+
+val read_memref_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), MemRef) -> bits('os)
+function read_memref_val(os, m) = read_mem(m)
+
+val write_memref_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), MemRef, bits('os)) -> unit
+function write_memref_val(os, m, x) = write_mem(m, x)
+
+overload v = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref, read_memref_val, write_memref_val, read_rm_val, write_rm_val}
+
+// =========================================================================
 // Immediate fetch helpers
 // =========================================================================
 
