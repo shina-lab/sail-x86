@@ -1161,18 +1161,13 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 16);
-    match rm {
-      RM_reg(_) => raise_UD(),
-      RM_mem(seg, offset) => {
-        let src : xmmword = seg_read(seg, offset);
-        match (pfx.rex_w, pfx.evex_ll) {
-          (true, 1) => evex_write_q_ymm(dst, src @ src, pfx),
-          (true, 2) => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
-          (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
-          (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
-          _ => raise_UD(),
-        }
-      },
+    let src : xmmword = read_mem_rm(rm);
+    match (pfx.rex_w, pfx.evex_ll) {
+      (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
+      (true, 2)  => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
+      (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
+      (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
+      _ => raise_UD(),
     }
   },
 
@@ -1183,14 +1178,9 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 32);
-    match rm {
-      RM_reg(_) => raise_UD(),
-      RM_mem(seg, offset) => {
-        let src : ymmword = seg_read(seg, offset);
-        if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
-        else evex_write_d_zmm(dst, src @ src, pfx)
-      },
-    }
+    let src : ymmword = read_mem_rm(rm);
+    if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
+    else evex_write_d_zmm(dst, src @ src, pfx)
   },
 
   // 0F38 5A: VBROADCASTI32X4 (66,W0) / VBROADCASTI64X2 (66,W1) [F]
@@ -1200,18 +1190,13 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 16);
-    match rm {
-      RM_reg(_) => raise_UD(),
-      RM_mem(seg, offset) => {
-        let src : xmmword = seg_read(seg, offset);
-        match (pfx.rex_w, pfx.evex_ll) {
-          (true, 1) => evex_write_q_ymm(dst, src @ src, pfx),
-          (true, 2) => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
-          (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
-          (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
-          _ => raise_UD(),
-        }
-      },
+    let src : xmmword = read_mem_rm(rm);
+    match (pfx.rex_w, pfx.evex_ll) {
+      (true, 1)  => evex_write_q_ymm(dst, src @ src, pfx),
+      (true, 2)  => evex_write_q_zmm(dst, src @ src @ src @ src, pfx),
+      (false, 1) => evex_write_d_ymm(dst, src @ src, pfx),
+      (false, 2) => evex_write_d_zmm(dst, src @ src @ src @ src, pfx),
+      _ => raise_UD(),
     }
   },
 
@@ -1222,14 +1207,9 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch_byte();
     let dst = evex_reg_idx(modrm, pfx);
     let rm = decode_rm_evex(modrm, pfx, 32);
-    match rm {
-      RM_reg(_) => raise_UD(),
-      RM_mem(seg, offset) => {
-        let src : ymmword = seg_read(seg, offset);
-        if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
-        else evex_write_d_zmm(dst, src @ src, pfx)
-      },
-    }
+    let src : ymmword = read_mem_rm(rm);
+    if pfx.rex_w then evex_write_q_zmm(dst, src @ src, pfx)
+    else evex_write_d_zmm(dst, src @ src, pfx)
   },
 
   // 0F38 3A: VPMINUW (66) [BW] / VPBROADCASTMW2D (F3,W0) [CD]

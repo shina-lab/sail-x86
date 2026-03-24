@@ -394,26 +394,21 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if cur_cpl != 0 then raise_GP0();
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
-        match rm {
-          RM_mem(seg, offset) => {
-            let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
-            if unsigned(inv_type) > 3 then raise_GP0();
-            let desc : xmmword = seg_read(seg, offset);
-            let reserved : bits(52) = desc[63..12];
-            let top17 : bits(17) = desc[127..111];
-            // types 0,1: reserved bits must be zero
-            // type 0: linear address must be canonical
-            let is_type_01 : bit = ~(inv_type[1]);
-            let is_type_0 : bit = ~(inv_type[1] | inv_type[0]);
-            let bad_reserved : bit = ~(((0b0 @ reserved) - 1)[52]);
-            let diff : bits(17) = top17 ^ sign_extend(top17[16]);
-            let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
-            let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
-            if fault == 0b1 then raise_GP0();
-            __tlb_flush()
-          },
-          RM_reg(_) => raise_UD(),
-        }
+        let desc : xmmword = read_mem_rm(rm);
+        let inv_type : qword = read_gpr64(modrm_reg(modrm, pfx));
+        if unsigned(inv_type) > 3 then raise_GP0();
+        let reserved : bits(52) = desc[63..12];
+        let top17 : bits(17) = desc[127..111];
+        // types 0,1: reserved bits must be zero
+        // type 0: linear address must be canonical
+        let is_type_01 : bit = ~(inv_type[1]);
+        let is_type_0 : bit = ~(inv_type[1] | inv_type[0]);
+        let bad_reserved : bit = ~(((0b0 @ reserved) - 1)[52]);
+        let diff : bits(17) = top17 ^ sign_extend(top17[16]);
+        let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
+        let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
+        if fault == 0b1 then raise_GP0();
+        __tlb_flush()
       } else if (op3 == 240 | op3 == 241) then {
         // MOVBE (0F 38 F0/F1) or CRC32 (F2 0F 38 F0/F1)
         let mp = get_mandatory_prefix(pfx);
@@ -456,23 +451,15 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if ~(has_movdir64b) then raise_UD();
         let modrm = fetch_byte();
         let rm = decode_rm(modrm, pfx);
-        match rm {
-          RM_mem(seg, offset) => {
-            // Source: 64 bytes from ModRM:r/m memory address
-            let src : zmmword = seg_read(seg, offset);
-            // Destination: address from ModRM:reg (ES-relative, no override)
-            let asz = get_address_size(pfx);
-            let reg = modrm_reg(modrm, pfx);
-            let dst_addr : qword = match asz {
-              AS32 => zero_extend(read_gpr32(reg)),
-              _    => read_gpr64(reg),
-            };
-            // Destination must be 64-byte aligned
-            if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
-            mem_write(dst_addr, src)
-          },
-          RM_reg(_) => raise_UD(),
-        }
+        let src : zmmword = read_mem_rm(rm);
+        let asz = get_address_size(pfx);
+        let reg = modrm_reg(modrm, pfx);
+        let dst_addr : qword = match asz {
+          AS32 => zero_extend(read_gpr32(reg)),
+          _    => read_gpr64(reg),
+        };
+        if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
+        mem_write(dst_addr, src)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
