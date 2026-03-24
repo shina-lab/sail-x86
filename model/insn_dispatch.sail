@@ -276,30 +276,20 @@ enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR
 
 val exec_rep : (RepPrefix, StringOp, operand_size, AddressSize, Prefixes) -> unit
 function exec_rep(prefix, op, os, asz, pfx) = {
-  var done : bool = false;
-  while ~(done) do {
-    if read_count_reg(asz) == zeros() then {
-      done = true
-    } else {
-      match op {
-        STR_movs => exec_movs(os, asz, pfx),
-        STR_stos => exec_stos(os, asz),
-        STR_lods => exec_lods(os, asz, pfx),
-        STR_cmps => exec_cmps(os, asz, pfx),
-        STR_scas => exec_scas(os, asz),
-        STR_ins  => exec_ins(os, asz),
-        STR_outs => exec_outs(os, asz, pfx),
-      };
-      let cnt = read_count_reg(asz);
-      write_count_reg(asz, cnt - 1);
-      if read_count_reg(asz) == zeros() then
-        done = true
-      else match prefix {
-        REP_repe  => if ZF == 0b0 then done = true,
-        REP_repne => if ZF == 0b1 then done = true,
-        _         => (),
-      };
+  while read_count_reg(asz) != zeros() do {
+    match op {
+      STR_movs => exec_movs(os, asz, pfx),
+      STR_stos => exec_stos(os, asz),
+      STR_lods => exec_lods(os, asz, pfx),
+      STR_cmps => exec_cmps(os, asz, pfx),
+      STR_scas => exec_scas(os, asz),
+      STR_ins  => exec_ins(os, asz),
+      STR_outs => exec_outs(os, asz, pfx),
     };
+    let cnt = read_count_reg(asz);
+    write_count_reg(asz, cnt - 1);
+    if prefix == REP_repe  & ZF == 0b0 then return ();
+    if prefix == REP_repne & ZF == 0b1 then return ()
   }
 }
 
