@@ -1386,7 +1386,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, rm, false);
       let dest = read_rm_val(8, rm, pfx.has_rex);
       let acc : byte = read_gpr8l(RAX);
-      let src : byte = read_byte_reg(reg, pfx.has_rex);
+      let src : byte = read_gpr8(reg, pfx.has_rex);
       let cmp_result = acc - dest;
       update_flags_sub(cmp_result, acc, dest);
       if ZF == 0b1 then {
@@ -1599,10 +1599,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_mem(seg, offset) => {
           // Memory operand: read, exchange, add, write back
           let mem_val : qword = zero_extend(seg_read(1,seg, offset));
-          let reg_val : qword = zero_extend(read_byte_reg(reg, pfx.has_rex));
+          let reg_val : qword = zero_extend(read_gpr8(reg, pfx.has_rex));
           let sum : qword = mem_val + reg_val;
           update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]);
-          write_byte_reg(reg, pfx.has_rex, mem_val[7..0]);
+          write_gpr8(reg, pfx.has_rex, mem_val[7..0]);
           seg_write(1, seg, offset, sum[7..0])
         },
       }

@@ -56,7 +56,7 @@ function alu_compute(op, a, b, os) = {
 val exec_alu_rm_reg_byte : (ALUOp, RM, gpr_idx, Prefixes) -> unit
 function exec_alu_rm_reg_byte(op, rm, reg, pfx) = {
   let a = read_rm_val(8, rm, pfx.has_rex);
-  let b = read_byte_reg(reg, pfx.has_rex);
+  let b = read_gpr8(reg, pfx.has_rex);
   let (result, wb) = alu_compute(op, a, b, 8);
   if wb then write_rm_val(rm, pfx.has_rex, result)
 }
@@ -73,10 +73,10 @@ function exec_alu_rm_reg(op, rm, reg, os, pfx) = {
 // Execute ALU: dst_reg OP= src_rm (byte operand)
 val exec_alu_reg_rm_byte : (ALUOp, gpr_idx, RM, Prefixes) -> unit
 function exec_alu_reg_rm_byte(op, reg, rm, pfx) = {
-  let a = read_byte_reg(reg, pfx.has_rex);
+  let a = read_gpr8(reg, pfx.has_rex);
   let b = read_rm_val(8, rm, pfx.has_rex);
   let (result, wb) = alu_compute(op, a, b, 8);
-  if wb then write_byte_reg(reg, pfx.has_rex, result)
+  if wb then write_gpr8(reg, pfx.has_rex, result)
 }
 
 // Execute ALU: dst_reg OP= src_rm (word/dword/qword)

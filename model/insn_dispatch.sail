@@ -1146,7 +1146,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let a = read_rm_val(8, rm, pfx.has_rex);
-        let b : byte = read_byte_reg(reg, pfx.has_rex);
+        let b : byte = read_gpr8(reg, pfx.has_rex);
         let result = a & b;
         update_flags_logic(result)
       },
@@ -1169,9 +1169,9 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let a = read_rm_val(8, rm, pfx.has_rex);
-        let b : byte = read_byte_reg(reg, pfx.has_rex);
+        let b : byte = read_gpr8(reg, pfx.has_rex);
         write_rm_val(rm, pfx.has_rex, b);
-        write_byte_reg(reg, pfx.has_rex, a)
+        write_gpr8(reg, pfx.has_rex, a)
       },
 
       // 87: XCHG r/m, r
@@ -1191,7 +1191,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let v : byte = read_byte_reg(reg, pfx.has_rex);
+        let v : byte = read_gpr8(reg, pfx.has_rex);
         write_rm_val(rm, pfx.has_rex, v)
       },
 
@@ -1210,7 +1210,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
         let v = read_rm_val(8, rm, pfx.has_rex);
-        write_byte_reg(reg, pfx.has_rex, v[7..0])
+        write_gpr8(reg, pfx.has_rex, v[7..0])
       },
 
       // 8B: MOV r, r/m
@@ -1568,7 +1568,7 @@ function decode_execute() = {
         let reg_field : range(0, 7) = op - 176;
         let reg = extend_reg(reg_field, pfx.rex_b);
         let imm = fetch_byte();
-        write_byte_reg(reg, pfx.has_rex, imm)
+        write_gpr8(reg, pfx.has_rex, imm)
       },
 
       // B8-BF: MOV r, imm (Iv)

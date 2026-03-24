@@ -236,15 +236,15 @@ function modrm_rm_reg(modrm, pfx) = {
 // GPR 0-3). With any REX prefix, they mean SPL/BPL/SIL/DIL (low byte of
 // GPR 4-7, or 12-15 with REX.B).
 
-val read_byte_reg : (gpr_idx, bool) -> byte
-function read_byte_reg(idx, has_rex) =
+val read_gpr8 : (gpr_idx, bool) -> byte
+function read_gpr8(idx, has_rex) =
   if ~(has_rex) & 4 <= idx & idx <= 7 then
     read_gpr8h(idx - 4)
   else
     read_gpr8l(idx)
 
-val write_byte_reg : (gpr_idx, bool, byte) -> unit
-function write_byte_reg(idx, has_rex, v) =
+val write_gpr8 : (gpr_idx, bool, byte) -> unit
+function write_gpr8(idx, has_rex, v) =
   if ~(has_rex) & 4 <= idx & idx <= 7 then
     write_gpr8h(idx - 4, v)
   else
@@ -257,7 +257,7 @@ function write_byte_reg(idx, has_rex, v) =
 val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
 function read_rm_val(os, rm, has_rex) = match rm {
   RM_reg(idx) => match os {
-    8  => read_byte_reg(idx, has_rex),
+    8  => read_gpr8(idx, has_rex),
     16 => read_gpr16(idx),
     32 => read_gpr32(idx),
     64 => read_gpr64(idx),
@@ -268,7 +268,7 @@ function read_rm_val(os, rm, has_rex) = match rm {
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
 function write_rm_val(os, rm, has_rex, v) = match rm {
   RM_reg(idx) => match os {
-    8  => write_byte_reg(idx, has_rex, v),
+    8  => write_gpr8(idx, has_rex, v),
     16 => write_gpr16(idx, v),
     32 => write_gpr32(idx, v),
     64 => write_gpr64(idx, v),
@@ -293,7 +293,7 @@ function write_mem_rm(n, rm, v) = match rm {
 val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
 function read_reg_rm(os, rm, has_rex) = match rm {
   RM_reg(idx) => match os {
-    8  => read_byte_reg(idx, has_rex),
+    8  => read_gpr8(idx, has_rex),
     16 => read_gpr16(idx),
     32 => read_gpr32(idx),
     64 => read_gpr64(idx),
@@ -304,7 +304,7 @@ function read_reg_rm(os, rm, has_rex) = match rm {
 val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
 function write_reg_rm(os, rm, has_rex, v) = match rm {
   RM_reg(idx) => match os {
-    8  => write_byte_reg(idx, has_rex, v),
+    8  => write_gpr8(idx, has_rex, v),
     16 => write_gpr16(idx, v),
     32 => write_gpr32(idx, v),
     64 => write_gpr64(idx, v),
