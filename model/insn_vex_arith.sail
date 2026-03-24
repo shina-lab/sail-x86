@@ -381,7 +381,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val32 : dword = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     if pfx.vex_l then {
@@ -403,7 +403,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val64 : qword = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     write_ymm(dst, val64 @ val64 @ val64 @ val64)
@@ -429,7 +429,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val8 : byte = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[7..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[7..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     if pfx.vex_l then {
@@ -451,7 +451,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val16 : word = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     if pfx.vex_l then {
@@ -470,7 +470,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val32 : dword = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     if pfx.vex_l then {
@@ -488,7 +488,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let val64 : qword = match rm {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+      RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
       RM_mem(seg, addr) => seg_read(seg, addr),
     };
     if pfx.vex_l then {
@@ -584,7 +584,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
-    let src = read_rm_val(os, rm, true);
+    let src = read_rm_val(os, rm);
     let v : gpr_idx = pfx.vex_vvvv % 16;
     let vval = reg(os, v);
     let result = ~(vval) & src;
@@ -603,7 +603,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
     let rm = decode_rm(modrm, pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
-    let src = read_rm_val(os, rm, true);
+    let src = read_rm_val(os, rm);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
     match reg_field {
       // BLSR: dest = (src - 1) & src
@@ -713,7 +713,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       MP_NONE => {
         // BZHI: VEX.NDS.LZ.0F38.W0/W1 F5
         // dest = src1 & ((1 << src2[7:0]) - 1), if index < operand size
-        let src1 = read_rm_val(os, rm, true);
+        let src1 = read_rm_val(os, rm);
         let v : gpr_idx = pfx.vex_vvvv % 16;
         let src2 = reg(os, v);
         let index : range(0, 255) = unsigned(src2[7..0]);
@@ -735,7 +735,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         // PDEP: VEX.NDS.LZ.F2.0F38.W0/W1 F5
         // Parallel bit deposit: scatter contiguous low bits of src to mask positions
         let src : qword = zero_extend(reg(os, pfx.vex_vvvv % 16));
-        let mask : qword = zero_extend(read_rm_val(os, rm, true));
+        let mask : qword = zero_extend(read_rm_val(os, rm));
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
         foreach (i from 0 to (os - 1)) {
@@ -748,7 +748,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         // PEXT: VEX.NDS.LZ.F3.0F38.W0/W1 F5
         // Parallel bit extract: gather bits at mask positions to contiguous low bits
         let src : qword = zero_extend(reg(os, pfx.vex_vvvv % 16));
-        let mask : qword = zero_extend(read_rm_val(os, rm, true));
+        let mask : qword = zero_extend(read_rm_val(os, rm));
         var temp : qword = zeros();
         var k : range(0, 63) = 0;
         foreach (i from 0 to (os - 1)) {
@@ -772,7 +772,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst_lo : gpr_idx = pfx.vex_vvvv % 16;
     // Implicit source is EDX/RDX
     let src1 = reg(os, RDX);
-    let src2 = read_rm_val(os, rm, true);
+    let src2 = read_rm_val(os, rm);
     let product = to_bits_truncate(os * 2, unsigned(src1) * unsigned(src2));
     reg(dst_lo) = product[(os - 1)..0];
     reg(dst_hi) = product[(os * 2 - 1)..os]
@@ -789,7 +789,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     match mp {
       MP_NONE => {
         // BEXTR: VEX.NDS.LZ.0F38 F7 — bit field extract
-        let src = read_rm_val(os, rm, true);
+        let src = read_rm_val(os, rm);
         let v : gpr_idx = pfx.vex_vvvv % 16;
         let ctrl = reg(os, v);
         let start : range(0, 255) = unsigned(ctrl[7..0]);
@@ -812,7 +812,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       },
       MP_F3 => {
         // SARX: VEX.NDS.LZ.F3.0F38.W0/W1 F7 — arithmetic right shift, no flags
-        let src1 = read_rm_val(os, rm, true);
+        let src1 = read_rm_val(os, rm);
         let v : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = reg(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
@@ -821,7 +821,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       },
       MP_66 => {
         // SHLX: VEX.NDS.LZ.66.0F38.W0/W1 F7 — logical left shift, no flags
-        let src1 = read_rm_val(os, rm, true);
+        let src1 = read_rm_val(os, rm);
         let v : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = reg(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
@@ -830,7 +830,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       },
       MP_F2 => {
         // SHRX: VEX.NDS.LZ.F2.0F38.W0/W1 F7 — logical right shift, no flags
-        let src1 = read_rm_val(os, rm, true);
+        let src1 = read_rm_val(os, rm);
         let v : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = reg(os, v);
         let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
@@ -857,7 +857,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovsxbw_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxbw_128(src))
@@ -874,13 +874,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovsxbd_256(src))
     } else {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxbd_128(src))
@@ -897,13 +897,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovsxbq_256(src))
     } else {
       let src : word = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxbq_128(src))
@@ -923,7 +923,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovsxwd_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxwd_128(src))
@@ -940,13 +940,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovsxwq_256(src))
     } else {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxwq_128(src))
@@ -966,7 +966,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovsxdq_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovsxdq_128(src))
@@ -1042,7 +1042,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovzxbw_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxbw_128(src))
@@ -1059,13 +1059,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovzxbd_256(src))
     } else {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxbd_128(src))
@@ -1082,13 +1082,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovzxbq_256(src))
     } else {
       let src : word = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxbq_128(src))
@@ -1108,7 +1108,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovzxwd_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxwd_128(src))
@@ -1125,13 +1125,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let rm = decode_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_ymm(dst, avx_pmovzxwq_256(src))
     } else {
       let src : dword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxwq_128(src))
@@ -1151,7 +1151,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, avx_pmovzxdq_256(src))
     } else {
       let src : qword = match rm {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       write_xmm(dst, avx_pmovzxdq_128(src))
@@ -1421,7 +1421,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src_idx = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     match rm {
-      RM_reg(_) => raise_UD(),
+      RM_reg(_, _) => raise_UD(),
       RM_mem(seg, addr) => {
         let a = seg_linear(seg, addr, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
@@ -1451,7 +1451,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src_idx = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
     match rm {
-      RM_reg(_) => raise_UD(),
+      RM_reg(_, _) => raise_UD(),
       RM_mem(seg, addr) => {
         let a = seg_linear(seg, addr, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
@@ -1986,7 +1986,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           },
         }
       },
-      RM_reg(_) => raise_UD(),
+      RM_reg(_, _) => raise_UD(),
     }
   },
 
@@ -2037,7 +2037,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           },
         }
       },
-      RM_reg(_) => raise_UD(),
+      RM_reg(_, _) => raise_UD(),
     }
   },
 
@@ -2053,7 +2053,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       // 256-bit: call __gf2p8mulb on each 128-bit half
       let src1 : ymmword = read_ymm(src1_idx);
       let src2 : ymmword = match rm {
-        RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
+        RM_reg(_, _) => read_ymm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(seg, addr) => seg_read(seg, addr),
       };
       let lo = __gf2p8mulb(src1[127..0], src2[127..0]);

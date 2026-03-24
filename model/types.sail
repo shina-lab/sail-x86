@@ -68,7 +68,7 @@ function default_prefixes() = struct {
 //   2. adding the segment base to the offset
 // Both steps happen at memory-access time, not during decode.
 union RM = {
-  RM_reg : gpr_idx,
+  RM_reg : (gpr_idx, bool),   // (index, has_rex)
   RM_mem : (segreg_idx, qword),   // (segment, effective address / offset)
 }
 
@@ -254,17 +254,17 @@ function write_gpr8(idx, has_rex, v) =
 // Generic operand read/write through RM union
 // =========================================================================
 
-val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
-function read_rm_val(os, rm, has_rex) =
+val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
+function read_rm_val(os, rm) =
   match rm {
-    RM_reg(idx) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_reg(idx, has_rex) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
     RM_mem(seg, offset) => seg_read(seg, offset),
   }
 
-val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
-function write_rm_val(os, rm, has_rex, v) =
+val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
+function write_rm_val(os, rm, v) =
   match rm {
-    RM_reg(idx) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_reg(idx, has_rex) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
     RM_mem(seg, offset) => seg_write(seg, offset, v),
   }
 
@@ -272,29 +272,29 @@ function write_rm_val(os, rm, has_rex, v) =
 val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits(8 * 'n)
 function read_mem_rm(n, rm) =
   match rm {
-    RM_reg(_) => raise_UD(),
+    RM_reg(_, _) => raise_UD(),
     RM_mem(seg, offset) => seg_read(seg, offset),
   }
 
 val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits(8 * 'n)) -> unit
 function write_mem_rm(n, rm, v) =
   match rm {
-    RM_reg(_) => raise_UD(),
+    RM_reg(_, _) => raise_UD(),
     RM_mem(seg, offset) => seg_write(seg, offset, v),
   }
 
 // Register-only RM read/write: raise #UD if memory operand.
-val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool) -> bits('os)
-function read_reg_rm(os, rm, has_rex) =
+val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
+function read_reg_rm(os, rm) =
   match rm {
-    RM_reg(idx) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_reg(idx, has_rex) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
     RM_mem(_, _) => raise_UD(),
   }
 
-val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bool, bits('os)) -> unit
-function write_reg_rm(os, rm, has_rex, v) =
+val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
+function write_reg_rm(os, rm, v) =
   match rm {
-    RM_reg(idx) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_reg(idx, has_rex) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
     RM_mem(_, _) => raise_UD(),
   }
 

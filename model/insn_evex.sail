@@ -74,33 +74,33 @@ function evex_get_mask8(pfx) = evex_kmask64(pfx)[7..0]
 // Read ZMM source from r/m field: register or memory.
 val evex_src_zmm : (byte, RM, Prefixes) -> zmmword
 function evex_src_zmm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_zmm(evex_rm_reg_idx(modrm, pfx)),
+  RM_reg(_, _) => read_zmm(evex_rm_reg_idx(modrm, pfx)),
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
 val evex_src_ymm : (byte, RM, Prefixes) -> ymmword
 function evex_src_ymm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
+  RM_reg(_, _) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
 val evex_src_xmm : (byte, RM, Prefixes) -> xmmword
 function evex_src_xmm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
+  RM_reg(_, _) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
 // Read a 32-bit value from r/m for broadcast.
 val evex_src_m32 : (byte, RM, Prefixes) -> dword
 function evex_src_m32(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
+  RM_reg(_, _) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
 // Read a 64-bit value from r/m for broadcast.
 val evex_src_m64 : (byte, RM, Prefixes) -> qword
 function evex_src_m64(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
+  RM_reg(_, _) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
 
