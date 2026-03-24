@@ -261,14 +261,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_66 => {
           // MOVLPD xmm, m64
-          match rm {
-            RM_mem(seg, offset) => {
-              var xmm : xmmword = read_xmm(xreg);
-              xmm[63..0] = seg_read(seg, offset);
-              write_xmm_legacy(xreg, xmm)
-            },
-            RM_reg(_) => raise_UD(),
-          }
+          var xmm : xmmword = read_xmm(xreg);
+          xmm[63..0] = read_mem_rm(rm);
+          write_xmm_legacy(xreg, xmm)
         },
         MP_F3 => {
           // MOVSLDUP xmm1, xmm2/m128 (SSE3)
@@ -300,13 +295,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(seg, offset) => {
-          let v = read_xmm(xreg);
-          seg_write(8, seg, offset, v[63..0])
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      let v = read_xmm(xreg);
+      write_mem_rm(8, rm, v[63..0])
     },
     // 0F 14: UNPCKLPS/UNPCKLPD
     20 => {
@@ -378,14 +368,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         MP_66 => {
-          match rm {
-            RM_mem(seg, offset) => {
-              var xmm : xmmword = read_xmm(xreg);
-              xmm[127..64] = seg_read(seg, offset);
-              write_xmm_legacy(xreg, xmm)
-            },
-            RM_reg(_) => raise_UD(),
-          }
+          var xmm : xmmword = read_xmm(xreg);
+          xmm[127..64] = read_mem_rm(rm);
+          write_xmm_legacy(xreg, xmm)
         },
         MP_F3 => {
           // MOVSHDUP xmm1, xmm2/m128 (SSE3)
@@ -403,13 +388,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(seg, offset) => {
-          let v = read_xmm(xreg);
-          seg_write(8, seg, offset, v[127..64])
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      let v = read_xmm(xreg);
+      write_mem_rm(8, rm, v[127..64])
     },
     // 0F 28: MOVAPS/MOVAPD xmm, xmm/m128
     40 => {
@@ -1146,20 +1126,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(seg, offset) => {
-          match mp {
-            MP_NONE => {
-              seg_write(seg, offset, read_xmm(xreg))
-            },
-            MP_66 => {
-              seg_write(seg, offset, read_xmm(xreg))
-            },
-            _       => raise_UD(),
-          }
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      if mp != MP_NONE & mp != MP_66 then raise_UD();
+      write_mem_rm(rm, read_xmm(xreg))
     },
     // 0F 7C: HADDPS/HADDPD (SSE3)
     124 => {

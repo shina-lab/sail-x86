@@ -1426,12 +1426,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        match rm {
-          RM_mem(seg, offset) => {
-            seg_write(seg, offset, read_xmm(xreg))
-          },
-          RM_reg(_) => raise_UD(),
-        }
+        write_mem_rm(rm, read_xmm(xreg))
       }
     },
 
@@ -1860,12 +1855,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(seg, offset) => {
-          write_xmm(xreg, seg_read(seg, offset))
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      write_xmm(xreg, read_mem_rm(rm))
     },
 
     // 0F F1: PSLLW xmm, xmm/m128 (66 prefix)
@@ -2303,12 +2293,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // MOVNTDQA xmm, m128
     42 => {
-      match rm {
-        RM_mem(seg, offset) => {
-          write_xmm_legacy(xreg, seg_read(seg, offset))
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      write_xmm_legacy(xreg, read_mem_rm(rm))
     },
     // PACKUSDW xmm1, xmm2/m128
     43 => {

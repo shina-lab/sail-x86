@@ -229,10 +229,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    match rm {
-      RM_mem(seg, addr) => seg_write(8, seg, addr, read_xmm(src)[63..0]),
-      RM_reg(_) => raise_UD(),
-    }
+    write_mem_rm(8, rm, read_xmm(src)[63..0])
   },
 
   // 0F 14: VUNPCKLPS (NP) / VUNPCKLPD (66)
@@ -362,10 +359,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let rm = decode_rm(modrm, pfx);
-    match rm {
-      RM_mem(seg, addr) => seg_write(8, seg, addr, read_xmm(src)[127..64]),
-      RM_reg(_) => raise_UD(),
-    }
+    write_mem_rm(8, rm, read_xmm(src)[127..64])
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (load)

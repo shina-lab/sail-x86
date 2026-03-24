@@ -1122,16 +1122,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // LDMXCSR m32
-        2 => match rm {
-          RM_mem(seg, offset) => __ldmxcsr(seg_read(seg, offset)),
-          RM_reg(_) => raise_UD(),
-        },
+        2 => __ldmxcsr(read_mem_rm(rm)),
 
         // STMXCSR m32
-        3 => match rm {
-          RM_mem(seg, offset) => seg_write(seg, offset, __stmxcsr()),
-          RM_reg(_) => raise_UD(),
-        },
+        3 => write_mem_rm(rm, __stmxcsr()),
 
         // XSAVE m
         4 => match rm {
@@ -1661,13 +1655,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      match rm {
-        RM_mem(seg, offset) => {
-          let v = read_gpr(os, reg);
-          seg_write(seg, offset, v)
-        },
-        RM_reg(_) => raise_UD(),
-      }
+      let v = read_gpr(os, reg);
+      write_mem_rm(rm, v)
     },
 
     // 0F C7 /1: CMPXCHG8B/CMPXCHG16B m64/m128

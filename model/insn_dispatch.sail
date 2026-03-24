@@ -446,22 +446,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let rm = decode_rm(modrm, pfx);
           if op3 == 240 then {
             // MOVBE r, m — load from memory and byte-swap
-            match rm {
-              RM_mem(_, _) => {
-                let v = read_rm_val(os, rm, pfx.has_rex);
-                write_gpr(os, reg, bswap(v))
-              },
-              RM_reg(_) => raise_UD(),
-            }
+            write_gpr(os, reg, bswap(read_mem_rm(os / 8, rm)))
           } else {
             // MOVBE m, r — byte-swap register and store to memory
-            match rm {
-              RM_mem(seg, offset) => {
-                let v = read_gpr(os, reg);
-                seg_write(seg, offset, bswap(v))
-              },
-              RM_reg(_) => raise_UD(),
-            }
+            let v = read_gpr(os, reg);
+            write_mem_rm(rm, bswap(v))
           }
         }
       } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
@@ -471,13 +460,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        match rm {
-          RM_mem(seg, offset) => {
-            let v = read_gpr(os, reg);
-            seg_write(seg, offset, v)
-          },
-          RM_reg(_) => raise_UD(),
-        }
+        let v = read_gpr(os, reg);
+        write_mem_rm(rm, v)
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
         if ~(has_movdir64b) then raise_UD();
