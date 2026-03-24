@@ -663,10 +663,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     if pfx.rex_w then {
       // VPINSRQ xmm1, xmm2, r/m64, imm8
-      let v : qword = match rm {
-        RM_reg(_) => read_gpr64(modrm_rm_reg(modrm, pfx)),
-        RM_mem(seg, addr) => seg_read(seg, addr),
-      };
+      let v : qword = read_rm_val(rm, 64, pfx.has_rex);
       let sel : range(0, 1) = unsigned(imm[0]);
       let r : xmmword = match sel {
         0 => src1[127..64] @ v,
@@ -675,10 +672,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       write_xmm(dst, r)
     } else {
       // VPINSRD xmm1, xmm2, r/m32, imm8
-      let v : dword = match rm {
-        RM_reg(_) => read_gpr32(modrm_rm_reg(modrm, pfx)),
-        RM_mem(seg, addr) => seg_read(seg, addr),
-      };
+      let v : dword = read_rm_val(rm, 32, pfx.has_rex);
       let sel : range(0, 3) = unsigned(imm[1..0]);
       write_xmm(dst, insert_dword(src1, v, sel))
     }

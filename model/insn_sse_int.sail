@@ -1444,10 +1444,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let rm = decode_rm(modrm, pfx);
-        let v : word = match rm {
-          RM_reg(idx) => read_gpr16(idx),
-          RM_mem(seg, offset) => seg_read(seg, offset),
-        };
+        let v : word = read_rm_val(rm, 16, pfx.has_rex);
         let imm = fetch_byte();
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
@@ -2663,10 +2660,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     34 => {
       let imm = fetch_byte();
       if pfx.rex_w then {
-        let v : qword = match rm {
-          RM_reg(idx) => read_gpr64(idx),
-          RM_mem(seg, offset) => seg_read(seg, offset),
-        };
+        let v : qword = read_rm_val(rm, 64, pfx.has_rex);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
@@ -2675,10 +2669,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         };
         write_xmm_legacy(xreg, r)
       } else {
-        let v : dword = match rm {
-          RM_reg(idx) => read_gpr32(idx),
-          RM_mem(seg, offset) => seg_read(seg, offset),
-        };
+        let v : dword = read_rm_val(rm, 32, pfx.has_rex);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 3) = unsigned(imm[1..0]);
         let r : xmmword = insert_dword(v_0, v, sel);

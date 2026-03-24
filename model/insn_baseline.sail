@@ -390,10 +390,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         2 => {
           if cur_cpl != 0 then raise_GP0();
           let rm = decode_rm(modrm, pfx);
-          let sel : word = match rm {
-            RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read(seg, offset),
-          };
+          let sel : word = read_rm_val(rm, 16, pfx.has_rex);
           LDTR = sel
         },
 
@@ -401,10 +398,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         3 => {
           if cur_cpl != 0 then raise_GP0();
           let rm = decode_rm(modrm, pfx);
-          let sel : word = match rm {
-            RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read(seg, offset),
-          };
+          let sel : word = read_rm_val(rm, 16, pfx.has_rex);
           TR = sel;
           // Load TSS base/limit from GDT descriptor
           let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
@@ -430,10 +424,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
         4 => {
           let rm = decode_rm(modrm, pfx);
-          let selector : word = match rm {
-            RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read(seg, offset),
-          };
+          let selector : word = read_rm_val(rm, 16, pfx.has_rex);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -460,10 +451,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 00 /5: VERW r/m16 — Verify segment writable, set ZF
         5 => {
           let rm = decode_rm(modrm, pfx);
-          let selector : word = match rm {
-            RM_reg(r) => read_gpr16(r),
-            RM_mem(seg, offset) => seg_read(seg, offset),
-          };
+          let selector : word = read_rm_val(rm, 16, pfx.has_rex);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -666,10 +654,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
             6 => {
               if cur_cpl != 0 then raise_GP0();
-              let msw : word = match rm {
-                RM_reg(r) => read_gpr16(r),
-                RM_mem(seg, offset) => seg_read(seg, offset),
-              };
+              let msw : word = read_rm_val(rm, 16, pfx.has_rex);
               // LMSW sets low 4 bits of CR0; only PE (bit 0) is sticky
               // (cannot clear PE once set). MP/EM/TS are freely assignable.
               var new_cr0 = CR0;
@@ -699,10 +684,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let selector : word = match rm {
-        RM_reg(r) => read_gpr16(r),
-        RM_mem(seg, offset) => seg_read(seg, offset),
-      };
+      let selector : word = read_rm_val(rm, 16, pfx.has_rex);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
@@ -730,10 +712,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let rm = decode_rm(modrm, pfx);
-      let selector : word = match rm {
-        RM_reg(r) => read_gpr16(r),
-        RM_mem(seg, offset) => seg_read(seg, offset),
-      };
+      let selector : word = read_rm_val(rm, 16, pfx.has_rex);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {

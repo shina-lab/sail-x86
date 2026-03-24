@@ -425,10 +425,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let crc : bits(32) = read_gpr(32, reg);
           if op3 == 240 then {
             // CRC32 r32/r64, r/m8
-            let src : byte = match rm {
-              RM_reg(_) => read_rm_val(rm, 8, pfx.has_rex),
-              RM_mem(seg, offset) => seg_read(seg, offset),
-            };
+            let src : byte = read_rm_val(rm, 8, pfx.has_rex);
             let result : bits(32) = crc32c(crc, src);
             if pfx.rex_w then write_gpr(64, reg, zero_extend(result))
             else write_gpr(32, reg, result)
@@ -1282,10 +1279,7 @@ function decode_execute() = {
         } else {
           let seg : segreg_idx = reg_field;
           let rm = decode_rm(modrm, pfx);
-          let v : word = match rm {
-            RM_reg(idx) => read_gpr16(idx),
-            RM_mem(s, offset) => seg_read(s, offset),
-          };
+          let v : word = read_rm_val(rm, 16, pfx.has_rex);
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
         }

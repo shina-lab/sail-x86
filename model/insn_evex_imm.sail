@@ -1860,10 +1860,7 @@ function dispatch_evex_imm(op, pfx) = {
     if pfx.vex_w then {
       // VPINSRQ: imm8[0] selects qword position
       let rm = decode_rm_evex(modrm, pfx, 8);
-      let qword_val : qword = match rm {
-        RM_reg(_) => read_gpr64(modrm_rm_reg(modrm, pfx)),
-        RM_mem(seg, offset) => seg_read(seg, offset),
-      };
+      let qword_val : qword = read_rm_val(rm, 64, pfx.has_rex);
       let imm = fetch_byte();
       let sel : range(0, 1) = unsigned(imm[0]);
       var result = read_xmm(pfx.evex_vvvvv);
@@ -1873,10 +1870,7 @@ function dispatch_evex_imm(op, pfx) = {
     } else {
       // VPINSRD: imm8[1:0] selects dword position
       let rm = decode_rm_evex(modrm, pfx, 4);
-      let dword_val : dword = match rm {
-        RM_reg(_) => read_gpr32(modrm_rm_reg(modrm, pfx)),
-        RM_mem(seg, offset) => seg_read(seg, offset),
-      };
+      let dword_val : dword = read_rm_val(rm, 32, pfx.has_rex);
       let imm = fetch_byte();
       let sel : range(0, 3) = unsigned(imm[1..0]);
       var result = read_xmm(pfx.evex_vvvvv);
