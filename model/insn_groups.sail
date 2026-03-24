@@ -278,7 +278,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // Register form is #UD.
     3 => {
       match dest {
-        RM_reg(_, _) => raise_UD(),
+        RM_reg(_) => raise_UD(),
         RM_mem(seg, offset) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;
@@ -308,7 +308,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // Register form is #UD.
     5 => {
       match dest {
-        RM_reg(_, _) => raise_UD(),
+        RM_reg(_) => raise_UD(),
         RM_mem(seg, offset) => {
           let os = get_operand_size(pfx);
           let off_size : int = os / 8;

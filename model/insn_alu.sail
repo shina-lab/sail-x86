@@ -53,16 +53,16 @@ function alu_compute(op, a, b, os) = {
 }
 
 // Execute ALU: dst_rm OP= src_reg (byte operand)
-val exec_alu_rm_reg_byte : (ALUOp, RM, gpr_idx, Prefixes) -> unit
-function exec_alu_rm_reg_byte(op, dest, reg, pfx) = {
+val exec_alu_rm_reg_byte : (ALUOp, RM, GPRRef) -> unit
+function exec_alu_rm_reg_byte(op, dest, reg) = {
   let a = rm(8, dest);
-  let b = read_gpr8(reg, pfx.has_rex);
+  let b : byte = reg(reg);
   let (result, wb) = alu_compute(op, a, b, 8);
   if wb then rm(dest) = result
 }
 
 // Execute ALU: dst_rm OP= src_reg (word/dword/qword)
-val exec_alu_rm_reg : (ALUOp, RM, gpr_idx, {16, 32, 64}) -> unit
+val exec_alu_rm_reg : (ALUOp, RM, GPRRef, {16, 32, 64}) -> unit
 function exec_alu_rm_reg(op, dest, reg, os) = {
   let a = rm(os, dest);
   let b = reg(os, reg);
@@ -71,16 +71,16 @@ function exec_alu_rm_reg(op, dest, reg, os) = {
 }
 
 // Execute ALU: dst_reg OP= src_rm (byte operand)
-val exec_alu_reg_rm_byte : (ALUOp, gpr_idx, RM, Prefixes) -> unit
-function exec_alu_reg_rm_byte(op, reg, src, pfx) = {
-  let a = read_gpr8(reg, pfx.has_rex);
+val exec_alu_reg_rm_byte : (ALUOp, GPRRef, RM) -> unit
+function exec_alu_reg_rm_byte(op, reg, src) = {
+  let a : byte = reg(reg);
   let b = rm(8, src);
   let (result, wb) = alu_compute(op, a, b, 8);
-  if wb then write_gpr8(reg, pfx.has_rex, result)
+  if wb then reg(reg) = result
 }
 
 // Execute ALU: dst_reg OP= src_rm (word/dword/qword)
-val exec_alu_reg_rm : (ALUOp, gpr_idx, RM, {16, 32, 64}) -> unit
+val exec_alu_reg_rm : (ALUOp, GPRRef, RM, {16, 32, 64}) -> unit
 function exec_alu_reg_rm(op, reg, src, os) = {
   let a = reg(os, reg);
   let b = rm(os, src);

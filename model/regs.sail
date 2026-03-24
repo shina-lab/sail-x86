@@ -37,7 +37,37 @@ function write_gpr(os, idx, v) = match os {
   64 => GPR[idx] = v
 }
 
-overload reg = {read_gpr, write_gpr}
+// Polymorphic GPR read via GPRRef.
+// In byte mode without REX, indices 4-7 mean AH/CH/DH/BH (high byte of
+// GPR 0-3). With any REX prefix, they mean SPL/BPL/SIL/DIL.
+val read_gpr_ref : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), GPRRef) -> bits('os)
+function read_gpr_ref(os, r) = {
+  let idx = r.gpr_idx;
+  if os == 8 then {
+    if ~(r.has_rex) & 4 <= idx & idx <= 7 then
+      GPR[idx - 4][15..8]
+    else
+      GPR[idx][7..0]
+  } else {
+    read_gpr(idx)
+  }
+}
+
+// Polymorphic GPR write via GPRRef.
+val write_gpr_ref : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), GPRRef, bits('os)) -> unit
+function write_gpr_ref(os, r, v) = {
+  let idx = r.gpr_idx;
+  if os == 8 then {
+    if ~(r.has_rex) & 4 <= idx & idx <= 7 then
+      GPR[idx - 4][15..8] = v
+    else
+      GPR[idx][7..0] = v
+  } else {
+    write_gpr(idx, v)
+  }
+}
+
+overload reg = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref}
 
 // Named GPR indices for readability.
 let RAX : gpr_idx = 0

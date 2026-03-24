@@ -9,14 +9,14 @@ val check_lock_rm : (Prefixes, RM, bool) -> unit
 function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
     match dest {
-      RM_reg(_, _) => raise_UD(),
+      RM_reg(_) => raise_UD(),
       RM_mem(_, _) => if is_cmp then raise_UD() else (),
     }
   }
 }
 
 // XADD — Exchange and Add
-val exec_xadd : (gpr_idx, gpr_idx, operand_size) -> unit
+val exec_xadd : (GPRRef, GPRRef, operand_size) -> unit
 function exec_xadd(dst, src, os) = {
   let a = reg(os, dst);
   let b = reg(os, src);
@@ -337,7 +337,7 @@ function exec_shrd(os, d, s, count_raw) = {
 val bt_adjust : forall 'os, 'os in {16, 32, 64}. (implicit('os), RM, bits('os)) -> (RM, range(0, 'os - 1))
 function bt_adjust(os, rm, bit_idx) = {
   match rm {
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       let bit_num : range(0, 'os - 1) = unsigned(bit_idx) % os;
       (rm, bit_num)
     },
@@ -375,7 +375,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         0 => {
           let dest = decode_rm(modrm, pfx);
           match dest {
-            RM_reg(r, _) => reg(r) = LDTR,
+            RM_reg(r) => reg(r) = LDTR,
             RM_mem(seg, offset) => seg_write(seg, offset, LDTR),
           }
         },
@@ -384,7 +384,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         1 => {
           let dest = decode_rm(modrm, pfx);
           match dest {
-            RM_reg(r, _) => reg(r) = TR,
+            RM_reg(r) => reg(r) = TR,
             RM_mem(seg, offset) => seg_write(seg, offset, TR),
           }
         },
@@ -647,7 +647,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // SDM: stores low 16 bits of CR0 to r/m16. With 32-bit
             // register operand, stores low 32 bits; with 64-bit, all 64.
             4 => match dest {
-              RM_reg(r, _) => {
+              RM_reg(r) => {
                 let os = get_operand_size(pfx);
                 reg(r) = CR0[(os - 1) .. 0]
               },
@@ -1092,7 +1092,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.has_rep & reg_field <= 3 then {
         if CR4[16] != 0b1 then raise_UD();
         match dest {
-          RM_reg(r, _) => match (reg_field, pfx.rex_w) {
+          RM_reg(r) => match (reg_field, pfx.rex_w) {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64
             (0, true)  => reg(r) = SegCache[FS].seg_base,
             (0, false) => reg(r) = SegCache[FS].seg_base[31..0],
@@ -1136,7 +1136,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsave(seg_linear(seg, offset, 576), mask)
           },
-          RM_reg(_, _) => raise_UD(),
+          RM_reg(_) => raise_UD(),
         },
 
         5 => match dest {
@@ -1145,7 +1145,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xrstor(seg_linear(seg, offset, 576), mask)
           },
-          RM_reg(_, _) => {
+          RM_reg(_) => {
             // /5 mod=11: LFENCE
             ()
           },
@@ -1162,13 +1162,13 @@ function dispatch_2byte_gpr(op, pfx) = {
               exec_xsaveopt(seg_linear(seg, offset, 576), mask)
             }
           },
-          RM_reg(_, _) => (),  // MFENCE
+          RM_reg(_) => (),  // MFENCE
         },
 
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
         7 => match dest {
           RM_mem(_, _) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
-          RM_reg(_, _) => (),  // SFENCE
+          RM_reg(_) => (),  // SFENCE
         },
       }
     },
@@ -1377,7 +1377,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           };
           load_segment_register(seg, selector)
         },
-        RM_reg(_, _) => raise_UD(),
+        RM_reg(_) => raise_UD(),
       }
     },
 
@@ -1389,7 +1389,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let dest_val = rm(8, dest);
       let acc : byte = reg(RAX);
-      let src : byte = read_gpr8(reg, pfx.has_rex);
+      let src : byte = reg(reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
       if ZF == 0b1 then {
@@ -1598,15 +1598,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, false);
       match dest {
-        RM_reg(dst, _) => exec_xadd(dst, reg, 8),
+        RM_reg(dst) => exec_xadd(dst, reg, 8),
         RM_mem(seg, offset) => {
           // Memory operand: read, exchange, add, write back
-          let mem_val : qword = zero_extend(seg_read(1,seg, offset));
-          let reg_val : qword = zero_extend(read_gpr8(reg, pfx.has_rex));
-          let sum : qword = mem_val + reg_val;
-          update_flags_add(sum[7..0], mem_val[7..0], reg_val[7..0]);
-          write_gpr8(reg, pfx.has_rex, mem_val[7..0]);
-          seg_write(1, seg, offset, sum[7..0])
+          let mem_val : byte = seg_read(seg, offset);
+          let reg_val : byte = reg(reg);
+          let sum : byte = mem_val + reg_val;
+          update_flags_add(sum, mem_val, reg_val);
+          reg(reg) = mem_val;
+          seg_write(seg, offset, sum)
         },
       }
     },
@@ -1619,7 +1619,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, false);
       match dest {
-        RM_reg(dst, _) => exec_xadd(dst, reg, os),
+        RM_reg(dst) => exec_xadd(dst, reg, os),
         RM_mem(_, _) => {
           let mem_val = rm(os, dest);
           let reg_val = reg(os, reg);
@@ -1698,7 +1698,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               }
             }
           },
-          RM_reg(_, _) => raise_UD(),
+          RM_reg(_) => raise_UD(),
         },
         // /4 mem: XSAVEC — save extended state with compaction
         // /3 mem: XRSTORS — restore extended state (supervisor, requires CPL=0)
@@ -1729,7 +1729,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /6 mod=11: RDRAND r16/r32/r64
         6 => match dest {
-          RM_reg(r, _) => {
+          RM_reg(r) => {
             if ~(has_rdrand) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdrand64();
@@ -1748,7 +1748,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /7 mod=11: RDSEED r16/r32/r64
         7 => match dest {
-          RM_reg(r, _) => {
+          RM_reg(r) => {
             if ~(has_rdseed) then raise_UD();
             let os = get_operand_size(pfx);
             let (rnd, cf_val) = __rdseed64();

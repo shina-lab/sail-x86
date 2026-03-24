@@ -221,7 +221,7 @@ function decode_rm_evex(modrm, pfx, disp_n) = {
   let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
 
   if modbits == 3 then {
-    RM_reg(extend_reg(rm_raw, pfx.rex_b), pfx.has_rex)
+    RM_reg(struct { gpr_idx = extend_reg(rm_raw, pfx.rex_b), has_rex = pfx.has_rex })
   } else if modbits == 0 & rm_raw == 5 then {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
@@ -289,7 +289,7 @@ function decode_rm_16(modrm, pfx) = {
   let rm_raw : range(0, 7) = unsigned(modrm[2..0]);
 
   if modbits == 3 then {
-    RM_reg(unsigned(modrm[2..0]), false)
+    RM_reg(struct { gpr_idx = unsigned(modrm[2..0]), has_rex = false })
   } else {
     // Compute base address from register pair
     let base : word = match rm_raw {
@@ -344,7 +344,7 @@ function decode_rm(modrm, pfx) = {
 
   if modbits == 3 then {
     // Register direct — no segment override
-    RM_reg(extend_reg(rm_raw, pfx.rex_b), pfx.has_rex)
+    RM_reg(struct { gpr_idx = extend_reg(rm_raw, pfx.rex_b), has_rex = pfx.has_rex })
   } else if modbits == 0 & rm_raw == 5 then {
     let b0 = fetch_byte();
     let b1 = fetch_byte();
@@ -413,6 +413,6 @@ function decode_rm(modrm, pfx) = {
 // Helper: decode XMM src operand value (read from register or memory).
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, src, pfx) = match src {
-  RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+  RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
   RM_mem(seg, offset) => seg_read(seg, offset),
 }

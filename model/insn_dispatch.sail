@@ -111,7 +111,7 @@ function dispatch_alu_opcode(op, pfx) = {
       let reg = modrm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-      exec_alu_rm_reg_byte(alu_op, dest, reg, pfx)
+      exec_alu_rm_reg_byte(alu_op, dest, reg)
     },
     // OP r/m, r (word/dword/qword)
     1 => {
@@ -127,7 +127,7 @@ function dispatch_alu_opcode(op, pfx) = {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      exec_alu_reg_rm_byte(alu_op, reg, src, pfx)
+      exec_alu_reg_rm_byte(alu_op, reg, src)
     },
     // OP r, r/m (word/dword/qword)
     3 => {
@@ -879,7 +879,7 @@ function decode_execute() = {
           let modrm = fetch_byte();
           let src = decode_rm(modrm, pfx);
           match src {
-            RM_reg(_, _) => raise_UD(),  // BOUND requires memory operand
+            RM_reg(_) => raise_UD(),  // BOUND requires memory operand
             RM_mem(seg, addr) => {
               let os = get_operand_size(pfx);
               let reg = modrm_reg(modrm, pfx);
@@ -1032,7 +1032,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
         let a : byte = rm(src);
-        let b : byte = read_gpr8(reg, pfx.has_rex);
+        let b : byte = reg(reg);
         let result = a & b;
         update_flags_logic(result)
       },
@@ -1055,9 +1055,9 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
         let a : byte = rm(dest);
-        let b : byte = read_gpr8(reg, pfx.has_rex);
+        let b : byte = reg(reg);
         rm(dest) = b;
-        write_gpr8(reg, pfx.has_rex, a)
+        reg(reg) = a
       },
 
       // 87: XCHG r/m, r
@@ -1077,7 +1077,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        let v : byte = read_gpr8(reg, pfx.has_rex);
+        let v : byte = reg(reg);
         rm(dest) = v
       },
 
@@ -1096,7 +1096,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
         let v = rm(8, src);
-        write_gpr8(reg, pfx.has_rex, v[7..0])
+        reg(reg) = v[7..0]
       },
 
       // 8B: MOV r, r/m
@@ -1118,10 +1118,10 @@ function decode_execute() = {
           let seg : segreg_idx = reg_field;
           let dest = decode_rm(modrm, pfx);
           match dest {
-            RM_reg(idx, _) => {
+            RM_reg(r) => {
               let os = get_operand_size(pfx);
               let seg_val : qword = zero_extend(read_segreg(seg));
-              reg(idx) = seg_val[(os - 1) .. 0]
+              reg(r) = seg_val[(os - 1) .. 0]
             },
             RM_mem(s, offset) => seg_write(s, offset, read_segreg(seg)),
           }
@@ -1136,7 +1136,7 @@ function decode_execute() = {
         let src = decode_rm(modrm, pfx);
         match src {
           RM_mem(_, offset) => reg(reg) = offset[(os - 1) .. 0],
-          RM_reg(_, _) => raise_UD(),
+          RM_reg(_) => raise_UD(),
         }
       },
 
@@ -1438,9 +1438,9 @@ function decode_execute() = {
       // B0-B7: MOV r8, imm8
       op if 176 <= op & op <= 183 => {
         let reg_field : range(0, 7) = op - 176;
-        let reg = extend_reg(reg_field, pfx.rex_b);
+        let reg = struct { gpr_idx = extend_reg(reg_field, pfx.rex_b), has_rex = pfx.has_rex } : GPRRef;
         let imm = fetch_byte();
-        write_gpr8(reg, pfx.has_rex, imm)
+        reg(reg) = imm
       },
 
       // B8-BF: MOV r, imm (Iv)
@@ -1519,7 +1519,7 @@ function decode_execute() = {
                 reg(reg) = far_offset[(os - 1) .. 0];
                 load_segment_register(ES, selector)
               },
-              RM_reg(_, _) => raise_UD(),  // unreachable: mod=11 handled above
+              RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
             }
           }
         }
@@ -1548,7 +1548,7 @@ function decode_execute() = {
                 reg(reg) = far_offset[(os - 1) .. 0];
                 load_segment_register(DS, selector)
               },
-              RM_reg(_, _) => raise_UD(),
+              RM_reg(_) => raise_UD(),
             }
           }
         }

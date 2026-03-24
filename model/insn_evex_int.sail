@@ -1497,7 +1497,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let dest = decode_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match dest {
-      RM_reg(_, _) => {
+      RM_reg(_) => {
         let dst = evex_rm_reg_idx(modrm, pfx);
         match (pfx.rex_w, pfx.evex_ll) {
           (true, 0) => evex_write_q_xmm(dst, read_xmm(src), pfx),
@@ -1741,10 +1741,10 @@ function dispatch_evex_int(op, pfx) = {
     let src = decode_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     match (src, pfx.rex_w) {
       // VMOVQ: load qword into XMM, zero upper
-      (RM_reg(_, _), true)   => evex_write_q_zmm(dst, zero_extend(reg(64, modrm_rm_reg(modrm, pfx))), pfx),
+      (RM_reg(_), true)   => evex_write_q_zmm(dst, zero_extend(reg(64, modrm_rm_reg(modrm, pfx))), pfx),
       (RM_mem(seg, offset), true)  => evex_write_q_zmm(dst, zero_extend(seg_read(8,seg, offset)), pfx),
       // VMOVD: load dword into XMM, zero upper
-      (RM_reg(_, _), false)  => evex_write_d_zmm(dst, zero_extend(reg(32, modrm_rm_reg(modrm, pfx))), pfx),
+      (RM_reg(_), false)  => evex_write_d_zmm(dst, zero_extend(reg(32, modrm_rm_reg(modrm, pfx))), pfx),
       (RM_mem(seg, offset), false) => evex_write_d_zmm(dst, zero_extend(seg_read(4,seg, offset)), pfx),
     }
   },
@@ -1826,10 +1826,10 @@ function dispatch_evex_int(op, pfx) = {
     let v = read_xmm(src);
     match (dest, pfx.rex_w) {
       // VMOVQ: store qword from XMM to GPR/mem
-      (RM_reg(_, _), true)    => reg(modrm_rm_reg(modrm, pfx)) = v[63..0],
+      (RM_reg(_), true)    => reg(modrm_rm_reg(modrm, pfx)) = v[63..0],
       (RM_mem(seg, offset), true)   => seg_write(8, seg, offset, v[63..0]),
       // VMOVD: store dword from XMM to GPR/mem
-      (RM_reg(_, _), false)   => reg(modrm_rm_reg(modrm, pfx)) = v[31..0],
+      (RM_reg(_), false)   => reg(modrm_rm_reg(modrm, pfx)) = v[31..0],
       (RM_mem(seg, offset), false)  => seg_write(4, seg, offset, v[31..0]),
     }
   },
@@ -2730,7 +2730,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = decode_rm_evex(modrm, pfx, 2);
     let src1 = read_xmm(pfx.evex_vvvvv);
     let word_val : bits(16) = match src {
-      RM_reg(_, _) => reg(32, modrm_rm_reg(modrm, pfx))[15..0],
+      RM_reg(_) => reg(32, modrm_rm_reg(modrm, pfx))[15..0],
       RM_mem(seg, offset) => seg_read(seg, offset),
     };
     let imm = fetch_byte();
@@ -2764,7 +2764,7 @@ function dispatch_evex_int(op, pfx) = {
     let dest = decode_rm_evex(modrm, pfx, 8);
     let qval : qword = src_xmm[63..0];
     match dest {
-      RM_reg(_, _) => {
+      RM_reg(_) => {
         let dst = evex_rm_reg_idx(modrm, pfx);
         evex_write_q_xmm(dst, zero_extend(qval), pfx)
       },

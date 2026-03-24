@@ -36,6 +36,12 @@ type paddr64 = bits(64)
 // Index into the 16 general-purpose registers (0..15).
 type gpr_idx = range(0, 15)
 
+// GPR reference: register index + REX context (needed for 8-bit AH/SPL distinction).
+struct GPRRef = {
+  gpr_idx : gpr_idx,
+  has_rex : bool,
+}
+
 // Index into the segment register file (0..5: ES, CS, SS, DS, FS, GS).
 type segreg_idx = range(0, 5)
 let ES : segreg_idx = 0

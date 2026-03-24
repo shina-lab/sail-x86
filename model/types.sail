@@ -68,7 +68,7 @@ function default_prefixes() = struct {
 //   2. adding the segment base to the offset
 // Both steps happen at memory-access time, not during decode.
 union RM = {
-  RM_reg : (gpr_idx, bool),   // (index, has_rex)
+  RM_reg : GPRRef,
   RM_mem : (segreg_idx, qword),   // (segment, effective address / offset)
 }
 
@@ -217,10 +217,10 @@ function extend_reg(base, rex_bit) =
   unsigned(rex_bit @ to_bits(3, base))
 
 // Decode the ModR/M reg field (bits 5:3) with REX.R.
-val modrm_reg : (byte, Prefixes) -> gpr_idx
+val modrm_reg : (byte, Prefixes) -> GPRRef
 function modrm_reg(modrm, pfx) = {
   let r : range(0, 7) = unsigned(modrm[5..3]);
-  extend_reg(r, pfx.rex_r)
+  struct { gpr_idx = extend_reg(r, pfx.rex_r), has_rex = pfx.has_rex }
 }
 
 // Decode the ModR/M r/m field (bits 2:0) with REX.B.
@@ -231,42 +231,20 @@ function modrm_rm_reg(modrm, pfx) = {
 }
 
 // =========================================================================
-// Byte register read/write (handles AH/CH/DH/BH vs SPL/BPL/SIL/DIL)
-// =========================================================================
-
-// In byte mode without REX, indices 4-7 mean AH/CH/DH/BH (high byte of
-// GPR 0-3). With any REX prefix, they mean SPL/BPL/SIL/DIL (low byte of
-// GPR 4-7, or 12-15 with REX.B).
-
-val read_gpr8 : (gpr_idx, bool) -> byte
-function read_gpr8(idx, has_rex) =
-  if ~(has_rex) & 4 <= idx & idx <= 7 then
-    GPR[idx - 4][15..8]
-  else
-    GPR[idx][7..0]
-
-val write_gpr8 : (gpr_idx, bool, byte) -> unit
-function write_gpr8(idx, has_rex, v) =
-  if ~(has_rex) & 4 <= idx & idx <= 7 then
-    GPR[idx - 4][15..8] = v
-  else
-    GPR[idx][7..0] = v
-
-// =========================================================================
 // Generic operand read/write through RM union
 // =========================================================================
 
 val read_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
 function read_rm_val(os, rm) =
   match rm {
-    RM_reg(idx, has_rex) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_reg(r) => reg(r),
     RM_mem(seg, offset) => seg_read(seg, offset),
   }
 
 val write_rm_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_rm_val(os, rm, v) =
   match rm {
-    RM_reg(idx, has_rex) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_reg(r) => reg(r) = v,
     RM_mem(seg, offset) => seg_write(seg, offset, v),
   }
 
@@ -274,14 +252,14 @@ function write_rm_val(os, rm, v) =
 val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits(8 * 'n)
 function read_mem_rm(n, rm) =
   match rm {
-    RM_reg(_, _) => raise_UD(),
+    RM_reg(_) => raise_UD(),
     RM_mem(seg, offset) => seg_read(seg, offset),
   }
 
 val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits(8 * 'n)) -> unit
 function write_mem_rm(n, rm, v) =
   match rm {
-    RM_reg(_, _) => raise_UD(),
+    RM_reg(_) => raise_UD(),
     RM_mem(seg, offset) => seg_write(seg, offset, v),
   }
 
@@ -289,14 +267,14 @@ function write_mem_rm(n, rm, v) =
 val read_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
 function read_reg_rm(os, rm) =
   match rm {
-    RM_reg(idx, has_rex) => if os == 8 then read_gpr8(idx, has_rex) else reg(idx),
+    RM_reg(r) => reg(r),
     RM_mem(_, _) => raise_UD(),
   }
 
 val write_reg_rm : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM, bits('os)) -> unit
 function write_reg_rm(os, rm, v) =
   match rm {
-    RM_reg(idx, has_rex) => if os == 8 then write_gpr8(idx, has_rex, v) else reg(idx) = v,
+    RM_reg(r) => reg(r) = v,
     RM_mem(_, _) => raise_UD(),
   }
 

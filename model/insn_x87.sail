@@ -143,7 +143,7 @@ function dispatch_x87_d8(modrm, src, _) = {
         7 => x87_write_st(0, __f80_div(src, st0)),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       match reg {
         0 => x87_write_st(0, __f80_add(x87_read_st(0), x87_read_st(sti))),
         1 => x87_write_st(0, __f80_mul(x87_read_st(0), x87_read_st(sti))),
@@ -182,7 +182,7 @@ function dispatch_x87_d9(modrm, operand, _) = {
         7 => seg_write(seg, offset, x87_cw),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
         0 => x87_push(x87_read_st(sti)),
@@ -319,7 +319,7 @@ function dispatch_x87_da(modrm, src, _) = {
         7 => x87_write_st(0, __f80_div(src, st0)),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       match reg {
         0 => if CF == 0b1 then x87_write_st(0, x87_read_st(sti)),
         1 => if ZF == 0b1 then x87_write_st(0, x87_read_st(sti)),
@@ -362,7 +362,7 @@ function dispatch_x87_db(modrm, operand, _) = {
         7 => seg_write_fp80(seg, offset, x87_pop()),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
         0 => if CF == 0b0 then x87_write_st(0, x87_read_st(sti)),
@@ -414,7 +414,7 @@ function dispatch_x87_dc(modrm, src, _) = {
         7 => x87_write_st(0, __f80_div(src, st0)),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       // Note: SUB/SUBR and DIV/DIVR are swapped vs D8
       match reg {
         0 => x87_write_st(sti, __f80_add(x87_read_st(sti), x87_read_st(0))),
@@ -456,7 +456,7 @@ function dispatch_x87_dd(modrm, operand, _) = {
         7 => seg_write(seg, offset, x87_sw),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       match reg {
         0 => x87_free(sti),
         1 => raise_UD(),
@@ -497,7 +497,7 @@ function dispatch_x87_de(modrm, src, _) = {
         7 => x87_write_st(0, __f80_div(src, st0)),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       // Note: SUB/SUBR and DIV/DIVR swapped vs DA
       match reg {
@@ -572,7 +572,7 @@ function dispatch_x87_df(modrm, operand, _) = {
         7 => seg_write(seg, offset, __f80_to_int64(x87_pop())),
       }
     },
-    RM_reg(_, _) => {
+    RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
         // FNSTSW AX
