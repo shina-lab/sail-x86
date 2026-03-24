@@ -450,22 +450,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           if op3 == 240 then {
             // MOVBE r, m — load from memory and byte-swap
             match rm {
-              RM_mem(seg, offset) => {
-                match os {
-                  16 => {
-                    let v = seg_read(2, seg, offset);
-                    write_gpr(16, reg, zero_extend(v[7..0] @ v[15..8]))
-                  },
-                  32 => {
-                    let v = seg_read(4, seg, offset);
-                    write_gpr(32, reg, zero_extend(v[7..0] @ v[15..8] @ v[23..16] @ v[31..24]))
-                  },
-                  64 => {
-                    let v = seg_read(8, seg, offset);
-                    write_gpr(64, reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
-                                         v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
-                  },
-                }
+              RM_mem(_, _) => {
+                let v = read_rm_val(rm, os, pfx.has_rex);
+                write_gpr(os, reg, bswap(v))
               },
               RM_reg(_) => raise_UD(),
             }
@@ -473,21 +460,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             // MOVBE m, r — byte-swap register and store to memory
             match rm {
               RM_mem(seg, offset) => {
-                match os {
-                  16 => {
-                    let v : word = read_gpr(16, reg)[15..0];
-                    seg_write(2, seg, offset, v[7..0] @ v[15..8])
-                  },
-                  32 => {
-                    let v : dword = read_gpr(32, reg)[31..0];
-                    seg_write(4, seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
-                  },
-                  64 => {
-                    let v : qword = read_gpr(64, reg);
-                    seg_write(8, seg, offset, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
-                                      v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
-                  },
-                }
+                let v = read_gpr(os, reg);
+                seg_write(seg, offset, bswap(v))
               },
               RM_reg(_) => raise_UD(),
             }

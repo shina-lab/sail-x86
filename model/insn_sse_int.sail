@@ -10,6 +10,16 @@ val dispatch_mmx : (range(0, 255), Prefixes) -> unit
 // SSE integer helper functions
 // =========================================================================
 
+// BSWAP — Reverse byte order of a bitvector.
+val bswap : forall 'n, 'n in {16, 32, 64}. (implicit('n), bits('n)) -> bits('n)
+function bswap(n, v) = {
+  match n {
+    16 => v[7..0] @ v[15..8],
+    32 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24],
+    64 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @ v[39..32] @ v[47..40] @ v[55..48] @ v[63..56]
+  }
+}
+
 // CRC32 — Accumulate CRC32C (Castagnoli) value
 // Polynomial: 0x1EDC6F41 (reflected: 0x82F63B78)
 // Processes one byte at a time using the reflected algorithm.

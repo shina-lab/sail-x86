@@ -1803,21 +1803,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg_field : range(0, 7) = op - 200;
       let reg = extend_reg(reg_field, pfx.rex_b);
       let os = get_operand_size(pfx);
-      match os {
-        16 => {
-          // SDM says "result is undefined" for 16-bit operand, but real
-          // hardware zeroes the low 16 bits.
-          write_gpr16(reg, zeros())
-        },
-        32 => {
-          let v : dword = read_gpr32(reg);
-          write_gpr32(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24])
-        },
-        64 => {
-          let v : qword = read_gpr64(reg);
-          write_gpr64(reg, v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @
-                           v[39..32] @ v[47..40] @ v[55..48] @ v[63..56])
-        }
+      if os == 16 then {
+        // SDM says "result is undefined" for 16-bit operand, but real
+        // hardware zeroes the low 16 bits.
+        write_gpr16(reg, zeros())
+      } else {
+        write_gpr(os, reg, bswap(read_gpr(os, reg)))
       }
     },
 
