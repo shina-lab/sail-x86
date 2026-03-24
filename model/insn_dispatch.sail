@@ -1075,7 +1075,7 @@ function decode_execute() = {
         let dest = decode_rm(modrm, pfx);
         let a = v(os, dest);
         let b = v(os, reg);
-        v(os, dest) = b;
+        v(dest) = b;
         v(reg) = a
       },
 
@@ -1084,8 +1084,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        let v : byte = v(reg);
-        v(dest) = v
+        v(dest) = v(8, reg)
       },
 
       // 89: MOV r/m, r
@@ -1102,8 +1101,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let v = v(8, src);
-        v(reg) = v[7..0]
+        v(reg) = v(8, src)
       },
 
       // 8B: MOV r, r/m
@@ -1112,26 +1110,23 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        v(os, reg) = v(os, src)
+        v(reg) = v(os, src)
       },
 
       // 8C: MOV r/m16, sreg
       140 => {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        if reg_field > 5 then {
-          raise_UD()
-        } else {
-          let seg : segreg_idx = reg_field;
-          let dest = decode_rm(modrm, pfx);
-          match dest {
-            RM_reg(r) => {
-              let os = get_operand_size(pfx);
-              let seg_val : qword = zero_extend(read_segreg(seg));
-              v(r) = seg_val[(os - 1) .. 0]
-            },
-            RM_mem(m) => write_mem(m,read_segreg(seg)),
-          }
+        if reg_field > 5 then raise_UD();
+        assert(reg_field <= 5);
+        let seg : segreg_idx = reg_field;
+        let dest = decode_rm(modrm, pfx);
+        match dest {
+          RM_reg(r) => {
+            let os = get_operand_size(pfx);
+            v(r) = zero_extend(os, read_segreg(seg))
+          },
+          RM_mem(m) => write_mem(m, read_segreg(seg)),
         }
       },
 
@@ -1156,9 +1151,8 @@ function decode_execute() = {
         } else {
           let seg : segreg_idx = reg_field;
           let src = decode_rm(modrm, pfx);
-          let v : word = v(src);
           if seg == CS then raise_UD();
-          load_segment_register(seg, v)
+          load_segment_register(seg, v(src))
         }
       },
 
@@ -1213,13 +1207,13 @@ function decode_execute() = {
       // 98: CBW/CWDE/CDQE
       152 => {
         let os = get_operand_size(pfx);
-        v(os, RAX) = sign_extend(v(os / 2, RAX))
+        v(RAX) = sign_extend(os, v(os / 2, RAX))
       },
 
       // 99: CWD/CDQ/CQO
       153 => {
         let os = get_operand_size(pfx);
-        v(os, RDX) = sign_extend(v(os, RAX)[os - 1])
+        v(RDX) = sign_extend(os, v(os, RAX)[os - 1])
       },
 
       // 9A: CALL ptr16:16/ptr16:32 — Far call, immediate
@@ -1231,7 +1225,7 @@ function decode_execute() = {
           let os = get_operand_size(pfx);
           let offset : qword = match os {
             16 => fetch_imm_v(16),
-            _    => fetch_imm_v(32),
+            _  => fetch_imm_v(32),
           };
           let selector : word = fetch_imm16();
           match cur_mode {
@@ -1239,12 +1233,12 @@ function decode_execute() = {
               // Push old CS:IP/EIP
               match os {
                 16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-                _    => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+                _  => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
               };
               load_segment_register(CS, selector);
               let target : qword = match os {
                 16 => zero_extend(offset[15..0]),
-                _    => zero_extend(offset[31..0]),
+                _  => zero_extend(offset[31..0]),
               };
               next_rip = Some(target)
             },
@@ -1577,7 +1571,7 @@ function decode_execute() = {
           let os = get_operand_size(pfx);
           let dest = decode_rm(modrm, pfx);
           let imm = fetch_imm_z(os);
-          v(os, dest) = imm[(os - 1) .. 0]
+          v(dest) = imm[(os - 1) .. 0]
         } else {
           raise_UD()
         }
