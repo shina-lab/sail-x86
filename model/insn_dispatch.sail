@@ -55,8 +55,7 @@ val exec_pop_reg : (gpr_idx, {16, 32, 64}) -> unit
 function exec_pop_reg(dst, os) = {
   match os {
     16 => write_gpr16(dst, pop16()),
-    32 => if cur_mode == LongMode then write_gpr32(dst, pop64()[31..0])
-            else write_gpr32(dst, pop32()),
+    32 => write_gpr32(dst, if cur_mode == LongMode then pop64()[31..0] else pop32()),
     64 => write_gpr64(dst, pop64()),
   }
 }
