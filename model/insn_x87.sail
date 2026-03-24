@@ -125,10 +125,10 @@ function x87_set_rflags_cc(cmp) = {
 // =========================================================================
 
 val dispatch_x87_d8 : (byte, RM, Prefixes) -> unit
-function dispatch_x87_d8(modrm, rm, _) = {
+function dispatch_x87_d8(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match src {
     RM_mem(seg, offset) => {
       let src : fp80 = __f80_from_f32(seg_read(seg, offset));
       let st0 : fp80 = x87_read_st(0);
@@ -166,10 +166,10 @@ function dispatch_x87_d8(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_d9 : (byte, RM, Prefixes) -> unit
-function dispatch_x87_d9(modrm, rm, _) = {
+function dispatch_x87_d9(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match operand {
     RM_mem(seg, offset) => {
       match reg {
         0 => x87_push(__f80_from_f32(seg_read(seg, offset))),
@@ -301,10 +301,10 @@ function dispatch_x87_d9(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_da : (byte, RM, Prefixes) -> unit
-function dispatch_x87_da(modrm, rm, _) = {
+function dispatch_x87_da(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match src {
     RM_mem(seg, offset) => {
       let src : fp80 = __f80_from_int32(seg_read(seg, offset));
       let st0 : fp80 = x87_read_st(0);
@@ -346,10 +346,10 @@ function dispatch_x87_da(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_db : (byte, RM, Prefixes) -> unit
-function dispatch_x87_db(modrm, rm, _) = {
+function dispatch_x87_db(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match operand {
     RM_mem(seg, offset) => {
       match reg {
         0 => x87_push(__f80_from_int32(seg_read(seg, offset))),
@@ -396,10 +396,10 @@ function dispatch_x87_db(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_dc : (byte, RM, Prefixes) -> unit
-function dispatch_x87_dc(modrm, rm, _) = {
+function dispatch_x87_dc(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match src {
     RM_mem(seg, offset) => {
       let src : fp80 = __f80_from_f64(seg_read(seg, offset));
       let st0 : fp80 = x87_read_st(0);
@@ -435,10 +435,10 @@ function dispatch_x87_dc(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_dd : (byte, RM, Prefixes) -> unit
-function dispatch_x87_dd(modrm, rm, _) = {
+function dispatch_x87_dd(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match operand {
     RM_mem(seg, offset) => {
       match reg {
         0 => x87_push(__f80_from_f64(seg_read(seg, offset))),
@@ -479,10 +479,10 @@ function dispatch_x87_dd(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_de : (byte, RM, Prefixes) -> unit
-function dispatch_x87_de(modrm, rm, _) = {
+function dispatch_x87_de(modrm, src, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match src {
     RM_mem(seg, offset) => {
       let src : fp80 = __f80_from_int16(seg_read(seg, offset));
       let st0 : fp80 = x87_read_st(0);
@@ -556,10 +556,10 @@ function dispatch_x87_de(modrm, rm, _) = {
 // =========================================================================
 
 val dispatch_x87_df : (byte, RM, Prefixes) -> unit
-function dispatch_x87_df(modrm, rm, _) = {
+function dispatch_x87_df(modrm, operand, _) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
-  match rm {
+  match operand {
     RM_mem(seg, offset) => {
       match reg {
         0 => x87_push(__f80_from_int16(seg_read(seg, offset))),
@@ -606,17 +606,17 @@ function dispatch_x87_df(modrm, rm, _) = {
 val dispatch_x87 : (byte, Prefixes) -> unit
 function dispatch_x87(opcode, pfx) = {
   let modrm = fetch_byte();
-  let rm = decode_rm(modrm, pfx);
+  let operand = decode_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
   match op {
-    216 => dispatch_x87_d8(modrm, rm, pfx),
-    217 => dispatch_x87_d9(modrm, rm, pfx),
-    218 => dispatch_x87_da(modrm, rm, pfx),
-    219 => dispatch_x87_db(modrm, rm, pfx),
-    220 => dispatch_x87_dc(modrm, rm, pfx),
-    221 => dispatch_x87_dd(modrm, rm, pfx),
-    222 => dispatch_x87_de(modrm, rm, pfx),
-    223 => dispatch_x87_df(modrm, rm, pfx),
+    216 => dispatch_x87_d8(modrm, operand, pfx),
+    217 => dispatch_x87_d9(modrm, operand, pfx),
+    218 => dispatch_x87_da(modrm, operand, pfx),
+    219 => dispatch_x87_db(modrm, operand, pfx),
+    220 => dispatch_x87_dc(modrm, operand, pfx),
+    221 => dispatch_x87_dd(modrm, operand, pfx),
+    222 => dispatch_x87_de(modrm, operand, pfx),
+    223 => dispatch_x87_df(modrm, operand, pfx),
     _   => raise_UD(),
   }
 }

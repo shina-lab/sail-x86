@@ -6,9 +6,9 @@
 // Check LOCK prefix validity: requires memory destination on a lockable instruction.
 // LOCK with register operand or on CMP (which doesn't write) raises #UD.
 val check_lock_rm : (Prefixes, RM, bool) -> unit
-function check_lock_rm(pfx, rm, is_cmp) = {
+function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
-    match rm {
+    match dest {
       RM_reg(_, _) => raise_UD(),
       RM_mem(_, _) => if is_cmp then raise_UD() else (),
     }
@@ -370,8 +370,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       match reg_field {
         // 0F 00 /0: SLDT r/m16 — Store LDTR
         0 => {
-          let rm = decode_rm(modrm, pfx);
-          match rm {
+          let dest = decode_rm(modrm, pfx);
+          match dest {
             RM_reg(r, _) => reg(r) = LDTR,
             RM_mem(seg, offset) => seg_write(seg, offset, LDTR),
           }
@@ -379,8 +379,8 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 00 /1: STR r/m16 — Store Task Register
         1 => {
-          let rm = decode_rm(modrm, pfx);
-          match rm {
+          let dest = decode_rm(modrm, pfx);
+          match dest {
             RM_reg(r, _) => reg(r) = TR,
             RM_mem(seg, offset) => seg_write(seg, offset, TR),
           }
@@ -389,16 +389,16 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 00 /2: LLDT r/m16 — Load LDT Register (requires CPL=0)
         2 => {
           if cur_cpl != 0 then raise_GP0();
-          let rm = decode_rm(modrm, pfx);
-          let sel : word = read_rm_val(rm);
+          let src = decode_rm(modrm, pfx);
+          let sel : word = read_rm_val(src);
           LDTR = sel
         },
 
         // 0F 00 /3: LTR r/m16 — Load Task Register (requires CPL=0)
         3 => {
           if cur_cpl != 0 then raise_GP0();
-          let rm = decode_rm(modrm, pfx);
-          let sel : word = read_rm_val(rm);
+          let src = decode_rm(modrm, pfx);
+          let sel : word = read_rm_val(src);
           TR = sel;
           // Load TSS base/limit from GDT descriptor
           let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
@@ -423,8 +423,8 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
         4 => {
-          let rm = decode_rm(modrm, pfx);
-          let selector : word = read_rm_val(rm);
+          let src = decode_rm(modrm, pfx);
+          let selector : word = read_rm_val(src);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -450,8 +450,8 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 00 /5: VERW r/m16 — Verify segment writable, set ZF
         5 => {
-          let rm = decode_rm(modrm, pfx);
-          let selector : word = read_rm_val(rm);
+          let src = decode_rm(modrm, pfx);
+          let selector : word = read_rm_val(src);
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
@@ -561,12 +561,12 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         _ => {
           // Group 7: dispatch by reg_field, then check memory vs register
-          let rm = decode_rm(modrm, pfx);
+          let dest = decode_rm(modrm, pfx);
           match reg_field {
             // 0F 01 /0: SGDT m — Store GDTR (memory only)
             // Non-64-bit: 6 bytes (2 limit + 4 base).
             // 64-bit: 10 bytes (2 limit + 8 base). SDM Vol.2A LGDT/LIDT.
-            0 => match rm {
+            0 => match dest {
               RM_mem(seg, offset) => {
                 let total_size = if cur_mode == LongMode then 10 else 6;
                 let addr = seg_linear(seg, offset, total_size);
@@ -578,7 +578,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             },
 
             // 0F 01 /1: SIDT m — Store IDTR (memory only)
-            1 => match rm {
+            1 => match dest {
               RM_mem(seg, offset) => {
                 let total_size = if cur_mode == LongMode then 10 else 6;
                 let addr = seg_linear(seg, offset, total_size);
@@ -601,7 +601,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // operand size is fixed at 8+2 bytes").
             2 => {
               if cur_cpl != 0 then raise_GP0();
-              match rm {
+              match dest {
                 RM_mem(seg, offset) => {
                   let gdt_os = if cur_mode == LongMode then 64
                                else get_operand_size(pfx);
@@ -622,7 +622,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // Same operand-size semantics as LGDT.
             3 => {
               if cur_cpl != 0 then raise_GP0();
-              match rm {
+              match dest {
                 RM_mem(seg, offset) => {
                   let idt_os = if cur_mode == LongMode then 64
                                else get_operand_size(pfx);
@@ -643,7 +643,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // No privilege check required (accessible from any CPL).
             // SDM: stores low 16 bits of CR0 to r/m16. With 32-bit
             // register operand, stores low 32 bits; with 64-bit, all 64.
-            4 => match rm {
+            4 => match dest {
               RM_reg(r, _) => {
                 let os = get_operand_size(pfx);
                 reg(r) = CR0[(os - 1) .. 0]
@@ -654,7 +654,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
             6 => {
               if cur_cpl != 0 then raise_GP0();
-              let msw : word = read_rm_val(rm);
+              let msw : word = read_rm_val(dest);
               // LMSW sets low 4 bits of CR0; only PE (bit 0) is sticky
               // (cannot clear PE once set). MP/EM/TS are freely assignable.
               var new_cr0 = CR0;
@@ -666,7 +666,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
             7 => {
               if cur_cpl != 0 then raise_GP0();
-              match rm {
+              match dest {
                 RM_mem(_, _) => __tlb_flush(),
                 _ => raise_UD(),
               }
@@ -683,8 +683,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let selector : word = read_rm_val(rm);
+      let src = decode_rm(modrm, pfx);
+      let selector : word = read_rm_val(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
@@ -711,8 +711,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let selector : word = read_rm_val(rm);
+      let src = decode_rm(modrm, pfx);
+      let selector : word = read_rm_val(src);
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
@@ -1047,11 +1047,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let src = read_rm_val(os, rm);
+      let src = decode_rm(modrm, pfx);
+      let src_val = read_rm_val(os, src);
       let dst = reg(os, reg);
       if eval_cc(cc) == 0b1 then
-        reg(reg) = src
+        reg(reg) = src_val
       else
         reg(reg) = dst
     },
@@ -1073,9 +1073,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     op if 144 <= op & op <= 159 => {
       let cc : cc_idx = op - 144;
       let modrm = fetch_byte();
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let v : byte = zero_extend(eval_cc(cc));
-      write_rm_val(rm, v)
+      write_rm_val(dest, v)
     },
 
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
@@ -1083,12 +1083,12 @@ function dispatch_2byte_gpr(op, pfx) = {
     174 => {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
       // SDM: #UD if CR4.FSGSBASE (bit 16) = 0
       if pfx.has_rep & reg_field <= 3 then {
         if CR4[16] != 0b1 then raise_UD();
-        match rm {
+        match dest {
           RM_reg(r, _) => match (reg_field, pfx.rex_w) {
             // F3 0F AE /0 mod=11: RDFSBASE r32/r64
             (0, true)  => reg(r) = SegCache[FS].seg_base,
@@ -1108,27 +1108,27 @@ function dispatch_2byte_gpr(op, pfx) = {
         }
       } else match reg_field {
         // FXSAVE m512byte
-        0 => match (rm, pfx.rex_w) {
+        0 => match (dest, pfx.rex_w) {
           (RM_mem(seg, offset), true)  => __fxsave64(seg_linear(seg, offset, 512)),
           (RM_mem(seg, offset), false) => __fxsave(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
 
         // FXRSTOR m512byte
-        1 => match (rm, pfx.rex_w) {
+        1 => match (dest, pfx.rex_w) {
           (RM_mem(seg, offset), true)  => __fxrstor64(seg_linear(seg, offset, 512)),
           (RM_mem(seg, offset), false) => __fxrstor(seg_linear(seg, offset, 512)),
           _ => raise_UD(),
         },
 
         // LDMXCSR m32
-        2 => __ldmxcsr(read_mem_rm(rm)),
+        2 => __ldmxcsr(read_mem_rm(dest)),
 
         // STMXCSR m32
-        3 => write_mem_rm(rm, __stmxcsr()),
+        3 => write_mem_rm(dest, __stmxcsr()),
 
         // XSAVE m
-        4 => match rm {
+        4 => match dest {
           RM_mem(seg, offset) => {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsave(seg_linear(seg, offset, 576), mask)
@@ -1136,7 +1136,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_reg(_, _) => raise_UD(),
         },
 
-        5 => match rm {
+        5 => match dest {
           RM_mem(seg, offset) => {
             // /5 mem: XRSTOR m
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
@@ -1149,7 +1149,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
-        6 => match rm {
+        6 => match dest {
           RM_mem(seg, offset) => {
             if pfx.has_opsize then {
               ()  // CLWB: NOP (cache write-back, no architectural effect)
@@ -1163,7 +1163,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
-        7 => match rm {
+        7 => match dest {
           RM_mem(_, _) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
           RM_reg(_, _) => (),  // SFENCE
         },
@@ -1209,9 +1209,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let src = decode_rm(modrm, pfx);
       let bit_idx = reg(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
+      let (adj_rm, bit_num) = bt_adjust(src, bit_idx);
       let v = read_rm_val(os, adj_rm);
       CF = v[bit_num]
     },
@@ -1221,12 +1221,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let count = fetch_byte();
-      let dst_val = read_rm_val(os, rm);
+      let dst_val = read_rm_val(os, dest);
       let src_val = reg(os, reg);
       let new_val = exec_shld(dst_val, src_val, count);
-      write_rm_val(os, rm, new_val)
+      write_rm_val(os, dest, new_val)
     },
 
     // 0F A5: SHLD r/m, r, CL
@@ -1234,12 +1234,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let count : byte = reg(RCX);
-      let dst_val = read_rm_val(os, rm);
+      let dst_val = read_rm_val(os, dest);
       let src_val = reg(os, reg);
       let new_val = exec_shld(dst_val, src_val, count);
-      write_rm_val(os, rm, new_val)
+      write_rm_val(os, dest, new_val)
     },
 
     // 0F A8: PUSH GS (d64)
@@ -1273,10 +1273,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
       let bit_idx = reg(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
+      let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
       var v = read_rm_val(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = 0b1;
@@ -1288,12 +1288,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let count = fetch_byte();
-      let dst_val = read_rm_val(os, rm);
+      let dst_val = read_rm_val(os, dest);
       let src_val = reg(os, reg);
       let new_val = exec_shrd(dst_val, src_val, count);
-      write_rm_val(os, rm, new_val)
+      write_rm_val(os, dest, new_val)
     },
 
     // 0F AD: SHRD r/m, r, CL
@@ -1301,12 +1301,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let count : byte = reg(RCX);
-      let dst_val = read_rm_val(os, rm);
+      let dst_val = read_rm_val(os, dest);
       let src_val = reg(os, reg);
       let new_val = exec_shrd(dst_val, src_val, count);
-      write_rm_val(os, rm, new_val)
+      write_rm_val(os, dest, new_val)
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
@@ -1314,9 +1314,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let src = decode_rm(modrm, pfx);
       let a = reg(os, reg);
-      let b = read_rm_val(os, rm);
+      let b = read_rm_val(os, src);
       let product : int = signed(sign_extend(a) : qword) * signed(sign_extend(b) : qword);
       let result : qword = to_bits_truncate(product);
       CF = match os {
@@ -1342,10 +1342,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
       let bit_idx = reg(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
+      let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
       var v = read_rm_val(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = 0b0;
@@ -1361,8 +1361,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
+      let src = decode_rm(modrm, pfx);
+      match src {
         RM_mem(seg, ea) => {
           let far_offset = seg_read(os / 8, seg, ea);
           let selector : word = seg_read(seg, ea + to_bits_truncate(os / 8));
@@ -1382,18 +1382,18 @@ function dispatch_2byte_gpr(op, pfx) = {
     176 => {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
-      let dest = read_rm_val(8, rm);
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
+      let dest_val = read_rm_val(8, dest);
       let acc : byte = reg(RAX);
       let src : byte = read_gpr8(reg, pfx.has_rex);
-      let cmp_result = acc - dest;
-      update_flags_sub(cmp_result, acc, dest);
+      let cmp_result = acc - dest_val;
+      update_flags_sub(cmp_result, acc, dest_val);
       if ZF == 0b1 then {
-        write_rm_val(rm, src);
+        write_rm_val(dest, src);
       } else {
-        reg(RAX) = dest;
-        write_rm_val(rm, dest);
+        reg(RAX) = dest_val;
+        write_rm_val(dest, dest_val);
       }
     },
 
@@ -1402,18 +1402,18 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
-      let dest = read_rm_val(os, rm);
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
+      let dest_val = read_rm_val(os, dest);
       let acc = reg(os, RAX);
       let src = reg(os, reg);
-      let cmp_result = acc - dest;
-      update_flags_sub(cmp_result, acc, dest);
+      let cmp_result = acc - dest_val;
+      update_flags_sub(cmp_result, acc, dest_val);
       if ZF == 0b1 then {
-        write_rm_val(os, rm, src);
+        write_rm_val(os, dest, src);
       } else {
-        reg(RAX) = dest;
-        write_rm_val(os, rm, dest);
+        reg(RAX) = dest_val;
+        write_rm_val(os, dest, dest_val);
       }
     },
 
@@ -1422,8 +1422,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(8, rm);
+      let src = decode_rm(modrm, pfx);
+      let v = read_rm_val(8, src);
       reg(os, reg) = zero_extend(v)
     },
 
@@ -1432,8 +1432,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(16, rm);
+      let src = decode_rm(modrm, pfx);
+      let v = read_rm_val(16, src);
       reg(os, reg) = zero_extend(v)
     },
 
@@ -1442,12 +1442,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
       if pfx.has_lock & reg_field == 4 then raise_UD();
-      check_lock_rm(pfx, rm, false);
+      check_lock_rm(pfx, dest, false);
       let imm = fetch_byte();
-      var v = read_rm_val(os, rm);
+      var v = read_rm_val(os, dest);
       let bit_num : range(0, 63) = unsigned(imm) % os;
       assert(bit_num < os);
       CF = v[bit_num];
@@ -1457,17 +1457,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BTS — set bit
         5 => {
           v[bit_num] = 0b1;
-          write_rm_val(os, rm, v)
+          write_rm_val(os, dest, v)
         },
         // BTR — reset bit
         6 => {
           v[bit_num] = 0b0;
-          write_rm_val(os, rm, v)
+          write_rm_val(os, dest, v)
         },
         // BTC — complement bit
         7 => {
           v[bit_num] = ~(v[bit_num]);
-          write_rm_val(os, rm, v)
+          write_rm_val(os, dest, v)
         },
         _ => raise_UD(),
       }
@@ -1478,10 +1478,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
       let bit_idx = reg(os, reg);
-      let (adj_rm, bit_num) = bt_adjust(rm, bit_idx);
+      let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
       var v = read_rm_val(os, adj_rm);
       CF = v[bit_num];
       v[bit_num] = ~(v[bit_num]);
@@ -1493,11 +1493,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let src = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_bmi1) then raise_UD();
-        let src_val = read_rm_val(os, rm);
+        let src_val = read_rm_val(os, src);
         let count : range(0, 64) = ctz(os, zero_extend(src_val));
         let result : qword = to_bits_truncate(count);
         reg(reg) = result[(os - 1) .. 0];
@@ -1509,7 +1509,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // PF set from result parity (verified against real hardware).
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
-        let src_val = read_rm_val(os, rm);
+        let src_val = read_rm_val(os, src);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1532,11 +1532,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let src = decode_rm(modrm, pfx);
       if pfx.has_rep then {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_lzcnt) then raise_UD();
-        let src_val = read_rm_val(os, rm);
+        let src_val = read_rm_val(os, src);
         let count : range(0, 64) = clz(os, zero_extend(src_val));
         let result : qword = to_bits_truncate(count);
         reg(reg) = result[(os - 1) .. 0];
@@ -1548,7 +1548,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // PF set from result parity (verified against real hardware).
         // SDM footnote: "On some older processors, CF, OF, SF, AF, and
         // PF flags are unmodified." We follow the main text.
-        let src_val = read_rm_val(os, rm);
+        let src_val = read_rm_val(os, src);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
@@ -1571,8 +1571,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(8, rm);
+      let src = decode_rm(modrm, pfx);
+      let v = read_rm_val(8, src);
       let sx : qword = sign_extend(v);
       reg(reg) = sx[(os - 1) .. 0]
     },
@@ -1582,8 +1582,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let v = read_rm_val(16, rm);
+      let src = decode_rm(modrm, pfx);
+      let v = read_rm_val(16, src);
       let sx : qword = sign_extend(v);
       reg(reg) = sx[(os - 1) .. 0]
     },
@@ -1592,9 +1592,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     192 => {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
-      match rm {
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
+      match dest {
         RM_reg(dst, _) => exec_xadd(dst, reg, 8),
         RM_mem(seg, offset) => {
           // Memory operand: read, exchange, add, write back
@@ -1613,17 +1613,17 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, false);
-      match rm {
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, false);
+      match dest {
         RM_reg(dst, _) => exec_xadd(dst, reg, os),
         RM_mem(_, _) => {
-          let mem_val = read_rm_val(os, rm);
+          let mem_val = read_rm_val(os, dest);
           let reg_val = reg(os, reg);
           let sum = mem_val + reg_val;
           update_flags_add(sum, mem_val, reg_val);
           reg(reg) = mem_val;
-          write_rm_val(os, rm, sum)
+          write_rm_val(os, dest, sum)
         },
       }
     },
@@ -1636,8 +1636,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      let src_val = read_rm_val(os, rm);
+      let src = decode_rm(modrm, pfx);
+      let src_val = read_rm_val(os, src);
       let count : range(0, 64) = popcount(zero_extend(src_val) : qword);
       OF = 0b0;
       SF = 0b0;
@@ -1654,19 +1654,19 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let v = reg(os, reg);
-      write_mem_rm(rm, v)
+      write_mem_rm(dest, v)
     },
 
     // 0F C7 /1: CMPXCHG8B/CMPXCHG16B m64/m128
     199 => {
       let modrm = fetch_byte();
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       match reg_field {
         // CMPXCHG8B/CMPXCHG16B m64/m128
-        1 => match rm {
+        1 => match dest {
           RM_mem(seg, offset) => {
             if pfx.rex_w then {
               if ~(has_cx16) then raise_UD();
@@ -1699,7 +1699,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         // /4 mem: XSAVEC — save extended state with compaction
         // /3 mem: XRSTORS — restore extended state (supervisor, requires CPL=0)
-        3 => match rm {
+        3 => match dest {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
@@ -1708,7 +1708,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           _ => raise_UD(),
         },
         // /4 mem: XSAVEC — save extended state with compaction
-        4 => match rm {
+        4 => match dest {
           RM_mem(seg, offset) => {
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
             exec_xsavec(seg_linear(seg, offset, 576), mask)
@@ -1716,7 +1716,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           _ => raise_UD(),
         },
         // /5 mem: XSAVES — save extended state (supervisor, requires CPL=0)
-        5 => match rm {
+        5 => match dest {
           RM_mem(seg, offset) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = reg(32, RDX) @ reg(32, RAX);
@@ -1725,7 +1725,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           _ => raise_UD(),
         },
         // /6 mod=11: RDRAND r16/r32/r64
-        6 => match rm {
+        6 => match dest {
           RM_reg(r, _) => {
             if ~(has_rdrand) then raise_UD();
             let os = get_operand_size(pfx);
@@ -1744,7 +1744,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(_, _) => raise_UD(),
         },
         // /7 mod=11: RDSEED r16/r32/r64
-        7 => match rm {
+        7 => match dest {
           RM_reg(r, _) => {
             if ~(has_rdseed) then raise_UD();
             let os = get_operand_size(pfx);

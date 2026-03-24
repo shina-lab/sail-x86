@@ -9,8 +9,8 @@
 
 // Helper: read 64-bit MMX source from modrm r/m field
 val mmx_read_rm : (byte, RM) -> qword
-function mmx_read_rm(modrm, rm) = {
-  match rm {
+function mmx_read_rm(modrm, src) = {
+  match src {
     RM_reg(_, _) => read_mm(modrm_mm_rm(modrm)),
     RM_mem(seg, offset) => seg_read(seg, offset),
   }
@@ -26,8 +26,8 @@ function dispatch_mmx(op, pfx) = {
     96 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..24] @ d[31..24] @ s[23..16] @ d[23..16] @
                      s[15..8]  @ d[15..8]  @ s[7..0]   @ d[7..0]);
@@ -38,8 +38,8 @@ function dispatch_mmx(op, pfx) = {
     97 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..16] @ d[31..16] @ s[15..0] @ d[15..0]);
       mmx_touch()
@@ -49,8 +49,8 @@ function dispatch_mmx(op, pfx) = {
     98 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[31..0] @ d[31..0]);
       mmx_touch()
@@ -60,8 +60,8 @@ function dispatch_mmx(op, pfx) = {
     99 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_s8(s[63..48]) @ sat_s8(s[47..32]) @
                      sat_s8(s[31..16]) @ sat_s8(s[15..0]) @
@@ -74,8 +74,8 @@ function dispatch_mmx(op, pfx) = {
     100 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_gt(d[63..56], s[63..56]) @ cmp_gt(d[55..48], s[55..48]) @
                      cmp_gt(d[47..40], s[47..40]) @ cmp_gt(d[39..32], s[39..32]) @
@@ -88,8 +88,8 @@ function dispatch_mmx(op, pfx) = {
     101 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_gt(d[63..48], s[63..48]) @ cmp_gt(d[47..32], s[47..32]) @
                      cmp_gt(d[31..16], s[31..16]) @ cmp_gt(d[15..0],  s[15..0]));
@@ -100,8 +100,8 @@ function dispatch_mmx(op, pfx) = {
     102 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_gt(d[63..32], s[63..32]) @ cmp_gt(d[31..0], s[31..0]));
       mmx_touch()
@@ -111,8 +111,8 @@ function dispatch_mmx(op, pfx) = {
     103 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_su8(s[63..48]) @ sat_su8(s[47..32]) @
                      sat_su8(s[31..16]) @ sat_su8(s[15..0]) @
@@ -125,8 +125,8 @@ function dispatch_mmx(op, pfx) = {
     104 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..56] @ d[63..56] @ s[55..48] @ d[55..48] @
                      s[47..40] @ d[47..40] @ s[39..32] @ d[39..32]);
@@ -137,8 +137,8 @@ function dispatch_mmx(op, pfx) = {
     105 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..48] @ d[63..48] @ s[47..32] @ d[47..32]);
       mmx_touch()
@@ -148,8 +148,8 @@ function dispatch_mmx(op, pfx) = {
     106 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, s[63..32] @ d[63..32]);
       mmx_touch()
@@ -159,8 +159,8 @@ function dispatch_mmx(op, pfx) = {
     107 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_s16(s[63..32]) @ sat_s16(s[31..0]) @
                      sat_s16(d[63..32]) @ sat_s16(d[31..0]));
@@ -171,8 +171,8 @@ function dispatch_mmx(op, pfx) = {
     110 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      match (rm, pfx.rex_w) {
+      let src = decode_rm(modrm, pfx);
+      match (src, pfx.rex_w) {
         (RM_reg(idx, _), true)   => write_mm(dst, reg(64, idx)),
         (RM_mem(seg, offset), true)  => write_mm(dst, seg_read(seg, offset)),
         (RM_reg(idx, _), false)  => write_mm(dst, zero_extend(reg(32, idx))),
@@ -185,8 +185,8 @@ function dispatch_mmx(op, pfx) = {
     111 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let v : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let v : qword = mmx_read_rm(modrm, src);
       write_mm(dst, v);
       mmx_touch()
     },
@@ -195,8 +195,8 @@ function dispatch_mmx(op, pfx) = {
     112 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let src : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let src : qword = mmx_read_rm(modrm, src);
       let imm = fetch_byte();
       let w0 : word = match unsigned(imm[1..0]) {
         0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
@@ -292,8 +292,8 @@ function dispatch_mmx(op, pfx) = {
     116 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_eq(d[63..56], s[63..56]) @ cmp_eq(d[55..48], s[55..48]) @
                      cmp_eq(d[47..40], s[47..40]) @ cmp_eq(d[39..32], s[39..32]) @
@@ -306,8 +306,8 @@ function dispatch_mmx(op, pfx) = {
     117 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_eq(d[63..48], s[63..48]) @ cmp_eq(d[47..32], s[47..32]) @
                      cmp_eq(d[31..16], s[31..16]) @ cmp_eq(d[15..0], s[15..0]));
@@ -318,8 +318,8 @@ function dispatch_mmx(op, pfx) = {
     118 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, cmp_eq(d[63..32], s[63..32]) @ cmp_eq(d[31..0], s[31..0]));
       mmx_touch()
@@ -329,9 +329,9 @@ function dispatch_mmx(op, pfx) = {
     126 => {
       let modrm = fetch_byte();
       let src = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let v : qword = read_mm(src);
-      match (rm, pfx.rex_w) {
+      match (dest, pfx.rex_w) {
         (RM_reg(idx, _), true)   => reg(idx) = v,
         (RM_mem(seg, offset), true)  => seg_write(seg, offset, v),
         (RM_reg(idx, _), false)  => reg(idx) = v[31..0],
@@ -344,9 +344,9 @@ function dispatch_mmx(op, pfx) = {
     127 => {
       let modrm = fetch_byte();
       let src = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
+      let dest = decode_rm(modrm, pfx);
       let v : qword = read_mm(src);
-      match rm {
+      match dest {
         RM_reg(_, _) => write_mm(modrm_mm_rm(modrm), v),
         RM_mem(seg, offset) => seg_write(seg, offset, v),
       };
@@ -357,8 +357,8 @@ function dispatch_mmx(op, pfx) = {
     196 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let w : word = match rm {
+      let src = decode_rm(modrm, pfx);
+      let w : word = match src {
         RM_reg(idx, _) => reg(32, idx)[15..0],
         RM_mem(seg, offset) => seg_read(seg, offset),
       };
@@ -389,8 +389,8 @@ function dispatch_mmx(op, pfx) = {
     209 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] >> c) @ (d[47..32] >> c) @
                      (d[31..16] >> c) @ (d[15..0] >> c));
@@ -401,8 +401,8 @@ function dispatch_mmx(op, pfx) = {
     210 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] >> c) @ (d[31..0] >> c));
       mmx_touch()
@@ -412,8 +412,8 @@ function dispatch_mmx(op, pfx) = {
     211 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d >> c));
       mmx_touch()
@@ -423,8 +423,8 @@ function dispatch_mmx(op, pfx) = {
     212 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, d + s);
       mmx_touch()
@@ -434,8 +434,8 @@ function dispatch_mmx(op, pfx) = {
     213 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, mul_lo(d[63..48], s[63..48]) @ mul_lo(d[47..32], s[47..32]) @
                      mul_lo(d[31..16], s[31..16]) @ mul_lo(d[15..0],  s[15..0]));
@@ -459,8 +459,8 @@ function dispatch_mmx(op, pfx) = {
     216 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_u(d[63..56], s[63..56]) @ sat_sub_u(d[55..48], s[55..48]) @
                      sat_sub_u(d[47..40], s[47..40]) @ sat_sub_u(d[39..32], s[39..32]) @
@@ -473,8 +473,8 @@ function dispatch_mmx(op, pfx) = {
     217 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_u(d[63..48], s[63..48]) @ sat_sub_u(d[47..32], s[47..32]) @
                      sat_sub_u(d[31..16], s[31..16]) @ sat_sub_u(d[15..0],  s[15..0]));
@@ -485,8 +485,8 @@ function dispatch_mmx(op, pfx) = {
     218 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, min_u(d[63..56], s[63..56]) @ min_u(d[55..48], s[55..48]) @
                      min_u(d[47..40], s[47..40]) @ min_u(d[39..32], s[39..32]) @
@@ -499,8 +499,8 @@ function dispatch_mmx(op, pfx) = {
     219 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       write_mm(dst, read_mm(dst) & s);
       mmx_touch()
     },
@@ -509,8 +509,8 @@ function dispatch_mmx(op, pfx) = {
     220 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_u(d[63..56], s[63..56]) @ sat_add_u(d[55..48], s[55..48]) @
                      sat_add_u(d[47..40], s[47..40]) @ sat_add_u(d[39..32], s[39..32]) @
@@ -523,8 +523,8 @@ function dispatch_mmx(op, pfx) = {
     221 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_u(d[63..48], s[63..48]) @ sat_add_u(d[47..32], s[47..32]) @
                      sat_add_u(d[31..16], s[31..16]) @ sat_add_u(d[15..0],  s[15..0]));
@@ -535,8 +535,8 @@ function dispatch_mmx(op, pfx) = {
     222 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, max_u(d[63..56], s[63..56]) @ max_u(d[55..48], s[55..48]) @
                      max_u(d[47..40], s[47..40]) @ max_u(d[39..32], s[39..32]) @
@@ -549,8 +549,8 @@ function dispatch_mmx(op, pfx) = {
     223 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       write_mm(dst, ~(read_mm(dst)) & s);
       mmx_touch()
     },
@@ -559,8 +559,8 @@ function dispatch_mmx(op, pfx) = {
     224 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, avg(d[63..56], s[63..56]) @ avg(d[55..48], s[55..48]) @
                      avg(d[47..40], s[47..40]) @ avg(d[39..32], s[39..32]) @
@@ -573,8 +573,8 @@ function dispatch_mmx(op, pfx) = {
     225 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] >>> c) @ (d[47..32] >>> c) @
                      (d[31..16] >>> c) @ (d[15..0] >>> c));
@@ -585,8 +585,8 @@ function dispatch_mmx(op, pfx) = {
     226 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] >>> c) @ (d[31..0] >>> c));
       mmx_touch()
@@ -596,8 +596,8 @@ function dispatch_mmx(op, pfx) = {
     227 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, avg(d[63..48], s[63..48]) @ avg(d[47..32], s[47..32]) @
                      avg(d[31..16], s[31..16]) @ avg(d[15..0],  s[15..0]));
@@ -608,8 +608,8 @@ function dispatch_mmx(op, pfx) = {
     228 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, mul_hi16u(d[63..48], s[63..48]) @ mul_hi16u(d[47..32], s[47..32]) @
                      mul_hi16u(d[31..16], s[31..16]) @ mul_hi16u(d[15..0],  s[15..0]));
@@ -620,8 +620,8 @@ function dispatch_mmx(op, pfx) = {
     229 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, mul_hi16s(d[63..48], s[63..48]) @ mul_hi16s(d[47..32], s[47..32]) @
                      mul_hi16s(d[31..16], s[31..16]) @ mul_hi16s(d[15..0],  s[15..0]));
@@ -632,16 +632,16 @@ function dispatch_mmx(op, pfx) = {
     231 => {
       let modrm = fetch_byte();
       let src = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      write_mem_rm(rm, read_mm(src)); mmx_touch()
+      let dest = decode_rm(modrm, pfx);
+      write_mem_rm(dest, read_mm(src)); mmx_touch()
     },
 
     // 0F E8: PSUBSB mm, mm/m64
     232 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_s(d[63..56], s[63..56]) @ sat_sub_s(d[55..48], s[55..48]) @
                      sat_sub_s(d[47..40], s[47..40]) @ sat_sub_s(d[39..32], s[39..32]) @
@@ -654,8 +654,8 @@ function dispatch_mmx(op, pfx) = {
     233 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_sub_s(d[63..48], s[63..48]) @ sat_sub_s(d[47..32], s[47..32]) @
                      sat_sub_s(d[31..16], s[31..16]) @ sat_sub_s(d[15..0],  s[15..0]));
@@ -666,8 +666,8 @@ function dispatch_mmx(op, pfx) = {
     234 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, min_s(d[63..48], s[63..48]) @ min_s(d[47..32], s[47..32]) @
                      min_s(d[31..16], s[31..16]) @ min_s(d[15..0],  s[15..0]));
@@ -678,8 +678,8 @@ function dispatch_mmx(op, pfx) = {
     235 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       write_mm(dst, read_mm(dst) | s);
       mmx_touch()
     },
@@ -688,8 +688,8 @@ function dispatch_mmx(op, pfx) = {
     236 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_s(d[63..56], s[63..56]) @ sat_add_s(d[55..48], s[55..48]) @
                      sat_add_s(d[47..40], s[47..40]) @ sat_add_s(d[39..32], s[39..32]) @
@@ -702,8 +702,8 @@ function dispatch_mmx(op, pfx) = {
     237 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, sat_add_s(d[63..48], s[63..48]) @ sat_add_s(d[47..32], s[47..32]) @
                      sat_add_s(d[31..16], s[31..16]) @ sat_add_s(d[15..0],  s[15..0]));
@@ -714,8 +714,8 @@ function dispatch_mmx(op, pfx) = {
     238 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, max_s(d[63..48], s[63..48]) @ max_s(d[47..32], s[47..32]) @
                      max_s(d[31..16], s[31..16]) @ max_s(d[15..0],  s[15..0]));
@@ -726,8 +726,8 @@ function dispatch_mmx(op, pfx) = {
     239 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       write_mm(dst, read_mm(dst) ^ s);
       mmx_touch()
     },
@@ -736,8 +736,8 @@ function dispatch_mmx(op, pfx) = {
     241 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] << c) @ (d[47..32] << c) @
                      (d[31..16] << c) @ (d[15..0] << c));
@@ -748,8 +748,8 @@ function dispatch_mmx(op, pfx) = {
     242 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] << c) @ (d[31..0] << c));
       mmx_touch()
@@ -759,8 +759,8 @@ function dispatch_mmx(op, pfx) = {
     243 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, rm));
+      let src = decode_rm(modrm, pfx);
+      let c : nat = unsigned(mmx_read_rm(modrm, src));
       let d : qword = read_mm(dst);
       write_mm(dst, (d << c));
       mmx_touch()
@@ -770,8 +770,8 @@ function dispatch_mmx(op, pfx) = {
     244 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       let result : qword = to_bits_truncate(unsigned(d[31..0]) * unsigned(s[31..0]));
       write_mm(dst, result);
@@ -782,8 +782,8 @@ function dispatch_mmx(op, pfx) = {
     245 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       let d1 : dword = to_bits_truncate(signed(d[63..48]) * signed(s[63..48]) + signed(d[47..32]) * signed(s[47..32]));
       let d0 : dword = to_bits_truncate(signed(d[31..16]) * signed(s[31..16]) + signed(d[15..0]) * signed(s[15..0]));
@@ -795,8 +795,8 @@ function dispatch_mmx(op, pfx) = {
     246 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       let sum : int =
         abs_diff8(d[63..56], s[63..56]) + abs_diff8(d[55..48], s[55..48]) +
@@ -812,8 +812,8 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch_byte();
       let src = modrm_mm_reg(modrm);
       let mask_reg = modrm_mm_rm(modrm);
-      let rm = decode_rm(modrm, pfx);
-      match rm {
+      let src2 = decode_rm(modrm, pfx);
+      match src2 {
         RM_reg(_, _) => {
           let data : qword = read_mm(src);
           let mask : qword = read_mm(mask_reg);
@@ -835,8 +835,8 @@ function dispatch_mmx(op, pfx) = {
     248 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..56] - s[63..56]) @ (d[55..48] - s[55..48]) @
                      (d[47..40] - s[47..40]) @ (d[39..32] - s[39..32]) @
@@ -849,8 +849,8 @@ function dispatch_mmx(op, pfx) = {
     249 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] - s[63..48]) @ (d[47..32] - s[47..32]) @
                      (d[31..16] - s[31..16]) @ (d[15..0]  - s[15..0]));
@@ -861,8 +861,8 @@ function dispatch_mmx(op, pfx) = {
     250 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] - s[63..32]) @ (d[31..0] - s[31..0]));
       mmx_touch()
@@ -872,8 +872,8 @@ function dispatch_mmx(op, pfx) = {
     251 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, d - s);
       mmx_touch()
@@ -883,8 +883,8 @@ function dispatch_mmx(op, pfx) = {
     252 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..56] + s[63..56]) @ (d[55..48] + s[55..48]) @
                      (d[47..40] + s[47..40]) @ (d[39..32] + s[39..32]) @
@@ -897,8 +897,8 @@ function dispatch_mmx(op, pfx) = {
     253 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..48] + s[63..48]) @ (d[47..32] + s[47..32]) @
                      (d[31..16] + s[31..16]) @ (d[15..0]  + s[15..0]));
@@ -909,8 +909,8 @@ function dispatch_mmx(op, pfx) = {
     254 => {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
-      let rm = decode_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, rm);
+      let src = decode_rm(modrm, pfx);
+      let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
       write_mm(dst, (d[63..32] + s[63..32]) @ (d[31..0] + s[31..0]));
       mmx_touch()

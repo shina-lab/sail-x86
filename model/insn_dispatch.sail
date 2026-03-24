@@ -109,33 +109,33 @@ function dispatch_alu_opcode(op, pfx) = {
     0 => {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, alu_op == ALU_CMP);
-      exec_alu_rm_reg_byte(alu_op, rm, reg, pfx)
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, alu_op == ALU_CMP);
+      exec_alu_rm_reg_byte(alu_op, dest, reg, pfx)
     },
     // OP r/m, r (word/dword/qword)
     1 => {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      check_lock_rm(pfx, rm, alu_op == ALU_CMP);
-      exec_alu_rm_reg(alu_op, rm, reg, os, pfx)
+      let dest = decode_rm(modrm, pfx);
+      check_lock_rm(pfx, dest, alu_op == ALU_CMP);
+      exec_alu_rm_reg(alu_op, dest, reg, os, pfx)
     },
     // OP r8, r/m8
     2 => {
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      exec_alu_reg_rm_byte(alu_op, reg, rm, pfx)
+      let src = decode_rm(modrm, pfx);
+      exec_alu_reg_rm_byte(alu_op, reg, src, pfx)
     },
     // OP r, r/m (word/dword/qword)
     3 => {
       let os = get_operand_size(pfx);
       let modrm = fetch_byte();
       let reg = modrm_reg(modrm, pfx);
-      let rm = decode_rm(modrm, pfx);
-      exec_alu_reg_rm(alu_op, reg, rm, os, pfx)
+      let src = decode_rm(modrm, pfx);
+      exec_alu_reg_rm(alu_op, reg, src, os, pfx)
     },
     // OP AL, imm8
     4 => {
@@ -330,8 +330,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let os : {32, 64} = if pfx.rex_w then 64 else 32;
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let src_val = read_rm_val(os, rm);
+        let src = decode_rm(modrm, pfx);
+        let src_val = read_rm_val(os, src);
         if mp == MP_66 then {
           let a = reg(os, reg);
           let result = a + src_val + zero_extend(CF);
@@ -356,8 +356,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
         if cur_cpl != 0 then raise_GP0();
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
-        let desc : xmmword = read_mem_rm(rm);
+        let src = decode_rm(modrm, pfx);
+        let desc : xmmword = read_mem_rm(src);
         let inv_type : qword = reg(modrm_reg(modrm, pfx));
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
@@ -379,10 +379,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           if ~(has_crc32) then raise_UD();
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
+          let src = decode_rm(modrm, pfx);
           let os = if op3 == 240 then 8 else get_operand_size(pfx);
-          let src = read_rm_val(os, rm);
-          let result : bits(32) = crc32c(reg(32, reg), src);
+          let src_val = read_rm_val(os, src);
+          let result : bits(32) = crc32c(reg(32, reg), src_val);
           if pfx.rex_w then {
             reg(64, reg) = zero_extend(result)
           } else {
@@ -394,11 +394,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let os = get_operand_size(pfx);
           let modrm = fetch_byte();
           let reg = modrm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
+          let dest = decode_rm(modrm, pfx);
           if op3 == 240 then {
-            reg(os, reg) = bswap(read_mem_rm(os / 8, rm))
+            reg(os, reg) = bswap(read_mem_rm(os / 8, dest))
           } else {
-            write_mem_rm(rm, bswap(reg(os, reg)))
+            write_mem_rm(dest, bswap(reg(os, reg)))
           }
         }
       } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
@@ -406,27 +406,27 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if ~(has_movdiri) then raise_UD();
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let os = if pfx.rex_w then 64 else 32;
-        write_mem_rm(rm, reg(os, reg))
+        write_mem_rm(dest, reg(os, reg))
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
         if ~(has_movdir64b) then raise_UD();
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
-        let src : zmmword = read_mem_rm(rm);
+        let src = decode_rm(modrm, pfx);
+        let src_val : zmmword = read_mem_rm(src);
         let asz = get_address_size(pfx);
         let reg = modrm_reg(modrm, pfx);
         let dst_addr : qword = zero_extend(reg(asz, reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
-        mem_write(dst_addr, src)
+        mem_write(dst_addr, src_val)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+        let src = decode_rm(modrm, pfx);
+        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         match op3 {
           200 => // SHA1NEXTE xmm1, xmm2/m128
             write_xmm_legacy(xreg, __sha1nexte(read_xmm(xreg), src_xmm)),
@@ -464,8 +464,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           if ~(has_sha) then raise_UD();
           let modrm = fetch_byte();
           let xreg = modrm_xmm_reg(modrm, pfx);
-          let rm = decode_rm(modrm, pfx);
-          let src_xmm : xmmword = decode_xmm_src(modrm, rm, pfx);
+          let src = decode_rm(modrm, pfx);
+          let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
           let imm : byte = fetch_byte();
           write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm))
         },
@@ -877,8 +877,8 @@ function decode_execute() = {
           dispatch_evex()
         } else {
           let modrm = fetch_byte();
-          let rm = decode_rm(modrm, pfx);
-          match rm {
+          let src = decode_rm(modrm, pfx);
+          match src {
             RM_reg(_, _) => raise_UD(),  // BOUND requires memory operand
             RM_mem(_, addr) => {
               let os = get_operand_size(pfx);
@@ -897,15 +897,15 @@ function decode_execute() = {
       99 => {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
+        let src = decode_rm(modrm, pfx);
         if pfx.rex_w then {
-          let src = read_rm_val(32, rm);
-          let v : qword = sign_extend(src);
+          let src_val = read_rm_val(32, src);
+          let v : qword = sign_extend(src_val);
           reg(reg) = v
         } else {
           let os = get_operand_size(pfx);
-          let src = read_rm_val(os, rm);
-          reg(reg) = src
+          let src_val = read_rm_val(os, src);
+          reg(reg) = src_val
         }
       },
 
@@ -921,11 +921,11 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
+        let src = decode_rm(modrm, pfx);
+        // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
-        let src = read_rm_val(os, rm);
-        let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
+        let src_val = read_rm_val(os, src);
+        let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
           8  => {
@@ -961,11 +961,11 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        // Fetch imm BEFORE reading rm so decode_pos is final for RIP-relative fixup
+        let src = decode_rm(modrm, pfx);
+        // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
-        let src = read_rm_val(os, rm);
-        let product : int = signed(src[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
+        let src_val = read_rm_val(os, src);
+        let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
           8  => {
@@ -1029,44 +1029,44 @@ function decode_execute() = {
       // 80: Group 1 — ALU r/m8, imm8
       128 => {
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let imm : byte = fetch_byte();
         let alu_op = group1_op(reg_field);
-        check_lock_rm(pfx, rm, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, rm, imm, 8, pfx)
+        check_lock_rm(pfx, dest, alu_op == ALU_CMP);
+        exec_alu_rm_imm(alu_op, dest, imm, 8, pfx)
       },
 
       // 81: Group 1 — ALU r/m, imm (Iz)
       129 => {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let imm = fetch_imm_z(os);
         let alu_op = group1_op(reg_field);
-        check_lock_rm(pfx, rm, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, rm, imm[(os - 1) .. 0], os, pfx)
+        check_lock_rm(pfx, dest, alu_op == ALU_CMP);
+        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os, pfx)
       },
 
       // 83: Group 1 — ALU r/m, imm8 (sign-extended)
       131 => {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let imm = fetch_imm8_sx();
         let alu_op = group1_op(reg_field);
-        check_lock_rm(pfx, rm, alu_op == ALU_CMP);
-        exec_alu_rm_imm(alu_op, rm, imm[(os - 1) .. 0], os, pfx)
+        check_lock_rm(pfx, dest, alu_op == ALU_CMP);
+        exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os, pfx)
       },
 
       // 84: TEST r/m8, r8
       132 => {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(8, rm);
+        let src = decode_rm(modrm, pfx);
+        let a = read_rm_val(8, src);
         let b : byte = read_gpr8(reg, pfx.has_rex);
         let result = a & b;
         update_flags_logic(result)
@@ -1077,8 +1077,8 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(os, rm);
+        let src = decode_rm(modrm, pfx);
+        let a = read_rm_val(os, src);
         let b = reg(os, reg);
         let result = a & b;
         update_flags_logic(result)
@@ -1088,10 +1088,10 @@ function decode_execute() = {
       134 => {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(8, rm);
+        let dest = decode_rm(modrm, pfx);
+        let a = read_rm_val(8, dest);
         let b : byte = read_gpr8(reg, pfx.has_rex);
-        write_rm_val(rm, b);
+        write_rm_val(dest, b);
         write_gpr8(reg, pfx.has_rex, a)
       },
 
@@ -1100,10 +1100,10 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let a = read_rm_val(os, rm);
+        let dest = decode_rm(modrm, pfx);
+        let a = read_rm_val(os, dest);
         let b = reg(os, reg);
-        write_rm_val(os, rm, b);
+        write_rm_val(os, dest, b);
         reg(reg) = a
       },
 
@@ -1111,9 +1111,9 @@ function decode_execute() = {
       136 => {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let v : byte = read_gpr8(reg, pfx.has_rex);
-        write_rm_val(rm, v)
+        write_rm_val(dest, v)
       },
 
       // 89: MOV r/m, r
@@ -1121,16 +1121,16 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        write_rm_val(os, rm, reg(os, reg))
+        let dest = decode_rm(modrm, pfx);
+        write_rm_val(os, dest, reg(os, reg))
       },
 
       // 8A: MOV r8, r/m8
       138 => {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        let v = read_rm_val(8, rm);
+        let src = decode_rm(modrm, pfx);
+        let v = read_rm_val(8, src);
         write_gpr8(reg, pfx.has_rex, v[7..0])
       },
 
@@ -1139,8 +1139,8 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        reg(os, reg) = read_rm_val(os, rm)
+        let src = decode_rm(modrm, pfx);
+        reg(os, reg) = read_rm_val(os, src)
       },
 
       // 8C: MOV r/m16, sreg
@@ -1151,8 +1151,8 @@ function decode_execute() = {
           raise_UD()
         } else {
           let seg : segreg_idx = reg_field;
-          let rm = decode_rm(modrm, pfx);
-          match rm {
+          let dest = decode_rm(modrm, pfx);
+          match dest {
             RM_reg(idx, _) => {
               let os = get_operand_size(pfx);
               let seg_val : qword = zero_extend(read_segreg(seg));
@@ -1168,8 +1168,8 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
-        let rm = decode_rm(modrm, pfx);
-        match rm {
+        let src = decode_rm(modrm, pfx);
+        match src {
           RM_mem(_, offset) => reg(reg) = offset[(os - 1) .. 0],
           RM_reg(_, _) => raise_UD(),
         }
@@ -1183,8 +1183,8 @@ function decode_execute() = {
           raise_UD()
         } else {
           let seg : segreg_idx = reg_field;
-          let rm = decode_rm(modrm, pfx);
-          let v : word = read_rm_val(rm);
+          let src = decode_rm(modrm, pfx);
+          let v : word = read_rm_val(src);
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
         }
@@ -1210,8 +1210,8 @@ function decode_execute() = {
             // (SDM requires RSP-relative addresses use the post-pop RSP).
             // We pop first so that decode_rm sees the updated RSP.
             let v : qword = pop_qword(os);
-            let rm = decode_rm(modrm, pfx);
-            match rm {
+            let dest = decode_rm(modrm, pfx);
+            match dest {
               RM_mem(seg, offset) => seg_write(os / 8, seg, offset, v[(os - 1) .. 0]),
               _ => raise_UD(),
             }
@@ -1490,20 +1490,20 @@ function decode_execute() = {
       // C0: Group 2 — shift r/m8 by imm8
       192 => {
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count = fetch_byte();
-        exec_shift_rm(reg_field, rm, count, 8, pfx)
+        exec_shift_rm(reg_field, dest, count, 8, pfx)
       },
 
       // C1: Group 2 — shift r/m by imm8
       193 => {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count = fetch_byte();
-        exec_shift_rm(reg_field, rm, count, os, pfx)
+        exec_shift_rm(reg_field, dest, count, os, pfx)
       },
 
       // C2: RET near imm16
@@ -1542,8 +1542,8 @@ function decode_execute() = {
             // mod≠11: LES r, m16:16/32
             let os = get_operand_size(pfx);
             let reg = modrm_reg(byte2, pfx);
-            let rm = decode_rm(byte2, pfx);
-            match rm {
+            let src = decode_rm(byte2, pfx);
+            match src {
               RM_mem(seg, ea) => {
                 let far_offset : qword = match os {
                   16 => zero_extend(seg_read(2,seg, ea)),
@@ -1571,8 +1571,8 @@ function decode_execute() = {
           } else {
             let os = get_operand_size(pfx);
             let reg = modrm_reg(byte2, pfx);
-            let rm = decode_rm(byte2, pfx);
-            match rm {
+            let src = decode_rm(byte2, pfx);
+            match src {
               RM_mem(seg, ea) => {
                 let far_offset : qword = match os {
                   16 => zero_extend(seg_read(2,seg, ea)),
@@ -1594,9 +1594,9 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         if reg_field == 0 then {
-          let rm = decode_rm(modrm, pfx);
+          let dest = decode_rm(modrm, pfx);
           let imm : byte = fetch_byte();
-          write_rm_val(rm, imm)
+          write_rm_val(dest, imm)
         } else {
           raise_UD()
         }
@@ -1608,9 +1608,9 @@ function decode_execute() = {
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         if reg_field == 0 then {
           let os = get_operand_size(pfx);
-          let rm = decode_rm(modrm, pfx);
+          let dest = decode_rm(modrm, pfx);
           let imm = fetch_imm_z(os);
-          write_rm_val(os, rm, imm[(os - 1) .. 0])
+          write_rm_val(os, dest, imm[(os - 1) .. 0])
         } else {
           raise_UD()
         }
@@ -1809,37 +1809,37 @@ function decode_execute() = {
       // D0: Group 2 — shift r/m8 by 1
       208 => {
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        exec_shift_rm(reg_field, rm, 0x01, 8, pfx)
+        exec_shift_rm(reg_field, dest, 0x01, 8, pfx)
       },
 
       // D1: Group 2 — shift r/m by 1
       209 => {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        exec_shift_rm(reg_field, rm, 0x01, os, pfx)
+        exec_shift_rm(reg_field, dest, 0x01, os, pfx)
       },
 
       // D2: Group 2 — shift r/m8 by CL
       210 => {
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count : byte = reg(RCX);
-        exec_shift_rm(reg_field, rm, count, 8, pfx)
+        exec_shift_rm(reg_field, dest, count, 8, pfx)
       },
 
       // D3: Group 2 — shift r/m by CL
       211 => {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let count : byte = reg(RCX);
-        exec_shift_rm(reg_field, rm, count, os, pfx)
+        exec_shift_rm(reg_field, dest, count, os, pfx)
       },
 
       // D4: AAM — ASCII Adjust AX After Multiply (SDM Vol.2A)
@@ -2019,11 +2019,11 @@ function decode_execute() = {
       246 => {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
-        check_lock_rm(pfx, rm, false);
-        dispatch_group3_byte(reg_field, rm, pfx)
+        check_lock_rm(pfx, dest, false);
+        dispatch_group3_byte(reg_field, dest, pfx)
       },
 
       // F7: Group 3 — unary word/dword/qword operations
@@ -2031,11 +2031,11 @@ function decode_execute() = {
         let os = get_operand_size(pfx);
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         // LOCK valid only for NOT (/2) and NEG (/3) with memory destination
         if pfx.has_lock & (reg_field != 2 & reg_field != 3) then raise_UD();
-        check_lock_rm(pfx, rm, false);
-        dispatch_group3(reg_field, rm, os, pfx)
+        check_lock_rm(pfx, dest, false);
+        dispatch_group3(reg_field, dest, os, pfx)
       },
 
       // F8: CLC
@@ -2060,18 +2060,18 @@ function decode_execute() = {
       254 => {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         // LOCK valid only for INC (/0) and DEC (/1) with memory
         if pfx.has_lock & reg_field >= 2 then raise_UD();
-        check_lock_rm(pfx, rm, false);
+        check_lock_rm(pfx, dest, false);
         if reg_field == 0 then {
-          let v = read_rm_val(8, rm);
+          let v = read_rm_val(8, dest);
           let result = exec_inc(v);
-          write_rm_val(rm, result)
+          write_rm_val(dest, result)
         } else if reg_field == 1 then {
-          let v = read_rm_val(8, rm);
+          let v = read_rm_val(8, dest);
           let result = exec_dec(v);
-          write_rm_val(rm, result)
+          write_rm_val(dest, result)
         } else {
           raise_UD()
         }
@@ -2081,11 +2081,11 @@ function decode_execute() = {
       255 => {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        let rm = decode_rm(modrm, pfx);
+        let dest = decode_rm(modrm, pfx);
         // LOCK valid only for INC (/0) and DEC (/1) with memory
         if pfx.has_lock & reg_field >= 2 then raise_UD();
-        check_lock_rm(pfx, rm, false);
-        dispatch_group5(reg_field, rm, pfx)
+        check_lock_rm(pfx, dest, false);
+        dispatch_group5(reg_field, dest, pfx)
       },
 
       // Unhandled opcode

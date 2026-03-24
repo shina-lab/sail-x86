@@ -412,7 +412,7 @@ function decode_rm(modrm, pfx) = {
 
 // Helper: decode XMM src operand value (read from register or memory).
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
-function decode_xmm_src(modrm, rm, pfx) = match rm {
+function decode_xmm_src(modrm, src, pfx) = match src {
   RM_reg(_, _) => read_xmm(modrm_xmm_rm(modrm, pfx)),
   RM_mem(seg, offset) => seg_read(seg, offset),
 }
