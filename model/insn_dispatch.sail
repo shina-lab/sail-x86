@@ -384,7 +384,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let src_val = rm(os, src);
           let result : bits(32) = crc32c(reg(32, reg), src_val);
           if pfx.rex_w then {
-            reg(64, reg) = zero_extend(result)
+            reg(reg) = zero_extend(64, result)
           } else {
             reg(reg) = result
           }
