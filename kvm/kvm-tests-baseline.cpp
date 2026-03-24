@@ -642,7 +642,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("lea eax,[ebx+ecx*4] (32)", {0x67, 0x8D, 0x04, 0x8B}, lea, FL_ALL);
 
   // =====================================================================
-  // 15. Memory operands — exercises RM_mem paths in read_rm_val/write_rm_val
+  // 15. Memory operands — exercises RM_mem paths in rm(read)/rm(write)
   //     RDI = DATA_ADDR, initial data placed there
   // =====================================================================
   cat = "Baseline/Memory operands";

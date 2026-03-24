@@ -229,7 +229,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = decode_rm(modrm, pfx);
-    write_mem_rm(8, dest, read_xmm(src)[63..0])
+    rm_mem(8, dest) = read_xmm(src)[63..0]
   },
 
   // 0F 14: VUNPCKLPS (NP) / VUNPCKLPD (66)
@@ -359,7 +359,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch_byte();
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = decode_rm(modrm, pfx);
-    write_mem_rm(8, dest, read_xmm(src)[127..64])
+    rm_mem(8, dest) = read_xmm(src)[127..64]
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (load)
@@ -433,20 +433,20 @@ function dispatch_vex_0f_fp(op, pfx) = {
       // VCVTSI2SS xmm1, xmm2, r/m32
       MP_F3 => {
         if pfx.vex_w then {
-          let v : qword = read_rm_val(src);
+          let v : qword = rm(src);
           write_xmm(dst, src1[127..32] @ __int64_to_f32(v));
         } else {
-          let v : dword = read_rm_val(src);
+          let v : dword = rm(src);
           write_xmm(dst, src1[127..32] @ __int32_to_f32(v));
         }
       },
       // VCVTSI2SD xmm1, xmm2, r/m32
       MP_F2 => {
         if pfx.vex_w then {
-          let v : qword = read_rm_val(src);
+          let v : qword = rm(src);
           write_xmm(dst, src1[127..64] @ __int64_to_f64(v));
         } else {
-          let v : dword = read_rm_val(src);
+          let v : dword = rm(src);
           write_xmm(dst, src1[127..64] @ __int32_to_f64(v));
         }
       },

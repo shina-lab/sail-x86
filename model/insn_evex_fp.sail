@@ -1019,7 +1019,7 @@ function dispatch_evex_fp(op, pfx) = {
         if pfx.evex_ll != 0 then raise_UD();
         let src = decode_rm_evex(modrm, pfx, 8);
         let src1 = read_xmm(pfx.evex_vvvvv);
-        let m64val : qword = read_mem_rm(src);
+        let m64val : qword = rm_mem(src);
         let result : xmmword = src1[127..64] @ m64val;
         write_xmm(dst, result)
       },
@@ -1063,7 +1063,7 @@ function dispatch_evex_fp(op, pfx) = {
     if pfx.evex_ll != 0 then raise_UD();
     let dest = decode_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
-    write_mem_rm(8, dest, src[63..0])
+    rm_mem(8, dest) = src[63..0]
   },
 
   // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
@@ -1208,7 +1208,7 @@ function dispatch_evex_fp(op, pfx) = {
         if pfx.evex_ll != 0 then raise_UD();
         let src = decode_rm_evex(modrm, pfx, 8);
         let src1 = read_xmm(pfx.evex_vvvvv);
-        let m64val : qword = read_mem_rm(src);
+        let m64val : qword = rm_mem(src);
         let result : xmmword = m64val @ src1[63..0];
         write_xmm(dst, result)
       },
@@ -1233,7 +1233,7 @@ function dispatch_evex_fp(op, pfx) = {
     if pfx.evex_ll != 0 then raise_UD();
     let dest = decode_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
-    write_mem_rm(8, dest, src[127..64])
+    rm_mem(8, dest) = src[127..64]
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)

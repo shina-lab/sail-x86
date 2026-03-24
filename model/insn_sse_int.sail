@@ -1426,7 +1426,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        write_mem_rm(dest, read_xmm(xreg))
+        rm_mem(dest) = read_xmm(xreg)
       }
     },
 
@@ -1439,7 +1439,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch_byte();
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let v : word = read_rm_val(src);
+        let v : word = rm(src);
         let imm = fetch_byte();
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
@@ -1855,7 +1855,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = decode_rm(modrm, pfx);
-      write_xmm(xreg, read_mem_rm(src))
+      write_xmm(xreg, rm_mem(src))
     },
 
     // 0F F1: PSLLW xmm, xmm/m128 (66 prefix)
@@ -2293,7 +2293,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // MOVNTDQA xmm, m128
     42 => {
-      write_xmm_legacy(xreg, read_mem_rm(src))
+      write_xmm_legacy(xreg, rm_mem(src))
     },
     // PACKUSDW xmm1, xmm2/m128
     43 => {
@@ -2645,7 +2645,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     34 => {
       let imm = fetch_byte();
       if pfx.rex_w then {
-        let v : qword = read_rm_val(src);
+        let v : qword = rm(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
@@ -2654,7 +2654,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         };
         write_xmm_legacy(xreg, r)
       } else {
-        let v : dword = read_rm_val(src);
+        let v : dword = rm(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 3) = unsigned(imm[1..0]);
         let r : xmmword = insert_dword(v_0, v, sel);

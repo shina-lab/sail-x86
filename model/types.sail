@@ -298,6 +298,10 @@ function write_reg_rm(os, rm, v) =
     RM_mem(_, _) => raise_UD(),
   }
 
+overload rm = {read_rm_val, write_rm_val}
+overload rm_mem = {read_mem_rm, write_mem_rm}
+overload rm_reg = {read_reg_rm, write_reg_rm}
+
 // =========================================================================
 // Immediate fetch helpers
 // =========================================================================

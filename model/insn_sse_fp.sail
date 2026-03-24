@@ -262,7 +262,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_66 => {
           // MOVLPD xmm, m64
           var xmm : xmmword = read_xmm(xreg);
-          xmm[63..0] = read_mem_rm(src);
+          xmm[63..0] = rm_mem(src);
           write_xmm_legacy(xreg, xmm)
         },
         MP_F3 => {
@@ -296,7 +296,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let v = read_xmm(xreg);
-      write_mem_rm(8, dest, v[63..0])
+      rm_mem(8, dest) = v[63..0]
     },
     // 0F 14: UNPCKLPS/UNPCKLPD
     20 => {
@@ -369,7 +369,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_66 => {
           var xmm : xmmword = read_xmm(xreg);
-          xmm[127..64] = read_mem_rm(src);
+          xmm[127..64] = rm_mem(src);
           write_xmm_legacy(xreg, xmm)
         },
         MP_F3 => {
@@ -389,7 +389,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       let v = read_xmm(xreg);
-      write_mem_rm(8, dest, v[127..64])
+      rm_mem(8, dest) = v[127..64]
     },
     // 0F 28: MOVAPS/MOVAPD xmm, xmm/m128
     40 => {
@@ -1127,7 +1127,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = decode_rm(modrm, pfx);
       if mp != MP_NONE & mp != MP_66 then raise_UD();
-      write_mem_rm(dest, read_xmm(xreg))
+      rm_mem(dest) = read_xmm(xreg)
     },
     // 0F 7C: HADDPS/HADDPD (SSE3)
     124 => {

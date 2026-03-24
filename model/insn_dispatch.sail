@@ -331,7 +331,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let src_val = read_rm_val(os, src);
+        let src_val = rm(os, src);
         if mp == MP_66 then {
           let a = reg(os, reg);
           let result = a + src_val + zero_extend(CF);
@@ -357,7 +357,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if cur_cpl != 0 then raise_GP0();
         let modrm = fetch_byte();
         let src = decode_rm(modrm, pfx);
-        let desc : xmmword = read_mem_rm(src);
+        let desc : xmmword = rm_mem(src);
         let inv_type : qword = reg(modrm_reg(modrm, pfx));
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
@@ -381,7 +381,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let reg = modrm_reg(modrm, pfx);
           let src = decode_rm(modrm, pfx);
           let os = if op3 == 240 then 8 else get_operand_size(pfx);
-          let src_val = read_rm_val(os, src);
+          let src_val = rm(os, src);
           let result : bits(32) = crc32c(reg(32, reg), src_val);
           if pfx.rex_w then {
             reg(64, reg) = zero_extend(result)
@@ -396,9 +396,9 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let reg = modrm_reg(modrm, pfx);
           let dest = decode_rm(modrm, pfx);
           if op3 == 240 then {
-            reg(os, reg) = bswap(read_mem_rm(os / 8, dest))
+            reg(os, reg) = bswap(rm_mem(os / 8, dest))
           } else {
-            write_mem_rm(dest, bswap(reg(os, reg)))
+            rm_mem(dest) = bswap(reg(os, reg))
           }
         }
       } else if op3 == 249 & get_mandatory_prefix(pfx) == MP_NONE then {
@@ -408,13 +408,13 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
         let os = if pfx.rex_w then 64 else 32;
-        write_mem_rm(dest, reg(os, reg))
+        rm_mem(dest) = reg(os, reg)
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
         if ~(has_movdir64b) then raise_UD();
         let modrm = fetch_byte();
         let src = decode_rm(modrm, pfx);
-        let src_val : zmmword = read_mem_rm(src);
+        let src_val : zmmword = rm_mem(src);
         let asz = get_address_size(pfx);
         let reg = modrm_reg(modrm, pfx);
         let dst_addr : qword = zero_extend(reg(asz, reg));
@@ -428,18 +428,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let src = decode_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         match op3 {
-          200 => // SHA1NEXTE xmm1, xmm2/m128
-            write_xmm_legacy(xreg, __sha1nexte(read_xmm(xreg), src_xmm)),
-          201 => // SHA1MSG1 xmm1, xmm2/m128
-            write_xmm_legacy(xreg, __sha1msg1(read_xmm(xreg), src_xmm)),
-          202 => // SHA1MSG2 xmm1, xmm2/m128
-            write_xmm_legacy(xreg, __sha1msg2(read_xmm(xreg), src_xmm)),
-          203 => // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
-            write_xmm_legacy(xreg, __sha256rnds2(read_xmm(xreg), src_xmm, read_xmm(0))),
-          204 => // SHA256MSG1 xmm1, xmm2/m128
-            write_xmm_legacy(xreg, __sha256msg1(read_xmm(xreg), src_xmm)),
-          205 => // SHA256MSG2 xmm1, xmm2/m128
-            write_xmm_legacy(xreg, __sha256msg2(read_xmm(xreg), src_xmm)),
+          // SHA1NEXTE xmm1, xmm2/m128
+          200 => write_xmm_legacy(xreg, __sha1nexte(read_xmm(xreg), src_xmm)),
+          // SHA1MSG1 xmm1, xmm2/m128
+          201 => write_xmm_legacy(xreg, __sha1msg1(read_xmm(xreg), src_xmm)),
+          // SHA1MSG2 xmm1, xmm2/m128
+          202 => write_xmm_legacy(xreg, __sha1msg2(read_xmm(xreg), src_xmm)),
+          // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
+          203 => write_xmm_legacy(xreg, __sha256rnds2(read_xmm(xreg), src_xmm, read_xmm(0))),
+          // SHA256MSG1 xmm1, xmm2/m128
+          204 => write_xmm_legacy(xreg, __sha256msg1(read_xmm(xreg), src_xmm)),
+          // SHA256MSG2 xmm1, xmm2/m128
+          205 => write_xmm_legacy(xreg, __sha256msg2(read_xmm(xreg), src_xmm)),
           _ => raise_UD(),
         }
       } else {
@@ -899,13 +899,10 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
         if pfx.rex_w then {
-          let src_val = read_rm_val(32, src);
-          let v : qword = sign_extend(src_val);
-          reg(reg) = v
+          reg(reg) = sign_extend(64, rm(32, src))
         } else {
           let os = get_operand_size(pfx);
-          let src_val = read_rm_val(os, src);
-          reg(reg) = src_val
+          reg(os, reg) = rm(os, src)
         }
       },
 
@@ -924,7 +921,7 @@ function decode_execute() = {
         let src = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm_z(os);
-        let src_val = read_rm_val(os, src);
+        let src_val = rm(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -964,7 +961,7 @@ function decode_execute() = {
         let src = decode_rm(modrm, pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
         let imm = fetch_imm8_sx();
-        let src_val = read_rm_val(os, src);
+        let src_val = rm(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
         CF = match os {
@@ -1066,7 +1063,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let a = read_rm_val(8, src);
+        let a : byte = rm(src);
         let b : byte = read_gpr8(reg, pfx.has_rex);
         let result = a & b;
         update_flags_logic(result)
@@ -1078,7 +1075,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let a = read_rm_val(os, src);
+        let a = rm(os, src);
         let b = reg(os, reg);
         let result = a & b;
         update_flags_logic(result)
@@ -1089,9 +1086,9 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        let a = read_rm_val(8, dest);
+        let a : byte = rm(dest);
         let b : byte = read_gpr8(reg, pfx.has_rex);
-        write_rm_val(dest, b);
+        rm(dest) = b;
         write_gpr8(reg, pfx.has_rex, a)
       },
 
@@ -1101,9 +1098,9 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        let a = read_rm_val(os, dest);
+        let a = rm(os, dest);
         let b = reg(os, reg);
-        write_rm_val(os, dest, b);
+        rm(os, dest) = b;
         reg(reg) = a
       },
 
@@ -1113,7 +1110,7 @@ function decode_execute() = {
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
         let v : byte = read_gpr8(reg, pfx.has_rex);
-        write_rm_val(dest, v)
+        rm(dest) = v
       },
 
       // 89: MOV r/m, r
@@ -1122,7 +1119,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let dest = decode_rm(modrm, pfx);
-        write_rm_val(os, dest, reg(os, reg))
+        rm(dest) = reg(os, reg)
       },
 
       // 8A: MOV r8, r/m8
@@ -1130,7 +1127,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        let v = read_rm_val(8, src);
+        let v = rm(8, src);
         write_gpr8(reg, pfx.has_rex, v[7..0])
       },
 
@@ -1140,7 +1137,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg = modrm_reg(modrm, pfx);
         let src = decode_rm(modrm, pfx);
-        reg(os, reg) = read_rm_val(os, src)
+        reg(os, reg) = rm(os, src)
       },
 
       // 8C: MOV r/m16, sreg
@@ -1184,7 +1181,7 @@ function decode_execute() = {
         } else {
           let seg : segreg_idx = reg_field;
           let src = decode_rm(modrm, pfx);
-          let v : word = read_rm_val(src);
+          let v : word = rm(src);
           if seg == CS then raise_UD();
           load_segment_register(seg, v)
         }
@@ -1596,7 +1593,7 @@ function decode_execute() = {
         if reg_field == 0 then {
           let dest = decode_rm(modrm, pfx);
           let imm : byte = fetch_byte();
-          write_rm_val(dest, imm)
+          rm(dest) = imm
         } else {
           raise_UD()
         }
@@ -1610,7 +1607,7 @@ function decode_execute() = {
           let os = get_operand_size(pfx);
           let dest = decode_rm(modrm, pfx);
           let imm = fetch_imm_z(os);
-          write_rm_val(os, dest, imm[(os - 1) .. 0])
+          rm(os, dest) = imm[(os - 1) .. 0]
         } else {
           raise_UD()
         }
@@ -2065,13 +2062,13 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);
         if reg_field == 0 then {
-          let v = read_rm_val(8, dest);
+          let v = rm(8, dest);
           let result = exec_inc(v);
-          write_rm_val(dest, result)
+          rm(dest) = result
         } else if reg_field == 1 then {
-          let v = read_rm_val(8, dest);
+          let v = rm(8, dest);
           let result = exec_dec(v);
-          write_rm_val(dest, result)
+          rm(dest) = result
         } else {
           raise_UD()
         }

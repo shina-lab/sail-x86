@@ -633,7 +633,7 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch_byte();
       let src = modrm_mm_reg(modrm);
       let dest = decode_rm(modrm, pfx);
-      write_mem_rm(dest, read_mm(src)); mmx_touch()
+      rm_mem(dest) = read_mm(src); mmx_touch()
     },
 
     // 0F E8: PSUBSB mm, mm/m64
