@@ -163,7 +163,7 @@ function exec_ins(os_in, asz) = {
   // SDM: INS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = read_gpr16(RDX);
-  let off : qword = read_index_dst(asz);
+  let off : qword = zero_extend(read_gpr(asz, RDI));
   // INS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   match os {
@@ -172,7 +172,7 @@ function exec_ins(os_in, asz) = {
     32 => mem_write(lin, __port_in32(port)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_dst(asz, off + step)
+  write_gpr(asz, RDI, (off + step)[asz - 1 .. 0])
 }
 
 // OUTS — Output from DS:[RSI] to port DX
@@ -182,7 +182,7 @@ function exec_outs(os_in, asz, pfx) = {
   // SDM: OUTS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = read_gpr16(RDX);
-  let off : qword = read_index_src(asz);
+  let off : qword = zero_extend(read_gpr(asz, RSI));
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
     None()  => DS,
@@ -194,13 +194,13 @@ function exec_outs(os_in, asz, pfx) = {
     32 => __port_out32(port, mem_read(lin)),
   };
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_src(asz, off + step)
+  write_gpr(asz, RSI, (off + step)[asz - 1 .. 0])
 }
 
 val exec_movs : (operand_size, address_size, Prefixes) -> unit
 function exec_movs(os, asz, pfx) = {
-  let src_off : qword = read_index_src(asz);
-  let dst_off : qword = read_index_dst(asz);
+  let src_off : qword = zero_extend(read_gpr(asz, RSI));
+  let dst_off : qword = zero_extend(read_gpr(asz, RDI));
   // MOVS source is DS:SI (overridable), destination is always ES:DI.
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
@@ -210,23 +210,23 @@ function exec_movs(os, asz, pfx) = {
   let dst_lin = seg_linear(ES, dst_off, os / 8);
   mem_write(dst_lin, mem_read(os, src_lin));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_src(asz, src_off + step);
-  write_index_dst(asz, dst_off + step);
+  write_gpr(asz, RSI, (src_off + step)[asz - 1 .. 0]);
+  write_gpr(asz, RDI, (dst_off + step)[asz - 1 .. 0]);
 }
 
 val exec_stos : (operand_size, address_size) -> unit
 function exec_stos(os, asz) = {
-  let off : qword = read_index_dst(asz);
+  let off : qword = zero_extend(read_gpr(asz, RDI));
   // STOS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   mem_write(lin, read_gpr(os, RAX));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_dst(asz, off + step)
+  write_gpr(asz, RDI, (off + step)[asz - 1 .. 0])
 }
 
 val exec_lods : (operand_size, address_size, Prefixes) -> unit
 function exec_lods(os, asz, pfx) = {
-  let off : qword = read_index_src(asz);
+  let off : qword = zero_extend(read_gpr(asz, RSI));
   // LODS source is DS:SI (overridable).
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
@@ -235,25 +235,25 @@ function exec_lods(os, asz, pfx) = {
   let lin = seg_linear(src_seg, off, os / 8);
   write_gpr(os, RAX, mem_read(lin));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_src(asz, off + step)
+  write_gpr(asz, RSI, (off + step)[asz - 1 .. 0])
 }
 
 val exec_scas : (operand_size, address_size) -> unit
 function exec_scas(os, asz) = {
-  let off : qword = read_index_dst(asz);
+  let off : qword = zero_extend(read_gpr(asz, RDI));
   // SCAS destination is always ES:DI (not overridable).
   let lin = seg_linear(ES, off, os / 8);
   let a = read_gpr(os, RAX);
   let b = mem_read(os / 8, lin);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_dst(asz, off + step)
+  write_gpr(asz, RDI, (off + step)[asz - 1 .. 0])
 }
 
 val exec_cmps : (operand_size, address_size, Prefixes) -> unit
 function exec_cmps(os, asz, pfx) = {
-  let src_off : qword = read_index_src(asz);
-  let dst_off : qword = read_index_dst(asz);
+  let src_off : qword = zero_extend(read_gpr(asz, RSI));
+  let dst_off : qword = zero_extend(read_gpr(asz, RDI));
   // CMPS source is DS:SI (overridable), destination is ES:DI.
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
@@ -265,8 +265,8 @@ function exec_cmps(os, asz, pfx) = {
   let b = mem_read(os / 8, dst_lin);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
-  write_index_src(asz, src_off + step);
-  write_index_dst(asz, dst_off + step)
+  write_gpr(asz, RSI, (src_off + step)[asz - 1 .. 0]);
+  write_gpr(asz, RDI, (dst_off + step)[asz - 1 .. 0])
 }
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }

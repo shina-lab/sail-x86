@@ -294,25 +294,6 @@ register Final_result : bits(128) = zeros()
 register rip_rel_pending : bool
 register rip_rel_disp : qword
 
-// =========================================================================
-// String operation index register helpers
-//
-// Address size (67h prefix) selects RCX/RSI/RDI vs ECX/ESI/EDI.
-// Placed here so all string instruction files can use them.
-// =========================================================================
-
-val read_index_src : address_size -> qword
-function read_index_src(asz) = zero_extend(read_gpr(asz, RSI))
-
-val write_index_src : (address_size, qword) -> unit
-function write_index_src(asz, v) = write_gpr(asz, RSI, v[asz - 1 .. 0])
-
-val read_index_dst : address_size -> qword
-function read_index_dst(asz) = zero_extend(read_gpr(asz, RDI))
-
-val write_index_dst : (address_size, qword) -> unit
-function write_index_dst(asz, v) = write_gpr(asz, RDI, v[asz - 1 .. 0])
-
 // VSIB (Vector SIB) addressing info for gather/scatter
 struct VSIB = {
   vsib_base : qword,        // base address (GPR + displacement)
