@@ -113,9 +113,12 @@ function cpuid(leaf, subleaf) = {
   let sub_val : range(0, 4294967295) = unsigned(subleaf);
 
   match leaf_val {
-    // Leaf 0: Vendor string + max basic leaf
+    // Leaf 0: Vendor string + max basic leaf.
+    // We report "GenuineIntel" because system libraries (e.g. glibc)
+    // select code paths based on the vendor string. Presenting as a
+    // genuine Intel CPU ensures the same feature negotiation that would
+    // happen on real hardware.
     0 => (0x0000000D, 0x756E6547, 0x6C65746E, 0x49656E69),
-    //                  "Genu"       "ntel"       "ineI"
 
     // Leaf 1: Family/Model/Stepping, feature bits
     1 => {
