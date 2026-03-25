@@ -303,8 +303,11 @@ function bt_adjust(os, rm, bit_idx) = {
       let off = signed(bit_idx);
       let r = rem_round_zero(off, os);
       let q = quot_round_zero(off, os);
-      let (byte_disp, bit_num_int) : (int, int) =
-        if r >= 0 then (q * (os / 8), r) else ((q - 1) * (os / 8), r + os);
+      // Branchless Euclidean adjustment: sign = 0 when r >= 0, -1 when r < 0
+      let r_bv : bits(7) = get_slice_int(7, r, 0);
+      let sign : int = negate(unsigned(r_bv[6]));
+      let byte_disp : int = (q + sign) * (os / 8);
+      let bit_num_int : int = r - sign * os;
       let new_addr : qword = base_addr + get_slice_int(64, byte_disp, 0);
       let bit_num : range(0, 63) = unsigned(get_slice_int(6, bit_num_int, 0));
       assert(bit_num < os);
