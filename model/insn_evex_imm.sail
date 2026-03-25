@@ -402,112 +402,34 @@ function avx_vpermq_imm_512(src, imm) = {
   hi_half @ lo_half
 }
 
-/* ---- VALIGND: concatenate and shift right by imm8 dwords ---- */
+// VALIGND: concatenate src1(high):src2(low), shift right by imm dwords, take low bits.
+// Branchless: same pattern as VPALIGNR but at dword granularity.
 
 val avx_valignd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_valignd_128(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 3) = unsigned(imm[1..0]);
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let src_idx : range(0, 7) = i + shift;
-    let dst_lo : range(0, 96) = i * 32;
-    if src_idx < 4 then {
-      let s : range(0, 96) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
-    } else {
-      let s : range(0, 96) = (src_idx - 4) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
-    };
-  };
-  r
-}
+function avx_valignd_128(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[1..0]) * 32))[127..0]
 
 val avx_valignd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_valignd_256(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 7) = unsigned(imm[2..0]);
-  var r : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let src_idx : range(0, 15) = i + shift;
-    let dst_lo : range(0, 224) = i * 32;
-    if src_idx < 8 then {
-      let s : range(0, 224) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
-    } else {
-      let s : range(0, 224) = (src_idx - 8) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
-    };
-  };
-  r
-}
+function avx_valignd_256(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[2..0]) * 32))[255..0]
 
 val avx_valignd_512 : (zmmword, zmmword, byte) -> zmmword
-function avx_valignd_512(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 is upper, src2 is lower)
-  // Result[i] = TEMP[i + shift]
-  let shift : range(0, 15) = unsigned(imm[3..0]);
-  var r : zmmword = zeros();
-  foreach (i from 0 to 15) {
-    let src_idx : range(0, 31) = i + shift;
-    let dst_lo : range(0, 480) = i * 32;
-    if src_idx < 16 then {
-      let s : range(0, 480) = src_idx * 32; r[(dst_lo + 31)..dst_lo] = src2[(s + 31)..s]
-    } else {
-      let s : range(0, 480) = (src_idx - 16) * 32; r[(dst_lo + 31)..dst_lo] = src1[(s + 31)..s]
-    };
-  };
-  r
-}
+function avx_valignd_512(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[3..0]) * 32))[511..0]
 
-/* ---- VALIGNQ: concatenate and shift right by imm8 qwords ---- */
+// VALIGNQ: concatenate src1(high):src2(low), shift right by imm qwords, take low bits.
 
 val avx_valignq_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_valignq_128(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 1) = unsigned(imm[0]);
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let src_idx : range(0, 3) = i + shift;
-    let dst_lo : range(0, 64) = i * 64;
-    if src_idx < 2 then {
-      let s : range(0, 64) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
-    } else {
-      let s : range(0, 64) = (src_idx - 2) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
-    };
-  };
-  r
-}
+function avx_valignq_128(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[0..0]) * 64))[127..0]
 
 val avx_valignq_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_valignq_256(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 3) = unsigned(imm[1..0]);
-  var r : ymmword = zeros();
-  foreach (i from 0 to 3) {
-    let src_idx : range(0, 7) = i + shift;
-    let dst_lo : range(0, 192) = i * 64;
-    if src_idx < 4 then {
-      let s : range(0, 192) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
-    } else {
-      let s : range(0, 192) = (src_idx - 4) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
-    };
-  };
-  r
-}
+function avx_valignq_256(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[1..0]) * 64))[255..0]
 
 val avx_valignq_512 : (zmmword, zmmword, byte) -> zmmword
-function avx_valignq_512(src1, src2, imm) = {
-  // TEMP = src1:src2 (src1 upper, src2 lower)
-  let shift : range(0, 7) = unsigned(imm[2..0]);
-  var r : zmmword = zeros();
-  foreach (i from 0 to 7) {
-    let src_idx : range(0, 15) = i + shift;
-    let dst_lo : range(0, 448) = i * 64;
-    if src_idx < 8 then {
-      let s : range(0, 448) = src_idx * 64; r[(dst_lo + 63)..dst_lo] = src2[(s + 63)..s]
-    } else {
-      let s : range(0, 448) = (src_idx - 8) * 64; r[(dst_lo + 63)..dst_lo] = src1[(s + 63)..s]
-    };
-  };
-  r
-}
+function avx_valignq_512(src1, src2, imm) =
+  ((src1 @ src2) >> (unsigned(imm[2..0]) * 64))[511..0]
 
 /* ---- VPERMILPS (imm8): in-lane dword permute ---- */
 

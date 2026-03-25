@@ -793,6 +793,74 @@ void add_evex_tests_2(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // EVEX VALIGND/VALIGNQ — dword/qword-granularity concatenate + shift
+  // VALIGND: EVEX.NDS.128/256/512.66.0F3A.W0 03 /r ib
+  // VALIGNQ: EVEX.NDS.128/256/512.66.0F3A.W1 03 /r ib
+  // P0: R=1,X=1,B=1,R'=1,mmm=011 → 0xF3
+  // P1(W0): W=0,~vvvv=1110(xmm1),1,pp=01 → 0x75
+  // P1(W1): W=1,~vvvv=1110(xmm1),1,pp=01 → 0xF5
+  // P2: z=0,LL,b=0,V'=1,aaa=000: LL=00→0x08, LL=01→0x28, LL=10→0x48
+  // modrm: mod=11, reg=000(dst=xmm0), rm=010(src2=xmm2) → 0xC2
+  // =====================================================================
+  cat = "EVEX VALIGND";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s = {};
+    s.rflags = 0x2;
+    // xmm1 (vvvv=src1, high part), xmm2 (rm=src2, low part)
+    s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+    s.xmm[2] = xmm_from_u32(0xAAAAAAAA, 0xBBBBBBBB, 0xCCCCCCCC, 0xDDDDDDDD);
+
+    // VALIGND xmm0, xmm1, xmm2, 0: no shift (result = xmm2)
+    add_xmm("valignd xmm0,xmm1,xmm2,0",
+            {0x62, 0xF3, 0x75, 0x08, 0x03, 0xC2, 0x00}, s, 0x7);
+
+    // VALIGND xmm0, xmm1, xmm2, 1: shift right by 1 dword
+    add_xmm("valignd xmm0,xmm1,xmm2,1",
+            {0x62, 0xF3, 0x75, 0x08, 0x03, 0xC2, 0x01}, s, 0x7);
+
+    // VALIGND xmm0, xmm1, xmm2, 3: shift right by 3 dwords
+    add_xmm("valignd xmm0,xmm1,xmm2,3",
+            {0x62, 0xF3, 0x75, 0x08, 0x03, 0xC2, 0x03}, s, 0x7);
+
+    // VALIGND xmm0, xmm1, xmm2, 4: shift right by 4 dwords (result = xmm1)
+    add_xmm("valignd xmm0,xmm1,xmm2,4",
+            {0x62, 0xF3, 0x75, 0x08, 0x03, 0xC2, 0x04}, s, 0x7);
+
+    // VALIGND ymm0, ymm1, ymm2, 2: 256-bit, shift right by 2 dwords (LL=01, P2=0x28)
+    add_xmm("valignd ymm0,ymm1,ymm2,2",
+            {0x62, 0xF3, 0x75, 0x28, 0x03, 0xC2, 0x02}, s, 0x3);
+
+    // VALIGND ymm0, ymm1, ymm2, 5: 256-bit, shift right by 5 dwords
+    add_xmm("valignd ymm0,ymm1,ymm2,5",
+            {0x62, 0xF3, 0x75, 0x28, 0x03, 0xC2, 0x05}, s, 0x3);
+
+    // VALIGNQ xmm0, xmm1, xmm2, 0: W=1, no shift
+    add_xmm("valignq xmm0,xmm1,xmm2,0",
+            {0x62, 0xF3, 0xF5, 0x08, 0x03, 0xC2, 0x00}, s, 0x7);
+
+    // VALIGNQ xmm0, xmm1, xmm2, 1: W=1, shift right by 1 qword
+    add_xmm("valignq xmm0,xmm1,xmm2,1",
+            {0x62, 0xF3, 0xF5, 0x08, 0x03, 0xC2, 0x01}, s, 0x7);
+
+    // VALIGNQ xmm0, xmm1, xmm2, 2: W=1, shift right by 2 qwords (result = xmm1)
+    add_xmm("valignq xmm0,xmm1,xmm2,2",
+            {0x62, 0xF3, 0xF5, 0x08, 0x03, 0xC2, 0x02}, s, 0x7);
+
+    // VALIGNQ ymm0, ymm1, ymm2, 1: W=1, 256-bit, shift right by 1 qword
+    add_xmm("valignq ymm0,ymm1,ymm2,1",
+            {0x62, 0xF3, 0xF5, 0x28, 0x03, 0xC2, 0x01}, s, 0x3);
+
+    // VALIGNQ ymm0, ymm1, ymm2, 3: W=1, 256-bit, shift right by 3 qwords
+    add_xmm("valignq ymm0,ymm1,ymm2,3",
+            {0x62, 0xF3, 0xF5, 0x28, 0x03, 0xC2, 0x03}, s, 0x3);
+  }
+
+  // =====================================================================
   // EVEX VPEXTRB/VPEXTRD/VPEXTRQ — extract to GPR/memory
   // VPEXTRB: EVEX.128.66.0F3A.WIG 14 /r ib (src=reg, dst=r/m)
   // VPEXTRD: EVEX.128.66.0F3A.W0  16 /r ib
