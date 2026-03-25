@@ -158,8 +158,8 @@ function fetch_byte() = {
 // LongMode: default OS32, REX.W → OS64, 66h → OS16.
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
-val get_operand_size : Prefixes -> {16, 32, 64}
-function get_operand_size(pfx) =
+val opsize : Prefixes -> {16, 32, 64}
+function opsize(pfx) =
   if pfx.rex_w then {
     64
   } else if cur_mode == LongMode then {
@@ -174,8 +174,8 @@ function get_operand_size(pfx) =
 // LongMode: default OS64, 66h → OS16 (OS32 not encodable).
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
-val get_operand_size_default64 : Prefixes -> {16, 32, 64}
-function get_operand_size_default64(pfx) =
+val opsize_default64 : Prefixes -> {16, 32, 64}
+function opsize_default64(pfx) =
   if cur_mode == LongMode then {
     if pfx.has_opsize then 16 else 64
   } else if get_cs_db() == 0b1 then {
@@ -195,8 +195,8 @@ function get_operand_size_default64(pfx) =
 // size when in 64-bit mode (prefixes that change operand size are ignored
 // for this instruction in 64-bit mode)."
 // In non-64-bit modes, the 66h prefix works normally per CS.D setting.
-val get_operand_size_forced64 : Prefixes -> {16, 32, 64}
-function get_operand_size_forced64(pfx) =
+val opsize_forced64 : Prefixes -> {16, 32, 64}
+function opsize_forced64(pfx) =
   if pfx.rex_w then {
     64
   } else if cur_mode == LongMode then {

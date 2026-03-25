@@ -230,19 +230,19 @@ function dispatch_group5(reg_field, dest, pfx) = {
   match reg_field {
     // INC r/m
     0 => {
-      let os = get_operand_size(pfx);
+      let os = opsize(pfx);
       v(dest) = exec_inc(v(os, dest))
     },
     // DEC r/m
     1 => {
-      let os = get_operand_size(pfx);
+      let os = opsize(pfx);
       v(dest) = exec_dec(v(os, dest))
     },
     // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
     // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
     2 => {
-      let os = get_operand_size_forced64(pfx);
+      let os = opsize_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
       let return_addr = decode_pos;
       match os {
@@ -254,13 +254,13 @@ function dispatch_group5(reg_field, dest, pfx) = {
     },
     // JMP near indirect (f64)
     4 => {
-      let os = get_operand_size_forced64(pfx);
+      let os = opsize_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
       next_rip = Some(target)
     },
     // PUSH r/m (d64)
     6 => {
-      let os = get_operand_size_default64(pfx);
+      let os = opsize_default64(pfx);
       exec_push_imm(v(os, dest), os)
     },
     // CALL far indirect m16:16/m16:32/m16:64
@@ -270,7 +270,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
       match dest {
         RM_reg(_) => raise_UD(),
         RM_mem(m) => {
-          let os = get_operand_size(pfx);
+          let os = opsize(pfx);
           let off_size : int = os / 8;
           let a = seg_linear(m, off_size + 2);
           let far_offset : qword = zero_extend(read_mem(os, a));
@@ -300,7 +300,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
       match dest {
         RM_reg(_) => raise_UD(),
         RM_mem(m) => {
-          let os = get_operand_size(pfx);
+          let os = opsize(pfx);
           let off_size : int = os / 8;
           let a = seg_linear(m, off_size + 2);
           let far_offset : qword = zero_extend(read_mem(os, a));
