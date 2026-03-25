@@ -210,73 +210,89 @@ function decode_vex_src_ymm(modrm, rm, pfx) = match rm {
 // FP16 <-> FP32 conversion helpers (used by VEX VCVTPH2PS/VCVTPS2PH and EVEX)
 // =========================================================================
 
+// Branchless FP16 -> FP32 conversion (pure combinational logic).
+// Computes all four cases (normal, denormal, zero, inf/NaN) in parallel and muxes.
 val fp16_to_fp32 : bits(16) -> bits(32)
 function fp16_to_fp32(h) = {
-  let sign : bits(1) = h[15];
+  let sign : bits(1) = h[15..15];
   let exp5 : bits(5) = h[14..10];
   let frac10 : bits(10) = h[9..0];
-  if exp5 == 0b11111 then {
-    sign @ 0xFF @ frac10 @ 0b0000000000000
-  } else if exp5 == 0b00000 then {
-    if frac10 == zeros() then {
-      sign @ zeros(31)
-    } else {
-      var shift : nat = 0;
-      let f : bits(10) = frac10;
-      var done : bool = false;
-      foreach (i from 9 downto 0) {
-        if ~(done) & f[i] == 0b0 then shift = shift + 1
-        else done = true
-      };
-      let new_exp : int = 112 - shift;
-      let shifted : bits(10) = frac10 << (shift + 1);
-      sign @ get_slice_int(8, new_exp, 0) @ shifted @ 0b0000000000000
-    }
-  } else {
-    let new_exp : bits(8) = zero_extend(exp5) + 0x70;
-    sign @ new_exp @ frac10 @ 0b0000000000000
-  }
+
+  // Case selectors (single-bit masks, no bools)
+  let inf_nan : bit = is_eq(exp5, 0b11111);
+  let zero_exp : bit = is_eq(exp5, 0b00000);
+  let frac_nz : bit = is_nonzero(frac10);
+
+  // Normal: bias-adjust exponent
+  let normal_body : bits(31) = (zero_extend(exp5) + 0x70) @ frac10 @ 0b0000000000000;
+
+  // Denormal: priority-encode leading zeros, normalize
+  let lz = clz(frac10);
+  let denorm_body : bits(31) =
+    to_bits(8, 112 - lz) @ (frac10 << (lz + 1)) @ 0b0000000000000;
+
+  // Inf/NaN: exponent = 0xFF, mantissa preserved
+  let infnan_body : bits(31) = 0xFF @ frac10 @ 0b0000000000000;
+
+  // 4-way mux: normal | denormal | zero | inf/NaN
+  let body : bits(31) = blend(normal_body, denorm_body, zero_exp & frac_nz);
+  let body : bits(31) = blend(body, zeros(), zero_exp & ~(frac_nz));
+  let body : bits(31) = blend(body, infnan_body, inf_nan);
+
+  sign @ body
 }
 
+// Branchless FP32 -> FP16 conversion with rounding.
 // rc: imm8[1:0] rounding control — 00=RNE, 01=round down, 10=round up, 11=truncate
 val fp32_to_fp16 : (bits(32), bits(2)) -> bits(16)
 function fp32_to_fp16(f, rc) = {
-  let sign : bits(1) = f[31];
+  let sign : bits(1) = f[31..31];
   let exp8 : bits(8) = f[30..23];
   let frac23 : bits(23) = f[22..0];
-  let exp_val : nat = unsigned(exp8);
-  if exp8 == 0xFF then {
-    if frac23 == zeros() then sign @ 0b11111 @ 0b0000000000
-    else sign @ 0b11111 @ frac23[22..13]
-  } else if exp_val > 142 then {
-    sign @ 0b11111 @ 0b0000000000
-  } else if exp_val < 103 then {
-    sign @ 0b00000 @ 0b0000000000
-  } else {
-    // Compute 15-bit truncated result (5-bit exp @ 10-bit mantissa), round bit, sticky bit
-    let (top15, round_bit, sticky_bit) : (bits(15), bit, bit) =
-      if exp_val < 113 then {
-        // Denormal: right-shift (1.frac23) into 10-bit mantissa with exp=0
-        // Use 37-bit intermediate (24 mantissa + 13 guard) to preserve round/sticky bits
-        let shift_amt : nat = 113 - exp_val;
-        let wide : bits(37) = (0b1 @ frac23) @ 0b0000000000000;
-        let shifted : bits(37) = wide >> shift_amt;
-        let sticky : bits(26) = (0b0 @ shifted[24..0]) - 1;
-        (0b00000 @ shifted[35..26], shifted[25], ~(sticky[25]))
-      } else {
-        let new_exp : int = exp_val - 112;
-        let sticky : bits(13) = (0b0 @ frac23[11..0]) - 1;
-        (get_slice_int(5, new_exp, 0) @ frac23[22..13], frac23[12], ~(sticky[12]))
-      };
-    let round_up : bool = match rc {
-      0b00 => (round_bit == 0b1) & (sticky_bit == 0b1 | top15[0] == 0b1),
-      0b01 => (sign == 0b1) & (round_bit == 0b1 | sticky_bit == 0b1),
-      0b10 => (sign == 0b0) & (round_bit == 0b1 | sticky_bit == 0b1),
-      0b11 => false
-    };
-    let result15 : bits(15) = if round_up then top15 + 1 else top15;
-    sign @ result15
-  }
+
+  // Case selectors
+  let is_inf_nan : bit = is_eq(exp8, 0xFF);
+  let is_overflow : bit = is_gt_u(exp8, 0x8E) & ~(is_inf_nan);
+  let is_underflow : bit = is_lt_u(exp8, 0x67);
+  let is_denorm_out : bit = is_lt_u(exp8, 0x71) & ~(is_underflow);
+
+  // --- Normal output path: new_exp = exp - 112, truncate mantissa ---
+  let norm_top15 : bits(15) = (exp8 - 0x70)[4..0] @ frac23[22..13];
+  let norm_round : bit = frac23[12];
+  let norm_sticky : bit = is_nonzero(frac23[11..0]);
+
+  // --- Denormal output path: right-shift (1.frac23) @ zeros(13) ---
+  let shift_amt = unsigned(0x71 - exp8);
+  let shifted : bits(37) = ((0b1 @ frac23) @ 0b0000000000000) >> shift_amt;
+  let denorm_top15 : bits(15) = 0b00000 @ shifted[35..26];
+  let denorm_round : bit = shifted[25];
+  let denorm_sticky : bit = is_nonzero(shifted[24..0]);
+
+  // --- Mux normal vs denormal ---
+  let top15 : bits(15) = blend(norm_top15, denorm_top15, is_denorm_out);
+  let round_bit : bit = (norm_round & ~(is_denorm_out)) | (denorm_round & is_denorm_out);
+  let sticky_bit : bit = (norm_sticky & ~(is_denorm_out)) | (denorm_sticky & is_denorm_out);
+
+  // --- Rounding: 4-way mux on rc[1:0] ---
+  let rs : bit = round_bit | sticky_bit;
+  let rne_up : bit = round_bit & (sticky_bit | top15[0]);
+  let down_up : bit = sign[0] & rs;
+  let up_up : bit = ~(sign[0]) & rs;
+  // Branchless 4-way select: rc=00→rne, rc=01→down, rc=10→up, rc=11→trunc(0)
+  let lo : bit = (rne_up & ~(rc[0])) | (down_up & rc[0]);
+  let hi : bit = (up_up & ~(rc[0]));
+  let round_up : bit = (lo & ~(rc[1])) | (hi & rc[1]);
+
+  let result15 : bits(15) = top15 + zero_extend(round_up);
+
+  // --- Final mux: normal/denorm result | underflow | overflow | inf/NaN ---
+  // Inf/NaN: 0b11111 @ frac23[22:13] (frac23==0 for Inf gives zeros naturally)
+  let body : bits(15) = result15;
+  let body : bits(15) = blend(body, zeros(), is_underflow);
+  let body : bits(15) = blend(body, 0b11111 @ zeros(10), is_overflow);
+  let body : bits(15) = blend(body, 0b11111 @ frac23[22..13], is_inf_nan);
+
+  sign @ body
 }
 
 val avx_vcvtph2ps_128 : bits(64) -> xmmword
