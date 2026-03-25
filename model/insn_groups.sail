@@ -335,17 +335,26 @@ function exec_shl(a, count_raw) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  if count == 0 then {
-    a
-  } else {
-    let result : bits('os) = a << count;
-    CF = if count <= 'os then a['os - count] else undefined;
-    update_SF_ZF_PF(result);
-    if count == 1 then OF = result['os - 1] ^ CF
-    else OF = undefined;
-    AF = undefined;
-    result
-  }
+  let count_bv : bits(6) = to_bits(6, count);
+  let count_nz : bit = is_nonzero(count_bv);
+  let old_CF = CF; let old_OF = OF; let old_SF = SF;
+  let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
+  let result : bits('os) = a << count;
+  let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
+  let cf_idx : range(0, 63) = ('os + 64 - cf_count) % 64;
+  let a_ext : bits(64) = zero_extend(a);
+  CF = a_ext[cf_idx];
+  update_SF_ZF_PF(result);
+  OF = result['os - 1] ^ CF;
+  AF = undefined;
+  // When count==0: restore all flags and return original value
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  SF = blend(old_SF, SF, count_nz);
+  ZF = blend(old_ZF, ZF, count_nz);
+  PF = blend(old_PF, PF, count_nz);
+  AF = blend(old_AF, AF, count_nz);
+  blend(a, result, count_nz)
 }
 
 // SHR — Shift Right (Logical)
@@ -357,17 +366,25 @@ val exec_shr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os
 function exec_shr(a, count_raw) = {
   let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then {
-    a
-  } else {
-    let result : bits('os) = a >> count;
-    CF = if count <= 'os then a[count - 1] else undefined;
-    update_SF_ZF_PF(result);
-    if count == 1 then OF = a['os - 1]
-    else OF = undefined;
-    AF = undefined;
-    result
-  }
+  let count_bv : bits(6) = to_bits(6, count);
+  let count_nz : bit = is_nonzero(count_bv);
+  let old_CF = CF; let old_OF = OF; let old_SF = SF;
+  let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
+  let result : bits('os) = a >> count;
+  let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
+  assert(cf_count >= 1);
+  let a_ext : bits(64) = zero_extend(a);
+  CF = a_ext[cf_count - 1];
+  update_SF_ZF_PF(result);
+  OF = a['os - 1];
+  AF = undefined;
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  SF = blend(old_SF, SF, count_nz);
+  ZF = blend(old_ZF, ZF, count_nz);
+  PF = blend(old_PF, PF, count_nz);
+  AF = blend(old_AF, AF, count_nz);
+  blend(a, result, count_nz)
 }
 
 // SAR — Shift Right (Arithmetic)
@@ -380,22 +397,27 @@ val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os
 function exec_sar(a, count_raw) = {
   let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
-  if count == 0 then {
-    a
-  } else {
-    // CF = last bit shifted out. For SAR, when count >= operand width,
-    // the result is all-sign-bits, so CF = sign bit of the original value.
-    // SDM pseudocode iterates: CF := LSB(DEST) each step with signed divide.
-    let cf_idx = if count >= 'os then 'os - 1 else count - 1;
-    assert(cf_idx < 'os);
-    CF = a[cf_idx];
-    let result : bits('os) = a >>> count;
-    update_SF_ZF_PF(result);
-    if count == 1 then OF = 0b0
-    else OF = undefined;
-    AF = undefined;
-    result
-  }
+  let count_bv : bits(6) = to_bits(6, count);
+  let count_nz : bit = is_nonzero(count_bv);
+  let old_CF = CF; let old_OF = OF; let old_SF = SF;
+  let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
+  let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
+  assert(cf_count >= 1);
+  let cf_idx_bv : bits(7) = min_u(to_bits(7, cf_count - 1), to_bits(7, 'os - 1));
+  let cf_idx = unsigned(cf_idx_bv);
+  assert(cf_idx < 'os);
+  CF = a[cf_idx];
+  let result : bits('os) = a >>> count;
+  update_SF_ZF_PF(result);
+  OF = 0b0;
+  AF = undefined;
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  SF = blend(old_SF, SF, count_nz);
+  ZF = blend(old_ZF, ZF, count_nz);
+  PF = blend(old_PF, PF, count_nz);
+  AF = blend(old_AF, AF, count_nz);
+  blend(a, result, count_nz)
 }
 
 // ROL — Rotate Left

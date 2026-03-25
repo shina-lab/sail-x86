@@ -257,10 +257,7 @@ function pcmp_implicit_len(x, ub) = {
   // For ub=15, the shift overflows bits(16) giving 0 — CTZ returns 16 naturally.
   // Sentinel at ub+1: CTZ returns ub+1 when no nulls found.
   // For ub=15, the shift overflows bits(16) giving 0 — CTZ returns 16 naturally.
-  let sentinel : bits(16) = null_mask | (0x0001 << (ub + 1));
-  let idx = ctz(16, zero_extend(sentinel));
-  assert(idx <= 16);
-  idx
+  ctz(null_mask | (0x0001 << (ub + 1)))
 }
 
 // Core string comparison engine.
@@ -428,7 +425,7 @@ function pcmp_bit_index(int_res2, ub, msb_mode) = {
       let r = bsr(zero_extend(int_res2)); assert(r <= 15); r
     }
   } else {
-    let r = ctz(16, zero_extend(int_res2)); assert(r <= 16); r
+    ctz(int_res2)
   };
   // If no bits set, return ub+1; also clamp CTZ=16 to ub+1 for word mode
   if is_zero_flag == bitone | idx > ub then ub + 1 else idx

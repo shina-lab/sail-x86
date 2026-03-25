@@ -208,36 +208,53 @@ function cpuid(leaf, subleaf) = {
 // If count=0, no operation. If count > operand_size, undefined.
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
-
 val exec_shld : forall 'os, 'os in {16, 32, 64}. (implicit('os), bits('os), bits('os), byte) -> bits('os)
 function exec_shld(os, d, s, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  if count == 0 then {
-    d
-  } else if count > os then {
-    // SDM: result and flags undefined when count > operand size
-    CF = undefined;
-    OF = undefined;
-    SF = undefined;
-    ZF = undefined;
-    PF = undefined;
-    AF = undefined;
-    undefined
-  } else {
-    let wide = d @ s;
-    let shifted = wide << count;
-    let r = shifted[(os * 2 - 1)..os];
-    CF = wide[os * 2 - count];
-    update_SF_ZF_PF(r);
-    if count == 1 then
-      OF = r[os - 1] ^ d[os - 1]
-    else OF = undefined;
-    AF = undefined;
-    r
-  }
+
+  let count_bv : bits(6) = to_bits(6, count);
+  let old_CF = CF;
+  let old_OF = OF;
+  let old_SF = SF;
+  let old_ZF = ZF;
+  let old_PF = PF;
+  let old_AF = AF;
+
+  // Clamp count to [0, os] for valid computation; garbage for count > os is blended away
+  let clamped_bv : bits(7) = min_u(to_bits(7, count), to_bits(7, os));
+  let clamped : range(0, 127) = unsigned(clamped_bv);
+  let cf_count = clamped + unsigned(is_zero(count_bv));
+  assert(cf_count >= 1 & cf_count <= os);
+  let wide = d @ s;
+  let shifted = wide << clamped;
+  let r = shifted[(os * 2 - 1)..os];
+  CF = wide[os * 2 - cf_count];
+  update_SF_ZF_PF(r);
+  OF = r[os - 1] ^ d[os - 1];
+  AF = undefined;
+
+  // count==0: restore old flags
+  let count_nz : bit = is_nonzero(count_bv);
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  SF = blend(old_SF, SF, count_nz);
+  ZF = blend(old_ZF, ZF, count_nz);
+  PF = blend(old_PF, PF, count_nz);
+  AF = blend(old_AF, AF, count_nz);
+  let result : bits('os) = blend(d, r, count_nz);
+
+  // count > os: SDM says result and flags undefined
+  let count_gt_os : bit = is_gt_u(to_bits(7, count), to_bits(7, os));
+  CF = blend(CF, undefined, count_gt_os);
+  OF = blend(OF, undefined, count_gt_os);
+  SF = blend(SF, undefined, count_gt_os);
+  ZF = blend(ZF, undefined, count_gt_os);
+  PF = blend(PF, undefined, count_gt_os);
+  AF = blend(AF, undefined, count_gt_os);
+  blend(result, undefined, count_gt_os)
 }
 
 // SHRD — Double Precision Shift Right
@@ -247,36 +264,54 @@ function exec_shld(os, d, s, count_raw) = {
 // If count=0, no operation. If count > operand_size, undefined.
 // CF = last bit shifted out. SF, ZF, PF set from result.
 // OF defined for count=1 (sign change). AF undefined.
-
 val exec_shrd : forall 'os, 'os in {16, 32, 64}. (implicit('os), bits('os), bits('os), byte) -> bits('os)
 function exec_shrd(os, d, s, count_raw) = {
   let count : range(0, 63) = match os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  if count == 0 then {
-    d
-  } else if count > os then {
-    // SDM: result and flags undefined when count > operand size
-    CF = undefined;
-    OF = undefined;
-    SF = undefined;
-    ZF = undefined;
-    PF = undefined;
-    AF = undefined;
-    undefined
-  } else {
-    let wide = s @ d;
-    let shifted = wide >> count;
-    let r = shifted[(os - 1)..0];
-    CF = d[count - 1];
-    update_SF_ZF_PF(r);
-    if count == 1 then
-      OF = r[os - 1] ^ d[os - 1]
-    else OF = undefined;
-    AF = undefined;
-    r
-  }
+
+  let count_bv : bits(6) = to_bits(6, count);
+  let old_CF = CF;
+  let old_OF = OF;
+  let old_SF = SF;
+  let old_ZF = ZF;
+  let old_PF = PF;
+  let old_AF = AF;
+
+  // Clamp count to [0, os] for valid computation
+  let clamped_bv : bits(7) = min_u(to_bits(7, count), to_bits(7, os));
+  let clamped : range(0, 127) = unsigned(clamped_bv);
+  let cf_count = clamped + unsigned(is_zero(count_bv));
+  assert(cf_count >= 1 & cf_count <= 64);
+  let wide = s @ d;
+  let shifted = wide >> clamped;
+  let r = shifted[(os - 1)..0];
+  let d_ext : bits(64) = zero_extend(d);
+  CF = d_ext[cf_count - 1];
+  update_SF_ZF_PF(r);
+  OF = r[os - 1] ^ d[os - 1];
+  AF = undefined;
+
+  // count==0: restore old flags
+  let count_nz : bit = is_nonzero(count_bv);
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  SF = blend(old_SF, SF, count_nz);
+  ZF = blend(old_ZF, ZF, count_nz);
+  PF = blend(old_PF, PF, count_nz);
+  AF = blend(old_AF, AF, count_nz);
+  let result : bits('os) = blend(d, r, count_nz);
+
+  // count > os: SDM says result and flags undefined
+  let count_gt_os : bit = is_gt_u(to_bits(7, count), to_bits(7, os));
+  CF = blend(CF, undefined, count_gt_os);
+  OF = blend(OF, undefined, count_gt_os);
+  SF = blend(SF, undefined, count_gt_os);
+  ZF = blend(ZF, undefined, count_gt_os);
+  PF = blend(PF, undefined, count_gt_os);
+  AF = blend(AF, undefined, count_gt_os);
+  blend(result, undefined, count_gt_os)
 }
 
 // Adjust BT/BTS/BTR/BTC operands for memory bit string addressing.
