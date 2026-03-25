@@ -1606,10 +1606,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if ~(has_rdrand) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdrand64();
-            if cf_val == 0b1 then
-              v(r) = rnd[(os - 1) .. 0]
-            else
-              v(os, r) = zeros();
+            v(r) = rnd[(os - 1) .. 0] & sign_extend(cf_val);
             CF = cf_val;
             OF = 0b0;
             SF = 0b0;
@@ -1625,10 +1622,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if ~(has_rdseed) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdseed64();
-            if cf_val == 0b1 then
-              v(r) = rnd[(os - 1) .. 0]
-            else
-              v(os, r) = zeros();
+            v(r) = rnd[(os - 1) .. 0] & sign_extend(cf_val);
             CF = cf_val;
             OF = 0b0;
             SF = 0b0;
