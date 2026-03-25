@@ -242,7 +242,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
     // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
     2 => {
-      let os = get_operand_size_f64(pfx);
+      let os = get_operand_size_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
       let return_addr = decode_pos;
       match os {
@@ -254,13 +254,13 @@ function dispatch_group5(reg_field, dest, pfx) = {
     },
     // JMP near indirect (f64)
     4 => {
-      let os = get_operand_size_f64(pfx);
+      let os = get_operand_size_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
       next_rip = Some(target)
     },
     // PUSH r/m (d64)
     6 => {
-      let os = get_operand_size_d64(pfx);
+      let os = get_operand_size_default64(pfx);
       exec_push_imm(v(os, dest), os)
     },
     // CALL far indirect m16:16/m16:32/m16:64

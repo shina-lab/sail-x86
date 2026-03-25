@@ -754,7 +754,7 @@ function decode_execute() = {
       op if 80 <= op & op <= 87 => {
         let reg_field : range(0, 7) = op - 80;
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         match os {
           16 => push16(v(reg)),
           32 => if cur_mode == LongMode then push64(zero_extend(v(32, reg)))
@@ -767,7 +767,7 @@ function decode_execute() = {
       op if 88 <= op & op <= 95 => {
         let reg_field : range(0, 7) = op - 88;
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         exec_pop_reg(reg, os)
       },
 
@@ -882,7 +882,7 @@ function decode_execute() = {
 
       // 68: PUSH imm16/32 (d64, Iz)
       104 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         let imm = fetch_imm_z(os);
         exec_push_imm(imm[(os - 1) .. 0], os)
       },
@@ -904,7 +904,7 @@ function decode_execute() = {
 
       // 6A: PUSH imm8 (d64, sign-extended)
       106 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         let imm = fetch_imm8_sx();
         exec_push_imm(imm[(os - 1) .. 0], os)
       },
@@ -956,7 +956,7 @@ function decode_execute() = {
         let cc : cc_idx = op - 112;
         let offset = fetch_rel8();
         if eval_cc(cc) == 0b1 then {
-          let os = get_operand_size_f64(pfx);
+          let os = get_operand_size_forced64(pfx);
           next_rip = Some(truncate_rip(decode_pos + offset, os));
         }
       },
@@ -1099,7 +1099,7 @@ function decode_execute() = {
         let modrm = fetch_byte();
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         if reg_field == 0 then {
-          let os = get_operand_size_d64(pfx);
+          let os = get_operand_size_default64(pfx);
           let mod_field : range(0, 3) = unsigned(modrm[7..6]);
           if mod_field == 3 then {
             // Register destination — no address computation issue
@@ -1188,7 +1188,7 @@ function decode_execute() = {
       // 9C: PUSHF (d64)
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.
       156 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         let flags = read_rflags() & 0x0000000000FCFFFF;
         exec_push_imm(flags[(os - 1) .. 0], os)
       },
@@ -1199,7 +1199,7 @@ function decode_execute() = {
       // For 16-bit: only lower 16 bits affect flags (IOPL modifiable at CPL 0,
       // but AC/ID are above bit 15 and are NOT modified).
       157 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         match os {
           16 => {
             let v : word = pop16();
@@ -1407,7 +1407,7 @@ function decode_execute() = {
       // 66h prefix is ignored; 16/32-bit forms are not encodable.
       194 => {
         let imm = fetch_imm16();
-        let os = get_operand_size_f64(pfx);
+        let os = get_operand_size_forced64(pfx);
         next_rip = Some(pop_qword(os));
         v(64, RSP) = v(RSP) + zero_extend(imm)
       },
@@ -1416,7 +1416,7 @@ function decode_execute() = {
       // SDM: In 64-bit mode, operand size = stack-address size = 64.
       // 66h prefix is ignored; 16/32-bit forms are not encodable.
       195 => {
-        next_rip = Some(pop_qword(get_operand_size_f64(pfx)))
+        next_rip = Some(pop_qword(get_operand_size_forced64(pfx)))
       },
 
       // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
@@ -1508,7 +1508,7 @@ function decode_execute() = {
       200 => {
         let size = fetch_imm16();
         let level = fetch_byte();
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         let nesting : range(0, 31) = unsigned(level) % 32;
         match os {
           64 => {
@@ -1548,7 +1548,7 @@ function decode_execute() = {
       // 64-bit RBP regardless of operand-size prefix. Only the POP of RBP
       // is affected by operand size (16 vs 64).
       201 => {
-        let os = get_operand_size_d64(pfx);
+        let os = get_operand_size_default64(pfx);
         v(RSP) = v(64, RBP);
         match os {
           16 => v(RBP) = pop16(),
@@ -1792,7 +1792,7 @@ function decode_execute() = {
         let rel = fetch_rel8();
         let count_reg : qword = zero_extend(v(get_address_size(pfx), RCX));
         if count_reg == zeros() then {
-          let os = get_operand_size_f64(pfx);
+          let os = get_operand_size_forced64(pfx);
           next_rip = Some(truncate_rip(decode_pos + rel, os))
         } else {
           ()
@@ -1821,7 +1821,7 @@ function decode_execute() = {
       // E8: CALL rel16/rel32 (f64)
       232 => {
         let offset = fetch_rel_os(pfx);
-        let os = get_operand_size_f64(pfx);
+        let os = get_operand_size_forced64(pfx);
         let return_addr = decode_pos;
         match os {
           16 => push16(return_addr[15..0]),
@@ -1834,7 +1834,7 @@ function decode_execute() = {
 
       // E9: JMP rel16/rel32 (f64)
       233 => {
-        let os = get_operand_size_f64(pfx);
+        let os = get_operand_size_forced64(pfx);
         next_rip = Some(truncate_rip(decode_pos + fetch_rel_os(pfx), os))
       },
 
@@ -1866,7 +1866,7 @@ function decode_execute() = {
 
       // EB: JMP rel8 (f64)
       235 => {
-        let os = get_operand_size_f64(pfx);
+        let os = get_operand_size_forced64(pfx);
         next_rip = Some(truncate_rip(decode_pos + fetch_rel8(), os))
       },
 

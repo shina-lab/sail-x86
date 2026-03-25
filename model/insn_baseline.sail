@@ -1018,7 +1018,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel_os(pfx);
       if eval_cc(cc) == 0b1 then {
-        let os = get_operand_size_f64(pfx);
+        let os = get_operand_size_forced64(pfx);
         next_rip = Some(truncate_rip(decode_pos + offset, os));
       }
     },
@@ -1136,7 +1136,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: pushes FS selector. d64 = default 64 in long mode.
     // Non-64-bit mode: operand size from CS.D and 66h prefix.
     160 => {
-      let os = get_operand_size_d64(pfx);
+      let os = get_operand_size_default64(pfx);
       match os {
         16 => push16(read_segreg(FS)),
         32 => push32(zero_extend(read_segreg(FS))),
@@ -1146,7 +1146,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F A1: POP FS (d64)
     161 => {
-      let os = get_operand_size_d64(pfx);
+      let os = get_operand_size_default64(pfx);
       let v : word = match os {
         16 => pop16(),
         32 => pop32()[15..0],
@@ -1188,7 +1188,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F A8: PUSH GS (d64)
     168 => {
-      let os = get_operand_size_d64(pfx);
+      let os = get_operand_size_default64(pfx);
       match os {
         16 => push16(read_segreg(GS)),
         32 => push32(zero_extend(read_segreg(GS))),
@@ -1198,7 +1198,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F A9: POP GS (d64)
     169 => {
-      let os = get_operand_size_d64(pfx);
+      let os = get_operand_size_default64(pfx);
       let v : word = match os {
         16 => pop16(),
         32 => pop32()[15..0],
