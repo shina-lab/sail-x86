@@ -573,7 +573,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                   (GDTR_base, GDTR_limit) = match gdt_os {
                     16 => { let d : bits(48) = read_mem(m); (zero_extend(d[39..16]), d[15..0]) },
                     32 => { let d : bits(48) = read_mem(m); (zero_extend(d[47..16]), d[15..0]) },
-                    _  => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
+                    64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
                   }
                 },
                 _ => raise_UD(),
@@ -590,7 +590,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                   (IDTR_base, IDTR_limit) = match idt_os {
                     16 => { let d : bits(48) = read_mem(m); (zero_extend(d[39..16]), d[15..0]) },
                     32 => { let d : bits(48) = read_mem(m); (zero_extend(d[47..16]), d[15..0]) },
-                    _  => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
+                    64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
                   }
                 },
                 _ => raise_UD(),
@@ -984,15 +984,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       if cur_cpl != 0 then raise_GP0();
       let ecx : dword = v(RCX);
       // Handle registers with Sail state specially
-      let msr_val : qword = if ecx == 0xC0000080 then EFER
-        else if ecx == 0xC0000100 then SegCache[FS].seg_base
-        else if ecx == 0xC0000101 then SegCache[GS].seg_base
-        else if ecx == 0xC0000102 then KERNEL_GS_BASE
-        // IA32_XSS (0xDA0): always 0 (no supervisor state components supported)
-        else if ecx == 0x00000DA0 then zeros()
-        else __rdmsr(ecx);
-      v(RAX) = msr_val[31..0];
-      v(RDX) = msr_val[63..32]
+      let msr : qword = match ecx {
+        0xC0000080 => EFER,
+        0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
+        0xC0000100 => SegCache[FS].seg_base,
+        0xC0000101 => SegCache[GS].seg_base,
+        0xC0000102 => KERNEL_GS_BASE,
+        _ => __rdmsr(ecx),
+      };
+      v(RAX) = msr[31..0];
+      v(RDX) = msr[63..32]
     },
 
     // 0F 40-4F: CMOVcc r, r/m
@@ -1000,12 +1001,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cc : cc_idx = op - 64;
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
-      let src_val = v(os, src);
-      let dst = v(os, reg);
-      if eval_cc(cc) == 0b1 then
-        v(reg) = src_val
-      else
-        v(reg) = dst
+      v(reg) = blend(v(os, reg), v(os, src), eval_cc(cc))
     },
 
     // 0F 77: EMMS — set x87 tag word to all empty
@@ -1112,10 +1108,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
-        7 => match dest {
-          RM_mem(_) => (),  // CLFLUSH/CLFLUSHOPT: NOP (cache flush, no architectural effect)
-          RM_reg(_) => (),  // SFENCE
-        },
+        7 => (),
       }
     },
 
@@ -1123,11 +1116,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     162 => {
       let leaf : dword = v(RAX);
       let subleaf : dword = v(RCX);
-      let (out_eax, out_ebx, out_ecx, out_edx) = cpuid(leaf, subleaf);
-      v(RAX) = out_eax;
-      v(RBX) = out_ebx;
-      v(RCX) = out_ecx;
-      v(RDX) = out_edx
+      let (eax, ebx, ecx, edx) = cpuid(leaf, subleaf);
+      v(RAX) = eax;
+      v(RBX) = ebx;
+      v(RCX) = ecx;
+      v(RDX) = edx
     },
 
     // 0F A0: PUSH FS (d64)
@@ -1167,10 +1160,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count = fetch_byte();
-      let dst_val = v(os, dest);
-      let src_val = v(os, reg);
-      let new_val = exec_shld(dst_val, src_val, count);
-      v(os, dest) = new_val
+      v(dest) = exec_shld(os, v(dest), v(reg), count)
     },
 
     // 0F A5: SHLD r/m, r, CL
@@ -1178,10 +1168,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      let dst_val = v(os, dest);
-      let src_val = v(os, reg);
-      let new_val = exec_shld(dst_val, src_val, count);
-      v(os, dest) = new_val
+      v(dest) = exec_shld(os, v(dest), v(reg), count)
     },
 
     // 0F A8: PUSH GS (d64)
@@ -1220,7 +1207,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       var x = v(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = 0b1;
-      v(os, adj_rm) = x
+      v(adj_rm) = x
     },
 
     // 0F AC: SHRD r/m, r, imm8
@@ -1228,10 +1215,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count = fetch_byte();
-      let dst_val = v(os, dest);
-      let src_val = v(os, reg);
-      let new_val = exec_shrd(dst_val, src_val, count);
-      v(os, dest) = new_val
+      v(dest) = exec_shrd(os, v(dest), v(reg), count)
     },
 
     // 0F AD: SHRD r/m, r, CL
@@ -1239,10 +1223,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      let dst_val = v(os, dest);
-      let src_val = v(os, reg);
-      let new_val = exec_shrd(dst_val, src_val, count);
-      v(os, dest) = new_val
+      v(dest) = exec_shrd(os, v(dest), v(reg), count)
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
@@ -1253,22 +1234,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let b = v(os, src);
       let product : int = signed(sign_extend(a) : qword) * signed(sign_extend(b) : qword);
       let result : qword = to_bits_truncate(product);
-      CF = match os {
-        16 => {
-          let w : bits(32) = to_bits_truncate(product);
-          is_nonzero(w[31..16] ^ sign_extend(w[15]))
-        },
-        32 => {
-          let w : bits(64) = to_bits_truncate(product);
-          is_nonzero(w[63..32] ^ sign_extend(w[31]))
-        },
-        64 => {
-          let w : bits(128) = to_bits_truncate(product);
-          is_nonzero(w[127..64] ^ sign_extend(w[63]))
-        },
-      };
+      let w = to_bits_truncate(os * 2, product);
+      CF = is_nonzero(w[os * 2 - 1 .. os] ^ sign_extend(w[os - 1]));
       OF = CF;
-      v(reg) = result[(os - 1) .. 0]
+      v(reg) = to_bits_truncate(os, product)
     },
 
     // 0F B3: BTR r/m, r
@@ -1297,13 +1266,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           let (far_offset, selector) : (qword, word) = match os {
             16 => { let d : bits(32) = v(m); (zero_extend(d[15..0]), d[31..16]) },
             32 => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
-            _  => { let d : bits(80) = read_mem(m); (zero_extend(d[63..0]), d[79..64]) },
+            64 => { let d : bits(80) = read_mem(m); (zero_extend(d[63..0]), d[79..64]) },
           };
           v(reg) = far_offset;
           let seg : segreg_idx = match op {
             178 => SS,
             180 => FS,
-            _   => GS,
+            181 => GS,
           };
           load_segment_register(seg, selector)
         },
@@ -1350,14 +1319,14 @@ function dispatch_2byte_gpr(op, pfx) = {
     182 => {
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
-      v(os, reg) = zero_extend(v(8, src))
+      v(reg) = zero_extend(os, v(8, src))
     },
 
     // 0F B7: MOVZX r, r/m16
     183 => {
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
-      v(os, reg) = zero_extend(v(16, src))
+      v(reg) = zero_extend(os, v(16, src))
     },
 
     // 0F BA: Group 8 — BT/BTS/BTR/BTC r/m, imm8
@@ -1378,17 +1347,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BTS — set bit
         5 => {
           x[bit_num] = 0b1;
-          v(os, dest) = x
+          v(dest) = x
         },
         // BTR — reset bit
         6 => {
           x[bit_num] = 0b0;
-          v(os, dest) = x
+          v(dest) = x
         },
         // BTC — complement bit
         7 => {
           x[bit_num] = ~(x[bit_num]);
-          v(os, dest) = x
+          v(dest) = x
         },
         _ => raise_UD(),
       }
