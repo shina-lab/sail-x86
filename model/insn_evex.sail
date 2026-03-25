@@ -376,39 +376,24 @@ function evex_write_pd_xmm(dst, result, pfx) = evex_write_q_xmm(dst, result, pfx
 val evex_write_ss : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_ss(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == 0b1 then {
-    write_xmm(dst, result)
-  } else if pfx.evex_z == 0b1 then {
-    write_xmm(dst, result[127..32] @ zeros(32))
-  } else {
-    write_xmm(dst, result[127..32] @ read_xmm(dst)[31..0])
-  }
+  let merge : dword = blend(read_xmm(dst)[31..0], zeros(), pfx.evex_z);
+  write_xmm(dst, result[127..32] @ blend(merge, result[31..0], mask_bit))
 }
 
 // --- Scalar SH (16-bit FP16) writemask ---
 val evex_write_sh : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_sh(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == 0b1 then {
-    write_xmm(dst, result)
-  } else if pfx.evex_z == 0b1 then {
-    write_xmm(dst, result[127..16] @ zeros(16))
-  } else {
-    write_xmm(dst, result[127..16] @ read_xmm(dst)[15..0])
-  }
+  let merge : word = blend(read_xmm(dst)[15..0], zeros(), pfx.evex_z);
+  write_xmm(dst, result[127..16] @ blend(merge, result[15..0], mask_bit))
 }
 
 // --- Scalar SD (64-bit) writemask ---
 val evex_write_sd : (simd_idx, xmmword, Prefixes) -> unit
 function evex_write_sd(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  if mask_bit == 0b1 then {
-    write_xmm(dst, result)
-  } else if pfx.evex_z == 0b1 then {
-    write_xmm(dst, result[127..64] @ zeros(64))
-  } else {
-    write_xmm(dst, result[127..64] @ read_xmm(dst)[63..0])
-  }
+  let merge : qword = blend(read_xmm(dst)[63..0], zeros(), pfx.evex_z);
+  write_xmm(dst, result[127..64] @ blend(merge, result[63..0], mask_bit))
 }
 
 // Broadcast a 32-bit value to all 16 dword lanes of a ZMM register.
