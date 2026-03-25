@@ -152,7 +152,7 @@ function exec_ins(os_in, asz) = {
     16 => v(dst) = __port_in16(port),
     32 => v(dst) = __port_in32(port),
   };
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RDI) = (off + step)[asz - 1 .. 0]
 }
 
@@ -174,7 +174,7 @@ function exec_outs(os_in, asz, pfx) = {
     16 => __port_out16(port, v(src)),
     32 => __port_out32(port, v(src)),
   };
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (off + step)[asz - 1 .. 0]
 }
 
@@ -190,7 +190,7 @@ function exec_movs(os, asz, pfx) = {
   let src : MemRef = struct { seg = src_seg, addr = src_off };
   let dst : MemRef = struct { seg = ES, addr = dst_off };
   v(dst) = v(os, src);
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (src_off + step)[asz - 1 .. 0];
   v(RDI) = (dst_off + step)[asz - 1 .. 0];
 }
@@ -201,7 +201,7 @@ function exec_stos(os, asz) = {
   // STOS destination is always ES:DI (not overridable).
   let dst : MemRef = struct { seg = ES, addr = off };
   v(dst) = v(os, RAX);
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RDI) = (off + step)[asz - 1 .. 0]
 }
 
@@ -215,7 +215,7 @@ function exec_lods(os, asz, pfx) = {
   };
   let src : MemRef = struct { seg = src_seg, addr = off };
   v(RAX) = v(os, src);
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (off + step)[asz - 1 .. 0]
 }
 
@@ -227,7 +227,7 @@ function exec_scas(os, asz) = {
   let a = v(os, RAX);
   let b = v(os, dst);
   update_flags_sub(a - b, a, b);
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RDI) = (off + step)[asz - 1 .. 0]
 }
 
@@ -245,7 +245,7 @@ function exec_cmps(os, asz, pfx) = {
   let a = v(os, src);
   let b = v(os, dst);
   update_flags_sub(a - b, a, b);
-  let step = if DF == 0b0 then os / 8 else -(os / 8);
+  let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (src_off + step)[asz - 1 .. 0];
   v(RDI) = (dst_off + step)[asz - 1 .. 0]
 }
