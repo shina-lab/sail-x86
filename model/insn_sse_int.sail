@@ -253,10 +253,14 @@ function pcmp_implicit_len(x, ub) = {
       null_mask[i] = is_zero(x[hi .. lo])
     }
   };
-  // CTZ gives index of first null; returns 16 if no nulls
-  let idx = ctz(16, zero_extend(null_mask));
+  // Place sentinel at ub+1 so CTZ returns ub+1 when no nulls found.
+  // For ub=15, the shift overflows bits(16) giving 0 — CTZ returns 16 naturally.
+  // Sentinel at ub+1: CTZ returns ub+1 when no nulls found.
+  // For ub=15, the shift overflows bits(16) giving 0 — CTZ returns 16 naturally.
+  let sentinel : bits(16) = null_mask | (0x0001 << (ub + 1));
+  let idx = ctz(16, zero_extend(sentinel));
   assert(idx <= 16);
-  if idx > ub then ub + 1 else idx
+  idx
 }
 
 // Core string comparison engine.
@@ -393,8 +397,9 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
 
   // Flags
   let cf : bit = is_nonzero(int_res2);
-  let zf : bit = bool_to_bit(lb < (ub + 1));   // any invalid element in b
-  let sf : bit = bool_to_bit(la < (ub + 1));   // any invalid element in a
+  let ub1 : bits(5) = to_bits(5, ub + 1);
+  let zf : bit = is_gt_u(ub1, to_bits(5, lb));   // any invalid element in b
+  let sf : bit = is_gt_u(ub1, to_bits(5, la));   // any invalid element in a
   let of : bit = int_res2[0];
 
   (int_res2, cf, zf, sf, of)
