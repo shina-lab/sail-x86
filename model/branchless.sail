@@ -120,19 +120,13 @@ function clz(v) = {
 val ctz : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
 function ctz(v) = popcount(~(v) & (v - 1))
 
-// Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
+// BSR (bit scan reverse): index of highest set bit = width - 1 - clz(v).
 // Precondition: v != 0 (BSR is undefined for zero).
-val bsr : qword -> range(0, 63)
+val bsr : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n - 1)
 function bsr(v) = {
-  let x1 : qword = v  | (v  >> 1);
-  let x2 : qword = x1 | (x1 >> 2);
-  let x3 : qword = x2 | (x2 >> 4);
-  let x4 : qword = x3 | (x3 >> 8);
-  let x5 : qword = x4 | (x4 >> 16);
-  let x6 : qword = x5 | (x5 >> 32);
-  let n = popcount(x6);
-  assert(n > 0);
-  n - 1
+  let x = clz(v);
+  assert(x < 'n);
+  'n - 1 - x
 }
 
 // =========================================================================
