@@ -402,10 +402,10 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
 // Clamp explicit string length per SDM: abs(value), saturated to max_len.
 val pcmp_clamp_len : (dword, range(0, 16)) -> range(0, 16)
 function pcmp_clamp_len(raw, max_len) = {
-  let a : int = if signed(raw) < 0 then negate(signed(raw)) else signed(raw);
-  if a >= max_len then max_len
-  else if a < 0 then 0
-  else a
+  let clamped : dword = min_u(abs(raw), to_bits(32, max_len));
+  let result = unsigned(clamped);
+  assert(result <= 16);
+  result
 }
 
 // Find index of first (LSB) or last (MSB) set bit in IntRes2, bounded by ub.
