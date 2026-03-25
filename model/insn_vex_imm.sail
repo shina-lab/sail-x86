@@ -239,7 +239,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
     let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
     let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, sail_shiftright(src, shift) & mask)
+    write_kreg(k1, (src >> shift) & mask)
   },
 
   // 0F3A 31: KSHIFTRD (66,W0) / KSHIFTRQ (66,W1)
@@ -253,7 +253,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
     let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
     let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, sail_shiftright(src, shift) & mask)
+    write_kreg(k1, (src >> shift) & mask)
   },
 
   // 0F3A 32: KSHIFTLW (66,W1) / KSHIFTLB (66,W0)
@@ -267,7 +267,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
     let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
     let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, sail_shiftleft(src, shift) & mask)
+    write_kreg(k1, (src << shift) & mask)
   },
 
   // 0F3A 33: KSHIFTLD (66,W0) / KSHIFTLQ (66,W1)
@@ -281,7 +281,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
     let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
     let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, sail_shiftleft(src, shift) & mask)
+    write_kreg(k1, (src << shift) & mask)
   },
 
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)

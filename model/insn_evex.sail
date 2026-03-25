@@ -454,32 +454,32 @@ function select4_f32(src, ctrl) = match ctrl {
 
 val avx_vpshldw_elem : (word, word, nat) -> word
 function avx_vpshldw_elem(src1, src2, cnt) =
-  sail_shiftleft(src1 @ src2, cnt % 16)[31..16]
+  ((src1 @ src2) << (cnt % 16))[31..16]
 
 val avx_vpshldd_elem : (dword, dword, nat) -> dword
 function avx_vpshldd_elem(src1, src2, cnt) =
-  sail_shiftleft(src1 @ src2, cnt % 32)[63..32]
+  ((src1 @ src2) << (cnt % 32))[63..32]
 
 val avx_vpshldq_elem : (qword, qword, nat) -> qword
 function avx_vpshldq_elem(src1, src2, cnt) =
-  sail_shiftleft(src1 @ src2, cnt % 64)[127..64]
+  ((src1 @ src2) << (cnt % 64))[127..64]
 
 val avx_vpshrdw_elem : (word, word, nat) -> word
 function avx_vpshrdw_elem(src1, src2, cnt) =
-  sail_shiftright(src2 @ src1, cnt % 16)[15..0]
+  ((src2 @ src1) >> (cnt % 16))[15..0]
 
 val avx_vpshrdd_elem : (dword, dword, nat) -> dword
 function avx_vpshrdd_elem(src1, src2, cnt) =
-  sail_shiftright(src2 @ src1, cnt % 32)[31..0]
+  ((src2 @ src1) >> (cnt % 32))[31..0]
 
 val avx_vpshrdq_elem : (qword, qword, nat) -> qword
 function avx_vpshrdq_elem(src1, src2, cnt) =
-  sail_shiftright(src2 @ src1, cnt % 64)[63..0]
+  ((src2 @ src1) >> (cnt % 64))[63..0]
 
 val gf2p8_mul : (byte, byte) -> byte
 function gf2p8_mul(a, b) = {
   var result : bits(9) = zeros();
-  var aa : bits(9) = sail_zero_extend(a, 9);
+  var aa : bits(9) = zero_extend(a);
   foreach (i from 0 to 7) {
     result = result ^ (sign_extend(b[i..i]) & aa);
     aa = aa << 1;

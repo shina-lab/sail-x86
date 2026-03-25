@@ -51,7 +51,7 @@ function vex_psrlvd_128(data, shift) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_shiftright(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) >> count
   };
   result
 }
@@ -61,7 +61,7 @@ function vex_psrlvd_256(data, shift) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_shiftright(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) >> count
   };
   result
 }
@@ -72,7 +72,7 @@ function vex_psrlvq_128(data, shift) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = sail_shiftright(data[(i * 64 + 63) .. (i * 64)], count)
+    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) >> count
   };
   result
 }
@@ -82,7 +82,7 @@ function vex_psrlvq_256(data, shift) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = sail_shiftright(data[(i * 64 + 63) .. (i * 64)], count)
+    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) >> count
   };
   result
 }
@@ -114,7 +114,7 @@ function vex_psllvd_128(data, shift) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 3) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_shiftleft(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) << count
   };
   result
 }
@@ -124,7 +124,7 @@ function vex_psllvd_256(data, shift) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 7) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = sail_shiftleft(data[(i * 32 + 31) .. (i * 32)], count)
+    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) << count
   };
   result
 }
@@ -135,7 +135,7 @@ function vex_psllvq_128(data, shift) = {
   var result : xmmword = zeros();
   foreach (i from 0 to 1) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = sail_shiftleft(data[(i * 64 + 63) .. (i * 64)], count)
+    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) << count
   };
   result
 }
@@ -145,7 +145,7 @@ function vex_psllvq_256(data, shift) = {
   var result : ymmword = zeros();
   foreach (i from 0 to 3) {
     let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = sail_shiftleft(data[(i * 64 + 63) .. (i * 64)], count)
+    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) << count
   };
   result
 }

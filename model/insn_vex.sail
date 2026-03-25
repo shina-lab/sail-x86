@@ -221,7 +221,7 @@ function fp16_to_fp32(h) = {
     if frac10 == zeros() then {
       sign @ zeros(31)
     } else {
-      var shift : int = 0;
+      var shift : nat = 0;
       let f : bits(10) = frac10;
       var done : bool = false;
       foreach (i from 9 downto 0) {
@@ -229,11 +229,11 @@ function fp16_to_fp32(h) = {
         else done = true
       };
       let new_exp : int = 112 - shift;
-      let shifted : bits(10) = sail_shiftleft(frac10, shift + 1);
+      let shifted : bits(10) = frac10 << (shift + 1);
       sign @ get_slice_int(8, new_exp, 0) @ shifted @ 0b0000000000000
     }
   } else {
-    let new_exp : bits(8) = sail_zero_extend(exp5, 8) + 0x70;
+    let new_exp : bits(8) = zero_extend(exp5) + 0x70;
     sign @ new_exp @ frac10 @ 0b0000000000000
   }
 }
@@ -244,7 +244,7 @@ function fp32_to_fp16(f, rc) = {
   let sign : bits(1) = f[31];
   let exp8 : bits(8) = f[30..23];
   let frac23 : bits(23) = f[22..0];
-  let exp_val : int = unsigned(exp8);
+  let exp_val : nat = unsigned(exp8);
   if exp8 == 0xFF then {
     if frac23 == zeros() then sign @ 0b11111 @ 0b0000000000
     else sign @ 0b11111 @ frac23[22..13]
@@ -258,9 +258,9 @@ function fp32_to_fp16(f, rc) = {
       if exp_val < 113 then {
         // Denormal: right-shift (1.frac23) into 10-bit mantissa with exp=0
         // Use 37-bit intermediate (24 mantissa + 13 guard) to preserve round/sticky bits
-        let shift_amt : int = 113 - exp_val;
+        let shift_amt : nat = 113 - exp_val;
         let wide : bits(37) = (0b1 @ frac23) @ 0b0000000000000;
-        let shifted : bits(37) = sail_shiftright(wide, shift_amt);
+        let shifted : bits(37) = wide >> shift_amt;
         let sticky : bits(26) = (0b0 @ shifted[24..0]) - 1;
         (0b00000 @ shifted[35..26], shifted[25], ~(sticky[25]))
       } else {
