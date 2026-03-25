@@ -25,12 +25,12 @@
 val xsave_area_size_standard : qword -> dword
 function xsave_area_size_standard(mask) = {
   // Standard format: each component at a fixed offset.
-  // Return offset + size of the highest enabled component.
-  if mask[7] == bitone then to_bits(32, 1408 + 1024)     // Hi16_ZMM
-  else if mask[6] == bitone then to_bits(32, 896 + 512)  // ZMM_Hi256
-  else if mask[5] == bitone then to_bits(32, 832 + 64)   // opmask
-  else if mask[2] == bitone then to_bits(32, 576 + 256)  // AVX
-  else to_bits(32, 512 + 64)                             // legacy + header
+  // Ascending blend: each higher enabled component overwrites the total size.
+  let s0 : dword = to_bits(32, 576);                              // legacy + header
+  let s1 : dword = blend(s0, to_bits(32, 832), mask[2]);          // AVX
+  let s2 : dword = blend(s1, to_bits(32, 896), mask[5]);          // opmask
+  let s3 : dword = blend(s2, to_bits(32, 1408), mask[6]);         // ZMM_Hi256
+  blend(s3, to_bits(32, 2432), mask[7])                            // Hi16_ZMM
 }
 
 // Compacted format XSAVE area size for a given feature mask.
