@@ -22,51 +22,38 @@ function exec_dec(a) = {
 // MUL — Unsigned Multiply
 val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_mul(os, src) = {
+  let product : int = unsigned(v(os, RAX)) * unsigned(src);
+  let result : bits('os * 2) = to_bits_truncate(product);
   if os == 8 then {
-    let a : int = unsigned(v(8, RAX));
-    let b : int = unsigned(src);
-    let result : word = to_bits_truncate(a * b);
     v(RAX) = result;
-    CF = is_nonzero(result[15..8]);
-    OF = CF;
   } else {
-    let a : int = unsigned(v(os, RAX));
-    let b : int = unsigned(src);
-    let result : bits('os * 2) = to_bits_truncate(a * b);
-    let lo = result[(os - 1)..0];
-    let hi = result[(os * 2 - 1)..os];
-    v(RAX) = lo;
-    v(RDX) = hi;
-    CF = is_nonzero(hi);
-    OF = CF;
-  }
+    v(RAX) = result[(os - 1)..0];
+    v(RDX) = result[(os * 2 - 1)..os];
+  };
+  CF = is_nonzero(result[(os * 2 - 1)..os]);
+  OF = CF
 }
 
 // DIV — Unsigned Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after DIV.
 val exec_div : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_div(os, src) = {
+  let divisor = unsigned(src);
+  if divisor == 0 then raise_DE();
+  assert(divisor > 0);
+  let dividend = if os == 8
+    then unsigned(v(16, RAX))
+    else unsigned(v(os, RDX) @ v(os, RAX));
+  let quotient = dividend / divisor;
+  let remainder = dividend - quotient * divisor;
+  if quotient > (pow2(os) - 1) then raise_DE();
+  let q_bits = to_bits_truncate(os, quotient);
+  let r_bits = to_bits_truncate(os, remainder);
   if os == 8 then {
-    let divisor = unsigned(src);
-    if divisor == 0 then raise_DE();
-    assert(divisor > 0);
-    let dividend = unsigned(v(16, RAX));
-    let quotient = dividend / divisor;
-    let remainder = dividend - quotient * divisor;
-    if quotient > 255 then raise_DE();
-    v(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient);
+    v(RAX) = r_bits @ q_bits
   } else {
-    let divisor = unsigned(src);
-    if divisor == 0 then raise_DE();
-    assert(divisor > 0);
-    let dividend = unsigned(v(os, RDX) @ v(os, RAX));
-    let quotient = dividend / divisor;
-    let remainder = dividend - quotient * divisor;
-    if quotient > (pow2(os) - 1) then raise_DE();
-    let q_bits : bits('os * 2) = to_bits_truncate(quotient);
-    let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    v(RAX) = q_bits[(os - 1)..0];
-    v(RDX) = r_bits[(os - 1)..0]
+    v(RAX) = q_bits;
+    v(RDX) = r_bits
   };
   CF = undefined;
   OF = undefined;
