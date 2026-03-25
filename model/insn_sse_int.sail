@@ -305,6 +305,8 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
     },
     // Ranges: IntRes1[j] = OR over pairs (i, i+1) of (a[i] <= b[j] <= a[i+1])
     0b01 => {
+      let va : bits(16) = ~(0xFFFF << la);
+      let vb : bits(16) = ~(0xFFFF << lb);
       foreach (j from 0 to 15) {
         if j <= ub then {
           var in_range : bit = bitzero;
@@ -334,7 +336,7 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
                 let ab : byte = a[(a_hi_lo + 7) .. a_hi_lo];
                 blend(~(is_gt_u(bb, ab)), ~(is_gt(bb, ab)), imm8[1])
               };
-              let valid : bit = bool_to_bit(i < la & j < lb & (i + 1) < la);
+              let valid : bit = va[i] & va[i + 1] & vb[j];
               in_range = in_range | (ge_lo & le_hi & valid)
             }
           };
