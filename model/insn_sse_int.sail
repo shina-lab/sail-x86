@@ -10,16 +10,6 @@ val dispatch_mmx : (range(0, 255), Prefixes) -> unit
 // SSE integer helper functions
 // =========================================================================
 
-// BSWAP — Reverse byte order of a bitvector.
-val bswap : forall 'n, 'n in {16, 32, 64}. (implicit('n), bits('n)) -> bits('n)
-function bswap(n, v) = {
-  match n {
-    16 => v[7..0] @ v[15..8],
-    32 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24],
-    64 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @ v[39..32] @ v[47..40] @ v[55..48] @ v[63..56]
-  }
-}
-
 // CRC32 — Accumulate CRC32C (Castagnoli) value
 // Polynomial: 0x1EDC6F41 (reflected: 0x82F63B78)
 // Processes one byte at a time using the reflected algorithm.
@@ -35,55 +25,6 @@ function crc32c(n, crc, data) = {
   };
   c
 }
-
-// PABSB/PABSW/PABSD — Packed Absolute Value (SSSE3)
-// No flags affected.
-// Branchless: mask = sign-extend of MSB; (x ^ mask) - mask
-val abs : forall 'n, 'n > 0. bits('n) -> bits('n)
-function abs(x) = {
-  let m : bits('n) = sign_extend(x['n - 1]);
-  (x ^ m) - m
-}
-
-// PADDSB/PADDSW — Add Packed Signed Integers with Signed Saturation
-// PADDUSB/PADDUSW — Add Packed Unsigned Integers with Unsigned Saturation
-// No flags affected.
-// Branchless: detect overflow/underflow via sign bits of wide sum.
-val sat_add_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function sat_add_s(a, b) = {
-  let wide : bits('n + 1) = sign_extend(a) + sign_extend(b);
-  let result : bits('n) = wide[('n - 1) .. 0];
-  let overflow : bit = wide['n] ^ result['n - 1];
-  let msb_only : bits('n) = zero_extend(0b1) << ('n - 1);
-  let clamp : bits('n) = msb_only ^ sign_extend(~(wide['n]));
-  blend(result, clamp, overflow)
-}
-
-val sat_add_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function sat_add_u(a, b) = {
-  let wide : bits('n + 1) = zero_extend(a) + zero_extend(b);
-  wide[('n - 1) .. 0] | sign_extend(wide['n])
-}
-
-// PAVGB/PAVGW — Average Packed Integers with Rounding
-// No flags affected.
-val avg : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function avg(a, b) = {
-  let sum : bits('n + 1) = zero_extend(a) + zero_extend(b) + 1;
-  sum['n .. 1]
-}
-
-// PCMPEQB/PCMPEQW/PCMPEQD/PCMPEQQ — Compare Packed Integers for Equal
-// PCMPGTB/PCMPGTW/PCMPGTD/PCMPGTQ — Compare Packed Signed Integers for Greater Than
-// Result is all-ones if true, all-zeros if false per lane.
-
-// All-ones if a == b, all-zeros otherwise
-val cmp_eq : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function cmp_eq(a, b) = sign_extend(is_eq(a, b))
-
-// All-ones if a > b (signed), all-zeros otherwise
-val cmp_gt : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function cmp_gt(a, b) = sign_extend(is_gt(a, b))
 
 // PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
 //
@@ -157,72 +98,6 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   let of_mask : word = sign_extend(sign ^ wide[15]);
   let sat : word = sign_extend(sign) ^ 0x7FFF;
   (sat & of_mask) | (wide[15..0] & ~(of_mask))
-}
-
-val max_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function max_s(a, b) = blend(a, b, is_gt(b, a))
-
-val min_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function min_s(a, b) = blend(a, b, is_gt(a, b))
-
-val max_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function max_u(a, b) = blend(a, b, is_gt_u(b, a))
-
-val min_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function min_u(a, b) = blend(a, b, is_gt_u(a, b))
-
-// Signed saturation: clamp to target signed range, truncate.
-val sat_s8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_s8(x) = {
-  let lo : bits('n) = sign_extend(0x80);
-  let hi : bits('n) = sign_extend(0x7F);
-  min_s(max_s(x, lo), hi)[7..0]
-}
-
-val sat_s16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_s16(x) = {
-  let lo : bits('n) = sign_extend(0x8000);
-  let hi : bits('n) = sign_extend(0x7FFF);
-  min_s(max_s(x, lo), hi)[15..0]
-}
-
-val sat_s32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
-function sat_s32(x) = {
-  let lo : bits('n) = sign_extend(0x80000000);
-  let hi : bits('n) = sign_extend(0x7FFFFFFF);
-  min_s(max_s(x, lo), hi)[31..0]
-}
-
-// Signed-to-unsigned saturation: clamp to [0, max_unsigned], truncate.
-val sat_su8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_su8(x) = {
-  let hi : bits('n) = zero_extend(0xFF);
-  min_s(max_s(x, zeros()), hi)[7..0]
-}
-
-val sat_su16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_su16(x) = {
-  let hi : bits('n) = zero_extend(0xFFFF);
-  min_s(max_s(x, zeros()), hi)[15..0]
-}
-
-// Unsigned saturation: clamp to target unsigned range, truncate.
-val sat_u8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_u8(x) = {
-  let hi : bits('n) = zero_extend(0xFF);
-  min_u(x, hi)[7..0]
-}
-
-val sat_u16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_u16(x) = {
-  let hi : bits('n) = zero_extend(0xFFFF);
-  min_u(x, hi)[15..0]
-}
-
-val sat_u32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
-function sat_u32(x) = {
-  let hi : bits('n) = zero_extend(0xFFFFFFFF);
-  min_u(x, hi)[31..0]
 }
 
 // PMULHRSW — Packed Multiply High with Round and Scale (SSSE3)
@@ -2003,8 +1878,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
 // =========================================================================
 // 3-Byte Opcode Map: SSE Integer Operations
 // =========================================================================
-val blend_byte : (byte, byte, bits(1)) -> byte
-function blend_byte(a, b, sel) = { let m : byte = sign_extend(sel); (a & ~(m)) | (b & m) }
 
 // 0F 38 xx — SSE integer operations (SSSE3, SSE4.1, SSE4.2, AES-NI)
 val dispatch_3byte_38_sse_int : (byte, Prefixes) -> unit
@@ -2161,22 +2034,22 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     16 => {
       let a : xmmword = read_xmm(xreg);
       let m : xmmword = read_xmm(0);
-      let r0  : byte = blend_byte(a[7..0],     src_xmm[7..0],     m[7]);
-      let r1  : byte = blend_byte(a[15..8],    src_xmm[15..8],    m[15]);
-      let r2  : byte = blend_byte(a[23..16],   src_xmm[23..16],   m[23]);
-      let r3  : byte = blend_byte(a[31..24],   src_xmm[31..24],   m[31]);
-      let r4  : byte = blend_byte(a[39..32],   src_xmm[39..32],   m[39]);
-      let r5  : byte = blend_byte(a[47..40],   src_xmm[47..40],   m[47]);
-      let r6  : byte = blend_byte(a[55..48],   src_xmm[55..48],   m[55]);
-      let r7  : byte = blend_byte(a[63..56],   src_xmm[63..56],   m[63]);
-      let r8  : byte = blend_byte(a[71..64],   src_xmm[71..64],   m[71]);
-      let r9  : byte = blend_byte(a[79..72],   src_xmm[79..72],   m[79]);
-      let r10 : byte = blend_byte(a[87..80],   src_xmm[87..80],   m[87]);
-      let r11 : byte = blend_byte(a[95..88],   src_xmm[95..88],   m[95]);
-      let r12 : byte = blend_byte(a[103..96],  src_xmm[103..96],  m[103]);
-      let r13 : byte = blend_byte(a[111..104], src_xmm[111..104], m[111]);
-      let r14 : byte = blend_byte(a[119..112], src_xmm[119..112], m[119]);
-      let r15 : byte = blend_byte(a[127..120], src_xmm[127..120], m[127]);
+      let r0  : byte = blend(a[7..0],     src_xmm[7..0],     m[7]);
+      let r1  : byte = blend(a[15..8],    src_xmm[15..8],    m[15]);
+      let r2  : byte = blend(a[23..16],   src_xmm[23..16],   m[23]);
+      let r3  : byte = blend(a[31..24],   src_xmm[31..24],   m[31]);
+      let r4  : byte = blend(a[39..32],   src_xmm[39..32],   m[39]);
+      let r5  : byte = blend(a[47..40],   src_xmm[47..40],   m[47]);
+      let r6  : byte = blend(a[55..48],   src_xmm[55..48],   m[55]);
+      let r7  : byte = blend(a[63..56],   src_xmm[63..56],   m[63]);
+      let r8  : byte = blend(a[71..64],   src_xmm[71..64],   m[71]);
+      let r9  : byte = blend(a[79..72],   src_xmm[79..72],   m[79]);
+      let r10 : byte = blend(a[87..80],   src_xmm[87..80],   m[87]);
+      let r11 : byte = blend(a[95..88],   src_xmm[95..88],   m[95]);
+      let r12 : byte = blend(a[103..96],  src_xmm[103..96],  m[103]);
+      let r13 : byte = blend(a[111..104], src_xmm[111..104], m[111]);
+      let r14 : byte = blend(a[119..112], src_xmm[119..112], m[119]);
+      let r15 : byte = blend(a[127..120], src_xmm[127..120], m[127]);
       write_xmm_legacy(xreg, r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
     },
 

@@ -26,41 +26,6 @@ function exec_xadd(dst, src, os) = {
   v(dst) = sum
 }
 
-// Branchless CLZ via smear (fill all bits below MSB) then popcount.
-val clz : ({16, 32, 64}, qword) -> range(0, 64)
-function clz(os, v) = {
-  let x1 : qword = v  | (v  >> 1);
-  let x2 : qword = x1 | (x1 >> 2);
-  let x3 : qword = x2 | (x2 >> 4);
-  let x4 : qword = x3 | (x3 >> 8);
-  let x5 : qword = x4 | (x4 >> 16);
-  let x6 : qword = x5 | (x5 >> 32);
-  let pc = popcount(x6);
-  assert(pc <= os);
-  os - pc
-}
-
-// Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
-val ctz : ({16, 32, 64}, qword) -> range(0, 64)
-function ctz(os, v) = {
-  let masked : qword = v | (0xFFFFFFFFFFFFFFFF << os);
-  popcount(~(masked) & (masked - 1))
-}
-
-// Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
-// Precondition: v != 0 (BSR is undefined for zero).
-val bsr : qword -> range(0, 63)
-function bsr(v) = {
-  let x1 : qword = v  | (v  >> 1);
-  let x2 : qword = x1 | (x1 >> 2);
-  let x3 : qword = x2 | (x2 >> 4);
-  let x4 : qword = x3 | (x3 >> 8);
-  let x5 : qword = x4 | (x4 >> 16);
-  let x6 : qword = x5 | (x5 >> 32);
-  let n = popcount(x6);
-  assert(n > 0);
-  n - 1
-}
 
 // Descriptor type validation for LAR in IA-32e mode (SDM Table 1-49).
 // System segment types (S=0): valid = 2 (LDT), 9 (avail TSS), B (busy TSS), C (call gate).
