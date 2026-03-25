@@ -1323,12 +1323,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let src : byte = v(reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
-      if ZF == 0b1 then {
-        v(dest) = src;
-      } else {
-        v(RAX) = dest_val;
-        v(dest) = dest_val;
-      }
+      v(dest) = blend(dest_val, src, ZF);
+      v(RAX) = blend(dest_val, acc, ZF)
     },
 
     // 0F B1: CMPXCHG r/m, r
@@ -1341,12 +1337,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let src = v(os, reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
-      if ZF == 0b1 then {
-        v(os, dest) = src;
-      } else {
-        v(RAX) = dest_val;
-        v(os, dest) = dest_val;
-      }
+      v(os, dest) = blend(dest_val, src, ZF);
+      v(RAX) = blend(dest_val, acc, ZF)
     },
 
     // 0F B6: MOVZX r, r/m8
