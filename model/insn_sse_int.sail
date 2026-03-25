@@ -169,6 +169,343 @@ function sat_sub_u(a, b) = {
   wide[('n - 1) .. 0] & sign_extend(~(wide['n]))
 }
 
+// =========================================================================
+// PCLMULQDQ — Carry-Less Multiplication (SDM Vol.2B §4-242)
+//
+// Performs carry-less (XOR-based) polynomial multiplication of two 64-bit
+// values, producing a 128-bit result. Equivalent to GF(2) multiplication.
+// =========================================================================
+
+val pclmulqdq : (bits(64), bits(64)) -> bits(128)
+function pclmulqdq(x, y) = {
+  var result : bits(128) = zeros();
+  foreach (i from 0 to 63) {
+    if x[i] == bitone then
+      result = result ^ (zero_extend(y) << i)
+  };
+  result
+}
+
+// =========================================================================
+// MASKMOVDQU — Store Selected Bytes (SDM Vol.2B §4-1)
+//
+// For each byte position, if the high bit of the corresponding mask byte
+// is set, write the source byte to memory at DS:RDI + offset.
+// =========================================================================
+
+val maskmovdqu : (xmmword, xmmword, qword) -> unit
+function maskmovdqu(src, mask, addr) = {
+  foreach (i from 0 to 15) {
+    if mask[i * 8 + 7] == bitone then
+      write_mem_linear(addr + i, src[(i * 8 + 7) .. (i * 8)])
+  }
+}
+
+// =========================================================================
+// MPSADBW — Multiple Packed Sums of Absolute Difference (SDM Vol.2B §4-133)
+//
+// Computes 8 SAD values by sliding a 4-byte window from dst across a fixed
+// 4-byte block from src. imm8[1:0]*32 selects src block offset,
+// imm8[2]*32 selects dst starting offset.
+// =========================================================================
+
+val mpsadbw : (xmmword, xmmword, byte) -> xmmword
+function mpsadbw(dst, src, imm8) = {
+  let src_off : range(0, 96) = unsigned(imm8[1..0]) * 32;
+  let dst_off : range(0, 32) = unsigned(imm8[2..2]) * 32;
+  // Extract the fixed 4-byte block from src
+  let s0 : byte = src[(src_off + 7) .. src_off];
+  let s1 : byte = src[(src_off + 15) .. (src_off + 8)];
+  let s2 : byte = src[(src_off + 23) .. (src_off + 16)];
+  let s3 : byte = src[(src_off + 31) .. (src_off + 24)];
+  var result : xmmword = zeros();
+  foreach (j from 0 to 7) {
+    let base : range(0, 88) = dst_off + j * 8;
+    let d0 : byte = dst[(base + 7) .. base];
+    let d1 : byte = dst[(base + 15) .. (base + 8)];
+    let d2 : byte = dst[(base + 23) .. (base + 16)];
+    let d3 : byte = dst[(base + 31) .. (base + 24)];
+    let sad : int = abs_diff8(d0, s0) + abs_diff8(d1, s1) +
+                    abs_diff8(d2, s2) + abs_diff8(d3, s3);
+    let lo : range(0, 112) = j * 16;
+    result[(lo + 15) .. lo] = to_bits_truncate(16, sad)
+  };
+  result
+}
+
+// =========================================================================
+// PCMPxSTRx — SSE4.2 String/Text Processing (SDM Vol.2B §4.1)
+//
+// Common core for PCMPESTRI, PCMPESTRM, PCMPISTRI, PCMPISTRM.
+// imm8 controls: [1:0] format, [3:2] aggregation, [5:4] polarity, [6] output.
+// =========================================================================
+
+// Compute effective valid lengths for implicit-length instructions.
+// Returns index of first null element (or ub+1 if no null found).
+val pcmp_implicit_len : (xmmword, range(0, 15)) -> range(0, 16)
+function pcmp_implicit_len(x, ub) = {
+  var len : range(0, 16) = ub + 1;
+  var found : bool = false;
+  foreach (i from 0 to 15) {
+    if i <= ub & ~(found) then {
+      let lo = if ub == 7 then i * 16 else i * 8;
+      let hi = if ub == 7 then lo + 15 else lo + 7;
+      if x[hi .. lo] == zeros() then {
+        len = i;
+        found = true
+      }
+    }
+  };
+  len
+}
+
+// Core string comparison engine.
+// la, lb = valid lengths of a, b respectively.
+// Returns (IntRes2, CF, ZF, SF, OF).
+val pcmpxstrx_core : (xmmword, range(0, 16), xmmword, range(0, 16), byte) -> (bits(16), bit, bit, bit, bit)
+function pcmpxstrx_core(a, la, b, lb, imm8) = {
+  let ub : range(0, 15) = if imm8[0] == bitone then 7 else 15;  // upper bound (word vs byte)
+
+  // Stage 2: Compute BoolRes[j][i] — j indexes b, i indexes a
+  // BoolRes[j][i] = 1 if element j of b equals element i of a
+  var bool_res : bits(256) = zeros();  // 16×16 matrix flattened
+  foreach (j from 0 to 15) {
+    foreach (i from 0 to 15) {
+      if i <= ub & j <= ub then {
+        let elem_bits = if ub == 7 then 16 else 8;
+        let a_lo = i * elem_bits;
+        let b_lo = j * elem_bits;
+        let eq : bit = if ub == 7
+          then bool_to_bit(a[(a_lo + 15) .. a_lo] == b[(b_lo + 15) .. b_lo])
+          else bool_to_bit(a[(a_lo + 7) .. a_lo] == b[(b_lo + 7) .. b_lo]);
+        bool_res[j * 16 + i] = eq
+      }
+    }
+  };
+
+  // Stage 3: Aggregation
+  // Also apply validity overrides per SDM Table 4-7
+  var int_res1 : bits(16) = zeros();
+  match imm8[3..2] {
+    // Equal any: IntRes1[j] = OR over i of (BoolRes[j][i] AND both valid)
+    0b00 => {
+      foreach (j from 0 to 15) {
+        if j <= ub then {
+          var any_match : bit = bitzero;
+          foreach (i from 0 to 15) {
+            if i <= ub then {
+              // Both must be valid for a match
+              if i < la & j < lb then
+                any_match = any_match | bool_res[j * 16 + i]
+            }
+          };
+          int_res1[j] = any_match
+        }
+      }
+    },
+    // Ranges: IntRes1[j] = OR over pairs (i, i+1) of (a[i] <= b[j] <= a[i+1])
+    0b01 => {
+      foreach (j from 0 to 15) {
+        if j <= ub then {
+          var in_range : bit = bitzero;
+          foreach (i_half from 0 to 7) {
+            let i = i_half * 2;
+            if i + 1 <= ub then {
+              let elem_bits = if ub == 7 then 16 else 8;
+              let a_lo_lo = i * elem_bits;
+              let a_hi_lo = (i + 1) * elem_bits;
+              let b_lo = j * elem_bits;
+              // Check if both range endpoints and the tested element are valid
+              let lo_valid = i < la & j < lb;
+              let hi_valid = (i + 1) < la & j < lb;
+              if lo_valid & hi_valid then {
+                // Use signed or unsigned comparison based on imm8[1]
+                let ge_lo : bit = if ub == 7 then {
+                  if imm8[1] == bitone
+                  then bool_to_bit(signed(b[(b_lo + 15) .. b_lo]) >= signed(a[(a_lo_lo + 15) .. a_lo_lo]))
+                  else bool_to_bit(unsigned(b[(b_lo + 15) .. b_lo]) >= unsigned(a[(a_lo_lo + 15) .. a_lo_lo]))
+                } else {
+                  if imm8[1] == bitone
+                  then bool_to_bit(signed(b[(b_lo + 7) .. b_lo]) >= signed(a[(a_lo_lo + 7) .. a_lo_lo]))
+                  else bool_to_bit(unsigned(b[(b_lo + 7) .. b_lo]) >= unsigned(a[(a_lo_lo + 7) .. a_lo_lo]))
+                };
+                let le_hi : bit = if ub == 7 then {
+                  if imm8[1] == bitone
+                  then bool_to_bit(signed(b[(b_lo + 15) .. b_lo]) <= signed(a[(a_hi_lo + 15) .. a_hi_lo]))
+                  else bool_to_bit(unsigned(b[(b_lo + 15) .. b_lo]) <= unsigned(a[(a_hi_lo + 15) .. a_hi_lo]))
+                } else {
+                  if imm8[1] == bitone
+                  then bool_to_bit(signed(b[(b_lo + 7) .. b_lo]) <= signed(a[(a_hi_lo + 7) .. a_hi_lo]))
+                  else bool_to_bit(unsigned(b[(b_lo + 7) .. b_lo]) <= unsigned(a[(a_hi_lo + 7) .. a_hi_lo]))
+                };
+                in_range = in_range | (ge_lo & le_hi)
+              }
+            }
+          };
+          int_res1[j] = in_range
+        }
+      }
+    },
+    // Equal each: IntRes1[i] = BoolRes[i][i] with validity overrides
+    0b10 => {
+      foreach (i from 0 to 15) {
+        if i <= ub then {
+          let a_valid = i < la;
+          let b_valid = i < lb;
+          if a_valid & b_valid then
+            int_res1[i] = bool_res[i * 16 + i]
+          else if ~(a_valid) & ~(b_valid) then
+            int_res1[i] = bitone       // both invalid → true
+          else
+            int_res1[i] = bitzero      // one invalid → false
+        }
+      }
+    },
+    // Equal ordered: substring search
+    0b11 => {
+      foreach (j from 0 to 15) {
+        if j <= ub then {
+          var all_match : bit = bitone;
+          foreach (k_off from 0 to 15) {
+            let k = j + k_off;
+            if k_off <= ub & k <= ub then {
+              let a_valid = k_off < la;
+              let b_valid = k < lb;
+              if a_valid & b_valid then
+                all_match = all_match & bool_res[k * 16 + k_off]
+              else if ~(a_valid) then
+                ()  // needle exhausted → still matches (force true)
+              else
+                all_match = bitzero  // haystack exhausted but needle remains → force false
+            }
+          };
+          int_res1[j] = all_match
+        }
+      }
+    },
+  };
+
+  // Zero out bits beyond ub
+  if ub == 7 then int_res1 = int_res1 & 0x00FF;
+
+  // Stage 4: Polarity
+  let int_res2 : bits(16) = match imm8[5..4] {
+    0b00 => int_res1,                     // positive
+    0b01 => int_res1 ^ (if ub == 7 then 0x00FF else 0xFFFF),  // negative
+    0b10 => int_res1,                     // masked positive (same as positive)
+    0b11 => {                             // masked negative
+      var r : bits(16) = int_res1;
+      foreach (i from 0 to 15) {
+        if i <= ub & i < lb then
+          r[i] = ~(int_res1[i])
+      };
+      r
+    },
+  };
+
+  // Flags
+  let cf : bit = bool_to_bit(int_res2 != zeros());
+  let zf : bit = bool_to_bit(lb < (ub + 1));   // any invalid element in b
+  let sf : bit = bool_to_bit(la < (ub + 1));   // any invalid element in a
+  let of : bit = int_res2[0];
+
+  (int_res2, cf, zf, sf, of)
+}
+
+// Clamp explicit string length per SDM: abs(value), saturated to max_len.
+val pcmp_clamp_len : (dword, range(0, 16)) -> range(0, 16)
+function pcmp_clamp_len(raw, max_len) = {
+  let a : int = if signed(raw) < 0 then negate(signed(raw)) else signed(raw);
+  if a >= max_len then max_len
+  else if a < 0 then 0
+  else a
+}
+
+// Find index of first (LSB) or last (MSB) set bit in IntRes2, bounded by ub.
+// Returns ub+1 if no bits set.
+val pcmp_bit_index : (bits(16), range(0, 15), bit) -> range(0, 16)
+function pcmp_bit_index(int_res2, ub, msb_mode) = {
+  if int_res2 == zeros() then ub + 1
+  else if msb_mode == bitone then {
+    var idx : range(0, 15) = 0;
+    foreach (i from 0 to 15) {
+      if i <= ub & int_res2[i] == bitone then idx = i
+    };
+    idx
+  } else {
+    var idx : range(0, 16) = ub + 1;
+    var found : bool = false;
+    foreach (i from 0 to 15) {
+      if i <= ub & int_res2[i] == bitone & ~(found) then {
+        idx = i;
+        found = true
+      }
+    };
+    idx
+  }
+}
+
+// Expand IntRes2 bits into byte/word mask or return as bit mask in XMM.
+val pcmp_expand_mask : (bits(16), range(0, 15), bit) -> xmmword
+function pcmp_expand_mask(int_res2, ub, expand_mode) = {
+  if expand_mode == bitone then {
+    var m : xmmword = zeros();
+    foreach (i from 0 to 15) {
+      if i <= ub then {
+        if ub == 7 then
+          m[(i * 16 + 15) .. (i * 16)] = sign_extend(int_res2[i])
+        else
+          m[(i * 8 + 7) .. (i * 8)] = sign_extend(int_res2[i])
+      }
+    };
+    m
+  } else {
+    zero_extend(int_res2)
+  }
+}
+
+// PCMPISTRI: implicit-length, return index in ECX
+val pcmpistri : (xmmword, xmmword, byte) -> (dword, bit, bit, bit, bit)
+function pcmpistri(a, b, imm8) = {
+  let ub : range(0, 15) = if imm8[0] == bitone then 7 else 15;
+  let la = pcmp_implicit_len(a, ub);
+  let lb = pcmp_implicit_len(b, ub);
+  let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm8);
+  let idx = pcmp_bit_index(int_res2, ub, imm8[6]);
+  (to_bits(32, idx), cf, zf, sf, of)
+}
+
+// PCMPISTRM: implicit-length, return mask in XMM0
+val pcmpistrm : (xmmword, xmmword, byte) -> (xmmword, bit, bit, bit, bit)
+function pcmpistrm(a, b, imm8) = {
+  let ub : range(0, 15) = if imm8[0] == bitone then 7 else 15;
+  let la = pcmp_implicit_len(a, ub);
+  let lb = pcmp_implicit_len(b, ub);
+  let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm8);
+  (pcmp_expand_mask(int_res2, ub, imm8[6]), cf, zf, sf, of)
+}
+
+// PCMPESTRI: explicit-length, return index in ECX
+val pcmpestri : (xmmword, dword, xmmword, dword, byte) -> (dword, bit, bit, bit, bit)
+function pcmpestri(a, raw_la, b, raw_lb, imm8) = {
+  let ub : range(0, 15) = if imm8[0] == bitone then 7 else 15;
+  let la = pcmp_clamp_len(raw_la, ub + 1);
+  let lb = pcmp_clamp_len(raw_lb, ub + 1);
+  let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm8);
+  let idx = pcmp_bit_index(int_res2, ub, imm8[6]);
+  (to_bits(32, idx), cf, zf, sf, of)
+}
+
+// PCMPESTRM: explicit-length, return mask in XMM0
+val pcmpestrm : (xmmword, dword, xmmword, dword, byte) -> (xmmword, bit, bit, bit, bit)
+function pcmpestrm(a, raw_la, b, raw_lb, imm8) = {
+  let ub : range(0, 15) = if imm8[0] == bitone then 7 else 15;
+  let la = pcmp_clamp_len(raw_la, ub + 1);
+  let lb = pcmp_clamp_len(raw_lb, ub + 1);
+  let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm8);
+  (pcmp_expand_mask(int_res2, ub, imm8[6]), cf, zf, sf, of)
+}
+
 // EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
 //
 // Extracts a single-precision float from an XMM register at the offset
@@ -1734,7 +2071,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let _ = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
         let addr = v(64, RDI);
-        __maskmovdqu(read_xmm(xreg), src_xmm, addr)
+        maskmovdqu(read_xmm(xreg), src_xmm, addr)
       }
     },
 
@@ -2449,7 +2786,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      write_xmm_legacy(xreg, __mpsadbw(a, b, imm))
+      write_xmm_legacy(xreg, mpsadbw(a, b, imm))
     },
 
     // PCLMULQDQ xmm1, xmm2/m128, imm8
@@ -2461,8 +2798,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let b : xmmword = src_xmm;
       let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
       let sel_b : qword = blend(b[63..0], b[127..64], imm[4]);
-      let result : xmmword = __pclmulqdq(sel_a, sel_b);
-      write_xmm_legacy(xreg, result)
+      write_xmm_legacy(xreg, pclmulqdq(sel_a, sel_b))
     },
 
     // SSE4.2 — PCMPESTRM
@@ -2473,7 +2809,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
-      let (mask, cf_val, zf_val, sf_val, of_val) = __pcmpestrm(a, la, b, lb, imm);
+      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpestrm(a, la, b, lb, imm);
       write_xmm_legacy(0, mask);
       CF = cf_val;
       ZF = zf_val;
@@ -2490,7 +2826,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
-      let (idx, cf_val, zf_val, sf_val, of_val) = __pcmpestri(a, la, b, lb, imm);
+      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpestri(a, la, b, lb, imm);
       v(RCX) = idx;
       CF = cf_val;
       ZF = zf_val;
@@ -2505,7 +2841,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let (mask, cf_val, zf_val, sf_val, of_val) = __pcmpistrm(a, b, imm);
+      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpistrm(a, b, imm);
       write_xmm_legacy(0, mask);
       CF = cf_val;
       ZF = zf_val;
@@ -2520,7 +2856,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let (idx, cf_val, zf_val, sf_val, of_val) = __pcmpistri(a, b, imm);
+      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpistri(a, b, imm);
       v(RCX) = idx;
       CF = cf_val;
       ZF = zf_val;

@@ -722,14 +722,14 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
       let imm = fetch_byte();
       // 256-bit: each 128-bit lane independently, imm8[2:0] for low lane, imm8[5:3] for high lane
-      let lo : xmmword = __mpsadbw(src1[127..0], src2[127..0], 0b00000 @ imm[2..0]);
-      let hi : xmmword = __mpsadbw(src1[255..128], src2[255..128], 0b00000 @ imm[5..3]);
+      let lo : xmmword = mpsadbw(src1[127..0], src2[127..0], 0b00000 @ imm[2..0]);
+      let hi : xmmword = mpsadbw(src1[255..128], src2[255..128], 0b00000 @ imm[5..3]);
       write_ymm(dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
       let imm = fetch_byte();
-      write_xmm(dst, __mpsadbw(src1, src2, imm))
+      write_xmm(dst, mpsadbw(src1, src2, imm))
     }
   },
 
@@ -746,7 +746,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch_byte();
     let sel_a : qword = blend(src1[63..0], src1[127..64], imm[0]);
     let sel_b : qword = blend(src2[63..0], src2[127..64], imm[4]);
-    let result : xmmword = __pclmulqdq(sel_a, sel_b);
+    let result : xmmword = pclmulqdq(sel_a, sel_b);
     write_xmm(dst, result)
   },
 

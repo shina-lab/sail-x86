@@ -335,23 +335,6 @@ void Model::z__check_pending_irq(sail_int *rop, unit) {
 }
 
 // =========================================================================
-// MASKMOVDQU
-// =========================================================================
-
-unit Model::z__maskmovdqu(lbits data, lbits mask, u64 vaddr) {
-  u8 d[16];
-  u8 m[16];
-  bits_to_bytes(data, d, 16);
-  bits_to_bytes(mask, m, 16);
-  for (int i = 0; i < 16; i++)
-    if (m[i] & 0x80) {
-      u64 paddr = ztranslate_addr(vaddr + i, zPT_Write);
-      phys_mem.write8(paddr, d[i]);
-    }
-  return UNIT;
-}
-
-// =========================================================================
 // Virtual memory helpers for FXSAVE/FXRSTOR/XSAVE/XRSTOR
 // =========================================================================
 //

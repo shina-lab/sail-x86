@@ -968,15 +968,32 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("dppd xmm0,xmm1,0x33", {0x66, 0x0F, 0x3A, 0x41, 0xC1, 0x33}, sd, 0x3);
   }
 
-  // MPSADBW
+  // MPSADBW — test all 8 imm8[2:0] combinations
   {
     ArchState s;
     s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
 
-    // MPSADBW XMM0, XMM1, 0: 66 0F 3A 42 C1 00
-    add_xmm("mpsadbw xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s, 0x3);
+    // MPSADBW XMM0, XMM1, imm8: 66 0F 3A 42 C1 imm8
+    for (u8 imm = 0; imm < 8; imm++) {
+      add_xmm("mpsadbw imm=" + std::to_string(imm),
+              {0x66, 0x0F, 0x3A, 0x42, 0xC1, imm}, s, 0x3);
+    }
+
+    // MPSADBW with identical operands (all SADs should be 0)
+    ArchState s2;
+    s2.rflags = 0x2;
+    s2.xmm[0] = xmm_from_u64(0xAABBCCDDEEFF0011, 0x2233445566778899);
+    s2.xmm[1] = s2.xmm[0];
+    add_xmm("mpsadbw identical", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s2, 0x3);
+
+    // MPSADBW with max contrast (0x00 vs 0xFF)
+    ArchState s3;
+    s3.rflags = 0x2;
+    s3.xmm[0] = xmm_from_u64(0x0000000000000000, 0x0000000000000000);
+    s3.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+    add_xmm("mpsadbw max contrast", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s3, 0x3);
   }
 
   // =====================================================================
@@ -1464,6 +1481,244 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       s.xmm[0] = xmm_from_u64(0x0000000000434241, 0);  // "ABC\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       add_xmm("pcmpestri eq_each", {0x66, 0x0F, 0x3A, 0x61, 0xC1, 0x08}, s, 0);
+    }
+
+    // ---- Additional PCMPISTRI tests covering all aggregation modes ----
+
+    // PCMPISTRI: ranges (mode 0x04) — check if chars in xmm1 fall in [A-Z] range
+    // xmm0 = range pair "AZ" (0x41, 0x5A), xmm1 = "Hello" (mixed case)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x000000000000005A41, 0);  // "AZ\0..."
+      s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
+      add_xmm("pcmpistri ranges", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x04}, s, 0);
+    }
+
+    // PCMPISTRI: equal ordered (mode 0x0C) — substring search
+    // Search for "BC" in "ABCD"
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000000004342, 0);  // "BC\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      add_xmm("pcmpistri eq_ord substr", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, s, 0);
+    }
+
+    // PCMPISTRI: equal ordered — no match
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000000005958, 0);  // "XY\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      add_xmm("pcmpistri eq_ord nomatch", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, s, 0);
+    }
+
+    // PCMPISTRI: negative polarity (mode 0x18) — inverts result
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
+      // equal each + negative polarity: finds first non-matching byte
+      add_xmm("pcmpistri neg_pol", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x18}, s, 0);
+    }
+
+    // PCMPISTRI: MSB index (imm8[6]=1, mode 0x48)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
+      add_xmm("pcmpistri eq_any MSB", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x40}, s, 0);
+    }
+
+    // PCMPISTRI: word mode (imm8[0]=1, mode 0x01) — unsigned words, equal any
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000200000001, 0);  // words: 1, 2, 0, 0
+      s.xmm[1] = xmm_from_u64(0x0003000100040002, 0);  // words: 2, 4, 1, 3
+      add_xmm("pcmpistri word eq_any", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x01}, s, 0);
+    }
+
+    // PCMPISTRI: signed bytes, equal each (mode 0x0A)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x00000000807F0102, 0);  // bytes: 2,1,127,-128,0...
+      s.xmm[1] = xmm_from_u64(0x00000000807F0102, 0);  // same
+      add_xmm("pcmpistri signed eq_each", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0A}, s, 0);
+    }
+
+    // PCMPISTRI: full 16-byte strings (no nulls in first 16 bytes)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
+      s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // same
+      add_xmm("pcmpistri full16 eq_each", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
+    }
+
+    // PCMPISTRI: full 16-byte strings that differ at last byte
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
+      s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOZ"
+      add_xmm("pcmpistri full16 diff@15", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
+    }
+
+    // ---- Additional PCMPISTRM tests ----
+
+    // PCMPISTRM: equal any, byte-expand mask (imm8[6]=1, mode 0x40)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
+      s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
+      // equal any, byte-expand: each matching byte → 0xFF in XMM0
+      add_xmm("pcmpistrm eq_any expand", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x40}, s, 0x1);
+    }
+
+    // PCMPISTRM: equal each, bitmask (mode 0x08)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);
+      s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);
+      add_xmm("pcmpistrm eq_each full16", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x08}, s, 0x1);
+    }
+
+    // PCMPISTRM: ranges, bitmask (mode 0x04)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.xmm[0] = xmm_from_u64(0x000000000000007A61, 0);  // "az\0..." (lowercase range)
+      s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
+      add_xmm("pcmpistrm ranges", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x04}, s, 0x1);
+    }
+
+    // ---- Additional PCMPESTRI tests ----
+
+    // PCMPESTRI: equal any with explicit lengths
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rax = 4;  // length of charset
+      s.rdx = 5;  // length of string
+      s.xmm[0] = xmm_from_u64(0x00000000666F6F62, 0);  // "boof\0..." (chars to search for)
+      s.xmm[1] = xmm_from_u64(0x000000006F6C6C6568, 0);  // "hello\0..."
+      add_xmm("pcmpestri eq_any explicit", {0x66, 0x0F, 0x3A, 0x61, 0xC1, 0x00}, s, 0);
+    }
+
+    // PCMPESTRI: negative length (treated as unsigned, saturated to 16)
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rax = -1LL;  // abs(-1) = 1? No, SDM says abs value, saturated to 16
+      s.rdx = 4;
+      s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);
+      s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);
+      add_xmm("pcmpestri neg_len", {0x66, 0x0F, 0x3A, 0x61, 0xC1, 0x08}, s, 0);
+    }
+
+    // PCMPESTRM: equal each with explicit lengths
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rax = 3;
+      s.rdx = 3;
+      s.xmm[0] = xmm_from_u64(0xFF00FF00FF434241, 0);  // "ABC" + garbage
+      s.xmm[1] = xmm_from_u64(0xFF00FF00FF434241, 0);  // "ABC" + garbage
+      // Only first 3 bytes should matter
+      add_xmm("pcmpestrm eq_each len=3", {0x66, 0x0F, 0x3A, 0x60, 0xC1, 0x08}, s, 0x1);
+    }
+
+    // PCMPESTRM: zero-length operands
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rax = 0;
+      s.rdx = 0;
+      s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+      s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+      add_xmm("pcmpestrm zero_len", {0x66, 0x0F, 0x3A, 0x60, 0xC1, 0x08}, s, 0x1);
+    }
+
+    // ---- PCLMULQDQ tests ----
+
+    // PCLMULQDQ XMM0, XMM1, imm8: 66 0F 3A 44 C1 imm8
+    {
+      ArchState s;
+      s.rflags = 0x2;
+
+      // Simple: 1 × 1 = 1
+      s.xmm[0] = xmm_from_u64(0x0000000000000001, 0x0000000000000001);
+      s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000001);
+      add_xmm("pclmulqdq 1x1 00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+
+      // 3 × 3 = 5 (polynomial: (x+1)*(x+1) = x^2+1 = 0b101)
+      s.xmm[0] = xmm_from_u64(0x0000000000000003, 0x0000000000000003);
+      s.xmm[1] = xmm_from_u64(0x0000000000000003, 0x0000000000000003);
+      add_xmm("pclmulqdq 3x3 00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+
+      // 7 × 7 = 0x15 (x^2+x+1)^2 = x^4+x^2+1 = 0b10101
+      s.xmm[0] = xmm_from_u64(0x0000000000000007, 0x0000000000000007);
+      s.xmm[1] = xmm_from_u64(0x0000000000000007, 0x0000000000000007);
+      add_xmm("pclmulqdq 7x7 00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+
+      // Test all 4 imm8 selector combinations
+      s.xmm[0] = xmm_from_u64(0x123456789ABCDEF0, 0xFEDCBA9876543210);
+      s.xmm[1] = xmm_from_u64(0x0F0F0F0F0F0F0F0F, 0xF0F0F0F0F0F0F0F0);
+      add_xmm("pclmulqdq sel 00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+      add_xmm("pclmulqdq sel 01", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x01}, s, 0x3);
+      add_xmm("pclmulqdq sel 10", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x10}, s, 0x3);
+      add_xmm("pclmulqdq sel 11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3);
+
+      // Edge: multiply by zero
+      s.xmm[0] = xmm_from_u64(0x0000000000000000, 0);
+      s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0);
+      add_xmm("pclmulqdq 0xall", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+
+      // Edge: all-ones × all-ones
+      s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+      s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+      add_xmm("pclmulqdq FxF 00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+      add_xmm("pclmulqdq FxF 11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3);
+
+      // MSB set: 0x8000000000000000 × 0x8000000000000000
+      s.xmm[0] = xmm_from_u64(0x8000000000000000, 0);
+      s.xmm[1] = xmm_from_u64(0x8000000000000000, 0);
+      add_xmm("pclmulqdq MSB", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+    }
+
+    // ---- MASKMOVDQU test ----
+    // MASKMOVDQU xmm0, xmm1: 66 0F F7 C1 (stores to [RDI])
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdi = DATA_ADDR;
+      // src data in xmm0
+      s.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
+      // mask in xmm1: high bit of each byte controls write
+      // 0x80 = write, 0x00 = no write
+      s.xmm[1] = xmm_from_u64(0x8000800080008000, 0x0080008000800080);
+
+      // Pre-fill data area with 0xCC pattern
+      std::vector<u8> data(16, 0xCC);
+      tests.push_back({"maskmovdqu partial",
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
+
+      // All mask bits set — full write
+      s.xmm[1] = xmm_from_u64(0x8080808080808080, 0x8080808080808080);
+      tests.push_back({"maskmovdqu full",
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
+
+      // No mask bits set — no write at all
+      s.xmm[1] = xmm_from_u64(0x0000000000000000, 0x0000000000000000);
+      tests.push_back({"maskmovdqu none",
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
     }
   }
 }

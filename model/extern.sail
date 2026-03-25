@@ -342,32 +342,6 @@ val __f80_from_bcd : fp80 -> fp80
 val __f80_to_bcd : fp80 -> fp80
 
 // =========================================================================
-// SSE4.2 string comparison
-// =========================================================================
-
-// PCMPESTRI — Packed Compare Explicit Length Strings, Return Index
-val __pcmpestri : (xmmword, dword, xmmword, dword, byte) -> (dword, bit, bit, bit, bit)
-
-// PCMPESTRM — Packed Compare Explicit Length Strings, Return Mask
-val __pcmpestrm : (xmmword, dword, xmmword, dword, byte) -> (xmmword, bit, bit, bit, bit)
-
-// PCMPISTRI — Packed Compare Implicit Length Strings, Return Index
-val __pcmpistri : (xmmword, xmmword, byte) -> (dword, bit, bit, bit, bit)
-
-// PCMPISTRM — Packed Compare Implicit Length Strings, Return Mask
-val __pcmpistrm : (xmmword, xmmword, byte) -> (xmmword, bit, bit, bit, bit)
-
-// =========================================================================
-// SSE/AVX integer special
-// =========================================================================
-
-// MPSADBW — Multiple Sum of Absolute Differences
-val __mpsadbw : (xmmword, xmmword, byte) -> xmmword
-
-// MASKMOVDQU — Store Selected Bytes of Double Quadword
-val __maskmovdqu : (xmmword, xmmword, qword) -> unit
-
-// =========================================================================
 // AES-NI
 // =========================================================================
 
@@ -398,8 +372,3 @@ val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
 val __sha256msg1 : (xmmword, xmmword) -> xmmword
 val __sha256msg2 : (xmmword, xmmword) -> xmmword
 
-// =========================================================================
-// PCLMULQDQ — Carry-Less Multiplication Quadword
-// =========================================================================
-
-val __pclmulqdq : (qword, qword) -> xmmword

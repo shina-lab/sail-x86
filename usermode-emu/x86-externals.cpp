@@ -79,21 +79,6 @@ unit Model::z__port_out32(u64, u64) { return UNIT; }
 void Model::z__check_pending_irq(sail_int *rop, unit) { mpz_set_si(*rop, -1); }
 
 // =========================================================================
-// MASKMOVDQU
-// =========================================================================
-
-unit Model::z__maskmovdqu(lbits data, lbits mask, u64 addr) {
-  u8 d[16];
-  u8 m[16];
-  bits_to_bytes(data, d, 16);
-  bits_to_bytes(mask, m, 16);
-  for (int i = 0; i < 16; i++)
-    if (m[i] & 0x80)
-      *(u8 *)(addr + i) = d[i];
-  return UNIT;
-}
-
-// =========================================================================
 // FXSAVE / FXRSTOR — save/restore FPU+SSE state to/from 512-byte area
 // =========================================================================
 //

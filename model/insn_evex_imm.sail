@@ -1037,7 +1037,7 @@ val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
 function avx_vpclmulqdq_lane(src1, src2, imm8) = {
   let sel_a : qword = blend(src1[63..0], src1[127..64], imm8[0]);
   let sel_b : qword = blend(src2[63..0], src2[127..64], imm8[4]);
-  __pclmulqdq(sel_a, sel_b)
+  pclmulqdq(sel_a, sel_b)
 }
 
 val avx_vpclmulqdq_128 : (xmmword, xmmword, byte) -> xmmword
