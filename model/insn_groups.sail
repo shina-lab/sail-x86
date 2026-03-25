@@ -127,23 +127,18 @@ function dispatch_group3_byte(reg_field, dest) = {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
     let imm : byte = fetch_byte();
-    let result = v(8, dest) & imm;
-    update_flags_logic(result)
+    update_flags_logic(v(8, dest) & imm)
   } else {
     let x = v(8, dest);
     match reg_field {
       0 => (),  // unreachable, handled above
       1 => (),  // unreachable, handled above
       // NOT r/m8
-      2 => {
-        let result = x ^ 0xFF;
-        v(dest) = result
-      },
+      2 => v(dest) = x ^ 0xFF,
       // NEG r/m8
       3 => {
-        let zero : byte = zeros();
-        let result = zero - x;
-        update_flags_sub(result, zero, x);
+        let result = zeros() - x;
+        update_flags_sub(result, zeros(), x);
         v(dest) = result
       },
       4 => exec_mul(x),
@@ -164,8 +159,7 @@ function dispatch_group3(reg_field, dest, os) = {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
     let imm = fetch_imm_z(os);
-    let result = v(os, dest) & imm[(os - 1) .. 0];
-    update_flags_logic(result)
+    update_flags_logic(v(os, dest) & imm[(os - 1) .. 0])
   } else {
     let x = v(os, dest);
     match reg_field {
@@ -219,11 +213,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
       next_rip = Some(target)
     },
     // JMP near indirect (f64)
-    4 => {
-      let os = opsize_forced64(pfx);
-      let target : qword = zero_extend(v(os, dest));
-      next_rip = Some(target)
-    },
+    4 => next_rip = Some(zero_extend(v(opsize_forced64(pfx), dest))),
     // PUSH r/m (d64)
     6 => {
       let os = opsize_default64(pfx);
@@ -248,11 +238,10 @@ function dispatch_group5(reg_field, dest, pfx) = {
                 _  => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
               };
               load_segment_register(CS, far_selector);
-              let target : qword = match os {
+              next_rip = Some(match os {
                 16 => zero_extend(far_offset[15..0]),
                 _    => zero_extend(far_offset[31..0]),
-              };
-              next_rip = Some(target)
+              })
             },
             _ => exec_far_call_protected(far_selector, far_offset, os),
           }
@@ -274,11 +263,10 @@ function dispatch_group5(reg_field, dest, pfx) = {
           match cur_mode {
             RealMode => {
               load_segment_register(CS, far_selector);
-              let target : qword = match os {
+              next_rip = Some(match os {
                 16 => zero_extend(far_offset[15..0]),
                 _    => zero_extend(far_offset[31..0]),
-              };
-              next_rip = Some(target)
+              })
             },
             _ => exec_far_jmp_protected(far_selector, far_offset, os),
           }

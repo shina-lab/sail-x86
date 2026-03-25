@@ -722,10 +722,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             let limit_hi : bits(4) = desc_hi[19..16];
             let granularity : bit = desc_hi[23];
             let limit : dword = zero_extend(limit_hi @ limit_lo);
-            let final_limit : dword = if granularity == 0b1
+            let fl_ext : qword = zero_extend(if granularity == 0b1
               then (limit << 12) | 0x00000FFF
-              else limit;
-            let fl_ext : qword = zero_extend(final_limit);
+              else limit);
             v(reg) = fl_ext[(os - 1) .. 0];
             ZF = 0b1
           }
@@ -779,12 +778,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       if cur_cpl != 0 then raise_GP0();
       // SYSRET: restore RIP from RCX, RFLAGS from R11
       let new_rip : qword = v(RCX);
-      let new_rflags : qword = v(R11);
 
       // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
       // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
-      let restored = (new_rflags & 0x00000000003C7FD7) | 0x0000000000000002;
-      write_rflags(restored);
+      write_rflags((v(R11) & 0x00000000003C7FD7) | 0x0000000000000002);
 
       // Load CS and SS from IA32_STAR MSR.
       // SDM Vol.2: SYSRET with REX.W (64-bit):
@@ -1176,12 +1173,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A1: POP FS (d64)
     161 => {
       let os = opsize_default64(pfx);
-      let v : word = match os {
+      load_segment_register(FS, match os {
         16 => pop16(),
         32 => pop32()[15..0],
         64 => pop64()[15..0],
-      };
-      load_segment_register(FS, v)
+      })
     },
 
     // 0F A3: BT r/m, r
@@ -1222,12 +1218,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A9: POP GS (d64)
     169 => {
       let os = opsize_default64(pfx);
-      let v : word = match os {
+      load_segment_register(GS, match os {
         16 => pop16(),
         32 => pop32()[15..0],
         64 => pop64()[15..0],
-      };
-      load_segment_register(GS, v)
+      })
     },
 
     // 0F AA: RSM — Resume from System Management Mode

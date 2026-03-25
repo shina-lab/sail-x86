@@ -186,8 +186,7 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch_byte();
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
-      let v : qword = mmx_read_rm(modrm, src);
-      write_mm(dst, v);
+      write_mm(dst, mmx_read_rm(modrm, src));
       mmx_touch()
     },
 

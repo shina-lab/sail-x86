@@ -132,17 +132,14 @@ function deliver_smi() = {
   //   Bit 17: SMBASE relocation supported
   //   Bit 16: I/O instruction restart supported
   // Lower 16 bits: revision ID. We use 0x0064 to indicate Intel 64 format.
-  let smm_rev_id : dword = 0x00030064;
-  smram_save32(0x7EFC, smm_rev_id);
+  smram_save32(0x7EFC, 0x00030064);
 
   // Auto HALT Restart field (offset 7F02H)
   // Bit 0 = 1 if SMI was received while in HLT state
-  let halt_flag : word = if system_state == SysHalted then 0x0001 else 0x0000;
-  smram_save16(0x7F02, halt_flag);
+  smram_save16(0x7F02, if system_state == SysHalted then 0x0001 else 0x0000);
 
   // I/O Instruction Restart field (offset 7F00H) — set to 0 (no I/O restart)
-  let io_restart : word = 0x0000;
-  smram_save16(0x7F00, io_restart);
+  smram_save16(0x7F00, 0x0000);
 
   // === Set up initial SMM execution environment (Table 34-4) ===
 
@@ -163,8 +160,7 @@ function deliver_smi() = {
   RIP = 0x0000000000008000;
 
   // CS: selector = SMBASE >> 4, base = SMBASE
-  let cs_sel : word = smbase[19..4];
-  write_segreg(CS, cs_sel);
+  write_segreg(CS, smbase[19..4]);
   SegCache[CS].seg_base = 0x00000000 @ smbase;
   SegCache[CS].seg_limit = 0xFFFFFFFF;
   SegCache[CS].seg_type = 0x3;
@@ -288,8 +284,7 @@ function exec_rsm() = {
   cur_cpl = 0;  // Restored from segment selector RPL, but simplified here
 
   // Handle Auto HALT Restart (SDM §34.10)
-  let halt_restart : word = smram_load16(0x7F02);
-  if halt_restart[0] == 0b1 then {
+  if smram_load16(0x7F02)[0] == 0b1 then {
     // SMI occurred during HLT — re-enter HALT state
     system_state = SysHalted
   };

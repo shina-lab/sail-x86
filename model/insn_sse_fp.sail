@@ -243,8 +243,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           match src {
             RM_reg(_) => {
               let src = read_xmm(modrm_xmm_rm(modrm, pfx));
-              let high : qword = read_xmm(xreg)[127..64];
-              write_xmm_legacy(xreg, high @ src[127..64])
+              write_xmm_legacy(xreg, read_xmm(xreg)[127..64] @ src[127..64])
             },
             RM_mem(m) => {
               var xmm : xmmword = read_xmm(xreg);
@@ -350,8 +349,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           match src {
             RM_reg(_) => {
               let src = read_xmm(modrm_xmm_rm(modrm, pfx));
-              let low : qword = read_xmm(xreg)[63..0];
-              write_xmm_legacy(xreg, src[63..0] @ low)
+              write_xmm_legacy(xreg, src[63..0] @ read_xmm(xreg)[63..0])
             },
             RM_mem(m) => {
               var xmm : xmmword = read_xmm(xreg);

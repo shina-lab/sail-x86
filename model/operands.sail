@@ -144,8 +144,7 @@ function fetch_byte() = {
   };
   // In non-long mode, add CS base to form the linear address for fetch.
   // decode_pos holds the instruction pointer (IP/EIP), not the linear address.
-  let linear = decode_pos + get_seg_base(CS);
-  let b = ifetch_read8(linear);
+  let b = ifetch_read8(decode_pos + get_seg_base(CS));
   decode_pos = decode_pos + 1;
   b
 }
