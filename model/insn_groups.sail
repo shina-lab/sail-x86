@@ -503,30 +503,17 @@ function exec_rcr(a, count_raw) = {
 // =========================================================================
 val exec_shift_rm : forall 'os, 'os in {8, 16, 32, 64}. (range(0, 7), RM, byte, int('os)) -> unit
 function exec_shift_rm(shift_op, dest, count_raw, os) = {
-  // Mask count first — if zero, the entire operation is a no-op (no
-  // flags change, no memory write).
-  let masked : range(0, 63) = match os {
-    64 => unsigned(count_raw) % 64,
-    _  => unsigned(count_raw) % 32,
+  // exec_* functions handle count==0 via blend (return original, flags preserved).
+  let src_val = v(os, dest);
+  let new_val : bits('os) = match shift_op {
+    0 => exec_rol(src_val, count_raw),
+    1 => exec_ror(src_val, count_raw),
+    2 => exec_rcl(src_val, count_raw),
+    3 => exec_rcr(src_val, count_raw),
+    4 => exec_shl(src_val, count_raw),
+    5 => exec_shr(src_val, count_raw),
+    6 => exec_shl(src_val, count_raw),  // SAL = SHL
+    7 => exec_sar(src_val, count_raw),
   };
-  if masked == 0 then {
-    // Even with count=0, 32-bit operations zero-extend the upper 32 bits.
-    if os == 32 then {
-      let src_val = v(os, dest);
-      v(os, dest) = src_val
-    }
-  } else {
-    let src_val = v(os, dest);
-    let new_val : bits('os) = match shift_op {
-      0 => exec_rol(src_val, count_raw),
-      1 => exec_ror(src_val, count_raw),
-      2 => exec_rcl(src_val, count_raw),
-      3 => exec_rcr(src_val, count_raw),
-      4 => exec_shl(src_val, count_raw),
-      5 => exec_shr(src_val, count_raw),
-      6 => exec_shl(src_val, count_raw),  // SAL = SHL
-      7 => exec_sar(src_val, count_raw),
-    };
-    v(os, dest) = new_val
-  }
+  v(os, dest) = new_val
 }
