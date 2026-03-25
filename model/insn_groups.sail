@@ -12,7 +12,6 @@ function exec_inc(a) = {
 // DEC — Decrement by 1
 //
 // Computes dest := dest - 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
-
 val exec_dec : forall 'os, 'os in {8, 16, 32, 64}. (bits('os)) -> bits('os)
 function exec_dec(a) = {
   let result = a - 1;
@@ -21,7 +20,6 @@ function exec_dec(a) = {
 }
 
 // MUL — Unsigned Multiply
-
 val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_mul(os, src) = {
   if os == 8 then {
@@ -46,7 +44,6 @@ function exec_mul(os, src) = {
 
 // DIV — Unsigned Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after DIV.
-
 val exec_div : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_div(os, src) = {
   if os == 8 then {
@@ -81,7 +78,6 @@ function exec_div(os, src) = {
 
 // IDIV — Signed Divide
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after IDIV.
-
 val exec_idiv : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_idiv(os, src) = {
   if os == 8 then {
@@ -115,7 +111,6 @@ function exec_idiv(os, src) = {
 }
 
 // IMUL — Signed Multiply (one-operand form)
-
 val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_imul_1(os, src) = {
   if os == 8 then {
@@ -141,7 +136,6 @@ function exec_imul_1(os, src) = {
 }
 
 // PUSH imm
-
 val exec_push_imm : forall 'os, 'os in {16, 32, 64}. (bits('os), int('os)) -> unit
 function exec_push_imm(imm, os) = {
   match os {
@@ -392,7 +386,6 @@ function exec_shr(a, count_raw) = {
 // Shifts dest right by count bits, preserving sign bit.
 // CF = last bit shifted out. OF cleared for count=1.
 // SF, ZF, PF set from result. AF undefined for count != 0.
-
 val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
 function exec_sar(a, count_raw) = {
   let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
@@ -427,24 +420,20 @@ function exec_sar(a, count_raw) = {
 // ROR: Rotates bits right. CF = MSB(result) after rotate.
 // OF defined only for count=1. SF, ZF, AF, PF unaffected.
 // Count is masked to 5 bits (6 bits for 64-bit operands).
-
 val exec_rol : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
 function exec_rol(a, count_raw) = {
   let count : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  if count == 0 then {
-    a
-  } else {
-    let result : bits('os) = rotl(a, count % 'os);
-    CF = result[0];
-    if count == 1 then
-      OF = result['os - 1] ^ CF
-    else
-      OF = undefined;
-    result
-  }
+  let count_nz : bit = is_nonzero(to_bits(6, count));
+  let old_CF = CF; let old_OF = OF;
+  let result : bits('os) = rotl(a, count % 'os);
+  CF = result[0];
+  OF = result['os - 1] ^ CF;    // valid for count==1; undefined otherwise
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  blend(a, result, count_nz)
 }
 
 val exec_ror : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
@@ -453,17 +442,14 @@ function exec_ror(a, count_raw) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  if count == 0 then {
-    a
-  } else {
-    let result : bits('os) = rotr(a, count % 'os);
-    CF = result['os - 1];
-    if count == 1 then
-      OF = result['os - 1] ^ result['os - 2]
-    else
-      OF = undefined;
-    result
-  }
+  let count_nz : bit = is_nonzero(to_bits(6, count));
+  let old_CF = CF; let old_OF = OF;
+  let result : bits('os) = rotr(a, count % 'os);
+  CF = result['os - 1];
+  OF = result['os - 1] ^ result['os - 2];  // valid for count==1; undefined otherwise
+  CF = blend(old_CF, CF, count_nz);
+  OF = blend(old_OF, OF, count_nz);
+  blend(a, result, count_nz)
 }
 
 // RCL — Rotate Through Carry Left
@@ -479,18 +465,15 @@ function exec_rcl(a, count_raw) = {
     _  => unsigned(count_raw) % 32,
   };
   let c = masked % ('os + 1);
-  if c == 0 then {
-    a
-  } else {
-    let wide = a @ CF;
-    let rotated = rotl(wide, c);
-    CF = rotated[0];
-    if masked == 1 then
-      OF = rotated['os] ^ rotated[0]
-    else
-      OF = undefined;
-    rotated['os..1]
-  }
+  let c_nz : bit = is_nonzero(to_bits(6, c));
+  let old_CF = CF; let old_OF = OF;
+  let wide = a @ CF;
+  let rotated = rotl(wide, c);
+  CF = rotated[0];
+  OF = rotated['os] ^ rotated[0];  // valid for masked==1; undefined otherwise
+  CF = blend(old_CF, CF, c_nz);
+  OF = blend(old_OF, OF, c_nz);
+  blend(a, rotated['os..1], c_nz)
 }
 
 val exec_rcr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
@@ -500,19 +483,16 @@ function exec_rcr(a, count_raw) = {
     _  => unsigned(count_raw) % 32,
   };
   let c = masked % ('os + 1);
-  if c == 0 then {
-    a
-  } else {
-    // OF is set from original value before rotation for RCR
-    if masked == 1 then
-      OF = a['os - 1] ^ CF
-    else
-      OF = undefined;
-    let wide = a @ CF;
-    let rotated = rotr(wide, c);
-    CF = rotated[0];
-    rotated['os..1]
-  }
+  let c_nz : bit = is_nonzero(to_bits(6, c));
+  let old_CF = CF; let old_OF = OF;
+  // OF is set from original value before rotation for RCR
+  OF = a['os - 1] ^ CF;            // valid for masked==1; undefined otherwise
+  let wide = a @ CF;
+  let rotated = rotr(wide, c);
+  CF = rotated[0];
+  CF = blend(old_CF, CF, c_nz);
+  OF = blend(old_OF, OF, c_nz);
+  blend(a, rotated['os..1], c_nz)
 }
 
 // =========================================================================
