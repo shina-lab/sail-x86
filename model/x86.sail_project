@@ -22,7 +22,8 @@ decode {
   requires prelude, core
 
   files
-    types.sail,
+    operands.sail,
+    branchless.sail,
     insn_prefixes.sail,
     insn_modrm.sail,
     smm.sail,
