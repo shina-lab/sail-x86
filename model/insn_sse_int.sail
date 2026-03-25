@@ -321,22 +321,26 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
               if lo_valid & hi_valid then {
                 // Use signed or unsigned comparison based on imm8[1]
                 let ge_lo : bit = if ub == 7 then {
-                  if imm8[1] == bitone
-                  then bool_to_bit(signed(b[(b_lo + 15) .. b_lo]) >= signed(a[(a_lo_lo + 15) .. a_lo_lo]))
-                  else bool_to_bit(unsigned(b[(b_lo + 15) .. b_lo]) >= unsigned(a[(a_lo_lo + 15) .. a_lo_lo]))
+                  let bw : word = b[(b_lo + 15) .. b_lo];
+                  let aw : word = a[(a_lo_lo + 15) .. a_lo_lo];
+                  blend(bool_to_bit(unsigned(bw) >= unsigned(aw)),
+                        bool_to_bit(signed(bw) >= signed(aw)), imm8[1])
                 } else {
-                  if imm8[1] == bitone
-                  then bool_to_bit(signed(b[(b_lo + 7) .. b_lo]) >= signed(a[(a_lo_lo + 7) .. a_lo_lo]))
-                  else bool_to_bit(unsigned(b[(b_lo + 7) .. b_lo]) >= unsigned(a[(a_lo_lo + 7) .. a_lo_lo]))
+                  let bb : byte = b[(b_lo + 7) .. b_lo];
+                  let ab : byte = a[(a_lo_lo + 7) .. a_lo_lo];
+                  blend(bool_to_bit(unsigned(bb) >= unsigned(ab)),
+                        bool_to_bit(signed(bb) >= signed(ab)), imm8[1])
                 };
                 let le_hi : bit = if ub == 7 then {
-                  if imm8[1] == bitone
-                  then bool_to_bit(signed(b[(b_lo + 15) .. b_lo]) <= signed(a[(a_hi_lo + 15) .. a_hi_lo]))
-                  else bool_to_bit(unsigned(b[(b_lo + 15) .. b_lo]) <= unsigned(a[(a_hi_lo + 15) .. a_hi_lo]))
+                  let bw : word = b[(b_lo + 15) .. b_lo];
+                  let aw : word = a[(a_hi_lo + 15) .. a_hi_lo];
+                  blend(bool_to_bit(unsigned(bw) <= unsigned(aw)),
+                        bool_to_bit(signed(bw) <= signed(aw)), imm8[1])
                 } else {
-                  if imm8[1] == bitone
-                  then bool_to_bit(signed(b[(b_lo + 7) .. b_lo]) <= signed(a[(a_hi_lo + 7) .. a_hi_lo]))
-                  else bool_to_bit(unsigned(b[(b_lo + 7) .. b_lo]) <= unsigned(a[(a_hi_lo + 7) .. a_hi_lo]))
+                  let bb : byte = b[(b_lo + 7) .. b_lo];
+                  let ab : byte = a[(a_hi_lo + 7) .. a_hi_lo];
+                  blend(bool_to_bit(unsigned(bb) <= unsigned(ab)),
+                        bool_to_bit(signed(bb) <= signed(ab)), imm8[1])
                 };
                 in_range = in_range | (ge_lo & le_hi)
               }
