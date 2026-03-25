@@ -356,22 +356,19 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
       }
     },
     // Equal ordered: substring search
+    // a_valid & b_valid → AND with comparison
+    // ~a_valid → needle exhausted, keep match (AND with 1)
+    // a_valid & ~b_valid → haystack short, force false (AND with 0)
     0b11 => {
+      let va : bits(16) = ~(0xFFFF << la);
+      let vb : bits(16) = ~(0xFFFF << lb);
       foreach (j from 0 to 15) {
         if j <= ub then {
           var all_match : bit = bitone;
           foreach (k_off from 0 to 15) {
             let k = j + k_off;
-            if k_off <= ub & k <= ub then {
-              let a_valid = k_off < la;
-              let b_valid = k < lb;
-              if a_valid & b_valid then
-                all_match = all_match & bool_res[k * 16 + k_off]
-              else if ~(a_valid) then
-                ()  // needle exhausted → still matches (force true)
-              else
-                all_match = bitzero  // haystack exhausted but needle remains → force false
-            }
+            if k_off <= ub & k <= ub then
+              all_match = all_match & (~(va[k_off]) | (bool_res[k * 16 + k_off] & vb[k]))
           };
           int_res1[j] = all_match
         }
