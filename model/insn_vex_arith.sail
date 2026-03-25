@@ -711,15 +711,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let vvvv : gpr_idx = pfx.vex_vvvv % 16;
         let src2 = v(os, vvvv);
         let index : range(0, 255) = unsigned(src2[7..0]);
-        var result = zeros(os);
-        if index >= os then {
-          result = src1;
-          CF = 0b1
-        } else {
-          let shift_amt : range(0, 255) = os - index;
-          result = (src1 << shift_amt) >> shift_amt;
-          CF = 0b0
-        };
+        let clamped = unsigned(min_u(to_bits(9, index), to_bits(9, os)));
+        assert(clamped <= os);
+        let shift_amt = os - clamped;
+        let result = (src1 << shift_amt) >> shift_amt;
+        CF = is_ge_u(to_bits(9, index), to_bits(9, os));
         v(dst) = result;
         SF = result[os - 1];
         ZF = is_zero(result);
