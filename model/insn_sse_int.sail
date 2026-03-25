@@ -410,26 +410,22 @@ function pcmp_clamp_len(raw, max_len) = {
 
 // Find index of first (LSB) or last (MSB) set bit in IntRes2, bounded by ub.
 // Returns ub+1 if no bits set.
+// Bits above ub are already zeroed by the caller.
 val pcmp_bit_index : (bits(16), range(0, 15), bit) -> range(0, 16)
 function pcmp_bit_index(int_res2, ub, msb_mode) = {
-  if int_res2 == zeros() then ub + 1
-  else if msb_mode == bitone then {
-    var idx : range(0, 15) = 0;
-    foreach (i from 0 to 15) {
-      if i <= ub & int_res2[i] == bitone then idx = i
-    };
-    idx
+  let is_zero_flag : bit = is_zero(int_res2);
+  // MSB mode: index of highest set bit (BSR)
+  // LSB mode: index of lowest set bit (CTZ)
+  let idx : range(0, 16) = if msb_mode == bitone then {
+    // bsr requires nonzero input; safe because we handle zero via blend below
+    if int_res2 == zeros() then 0 else {
+      let r = bsr(zero_extend(int_res2)); assert(r <= 15); r
+    }
   } else {
-    var idx : range(0, 16) = ub + 1;
-    var found : bool = false;
-    foreach (i from 0 to 15) {
-      if i <= ub & int_res2[i] == bitone & ~(found) then {
-        idx = i;
-        found = true
-      }
-    };
-    idx
-  }
+    let r = ctz(16, zero_extend(int_res2)); assert(r <= 16); r
+  };
+  // If no bits set, return ub+1; also clamp CTZ=16 to ub+1 for word mode
+  if is_zero_flag == bitone | idx > ub then ub + 1 else idx
 }
 
 // Expand IntRes2 bits into byte/word mask or return as bit mask in XMM.
