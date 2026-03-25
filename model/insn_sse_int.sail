@@ -380,22 +380,19 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
   if ub == 7 then int_res1 = int_res1 & 0x00FF;
 
   // Stage 4: Polarity
+  let ub_mask : bits(16) = if ub == 7 then 0x00FF else 0xFFFF;
   let int_res2 : bits(16) = match imm8[5..4] {
     0b00 => int_res1,                     // positive
-    0b01 => int_res1 ^ (if ub == 7 then 0x00FF else 0xFFFF),  // negative
+    0b01 => int_res1 ^ ub_mask,           // negative: flip all valid lanes
     0b10 => int_res1,                     // masked positive (same as positive)
-    0b11 => {                             // masked negative
-      var r : bits(16) = int_res1;
-      foreach (i from 0 to 15) {
-        if i <= ub & i < lb then
-          r[i] = ~(int_res1[i])
-      };
-      r
+    0b11 => {                             // masked negative: flip where i < lb
+      let vb : bits(16) = ~(0xFFFF << lb);
+      int_res1 ^ (vb & ub_mask)
     },
   };
 
   // Flags
-  let cf : bit = bool_to_bit(int_res2 != zeros());
+  let cf : bit = is_nonzero(int_res2);
   let zf : bit = bool_to_bit(lb < (ub + 1));   // any invalid element in b
   let sf : bit = bool_to_bit(la < (ub + 1));   // any invalid element in a
   let of : bit = int_res2[0];
