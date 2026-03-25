@@ -1555,26 +1555,20 @@ function dispatch_2byte_gpr(op, pfx) = {
               let mem_val : bits(128) = read_mem(m);
               let mem_lo : qword = mem_val[63..0];
               let mem_hi : qword = mem_val[127..64];
-              if v(64, RAX) == mem_lo & v(64, RDX) == mem_hi then {
-                ZF = 0b1;
-                write_mem(128, m, v(64, RCX) @ v(64, RBX))
-              } else {
-                ZF = 0b0;
-                v(RAX) = mem_lo;
-                v(RDX) = mem_hi;
-              }
+              let eq : bit = is_eq(v(64, RAX), mem_lo) & is_eq(v(64, RDX), mem_hi);
+              ZF = eq;
+              if eq == 0b1 then write_mem(128, m, v(64, RCX) @ v(64, RBX));
+              v(RAX) = blend(mem_lo, v(64, RAX), eq);
+              v(RDX) = blend(mem_hi, v(64, RDX), eq)
             } else {
               let mem_val : qword = v(m);
               let mem_lo : dword = mem_val[31..0];
               let mem_hi : dword = mem_val[63..32];
-              if v(32, RAX) == mem_lo & v(32, RDX) == mem_hi then {
-                ZF = 0b1;
-                v(m) = v(32, RCX) @ v(32, RBX)
-              } else {
-                ZF = 0b0;
-                v(RAX) = mem_lo;
-                v(RDX) = mem_hi;
-              }
+              let eq : bit = is_eq(v(32, RAX), mem_lo) & is_eq(v(32, RDX), mem_hi);
+              ZF = eq;
+              if eq == 0b1 then v(m) = v(32, RCX) @ v(32, RBX);
+              v(RAX) = blend(mem_lo, v(32, RAX), eq);
+              v(RDX) = blend(mem_hi, v(32, RDX), eq)
             }
           },
           RM_reg(_) => raise_UD(),
