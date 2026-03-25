@@ -2037,23 +2037,18 @@ val convert_fp32_to_bf16 : dword -> word
 function convert_fp32_to_bf16(x) = {
   let exp : byte = x[30..23];
   let mant : bits(23) = x[22..0];
-  if exp == 0x00 then {
-    // Zero or denormal → signed zero
-    x[31] @ zeros(15)
-  } else if exp == 0xFF & mant != zeros() then {
-    // NaN → truncate and force QNaN (set bit 6 of result = MSB of BF16 mantissa)
-    let truncated : word = x[31..16];
-    truncated | 0x0040
-  } else if exp == 0xFF then {
-    // Infinity → preserve
-    x[31..16]
-  } else {
-    // Normal: round to nearest even using integer arithmetic
-    let lsb : bit = x[16];
-    let rounding_bias : dword = 0x00007FFF + zero_extend(lsb);
-    let temp : dword = x + rounding_bias;
-    temp[31..16]
-  }
+  let exp_zero : bit = is_zero(exp);
+  let exp_all  : bit = is_zero(~(exp));
+  let mant_nz  : bit = is_nonzero(mant);
+  // Compute all four cases unconditionally
+  let r_zero   : word = x[31] @ zeros(15);                   // zero/denormal → signed zero
+  let r_nan    : word = x[31..16] | 0x0040;                  // NaN → force QNaN
+  let r_inf    : word = x[31..16];                            // infinity → preserve
+  let r_normal : word = (x + 0x00007FFF + zero_extend(x[16]))[31..16]; // normal → RNE
+  // Select by classification: start with normal, override special cases
+  let r1 : word = blend(r_normal, r_zero, exp_zero);
+  let r2 : word = blend(r1, r_inf, exp_all & ~(mant_nz));
+  blend(r2, r_nan, exp_all & mant_nz)
 }
 
 /* ---- VCVTNEPS2BF16: convert packed FP32 → packed BF16 ---- */
