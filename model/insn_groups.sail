@@ -341,6 +341,10 @@ function exec_shl(a, count_raw) = {
   update_SF_ZF_PF(result);
   OF = result['os - 1] ^ CF;
   AF = undefined;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
+  // CF undefined when count > operand size (possible for 8/16-bit)
+  CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
   // When count==0: restore all flags and return original value
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
@@ -372,6 +376,10 @@ function exec_shr(a, count_raw) = {
   update_SF_ZF_PF(result);
   OF = a['os - 1];
   AF = undefined;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
+  // CF undefined when count > operand size (possible for 8/16-bit)
+  CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   SF = blend(old_SF, SF, count_nz);
@@ -404,6 +412,8 @@ function exec_sar(a, count_raw) = {
   update_SF_ZF_PF(result);
   OF = 0b0;
   AF = undefined;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   SF = blend(old_SF, SF, count_nz);
@@ -430,7 +440,9 @@ function exec_rol(a, count_raw) = {
   let old_CF = CF; let old_OF = OF;
   let result : bits('os) = rotl(a, count % 'os);
   CF = result[0];
-  OF = result['os - 1] ^ CF;    // valid for count==1; undefined otherwise
+  OF = result['os - 1] ^ CF;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(to_bits(6, count), 0b000001));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   blend(a, result, count_nz)
@@ -446,7 +458,9 @@ function exec_ror(a, count_raw) = {
   let old_CF = CF; let old_OF = OF;
   let result : bits('os) = rotr(a, count % 'os);
   CF = result['os - 1];
-  OF = result['os - 1] ^ result['os - 2];  // valid for count==1; undefined otherwise
+  OF = result['os - 1] ^ result['os - 2];
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(to_bits(6, count), 0b000001));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   blend(a, result, count_nz)
@@ -470,7 +484,9 @@ function exec_rcl(a, count_raw) = {
   let wide = a @ CF;
   let rotated = rotl(wide, c);
   CF = rotated[0];
-  OF = rotated['os] ^ rotated[0];  // valid for masked==1; undefined otherwise
+  OF = rotated['os] ^ rotated[0];
+  // OF defined only for masked==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(to_bits(6, masked), 0b000001));
   CF = blend(old_CF, CF, c_nz);
   OF = blend(old_OF, OF, c_nz);
   blend(a, rotated['os..1], c_nz)
@@ -486,7 +502,9 @@ function exec_rcr(a, count_raw) = {
   let c_nz : bit = is_nonzero(to_bits(6, c));
   let old_CF = CF; let old_OF = OF;
   // OF is set from original value before rotation for RCR
-  OF = a['os - 1] ^ CF;            // valid for masked==1; undefined otherwise
+  OF = a['os - 1] ^ CF;
+  // OF defined only for masked==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(to_bits(6, masked), 0b000001));
   let wide = a @ CF;
   let rotated = rotr(wide, c);
   CF = rotated[0];

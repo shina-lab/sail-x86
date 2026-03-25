@@ -235,6 +235,8 @@ function exec_shld(os, d, s, count_raw) = {
   update_SF_ZF_PF(r);
   OF = r[os - 1] ^ d[os - 1];
   AF = undefined;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
 
   // count==0: restore old flags
   let count_nz : bit = is_nonzero(count_bv);
@@ -292,6 +294,8 @@ function exec_shrd(os, d, s, count_raw) = {
   update_SF_ZF_PF(r);
   OF = r[os - 1] ^ d[os - 1];
   AF = undefined;
+  // OF defined only for count==1; undefined otherwise
+  OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
 
   // count==0: restore old flags
   let count_nz : bit = is_nonzero(count_bv);
