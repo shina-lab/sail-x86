@@ -1427,23 +1427,17 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
         // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
         // PF set from result parity (verified against real hardware).
-        // SDM footnote: "On some older processors, CF, OF, SF, AF, and
-        // PF flags are unmodified." We follow the main text.
         let src_val = v(os, src);
+        let zf : bit = is_zero(src_val);
+        let idx = ctz(src_val);
+        let result : qword = to_bits_truncate(idx);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
         AF = 0b0;
-        if src_val == zeros() then {
-          ZF = 0b1;
-          PF = compute_PF(0x00);
-        } else {
-          ZF = 0b0;
-          let idx = ctz(src_val);
-          let result : qword = to_bits_truncate(idx);
-          PF = compute_PF(result[7..0]);
-          v(reg) = result[(os - 1) .. 0];
-        }
+        ZF = zf;
+        PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
+        v(reg) = blend(result[(os - 1) .. 0], v(os, reg), zf)
       }
     },
 
@@ -1464,23 +1458,18 @@ function dispatch_2byte_gpr(op, pfx) = {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
         // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
         // PF set from result parity (verified against real hardware).
-        // SDM footnote: "On some older processors, CF, OF, SF, AF, and
-        // PF flags are unmodified." We follow the main text.
         let src_val = v(os, src);
+        let zf : bit = is_zero(src_val);
+        // Sentinel bit 0 ensures bsr gets nonzero input; result ignored when zf=1
+        let idx : range(0, 63) = bsr(zero_extend(src_val) | 0x0000000000000001);
+        let result : qword = to_bits_truncate(idx);
         CF = 0b0;
         OF = 0b0;
         SF = 0b0;
         AF = 0b0;
-        if src_val == zeros() then {
-          ZF = 0b1;
-          PF = compute_PF(0x00);
-        } else {
-          ZF = 0b0;
-          let idx : range(0, 63) = bsr(zero_extend(src_val));
-          let result : qword = to_bits_truncate(idx);
-          PF = compute_PF(result[7..0]);
-          v(reg) = result[(os - 1) .. 0];
-        }
+        ZF = zf;
+        PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
+        v(reg) = blend(result[(os - 1) .. 0], v(os, reg), zf)
       }
     },
 
