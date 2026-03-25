@@ -780,17 +780,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let ctrl = v(os, vvvv);
         let start : range(0, 255) = unsigned(ctrl[7..0]);
         let len : range(0, 255) = unsigned(ctrl[15..8]);
-        var result = zeros(os);
-        if start < os then {
-          let shifted = src >> start;
-          if len >= os then {
-            result = shifted
-          } else {
-            // Create mask with len low bits set
-            let shift_amt : range(0, 255) = os - len;
-            result = (shifted << shift_amt) >> shift_amt
-          }
-        };
+        // Clamp start and len to os: start >= os → shift all out (result = 0),
+        // len >= os → no masking (keep all bits).
+        let cs = unsigned(min_u(to_bits(9, start), to_bits(9, os)));
+        assert(cs <= os);
+        let cl = unsigned(min_u(to_bits(9, len), to_bits(9, os)));
+        assert(cl <= os);
+        let shifted = src >> cs;
+        let shift_amt = os - cl;
+        let result = (shifted << shift_amt) >> shift_amt;
         v(dst) = result;
         ZF = is_zero(result);
         OF = 0b0;
