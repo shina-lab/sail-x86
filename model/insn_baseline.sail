@@ -555,11 +555,16 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               match dest {
                 RM_mem(m) => {
-                  let gdt_os = if cur_mode == LongMode then 64 else opsize(pfx);
-                  (GDTR_base, GDTR_limit) = match gdt_os {
-                    16 => { let d : bits(48) = read_mem(m); (zero_extend(d[39..16]), d[15..0]) },
-                    32 => { let d : bits(48) = read_mem(m); (zero_extend(d[47..16]), d[15..0]) },
-                    64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
+                  if cur_mode == LongMode then {
+                    let d : bits(80) = read_mem(m);
+                    GDTR_base = d[79..16];
+                    GDTR_limit = d[15..0]
+                  } else {
+                    let d : bits(48) = read_mem(m);
+                    GDTR_base = if opsize(pfx) == 16
+                      then zero_extend(d[39..16])
+                      else zero_extend(d[47..16]);
+                    GDTR_limit = d[15..0]
                   }
                 },
                 RM_reg(_) => raise_UD(),
@@ -572,11 +577,16 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               match dest {
                 RM_mem(m) => {
-                  let idt_os = if cur_mode == LongMode then 64 else opsize(pfx);
-                  (IDTR_base, IDTR_limit) = match idt_os {
-                    16 => { let d : bits(48) = read_mem(m); (zero_extend(d[39..16]), d[15..0]) },
-                    32 => { let d : bits(48) = read_mem(m); (zero_extend(d[47..16]), d[15..0]) },
-                    64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
+                  if cur_mode == LongMode then {
+                    let d : bits(80) = read_mem(m);
+                    IDTR_base = d[79..16];
+                    IDTR_limit = d[15..0]
+                  } else {
+                    let d : bits(48) = read_mem(m);
+                    IDTR_base = if opsize(pfx) == 16
+                      then zero_extend(d[39..16])
+                      else zero_extend(d[47..16]);
+                    IDTR_limit = d[15..0]
                   }
                 },
                 RM_reg(_) => raise_UD(),
