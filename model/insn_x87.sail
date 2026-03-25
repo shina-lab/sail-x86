@@ -241,10 +241,10 @@ function dispatch_x87_da(modrm, src, _) = {
     },
     RM_reg(_) => {
       match reg {
-        0 => if CF == 0b1 then x87_write_st(0, x87_read_st(sti)),
-        1 => if ZF == 0b1 then x87_write_st(0, x87_read_st(sti)),
-        2 => if CF == 0b1 | ZF == 0b1 then x87_write_st(0, x87_read_st(sti)),
-        3 => if PF == 0b1 then x87_write_st(0, x87_read_st(sti)),
+        0 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), CF)),
+        1 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ZF)),
+        2 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), CF | ZF)),
+        3 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), PF)),
         // FUCOMPP
         5 => {
           if sti == 1 then {
@@ -285,10 +285,10 @@ function dispatch_x87_db(modrm, operand, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
-        0 => if CF == 0b0 then x87_write_st(0, x87_read_st(sti)),
-        1 => if ZF == 0b0 then x87_write_st(0, x87_read_st(sti)),
-        2 => if CF == 0b0 & ZF == 0b0 then x87_write_st(0, x87_read_st(sti)),
-        3 => if PF == 0b0 then x87_write_st(0, x87_read_st(sti)),
+        0 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(CF))),
+        1 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(ZF))),
+        2 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(CF) & ~(ZF))),
+        3 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(PF))),
         // FNCLEX — clear exception flags
         4 => {
           if modrm_val == 226 then {
