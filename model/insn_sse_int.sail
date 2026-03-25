@@ -315,31 +315,27 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
               let a_lo_lo = i * elem_bits;
               let a_hi_lo = (i + 1) * elem_bits;
               let b_lo = j * elem_bits;
-              // Check if both range endpoints and the tested element are valid
-              let lo_valid = i < la & j < lb;
-              let hi_valid = (i + 1) < la & j < lb;
-              if lo_valid & hi_valid then {
-                // Use signed or unsigned comparison based on imm8[1]
-                let ge_lo : bit = if ub == 7 then {
-                  let bw : word = b[(b_lo + 15) .. b_lo];
-                  let aw : word = a[(a_lo_lo + 15) .. a_lo_lo];
-                  blend(~(is_gt_u(aw, bw)), ~(is_gt(aw, bw)), imm8[1])
-                } else {
-                  let bb : byte = b[(b_lo + 7) .. b_lo];
-                  let ab : byte = a[(a_lo_lo + 7) .. a_lo_lo];
-                  blend(~(is_gt_u(ab, bb)), ~(is_gt(ab, bb)), imm8[1])
-                };
-                let le_hi : bit = if ub == 7 then {
-                  let bw : word = b[(b_lo + 15) .. b_lo];
-                  let aw : word = a[(a_hi_lo + 15) .. a_hi_lo];
-                  blend(~(is_gt_u(bw, aw)), ~(is_gt(bw, aw)), imm8[1])
-                } else {
-                  let bb : byte = b[(b_lo + 7) .. b_lo];
-                  let ab : byte = a[(a_hi_lo + 7) .. a_hi_lo];
-                  blend(~(is_gt_u(bb, ab)), ~(is_gt(bb, ab)), imm8[1])
-                };
-                in_range = in_range | (ge_lo & le_hi)
-              }
+              // Compute comparisons unconditionally, gate with validity mask
+              let ge_lo : bit = if ub == 7 then {
+                let bw : word = b[(b_lo + 15) .. b_lo];
+                let aw : word = a[(a_lo_lo + 15) .. a_lo_lo];
+                blend(~(is_gt_u(aw, bw)), ~(is_gt(aw, bw)), imm8[1])
+              } else {
+                let bb : byte = b[(b_lo + 7) .. b_lo];
+                let ab : byte = a[(a_lo_lo + 7) .. a_lo_lo];
+                blend(~(is_gt_u(ab, bb)), ~(is_gt(ab, bb)), imm8[1])
+              };
+              let le_hi : bit = if ub == 7 then {
+                let bw : word = b[(b_lo + 15) .. b_lo];
+                let aw : word = a[(a_hi_lo + 15) .. a_hi_lo];
+                blend(~(is_gt_u(bw, aw)), ~(is_gt(bw, aw)), imm8[1])
+              } else {
+                let bb : byte = b[(b_lo + 7) .. b_lo];
+                let ab : byte = a[(a_hi_lo + 7) .. a_hi_lo];
+                blend(~(is_gt_u(bb, ab)), ~(is_gt(bb, ab)), imm8[1])
+              };
+              let valid : bit = bool_to_bit(i < la & j < lb & (i + 1) < la);
+              in_range = in_range | (ge_lo & le_hi & valid)
             }
           };
           int_res1[j] = in_range

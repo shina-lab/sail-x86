@@ -185,23 +185,29 @@ function prop_blend_le_16(x : bits(16), y : bits(16), sel : bits(1)) -> bool = {
 // Proof: range validity masking
 //
 // Old code:
-//   if lo_valid & hi_valid then
+//   let lo_valid = i < la & j < lb;
+//   let hi_valid = (i + 1) < la & j < lb;
+//   if lo_valid & hi_valid then {
+//     ...compute ge_lo, le_hi...
 //     in_range = in_range | (ge_lo & le_hi)
-//   [else in_range unchanged, i.e. OR with 0]
+//   }
 //
 // New code:
-//   let valid = va[i] & va[i + 1] & vb[j];
-//   in_range = in_range | (ge & le & valid)
+//   ...compute ge_lo, le_hi unconditionally...
+//   let valid : bit = bool_to_bit(i < la & j < lb & (i + 1) < la);
+//   in_range = in_range | (ge_lo & le_hi & valid)
 
 $property
-function prop_validity_mask(in_range : bits(1), ge : bits(1), le : bits(1),
-                            lo_valid : bool, hi_valid : bool) -> bool = {
-  let valid : bit = bool_to_bit(lo_valid) & bool_to_bit(hi_valid);
+function prop_validity_mask(in_range : bit, ge_lo : bit, le_hi : bit,
+                            i_lt_la : bool, j_lt_lb : bool, i1_lt_la : bool) -> bool = {
   // ORIGINAL
+  let lo_valid = i_lt_la & j_lt_lb;
+  let hi_valid = i1_lt_la & j_lt_lb;
   let orig : bit =
-    if lo_valid & hi_valid then in_range[0] | (ge[0] & le[0])
-    else in_range[0];
+    if lo_valid & hi_valid then in_range | (ge_lo & le_hi)
+    else in_range;
   // BRANCHLESS
-  let branchless : bit = in_range[0] | (ge[0] & le[0] & valid);
+  let valid : bit = bool_to_bit(i_lt_la & j_lt_lb & i1_lt_la);
+  let branchless : bit = in_range | (ge_lo & le_hi & valid);
   orig == branchless
 }
