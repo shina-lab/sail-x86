@@ -41,8 +41,8 @@ function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
     // Fast path: no masking, write the full vector
     match nbytes {
       64 => write_mem(m, data),
-      32 => write_mem(32, m, data[255..0]),
-      _  => write_mem(16, m, data[127..0]),
+      32 => write_mem(256, m, data[255..0]),
+      _  => write_mem(128, m, data[127..0]),
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1

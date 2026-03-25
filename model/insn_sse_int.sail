@@ -613,9 +613,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         match (src, pfx.rex_w) {
           (RM_reg(r), true)   => write_xmm_legacy(xreg, zero_extend(v(64, r))),
-          (RM_mem(m), true)  => write_xmm_legacy(xreg, zero_extend(read_mem(8, m))),
+          (RM_mem(m), true)  => write_xmm_legacy(xreg, zero_extend(read_mem(64, m))),
           (RM_reg(r), false)  => write_xmm_legacy(xreg, zero_extend(v(32, r))),
-          (RM_mem(m), false) => write_xmm_legacy(xreg, zero_extend(read_mem(4, m))),
+          (RM_mem(m), false) => write_xmm_legacy(xreg, zero_extend(read_mem(32, m))),
         }
       }
     },
@@ -905,9 +905,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let v = read_xmm(src_xmm);
             match (src, pfx.rex_w) {
               (RM_reg(r), true)   => v(r) = v[63..0],
-              (RM_mem(m), true)  => write_mem(8, m,v[63..0]),
+              (RM_mem(m), true)  => write_mem(64, m,v[63..0]),
               (RM_reg(r), false)  => v(r) = v[31..0],
-              (RM_mem(m), false) => write_mem(4, m,v[31..0]),
+              (RM_mem(m), false) => write_mem(32, m,v[31..0]),
             }
           },
           // MOVQ xmm1, xmm2/m64
@@ -919,7 +919,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
                 write_xmm_legacy(xreg, zero_extend(src[63..0]))
               },
               RM_mem(m) => {
-                let v : xmmword = zero_extend(read_mem(8, m));
+                let v : xmmword = zero_extend(read_mem(64, m));
                 write_xmm(xreg, v)
               },
             }

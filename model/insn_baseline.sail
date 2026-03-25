@@ -572,9 +572,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             0 => match dest {
               RM_mem(m) => {
                 if cur_mode == LongMode then
-                  write_mem(10, m, GDTR_base @ GDTR_limit)
+                  write_mem(80, m, GDTR_base @ GDTR_limit)
                 else
-                  write_mem(6, m, GDTR_base[31..0] @ GDTR_limit)
+                  write_mem(48, m, GDTR_base[31..0] @ GDTR_limit)
               },
               _ => raise_UD(),
             },
@@ -583,9 +583,9 @@ function dispatch_2byte_gpr(op, pfx) = {
             1 => match dest {
               RM_mem(m) => {
                 if cur_mode == LongMode then
-                  write_mem(10, m, IDTR_base @ IDTR_limit)
+                  write_mem(80, m, IDTR_base @ IDTR_limit)
                 else
-                  write_mem(6, m, IDTR_base[31..0] @ IDTR_limit)
+                  write_mem(48, m, IDTR_base[31..0] @ IDTR_limit)
               },
               _ => raise_UD(),
             },
@@ -643,7 +643,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 let os = get_operand_size(pfx);
                 v(r) = CR0[(os - 1) .. 0]
               },
-              RM_mem(m) => write_mem(2, m,CR0[15..0]),
+              RM_mem(m) => write_mem(16, m,CR0[15..0]),
             },
 
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
@@ -1617,7 +1617,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               let mem_hi : qword = mem_val[127..64];
               if v(64, RAX) == mem_lo & v(64, RDX) == mem_hi then {
                 ZF = 0b1;
-                write_mem(16, m, v(64, RCX) @ v(64, RBX))
+                write_mem(128, m, v(64, RCX) @ v(64, RBX))
               } else {
                 ZF = 0b0;
                 v(RAX) = mem_lo;
@@ -1629,7 +1629,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               let mem_hi : dword = mem_val[63..32];
               if v(32, RAX) == mem_lo & v(32, RDX) == mem_hi then {
                 ZF = 0b1;
-                write_mem(8, m, v(32, RCX) @ v(32, RBX))
+                write_mem(64, m, v(32, RCX) @ v(32, RBX))
               } else {
                 ZF = 0b0;
                 v(RAX) = mem_lo;

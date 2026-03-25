@@ -959,7 +959,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Memory: m32 = xmm1[31:0]
         // Register: xmm1{k1}{z} = xmm2[127:32] @ xmm3[31:0]
         match dest {
-          RM_mem(m) => write_mem(4, m,read_xmm(src)[31..0]),
+          RM_mem(m) => write_mem(32, m,read_xmm(src)[31..0]),
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -973,7 +973,7 @@ function dispatch_evex_fp(op, pfx) = {
         // Memory: m64 = xmm1[63:0]
         // Register: xmm1{k1}{z} = xmm2[127:64] @ xmm3[63:0]
         match dest {
-          RM_mem(m) => write_mem(8, m,read_xmm(src)[63..0]),
+          RM_mem(m) => write_mem(64, m,read_xmm(src)[63..0]),
           RM_reg(_) => {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -1006,7 +1006,7 @@ function dispatch_evex_fp(op, pfx) = {
           // VMOVLPS xmm2, xmm1, m64
           RM_mem(m) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = read_mem(8, m);
+            let m64val = read_mem(64, m);
             let result : xmmword = src1[127..64] @ m64val;
             write_xmm(dst, result)
           },
@@ -1040,7 +1040,7 @@ function dispatch_evex_fp(op, pfx) = {
             let src : xmmword = match src2 {
               RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
               RM_mem(m) => {
-                let v = read_mem(8, m);
+                let v = read_mem(64, m);
                 v @ v
               },
             };
@@ -1061,7 +1061,7 @@ function dispatch_evex_fp(op, pfx) = {
     if pfx.evex_ll != 0 then raise_UD();
     let dest = modrm_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
-    rm_mem(8, dest) = src[63..0]
+    rm_mem(64, dest) = src[63..0]
   },
 
   // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
@@ -1195,7 +1195,7 @@ function dispatch_evex_fp(op, pfx) = {
           // VMOVHPS xmm2, xmm1, m64
           RM_mem(m) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
-            let m64val = read_mem(8, m);
+            let m64val = read_mem(64, m);
             let result : xmmword = m64val @ src1[63..0];
             write_xmm(dst, result)
           },
@@ -1231,7 +1231,7 @@ function dispatch_evex_fp(op, pfx) = {
     if pfx.evex_ll != 0 then raise_UD();
     let dest = modrm_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
-    rm_mem(8, dest) = src[127..64]
+    rm_mem(64, dest) = src[127..64]
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
@@ -1300,7 +1300,7 @@ function dispatch_evex_fp(op, pfx) = {
       RM_reg(_) => zero_extend(v(os, modrm_rm_reg(modrm, pfx))),
       RM_mem(m) => match os {
         64 => read_mem(m),
-        _    => zero_extend(read_mem(4, m)),
+        _    => zero_extend(read_mem(32, m)),
       },
     };
     let src1 = read_xmm(pfx.evex_vvvvv);
@@ -1441,7 +1441,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 = modrm_rm_evex(modrm, pfx, 4);
         let src : xmmword = match src2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(m) => zero_extend(read_mem(4, m)),
+          RM_mem(m) => zero_extend(read_mem(32, m)),
         };
         let a : dword = read_xmm(dst)[31..0];
         let b : dword = src[31..0];
@@ -1460,7 +1460,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 = modrm_rm_evex(modrm, pfx, 8);
         let src : xmmword = match src2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(m) => zero_extend(read_mem(8, m)),
+          RM_mem(m) => zero_extend(read_mem(64, m)),
         };
         let a : qword = read_xmm(dst)[63..0];
         let b : qword = src[63..0];
@@ -1489,7 +1489,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 = modrm_rm_evex(modrm, pfx, 4);
         let src : xmmword = match src2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(m) => zero_extend(read_mem(4, m)),
+          RM_mem(m) => zero_extend(read_mem(32, m)),
         };
         let a : dword = read_xmm(dst)[31..0];
         let b : dword = src[31..0];
@@ -1508,7 +1508,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src2 = modrm_rm_evex(modrm, pfx, 8);
         let src : xmmword = match src2 {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-          RM_mem(m) => zero_extend(read_mem(8, m)),
+          RM_mem(m) => zero_extend(read_mem(64, m)),
         };
         let a : qword = read_xmm(dst)[63..0];
         let b : qword = src[63..0];

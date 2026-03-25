@@ -176,7 +176,7 @@ function dispatch_mmx(op, pfx) = {
         (RM_reg(r), true)   => write_mm(dst, v(64, r)),
         (RM_mem(m), true)  => write_mm(dst, read_mem(m)),
         (RM_reg(r), false)  => write_mm(dst, zero_extend(v(32, r))),
-        (RM_mem(m), false) => write_mm(dst, zero_extend(read_mem(4, m))),
+        (RM_mem(m), false) => write_mm(dst, zero_extend(read_mem(32, m))),
       };
       mmx_touch()
     },
@@ -335,7 +335,7 @@ function dispatch_mmx(op, pfx) = {
         (RM_reg(r), true)   => v(r) = v,
         (RM_mem(m), true)  => write_mem(m,v),
         (RM_reg(r), false)  => v(r) = v[31..0],
-        (RM_mem(m), false) => write_mem(4, m,v[31..0]),
+        (RM_mem(m), false) => write_mem(32, m,v[31..0]),
       };
       mmx_touch()
     },

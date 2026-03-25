@@ -644,7 +644,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let is_mem : bool = match src2 { RM_reg(_) => false, RM_mem(_) => true };
     let src : xmmword = match src2 {
       RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-      RM_mem(m) => zero_extend(read_mem(4, m)),
+      RM_mem(m) => zero_extend(read_mem(32, m)),
     };
     let imm = fetch_byte();
     write_xmm(dst, avx_insertps(dst_base, src, imm, is_mem))

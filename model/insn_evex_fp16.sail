@@ -1124,7 +1124,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       match dest {
         RM_mem(m) => {
           // VMOVSH store: write low 16 bits of src to memory
-          write_mem(2, m,read_xmm(src)[15..0])
+          write_mem(16, m,read_xmm(src)[15..0])
         },
         RM_reg(_) => {
           // VMOVSH reg-reg store: 3-operand (src1=vvvvv upper bits, src2=reg low 16)

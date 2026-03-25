@@ -13,10 +13,11 @@
 
 // Forward declarations so that the read_mem/write_mem overloads are
 // available to all functions in this file (including stack operations).
-val read_mem_linear : forall 'n, 'n > 0. (implicit('n), qword) -> bits(8 * 'n)
-val write_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, bits(8 * 'n)) -> unit
-val read_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits(8 * 'n)
-val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits(8 * 'n)) -> unit
+// Size parameter 'n is in bits.
+val read_mem_linear : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
+val write_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
+val read_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits('n)
+val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
 
 overload read_mem = {read_mem_linear, read_mem_ref}
 overload write_mem = {write_mem_linear, write_mem_ref}
@@ -24,16 +25,16 @@ overload write_mem = {write_mem_linear, write_mem_ref}
 // Slow-path externals for page-crossing accesses.
 // These translate each byte separately via translate_addr, so accesses
 // that span a 4KB page boundary read/write correct physical memory.
-val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
+val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
+val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
 
-// Read 'n bytes from memory at the given virtual address.
+// Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
 // separately to handle non-contiguous physical pages.
 function read_mem_linear(n, addr) = {
   let page_offset = unsigned(addr & 0x0000000000000FFF);
-  if page_offset + n <= 4096 then {
+  if page_offset + n / 8 <= 4096 then {
     let paddr = translate_addr(addr, PT_Read);
     phys_read(n, paddr)
   } else {
@@ -41,11 +42,11 @@ function read_mem_linear(n, addr) = {
   }
 }
 
-// Write 'n bytes to memory at the given virtual address.
+// Write 'n bits to memory at the given virtual address.
 // Same page-crossing logic as mem_read.
 function write_mem_linear(n, addr, data) = {
   let page_offset = unsigned(addr & 0x0000000000000FFF);
-  if page_offset + n <= 4096 then {
+  if page_offset + n / 8 <= 4096 then {
     let paddr = translate_addr(addr, PT_Write);
     phys_write(n, paddr, data)
   } else {
@@ -235,9 +236,9 @@ function seg_linear(m, access_size) = {
   offset + get_seg_base(m.seg)
 }
 
-// Segmented memory read/write via MemRef.
-function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n))
-function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m, n), v)
+// Segmented memory read/write via MemRef (n is in bits; seg_linear takes bytes).
+function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n / 8))
+function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m, n / 8), v)
 
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)

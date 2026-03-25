@@ -199,7 +199,7 @@ function exec_movs(os, asz, pfx) = {
   };
   let src : MemRef = struct { seg = src_seg, addr = src_off };
   let dst : MemRef = struct { seg = ES, addr = dst_off };
-  write_mem(dst, read_mem(os / 8, src));
+  write_mem(dst, read_mem(os, src));
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   v(RSI) = (src_off + step)[asz - 1 .. 0];
   v(RDI) = (dst_off + step)[asz - 1 .. 0];
@@ -235,7 +235,7 @@ function exec_scas(os, asz) = {
   // SCAS destination is always ES:DI (not overridable).
   let dst : MemRef = struct { seg = ES, addr = off };
   let a = v(os, RAX);
-  let b = read_mem(os / 8, dst);
+  let b = read_mem(os, dst);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   v(RDI) = (off + step)[asz - 1 .. 0]
@@ -252,8 +252,8 @@ function exec_cmps(os, asz, pfx) = {
   };
   let src : MemRef = struct { seg = src_seg, addr = src_off };
   let dst : MemRef = struct { seg = ES, addr = dst_off };
-  let a = read_mem(os / 8, src);
-  let b = read_mem(os / 8, dst);
+  let a = read_mem(os, src);
+  let b = read_mem(os, dst);
   update_flags_sub(a - b, a, b);
   let step = if DF == 0b0 then os / 8 else -(os / 8);
   v(RSI) = (src_off + step)[asz - 1 .. 0];
@@ -381,7 +381,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let os = get_operand_size(pfx);
           let (reg, dest) = fetch_modrm(pfx);
           if op3 == 240 then {
-            v(os, reg) = bswap(rm_mem(os / 8, dest))
+            v(os, reg) = bswap(rm_mem(os, dest))
           } else {
             rm_mem(dest) = bswap(v(os, reg))
           }
@@ -1124,7 +1124,7 @@ function decode_execute() = {
             let v : qword = pop_qword(os);
             let dest = modrm_rm(modrm, pfx);
             match dest {
-              RM_mem(m) => write_mem(os / 8, m, v[(os - 1) .. 0]),
+              RM_mem(m) => write_mem(os, m, v[(os - 1) .. 0]),
               _ => raise_UD(),
             }
           }

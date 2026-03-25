@@ -10,8 +10,9 @@
 
 // Raw physical memory read/write primitives.
 // These are external functions provided by the execution environment.
-val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits(8 * 'n)
-val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits(8 * 'n)) -> unit
+// Size parameter 'n is in bits.
+val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
+val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
 
 // Apply A20 gate masking: when A20 is disabled, bit 20 of the physical
 // address is forced to zero, wrapping the address space at 1MB.
@@ -22,10 +23,11 @@ function a20_mask(addr) =
 
 // Physical memory access (bypass translation).
 // Used by page table walks and by mem_read/mem_write when paging is off.
-val phys_read : forall 'n, 'n > 0. (implicit('n), qword) -> bits(8 * 'n)
+// Size parameter 'n is in bits.
+val phys_read : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
 function phys_read(n, addr) = __read_mem(a20_mask(addr), n)
 
-val phys_write : forall 'n, 'n > 0. (implicit('n), qword, bits(8 * 'n)) -> unit
+val phys_write : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
 function phys_write(n, addr, data) = __write_mem(a20_mask(addr), n, data)
 
 // Access type for page table permission checks.

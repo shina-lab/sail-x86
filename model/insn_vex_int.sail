@@ -736,8 +736,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         match (src2, pfx.vex_w) {
           (RM_reg(r), true)  => v(r) = src[63..0],
           (RM_reg(r), false) => v(r) = src[31..0],
-          (RM_mem(m), true)  => write_mem(8, m,src[63..0]),
-          (RM_mem(m), false) => write_mem(4, m,src[31..0]),
+          (RM_mem(m), true)  => write_mem(64, m,src[63..0]),
+          (RM_mem(m), false) => write_mem(32, m,src[31..0]),
         }
       },
       MP_F3 => {
@@ -809,9 +809,9 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
           (MP_NONE, true) => write_kreg(k1, read_mem(m)),                // KMOVQ
-          (_,       true) => write_kreg(k1, zero_extend(read_mem(4, m))), // KMOVD
-          (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(1, m))), // KMOVB
-          (_,      false) => write_kreg(k1, zero_extend(read_mem(2, m))), // KMOVW
+          (_,       true) => write_kreg(k1, zero_extend(read_mem(32, m))), // KMOVD
+          (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(8, m))), // KMOVB
+          (_,      false) => write_kreg(k1, zero_extend(read_mem(16, m))), // KMOVW
         }
       },
     }
@@ -826,9 +826,9 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
           (MP_NONE, true) => write_mem(m,read_kreg(k1)),              // KMOVQ
-          (_,       true) => write_mem(4, m,read_kreg(k1)[31..0]),    // KMOVD
-          (MP_66,  false) => write_mem(1, m,read_kreg(k1)[7..0]),     // KMOVB
-          (_,      false) => write_mem(2, m,read_kreg(k1)[15..0]),    // KMOVW
+          (_,       true) => write_mem(32, m,read_kreg(k1)[31..0]),    // KMOVD
+          (MP_66,  false) => write_mem(8, m,read_kreg(k1)[7..0]),     // KMOVB
+          (_,      false) => write_mem(16, m,read_kreg(k1)[15..0]),    // KMOVW
         }
       },
       _ => raise_UD(),
@@ -1367,8 +1367,8 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
           let v : ymmword = read_ymm(src);
-          write_mem(16, a, v[127..0]);
-          write_mem(16, a + 16, v[255..128])
+          write_mem(128, a, v[127..0]);
+          write_mem(128, a + 16, v[255..128])
         } else {
           let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
@@ -1635,7 +1635,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         let addr : bits(64) = v(7); // RDI
         foreach (i from 0 to 15) {
           if mask[(i * 8 + 7)] == 0b1 then
-            write_mem(1, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
+            write_mem(8, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
         }
       },
       RM_mem(_) => raise_UD(),

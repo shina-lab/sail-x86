@@ -89,7 +89,7 @@ function xsave_x87(base) = {
     let st_val : fp80 = x87_ST[i];
     write_mem(base + 32 + 16 * i, st_val);
     // Zero the reserved 6 bytes
-    write_mem(6, base + 32 + 16 * i + 10, zeros())
+    write_mem(48, base + 32 + 16 * i + 10, zeros())
   }
 }
 
@@ -110,7 +110,7 @@ function xsave_sse(base) = {
   xsave_mxcsr(base);
   // XMM0-XMM15 at offset 160, 16 bytes each
   foreach (i from 0 to 15) {
-    write_mem(16, base + 160 + 16 * i, ZMM[i][127..0])
+    write_mem(128, base + 160 + 16 * i, ZMM[i][127..0])
   }
 }
 
@@ -153,7 +153,7 @@ function xrstor_sse(base) = {
 val xsave_avx_at : qword -> unit
 function xsave_avx_at(addr) = {
   foreach (i from 0 to 15) {
-    write_mem(16, addr + 16 * i, ZMM[i][255..128])
+    write_mem(128, addr + 16 * i, ZMM[i][255..128])
   }
 }
 
@@ -167,7 +167,7 @@ function xsave_opmask_at(addr) = {
 val xsave_zmm_hi256_at : qword -> unit
 function xsave_zmm_hi256_at(addr) = {
   foreach (i from 0 to 15) {
-    write_mem(32, addr + 32 * i, ZMM[i][511..256])
+    write_mem(256, addr + 32 * i, ZMM[i][511..256])
   }
 }
 
@@ -517,7 +517,7 @@ function exec_xrstor(base, mask) = {
     if (xcomp_bv & 0x7FFFFFFFFFFFFFFF & ~(XCR0)) != zeros() then raise_GP0();
     if (xstate_bv & ~(xcomp_bv & 0x7FFFFFFFFFFFFFFF)) != zeros() then raise_GP0();
     foreach (i from 0 to 5) {
-      if read_mem(8, base + 528 + 8 * i) != zeros() then raise_GP0()
+      if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
     };
     xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
   } else {
@@ -547,7 +547,7 @@ function exec_xrstors(base, mask) = {
   if (xcomp_bv & 0x7FFFFFFFFFFFFFFF & ~(XCR0)) != zeros() then raise_GP0();
   if (xstate_bv & ~(xcomp_bv & 0x7FFFFFFFFFFFFFFF)) != zeros() then raise_GP0();
   foreach (i from 0 to 5) {
-    if read_mem(8, base + 528 + 8 * i) != zeros() then raise_GP0()
+    if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
   };
   xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
 }

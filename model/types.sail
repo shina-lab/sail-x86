@@ -240,14 +240,15 @@ function write_rm_val(os, rm, v) =
   }
 
 // Memory-only RM read/write: raise #UD if register operand.
-val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits(8 * 'n)
+// Size parameter 'n is in bits.
+val read_mem_rm : forall 'n, 'n > 0. (implicit('n), RM) -> bits('n)
 function read_mem_rm(n, rm) =
   match rm {
     RM_reg(_) => raise_UD(),
     RM_mem(m) => read_mem(m),
   }
 
-val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits(8 * 'n)) -> unit
+val write_mem_rm : forall 'n, 'n > 0. (implicit('n), RM, bits('n)) -> unit
 function write_mem_rm(n, rm, v) =
   match rm {
     RM_reg(_) => raise_UD(),

@@ -12,18 +12,20 @@
 
 namespace x86 {
 void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
-  i64 nbytes = mpz_get_si(n);
+  i64 nbits = mpz_get_si(n);
+  i64 nbytes = nbits / 8;
   u8 buf[64];
   if (nbytes > 64) {
     fprintf(stderr, "z__read_mem: nbytes=%ld > 64\n", nbytes);
     abort();
   }
   memcpy(buf, (void *)addr, nbytes);
-  bytes_to_bits(rop, buf, nbytes, nbytes * 8);
+  bytes_to_bits(rop, buf, nbytes, nbits);
 }
 
 unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
-  i64 nbytes = mpz_get_si(n);
+  i64 nbits = mpz_get_si(n);
+  i64 nbytes = nbits / 8;
   u8 buf[64];
   if (nbytes > 64) {
     fprintf(stderr, "z__write_mem: nbytes=%ld > 64\n", nbytes);
