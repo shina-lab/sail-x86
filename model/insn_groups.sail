@@ -161,30 +161,29 @@ function dispatch_group3_byte(reg_field, dest) = {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
     let imm : byte = fetch_byte();
-    let v = v(8, dest);
-    let result = v & imm;
+    let result = v(8, dest) & imm;
     update_flags_logic(result)
   } else {
-    let v = v(8, dest);
+    let x = v(8, dest);
     match reg_field {
       0 => (),  // unreachable, handled above
       1 => (),  // unreachable, handled above
       // NOT r/m8
       2 => {
-        let result = v ^ 0xFF;
+        let result = x ^ 0xFF;
         v(dest) = result
       },
       // NEG r/m8
       3 => {
         let zero : byte = zeros();
-        let result = zero - v;
-        update_flags_sub(result, zero, v);
+        let result = zero - x;
+        update_flags_sub(result, zero, x);
         v(dest) = result
       },
-      4 => exec_mul(v),
-      5 => exec_imul_1(v),
-      6 => exec_div(v),
-      7 => exec_idiv(v),
+      4 => exec_mul(x),
+      5 => exec_imul_1(x),
+      6 => exec_div(x),
+      7 => exec_idiv(x),
     }
   }
 }
@@ -199,29 +198,25 @@ function dispatch_group3(reg_field, dest, os) = {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
     let imm = fetch_imm_z(os);
-    let v = v(os, dest);
-    let result = v & imm[(os - 1) .. 0];
+    let result = v(os, dest) & imm[(os - 1) .. 0];
     update_flags_logic(result)
   } else {
-    let v = v(os, dest);
+    let x = v(os, dest);
     match reg_field {
       0 => (),  // unreachable
       1 => (),  // unreachable
       // NOT r/m
-      2 => {
-        let result = ~(v);
-        v(os, dest) = result
-      },
+      2 => v(dest) = ~(x),
       // NEG r/m
       3 => {
-        let result = zeros() - v;
-        update_flags_sub(result, zeros(), v);
+        let result = zeros() - x;
+        update_flags_sub(result, zeros(), x);
         v(os, dest) = result
       },
-      4 => exec_mul(v),
-      5 => exec_imul_1(v),
-      6 => exec_div(v),
-      7 => exec_idiv(v),
+      4 => exec_mul(x),
+      5 => exec_imul_1(x),
+      6 => exec_div(x),
+      7 => exec_idiv(x),
     }
   }
 }
@@ -236,16 +231,12 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // INC r/m
     0 => {
       let os = get_operand_size(pfx);
-      let v = v(os, dest);
-      let result = exec_inc(v);
-      v(os, dest) = result
+      v(dest) = exec_inc(v(os, dest))
     },
     // DEC r/m
     1 => {
       let os = get_operand_size(pfx);
-      let v = v(os, dest);
-      let result = exec_dec(v);
-      v(os, dest) = result
+      v(dest) = exec_dec(v(os, dest))
     },
     // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
@@ -270,8 +261,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // PUSH r/m (d64)
     6 => {
       let os = get_operand_size_d64(pfx);
-      let v = v(os, dest);
-      exec_push_imm(v, os)
+      exec_push_imm(v(os, dest), os)
     },
     // CALL far indirect m16:16/m16:32/m16:64
     // Memory operand contains offset (16/32/64 bits) then selector (16 bits).

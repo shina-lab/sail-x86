@@ -59,10 +59,10 @@ function x87_push(v) = {
 val x87_pop : unit -> fp80
 function x87_pop() = {
   let cur_top = x87_top();
-  let v = x87_ST[cur_top];
+  let result = x87_ST[cur_top];
   x87_mark_empty(cur_top);
   x87_set_top(x87_physical(1));
-  v
+  result
 }
 
 // Mark ST(i) as empty (used by FFREE).

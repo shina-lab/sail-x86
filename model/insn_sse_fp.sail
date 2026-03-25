@@ -295,8 +295,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
-      let v = read_xmm(xreg);
-      rm_mem(64, dest) = v[63..0]
+      rm_mem(64, dest) = read_xmm(xreg)[63..0]
     },
     // 0F 14: UNPCKLPS/UNPCKLPD
     20 => {
@@ -388,8 +387,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch_byte();
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
-      let v = read_xmm(xreg);
-      rm_mem(64, dest) = v[127..64]
+      rm_mem(64, dest) = read_xmm(xreg)[127..64]
     },
     // 0F 28: MOVAPS/MOVAPD xmm, xmm/m128
     40 => {

@@ -36,12 +36,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -51,12 +51,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -66,12 +66,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -93,12 +93,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -120,12 +120,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -147,12 +147,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(v))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(v))),
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
     }
   },
 
@@ -174,12 +174,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -189,12 +189,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -204,12 +204,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -231,12 +231,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -258,12 +258,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -285,12 +285,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
     }
   },
 
@@ -312,12 +312,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 
@@ -327,12 +327,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 
@@ -342,12 +342,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 
@@ -369,12 +369,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 
@@ -396,12 +396,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 
@@ -423,12 +423,12 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch_byte();
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v = pfx.vex_vvvv;
+    let vvvv = pfx.vex_vvvv;
     match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(v), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(v), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
+      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
+      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
     }
   },
 

@@ -902,12 +902,12 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // MOVD/MOVQ r/m, xmm
           MP_66 => {
             let src_xmm = modrm_xmm_reg(modrm, pfx);
-            let v = read_xmm(src_xmm);
+            let x = read_xmm(src_xmm);
             match (src, pfx.rex_w) {
-              (RM_reg(r), true)   => v(r) = v[63..0],
-              (RM_mem(m), true)  => write_mem(64, m,v[63..0]),
-              (RM_reg(r), false)  => v(r) = v[31..0],
-              (RM_mem(m), false) => write_mem(32, m,v[31..0]),
+              (RM_reg(r), true)   => v(r) = x[63..0],
+              (RM_mem(m), true)  => write_mem(64, m, x[63..0]),
+              (RM_reg(r), false)  => v(r) = x[31..0],
+              (RM_mem(m), false) => write_mem(32, m, x[31..0]),
             }
           },
           // MOVQ xmm1, xmm2/m64
@@ -2606,13 +2606,13 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — PEXTRB r/m8, xmm, imm8
     20 => {
       let imm = fetch_byte();
-      let v = extract_byte_from_xmm(read_xmm(xreg), imm);
+      let x = extract_byte_from_xmm(read_xmm(xreg), imm);
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          v(32, dst_reg) = zero_extend(v);
+          v(32, dst_reg) = zero_extend(x);
         },
-        RM_mem(m) => write_mem(m,v),
+        RM_mem(m) => write_mem(m, x),
       }
     },
 

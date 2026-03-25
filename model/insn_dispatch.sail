@@ -740,18 +740,14 @@ function decode_execute() = {
       op if 64 <= op & op <= 71 => {
         let reg : range(0, 7) = op - 64;
         let os = get_operand_size(pfx);
-        let v = v(os, reg);
-        let result = exec_inc(v);
-        v(reg) = result
+        v(reg) = exec_inc(v(os, reg))
       },
 
       // 48-4F: DEC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
       op if 72 <= op & op <= 79 => {
         let reg : range(0, 7) = op - 72;
         let os = get_operand_size(pfx);
-        let v = v(os, reg);
-        let result = exec_dec(v);
-        v(reg) = result
+        v(reg) = exec_dec(v(os, reg))
       },
 
       // 50-57: PUSH reg (d64)
@@ -1943,13 +1939,9 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);
         if reg_field == 0 then {
-          let v = v(8, dest);
-          let result = exec_inc(v);
-          v(dest) = result
+          v(dest) = exec_inc(v(8, dest))
         } else if reg_field == 1 then {
-          let v = v(8, dest);
-          let result = exec_dec(v);
-          v(dest) = result
+          v(dest) = exec_dec(v(8, dest))
         } else {
           raise_UD()
         }
