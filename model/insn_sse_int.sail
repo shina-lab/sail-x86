@@ -180,8 +180,7 @@ val pclmulqdq : (bits(64), bits(64)) -> bits(128)
 function pclmulqdq(x, y) = {
   var result : bits(128) = zeros();
   foreach (i from 0 to 63) {
-    if x[i] == bitone then
-      result = result ^ (zero_extend(y) << i)
+    result = result ^ ((zero_extend(y) << i) & sign_extend(x[i]))
   };
   result
 }
