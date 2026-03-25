@@ -323,24 +323,20 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
                 let ge_lo : bit = if ub == 7 then {
                   let bw : word = b[(b_lo + 15) .. b_lo];
                   let aw : word = a[(a_lo_lo + 15) .. a_lo_lo];
-                  blend(bool_to_bit(unsigned(bw) >= unsigned(aw)),
-                        bool_to_bit(signed(bw) >= signed(aw)), imm8[1])
+                  blend(~(is_gt_u(aw, bw)), ~(is_gt(aw, bw)), imm8[1])
                 } else {
                   let bb : byte = b[(b_lo + 7) .. b_lo];
                   let ab : byte = a[(a_lo_lo + 7) .. a_lo_lo];
-                  blend(bool_to_bit(unsigned(bb) >= unsigned(ab)),
-                        bool_to_bit(signed(bb) >= signed(ab)), imm8[1])
+                  blend(~(is_gt_u(ab, bb)), ~(is_gt(ab, bb)), imm8[1])
                 };
                 let le_hi : bit = if ub == 7 then {
                   let bw : word = b[(b_lo + 15) .. b_lo];
                   let aw : word = a[(a_hi_lo + 15) .. a_hi_lo];
-                  blend(bool_to_bit(unsigned(bw) <= unsigned(aw)),
-                        bool_to_bit(signed(bw) <= signed(aw)), imm8[1])
+                  blend(~(is_gt_u(bw, aw)), ~(is_gt(bw, aw)), imm8[1])
                 } else {
                   let bb : byte = b[(b_lo + 7) .. b_lo];
                   let ab : byte = a[(a_hi_lo + 7) .. a_hi_lo];
-                  blend(bool_to_bit(unsigned(bb) <= unsigned(ab)),
-                        bool_to_bit(signed(bb) <= signed(ab)), imm8[1])
+                  blend(~(is_gt_u(bb, ab)), ~(is_gt(bb, ab)), imm8[1])
                 };
                 in_range = in_range | (ge_lo & le_hi)
               }

@@ -84,6 +84,20 @@ function prop_le_signed_8(x : bits(8), y : bits(8)) -> bool = {
   orig == branchless
 }
 
+$property
+function prop_le_unsigned_16(x : bits(16), y : bits(16)) -> bool = {
+  let orig : bit = bool_to_bit(unsigned(x) <= unsigned(y));
+  let branchless : bit = ~(is_gt_u(x, y));
+  orig == branchless
+}
+
+$property
+function prop_le_signed_16(x : bits(16), y : bits(16)) -> bool = {
+  let orig : bit = bool_to_bit(signed(x) <= signed(y));
+  let branchless : bit = ~(is_gt(x, y));
+  orig == branchless
+}
+
 // Proof: signed/unsigned selection via blend
 //
 // Old code:
