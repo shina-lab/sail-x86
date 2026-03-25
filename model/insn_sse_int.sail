@@ -346,18 +346,13 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
       }
     },
     // Equal each: IntRes1[i] = BoolRes[i][i] with validity overrides
+    // both valid → use comparison, both invalid → 1, one invalid → 0
     0b10 => {
+      let va : bits(16) = ~(0xFFFF << la);
+      let vb : bits(16) = ~(0xFFFF << lb);
       foreach (i from 0 to 15) {
-        if i <= ub then {
-          let a_valid = i < la;
-          let b_valid = i < lb;
-          if a_valid & b_valid then
-            int_res1[i] = bool_res[i * 16 + i]
-          else if ~(a_valid) & ~(b_valid) then
-            int_res1[i] = bitone       // both invalid → true
-          else
-            int_res1[i] = bitzero      // one invalid → false
-        }
+        if i <= ub then
+          int_res1[i] = (bool_res[i * 16 + i] & va[i] & vb[i]) | (~(va[i]) & ~(vb[i]))
       }
     },
     // Equal ordered: substring search
