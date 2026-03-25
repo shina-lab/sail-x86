@@ -289,14 +289,15 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
   match imm8[3..2] {
     // Equal any: IntRes1[j] = OR over i of (BoolRes[j][i] AND both valid)
     0b00 => {
+      let va : bits(16) = ~(0xFFFF << la);
+      let vb : bits(16) = ~(0xFFFF << lb);
       foreach (j from 0 to 15) {
         if j <= ub then {
           var any_match : bit = bitzero;
           foreach (i from 0 to 15) {
             if i <= ub then {
-              // Both must be valid for a match
-              if i < la & j < lb then
-                any_match = any_match | bool_res[j * 16 + i]
+              let valid : bit = va[i] & vb[j];
+              any_match = any_match | (bool_res[j * 16 + i] & valid)
             }
           };
           int_res1[j] = any_match
