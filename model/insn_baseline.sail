@@ -452,6 +452,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let modrm_val : range(0, 255) = unsigned(modrm);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let mod_field : range(0, 3) = unsigned(modrm[7..6]);
+
       match modrm_val {
         // 0F 01 D1: XSETBV — Write XCR (ECX selects register, EDX:EAX = value)
         // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists);
@@ -512,10 +513,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
         249 => {
           if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
-          let tsc : qword = __rdtsc();
+          let tsc = __rdtsc();
           v(RAX) = tsc[31..0];
           v(RDX) = tsc[63..32];
-          let tsc_aux : qword = __rdmsr(0xC0000103);
+          let tsc_aux = __rdmsr(0xC0000103);
           v(RCX) = tsc_aux[31..0]
         },
 
@@ -541,7 +542,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 else
                   write_mem(48, m, GDTR_base[31..0] @ GDTR_limit)
               },
-              _ => raise_UD(),
+              RM_reg(_) => raise_UD(),
             },
 
             // 0F 01 /1: SIDT m — Store IDTR (memory only)
@@ -552,7 +553,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 else
                   write_mem(48, m, IDTR_base[31..0] @ IDTR_limit)
               },
-              _ => raise_UD(),
+              RM_reg(_) => raise_UD(),
             },
 
             // 0F 01 /2: LGDT m — Load GDTR (memory only, requires CPL=0)
@@ -576,7 +577,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                     64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
                   }
                 },
-                _ => raise_UD(),
+                RM_reg(_) => raise_UD(),
               }
             },
 
@@ -593,7 +594,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                     64 => { let d : bits(80) = read_mem(m); (d[79..16], d[15..0]) },
                   }
                 },
-                _ => raise_UD(),
+                RM_reg(_) => raise_UD(),
               }
             },
 
@@ -626,7 +627,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               if cur_cpl != 0 then raise_GP0();
               match dest {
                 RM_mem(_) => __tlb_flush(),
-                _ => raise_UD(),
+                RM_reg(_) => raise_UD(),
               }
             },
             _ => raise_UD(),
@@ -805,7 +806,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         3 => CR3,
         4 => CR4,
         8 => zero_extend(CR8),
-        _ => throw Fault(EXN_UD, 0x00000000),
+        _ => raise_UD(),
       };
       v(rm_idx) = cr_val
     },
@@ -845,7 +846,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           CR4 = cr_val
         },
         8 => CR8 = cr_val[3..0],
-        _ => throw Fault(EXN_UD, 0x00000000),
+        _ => raise_UD(),
       }
     },
 
@@ -926,7 +927,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
     49 => {
       if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
-      let tsc : qword = __rdtsc();
+      let tsc = __rdtsc();
       v(RAX) = tsc[31..0];
       v(RDX) = tsc[63..32]
     },

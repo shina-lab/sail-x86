@@ -23,7 +23,7 @@ function decode_evex() = {
 
   // Reserved field checks (SDM Vol.2 §2.6.1):
   // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
-  if p0[3] == 0b1 | p1[2] == 0b0 then throw Fault(EXN_UD, 0x00000000);
+  if p0[3] == 0b1 | p1[2] == 0b0 then raise_UD();
 
   let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
