@@ -276,8 +276,8 @@ function pcmpxstrx_core(a, la, b, lb, imm8) = {
         let a_lo = i * elem_bits;
         let b_lo = j * elem_bits;
         let eq : bit = if ub == 7
-          then bool_to_bit(a[(a_lo + 15) .. a_lo] == b[(b_lo + 15) .. b_lo])
-          else bool_to_bit(a[(a_lo + 7) .. a_lo] == b[(b_lo + 7) .. b_lo]);
+          then is_eq(a[(a_lo + 15) .. a_lo], b[(b_lo + 15) .. b_lo])
+          else is_eq(a[(a_lo + 7) .. a_lo], b[(b_lo + 7) .. b_lo]);
         bool_res[j * 16 + i] = eq
       }
     }
