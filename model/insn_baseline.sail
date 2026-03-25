@@ -1380,7 +1380,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_bmi1) then raise_UD();
         let src_val = v(os, src);
-        let count : range(0, 64) = ctz(os, zero_extend(src_val));
+        let count = ctz(src_val);
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
         CF = is_zero(src_val);
@@ -1401,7 +1401,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           PF = compute_PF(0x00);
         } else {
           ZF = 0b0;
-          let idx : range(0, 64) = ctz(os, zero_extend(src_val));
+          let idx = ctz(src_val);
           let result : qword = to_bits_truncate(idx);
           PF = compute_PF(result[7..0]);
           v(reg) = result[(os - 1) .. 0];
@@ -1417,7 +1417,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
         if ~(has_lzcnt) then raise_UD();
         let src_val = v(os, src);
-        let count : range(0, 64) = clz(os, zero_extend(src_val));
+        let count = clz(src_val);
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
         CF = is_zero(src_val);

@@ -105,25 +105,20 @@ function min_u(a, b) = blend(a, b, is_gt_u(a, b))
 // =========================================================================
 
 // Branchless CLZ via smear (fill all bits below MSB) then popcount.
-val clz : ({16, 32, 64}, qword) -> range(0, 64)
-function clz(os, v) = {
-  let x1 : qword = v  | (v  >> 1);
-  let x2 : qword = x1 | (x1 >> 2);
-  let x3 : qword = x2 | (x2 >> 4);
-  let x4 : qword = x3 | (x3 >> 8);
-  let x5 : qword = x4 | (x4 >> 16);
-  let x6 : qword = x5 | (x5 >> 32);
-  let pc = popcount(x6);
-  assert(pc <= os);
-  os - pc
+val clz : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
+function clz(v) = {
+  let x1 : bits('n) = v  | (v  >> 1);
+  let x2 : bits('n) = x1 | (x1 >> 2);
+  let x3 : bits('n) = x2 | (x2 >> 4);
+  let x4 : bits('n) = x3 | (x3 >> 8);
+  let x5 : bits('n) = x4 | (x4 >> 16);
+  let x6 : bits('n) = x5 | (x5 >> 32);
+  'n - popcount(x6)
 }
 
 // Branchless CTZ via popcount: ctz(v) = popcount(~v & (v - 1))
-val ctz : ({16, 32, 64}, qword) -> range(0, 64)
-function ctz(os, v) = {
-  let masked : qword = v | (0xFFFFFFFFFFFFFFFF << os);
-  popcount(~(masked) & (masked - 1))
-}
+val ctz : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
+function ctz(v) = popcount(~(v) & (v - 1))
 
 // Branchless BSR (bit scan reverse): index of highest set bit = popcount(smear) - 1.
 // Precondition: v != 0 (BSR is undefined for zero).
@@ -145,9 +140,9 @@ function bsr(v) = {
 // =========================================================================
 
 // BSWAP — Reverse byte order of a bitvector.
-val bswap : forall 'n, 'n in {16, 32, 64}. (implicit('n), bits('n)) -> bits('n)
-function bswap(n, v) = {
-  match n {
+val bswap : forall 'n, 'n in {16, 32, 64}. bits('n) -> bits('n)
+function bswap(v) = {
+  match 'n {
     16 => v[7..0] @ v[15..8],
     32 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24],
     64 => v[7..0] @ v[15..8] @ v[23..16] @ v[31..24] @ v[39..32] @ v[47..40] @ v[55..48] @ v[63..56]

@@ -1749,10 +1749,10 @@ function avx_vpmovq2m_512(src) = {
 // Helper: select 128-bit lane from a 512-bit source
 
 val avx_lzcnt32 : dword -> dword
-function avx_lzcnt32(v) = to_bits(32, clz(32, zero_extend(v)))
+function avx_lzcnt32(v) = to_bits(32, clz(v))
 
 val avx_lzcnt64 : qword -> qword
-function avx_lzcnt64(v) = to_bits(64, clz(64, v))
+function avx_lzcnt64(v) = to_bits(64, clz(v))
 
 val avx_vplzcntd_128 : xmmword -> xmmword
 function avx_vplzcntd_128(src) = {
