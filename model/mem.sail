@@ -22,12 +22,6 @@ val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
 overload read_mem = {read_mem_linear, read_mem_ref}
 overload write_mem = {write_mem_linear, write_mem_ref}
 
-// Slow-path externals for page-crossing accesses.
-// These translate each byte separately via translate_addr, so accesses
-// that span a 4KB page boundary read/write correct physical memory.
-val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
-val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
-
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated

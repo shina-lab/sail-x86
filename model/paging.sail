@@ -8,12 +8,6 @@
 // Follows the sail-riscv pattern: translate_addr() returns physical address
 // or throws Fault(EXN_PF, error_code) on failure.
 
-// Raw physical memory read/write primitives.
-// These are external functions provided by the execution environment.
-// Size parameter 'n is in bits.
-val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
-val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
-
 // Apply A20 gate masking: when A20 is disabled, bit 20 of the physical
 // address is forced to zero, wrapping the address space at 1MB.
 val a20_mask : qword -> qword
@@ -167,18 +161,6 @@ function pt_walk(linear, access, table_base, level) = {
   }
 }
 termination_measure pt_walk(_, _, _, level) = level
-
-// Simple software TLB for performance.
-// 256-entry direct-mapped cache: VPN → PPN for 4KB pages.
-// Each entry stores the full virtual page number (bits[63:12]) and
-// the translated physical page number, plus a valid bit and write
-// permission.  Flushed on CR3 write (in insn_baseline.sail).
-//
-// This is purely an optimization; removing it does not affect correctness.
-
-val __tlb_lookup : (qword, bool) -> option(qword)
-val __tlb_insert : (qword, qword, bool) -> unit
-val __tlb_flush : unit -> unit
 
 // =========================================================================
 // 32-bit non-PAE paging (SDM Vol.3A §4.3)

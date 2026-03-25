@@ -63,15 +63,9 @@ function exec_movsldup(dst, src) = {
   write_xmm_legacy(dst, src[95..64] @ src[95..64] @ src[31..0] @ src[31..0])
 }
 
-val __ldmxcsr : dword -> unit
-val __stmxcsr : unit -> dword
-
 // =========================================================================
 // SSE floating-point dispatch
 // =========================================================================
-
-val __f32_rsqrt : dword -> dword
-val __f32_rcp : dword -> dword
 
 // FP comparison predicate helpers (used by CMPPS/CMPPD/CMPSS/CMPSD)
 // VCMPPS/PD/SS/SD predicate evaluation.
@@ -1336,9 +1330,6 @@ function exec_insertps(dst, src, imm8) = {
 // =========================================================================
 // 3-Byte Opcode Map: SSE Floating-Point Operations
 // =========================================================================
-
-val __f64_round : (qword, byte) -> qword
-val __f32_round : (dword, byte) -> dword
 
 // 0F 38 xx — SSE FP operations (BLENDVPS, BLENDVPD)
 val dispatch_3byte_38_sse_fp : (byte, Prefixes) -> unit

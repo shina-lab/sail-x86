@@ -5,69 +5,6 @@
 // the full ModR/M byte selects from a large table.
 
 // =========================================================================
-// 80-bit extended precision arithmetic (external — no native float80 in Sail)
-// =========================================================================
-
-val __f80_add : (fp80, fp80) -> fp80
-val __f80_sub : (fp80, fp80) -> fp80
-val __f80_mul : (fp80, fp80) -> fp80
-val __f80_div : (fp80, fp80) -> fp80
-val __f80_sqrt : fp80 -> fp80
-val __f80_abs : fp80 -> fp80
-val __f80_chs : fp80 -> fp80
-val __f80_compare : (fp80, fp80) -> FPCompareResult
-
-// Conversions to/from 80-bit extended precision
-val __f80_from_f32 : dword -> fp80
-val __f80_from_f64 : qword -> fp80
-val __f80_to_f32 : fp80 -> dword
-val __f80_to_f64 : fp80 -> qword
-val __f80_from_int16 : word -> fp80
-val __f80_from_int32 : dword -> fp80
-val __f80_from_int64 : qword -> fp80
-val __f80_to_int16 : fp80 -> word
-val __f80_to_int32 : fp80 -> dword
-val __f80_to_int64 : fp80 -> qword
-val __f80_to_int16_trunc : fp80 -> word
-val __f80_to_int32_trunc : fp80 -> dword
-val __f80_to_int64_trunc : fp80 -> qword
-
-// Constants
-val __f80_zero : unit -> fp80
-val __f80_one : unit -> fp80
-val __f80_log2_10 : unit -> fp80
-val __f80_log2_e : unit -> fp80
-val __f80_pi : unit -> fp80
-val __f80_log10_2 : unit -> fp80
-val __f80_ln_2 : unit -> fp80
-
-// Classification
-val __f80_classify : fp80 -> FPClass
-
-// Decomposition (used by FXTRACT)
-val __f80_extract_exponent : fp80 -> fp80
-val __f80_extract_significand : fp80 -> fp80
-
-// Transcendental operations
-val __f80_yl2x : (fp80, fp80) -> fp80
-val __f80_yl2xp1 : (fp80, fp80) -> fp80
-val __f80_sin : fp80 -> fp80
-val __f80_cos : fp80 -> fp80
-val __f80_tan : fp80 -> fp80
-val __f80_atan2 : (fp80, fp80) -> fp80
-val __f80_2xm1 : fp80 -> fp80
-val __f80_scale : (fp80, fp80) -> fp80
-val __f80_prem : (fp80, fp80) -> fp80
-val __f80_prem1 : (fp80, fp80) -> fp80
-val __f80_round : fp80 -> fp80
-
-// BCD conversions (for FBLD/FBSTP)
-val __f80_from_bcd : fp80 -> fp80
-val __f80_to_bcd : fp80 -> fp80
-
-val __wait : unit -> unit
-
-// =========================================================================
 // Memory access helpers for x87 data sizes
 // =========================================================================
 

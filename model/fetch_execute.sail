@@ -4,11 +4,6 @@
 // Fetches and decodes one instruction from RIP, executes it,
 // and advances RIP past the instruction bytes.
 
-// Check for and acknowledge a pending external interrupt.
-// Returns the vector number, or -1 if no interrupt pending.
-// Implemented in C++ — checks device state.
-val __check_pending_irq : unit -> int
-
 // Decode and execute one instruction.
 // Sets fault_pending/fault_vector/fault_error_code on exception.
 val step : unit -> unit

@@ -8,13 +8,13 @@ core {
 
   files
     core_types.sail,
+    extern.sail,
     regs.sail,
     rflags.sail,
     exceptions.sail,
     paging.sail,
     mem.sail,
     interrupts.sail,
-    fp_extern.sail,
     x87_regs.sail,
 }
 

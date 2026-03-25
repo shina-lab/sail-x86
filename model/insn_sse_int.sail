@@ -26,45 +26,6 @@ function crc32c(n, crc, data) = {
   c
 }
 
-// PCMPESTRI — Packed Compare Explicit Length Strings, Return Index (SSE4.2)
-//
-// Compares two string fragments using imm8 control. The explicit lengths
-// are in EAX (for xmm1) and EDX (for xmm2/m128). The result index is
-// returned in ECX. Flags CF, ZF, SF, OF, AF, PF are set based on the
-// result IntRes2.
-//
-// This is a very complex operation; modeled as external.
-val __pcmpestri : (xmmword, dword, xmmword, dword, byte) -> (dword, bit, bit, bit, bit)
-
-// PCMPESTRM — Packed Compare Explicit Length Strings, Return Mask (SSE4.2)
-//
-// Compares two string fragments using imm8 control. The explicit lengths
-// are in EAX (for xmm1) and EDX (for xmm2/m128). The result mask is
-// returned in XMM0. Flags CF, ZF, SF, OF, AF, PF are set.
-//
-// This is a very complex operation; modeled as external.
-val __pcmpestrm : (xmmword, dword, xmmword, dword, byte) -> (xmmword, bit, bit, bit, bit)
-
-// PCMPISTRI — Packed Compare Implicit Length Strings, Return Index (SSE4.2)
-//
-// Compares two null-terminated string fragments using imm8 control.
-// Lengths are implicit (determined by null characters in the operands).
-// The result index is returned in ECX.
-// Flags CF, ZF, SF, OF, AF, PF are set.
-//
-// This is a very complex operation; modeled as external.
-val __pcmpistri : (xmmword, xmmword, byte) -> (dword, bit, bit, bit, bit)
-
-// PCMPISTRM — Packed Compare Implicit Length Strings, Return Mask (SSE4.2)
-//
-// Compares two null-terminated string fragments using imm8 control.
-// Lengths are implicit (determined by null characters in the operands).
-// The result mask is returned in XMM0.
-// Flags CF, ZF, SF, OF, AF, PF are set.
-//
-// This is a very complex operation; modeled as external.
-val __pcmpistrm : (xmmword, xmmword, byte) -> (xmmword, bit, bit, bit, bit)
-
 // PINSRB — Insert Byte (SSE4.1)
 // PINSRD — Insert Dword (SSE4.1)
 // PINSRQ — Insert Qword (SSE4.1)
@@ -219,59 +180,6 @@ function sat_sub_u(a, b) = {
 // INSERTPS — Insert Scalar Single-FP (SSE4.1)
 // Selects a float from src, inserts into dst at specified position, then zeroes selected lanes.
 // No flags affected.
-
-// MPSADBW — Multiple Sum of Absolute Differences (SSE4.1)
-// Complex operation modeled as external. No flags affected.
-val __mpsadbw : (xmmword, xmmword, byte) -> xmmword
-
-// MASKMOVDQU -- Store Selected Bytes of Double Quadword
-//
-// Selectively writes bytes from the source XMM register to memory at
-// DS:DI/EDI/RDI. Each byte in the mask XMM register controls whether
-// the corresponding byte is written (high bit = 1 means write).
-// No flags affected.
-val __maskmovdqu : (xmmword, xmmword, qword) -> unit
-
-// AES-NI Instructions
-// AESENC, AESDEC, AESENCLAST, AESDECLAST — AES round operations
-// AESIMC — AES Inverse Mix Columns
-// AESKEYGENASSIST — AES Round Key Generation Assist
-//
-// All AES round operations (ShiftRows, SubBytes, MixColumns, etc.) are
-// complex cryptographic primitives modeled as external functions.
-// No flags affected.
-
-// External AES primitives
-val __aesenc : (xmmword, xmmword) -> xmmword
-val __aesdec : (xmmword, xmmword) -> xmmword
-val __aesenclast : (xmmword, xmmword) -> xmmword
-val __aesdeclast : (xmmword, xmmword) -> xmmword
-val __aesimc : xmmword -> xmmword
-val __aeskeygenassist : (xmmword, byte) -> xmmword
-
-// External GFNI primitives
-val __gf2p8mulb : (xmmword, xmmword) -> xmmword
-val __gf2p8affineqb : (xmmword, xmmword, byte) -> xmmword
-val __gf2p8affineinvqb : (xmmword, xmmword, byte) -> xmmword
-
-// External SHA primitives
-val __sha1rnds4 : (xmmword, xmmword, byte) -> xmmword
-val __sha1nexte : (xmmword, xmmword) -> xmmword
-val __sha1msg1 : (xmmword, xmmword) -> xmmword
-val __sha1msg2 : (xmmword, xmmword) -> xmmword
-val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
-val __sha256msg1 : (xmmword, xmmword) -> xmmword
-val __sha256msg2 : (xmmword, xmmword) -> xmmword
-
-// PCLMULQDQ — Carry-Less Multiplication Quadword
-//
-// Performs carry-less (polynomial) multiplication of two 64-bit values
-// selected from src and dst by imm8. The 128-bit result is stored in dst.
-// imm8[0] selects which qword of dst, imm8[4] selects which qword of src.
-// No flags affected.
-//
-// The carry-less multiply operation is complex; modeled as external.
-val __pclmulqdq : (qword, qword) -> xmmword
 
 val dispatch_2byte_sse_int : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_sse_int(op, pfx) = {

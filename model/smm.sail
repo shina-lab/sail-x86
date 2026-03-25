@@ -28,10 +28,6 @@
 // SDM §34.5.1 Table 34-4: Initial SMM execution environment.
 // =========================================================================
 
-// External: check if an SMI is pending (set by emulator on port 0xB2 write).
-// Returns true if an SMI should be delivered, false otherwise.
-val __check_pending_smi : unit -> bool
-
 // Helper: compute SMRAM state save address from offset.
 // SDM: state save area at SMBASE + 0x8000 + offset.
 // SMRAM helpers: read/write the state save area.

@@ -26,7 +26,6 @@ function exec_xadd(dst, src, os) = {
   v(dst) = sum
 }
 
-
 // Descriptor type validation for LAR in IA-32e mode (SDM Table 1-49).
 // System segment types (S=0): valid = 2 (LDT), 9 (avail TSS), B (busy TSS), C (call gate).
 // Code/data segments (S=1): all valid.
@@ -201,20 +200,6 @@ function cpuid(leaf, subleaf) = {
     _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000),
   }
 }
-
-val __rdtsc : unit -> qword
-val __rdrand64 : unit -> (qword, bit)
-val __rdseed64 : unit -> (qword, bit)
-
-// MSR read/write — implemented in C++ as a key-value store
-val __rdmsr : dword -> qword
-val __wrmsr : (dword, qword) -> unit
-
-val __syscall : (qword, qword) -> unit
-val __fxsave : qword -> unit
-val __fxsave64 : qword -> unit
-val __fxrstor : qword -> unit
-val __fxrstor64 : qword -> unit
 
 // SHLD — Double Precision Shift Left
 //

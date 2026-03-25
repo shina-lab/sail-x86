@@ -3,8 +3,6 @@
 // Central dispatch for 1-byte, 2-byte (0F xx), and 3-byte (0F 38/3A xx)
 // opcode maps. Routes to category-specific handlers.
 
-val __software_interrupt : byte -> unit
-
 // XCHG — Exchange Register/Memory with Register
 
 val exec_xchg_reg_reg : (gpr_idx, gpr_idx, operand_size) -> unit
@@ -15,10 +13,6 @@ function exec_xchg_reg_reg(a, b, os) = {
 }
 
 // IN — Input from Port
-
-val __port_in8  : word -> byte
-val __port_in16 : word -> word
-val __port_in32 : word -> dword
 
 val exec_in : (word, operand_size) -> unit
 function exec_in(port, os) = {
@@ -31,10 +25,6 @@ function exec_in(port, os) = {
 }
 
 // OUT — Output to Port
-
-val __port_out8  : (word, byte)  -> unit
-val __port_out16 : (word, word) -> unit
-val __port_out32 : (word, dword) -> unit
 
 val exec_out : (word, operand_size) -> unit
 function exec_out(port, os) = {
