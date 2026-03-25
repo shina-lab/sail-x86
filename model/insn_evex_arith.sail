@@ -1748,41 +1748,32 @@ function avx_vpmovq2m_512(src) = {
 
 // Helper: select 128-bit lane from a 512-bit source
 
-val avx_lzcnt32 : dword -> dword
-function avx_lzcnt32(v) = to_bits(32, clz(v))
-
-val avx_lzcnt64 : qword -> qword
-function avx_lzcnt64(v) = to_bits(64, clz(v))
-
 val avx_vplzcntd_128 : xmmword -> xmmword
-function avx_vplzcntd_128(src) = {
-  avx_lzcnt32(src[127..96]) @ avx_lzcnt32(src[95..64]) @ avx_lzcnt32(src[63..32]) @ avx_lzcnt32(src[31..0])
-}
+function avx_vplzcntd_128(src) =
+  to_bits(32, clz(src[127..96])) @
+  to_bits(32, clz(src[95..64])) @
+  to_bits(32, clz(src[63..32])) @
+  to_bits(32, clz(src[31..0]))
 
 val avx_vplzcntd_256 : ymmword -> ymmword
-function avx_vplzcntd_256(src) = {
+function avx_vplzcntd_256(src) =
   avx_vplzcntd_128(src[255..128]) @ avx_vplzcntd_128(src[127..0])
-}
 
 val avx_vplzcntd_512 : zmmword -> zmmword
-function avx_vplzcntd_512(src) = {
+function avx_vplzcntd_512(src) =
   avx_vplzcntd_256(src[511..256]) @ avx_vplzcntd_256(src[255..0])
-}
 
 val avx_vplzcntq_128 : xmmword -> xmmword
-function avx_vplzcntq_128(src) = {
-  avx_lzcnt64(src[127..64]) @ avx_lzcnt64(src[63..0])
-}
+function avx_vplzcntq_128(src) =
+  to_bits(64, clz(src[127..64])) @ to_bits(64, clz(src[63..0]))
 
 val avx_vplzcntq_256 : ymmword -> ymmword
-function avx_vplzcntq_256(src) = {
+function avx_vplzcntq_256(src) =
   avx_vplzcntq_128(src[255..128]) @ avx_vplzcntq_128(src[127..0])
-}
 
 val avx_vplzcntq_512 : zmmword -> zmmword
-function avx_vplzcntq_512(src) = {
+function avx_vplzcntq_512(src) =
   avx_vplzcntq_256(src[511..256]) @ avx_vplzcntq_256(src[255..0])
-}
 
 /* ---- VPCONFLICTD/Q: conflict detection ---- */
 // For each element i, produce a bitmask of preceding elements (j < i) that have the same value.
