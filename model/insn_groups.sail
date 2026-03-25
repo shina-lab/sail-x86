@@ -80,27 +80,22 @@ function exec_div(os, src) = {
 // SDM: CF, OF, SF, ZF, AF, PF are undefined after IDIV.
 val exec_idiv : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_idiv(os, src) = {
+  let divisor = signed(src);
+  if divisor == 0 then raise_DE();
+  assert(divisor != 0);
+  let dividend = if os == 8
+    then signed(v(16, RAX))
+    else signed(v(os, RDX) @ v(os, RAX));
+  let quotient = quot_round_zero(dividend, divisor);
+  let remainder = rem_round_zero(dividend, divisor);
+  if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
+  let q_bits = to_bits_truncate(os, quotient);
+  let r_bits = to_bits_truncate(os, remainder);
   if os == 8 then {
-    let divisor = signed(src);
-    if divisor == 0 then raise_DE();
-    assert(divisor != 0);
-    let dividend = signed(v(16, RAX));
-    let quotient = quot_round_zero(dividend, divisor);
-    let remainder = rem_round_zero(dividend, divisor);
-    if quotient < -128 | 127 < quotient then raise_DE();
-    v(RAX) = to_bits_truncate(8, remainder) @ to_bits_truncate(8, quotient)
+    v(RAX) = r_bits @ q_bits
   } else {
-    let divisor = signed(src);
-    if divisor == 0 then raise_DE();
-    assert(divisor != 0);
-    let dividend = signed(v(os, RDX) @ v(os, RAX));
-    let quotient = quot_round_zero(dividend, divisor);
-    let remainder = rem_round_zero(dividend, divisor);
-    if quotient < -pow2(os - 1) | (pow2(os - 1) - 1) < quotient then raise_DE();
-    let q_bits : bits('os * 2) = to_bits_truncate(quotient);
-    let r_bits : bits('os * 2) = to_bits_truncate(remainder);
-    v(RAX) = q_bits[(os - 1)..0];
-    v(RDX) = r_bits[(os - 1)..0]
+    v(RAX) = q_bits;
+    v(RDX) = r_bits
   };
   CF = undefined;
   OF = undefined;
@@ -113,26 +108,16 @@ function exec_idiv(os, src) = {
 // IMUL — Signed Multiply (one-operand form)
 val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_imul_1(os, src) = {
+  let product : int = signed(v(os, RAX)) * signed(src);
+  let result : bits('os * 2) = to_bits_truncate(product);
   if os == 8 then {
-    let a : int = signed(v(8, RAX));
-    let b : int = signed(src);
-    let product : int = a * b;
-    let result : word = to_bits_truncate(product);
     v(RAX) = result;
-    CF = is_nonzero(result[15..8] ^ sign_extend(result[7]));
-    OF = CF;
   } else {
-    let a : int = signed(v(os, RAX));
-    let b : int = signed(src);
-    let product : int = a * b;
-    let result : bits('os * 2) = to_bits_truncate(product);
-    let lo = result[(os - 1)..0];
-    let hi = result[(os * 2 - 1)..os];
-    v(RAX) = lo;
-    v(RDX) = hi;
-    CF = is_nonzero(hi ^ sign_extend(lo[os - 1]));
-    OF = CF;
-  }
+    v(RAX) = result[(os - 1)..0];
+    v(RDX) = result[(os * 2 - 1)..os];
+  };
+  CF = is_nonzero(result[(os * 2 - 1)..os] ^ sign_extend(result[os - 1]));
+  OF = CF
 }
 
 // PUSH imm
