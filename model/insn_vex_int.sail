@@ -864,9 +864,9 @@ function dispatch_vex_0f_int(op, pfx) = {
       if pfx.vex_w then v(dst_gpr) = read_kreg(k1)                       // KMOVQ
       else v(dst_gpr) = read_kreg(k1)[31..0]                             // KMOVD
     } else if mp == MP_66 then {
-      v(32, dst_gpr) = zero_extend(read_kreg(k1)[7..0])                  // KMOVB
+      v(dst_gpr) = zero_extend(32, read_kreg(k1)[7..0])                  // KMOVB
     } else {
-      v(32, dst_gpr) = zero_extend(read_kreg(k1)[15..0])                 // KMOVW
+      v(dst_gpr) = zero_extend(32, read_kreg(k1)[15..0])                 // KMOVW
     }
   },
 
@@ -930,7 +930,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let result : word = src[(16 * sel + 15) .. (16 * sel)];
-    v(32, dst_gpr) = zero_extend(result)
+    v(dst_gpr) = zero_extend(32, result)
   },
 
   // 0F D0: VADDSUBPS (F2) / VADDSUBPD (66) — alternating sub/add
@@ -1094,14 +1094,14 @@ function dispatch_vex_0f_int(op, pfx) = {
       foreach (i from 0 to 31) {
         mask[i] = src[(i * 8 + 7)]
       };
-      v(64, reg) = zero_extend(mask)
+      v(reg) = zero_extend(64, mask)
     } else {
       let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
       let mask : word = src[127] @ src[119] @ src[111] @ src[103] @
                         src[95]  @ src[87]  @ src[79]  @ src[71] @
                         src[63]  @ src[55]  @ src[47]  @ src[39] @
                         src[31]  @ src[23]  @ src[15]  @ src[7];
-      v(32, reg) = zero_extend(mask)
+      v(reg) = zero_extend(32, mask)
     }
   },
 

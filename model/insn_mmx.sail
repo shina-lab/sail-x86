@@ -381,7 +381,7 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       let lo = sel * 16;
       let w : word = v[(lo + 15) .. lo];
-      v(32, dst_gpr) = zero_extend(w);
+      v(dst_gpr) = zero_extend(32, w);
       mmx_touch()
     },
 
@@ -451,7 +451,7 @@ function dispatch_mmx(op, pfx) = {
       let mask : byte =
         v[63] @ v[55] @ v[47] @ v[39] @
         v[31] @ v[23] @ v[15] @ v[7];
-      v(32, dst_gpr) = zero_extend(mask);
+      v(dst_gpr) = zero_extend(32, mask);
       mmx_touch()
     },
 

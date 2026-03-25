@@ -637,22 +637,22 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
           let mask : byte = src[255] @ src[223] @ src[191] @ src[159] @
                             src[127] @ src[95] @ src[63] @ src[31];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         } else {
           let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         }
       },
       MP_66 => {
         if pfx.vex_l then {
           let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[255] @ src[191] @ src[127] @ src[63];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         } else {
           let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
           let mask : bits(2) = src[127] @ src[63];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         }
       },
       _ => raise_UD(),

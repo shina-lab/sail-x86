@@ -1961,7 +1961,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(m) => v(m) = v,
         RM_reg(_) => {
           let dst_gpr = modrm_rm_reg(modrm, pfx);
-          v(32, dst_gpr) = zero_extend(v)
+          v(dst_gpr) = zero_extend(32, v)
         },
       }
     },

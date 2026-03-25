@@ -975,7 +975,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_segreg(SS, (sysenter_cs[15..0] + 0x0018) | 0x0003);
         cur_cpl = 3;
         next_rip = Some(zero_extend(v(32, RDX)));
-        v(64, RSP) = zero_extend(v(32, RCX))
+        v(RSP) = zero_extend(64, v(32, RCX))
       }
     },
 

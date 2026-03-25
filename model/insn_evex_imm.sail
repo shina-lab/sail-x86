@@ -1410,7 +1410,7 @@ function dispatch_evex_imm(op, pfx) = {
     let lo : range(0, 120) = sel * 8;
     let extracted_byte : byte = src_xmm[(lo + 7)..lo];
     match dest {
-      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_byte),
+      RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = zero_extend(32, extracted_byte),
       RM_mem(m) => v(m) = extracted_byte,
     }
   },
@@ -1428,7 +1428,7 @@ function dispatch_evex_imm(op, pfx) = {
     let lo : range(0, 112) = sel * 16;
     let extracted_word : word = src_xmm[(lo + 15)..lo];
     match dest {
-      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_word),
+      RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = zero_extend(32, extracted_word),
       RM_mem(m) => v(m) = extracted_word,
     }
   },

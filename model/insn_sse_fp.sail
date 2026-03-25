@@ -688,11 +688,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => {
           let mask : bits(4) = src_xmm[127] @ src_xmm[95] @ src_xmm[63] @ src_xmm[31];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         },
         MP_66 => {
           let mask : bits(2) = src_xmm[127] @ src_xmm[63];
-          v(32, reg) = zero_extend(mask)
+          v(reg) = zero_extend(32, mask)
         },
         _       => raise_UD(),
       }
@@ -1444,7 +1444,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          v(32, dst_reg) = zero_extend(w)
+          v(dst_reg) = zero_extend(32, w)
         },
         RM_mem(m) => v(m) = w,
       }

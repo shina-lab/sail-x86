@@ -2749,7 +2749,7 @@ function dispatch_evex_int(op, pfx) = {
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let lo : range(0, 112) = sel * 16;
     let word_val : bits(16) = src_xmm[(lo + 15)..lo];
-    v(64, dst_gpr) = zero_extend(word_val)
+    v(dst_gpr) = zero_extend(64, word_val)
   },
 
   // 0F C2: VCMPPS (NP,W0) / VCMPPD (66,W1) / VCMPSS (F3) / VCMPSD (F2) → kmask

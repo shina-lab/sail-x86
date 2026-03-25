@@ -553,7 +553,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(32, dst_reg) = zero_extend(v);
+        v(dst_reg) = zero_extend(32, v);
       },
       RM_mem(m) => v(m) = v,
     }
@@ -573,7 +573,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(32, dst_reg) = zero_extend(w);
+        v(dst_reg) = zero_extend(32, w);
       },
       RM_mem(m) => v(m) = w,
     }

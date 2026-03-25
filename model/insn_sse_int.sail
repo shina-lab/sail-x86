@@ -843,7 +843,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
                                src_xmm[95]  @ src_xmm[87]  @ src_xmm[79]  @ src_xmm[71] @
                                src_xmm[63]  @ src_xmm[55]  @ src_xmm[47]  @ src_xmm[39] @
                                src_xmm[31]  @ src_xmm[23]  @ src_xmm[15]  @ src_xmm[7];
-        v(32, reg) = zero_extend(mask)
+        v(reg) = zero_extend(32, mask)
       }
     },
 
@@ -1354,7 +1354,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           6 => src_xmm[111..96],
           7 => src_xmm[127..112]
         };
-        v(32, reg) = zero_extend(word)
+        v(reg) = zero_extend(32, word)
       }
     },
 
@@ -2483,7 +2483,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
-          v(32, dst_reg) = zero_extend(x);
+          v(dst_reg) = zero_extend(32, x);
         },
         RM_mem(m) => write_mem(m, x),
       }

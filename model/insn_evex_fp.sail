@@ -1366,7 +1366,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         match os {
           64 => v(dst_gpr) = __f32_to_int64_trunc(src_f32),
-          _  => v(32, dst_gpr) = zero_extend(__f32_to_int32_trunc(src_f32)),
+          _  => v(dst_gpr) = zero_extend(32, __f32_to_int32_trunc(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1381,7 +1381,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         match os {
           64 => v(dst_gpr) = __f64_to_int64_trunc(src_f64),
-          _  => v(32, dst_gpr) = zero_extend(__f64_to_int32_trunc(src_f64)),
+          _  => v(dst_gpr) = zero_extend(32, __f64_to_int32_trunc(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1407,7 +1407,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         match os {
           64 => v(dst_gpr) = __f32_to_int64(src_f32),
-          _  => v(32, dst_gpr) = zero_extend(__f32_to_int32(src_f32)),
+          _  => v(dst_gpr) = zero_extend(32, __f32_to_int32(src_f32)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1422,7 +1422,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         match os {
           64 => v(dst_gpr) = __f64_to_int64(src_f64),
-          _  => v(32, dst_gpr) = zero_extend(__f64_to_int32(src_f64)),
+          _  => v(dst_gpr) = zero_extend(32, __f64_to_int32(src_f64)),
         };
         evex_end_rc(saved_mxcsr)
       },
@@ -1957,7 +1957,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => v(m),
         };
         if pfx.rex_w then v(dst_gpr) = __f32_to_uint64_trunc(src_f32)
-        else v(32, dst_gpr) = zero_extend(__f32_to_uint32_trunc(src_f32));
+        else v(dst_gpr) = zero_extend(32, __f32_to_uint32_trunc(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTSD2USI: scalar f64→unsigned GPR trunc — supports {sae}
@@ -1971,7 +1971,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => v(m),
         };
         if pfx.rex_w then v(dst_gpr) = __f64_to_uint64_trunc(src_f64)
-        else v(32, dst_gpr) = zero_extend(__f64_to_uint32_trunc(src_f64));
+        else v(dst_gpr) = zero_extend(32, __f64_to_uint32_trunc(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTTPS2UQQ (W0) / VCVTTPD2UQQ (W1) — supports {sae}
@@ -2032,7 +2032,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => v(m),
         };
         if pfx.rex_w then v(dst_gpr) = __f32_to_uint64(src_f32)
-        else v(32, dst_gpr) = zero_extend(__f32_to_uint32(src_f32));
+        else v(dst_gpr) = zero_extend(32, __f32_to_uint32(src_f32));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTSD2USI: scalar f64→unsigned GPR round — supports {er}
@@ -2046,7 +2046,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_mem(m) => v(m),
         };
         if pfx.rex_w then v(dst_gpr) = __f64_to_uint64(src_f64)
-        else v(32, dst_gpr) = zero_extend(__f64_to_uint32(src_f64));
+        else v(dst_gpr) = zero_extend(32, __f64_to_uint32(src_f64));
         evex_end_rc(saved_mxcsr)
       },
       // VCVTPS2UQQ (W0) / VCVTPD2UQQ (W1) — supports {er}
