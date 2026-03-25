@@ -241,21 +241,22 @@ function mpsadbw(dst, src, imm8) = {
 
 // Compute effective valid lengths for implicit-length instructions.
 // Returns index of first null element (or ub+1 if no null found).
+// Builds a null-element bitmask, then finds first set bit via CTZ.
 val pcmp_implicit_len : (xmmword, range(0, 15)) -> range(0, 16)
 function pcmp_implicit_len(x, ub) = {
-  var len : range(0, 16) = ub + 1;
-  var found : bool = false;
+  // Build null mask: bit i = 1 iff element i is zero
+  var null_mask : bits(16) = zeros();
   foreach (i from 0 to 15) {
-    if i <= ub & ~(found) then {
+    if i <= ub then {
       let lo = if ub == 7 then i * 16 else i * 8;
       let hi = if ub == 7 then lo + 15 else lo + 7;
-      if x[hi .. lo] == zeros() then {
-        len = i;
-        found = true
-      }
+      null_mask[i] = is_zero(x[hi .. lo])
     }
   };
-  len
+  // CTZ gives index of first null; returns 16 if no nulls
+  let idx = ctz(16, zero_extend(null_mask));
+  assert(idx <= 16);
+  if idx > ub then ub + 1 else idx
 }
 
 // Core string comparison engine.
