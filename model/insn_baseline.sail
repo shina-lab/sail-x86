@@ -376,7 +376,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let dest = modrm_rm(modrm, pfx);
           match dest {
             RM_reg(r) => v(r) = LDTR,
-            RM_mem(m) => write_mem(m,LDTR),
+            RM_mem(m) => v(m) = LDTR,
           }
         },
 
@@ -385,7 +385,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let dest = modrm_rm(modrm, pfx);
           match dest {
             RM_reg(r) => v(r) = TR,
-            RM_mem(m) => write_mem(m,TR),
+            RM_mem(m) => v(m) = TR,
           }
         },
 
@@ -643,7 +643,7 @@ function dispatch_2byte_gpr(op, pfx) = {
                 let os = get_operand_size(pfx);
                 v(r) = CR0[(os - 1) .. 0]
               },
-              RM_mem(m) => write_mem(16, m,CR0[15..0]),
+              RM_mem(m) => v(m) = CR0[15..0],
             },
 
             // 0F 01 /6: LMSW r/m16 — Load Machine Status Word (requires CPL=0)
@@ -1334,7 +1334,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       match src {
         RM_mem(m) => {
           let (far_offset, selector) : (qword, word) = match os {
-            16 => { let d : bits(32) = read_mem(m); (zero_extend(d[15..0]), d[31..16]) },
+            16 => { let d : bits(32) = v(m); (zero_extend(d[15..0]), d[31..16]) },
             32 => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
             _  => { let d : bits(80) = read_mem(m); (zero_extend(d[63..0]), d[79..64]) },
           };
@@ -1548,12 +1548,12 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(dst) => exec_xadd(dst, reg, 8),
         RM_mem(m) => {
           // Memory operand: read, exchange, add, write back
-          let mem_val : byte = read_mem(m);
+          let mem_val : byte = v(m);
           let reg_val : byte = v(reg);
           let sum : byte = mem_val + reg_val;
           update_flags_add(sum, mem_val, reg_val);
           v(reg) = mem_val;
-          write_mem(m,sum)
+          v(m) = sum
         },
       }
     },
@@ -1624,12 +1624,12 @@ function dispatch_2byte_gpr(op, pfx) = {
                 v(RDX) = mem_hi;
               }
             } else {
-              let mem_val : qword = read_mem(m);
+              let mem_val : qword = v(m);
               let mem_lo : dword = mem_val[31..0];
               let mem_hi : dword = mem_val[63..32];
               if v(32, RAX) == mem_lo & v(32, RDX) == mem_hi then {
                 ZF = 0b1;
-                write_mem(64, m, v(32, RCX) @ v(32, RBX))
+                v(m) = v(32, RCX) @ v(32, RBX)
               } else {
                 ZF = 0b0;
                 v(RAX) = mem_lo;

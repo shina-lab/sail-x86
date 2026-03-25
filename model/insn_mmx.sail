@@ -12,7 +12,7 @@ val mmx_read_rm : (byte, RM) -> qword
 function mmx_read_rm(modrm, src) = {
   match src {
     RM_reg(_) => read_mm(modrm_mm_rm(modrm)),
-    RM_mem(m) => read_mem(m),
+    RM_mem(m) => v(m),
   }
 }
 
@@ -174,9 +174,9 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       match (src, pfx.rex_w) {
         (RM_reg(r), true)   => write_mm(dst, v(64, r)),
-        (RM_mem(m), true)  => write_mm(dst, read_mem(m)),
+        (RM_mem(m), true)  => write_mm(dst, v(m)),
         (RM_reg(r), false)  => write_mm(dst, zero_extend(v(32, r))),
-        (RM_mem(m), false) => write_mm(dst, zero_extend(read_mem(32, m))),
+        (RM_mem(m), false) => write_mm(dst, zero_extend(v(32, m))),
       };
       mmx_touch()
     },
@@ -333,9 +333,9 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       match (dest, pfx.rex_w) {
         (RM_reg(r), true)   => v(r) = v,
-        (RM_mem(m), true)  => write_mem(m,v),
+        (RM_mem(m), true)  => v(m) = v,
         (RM_reg(r), false)  => v(r) = v[31..0],
-        (RM_mem(m), false) => write_mem(32, m,v[31..0]),
+        (RM_mem(m), false) => v(32, m) = v[31..0],
       };
       mmx_touch()
     },
@@ -348,7 +348,7 @@ function dispatch_mmx(op, pfx) = {
       let v : qword = read_mm(src);
       match dest {
         RM_reg(_) => write_mm(modrm_mm_rm(modrm), v),
-        RM_mem(m) => write_mem(m,v),
+        RM_mem(m) => v(m) = v,
       };
       mmx_touch()
     },
@@ -360,7 +360,7 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let w : word = match src {
         RM_reg(r) => v(32, r)[15..0],
-        RM_mem(m) => read_mem(m),
+        RM_mem(m) => v(m),
       };
       let imm = fetch_byte();
       let sel : range(0, 3) = unsigned(imm[1..0]);

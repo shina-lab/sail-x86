@@ -1411,7 +1411,7 @@ function dispatch_evex_imm(op, pfx) = {
     let extracted_byte : byte = src_xmm[(lo + 7)..lo];
     match dest {
       RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_byte),
-      RM_mem(m) => write_mem(m,extracted_byte),
+      RM_mem(m) => v(m) = extracted_byte,
     }
   },
 
@@ -1429,7 +1429,7 @@ function dispatch_evex_imm(op, pfx) = {
     let extracted_word : word = src_xmm[(lo + 15)..lo];
     match dest {
       RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx)) = zero_extend(extracted_word),
-      RM_mem(m) => write_mem(m,extracted_word),
+      RM_mem(m) => v(m) = extracted_word,
     }
   },
 
@@ -1449,7 +1449,7 @@ function dispatch_evex_imm(op, pfx) = {
       let extracted : qword = src_xmm[(lo + 63)..lo];
       match dest {
         RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
-        RM_mem(m) => write_mem(m,extracted),
+        RM_mem(m) => v(m) = extracted,
       }
     } else {
       // VPEXTRD: imm8[1:0] selects dword
@@ -1460,7 +1460,7 @@ function dispatch_evex_imm(op, pfx) = {
       let extracted : dword = src_xmm[(lo + 31)..lo];
       match dest {
         RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
-        RM_mem(m) => write_mem(m,extracted),
+        RM_mem(m) => v(m) = extracted,
       }
     }
   },
@@ -1479,7 +1479,7 @@ function dispatch_evex_imm(op, pfx) = {
     let extracted : dword = src_xmm[(lo + 31)..lo];
     match dest {
       RM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = extracted,
-      RM_mem(m) => write_mem(m,extracted),
+      RM_mem(m) => v(m) = extracted,
     }
   },
 
@@ -1809,7 +1809,7 @@ function dispatch_evex_imm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 1);
     let byte_val : byte = match src {
       RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx))[7..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     let imm = fetch_byte();
     let sel : range(0, 15) = unsigned(imm[3..0]);
@@ -1836,7 +1836,7 @@ function dispatch_evex_imm(op, pfx) = {
         let slo : range(0, 96) = count_s * 32;
         src_xmm[(slo + 31)..slo]
       },
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     // imm8[5:4] selects destination float position
     let count_d : range(0, 3) = unsigned(imm[5..4]);
@@ -2389,14 +2389,14 @@ function dispatch_evex_imm(op, pfx) = {
     if pfx.vex_w then {
       let src2 : qword = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-        RM_mem(m) => read_mem(m),
+        RM_mem(m) => v(m),
       };
       let r = avx_range_f64(src1[63..0], src2, imm);
       evex_write_sd(dst, src1[127..64] @ r, pfx)
     } else {
       let src2 : dword = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-        RM_mem(m) => read_mem(m),
+        RM_mem(m) => v(m),
       };
       let r = avx_range_f32(src1[31..0], src2, imm);
       evex_write_ss(dst, src1[127..32] @ r, pfx)

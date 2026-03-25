@@ -736,8 +736,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         match (src2, pfx.vex_w) {
           (RM_reg(r), true)  => v(r) = src[63..0],
           (RM_reg(r), false) => v(r) = src[31..0],
-          (RM_mem(m), true)  => write_mem(64, m,src[63..0]),
-          (RM_mem(m), false) => write_mem(32, m,src[31..0]),
+          (RM_mem(m), true)  => v(m) = src[63..0],
+          (RM_mem(m), false) => v(m) = src[31..0],
         }
       },
       MP_F3 => {
@@ -749,8 +749,8 @@ function dispatch_vex_0f_int(op, pfx) = {
             write_xmm(dst, zero_extend(src[63..0]))
           },
           RM_mem(m) => {
-            let v : qword = read_mem(m);
-            write_xmm(dst, zero_extend(v))
+            let data : qword = v(m);
+            write_xmm(dst, zero_extend(data))
           },
         }
       },
@@ -808,7 +808,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => write_kreg(k1, read_mem(m)),                // KMOVQ
+          (MP_NONE, true) => write_kreg(k1, v(m)),                         // KMOVQ
           (_,       true) => write_kreg(k1, zero_extend(read_mem(32, m))), // KMOVD
           (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(8, m))), // KMOVB
           (_,      false) => write_kreg(k1, zero_extend(read_mem(16, m))), // KMOVW
@@ -825,10 +825,10 @@ function dispatch_vex_0f_int(op, pfx) = {
     match src {
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => write_mem(m,read_kreg(k1)),              // KMOVQ
-          (_,       true) => write_mem(32, m,read_kreg(k1)[31..0]),    // KMOVD
-          (MP_66,  false) => write_mem(8, m,read_kreg(k1)[7..0]),     // KMOVB
-          (_,      false) => write_mem(16, m,read_kreg(k1)[15..0]),    // KMOVW
+          (MP_NONE, true) => v(m) = read_kreg(k1),                      // KMOVQ
+          (_,       true) => v(m) = read_kreg(k1)[31..0],              // KMOVD
+          (MP_66,  false) => v(m) = read_kreg(k1)[7..0],              // KMOVB
+          (_,      false) => v(m) = read_kreg(k1)[15..0],              // KMOVW
         }
       },
       _ => raise_UD(),
@@ -912,7 +912,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let v : word = match src {
       RM_reg(r) => v(32, r)[15..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     let imm = fetch_byte();
     let sel : range(0, 7) = unsigned(imm[2..0]);

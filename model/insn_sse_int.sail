@@ -2623,8 +2623,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       match (src, pfx.rex_w) {
         (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(xmm_src, imm),
         (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(xmm_src, imm),
-        (RM_mem(m), true)  => write_mem(m,extract_qword_from_xmm(xmm_src, imm)),
-        (RM_mem(m), false) => write_mem(m,extract_dword_from_xmm(xmm_src, imm)),
+        (RM_mem(m), true)  => v(m) = extract_qword_from_xmm(xmm_src, imm),
+        (RM_mem(m), false) => v(m) = extract_dword_from_xmm(xmm_src, imm),
       }
     },
 

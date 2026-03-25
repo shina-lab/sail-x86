@@ -1004,7 +1004,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : dword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_d_xmm(dst, broadcast_f32_xmm(elem), pfx),
@@ -1024,7 +1024,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 8);
     let elem : qword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_q_xmm(dst, elem @ elem, pfx),
@@ -1064,7 +1064,7 @@ function dispatch_evex_perm(op, pfx) = {
         // Source is a GPR (r/m field selects GPR, not XMM)
         v(modrm_rm_reg(modrm, pfx))
       },
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_d_xmm(dst, broadcast_f32_xmm(elem), pfx),
@@ -1083,7 +1083,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : dword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_d_xmm(dst, broadcast_f32_xmm(elem), pfx),
@@ -1102,7 +1102,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 8);
     let elem : qword = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_q_xmm(dst, elem @ elem, pfx),
@@ -1121,7 +1121,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : byte = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[7..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
       0 => evex_write_b_xmm(dst, broadcast_byte_xmm(elem), pfx),
@@ -1140,7 +1140,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 4);
     let elem : word = match src {
       RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
-      RM_mem(m) => read_mem(m),
+      RM_mem(m) => v(m),
     };
     let w : dword = elem @ elem;
     let q : qword = w @ w;

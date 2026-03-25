@@ -113,7 +113,7 @@ function dispatch_x87_d8(modrm, src, _) = {
   let sti : int = unsigned(modrm[2..0]);
   match src {
     RM_mem(m) => {
-      let src : fp80 = __f80_from_f32(read_mem(m));
+      let src : fp80 = __f80_from_f32(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -155,14 +155,14 @@ function dispatch_x87_d9(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f32(read_mem(m))),
+        0 => x87_push(__f80_from_f32(v(m))),
         1 => raise_UD(),
-        2 => write_mem(m,__f80_to_f32(x87_read_st(0))),
-        3 => write_mem(m,__f80_to_f32(x87_pop())),
+        2 => v(m) = __f80_to_f32(x87_read_st(0)),
+        3 => v(m) = __f80_to_f32(x87_pop()),
         4 => x87_load_env(read_mem(m)),
-        5 => x87_cw = read_mem(m),
+        5 => x87_cw = v(m),
         6 => write_mem(m, x87_save_env()),
-        7 => write_mem(m,x87_cw),
+        7 => v(m) = x87_cw,
       }
     },
     RM_reg(_) => {
@@ -289,7 +289,7 @@ function dispatch_x87_da(modrm, src, _) = {
   let sti : int = unsigned(modrm[2..0]);
   match src {
     RM_mem(m) => {
-      let src : fp80 = __f80_from_int32(read_mem(m));
+      let src : fp80 = __f80_from_int32(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -335,10 +335,10 @@ function dispatch_x87_db(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int32(read_mem(m))),
-        1 => write_mem(m,__f80_to_int32_trunc(x87_pop())),
-        2 => write_mem(m,__f80_to_int32(x87_read_st(0))),
-        3 => write_mem(m,__f80_to_int32(x87_pop())),
+        0 => x87_push(__f80_from_int32(v(m))),
+        1 => v(m) = __f80_to_int32_trunc(x87_pop()),
+        2 => v(m) = __f80_to_int32(x87_read_st(0)),
+        3 => v(m) = __f80_to_int32(x87_pop()),
         4 => raise_UD(),
         5 => x87_push(read_mem(m)),
         6 => raise_UD(),
@@ -384,7 +384,7 @@ function dispatch_x87_dc(modrm, src, _) = {
   let sti : int = unsigned(modrm[2..0]);
   match src {
     RM_mem(m) => {
-      let src : fp80 = __f80_from_f64(read_mem(m));
+      let src : fp80 = __f80_from_f64(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -424,10 +424,10 @@ function dispatch_x87_dd(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f64(read_mem(m))),
-        1 => write_mem(m,__f80_to_int64_trunc(x87_pop())),
-        2 => write_mem(m,__f80_to_f64(x87_read_st(0))),
-        3 => write_mem(m,__f80_to_f64(x87_pop())),
+        0 => x87_push(__f80_from_f64(v(m))),
+        1 => v(m) = __f80_to_int64_trunc(x87_pop()),
+        2 => v(m) = __f80_to_f64(x87_read_st(0)),
+        3 => v(m) = __f80_to_f64(x87_pop()),
         4 => x87_load_state(read_mem(m)),
         5 => raise_UD(),
         // FNSAVE — save state, then reinitialize
@@ -436,7 +436,7 @@ function dispatch_x87_dd(modrm, operand, _) = {
           x87_init();
           write_mem(m, state)
         },
-        7 => write_mem(m,x87_sw),
+        7 => v(m) = x87_sw,
       }
     },
     RM_reg(_) => {
@@ -467,7 +467,7 @@ function dispatch_x87_de(modrm, src, _) = {
   let sti : int = unsigned(modrm[2..0]);
   match src {
     RM_mem(m) => {
-      let src : fp80 = __f80_from_int16(read_mem(m));
+      let src : fp80 = __f80_from_int16(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
         0 => x87_write_st(0, __f80_add(st0, src)),
@@ -545,14 +545,14 @@ function dispatch_x87_df(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int16(read_mem(m))),
-        1 => write_mem(m,__f80_to_int16_trunc(x87_pop())),
-        2 => write_mem(m,__f80_to_int16(x87_read_st(0))),
-        3 => write_mem(m,__f80_to_int16(x87_pop())),
+        0 => x87_push(__f80_from_int16(v(m))),
+        1 => v(m) = __f80_to_int16_trunc(x87_pop()),
+        2 => v(m) = __f80_to_int16(x87_read_st(0)),
+        3 => v(m) = __f80_to_int16(x87_pop()),
         4 => x87_push(__f80_from_bcd(read_mem(m))),
-        5 => x87_push(__f80_from_int64(read_mem(m))),
+        5 => x87_push(__f80_from_int64(v(m))),
         6 => write_mem(m, __f80_to_bcd(x87_pop())),
-        7 => write_mem(m,__f80_to_int64(x87_pop())),
+        7 => v(m) = __f80_to_int64(x87_pop()),
       }
     },
     RM_reg(_) => {
