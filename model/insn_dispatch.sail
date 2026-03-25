@@ -861,21 +861,13 @@ function decode_execute() = {
             RM_reg(_) => raise_UD(),  // BOUND requires memory operand
             RM_mem(m) => {
               let os = get_operand_size(pfx);
+              assert(os <= 32);
               let reg = modrm_reg(modrm, pfx);
-              let index = v(os, reg);
+              let index = signed(v(os, reg));
               // BOUND reads two consecutive os-bit values (lower, upper bounds)
-              match os {
-                16 => {
-                  let d : dword = v(m);
-                  if signed(index) < signed(d[15..0]) | signed(d[31..16]) < signed(index) then
-                    raise_BR();
-                },
-                _ => {
-                  let d : qword = v(m);
-                  if signed(index) < signed(d[31..0]) | signed(d[63..32]) < signed(index) then
-                    raise_BR();
-                },
-              }
+              let d = v(os * 2, m);
+              if index < signed(d[os - 1 .. 0]) | signed(d[os * 2 - 1 .. os]) < index then
+                raise_BR();
             },
           }
         }
