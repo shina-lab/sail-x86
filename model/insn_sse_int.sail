@@ -416,19 +416,19 @@ function pcmp_clamp_len(raw, max_len) = {
 // Bits above ub are already zeroed by the caller.
 val pcmp_bit_index : (bits(16), range(0, 15), bit) -> range(0, 16)
 function pcmp_bit_index(int_res2, ub, msb_mode) = {
-  let is_zero_flag : bit = is_zero(int_res2);
-  // MSB mode: index of highest set bit (BSR)
-  // LSB mode: index of lowest set bit (CTZ)
+  let zf : bit = is_zero(int_res2);
+  // MSB mode: BSR (highest set bit). Sentinel bit 0 ensures nonzero input.
+  // LSB mode: CTZ (lowest set bit).
   let idx : range(0, 16) = if msb_mode == bitone then {
-    // bsr requires nonzero input; safe because we handle zero via blend below
-    if int_res2 == zeros() then 0 else {
-      let r = bsr(zero_extend(int_res2)); assert(r <= 15); r
-    }
+    let r = bsr(zero_extend(int_res2) | 0x0000000000000001); assert(r <= 15); r
   } else {
     ctz(int_res2)
   };
-  // If no bits set, return ub+1; also clamp CTZ=16 to ub+1 for word mode
-  if is_zero_flag == bitone | idx > ub then ub + 1 else idx
+  // If no bits set or idx > ub (word mode CTZ=16): return ub+1
+  let out_of_range : bit = zf | is_gt_u(to_bits(5, idx), to_bits(5, ub));
+  let result = unsigned(blend(to_bits(5, idx), to_bits(5, ub + 1), out_of_range));
+  assert(result <= 16);
+  result
 }
 
 // Expand IntRes2 bits into byte/word mask or return as bit mask in XMM.

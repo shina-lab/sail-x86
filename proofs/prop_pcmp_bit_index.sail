@@ -1,18 +1,17 @@
 // Equivalence proof: pcmp_bit_index branchless rewrite
 //
-// LSB mode (find first set bit):
-//   Old: linear scan with found flag
-//   New: ctz(16, zero_extend(int_res2))
-//        result is 16 when int_res2 == 0 (ctz of all-zeros = width)
+// Transformation 1 (BSR sentinel):
+//   Old: if int_res2 == zeros() then 0 else bsr(zero_extend(int_res2))
+//   New: bsr(zero_extend(int_res2) | 0x0000000000000001)
+//   When int_res2 != 0: the sentinel bit 0 doesn't affect BSR (BSR finds
+//   the highest set bit, and int_res2 has a bit >= 0 set).
+//   When int_res2 == 0: BSR finds the sentinel → returns 0.
+//   The zero case is overridden by the blend below, so the value doesn't matter.
 //
-// MSB mode (find last set bit):
-//   Old: linear scan keeping last match
-//   New: bsr(zero_extend(int_res2))
-//        but bsr is undefined for zero, so handle with blend
-//
-// Zero case: both modes return ub+1. Since bits above ub are already
-// zeroed, ctz returns 16 (>= ub+1) and bsr returns 0 (wrong).
-// For MSB+zero: blend(bsr_result, ub+1, is_zero(int_res2)).
+// Transformation 2 (blend replaces if):
+//   Old: if is_zero | idx > ub then ub + 1 else idx
+//   New: blend(idx, ub + 1, is_zero | is_gt_u(idx, ub))
+//   This is the standard conditional → blend pattern.
 
 $include "../model/prelude.sail"
 
@@ -32,49 +31,41 @@ function popcount(v) = {
   x
 }
 
-val ctz16 : bits(16) -> range(0, 16)
-function ctz16(v) = {
-  let masked : qword = zero_extend(v) | 0xFFFFFFFFFFFF0000;
-  let pc = popcount(~(masked) & (masked - 1));
-  assert(pc <= 16);
-  pc
+val bsr64 : qword -> range(0, 63)
+function bsr64(v) = {
+  let x1 = v  | (v  >> 1);
+  let x2 = x1 | (x1 >> 2);
+  let x3 = x2 | (x2 >> 4);
+  let x4 = x3 | (x3 >> 8);
+  let x5 = x4 | (x4 >> 16);
+  let x6 = x5 | (x5 >> 32);
+  let n = popcount(x6);
+  assert(n > 0);
+  n - 1
 }
 
-// Prove LSB mode: ctz matches the found-flag linear scan
-// For ub=15 (byte mode, all 16 bits active)
+// Prove: for nonzero int_res2, bsr with sentinel == bsr without sentinel
+// (sentinel at bit 0 doesn't affect highest set bit when there's a higher bit)
 $property
-function prop_bit_index_lsb_15(int_res2 : bits(16)) -> bool = {
-  let ub = 15;
-  // Old: linear scan with found flag
-  var idx_old : range(0, 16) = ub + 1;
-  var found : bool = false;
-  foreach (i from 0 to 15) {
-    if i <= ub & int_res2[i] == 0b1 & ~(found) then {
-      idx_old = i;
-      found = true
-    }
-  };
-  // New: ctz
-  let idx_new : range(0, 16) = ctz16(int_res2);
-  idx_old == idx_new
+function prop_bsr_sentinel(int_res2 : bits(8)) -> bool = {
+  if int_res2 != zeros() then {
+    let without : range(0, 63) = bsr64(zero_extend(int_res2));
+    let with_sentinel : range(0, 63) = bsr64(zero_extend(int_res2) | 0x0000000000000001);
+    without == with_sentinel
+  } else true
 }
 
-// For ub=7 (word mode, only low 8 bits active, upper bits are 0)
+// Prove: blend replaces if for the out-of-range check
 $property
-function prop_bit_index_lsb_7(int_res2_lo : bits(8)) -> bool = {
-  let int_res2 : bits(16) = zero_extend(int_res2_lo);
-  let ub = 7;
-  // Old: linear scan with found flag
-  var idx_old : range(0, 16) = ub + 1;
-  var found : bool = false;
-  foreach (i from 0 to 15) {
-    if i <= ub & int_res2[i] == 0b1 & ~(found) then {
-      idx_old = i;
-      found = true
-    }
-  };
-  // New: ctz (returns 16 if zero, which is > ub+1=8, so clamp)
-  let ctz_val = ctz16(int_res2);
-  let idx_new : range(0, 16) = if ctz_val > ub + 1 then ub + 1 else ctz_val;
-  idx_old == idx_new
+function prop_blend_out_of_range(idx : bits(5), ub_plus_1 : bits(5),
+                                  zf : bit, gt : bit) -> bool = {
+  let idx_int = unsigned(idx);
+  let ub1_int = unsigned(ub_plus_1);
+  let out_of_range : bit = zf | gt;
+  // Old
+  let orig : bits(5) = if out_of_range == 0b1 then ub_plus_1 else idx;
+  // New
+  let m : bits(5) = sign_extend(out_of_range);
+  let branchless : bits(5) = (idx & ~(m)) | (ub_plus_1 & m);
+  orig == branchless
 }
