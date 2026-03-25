@@ -329,10 +329,9 @@ function dispatch_group5(reg_field, dest, pfx) = {
 // Shifts dest left by count bits. CF = last bit shifted out.
 // If count=0, flags unchanged. If count=1, OF = MSB(result) XOR CF.
 // SF, ZF, PF set from result. AF undefined for count != 0.
-
-val exec_shl : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_shl(os, a, count_raw) = {
-  let count : range(0, 63) = match os {
+val exec_shl : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_shl(a, count_raw) = {
+  let count : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
@@ -340,9 +339,9 @@ function exec_shl(os, a, count_raw) = {
     a
   } else {
     let result : bits('os) = a << count;
-    CF = if count <= os then a[os - count] else undefined;
+    CF = if count <= 'os then a['os - count] else undefined;
     update_SF_ZF_PF(result);
-    if count == 1 then OF = result[os - 1] ^ CF
+    if count == 1 then OF = result['os - 1] ^ CF
     else OF = undefined;
     AF = undefined;
     result
@@ -354,18 +353,17 @@ function exec_shl(os, a, count_raw) = {
 // Shifts dest right by count bits, filling with zeros.
 // CF = last bit shifted out. If count=1, OF = MSB(original).
 // SF, ZF, PF set from result. AF undefined for count != 0.
-
-val exec_shr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_shr(os, a, count_raw) = {
-  let mod_val : range(32, 64) = if os == 64 then 64 else 32;
+val exec_shr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_shr(a, count_raw) = {
+  let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
     a
   } else {
     let result : bits('os) = a >> count;
-    CF = if count <= os then a[count - 1] else undefined;
+    CF = if count <= 'os then a[count - 1] else undefined;
     update_SF_ZF_PF(result);
-    if count == 1 then OF = a[os - 1]
+    if count == 1 then OF = a['os - 1]
     else OF = undefined;
     AF = undefined;
     result
@@ -378,9 +376,9 @@ function exec_shr(os, a, count_raw) = {
 // CF = last bit shifted out. OF cleared for count=1.
 // SF, ZF, PF set from result. AF undefined for count != 0.
 
-val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_sar(os, a, count_raw) = {
-  let mod_val : range(32, 64) = if os == 64 then 64 else 32;
+val exec_sar : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_sar(a, count_raw) = {
+  let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   if count == 0 then {
     a
@@ -388,8 +386,8 @@ function exec_sar(os, a, count_raw) = {
     // CF = last bit shifted out. For SAR, when count >= operand width,
     // the result is all-sign-bits, so CF = sign bit of the original value.
     // SDM pseudocode iterates: CF := LSB(DEST) each step with signed divide.
-    let cf_idx : range(0, 63) = if count >= os then os - 1 else count - 1;
-    assert(cf_idx < os);
+    let cf_idx = if count >= 'os then 'os - 1 else count - 1;
+    assert(cf_idx < 'os);
     CF = a[cf_idx];
     let result : bits('os) = a >>> count;
     update_SF_ZF_PF(result);
@@ -408,38 +406,38 @@ function exec_sar(os, a, count_raw) = {
 // OF defined only for count=1. SF, ZF, AF, PF unaffected.
 // Count is masked to 5 bits (6 bits for 64-bit operands).
 
-val exec_rol : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_rol(os, a, count_raw) = {
-  let count : range(0, 63) = match os {
+val exec_rol : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_rol(a, count_raw) = {
+  let count : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     a
   } else {
-    let result : bits('os) = rotl(a, count % os);
+    let result : bits('os) = rotl(a, count % 'os);
     CF = result[0];
     if count == 1 then
-      OF = result[os - 1 .. os - 1] ^ CF
+      OF = result['os - 1] ^ CF
     else
       OF = undefined;
     result
   }
 }
 
-val exec_ror : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_ror(os, a, count_raw) = {
-  let count : range(0, 63) = match os {
+val exec_ror : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_ror(a, count_raw) = {
+  let count : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
   if count == 0 then {
     a
   } else {
-    let result : bits('os) = rotr(a, count % os);
-    CF = result[os - 1];
+    let result : bits('os) = rotr(a, count % 'os);
+    CF = result['os - 1];
     if count == 1 then
-      OF = result[os - 1 .. os - 1] ^ result[os - 2 .. os - 2]
+      OF = result['os - 1] ^ result['os - 2]
     else
       OF = undefined;
     result
@@ -452,14 +450,13 @@ function exec_ror(os, a, count_raw) = {
 // RCL: Rotates (n+1)-bit value (CF:dest) left by count.
 // RCR: Rotates (n+1)-bit value (CF:dest) right by count.
 // OF defined only for count=1. Count masked to 5 bits (6 for 64-bit).
-
-val exec_rcl : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_rcl(os, a, count_raw) = {
-  let masked : range(0, 63) = match os {
+val exec_rcl : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_rcl(a, count_raw) = {
+  let masked : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let c = masked % (os + 1);
+  let c = masked % ('os + 1);
   if c == 0 then {
     a
   } else {
@@ -467,32 +464,32 @@ function exec_rcl(os, a, count_raw) = {
     let rotated = rotl(wide, c);
     CF = rotated[0];
     if masked == 1 then
-      OF = rotated[os] ^ rotated[0]
+      OF = rotated['os] ^ rotated[0]
     else
       OF = undefined;
-    rotated[os..1]
+    rotated['os..1]
   }
 }
 
-val exec_rcr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os), byte) -> bits('os)
-function exec_rcr(os, a, count_raw) = {
-  let masked : range(0, 63) = match os {
+val exec_rcr : forall 'os, 'os in {8, 16, 32, 64}. (bits('os), byte) -> bits('os)
+function exec_rcr(a, count_raw) = {
+  let masked : range(0, 63) = match 'os {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let c = masked % (os + 1);
+  let c = masked % ('os + 1);
   if c == 0 then {
     a
   } else {
     // OF is set from original value before rotation for RCR
     if masked == 1 then
-      OF = a[os - 1] ^ CF
+      OF = a['os - 1] ^ CF
     else
       OF = undefined;
     let wide = a @ CF;
     let rotated = rotr(wide, c);
     CF = rotated[0];
-    rotated[os..1]
+    rotated['os..1]
   }
 }
 
@@ -502,7 +499,6 @@ function exec_rcr(os, a, count_raw) = {
 // For register operands, delegates to existing exec_ functions.
 // For memory operands, reads/shifts/writes back inline.
 // =========================================================================
-
 val exec_shift_rm : forall 'os, 'os in {8, 16, 32, 64}. (range(0, 7), RM, byte, int('os)) -> unit
 function exec_shift_rm(shift_op, dest, count_raw, os) = {
   // Mask count first — if zero, the entire operation is a no-op (no
