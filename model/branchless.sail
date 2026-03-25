@@ -57,6 +57,22 @@ function is_gt_u(a, b) = {
   diff['n]
 }
 
+// is_ne: 1 if a != b, 0 otherwise.
+val is_ne : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_ne(a, b) = is_nonzero(a ^ b)
+
+// is_lt_u: 1 if a < b (unsigned), 0 otherwise.
+val is_lt_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_lt_u(a, b) = is_gt_u(b, a)
+
+// is_ge_u: 1 if a >= b (unsigned), 0 otherwise.
+val is_ge_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_ge_u(a, b) = ~(is_gt_u(b, a))
+
+// is_le_u: 1 if a <= b (unsigned), 0 otherwise.
+val is_le_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
+function is_le_u(a, b) = ~(is_gt_u(a, b))
+
 // Rotate left/right by a bounded integer amount.
 val rotl : forall 'm 'n, 'm >= 'n >= 0. (bits('m), int('n)) -> bits('m)
 function rotl(v, shift) = (v << shift) | (v >> ('m - shift))

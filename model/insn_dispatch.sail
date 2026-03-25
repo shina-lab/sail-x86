@@ -1196,9 +1196,9 @@ function decode_execute() = {
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
             TF = v[8]; DF = v[10]; OF = v[11];
             NT = v[14];
-            // IOPL modifiable only at CPL 0; IF modifiable at CPL <= IOPL
-            if cur_cpl == 0 then IOPL = v[13..12];
-            if cur_cpl <= unsigned(IOPL) then IF_flag = v[9];
+            let cpl2 : bits(2) = to_bits(2, cur_cpl);
+            IOPL = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
+            IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
           },
           32 => {
             let v : dword = pop32();
@@ -1206,8 +1206,9 @@ function decode_execute() = {
             TF = v[8]; DF = v[10]; OF = v[11];
             NT = v[14];
             AC_flag = v[18]; ID = v[21];
-            if cur_cpl == 0 then IOPL = v[13..12];
-            if cur_cpl <= unsigned(IOPL) then IF_flag = v[9];
+            let cpl2 : bits(2) = to_bits(2, cur_cpl);
+            IOPL = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
+            IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
           },
           64 => {
             let v : qword = pop64();
@@ -1217,9 +1218,9 @@ function decode_execute() = {
             write_rflags(v);
             // RF always cleared; VIP, VIF, VM not modifiable
             RF = 0b0;
-            // IOPL modifiable only at CPL 0; IF modifiable at CPL <= IOPL
-            if cur_cpl != 0 then IOPL = old_iopl;
-            if cur_cpl > unsigned(old_iopl) then IF_flag = old_if;
+            let cpl2 : bits(2) = to_bits(2, cur_cpl);
+            IOPL = blend(IOPL, old_iopl, is_ne(cpl2, 0b00));
+            IF_flag = blend(IF_flag, old_if, is_gt_u(cpl2, old_iopl))
           },
           _ => (),
         }
