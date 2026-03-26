@@ -101,44 +101,20 @@ function has_error_code(vec) =
   vec == EXN_DF | vec == EXN_TS | vec == EXN_NP |
   vec == EXN_SS | vec == EXN_GP | vec == EXN_PF | vec == EXN_AC
 
-// Push a 64-bit value onto a stack at the given address.
-// Returns the new stack pointer.
-val push_to_stack : (qword, qword) -> qword
-function push_to_stack(rsp, value) = {
-  let new_rsp = rsp - 8;
-  write_mem(new_rsp, value);
-  new_rsp
+// Push a value onto a stack given as a linear address.
+// The caller is responsible for segmentation; this just decrements,
+// writes, and returns the new linear stack pointer.
+val push_to_stack : forall 'n, 8 <= 'n & 'n <= 64. (implicit('n), qword, bits('n)) -> qword
+function push_to_stack(n, sp, value) = {
+  let new_sp = sp - n / 8;
+  write_mem(new_sp, value);
+  new_sp
 }
 
 // Optional return address override for software interrupts (INT n, INT3).
 // When Some(addr), deliver_exception_inner pushes addr instead of RIP.
 // Reset to None() after each use.
 register sw_return_rip : option(qword) = None()
-
-// Push a 32-bit value onto a stack at the given address.
-// Returns the new stack pointer.
-val push_to_stack_32 : (qword, dword) -> qword
-function push_to_stack_32(esp, value) = {
-  let new_esp = esp - 4;
-  write_mem(new_esp, value);
-  new_esp
-}
-
-// Push a 16-bit value onto the stack given as a linear address.
-// Wraps the offset within 16 bits (SS.B=0) or 32 bits (SS.B=1)
-// before adding SS.base, to avoid writing below the segment base
-// when SP is near zero. Returns the new linear stack pointer.
-val push_to_stack_16 : (qword, word) -> qword
-function push_to_stack_16(sp, value) = {
-  let base = get_seg_base(SS);
-  let offset = sp - base;
-  let new_offset : qword = if SegCache[SS].seg_db == 0b1
-    then (offset - 2) & 0x00000000FFFFFFFF
-    else (offset - 2) & 0x000000000000FFFF;
-  let new_sp = base + new_offset;
-  write_mem(new_sp, value);
-  new_sp
-}
 
 // Read and parse an 8-byte IDT gate descriptor (protected mode).
 // SDM Vol.3A §6.11: offset[31:16] @ offset[15:0], selector, type/DPL/P.
@@ -219,26 +195,26 @@ function deliver_exception_inner_32(vec, err_code, software_int) = {
   if is_32bit then {
     // 32-bit gate: push 32-bit values
     if privilege_change then {
-      new_esp = push_to_stack_32(new_esp, zero_extend(old_ss));
-      new_esp = push_to_stack_32(new_esp, old_esp)
+      new_esp = push_to_stack(new_esp, zero_extend(32, old_ss));
+      new_esp = push_to_stack(new_esp, old_esp)
     };
-    new_esp = push_to_stack_32(new_esp, old_eflags);
-    new_esp = push_to_stack_32(new_esp, zero_extend(old_cs));
-    new_esp = push_to_stack_32(new_esp, old_eip);
+    new_esp = push_to_stack(new_esp, old_eflags);
+    new_esp = push_to_stack(new_esp, zero_extend(32, old_cs));
+    new_esp = push_to_stack(new_esp, old_eip);
     if ~(software_int) & has_error_code(vec) then {
-      new_esp = push_to_stack_32(new_esp, err_code)
+      new_esp = push_to_stack(new_esp, err_code)
     }
   } else {
     // 16-bit gate: push 16-bit values
     if privilege_change then {
-      new_esp = push_to_stack_16(new_esp, old_ss);
-      new_esp = push_to_stack_16(new_esp, old_esp[15..0])
+      new_esp = push_to_stack(new_esp, old_ss);
+      new_esp = push_to_stack(new_esp, old_esp[15..0])
     };
-    new_esp = push_to_stack_16(new_esp, old_eflags[15..0]);
-    new_esp = push_to_stack_16(new_esp, old_cs);
-    new_esp = push_to_stack_16(new_esp, old_eip[15..0]);
+    new_esp = push_to_stack(new_esp, old_eflags[15..0]);
+    new_esp = push_to_stack(new_esp, old_cs);
+    new_esp = push_to_stack(new_esp, old_eip[15..0]);
     if ~(software_int) & has_error_code(vec) then {
-      new_esp = push_to_stack_16(new_esp, err_code[15..0])
+      new_esp = push_to_stack(new_esp, err_code[15..0])
     }
   };
 
@@ -280,11 +256,9 @@ function deliver_exception_real(vec) = {
   let new_cs : word = phys_read(ivt_addr + 2);
 
   // Push FLAGS, CS, IP (16-bit each) onto SS:SP stack
-  var sp : qword = read_stack_ptr();
-  sp = push_to_stack_16(sp, old_flags);
-  sp = push_to_stack_16(sp, old_cs);
-  sp = push_to_stack_16(sp, old_ip);
-  write_stack_ptr(sp - get_seg_base(SS));
+  push(old_flags);
+  push(old_cs);
+  push(old_ip);
 
   // Load new CS:IP
   load_segment_register(CS, new_cs);
@@ -362,17 +336,17 @@ function deliver_exception_inner(vec, err_code, software_int) = {
   new_rsp = new_rsp & 0xFFFFFFFFFFFFFFF0;
 
   // 4. Push interrupt frame: SS, RSP, RFLAGS, CS, RIP
-  new_rsp = push_to_stack(new_rsp, zero_extend(old_ss));
+  new_rsp = push_to_stack(new_rsp, zero_extend(64, old_ss));
   new_rsp = push_to_stack(new_rsp, old_rsp);
   new_rsp = push_to_stack(new_rsp, old_rflags);
-  new_rsp = push_to_stack(new_rsp, zero_extend(old_cs));
+  new_rsp = push_to_stack(new_rsp, zero_extend(64, old_cs));
   new_rsp = push_to_stack(new_rsp, old_rip);
 
   // 5. Push error code if applicable.
   // SDM Vol.3 §6.13: "An error code is NOT pushed for exceptions that are
   // generated by software interrupts (INT n, INT3, or INT1)."
   if ~(software_int) & has_error_code(vec) then {
-    new_rsp = push_to_stack(new_rsp, zero_extend(err_code))
+    new_rsp = push_to_stack(new_rsp, zero_extend(64, err_code))
   };
 
   // 6. Update RSP

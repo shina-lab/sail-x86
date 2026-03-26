@@ -58,21 +58,12 @@ function write_mem_linear(n, addr, data) = {
 // Stack pointer width depends on SS.B: if SS.B=1 then ESP (32-bit),
 // if SS.B=0 then SP (16-bit). In long mode, always RSP (64-bit).
 
-// Read the stack pointer as a linear address (SS base + ESP/RSP/SP).
-val read_stack_ptr : unit -> qword
-function read_stack_ptr() =
-  if cur_mode == LongMode then v(64, RSP)
-  else get_seg_base(SS) + (
-    if SegCache[SS].seg_db == 0b1 then zero_extend(v(32, RSP))
-    else zero_extend(v(16, RSP))
-  )
-
-// Write the stack pointer (only the SP/ESP/RSP portion, not the base).
-val write_stack_ptr : qword -> unit
-function write_stack_ptr(v) =
-  if cur_mode == LongMode then v(RSP) = v
-  else if SegCache[SS].seg_db == 0b1 then v(RSP) = v[31..0]
-  else v(RSP) = v[15..0]
+// Stack address size: 64 in long mode, 32 if SS.B=1, 16 if SS.B=0.
+val stack_addr_size : unit -> {16, 32, 64}
+function stack_addr_size() =
+  if cur_mode == LongMode then 64
+  else if SegCache[SS].seg_db == 0b1 then 32
+  else 16
 
 // Stack push helper: decrement SP by the value's byte width, write
 // the value at the new SP, then commit the SP update — all as a
@@ -84,28 +75,20 @@ function write_stack_ptr(v) =
 // which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
 val push : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n), bits('n)) -> unit
 function push(n, v) = {
-  let nbytes = n / 8;
-  if cur_mode == LongMode then {
-    let sp = v(64, RSP) - nbytes;
-    write_mem(sp, v);
-    v(RSP) = sp
-  } else {
-    let base = get_seg_base(SS);
-    let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(v(32, RSP) - nbytes)
-      else zero_extend(v(16, RSP) - nbytes);
-    write_mem(base + new_off, v);
-    write_stack_ptr(new_off)
-  }
+  let sas = stack_addr_size();
+  let new_sp = v(sas, RSP) - n / 8;
+  write_mem(get_seg_base(SS) + zero_extend(new_sp), v);
+  v(RSP) = new_sp
 }
 
 // Stack pop helper: read 'n bits from SP, then advance SP — again
 // as a single logical operation.
 val pop : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n)) -> bits('n)
 function pop(n) = {
-  let sp = read_stack_ptr();
-  let x : bits('n) = read_mem(sp);
-  write_stack_ptr(sp + n / 8 - get_seg_base(SS));
+  let sas = stack_addr_size();
+  let sp = v(sas, RSP);
+  let x : bits('n) = read_mem(get_seg_base(SS) + zero_extend(sp));
+  v(RSP) = sp + n / 8;
   x
 }
 

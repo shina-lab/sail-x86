@@ -756,18 +756,11 @@ function decode_execute() = {
       96 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
-        let orig_sp = read_stack_ptr();
         match os {
-          32 => {
-            let sp_val : dword = orig_sp[31..0] - get_seg_base(SS)[31..0];
-            push(256, v(32, RAX) @ v(32, RCX) @ v(32, RDX) @ v(32, RBX) @
-                      sp_val @ v(32, RBP) @ v(32, RSI) @ v(32, RDI))
-          },
-          _ => {
-            let sp_val : word = orig_sp[15..0] - get_seg_base(SS)[15..0];
-            push(128, v(16, RAX) @ v(16, RCX) @ v(16, RDX) @ v(16, RBX) @
-                      sp_val @ v(16, RBP) @ v(16, RSI) @ v(16, RDI))
-          },
+          32 => push(256, v(32, RAX) @ v(32, RCX) @ v(32, RDX) @ v(32, RBX) @
+                          v(32, RSP) @ v(32, RBP) @ v(32, RSI) @ v(32, RDI)),
+          _  => push(128, v(16, RAX) @ v(16, RCX) @ v(16, RDX) @ v(16, RBX) @
+                          v(16, RSP) @ v(16, RBP) @ v(16, RSI) @ v(16, RDI)),
         }
       },
 
@@ -1423,8 +1416,8 @@ function decode_execute() = {
         };
         if nesting >= 1 then push(frame_temp);
         v(RBP) = frame_temp;
-        let sp = read_stack_ptr() - zero_extend(size);
-        write_stack_ptr(sp - get_seg_base(SS));
+        let sas = stack_addr_size();
+        v(RSP) = v(sas, RSP) - zero_extend(size);
       },
 
       // C9: LEAVE — RSP := RBP, then POP RBP
@@ -1433,12 +1426,8 @@ function decode_execute() = {
       // OperandSize (16/32/64) controls the width of the POP.
       201 => {
         let os = opsize_default64(pfx);
-        if cur_mode == LongMode then
-          v(RSP) = v(64, RBP)
-        else if SegCache[SS].seg_db == 0b1 then
-          v(RSP) = v(32, RBP)
-        else
-          v(RSP) = v(16, RBP);
+        let sas = stack_addr_size();
+        v(RSP) = v(sas, RBP);
         match os {
           16 => v(RBP) = pop(16),
           32 => v(RBP) = pop(32),
