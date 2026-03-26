@@ -11,7 +11,7 @@ val __read_mem : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
 val __write_mem : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
 
 // Slow-path for page-crossing accesses (each byte translated separately).
-val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n)) -> bits('n)
+val __mem_read_crossing : forall 'n, 'n > 0. (qword, int('n), PTAccess) -> bits('n)
 val __mem_write_crossing : forall 'n, 'n > 0. (qword, int('n), bits('n)) -> unit
 
 // Software TLB (purely an optimization; removing does not affect correctness).

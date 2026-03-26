@@ -144,7 +144,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 10: MOVUPS/MOVUPD/MOVSD/MOVSS xmm, xmm/m
     16 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       match mp {
@@ -187,7 +187,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 11: MOVUPS/MOVUPD/MOVSD/MOVSS xmm/m, xmm
     17 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       match mp {
@@ -234,7 +234,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 12: MOVLPS/MOVLPD/MOVSLDUP/MOVDDUP
     18 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       match mp {
@@ -285,7 +285,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 13: MOVLPS/MOVLPD m64, xmm
     19 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       rm_mem(64, dest) = read_xmm(xreg)[63..0]
@@ -293,7 +293,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 14: UNPCKLPS/UNPCKLPD
     20 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src : xmmword = match src {
@@ -317,7 +317,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 15: UNPCKHPS/UNPCKHPD
     21 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src : xmmword = match src {
@@ -341,7 +341,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 16: MOVHPS/MOVHPD/MOVSHDUP
     22 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       match mp {
@@ -376,7 +376,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     },
     // 0F 17: MOVHPS/MOVHPD m64, xmm
     23 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       rm_mem(64, dest) = read_xmm(xreg)[127..64]
@@ -384,7 +384,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 28: MOVAPS/MOVAPD xmm, xmm/m128
     40 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       match src {
@@ -405,7 +405,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 29: MOVAPS/MOVAPD xmm/m128, xmm
     41 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       match dest {
@@ -426,7 +426,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2A: CVTSI2SS/CVTSI2SD
     42 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let os = opsize(pfx);
@@ -485,7 +485,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2C: CVTTSS2SI/CVTTSD2SI
     44 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let reg = modrm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let os = opsize(pfx);
@@ -535,7 +535,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2D: CVTSS2SI/CVTSD2SI
     45 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let reg = modrm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let os = opsize(pfx);
@@ -585,7 +585,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2E: UCOMISS/UCOMISD
     46 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
@@ -629,7 +629,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2F: COMISS/COMISD
     47 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
@@ -673,7 +673,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 50: MOVMSKPS/MOVMSKPD
     80 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let reg = modrm_reg(modrm, pfx);
       let _ = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
@@ -694,7 +694,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     //   NONE=PS, 66=PD, F3=SS, F2=SD
     op if 81 <= op & op <= 95 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
@@ -1018,14 +1018,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F C6: SHUFPS/SHUFPD xmm, xmm/m128, imm8
     198 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
         RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(m) => read_mem(m),
       };
-      let imm = fetch_byte();
+      let imm = fetch(1);
       match mp {
         MP_NONE => {
           let d : xmmword = read_xmm(xreg);
@@ -1050,7 +1050,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         // 66 0F D6: MOVQ xmm1/m64, xmm2 — store low 64 bits
         MP_66 => {
-          let modrm = fetch_byte();
+          let modrm = fetch(1);
           let xreg = modrm_xmm_reg(modrm, pfx);
           let dest = modrm_rm(modrm, pfx);
           let data = read_xmm(xreg);
@@ -1064,7 +1064,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         // F2 0F D6: MOVDQ2Q mm, xmm — SDM: DEST := SRC[63:0]
         MP_F2 => {
-          let modrm = fetch_byte();
+          let modrm = fetch(1);
           let _ = modrm_rm(modrm, pfx);
           let src_xmm = modrm_xmm_rm(modrm, pfx);
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
@@ -1073,7 +1073,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         // F3 0F D6: MOVQ2DQ xmm, mm — SDM: DEST[63:0] := SRC; DEST[127:64] := 0
         MP_F3 => {
-          let modrm = fetch_byte();
+          let modrm = fetch(1);
           let _ = modrm_rm(modrm, pfx);
           let dst_xmm = modrm_xmm_reg(modrm, pfx);
           let mm_src : range(0, 7) = unsigned(modrm[2..0]);
@@ -1085,7 +1085,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F E6: CVTDQ2PD/CVTPD2DQ/CVTTPD2DQ
     230 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
@@ -1113,7 +1113,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2B: MOVNTPS/MOVNTPD m128, xmm
     43 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       if mp != MP_NONE & mp != MP_66 then raise_UD();
@@ -1123,7 +1123,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     124 => {
       if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
@@ -1149,7 +1149,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     125 => {
       if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
@@ -1174,7 +1174,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F C2: CMPPS/CMPPD/CMPSS/CMPSD xmm, xmm/m, imm8
     194 => {
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = match src {
@@ -1185,7 +1185,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           _     => read_mem(m),
         },
       };
-      let imm = fetch_byte();
+      let imm = fetch(1);
       match mp {
         MP_NONE => {
           let a : xmmword = read_xmm(xreg);
@@ -1225,7 +1225,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     208 => {
       if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
@@ -1335,7 +1335,7 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
   if mp != MP_66 then raise_UD();
-  let modrm = fetch_byte();
+  let modrm = fetch(1);
   let xreg = modrm_xmm_reg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
   let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
@@ -1368,14 +1368,14 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
   if mp != MP_66 then raise_UD();
-  let modrm = fetch_byte();
+  let modrm = fetch(1);
   let xreg = modrm_xmm_reg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
   match op {
     // SSE4.1 — round
     8 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let d0 : dword = __f32_round(src_xmm[31..0], imm);
       let d1 : dword = __f32_round(src_xmm[63..32], imm);
       let d2 : dword = __f32_round(src_xmm[95..64], imm);
@@ -1384,21 +1384,21 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     },
     9 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let lo : qword = __f64_round(src_xmm[63..0], imm);
       let hi : qword = __f64_round(src_xmm[127..64], imm);
       write_xmm_legacy(xreg, hi @ lo)
     },
     10 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       let lo : dword = __f32_round(src_xmm[31..0], imm);
       write_xmm_legacy(xreg, a[127..32] @ lo)
     },
     11 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       let lo : qword = __f64_round(src_xmm[63..0], imm);
       write_xmm_legacy(xreg, a[127..64] @ lo)
@@ -1407,7 +1407,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // SSE4.1 — blend
     12 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       write_xmm_legacy(xreg,
         blend(a[127..96], src_xmm[127..96], imm[3]) @
@@ -1417,7 +1417,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     },
     13 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       write_xmm_legacy(xreg,
         blend(a[127..64], src_xmm[127..64], imm[1]) @
@@ -1427,7 +1427,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // PEXTRW r/m16, xmm, imm8 (SSE4.1, 66 0F 3A 15)
     // SDM: ModRM:reg = source XMM, ModRM:r/m = dest (reg: zero-extend to 32, mem: 16 bits)
     21 => {
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let sel : range(0, 7) = unsigned(imm[2..0]);
       let w : word = extract_word_from_xmm(read_xmm(xreg), sel);
       match src {
@@ -1441,7 +1441,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
 
     // EXTRACTPS r/m32, xmm, imm8
     23 => {
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let data = extract_dword_from_xmm(read_xmm(xreg), imm);
       match src {
         RM_reg(_) => {
@@ -1455,7 +1455,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // INSERTPS xmm, xmm/m32, imm8
     // Memory form: reads 32 bits, imm8[7:6] forced to 0 (count_s ignored).
     33 => {
-      let imm = fetch_byte();
+      let imm = fetch(1);
       match src {
         RM_reg(_) => exec_insertps(xreg, read_xmm(modrm_xmm_rm(modrm, pfx)), imm),
         RM_mem(m) => {
@@ -1468,7 +1468,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // SSE4.1 — dot product
     64 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       let temp0 : dword = __f32_mul(a[31..0], src_xmm[31..0]) & sign_extend(imm[4]);
       let temp1 : dword = __f32_mul(a[63..32], src_xmm[63..32]) & sign_extend(imm[5]);
@@ -1485,7 +1485,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     },
     65 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let a : xmmword = read_xmm(xreg);
       let temp0 : qword = __f64_mul(a[63..0], src_xmm[63..0]) & sign_extend(imm[4]);
       let temp1 : qword = __f64_mul(a[127..64], src_xmm[127..64]) & sign_extend(imm[5]);

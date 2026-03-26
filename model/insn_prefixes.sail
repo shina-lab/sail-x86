@@ -11,9 +11,9 @@ function scan_prefixes() = {
   var done : bool = false;
 
   // Loop scanning prefix bytes. The 15-byte instruction length limit is
-  // enforced by fetch_byte(), which raises #GP(0) if exceeded.
+  // enforced by fetch(1), which raises #GP(0) if exceeded.
   while ~(done) do {
-    let b = fetch_byte();
+    let b : byte = fetch(1);
     let bv : range(0, 255) = unsigned(b);
 
     // Clear REX state on any legacy prefix (REX must be last)

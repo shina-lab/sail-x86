@@ -24,9 +24,6 @@ function phys_read(n, addr) = __read_mem(a20_mask(addr), n)
 val phys_write : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
 function phys_write(n, addr, data) = __write_mem(a20_mask(addr), n, data)
 
-// Access type for page table permission checks.
-enum PTAccess = { PT_Read, PT_Write, PT_Execute }
-
 // Build a #PF error code from access type and fault cause.
 val mk_pf_error : (PTAccess, bool, bool) -> dword
 function mk_pf_error(access, present, reserved) = {

@@ -65,11 +65,11 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
       decode_vex2(b1)
     } else {
       // C4 = 3-byte VEX
-      let b2 = fetch_byte();
+      let b2 = fetch(1);
       decode_vex3(b1, b2)
     };
 
-  let opcode = fetch_byte();
+  let opcode = fetch(1);
 
   match map {
     1 => dispatch_vex_0f(opcode, pfx),
@@ -82,6 +82,6 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
 val dispatch_vex : byte -> unit
 function dispatch_vex(first_byte) = {
   if ~(avx_enabled()) then raise_UD();
-  let b1 = fetch_byte();
+  let b1 = fetch(1);
   dispatch_vex_with_byte2(first_byte, b1)
 }

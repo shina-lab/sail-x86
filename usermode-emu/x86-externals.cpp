@@ -38,7 +38,7 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 
 // Page-crossing read/write — in user mode, paging is disabled so these
 // are identical to the normal read/write (virtual = physical).
-void Model::z__mem_read_crossing(lbits *rop, u64 addr, sail_int n) {
+void Model::z__mem_read_crossing(lbits *rop, u64 addr, sail_int n, enum zPTAccess access) {
   z__read_mem(rop, addr, n);
 }
 

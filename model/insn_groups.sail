@@ -124,7 +124,7 @@ function dispatch_group3_byte(reg_field, dest) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m8, imm8
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
-    let imm : byte = fetch_byte();
+    let imm : byte = fetch(1);
     update_flags_logic(v(8, dest) & imm)
   } else {
     let x = v(8, dest);
@@ -153,7 +153,7 @@ function dispatch_group3(reg_field, dest, os) = {
   if reg_field == 0 | reg_field == 1 then {
     // TEST r/m, imm (Iz)
     // Fetch imm BEFORE reading dest so decode_pos is final for RIP-relative fixup
-    let imm = fetch_imm_z(os);
+    let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
     update_flags_logic(v(os, dest) & imm[(os - 1) .. 0])
   } else {
     let x = v(os, dest);

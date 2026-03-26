@@ -121,13 +121,13 @@ function dispatch_alu_opcode(op, pfx) = {
     },
     // OP AL, imm8
     4 => {
-      let imm : byte = fetch_byte();
+      let imm : byte = fetch(1);
       exec_alu_acc_imm(alu_op, imm, 8, pfx)
     },
     // OP rAX, imm (Iz: 16 or 32 bit, sign-extended)
     5 => {
       let os = opsize(pfx);
-      let imm = fetch_imm_z(os);
+      let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
       exec_alu_acc_imm(alu_op, imm[(os - 1) .. 0], os, pfx)
     },
     _ => raise_UD(),  // unreachable
@@ -301,7 +301,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
   match op {
     // 0F 38: 3-byte escape (SSSE3/SSE4/AES-NI)
     56 => {
-      let opcode3 = fetch_byte();
+      let opcode3 = fetch(1);
       let op3 : range(0, 255) = unsigned(opcode3);
       if op3 == 246 then {
         // ADCX (66) / ADOX (F3)
@@ -394,7 +394,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
-        let modrm = fetch_byte();
+        let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
@@ -422,7 +422,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
     // 0F 3A: 3-byte escape (SSE4/AES-NI with imm8)
     58 => {
       if sse_em_blocked() then raise_UD();
-      let opcode3 = fetch_byte();
+      let opcode3 = fetch(1);
       let op3 : range(0, 255) = unsigned(opcode3);
       match op3 {
         // SSE4.1 FP: ROUNDPS/PD/SS/SD, BLENDPS/PD, PEXTRW, EXTRACTPS, INSERTPS, DPPS, DPPD
@@ -433,11 +433,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         204 if get_mandatory_prefix(pfx) == MP_NONE => {
           // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
           if ~(has_sha) then raise_UD();
-          let modrm = fetch_byte();
+          let modrm = fetch(1);
           let xreg = modrm_xmm_reg(modrm, pfx);
           let src = modrm_rm(modrm, pfx);
           let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-          let imm : byte = fetch_byte();
+          let imm : byte = fetch(1);
           write_xmm_legacy(xreg, __sha1rnds4(read_xmm(xreg), src_xmm, imm))
         },
         _  => {
@@ -610,7 +610,7 @@ function decode_execute() = {
 
       // 0F: Two-byte escape
       15 => {
-        let opcode2 = fetch_byte();
+        let opcode2 = fetch(1);
         dispatch_opcode_2byte(opcode2, pfx)
       },
 
@@ -825,7 +825,7 @@ function decode_execute() = {
         if cur_mode == LongMode then {
           dispatch_evex()
         } else {
-          let modrm = fetch_byte();
+          let modrm = fetch(1);
           let src = modrm_rm(modrm, pfx);
           match src {
             RM_reg(_) => raise_UD(),  // BOUND requires memory operand
@@ -857,7 +857,7 @@ function decode_execute() = {
       // 68: PUSH imm16/32 (d64, Iz)
       104 => {
         let os = opsize_default64(pfx);
-        let imm = fetch_imm_z(os);
+        let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
         exec_push_imm(imm[(os - 1) .. 0])
       },
 
@@ -866,7 +866,7 @@ function decode_execute() = {
         let 'os = opsize(pfx);
         let (reg, src) = fetch_modrm(pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
-        let imm = fetch_imm_z(os);
+        let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
         let src_val = v(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
@@ -879,7 +879,7 @@ function decode_execute() = {
       // 6A: PUSH imm8 (d64, sign-extended)
       106 => {
         let os = opsize_default64(pfx);
-        let imm = fetch_imm8_sx();
+        let imm : qword = sign_extend(fetch(1));
         exec_push_imm(imm[(os - 1) .. 0])
       },
 
@@ -888,7 +888,7 @@ function decode_execute() = {
         let 'os = opsize(pfx);
         let (reg, src) = fetch_modrm(pfx);
         // Fetch imm BEFORE reading src so decode_pos is final for RIP-relative fixup
-        let imm = fetch_imm8_sx();
+        let imm : qword = sign_extend(fetch(1));
         let src_val = v(os, src);
         let product : int = signed(src_val[os - 1 .. 0]) * signed(imm[os - 1 .. 0]);
         let result : qword = to_bits_truncate(product);
@@ -928,7 +928,7 @@ function decode_execute() = {
       // 70-7F: Jcc rel8 (f64)
       op if 112 <= op & op <= 127 => {
         let cc : cc_idx = op - 112;
-        let offset = fetch_rel8();
+        let offset : qword = sign_extend(fetch(1));
         if eval_cc(cc) == 0b1 then {
           let os = opsize_forced64(pfx);
           next_rip = Some(truncate_rip(decode_pos + offset, os));
@@ -938,7 +938,7 @@ function decode_execute() = {
       // 80: Group 1 — ALU r/m8, imm8
       128 => {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        let imm : byte = fetch_byte();
+        let imm : byte = fetch(1);
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
         exec_alu_rm_imm(alu_op, dest, imm, 8)
@@ -948,7 +948,7 @@ function decode_execute() = {
       129 => {
         let os = opsize(pfx);
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        let imm = fetch_imm_z(os);
+        let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
         exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os)
@@ -958,7 +958,7 @@ function decode_execute() = {
       131 => {
         let os = opsize(pfx);
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        let imm = fetch_imm8_sx();
+        let imm : qword = sign_extend(fetch(1));
         let alu_op = group1_op(reg_field);
         check_lock_rm(pfx, dest, alu_op == ALU_CMP);
         exec_alu_rm_imm(alu_op, dest, imm[(os - 1) .. 0], os)
@@ -1070,7 +1070,7 @@ function decode_execute() = {
       // a destination operand in memory, the POP instruction computes the
       // effective address of the operand after it increments the RSP register."
       143 => {
-        let modrm = fetch_byte();
+        let modrm = fetch(1);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         if reg_field == 0 then {
           let os = opsize_default64(pfx);
@@ -1132,12 +1132,24 @@ function decode_execute() = {
           raise_UD()
         } else {
           let os = opsize(pfx);
-          let offset : qword = match os {
-            16 => fetch_imm_v(16),
-            _  => fetch_imm_v(32),
-          };
-          let selector : word = fetch_imm16();
-          exec_far_call(selector, offset, os)
+          let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
+          let selector : word = fetch(2);
+          match cur_mode {
+            RealMode => {
+              // Push old CS:IP/EIP
+              match os {
+                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
+              };
+              load_segment_register(CS, selector);
+              let target : qword = match os {
+                16 => zero_extend(offset[15..0]),
+                _  => zero_extend(offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_call_protected(selector, offset, os),
+          }
         }
       },
 
@@ -1210,27 +1222,27 @@ function decode_execute() = {
 
       // A0: MOV AL, moffs8
       160 => {
-        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
         v(8, RAX) = read_mem(addr);
       },
 
       // A1: MOV rAX, moffs
       161 => {
         let os = opsize(pfx);
-        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
         v(os, RAX) = read_mem(addr)
       },
 
       // A2: MOV moffs8, AL
       162 => {
-        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
         write_mem(addr, v(8, RAX))
       },
 
       // A3: MOV moffs, rAX
       163 => {
         let os = opsize(pfx);
-        let addr = apply_segment(fetch_moffs(pfx), pfx, DS);
+        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
         write_mem(addr, v(os, RAX))
       },
 
@@ -1268,7 +1280,7 @@ function decode_execute() = {
 
       // A8: TEST AL, imm8
       168 => {
-        let imm : qword = zero_extend(fetch_byte());
+        let imm : qword = zero_extend(fetch(1));
         let a : qword = zero_extend(v(8, RAX));
         let result = a & imm;
         update_flags_logic(result[7..0])
@@ -1277,7 +1289,7 @@ function decode_execute() = {
       // A9: TEST rAX, imm (Iz)
       169 => {
         let os = opsize(pfx);
-        let imm = fetch_imm_z(os);
+        let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
         let a = v(os, RAX);
         let result = a & imm[(os - 1) .. 0];
         update_flags_logic(result)
@@ -1334,7 +1346,7 @@ function decode_execute() = {
       op if 176 <= op & op <= 183 => {
         let reg_field : range(0, 7) = op - 176;
         let reg = struct { gpr_idx = unsigned(pfx.rex_b @ to_bits(3, reg_field)), has_rex = pfx.has_rex } : GPRRef;
-        let imm = fetch_byte();
+        let imm = fetch(1);
         v(reg) = imm
       },
 
@@ -1343,14 +1355,13 @@ function decode_execute() = {
         let reg_field : range(0, 7) = op - 184;
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = opsize(pfx);
-        let imm = fetch_imm_v(os);
-        v(reg) = imm[(os - 1) .. 0]
+        v(reg) = fetch(os / 8)
       },
 
       // C0: Group 2 — shift r/m8 by imm8
       192 => {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        let count = fetch_byte();
+        let count = fetch(1);
         exec_shift_rm(reg_field, dest, count, 8)
       },
 
@@ -1358,7 +1369,7 @@ function decode_execute() = {
       193 => {
         let os = opsize(pfx);
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        let count = fetch_byte();
+        let count = fetch(1);
         exec_shift_rm(reg_field, dest, count, os)
       },
 
@@ -1366,7 +1377,7 @@ function decode_execute() = {
       // SDM: In 64-bit mode, operand size = stack-address size = 64.
       // 66h prefix is ignored; 16/32-bit forms are not encodable.
       194 => {
-        let imm = fetch_imm16();
+        let imm = fetch(2);
         let os = opsize_forced64(pfx);
         next_rip = Some(zero_extend(pop(os)));
         v(64, RSP) = v(RSP) + zero_extend(imm)
@@ -1388,7 +1399,7 @@ function decode_execute() = {
           // Peek at second byte to distinguish VEX from LES.
           // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
           // mod≠11 (memory operand) is a valid LES encoding.
-          let byte2 = fetch_byte();
+          let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             // mod=11: VEX prefix in non-64-bit mode
             dispatch_vex_with_byte2(0xC4, byte2)
@@ -1417,7 +1428,7 @@ function decode_execute() = {
       197 => {
         if cur_mode == LongMode then dispatch_vex(0xC5)
         else {
-          let byte2 = fetch_byte();
+          let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             dispatch_vex_with_byte2(0xC5, byte2)
           } else {
@@ -1443,7 +1454,7 @@ function decode_execute() = {
       198 => {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
         if reg_field == 0 then {
-          let imm : byte = fetch_byte();
+          let imm : byte = fetch(1);
           v(dest) = imm
         } else {
           raise_UD()
@@ -1455,7 +1466,7 @@ function decode_execute() = {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
         if reg_field == 0 then {
           let os = opsize(pfx);
-          let imm = fetch_imm_z(os);
+          let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
           v(dest) = imm[(os - 1) .. 0]
         } else {
           raise_UD()
@@ -1464,8 +1475,8 @@ function decode_execute() = {
 
       // C8: ENTER imm16, imm8
       200 => {
-        let size = fetch_imm16();
-        let level = fetch_byte();
+        let size = fetch(2);
+        let level = fetch(1);
         let os = opsize_default64(pfx);
         let nesting : range(0, 31) = unsigned(level) % 32;
         match os {
@@ -1520,7 +1531,7 @@ function decode_execute() = {
       // In 64-bit mode, default operand size for far RET is 32; REX.W makes it 64.
       // Same-privilege: pop RIP, CS only.
       // Outer-privilege (RPL of new CS > CPL): also pop RSP, SS. (SDM Vol.2 RET)
-      202 => exec_retf(pfx, Some(fetch_imm16())),
+      202 => exec_retf(pfx, Some(fetch(2))),
       203 => exec_retf(pfx, None()),
 
       // CC: INT 3 — trap (saved RIP points past the INT3 byte)
@@ -1538,7 +1549,7 @@ function decode_execute() = {
       // CD: INT imm8
       // SDM: software interrupt, no error code pushed, gate DPL check applies.
       205 => {
-        let imm = fetch_byte();
+        let imm = fetch(1);
         if system_mode then {
           sw_return_rip = Some(decode_pos);
           deliver_exception(unsigned(imm), 0x00000000, true);
@@ -1688,7 +1699,7 @@ function decode_execute() = {
       // #DE if imm8 == 0.
       212 => {
         if cur_mode == LongMode then raise_UD();
-        let imm = fetch_byte();
+        let imm = fetch(1);
         if imm == 0x00 then raise_DE();
         let temp_al : byte = v(RAX);
         let divisor = unsigned(imm);
@@ -1701,7 +1712,7 @@ function decode_execute() = {
       // #UD in 64-bit mode. D5 ib: AL := (AL + AH * imm8) AND FFH; AH := 0.
       213 => {
         if cur_mode == LongMode then raise_UD();
-        let imm = fetch_byte();
+        let imm = fetch(1);
         let temp_al = v(8, RAX);
         let temp_ah = v(16, RAX)[15..8];
         let result : byte = to_bits(8, (unsigned(temp_al) + unsigned(temp_ah) * unsigned(imm)) % 256);
@@ -1728,21 +1739,21 @@ function decode_execute() = {
 
       // E0: LOOPNE/LOOPNZ rel8
       224 => {
-        let rel = fetch_byte();
+        let rel = fetch(1);
         let asz = get_address_size(pfx);
         exec_loop(rel, LOOP_ne, asz)
       },
 
       // E1: LOOPE/LOOPZ rel8
       225 => {
-        let rel = fetch_byte();
+        let rel = fetch(1);
         let asz = get_address_size(pfx);
         exec_loop(rel, LOOP_e, asz)
       },
 
       // E2: LOOP rel8
       226 => {
-        let rel = fetch_byte();
+        let rel = fetch(1);
         let asz = get_address_size(pfx);
         exec_loop(rel, LOOP_always, asz)
       },
@@ -1750,7 +1761,7 @@ function decode_execute() = {
       // E3: JCXZ/JECXZ/JRCXZ rel8
       // Address size selects CX (16), ECX (32), or RCX (64).
       227 => {
-        let rel = fetch_rel8();
+        let rel : qword = sign_extend(fetch(1));
         let count_reg : qword = zero_extend(v(get_address_size(pfx), RCX));
         if count_reg == zeros() then {
           let os = opsize_forced64(pfx);
@@ -1761,20 +1772,20 @@ function decode_execute() = {
       },
 
       // E4: IN AL, imm8
-      228 => exec_in(zero_extend(fetch_byte()), 8),
+      228 => exec_in(zero_extend(fetch(1)), 8),
 
       // E5: IN eAX, imm8
-      229 => exec_in(zero_extend(fetch_byte()), opsize(pfx)),
+      229 => exec_in(zero_extend(fetch(1)), opsize(pfx)),
 
       // E6: OUT imm8, AL
       230 => {
-        let port : word = zero_extend(fetch_byte());
+        let port : word = zero_extend(fetch(1));
         exec_out(port, 8)
       },
 
       // E7: OUT imm8, eAX
       231 => {
-        let port : word = zero_extend(fetch_byte());
+        let port : word = zero_extend(fetch(1));
         let os = opsize(pfx);
         exec_out(port, os)
       },
@@ -1806,19 +1817,27 @@ function decode_execute() = {
           raise_UD()
         } else {
           let os = opsize(pfx);
-          let offset : qword = match os {
-            16 => fetch_imm_v(16),
-            _  => fetch_imm_v(32),
-          };
-          let selector : word = fetch_imm16();
-          exec_far_jmp(selector, offset, os)
+          let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
+          let selector : word = fetch(2);
+          match cur_mode {
+            RealMode => {
+              load_segment_register(CS, selector);
+              let target : qword = match os {
+                16 => zero_extend(offset[15..0]),
+                _  => zero_extend(offset[31..0]),
+              };
+              next_rip = Some(target)
+            },
+            _ => exec_far_jmp_protected(selector, offset, os),
+          }
         }
       },
 
       // EB: JMP rel8 (f64)
       235 => {
         let os = opsize_forced64(pfx);
-        next_rip = Some(truncate_rip(decode_pos + fetch_rel8(), os))
+        let rel : qword = sign_extend(fetch(1));
+        next_rip = Some(truncate_rip(decode_pos + rel, os))
       },
 
       // EC: IN AL, DX

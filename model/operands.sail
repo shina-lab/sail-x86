@@ -128,25 +128,18 @@ enum MandatoryPrefix = {
 // can access it for control-flow instructions)
 // =========================================================================
 
-// Read a byte from memory for instruction fetch.
+// Fetch n bytes from the instruction stream. Returns bits(8*n).
 // Uses PT_Execute access type for paging permission checks (NX bit).
-val ifetch_read8 : qword -> byte
-function ifetch_read8(addr) = {
-  let paddr = translate_addr(addr, PT_Execute);
-  phys_read(paddr)
-}
-
-val fetch_byte : unit -> byte
-function fetch_byte() = {
-  // x86 instructions are at most 15 bytes. Raise #GP(0) if exceeded.
-  if unsigned(decode_pos) - unsigned(insn_start) >= 15 then {
+// x86 instructions are at most 15 bytes; raises #GP(0) if exceeded.
+val fetch : forall 'n, 'n > 0. int('n) -> bits(8 * 'n)
+function fetch(n) = {
+  if unsigned(decode_pos) - unsigned(insn_start) + n > 15 then {
     throw(Fault(EXN_GP, 0x00000000))
   };
-  // In non-long mode, add CS base to form the linear address for fetch.
-  // decode_pos holds the instruction pointer (IP/EIP), not the linear address.
-  let b = ifetch_read8(decode_pos + get_seg_base(CS));
-  decode_pos = decode_pos + 1;
-  b
+  let addr = decode_pos + get_seg_base(CS);
+  let result : bits(8 * 'n) = read_mem_linear(addr, PT_Execute);
+  decode_pos = decode_pos + n;
+  result
 }
 
 // =========================================================================
@@ -288,90 +281,6 @@ function write_memref_val(os, m, x) = write_mem(m, x)
 
 overload v = {read_memref_val, write_memref_val, read_rm_val, write_rm_val}
 
-// =========================================================================
-// Immediate fetch helpers
-// =========================================================================
-
-// Fetch a sign-extended immediate of size Ib (1 byte) -> qword.
-val fetch_imm8_sx : unit -> qword
-function fetch_imm8_sx() = sign_extend(fetch_byte())
-
-// Fetch an immediate Iz: 16-bit if opsize=16, else 32-bit, sign-extended to 64.
-val fetch_imm_z : {16, 32, 64} -> qword
-function fetch_imm_z(os) = match os {
-  16 => {
-    let lo = fetch_byte();
-    let hi = fetch_byte();
-    sign_extend(hi @ lo)
-  },
-  _ => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    let b2 = fetch_byte();
-    let b3 = fetch_byte();
-    sign_extend(b3 @ b2 @ b1 @ b0)
-  },
-}
-
-// Fetch an immediate Iv: matches operand size. 64-bit only for MOV reg,imm with REX.W.
-val fetch_imm_v : operand_size -> qword
-function fetch_imm_v(os) = match os {
-  8  => zero_extend(fetch_byte()),
-  16 => {
-    let lo = fetch_byte();
-    let hi = fetch_byte();
-    zero_extend(hi @ lo)
-  },
-  32 => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    let b2 = fetch_byte();
-    let b3 = fetch_byte();
-    zero_extend(b3 @ b2 @ b1 @ b0)
-  },
-  64 => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    let b2 = fetch_byte();
-    let b3 = fetch_byte();
-    let b4 = fetch_byte();
-    let b5 = fetch_byte();
-    let b6 = fetch_byte();
-    let b7 = fetch_byte();
-    b7 @ b6 @ b5 @ b4 @ b3 @ b2 @ b1 @ b0
-  },
-}
-
-// Fetch a 16-bit immediate (always 2 bytes, e.g. for RET imm16).
-val fetch_imm16 : unit -> word
-function fetch_imm16() = {
-  let lo = fetch_byte();
-  let hi = fetch_byte();
-  hi @ lo
-}
-
-// Fetch a 32-bit sign-extended relative offset.
-val fetch_rel32 : unit -> qword
-function fetch_rel32() = {
-  let b0 = fetch_byte();
-  let b1 = fetch_byte();
-  let b2 = fetch_byte();
-  let b3 = fetch_byte();
-  sign_extend(b3 @ b2 @ b1 @ b0)
-}
-
-// Fetch a 16-bit sign-extended relative offset.
-val fetch_rel16 : unit -> qword
-function fetch_rel16() = {
-  let b0 = fetch_byte();
-  let b1 = fetch_byte();
-  sign_extend(b1 @ b0)
-}
-
-// Fetch an 8-bit sign-extended relative offset.
-val fetch_rel8 : unit -> qword
-function fetch_rel8() = sign_extend(fetch_byte())
-
 // Fetch a relative offset sized by effective operand size (rel16 or rel32).
 // SDM Vol.2: for near CALL/JMP/Jcc, the displacement size matches the
 // operand-size attribute: 16-bit in 16-bit mode, 32-bit in 32-bit mode.
@@ -382,7 +291,7 @@ function fetch_rel_os(pfx) = {
   let use_32 : bool = if cur_mode == LongMode then true
     else if get_cs_db() == 0b1 then ~(pfx.has_opsize)
     else pfx.has_opsize;
-  if use_32 then fetch_rel32() else fetch_rel16()
+  if use_32 then sign_extend(fetch(4)) else sign_extend(fetch(2))
 }
 
 // Truncate a branch target to the effective operand size.
@@ -414,36 +323,6 @@ function get_address_size(pfx) =
   } else {
     if pfx.has_adsize == 0b1 then 32 else 16
   }
-
-// Fetch a full moffs (memory offset) address.
-// Size depends on effective address size: 64 → 8 bytes, 32 → 4 bytes,
-// 16 → 2 bytes.
-val fetch_moffs : Prefixes -> qword
-function fetch_moffs(pfx) = match get_address_size(pfx) {
-  16 => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    zero_extend(b1 @ b0)
-  },
-  32 => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    let b2 = fetch_byte();
-    let b3 = fetch_byte();
-    zero_extend(b3 @ b2 @ b1 @ b0)
-  },
-  64 => {
-    let b0 = fetch_byte();
-    let b1 = fetch_byte();
-    let b2 = fetch_byte();
-    let b3 = fetch_byte();
-    let b4 = fetch_byte();
-    let b5 = fetch_byte();
-    let b6 = fetch_byte();
-    let b7 = fetch_byte();
-    b7 @ b6 @ b5 @ b4 @ b3 @ b2 @ b1 @ b0
-  },
-}
 
 // =========================================================================
 // SIMD register index helpers (extending 3-bit fields with REX bits)

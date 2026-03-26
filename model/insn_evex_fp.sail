@@ -832,7 +832,7 @@ function dispatch_evex_fp(op, pfx) = {
   match op {
   // 0F 10: VMOVUPS/VMOVUPD (EVEX load)
   16 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src2 = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src2 { RM_mem(_) => true, _ => false };
@@ -912,7 +912,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 11: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (EVEX store)
   17 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = evex_reg_idx(modrm, pfx);
     let dest = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match mp {
@@ -988,7 +988,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 12: VMOVLPS (NP,mem) / VMOVHLPS (NP,reg) / VMOVLPD (66,mem) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   // 0F 12: VMOVLPS (NP,mem) / VMOVHLPS (NP,reg) / VMOVLPD (66,mem) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   18 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
       // VMOVLPS (mem) or VMOVHLPS (reg) — XMM only
@@ -1057,7 +1057,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 13: VMOVLPS (NP,store) / VMOVLPD (66,store) — XMM only, m64
   // 0F 13: VMOVLPS (NP,store) / VMOVLPD (66,store) — XMM only, m64
   19 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     if pfx.evex_ll != 0 then raise_UD();
     let dest = modrm_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
@@ -1067,7 +1067,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
   // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
   20 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1122,7 +1122,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 15: VUNPCKHPS (NP,W0) / VUNPCKHPD (66,W1)
   // 0F 15: VUNPCKHPS (NP,W0) / VUNPCKHPD (66,W1)
   21 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1177,7 +1177,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 16: VMOVHPS (NP,mem) / VMOVLHPS (NP,reg) / VMOVHPD (66,mem) / VMOVSHDUP (F3)
   // 0F 16: VMOVHPS (NP,mem) / VMOVLHPS (NP,reg) / VMOVHPD (66,mem) / VMOVSHDUP (F3)
   22 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
       // VMOVHPS (mem) or VMOVLHPS (reg) — XMM only
@@ -1227,7 +1227,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 17: VMOVHPS (NP,store) / VMOVHPD (66,store) — XMM only, m64
   // 0F 17: VMOVHPS (NP,store) / VMOVHPD (66,store) — XMM only, m64
   23 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     if pfx.evex_ll != 0 then raise_UD();
     let dest = modrm_rm_evex(modrm, pfx, 8);
     let src = read_xmm(evex_reg_idx(modrm, pfx));
@@ -1237,7 +1237,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
   40 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src2 = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match pfx.evex_ll {
@@ -1263,7 +1263,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 29: VMOVAPS/VMOVAPD (EVEX store)
   // 0F 29: VMOVAPS/VMOVAPD (EVEX store)
   41 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = evex_reg_idx(modrm, pfx);
     let dest = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match dest {
@@ -1290,7 +1290,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2A: VCVTSI2SS (F3) / VCVTSI2SD (F2) — scalar, GPR/mem to XMM
   // F3: {er}, F2/W1: {er}
   42 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1351,7 +1351,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2C: VCVTTSS2SI (F3) / VCVTTSD2SI (F2) — scalar, XMM/mem to GPR (truncate)
   // Both support {sae}.
   44 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst_gpr = modrm_reg(modrm, pfx);
     let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
     match mp {
@@ -1392,7 +1392,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2D: VCVTSS2SI (F3) / VCVTSD2SI (F2) — scalar, XMM/mem to GPR (round)
   // Both support {er}.
   45 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst_gpr = modrm_reg(modrm, pfx);
     let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
     match mp {
@@ -1433,7 +1433,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2E: VUCOMISS (NP,W0) / VUCOMISD (66,W1) — compare scalars, set EFLAGS
   // 0F 2E: VUCOMISS (NP,W0) / VUCOMISD (66,W1) — compare scalars, set EFLAGS
   46 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
       // VUCOMISS xmm1, xmm2/m32
@@ -1481,7 +1481,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2F: VCOMISS (NP,W0) / VCOMISD (66,W1) — ordered compare scalars, set EFLAGS
   // 0F 2F: VCOMISS (NP,W0) / VCOMISD (66,W1) — ordered compare scalars, set EFLAGS
   47 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
       // VCOMISS xmm1, xmm2/m32
@@ -1528,7 +1528,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 58: VADDPS/VADDPD (EVEX) — supports {er} at 512-bit
   88 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1602,7 +1602,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 59: VMULPS/VMULPD (EVEX) — supports {er} at 512-bit
   89 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1653,7 +1653,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 5A: VCVTPS2PD (NP,W0) / VCVTPD2PS (66,W1) / VCVTSS2SD (F3) / VCVTSD2SS (F2)
   // NP: {sae}, 66: {er}, F3: {sae}, F2: {er}
   90 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
       // VCVTPS2PD: f32→f64, source is half-width — supports {sae}
@@ -1752,7 +1752,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 5B: VCVTDQ2PS (NP,W0) / VCVTQQ2PS (NP,W1) / VCVTPS2DQ (66,W0) / VCVTTPS2DQ (F3,W0)
   // VCVTDQ2PS, VCVTQQ2PS, VCVTPS2DQ support {er} at 512-bit
   91 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1796,7 +1796,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 5C: VSUBPS/VSUBPD (EVEX) — supports {er} at 512-bit
   92 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1846,7 +1846,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 54: VANDPS/PD / 0F 55: VANDNPS/PD / 0F 56: VORPS/PD / 0F 57: VXORPS/PD (EVEX bitwise)
   op if 84 <= op & op <= 87 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -1916,7 +1916,7 @@ function dispatch_evex_fp(op, pfx) = {
   // All packed forms support {sae}; scalar forms support {sae} too.
   // When EVEX.b=1 reg-reg, LL encodes RC but vector length is forced to 512-bit.
   120 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     match mp {
       // NP,W0=VCVTTPS2UDQ, NP,W1=VCVTTPD2UDQ
       MP_NONE => {
@@ -2000,7 +2000,7 @@ function dispatch_evex_fp(op, pfx) = {
   //        / VCVTPS2UQQ (66,W0) / VCVTPD2UQQ (66,W1)
   // All packed forms support {er}; scalar forms support {er} too.
   121 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     match mp {
       // NP,W0=VCVTPS2UDQ, NP,W1=VCVTPD2UDQ — supports {er}
       MP_NONE => {
@@ -2075,7 +2075,7 @@ function dispatch_evex_fp(op, pfx) = {
   //        / VCVTUDQ2PD (F3,W0) / VCVTUQQ2PD (F3,W1)
   // 66: {sae}, F2: {er}, F3/W1 (VCVTUQQ2PD): {er}
   122 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2131,7 +2131,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 7B: VCVTPS2QQ (66,W0) / VCVTPD2QQ (66,W1) / VCVTUSI2SS (F3) / VCVTUSI2SD (F2)
   // 66: {er}, F3: {er}, F2/W1: {er}
   123 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     match mp {
       // VCVTPS2QQ (W0) / VCVTPD2QQ (W1) — supports {er}
       MP_66 => {
@@ -2199,7 +2199,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 6F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX load)
   // 0F 51: VSQRTPS (NP) / VSQRTPD (66) — supports {er} at 512-bit
   81 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2249,7 +2249,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 5D: VMINPS/PD/SS/SD (EVEX)
   93 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2297,7 +2297,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 5E: VDIVPS (NP) / VDIVPD (66) — supports {er} at 512-bit
   94 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2347,7 +2347,7 @@ function dispatch_evex_fp(op, pfx) = {
 
   // 0F 5F: VMAXPS/PD/SS/SD (EVEX)
   95 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2396,7 +2396,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 60: VPUNPCKLBW (66, EVEX) [BW]
   // 0F C2: VCMPPS (NP,W0) / VCMPPD (66,W1) / VCMPSS (F3) / VCMPSD (F2) → kmask
   194 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst_k : range(0, 7) = evex_reg_idx(modrm, pfx) % 8;
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
@@ -2404,7 +2404,7 @@ function dispatch_evex_fp(op, pfx) = {
     match mp {
       // VCMPPS → k
       MP_NONE => {
-        let imm = fetch_byte();
+        let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         match pfx.evex_ll {
           0 => {
@@ -2431,7 +2431,7 @@ function dispatch_evex_fp(op, pfx) = {
       },
       // VCMPPD → k
       MP_66 => {
-        let imm = fetch_byte();
+        let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         match pfx.evex_ll {
           0 => {
@@ -2459,7 +2459,7 @@ function dispatch_evex_fp(op, pfx) = {
       // VCMPSS → k (scalar, bit 0 only)
       MP_F3 => {
         let rm2 = modrm_rm_evex(modrm, pfx, 4);
-        let imm = fetch_byte();
+        let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         let src1_f32 = read_xmm(src1_idx)[31..0];
         let src2_f32 : dword = match rm2 {
@@ -2471,7 +2471,7 @@ function dispatch_evex_fp(op, pfx) = {
       // VCMPSD → k (scalar, bit 0 only)
       MP_F2 => {
         let rm2 = modrm_rm_evex(modrm, pfx, 8);
-        let imm = fetch_byte();
+        let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         let src1_f64 = read_xmm(src1_idx)[63..0];
         let src2_f64 : qword = match rm2 {
@@ -2486,12 +2486,12 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F C6: VSHUFPS (NP,W0) / VSHUFPD (66,W1)
   // 0F C6: VSHUFPS (NP,W0) / VSHUFPD (66,W1)
   198 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;
-    let imm = fetch_byte();
+    let imm = fetch(1);
     match mp {
       // VSHUFPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512, imm8
       MP_NONE => {
@@ -2543,7 +2543,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F E6: VCVTDQ2PD (F3,W0) / VCVTPD2DQ (F2,W1) / VCVTTPD2DQ (66,W1) / VCVTQQ2PD (F3,W1)
   // F3/W1 (VCVTQQ2PD): {er}, F2 (VCVTPD2DQ): {er}, 66 (VCVTTPD2DQ): {sae}
   230 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };

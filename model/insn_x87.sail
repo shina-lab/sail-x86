@@ -525,7 +525,7 @@ function dispatch_x87_df(modrm, operand, _) = {
 
 val dispatch_x87 : (byte, Prefixes) -> unit
 function dispatch_x87(opcode, pfx) = {
-  let modrm = fetch_byte();
+  let modrm = fetch(1);
   let operand = modrm_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
   match op {

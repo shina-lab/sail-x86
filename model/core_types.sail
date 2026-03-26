@@ -29,6 +29,9 @@ type xmmword = bits(128)
 type ymmword = bits(256)
 type zmmword = bits(512)
 
+// Access type for page table permission checks.
+enum PTAccess = { PT_Read, PT_Write, PT_Execute }
+
 // Virtual and physical address types.
 type vaddr64 = bits(64)
 type paddr64 = bits(64)

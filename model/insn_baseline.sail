@@ -360,7 +360,7 @@ function dispatch_2byte_gpr(op, pfx) = {
   match op {
     // 0F 00: Group 6 (SLDT, STR, LLDT, LTR, VERR, VERW)
     0 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       match reg_field {
         // 0F 00 /0: SLDT r/m16 — Store LDTR
@@ -475,7 +475,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F 01: Group 7 (privileged/system instructions)
     1 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let modrm_val : range(0, 255) = unsigned(modrm);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
       let mod_field : range(0, 3) = unsigned(modrm[7..6]);
@@ -822,7 +822,7 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F 1F: Multi-byte NOP r/m (prefetch hint)
     31 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let _ = modrm_rm(modrm, pfx)  // consume ModR/M + SIB + disp
     },
 
@@ -830,7 +830,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // REX.R extends reg field to access CR8
     32 => {
       if cur_cpl != 0 then raise_GP0();
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else 0b0;
       let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
@@ -849,7 +849,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // REX.R extends reg field to access CR8
     34 => {
       if cur_cpl != 0 then raise_GP0();
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else 0b0;
       let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
@@ -888,7 +888,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     33 => {
       if cur_cpl != 0 then raise_GP0();
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
@@ -909,7 +909,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     35 => {
       if cur_cpl != 0 then raise_GP0();
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
@@ -953,7 +953,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 18-1E: Prefetch hints / multi-byte NOPs
     // These all consume ModR/M and do nothing.
     op if 24 <= op & op <= 30 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let _ = modrm_rm(modrm, pfx)
     },
 
@@ -1055,7 +1055,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 90-9F: SETcc r/m8
     op if 144 <= op & op <= 159 => {
       let cc : cc_idx = op - 144;
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dest = modrm_rm(modrm, pfx);
       v(dest) = zero_extend(8, eval_cc(cc))
     },
@@ -1193,7 +1193,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     164 => {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
-      let count = fetch_byte();
+      let count = fetch(1);
       v(dest) = exec_shld(os, v(dest), v(reg), count)
     },
 
@@ -1247,7 +1247,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     172 => {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
-      let count = fetch_byte();
+      let count = fetch(1);
       v(dest) = exec_shrd(os, v(dest), v(reg), count)
     },
 
@@ -1357,7 +1357,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
       if pfx.has_lock & reg_field == 4 then raise_UD();
       check_lock_rm(pfx, dest, false);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       var x = v(os, dest);
       let bit_num : range(0, 63) = unsigned(imm) % os;
       assert(bit_num < os);

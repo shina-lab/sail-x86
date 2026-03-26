@@ -41,7 +41,7 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 // Page-crossing read: translate each byte's virtual address separately.
 // Called when a memory access spans a 4KB page boundary, so the second
 // page may map to a non-contiguous physical address.
-void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n) {
+void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n, enum zPTAccess access) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
   u8 buf[64];
@@ -50,7 +50,7 @@ void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n) {
     abort();
   }
   for (i64 i = 0; i < nbytes; i++) {
-    u64 paddr = ztranslate_addr(vaddr + i, zPT_Read);
+    u64 paddr = ztranslate_addr(vaddr + i, access);
     phys_mem.read_bytes(paddr, &buf[i], 1);
   }
   bytes_to_bits(rop, buf, nbytes, nbits);

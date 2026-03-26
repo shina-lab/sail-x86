@@ -347,7 +347,7 @@ function gather_addr_q(base, idx64, scale) = {
 val decode_vsib_vex : (byte, Prefixes) -> VSIB
 function decode_vsib_vex(modrm, pfx) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
-  let sib = fetch_byte();
+  let sib = fetch(1);
   let scale : range(0, 3) = unsigned(sib[7..6]);
 
   let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
@@ -355,21 +355,21 @@ function decode_vsib_vex(modrm, pfx) = {
 
   let base_val : qword =
     if sib[2..0] == 0b101 & modbits == 0 then {
-      let b0 = fetch_byte();
-      let b1 = fetch_byte();
-      let b2 = fetch_byte();
-      let b3 = fetch_byte();
+      let b0 = fetch(1);
+      let b1 = fetch(1);
+      let b2 = fetch(1);
+      let b3 = fetch(1);
       sign_extend(b3 @ b2 @ b1 @ b0)
     } else if modbits == 0 then {
       v(64, base_idx)
     } else if modbits == 1 then {
-      let d8 = fetch_byte();
+      let d8 = fetch(1);
       v(64, base_idx) + sign_extend(d8)
     } else {
-      let b0 = fetch_byte();
-      let b1 = fetch_byte();
-      let b2 = fetch_byte();
-      let b3 = fetch_byte();
+      let b0 = fetch(1);
+      let b1 = fetch(1);
+      let b2 = fetch(1);
+      let b3 = fetch(1);
       v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     };
 

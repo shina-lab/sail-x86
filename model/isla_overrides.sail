@@ -19,30 +19,20 @@ function phys_write(addr, n, data) = {
 
 function translate_addr(linear, access) = linear
 function __check_pending_irq() = -1
-function __mem_read_crossing(addr, n) = phys_read(addr, n)
+function __mem_read_crossing(addr, n, access) = phys_read(addr, n)
 function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
 
-// Override ifetch to read from insn_buf register.
-function ifetch_read8(addr) = {
-  let idx = unsigned(addr[3..0]);
-  assert(idx <= 14, "x86 instructions are at most 15 bytes");
-  match idx {
-    0  => insn_buf[7..0],
-    1  => insn_buf[15..8],
-    2  => insn_buf[23..16],
-    3  => insn_buf[31..24],
-    4  => insn_buf[39..32],
-    5  => insn_buf[47..40],
-    6  => insn_buf[55..48],
-    7  => insn_buf[63..56],
-    8  => insn_buf[71..64],
-    9  => insn_buf[79..72],
-    10 => insn_buf[87..80],
-    11 => insn_buf[95..88],
-    12 => insn_buf[103..96],
-    13 => insn_buf[111..104],
-    14 => insn_buf[119..112],
-  }
+// Override fetch to read from insn_buf register.
+// Uses byte index from low 4 bits of decode_pos (base is page-aligned).
+function fetch(n) = {
+  if unsigned(decode_pos) - unsigned(insn_start) + n > 15 then {
+    throw(Fault(EXN_GP, 0x00000000))
+  };
+  let idx = unsigned(decode_pos[3..0]);
+  assert(idx + n <= 15, "x86 instructions are at most 15 bytes");
+  let result : bits(8 * 'n) = insn_buf[(8 * (idx + n) - 1) .. (8 * idx)];
+  decode_pos = decode_pos + n;
+  result
 }
 
 // Simplified step: no try/catch, no interrupt check.

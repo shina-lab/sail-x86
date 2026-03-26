@@ -17,7 +17,7 @@ function evex_reg_idx(modrm, pfx) = {
 // Returns 5-bit destination register index and RM operand.
 val fetch_modrm_evex : (Prefixes, range(1, 64)) -> (simd_idx, RM)
 function fetch_modrm_evex(pfx, disp_n) = {
-  let modrm = fetch_byte();
+  let modrm = fetch(1);
   (evex_reg_idx(modrm, pfx), modrm_rm_evex(modrm, pfx, disp_n))
 }
 

@@ -14,27 +14,31 @@
 // Forward declarations so that the read_mem/write_mem overloads are
 // available to all functions in this file (including stack operations).
 // Size parameter 'n is in bits.
-val read_mem_linear : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
+val read_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, PTAccess) -> bits('n)
+val read_mem_data : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
 val write_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
 val read_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits('n)
 val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
 
-overload read_mem = {read_mem_linear, read_mem_ref}
+overload read_mem = {read_mem_data, read_mem_ref}
 overload write_mem = {write_mem_linear, write_mem_ref}
 
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
 // separately to handle non-contiguous physical pages.
-function read_mem_linear(n, addr) = {
+function read_mem_linear(n, addr, access) = {
   let page_offset = unsigned(addr & 0x0000000000000FFF);
   if page_offset + n / 8 <= 4096 then {
-    let paddr = translate_addr(addr, PT_Read);
+    let paddr = translate_addr(addr, access);
     phys_read(n, paddr)
   } else {
-    __mem_read_crossing(addr, n)
+    __mem_read_crossing(addr, n, access)
   }
 }
+
+// Data-read wrapper: read_mem_linear with PT_Read access.
+function read_mem_data(n, addr) = read_mem_linear(addr, PT_Read)
 
 // Write 'n bits to memory at the given virtual address.
 // Same page-crossing logic as mem_read.
@@ -190,7 +194,7 @@ function seg_linear(m, access_size) = {
 }
 
 // Segmented memory read/write via MemRef (n is in bits; seg_linear takes bytes).
-function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n / 8))
+function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n / 8), PT_Read)
 function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m, n / 8), v)
 
 // Read a far pointer (selector:offset) from memory.

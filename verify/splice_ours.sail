@@ -18,28 +18,20 @@ function phys_write(addr, n, data) = {
 
 function translate_addr(linear, access) = linear
 function __check_pending_irq() = negate(1)
-function __mem_read_crossing(addr, n) = phys_read(addr, n)
+function __mem_read_crossing(addr, n, access) = phys_read(addr, n)
 function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
 
-// Override ifetch to read from insn_buf register.
-// Use low 4 bits of address as byte index (base is 0x400000, page-aligned).
-function ifetch_read8(addr) = {
-  let idx : bits(4) = addr[3..0];
-  if idx == 0x0 then insn_buf[7..0]
-  else if idx == 0x1 then insn_buf[15..8]
-  else if idx == 0x2 then insn_buf[23..16]
-  else if idx == 0x3 then insn_buf[31..24]
-  else if idx == 0x4 then insn_buf[39..32]
-  else if idx == 0x5 then insn_buf[47..40]
-  else if idx == 0x6 then insn_buf[55..48]
-  else if idx == 0x7 then insn_buf[63..56]
-  else if idx == 0x8 then insn_buf[71..64]
-  else if idx == 0x9 then insn_buf[79..72]
-  else if idx == 0xA then insn_buf[87..80]
-  else if idx == 0xB then insn_buf[95..88]
-  else if idx == 0xC then insn_buf[103..96]
-  else if idx == 0xD then insn_buf[111..104]
-  else insn_buf[119..112]
+// Override fetch to read from insn_buf register.
+// Uses byte index from low 4 bits of decode_pos (base is page-aligned).
+function fetch(n) = {
+  if unsigned(decode_pos) - unsigned(insn_start) + n > 15 then {
+    throw(Fault(EXN_GP, 0x00000000))
+  };
+  let idx = unsigned(decode_pos[3..0]);
+  assert(idx + n <= 15, "x86 instructions are at most 15 bytes");
+  let result : bits(8 * 'n) = insn_buf[(8 * (idx + n) - 1) .. (8 * idx)];
+  decode_pos = decode_pos + n;
+  result
 }
 
 // Simplified step: no try/catch, no interrupt check.

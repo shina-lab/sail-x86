@@ -17,9 +17,9 @@
 // Returns (Prefixes, opcode_map) where map is mmm field (1=0F, 2=0F38, 3=0F3A).
 val decode_evex : unit -> (Prefixes, range(0, 7))
 function decode_evex() = {
-  let p0 = fetch_byte();
-  let p1 = fetch_byte();
-  let p2 = fetch_byte();
+  let p0 = fetch(1);
+  let p1 = fetch(1);
+  let p2 = fetch(1);
 
   // Reserved field checks (SDM Vol.2 §2.6.1):
   // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
@@ -117,7 +117,7 @@ val dispatch_evex : unit -> unit
 function dispatch_evex() = {
   if ~(avx512_enabled()) then raise_UD();
   let (pfx, mmm) = decode_evex();
-  let opcode = fetch_byte();
+  let opcode = fetch(1);
   match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),

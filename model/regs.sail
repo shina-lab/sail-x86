@@ -258,7 +258,7 @@ register insn_start : qword
 // Instruction buffer for Isla symbolic execution.
 // Holds up to 15 instruction bytes (120 bits) in little-endian order:
 // bits [7..0] = byte at offset 0, bits [15..8] = byte at offset 1, etc.
-// The splice file overrides ifetch_read8() to read from this register
+// The splice file overrides fetch() to read from this register
 // instead of memory, because Isla's symbolic memory model does not
 // connect writes to subsequent reads at the same address.
 register insn_buf : bits(120) = zeros()

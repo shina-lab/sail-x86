@@ -24,7 +24,7 @@ function dispatch_mmx(op, pfx) = {
   match op {
     // 0F 60: PUNPCKLBW mm, mm/m32
     96 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -36,7 +36,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 61: PUNPCKLWD mm, mm/m32
     97 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -47,7 +47,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 62: PUNPCKLDQ mm, mm/m32
     98 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -58,7 +58,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 63: PACKSSWB mm, mm/m64
     99 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -72,7 +72,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 64: PCMPGTB mm, mm/m64
     100 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -86,7 +86,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 65: PCMPGTW mm, mm/m64
     101 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -98,7 +98,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 66: PCMPGTD mm, mm/m64
     102 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -109,7 +109,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 67: PACKUSWB mm, mm/m64
     103 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -123,7 +123,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 68: PUNPCKHBW mm, mm/m64
     104 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -135,7 +135,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 69: PUNPCKHWD mm, mm/m64
     105 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -146,7 +146,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 6A: PUNPCKHDQ mm, mm/m64
     106 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -157,7 +157,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 6B: PACKSSDW mm, mm/m64
     107 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -169,7 +169,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 6E: MOVD mm, r/m32 (or MOVQ mm, r/m64 with REX.W)
     110 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       match (src, pfx.rex_w) {
@@ -183,7 +183,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 6F: MOVQ mm, mm/m64
     111 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       write_mm(dst, mmx_read_rm(modrm, src));
@@ -192,11 +192,11 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 70: PSHUFW mm, mm/m64, imm8
     112 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let src : qword = mmx_read_rm(modrm, src);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let w0 : word = match unsigned(imm[1..0]) {
         0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
       };
@@ -215,9 +215,9 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 71: Group 12 — PSRLW/PSRAW/PSLLW mm, imm8
     113 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_rm(modrm);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let c : nat = unsigned(imm);
       let d : qword = read_mm(dst);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
@@ -243,9 +243,9 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 72: Group 13 — PSRLD/PSRAD/PSLLD mm, imm8
     114 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_rm(modrm);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let c : nat = unsigned(imm);
       let d : qword = read_mm(dst);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
@@ -268,9 +268,9 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 73: Group 14 — PSRLQ/PSLLQ mm, imm8
     115 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_rm(modrm);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let c : nat = unsigned(imm);
       let d : qword = read_mm(dst);
       let reg_field : range(0, 7) = unsigned(modrm[5..3]);
@@ -289,7 +289,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 74: PCMPEQB mm, mm/m64
     116 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -303,7 +303,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 75: PCMPEQW mm, mm/m64
     117 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -315,7 +315,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 76: PCMPEQD mm, mm/m64
     118 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -326,7 +326,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 7E: MOVD r/m32, mm (or MOVQ r/m64, mm with REX.W)
     126 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let dest = modrm_rm(modrm, pfx);
       let v : qword = read_mm(src);
@@ -341,7 +341,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F 7F: MOVQ mm/m64, mm
     127 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let dest = modrm_rm(modrm, pfx);
       let v : qword = read_mm(src);
@@ -354,14 +354,14 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F C4: PINSRW mm, r32/m16, imm8
     196 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let w : word = match src {
         RM_reg(r) => v(32, r)[15..0],
         RM_mem(m) => v(m),
       };
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let sel : range(0, 3) = unsigned(imm[1..0]);
       var d : qword = read_mm(dst);
       let lo = sel * 16;
@@ -372,10 +372,10 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F C5: PEXTRW r32, mm, imm8
     197 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_mm_rm(modrm);
-      let imm = fetch_byte();
+      let imm = fetch(1);
       let sel : range(0, 3) = unsigned(imm[1..0]);
       let v : qword = read_mm(src);
       let lo = sel * 16;
@@ -386,7 +386,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D1: PSRLW mm, mm/m64
     209 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -398,7 +398,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D2: PSRLD mm, mm/m64
     210 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -409,7 +409,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D3: PSRLQ mm, mm/m64
     211 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -420,7 +420,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D4: PADDQ mm, mm/m64
     212 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -431,7 +431,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D5: PMULLW mm, mm/m64
     213 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -443,7 +443,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D7: PMOVMSKB r32, mm
     215 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_mm_rm(modrm);
       let v : qword = read_mm(src);
@@ -456,7 +456,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D8: PSUBUSB mm, mm/m64
     216 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -470,7 +470,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F D9: PSUBUSW mm, mm/m64
     217 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -482,7 +482,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DA: PMINUB mm, mm/m64
     218 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -496,7 +496,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DB: PAND mm, mm/m64
     219 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -506,7 +506,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DC: PADDUSB mm, mm/m64
     220 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -520,7 +520,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DD: PADDUSW mm, mm/m64
     221 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -532,7 +532,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DE: PMAXUB mm, mm/m64
     222 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -546,7 +546,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F DF: PANDN mm, mm/m64
     223 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -556,7 +556,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E0: PAVGB mm, mm/m64
     224 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -570,7 +570,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E1: PSRAW mm, mm/m64
     225 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -582,7 +582,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E2: PSRAD mm, mm/m64
     226 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -593,7 +593,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E3: PAVGW mm, mm/m64
     227 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -605,7 +605,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E4: PMULHUW mm, mm/m64
     228 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -617,7 +617,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E5: PMULHW mm, mm/m64
     229 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -629,7 +629,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E7: MOVNTQ m64, mm
     231 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let dest = modrm_rm(modrm, pfx);
       rm_mem(dest) = read_mm(src); mmx_touch()
@@ -637,7 +637,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E8: PSUBSB mm, mm/m64
     232 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -651,7 +651,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F E9: PSUBSW mm, mm/m64
     233 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -663,7 +663,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F EA: PMINSW mm, mm/m64
     234 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -675,7 +675,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F EB: POR mm, mm/m64
     235 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -685,7 +685,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F EC: PADDSB mm, mm/m64
     236 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -699,7 +699,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F ED: PADDSW mm, mm/m64
     237 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -711,7 +711,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F EE: PMAXSW mm, mm/m64
     238 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -723,7 +723,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F EF: PXOR mm, mm/m64
     239 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -733,7 +733,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F1: PSLLW mm, mm/m64
     241 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -745,7 +745,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F2: PSLLD mm, mm/m64
     242 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -756,7 +756,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F3: PSLLQ mm, mm/m64
     243 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let c : nat = unsigned(mmx_read_rm(modrm, src));
@@ -767,7 +767,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F4: PMULUDQ mm, mm/m64
     244 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -779,7 +779,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F5: PMADDWD mm, mm/m64
     245 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -792,7 +792,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F6: PSADBW mm, mm/m64
     246 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -808,7 +808,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F7: MASKMOVQ mm, mm
     247 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let mask_reg = modrm_mm_rm(modrm);
       let src2 = modrm_rm(modrm, pfx);
@@ -832,7 +832,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F8: PSUBB mm, mm/m64
     248 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -846,7 +846,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F F9: PSUBW mm, mm/m64
     249 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -858,7 +858,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F FA: PSUBD mm, mm/m64
     250 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -869,7 +869,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F FB: PSUBQ mm, mm/m64
     251 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -880,7 +880,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F FC: PADDB mm, mm/m64
     252 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -894,7 +894,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F FD: PADDW mm, mm/m64
     253 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
@@ -906,7 +906,7 @@ function dispatch_mmx(op, pfx) = {
 
     // 0F FE: PADDD mm, mm/m64
     254 => {
-      let modrm = fetch_byte();
+      let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);

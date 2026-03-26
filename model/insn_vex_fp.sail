@@ -15,7 +15,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 10: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (load)
   16 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     match mp {
@@ -75,7 +75,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 11: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (store)
   17 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     match mp {
@@ -158,7 +158,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 12: VMOVLPS/VMOVHLPS (NP) / VMOVLPD (66) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   18 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     match mp {
@@ -226,7 +226,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 13: VMOVLPS/VMOVLPD m64, xmm (store low 64 bits to memory)
   19 => {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     rm_mem(64, dest) = read_xmm(src)[63..0]
@@ -234,7 +234,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 14: VUNPCKLPS (NP) / VUNPCKLPD (66)
   20 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
@@ -268,7 +268,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 15: VUNPCKHPS (NP) / VUNPCKHPD (66)
   21 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
@@ -302,7 +302,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 16: VMOVHPS/VMOVLHPS (NP) / VMOVHPD (66) / VMOVSHDUP (F3)
   22 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     match mp {
@@ -356,7 +356,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 17: VMOVHPS/VMOVHPD m64, xmm (store high 64 bits to memory)
   23 => {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     rm_mem(64, dest) = read_xmm(src)[127..64]
@@ -366,7 +366,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // SDM: VEX.vvvv must be 1111b
   40 => {
     if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     match src {
@@ -394,7 +394,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // SDM: VEX.vvvv must be 1111b
   41 => {
     if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     match dest {
@@ -421,7 +421,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 2A: VCVTSI2SS (F3) / VCVTSI2SD (F2) — int to scalar float
   42 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
@@ -454,7 +454,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // SDM: requires alignment (32 for YMM, 16 for XMM); #GP(0) if unaligned.
   43 => {
     if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     match dest {
@@ -473,7 +473,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 2C: VCVTTSS2SI (F3) / VCVTTSD2SI (F2) — truncating scalar float to int
   44 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src2 = modrm_rm(modrm, pfx);
     let dst_gpr = modrm_reg(modrm, pfx);
     match mp {
@@ -501,7 +501,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 2D: VCVTSS2SI (F3) / VCVTSD2SI (F2) — scalar FP to int with rounding
   45 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let reg = modrm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     match mp {
@@ -533,7 +533,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // SDM: VEX.vvvv must be 1111b
   46 => {
     if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src_reg = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     match mp {
@@ -581,7 +581,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // SDM: VEX.vvvv must be 1111b
   47 => {
     if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let src_reg = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     match mp {
@@ -627,7 +627,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 50: VMOVMSKPS (NP) / VMOVMSKPD (66) — extract sign bits to GPR
   80 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let reg = modrm_reg(modrm, pfx);
     let _ = modrm_rm(modrm, pfx);
     if pfx.vex_vvvv != 0 then raise_UD();
@@ -662,7 +662,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 50-5F: Packed arithmetic (columns 1-15, column 0 handled above)
   // Common pattern: dst = vvvv OP src (3-operand)
   op if 81 <= op & op <= 95 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let col : range(0, 15) = op - 80;
@@ -928,10 +928,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F C2: VCMPPS/VCMPPD/VCMPSS/VCMPSD imm8
   194 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let imm = fetch_byte();
+    let imm = fetch(1);
     let pred : bits(5) = imm[4..0];
     match mp {
       // VCMPPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
@@ -989,10 +989,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F C6: VSHUFPS (NP) / VSHUFPD (66) imm8
   198 => {
-    let modrm = fetch_byte();
+    let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let imm = fetch_byte();
+    let imm = fetch(1);
     match mp {
       // VSHUFPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_NONE => {
