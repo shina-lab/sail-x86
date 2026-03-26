@@ -1538,13 +1538,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vaddps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FAdd, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VADDPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vaddpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FAdd, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VADDSS (scalar f32, EVEX) — supports {er}
       MP_F3 => {
@@ -1580,13 +1580,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vmulps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FMul, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VMULPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vmulpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FMul, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VMULSS (scalar f32, EVEX) — supports {er}
       MP_F3 => {
@@ -1766,13 +1766,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vsubps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FSub, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VSUBPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vsubpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FSub, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VSUBSS (scalar f32, EVEX) — supports {er}
       MP_F3 => {
@@ -2114,13 +2114,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vsqrtps(evex_bcast_src(vl, modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_unop(PU_FSqrt, 32, evex_bcast_src(vl, modrm, src, pfx, 32)))
       },
       // VSQRTPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vsqrtpd(evex_bcast_src(vl, modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_unop(PU_FSqrt, 64, evex_bcast_src(vl, modrm, src, pfx, 64)))
       },
       // VSQRTSS (scalar f32, EVEX) — supports {er}
       MP_F3 => {
@@ -2155,13 +2155,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vminps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FMin, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VMINPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vminpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FMin, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VMINSS (scalar f32, EVEX)
       MP_F3 => {
@@ -2196,13 +2196,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vdivps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FDiv, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VDIVPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vdivpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FDiv, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VDIVSS (scalar f32, EVEX) — supports {er}
       MP_F3 => {
@@ -2237,13 +2237,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, vmaxps(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_binop(PB_FMax, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       // VMAXPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
       MP_66 => {
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 64);
-        evex_write(dst, mask, vmaxpd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+        evex_write(dst, mask, packed_binop(PB_FMax, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
       },
       // VMAXSS (scalar f32, EVEX)
       MP_F3 => {

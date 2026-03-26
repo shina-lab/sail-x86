@@ -372,3 +372,23 @@ val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
 val __sha256msg1 : (xmmword, xmmword) -> xmmword
 val __sha256msg2 : (xmmword, xmmword) -> xmmword
 
+// =========================================================================
+// Width-polymorphic FP overloads
+// =========================================================================
+
+// 8-bit FP stubs (unused — no 8-bit FP in x86; needed for overload completeness)
+function __f8_add(a : byte, b : byte) -> byte = undefined
+function __f8_sub(a : byte, b : byte) -> byte = undefined
+function __f8_mul(a : byte, b : byte) -> byte = undefined
+function __f8_div(a : byte, b : byte) -> byte = undefined
+function __f8_min(a : byte, b : byte) -> byte = undefined
+function __f8_max(a : byte, b : byte) -> byte = undefined
+function __f8_sqrt(a : byte) -> byte = undefined
+
+overload fadd  = {__f8_add, __f16_add, __f32_add, __f64_add}
+overload fsub  = {__f8_sub, __f16_sub, __f32_sub, __f64_sub}
+overload fmul  = {__f8_mul, __f16_mul, __f32_mul, __f64_mul}
+overload fdiv  = {__f8_div, __f16_div, __f32_div, __f64_div}
+overload fmin  = {__f8_min, __f16_min, __f32_min, __f64_min}
+overload fmax  = {__f8_max, __f16_max, __f32_max, __f64_max}
+overload fsqrt = {__f8_sqrt, __f16_sqrt, __f32_sqrt, __f64_sqrt}

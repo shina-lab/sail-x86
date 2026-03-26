@@ -98,6 +98,7 @@ enum PackedBinOp = {
   PB_Srl, PB_Sra, PB_Sll,
   PB_MulLow, PB_MulHighS, PB_MulHighU, PB_MulHRS,
   PB_Ror, PB_Rol,
+  PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
 }
 
 // Per-element dispatch: applies the operation to one pair of elements.
@@ -130,6 +131,12 @@ function packed_elem_op(op, eb, a, b) = match op {
   },
   PB_Ror     => rotr(a, unsigned(b) % 'eb),
   PB_Rol     => rotl(a, unsigned(b) % 'eb),
+  PB_FAdd => match eb { 8 => fadd(a, b), 16 => fadd(a, b), 32 => fadd(a, b), 64 => fadd(a, b) },
+  PB_FSub => match eb { 8 => fsub(a, b), 16 => fsub(a, b), 32 => fsub(a, b), 64 => fsub(a, b) },
+  PB_FMul => match eb { 8 => fmul(a, b), 16 => fmul(a, b), 32 => fmul(a, b), 64 => fmul(a, b) },
+  PB_FDiv => match eb { 8 => fdiv(a, b), 16 => fdiv(a, b), 32 => fdiv(a, b), 64 => fdiv(a, b) },
+  PB_FMin => match eb { 8 => fmin(a, b), 16 => fmin(a, b), 32 => fmin(a, b), 64 => fmin(a, b) },
+  PB_FMax => match eb { 8 => fmax(a, b), 16 => fmax(a, b), 32 => fmax(a, b), 64 => fmax(a, b) },
 }
 
 // Apply a packed binary operation element-wise across a vector.
@@ -145,14 +152,15 @@ function packed_binop(op, eb, a, b) = {
 }
 
 // Generic packed unary operation (element-wise, one source).
-enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt }
+enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt }
 
 val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedUnaryOp, int('eb), bits('eb)) -> bits('eb)
 function packed_unary_elem(op, eb, a) = match op {
-  PU_Abs    => abs(a),
-  PU_Popcnt => to_bits('eb, popcount(a)),
-  PU_Lzcnt  => to_bits('eb, clz(a)),
+  PU_Abs     => abs(a),
+  PU_Popcnt  => to_bits('eb, popcount(a)),
+  PU_Lzcnt   => to_bits('eb, clz(a)),
+  PU_FSqrt => match eb { 8 => fsqrt(a), 16 => fsqrt(a), 32 => fsqrt(a), 64 => fsqrt(a) },
 }
 
 val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
@@ -162,150 +170,6 @@ function packed_unop(op, eb, a) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = packed_unary_elem(op, eb, a[(lo + 'eb - 1)..lo])
-  };
-  r
-}
-
-// =========================================================================
-// Polymorphic packed FP operations
-// =========================================================================
-
-val vaddps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vaddps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_add(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vsubps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vsubps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_sub(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vmulps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vmulps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_mul(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vdivps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vdivps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_div(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vminps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vminps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_min(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vmaxps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vmaxps(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_max(a[(lo + 31)..lo], b[(lo + 31)..lo])
-  };
-  r
-}
-
-val vsqrtps : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
-function vsqrtps(a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_sqrt(a[(lo + 31)..lo])
-  };
-  r
-}
-
-val vaddpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vaddpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_add(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vsubpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vsubpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_sub(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vmulpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vmulpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_mul(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vdivpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vdivpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_div(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vminpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vminpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_min(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vmaxpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vmaxpd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_max(a[(lo + 63)..lo], b[(lo + 63)..lo])
-  };
-  r
-}
-
-val vsqrtpd : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
-function vsqrtpd(a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_sqrt(a[(lo + 63)..lo])
   };
   r
 }

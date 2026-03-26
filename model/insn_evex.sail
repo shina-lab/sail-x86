@@ -122,6 +122,13 @@ function evex_src_xmm(modrm, rm, pfx) = match rm {
   RM_mem(m) => read_mem(m),
 }
 
+// Read a 16-bit value from r/m for broadcast.
+val evex_src_m16 : (byte, RM, Prefixes) -> word
+function evex_src_m16(modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
+  RM_mem(m) => v(m),
+}
+
 // Read a 32-bit value from r/m for broadcast.
 val evex_src_m32 : (byte, RM, Prefixes) -> dword
 function evex_src_m32(modrm, rm, pfx) = match rm {
@@ -458,12 +465,13 @@ function broadcast(vl, v) = {
 
 // Polymorphic broadcast-aware source: read source from reg/mem,
 // applying EVEX.b broadcast when the source is a memory operand.
-val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
   (implicit('vl), byte, RM, Prefixes, int('eb)) -> bits('vl)
 function evex_bcast_src(vl, modrm, rm, pfx, eb) = {
   let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
   if pfx.evex_b & is_mem then {
     match eb {
+      16 => broadcast(evex_src_m16(modrm, rm, pfx)),
       32 => broadcast(evex_src_m32(modrm, rm, pfx)),
       64 => broadcast(evex_src_m64(modrm, rm, pfx)),
     }
