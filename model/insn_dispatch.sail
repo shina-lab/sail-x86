@@ -772,26 +772,26 @@ function decode_execute() = {
         let os = opsize(pfx);
         match os {
           32 => {
-            // Pop all 8 dwords; the ESP slot (bits 127..96) is discarded.
-            let frame : bits(256) = pop();
-            v(RDI) = frame[31..0];
-            v(RSI) = frame[63..32];
-            v(RBP) = frame[95..64];
-            v(RBX) = frame[159..128];
-            v(RDX) = frame[191..160];
-            v(RCX) = frame[223..192];
-            v(RAX) = frame[255..224]
+            // Pop all 8 dwords; the ESP slot is discarded.
+            v(RDI) = pop(32);
+            v(RSI) = pop(32);
+            v(RBP) = pop(32);
+            let _ = pop(32); // skip ESP
+            v(RBX) = pop(32);
+            v(RDX) = pop(32);
+            v(RCX) = pop(32);
+            v(RAX) = pop(32)
           },
           _ => {
-            // Pop all 8 words; the SP slot (bits 63..48) is discarded.
-            let frame : bits(128) = pop();
-            v(RDI) = frame[15..0];
-            v(RSI) = frame[31..16];
-            v(RBP) = frame[47..32];
-            v(RBX) = frame[79..64];
-            v(RDX) = frame[95..80];
-            v(RCX) = frame[111..96];
-            v(RAX) = frame[127..112]
+            // Pop all 8 words; the SP slot is discarded.
+            v(RDI) = pop(16);
+            v(RSI) = pop(16);
+            v(RBP) = pop(16);
+            let _ = pop(16); // skip SP
+            v(RBX) = pop(16);
+            v(RDX) = pop(16);
+            v(RCX) = pop(16);
+            v(RAX) = pop(16)
           },
         }
       },
@@ -1491,11 +1491,9 @@ function decode_execute() = {
         };
         match os {
           16 => {
-            // Pop IP, CS, FLAGS as a single operation.
-            let frame : bits(48) = pop();
-            let new_ip    : word = frame[15..0];
-            let new_cs    : word = frame[31..16];
-            let new_flags : word = frame[47..32];
+            let new_ip    : word = pop();
+            let new_cs    : word = pop();
+            let new_flags : word = pop();
 
             let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
@@ -1504,9 +1502,10 @@ function decode_execute() = {
 
             // Only pop SP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let x : dword = pop();
-              v(RSP) = zero_extend(64, x[15..0]);
-              load_segment_register(SS, x[31..16])
+              let new_sp : word = pop();
+              let new_ss : word = pop();
+              v(RSP) = zero_extend(64, new_sp);
+              load_segment_register(SS, new_ss)
             };
 
             // In real mode, CPL is always 0 (no privilege levels).
@@ -1517,22 +1516,21 @@ function decode_execute() = {
             RF = 0b0
           },
           32 => {
-            // Pop EIP, CS, EFLAGS as a single operation.
-            let frame : bits(96) = pop();
-            let new_eip    : dword = frame[31..0];
-            let new_cs     : word  = frame[47..32];
-            let new_eflags : dword = frame[95..64];
+            let new_eip    : dword = pop();
+            let new_cs     : dword = pop();
+            let new_eflags : dword = pop();
 
             let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
             next_rip = Some(zero_extend(new_eip));
-            load_segment_register(CS, new_cs);
+            load_segment_register(CS, new_cs[15..0]);
 
             // Only pop ESP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let x : qword = pop();
-              v(RSP) = zero_extend(64, x[31..0]);
-              load_segment_register(SS, x[47..32])
+              let new_esp : dword = pop();
+              let new_ss  : dword = pop();
+              v(RSP) = zero_extend(64, new_esp);
+              load_segment_register(SS, new_ss[15..0])
             };
 
             if cur_mode != RealMode then cur_cpl = return_rpl;
@@ -1540,13 +1538,11 @@ function decode_execute() = {
             RF = 0b0
           },
           64 => {
-            // Pop RIP, CS, RFLAGS, RSP, SS as a single operation.
-            let frame : bits(320) = pop();
-            let new_rip    : qword = frame[63..0];
-            let new_cs     : qword = frame[127..64];
-            let new_rflags : qword = frame[191..128];
-            let new_rsp    : qword = frame[255..192];
-            let new_ss     : qword = frame[319..256];
+            let new_rip    : qword = pop();
+            let new_cs     : qword = pop();
+            let new_rflags : qword = pop();
+            let new_rsp    : qword = pop();
+            let new_ss     : qword = pop();
 
             next_rip = Some(new_rip);
 

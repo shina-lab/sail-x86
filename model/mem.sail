@@ -199,8 +199,9 @@ function read_far_pointer(os, m) = {
 // push, and RETF pops them the same way.
 val pop_far_pointer : forall 'os, 'os in {16, 32, 64}. int('os) -> (qword, word)
 function pop_far_pointer(os) = {
-  let d : bits(2 * 'os) = pop();
-  (zero_extend(d['os - 1 .. 0]), d['os + 15 .. 'os])
+  let offset = pop(os);
+  let selector = pop(os);
+  (zero_extend(offset), selector[15..0])
 }
 
 // =========================================================================
