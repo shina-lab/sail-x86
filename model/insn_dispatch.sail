@@ -94,7 +94,7 @@ function dispatch_alu_opcode(op, pfx) = {
     0 => {
       let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, alu_op == ALU_CMP);
-      exec_alu_rm_reg_byte(alu_op, dest, reg)
+      exec_alu_rm_reg(alu_op, dest, reg, 8)
     },
     // OP r/m, r (word/dword/qword)
     1 => {
@@ -106,7 +106,7 @@ function dispatch_alu_opcode(op, pfx) = {
     // OP r8, r/m8
     2 => {
       let (reg, src) = fetch_modrm(pfx);
-      exec_alu_reg_rm_byte(alu_op, reg, src)
+      exec_alu_reg_rm(alu_op, reg, src, 8)
     },
     // OP r, r/m (word/dword/qword)
     3 => {

@@ -52,17 +52,8 @@ function alu_compute(op, a, b, os) = {
   }
 }
 
-// Execute ALU: dst_rm OP= src_reg (byte operand)
-val exec_alu_rm_reg_byte : (ALUOp, RM, GPRRef) -> unit
-function exec_alu_rm_reg_byte(op, dest, reg) = {
-  let a = v(8, dest);
-  let b : byte = v(reg);
-  let (result, wb) = alu_compute(op, a, b, 8);
-  if wb then v(dest) = result
-}
-
-// Execute ALU: dst_rm OP= src_reg (word/dword/qword)
-val exec_alu_rm_reg : (ALUOp, RM, GPRRef, {16, 32, 64}) -> unit
+// Execute ALU: dst_rm OP= src_reg
+val exec_alu_rm_reg : (ALUOp, RM, GPRRef, {8, 16, 32, 64}) -> unit
 function exec_alu_rm_reg(op, dest, reg, os) = {
   let a = v(os, dest);
   let b = v(os, reg);
@@ -70,17 +61,8 @@ function exec_alu_rm_reg(op, dest, reg, os) = {
   if wb then v(os, dest) = result
 }
 
-// Execute ALU: dst_reg OP= src_rm (byte operand)
-val exec_alu_reg_rm_byte : (ALUOp, GPRRef, RM) -> unit
-function exec_alu_reg_rm_byte(op, reg, src) = {
-  let a : byte = v(reg);
-  let b = v(8, src);
-  let (result, wb) = alu_compute(op, a, b, 8);
-  if wb then v(reg) = result
-}
-
-// Execute ALU: dst_reg OP= src_rm (word/dword/qword)
-val exec_alu_reg_rm : (ALUOp, GPRRef, RM, {16, 32, 64}) -> unit
+// Execute ALU: dst_reg OP= src_rm
+val exec_alu_reg_rm : (ALUOp, GPRRef, RM, {8, 16, 32, 64}) -> unit
 function exec_alu_reg_rm(op, reg, src, os) = {
   let a = v(os, reg);
   let b = v(os, src);

@@ -32,10 +32,6 @@ type zmmword = bits(512)
 // Access type for page table permission checks.
 enum PTAccess = { PT_Read, PT_Write, PT_Execute }
 
-// Virtual and physical address types.
-type vaddr64 = bits(64)
-type paddr64 = bits(64)
-
 // Index into the 16 general-purpose registers (0..15).
 type gpr_idx = range(0, 15)
 
@@ -98,21 +94,22 @@ enum ExceptionClass = { EC_Benign, EC_Contributory, EC_PageFault }
 type exception_vector = range(0, 255)
 
 // Standard x86 exceptions.
-let EXN_DE : exception_vector = 0   // Divide Error
-let EXN_DB : exception_vector = 1   // Debug
-let EXN_NMI : exception_vector = 2  // Non-Maskable Interrupt
-let EXN_BP : exception_vector = 3   // Breakpoint
-let EXN_OF : exception_vector = 4   // Overflow
-let EXN_BR : exception_vector = 5   // BOUND Range Exceeded
-let EXN_UD : exception_vector = 6   // Invalid Opcode
-let EXN_NM : exception_vector = 7   // Device Not Available
-let EXN_DF : exception_vector = 8   // Double Fault
-let EXN_TS : exception_vector = 10  // Invalid TSS
-let EXN_NP : exception_vector = 11  // Segment Not Present
-let EXN_SS : exception_vector = 12  // Stack-Segment Fault
-let EXN_GP : exception_vector = 13  // General Protection
-let EXN_PF : exception_vector = 14  // Page Fault
-let EXN_MF : exception_vector = 16  // x87 FPU Error
-let EXN_AC : exception_vector = 17  // Alignment Check
-let EXN_MC : exception_vector = 18  // Machine Check
-let EXN_XM : exception_vector = 19  // SIMD Floating-Point
+let EXN_DE  : exception_vector = 0   // Divide Error
+let EXN_DB  : exception_vector = 1   // Debug
+let EXN_NMI : exception_vector = 2   // Non-Maskable Interrupt
+let EXN_BP  : exception_vector = 3   // Breakpoint
+let EXN_OF  : exception_vector = 4   // Overflow
+let EXN_BR  : exception_vector = 5   // BOUND Range Exceeded
+let EXN_UD  : exception_vector = 6   // Invalid Opcode
+let EXN_NM  : exception_vector = 7   // Device Not Available
+let EXN_DF  : exception_vector = 8   // Double Fault
+let EXN_TS  : exception_vector = 10  // Invalid TSS
+let EXN_NP  : exception_vector = 11  // Segment Not Present
+let EXN_SS  : exception_vector = 12  // Stack-Segment Fault
+let EXN_GP  : exception_vector = 13  // General Protection
+let EXN_PF  : exception_vector = 14  // Page Fault
+let EXN_MF  : exception_vector = 16  // x87 FPU Error
+let EXN_AC  : exception_vector = 17  // Alignment Check
+let EXN_MC  : exception_vector = 18  // Machine Check
+let EXN_XM  : exception_vector = 19  // SIMD Floating-Point
+ 

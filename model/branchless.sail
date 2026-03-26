@@ -37,7 +37,7 @@ function is_nonzero(v) = or_reduce(v)[0]
 
 // is_zero: 1 if all bits are zero, 0 otherwise.
 val is_zero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
-function is_zero(v) = (~(or_reduce(v)))[0]
+function is_zero(v) = ~(is_nonzero(v))
 
 // is_eq: 1 if a == b, 0 otherwise.
 val is_eq : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bit
