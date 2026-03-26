@@ -26,7 +26,7 @@ mkdir -p "$WORK"
 SEABIOS_SRC="$WORK/seabios-${SEABIOS_VER}"
 BIOS_BIN="$BUILD_DIR/bios.bin"
 
-if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ]; then
+if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ] || [ ! -d "$SEABIOS_SRC" ]; then
   echo "=== Building SeaBIOS ${SEABIOS_VER} ==="
 
   if [ ! -d "$SEABIOS_SRC" ]; then
