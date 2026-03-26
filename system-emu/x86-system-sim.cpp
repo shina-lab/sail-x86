@@ -648,9 +648,18 @@ static void render_vga_text(x86::Model &model) {
   int max_row = std::min(VGA_ROWS, LINES - 1);
   int max_col = std::min(VGA_COLS, COLS);
 
+  // If the cursor is below the visible area, shift the viewport down
+  // so the cursor row is the last visible row.  This ensures the prompt
+  // is never hidden behind the status bar in 80x25 mode on a 25-line
+  // terminal.
+  int crow = cursor / VGA_COLS;
+  int vga_skip = 0;
+  if (crow >= max_row)
+    vga_skip = crow - max_row + 1;
+
   for (int row = 0; row < max_row; row++) {
     for (int col = 0; col < max_col; col++) {
-      int idx = (row * VGA_COLS + col) * 2;
+      int idx = ((row + vga_skip) * VGA_COLS + col) * 2;
       u8 ch = current[idx];
       u8 attr = current[idx + 1];
       int fg = attr & 0x07;       // base fg color (0-7)
@@ -669,11 +678,11 @@ static void render_vga_text(x86::Model &model) {
     }
   }
 
-  // Position cursor
-  int crow = cursor / VGA_COLS;
+  // Position cursor (adjusted for viewport shift)
   int ccol = cursor % VGA_COLS;
-  if (crow >= 0 && crow < max_row && ccol >= 0 && ccol < max_col)
-    move(crow, ccol);
+  int adj_crow = crow - vga_skip;
+  if (adj_crow >= 0 && adj_crow < max_row && ccol >= 0 && ccol < max_col)
+    move(adj_crow, ccol);
 
   refresh();
 
