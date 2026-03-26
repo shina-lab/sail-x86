@@ -1,3 +1,0 @@
-/home/ruiu/sail-x86/test/build/CMakeFiles/test_binaries.dir
-/home/ruiu/sail-x86/test/build/CMakeFiles/edit_cache.dir
-/home/ruiu/sail-x86/test/build/CMakeFiles/rebuild_cache.dir

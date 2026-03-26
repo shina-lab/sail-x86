@@ -4,3 +4,5 @@ sail_runtime/*
 sail_smt_cache
 *.o
 *.a
+test/build/
+verify/ir/
