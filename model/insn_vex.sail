@@ -130,6 +130,26 @@ function packed_binop(op, eb, a, b) = {
   r
 }
 
+// Generic packed unary operation (element-wise, one source).
+enum PackedUnaryOp = { PU_Abs }
+
+val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
+  (PackedUnaryOp, int('eb), bits('eb)) -> bits('eb)
+function packed_unary_elem(op, eb, a) = match op {
+  PU_Abs => abs(a),
+}
+
+val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (PackedUnaryOp, int('eb), bits('vl)) -> bits('vl)
+function packed_unop(op, eb, a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = packed_unary_elem(op, eb, a[(lo + 'eb - 1)..lo])
+  };
+  r
+}
+
 // =========================================================================
 // Polymorphic packed FP operations
 // =========================================================================
