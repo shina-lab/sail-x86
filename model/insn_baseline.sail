@@ -10,7 +10,7 @@ function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
     match dest {
       RM_reg(_) => raise_UD(),
-      RM_mem(_) => if is_cmp then raise_UD() else (),
+      RM_mem(_) => if is_cmp then raise_UD(),
     }
   }
 }
@@ -20,10 +20,9 @@ val exec_xadd : (GPRRef, GPRRef, operand_size) -> unit
 function exec_xadd(dst, src, os) = {
   let a = v(os, dst);
   let b = v(os, src);
-  let sum = a + b;
-  update_flags_add(sum, a, b);
+  update_flags_add(a + b, a, b);
   v(src) = a;
-  v(dst) = sum
+  v(dst) = a + b
 }
 
 // Descriptor type validation for LAR in IA-32e mode (SDM Table 1-49).
@@ -543,8 +542,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           let tsc = __rdtsc();
           v(RAX) = tsc[31..0];
           v(RDX) = tsc[63..32];
-          let tsc_aux = __rdmsr(0xC0000103);
-          v(RCX) = tsc_aux[31..0]
+          v(RCX) = __rdmsr(0xC0000103)[31..0]
         },
 
         // 0F 01 F8: SWAPGS (requires CPL=0)
@@ -867,10 +865,11 @@ function dispatch_2byte_gpr(op, pfx) = {
               cur_mode = LongMode
             else
               cur_mode = CompatibilityMode
-          } else if cr_val[0] == 0b1 then
+          } else if cr_val[0] == 0b1 then {
             cur_mode = ProtectedMode
-          else
+          } else {
             cur_mode = RealMode
+          }
         },
         2 => CR2 = cr_val,
         3 => { CR3 = cr_val; __tlb_flush() },
