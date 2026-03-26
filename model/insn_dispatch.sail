@@ -1411,49 +1411,37 @@ function decode_execute() = {
         let level = fetch(1);
         let os = opsize_default64(pfx);
         let nesting : range(0, 31) = unsigned(level) % 32;
-        match os {
-          16 => {
-            push(16, v(RBP));
-            let frame_temp : word = v(RSP);
-            if nesting > 1 then {
-              foreach (i from 1 to (nesting - 1)) {
-                v(RBP) = v(16, RBP) - 2;
-                push(16, read_mem(zero_extend(v(16, RBP))));
-              };
-            };
-            if nesting >= 1 then
-              push(16, frame_temp);
-            v(RBP) = frame_temp;
-            v(RSP) = v(64, RSP) - zero_extend(size);
-          },
-          64 => {
-            push(64, v(RBP));
-            let frame_temp : qword = v(RSP);
-            if nesting > 1 then {
-              foreach (i from 1 to (nesting - 1)) {
-                v(RBP) = v(64, RBP) - 8;
-                push(64, read_mem(v(64, RBP)));
-              };
-            };
-            if nesting >= 1 then
-              push(64, frame_temp);
-            v(RBP) = frame_temp;
-            v(RSP) = v(64, RSP) - zero_extend(size);
-          },
-          _ => (),
-        }
+        let bp = v(os, RBP);
+        push(bp);
+        let frame_temp = v(os, RSP);
+        if nesting > 1 then {
+          foreach (i from 1 to (nesting - 1)) {
+            let new_bp = v(os, RBP) - os / 8;
+            v(RBP) = new_bp;
+            push(read_mem(os, zero_extend(new_bp)))
+          }
+        };
+        if nesting >= 1 then push(frame_temp);
+        v(RBP) = frame_temp;
+        let sp = read_stack_ptr() - zero_extend(size);
+        write_stack_ptr(sp - get_seg_base(SS));
       },
 
-      // C9: LEAVE
-      // In 64-bit mode, StackAddrSize is always 64: RSP := RBP uses full
-      // 64-bit RBP regardless of operand-size prefix. Only the POP of RBP
-      // is affected by operand size (16 vs 64).
+      // C9: LEAVE — RSP := RBP, then POP RBP
+      // StackAddrSize determines which portion of RBP is used for the
+      // stack pointer assignment: 64-bit in long mode, 32/16 otherwise.
+      // OperandSize (16/32/64) controls the width of the POP.
       201 => {
         let os = opsize_default64(pfx);
-        v(RSP) = v(64, RBP);
+        if cur_mode == LongMode then
+          v(RSP) = v(64, RBP)
+        else if SegCache[SS].seg_db == 0b1 then
+          v(RSP) = v(32, RBP)
+        else
+          v(RSP) = v(16, RBP);
         match os {
           16 => v(RBP) = pop(16),
-          32 => v(RBP) = pop(64)[31..0],
+          32 => v(RBP) = pop(32),
           64 => v(RBP) = pop(64),
         }
       },

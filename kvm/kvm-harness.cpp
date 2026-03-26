@@ -285,6 +285,17 @@ struct KvmVm {
       sregs_tmp.cs.l = 1;   // 64-bit
       sregs_tmp.cs.db = 0;
     }
+    // Restore SS to kernel data segment (previous test may have changed it,
+    // e.g. IRET to user mode sets SS.DPL=3 which causes #SS for kernel code).
+    sregs_tmp.ss = {};
+    sregs_tmp.ss.base = 0;
+    sregs_tmp.ss.limit = 0xFFFFFFFF;
+    sregs_tmp.ss.selector = 0x10;
+    sregs_tmp.ss.type = 0x2;
+    sregs_tmp.ss.present = 1;
+    sregs_tmp.ss.db = 1;
+    sregs_tmp.ss.s = 1;
+    sregs_tmp.ss.g = 1;
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);

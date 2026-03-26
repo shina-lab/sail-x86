@@ -1176,6 +1176,31 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // expect RSP = STACK_TOP - 16, RBP = STACK_TOP - 8
   }
 
+  // 66h ENTER 0, 0: 16-bit operand size in 64-bit mode
+  // Pushes BP (16-bit), frame_temp is 16-bit, but StackAddrSize is still 64.
+  {
+    ArchState s = {};
+    s.rbp = 0xAABBCCDDEEFF1122;
+    s.rsp = STACK_TOP;
+    add("enter 0,0 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+  }
+
+  // 66h ENTER 8, 0: 16-bit push + allocation
+  {
+    ArchState s = {};
+    s.rbp = 0xAABBCCDDEEFF1122;
+    s.rsp = STACK_TOP;
+    add("enter 8,0 (66h)", {0x66, 0xC8, 0x08, 0x00, 0x00}, s, FL_NONE);
+  }
+
+  // 66h ENTER 0, 1: 16-bit with nesting level 1
+  {
+    ArchState s = {};
+    s.rbp = STACK_TOP - 64;
+    s.rsp = STACK_TOP;
+    add("enter 0,1 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+  }
+
   // =====================================================================
   // LEAVE — destroy stack frame (RSP := RBP, POP RBP)
   // =====================================================================
@@ -1212,6 +1237,26 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       s, FL_NONE, 0, false, std::move(data), 0});
     // RSP = RBP = DATA_ADDR (full 64-bit), POP BP reads 16-bit
     // expect RSP = DATA_ADDR + 2, RBP low 16 = 0x5678
+  }
+
+  // ENTER/LEAVE round-trip (64-bit): should restore RSP and RBP
+  {
+    ArchState s = {};
+    s.rbp = 0xDEADBEEFCAFEBABE;
+    s.rsp = STACK_TOP;
+    // ENTER 0,0 (C8 00 00 00) + LEAVE (C9)
+    add("enter 0,0; leave", {0xC8, 0x00, 0x00, 0x00, 0xC9}, s, FL_NONE);
+  }
+
+  // ENTER/LEAVE round-trip (16-bit): 66h prefix
+  // RBP must have high bits clear so that after 66h ENTER writes BP (16-bit),
+  // 66h LEAVE's RSP := RBP still points to mapped stack memory.
+  {
+    ArchState s = {};
+    s.rbp = STACK_TOP - 128;
+    s.rsp = STACK_TOP;
+    // 66h ENTER 0,0 + 66h LEAVE
+    add("enter 0,0; leave (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00, 0x66, 0xC9}, s, FL_NONE);
   }
 
   // =====================================================================

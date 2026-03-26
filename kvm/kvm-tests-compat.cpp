@@ -1501,4 +1501,116 @@ void add_compat_tests(std::vector<TestCase> &tests) {
          0xF4},                                   // HLT
         s, FL_NONE);
   }
+
+  // =====================================================================
+  // ENTER/LEAVE — 32-bit compat mode
+  // In compat mode (CS.D=1): default operand size=32, 66h->16
+  // StackAddrSize=32 (uses ESP), push/pop size follows operand size.
+  // =====================================================================
+  cat = "Compat";
+  {
+    // ENTER 0, 0: push EBP, set EBP=ESP (no allocation)
+    {
+      ArchState s = {};
+      s.rbp = 0xDEADBEEF;
+      s.rflags = 0x2;
+      add("compat enter 0,0", {0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+    }
+
+    // ENTER 16, 0: push EBP, set EBP=ESP, sub ESP,16
+    {
+      ArchState s = {};
+      s.rbp = 0xDEADBEEF;
+      s.rflags = 0x2;
+      add("compat enter 16,0", {0xC8, 0x10, 0x00, 0x00}, s, FL_NONE);
+    }
+
+    // ENTER 0, 1: nesting level 1
+    {
+      ArchState s = {};
+      s.rbp = STACK_TOP - 64;
+      s.rflags = 0x2;
+      add("compat enter 0,1", {0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+    }
+
+    // ENTER 8, 2: nesting level 2
+    {
+      ArchState s = {};
+      s.rbp = STACK_TOP - 64;
+      s.rflags = 0x2;
+      add("compat enter 8,2", {0xC8, 0x08, 0x00, 0x02}, s, FL_NONE);
+    }
+
+    // ENTER with large allocation: ENTER 256, 0
+    {
+      ArchState s = {};
+      s.rbp = 0x11223344;
+      s.rflags = 0x2;
+      add("compat enter 256,0", {0xC8, 0x00, 0x01, 0x00}, s, FL_NONE);
+    }
+
+    // 66h ENTER 0, 0: 16-bit operand size in compat mode
+    {
+      ArchState s = {};
+      s.rbp = 0xAABBCCDD;
+      s.rflags = 0x2;
+      add("compat enter 0,0 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+    }
+
+    // 66h ENTER 8, 0: 16-bit push + allocation
+    {
+      ArchState s = {};
+      s.rbp = 0xAABBCCDD;
+      s.rflags = 0x2;
+      add("compat enter 8,0 (66h)", {0x66, 0xC8, 0x08, 0x00, 0x00}, s, FL_NONE);
+    }
+
+    // 66h ENTER 0, 1: 16-bit with nesting level 1
+    {
+      ArchState s = {};
+      s.rbp = STACK_TOP - 64;
+      s.rflags = 0x2;
+      add("compat enter 0,1 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+    }
+  }
+
+  cat = "Compat";
+  {
+    // LEAVE: ESP = EBP, POP EBP (32-bit)
+    {
+      ArchState s = {};
+      s.rbp = DATA_ADDR;
+      s.rflags = 0x2;
+      std::vector<u8> data(16, 0);
+      u32 saved_ebp = 0x12345678;
+      memcpy(data.data(), &saved_ebp, 4);
+      add_mem("compat leave", {0xC9}, s, FL_NONE, std::move(data), 0);
+    }
+
+    // 66h LEAVE: 16-bit operand size, POP BP (16-bit)
+    {
+      ArchState s = {};
+      s.rbp = DATA_ADDR;
+      s.rflags = 0x2;
+      std::vector<u8> data(16, 0);
+      data[0] = 0x78; data[1] = 0x56;
+      add_mem("compat leave (66h)", {0x66, 0xC9}, s, FL_NONE, std::move(data), 0);
+    }
+
+    // ENTER/LEAVE round-trip (32-bit)
+    {
+      ArchState s = {};
+      s.rbp = 0xDEADBEEF;
+      s.rflags = 0x2;
+      add("compat enter 0,0; leave", {0xC8, 0x00, 0x00, 0x00, 0xC9}, s, FL_NONE);
+    }
+
+    // ENTER/LEAVE round-trip (16-bit)
+    {
+      ArchState s = {};
+      s.rbp = STACK_TOP - 128;
+      s.rflags = 0x2;
+      add("compat enter 0,0; leave (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00, 0x66, 0xC9}, s, FL_NONE);
+    }
+  }
 }
