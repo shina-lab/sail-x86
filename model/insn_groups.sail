@@ -185,11 +185,13 @@ function dispatch_group5(reg_field, dest, pfx) = {
       let os = opsize(pfx);
       v(dest) = exec_inc(v(os, dest))
     },
+
     // DEC r/m
     1 => {
       let os = opsize(pfx);
       v(dest) = exec_dec(v(os, dest))
     },
+
     // CALL near indirect
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
     // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
@@ -200,13 +202,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
       push(return_addr[os - 1 .. 0]);
       next_rip = Some(target)
     },
-    // JMP near indirect
-    4 => next_rip = Some(zero_extend(v(opsize_forced64(pfx), dest))),
-    // PUSH r/m (d64)
-    6 => {
-      let os = opsize_default64(pfx);
-      exec_push_imm(v(os, dest))
-    },
+
     // CALL far indirect m16:16/m16:32/m16:64
     // Memory operand contains offset (16/32/64 bits) then selector (16 bits).
     // Register form is #UD.
@@ -220,6 +216,10 @@ function dispatch_group5(reg_field, dest, pfx) = {
         },
       }
     },
+
+    // JMP near indirect
+    4 => next_rip = Some(zero_extend(v(opsize_forced64(pfx), dest))),
+
     // JMP far indirect m16:16/m16:32/m16:64
     // Memory operand contains offset (16/32/64 bits) then selector (16 bits).
     // Register form is #UD.
@@ -233,6 +233,13 @@ function dispatch_group5(reg_field, dest, pfx) = {
         },
       }
     },
+
+    // PUSH r/m (d64)
+    6 => {
+      let os = opsize_default64(pfx);
+      exec_push_imm(v(os, dest))
+    },
+
     // 7: reserved
     7 => raise_UD(),
   }

@@ -323,4 +323,3 @@ function modrm_xmm_reg(modrm, pfx) =
 val modrm_xmm_rm : (byte, Prefixes) -> simd_idx
 function modrm_xmm_rm(modrm, pfx) =
   unsigned(pfx.rex_b @ modrm[2..0])
-

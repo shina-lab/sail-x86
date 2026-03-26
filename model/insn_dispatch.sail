@@ -1776,12 +1776,10 @@ function decode_execute() = {
         // LOCK valid only for INC (/0) and DEC (/1) with memory
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);
-        if reg_field == 0 then {
-          v(dest) = exec_inc(v(8, dest))
-        } else if reg_field == 1 then {
-          v(dest) = exec_dec(v(8, dest))
-        } else {
-          raise_UD()
+        match reg_field {
+          0 => v(dest) = exec_inc(v(8, dest)),
+          1 => v(dest) = exec_dec(v(8, dest)),
+          _ => raise_UD(),
         }
       },
 
