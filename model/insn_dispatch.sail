@@ -1134,7 +1134,7 @@ function decode_execute() = {
             };
             next_rip = Some(target)
           },
-          _ => exec_far_call_protected(selector, offset, os),
+          _ => exec_far_call(selector, offset, os),
         }
       },
 
@@ -1811,7 +1811,7 @@ function decode_execute() = {
             };
             next_rip = Some(target)
           },
-          _ => exec_far_jmp_protected(selector, offset, os),
+          _ => exec_far_jmp(selector, offset, os),
         }
       },
 
