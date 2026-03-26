@@ -582,11 +582,11 @@ function decode_execute() = {
       7 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
-        let v : word = match os {
+        let x : word = match os {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(ES, v)
+        load_segment_register(ES, x)
       },
 
       // 0E: PUSH CS — Push CS selector onto stack (SDM Vol.2B PUSH)
@@ -623,11 +623,11 @@ function decode_execute() = {
       23 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
-        let v : word = match os {
+        let x : word = match os {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(SS, v)
+        load_segment_register(SS, x)
       },
 
       // 1E: PUSH DS — Push DS selector onto stack (SDM Vol.2B PUSH)
@@ -646,11 +646,11 @@ function decode_execute() = {
       31 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
-        let v : word = match os {
+        let x : word = match os {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(DS, v)
+        load_segment_register(DS, x)
       },
 
       // 27: DAA — Decimal Adjust AL After Addition (SDM Vol.2A)
@@ -1544,9 +1544,9 @@ function decode_execute() = {
 
             // Only pop SP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let v : dword = pop();
-              v(RSP) = zero_extend(64, v[15..0]);
-              load_segment_register(SS, v[31..16])
+              let x : dword = pop();
+              v(RSP) = zero_extend(64, x[15..0]);
+              load_segment_register(SS, x[31..16])
             };
 
             // In real mode, CPL is always 0 (no privilege levels).
@@ -1570,9 +1570,9 @@ function decode_execute() = {
 
             // Only pop ESP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let v : qword = pop();
-              v(RSP) = zero_extend(64, v[31..0]);
-              load_segment_register(SS, v[47..32])
+              let x : qword = pop();
+              v(RSP) = zero_extend(64, x[31..0]);
+              load_segment_register(SS, x[47..32])
             };
 
             if cur_mode != RealMode then cur_cpl = return_rpl;

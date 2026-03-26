@@ -329,12 +329,12 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let dest = modrm_rm(modrm, pfx);
-      let v : qword = read_mm(src);
+      let x : qword = read_mm(src);
       match (dest, pfx.rex_w) {
-        (RM_reg(r), true)  => v(r) = v,
-        (RM_mem(m), true)  => v(m) = v,
-        (RM_reg(r), false) => v(r) = v[31..0],
-        (RM_mem(m), false) => v(32, m) = v[31..0],
+        (RM_reg(r), true)  => v(r) = x,
+        (RM_mem(m), true)  => v(m) = x,
+        (RM_reg(r), false) => v(r) = x[31..0],
+        (RM_mem(m), false) => v(32, m) = x[31..0],
       };
       mmx_touch()
     },
@@ -344,10 +344,10 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let src = modrm_mm_reg(modrm);
       let dest = modrm_rm(modrm, pfx);
-      let v : qword = read_mm(src);
+      let x : qword = read_mm(src);
       match dest {
-        RM_reg(_) => write_mm(modrm_mm_rm(modrm), v),
-        RM_mem(m) => v(m) = v,
+        RM_reg(_) => write_mm(modrm_mm_rm(modrm), x),
+        RM_mem(m) => v(m) = x,
       };
       mmx_touch()
     },
@@ -377,9 +377,9 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_mm_rm(modrm);
       let imm = fetch(1);
       let sel : range(0, 3) = unsigned(imm[1..0]);
-      let v : qword = read_mm(src);
+      let x : qword = read_mm(src);
       let lo = sel * 16;
-      let w : word = v[(lo + 15) .. lo];
+      let w : word = x[(lo + 15) .. lo];
       v(dst_gpr) = zero_extend(32, w);
       mmx_touch()
     },
@@ -446,10 +446,10 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_mm_rm(modrm);
-      let v : qword = read_mm(src);
+      let x : qword = read_mm(src);
       let mask : byte =
-        v[63] @ v[55] @ v[47] @ v[39] @
-        v[31] @ v[23] @ v[15] @ v[7];
+        x[63] @ x[55] @ x[47] @ x[39] @
+        x[31] @ x[23] @ x[15] @ x[7];
       v(dst_gpr) = zero_extend(32, mask);
       mmx_touch()
     },

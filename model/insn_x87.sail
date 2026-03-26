@@ -279,7 +279,7 @@ function dispatch_x87_db(modrm, operand, _) = {
         4 => raise_UD(),
         5 => x87_push(read_mem(m)),
         6 => raise_UD(),
-        7 => { let v = x87_read_st(0); write_mem(m, v); let _ = x87_pop() },
+        7 => { let x = x87_read_st(0); write_mem(m, x); let _ = x87_pop() },
       }
     },
     RM_reg(_) => {
@@ -489,7 +489,7 @@ function dispatch_x87_df(modrm, operand, _) = {
         3 => { v(m) = __f80_to_int16(x87_read_st(0)); let _ = x87_pop() },
         4 => x87_push(__f80_from_bcd(read_mem(m))),
         5 => x87_push(__f80_from_int64(v(m))),
-        6 => { let v = __f80_to_bcd(x87_read_st(0)); write_mem(m, v); let _ = x87_pop() },
+        6 => { let x = __f80_to_bcd(x87_read_st(0)); write_mem(m, x); let _ = x87_pop() },
         7 => { v(m) = __f80_to_int64(x87_read_st(0)); let _ = x87_pop() },
       }
     },

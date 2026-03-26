@@ -549,13 +549,13 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let v : byte = extract_byte_from_xmm(read_xmm(src), imm);
+    let x : byte = extract_byte_from_xmm(read_xmm(src), imm);
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(dst_reg) = zero_extend(32, v);
+        v(dst_reg) = zero_extend(32, x);
       },
-      RM_mem(m) => v(m) = v,
+      RM_mem(m) => v(m) = x,
     }
   },
 
@@ -606,13 +606,13 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let v : dword = extract_dword_from_xmm(read_xmm(src), imm);
+    let x : dword = extract_dword_from_xmm(read_xmm(src), imm);
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(dst_reg) = v;
+        v(dst_reg) = x;
       },
-      RM_mem(m) => v(m) = v,
+      RM_mem(m) => v(m) = x,
     }
   },
 
@@ -624,13 +624,13 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-    let v : byte = match src {
+    let x : byte = match src {
       RM_reg(_) => v(modrm_rm_reg(modrm, pfx)),
       RM_mem(m) => v(m),
     };
     let imm = fetch(1);
     let sel : range(0, 15) = unsigned(imm[3..0]);
-    write_xmm(dst, insert_byte(src1, v, sel))
+    write_xmm(dst, insert_byte(src1, x, sel))
   },
 
   // 0F3A 21: VINSERTPS xmm, xmm, xmm/m32, imm8 (66) — VEX.128 only
@@ -661,18 +661,18 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     if pfx.rex_w then {
       // VPINSRQ xmm1, xmm2, r/m64, imm8
-      let v : qword = v(src);
+      let x : qword = v(src);
       let sel : range(0, 1) = unsigned(imm[0]);
       let r : xmmword = match sel {
-        0 => src1[127..64] @ v,
-        1 => v @ src1[63..0]
+        0 => src1[127..64] @ x,
+        1 => x @ src1[63..0]
       };
       write_xmm(dst, r)
     } else {
       // VPINSRD xmm1, xmm2, r/m32, imm8
-      let v : dword = v(src);
+      let x : dword = v(src);
       let sel : range(0, 3) = unsigned(imm[1..0]);
-      write_xmm(dst, insert_dword(src1, v, sel))
+      write_xmm(dst, insert_dword(src1, x, sel))
     }
   },
 
@@ -868,8 +868,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let v : ymmword = read_ymm(src);
-    let extracted : xmmword = (v >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
+    let x : ymmword = read_ymm(src);
+    let extracted : xmmword = (x >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
     match dest {
       RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
       RM_mem(m) => write_mem(m,extracted),

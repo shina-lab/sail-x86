@@ -429,21 +429,21 @@ function dispatch_vex_0f_fp(op, pfx) = {
       // VCVTSI2SS xmm1, xmm2, r/m32
       MP_F3 => {
         if pfx.vex_w then {
-          let v : qword = v(src);
-          write_xmm(dst, src1[127..32] @ __int64_to_f32(v));
+          let x : qword = v(src);
+          write_xmm(dst, src1[127..32] @ __int64_to_f32(x));
         } else {
-          let v : dword = v(src);
-          write_xmm(dst, src1[127..32] @ __int32_to_f32(v));
+          let x : dword = v(src);
+          write_xmm(dst, src1[127..32] @ __int32_to_f32(x));
         }
       },
       // VCVTSI2SD xmm1, xmm2, r/m32
       MP_F2 => {
         if pfx.vex_w then {
-          let v : qword = v(src);
-          write_xmm(dst, src1[127..64] @ __int64_to_f64(v));
+          let x : qword = v(src);
+          write_xmm(dst, src1[127..64] @ __int64_to_f64(x));
         } else {
-          let v : dword = v(src);
-          write_xmm(dst, src1[127..64] @ __int32_to_f64(v));
+          let x : dword = v(src);
+          write_xmm(dst, src1[127..64] @ __int32_to_f64(x));
         }
       },
       _ => raise_UD(),

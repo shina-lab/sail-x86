@@ -14,8 +14,8 @@ function avx_pmovsxbw_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 56) = i * 8;
     let dlo : range(0, 112) = i * 16;
-    let v : word = sign_extend(src[(slo + 7)..slo]);
-    r[(dlo + 15)..dlo] = v;
+    let x : word = sign_extend(src[(slo + 7)..slo]);
+    r[(dlo + 15)..dlo] = x;
   };
   r
 }
@@ -29,8 +29,8 @@ function avx_pmovsxbd_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 24) = i * 8;
     let dlo : range(0, 96) = i * 32;
-    let v : dword = sign_extend(src[(slo + 7)..slo]);
-    r[(dlo + 31)..dlo] = v;
+    let x : dword = sign_extend(src[(slo + 7)..slo]);
+    r[(dlo + 31)..dlo] = x;
   };
   r
 }
@@ -54,8 +54,8 @@ function avx_pmovsxwd_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 48) = i * 16;
     let dlo : range(0, 96) = i * 32;
-    let v : dword = sign_extend(src[(slo + 15)..slo]);
-    r[(dlo + 31)..dlo] = v;
+    let x : dword = sign_extend(src[(slo + 15)..slo]);
+    r[(dlo + 31)..dlo] = x;
   };
   r
 }
@@ -93,8 +93,8 @@ function avx_pmovzxbw_128(src) = {
   foreach (i from 0 to 7) {
     let slo : range(0, 56) = i * 8;
     let dlo : range(0, 112) = i * 16;
-    let v : word = zero_extend(src[(slo + 7)..slo]);
-    r[(dlo + 15)..dlo] = v;
+    let x : word = zero_extend(src[(slo + 7)..slo]);
+    r[(dlo + 15)..dlo] = x;
   };
   r
 }
@@ -108,8 +108,8 @@ function avx_pmovzxbd_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 24) = i * 8;
     let dlo : range(0, 96) = i * 32;
-    let v : dword = zero_extend(src[(slo + 7)..slo]);
-    r[(dlo + 31)..dlo] = v;
+    let x : dword = zero_extend(src[(slo + 7)..slo]);
+    r[(dlo + 31)..dlo] = x;
   };
   r
 }
@@ -133,8 +133,8 @@ function avx_pmovzxwd_128(src) = {
   foreach (i from 0 to 3) {
     let slo : range(0, 48) = i * 16;
     let dlo : range(0, 96) = i * 32;
-    let v : dword = zero_extend(src[(slo + 15)..slo]);
-    r[(dlo + 31)..dlo] = v;
+    let x : dword = zero_extend(src[(slo + 15)..slo]);
+    r[(dlo + 31)..dlo] = x;
   };
   r
 }

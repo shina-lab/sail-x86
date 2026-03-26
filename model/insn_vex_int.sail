@@ -338,12 +338,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_w then {
       // VMOVQ xmm, r/m64
-      let v : qword = v(src);
-      write_xmm(dst, zero_extend(v))
+      let x : qword = v(src);
+      write_xmm(dst, zero_extend(x))
     } else {
       // VMOVD xmm, r/m32
-      let v : dword = v(src);
-      write_xmm(dst, zero_extend(v))
+      let x : dword = v(src);
+      write_xmm(dst, zero_extend(x))
     }
   },
 
@@ -910,14 +910,14 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-    let v : word = match src {
+    let x : word = match src {
       RM_reg(r) => v(32, r)[15..0],
       RM_mem(m) => v(m),
     };
     let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
     var result : xmmword = src1;
-    result[(16 * sel + 15) .. (16 * sel)] = v;
+    result[(16 * sel + 15) .. (16 * sel)] = x;
     write_xmm(dst, result)
   },
 
@@ -1073,12 +1073,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let src_xmm = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let v : qword = read_xmm(src_xmm)[63..0];
+    let x : qword = read_xmm(src_xmm)[63..0];
     match src {
       RM_reg(_) => {
-        write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(v))
+        write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(x))
       },
-      RM_mem(m) => write_mem(m,v),
+      RM_mem(m) => write_mem(m,x),
     }
   },
 
@@ -1366,9 +1366,9 @@ function dispatch_vex_0f_int(op, pfx) = {
         if pfx.vex_l then {
           let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
-          let v : ymmword = read_ymm(src);
-          write_mem(128, a, v[127..0]);
-          write_mem(128, a + 16, v[255..128])
+          let x : ymmword = read_ymm(src);
+          write_mem(128, a, x[127..0]);
+          write_mem(128, a + 16, x[255..128])
         } else {
           let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();

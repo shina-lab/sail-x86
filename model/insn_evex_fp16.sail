@@ -1143,13 +1143,13 @@ function dispatch_evex_map5(opcode, pfx) = {
       let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
       if pfx.vex_w then {
         // VCVTSI2SH r64 → FP16
-        let v : qword = v(src);
-        let r : word = __int64_to_f16(v);
+        let x : qword = v(src);
+        let r : word = __int64_to_f16(x);
         evex_write_sh(dst, src1[127..16] @ r, pfx)
       } else {
         // VCVTSI2SH r32 → FP16
-        let v : dword = v(src);
-        let r : word = __int32_to_f16(v);
+        let x : dword = v(src);
+        let r : word = __int32_to_f16(x);
         evex_write_sh(dst, src1[127..16] @ r, pfx)
       }
     },
@@ -1613,13 +1613,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
           if pfx.vex_w then {
             // VCVTUSI2SH r64 → FP16
-            let v : qword = v(src);
-            let r : word = __uint64_to_f16(v);
+            let x : qword = v(src);
+            let r : word = __uint64_to_f16(x);
             evex_write_sh(dst, src1[127..16] @ r, pfx)
           } else {
             // VCVTUSI2SH r32 → FP16
-            let v : dword = v(src);
-            let r : word = __uint32_to_f16(v);
+            let x : dword = v(src);
+            let r : word = __uint32_to_f16(x);
             evex_write_sh(dst, src1[127..16] @ r, pfx)
           }
         },
@@ -1956,12 +1956,12 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let src = evex_reg_idx(modrm, pfx);
       let dest = modrm_rm_evex(modrm, pfx, 2);
-      let v : word = read_xmm(src)[15..0];
+      let x : word = read_xmm(src)[15..0];
       match dest {
-        RM_mem(m) => v(m) = v,
+        RM_mem(m) => v(m) = x,
         RM_reg(_) => {
           let dst_gpr = modrm_rm_reg(modrm, pfx);
-          v(dst_gpr) = zero_extend(32, v)
+          v(dst_gpr) = zero_extend(32, x)
         },
       }
     },

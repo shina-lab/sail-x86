@@ -104,9 +104,9 @@ function push(n, v) = {
 val pop : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n)) -> bits('n)
 function pop(n) = {
   let sp = read_stack_ptr();
-  let v : bits('n) = read_mem(sp);
+  let x : bits('n) = read_mem(sp);
   write_stack_ptr(sp + n / 8 - get_seg_base(SS));
-  v
+  x
 }
 
 // =========================================================================

@@ -1025,8 +1025,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
                 write_xmm_legacy(xreg, zero_extend(src[63..0]))
               },
               RM_mem(m) => {
-                let v : xmmword = zero_extend(read_mem(64, m));
-                write_xmm(xreg, v)
+                let x : xmmword = zero_extend(read_mem(64, m));
+                write_xmm(xreg, x)
               },
             }
           },
@@ -1545,19 +1545,19 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let v : word = v(src);
+        let x : word = v(src);
         let imm = fetch(1);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
         let r : xmmword = match sel {
-          0 => v_0[127..16] @ v,
-          1 => v_0[127..32] @ v @ v_0[15..0],
-          2 => v_0[127..48] @ v @ v_0[31..0],
-          3 => v_0[127..64] @ v @ v_0[47..0],
-          4 => v_0[127..80] @ v @ v_0[63..0],
-          5 => v_0[127..96] @ v @ v_0[79..0],
-          6 => v_0[127..112] @ v @ v_0[95..0],
-          7 => v @ v_0[111..0]
+          0 => v_0[127..16] @ x,
+          1 => v_0[127..32] @ x @ v_0[15..0],
+          2 => v_0[127..48] @ x @ v_0[31..0],
+          3 => v_0[127..64] @ x @ v_0[47..0],
+          4 => v_0[127..80] @ x @ v_0[63..0],
+          5 => v_0[127..96] @ x @ v_0[79..0],
+          6 => v_0[127..112] @ x @ v_0[95..0],
+          7 => x @ v_0[111..0]
         };
         write_xmm_legacy(xreg, r)
       }
@@ -1676,13 +1676,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let src_xmm = modrm_xmm_reg(modrm, pfx);
         let dest = modrm_rm(modrm, pfx);
-        let v : qword = read_xmm(src_xmm)[63..0];
+        let x : qword = read_xmm(src_xmm)[63..0];
         match dest {
           RM_reg(_) => {
             let dst = modrm_xmm_rm(modrm, pfx);
-            write_xmm_legacy(dst, zero_extend(v))
+            write_xmm_legacy(dst, zero_extend(x))
           },
-          RM_mem(m) => write_mem(m,v),
+          RM_mem(m) => write_mem(m,x),
         }
       }
     },
@@ -2735,13 +2735,13 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — PINSRB xmm, r/m8, imm8
     32 => {
       let imm = fetch(1);
-      let v : byte = match src {
+      let x : byte = match src {
         RM_reg(r) => v(r),
         RM_mem(m) => read_mem(m),
       };
       let v_0 : xmmword = read_xmm(xreg);
       let sel : range(0, 15) = unsigned(imm[3..0]);
-      let r : xmmword = insert_byte(v_0, v, sel);
+      let r : xmmword = insert_byte(v_0, x, sel);
       write_xmm_legacy(xreg, r)
     },
 
@@ -2749,19 +2749,19 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     34 => {
       let imm = fetch(1);
       if pfx.rex_w then {
-        let v : qword = v(src);
+        let x : qword = v(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
-          0 => v_0[127..64] @ v,
-          1 => v @ v_0[63..0]
+          0 => v_0[127..64] @ x,
+          1 => x @ v_0[63..0]
         };
         write_xmm_legacy(xreg, r)
       } else {
-        let v : dword = v(src);
+        let x : dword = v(src);
         let v_0 : xmmword = read_xmm(xreg);
         let sel : range(0, 3) = unsigned(imm[1..0]);
-        let r : xmmword = insert_dword(v_0, v, sel);
+        let r : xmmword = insert_dword(v_0, x, sel);
         write_xmm_legacy(xreg, r)
       }
     },
