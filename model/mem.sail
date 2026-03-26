@@ -203,11 +203,13 @@ function read_far_pointer(os, m) = {
 }
 
 // Pop a far pointer (selector:offset) from the stack.
-// Stack layout: [offset (os bits)][selector (16 bits)].
-// Returns (zero-extended offset, selector).
+// Each element occupies a full operand-size slot, so the frame is 2*os bits.
+// This differs from read_far_pointer (compact os+16 layout for memory
+// operands) because CALL FAR pushes each element as a separate os-wide
+// push, and RETF pops them the same way.
 val pop_far_pointer : forall 'os, 'os in {16, 32, 64}. int('os) -> (qword, word)
 function pop_far_pointer(os) = {
-  let d : bits('os + 16) = pop();
+  let d : bits(2 * 'os) = pop();
   (zero_extend(d['os - 1 .. 0]), d['os + 15 .. 'os])
 }
 
