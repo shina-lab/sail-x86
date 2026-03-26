@@ -105,38 +105,37 @@ enum PackedBinOp = {
 val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedBinOp, int('eb), bits('eb), bits('eb)) -> bits('eb)
 function packed_elem_op(op, eb, a, b) = match op {
-  PB_Add     => a + b,
-  PB_Sub     => a - b,
-  PB_SatAddS => sat_add_s(a, b),
-  PB_SatSubS => sat_sub_s(a, b),
-  PB_SatAddU => sat_add_u(a, b),
-  PB_SatSubU => sat_sub_u(a, b),
-  PB_MinU    => min_u(a, b),
-  PB_MaxU    => max_u(a, b),
-  PB_MinS    => min_s(a, b),
-  PB_MaxS    => max_s(a, b),
-  PB_Avg     => avg(a, b),
-  PB_Srl     => a >> b,
-  PB_Sra     => a >>> unsigned(b),
-  PB_Sll     => a << b,
-  PB_MulLow  => to_bits_truncate(signed(a) * signed(b)),
+  PB_Add      => a + b,
+  PB_Sub      => a - b,
+  PB_SatAddS  => sat_add_s(a, b),
+  PB_SatSubS  => sat_sub_s(a, b),
+  PB_SatAddU  => sat_add_u(a, b),
+  PB_SatSubU  => sat_sub_u(a, b),
+  PB_MinU     => min_u(a, b),
+  PB_MaxU     => max_u(a, b),
+  PB_MinS     => min_s(a, b),
+  PB_MaxS     => max_s(a, b),
+  PB_Avg      => avg(a, b),
+  PB_Srl      => a >> b,
+  PB_Sra      => a >>> unsigned(b),
+  PB_Sll      => a << b,
+  PB_MulLow   => to_bits_truncate(signed(a) * signed(b)),
   PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
   PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
-  PB_MulHRS  => {
-    // PMULHRSW: (a*b >> 14 + 1) >> 1, computed in double-width to avoid overflow
+  PB_MulHRS   => {
     let prod : bits('eb * 2) = to_bits_truncate(signed(a) * signed(b));
     let shifted = prod >>> ('eb - 2);
     let rounded : bits('eb * 2) = to_bits_truncate(signed(shifted) + 1);
     (rounded >>> 1)[('eb - 1)..0]
   },
-  PB_Ror     => rotr(a, unsigned(b) % 'eb),
-  PB_Rol     => rotl(a, unsigned(b) % 'eb),
-  PB_FAdd => match eb { 8 => fadd(a, b), 16 => fadd(a, b), 32 => fadd(a, b), 64 => fadd(a, b) },
-  PB_FSub => match eb { 8 => fsub(a, b), 16 => fsub(a, b), 32 => fsub(a, b), 64 => fsub(a, b) },
-  PB_FMul => match eb { 8 => fmul(a, b), 16 => fmul(a, b), 32 => fmul(a, b), 64 => fmul(a, b) },
-  PB_FDiv => match eb { 8 => fdiv(a, b), 16 => fdiv(a, b), 32 => fdiv(a, b), 64 => fdiv(a, b) },
-  PB_FMin => match eb { 8 => fmin(a, b), 16 => fmin(a, b), 32 => fmin(a, b), 64 => fmin(a, b) },
-  PB_FMax => match eb { 8 => fmax(a, b), 16 => fmax(a, b), 32 => fmax(a, b), 64 => fmax(a, b) },
+  PB_Ror      => rotr(a, unsigned(b) % 'eb),
+  PB_Rol      => rotl(a, unsigned(b) % 'eb),
+  PB_FAdd     => fadd(a, b),
+  PB_FSub     => fsub(a, b),
+  PB_FMul     => fmul(a, b),
+  PB_FDiv     => fdiv(a, b),
+  PB_FMin     => fmin(a, b),
+  PB_FMax     => fmax(a, b),
 }
 
 // Apply a packed binary operation element-wise across a vector.
@@ -157,10 +156,10 @@ enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt }
 val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedUnaryOp, int('eb), bits('eb)) -> bits('eb)
 function packed_unary_elem(op, eb, a) = match op {
-  PU_Abs     => abs(a),
-  PU_Popcnt  => to_bits('eb, popcount(a)),
-  PU_Lzcnt   => to_bits('eb, clz(a)),
-  PU_FSqrt => match eb { 8 => fsqrt(a), 16 => fsqrt(a), 32 => fsqrt(a), 64 => fsqrt(a) },
+  PU_Abs    => abs(a),
+  PU_Popcnt => to_bits('eb, popcount(a)),
+  PU_Lzcnt  => to_bits('eb, clz(a)),
+  PU_FSqrt  => fsqrt(a),
 }
 
 val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.

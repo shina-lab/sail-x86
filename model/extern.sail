@@ -376,19 +376,24 @@ val __sha256msg2 : (xmmword, xmmword) -> xmmword
 // Width-polymorphic FP overloads
 // =========================================================================
 
-// 8-bit FP stubs (unused — no 8-bit FP in x86; needed for overload completeness)
-function __f8_add(a : byte, b : byte) -> byte = undefined
-function __f8_sub(a : byte, b : byte) -> byte = undefined
-function __f8_mul(a : byte, b : byte) -> byte = undefined
-function __f8_div(a : byte, b : byte) -> byte = undefined
-function __f8_min(a : byte, b : byte) -> byte = undefined
-function __f8_max(a : byte, b : byte) -> byte = undefined
-function __f8_sqrt(a : byte) -> byte = undefined
+// Width-polymorphic FP operations: dispatch to __f{16,32,64}_* based on 'n.
+val fadd : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fadd(a, b) = match 'n { 16 => __f16_add(a, b), 32 => __f32_add(a, b), 64 => __f64_add(a, b), _ => undefined }
 
-overload fadd  = {__f8_add, __f16_add, __f32_add, __f64_add}
-overload fsub  = {__f8_sub, __f16_sub, __f32_sub, __f64_sub}
-overload fmul  = {__f8_mul, __f16_mul, __f32_mul, __f64_mul}
-overload fdiv  = {__f8_div, __f16_div, __f32_div, __f64_div}
-overload fmin  = {__f8_min, __f16_min, __f32_min, __f64_min}
-overload fmax  = {__f8_max, __f16_max, __f32_max, __f64_max}
-overload fsqrt = {__f8_sqrt, __f16_sqrt, __f32_sqrt, __f64_sqrt}
+val fsub : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fsub(a, b) = match 'n { 16 => __f16_sub(a, b), 32 => __f32_sub(a, b), 64 => __f64_sub(a, b), _ => undefined }
+
+val fmul : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fmul(a, b) = match 'n { 16 => __f16_mul(a, b), 32 => __f32_mul(a, b), 64 => __f64_mul(a, b), _ => undefined }
+
+val fdiv : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fdiv(a, b) = match 'n { 16 => __f16_div(a, b), 32 => __f32_div(a, b), 64 => __f64_div(a, b), _ => undefined }
+
+val fmin : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fmin(a, b) = match 'n { 16 => __f16_min(a, b), 32 => __f32_min(a, b), 64 => __f64_min(a, b), _ => undefined }
+
+val fmax : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fmax(a, b) = match 'n { 16 => __f16_max(a, b), 32 => __f32_max(a, b), 64 => __f64_max(a, b), _ => undefined }
+
+val fsqrt : forall 'n, 'n in {8, 16, 32, 64}. bits('n) -> bits('n)
+function fsqrt(a) = match 'n { 16 => __f16_sqrt(a), 32 => __f32_sqrt(a), 64 => __f64_sqrt(a), _ => undefined }
