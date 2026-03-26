@@ -136,7 +136,44 @@ function evex_src_m64(modrm, rm, pfx) = match rm {
   RM_mem(m) => read_mem(m),
 }
 
-// Polymorphic writemask: blend result/old_dst per mask bit, one bit per element.
+struct Writemask('n : Int), 'n > 0 = {
+  bits : bits('n),
+  zeroing : bit,
+}
+
+// Apply writemask to a vector result. Element size = 'vl / 'nm.
+// Per element: mask bit=1 → write result, bit=0 → keep or zero (per zeroing flag).
+// Branchless: base = old_dst & sign_extend(~zeroing), then blend(base, result, mask[i]).
+val apply_writemask_v : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+  (Writemask('nm), bits('vl), bits('vl)) -> bits('vl)
+function apply_writemask_v(wm, result, old_dst) = {
+  let mask = wm.bits;
+  let base : bits('vl) = old_dst & sign_extend(~(wm.zeroing));
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('nm - 1)) {
+    let lo = i * ('vl / 'nm);
+    r[(lo + 'vl / 'nm - 1)..lo] = blend(base[(lo + 'vl / 'nm - 1)..lo], result[(lo + 'vl / 'nm - 1)..lo], mask[i])
+  };
+  r
+}
+
+// Write a SIMD register with writemask applied.
+val evex_writev : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+  (simd_idx, Writemask('nm), bits('vl)) -> unit
+function evex_writev(dst, wm, result) =
+  write_simd(dst, apply_writemask_v(wm, result, read_simd(dst)))
+
+// Construct a Writemask from prefixes, vector length, and element size.
+// Returns Writemask with 'vl/'eb mask bits (one per element).
+// Construct Writemask for N elements from EVEX prefixes.
+val evex_wmask : forall 'nm, 'nm in {2, 4, 8, 16, 32, 64}.
+  (Prefixes, int('nm)) -> Writemask('nm)
+function evex_wmask(pfx, nm) = struct {
+  bits = evex_kmask64(pfx)[('nm - 1)..0],
+  zeroing = pfx.evex_z,
+}
+
+// Old apply_writemask/evex_write: kept for existing callers during migration.
 val apply_writemask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (bits('vl), bits('vl), qword, bit, int('eb)) -> bits('vl)
 function apply_writemask(result, old_dst, mask, zeroing, eb) = {
@@ -149,7 +186,6 @@ function apply_writemask(result, old_dst, mask, zeroing, eb) = {
   r
 }
 
-// Polymorphic EVEX write with writemask.
 val evex_write : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (implicit('vl), simd_idx, bits('vl), Prefixes, int('eb)) -> unit
 function evex_write(vl, dst, result, pfx, eb) =

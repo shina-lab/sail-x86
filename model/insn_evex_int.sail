@@ -1522,7 +1522,8 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_writev(dst, mask, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(modrm, src, pfx, eb))
   },
 
   // 0F DB: VPANDD (W0) / VPANDQ (W1) (EVEX, 66 prefix)
