@@ -95,6 +95,7 @@ enum PackedBinOp = {
   PB_SatAddS, PB_SatSubS, PB_SatAddU, PB_SatSubU,
   PB_MinU, PB_MaxU, PB_MinS, PB_MaxS,
   PB_Avg,
+  PB_Srl, PB_Sra, PB_Sll,
 }
 
 // Per-element dispatch: applies the operation to one pair of elements.
@@ -112,6 +113,9 @@ function packed_elem_op(op, eb, a, b) = match op {
   PB_MinS    => min_s(a, b),
   PB_MaxS    => max_s(a, b),
   PB_Avg     => avg(a, b),
+  PB_Srl     => a >> b,
+  PB_Sra     => a >>> unsigned(b),
+  PB_Sll     => a << b,
 }
 
 // Apply a packed binary operation element-wise across a vector.
