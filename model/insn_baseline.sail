@@ -1045,7 +1045,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 80-8F: Jcc rel16/rel32 (forced64)
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
-      let offset = fetch_rel_os(pfx);
+      let rs = opsize_rel(pfx);
+      let offset : qword = sign_extend(fetch(rs / 8));
       if eval_cc(cc) == 0b1 then {
         let os = opsize_forced64(pfx);
         next_rip = Some(zero_extend((decode_pos + offset)[(os - 1) .. 0]));

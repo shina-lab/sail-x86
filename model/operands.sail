@@ -199,6 +199,20 @@ function opsize_forced64(pfx) =
     if pfx.has_opsize then 32 else 16
   }
 
+// Operand size for relative displacements (Jcc rel, CALL rel, JMP rel).
+// LongMode: always OS32 (66h ignored; displacement is sign-extended to 64).
+// Non-LongMode, CS.D=1: default OS32, 66h → OS16.
+// Non-LongMode, CS.D=0: default OS16, 66h → OS32.
+val opsize_rel : Prefixes -> {16, 32}
+function opsize_rel(pfx) =
+  if cur_mode == LongMode then {
+    32
+  } else if get_cs_db() == 0b1 then {
+    if pfx.has_opsize then 16 else 32
+  } else {
+    if pfx.has_opsize then 32 else 16
+  }
+
 // =========================================================================
 // Register index helpers (extending 3-bit fields with REX bits)
 // =========================================================================
@@ -280,19 +294,6 @@ val write_memref_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), MemRe
 function write_memref_val(os, m, x) = write_mem(m, x)
 
 overload v = {read_memref_val, write_memref_val, read_rm_val, write_rm_val}
-
-// Fetch a relative offset sized by effective operand size (rel16 or rel32).
-// SDM Vol.2: for near CALL/JMP/Jcc, the displacement size matches the
-// operand-size attribute: 16-bit in 16-bit mode, 32-bit in 32-bit mode.
-// The 66h prefix toggles it: 66h in 16-bit mode → 32-bit offset.
-// In 64-bit mode (f64 instructions), always 32-bit (SDM Vol.2 §E.3.3).
-val fetch_rel_os : Prefixes -> qword
-function fetch_rel_os(pfx) = {
-  let use_32 : bool = if cur_mode == LongMode then true
-    else if get_cs_db() == 0b1 then ~(pfx.has_opsize)
-    else pfx.has_opsize;
-  if use_32 then sign_extend(fetch(4)) else sign_extend(fetch(2))
-}
 
 // =========================================================================
 // Address size determination (for string ops, LOOP, XLAT, etc.)

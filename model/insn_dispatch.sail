@@ -1662,7 +1662,8 @@ function decode_execute() = {
 
       // E8: CALL rel16/rel32 (forced64)
       232 => {
-        let offset = fetch_rel_os(pfx);
+        let rs = opsize_rel(pfx);
+        let offset : qword = sign_extend(fetch(rs / 8));
         let os = opsize_forced64(pfx);
         let return_addr = decode_pos;
         match os {
@@ -1678,7 +1679,9 @@ function decode_execute() = {
       // E9: JMP rel16/rel32 (forced64)
       233 => {
         let os = opsize_forced64(pfx);
-        next_rip = Some(zero_extend((decode_pos + fetch_rel_os(pfx))[(os - 1) .. 0]))
+        let rs = opsize_rel(pfx);
+        let offset : qword = sign_extend(fetch(rs / 8));
+        next_rip = Some(zero_extend((decode_pos + offset)[(os - 1) .. 0]))
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
