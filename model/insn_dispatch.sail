@@ -509,11 +509,7 @@ function exec_retf(pfx, maybe_imm) = {
   };
 
   // Pop return RIP and CS as a single operation.
-  let (new_rip, new_cs) : (qword, word) = match os {
-    16 => { let v = pop(32); (zero_extend(v[15..0]), v[31..16]) },
-    32 => { let v = pop(64); (zero_extend(v[31..0]), v[47..32]) },
-    64 => { let v = pop(128); (v[63..0], v[79..64]) },
-  };
+  let (new_rip, new_cs) = pop_far_pointer(os);
 
   // In protected/long mode, null CS selector is invalid.
   // In real mode, CS=0x0000 is a valid segment (linear address 0).
@@ -533,11 +529,7 @@ function exec_retf(pfx, maybe_imm) = {
   // In protected/long mode, check RPL for inter-privilege return.
   if cur_mode != RealMode & return_rpl > cur_cpl then {
     // Outer-privilege return: also pop RSP and SS as a single operation.
-    let (new_rsp, new_ss) : (qword, word) = match os {
-      16 => { let v = pop(32); (zero_extend(v[15..0]), v[31..16]) },
-      32 => { let v = pop(64); (zero_extend(v[31..0]), v[47..32]) },
-      64 => { let v = pop(128); (v[63..0], v[79..64]) },
-    };
+    let (new_rsp, new_ss) = pop_far_pointer(os);
     v(RSP) = new_rsp;
     load_segment_register(SS, new_ss);
     // Adjust new RSP for imm16 if present

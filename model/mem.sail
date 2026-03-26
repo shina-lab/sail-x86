@@ -202,6 +202,15 @@ function read_far_pointer(os, m) = {
   (zero_extend(d['os - 1 .. 0]), d['os + 15 .. 'os])
 }
 
+// Pop a far pointer (selector:offset) from the stack.
+// Stack layout: [offset (os bits)][selector (16 bits)].
+// Returns (zero-extended offset, selector).
+val pop_far_pointer : forall 'os, 'os in {16, 32, 64}. int('os) -> (qword, word)
+function pop_far_pointer(os) = {
+  let d : bits('os + 16) = pop();
+  (zero_extend(d['os - 1 .. 0]), d['os + 15 .. 'os])
+}
+
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)
 // =========================================================================
