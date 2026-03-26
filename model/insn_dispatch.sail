@@ -1428,11 +1428,7 @@ function decode_execute() = {
         let os = opsize_default64(pfx);
         let sas = stack_addr_size();
         v(RSP) = v(sas, RBP);
-        match os {
-          16 => v(RBP) = pop(16),
-          32 => v(RBP) = pop(32),
-          64 => v(RBP) = pop(64),
-        }
+        v(RBP) = pop(os)
       },
 
       // CA: RETF imm16 — Far return with stack adjustment
