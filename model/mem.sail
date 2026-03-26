@@ -280,57 +280,57 @@ function validate_far_jmp_cs(selector) = {
   desc
 }
 
-// Execute far JMP in protected mode.
-// Validates the target code segment, loads CS with descriptor cache,
-// and sets EIP. Call gates and task switches are not supported (#GP).
-val exec_far_jmp_protected : (word, qword, {16, 32, 64}) -> unit
-function exec_far_jmp_protected(selector, offset, os) = {
-  let desc = validate_far_jmp_cs(selector);
-  // Load CS: write selector with RPL set to CPL
+// Complete a far transfer in protected mode: load CS from a validated
+// descriptor, update execution mode, and set RIP.
+// Shared by exec_far_jmp and exec_far_call.
+val finish_far_transfer : (SegDescCache, word, qword, {16, 32, 64}) -> unit
+function finish_far_transfer(desc, selector, offset, os) = {
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
-  // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
   if EFER[10] == 0b1 then {
     if desc.seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   };
-  // Truncate offset based on operand size
-  let target : qword = match os {
-    8  => offset,
+  next_rip = Some(match os {
     16 => zero_extend(offset[15..0]),
     32 => zero_extend(offset[31..0]),
-    64 => offset,
-  };
-  next_rip = Some(target)
+    _  => offset,
+  })
 }
 
-// Execute far CALL in protected mode.
-// Same validation as far JMP, but pushes old CS:EIP first.
-val exec_far_call_protected : (word, qword, {16, 32, 64}) -> unit
-function exec_far_call_protected(selector, offset, os) = {
-  let desc = validate_far_jmp_cs(selector);
-  // Push old CS and EIP/IP
-  match os {
-    16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
-    32 => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
-    64 => push(128, zero_extend(64, read_segreg(CS)) @ decode_pos),
-  };
-  // Load CS
-  let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
-  write_segreg(CS, adj_sel);
-  SegCache[CS] = desc;
-  // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
-  if EFER[10] == 0b1 then {
-    if desc.seg_l == 0b1 then cur_mode = LongMode
-    else cur_mode = CompatibilityMode
-  };
-  // Set EIP
-  let target : qword = match os {
-    8  => offset,
-    16 => zero_extend(offset[15..0]),
-    32 => zero_extend(offset[31..0]),
-    64 => offset,
-  };
-  next_rip = Some(target)
+// Execute far JMP: load CS:RIP from selector:offset.
+val exec_far_jmp : (word, qword, {16, 32, 64}) -> unit
+function exec_far_jmp(selector, offset, os) = match cur_mode {
+  RealMode => {
+    load_segment_register(CS, selector);
+    next_rip = Some(match os {
+      16 => zero_extend(offset[15..0]),
+      _  => zero_extend(offset[31..0]),
+    })
+  },
+  _ => finish_far_transfer(validate_far_jmp_cs(selector), selector, offset, os),
+}
+
+// Execute far CALL: push CS:RIP, then load CS:RIP from selector:offset.
+// In protected mode, the descriptor is validated before pushing so that
+// a fault does not modify the stack.
+val exec_far_call : (word, qword, {16, 32, 64}) -> unit
+function exec_far_call(selector, offset, os) = match cur_mode {
+  RealMode => {
+    match os {
+      16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+      _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
+    };
+    exec_far_jmp(selector, offset, os)
+  },
+  _ => {
+    let desc = validate_far_jmp_cs(selector);
+    match os {
+      16 => push(32,  read_segreg(CS) @ decode_pos[15..0]),
+      32 => push(64,  zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
+      64 => push(128, zero_extend(64, read_segreg(CS)) @ decode_pos),
+    };
+    finish_far_transfer(desc, selector, offset, os)
+  },
 }

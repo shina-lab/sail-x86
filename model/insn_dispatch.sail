@@ -1145,22 +1145,7 @@ function decode_execute() = {
             _  => fetch_imm_v(32),
           };
           let selector : word = fetch_imm16();
-          match cur_mode {
-            RealMode => {
-              // Push old CS:IP/EIP
-              match os {
-                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
-                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
-              };
-              load_segment_register(CS, selector);
-              let target : qword = match os {
-                16 => zero_extend(offset[15..0]),
-                _  => zero_extend(offset[31..0]),
-              };
-              next_rip = Some(target)
-            },
-            _ => exec_far_call_protected(selector, offset, os),
-          }
+          exec_far_call(selector, offset, os)
         }
       },
 
@@ -1834,17 +1819,7 @@ function decode_execute() = {
             _  => fetch_imm_v(32),
           };
           let selector : word = fetch_imm16();
-          match cur_mode {
-            RealMode => {
-              load_segment_register(CS, selector);
-              let target : qword = match os {
-                16 => zero_extend(offset[15..0]),
-                _  => zero_extend(offset[31..0]),
-              };
-              next_rip = Some(target)
-            },
-            _ => exec_far_jmp_protected(selector, offset, os),
-          }
+          exec_far_jmp(selector, offset, os)
         }
       },
 

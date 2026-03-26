@@ -228,20 +228,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_mem(m) => {
           let os = opsize(pfx);
           let (far_offset, far_selector) = read_far_pointer(os, m);
-          match cur_mode {
-            RealMode => {
-              match os {
-                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
-                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
-              };
-              load_segment_register(CS, far_selector);
-              next_rip = Some(match os {
-                16 => zero_extend(far_offset[15..0]),
-                _  => zero_extend(far_offset[31..0]),
-              })
-            },
-            _ => exec_far_call_protected(far_selector, far_offset, os),
-          }
+          exec_far_call(far_selector, far_offset, os)
         },
       }
     },
@@ -254,16 +241,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_mem(m) => {
           let os = opsize(pfx);
           let (far_offset, far_selector) = read_far_pointer(os, m);
-          match cur_mode {
-            RealMode => {
-              load_segment_register(CS, far_selector);
-              next_rip = Some(match os {
-                16 => zero_extend(far_offset[15..0]),
-                _  => zero_extend(far_offset[31..0]),
-              })
-            },
-            _ => exec_far_jmp_protected(far_selector, far_offset, os),
-          }
+          exec_far_jmp(far_selector, far_offset, os)
         },
       }
     },
