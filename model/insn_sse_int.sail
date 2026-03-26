@@ -196,7 +196,7 @@ val maskmovdqu : (xmmword, xmmword, qword) -> unit
 function maskmovdqu(src, mask, addr) = {
   foreach (i from 0 to 15) {
     if mask[i * 8 + 7] == bitone then
-      write_mem_linear(addr + i, src[(i * 8 + 7) .. (i * 8)])
+      write_mem(addr + i, src[(i * 8 + 7) .. (i * 8)])
   }
 }
 
