@@ -129,6 +129,22 @@ function read_zmm(idx) = ZMM[idx]
 val write_zmm : (simd_idx, zmmword) -> unit
 function write_zmm(idx, v) = ZMM[idx] = v
 
+// Polymorphic SIMD read by vector length.
+val read_simd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx) -> bits('vl)
+function read_simd(vl, idx) = match vl {
+  128 => ZMM[idx][127..0],
+  256 => ZMM[idx][255..0],
+  512 => ZMM[idx]
+}
+
+// Polymorphic SIMD write by vector length (zeros upper bits).
+val write_simd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, bits('vl)) -> unit
+function write_simd(vl, idx, v) = match vl {
+  128 => { ZMM[idx][511..128] = zeros(); ZMM[idx][127..0] = v },
+  256 => { ZMM[idx][511..256] = zeros(); ZMM[idx][255..0] = v },
+  512 => ZMM[idx] = v
+}
+
 // Legacy SSE write: preserves upper bits beyond 128
 val write_xmm_legacy : (simd_idx, xmmword) -> unit
 function write_xmm_legacy(idx, v) = {

@@ -1479,15 +1479,9 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => evex_write_q_xmm(dst, evex_src_xmm(modrm, src, pfx), pfx),
-      (true, 1) => evex_write_q_ymm(dst, evex_src_ymm(modrm, src, pfx), pfx),
-      (true, 2) => evex_write_q_zmm(dst, evex_src_zmm(modrm, src, pfx), pfx),
-      (false, 0) => evex_write_d_xmm(dst, evex_src_xmm(modrm, src, pfx), pfx),
-      (false, 1) => evex_write_d_ymm(dst, evex_src_ymm(modrm, src, pfx), pfx),
-      (false, 2) => evex_write_d_zmm(dst, evex_src_zmm(modrm, src, pfx), pfx),
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, evex_src(vl, modrm, src, pfx), pfx, eb)
   },
 
   // 0F 7F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX store)
@@ -1526,35 +1520,9 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask16(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (true, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (true, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) ^ evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      (false, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (false, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (false, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) ^ evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
   },
 
   // 0F DB: VPANDD (W0) / VPANDQ (W1) (EVEX, 66 prefix)
@@ -1563,35 +1531,9 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask16(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) & evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (true, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) & evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (true, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) & evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      (false, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) & evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (false, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) & evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (false, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) & evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) & evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
   },
 
   // 0F EB: VPORD (W0) / VPORQ (W1) (EVEX, 66 prefix)
@@ -1600,35 +1542,9 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask16(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) | evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (true, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) | evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (true, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) | evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      (false, 0) => {
-        let result = read_xmm(pfx.evex_vvvvv) | evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem);
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      (false, 1) => {
-        let result = read_ymm(pfx.evex_vvvvv) | evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem);
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      (false, 2) => {
-        let result = read_zmm(pfx.evex_vvvvv) | evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem);
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) | evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
   },
 
   // 0F FE: VPADDD (EVEX, 66 prefix, W0)
@@ -1637,23 +1553,8 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask16(pfx);
-    match pfx.evex_ll {
-      0 => {
-        let result = avx_paddd_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem));
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      1 => {
-        let result = avx_paddd_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem));
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      2 => {
-        let result = avx_paddd_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem));
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    evex_write(dst, avx_paddd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)), pfx, 32)
   },
 
   // 0F FA: VPSUBD (EVEX, 66 prefix, W0)
@@ -1662,23 +1563,8 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask16(pfx);
-    match pfx.evex_ll {
-      0 => {
-        let result = avx_psubd_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem));
-        write_xmm(dst, apply_writemask_ps_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      1 => {
-        let result = avx_psubd_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem));
-        write_ymm(dst, apply_writemask_ps_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      2 => {
-        let result = avx_psubd_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem));
-        write_zmm(dst, apply_writemask_ps_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    evex_write(dst, avx_psubd(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)), pfx, 32)
   },
 
   // 0F D4: VPADDQ (EVEX, 66 prefix, W1)
@@ -1687,23 +1573,8 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask8(pfx);
-    match pfx.evex_ll {
-      0 => {
-        let result = avx_paddq_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem));
-        write_xmm(dst, apply_writemask_pd_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      1 => {
-        let result = avx_paddq_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem));
-        write_ymm(dst, apply_writemask_pd_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      2 => {
-        let result = avx_paddq_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem));
-        write_zmm(dst, apply_writemask_pd_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    evex_write(dst, avx_paddq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)), pfx, 64)
   },
 
   // 0F FB: VPSUBQ (EVEX, 66 prefix, W1)
@@ -1712,23 +1583,8 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let mask = evex_get_mask8(pfx);
-    match pfx.evex_ll {
-      0 => {
-        let result = avx_psubq_128(read_xmm(pfx.evex_vvvvv), evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem));
-        write_xmm(dst, apply_writemask_pd_xmm(result, read_xmm(dst), mask, pfx.evex_z))
-      },
-      1 => {
-        let result = avx_psubq_256(read_ymm(pfx.evex_vvvvv), evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem));
-        write_ymm(dst, apply_writemask_pd_ymm(result, read_ymm(dst), mask, pfx.evex_z))
-      },
-      2 => {
-        let result = avx_psubq_512(read_zmm(pfx.evex_vvvvv), evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem));
-        write_zmm(dst, apply_writemask_pd_zmm(result, read_zmm(dst), mask, pfx.evex_z))
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    evex_write(dst, avx_psubq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)), pfx, 64)
   },
 
   // 0F 6E: VMOVD (66, W=0) / VMOVQ (66, W=1) — load from GPR/mem to XMM
@@ -1898,22 +1754,14 @@ function dispatch_evex_int(op, pfx) = {
   },
 
   // 0F DF: VPANDND (66,W0) / VPANDNQ (66,W1)
-  // 0F DF: VPANDND (66,W0) / VPANDNQ (66,W1)
   223 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => evex_write_q_xmm(dst, ~(read_xmm(pfx.evex_vvvvv)) & evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem), pfx),
-      (true, 1) => evex_write_q_ymm(dst, ~(read_ymm(pfx.evex_vvvvv)) & evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem), pfx),
-      (true, 2) => evex_write_q_zmm(dst, ~(read_zmm(pfx.evex_vvvvv)) & evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem), pfx),
-      (false, 0) => evex_write_d_xmm(dst, ~(read_xmm(pfx.evex_vvvvv)) & evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem), pfx),
-      (false, 1) => evex_write_d_ymm(dst, ~(read_ymm(pfx.evex_vvvvv)) & evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem), pfx),
-      (false, 2) => evex_write_d_zmm(dst, ~(read_zmm(pfx.evex_vvvvv)) & evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem), pfx),
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, ~(read_simd(vl, pfx.evex_vvvvv)) & evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
   },
 
   // 0F FD: VPADDW (66, EVEX) [BW]

@@ -65,6 +65,31 @@ function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
   }
 }
 
+// Convert an LL value (0-3) to vector length in bits.
+// Used for both pfx.evex_ll and eff_ll from evex_begin_rc.
+val ll_to_vl : range(0, 3) -> {128, 256, 512}
+function ll_to_vl(ll) = match ll {
+  0 => 128,
+  1 => 256,
+  2 => 512,
+  3 => { raise_UD(); 128 }
+}
+
+// Convert EVEX.LL to vector length in bits.
+val evex_vl : Prefixes -> {128, 256, 512}
+function evex_vl(pfx) = ll_to_vl(pfx.evex_ll)
+
+// Element size from EVEX.W: W=1 → 64-bit, W=0 → 32-bit.
+val evex_elem : Prefixes -> {32, 64}
+function evex_elem(pfx) = if pfx.rex_w then 64 else 32
+
+// Polymorphic SIMD source read from r/m field: register or memory.
+val evex_src : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), byte, RM, Prefixes) -> bits('vl)
+function evex_src(vl, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
+  RM_mem(m) => read_mem(m),
+}
+
 // Get the effective 64-bit opmask: aaa=0 → all-ones (no masking), else kreg(aaa).
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
@@ -110,6 +135,25 @@ function evex_src_m64(modrm, rm, pfx) = match rm {
   RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
   RM_mem(m) => read_mem(m),
 }
+
+// Polymorphic writemask: blend result/old_dst per mask bit, one bit per element.
+val apply_writemask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (bits('vl), bits('vl), qword, bit, int('eb)) -> bits('vl)
+function apply_writemask(result, old_dst, mask, zeroing, eb) = {
+  let base : bits('vl) = old_dst & sign_extend(~(zeroing));
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = blend(base[(lo + 'eb - 1)..lo], result[(lo + 'eb - 1)..lo], mask[i])
+  };
+  r
+}
+
+// Polymorphic EVEX write with writemask.
+val evex_write : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (implicit('vl), simd_idx, bits('vl), Prefixes, int('eb)) -> unit
+function evex_write(vl, dst, result, pfx, eb) =
+  write_simd(dst, apply_writemask(result, read_simd(dst), evex_kmask64(pfx), pfx.evex_z, eb))
 
 // =========================================================================
 // Shared helpers (used by multiple EVEX dispatch files)
@@ -380,6 +424,34 @@ function evex_write_sd(dst, result, pfx) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
   let merge : qword = blend(read_xmm(dst)[63..0], zeros(), pfx.evex_z);
   write_xmm(dst, result[127..64] @ blend(merge, result[63..0], mask_bit))
+}
+
+// Polymorphic broadcast: replicate an 'eb-bit element to fill 'vl bits.
+val broadcast : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (implicit('vl), bits('eb)) -> bits('vl)
+function broadcast(vl, v) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = v
+  };
+  r
+}
+
+// Polymorphic broadcast-aware source: read source from reg/mem,
+// applying EVEX.b broadcast when the source is a memory operand.
+val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (implicit('vl), byte, RM, Prefixes, int('eb)) -> bits('vl)
+function evex_bcast_src(vl, modrm, rm, pfx, eb) = {
+  let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
+  if pfx.evex_b & is_mem then {
+    match eb {
+      32 => broadcast(evex_src_m32(modrm, rm, pfx)),
+      64 => broadcast(evex_src_m64(modrm, rm, pfx)),
+    }
+  } else {
+    evex_src(modrm, rm, pfx)
+  }
 }
 
 // Broadcast a 32-bit value to all 16 dword lanes of a ZMM register.

@@ -87,6 +87,194 @@ function vsqrtpd_xmm(a) =
   __f64_sqrt(a[127..64]) @ __f64_sqrt(a[63..0])
 
 // =========================================================================
+// Polymorphic packed FP operations
+// =========================================================================
+
+val vaddps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vaddps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_add(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vsubps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vsubps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_sub(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vmulps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vmulps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_mul(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vdivps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vdivps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_div(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vminps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vminps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_min(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vmaxps : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vmaxps(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_max(a[(lo + 31)..lo], b[(lo + 31)..lo])
+  };
+  r
+}
+
+val vsqrtps : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
+function vsqrtps(a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_sqrt(a[(lo + 31)..lo])
+  };
+  r
+}
+
+val vaddpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vaddpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_add(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vsubpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vsubpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_sub(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vmulpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vmulpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_mul(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vdivpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vdivpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_div(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vminpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vminpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_min(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vmaxpd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vmaxpd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_max(a[(lo + 63)..lo], b[(lo + 63)..lo])
+  };
+  r
+}
+
+val vsqrtpd : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
+function vsqrtpd(a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_sqrt(a[(lo + 63)..lo])
+  };
+  r
+}
+
+// =========================================================================
+// Polymorphic packed integer add/sub
+// =========================================================================
+
+val avx_paddd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_paddd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = a[(lo + 31)..lo] + b[(lo + 31)..lo]
+  };
+  r
+}
+
+val avx_psubd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_psubd(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = a[(lo + 31)..lo] - b[(lo + 31)..lo]
+  };
+  r
+}
+
+val avx_paddq : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_paddq(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = a[(lo + 63)..lo] + b[(lo + 63)..lo]
+  };
+  r
+}
+
+val avx_psubq : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_psubq(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = a[(lo + 63)..lo] - b[(lo + 63)..lo]
+  };
+  r
+}
+
+// =========================================================================
 // 128-bit packed integer add/sub helpers
 // =========================================================================
 
