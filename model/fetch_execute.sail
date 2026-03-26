@@ -44,6 +44,16 @@ function step() = {
   rip_rel_pending = false;
   next_rip = None();
 
+  // Save RSP and flags so we can restore them if the instruction faults.
+  // x86 guarantees that a faulting instruction leaves architectural state
+  // as if it never executed. RSP and flags are the registers most likely
+  // to be modified before a memory op that can fault (e.g. PUSH modifies
+  // RSP before the store; ALU-to-memory ops update flags before writeback).
+  // Other registers (x87, segments) are handled by reordering the
+  // individual instructions so that side effects follow memory ops.
+  let saved_rsp = GPR[RSP];
+  let saved_rflags = read_rflags();
+
   let faulted : bool =
     try {
       // Decode and execute one instruction
@@ -51,6 +61,8 @@ function step() = {
       false
     } catch {
       Fault(vec, err) => {
+        GPR[RSP] = saved_rsp;
+        write_rflags(saved_rflags);
         if system_mode then {
           // In system mode, deliver faults through the IDT.
           try {

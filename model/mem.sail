@@ -124,9 +124,11 @@ function pop(n) = {
 // In long mode: just store the selector (FS/GS base set via MSR).
 val load_segment_register : (segreg_idx, word) -> unit
 function load_segment_register(idx, selector) = {
-  write_segreg(idx, selector);
+  // Do memory reads (GDT lookup) before writing the segment register,
+  // so that a fault during the GDT read leaves the segment unchanged.
   match cur_mode {
     RealMode => {
+      write_segreg(idx, selector);
       SegCache[idx].seg_base = zero_extend(selector) << 4
     },
     _ => {
@@ -146,6 +148,7 @@ function load_segment_register(idx, selector) = {
       let desc_offset : qword = zero_extend(index @ 0b000);
       let desc_lo : dword = read_mem(table_base + desc_offset);
       let desc_hi : dword = read_mem(table_base + desc_offset + 4);
+      write_segreg(idx, selector);
       SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
     },
   }
