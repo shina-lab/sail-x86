@@ -1296,11 +1296,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let (reg, src) = fetch_modrm(pfx);
       match src {
         RM_mem(m) => {
-          let (far_offset, selector) : (qword, word) = match os {
-            16 => { let d : bits(32) = v(m); (zero_extend(d[15..0]), d[31..16]) },
-            32 => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
-            64 => { let d : bits(80) = read_mem(m); (zero_extend(d[63..0]), d[79..64]) },
-          };
+          let (far_offset, selector) = read_far_pointer(os, m);
           v(reg) = far_offset;
           let seg : segreg_idx = match op {
             178 => SS,

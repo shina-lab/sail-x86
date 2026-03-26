@@ -193,6 +193,15 @@ function seg_linear(m, access_size) = {
 function read_mem_ref(n, m) = read_mem_linear(seg_linear(m, n / 8))
 function write_mem_ref(n, m, v) = write_mem_linear(seg_linear(m, n / 8), v)
 
+// Read a far pointer (selector:offset) from memory.
+// Memory layout: [offset (os bits)][selector (16 bits)].
+// Returns (zero-extended offset, selector).
+val read_far_pointer : forall 'os, 'os in {16, 32, 64}. (int('os), MemRef) -> (qword, word)
+function read_far_pointer(os, m) = {
+  let d : bits('os + 16) = read_mem(m);
+  (zero_extend(d['os - 1 .. 0]), d['os + 15 .. 'os])
+}
+
 // =========================================================================
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)
 // =========================================================================
