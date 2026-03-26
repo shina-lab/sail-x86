@@ -808,10 +808,10 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => write_kreg(k1, v(m)),                         // KMOVQ
-          (_,       true) => write_kreg(k1, zero_extend(read_mem(32, m))), // KMOVD
-          (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(8, m))), // KMOVB
-          (_,      false) => write_kreg(k1, zero_extend(read_mem(16, m))), // KMOVW
+          (MP_NONE, true) => write_kreg(k1, v(m)),                          // KMOVQ
+          (_,       true) => write_kreg(k1, zero_extend(read_mem(32, m))),  // KMOVD
+          (MP_66,  false) => write_kreg(k1, zero_extend(read_mem(8, m))),   // KMOVB
+          (_,      false) => write_kreg(k1, zero_extend(read_mem(16, m))),  // KMOVW
         }
       },
     }
@@ -825,10 +825,10 @@ function dispatch_vex_0f_int(op, pfx) = {
     match src {
       RM_mem(m) => {
         match (mp, pfx.vex_w) {
-          (MP_NONE, true) => v(m) = read_kreg(k1),                      // KMOVQ
-          (_,       true) => v(m) = read_kreg(k1)[31..0],              // KMOVD
-          (MP_66,  false) => v(m) = read_kreg(k1)[7..0],              // KMOVB
-          (_,      false) => v(m) = read_kreg(k1)[15..0],              // KMOVW
+          (MP_NONE, true) => v(m) = read_kreg(k1),         // KMOVQ
+          (_,       true) => v(m) = read_kreg(k1)[31..0],  // KMOVD
+          (MP_66,  false) => v(m) = read_kreg(k1)[7..0],   // KMOVB
+          (_,      false) => v(m) = read_kreg(k1)[15..0],  // KMOVW
         }
       },
       _ => raise_UD(),

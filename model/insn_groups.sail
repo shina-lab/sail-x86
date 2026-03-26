@@ -240,7 +240,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
               load_segment_register(CS, far_selector);
               next_rip = Some(match os {
                 16 => zero_extend(far_offset[15..0]),
-                _    => zero_extend(far_offset[31..0]),
+                _  => zero_extend(far_offset[31..0]),
               })
             },
             _ => exec_far_call_protected(far_selector, far_offset, os),
@@ -265,7 +265,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
               load_segment_register(CS, far_selector);
               next_rip = Some(match os {
                 16 => zero_extend(far_offset[15..0]),
-                _    => zero_extend(far_offset[31..0]),
+                _  => zero_extend(far_offset[31..0]),
               })
             },
             _ => exec_far_jmp_protected(far_selector, far_offset, os),

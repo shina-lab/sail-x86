@@ -18,7 +18,7 @@
 
 // IDT gate descriptor (parsed from 16-byte raw descriptor)
 struct IDTGate = {
-  gate_offset  : qword,       // handler RIP (assembled from 3 fields)
+  gate_offset  : qword,        // handler RIP (assembled from 3 fields)
   gate_sel     : word,         // target CS selector
   gate_ist     : range(0, 7),  // IST index (0 = legacy stack switching)
   gate_type    : bits(4),      // 0xE = interrupt gate, 0xF = trap gate

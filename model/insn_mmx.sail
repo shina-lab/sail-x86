@@ -173,9 +173,9 @@ function dispatch_mmx(op, pfx) = {
       let dst = modrm_mm_reg(modrm);
       let src = modrm_rm(modrm, pfx);
       match (src, pfx.rex_w) {
-        (RM_reg(r), true)   => write_mm(dst, v(64, r)),
+        (RM_reg(r), true)  => write_mm(dst, v(64, r)),
         (RM_mem(m), true)  => write_mm(dst, v(m)),
-        (RM_reg(r), false)  => write_mm(dst, zero_extend(v(32, r))),
+        (RM_reg(r), false) => write_mm(dst, zero_extend(v(32, r))),
         (RM_mem(m), false) => write_mm(dst, zero_extend(v(32, m))),
       };
       mmx_touch()
@@ -331,9 +331,9 @@ function dispatch_mmx(op, pfx) = {
       let dest = modrm_rm(modrm, pfx);
       let v : qword = read_mm(src);
       match (dest, pfx.rex_w) {
-        (RM_reg(r), true)   => v(r) = v,
+        (RM_reg(r), true)  => v(r) = v,
         (RM_mem(m), true)  => v(m) = v,
-        (RM_reg(r), false)  => v(r) = v[31..0],
+        (RM_reg(r), false) => v(r) = v[31..0],
         (RM_mem(m), false) => v(32, m) = v[31..0],
       };
       mmx_touch()

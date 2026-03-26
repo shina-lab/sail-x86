@@ -290,7 +290,7 @@ function is_lockable_2byte(op) = match op {
   192 => true,  // 0F C0: XADD
   193 => true,  // 0F C1: XADD
   199 => true,  // 0F C7: CMPXCHG8B/16B
-  _ => false,
+  _   => false,
 }
 
 val dispatch_opcode_2byte : (byte, Prefixes) -> unit
@@ -482,7 +482,7 @@ function is_lockable_1byte(op) = {
     true   // ALU r/m, r
   } else {
     match op {
-      128 => true, 129 => true, 130 => true, 131 => true,  // 80-83: ALU r/m, imm
+      128 => true, 129 => true, 130 => true, 131 => true,   // 80-83: ALU r/m, imm
       134 => true, 135 => true,                             // 86-87: XCHG
       246 => true, 247 => true,                             // F6-F7: TEST/NOT/NEG/MUL/DIV
       254 => true, 255 => true,                             // FE-FF: INC/DEC
@@ -1831,7 +1831,7 @@ function decode_execute() = {
           let os = opsize(pfx);
           let offset : qword = match os {
             16 => fetch_imm_v(16),
-            _    => fetch_imm_v(32),
+            _  => fetch_imm_v(32),
           };
           let selector : word = fetch_imm16();
           match cur_mode {
@@ -1839,7 +1839,7 @@ function decode_execute() = {
               load_segment_register(CS, selector);
               let target : qword = match os {
                 16 => zero_extend(offset[15..0]),
-                _    => zero_extend(offset[31..0]),
+                _  => zero_extend(offset[31..0]),
               };
               next_rip = Some(target)
             },

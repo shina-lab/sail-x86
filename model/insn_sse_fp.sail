@@ -1358,7 +1358,7 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
       let hi : qword = blend(a[127..64], src_xmm[127..64], m[127]);
       write_xmm_legacy(xreg, hi @ lo)
     },
-    _ => raise_UD(),
+    _  => raise_UD(),
   }
 }
 

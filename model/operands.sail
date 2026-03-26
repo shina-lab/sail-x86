@@ -316,7 +316,7 @@ function fetch_imm_z(os) = match os {
 // Fetch an immediate Iv: matches operand size. 64-bit only for MOV reg,imm with REX.W.
 val fetch_imm_v : operand_size -> qword
 function fetch_imm_v(os) = match os {
-  8 => zero_extend(fetch_byte()),
+  8  => zero_extend(fetch_byte()),
   16 => {
     let lo = fetch_byte();
     let hi = fetch_byte();

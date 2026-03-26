@@ -718,9 +718,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         match (src, pfx.rex_w) {
-          (RM_reg(r), true)   => write_xmm_legacy(xreg, zero_extend(v(64, r))),
+          (RM_reg(r), true)  => write_xmm_legacy(xreg, zero_extend(v(64, r))),
           (RM_mem(m), true)  => write_xmm_legacy(xreg, zero_extend(read_mem(64, m))),
-          (RM_reg(r), false)  => write_xmm_legacy(xreg, zero_extend(v(32, r))),
+          (RM_reg(r), false) => write_xmm_legacy(xreg, zero_extend(v(32, r))),
           (RM_mem(m), false) => write_xmm_legacy(xreg, zero_extend(read_mem(32, m))),
         }
       }
@@ -1010,9 +1010,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let src_xmm = modrm_xmm_reg(modrm, pfx);
             let x = read_xmm(src_xmm);
             match (src, pfx.rex_w) {
-              (RM_reg(r), true)   => v(r) = x[63..0],
+              (RM_reg(r), true)  => v(r) = x[63..0],
               (RM_mem(m), true)  => write_mem(64, m, x[63..0]),
-              (RM_reg(r), false)  => v(r) = x[31..0],
+              (RM_reg(r), false) => v(r) = x[31..0],
               (RM_mem(m), false) => write_mem(32, m, x[31..0]),
             }
           },
@@ -2725,8 +2725,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch_byte();
       let xmm_src = read_xmm(xreg);
       match (src, pfx.rex_w) {
-        (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(xmm_src, imm),
-        (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(xmm_src, imm),
+        (RM_reg(_), true)  => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(xmm_src, imm),
+        (RM_reg(_), false) => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(xmm_src, imm),
         (RM_mem(m), true)  => v(m) = extract_qword_from_xmm(xmm_src, imm),
         (RM_mem(m), false) => v(m) = extract_dword_from_xmm(xmm_src, imm),
       }

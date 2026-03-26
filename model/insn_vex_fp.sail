@@ -261,7 +261,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       match mp {
         MP_NONE => write_xmm(dst, src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0]),
         MP_66   => write_xmm(dst, src2[63..0] @ src1[63..0]),
-        _ => raise_UD(),
+        _       => raise_UD(),
       }
     }
   },
@@ -760,10 +760,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
             // VCVTDQ2PS ymm1, ymm2/m256
             MP_NONE => write_ymm(dst, avx_cvtdq2ps_256(src2)),
             // VCVTPS2DQ ymm1, ymm2/m256
-            MP_66 => write_ymm(dst, avx_cvtps2dq_256(src2)),
-            MP_F2 => raise_UD(),
+            MP_66   => write_ymm(dst, avx_cvtps2dq_256(src2)),
+            MP_F2   => raise_UD(),
             // VCVTTPS2DQ ymm1, ymm2/m256
-            MP_F3 => write_ymm(dst, avx_cvttps2dq_256(src2)),
+            MP_F3   => write_ymm(dst, avx_cvttps2dq_256(src2)),
           }
         },
         // VSUBPS/VSUBPD

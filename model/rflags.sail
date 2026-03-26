@@ -179,7 +179,7 @@ function eval_cc(cc) = {
     PF @                     // A: P/PE
     (~(SF)) @                // 9: NS
     SF @                     // 8: S
-    (~(CF) & ~(ZF)) @       // 7: A/NBE
+    (~(CF) & ~(ZF)) @        // 7: A/NBE
     (CF | ZF) @              // 6: BE/NA
     (~(ZF)) @                // 5: NE/NZ
     ZF @                     // 4: E/Z

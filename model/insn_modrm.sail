@@ -80,7 +80,7 @@ function decode_sib(sib, modbits, pfx) = {
 val resolve_seg : (Prefixes, segreg_idx) -> segreg_idx
 function resolve_seg(pfx, default_seg) = match pfx.seg_override {
   Some(s) => s,
-  None() => default_seg,
+  None()  => default_seg,
 }
 
 // Legacy compatibility: apply_segment still used by moffs paths.
