@@ -1150,7 +1150,7 @@ function decode_execute() = {
 
       // 9E: SAHF
       158 => {
-        let ah : byte = v(16, RAX)[15..8];
+        let ah = GPR[RAX][15..8];
         CF = ah[0];
         PF = ah[2];
         AF = ah[4];
@@ -1234,9 +1234,9 @@ function decode_execute() = {
       // A9: TEST rAX, imm (Iz)
       169 => {
         let os = opsize(pfx);
-        let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
+        let imm = sign_extend(os, fetch(if os == 16 then 2 else 4));
         let a = v(os, RAX);
-        let result = a & imm[(os - 1) .. 0];
+        let result = a & imm;
         update_flags_logic(result)
       },
 
@@ -1289,16 +1289,15 @@ function decode_execute() = {
 
       // B0-B7: MOV r8, imm8
       op if 176 <= op & op <= 183 => {
-        let reg_field : range(0, 7) = op - 176;
-        let reg = struct { gpr_idx = unsigned(pfx.rex_b @ to_bits(3, reg_field)), has_rex = pfx.has_rex } : GPRRef;
-        let imm = fetch(1);
-        v(reg) = imm
+        // Without REX, registers 4-7 map to AH/CH/DH/BH (high byte).
+        let gpr_idx = unsigned(pfx.rex_b @ to_bits(3, op - 176));
+        let reg : GPRRef = struct { gpr_idx = gpr_idx, has_rex = pfx.has_rex };
+        v(reg) = fetch(1)
       },
 
       // B8-BF: MOV r, imm (Iv)
       op if 184 <= op & op <= 191 => {
-        let reg_field : range(0, 7) = op - 184;
-        let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
+        let reg = unsigned(pfx.rex_b @ to_bits(3, op - 184));
         let os = opsize(pfx);
         v(reg) = fetch(os / 8)
       },
@@ -1339,8 +1338,9 @@ function decode_execute() = {
       // This works because LES requires a memory operand (mod≠11),
       // so mod=11 is an otherwise-invalid encoding reused for VEX.
       196 => {
-        if cur_mode == LongMode then dispatch_vex(0xC4)
-        else {
+        if cur_mode == LongMode then {
+          dispatch_vex(0xC4)
+        } else {
           // Peek at second byte to distinguish VEX from LES.
           // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
           // mod≠11 (memory operand) is a valid LES encoding.
@@ -1355,10 +1355,7 @@ function decode_execute() = {
             let src = modrm_rm(byte2, pfx);
             match src {
               RM_mem(m) => {
-                let (far_offset, selector) : (qword, word) = match os {
-                  16 => { let d : bits(32) = v(m); (zero_extend(d[15..0]), d[31..16]) },
-                  _  => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
-                };
+                let (far_offset, selector) = read_far_pointer(os, m);
                 v(reg) = far_offset;
                 load_segment_register(ES, selector)
               },
@@ -1371,8 +1368,9 @@ function decode_execute() = {
       // C5: LDS r, m16:16/32 (non-64-bit) or 2-byte VEX prefix
       // Same VEX/LDS distinction as C4/LES above.
       197 => {
-        if cur_mode == LongMode then dispatch_vex(0xC5)
-        else {
+        if cur_mode == LongMode then {
+          dispatch_vex(0xC5)
+        } else {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             dispatch_vex_with_byte2(0xC5, byte2)
@@ -1382,10 +1380,7 @@ function decode_execute() = {
             let src = modrm_rm(byte2, pfx);
             match src {
               RM_mem(m) => {
-                let (far_offset, selector) : (qword, word) = match os {
-                  16 => { let d : bits(32) = v(m); (zero_extend(d[15..0]), d[31..16]) },
-                  _  => { let d : bits(48) = read_mem(m); (zero_extend(d[31..0]), d[47..32]) },
-                };
+                let (far_offset, selector) = read_far_pointer(os, m);
                 v(reg) = far_offset;
                 load_segment_register(DS, selector)
               },
@@ -1398,24 +1393,16 @@ function decode_execute() = {
       // C6 /0: MOV r/m8, imm8
       198 => {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        if reg_field == 0 then {
-          let imm : byte = fetch(1);
-          v(dest) = imm
-        } else {
-          raise_UD()
-        }
+        if reg_field != 0 then raise_UD();
+        v(dest) = fetch(1)
       },
 
       // C7 /0: MOV r/m, imm (Iz)
       199 => {
         let (reg_field, dest) = fetch_modrm_raw(pfx);
-        if reg_field == 0 then {
-          let os = opsize(pfx);
-          let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
-          v(dest) = imm[(os - 1) .. 0]
-        } else {
-          raise_UD()
-        }
+        if reg_field != 0 then raise_UD();
+        let os = opsize(pfx);
+        v(dest) = sign_extend(os, fetch(if os == 16 then 2 else 4))
       },
 
       // C8: ENTER imm16, imm8
@@ -1425,20 +1412,6 @@ function decode_execute() = {
         let os = opsize_default64(pfx);
         let nesting : range(0, 31) = unsigned(level) % 32;
         match os {
-          64 => {
-            push(64, v(RBP));
-            let frame_temp : qword = v(RSP);
-            if nesting > 1 then {
-              foreach (i from 1 to (nesting - 1)) {
-                v(RBP) = v(64, RBP) - 8;
-                push(64, read_mem(v(64, RBP)));
-              };
-            };
-            if nesting >= 1 then
-              push(64, frame_temp);
-            v(RBP) = frame_temp;
-            v(RSP) = v(64, RSP) - zero_extend(size);
-          },
           16 => {
             push(16, v(RBP));
             let frame_temp : word = v(RSP);
@@ -1450,6 +1423,20 @@ function decode_execute() = {
             };
             if nesting >= 1 then
               push(16, frame_temp);
+            v(RBP) = frame_temp;
+            v(RSP) = v(64, RSP) - zero_extend(size);
+          },
+          64 => {
+            push(64, v(RBP));
+            let frame_temp : qword = v(RSP);
+            if nesting > 1 then {
+              foreach (i from 1 to (nesting - 1)) {
+                v(RBP) = v(64, RBP) - 8;
+                push(64, read_mem(v(64, RBP)));
+              };
+            };
+            if nesting >= 1 then
+              push(64, frame_temp);
             v(RBP) = frame_temp;
             v(RSP) = v(64, RSP) - zero_extend(size);
           },
