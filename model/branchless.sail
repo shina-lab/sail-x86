@@ -258,6 +258,14 @@ function mulhrs(a, b) = {
   (rounded >>> 1)[('n - 1)..0]
 }
 
+// Funnel shift left: (a @ b) << cnt, take high 'n bits.
+val funnelshl : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), nat) -> bits('n)
+function funnelshl(a, b, cnt) = ((a @ b) << (cnt % 'n))[('n * 2 - 1) .. 'n]
+
+// Funnel shift right: (b @ a) >> cnt, take low 'n bits.
+val funnelshr : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), nat) -> bits('n)
+function funnelshr(a, b, cnt) = ((b @ a) >> (cnt % 'n))[('n - 1) .. 0]
+
 // =========================================================================
 // Width-polymorphic FP operations
 //

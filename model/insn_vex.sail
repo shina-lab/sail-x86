@@ -172,15 +172,20 @@ function packed_binop(op, eb, a, b) = {
 }
 
 // Generic packed ternary operation (element-wise, three sources).
-enum PackedTernaryOp = { PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub }
+enum PackedTernaryOp = {
+  PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub,
+  PT_FunnelShl, PT_FunnelShr,
+}
 
 val packed_ternary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedTernaryOp, bits('eb), bits('eb), bits('eb)) -> bits('eb)
 function packed_ternary_elem(op, a, b, c) = match op {
-  PT_FMAdd  => fmadd(a, b, c),
-  PT_FMSub  => fmsub(a, b, c),
-  PT_FNMAdd => fnmadd(a, b, c),
-  PT_FNMSub => fnmsub(a, b, c),
+  PT_FMAdd      => fmadd(a, b, c),
+  PT_FMSub      => fmsub(a, b, c),
+  PT_FNMAdd     => fnmadd(a, b, c),
+  PT_FNMSub     => fnmsub(a, b, c),
+  PT_FunnelShl  => funnelshl(a, b, unsigned(c)),
+  PT_FunnelShr  => funnelshr(a, b, unsigned(c)),
 }
 
 val packed_ternop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
