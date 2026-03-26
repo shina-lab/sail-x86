@@ -90,6 +90,31 @@ function vsqrtpd_xmm(a) =
 // Generic packed element-wise operations
 // =========================================================================
 
+// Generic packed unary operation (element-wise, one source).
+enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt }
+
+val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
+  (PackedUnaryOp, bits('eb)) -> bits('eb)
+function packed_unary_elem(op, a) = match op {
+  PU_Abs    => abs(a),
+  PU_Popcnt => to_bits(popcount(a)),
+  PU_Lzcnt  => to_bits(clz(a)),
+  PU_FSqrt  => fsqrt(a),
+}
+
+val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (PackedUnaryOp, int('eb), bits('vl)) -> bits('vl)
+function packed_unop(op, eb, a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let hi = (i + 1) * 'eb - 1;
+    let lo = i * 'eb;
+    r[hi..lo] = packed_unary_elem(op, a[hi..lo])
+  };
+  r
+}
+
+// Generic packed binary operation (element-wise, two sources).
 enum PackedBinOp = {
   PB_Add, PB_Sub,
   PB_SatAddS, PB_SatSubS, PB_SatAddU, PB_SatSubU,
@@ -103,8 +128,8 @@ enum PackedBinOp = {
 
 // Per-element dispatch: applies the operation to one pair of elements.
 val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64}.
-  (PackedBinOp, int('eb), bits('eb), bits('eb)) -> bits('eb)
-function packed_elem_op(op, eb, a, b) = match op {
+  (PackedBinOp, bits('eb), bits('eb)) -> bits('eb)
+function packed_elem_op(op, a, b) = match op {
   PB_Add      => a + b,
   PB_Sub      => a - b,
   PB_SatAddS  => sat_add_s(a, b),
@@ -122,12 +147,7 @@ function packed_elem_op(op, eb, a, b) = match op {
   PB_MulLow   => to_bits_truncate(signed(a) * signed(b)),
   PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
   PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
-  PB_MulHRS   => {
-    let prod : bits('eb * 2) = to_bits_truncate(signed(a) * signed(b));
-    let shifted = prod >>> ('eb - 2);
-    let rounded : bits('eb * 2) = to_bits_truncate(signed(shifted) + 1);
-    (rounded >>> 1)[('eb - 1)..0]
-  },
+  PB_MulHRS   => mulhrs(a, b),
   PB_Ror      => rotr(a, unsigned(b) % 'eb),
   PB_Rol      => rotl(a, unsigned(b) % 'eb),
   PB_FAdd     => fadd(a, b),
@@ -144,31 +164,9 @@ val packed_binop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 6
 function packed_binop(op, eb, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
+    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = packed_elem_op(op, eb, a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo])
-  };
-  r
-}
-
-// Generic packed unary operation (element-wise, one source).
-enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt }
-
-val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
-  (PackedUnaryOp, int('eb), bits('eb)) -> bits('eb)
-function packed_unary_elem(op, eb, a) = match op {
-  PU_Abs    => abs(a),
-  PU_Popcnt => to_bits('eb, popcount(a)),
-  PU_Lzcnt  => to_bits('eb, clz(a)),
-  PU_FSqrt  => fsqrt(a),
-}
-
-val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
-  (PackedUnaryOp, int('eb), bits('vl)) -> bits('vl)
-function packed_unop(op, eb, a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 'eb - 1)) {
-    let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = packed_unary_elem(op, eb, a[(lo + 'eb - 1)..lo])
+    r[hi..lo] = packed_elem_op(op, a[hi..lo], b[hi..lo])
   };
   r
 }
@@ -177,8 +175,8 @@ function packed_unop(op, eb, a) = {
 enum PackedTernaryOp = { PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub }
 
 val packed_ternary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
-  (PackedTernaryOp, int('eb), bits('eb), bits('eb), bits('eb)) -> bits('eb)
-function packed_ternary_elem(op, eb, a, b, c) = match op {
+  (PackedTernaryOp, bits('eb), bits('eb), bits('eb)) -> bits('eb)
+function packed_ternary_elem(op, a, b, c) = match op {
   PT_FMAdd  => fmadd(a, b, c),
   PT_FMSub  => fmsub(a, b, c),
   PT_FNMAdd => fnmadd(a, b, c),
@@ -190,8 +188,9 @@ val packed_ternop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 
 function packed_ternop(op, eb, a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
+    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = packed_ternary_elem(op, eb, a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo], c[(lo + 'eb - 1)..lo])
+    r[hi..lo] = packed_ternary_elem(op, a[hi..lo], b[hi..lo], c[hi..lo])
   };
   r
 }
@@ -257,8 +256,9 @@ val packed_ternop32 : forall 'vl, 'vl in {128, 256, 512}.
 function packed_ternop32(op, a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
+    let hi = i * 32 + 31;
     let lo = i * 32;
-    r[(lo + 31)..lo] = ternary_elem32(op, a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo])
+    r[hi..lo] = ternary_elem32(op, a[hi..lo], b[hi..lo], c[hi..lo])
   };
   r
 }
