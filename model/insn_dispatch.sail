@@ -473,16 +473,13 @@ function dispatch_opcode_2byte(opcode, pfx) = {
 // F6/F7 (NOT /2, NEG /3), FE/FF (INC /0, DEC /1)
 val is_lockable_1byte : range(0, 255) -> bool
 function is_lockable_1byte(op) = {
-  if op <= 63 & (op % 8 == 0 | op % 8 == 1) then {
-    true   // ALU r/m, r
-  } else {
-    match op {
-      128 => true, 129 => true, 130 => true, 131 => true,   // 80-83: ALU r/m, imm
-      134 => true, 135 => true,                             // 86-87: XCHG
-      246 => true, 247 => true,                             // F6-F7: TEST/NOT/NEG/MUL/DIV
-      254 => true, 255 => true,                             // FE-FF: INC/DEC
-      _ => false,
-    }
+  match op {
+    op if op <= 63 & (op % 8 == 0 | op % 8 == 1) => true,   // ALU r/m, r
+    op if 128 <= op & op <= 131 => true,                    // 80-83: ALU r/m, imm
+    op if 134 <= op & op <= 135 => true,                    // 86-87: XCHG
+    op if 246 <= op & op <= 247 => true,                    // F6-F7: TEST/NOT/NEG/MUL/DIV
+    op if 254 <= op & op <= 255 => true,                    // FE-FF: INC/DEC
+    _ => false,
   }
 }
 
