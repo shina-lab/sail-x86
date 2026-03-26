@@ -191,6 +191,7 @@ set(KVM_CATEGORIES
   "VEX gather"
   "EVEX blend"
   VLDDQU
+  RETF
   CRC32
   GFNI
   SHA

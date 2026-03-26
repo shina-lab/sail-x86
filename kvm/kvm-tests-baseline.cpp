@@ -1457,6 +1457,136 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // RETF — Far return (same-privilege, ring 0 → ring 0)
+  // =====================================================================
+  cat = "RETF";
+
+  // Strategy: use inline code to build the far return frame on the stack,
+  // then execute RETF. The return address points to a HLT after the RETF.
+  //
+  // For 64-bit operand size (REX.W), we push 64-bit CS and 64-bit RIP:
+  //   push 0x08          ; CS selector (6A 08 = push imm8, sign-extended to 64-bit)
+  //   push <ret_addr>    ; return RIP (use LEA + PUSH)
+  //   rex.w retf         ; 48 CB
+  //
+  // Since we can't easily push arbitrary 64-bit immediates, we use:
+  //   LEA RAX, [RIP+offset]   to compute the return address,
+  //   then PUSH RAX.
+
+  // REX.W RETF (48 CB) — 64-bit operand size
+  // Code: 6A 08                     push 0x08 (CS)
+  //       48 8D 05 03 00 00 00      lea rax, [rip+3] = addr of HLT
+  //       50                        push rax (return RIP)
+  //       48 CB                     retf
+  //       F4                        HLT (return target)
+  // LEA RIP-relative: at CODE_ADDR+9, RIP = CODE_ADDR+9, +3 = CODE_ADDR+12 = HLT location
+  // retf is at CODE_ADDR+10 (48 CB), HLT at CODE_ADDR+12
+  // Wait: 6A 08 (2) + 48 8D 05 03 00 00 00 (7) + 50 (1) = 10 bytes
+  // retf at offset 10 (48 CB = 2 bytes), HLT at offset 12
+  // LEA executes at offset 2, next insn at offset 9, rip+3 = offset 12. Correct.
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf (64-bit opsize, REX.W)", cat,
+                      {0x6A, 0x08,                         // push 0x08
+                       0x48, 0x8D, 0x05, 0x03, 0x00, 0x00, 0x00,  // lea rax, [rip+3]
+                       0x50,                                // push rax
+                       0x48, 0xCB,                          // retf (64-bit)
+                       0xF4},                               // HLT (target)
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // RETF (CB) — 32-bit operand size (default in 64-bit mode)
+  // For 32-bit opsize, RETF pops 32-bit EIP and 32-bit CS (total 8 bytes).
+  // We need to push 32-bit values. In 64-bit mode, PUSH always pushes 8 bytes,
+  // so we manually build the frame using MOV to [RSP].
+  // sub rsp, 8          ; 48 83 EC 08
+  // mov dword [rsp+4], 0x08   ; CS  (C7 44 24 04 08 00 00 00)
+  // mov dword [rsp], <eip>    ; EIP (C7 04 24 xx xx xx xx)
+  // retf                ; CB
+  // HLT                 ; F4
+  // Return EIP = CODE_ADDR + 4 + 8 + 7 + 1 = CODE_ADDR + 20
+  {
+    u32 ret_eip = CODE_ADDR + 20;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf (32-bit opsize)", cat,
+                      {0x48, 0x83, 0xEC, 0x08,             // sub rsp, 8
+                       0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
+                         0x08, 0x00, 0x00, 0x00,
+                       0xC7, 0x04, 0x24,                    // mov dword [rsp], ret_eip
+                         (u8)(ret_eip), (u8)(ret_eip>>8),
+                         (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+                       0xCB,                                // retf
+                       0xF4},                               // HLT (target)
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // REX.W RETF imm16 (48 CA 08 00) — 64-bit opsize, skip 8 extra bytes
+  // Stack layout for RETF imm16 (same-privilege):
+  //   [RSP+0]  = RIP (8 bytes)
+  //   [RSP+8]  = CS  (8 bytes)
+  //   [RSP+16] = padding (imm16=8 bytes, skipped by RETF)
+  // So push order: padding first, then CS, then RIP.
+  //
+  // sub rsp, 8: 48 83 EC 08 (4)  — padding for imm16
+  // push 0x08: 6A 08 (2) — CS
+  // lea rax, [rip+5]: 48 8D 05 05 00 00 00 (7)
+  // push rax: 50 (1) — RIP
+  // retf 0x08: 48 CA 08 00 (4) — at offset 14
+  // HLT: F4 (1) — at offset 18
+  // LEA at offset 6, next insn at offset 13, rip+5 = offset 18 = HLT. Correct.
+  // After retf: pops RIP+CS (16 bytes), then RSP += 8.
+  // RSP starts at STACK_TOP. sub rsp,8 → -8. push CS → -16. push rax → -24.
+  // RETF pops 16 → RSP = -8. Then +8 (imm16) → RSP = STACK_TOP.
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf imm16=0x08 (64-bit opsize, REX.W)", cat,
+                      {0x48, 0x83, 0xEC, 0x08,             // sub rsp, 8 (padding)
+                       0x6A, 0x08,                         // push 0x08 (CS)
+                       0x48, 0x8D, 0x05, 0x05, 0x00, 0x00, 0x00,  // lea rax,[rip+5]
+                       0x50,                                // push rax (RIP)
+                       0x48, 0xCA, 0x08, 0x00,             // retf 0x0008
+                       0xF4},                               // HLT
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // RETF imm16 (CA 10 00) — 32-bit opsize, skip 0x10 extra bytes
+  // Stack layout for 32-bit RETF imm16 (same-privilege):
+  //   [RSP+0] = EIP (4 bytes)
+  //   [RSP+4] = CS  (4 bytes)
+  //   [RSP+8 .. RSP+0x17] = padding (imm16=0x10 bytes, skipped)
+  // Total stack frame: 8 + 0x10 = 0x18 bytes.
+  // sub rsp, 0x18       ; 48 83 EC 18  — allocate entire frame
+  // mov dword [rsp+4], 0x08    ; CS
+  // mov dword [rsp], ret_eip   ; EIP
+  // retf 0x0010         ; CA 10 00
+  // HLT
+  // Offsets: sub(4) + mov(8) + mov(7) + retf(3) = 22. HLT at offset 22.
+  // ret_eip = CODE_ADDR + 22
+  // After: RSP = STACK_TOP - 0x18 + 8 (pop) + 0x10 (imm16) = STACK_TOP
+  {
+    u32 ret_eip = CODE_ADDR + 22;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf imm16=0x10 (32-bit opsize)", cat,
+                      {0x48, 0x83, 0xEC, 0x18,             // sub rsp, 0x18
+                       0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
+                         0x08, 0x00, 0x00, 0x00,
+                       0xC7, 0x04, 0x24,                    // mov dword [rsp], ret_eip
+                         (u8)(ret_eip), (u8)(ret_eip>>8),
+                         (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+                       0xCA, 0x10, 0x00,                    // retf 0x0010
+                       0xF4},                               // HLT
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // =====================================================================
   // CRC32 — SSE4.2 CRC-32C (Castagnoli) accumulation
   // Encoding: F2 0F 38 F0 /r = CRC32 r32, r/m8
   //           F2 0F 38 F1 /r = CRC32 r32, r/m16/32/64

@@ -528,15 +528,15 @@ function exec_retf(pfx, maybe_imm) = {
   // no SS/RSP pop (SDM Vol.2B RET, "Real-address mode or virtual-8086 mode").
   // In protected/long mode, check RPL for inter-privilege return.
   if cur_mode != RealMode & return_rpl > cur_cpl then {
-    // Outer-privilege return: also pop RSP and SS as a single operation.
-    let (new_rsp, new_ss) = pop_far_pointer(os);
-    v(RSP) = new_rsp;
-    load_segment_register(SS, new_ss);
-    // Adjust new RSP for imm16 if present
+    // Outer-privilege return (SDM Vol.2B RET — IA-32e Mode):
+    // First release callee's parameters (RSP += imm16), then pop outer RSP/SS.
     match maybe_imm {
       Some(imm) => v(RSP) = v(64, RSP) + zero_extend(imm),
       None()    => (),
-    }
+    };
+    let (new_rsp, new_ss) = pop_far_pointer(os);
+    v(RSP) = new_rsp;
+    load_segment_register(SS, new_ss);
   } else {
     // Same-privilege (or real mode): adjust RSP for imm16 if present
     match maybe_imm {
