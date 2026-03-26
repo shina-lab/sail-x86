@@ -70,80 +70,39 @@ function write_stack_ptr(v) =
   else if SegCache[SS].seg_db == 0b1 then v(RSP) = v[31..0]
   else v(RSP) = v[15..0]
 
-// Stack push helper: compute new SP with proper wrapping for SS.B,
-// write value to SS:new_SP, update SP register.
+// Stack push helper: decrement SP by the value's byte width, write
+// the value at the new SP, then commit the SP update — all as a
+// single logical operation.  Because SP is written only after the
+// store succeeds, a fault during write_mem leaves SP unchanged.
+//
 // In non-64-bit modes with SS.B=0, SP is 16-bit and wraps at 0xFFFF.
 // Without wrapping, SP=2 minus 4 would produce linear address SS.base-2,
 // which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
-val push64 : qword -> unit
-function push64(v) = {
-  let sp = v(64, RSP) - 8;
-  write_mem(sp, v);
-  v(RSP) = sp
-}
-
-val push32 : dword -> unit
-function push32(v) = {
+val push : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n), bits('n)) -> unit
+function push(n, v) = {
+  let nbytes = n / 8;
   if cur_mode == LongMode then {
-    let sp = v(64, RSP) - 4;
+    let sp = v(64, RSP) - nbytes;
     write_mem(sp, v);
     v(RSP) = sp
   } else {
     let base = get_seg_base(SS);
     let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(v(32, RSP) - 4)
-      else zero_extend(v(16, RSP) - 4);
+      then zero_extend(v(32, RSP) - nbytes)
+      else zero_extend(v(16, RSP) - nbytes);
     write_mem(base + new_off, v);
     write_stack_ptr(new_off)
   }
 }
 
-val pop64 : unit -> qword
-function pop64() = {
+// Stack pop helper: read 'n bits from SP, then advance SP — again
+// as a single logical operation.
+val pop : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n)) -> bits('n)
+function pop(n) = {
   let sp = read_stack_ptr();
-  let v : qword = read_mem(sp);
-  write_stack_ptr(sp + 8 - get_seg_base(SS));
+  let v : bits('n) = read_mem(sp);
+  write_stack_ptr(sp + n / 8 - get_seg_base(SS));
   v
-}
-
-val pop32 : unit -> dword
-function pop32() = {
-  let sp = read_stack_ptr();
-  let v : dword = read_mem(sp);
-  write_stack_ptr(sp + 4 - get_seg_base(SS));
-  v
-}
-
-val push16 : word -> unit
-function push16(v) = {
-  if cur_mode == LongMode then {
-    let sp = v(64, RSP) - 2;
-    write_mem(sp, v);
-    v(RSP) = sp
-  } else {
-    let base = get_seg_base(SS);
-    let new_off : qword = if SegCache[SS].seg_db == 0b1
-      then zero_extend(v(32, RSP) - 2)
-      else zero_extend(v(16, RSP) - 2);
-    write_mem(base + new_off, v);
-    write_stack_ptr(new_off)
-  }
-}
-
-val pop16 : unit -> word
-function pop16() = {
-  let sp = read_stack_ptr();
-  let v : word = read_mem(sp);
-  write_stack_ptr(sp + 2 - get_seg_base(SS));
-  v
-}
-
-// Pop a value from the stack, zero-extended to qword.
-val pop_qword : {16, 32, 64} -> qword
-function pop_qword(os) = match os {
-  16 => zero_extend(pop16()),
-  32 => zero_extend(pop32()),
-  64 => pop64(),
 }
 
 // =========================================================================
@@ -344,9 +303,9 @@ function exec_far_call_protected(selector, offset, os) = {
   let desc = validate_far_jmp_cs(selector);
   // Push old CS and EIP/IP
   match os {
-    16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-    32 => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
-    64 => { push64(zero_extend(read_segreg(CS))); push64(decode_pos) },
+    16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+    32 => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
+    64 => push(128, zero_extend(64, read_segreg(CS)) @ decode_pos),
   };
   // Load CS
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));

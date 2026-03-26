@@ -111,9 +111,9 @@ function exec_imul_1(os, src) = {
 val exec_push_imm : forall 'os, 'os in {16, 32, 64}. (bits('os), int('os)) -> unit
 function exec_push_imm(imm, os) = {
   match os {
-    16 => push16(imm),
-    32 => if cur_mode == LongMode then push64(sign_extend(imm)) else push32(imm),
-    64 => push64(imm),
+    16 => push(16, imm),
+    32 => if cur_mode == LongMode then push(64, sign_extend(imm)) else push(32, imm),
+    64 => push(64, imm),
   }
 }
 
@@ -206,9 +206,9 @@ function dispatch_group5(reg_field, dest, pfx) = {
       let target : qword = zero_extend(v(os, dest));
       let return_addr = decode_pos;
       match os {
-        16 => push16(return_addr[15..0]),
-        32 => push32(return_addr[31..0]),
-        64 => push64(return_addr),
+        16 => push(16, return_addr[15..0]),
+        32 => push(32, return_addr[31..0]),
+        64 => push(64, return_addr),
       };
       next_rip = Some(target)
     },
@@ -234,8 +234,8 @@ function dispatch_group5(reg_field, dest, pfx) = {
           match cur_mode {
             RealMode => {
               match os {
-                16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-                _  => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
               };
               load_segment_register(CS, far_selector);
               next_rip = Some(match os {

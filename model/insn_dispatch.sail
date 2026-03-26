@@ -43,9 +43,9 @@ function exec_out(port, os) = {
 val exec_pop_reg : (gpr_idx, {16, 32, 64}) -> unit
 function exec_pop_reg(dst, os) = {
   match os {
-    16 => v(dst) = pop16(),
-    32 => v(dst) = if cur_mode == LongMode then pop64()[31..0] else pop32(),
-    64 => v(dst) = pop64(),
+    16 => v(dst) = pop(16),
+    32 => v(dst) = if cur_mode == LongMode then pop(64)[31..0] else pop(32),
+    64 => v(dst) = pop(64),
   }
 }
 
@@ -508,10 +508,12 @@ function exec_retf(pfx, maybe_imm) = {
     opsize(pfx)
   };
 
-  // Pop return RIP and CS
-  let new_rip : qword = pop_qword(os);
-  let new_cs_raw : qword = pop_qword(os);
-  let new_cs : word = new_cs_raw[15..0];
+  // Pop return RIP and CS as a single operation.
+  let (new_rip, new_cs) : (qword, word) = match os {
+    16 => { let v = pop(32); (zero_extend(v[15..0]), v[31..16]) },
+    32 => { let v = pop(64); (zero_extend(v[31..0]), v[47..32]) },
+    64 => { let v = pop(128); (v[63..0], v[79..64]) },
+  };
 
   // In protected/long mode, null CS selector is invalid.
   // In real mode, CS=0x0000 is a valid segment (linear address 0).
@@ -530,10 +532,12 @@ function exec_retf(pfx, maybe_imm) = {
   // no SS/RSP pop (SDM Vol.2B RET, "Real-address mode or virtual-8086 mode").
   // In protected/long mode, check RPL for inter-privilege return.
   if cur_mode != RealMode & return_rpl > cur_cpl then {
-    // Outer-privilege return: also pop RSP and SS
-    let new_rsp : qword = pop_qword(os);
-    let new_ss_raw : qword = pop_qword(os);
-    let new_ss : word = new_ss_raw[15..0];
+    // Outer-privilege return: also pop RSP and SS as a single operation.
+    let (new_rsp, new_ss) : (qword, word) = match os {
+      16 => { let v = pop(32); (zero_extend(v[15..0]), v[31..16]) },
+      32 => { let v = pop(64); (zero_extend(v[31..0]), v[47..32]) },
+      64 => { let v = pop(128); (v[63..0], v[79..64]) },
+    };
     v(RSP) = new_rsp;
     load_segment_register(SS, new_ss);
     // Adjust new RSP for imm16 if present
@@ -583,8 +587,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         match os {
-          32 => push32(zero_extend(read_segreg(ES))),
-          _  => push16(read_segreg(ES)),
+          32 => push(32, zero_extend(read_segreg(ES))),
+          _  => push(16, read_segreg(ES)),
         }
       },
 
@@ -595,8 +599,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         let v : word = match os {
-          32 => pop32()[15..0],
-          _  => pop16(),
+          32 => pop(32)[15..0],
+          _  => pop(16),
         };
         load_segment_register(ES, v)
       },
@@ -607,8 +611,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         match os {
-          32 => push32(zero_extend(read_segreg(CS))),
-          _  => push16(read_segreg(CS)),
+          32 => push(32, zero_extend(read_segreg(CS))),
+          _  => push(16, read_segreg(CS)),
         }
       },
 
@@ -624,8 +628,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         match os {
-          32 => push32(zero_extend(read_segreg(SS))),
-          _  => push16(read_segreg(SS)),
+          32 => push(32, zero_extend(read_segreg(SS))),
+          _  => push(16, read_segreg(SS)),
         }
       },
 
@@ -636,8 +640,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         let v : word = match os {
-          32 => pop32()[15..0],
-          _  => pop16(),
+          32 => pop(32)[15..0],
+          _  => pop(16),
         };
         load_segment_register(SS, v)
       },
@@ -648,8 +652,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         match os {
-          32 => push32(zero_extend(read_segreg(DS))),
-          _  => push16(read_segreg(DS)),
+          32 => push(32, zero_extend(read_segreg(DS))),
+          _  => push(16, read_segreg(DS)),
         }
       },
 
@@ -659,8 +663,8 @@ function decode_execute() = {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
         let v : word = match os {
-          32 => pop32()[15..0],
-          _  => pop16(),
+          32 => pop(32)[15..0],
+          _  => pop(16),
         };
         load_segment_register(DS, v)
       },
@@ -746,10 +750,10 @@ function decode_execute() = {
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = opsize_default64(pfx);
         match os {
-          16 => push16(v(reg)),
-          32 => if cur_mode == LongMode then push64(zero_extend(v(32, reg)))
-                  else push32(v(reg)),
-          64 => push64(v(reg)),
+          16 => push(16, v(reg)),
+          32 => if cur_mode == LongMode then push(64, zero_extend(v(32, reg)))
+                  else push(32, v(reg)),
+          64 => push(64, v(reg)),
         }
       },
 
@@ -772,24 +776,14 @@ function decode_execute() = {
           let orig_sp = read_stack_ptr();
           match os {
             32 => {
-              push32(v(RAX));
-              push32(v(RCX));
-              push32(v(RDX));
-              push32(v(RBX));
-              push32(orig_sp[31..0] - get_seg_base(SS)[31..0]);
-              push32(v(RBP));
-              push32(v(RSI));
-              push32(v(RDI))
+              let sp_val : dword = orig_sp[31..0] - get_seg_base(SS)[31..0];
+              push(256, v(32, RAX) @ v(32, RCX) @ v(32, RDX) @ v(32, RBX) @
+                        sp_val @ v(32, RBP) @ v(32, RSI) @ v(32, RDI))
             },
             _ => {
-              push16(v(RAX));
-              push16(v(RCX));
-              push16(v(RDX));
-              push16(v(RBX));
-              push16(orig_sp[15..0] - get_seg_base(SS)[15..0]);
-              push16(v(RBP));
-              push16(v(RSI));
-              push16(v(RDI))
+              let sp_val : word = orig_sp[15..0] - get_seg_base(SS)[15..0];
+              push(128, v(16, RAX) @ v(16, RCX) @ v(16, RDX) @ v(16, RBX) @
+                        sp_val @ v(16, RBP) @ v(16, RSI) @ v(16, RDI))
             },
           }
         }
@@ -805,28 +799,26 @@ function decode_execute() = {
           let os = opsize(pfx);
           match os {
             32 => {
-              v(RDI) = pop32();
-              v(RSI) = pop32();
-              v(RBP) = pop32();
-              // Skip the ESP slot (increment past it)
-              let sp = read_stack_ptr();
-              write_stack_ptr(sp + 4 - get_seg_base(SS));
-              v(RBX) = pop32();
-              v(RDX) = pop32();
-              v(RCX) = pop32();
-              v(RAX) = pop32()
+              // Pop all 8 dwords; the ESP slot (bits 127..96) is discarded.
+              let frame : bits(256) = pop();
+              v(RDI) = frame[31..0];
+              v(RSI) = frame[63..32];
+              v(RBP) = frame[95..64];
+              v(RBX) = frame[159..128];
+              v(RDX) = frame[191..160];
+              v(RCX) = frame[223..192];
+              v(RAX) = frame[255..224]
             },
             _ => {
-              v(RDI) = pop16();
-              v(RSI) = pop16();
-              v(RBP) = pop16();
-              // Skip the SP slot
-              let sp = read_stack_ptr();
-              write_stack_ptr(sp + 2 - get_seg_base(SS));
-              v(RBX) = pop16();
-              v(RDX) = pop16();
-              v(RCX) = pop16();
-              v(RAX) = pop16()
+              // Pop all 8 words; the SP slot (bits 63..48) is discarded.
+              let frame : bits(128) = pop();
+              v(RDI) = frame[15..0];
+              v(RSI) = frame[31..16];
+              v(RBP) = frame[47..32];
+              v(RBX) = frame[79..64];
+              v(RDX) = frame[95..80];
+              v(RCX) = frame[111..96];
+              v(RAX) = frame[127..112]
             },
           }
         }
@@ -1099,7 +1091,7 @@ function decode_execute() = {
             // Memory destination: pop first, THEN compute effective address
             // (SDM requires RSP-relative addresses use the post-pop RSP).
             // We pop first so that modrm_rm sees the updated RSP.
-            let v : qword = pop_qword(os);
+            let v : qword = zero_extend(pop(os));
             let dest = modrm_rm(modrm, pfx);
             match dest {
               RM_mem(m) => v(os, m) = v[(os - 1) .. 0],
@@ -1157,8 +1149,8 @@ function decode_execute() = {
             RealMode => {
               // Push old CS:IP/EIP
               match os {
-                16 => { push16(read_segreg(CS)); push16(decode_pos[15..0]) },
-                _  => { push32(zero_extend(read_segreg(CS))); push32(decode_pos[31..0]) },
+                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
               };
               load_segment_register(CS, selector);
               let target : qword = match os {
@@ -1192,7 +1184,7 @@ function decode_execute() = {
         let os = opsize_default64(pfx);
         match os {
           16 => {
-            let v : word = pop16();
+            let v : word = pop();
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
             TF = v[8]; DF = v[10]; OF = v[11];
             NT = v[14];
@@ -1201,7 +1193,7 @@ function decode_execute() = {
             IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
           },
           32 => {
-            let v : dword = pop32();
+            let v : dword = pop();
             CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
             TF = v[8]; DF = v[10]; OF = v[11];
             NT = v[14];
@@ -1211,7 +1203,7 @@ function decode_execute() = {
             IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
           },
           64 => {
-            let v : qword = pop64();
+            let v : qword = pop();
             // Save IOPL and IF before write_rflags overwrites them
             let old_iopl = IOPL;
             let old_if = IF_flag;
@@ -1399,16 +1391,14 @@ function decode_execute() = {
       194 => {
         let imm = fetch_imm16();
         let os = opsize_forced64(pfx);
-        next_rip = Some(pop_qword(os));
+        next_rip = Some(zero_extend(pop(os)));
         v(64, RSP) = v(RSP) + zero_extend(imm)
       },
 
       // C3: RET near
       // SDM: In 64-bit mode, operand size = stack-address size = 64.
       // 66h prefix is ignored; 16/32-bit forms are not encodable.
-      195 => {
-        next_rip = Some(pop_qword(opsize_forced64(pfx)))
-      },
+      195 => next_rip = Some(zero_extend(pop(opsize_forced64(pfx)))),
 
       // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
       // SDM Vol.2A §2.3.5: In non-64-bit mode, if the second byte has
@@ -1503,30 +1493,30 @@ function decode_execute() = {
         let nesting : range(0, 31) = unsigned(level) % 32;
         match os {
           64 => {
-            push64(v(RBP));
+            push(64, v(RBP));
             let frame_temp : qword = v(RSP);
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 v(RBP) = v(64, RBP) - 8;
-                push64(read_mem(v(64, RBP)));
+                push(64, read_mem(v(64, RBP)));
               };
             };
             if nesting >= 1 then
-              push64(frame_temp);
+              push(64, frame_temp);
             v(RBP) = frame_temp;
             v(RSP) = v(64, RSP) - zero_extend(size);
           },
           16 => {
-            push16(v(RBP));
+            push(16, v(RBP));
             let frame_temp : word = v(RSP);
             if nesting > 1 then {
               foreach (i from 1 to (nesting - 1)) {
                 v(RBP) = v(16, RBP) - 2;
-                push16(read_mem(zero_extend(v(16, RBP))));
+                push(16, read_mem(zero_extend(v(16, RBP))));
               };
             };
             if nesting >= 1 then
-              push16(frame_temp);
+              push(16, frame_temp);
             v(RBP) = frame_temp;
             v(RSP) = v(64, RSP) - zero_extend(size);
           },
@@ -1542,9 +1532,9 @@ function decode_execute() = {
         let os = opsize_default64(pfx);
         v(RSP) = v(64, RBP);
         match os {
-          16 => v(RBP) = pop16(),
-          32 => v(RBP) = pop64()[31..0],
-          64 => v(RBP) = pop64(),
+          16 => v(RBP) = pop(16),
+          32 => v(RBP) = pop(64)[31..0],
+          64 => v(RBP) = pop(64),
         }
       },
 
@@ -1608,9 +1598,11 @@ function decode_execute() = {
         };
         match os {
           16 => {
-            let new_ip     = pop16();
-            let new_cs     = pop16();
-            let new_flags  = pop16();
+            // Pop IP, CS, FLAGS as a single operation.
+            let frame : bits(48) = pop();
+            let new_ip    : word = frame[15..0];
+            let new_cs    : word = frame[31..16];
+            let new_flags : word = frame[47..32];
 
             let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
@@ -1619,10 +1611,9 @@ function decode_execute() = {
 
             // Only pop SP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let new_sp = pop16();
-              let new_ss = pop16();
-              v(RSP) = zero_extend(64, new_sp);
-              load_segment_register(SS, new_ss)
+              let v : dword = pop();
+              v(RSP) = zero_extend(64, v[15..0]);
+              load_segment_register(SS, v[31..16])
             };
 
             // In real mode, CPL is always 0 (no privilege levels).
@@ -1633,10 +1624,11 @@ function decode_execute() = {
             RF = 0b0
           },
           32 => {
-            let new_eip    = pop32();
-            let new_cs_raw = pop32();
-            let new_eflags = pop32();
-            let new_cs : word = new_cs_raw[15..0];
+            // Pop EIP, CS, EFLAGS as a single operation.
+            let frame : bits(96) = pop();
+            let new_eip    : dword = frame[31..0];
+            let new_cs     : word  = frame[47..32];
+            let new_eflags : dword = frame[95..64];
 
             let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
@@ -1645,10 +1637,9 @@ function decode_execute() = {
 
             // Only pop ESP/SS on outer-privilege return (not in real mode)
             if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let new_esp = pop32();
-              let new_ss  = pop32();
-              v(RSP) = zero_extend(64, new_esp);
-              load_segment_register(SS, new_ss[15..0])
+              let v : qword = pop();
+              v(RSP) = zero_extend(64, v[31..0]);
+              load_segment_register(SS, v[47..32])
             };
 
             if cur_mode != RealMode then cur_cpl = return_rpl;
@@ -1656,11 +1647,13 @@ function decode_execute() = {
             RF = 0b0
           },
           64 => {
-            let new_rip    = pop64();
-            let new_cs     = pop64();
-            let new_rflags = pop64();
-            let new_rsp    = pop64();
-            let new_ss     = pop64();
+            // Pop RIP, CS, RFLAGS, RSP, SS as a single operation.
+            let frame : bits(320) = pop();
+            let new_rip    : qword = frame[63..0];
+            let new_cs     : qword = frame[127..64];
+            let new_rflags : qword = frame[191..128];
+            let new_rsp    : qword = frame[255..192];
+            let new_ss     : qword = frame[319..256];
 
             next_rip = Some(new_rip);
 
@@ -1815,10 +1808,10 @@ function decode_execute() = {
         let os = opsize_forced64(pfx);
         let return_addr = decode_pos;
         match os {
-          16 => push16(return_addr[15..0]),
-          32 => if cur_mode == LongMode then push64(zero_extend(return_addr[31..0]))
-                  else push32(return_addr[31..0]),
-          64 => push64(return_addr),
+          16 => push(16, return_addr[15..0]),
+          32 => if cur_mode == LongMode then push(64, zero_extend(return_addr[31..0]))
+                  else push(32, return_addr[31..0]),
+          64 => push(64, return_addr),
         };
         next_rip = Some(truncate_rip(return_addr + offset, os))
       },

@@ -1164,9 +1164,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     160 => {
       let os = opsize_default64(pfx);
       match os {
-        16 => push16(read_segreg(FS)),
-        32 => push32(zero_extend(read_segreg(FS))),
-        64 => push64(zero_extend(read_segreg(FS))),
+        16 => push(16, read_segreg(FS)),
+        32 => push(32, zero_extend(read_segreg(FS))),
+        64 => push(64, zero_extend(read_segreg(FS))),
       }
     },
 
@@ -1174,9 +1174,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     161 => {
       let os = opsize_default64(pfx);
       load_segment_register(FS, match os {
-        16 => pop16(),
-        32 => pop32()[15..0],
-        64 => pop64()[15..0],
+        16 => pop(16),
+        32 => pop(32)[15..0],
+        64 => pop(64)[15..0],
       })
     },
 
@@ -1209,9 +1209,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     168 => {
       let os = opsize_default64(pfx);
       match os {
-        16 => push16(read_segreg(GS)),
-        32 => push32(zero_extend(read_segreg(GS))),
-        64 => push64(zero_extend(read_segreg(GS))),
+        16 => push(16, read_segreg(GS)),
+        32 => push(32, zero_extend(read_segreg(GS))),
+        64 => push(64, zero_extend(read_segreg(GS))),
       }
     },
 
@@ -1219,9 +1219,9 @@ function dispatch_2byte_gpr(op, pfx) = {
     169 => {
       let os = opsize_default64(pfx);
       load_segment_register(GS, match os {
-        16 => pop16(),
-        32 => pop32()[15..0],
-        64 => pop64()[15..0],
+        16 => pop(16),
+        32 => pop(32)[15..0],
+        64 => pop(64)[15..0],
       })
     },
 
