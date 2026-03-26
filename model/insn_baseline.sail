@@ -1048,7 +1048,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let offset = fetch_rel_os(pfx);
       if eval_cc(cc) == 0b1 then {
         let os = opsize_forced64(pfx);
-        next_rip = Some(truncate_rip(decode_pos + offset, os));
+        next_rip = Some(zero_extend((decode_pos + offset)[(os - 1) .. 0]));
       }
     },
 

@@ -294,18 +294,6 @@ function fetch_rel_os(pfx) = {
   if use_32 then sign_extend(fetch(4)) else sign_extend(fetch(2))
 }
 
-// Truncate a branch target to the effective operand size.
-// SDM: "In Real-Address Mode, the target operand is truncated to 16 bits."
-// In 32-bit protected mode, truncated to 32 bits.
-// In 64-bit mode, no truncation.
-val truncate_rip : (qword, {16, 32, 64}) -> qword
-function truncate_rip(target, os) =
-  match os {
-    16 => zero_extend(target[15..0]),
-    32 => zero_extend(target[31..0]),
-    64 => target,
-  }
-
 // =========================================================================
 // Address size determination (for string ops, LOOP, XLAT, etc.)
 // =========================================================================

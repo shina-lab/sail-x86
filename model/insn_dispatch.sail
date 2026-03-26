@@ -61,7 +61,7 @@ function exec_loop(rel8, variant, asz) = {
     let os = if cur_mode == LongMode then 64
              else if get_cs_db() == 0b1 then 32
              else 16;
-    next_rip = Some(truncate_rip(decode_pos + sign_extend(rel8), os));
+    next_rip = Some(zero_extend((decode_pos + sign_extend(rel8))[(os - 1) .. 0]));
   }
 }
 
@@ -911,7 +911,7 @@ function decode_execute() = {
         let offset : qword = sign_extend(fetch(1));
         if eval_cc(cc) == 0b1 then {
           let os = opsize_forced64(pfx);
-          next_rip = Some(truncate_rip(decode_pos + offset, os));
+          next_rip = Some(zero_extend((decode_pos + offset)[(os - 1) .. 0]));
         }
       },
 
@@ -1596,14 +1596,14 @@ function decode_execute() = {
       // AL := 0 - CF (0xFF if CF=1, 0x00 if CF=0). No flags affected.
       214 => {
         if cur_mode == LongMode then raise_UD();
-        v(8, RAX) = sign_extend(CF);
+        v(RAX) = sign_extend(8, CF);
       },
 
       // D7: XLAT/XLATB
       215 => {
         let al : qword = zero_extend(v(8, RAX));
         let addr : qword = zero_extend(v(get_address_size(pfx), RBX)) + al;
-        v(8, RAX) = read_mem(addr)
+        v(RAX) = read_mem(8, addr)
       },
 
       // D8-DF: x87 FPU
@@ -1634,12 +1634,10 @@ function decode_execute() = {
       // Address size selects CX (16), ECX (32), or RCX (64).
       227 => {
         let rel : qword = sign_extend(fetch(1));
-        let count_reg : qword = zero_extend(v(get_address_size(pfx), RCX));
+        let count_reg = v(get_address_size(pfx), RCX);
         if count_reg == zeros() then {
           let os = opsize_forced64(pfx);
-          next_rip = Some(truncate_rip(decode_pos + rel, os))
-        } else {
-          ()
+          next_rip = Some(zero_extend((decode_pos + rel)[(os - 1) .. 0]))
         }
       },
 
@@ -1669,17 +1667,18 @@ function decode_execute() = {
         let return_addr = decode_pos;
         match os {
           16 => push(16, return_addr[15..0]),
-          32 => if cur_mode == LongMode then push(64, zero_extend(return_addr[31..0]))
+          32 => if cur_mode == LongMode
+                  then push(64, zero_extend(return_addr[31..0]))
                   else push(32, return_addr[31..0]),
           64 => push(64, return_addr),
         };
-        next_rip = Some(truncate_rip(return_addr + offset, os))
+        next_rip = Some(zero_extend((return_addr + offset)[(os - 1) .. 0]))
       },
 
       // E9: JMP rel16/rel32 (forced64)
       233 => {
         let os = opsize_forced64(pfx);
-        next_rip = Some(truncate_rip(decode_pos + fetch_rel_os(pfx), os))
+        next_rip = Some(zero_extend((decode_pos + fetch_rel_os(pfx))[(os - 1) .. 0]))
       },
 
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
@@ -1706,7 +1705,7 @@ function decode_execute() = {
       235 => {
         let os = opsize_forced64(pfx);
         let rel : qword = sign_extend(fetch(1));
-        next_rip = Some(truncate_rip(decode_pos + rel, os))
+        next_rip = Some(zero_extend((decode_pos + rel)[(os - 1) .. 0]))
       },
 
       // EC: IN AL, DX
