@@ -87,6 +87,46 @@ function vsqrtpd_xmm(a) =
   __f64_sqrt(a[127..64]) @ __f64_sqrt(a[63..0])
 
 // =========================================================================
+// Generic packed element-wise operations
+// =========================================================================
+
+enum PackedBinOp = {
+  PB_Add, PB_Sub,
+  PB_SatAddS, PB_SatSubS, PB_SatAddU, PB_SatSubU,
+  PB_MinU, PB_MaxU, PB_MinS, PB_MaxS,
+  PB_Avg,
+}
+
+// Per-element dispatch: applies the operation to one pair of elements.
+val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64}.
+  (PackedBinOp, int('eb), bits('eb), bits('eb)) -> bits('eb)
+function packed_elem_op(op, eb, a, b) = match op {
+  PB_Add     => a + b,
+  PB_Sub     => a - b,
+  PB_SatAddS => sat_add_s(a, b),
+  PB_SatSubS => sat_sub_s(a, b),
+  PB_SatAddU => sat_add_u(a, b),
+  PB_SatSubU => sat_sub_u(a, b),
+  PB_MinU    => min_u(a, b),
+  PB_MaxU    => max_u(a, b),
+  PB_MinS    => min_s(a, b),
+  PB_MaxS    => max_s(a, b),
+  PB_Avg     => avg(a, b),
+}
+
+// Apply a packed binary operation element-wise across a vector.
+val packed_binop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (PackedBinOp, int('eb), bits('vl), bits('vl)) -> bits('vl)
+function packed_binop(op, eb, a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = packed_elem_op(op, eb, a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo])
+  };
+  r
+}
+
+// =========================================================================
 // Polymorphic packed FP operations
 // =========================================================================
 
@@ -230,86 +270,37 @@ function vsqrtpd(a) = {
   r
 }
 
-// =========================================================================
-// Polymorphic packed integer add/sub
-// =========================================================================
+// Polymorphic multiply operations (don't fit packed_binop due to widening)
 
-val avx_paddd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_paddd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = a[(lo + 31)..lo] + b[(lo + 31)..lo]
-  };
-  r
-}
-
-val avx_psubd : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_psubd(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = a[(lo + 31)..lo] - b[(lo + 31)..lo]
-  };
-  r
-}
-
-val avx_paddq : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_paddq(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = a[(lo + 63)..lo] + b[(lo + 63)..lo]
-  };
-  r
-}
-
-val avx_psubq : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_psubq(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = a[(lo + 63)..lo] - b[(lo + 63)..lo]
-  };
-  r
-}
-
-val avx_paddb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_paddb(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) {
-    let lo = i * 8;
-    r[(lo + 7)..lo] = a[(lo + 7)..lo] + b[(lo + 7)..lo]
-  };
-  r
-}
-
-val avx_psubb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_psubb(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) {
-    let lo = i * 8;
-    r[(lo + 7)..lo] = a[(lo + 7)..lo] - b[(lo + 7)..lo]
-  };
-  r
-}
-
-val avx_paddw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_paddw(a, b) = {
+val avx_pmullw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_pmullw(a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = a[(lo + 15)..lo] + b[(lo + 15)..lo]
+    let prod : int = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = get_slice_int(16, prod, 0)
   };
   r
 }
 
-val avx_psubw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_psubw(a, b) = {
+val avx_pmulhw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_pmulhw(a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = a[(lo + 15)..lo] - b[(lo + 15)..lo]
+    let prod : int = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = get_slice_int(16, prod, 16)
+  };
+  r
+}
+
+val avx_pmulhuw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_pmulhuw(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    let prod : int = unsigned(a[(lo + 15)..lo]) * unsigned(b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = get_slice_int(16, prod, 16)
   };
   r
 }
