@@ -4,9 +4,8 @@
 
 val exec_inc : forall 'os, 'os in {8, 16, 32, 64}. (bits('os)) -> bits('os)
 function exec_inc(a) = {
-  let result = a + 1;
-  update_flags_add_no_cf(result, a, zero_extend(0b1));
-  result
+  update_flags_add_no_cf(a + 1, a, zero_extend(0b1));
+  a + 1
 }
 
 // DEC — Decrement by 1
@@ -14,9 +13,8 @@ function exec_inc(a) = {
 // Computes dest := dest - 1. Updates OF, SF, ZF, AF, PF. CF unchanged.
 val exec_dec : forall 'os, 'os in {8, 16, 32, 64}. (bits('os)) -> bits('os)
 function exec_dec(a) = {
-  let result = a - 1;
-  update_flags_sub_no_cf(result, a, zero_extend(0b1));
-  result
+  update_flags_sub_no_cf(a - 1, a, zero_extend(0b1));
+  a - 1
 }
 
 // MUL — Unsigned Multiply
@@ -46,7 +44,7 @@ function exec_div(os, src) = {
     else unsigned(v(os, RDX) @ v(os, RAX));
   let quotient = dividend / divisor;
   let remainder = dividend - quotient * divisor;
-  if quotient > (pow2(os) - 1) then raise_DE();
+  if quotient >= pow2(os) then raise_DE();
   let q_bits = to_bits_truncate(os, quotient);
   let r_bits = to_bits_truncate(os, remainder);
   if os == 8 then {
@@ -108,8 +106,8 @@ function exec_imul_1(os, src) = {
 }
 
 // PUSH imm
-val exec_push_imm : forall 'os, 'os in {16, 32, 64}. (bits('os), int('os)) -> unit
-function exec_push_imm(imm, os) = {
+val exec_push_imm : forall 'os, 'os in {16, 32, 64}. (implicit('os), bits('os)) -> unit
+function exec_push_imm(os, imm) = {
   match os {
     16 => push(16, imm),
     32 => if cur_mode == LongMode then push(64, sign_extend(imm)) else push(32, imm),
@@ -131,15 +129,12 @@ function dispatch_group3_byte(reg_field, dest) = {
   } else {
     let x = v(8, dest);
     match reg_field {
-      0 => (),  // unreachable, handled above
-      1 => (),  // unreachable, handled above
       // NOT r/m8
       2 => v(dest) = x ^ 0xFF,
       // NEG r/m8
       3 => {
-        let result = zeros() - x;
-        update_flags_sub(result, zeros(), x);
-        v(dest) = result
+        update_flags_sub(zeros() - x, zeros(), x);
+        v(dest) = zeros() - x
       },
       4 => exec_mul(x),
       5 => exec_imul_1(x),
@@ -163,15 +158,12 @@ function dispatch_group3(reg_field, dest, os) = {
   } else {
     let x = v(os, dest);
     match reg_field {
-      0 => (),  // unreachable
-      1 => (),  // unreachable
       // NOT r/m
       2 => v(dest) = ~(x),
       // NEG r/m
       3 => {
-        let result = zeros() - x;
-        update_flags_sub(result, zeros(), x);
-        v(os, dest) = result
+        update_flags_sub(zeros() - x, zeros(), x);
+        v(os, dest) = zeros() - x
       },
       4 => exec_mul(x),
       5 => exec_imul_1(x),
@@ -198,26 +190,22 @@ function dispatch_group5(reg_field, dest, pfx) = {
       let os = opsize(pfx);
       v(dest) = exec_dec(v(os, dest))
     },
-    // CALL near indirect (f64 — forced to 64-bit in 64-bit mode)
+    // CALL near indirect
     // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
     // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
     2 => {
       let os = opsize_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
-      let return_addr = decode_pos;
-      match os {
-        16 => push(16, return_addr[15..0]),
-        32 => push(32, return_addr[31..0]),
-        64 => push(64, return_addr),
-      };
+      let return_addr : qword = decode_pos;
+      push(return_addr[os - 1 .. 0]);
       next_rip = Some(target)
     },
-    // JMP near indirect (f64)
+    // JMP near indirect
     4 => next_rip = Some(zero_extend(v(opsize_forced64(pfx), dest))),
     // PUSH r/m (d64)
     6 => {
       let os = opsize_default64(pfx);
-      exec_push_imm(v(os, dest), os)
+      exec_push_imm(v(os, dest))
     },
     // CALL far indirect m16:16/m16:32/m16:64
     // Memory operand contains offset (16/32/64 bits) then selector (16 bits).
@@ -262,13 +250,13 @@ function exec_shl(a, count_raw) = {
     _  => unsigned(count_raw) % 32,
   };
   let count_bv : bits(6) = to_bits(6, count);
-  let count_nz : bit = is_nonzero(count_bv);
   let old_CF = CF; let old_OF = OF; let old_SF = SF;
   let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
   let result : bits('os) = a << count;
   let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
   let cf_idx : range(0, 63) = ('os + 64 - cf_count) % 64;
   let a_ext : bits(64) = zero_extend(a);
+
   CF = a_ext[cf_idx];
   update_SF_ZF_PF(result);
   OF = result['os - 1] ^ CF;
@@ -277,7 +265,9 @@ function exec_shl(a, count_raw) = {
   OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
   // CF undefined when count > operand size (possible for 8/16-bit)
   CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
+
   // When count==0: restore all flags and return original value
+  let count_nz : bit = is_nonzero(count_bv);
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   SF = blend(old_SF, SF, count_nz);
@@ -297,13 +287,13 @@ function exec_shr(a, count_raw) = {
   let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   let count_bv : bits(6) = to_bits(6, count);
-  let count_nz : bit = is_nonzero(count_bv);
   let old_CF = CF; let old_OF = OF; let old_SF = SF;
   let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
   let result : bits('os) = a >> count;
   let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
   assert(cf_count >= 1);
   let a_ext : bits(64) = zero_extend(a);
+
   CF = a_ext[cf_count - 1];
   update_SF_ZF_PF(result);
   OF = a['os - 1];
@@ -312,6 +302,8 @@ function exec_shr(a, count_raw) = {
   OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
   // CF undefined when count > operand size (possible for 8/16-bit)
   CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
+
+  let count_nz : bit = is_nonzero(count_bv);
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   SF = blend(old_SF, SF, count_nz);
@@ -331,7 +323,6 @@ function exec_sar(a, count_raw) = {
   let mod_val : range(32, 64) = if 'os == 64 then 64 else 32;
   let count : range(0, 63) = unsigned(count_raw) % mod_val;
   let count_bv : bits(6) = to_bits(6, count);
-  let count_nz : bit = is_nonzero(count_bv);
   let old_CF = CF; let old_OF = OF; let old_SF = SF;
   let old_ZF = ZF; let old_PF = PF; let old_AF = AF;
   let cf_count : range(0, 64) = count + unsigned(is_zero(count_bv));
@@ -339,6 +330,7 @@ function exec_sar(a, count_raw) = {
   let cf_idx_bv : bits(7) = min_u(to_bits(7, cf_count - 1), to_bits(7, 'os - 1));
   let cf_idx = unsigned(cf_idx_bv);
   assert(cf_idx < 'os);
+
   CF = a[cf_idx];
   let result : bits('os) = a >>> count;
   update_SF_ZF_PF(result);
@@ -346,6 +338,8 @@ function exec_sar(a, count_raw) = {
   AF = undefined;
   // OF defined only for count==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
+
+  let count_nz : bit = is_nonzero(count_bv);
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   SF = blend(old_SF, SF, count_nz);
@@ -368,13 +362,15 @@ function exec_rol(a, count_raw) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let count_nz : bit = is_nonzero(to_bits(6, count));
   let old_CF = CF; let old_OF = OF;
   let result : bits('os) = rotl(a, count % 'os);
+
   CF = result[0];
   OF = result['os - 1] ^ CF;
   // OF defined only for count==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(to_bits(6, count), 0b000001));
+
+  let count_nz : bit = is_nonzero(to_bits(6, count));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   blend(a, result, count_nz)
@@ -386,13 +382,15 @@ function exec_ror(a, count_raw) = {
     64 => unsigned(count_raw) % 64,
     _  => unsigned(count_raw) % 32,
   };
-  let count_nz : bit = is_nonzero(to_bits(6, count));
   let old_CF = CF; let old_OF = OF;
   let result : bits('os) = rotr(a, count % 'os);
+
   CF = result['os - 1];
   OF = result['os - 1] ^ result['os - 2];
   // OF defined only for count==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(to_bits(6, count), 0b000001));
+
+  let count_nz : bit = is_nonzero(to_bits(6, count));
   CF = blend(old_CF, CF, count_nz);
   OF = blend(old_OF, OF, count_nz);
   blend(a, result, count_nz)
@@ -411,14 +409,16 @@ function exec_rcl(a, count_raw) = {
     _  => unsigned(count_raw) % 32,
   };
   let c = masked % ('os + 1);
-  let c_nz : bit = is_nonzero(to_bits(6, c));
   let old_CF = CF; let old_OF = OF;
   let wide = a @ CF;
   let rotated = rotl(wide, c);
+
   CF = rotated[0];
   OF = rotated['os] ^ rotated[0];
   // OF defined only for masked==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(to_bits(6, masked), 0b000001));
+
+  let c_nz : bit = is_nonzero(to_bits(6, c));
   CF = blend(old_CF, CF, c_nz);
   OF = blend(old_OF, OF, c_nz);
   blend(a, rotated['os..1], c_nz)
@@ -431,8 +431,8 @@ function exec_rcr(a, count_raw) = {
     _  => unsigned(count_raw) % 32,
   };
   let c = masked % ('os + 1);
-  let c_nz : bit = is_nonzero(to_bits(6, c));
   let old_CF = CF; let old_OF = OF;
+
   // OF is set from original value before rotation for RCR
   OF = a['os - 1] ^ CF;
   // OF defined only for masked==1; undefined otherwise
@@ -440,6 +440,8 @@ function exec_rcr(a, count_raw) = {
   let wide = a @ CF;
   let rotated = rotr(wide, c);
   CF = rotated[0];
+
+  let c_nz : bit = is_nonzero(to_bits(6, c));
   CF = blend(old_CF, CF, c_nz);
   OF = blend(old_OF, OF, c_nz);
   blend(a, rotated['os..1], c_nz)

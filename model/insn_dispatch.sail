@@ -858,7 +858,7 @@ function decode_execute() = {
       104 => {
         let os = opsize_default64(pfx);
         let imm = fetch_imm_z(os);
-        exec_push_imm(imm[(os - 1) .. 0], os)
+        exec_push_imm(imm[(os - 1) .. 0])
       },
 
       // 69: IMUL r, r/m, imm (3-operand, Iz)
@@ -880,7 +880,7 @@ function decode_execute() = {
       106 => {
         let os = opsize_default64(pfx);
         let imm = fetch_imm8_sx();
-        exec_push_imm(imm[(os - 1) .. 0], os)
+        exec_push_imm(imm[(os - 1) .. 0])
       },
 
       // 6B: IMUL r, r/m, imm8 (3-operand, Ib sign-extended)
@@ -1149,7 +1149,7 @@ function decode_execute() = {
       156 => {
         let os = opsize_default64(pfx);
         let flags = read_rflags() & 0x0000000000FCFFFF;
-        exec_push_imm(flags[(os - 1) .. 0], os)
+        exec_push_imm(flags[(os - 1) .. 0])
       },
 
       // 9D: POPF (d64)
