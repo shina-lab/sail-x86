@@ -264,6 +264,65 @@ For one-liner match arms, the comment goes on the line above:
 When a group comment covers the outer match arm (e.g., an opcode range),
 each inner sub-dispatch arm still needs its own instruction name comment.
 
+## Vertical Alignment
+
+### Match arm `=>`
+
+Within a compact group of adjacent match arms, align `=>` at the same
+column. "Adjacent" means the arms are visually close — single-line arms
+next to each other, or separated by at most a comment line.
+
+```sail
+// OK: aligned =>
+match op {
+  199 => true,
+  _   => false,
+}
+
+// OK: aligned across similar-width patterns
+match (src, pfx.rex_w) {
+  (RM_reg(r), true)  => write_mm(dst, v(64, r)),
+  (RM_mem(m), true)  => write_mm(dst, v(m)),
+  (RM_reg(r), false) => write_mm(dst, zero_extend(v(32, r))),
+  (RM_mem(m), false) => write_mm(dst, zero_extend(v(32, m))),
+}
+
+// BAD: _ has too many spaces
+match os {
+  16 => zero_extend(far_offset[15..0]),
+  _    => zero_extend(far_offset[31..0]),
+}
+```
+
+Don't align `=>` across arms that are far apart (e.g., in a large dispatch
+match where each arm has a multi-line body). Alignment only helps when
+the arms form a visual group you scan together.
+
+Don't bother aligning `=>` when the right-hand side is just `{` and the
+real code starts on the next line — aligning a brace doesn't help readability.
+
+### Trailing comments
+
+When adjacent lines have trailing `//` comments, align `//` at the same
+column. Keep `//` close to the longest code line in the group (~2 spaces
+gap), not anchored to the shortest line with a huge gap.
+
+```sail
+// OK: comments aligned, close to code
+(MP_NONE, true) => v(m) = read_kreg(k1),         // KMOVQ
+(_,       true) => v(m) = read_kreg(k1)[31..0],  // KMOVD
+(MP_66,  false) => v(m) = read_kreg(k1)[7..0],   // KMOVB
+(_,      false) => v(m) = read_kreg(k1)[15..0],  // KMOVW
+
+// BAD: comments too far from code on short lines
+(MP_NONE, true) => v(m) = read_kreg(k1),                       // KMOVQ
+(_,       true) => v(m) = read_kreg(k1)[31..0],                // KMOVD
+
+// BAD: comments not aligned with each other
+128 => true, 129 => true, 130 => true, 131 => true,  // ALU r/m, imm
+134 => true, 135 => true,                             // XCHG
+```
+
 ## Operators
 
 - The `~()` (bitwise NOT) operator requires parens: `~(CF)` not `~CF`
