@@ -1156,39 +1156,14 @@ function decode_execute() = {
       // but AC/ID are above bit 15 and are NOT modified).
       157 => {
         let os = opsize_default64(pfx);
+        var v : qword = zero_extend(pop(os));
+        let cpl2 = to_bits(2, cur_cpl);
+        v[13..12] = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
+        v[9] = blend(IF_flag, v[9], is_le_u(cpl2, v[13..12]));
         match os {
-          16 => {
-            let v : word = pop();
-            CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
-            TF = v[8]; DF = v[10]; OF = v[11];
-            NT = v[14];
-            let cpl2 : bits(2) = to_bits(2, cur_cpl);
-            IOPL = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
-            IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
-          },
-          32 => {
-            let v : dword = pop();
-            CF = v[0]; PF = v[2]; AF = v[4]; ZF = v[6]; SF = v[7];
-            TF = v[8]; DF = v[10]; OF = v[11];
-            NT = v[14];
-            AC_flag = v[18]; ID = v[21];
-            let cpl2 : bits(2) = to_bits(2, cur_cpl);
-            IOPL = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
-            IF_flag = blend(IF_flag, v[9], is_le_u(cpl2, IOPL));
-          },
-          64 => {
-            let v : qword = pop();
-            // Save IOPL and IF before write_rflags overwrites them
-            let old_iopl = IOPL;
-            let old_if = IF_flag;
-            write_rflags(v);
-            // RF always cleared; VIP, VIF, VM not modifiable
-            RF = 0b0;
-            let cpl2 : bits(2) = to_bits(2, cur_cpl);
-            IOPL = blend(IOPL, old_iopl, is_ne(cpl2, 0b00));
-            IF_flag = blend(IF_flag, old_if, is_gt_u(cpl2, old_iopl))
-          },
-          _ => (),
+          16 => { v[18] = AC_flag; v[21] = ID; write_rflags(v) },
+          32 => write_rflags(v),
+          64 => { write_rflags(v); RF = 0b0 },
         }
       },
 
@@ -1203,31 +1178,35 @@ function decode_execute() = {
       },
 
       // 9F: LAHF — AH := RFLAGS[7:0] = SF:ZF:0:AF:0:PF:1:CF
-      159 => v(16, RAX) = SF @ ZF @ 0b0 @ AF @ 0b0 @ PF @ 0b1 @ CF @ v(8, RAX),
+      159 => GPR[RAX][15..8] = SF @ ZF @ 0b0 @ AF @ 0b0 @ PF @ 0b1 @ CF,
 
       // A0: MOV AL, moffs8
       160 => {
-        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
-        v(8, RAX) = read_mem(addr);
+        let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
+        let addr = apply_segment(moffs, pfx, DS);
+        v(RAX) = read_mem(8, addr);
       },
 
       // A1: MOV rAX, moffs
       161 => {
         let os = opsize(pfx);
-        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
-        v(os, RAX) = read_mem(addr)
+        let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
+        let addr = apply_segment(moffs, pfx, DS);
+        v(RAX) = read_mem(os, addr)
       },
 
       // A2: MOV moffs8, AL
       162 => {
-        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
+        let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
+        let addr = apply_segment(moffs, pfx, DS);
         write_mem(addr, v(8, RAX))
       },
 
       // A3: MOV moffs, rAX
       163 => {
         let os = opsize(pfx);
-        let addr = apply_segment(zero_extend(fetch(get_address_size(pfx) / 8)), pfx, DS);
+        let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
+        let addr = apply_segment(moffs, pfx, DS);
         write_mem(addr, v(os, RAX))
       },
 
