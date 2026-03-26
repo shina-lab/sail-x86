@@ -274,6 +274,46 @@ function avx_psubq(a, b) = {
   r
 }
 
+val avx_paddb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_paddb(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 8 - 1)) {
+    let lo = i * 8;
+    r[(lo + 7)..lo] = a[(lo + 7)..lo] + b[(lo + 7)..lo]
+  };
+  r
+}
+
+val avx_psubb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_psubb(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 8 - 1)) {
+    let lo = i * 8;
+    r[(lo + 7)..lo] = a[(lo + 7)..lo] - b[(lo + 7)..lo]
+  };
+  r
+}
+
+val avx_paddw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_paddw(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = a[(lo + 15)..lo] + b[(lo + 15)..lo]
+  };
+  r
+}
+
+val avx_psubw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function avx_psubw(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = a[(lo + 15)..lo] - b[(lo + 15)..lo]
+  };
+  r
+}
+
 // =========================================================================
 // 128-bit packed integer add/sub helpers
 // =========================================================================
