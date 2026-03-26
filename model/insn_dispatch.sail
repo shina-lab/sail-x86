@@ -4,7 +4,6 @@
 // opcode maps. Routes to category-specific handlers.
 
 // XCHG — Exchange Register/Memory with Register
-
 val exec_xchg_reg_reg : (gpr_idx, gpr_idx, operand_size) -> unit
 function exec_xchg_reg_reg(a, b, os) = {
   let temp = v(os, a);
@@ -13,7 +12,6 @@ function exec_xchg_reg_reg(a, b, os) = {
 }
 
 // IN — Input from Port
-
 val exec_in : (word, operand_size) -> unit
 function exec_in(port, os) = {
   match os {
@@ -25,7 +23,6 @@ function exec_in(port, os) = {
 }
 
 // OUT — Output to Port
-
 val exec_out : (word, operand_size) -> unit
 function exec_out(port, os) = {
   match os {
@@ -39,7 +36,6 @@ function exec_out(port, os) = {
 // JMP near relative: RIP := decode_pos + sign-extended offset
 
 // POP — Pop a Value from the Stack
-
 val exec_pop_reg : (gpr_idx, {16, 32, 64}) -> unit
 function exec_pop_reg(dst, os) = {
   match os {
@@ -50,7 +46,6 @@ function exec_pop_reg(dst, os) = {
 }
 
 // LOOP/LOOPcc — Loop According to ECX Counter
-
 enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
 
 val exec_loop : (byte, LoopVariant, address_size) -> unit
@@ -736,20 +731,21 @@ function decode_execute() = {
         v(reg) = exec_dec(v(os, reg))
       },
 
-      // 50-57: PUSH reg (d64)
+      // 50-57: PUSH reg (default64)
       op if 80 <= op & op <= 87 => {
         let reg_field : range(0, 7) = op - 80;
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
         let os = opsize_default64(pfx);
         match os {
           16 => push(16, v(reg)),
-          32 => if cur_mode == LongMode then push(64, zero_extend(v(32, reg)))
+          32 => if cur_mode == LongMode
+                  then push(64, zero_extend(v(32, reg)))
                   else push(32, v(reg)),
           64 => push(64, v(reg)),
         }
       },
 
-      // 58-5F: POP reg (d64)
+      // 58-5F: POP reg (default64)
       op if 88 <= op & op <= 95 => {
         let reg_field : range(0, 7) = op - 88;
         let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
@@ -761,23 +757,20 @@ function decode_execute() = {
       // #UD in 64-bit mode. Pushes AX..DI (16) or EAX..EDI (32).
       // Push order: AX, CX, DX, BX, original SP, BP, SI, DI.
       96 => {
-        if cur_mode == LongMode then {
-          raise_UD()
-        } else {
-          let os = opsize(pfx);
-          let orig_sp = read_stack_ptr();
-          match os {
-            32 => {
-              let sp_val : dword = orig_sp[31..0] - get_seg_base(SS)[31..0];
-              push(256, v(32, RAX) @ v(32, RCX) @ v(32, RDX) @ v(32, RBX) @
-                        sp_val @ v(32, RBP) @ v(32, RSI) @ v(32, RDI))
-            },
-            _ => {
-              let sp_val : word = orig_sp[15..0] - get_seg_base(SS)[15..0];
-              push(128, v(16, RAX) @ v(16, RCX) @ v(16, RDX) @ v(16, RBX) @
-                        sp_val @ v(16, RBP) @ v(16, RSI) @ v(16, RDI))
-            },
-          }
+        if cur_mode == LongMode then raise_UD();
+        let os = opsize(pfx);
+        let orig_sp = read_stack_ptr();
+        match os {
+          32 => {
+            let sp_val : dword = orig_sp[31..0] - get_seg_base(SS)[31..0];
+            push(256, v(32, RAX) @ v(32, RCX) @ v(32, RDX) @ v(32, RBX) @
+                      sp_val @ v(32, RBP) @ v(32, RSI) @ v(32, RDI))
+          },
+          _ => {
+            let sp_val : word = orig_sp[15..0] - get_seg_base(SS)[15..0];
+            push(128, v(16, RAX) @ v(16, RCX) @ v(16, RDX) @ v(16, RBX) @
+                      sp_val @ v(16, RBP) @ v(16, RSI) @ v(16, RDI))
+          },
         }
       },
 
@@ -785,34 +778,31 @@ function decode_execute() = {
       // #UD in 64-bit mode. Pops DI..AX (16) or EDI..EAX (32).
       // Pop order: EDI, ESI, EBP, skip ESP slot, EBX, EDX, ECX, EAX.
       97 => {
-        if cur_mode == LongMode then {
-          raise_UD()
-        } else {
-          let os = opsize(pfx);
-          match os {
-            32 => {
-              // Pop all 8 dwords; the ESP slot (bits 127..96) is discarded.
-              let frame : bits(256) = pop();
-              v(RDI) = frame[31..0];
-              v(RSI) = frame[63..32];
-              v(RBP) = frame[95..64];
-              v(RBX) = frame[159..128];
-              v(RDX) = frame[191..160];
-              v(RCX) = frame[223..192];
-              v(RAX) = frame[255..224]
-            },
-            _ => {
-              // Pop all 8 words; the SP slot (bits 63..48) is discarded.
-              let frame : bits(128) = pop();
-              v(RDI) = frame[15..0];
-              v(RSI) = frame[31..16];
-              v(RBP) = frame[47..32];
-              v(RBX) = frame[79..64];
-              v(RDX) = frame[95..80];
-              v(RCX) = frame[111..96];
-              v(RAX) = frame[127..112]
-            },
-          }
+        if cur_mode == LongMode then raise_UD();
+        let os = opsize(pfx);
+        match os {
+          32 => {
+            // Pop all 8 dwords; the ESP slot (bits 127..96) is discarded.
+            let frame : bits(256) = pop();
+            v(RDI) = frame[31..0];
+            v(RSI) = frame[63..32];
+            v(RBP) = frame[95..64];
+            v(RBX) = frame[159..128];
+            v(RDX) = frame[191..160];
+            v(RCX) = frame[223..192];
+            v(RAX) = frame[255..224]
+          },
+          _ => {
+            // Pop all 8 words; the SP slot (bits 63..48) is discarded.
+            let frame : bits(128) = pop();
+            v(RDI) = frame[15..0];
+            v(RSI) = frame[31..16];
+            v(RBP) = frame[47..32];
+            v(RBX) = frame[79..64];
+            v(RDX) = frame[95..80];
+            v(RCX) = frame[111..96];
+            v(RAX) = frame[127..112]
+          },
         }
       },
 
@@ -925,7 +915,7 @@ function decode_execute() = {
         else exec_outs(os, asz, pfx)
       },
 
-      // 70-7F: Jcc rel8 (f64)
+      // 70-7F: Jcc rel8 (forced64)
       op if 112 <= op & op <= 127 => {
         let cc : cc_idx = op - 112;
         let offset : qword = sign_extend(fetch(1));
@@ -1056,16 +1046,14 @@ function decode_execute() = {
       // 8E: MOV sreg, r/m16
       142 => {
         let (reg_field, src) = fetch_modrm_raw(pfx);
-        if reg_field > 5 then {
-          raise_UD()
-        } else {
-          let seg : segreg_idx = reg_field;
-          if seg == CS then raise_UD();
-          load_segment_register(seg, v(src))
-        }
+        if reg_field > 5 then raise_UD();
+        assert(reg_field <= 5);
+        let seg : segreg_idx = reg_field;
+        if seg == CS then raise_UD();
+        load_segment_register(seg, v(src))
       },
 
-      // 8F /0: POP r/m (d64)
+      // 8F /0: POP r/m (default64)
       // SDM: "If the RSP register is used as a base register for addressing
       // a destination operand in memory, the POP instruction computes the
       // effective address of the operand after it increments the RSP register."
@@ -1128,35 +1116,32 @@ function decode_execute() = {
       // 9A: CALL ptr16:16/ptr16:32 — Far call, immediate
       // Invalid in 64-bit mode. Encoding: offset (16/32 bits) then selector (16 bits).
       154 => {
-        if cur_mode == LongMode then {
-          raise_UD()
-        } else {
-          let os = opsize(pfx);
-          let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
-          let selector : word = fetch(2);
-          match cur_mode {
-            RealMode => {
-              // Push old CS:IP/EIP
-              match os {
-                16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
-                _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
-              };
-              load_segment_register(CS, selector);
-              let target : qword = match os {
-                16 => zero_extend(offset[15..0]),
-                _  => zero_extend(offset[31..0]),
-              };
-              next_rip = Some(target)
-            },
-            _ => exec_far_call_protected(selector, offset, os),
-          }
+        if cur_mode == LongMode then raise_UD();
+        let os = opsize(pfx);
+        let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
+        let selector : word = fetch(2);
+        match cur_mode {
+          RealMode => {
+            // Push old CS:IP/EIP
+            match os {
+              16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
+              _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
+            };
+            load_segment_register(CS, selector);
+            let target : qword = match os {
+              16 => zero_extend(offset[15..0]),
+              _  => zero_extend(offset[31..0]),
+            };
+            next_rip = Some(target)
+          },
+          _ => exec_far_call_protected(selector, offset, os),
         }
       },
 
       // 9B: FWAIT/WAIT
       155 => __wait(),
 
-      // 9C: PUSHF (d64)
+      // 9C: PUSHF (default64)
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.
       156 => {
         let os = opsize_default64(pfx);
@@ -1164,7 +1149,7 @@ function decode_execute() = {
         exec_push_imm(flags[(os - 1) .. 0])
       },
 
-      // 9D: POPF (d64)
+      // 9D: POPF (default64)
       // At CPL 0: all flags except RF, VIP, VIF, VM modifiable.
       // RF is always cleared (cleared at start of every instruction).
       // For 16-bit: only lower 16 bits affect flags (IOPL modifiable at CPL 0,
@@ -1790,7 +1775,7 @@ function decode_execute() = {
         exec_out(port, os)
       },
 
-      // E8: CALL rel16/rel32 (f64)
+      // E8: CALL rel16/rel32 (forced64)
       232 => {
         let offset = fetch_rel_os(pfx);
         let os = opsize_forced64(pfx);
@@ -1804,7 +1789,7 @@ function decode_execute() = {
         next_rip = Some(truncate_rip(return_addr + offset, os))
       },
 
-      // E9: JMP rel16/rel32 (f64)
+      // E9: JMP rel16/rel32 (forced64)
       233 => {
         let os = opsize_forced64(pfx);
         next_rip = Some(truncate_rip(decode_pos + fetch_rel_os(pfx), os))
@@ -1813,27 +1798,24 @@ function decode_execute() = {
       // EA: JMP ptr16:16/ptr16:32 — Far jump, immediate
       // Invalid in 64-bit mode. Encoding: offset (16/32 bits) then selector (16 bits).
       234 => {
-        if cur_mode == LongMode then {
-          raise_UD()
-        } else {
-          let os = opsize(pfx);
-          let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
-          let selector : word = fetch(2);
-          match cur_mode {
-            RealMode => {
-              load_segment_register(CS, selector);
-              let target : qword = match os {
-                16 => zero_extend(offset[15..0]),
-                _  => zero_extend(offset[31..0]),
-              };
-              next_rip = Some(target)
-            },
-            _ => exec_far_jmp_protected(selector, offset, os),
-          }
+        if cur_mode == LongMode then raise_UD();
+        let os = opsize(pfx);
+        let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
+        let selector : word = fetch(2);
+        match cur_mode {
+          RealMode => {
+            load_segment_register(CS, selector);
+            let target : qword = match os {
+              16 => zero_extend(offset[15..0]),
+              _  => zero_extend(offset[31..0]),
+            };
+            next_rip = Some(target)
+          },
+          _ => exec_far_jmp_protected(selector, offset, os),
         }
       },
 
-      // EB: JMP rel8 (f64)
+      // EB: JMP rel8 (forced64)
       235 => {
         let os = opsize_forced64(pfx);
         let rel : qword = sign_extend(fetch(1));

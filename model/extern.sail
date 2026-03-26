@@ -98,7 +98,7 @@ val __f32_rsqrt : dword -> dword
 val __f32_rcp : dword -> dword
 
 // =========================================================================
-// Double precision (f64)
+// Double precision (forced64)
 // =========================================================================
 
 val __f64_add  : (qword, qword) -> qword

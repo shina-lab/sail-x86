@@ -1042,7 +1042,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 77: EMMS — set x87 tag word to all empty
     119 => x87_tw = 0xFFFF,
 
-    // 0F 80-8F: Jcc rel16/rel32 (f64)
+    // 0F 80-8F: Jcc rel16/rel32 (forced64)
     op if 128 <= op & op <= 143 => {
       let cc : cc_idx = op - 128;
       let offset = fetch_rel_os(pfx);
