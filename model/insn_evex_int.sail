@@ -1879,7 +1879,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, avx_pmullw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_binop(PB_MulLow, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E4: VPMULHUW (66, EVEX) [BW]
@@ -1890,7 +1890,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, avx_pmulhuw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_binop(PB_MulHighU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E5: VPMULHW (66, EVEX) [BW]
@@ -1901,7 +1901,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, avx_pmulhw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_binop(PB_MulHighS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F DE: VPMAXUB (66, EVEX) [BW]

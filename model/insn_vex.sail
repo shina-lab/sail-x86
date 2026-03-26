@@ -96,6 +96,8 @@ enum PackedBinOp = {
   PB_MinU, PB_MaxU, PB_MinS, PB_MaxS,
   PB_Avg,
   PB_Srl, PB_Sra, PB_Sll,
+  PB_MulLow, PB_MulHighS, PB_MulHighU, PB_MulHRS,
+  PB_Ror, PB_Rol,
 }
 
 // Per-element dispatch: applies the operation to one pair of elements.
@@ -116,6 +118,18 @@ function packed_elem_op(op, eb, a, b) = match op {
   PB_Srl     => a >> b,
   PB_Sra     => a >>> unsigned(b),
   PB_Sll     => a << b,
+  PB_MulLow  => to_bits_truncate(signed(a) * signed(b)),
+  PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
+  PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
+  PB_MulHRS  => {
+    // PMULHRSW: (a*b >> 14 + 1) >> 1, computed in double-width to avoid overflow
+    let prod : bits('eb * 2) = to_bits_truncate(signed(a) * signed(b));
+    let shifted = prod >>> ('eb - 2);
+    let rounded : bits('eb * 2) = to_bits_truncate(signed(shifted) + 1);
+    (rounded >>> 1)[('eb - 1)..0]
+  },
+  PB_Ror     => rotr(a, unsigned(b) % 'eb),
+  PB_Rol     => rotl(a, unsigned(b) % 'eb),
 }
 
 // Apply a packed binary operation element-wise across a vector.
@@ -131,12 +145,14 @@ function packed_binop(op, eb, a, b) = {
 }
 
 // Generic packed unary operation (element-wise, one source).
-enum PackedUnaryOp = { PU_Abs }
+enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt }
 
 val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedUnaryOp, int('eb), bits('eb)) -> bits('eb)
 function packed_unary_elem(op, eb, a) = match op {
-  PU_Abs => abs(a),
+  PU_Abs    => abs(a),
+  PU_Popcnt => to_bits('eb, popcount(a)),
+  PU_Lzcnt  => to_bits('eb, clz(a)),
 }
 
 val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
@@ -290,41 +306,6 @@ function vsqrtpd(a) = {
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
     r[(lo + 63)..lo] = __f64_sqrt(a[(lo + 63)..lo])
-  };
-  r
-}
-
-// Polymorphic multiply operations (don't fit packed_binop due to widening)
-
-val avx_pmullw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_pmullw(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    let prod : int = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
-    r[(lo + 15)..lo] = get_slice_int(16, prod, 0)
-  };
-  r
-}
-
-val avx_pmulhw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_pmulhw(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    let prod : int = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
-    r[(lo + 15)..lo] = get_slice_int(16, prod, 16)
-  };
-  r
-}
-
-val avx_pmulhuw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_pmulhuw(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    let prod : int = unsigned(a[(lo + 15)..lo]) * unsigned(b[(lo + 15)..lo]);
-    r[(lo + 15)..lo] = get_slice_int(16, prod, 16)
   };
   r
 }
