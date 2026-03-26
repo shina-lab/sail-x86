@@ -397,3 +397,15 @@ function fmax(a, b) = match 'n { 16 => __f16_max(a, b), 32 => __f32_max(a, b), 6
 
 val fsqrt : forall 'n, 'n in {8, 16, 32, 64}. bits('n) -> bits('n)
 function fsqrt(a) = match 'n { 16 => __f16_sqrt(a), 32 => __f32_sqrt(a), 64 => __f64_sqrt(a), _ => undefined }
+
+val fmadd : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fmadd(a, b, c) = match 'n { 16 => __f16_fmadd(a, b, c), 32 => __f32_fmadd(a, b, c), 64 => __f64_fmadd(a, b, c), _ => undefined }
+
+val fmsub : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fmsub(a, b, c) = match 'n { 16 => __f16_fmsub(a, b, c), 32 => __f32_fmsub(a, b, c), 64 => __f64_fmsub(a, b, c), _ => undefined }
+
+val fnmadd : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fnmadd(a, b, c) = match 'n { 16 => __f16_fnmadd(a, b, c), 32 => __f32_fnmadd(a, b, c), 64 => __f64_fnmadd(a, b, c), _ => undefined }
+
+val fnmsub : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fnmsub(a, b, c) = match 'n { 16 => __f16_fnmsub(a, b, c), 32 => __f32_fnmsub(a, b, c), 64 => __f64_fnmsub(a, b, c), _ => undefined }

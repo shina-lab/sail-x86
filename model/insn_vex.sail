@@ -173,6 +173,29 @@ function packed_unop(op, eb, a) = {
   r
 }
 
+// Generic packed ternary operation (element-wise, three sources).
+enum PackedTernaryOp = { PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub }
+
+val packed_ternary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
+  (PackedTernaryOp, int('eb), bits('eb), bits('eb), bits('eb)) -> bits('eb)
+function packed_ternary_elem(op, eb, a, b, c) = match op {
+  PT_FMAdd  => fmadd(a, b, c),
+  PT_FMSub  => fmsub(a, b, c),
+  PT_FNMAdd => fnmadd(a, b, c),
+  PT_FNMSub => fnmsub(a, b, c),
+}
+
+val packed_ternop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (PackedTernaryOp, int('eb), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function packed_ternop(op, eb, a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = packed_ternary_elem(op, eb, a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo], c[(lo + 'eb - 1)..lo])
+  };
+  r
+}
+
 // =========================================================================
 // 128-bit packed integer add/sub helpers
 // =========================================================================
