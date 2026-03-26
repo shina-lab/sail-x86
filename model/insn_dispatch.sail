@@ -954,39 +954,31 @@ function decode_execute() = {
       // 84: TEST r/m8, r8
       132 => {
         let (reg, src) = fetch_modrm(pfx);
-        let a : byte = v(src);
-        let b : byte = v(reg);
-        let result = a & b;
-        update_flags_logic(result)
+        update_flags_logic(v(8, src) & v(8, reg))
       },
 
       // 85: TEST r/m, r
       133 => {
         let os = opsize(pfx);
         let (reg, src) = fetch_modrm(pfx);
-        let a = v(os, src);
-        let b = v(os, reg);
-        let result = a & b;
-        update_flags_logic(result)
+        update_flags_logic(v(os, src) & v(os, reg))
       },
 
       // 86: XCHG r/m8, r8
       134 => {
         let (reg, dest) = fetch_modrm(pfx);
-        let a : byte = v(dest);
-        let b : byte = v(reg);
-        v(dest) = b;
-        v(reg) = a
+        let tmp : byte = v(dest);
+        v(dest) = v(8, reg);
+        v(reg) = tmp
       },
 
       // 87: XCHG r/m, r
       135 => {
         let os = opsize(pfx);
         let (reg, dest) = fetch_modrm(pfx);
-        let a = v(os, dest);
-        let b = v(os, reg);
-        v(dest) = b;
-        v(reg) = a
+        let tmp = v(os, dest);
+        v(dest) = v(os, reg);
+        v(reg) = tmp
       },
 
       // 88: MOV r/m8, r8
@@ -1057,26 +1049,23 @@ function decode_execute() = {
       143 => {
         let modrm = fetch(1);
         let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-        if reg_field == 0 then {
-          let os = opsize_default64(pfx);
-          let mod_field : range(0, 3) = unsigned(modrm[7..6]);
-          if mod_field == 3 then {
-            // Register destination — no address computation issue
-            let idx = unsigned(pfx.rex_b @ modrm[2..0]);
-            exec_pop_reg(idx, os)
-          } else {
-            // Memory destination: pop first, THEN compute effective address
-            // (SDM requires RSP-relative addresses use the post-pop RSP).
-            // We pop first so that modrm_rm sees the updated RSP.
-            let v : qword = zero_extend(pop(os));
-            let dest = modrm_rm(modrm, pfx);
-            match dest {
-              RM_mem(m) => v(os, m) = v[(os - 1) .. 0],
-              _ => raise_UD(),
-            }
-          }
+        if reg_field != 0 then raise_UD();
+        let os = opsize_default64(pfx);
+        let mod_field : range(0, 3) = unsigned(modrm[7..6]);
+        if mod_field == 3 then {
+          // Register destination — no address computation issue
+          let idx = unsigned(pfx.rex_b @ modrm[2..0]);
+          exec_pop_reg(idx, os)
         } else {
-          raise_UD()
+          // Memory destination: pop first, THEN compute effective address
+          // (SDM requires RSP-relative addresses use the post-pop RSP).
+          // We pop first so that modrm_rm sees the updated RSP.
+          let a : qword = zero_extend(pop(os));
+          let dest = modrm_rm(modrm, pfx);
+          match dest {
+            RM_mem(m) => v(m) = a[(os - 1) .. 0],
+            _ => raise_UD(),
+          }
         }
       },
 
@@ -1115,20 +1104,15 @@ function decode_execute() = {
       154 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
+        assert(os <= 32);
         let offset : qword = zero_extend(fetch(if os == 16 then 2 else 4));
         let selector : word = fetch(2);
         match cur_mode {
           RealMode => {
             // Push old CS:IP/EIP
-            match os {
-              16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
-              _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),
-            };
+            push(zero_extend(os, read_segreg(CS)) @ decode_pos[os - 1 .. 0]);
             load_segment_register(CS, selector);
-            let target : qword = match os {
-              16 => zero_extend(offset[15..0]),
-              _  => zero_extend(offset[31..0]),
-            };
+            let target : qword = zero_extend(offset[os - 1 .. 0]);
             next_rip = Some(target)
           },
           _ => exec_far_call(selector, offset, os),
