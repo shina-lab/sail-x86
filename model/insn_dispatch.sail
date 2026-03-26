@@ -1485,85 +1485,56 @@ function decode_execute() = {
       // Protected mode outer-privilege: also pop ESP, SS.
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
+        if NT == 0b1 then raise_GP0();
         let os = opsize(pfx);
-        if NT == 0b1 then {
-          throw Fault(EXN_GP, 0x00000000)
-        };
-        match os {
-          16 => {
-            let new_ip    : word = pop();
-            let new_cs    : word = pop();
-            let new_flags : word = pop();
+        if os == 16 | os == 32 then {
+          // IRET/IRETD (16/32-bit operand size)
+          let new_ip    = pop(os);
+          let new_cs    = pop(os);
+          let new_flags = pop(os);
+          let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
-            let return_rpl : cpl_t = unsigned(new_cs[1..0]);
+          next_rip = Some(zero_extend(new_ip));
+          load_segment_register(CS, new_cs[15..0]);
 
-            next_rip = Some(zero_extend(new_ip));
-            load_segment_register(CS, new_cs);
+          // Only pop SP/SS on outer-privilege return (not in real mode)
+          if cur_mode != RealMode & return_rpl > cur_cpl then {
+            let new_sp = pop(os);
+            let new_ss = pop(os);
+            v(RSP) = zero_extend(64, new_sp);
+            load_segment_register(SS, new_ss[15..0])
+          };
 
-            // Only pop SP/SS on outer-privilege return (not in real mode)
-            if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let new_sp : word = pop();
-              let new_ss : word = pop();
-              v(RSP) = zero_extend(64, new_sp);
-              load_segment_register(SS, new_ss)
-            };
+          // In real mode, CPL is always 0 (no privilege levels).
+          // In protected mode, set CPL from the return CS selector RPL.
+          if cur_mode != RealMode then cur_cpl = return_rpl;
+          // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all.
+          if os == 16
+            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags))
+            else write_rflags(zero_extend(new_flags));
+          RF = 0b0
+        } else {
+          let new_rip    = pop(os);
+          let new_cs     = pop(os);
+          let new_rflags = pop(os);
+          let new_rsp    = pop(os);
+          let new_ss     = pop(os);
+          next_rip = Some(new_rip);
 
-            // In real mode, CPL is always 0 (no privilege levels).
-            // In protected mode, set CPL from the return CS selector RPL.
-            if cur_mode != RealMode then cur_cpl = return_rpl;
-            let old_rflags = read_rflags();
-            write_rflags((old_rflags & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags));
-            RF = 0b0
-          },
-          32 => {
-            let new_eip    : dword = pop();
-            let new_cs     : dword = pop();
-            let new_eflags : dword = pop();
+          // Load CS selector and descriptor cache from GDT.
+          let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
+          let desc_lo : dword = read_mem(GDTR_base + sel_offset);
+          let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
+          write_segreg(CS, new_cs[15..0]);
+          SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
+          cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
+                     else CompatibilityMode;
 
-            let return_rpl : cpl_t = unsigned(new_cs[1..0]);
-
-            next_rip = Some(zero_extend(new_eip));
-            load_segment_register(CS, new_cs[15..0]);
-
-            // Only pop ESP/SS on outer-privilege return (not in real mode)
-            if cur_mode != RealMode & return_rpl > cur_cpl then {
-              let new_esp : dword = pop();
-              let new_ss  : dword = pop();
-              v(RSP) = zero_extend(64, new_esp);
-              load_segment_register(SS, new_ss[15..0])
-            };
-
-            if cur_mode != RealMode then cur_cpl = return_rpl;
-            write_rflags(zero_extend(new_eflags));
-            RF = 0b0
-          },
-          64 => {
-            let new_rip    : qword = pop();
-            let new_cs     : qword = pop();
-            let new_rflags : qword = pop();
-            let new_rsp    : qword = pop();
-            let new_ss     : qword = pop();
-
-            next_rip = Some(new_rip);
-
-            // Load CS selector and descriptor cache from GDT.
-            let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
-            let desc_lo : dword = read_mem(GDTR_base + sel_offset);
-            let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
-            write_segreg(CS, new_cs[15..0]);
-            SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
-            cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
-                       else CompatibilityMode;
-
-            let new_cpl : cpl_t = unsigned(new_cs[1..0]);
-            cur_cpl = new_cpl;
-
-            write_rflags(new_rflags);
-            RF = 0b0;
-
-            v(RSP) = new_rsp;
-            write_segreg(SS, new_ss[15..0]);
-          },
+          cur_cpl = unsigned(new_cs[1..0]);
+          write_rflags(new_rflags);
+          RF = 0b0;
+          v(RSP) = new_rsp;
+          write_segreg(SS, new_ss[15..0]);
         }
       },
 
