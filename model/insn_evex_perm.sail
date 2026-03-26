@@ -1778,7 +1778,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 1) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_xmm(dst, result)
       },
@@ -1789,7 +1790,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 3) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_ymm(dst, result)
       },
@@ -1800,7 +1802,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_zmm(dst, result)
       },
@@ -1812,7 +1815,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 3) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_xmm(dst, result)
       },
@@ -1823,7 +1827,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_ymm(dst, result)
       },
@@ -1834,7 +1839,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 15) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_zmm(dst, result)
       },
@@ -1860,7 +1866,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 1) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_xmm(dst, result)
       },
@@ -1871,7 +1878,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 3) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_ymm(dst, result)
       },
@@ -1882,7 +1890,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 64 + 63) .. (i * 64)] = blend(src1_eff[(i * 64 + 63) .. (i * 64)], src2[(i * 64 + 63) .. (i * 64)], k[i])
+          let lo = i * 64;
+          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
         };
         write_zmm(dst, result)
       },
@@ -1894,7 +1903,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 3) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_xmm(dst, result)
       },
@@ -1905,7 +1915,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_ymm(dst, result)
       },
@@ -1916,7 +1927,8 @@ function dispatch_evex_perm(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 15) {
-          result[(i * 32 + 31) .. (i * 32)] = blend(src1_eff[(i * 32 + 31) .. (i * 32)], src2[(i * 32 + 31) .. (i * 32)], k[i])
+          let lo = i * 32;
+          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
         };
         write_zmm(dst, result)
       },

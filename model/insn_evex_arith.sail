@@ -4517,7 +4517,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 7) {
-          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
+          let lo = i * 16;
+          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
         };
         evex_write_w_xmm(dst, result, pfx)
       },
@@ -4528,7 +4529,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 15) {
-          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
+          let lo = i * 16;
+          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
         };
         evex_write_w_ymm(dst, result, pfx)
       },
@@ -4539,7 +4541,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 31) {
-          result[(i * 16 + 15) .. (i * 16)] = blend(src1_eff[(i * 16 + 15) .. (i * 16)], src2[(i * 16 + 15) .. (i * 16)], k[i])
+          let lo = i * 16;
+          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
         };
         evex_write_w_zmm(dst, result, pfx)
       },
@@ -4551,7 +4554,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : xmmword = src1 & z_keep;
         var result : xmmword = zeros();
         foreach (i from 0 to 15) {
-          result[(i * 8 + 7) .. (i * 8)] = blend(src1_eff[(i * 8 + 7) .. (i * 8)], src2[(i * 8 + 7) .. (i * 8)], k[i])
+          let lo = i * 8;
+          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
         };
         evex_write_b_xmm(dst, result, pfx)
       },
@@ -4562,7 +4566,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : ymmword = src1 & z_keep;
         var result : ymmword = zeros();
         foreach (i from 0 to 31) {
-          result[(i * 8 + 7) .. (i * 8)] = blend(src1_eff[(i * 8 + 7) .. (i * 8)], src2[(i * 8 + 7) .. (i * 8)], k[i])
+          let lo = i * 8;
+          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
         };
         evex_write_b_ymm(dst, result, pfx)
       },
@@ -4573,7 +4578,8 @@ function dispatch_evex_arith(op, pfx) = {
         let src1_eff : zmmword = src1 & z_keep;
         var result : zmmword = zeros();
         foreach (i from 0 to 63) {
-          result[(i * 8 + 7) .. (i * 8)] = blend(src1_eff[(i * 8 + 7) .. (i * 8)], src2[(i * 8 + 7) .. (i * 8)], k[i])
+          let lo = i * 8;
+          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
         };
         evex_write_b_zmm(dst, result, pfx)
       },
