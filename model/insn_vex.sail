@@ -197,6 +197,73 @@ function packed_ternop(op, eb, a, b, c) = {
 }
 
 // =========================================================================
+// Packed 32-bit ternary operations (fixed dword element size)
+//
+// For operations like VNNI that decompose each dword internally
+// (e.g. multiply bytes/words within each dword and accumulate)
+// but don't generalize to other element sizes.
+// =========================================================================
+
+// Signed saturation to 32-bit range.
+val sat_s32_int : int -> dword
+function sat_s32_int(v) = {
+  let wide : bits(33) = get_slice_int(33, v, 0);
+  let sign : bit = wide[32];
+  let of_mask : dword = sign_extend(sign ^ wide[31]);
+  let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
+  (sat & of_mask) | (wide[31..0] & ~(of_mask))
+}
+
+enum TernaryOp32 = { TO32_DPBusd, TO32_DPBusds, TO32_DPWssd, TO32_DPWssds }
+
+val ternary_elem32 : (TernaryOp32, dword, dword, dword) -> dword
+function ternary_elem32(op, dst, s1, s2) = match op {
+  // VPDPBUSD: unsigned bytes × signed bytes, sum 4 products, accumulate
+  TO32_DPBusd => {
+    let sum : int = signed(dst)
+      + unsigned(s1[7..0])   * signed(s2[7..0])
+      + unsigned(s1[15..8])  * signed(s2[15..8])
+      + unsigned(s1[23..16]) * signed(s2[23..16])
+      + unsigned(s1[31..24]) * signed(s2[31..24]);
+    get_slice_int(32, sum, 0)
+  },
+  // VPDPBUSDS: same with signed dword saturation
+  TO32_DPBusds => {
+    let sum : int = signed(dst)
+      + unsigned(s1[7..0])   * signed(s2[7..0])
+      + unsigned(s1[15..8])  * signed(s2[15..8])
+      + unsigned(s1[23..16]) * signed(s2[23..16])
+      + unsigned(s1[31..24]) * signed(s2[31..24]);
+    sat_s32_int(sum)
+  },
+  // VPDPWSSD: signed words × signed words, sum 2 products, accumulate
+  TO32_DPWssd => {
+    let sum : int = signed(dst)
+      + signed(s1[15..0])  * signed(s2[15..0])
+      + signed(s1[31..16]) * signed(s2[31..16]);
+    get_slice_int(32, sum, 0)
+  },
+  // VPDPWSSDS: same with signed dword saturation
+  TO32_DPWssds => {
+    let sum : int = signed(dst)
+      + signed(s1[15..0])  * signed(s2[15..0])
+      + signed(s1[31..16]) * signed(s2[31..16]);
+    sat_s32_int(sum)
+  },
+}
+
+val packed_ternop32 : forall 'vl, 'vl in {128, 256, 512}.
+  (TernaryOp32, bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function packed_ternop32(op, a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = ternary_elem32(op, a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo])
+  };
+  r
+}
+
+// =========================================================================
 // 128-bit packed integer add/sub helpers
 // =========================================================================
 

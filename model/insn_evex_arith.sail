@@ -1897,139 +1897,6 @@ function avx_vpconflictq_512(src) = {
 // bit 0: QNaN, bit 1: +0, bit 2: -0, bit 3: +Inf, bit 4: -Inf
 // bit 5: denormal, bit 6: negative finite, bit 7: SNaN
 
-val avx_vpdpbusd_elem : (dword, dword, dword) -> dword
-function avx_vpdpbusd_elem(dst, s1, s2) = {
-  let p0 : int = unsigned(s1[7..0]) * signed(s2[7..0]);
-  let p1 : int = unsigned(s1[15..8]) * signed(s2[15..8]);
-  let p2 : int = unsigned(s1[23..16]) * signed(s2[23..16]);
-  let p3 : int = unsigned(s1[31..24]) * signed(s2[31..24]);
-  let sum : int = signed(dst) + p0 + p1 + p2 + p3;
-  get_slice_int(32, sum, 0)
-}
-
-val avx_vpdpbusd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpdpbusd_128(dst, src1, src2) = {
-  avx_vpdpbusd_elem(dst[127..96], src1[127..96], src2[127..96]) @
-  avx_vpdpbusd_elem(dst[95..64], src1[95..64], src2[95..64]) @
-  avx_vpdpbusd_elem(dst[63..32], src1[63..32], src2[63..32]) @
-  avx_vpdpbusd_elem(dst[31..0], src1[31..0], src2[31..0])
-}
-
-val avx_vpdpbusd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpdpbusd_256(dst, src1, src2) = {
-  avx_vpdpbusd_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpdpbusd_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpdpbusd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpdpbusd_512(dst, src1, src2) = {
-  avx_vpdpbusd_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpdpbusd_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
-/* ---- VPDPWSSD: Multiply and Add Signed Word Integers ---- */
-// For each dword: dst += src1.s16[0]*src2.s16[0] + src1.s16[1]*src2.s16[1]
-
-val avx_vpdpwssd_elem : (dword, dword, dword) -> dword
-function avx_vpdpwssd_elem(dst, s1, s2) = {
-  let p0 : int = signed(s1[15..0]) * signed(s2[15..0]);
-  let p1 : int = signed(s1[31..16]) * signed(s2[31..16]);
-  let sum : int = signed(dst) + p0 + p1;
-  get_slice_int(32, sum, 0)
-}
-
-val avx_vpdpwssd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpdpwssd_128(dst, src1, src2) = {
-  avx_vpdpwssd_elem(dst[127..96], src1[127..96], src2[127..96]) @
-  avx_vpdpwssd_elem(dst[95..64], src1[95..64], src2[95..64]) @
-  avx_vpdpwssd_elem(dst[63..32], src1[63..32], src2[63..32]) @
-  avx_vpdpwssd_elem(dst[31..0], src1[31..0], src2[31..0])
-}
-
-val avx_vpdpwssd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpdpwssd_256(dst, src1, src2) = {
-  avx_vpdpwssd_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpdpwssd_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpdpwssd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpdpwssd_512(dst, src1, src2) = {
-  avx_vpdpwssd_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpdpwssd_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
-/* ---- VPDPWSSDS: Same as VPDPWSSD but with signed dword saturation ---- */
-
-val sat_s32_int : int -> dword
-function sat_s32_int(v) = {
-  // Branchless signed saturation to 32-bit via 33-bit overflow detection
-  let wide : bits(33) = get_slice_int(33, v, 0);
-  let sign : bit = wide[32];
-  let of_mask : dword = sign_extend(sign ^ wide[31]);
-  let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
-  (sat & of_mask) | (wide[31..0] & ~(of_mask))
-}
-
-val avx_vpdpwssds_elem : (dword, dword, dword) -> dword
-function avx_vpdpwssds_elem(dst, s1, s2) = {
-  let p0 : int = signed(s1[15..0]) * signed(s2[15..0]);
-  let p1 : int = signed(s1[31..16]) * signed(s2[31..16]);
-  let sum : int = signed(dst) + p0 + p1;
-  sat_s32_int(sum)
-}
-
-val avx_vpdpwssds_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpdpwssds_128(dst, src1, src2) = {
-  avx_vpdpwssds_elem(dst[127..96], src1[127..96], src2[127..96]) @
-  avx_vpdpwssds_elem(dst[95..64], src1[95..64], src2[95..64]) @
-  avx_vpdpwssds_elem(dst[63..32], src1[63..32], src2[63..32]) @
-  avx_vpdpwssds_elem(dst[31..0], src1[31..0], src2[31..0])
-}
-
-val avx_vpdpwssds_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpdpwssds_256(dst, src1, src2) = {
-  avx_vpdpwssds_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpdpwssds_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpdpwssds_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpdpwssds_512(dst, src1, src2) = {
-  avx_vpdpwssds_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpdpwssds_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
-/* ---- VPDPBUSDS: VPDPBUSD with signed dword saturation ---- */
-
-val avx_vpdpbusds_elem : (dword, dword, dword) -> dword
-function avx_vpdpbusds_elem(dst, s1, s2) = {
-  let p0 : int = unsigned(s1[7..0]) * signed(s2[7..0]);
-  let p1 : int = unsigned(s1[15..8]) * signed(s2[15..8]);
-  let p2 : int = unsigned(s1[23..16]) * signed(s2[23..16]);
-  let p3 : int = unsigned(s1[31..24]) * signed(s2[31..24]);
-  let sum : int = signed(dst) + p0 + p1 + p2 + p3;
-  sat_s32_int(sum)
-}
-
-val avx_vpdpbusds_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpdpbusds_128(dst, src1, src2) = {
-  avx_vpdpbusds_elem(dst[127..96], src1[127..96], src2[127..96]) @
-  avx_vpdpbusds_elem(dst[95..64], src1[95..64], src2[95..64]) @
-  avx_vpdpbusds_elem(dst[63..32], src1[63..32], src2[63..32]) @
-  avx_vpdpbusds_elem(dst[31..0], src1[31..0], src2[31..0])
-}
-
-val avx_vpdpbusds_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpdpbusds_256(dst, src1, src2) = {
-  avx_vpdpbusds_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpdpbusds_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpdpbusds_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpdpbusds_512(dst, src1, src2) = {
-  avx_vpdpbusds_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpdpbusds_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
 /* ---- BF16: convert FP32 to BFloat16 ---- */
 // Per SDM: RNE, denormals flush to zero, NaN→QNaN, infinity preserved.
 // This is pure integer arithmetic — no FPU involved.
@@ -4218,35 +4085,25 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 50: VPDPBUSD (66) [VNNI]
-  // 0F38 50: VPDPBUSD (66) [VNNI]
   80 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    match pfx.evex_ll {
-      0 => evex_write_d_xmm(dst, avx_vpdpbusd_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem)), pfx),
-      1 => evex_write_d_ymm(dst, avx_vpdpbusd_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem)), pfx),
-      2 => evex_write_d_zmm(dst, avx_vpdpbusd_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem)), pfx),
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_ternop32(TO32_DPBusd, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
-  // 0F38 51: VPDPBUSDS (66) [VNNI]
   // 0F38 51: VPDPBUSDS (66) [VNNI]
   81 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    match pfx.evex_ll {
-      0 => evex_write_d_xmm(dst, avx_vpdpbusds_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem)), pfx),
-      1 => evex_write_d_ymm(dst, avx_vpdpbusds_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem)), pfx),
-      2 => evex_write_d_zmm(dst, avx_vpdpbusds_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem)), pfx),
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_ternop32(TO32_DPBusds, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F38 52: VPDPWSSD (66) [VNNI] / VDPBF16PS (F3) [BF16]
@@ -4258,12 +4115,9 @@ function dispatch_evex_arith(op, pfx) = {
     match mp {
       MP_66 => {
         // VPDPWSSD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
-        match pfx.evex_ll {
-          0 => evex_write_d_xmm(dst, avx_vpdpwssd_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem)), pfx),
-          1 => evex_write_d_ymm(dst, avx_vpdpwssd_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem)), pfx),
-          2 => evex_write_d_zmm(dst, avx_vpdpwssd_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem)), pfx),
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        let mask = evex_wmask(pfx, vl / 32);
+        evex_write(dst, mask, packed_ternop32(TO32_DPWssd, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       MP_F3 => {
         // VDPBF16PS: BF16 dot product accumulating to FP32 (W=0)
@@ -4280,19 +4134,14 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 53: VPDPWSSDS (66) [VNNI]
-  // 0F38 53: VPDPWSSDS (66) [VNNI]
   83 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    match pfx.evex_ll {
-      0 => evex_write_d_xmm(dst, avx_vpdpwssds_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem)), pfx),
-      1 => evex_write_d_ymm(dst, avx_vpdpwssds_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem)), pfx),
-      2 => evex_write_d_zmm(dst, avx_vpdpwssds_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem)), pfx),
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_ternop32(TO32_DPWssds, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F38 54: VPOPCNTB (66, W=0) / VPOPCNTW (66, W=1) [BITALG]
