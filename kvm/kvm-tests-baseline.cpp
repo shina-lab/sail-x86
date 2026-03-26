@@ -1586,6 +1586,65 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
                       s, FL_NONE, 0, false, {}, 0});
   }
 
+  // RETF imm16=0 (48 CA 00 00) — should behave like plain RETF
+  // Same stack layout as REX.W RETF, just with imm16=0.
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf imm16=0 (64-bit opsize, REX.W)", cat,
+                      {0x6A, 0x08,                          // push 0x08 (CS)
+                       0x48, 0x8D, 0x05, 0x05, 0x00, 0x00, 0x00,  // lea rax,[rip+5]
+                       0x50,                                 // push rax (RIP)
+                       0x48, 0xCA, 0x00, 0x00,              // retf 0x0000
+                       0xF4},                                // HLT
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // RETF imm16 (CA 08 00) — 32-bit opsize, skip 8 extra bytes
+  // Stack: [EIP (4)] [CS (4)] [padding (8)]
+  // Total frame = 8 + 8 = 16 = 0x10 bytes.
+  // sub rsp, 0x10       ; 48 83 EC 10
+  // mov dword [rsp+4], 0x08  ; CS
+  // mov dword [rsp], <eip>   ; EIP
+  // retf 0x0008         ; CA 08 00
+  // HLT
+  // Offsets: sub(4) + mov(8) + mov(7) + retf(3) = 22. HLT at offset 22.
+  {
+    u32 ret_eip = CODE_ADDR + 22;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    tests.push_back({"retf imm16=0x08 (32-bit opsize)", cat,
+                      {0x48, 0x83, 0xEC, 0x10,             // sub rsp, 0x10
+                       0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
+                         0x08, 0x00, 0x00, 0x00,
+                       0xC7, 0x04, 0x24,                    // mov dword [rsp], ret_eip
+                         (u8)(ret_eip), (u8)(ret_eip>>8),
+                         (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+                       0xCA, 0x08, 0x00,                    // retf 0x0008
+                       0xF4},                               // HLT
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
+  // RETF with RAX preserved — verify only RSP changes, not other regs
+  // Uses REX.W RETF so we can check 64-bit RSP precisely.
+  // RAX is used by LEA, so check RBX instead.
+  {
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    s.rbx = 0xDEADBEEF12345678;
+    s.rcx = 0xAAAABBBBCCCCDDDD;
+    tests.push_back({"retf preserves gprs", cat,
+                      {0x6A, 0x08,                         // push 0x08 (CS)
+                       0x48, 0x8D, 0x05, 0x03, 0x00, 0x00, 0x00,  // lea rax,[rip+3]
+                       0x50,                                // push rax (RIP)
+                       0x48, 0xCB,                          // retf (64-bit)
+                       0xF4},                               // HLT
+                      s, FL_NONE, 0, false, {}, 0});
+  }
+
   // =====================================================================
   // CRC32 — SSE4.2 CRC-32C (Castagnoli) accumulation
   // Encoding: F2 0F 38 F0 /r = CRC32 r32, r/m8

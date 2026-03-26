@@ -1424,4 +1424,81 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       add("aad 0A AX=FF01 -> AL=F7h", {0xD5, 0x0A}, s, FL_AAM_AAD);
     }
   }
+
+  // =====================================================================
+  // RETF — Far return in compatibility mode (same-privilege)
+  // CS selector 0x48 = 32-bit code segment (CS.D=1).
+  // =====================================================================
+  cat = "RETF compat";
+
+  // Compat RETF (CB) — 32-bit operand size (default, CS.D=1)
+  // Stack: [EIP (4)] [CS (4)]
+  // Use push to build the stack frame (push is 32-bit in compat mode).
+  // push 0x48           ; 6A 48  — CS selector
+  // push <eip>          ; 68 xx xx xx xx — return EIP
+  // retf                ; CB
+  // HLT                 ; F4
+  // Offsets: push(2) + push(5) + retf(1) = 8. HLT at offset 8.
+  {
+    u32 compat_code = 0x10000;
+    u32 ret_eip = compat_code + 8;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    add("compat retf (32-bit opsize)",
+        {0x6A, 0x48,                              // push 0x48 (CS)
+         0x68,                                     // push imm32 (EIP)
+           (u8)(ret_eip), (u8)(ret_eip>>8),
+           (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+         0xCB,                                    // retf
+         0xF4},                                   // HLT
+        s, FL_NONE);
+  }
+
+  // Compat RETF imm16=0x08 (CA 08 00) — 32-bit opsize, skip 8 extra bytes
+  // Stack: [EIP (4)] [CS (4)] [padding (8)]
+  // sub esp, 8          ; 83 EC 08  — padding for imm16
+  // push 0x48           ; 6A 48  — CS selector
+  // push <eip>          ; 68 xx xx xx xx — return EIP
+  // retf 0x0008         ; CA 08 00
+  // HLT
+  // Offsets: sub(3) + push(2) + push(5) + retf(3) = 13. HLT at offset 13.
+  {
+    u32 compat_code = 0x10000;
+    u32 ret_eip = compat_code + 13;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    add("compat retf imm16=0x08 (32-bit opsize)",
+        {0x83, 0xEC, 0x08,                       // sub esp, 8 (padding)
+         0x6A, 0x48,                              // push 0x48 (CS)
+         0x68,                                     // push imm32 (EIP)
+           (u8)(ret_eip), (u8)(ret_eip>>8),
+           (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+         0xCA, 0x08, 0x00,                        // retf 0x0008
+         0xF4},                                   // HLT
+        s, FL_NONE);
+  }
+
+  // Compat RETF imm16=0 (CA 00 00) — should behave like plain RETF
+  // push 0x48           ; 6A 48  — CS
+  // push <eip>          ; 68 xx xx xx xx — EIP
+  // retf 0x0000         ; CA 00 00
+  // HLT
+  // Offsets: push(2) + push(5) + retf(3) = 10. HLT at offset 10.
+  {
+    u32 compat_code = 0x10000;
+    u32 ret_eip = compat_code + 10;
+    ArchState s = {};
+    s.rsp = STACK_TOP;
+    s.rflags = 0x2;
+    add("compat retf imm16=0 (32-bit opsize)",
+        {0x6A, 0x48,                              // push 0x48 (CS)
+         0x68,                                     // push imm32 (EIP)
+           (u8)(ret_eip), (u8)(ret_eip>>8),
+           (u8)(ret_eip>>16), (u8)(ret_eip>>24),
+         0xCA, 0x00, 0x00,                        // retf 0x0000
+         0xF4},                                   // HLT
+        s, FL_NONE);
+  }
 }

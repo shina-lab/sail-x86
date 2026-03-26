@@ -271,6 +271,7 @@ set(KVM_CATEGORIES
   "MMX mem"
   "Feature gating"
   "Compat"
+  "RETF compat"
   BCD
   "XSAVEC roundtrip"
   XGETBV
