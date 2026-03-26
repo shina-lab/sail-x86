@@ -1481,7 +1481,8 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, evex_src(vl, modrm, src, pfx), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, evex_src(vl, modrm, src, pfx))
   },
 
   // 0F 7F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX store)
@@ -1523,7 +1524,7 @@ function dispatch_evex_int(op, pfx) = {
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
-    evex_writev(dst, mask, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(modrm, src, pfx, eb))
+    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(modrm, src, pfx, eb))
   },
 
   // 0F DB: VPANDD (W0) / VPANDQ (W1) (EVEX, 66 prefix)
@@ -1534,7 +1535,8 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) & evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) & evex_bcast_src(modrm, src, pfx, eb))
   },
 
   // 0F EB: VPORD (W0) / VPORQ (W1) (EVEX, 66 prefix)
@@ -1545,7 +1547,8 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, read_simd(vl, pfx.evex_vvvvv) | evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) | evex_bcast_src(modrm, src, pfx, eb))
   },
 
   // 0F FE: VPADDD (EVEX, 66 prefix, W0)
@@ -1555,7 +1558,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Add, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)), pfx, 32)
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_binop(PB_Add, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F FA: VPSUBD (EVEX, 66 prefix, W0)
@@ -1565,7 +1569,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Sub, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)), pfx, 32)
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_binop(PB_Sub, 32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F D4: VPADDQ (EVEX, 66 prefix, W1)
@@ -1575,7 +1580,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Add, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)), pfx, 64)
+    let mask = evex_wmask(pfx, vl / 64);
+    evex_write(dst, mask, packed_binop(PB_Add, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
   },
 
   // 0F FB: VPSUBQ (EVEX, 66 prefix, W1)
@@ -1585,7 +1591,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Sub, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)), pfx, 64)
+    let mask = evex_wmask(pfx, vl / 64);
+    evex_write(dst, mask, packed_binop(PB_Sub, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
   },
 
   // 0F 6E: VMOVD (66, W=0) / VMOVQ (66, W=1) — load from GPR/mem to XMM
@@ -1697,7 +1704,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MinU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_MinU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E7: VMOVNTDQ (66, EVEX) — non-temporal store (we just do a regular store)
@@ -1726,7 +1734,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Sub, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_Sub, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F FC: VPADDB (66, EVEX)
@@ -1736,7 +1745,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Add, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_Add, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F DF: VPANDND (66,W0) / VPANDNQ (66,W1)
@@ -1747,7 +1757,8 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, ~(read_simd(vl, pfx.evex_vvvvv)) & evex_bcast_src(modrm, src, pfx, eb), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, ~(read_simd(vl, pfx.evex_vvvvv)) & evex_bcast_src(modrm, src, pfx, eb))
   },
 
   // 0F FD: VPADDW (66, EVEX) [BW]
@@ -1757,7 +1768,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Add, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_Add, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F F9: VPSUBW (66, EVEX) [BW]
@@ -1767,7 +1779,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Sub, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_Sub, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F EC: VPADDSB (66, EVEX) [BW]
@@ -1777,7 +1790,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatAddS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_SatAddS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F ED: VPADDSW (66, EVEX) [BW]
@@ -1787,7 +1801,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatAddS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_SatAddS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E8: VPSUBSB (66, EVEX) [BW]
@@ -1797,7 +1812,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatSubS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_SatSubS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E9: VPSUBSW (66, EVEX) [BW]
@@ -1807,7 +1823,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatSubS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_SatSubS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F DC: VPADDUSB (66, EVEX) [BW]
@@ -1817,7 +1834,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatAddU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_SatAddU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F DD: VPADDUSW (66, EVEX) [BW]
@@ -1827,7 +1845,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatAddU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_SatAddU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F D8: VPSUBUSB (66, EVEX) [BW]
@@ -1837,7 +1856,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatSubU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_SatSubU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F D9: VPSUBUSW (66, EVEX) [BW]
@@ -1847,7 +1867,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_SatSubU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_SatSubU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F D5: VPMULLW (66, EVEX) [BW]
@@ -1857,7 +1878,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, avx_pmullw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, avx_pmullw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E4: VPMULHUW (66, EVEX) [BW]
@@ -1867,7 +1889,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, avx_pmulhuw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, avx_pmulhuw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E5: VPMULHW (66, EVEX) [BW]
@@ -1877,7 +1900,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, avx_pmulhw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, avx_pmulhw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F DE: VPMAXUB (66, EVEX) [BW]
@@ -1887,7 +1911,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MaxU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_MaxU, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F EA: VPMINSW (66, EVEX) [BW]
@@ -1897,7 +1922,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MinS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_MinS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F EE: VPMAXSW (66, EVEX) [BW]
@@ -1907,7 +1933,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MaxS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_MaxS, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E0: VPAVGB (66, EVEX) [BW]
@@ -1917,7 +1944,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Avg, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_Avg, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F E3: VPAVGW (66, EVEX) [BW]
@@ -1927,7 +1955,8 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_Avg, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_Avg, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F F4: VPMULUDQ (66, EVEX, W1) [F] — supports m64bcst

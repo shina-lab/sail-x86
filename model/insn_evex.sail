@@ -144,9 +144,9 @@ struct Writemask('n : Int), 'n > 0 = {
 // Apply writemask to a vector result. Element size = 'vl / 'nm.
 // Per element: mask bit=1 → write result, bit=0 → keep or zero (per zeroing flag).
 // Branchless: base = old_dst & sign_extend(~zeroing), then blend(base, result, mask[i]).
-val apply_writemask_v : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+val apply_writemask : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
   (Writemask('nm), bits('vl), bits('vl)) -> bits('vl)
-function apply_writemask_v(wm, result, old_dst) = {
+function apply_writemask(wm, result, old_dst) = {
   let mask = wm.bits;
   let base : bits('vl) = old_dst & sign_extend(~(wm.zeroing));
   var r : bits('vl) = zeros();
@@ -158,10 +158,10 @@ function apply_writemask_v(wm, result, old_dst) = {
 }
 
 // Write a SIMD register with writemask applied.
-val evex_writev : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+val evex_write : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
   (simd_idx, Writemask('nm), bits('vl)) -> unit
-function evex_writev(dst, wm, result) =
-  write_simd(dst, apply_writemask_v(wm, result, read_simd(dst)))
+function evex_write(dst, wm, result) =
+  write_simd(dst, apply_writemask(wm, result, read_simd(dst)))
 
 // Construct a Writemask from prefixes, vector length, and element size.
 // Returns Writemask with 'vl/'eb mask bits (one per element).
@@ -172,24 +172,6 @@ function evex_wmask(pfx, nm) = struct {
   bits = evex_kmask64(pfx)[('nm - 1)..0],
   zeroing = pfx.evex_z,
 }
-
-// Old apply_writemask/evex_write: kept for existing callers during migration.
-val apply_writemask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
-  (bits('vl), bits('vl), qword, bit, int('eb)) -> bits('vl)
-function apply_writemask(result, old_dst, mask, zeroing, eb) = {
-  let base : bits('vl) = old_dst & sign_extend(~(zeroing));
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 'eb - 1)) {
-    let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = blend(base[(lo + 'eb - 1)..lo], result[(lo + 'eb - 1)..lo], mask[i])
-  };
-  r
-}
-
-val evex_write : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
-  (implicit('vl), simd_idx, bits('vl), Prefixes, int('eb)) -> unit
-function evex_write(vl, dst, result, pfx, eb) =
-  write_simd(dst, apply_writemask(result, read_simd(dst), evex_kmask64(pfx), pfx.evex_z, eb))
 
 // =========================================================================
 // Shared helpers (used by multiple EVEX dispatch files)

@@ -2677,7 +2677,8 @@ function dispatch_evex_arith(op, pfx) = {
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
-      evex_write(dst, packed_binop(PB_MinS, 8, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)), pfx, 8)
+      let mask = evex_wmask(pfx, vl / 8);
+      evex_write(dst, mask, packed_binop(PB_MinS, 8, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       // VPMOVM2D (W0) / VPMOVM2Q (W1): mask register -> vector
       let modrm = fetch(1);
@@ -2709,7 +2710,8 @@ function dispatch_evex_arith(op, pfx) = {
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
       let eb = evex_elem(pfx);
-      evex_write(dst, packed_binop(PB_MinS, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+      let mask = evex_wmask(pfx, vl / eb);
+      evex_write(dst, mask, packed_binop(PB_MinS, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
     } else if mp == MP_F3 then {
       // VPMOVD2M (W0) / VPMOVQ2M (W1): vector -> mask register
       let modrm = fetch(1);
@@ -2740,7 +2742,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_MinU, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_MinU, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 2B: VPACKUSDW (66,W0) [BW]
@@ -2767,7 +2770,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MaxS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_binop(PB_MaxS, 8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F38 3D: VPMAXSD (66,W0) / VPMAXSQ (66,W1) [F]
@@ -2779,7 +2783,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_MaxS, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_MaxS, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 3E: VPMAXUW (66) [BW]
@@ -2789,7 +2794,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_binop(PB_MaxU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_binop(PB_MaxU, 16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F38 3F: VPMAXUD (66,W0) / VPMAXUQ (66,W1) [F]
@@ -2801,7 +2807,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_MaxU, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_MaxU, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 7A: VPBROADCASTB from GPR (66, W=0)
@@ -2903,7 +2910,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_unop(PU_Abs, 8, evex_src(vl, modrm, src, pfx)), pfx, 8)
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, packed_unop(PU_Abs, 8, evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F38 1D: VPABSW (66) [BW]
@@ -2913,7 +2921,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_unop(PU_Abs, 16, evex_src(vl, modrm, src, pfx)), pfx, 16)
+    let mask = evex_wmask(pfx, vl / 16);
+    evex_write(dst, mask, packed_unop(PU_Abs, 16, evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F38 1E: VPABSD (66,W0) [F]
@@ -2923,7 +2932,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_unop(PU_Abs, 32, evex_bcast_src(vl, modrm, src, pfx, 32)), pfx, 32)
+    let mask = evex_wmask(pfx, vl / 32);
+    evex_write(dst, mask, packed_unop(PU_Abs, 32, evex_bcast_src(vl, modrm, src, pfx, 32)))
   },
 
   // 0F38 1F: VPABSQ (66,W1) [F]
@@ -2933,7 +2943,8 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, packed_unop(PU_Abs, 64, evex_bcast_src(vl, modrm, src, pfx, 64)), pfx, 64)
+    let mask = evex_wmask(pfx, vl / 64);
+    evex_write(dst, mask, packed_unop(PU_Abs, 64, evex_bcast_src(vl, modrm, src, pfx, 64)))
   },
 
   // 0F38 10: VPSRLVW (66,W1) [BW] / VPMOVUSWB (F3) [BW]
@@ -2945,7 +2956,8 @@ function dispatch_evex_arith(op, pfx) = {
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
-      evex_write(dst, packed_binop(PB_Srl, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)), pfx, 16)
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, packed_binop(PB_Srl, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       // VPMOVUSWB: src=reg, dst=r/m (narrowing: word->byte)
       let src = evex_reg_idx(modrm, pfx);
@@ -2990,7 +3002,8 @@ function dispatch_evex_arith(op, pfx) = {
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
-      evex_write(dst, packed_binop(PB_Sra, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)), pfx, 16)
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, packed_binop(PB_Sra, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       // VPMOVUSDB: src=reg, dst=r/m (narrowing: dword->byte)
       let src = evex_reg_idx(modrm, pfx);
@@ -3035,7 +3048,8 @@ function dispatch_evex_arith(op, pfx) = {
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
-      evex_write(dst, packed_binop(PB_Sll, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)), pfx, 16)
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, packed_binop(PB_Sll, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       // VPMOVUSQB: src=reg, dst=r/m (narrowing: qword->byte)
       let src = evex_reg_idx(modrm, pfx);
@@ -4000,7 +4014,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_Srl, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_Srl, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 46: VPSRAVD (66,W0) / VPSRAVQ (66,W1) [F]
@@ -4012,7 +4027,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_Sra, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_Sra, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 47: VPSLLVD (66,W0) / VPSLLVQ (66,W1) [F]
@@ -4024,7 +4040,8 @@ function dispatch_evex_arith(op, pfx) = {
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
-    evex_write(dst, packed_binop(PB_Sll, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)), pfx, eb)
+    let mask = evex_wmask(pfx, vl / eb);
+    evex_write(dst, mask, packed_binop(PB_Sll, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
   // 0F38 35: VPMOVZXDQ (66) [F] / VPMOVQD (F3) [F]
