@@ -19,6 +19,7 @@ function avx_ptestm(eb, a, b, neg) = {
   r
 }
 
+
 // =========================================================================
 // VPCMPUB: compare unsigned bytes with imm8 predicate, produce kmask
 // imm8: 0=eq, 1=lt, 2=le, 4=neq, 5=nlt(>=), 6=nle(>)
@@ -275,43 +276,9 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst_k : range(0, 7) = unsigned(modrm[5..3]);
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        0 => {
-          let src1 = read_xmm(pfx.evex_vvvvv);
-          let src2 = evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-          var mask : byte = 0x00;
-          foreach (i from 0 to 1) {
-            let lo : range(0, 64) = i * 64;
-            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-          };
-          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-          write_kreg(dst_k, k_mask)
-        },
-        1 => {
-          let src1 = read_ymm(pfx.evex_vvvvv);
-          let src2 = evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-          var mask : byte = 0x00;
-          foreach (i from 0 to 3) {
-            let lo : range(0, 192) = i * 64;
-            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-          };
-          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-          write_kreg(dst_k, k_mask)
-        },
-        2 => {
-          let src1 = read_zmm(pfx.evex_vvvvv);
-          let src2 = evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-          var mask : byte = 0x00;
-          foreach (i from 0 to 7) {
-            let lo : range(0, 448) = i * 64;
-            mask[i] = is_eq(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-          };
-          let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-          write_kreg(dst_k, k_mask)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let k_mask = avx_pcmpeq_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)) & evex_kmask64(pfx);
+      write_kreg(dst_k, k_mask)
     } else {
       raise_UD()
     }
@@ -323,43 +290,9 @@ function dispatch_evex_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    match pfx.evex_ll {
-      0 => {
-        let src1 = read_xmm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        var mask : byte = 0x00;
-        foreach (i from 0 to 1) {
-          let lo : range(0, 64) = i * 64;
-          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-        };
-        let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-        write_kreg(dst_k, k_mask)
-      },
-      1 => {
-        let src1 = read_ymm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        var mask : byte = 0x00;
-        foreach (i from 0 to 3) {
-          let lo : range(0, 192) = i * 64;
-          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-        };
-        let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-        write_kreg(dst_k, k_mask)
-      },
-      2 => {
-        let src1 = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        var mask : byte = 0x00;
-        foreach (i from 0 to 7) {
-          let lo : range(0, 448) = i * 64;
-          mask[i] = is_gt(src1[(lo + 63)..lo], src2[(lo + 63)..lo]);
-        };
-        let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-        write_kreg(dst_k, k_mask)
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let k_mask = avx_pcmpgt_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)) & evex_kmask64(pfx);
+    write_kreg(dst_k, k_mask)
   },
 
   // 0F38 38: VPMINSB (66) [BW] / VPMOVM2D (F3,W0) / VPMOVM2Q (F3,W1) [DQ]
