@@ -720,6 +720,7 @@ std::vector<TestCase> build_tests() {
   add_xsave_tests(tests);
   add_avx_fp_tests(tests);
   add_avx_int_tests(tests);
+  add_avx_shift_tests(tests);
 
   return tests;
 }

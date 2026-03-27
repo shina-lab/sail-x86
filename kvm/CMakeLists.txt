@@ -14,6 +14,7 @@ add_executable(kvm_harness
   kvm-tests-xsave.cpp
   kvm-tests-avx-fp.cpp
   kvm-tests-avx-int.cpp
+  kvm-tests-avx-shift.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -183,6 +184,7 @@ set(KVM_CATEGORIES
   "CPUID XSAVE"
   "AVX FP packed"
   "AVX int"
+  "AVX shift"
   "MOVQ store"
   "K-register ops"
   "Vec stores"
