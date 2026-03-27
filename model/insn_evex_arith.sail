@@ -157,26 +157,20 @@ function avx_vcvtneps2bf16(vl, src) = {
   r
 }
 
-/* ---- VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 (per 128-bit lane) ---- */
-// Per lane: upper half from src1 dwords, lower half from src2 dwords
+/* ---- VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 ---- */
+// Upper half of result = narrowed src1 (vvvv), lower half = narrowed src2 (rm)
 val avx_vcvtne2ps2bf16 : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
 function avx_vcvtne2ps2bf16(src1, src2) = {
+  let n = 'vl / 32;  // number of dwords per source
   var r : bits('vl) = zeros();
-  let nlanes = 'vl / 128;
-  foreach (lane from 0 to (nlanes - 1)) {
-    let lbase = lane * 128;
-    // Upper 4 words of lane from src1
-    foreach (i from 0 to 3) {
-      let slo = lbase + i * 32;
-      let dlo = lbase + 64 + i * 16;
-      r[(dlo + 15)..dlo] = convert_fp32_to_bf16(src1[(slo + 31)..slo]);
-    };
-    // Lower 4 words of lane from src2
-    foreach (i from 0 to 3) {
-      let slo = lbase + i * 32;
-      let dlo = lbase + i * 16;
-      r[(dlo + 15)..dlo] = convert_fp32_to_bf16(src2[(slo + 31)..slo]);
-    };
+  // Lower half: convert src2 dwords to BF16
+  foreach (i from 0 to (n - 1)) {
+    r[(i * 16 + 15)..(i * 16)] = convert_fp32_to_bf16(src2[(i * 32 + 31)..(i * 32)]);
+  };
+  // Upper half: convert src1 dwords to BF16
+  foreach (i from 0 to (n - 1)) {
+    let dlo = n * 16 + i * 16;
+    r[(dlo + 15)..dlo] = convert_fp32_to_bf16(src1[(i * 32 + 31)..(i * 32)]);
   };
   r
 }
@@ -1017,7 +1011,9 @@ function dispatch_evex_arith(op, pfx) = {
         let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 16);
-        evex_write(dst, mask, avx_vcvtne2ps2bf16(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        let s1 = read_simd(vl, pfx.evex_vvvvv);
+        let s2 = evex_bcast_src(vl, modrm, src, pfx, 32);
+        evex_write(dst, mask, avx_vcvtne2ps2bf16(s1, s2))
       },
       MP_F3 => {
         // VCVTNEPS2BF16: convert packed FP32 → packed BF16 (W=0)
