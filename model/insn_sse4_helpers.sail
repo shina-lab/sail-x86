@@ -5,162 +5,156 @@
 // be included before both.
 
 // =========================================================================
-// SSE4.1 sign-extend helpers (128/256-bit only, for VEX use)
+// SSE4.1 sign-extend helpers (polymorphic 128/256/512-bit)
 // =========================================================================
 
-val avx_pmovsxbw_128 : qword -> xmmword
-function avx_pmovsxbw_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let slo : range(0, 56) = i * 8;
-    let dlo : range(0, 112) = i * 16;
-    let x : word = sign_extend(src[(slo + 7)..slo]);
-    r[(dlo + 15)..dlo] = x;
+// VPMOVSXBW: sign-extend packed bytes to words
+val avx_pmovsxbw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxbw(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 16;
+    r[(dlo + 15)..dlo] = sign_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovsxbw_256 : xmmword -> ymmword
-function avx_pmovsxbw_256(src) = avx_pmovsxbw_128(src[127..64]) @ avx_pmovsxbw_128(src[63..0])
-
-val avx_pmovsxbd_128 : dword -> xmmword
-function avx_pmovsxbd_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let slo : range(0, 24) = i * 8;
-    let dlo : range(0, 96) = i * 32;
-    let x : dword = sign_extend(src[(slo + 7)..slo]);
-    r[(dlo + 31)..dlo] = x;
+// VPMOVSXBD: sign-extend packed bytes to dwords
+val avx_pmovsxbd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxbd(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 32;
+    r[(dlo + 31)..dlo] = sign_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovsxbd_256 : qword -> ymmword
-function avx_pmovsxbd_256(src) = avx_pmovsxbd_128(src[63..32]) @ avx_pmovsxbd_128(src[31..0])
-
-val avx_pmovsxbq_128 : word -> xmmword
-function avx_pmovsxbq_128(src) = {
-  let lo : qword = sign_extend(src[7..0]);
-  let hi : qword = sign_extend(src[15..8]);
-  hi @ lo
-}
-
-val avx_pmovsxbq_256 : dword -> ymmword
-function avx_pmovsxbq_256(src) = avx_pmovsxbq_128(src[31..16]) @ avx_pmovsxbq_128(src[15..0])
-
-val avx_pmovsxwd_128 : qword -> xmmword
-function avx_pmovsxwd_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let slo : range(0, 48) = i * 16;
-    let dlo : range(0, 96) = i * 32;
-    let x : dword = sign_extend(src[(slo + 15)..slo]);
-    r[(dlo + 31)..dlo] = x;
+// VPMOVSXBQ: sign-extend packed bytes to qwords
+val avx_pmovsxbq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxbq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = sign_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovsxwd_256 : xmmword -> ymmword
-function avx_pmovsxwd_256(src) = avx_pmovsxwd_128(src[127..64]) @ avx_pmovsxwd_128(src[63..0])
-
-val avx_pmovsxwq_128 : dword -> xmmword
-function avx_pmovsxwq_128(src) = {
-  let lo : qword = sign_extend(src[15..0]);
-  let hi : qword = sign_extend(src[31..16]);
-  hi @ lo
+// VPMOVSXWD: sign-extend packed words to dwords
+val avx_pmovsxwd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxwd(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let slo = i * 16;
+    let dlo = i * 32;
+    r[(dlo + 31)..dlo] = sign_extend(src[(slo + 15)..slo])
+  };
+  r
 }
 
-val avx_pmovsxwq_256 : qword -> ymmword
-function avx_pmovsxwq_256(src) = avx_pmovsxwq_128(src[63..32]) @ avx_pmovsxwq_128(src[31..0])
-
-val avx_pmovsxdq_128 : qword -> xmmword
-function avx_pmovsxdq_128(src) = {
-  let lo : qword = sign_extend(src[31..0]);
-  let hi : qword = sign_extend(src[63..32]);
-  hi @ lo
+// VPMOVSXWQ: sign-extend packed words to qwords
+val avx_pmovsxwq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxwq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 16;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = sign_extend(src[(slo + 15)..slo])
+  };
+  r
 }
 
-val avx_pmovsxdq_256 : xmmword -> ymmword
-function avx_pmovsxdq_256(src) = avx_pmovsxdq_128(src[127..64]) @ avx_pmovsxdq_128(src[63..0])
+// VPMOVSXDQ: sign-extend packed dwords to qwords
+val avx_pmovsxdq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovsxdq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 32;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = sign_extend(src[(slo + 31)..slo])
+  };
+  r
+}
 
 // =========================================================================
-// SSE4.1 zero-extend helpers (128/256-bit only, for VEX use)
+// SSE4.1 zero-extend helpers (polymorphic 128/256/512-bit)
 // =========================================================================
 
-val avx_pmovzxbw_128 : qword -> xmmword
-function avx_pmovzxbw_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let slo : range(0, 56) = i * 8;
-    let dlo : range(0, 112) = i * 16;
-    let x : word = zero_extend(src[(slo + 7)..slo]);
-    r[(dlo + 15)..dlo] = x;
+// VPMOVZXBW: zero-extend packed bytes to words
+val avx_pmovzxbw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxbw(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 16;
+    r[(dlo + 15)..dlo] = zero_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovzxbw_256 : xmmword -> ymmword
-function avx_pmovzxbw_256(src) = avx_pmovzxbw_128(src[127..64]) @ avx_pmovzxbw_128(src[63..0])
-
-val avx_pmovzxbd_128 : dword -> xmmword
-function avx_pmovzxbd_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let slo : range(0, 24) = i * 8;
-    let dlo : range(0, 96) = i * 32;
-    let x : dword = zero_extend(src[(slo + 7)..slo]);
-    r[(dlo + 31)..dlo] = x;
+// VPMOVZXBD: zero-extend packed bytes to dwords
+val avx_pmovzxbd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxbd(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 32;
+    r[(dlo + 31)..dlo] = zero_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovzxbd_256 : qword -> ymmword
-function avx_pmovzxbd_256(src) = avx_pmovzxbd_128(src[63..32]) @ avx_pmovzxbd_128(src[31..0])
-
-val avx_pmovzxbq_128 : word -> xmmword
-function avx_pmovzxbq_128(src) = {
-  let lo : qword = zero_extend(src[7..0]);
-  let hi : qword = zero_extend(src[15..8]);
-  hi @ lo
-}
-
-val avx_pmovzxbq_256 : dword -> ymmword
-function avx_pmovzxbq_256(src) = avx_pmovzxbq_128(src[31..16]) @ avx_pmovzxbq_128(src[15..0])
-
-val avx_pmovzxwd_128 : qword -> xmmword
-function avx_pmovzxwd_128(src) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let slo : range(0, 48) = i * 16;
-    let dlo : range(0, 96) = i * 32;
-    let x : dword = zero_extend(src[(slo + 15)..slo]);
-    r[(dlo + 31)..dlo] = x;
+// VPMOVZXBQ: zero-extend packed bytes to qwords
+val avx_pmovzxbq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxbq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 8;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = zero_extend(src[(slo + 7)..slo])
   };
   r
 }
 
-val avx_pmovzxwd_256 : xmmword -> ymmword
-function avx_pmovzxwd_256(src) = avx_pmovzxwd_128(src[127..64]) @ avx_pmovzxwd_128(src[63..0])
-
-val avx_pmovzxwq_128 : dword -> xmmword
-function avx_pmovzxwq_128(src) = {
-  let lo : qword = zero_extend(src[15..0]);
-  let hi : qword = zero_extend(src[31..16]);
-  hi @ lo
+// VPMOVZXWD: zero-extend packed words to dwords
+val avx_pmovzxwd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxwd(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let slo = i * 16;
+    let dlo = i * 32;
+    r[(dlo + 31)..dlo] = zero_extend(src[(slo + 15)..slo])
+  };
+  r
 }
 
-val avx_pmovzxwq_256 : qword -> ymmword
-function avx_pmovzxwq_256(src) = avx_pmovzxwq_128(src[63..32]) @ avx_pmovzxwq_128(src[31..0])
-
-val avx_pmovzxdq_128 : qword -> xmmword
-function avx_pmovzxdq_128(src) = {
-  let lo : qword = zero_extend(src[31..0]);
-  let hi : qword = zero_extend(src[63..32]);
-  hi @ lo
+// VPMOVZXWQ: zero-extend packed words to qwords
+val avx_pmovzxwq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxwq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 16;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = zero_extend(src[(slo + 15)..slo])
+  };
+  r
 }
 
-val avx_pmovzxdq_256 : xmmword -> ymmword
-function avx_pmovzxdq_256(src) = avx_pmovzxdq_128(src[127..64]) @ avx_pmovzxdq_128(src[63..0])
+// VPMOVZXDQ: zero-extend packed dwords to qwords
+val avx_pmovzxdq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_pmovzxdq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let slo = i * 32;
+    let dlo = i * 64;
+    r[(dlo + 63)..dlo] = zero_extend(src[(slo + 31)..slo])
+  };
+  r
+}
 
 // =========================================================================
 // SSE4.1 min/max signed/unsigned helpers (128/256-bit only, for VEX use)

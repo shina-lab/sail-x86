@@ -264,65 +264,8 @@ function avx_pmullq_512(a, b) =
 
 // VPERMILPS (register control): per-element select within 128-bit lane
 
-val avx_pmovsxbw_512 : ymmword -> zmmword
-function avx_pmovsxbw_512(src) = avx_pmovsxbw_256(src[255..128]) @ avx_pmovsxbw_256(src[127..0])
-
-// VPMOVSXBD: Sign-extend packed bytes to dwords
-
-val avx_pmovsxbd_512 : xmmword -> zmmword
-function avx_pmovsxbd_512(src) = avx_pmovsxbd_256(src[127..64]) @ avx_pmovsxbd_256(src[63..0])
-
-// VPMOVSXBQ: Sign-extend packed bytes to qwords
-
-val avx_pmovsxbq_512 : qword -> zmmword
-function avx_pmovsxbq_512(src) = avx_pmovsxbq_256(src[63..32]) @ avx_pmovsxbq_256(src[31..0])
-
-// VPMOVSXWD: Sign-extend packed words to dwords
-
-val avx_pmovsxwd_512 : ymmword -> zmmword
-function avx_pmovsxwd_512(src) = avx_pmovsxwd_256(src[255..128]) @ avx_pmovsxwd_256(src[127..0])
-
-// VPMOVSXWQ: Sign-extend packed words to qwords
-
-val avx_pmovsxwq_512 : xmmword -> zmmword
-function avx_pmovsxwq_512(src) = avx_pmovsxwq_256(src[127..64]) @ avx_pmovsxwq_256(src[63..0])
-
-// VPMOVSXDQ: Sign-extend packed dwords to qwords
-
-val avx_pmovsxdq_512 : ymmword -> zmmword
-function avx_pmovsxdq_512(src) = avx_pmovsxdq_256(src[255..128]) @ avx_pmovsxdq_256(src[127..0])
-
-// =========================================================================
-// VPMOVZXBW: Zero-extend packed bytes to words
-// =========================================================================
-
-val avx_pmovzxbw_512 : ymmword -> zmmword
-function avx_pmovzxbw_512(src) = avx_pmovzxbw_256(src[255..128]) @ avx_pmovzxbw_256(src[127..0])
-
-// VPMOVZXBD: Zero-extend packed bytes to dwords
-
-val avx_pmovzxbd_512 : xmmword -> zmmword
-function avx_pmovzxbd_512(src) = avx_pmovzxbd_256(src[127..64]) @ avx_pmovzxbd_256(src[63..0])
-
-// VPMOVZXBQ: Zero-extend packed bytes to qwords
-
-val avx_pmovzxbq_512 : qword -> zmmword
-function avx_pmovzxbq_512(src) = avx_pmovzxbq_256(src[63..32]) @ avx_pmovzxbq_256(src[31..0])
-
-// VPMOVZXWD: Zero-extend packed words to dwords
-
-val avx_pmovzxwd_512 : ymmword -> zmmword
-function avx_pmovzxwd_512(src) = avx_pmovzxwd_256(src[255..128]) @ avx_pmovzxwd_256(src[127..0])
-
-// VPMOVZXWQ: Zero-extend packed words to qwords
-
-val avx_pmovzxwq_512 : xmmword -> zmmword
-function avx_pmovzxwq_512(src) = avx_pmovzxwq_256(src[127..64]) @ avx_pmovzxwq_256(src[63..0])
-
-// VPMOVZXDQ: Zero-extend packed dwords to qwords
-
-val avx_pmovzxdq_512 : ymmword -> zmmword
-function avx_pmovzxdq_512(src) = avx_pmovzxdq_256(src[255..128]) @ avx_pmovzxdq_256(src[127..0])
+// VPMOVSX/VPMOVZX _512 variants removed — now using polymorphic functions
+// in insn_sse4_helpers.sail
 
 // =========================================================================
 // Variable-count shifts: VPSRLVD/Q, VPSRAVD/Q, VPSLLVD/Q
@@ -2321,38 +2264,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 20: VPMOVSXBW (66) [BW] / VPMOVSWB (F3) [BW]
-  // 0F38 20: VPMOVSXBW (66) [BW] / VPMOVSWB (F3) [BW]
   32 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_w_xmm(dst, avx_pmovsxbw_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_w_ymm(dst, avx_pmovsxbw_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_w_zmm(dst, avx_pmovsxbw_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, avx_pmovsxbw(src))
     } else if mp == MP_F3 then {
       // VPMOVSWB: src=reg, dst=r/m (narrowing: word->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2370,38 +2290,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 21: VPMOVSXBD (66) [F] / VPMOVSDB (F3) [F]
-  // 0F38 21: VPMOVSXBD (66) [F] / VPMOVSDB (F3) [F]
   33 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_xmm(dst, avx_pmovsxbd_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_ymm(dst, avx_pmovsxbd_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_zmm(dst, avx_pmovsxbd_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
+      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 32);
+      evex_write(dst, mask, avx_pmovsxbd(src))
     } else if mp == MP_F3 then {
       // VPMOVSDB: src=reg, dst=r/m (narrowing: dword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2419,38 +2316,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 22: VPMOVSXBQ (66) [F] / VPMOVSQB (F3) [F]
-  // 0F38 22: VPMOVSXBQ (66) [F] / VPMOVSQB (F3) [F]
   34 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 2);
-          let src : word = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovsxbq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovsxbq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovsxbq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
+      let src = evex_widen_src_8(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovsxbq(src))
     } else if mp == MP_F3 then {
       // VPMOVSQB: src=reg, dst=r/m (narrowing: qword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2468,38 +2342,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 23: VPMOVSXWD (66) [F] / VPMOVSDW (F3) [F]
-  // 0F38 23: VPMOVSXWD (66) [F] / VPMOVSDW (F3) [F]
   35 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_xmm(dst, avx_pmovsxwd_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_ymm(dst, avx_pmovsxwd_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_zmm(dst, avx_pmovsxwd_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 32);
+      evex_write(dst, mask, avx_pmovsxwd(src))
     } else if mp == MP_F3 then {
       // VPMOVSDW: src=reg, dst=r/m (narrowing: dword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2517,38 +2368,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 24: VPMOVSXWQ (66) [F] / VPMOVSQW (F3) [F]
-  // 0F38 24: VPMOVSXWQ (66) [F] / VPMOVSQW (F3) [F]
   36 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovsxwq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovsxwq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovsxwq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
+      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovsxwq(src))
     } else if mp == MP_F3 then {
       // VPMOVSQW: src=reg, dst=r/m (narrowing: qword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2566,38 +2394,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 25: VPMOVSXDQ (66) [F] / VPMOVSQD (F3) [F]
-  // 0F38 25: VPMOVSXDQ (66) [F] / VPMOVSQD (F3) [F]
   37 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovsxdq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovsxdq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovsxdq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovsxdq(src))
     } else if mp == MP_F3 then {
       // VPMOVSQD: src=reg, dst=r/m (narrowing: qword->dword, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2615,38 +2420,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 30: VPMOVZXBW (66) [BW] / VPMOVWB (F3) [BW]
-  // 0F38 30: VPMOVZXBW (66) [BW] / VPMOVWB (F3) [BW]
   48 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_w_xmm(dst, avx_pmovzxbw_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_w_ymm(dst, avx_pmovzxbw_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_w_zmm(dst, avx_pmovzxbw_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, avx_pmovzxbw(src))
     } else if mp == MP_F3 then {
       // VPMOVWB: src=reg, dst=r/m (narrowing: word->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2664,38 +2446,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 31: VPMOVZXBD (66) [F] / VPMOVDB (F3) [F]
-  // 0F38 31: VPMOVZXBD (66) [F] / VPMOVDB (F3) [F]
   49 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_xmm(dst, avx_pmovzxbd_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_ymm(dst, avx_pmovzxbd_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_zmm(dst, avx_pmovzxbd_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
+      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 32);
+      evex_write(dst, mask, avx_pmovzxbd(src))
     } else if mp == MP_F3 then {
       // VPMOVDB: src=reg, dst=r/m (narrowing: dword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2713,38 +2472,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 32: VPMOVZXBQ (66) [F] / VPMOVQB (F3) [F]
-  // 0F38 32: VPMOVZXBQ (66) [F] / VPMOVQB (F3) [F]
   50 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 2);
-          let src : word = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovzxbq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovzxbq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovzxbq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
+      let src = evex_widen_src_8(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovzxbq(src))
     } else if mp == MP_F3 then {
       // VPMOVQB: src=reg, dst=r/m (narrowing: qword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2762,38 +2498,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 33: VPMOVZXWD (66) [F] / VPMOVDW (F3) [F]
-  // 0F38 33: VPMOVZXWD (66) [F] / VPMOVDW (F3) [F]
   51 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_d_xmm(dst, avx_pmovzxwd_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_ymm(dst, avx_pmovzxwd_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_d_zmm(dst, avx_pmovzxwd_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 32);
+      evex_write(dst, mask, avx_pmovzxwd(src))
     } else if mp == MP_F3 then {
       // VPMOVDW: src=reg, dst=r/m (narrowing: dword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2811,38 +2524,15 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 34: VPMOVZXWQ (66) [F] / VPMOVQW (F3) [F]
-  // 0F38 34: VPMOVZXWQ (66) [F] / VPMOVQW (F3) [F]
   52 => {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 4);
-          let src : dword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovzxwq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovzxwq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovzxwq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
+      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovzxwq(src))
     } else if mp == MP_F3 then {
       // VPMOVQW: src=reg, dst=r/m (narrowing: qword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -2904,33 +2594,11 @@ function dispatch_evex_arith(op, pfx) = {
     let modrm = fetch(1);
     if mp == MP_66 then {
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 8);
-          let src : qword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-            RM_mem(m) => v(m),
-          };
-          evex_write_q_xmm(dst, avx_pmovzxdq_128(src), pfx)
-        },
-        1 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 16);
-          let src : xmmword = match src2 {
-            RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_ymm(dst, avx_pmovzxdq_256(src), pfx)
-        },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src : ymmword = match src2 {
-            RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-            RM_mem(m) => read_mem(m),
-          };
-          evex_write_q_zmm(dst, avx_pmovzxdq_512(src), pfx)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
+      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmovzxdq(src))
     } else if mp == MP_F3 then {
       // VPMOVQD: src=reg, dst=r/m (narrowing: qword->dword, truncation)
       let src = evex_reg_idx(modrm, pfx);

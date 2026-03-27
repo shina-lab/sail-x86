@@ -90,6 +90,45 @@ function evex_src(vl, modrm, rm, pfx) = match rm {
   RM_mem(m) => read_mem(m),
 }
 
+// Read source for widening PMOVSX/PMOVZX with 2:1 ratio (bw, wd, dq):
+// memory reads vl/2 bits, register reads full vl.
+val evex_widen_src_2 : forall 'vl, 'vl in {128, 256, 512}.
+  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
+function evex_widen_src_2(vl, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
+  RM_mem(m) => match vl {
+    128 => zero_extend(read_mem(64, m)),
+    256 => zero_extend(read_mem(128, m)),
+    512 => zero_extend(read_mem(256, m)),
+  },
+}
+
+// Read source for widening PMOVSX/PMOVZX with 4:1 ratio (bd, wq):
+// memory reads vl/4 bits, register reads full vl.
+val evex_widen_src_4 : forall 'vl, 'vl in {128, 256, 512}.
+  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
+function evex_widen_src_4(vl, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
+  RM_mem(m) => match vl {
+    128 => zero_extend(read_mem(32, m)),
+    256 => zero_extend(read_mem(64, m)),
+    512 => zero_extend(read_mem(128, m)),
+  },
+}
+
+// Read source for widening PMOVSX/PMOVZX with 8:1 ratio (bq):
+// memory reads vl/8 bits, register reads full vl.
+val evex_widen_src_8 : forall 'vl, 'vl in {128, 256, 512}.
+  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
+function evex_widen_src_8(vl, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
+  RM_mem(m) => match vl {
+    128 => zero_extend(read_mem(16, m)),
+    256 => zero_extend(read_mem(32, m)),
+    512 => zero_extend(read_mem(64, m)),
+  },
+}
+
 // Get the effective 64-bit opmask: aaa=0 → all-ones (no masking), else kreg(aaa).
 // Branchless: OR with all-ones mask when aaa==0, which subsumes any kreg value.
 val evex_kmask64 : Prefixes -> qword
