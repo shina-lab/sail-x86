@@ -909,15 +909,22 @@ function dispatch_evex_int(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
 
   match op {
-  // 0F 6F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX load)
+  // 0F 6F: VMOVDQA32/64 (66), VMOVDQU32/64 (F3), VMOVDQU8/16 (F2)
   111 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let mp = get_mandatory_prefix(pfx);
     let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, evex_src(vl, modrm, src, pfx))
+    let s = evex_src(vl, modrm, src, pfx);
+    // Element size depends on prefix: F2→byte/word, others→dword/qword
+    match mp {
+      MP_F2 => if pfx.rex_w
+               then evex_write(dst, evex_wmask(pfx, vl / 16), s)
+               else evex_write(dst, evex_wmask(pfx, vl / 8), s),
+      _     => { let eb = evex_elem(pfx);
+                 evex_write(dst, evex_wmask(pfx, vl / eb), s) },
+    }
   },
 
   // 0F 7F: VMOVDQA32/VMOVDQA64/VMOVDQU32/VMOVDQU64 (EVEX store)

@@ -22,6 +22,7 @@ add_executable(kvm_harness
   kvm-tests-avx-perm.cpp
   kvm-tests-avx-conv.cpp
   kvm-tests-avx-special.cpp
+  kvm-tests-avx-mov.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -199,6 +200,7 @@ set(KVM_CATEGORIES
   "AVX perm"
   "AVX conv"
   "AVX special"
+  "AVX mov"
   "MOVQ store"
   "K-register ops"
   "Vec stores"
