@@ -25,17 +25,17 @@ function broadcast_f16_zmm(v) =
 val evex_bcast_src_f16_zmm : (byte, RM, Prefixes, bool) -> zmmword
 function evex_bcast_src_f16_zmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f16_zmm(evex_src_m16(modrm, rm, pfx))
-  else evex_src_zmm(modrm, rm, pfx)
+  else evex_src(512,modrm, rm, pfx)
 
 val evex_bcast_src_f16_ymm : (byte, RM, Prefixes, bool) -> ymmword
 function evex_bcast_src_f16_ymm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f16_ymm(evex_src_m16(modrm, rm, pfx))
-  else evex_src_ymm(modrm, rm, pfx)
+  else evex_src(256,modrm, rm, pfx)
 
 val evex_bcast_src_f16_xmm : (byte, RM, Prefixes, bool) -> xmmword
 function evex_bcast_src_f16_xmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f16_xmm(evex_src_m16(modrm, rm, pfx))
-  else evex_src_xmm(modrm, rm, pfx)
+  else evex_src(128,modrm, rm, pfx)
 
 // =========================================================================
 // FP16 special operation helpers (unary)

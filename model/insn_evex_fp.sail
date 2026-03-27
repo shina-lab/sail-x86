@@ -646,8 +646,8 @@ function dispatch_evex_fp(op, pfx) = {
       // VMOVUPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_NONE => {
         match pfx.evex_ll {
-          0 => evex_write(dst, evex_wmask(pfx, 4), evex_src_xmm(modrm, src2, pfx)),
-          1 => evex_write(dst, evex_wmask(pfx, 8), evex_src_ymm(modrm, src2, pfx)),
+          0 => evex_write(dst, evex_wmask(pfx, 4), evex_src(128,modrm, src2, pfx)),
+          1 => evex_write(dst, evex_wmask(pfx, 8), evex_src(256,modrm, src2, pfx)),
           2 => evex_write(dst, evex_wmask(pfx, 16), evex_bcast_src_f32_zmm(modrm, src2, pfx, is_mem)),
           3 => raise_UD(),
         }
@@ -655,8 +655,8 @@ function dispatch_evex_fp(op, pfx) = {
       // VMOVUPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_66 => {
         match pfx.evex_ll {
-          0 => evex_write(dst, evex_wmask(pfx, 2), evex_src_xmm(modrm, src2, pfx)),
-          1 => evex_write(dst, evex_wmask(pfx, 4), evex_src_ymm(modrm, src2, pfx)),
+          0 => evex_write(dst, evex_wmask(pfx, 2), evex_src(128,modrm, src2, pfx)),
+          1 => evex_write(dst, evex_wmask(pfx, 4), evex_src(256,modrm, src2, pfx)),
           2 => evex_write(dst, evex_wmask(pfx, 8), evex_bcast_src_f64_zmm(modrm, src2, pfx, is_mem)),
           3 => raise_UD(),
         }
@@ -952,12 +952,12 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src2 = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     match pfx.evex_ll {
-      0 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 2), evex_src_xmm(modrm, src2, pfx))
-             else evex_write(dst, evex_wmask(pfx, 4), evex_src_xmm(modrm, src2, pfx)),
-      1 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 4), evex_src_ymm(modrm, src2, pfx))
-             else evex_write(dst, evex_wmask(pfx, 8), evex_src_ymm(modrm, src2, pfx)),
-      2 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 8), evex_src_zmm(modrm, src2, pfx))
-             else evex_write(dst, evex_wmask(pfx, 16), evex_src_zmm(modrm, src2, pfx)),
+      0 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 2), evex_src(128,modrm, src2, pfx))
+             else evex_write(dst, evex_wmask(pfx, 4), evex_src(128,modrm, src2, pfx)),
+      1 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 4), evex_src(256,modrm, src2, pfx))
+             else evex_write(dst, evex_wmask(pfx, 8), evex_src(256,modrm, src2, pfx)),
+      2 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 8), evex_src(512,modrm, src2, pfx))
+             else evex_write(dst, evex_wmask(pfx, 16), evex_src(512,modrm, src2, pfx)),
       3 => raise_UD(),
     }
   },

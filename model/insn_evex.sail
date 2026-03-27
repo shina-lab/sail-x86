@@ -116,24 +116,6 @@ function evex_get_mask16(pfx) = evex_kmask64(pfx)[15..0]
 val evex_get_mask8 : Prefixes -> byte
 function evex_get_mask8(pfx) = evex_kmask64(pfx)[7..0]
 
-// Read ZMM source from r/m field: register or memory.
-val evex_src_zmm : (byte, RM, Prefixes) -> zmmword
-function evex_src_zmm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_zmm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => read_mem(m),
-}
-
-val evex_src_ymm : (byte, RM, Prefixes) -> ymmword
-function evex_src_ymm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_ymm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => read_mem(m),
-}
-
-val evex_src_xmm : (byte, RM, Prefixes) -> xmmword
-function evex_src_xmm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => read_mem(m),
-}
 
 // Read a 16-bit value from r/m for broadcast.
 val evex_src_m16 : (byte, RM, Prefixes) -> word
@@ -296,39 +278,37 @@ function broadcast_f64_xmm(v) =
 val evex_bcast_src_f32_zmm : (byte, RM, Prefixes, bool) -> zmmword
 function evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
-  else evex_src_zmm(modrm, rm, pfx)
+  else evex_src(512,modrm, rm, pfx)
 
 val evex_bcast_src_f32_ymm : (byte, RM, Prefixes, bool) -> ymmword
 function evex_bcast_src_f32_ymm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f32_ymm(evex_src_m32(modrm, rm, pfx))
-  else evex_src_ymm(modrm, rm, pfx)
+  else evex_src(256,modrm, rm, pfx)
 
 val evex_bcast_src_f32_xmm : (byte, RM, Prefixes, bool) -> xmmword
 function evex_bcast_src_f32_xmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f32_xmm(evex_src_m32(modrm, rm, pfx))
-  else evex_src_xmm(modrm, rm, pfx)
+  else evex_src(128,modrm, rm, pfx)
 
 val evex_bcast_src_f64_zmm : (byte, RM, Prefixes, bool) -> zmmword
 function evex_bcast_src_f64_zmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f64_zmm(evex_src_m64(modrm, rm, pfx))
-  else evex_src_zmm(modrm, rm, pfx)
+  else evex_src(512,modrm, rm, pfx)
 
 val evex_bcast_src_f64_ymm : (byte, RM, Prefixes, bool) -> ymmword
 function evex_bcast_src_f64_ymm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f64_ymm(evex_src_m64(modrm, rm, pfx))
-  else evex_src_ymm(modrm, rm, pfx)
+  else evex_src(256,modrm, rm, pfx)
 
 val evex_bcast_src_f64_xmm : (byte, RM, Prefixes, bool) -> xmmword
 function evex_bcast_src_f64_xmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f64_xmm(evex_src_m64(modrm, rm, pfx))
-  else evex_src_xmm(modrm, rm, pfx)
+  else evex_src(128,modrm, rm, pfx)
 
 val select4_f32 : (bits(128), bits(2)) -> bits(32)
-function select4_f32(src, ctrl) = match ctrl {
-  0b00 => src[31..0],
-  0b01 => src[63..32],
-  0b10 => src[95..64],
-  0b11 => src[127..96],
+function select4_f32(src, ctrl) = {
+  let lo : range(0, 96) = unsigned(ctrl) * 32;
+  src[(lo + 31)..lo]
 }
 
 val avx_vpshldw_elem : (word, word, nat) -> word
