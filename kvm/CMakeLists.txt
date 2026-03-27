@@ -180,6 +180,9 @@ set(KVM_CATEGORIES
   XGETBV
   IA32_XSS
   "CPUID XSAVE"
+  "MOVQ store"
+  "K-register ops"
+  "Vec stores"
   "AVX FP arith"
   "AVX int arith"
   "AVX int logical"

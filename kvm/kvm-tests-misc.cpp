@@ -1572,4 +1572,464 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // =====================================================================
+  // MOVQ store (66 0F D6) + VMOVQ store (VEX.128.66.0F D6)
+  // =====================================================================
+  cat = "MOVQ store";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
+
+    // 66 0F D6 C8: MOVQ xmm0, xmm1 (reg-reg: store low qword of xmm1 to xmm0, zero upper)
+    // ModRM: mod=11, reg=1(src), rm=0(dst) → 0xC8
+    add_xmm("movq xmm0,xmm1 (66 0F D6)", {0x66, 0x0F, 0xD6, 0xC8}, s, 0x3);
+
+    // VEX.128.66.0F D6: VMOVQ xmm0, xmm1
+    // 2-byte VEX: C5 [R̄.vvvv.L.pp]
+    // R̄=1, vvvv=1111, L=0, pp=01(66) → 0xF9
+    // C5 F9 D6 C8: VMOVQ xmm0, xmm1
+    // reg=xmm1(1), rm=xmm0(0): ModRM = mod=11, reg=001, rm=000 → 0xC8
+    add_xmm("vmovq xmm0,xmm1 (VEX D6)", {0xC5, 0xF9, 0xD6, 0xC8}, s, 0x3);
+  }
+
+  cat = "K-register ops";
+  {
+    auto add_flags = [&](const char *name, std::vector<u8> code, ArchState init) {
+      tests.push_back({name, cat, std::move(code), init, FL_ALL});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+
+    // Set up k1=0xAAAA, k2=0x5555 via KMOVW from GPR
+    // We pre-load k-registers using KMOV r32->k then do the operation and read back with KMOV k->r32
+    // Since KVM runs all code together, we encode a sequence.
+
+    // Test KORW k3, k1, k2 then KMOVW eax, k3
+    // Load k1=0xAAAA: mov eax, 0xAAAA / kmovw k1, eax
+    // Load k2=0x5555: mov eax, 0x5555 / kmovw k2, eax
+    // KORW k3, k1, k2: C5 EC 45 DB (VEX.256.NP.0F 45: k3=modrm.reg(011), k1=vvvv(001), k2=rm(011))
+    // Actually: VEX.NDS.LZ.0F. Let me encode properly.
+    // KORW uses VEX.L1.NP.0F.W0 45 /r
+    // k3, k1, k2: modrm = 0xCB (mod=11, reg=001(k1), rm=011(k3)) wait...
+    // Encoding: KORW k1, k2, k3: reg=dst, vvvv=src1, rm=src2
+    // VEX byte1: R̄=1, vvvv=~k1, L=1, pp=00 → 1.1100.1.00 = 0xE4
+    // C5 E4 45 D9 = KORW k3, k3, k1? No, need to be more careful.
+
+    // Let me use a simpler approach: just test KORTESTW since it sets flags
+    // Load k1=0x5555 via mov eax, 0x5555 / C5 F8 92 C8 (kmovw k1, eax)
+    // Load k2=0xAAAA via mov eax, 0xAAAA / C5 F8 92 D0 (kmovw k2, eax)
+    // KORTESTW k1, k2: C5 F8 98 CA (VEX.LZ.NP.0F.W0 98, modrm=CA: reg=k1(001), rm=k2(010))
+    s.rax = 0x5555;
+    s.rdx = 0xAAAA;
+    // mov eax, 0x5555 already set. Use: C5 F8 92 C8 = kmovw k1, eax
+    // C5 F8 92 D2 = kmovw k2, edx
+    // C5 F8 98 CA = kortestw k1, k2
+    add_flags("kortestw k1(5555),k2(AAAA) -> k1|k2=FFFF",
+      {0xC5, 0xF8, 0x92, 0xC8,  // kmovw k1, eax (0x5555)
+       0xC5, 0xF8, 0x92, 0xD2,  // kmovw k2, edx (0xAAAA)
+       0xC5, 0xF8, 0x98, 0xCA}, // kortestw k1, k2
+      s);
+
+    // KORTESTW with zero result
+    s.rax = 0;
+    s.rdx = 0;
+    add_flags("kortestw k1(0),k2(0) -> ZF=1",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x98, 0xCA},
+      s);
+
+    // KTESTW: k1&k2 and ~k1&k2
+    s.rax = 0xFFFF;
+    s.rdx = 0x00FF;
+    add_flags("ktestw k1(FFFF),k2(00FF)",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x99, 0xCA},
+      s);
+
+    s.rax = 0x0000;
+    s.rdx = 0xFFFF;
+    add_flags("ktestw k1(0),k2(FFFF) -> ZF=1",
+      {0xC5, 0xF8, 0x92, 0xC8,
+       0xC5, 0xF8, 0x92, 0xD2,
+       0xC5, 0xF8, 0x99, 0xCA},
+      s);
+
+    // --- K-register logical operations ---
+    // All use k1, k2 as inputs (loaded via XSAVE), k3 as output (read via KMOVW eax, k3).
+    // KMOVW eax, k3 = C5 F8 93 C3
+
+    // KANDW k3, k1, k2: VEX.L1.0F.W0 41 /r
+    // k3=reg(011), vvvv=~k1=1110, k2=rm(010) → C5 EC 41 DA
+    {
+      TestCase tc;
+      tc.name = "kandw k3,k1,k2: AAAA & 5555 = 0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x41, 0xDA,   // kandw k3, k1, k2
+                 0xC5, 0xF8, 0x93, 0xC3};   // kmovw eax, k3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.initial.kregs[2] = 0x5555;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KANDW — overlapping bits
+    {
+      TestCase tc;
+      tc.name = "kandw k3,k1,k2: FF00 & 0FF0 = 0F00";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x41, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x0FF0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KORW k3, k1, k2: VEX.L1.0F.W0 45 /r → C5 EC 45 DA
+    {
+      TestCase tc;
+      tc.name = "korw k3,k1,k2: AAAA | 5555 = FFFF";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x45, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.initial.kregs[2] = 0x5555;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KXORW k3, k1, k2: VEX.L1.0F.W0 47 /r → C5 EC 47 DA
+    {
+      TestCase tc;
+      tc.name = "kxorw k3,k1,k2: FFFF ^ 00FF = FF00";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x47, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFFFF;
+      tc.initial.kregs[2] = 0x00FF;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KANDNW k3, k1, k2: VEX.L1.0F.W0 42 /r → C5 EC 42 DA
+    // result = ~k1 & k2
+    {
+      TestCase tc;
+      tc.name = "kandnw k3,k1,k2: ~FF00 & 0FF0 = 00F0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x42, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x0FF0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KXNORW k3, k1, k2: VEX.L1.0F.W0 46 /r → C5 EC 46 DA
+    // result = ~(k1 ^ k2)
+    {
+      TestCase tc;
+      tc.name = "kxnorw k3,k1,k2: ~(FF00^00FF) = 00FF (lower 16)";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF4, 0x46, 0xDA,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xFF00;
+      tc.initial.kregs[2] = 0x00FF;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KNOTW k3, k1: VEX.L0.0F.W0 44 /r → C5 F8 44 D9
+    // dst=k3(011), src=k1(001), vvvv=1111
+    {
+      TestCase tc;
+      tc.name = "knotw k3,k1: ~AAAA = 5555";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x44, 0xD9,
+                 0xC5, 0xF8, 0x93, 0xC3};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xAAAA;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KUNPCKBW k3, k1, k2: VEX.L1.0F.W0 4B /r → C5 F4 4B DA
+    // result = k1[7:0] : k2[7:0] (concatenate low bytes)
+    // Use KMOVW preamble to load k1, k2 (XSAVE may not load reliably for this).
+    {
+      TestCase tc;
+      tc.name = "kunpckbw k3,k1,k2: AB:CD = ABCD";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x92, 0xC8,   // kmovw k1, eax (0xAB)
+                 0xC5, 0xF8, 0x92, 0xD2,   // kmovw k2, edx (0xCD)
+                 0xC5, 0xF5, 0x4B, 0xDA,   // kunpckbw k3, k1, k2 (VEX.L1.66.0F.W0)
+                 0xC5, 0xF8, 0x93, 0xC3};  // kmovw eax, k3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0xAB;
+      tc.initial.rdx = 0xCD;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVW k1, m16: VEX.L0.0F.W0 90 /r (memory load)
+    // Load k1 from [DATA_ADDR] containing 0x1234
+    {
+      TestCase tc;
+      tc.name = "kmovw k1,m16: load 1234h";
+      tc.category = cat;
+      // mov rdi, DATA_ADDR; kmovw k1, [rdi]; kmovw eax, k1
+      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, 0x10000 (DATA_ADDR)
+                 0xC5, 0xF8, 0x90, 0x0F,   // kmovw k1, [rdi]
+                 0xC5, 0xF8, 0x93, 0xC1};  // kmovw eax, k1
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.init_data = {0x34, 0x12};  // 0x1234 in little-endian
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVW m16, k1: VEX.L0.0F.W0 91 /r (memory store)
+    {
+      TestCase tc;
+      tc.name = "kmovw m16,k1: store BEEF to mem";
+      tc.category = cat;
+      // mov rdi, DATA_ADDR; kmovw [rdi], k1
+      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, DATA_ADDR
+                 0xC5, 0xF8, 0x91, 0x0F};  // kmovw [rdi], k1
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[1] = 0xBEEF;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 2;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // K-register B/D/Q width tests
+  {
+    // KANDD k2, k2, k2 (dword AND): VEX.L1.66.0F.W1 41 /r
+    // C4 E1 ED 41 D2: L=1, pp=01(66), W=1, vvvv=~k2=1101, opcode=41, modrm=D2(k2,k2)
+    {
+      TestCase tc;
+      tc.name = "kandd k2,k2,k2 (32-bit)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE1, 0xED, 0x41, 0xD2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.kregs[2] = 0x00000000FFFF0000;
+      tc.flags_mask = FL_NONE;
+      tc.kreg_mask = (1 << 2);
+      tests.push_back(std::move(tc));
+    }
+
+    // KMOVD EAX, k2 (F2+W0): C5 FB 93 C2
+    {
+      TestCase tc;
+      tc.name = "kmovd eax,k2";
+      tc.category = cat;
+      tc.code = {0xC5, 0xFB, 0x93, 0xC2};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0xDEADDEADDEADDEAD;
+      tc.initial.kregs[2] = 0x12345678;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // Vector memory stores — verify memory output
+  // =====================================================================
+  cat = "Vec stores";
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.xmm[0] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+    s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL);
+
+    // MOVAPS [rdi], xmm0: 0F 29 07
+    {
+      TestCase tc;
+      tc.name = "movaps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x29, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVUPS [rdi], xmm0: 0F 11 07
+    {
+      TestCase tc;
+      tc.name = "movups [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVDQU [rdi], xmm0: F3 0F 7F 07
+    {
+      TestCase tc;
+      tc.name = "movdqu [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF3, 0x0F, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVDQA [rdi], xmm0: 66 0F 7F 07
+    {
+      TestCase tc;
+      tc.name = "movdqa [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x66, 0x0F, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVLPS [rdi], xmm0: 0F 13 07 (store low 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movlps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x13, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVHPS [rdi], xmm0: 0F 17 07 (store high 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movhps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0x0F, 0x17, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVSS [rdi], xmm0: F3 0F 11 07 (store 32 bits)
+    {
+      TestCase tc;
+      tc.name = "movss [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF3, 0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // MOVSD [rdi], xmm0: F2 0F 11 07 (store 64 bits)
+    {
+      TestCase tc;
+      tc.name = "movsd [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xF2, 0x0F, 0x11, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVAPS [rdi], xmm0: C5 F8 29 07
+    {
+      TestCase tc;
+      tc.name = "vmovaps [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xF8, 0x29, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVDQU [rdi], xmm0: C5 FA 7F 07
+    {
+      TestCase tc;
+      tc.name = "vmovdqu [rdi],xmm0";
+      tc.category = cat;
+      tc.code = {0xC5, 0xFA, 0x7F, 0x07};
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 16;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVAPS [rdi], ymm0: need to set up ymm0 first
+    // Use VINSERTF128 ymm0, ymm0, xmm1, 1 (C4 E3 7D 18 C1 01) to set hi half
+    {
+      TestCase tc;
+      tc.name = "vmovaps [rdi],ymm0 (32 bytes)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
+                 0xC5, 0xFC, 0x29, 0x07};               // vmovaps [rdi], ymm0
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 32;
+      tests.push_back(std::move(tc));
+    }
+
+    // VMOVDQU [rdi], ymm0: C5 FE 7F 07
+    {
+      TestCase tc;
+      tc.name = "vmovdqu [rdi],ymm0 (32 bytes)";
+      tc.category = cat;
+      tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
+                 0xC5, 0xFE, 0x7F, 0x07};               // vmovdqu [rdi], ymm0
+      tc.initial = s;
+      tc.flags_mask = FL_NONE;
+      tc.xmm_mask = 0;
+      tc.compare_data_len = 32;
+      tests.push_back(std::move(tc));
+    }
+  }
+
 }
