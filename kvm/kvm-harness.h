@@ -280,5 +280,6 @@ void add_xsave_tests(std::vector<TestCase> &tests);
 void add_avx_fp_tests(std::vector<TestCase> &tests);
 void add_avx_int_tests(std::vector<TestCase> &tests);
 void add_avx_shift_tests(std::vector<TestCase> &tests);
+void add_avx_fma_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

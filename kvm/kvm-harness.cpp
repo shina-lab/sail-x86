@@ -721,6 +721,7 @@ std::vector<TestCase> build_tests() {
   add_avx_fp_tests(tests);
   add_avx_int_tests(tests);
   add_avx_shift_tests(tests);
+  add_avx_fma_tests(tests);
 
   return tests;
 }
