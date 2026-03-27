@@ -280,5 +280,6 @@ void add_mmx_tests(std::vector<TestCase> &tests);
 void add_feature_tests(std::vector<TestCase> &tests);
 void add_compat_tests(std::vector<TestCase> &tests);
 void add_xsave_tests(std::vector<TestCase> &tests);
+void add_avx_comprehensive_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H
