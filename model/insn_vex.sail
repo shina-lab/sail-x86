@@ -184,9 +184,9 @@ function packed_narrow_elem(op, dst, a) = match op {
 
 val packed_narrow_unop : forall 'vl 'src 'dst,
   'vl in {128, 256, 512} & 'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
-  (PackedNarrowOp, int('src), int('dst), bits('vl)) -> bits('vl)
+  (PackedNarrowOp, int('src), int('dst), bits('vl)) -> bits(div('vl * 'dst, 'src))
 function packed_narrow_unop(op, src_eb, dst_eb, a) = {
-  var r : bits('vl) = zeros();
+  var r : bits(div('vl * 'dst, 'src)) = zeros();
   foreach (i from 0 to ('vl / 'src - 1)) {
     let slo = i * 'src;
     let dlo = i * 'dst;

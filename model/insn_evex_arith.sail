@@ -153,10 +153,10 @@ function convert_fp32_to_bf16(x) = {
   blend(r2, r_nan, exp_all & mant_nz)
 }
 
-/* ---- VCVTNEPS2BF16: convert packed FP32 → packed BF16 (narrowing, result in low half) ---- */
-val avx_vcvtneps2bf16 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+/* ---- VCVTNEPS2BF16: convert packed FP32 → packed BF16 (narrowing) ---- */
+val avx_vcvtneps2bf16 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits(div('vl, 2))
 function avx_vcvtneps2bf16(vl, src) = {
-  var r : bits('vl) = zeros();
+  var r : bits(div('vl, 2)) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let slo = i * 32;
     let dlo = i * 16;
@@ -626,7 +626,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -652,7 +652,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -678,7 +678,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -719,7 +719,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -746,7 +746,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -773,7 +773,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatU, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
       }
     } else {
@@ -799,7 +799,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -825,7 +825,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -851,7 +851,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -877,7 +877,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -903,7 +903,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -929,7 +929,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_SatS, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
       }
     } else {
@@ -955,7 +955,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -981,7 +981,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -1007,7 +1007,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
       }
     } else {
@@ -1033,7 +1033,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -1059,7 +1059,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
       }
     } else {
@@ -1124,7 +1124,7 @@ function dispatch_evex_arith(op, pfx) = {
       let res = packed_narrow_unop(PN_Trunc, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
-        RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
+        RM_reg(_) => ZMM[evex_rm_reg_idx(modrm, pfx)] = zero_extend(res),
         RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
       }
     } else {
@@ -1184,9 +1184,9 @@ function dispatch_evex_arith(op, pfx) = {
         let vl = evex_vl(pfx);
         let res = avx_vcvtneps2bf16(evex_bcast_src(vl, modrm, src, pfx, 32));
         match vl {
-          128 => evex_write(dst, evex_wmask(pfx, 8), res),
-          256 => evex_write(dst, evex_wmask(pfx, 8), res[127..0]),
-          512 => evex_write(dst, evex_wmask(pfx, 16), res[255..0]),
+          128 => evex_write(dst, evex_wmask(pfx, 8), zero_extend(128, res)),
+          256 => evex_write(dst, evex_wmask(pfx, 8), res),
+          512 => evex_write(dst, evex_wmask(pfx, 16), res),
         }
       },
       _ => raise_UD(),
