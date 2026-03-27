@@ -110,27 +110,6 @@ function evex_kmask64(pfx) = {
   sign_extend(is_zero(to_bits(3, pfx.evex_aaa))) | read_kreg(pfx.evex_aaa)
 }
 
-// Read a 16-bit value from r/m for broadcast.
-val evex_src_m16 : (byte, RM, Prefixes) -> word
-function evex_src_m16(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
-  RM_mem(m) => v(m),
-}
-
-// Read a 32-bit value from r/m for broadcast.
-val evex_src_m32 : (byte, RM, Prefixes) -> dword
-function evex_src_m32(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
-  RM_mem(m) => read_mem(m),
-}
-
-// Read a 64-bit value from r/m for broadcast.
-val evex_src_m64 : (byte, RM, Prefixes) -> qword
-function evex_src_m64(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
-  RM_mem(m) => read_mem(m),
-}
-
 struct Writemask('n : Int), 'n > 0 = {
   bits : bits('n),
   zeroing : bit,
@@ -213,15 +192,10 @@ function broadcast(vl, v) = {
 val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
   (implicit('vl), byte, RM, Prefixes, int('eb)) -> bits('vl)
 function evex_bcast_src(vl, modrm, rm, pfx, eb) = {
-  let is_mem : bool = match rm { RM_mem(_) => true, _ => false };
-  if pfx.evex_b & is_mem then {
-    match eb {
-      16 => broadcast(evex_src_m16(modrm, rm, pfx)),
-      32 => broadcast(evex_src_m32(modrm, rm, pfx)),
-      64 => broadcast(evex_src_m64(modrm, rm, pfx)),
-    }
-  } else {
-    evex_src(modrm, rm, pfx)
+  let idx = evex_rm_reg_idx(modrm, pfx);
+  match rm {
+    RM_mem(m) => if pfx.evex_b then broadcast(read_mem(eb, m)) else read_mem(m),
+    RM_reg(_) => ZMM[idx][(vl - 1)..0],
   }
 }
 
