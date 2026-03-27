@@ -4,32 +4,6 @@
 // Called from dispatch_evex_0f38 in insn_evex.sail.
 
 // Broadcast a byte to all lanes
-val broadcast_byte_zmm : byte -> zmmword
-function broadcast_byte_zmm(v) = {
-  let w : word = v @ v;
-  let d : dword = w @ w;
-  let q : qword = d @ d;
-  let x : xmmword = q @ q;
-  let y : ymmword = x @ x;
-  y @ y
-}
-
-val broadcast_byte_ymm : byte -> ymmword
-function broadcast_byte_ymm(v) = {
-  let w : word = v @ v;
-  let d : dword = w @ w;
-  let q : qword = d @ d;
-  let x : xmmword = q @ q;
-  x @ x
-}
-
-val broadcast_byte_xmm : byte -> xmmword
-function broadcast_byte_xmm(v) = {
-  let w : word = v @ v;
-  let d : dword = w @ w;
-  let q : qword = d @ d;
-  q @ q
-}
 
 // =========================================================================
 // AVX-512 packed unsigned byte minimum
@@ -1075,9 +1049,9 @@ function dispatch_evex_perm(op, pfx) = {
       RM_mem(m) => v(m),
     };
     match pfx.evex_ll {
-      0 => evex_write(dst, evex_wmask(pfx, 16), broadcast_byte_xmm(elem)),
-      1 => evex_write(dst, evex_wmask(pfx, 32), broadcast_byte_ymm(elem)),
-      2 => evex_write(dst, evex_wmask(pfx, 64), broadcast_byte_zmm(elem)),
+      0 => evex_write(dst, evex_wmask(pfx, 16), broadcast(128, elem)),
+      1 => evex_write(dst, evex_wmask(pfx, 32), broadcast(256, elem)),
+      2 => evex_write(dst, evex_wmask(pfx, 64), broadcast(512, elem)),
       3 => raise_UD(),
     }
   },
@@ -1200,9 +1174,9 @@ function dispatch_evex_perm(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let elem : byte = v(32, modrm_rm_reg(modrm, pfx))[7..0];
     match pfx.evex_ll {
-      0 => evex_write(dst, evex_wmask(pfx, 16), broadcast_byte_xmm(elem)),
-      1 => evex_write(dst, evex_wmask(pfx, 32), broadcast_byte_ymm(elem)),
-      2 => evex_write(dst, evex_wmask(pfx, 64), broadcast_byte_zmm(elem)),
+      0 => evex_write(dst, evex_wmask(pfx, 16), broadcast(128, elem)),
+      1 => evex_write(dst, evex_wmask(pfx, 32), broadcast(256, elem)),
+      2 => evex_write(dst, evex_wmask(pfx, 64), broadcast(512, elem)),
       3 => raise_UD(),
     }
   },
