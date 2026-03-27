@@ -254,17 +254,6 @@ function cmp_f16_pred(a, b, pred) = {
   }
 }
 
-val vcmpph_xmm : (xmmword, xmmword, range(0, 31)) -> byte
-function vcmpph_xmm(a, b, pred) =
-  cmp_f16_pred(a[127..112], b[127..112], pred) @
-  cmp_f16_pred(a[111..96], b[111..96], pred) @
-  cmp_f16_pred(a[95..80], b[95..80], pred) @
-  cmp_f16_pred(a[79..64], b[79..64], pred) @
-  cmp_f16_pred(a[63..48], b[63..48], pred) @
-  cmp_f16_pred(a[47..32], b[47..32], pred) @
-  cmp_f16_pred(a[31..16], b[31..16], pred) @
-  cmp_f16_pred(a[15..0], b[15..0], pred)
-
 // =========================================================================
 // FP16 FPCLASS helper (pure Sail bit manipulation)
 // Classifies a single FP16 value against imm8 class bits:

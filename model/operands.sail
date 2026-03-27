@@ -100,17 +100,6 @@ enum ALUOp = {
 // Shift/rotate operation codes (for Group 2)
 // =========================================================================
 
-enum ShiftOp = {
-  SHIFT_ROL,
-  SHIFT_ROR,
-  SHIFT_RCL,
-  SHIFT_RCR,
-  SHIFT_SHL,
-  SHIFT_SHR,
-  SHIFT_SAL,  // same as SHL
-  SHIFT_SAR,
-}
-
 // =========================================================================
 // Mandatory prefix classification (for 2-byte+ opcodes)
 // =========================================================================

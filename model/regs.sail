@@ -109,10 +109,6 @@ function write_xmm(idx, v) = {
   ZMM[idx] = r
 }
 
-// VEX-encoded write: zero upper bits (128->MAXVL)
-val write_xmm_vex : (simd_idx, xmmword) -> unit
-function write_xmm_vex(idx, v) = write_xmm(idx, v)
-
 val read_ymm : simd_idx -> ymmword
 function read_ymm(idx) = ZMM[idx][255..0]
 

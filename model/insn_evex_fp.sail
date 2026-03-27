@@ -64,62 +64,6 @@ function vsqrtpd_ymm(a) =
 // 128-bit: manually unrolled. 256-bit: split into two 128-bit halves.
 // =========================================================================
 
-val vaddps_zmm : (zmmword, zmmword) -> zmmword
-function vaddps_zmm(a, b) =
-  vaddps_ymm(a[511..256], b[511..256]) @ vaddps_ymm(a[255..0], b[255..0])
-
-val vsubps_zmm : (zmmword, zmmword) -> zmmword
-function vsubps_zmm(a, b) =
-  vsubps_ymm(a[511..256], b[511..256]) @ vsubps_ymm(a[255..0], b[255..0])
-
-val vmulps_zmm : (zmmword, zmmword) -> zmmword
-function vmulps_zmm(a, b) =
-  vmulps_ymm(a[511..256], b[511..256]) @ vmulps_ymm(a[255..0], b[255..0])
-
-val vdivps_zmm : (zmmword, zmmword) -> zmmword
-function vdivps_zmm(a, b) =
-  vdivps_ymm(a[511..256], b[511..256]) @ vdivps_ymm(a[255..0], b[255..0])
-
-val vminps_zmm : (zmmword, zmmword) -> zmmword
-function vminps_zmm(a, b) =
-  vminps_ymm(a[511..256], b[511..256]) @ vminps_ymm(a[255..0], b[255..0])
-
-val vmaxps_zmm : (zmmword, zmmword) -> zmmword
-function vmaxps_zmm(a, b) =
-  vmaxps_ymm(a[511..256], b[511..256]) @ vmaxps_ymm(a[255..0], b[255..0])
-
-val vsqrtps_zmm : zmmword -> zmmword
-function vsqrtps_zmm(a) =
-  vsqrtps_ymm(a[511..256]) @ vsqrtps_ymm(a[255..0])
-
-val vaddpd_zmm : (zmmword, zmmword) -> zmmword
-function vaddpd_zmm(a, b) =
-  vaddpd_ymm(a[511..256], b[511..256]) @ vaddpd_ymm(a[255..0], b[255..0])
-
-val vsubpd_zmm : (zmmword, zmmword) -> zmmword
-function vsubpd_zmm(a, b) =
-  vsubpd_ymm(a[511..256], b[511..256]) @ vsubpd_ymm(a[255..0], b[255..0])
-
-val vmulpd_zmm : (zmmword, zmmword) -> zmmword
-function vmulpd_zmm(a, b) =
-  vmulpd_ymm(a[511..256], b[511..256]) @ vmulpd_ymm(a[255..0], b[255..0])
-
-val vdivpd_zmm : (zmmword, zmmword) -> zmmword
-function vdivpd_zmm(a, b) =
-  vdivpd_ymm(a[511..256], b[511..256]) @ vdivpd_ymm(a[255..0], b[255..0])
-
-val vminpd_zmm : (zmmword, zmmword) -> zmmword
-function vminpd_zmm(a, b) =
-  vminpd_ymm(a[511..256], b[511..256]) @ vminpd_ymm(a[255..0], b[255..0])
-
-val vmaxpd_zmm : (zmmword, zmmword) -> zmmword
-function vmaxpd_zmm(a, b) =
-  vmaxpd_ymm(a[511..256], b[511..256]) @ vmaxpd_ymm(a[255..0], b[255..0])
-
-val vsqrtpd_zmm : zmmword -> zmmword
-function vsqrtpd_zmm(a) =
-  vsqrtpd_ymm(a[511..256]) @ vsqrtpd_ymm(a[255..0])
-
 // =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values (per 128-bit lane)
 // Each pair of 32-bit floats: [A, B] → [A, A] (even index duplicated)

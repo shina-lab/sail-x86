@@ -96,7 +96,6 @@ mapping bool_bit : bool <-> bit = {
 }
 
 function bool_to_bit(x : bool) -> bit = bool_bit(x)
-function bit_to_bool(x : bit) -> bool = bool_bit(x)
 
 val to_bits : forall 'l 'x, 'l >= 0 & 0 <= 'x < 2 ^ 'l. (implicit('l), int('x)) -> bits('l)
 function to_bits(l, n) = get_slice_int(l, n, 0)

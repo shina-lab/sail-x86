@@ -17,9 +17,6 @@ function avx_fmadd_ps_128(a, b, c) = {
 val avx_fmadd_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fmadd_ps_256(a, b, c) = avx_fmadd_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmadd_ps_128(a[127..0], b[127..0], c[127..0])
 
-val avx_fmadd_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmadd_ps_512(a, b, c) = avx_fmadd_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fmadd_ps_256(a[255..0], b[255..0], c[255..0])
-
 val avx_fmadd_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fmadd_pd_128(a, b, c) = {
   var r : xmmword = zeros();
@@ -32,9 +29,6 @@ function avx_fmadd_pd_128(a, b, c) = {
 
 val avx_fmadd_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fmadd_pd_256(a, b, c) = avx_fmadd_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmadd_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmadd_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmadd_pd_512(a, b, c) = avx_fmadd_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fmadd_pd_256(a[255..0], b[255..0], c[255..0])
 
 val avx_fmsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fmsub_ps_128(a, b, c) = {
@@ -49,9 +43,6 @@ function avx_fmsub_ps_128(a, b, c) = {
 val avx_fmsub_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fmsub_ps_256(a, b, c) = avx_fmsub_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsub_ps_128(a[127..0], b[127..0], c[127..0])
 
-val avx_fmsub_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmsub_ps_512(a, b, c) = avx_fmsub_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fmsub_ps_256(a[255..0], b[255..0], c[255..0])
-
 val avx_fmsub_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fmsub_pd_128(a, b, c) = {
   var r : xmmword = zeros();
@@ -64,9 +55,6 @@ function avx_fmsub_pd_128(a, b, c) = {
 
 val avx_fmsub_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fmsub_pd_256(a, b, c) = avx_fmsub_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsub_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmsub_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmsub_pd_512(a, b, c) = avx_fmsub_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fmsub_pd_256(a[255..0], b[255..0], c[255..0])
 
 val avx_fnmadd_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fnmadd_ps_128(a, b, c) = {
@@ -81,9 +69,6 @@ function avx_fnmadd_ps_128(a, b, c) = {
 val avx_fnmadd_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fnmadd_ps_256(a, b, c) = avx_fnmadd_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmadd_ps_128(a[127..0], b[127..0], c[127..0])
 
-val avx_fnmadd_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fnmadd_ps_512(a, b, c) = avx_fnmadd_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fnmadd_ps_256(a[255..0], b[255..0], c[255..0])
-
 val avx_fnmadd_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fnmadd_pd_128(a, b, c) = {
   var r : xmmword = zeros();
@@ -96,9 +81,6 @@ function avx_fnmadd_pd_128(a, b, c) = {
 
 val avx_fnmadd_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fnmadd_pd_256(a, b, c) = avx_fnmadd_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmadd_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmadd_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fnmadd_pd_512(a, b, c) = avx_fnmadd_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fnmadd_pd_256(a[255..0], b[255..0], c[255..0])
 
 val avx_fnmsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fnmsub_ps_128(a, b, c) = {
@@ -113,9 +95,6 @@ function avx_fnmsub_ps_128(a, b, c) = {
 val avx_fnmsub_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fnmsub_ps_256(a, b, c) = avx_fnmsub_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmsub_ps_128(a[127..0], b[127..0], c[127..0])
 
-val avx_fnmsub_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fnmsub_ps_512(a, b, c) = avx_fnmsub_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fnmsub_ps_256(a[255..0], b[255..0], c[255..0])
-
 val avx_fnmsub_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fnmsub_pd_128(a, b, c) = {
   var r : xmmword = zeros();
@@ -128,9 +107,6 @@ function avx_fnmsub_pd_128(a, b, c) = {
 
 val avx_fnmsub_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
 function avx_fnmsub_pd_256(a, b, c) = avx_fnmsub_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmsub_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmsub_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fnmsub_pd_512(a, b, c) = avx_fnmsub_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fnmsub_pd_256(a[255..0], b[255..0], c[255..0])
 
 val avx_fmaddsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
 function avx_fmaddsub_ps_128(a, b, c) = {

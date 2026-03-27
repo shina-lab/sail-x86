@@ -430,11 +430,6 @@ function avx_vdpbf16ps(dst, src1, src2) = {
   r
 }
 
-/* ---- VPOPCNT: population count per element ---- */
-
-val popcnt_bits : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bits('n)
-function popcnt_bits(v) = to_bits(popcount(v))
-
 
 
 /* ---- VCVTPH2PS/VCVTPS2PH: 512-bit variants (128/256 defined in insn_vex.sail) ---- */

@@ -691,24 +691,6 @@ function avx_vpbroadcastmb2q_512(k) = {
   elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem
 }
 
-val avx_vpbroadcastmw2d_128 : word -> xmmword
-function avx_vpbroadcastmw2d_128(k) = {
-  let elem : dword = zero_extend(k);
-  elem @ elem @ elem @ elem
-}
-
-val avx_vpbroadcastmw2d_256 : word -> ymmword
-function avx_vpbroadcastmw2d_256(k) = {
-  let elem : dword = zero_extend(k);
-  elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem
-}
-
-val avx_vpbroadcastmw2d_512 : word -> zmmword
-function avx_vpbroadcastmw2d_512(k) = {
-  let elem : dword = zero_extend(k);
-  elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem
-}
-
 /* ---- VPDPBUSD: Multiply and Add Unsigned and Signed Bytes ---- */
 // For each dword position:
 //   temp = src1.u8[0]*src2.s8[0] + src1.u8[1]*src2.s8[1] + src1.u8[2]*src2.s8[2] + src1.u8[3]*src2.s8[3]
