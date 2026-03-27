@@ -521,4 +521,137 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     e.W = true; e.opcode = 0x4E;
     add_evex_rr_approx_tests(tests, cat, "VRSQRT14PD", e, s, 0x3, 64);
   }
+
+  // VRNDSCALEPS: EVEX.66.0F3A.W0 08 /r ib
+  // VRNDSCALEPD: EVEX.66.0F3A.W1 09 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.3f, 2.7f, -1.5f, 3.9f, -0.1f, 4.5f, -2.2f, 8.8f,
+                    1.3f, 2.7f, -1.5f, 3.9f, -0.1f, 4.5f, -2.2f, 8.8f};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x08;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VRNDSCALEPS ") + vl[ll],
+                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {1.3, 2.7, -1.5, 3.9, -0.1, 4.5, -2.2, 8.8};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x09;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VRNDSCALEPD ") + vl[ll],
+                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+    }
+  }
+
+  // VREDUCEPS: EVEX.66.0F3A.W0 56 /r ib
+  // VREDUCEPD: EVEX.66.0F3A.W1 56 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {3.14f, 6.28f, -1.5f, 100.9f, 0.5f, -255.1f, 0.0f, -1.0f,
+                    3.14f, 6.28f, -1.5f, 100.9f, 0.5f, -255.1f, 0.0f, -1.0f};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x56;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VREDUCEPS ") + vl[ll],
+                       cat, e.encode_rr_imm(0x08), s, FL_NONE, 0x3, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {3.14, 6.28, -1.5, 100.9, 0.5, -255.1, 0.0, -1.0};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x56;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VREDUCEPD ") + vl[ll],
+                       cat, e.encode_rr_imm(0x08), s, FL_NONE, 0x3, false});
+    }
+  }
+
+  // VRANGEPS: EVEX.66.0F3A.W0 50 /r ib
+  // VRANGEPD: EVEX.66.0F3A.W1 50 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float v1[] = {1.0f, 5.0f, -3.0f, 10.0f, 1.0f, 5.0f, -3.0f, 10.0f,
+                  1.0f, 5.0f, -3.0f, 10.0f, 1.0f, 5.0f, -3.0f, 10.0f};
+    float v2[] = {3.0f, 2.0f, -1.0f, 7.0f, 3.0f, 2.0f, -1.0f, 7.0f,
+                  3.0f, 2.0f, -1.0f, 7.0f, 3.0f, 2.0f, -1.0f, 7.0f};
+    memcpy(s.xmm[1].q, v1, 64);
+    memcpy(s.xmm[2].q, v2, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x50;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VRANGEPS ") + vl[ll],
+                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x7, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double v1[] = {1.0, 5.0, -3.0, 10.0, 1.0, 5.0, -3.0, 10.0};
+    double v2[] = {3.0, 2.0, -1.0, 7.0, 3.0, 2.0, -1.0, 7.0};
+    memcpy(s.xmm[1].q, v1, 64);
+    memcpy(s.xmm[2].q, v2, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x50;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VRANGEPD ") + vl[ll],
+                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x7, false});
+    }
+  }
+
+  // VGETMANTPS: EVEX.66.0F3A.W0 26 /r ib
+  // VGETMANTPD: EVEX.66.0F3A.W1 26 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.5f, 2.5f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f,
+                    1.5f, 2.5f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x26;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VGETMANTPS ") + vl[ll],
+                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x3, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {1.5, 2.5, 4.0, 8.0, 0.5, 0.25, 16.0, 64.0};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x26;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VGETMANTPD ") + vl[ll],
+                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x3, false});
+    }
+  }
 }
