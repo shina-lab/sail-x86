@@ -986,7 +986,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 12: VMOVLPS (NP,mem) / VMOVHLPS (NP,reg) / VMOVLPD (66,mem) / VMOVSLDUP (F3) / VMOVDDUP (F2)
-  // 0F 12: VMOVLPS (NP,mem) / VMOVHLPS (NP,reg) / VMOVLPD (66,mem) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   18 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
@@ -1055,7 +1054,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 13: VMOVLPS (NP,store) / VMOVLPD (66,store) — XMM only, m64
-  // 0F 13: VMOVLPS (NP,store) / VMOVLPD (66,store) — XMM only, m64
   19 => {
     let modrm = fetch(1);
     if pfx.evex_ll != 0 then raise_UD();
@@ -1064,7 +1062,6 @@ function dispatch_evex_fp(op, pfx) = {
     rm_mem(64, dest) = src[63..0]
   },
 
-  // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
   // 0F 14: VUNPCKLPS (NP,W0) / VUNPCKLPD (66,W1)
   20 => {
     let modrm = fetch(1);
@@ -1120,7 +1117,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 15: VUNPCKHPS (NP,W0) / VUNPCKHPD (66,W1)
-  // 0F 15: VUNPCKHPS (NP,W0) / VUNPCKHPD (66,W1)
   21 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
@@ -1175,7 +1171,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 16: VMOVHPS (NP,mem) / VMOVLHPS (NP,reg) / VMOVHPD (66,mem) / VMOVSHDUP (F3)
-  // 0F 16: VMOVHPS (NP,mem) / VMOVLHPS (NP,reg) / VMOVHPD (66,mem) / VMOVSHDUP (F3)
   22 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
@@ -1225,7 +1220,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 17: VMOVHPS (NP,store) / VMOVHPD (66,store) — XMM only, m64
-  // 0F 17: VMOVHPS (NP,store) / VMOVHPD (66,store) — XMM only, m64
   23 => {
     let modrm = fetch(1);
     if pfx.evex_ll != 0 then raise_UD();
@@ -1234,7 +1228,6 @@ function dispatch_evex_fp(op, pfx) = {
     rm_mem(64, dest) = src[127..64]
   },
 
-  // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
   40 => {
     let modrm = fetch(1);
@@ -1260,7 +1253,6 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F 29: VMOVAPS/VMOVAPD (EVEX store)
   // 0F 29: VMOVAPS/VMOVAPD (EVEX store)
   41 => {
     let modrm = fetch(1);
@@ -1330,7 +1322,6 @@ function dispatch_evex_fp(op, pfx) = {
     evex_end_rc(saved_mxcsr)
   },
 
-  // 0F 2B: VMOVNTPS (NP) / VMOVNTPD (66) — non-temporal store
   // 0F 2B: VMOVNTPS (NP) / VMOVNTPD (66) — non-temporal store
   43 => {
     let (src, dest) = fetch_modrm_evex(pfx, evex_full_disp_n(pfx));
@@ -1431,7 +1422,6 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 2E: VUCOMISS (NP,W0) / VUCOMISD (66,W1) — compare scalars, set EFLAGS
-  // 0F 2E: VUCOMISS (NP,W0) / VUCOMISD (66,W1) — compare scalars, set EFLAGS
   46 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
@@ -1478,7 +1468,6 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F 2F: VCOMISS (NP,W0) / VCOMISD (66,W1) — ordered compare scalars, set EFLAGS
   // 0F 2F: VCOMISS (NP,W0) / VCOMISD (66,W1) — ordered compare scalars, set EFLAGS
   47 => {
     let modrm = fetch(1);
@@ -2356,7 +2345,6 @@ function dispatch_evex_fp(op, pfx) = {
     }
   },
 
-  // 0F C6: VSHUFPS (NP,W0) / VSHUFPD (66,W1)
   // 0F C6: VSHUFPS (NP,W0) / VSHUFPD (66,W1)
   198 => {
     let modrm = fetch(1);
