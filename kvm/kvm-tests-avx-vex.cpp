@@ -421,4 +421,169 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     v.reg = 0; v.vvvv = 0; v.rm = 1; v.L = false;
     tests.push_back({"VAESKEYGENASSIST xmm imm=1", cat, v.encode_rr_imm(1), s, FL_NONE, 0x3, false});
   }
+
+  // VEX SSSE3: VPHADDD/W/SW, VPHSUBD/W/SW, VPSIGNB/D/W
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 8; i++) ((int32_t *)s.xmm[1].q)[i] = i * 100 - 300;
+    for (int i = 0; i < 8; i++) ((int32_t *)s.xmm[2].q)[i] = i * 50 + 100;
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
+
+    // VPHADDD: VEX.66.0F38.WIG 02 /r
+    v.opcode = 0x02; v.L = false;
+    tests.push_back({"VPHADDD xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPHADDD ymm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+
+    // VPHSUBD: VEX.66.0F38.WIG 06 /r
+    v.opcode = 0x06; v.L = false;
+    tests.push_back({"VPHSUBD xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPHSUBD ymm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 16; i++) ((int16_t *)s.xmm[1].q)[i] = i * 100 - 700;
+    for (int i = 0; i < 16; i++) ((int16_t *)s.xmm[2].q)[i] = i * 50 + 100;
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
+
+    // VPHADDW: VEX.66.0F38.WIG 01 /r
+    v.opcode = 0x01; v.L = false;
+    tests.push_back({"VPHADDW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPHADDW ymm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+
+    // VPHADDSW: VEX.66.0F38.WIG 03 /r
+    v.opcode = 0x03; v.L = false;
+    tests.push_back({"VPHADDSW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+
+    // VPHSUBW: VEX.66.0F38.WIG 05 /r
+    v.opcode = 0x05; v.L = false;
+    tests.push_back({"VPHSUBW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPHSUBW ymm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+
+    // VPHSUBSW: VEX.66.0F38.WIG 07 /r
+    v.opcode = 0x07; v.L = false;
+    tests.push_back({"VPHSUBSW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+  {
+    // VPSIGNB/D/W
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 32; i++) ((int8_t *)s.xmm[1].q)[i] = i - 16;
+    for (int i = 0; i < 32; i++) ((int8_t *)s.xmm[2].q)[i] = (i % 3) - 1;  // -1, 0, 1 pattern
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
+    // VPSIGNB: VEX.66.0F38.WIG 08 /r
+    v.opcode = 0x08; v.L = false;
+    tests.push_back({"VPSIGNB xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPSIGNB ymm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    // VPSIGNW: VEX.66.0F38.WIG 09 /r
+    v.opcode = 0x09; v.L = false;
+    tests.push_back({"VPSIGNW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    // VPSIGND: VEX.66.0F38.WIG 0A /r
+    v.opcode = 0x0A; v.L = false;
+    tests.push_back({"VPSIGND xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+
+  // VPTEST: VEX.66.0F38.WIG 17 /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
+    s.xmm[2] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x17;
+    v.reg = 0; v.vvvv = 0; v.rm = 2; // src1=xmm1 in reg field? No, VPTEST uses reg as src1, rm as src2
+    // Actually VPTEST modrm: reg=src1, rm=src2. But vvvv must be 1111.
+    v.reg = 1; v.rm = 2;
+    v.L = false;
+    tests.push_back({"VPTEST xmm", cat, v.encode_rr(), s, FL_CF | FL_ZF, 0, false});
+    v.L = true;
+    tests.push_back({"VPTEST ymm", cat, v.encode_rr(), s, FL_CF | FL_ZF, 0, false});
+  }
+
+  // VPHMINPOSUW: VEX.66.0F38.WIG 41 /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    u16 vals[] = {5, 3, 7, 1, 9, 2, 4, 6};
+    memcpy(s.xmm[1].q, vals, 16);
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x41;
+    v.reg = 0; v.vvvv = 0; v.rm = 1; v.L = false;
+    tests.push_back({"VPHMINPOSUW xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+
+  // VEX VRCPPS: VEX.NP.0F.WIG 53 /r
+  // VEX VRSQRTPS: VEX.NP.0F.WIG 52 /r
+  // VEX VRCPSS: VEX.F3.0F.WIG 53 /r
+  // VEX VRSQRTSS: VEX.F3.0F.WIG 52 /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.0f, 4.0f, 9.0f, 16.0f, 25.0f, 36.0f, 49.0f, 64.0f};
+    memcpy(s.xmm[1].q, vals, 32);
+
+    Vex v; v.mm = 1; v.pp = 0; v.W = false; v.reg = 0; v.vvvv = 0; v.rm = 1;
+
+    // These are approximate — use approx comparison
+    v.opcode = 0x53; v.L = false;
+    {
+      TestCase tc = {"VRCPPS xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false};
+      tc.approx_rel_tol = 1.6e-3;  // RCPPS has ~1.5*2^-12 precision
+      tc.approx_elem_bits = 32;
+      tests.push_back(std::move(tc));
+    }
+    v.opcode = 0x52; v.L = false;
+    {
+      TestCase tc = {"VRSQRTPS xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false};
+      tc.approx_rel_tol = 1.6e-3;
+      tc.approx_elem_bits = 32;
+      tests.push_back(std::move(tc));
+    }
+
+    // Scalar versions
+    v.pp = 2; v.vvvv = 1;  // F3, merge upper from vvvv
+    v.opcode = 0x53;
+    {
+      TestCase tc = {"VRCPSS xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false};
+      tc.approx_rel_tol = 1.6e-3;
+      tc.approx_elem_bits = 32;
+      tests.push_back(std::move(tc));
+    }
+    v.opcode = 0x52;
+    {
+      TestCase tc = {"VRSQRTSS xmm", cat, v.encode_rr(), s, FL_NONE, 0x3, false};
+      tc.approx_rel_tol = 1.6e-3;
+      tc.approx_elem_bits = 32;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // VPSHUFB VEX: VEX.66.0F38.WIG 00 /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i + 1;
+    for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 15 - (i % 16);
+
+    Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x00;
+    v.reg = 0; v.vvvv = 1; v.rm = 2;
+    v.L = false;
+    tests.push_back({"VPSHUFB xmm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPSHUFB ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+
+  // VPCLMULQDQ VEX: VEX.66.0F3A.WIG 44 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
+    s.xmm[2] = xmm_from_u64(0x5A5A5A5A5A5A5A5A, 0xA5A5A5A5A5A5A5A5);
+
+    Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x44;
+    v.reg = 0; v.vvvv = 1; v.rm = 2; v.L = false;
+    tests.push_back({"VPCLMULQDQ xmm imm=0x00", cat, v.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+    tests.push_back({"VPCLMULQDQ xmm imm=0x11", cat, v.encode_rr_imm(0x11), s, FL_NONE, 0x3, false});
+  }
 }
