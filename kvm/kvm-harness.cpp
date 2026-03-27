@@ -811,7 +811,8 @@ int main(int argc, char **argv) {
       ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
 
       bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
-                                  tc.cmp_mxcsr, tc.kreg_mask);
+                                  tc.cmp_mxcsr, tc.kreg_mask,
+                                  tc.approx_rel_tol, tc.approx_elem_bits);
 
       if (tc.compare_data_len > 0 &&
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {

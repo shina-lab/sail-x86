@@ -177,7 +177,8 @@ struct ArchState {
   }
 
   bool compare(const ArchState &other, u64 flags_mask, u32 xmm_mask,
-               bool cmp_mxcsr, u8 kreg_mask = 0) const {
+               bool cmp_mxcsr, u8 kreg_mask = 0,
+               double approx_rel_tol = 0, int approx_elem_bits = 0) const {
     bool ok = true;
     auto cmp = [&](const std::string &name, u64 a, u64 b) {
       if (a != b) {
@@ -205,7 +206,32 @@ struct ArchState {
     cmp("RFLAGS", rflags & flags_mask, other.rflags & flags_mask);
     for (int i = 0; i < 32; i++) {
       if (xmm_mask & (1u << i)) {
-        if (xmm[i] != other.xmm[i]) {
+        bool zmm_ok = true;
+        if (approx_rel_tol > 0 && approx_elem_bits > 0) {
+          // Tolerance-based comparison for approximate instructions
+          int n_elems = 512 / approx_elem_bits;
+          for (int e = 0; e < n_elems; e++) {
+            double a_val, b_val;
+            if (approx_elem_bits == 32) {
+              u32 a_u, b_u;
+              memcpy(&a_u, (u8 *)xmm[i].q + e * 4, 4);
+              memcpy(&b_u, (u8 *)other.xmm[i].q + e * 4, 4);
+              float a_f, b_f;
+              memcpy(&a_f, &a_u, 4); memcpy(&b_f, &b_u, 4);
+              a_val = a_f; b_val = b_f;
+            } else {
+              memcpy(&a_val, (u8 *)xmm[i].q + e * 8, 8);
+              memcpy(&b_val, (u8 *)other.xmm[i].q + e * 8, 8);
+            }
+            if (a_val == 0 && b_val == 0) continue;
+            double ref = (a_val != 0) ? a_val : b_val;
+            double rel_err = (ref != 0) ? fabs(a_val - b_val) / fabs(ref) : fabs(a_val - b_val);
+            if (rel_err > approx_rel_tol) { zmm_ok = false; break; }
+          }
+        } else {
+          zmm_ok = (xmm[i] == other.xmm[i]);
+        }
+        if (!zmm_ok) {
           fprintf(stderr, "  MISMATCH ZMM%d: kvm=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n"
                   "                 sail=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n",
                   i,
@@ -261,6 +287,8 @@ struct TestCase {
   u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
   u64 xcr0_override = 0;          // if nonzero, override XCR0 for this test
   u64 cr4_override = 0;           // if nonzero, override CR4 for this test
+  double approx_rel_tol = 0;      // if nonzero, compare XMM with relative tolerance (for VRCP14, VRSQRT14 etc)
+  int approx_elem_bits = 0;       // element size for approximate comparison (32 or 64)
   bool compat_mode = false;       // execute test code in 32-bit compatibility mode
 };
 

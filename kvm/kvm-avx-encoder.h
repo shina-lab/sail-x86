@@ -218,6 +218,30 @@ static inline void add_evex_rr_tests(
   }
 }
 
+// Add tests for approximate instructions (VRCP14, VRSQRT14) with tolerance comparison.
+// SDM specifies < 2^-14 relative error for these instructions.
+static inline void add_evex_rr_approx_tests(
+    std::vector<TestCase> &tests,
+    const std::string &cat,
+    const char *mnemonic,
+    Evex base,
+    ArchState init,
+    u32 xmm_cmp,
+    int elem_bits,  // 32 or 64
+    double rel_tol = 6.2e-5  // 2^-14 ≈ 6.1e-5, use slightly larger
+) {
+  const char *vl_name[] = {"xmm", "ymm", "zmm"};
+  const int vl_bits[] = {128, 256, 512};
+  for (int ll = 0; ll <= 2; ll++) {
+    std::string suffix = std::string(vl_name[ll]) + " (VL" + std::to_string(vl_bits[ll]) + ")";
+    base.LL = ll; base.aaa = 0; base.z = false;
+    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rr(), init, FL_NONE, xmm_cmp, false};
+    tc.approx_rel_tol = rel_tol;
+    tc.approx_elem_bits = elem_bits;
+    tests.push_back(std::move(tc));
+  }
+}
+
 // Add tests for reg <- [rdi] memory source at all three VLs with masking.
 // Caller must set init.rdi = DATA_ADDR and provide init_data.
 static inline void add_evex_rm_tests(

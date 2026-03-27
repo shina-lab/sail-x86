@@ -326,4 +326,199 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       add_evex_rr_tests(tests, cat, ss.name, e, s, 0x7, 0x55555555);
     }
   }
+
+  // =====================================================================
+  // VCOMPRESSPD/PS: compress packed elements using writemask
+  // EVEX.66.0F38.W1 8A /r (VCOMPRESSPD)
+  // EVEX.66.0F38.W0 8A /r (VCOMPRESSPS)
+  // VPCOMPRESSD: EVEX.66.0F38.W0 8B /r
+  // VPCOMPRESSQ: EVEX.66.0F38.W1 8B /r
+  // VPCOMPRESSB: EVEX.66.0F38.W0 63 /r
+  // VPCOMPRESSW: EVEX.66.0F38.W1 63 /r
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+
+    struct { const char *name; u8 opcode; bool W; u32 kmask; } compress[] = {
+      {"VCOMPRESSPS",  0x8A, false, 0xAAAA},
+      {"VCOMPRESSPD",  0x8A, true,  0x55},
+      {"VPCOMPRESSD",  0x8B, false, 0xAAAA},
+      {"VPCOMPRESSQ",  0x8B, true,  0x55},
+      {"VPCOMPRESSB",  0x63, false, 0xAAAAAAAA},
+      {"VPCOMPRESSW",  0x63, true,  0x55555555},
+    };
+    for (const auto &c : compress) {
+      Evex e; e.mm = 2; e.pp = 1; e.W = c.W; e.opcode = c.opcode;
+      e.reg = 1; e.vvvv = 0; e.rm = 0;  // src=reg(xmm1), dst=rm(xmm0)
+      add_evex_rr_tests(tests, cat, c.name, e, s, 0x3, c.kmask);
+    }
+  }
+
+  // =====================================================================
+  // VEXPANDPD/PS: expand packed elements using writemask
+  // EVEX.66.0F38.W1 88 /r (VEXPANDPD)
+  // EVEX.66.0F38.W0 88 /r (VEXPANDPS)
+  // VPEXPANDD: EVEX.66.0F38.W0 89 /r
+  // VPEXPANDQ: EVEX.66.0F38.W1 89 /r
+  // VPEXPANDB: EVEX.66.0F38.W0 62 /r
+  // VPEXPANDW: EVEX.66.0F38.W1 62 /r
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+
+    struct { const char *name; u8 opcode; bool W; u32 kmask; } expand[] = {
+      {"VEXPANDPS",  0x88, false, 0xAAAA},
+      {"VEXPANDPD",  0x88, true,  0x55},
+      {"VPEXPANDD",  0x89, false, 0xAAAA},
+      {"VPEXPANDQ",  0x89, true,  0x55},
+      {"VPEXPANDB",  0x62, false, 0xAAAAAAAA},
+      {"VPEXPANDW",  0x62, true,  0x55555555},
+    };
+    for (const auto &x : expand) {
+      Evex e; e.mm = 2; e.pp = 1; e.W = x.W; e.opcode = x.opcode;
+      e.reg = 0; e.vvvv = 0; e.rm = 1;
+      add_evex_rr_tests(tests, cat, x.name, e, s, 0x3, x.kmask);
+    }
+  }
+
+  // =====================================================================
+  // VCMPPS/PD: packed FP compare with immediate predicate → k-register
+  // EVEX.NP.0F.W0 C2 /r ib (VCMPPS)
+  // EVEX.66.0F.W1 C2 /r ib (VCMPPD)
+  // =====================================================================
+  {
+    static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
+
+    ArchState s = {}; s.rflags = 0x2;
+    float ps1[] = {1.0f, 5.0f, 3.0f, 5.0f, 5.0f, 2.0f, 7.0f, 5.0f,
+                   1.0f, 5.0f, 3.0f, 5.0f, 5.0f, 2.0f, 7.0f, 5.0f};
+    float ps2[] = {5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f,
+                   5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f, 5.0f};
+    memcpy(s.xmm[1].q, ps1, 64);
+    memcpy(s.xmm[2].q, ps2, 64);
+
+    Evex e; e.mm = 1; e.pp = 0; e.W = false; e.opcode = 0xC2;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      // imm=0: EQ
+      auto code = e.encode_rr_imm(0);
+      code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+      tests.push_back({std::string("VCMPPS EQ ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      // imm=1: LT
+      code = e.encode_rr_imm(1);
+      code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+      tests.push_back({std::string("VCMPPS LT ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+    }
+  }
+  {
+    static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
+
+    ArchState s = {}; s.rflags = 0x2;
+    double pd1[] = {1.0, 5.0, 3.0, 5.0, 5.0, 2.0, 7.0, 5.0};
+    double pd2[] = {5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0};
+    memcpy(s.xmm[1].q, pd1, 64);
+    memcpy(s.xmm[2].q, pd2, 64);
+
+    Evex e; e.mm = 1; e.pp = 1; e.W = true; e.opcode = 0xC2;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      auto code = e.encode_rr_imm(0);
+      code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+      tests.push_back({std::string("VCMPPD EQ ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      code = e.encode_rr_imm(1);
+      code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+      tests.push_back({std::string("VCMPPD LT ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+    }
+  }
+
+  // =====================================================================
+  // VGETEXPPS/PD: extract FP exponents
+  // EVEX.66.0F38.W0 42 /r (VGETEXPPS)
+  // EVEX.66.0F38.W1 42 /r (VGETEXPPD)
+  // VSCALEFPS/PD: scale FP by integer exponents
+  // EVEX.66.0F38.W0 2C /r (VSCALEFPS)
+  // EVEX.66.0F38.W1 2C /r (VSCALEFPD)
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.0f, 2.0f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f,
+                    1.0f, 2.0f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x42;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    add_evex_rr_tests(tests, cat, "VGETEXPPS", e, s, 0x3, 0xAAAA);
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {1.0, 2.0, 4.0, 8.0, 0.5, 0.25, 16.0, 64.0};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x42;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    add_evex_rr_tests(tests, cat, "VGETEXPPD", e, s, 0x3, 0x55);
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.0f, 2.0f, 0.5f, 4.0f, 1.0f, 2.0f, 0.5f, 4.0f,
+                    1.0f, 2.0f, 0.5f, 4.0f, 1.0f, 2.0f, 0.5f, 4.0f};
+    float exps[] = {2.0f, 3.0f, -1.0f, 0.0f, 2.0f, 3.0f, -1.0f, 0.0f,
+                    2.0f, 3.0f, -1.0f, 0.0f, 2.0f, 3.0f, -1.0f, 0.0f};
+    memcpy(s.xmm[1].q, vals, 64);
+    memcpy(s.xmm[2].q, exps, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x2C;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_evex_rr_tests(tests, cat, "VSCALEFPS", e, s, 0x7, 0xAAAA);
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {1.0, 2.0, 0.5, 4.0, 1.0, 2.0, 0.5, 4.0};
+    double exps[] = {2.0, 3.0, -1.0, 0.0, 2.0, 3.0, -1.0, 0.0};
+    memcpy(s.xmm[1].q, vals, 64);
+    memcpy(s.xmm[2].q, exps, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x2C;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_evex_rr_tests(tests, cat, "VSCALEFPD", e, s, 0x7, 0x55);
+  }
+
+  // =====================================================================
+  // VRCP14PS/PD: approximate reciprocal
+  // EVEX.66.0F38.W0 4C /r (VRCP14PS)
+  // EVEX.66.0F38.W1 4C /r (VRCP14PD)
+  // VRSQRT14PS/PD: approximate reciprocal square root
+  // EVEX.66.0F38.W0 4E /r (VRSQRT14PS)
+  // EVEX.66.0F38.W1 4E /r (VRSQRT14PD)
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float vals[] = {1.0f, 2.0f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f,
+                    1.0f, 2.0f, 4.0f, 8.0f, 0.5f, 0.25f, 16.0f, 64.0f};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.W = false; e.opcode = 0x4C;
+    add_evex_rr_tests(tests, cat, "VRCP14PS", e, s, 0x3, 0xAAAA);
+    e.W = false; e.opcode = 0x4E;
+    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PS", e, s, 0x3, 32);
+  }
+  // VRCP14PD/VRSQRT14PD need f64 source data
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double vals[] = {1.0, 2.0, 4.0, 8.0, 0.5, 0.25, 16.0, 64.0};
+    memcpy(s.xmm[1].q, vals, 64);
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.W = true; e.opcode = 0x4C;
+    add_evex_rr_approx_tests(tests, cat, "VRCP14PD", e, s, 0x3, 64);
+    e.W = true; e.opcode = 0x4E;
+    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PD", e, s, 0x3, 64);
+  }
 }
