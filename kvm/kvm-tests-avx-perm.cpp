@@ -231,4 +231,95 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     e.reg = 0; e.vvvv = 1; e.rm = 2;
     add_evex_rr_tests(tests, cat, "VPERMB", e, s, 0x7, 0xAAAAAAAA);
   }
+
+  // VPERMPS: EVEX.66.0F38.W0 16 /r (VL256/512 only)
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0xA0 + i;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = (15 - i) % 16;
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x16;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_evex_rr_tests_vl(tests, cat, "VPERMPS", e, s, 0x7, 0xAAAA, 1);
+  }
+
+  // VPERMPD: EVEX.66.0F38.W1 16 /r (VL256/512 only)
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0xA0 + i;
+    for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (7 - i) % 8;
+    Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x16;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_evex_rr_tests_vl(tests, cat, "VPERMPD", e, s, 0x7, 0x55, 1);
+  }
+
+  // VPERMI2D: EVEX.66.0F38.W0 76 /r
+  // VPERMI2Q: EVEX.66.0F38.W1 76 /r
+  // VPERMI2PS: EVEX.66.0F38.W0 77 /r
+  // VPERMI2PD: EVEX.66.0F38.W1 77 /r
+  // VPERMI2B: EVEX.66.0F38.W0 75 /r
+  // VPERMI2W: EVEX.66.0F38.W1 75 /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    // dst = indices, src1(vvvv) = table0, src2(rm) = table1
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[0].q)[i] = i;  // indices
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0xA0 + i;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0xB0 + i;
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.W = false; e.opcode = 0x76;
+    add_evex_rr_tests(tests, cat, "VPERMI2D", e, s, 0x7, 0xAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMI2Q", e, s, 0x7, 0x55);
+    e.W = false; e.opcode = 0x77;
+    add_evex_rr_tests(tests, cat, "VPERMI2PS", e, s, 0x7, 0xAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMI2PD", e, s, 0x7, 0x55);
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[0].q)[i] = i;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 0xA0 + i;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0xB0 + i;
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.W = false; e.opcode = 0x75;
+    add_evex_rr_tests(tests, cat, "VPERMI2B", e, s, 0x7, 0xAAAAAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMI2W", e, s, 0x7, 0x55555555);
+  }
+
+  // VPERMT2D: EVEX.66.0F38.W0 7E /r
+  // VPERMT2Q: EVEX.66.0F38.W1 7E /r
+  // VPERMT2PS: EVEX.66.0F38.W0 7F /r
+  // VPERMT2PD: EVEX.66.0F38.W1 7F /r
+  // VPERMT2B: EVEX.66.0F38.W0 7D /r
+  // VPERMT2W: EVEX.66.0F38.W1 7D /r
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[0].q)[i] = 0xA0 + i;  // table0
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i;  // indices (vvvv)
+    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0xB0 + i;  // table1
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.W = false; e.opcode = 0x7E;
+    add_evex_rr_tests(tests, cat, "VPERMT2D", e, s, 0x7, 0xAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMT2Q", e, s, 0x7, 0x55);
+    e.W = false; e.opcode = 0x7F;
+    add_evex_rr_tests(tests, cat, "VPERMT2PS", e, s, 0x7, 0xAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMT2PD", e, s, 0x7, 0x55);
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[0].q)[i] = 0xA0 + i;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0xB0 + i;
+
+    Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.W = false; e.opcode = 0x7D;
+    add_evex_rr_tests(tests, cat, "VPERMT2B", e, s, 0x7, 0xAAAAAAAA);
+    e.W = true;
+    add_evex_rr_tests(tests, cat, "VPERMT2W", e, s, 0x7, 0x55555555);
+  }
 }
