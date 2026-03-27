@@ -519,11 +519,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_l then {
       // 256-bit: 8 FP16 -> 8 FP32
       let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
-      write_ymm(dst, avx_vcvtph2ps_256(src))
+      write_ymm(dst, avx_vcvtph2ps(src))
     } else {
       // 128-bit: 4 FP16 -> 4 FP32
       let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
-      write_xmm(dst, avx_vcvtph2ps_128(src[63..0]))
+      write_xmm(dst, avx_vcvtph2ps(src[63..0]))
     }
   },
 

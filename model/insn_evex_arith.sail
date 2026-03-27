@@ -19,7 +19,6 @@ function avx_ptestm(eb, a, b, neg) = {
   r
 }
 
-
 // =========================================================================
 // VPCMPUB: compare unsigned bytes with imm8 predicate, produce kmask
 // imm8: 0=eq, 1=lt, 2=le, 4=neq, 5=nlt(>=), 6=nle(>)
@@ -195,12 +194,6 @@ function avx_vdpbf16ps(dst, src1, src2) = {
   r
 }
 
-/* ---- VCVTPH2PS/VCVTPS2PH: 512-bit variants (128/256 defined in insn_vex.sail) ---- */
-
-val avx_vcvtph2ps_512 : ymmword -> zmmword
-function avx_vcvtph2ps_512(src) = {
-  avx_vcvtph2ps_256(src[255..128]) @ avx_vcvtph2ps_256(src[127..0])
-}
 
 val avx_vpmultishiftqb_lane : (qword, qword) -> qword
 function avx_vpmultishiftqb_lane(ctrl, src) = {
@@ -601,23 +594,21 @@ function dispatch_evex_arith(op, pfx) = {
       if pfx.rex_w then raise_UD();
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
-      match pfx.evex_ll {
-        0 => {
-          let src = modrm_rm_evex(modrm, pfx, 8);
-          let src_q = evex_src_xmm(modrm, src, pfx);
-          evex_write(dst, evex_wmask(pfx, 4), avx_vcvtph2ps_128(src_q[63..0]))
+      let vl = evex_vl(pfx);
+      let src = modrm_rm_evex(modrm, pfx, vl / 16);
+      match vl {
+        128 => {
+          let half : xmmword = evex_widen_src_2(modrm, src, pfx);
+          evex_write(dst, evex_wmask(pfx, 4), avx_vcvtph2ps(half[63..0]))
         },
-        1 => {
-          let src = modrm_rm_evex(modrm, pfx, 16);
-          let src_x = evex_src_xmm(modrm, src, pfx);
-          evex_write(dst, evex_wmask(pfx, 8), avx_vcvtph2ps_256(src_x))
+        256 => {
+          let half : ymmword = evex_widen_src_2(modrm, src, pfx);
+          evex_write(dst, evex_wmask(pfx, 8), avx_vcvtph2ps(half[127..0]))
         },
-        2 => {
-          let src2 = modrm_rm_evex(modrm, pfx, 32);
-          let src = evex_src_ymm(modrm, src2, pfx);
-          evex_write(dst, evex_wmask(pfx, 16), avx_vcvtph2ps_512(src))
+        512 => {
+          let half : zmmword = evex_widen_src_2(modrm, src, pfx);
+          evex_write(dst, evex_wmask(pfx, 16), avx_vcvtph2ps(half[255..0]))
         },
-        3 => raise_UD(),
       }
     } else if mp == MP_F3 then {
       let modrm = fetch(1);

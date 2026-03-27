@@ -521,21 +521,21 @@ function fp32_to_fp16(f, rc) = {
   sign @ body
 }
 
-val avx_vcvtph2ps_128 : bits(64) -> xmmword
-function avx_vcvtph2ps_128(src) = {
-  fp16_to_fp32(src[63..48]) @ fp16_to_fp32(src[47..32]) @
-  fp16_to_fp32(src[31..16]) @ fp16_to_fp32(src[15..0])
+val avx_vcvtph2ps : forall 'n, 'n in {64, 128, 256}. bits('n) -> bits('n * 2)
+function avx_vcvtph2ps(src) = {
+  var r : bits('n * 2) = zeros();
+  foreach (i from 0 to ('n / 16 - 1)) {
+    let src_lo = i * 16;
+    let dst_lo = i * 32;
+    r[(dst_lo + 31)..dst_lo] = fp16_to_fp32(src[(src_lo + 15)..src_lo]);
+  };
+  r
 }
 
 val avx_vcvtps2ph_128 : (xmmword, bits(2)) -> bits(64)
 function avx_vcvtps2ph_128(src, rc) = {
   fp32_to_fp16(src[127..96], rc) @ fp32_to_fp16(src[95..64], rc) @
   fp32_to_fp16(src[63..32], rc) @ fp32_to_fp16(src[31..0], rc)
-}
-
-val avx_vcvtph2ps_256 : xmmword -> ymmword
-function avx_vcvtph2ps_256(src) = {
-  avx_vcvtph2ps_128(src[127..64]) @ avx_vcvtph2ps_128(src[63..0])
 }
 
 val avx_vcvtps2ph_256 : (ymmword, bits(2)) -> xmmword
