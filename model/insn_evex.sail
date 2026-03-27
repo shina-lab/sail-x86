@@ -110,13 +110,6 @@ function evex_kmask64(pfx) = {
   sign_extend(is_zero(to_bits(3, pfx.evex_aaa))) | read_kreg(pfx.evex_aaa)
 }
 
-val evex_get_mask16 : Prefixes -> word
-function evex_get_mask16(pfx) = evex_kmask64(pfx)[15..0]
-
-val evex_get_mask8 : Prefixes -> byte
-function evex_get_mask8(pfx) = evex_kmask64(pfx)[7..0]
-
-
 // Read a 16-bit value from r/m for broadcast.
 val evex_src_m16 : (byte, RM, Prefixes) -> word
 function evex_src_m16(modrm, rm, pfx) = match rm {
