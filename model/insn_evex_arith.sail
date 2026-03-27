@@ -1173,30 +1173,20 @@ function dispatch_evex_arith(op, pfx) = {
         // VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 (W=0)
         if pfx.rex_w then raise_UD();
         let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src { RM_mem(_) => true, _ => false };
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 16);
         evex_write(dst, mask, avx_vcvtne2ps2bf16(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       MP_F3 => {
-        // VCVTNEPS2BF16: convert packed FP32 → packed BF16 (W=0, vvvv must be 1111)
+        // VCVTNEPS2BF16: convert packed FP32 → packed BF16 (W=0)
         if pfx.rex_w then raise_UD();
-        let src2 = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src2 { RM_mem(_) => true, _ => false };
-        match pfx.evex_ll {
-          0 => {
-            let src = evex_bcast_src_f32_xmm(modrm, src2, pfx, is_mem);
-            evex_write(dst, evex_wmask(pfx, 8), avx_vcvtneps2bf16(src)[127..0])
-          },
-          1 => {
-            let src = evex_bcast_src_f32_ymm(modrm, src2, pfx, is_mem);
-            evex_write(dst, evex_wmask(pfx, 8), avx_vcvtneps2bf16(src)[127..0])
-          },
-          2 => {
-            let src = evex_bcast_src_f32_zmm(modrm, src2, pfx, is_mem);
-            evex_write(dst, evex_wmask(pfx, 16), avx_vcvtneps2bf16(src)[255..0])
-          },
-          3 => raise_UD(),
+        let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+        let vl = evex_vl(pfx);
+        let res = avx_vcvtneps2bf16(evex_bcast_src(vl, modrm, src, pfx, 32));
+        match vl {
+          128 => evex_write(dst, evex_wmask(pfx, 8), res),
+          256 => evex_write(dst, evex_wmask(pfx, 8), res[127..0]),
+          512 => evex_write(dst, evex_wmask(pfx, 16), res[255..0]),
         }
       },
       _ => raise_UD(),
