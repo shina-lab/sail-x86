@@ -751,47 +751,6 @@ function avx_psignd_256(a, b) =
 // SSE4.1 integer helpers — PMINUW, PCMPEQQ, PHMINPOSUW
 // =========================================================================
 
-val avx_pminuw_128 : (xmmword, xmmword) -> xmmword
-function avx_pminuw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16;
-    let hi = lo + 15;
-    let av : word = a[(hi)..(lo)];
-    let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = min_u(av, bv)
-  };
-  r
-}
-
-val avx_pminuw_256 : (ymmword, ymmword) -> ymmword
-function avx_pminuw_256(a, b) =
-  avx_pminuw_128(a[255..128], b[255..128]) @
-  avx_pminuw_128(a[127..0], b[127..0])
-
-val avx_pminuw_512 : (zmmword, zmmword) -> zmmword
-function avx_pminuw_512(a, b) =
-  avx_pminuw_256(a[511..256], b[511..256]) @
-  avx_pminuw_256(a[255..0], b[255..0])
-
-val avx_maxuw_128 : (xmmword, xmmword) -> xmmword
-function avx_maxuw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16;
-    let hi = lo + 15;
-    let av : word = a[(hi)..(lo)];
-    let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = max_u(av, bv)
-  };
-  r
-}
-
-val avx_maxuw_256 : (ymmword, ymmword) -> ymmword
-function avx_maxuw_256(a, b) =
-  avx_maxuw_128(a[255..128], b[255..128]) @
-  avx_maxuw_128(a[127..0], b[127..0])
-
 val avx_pcmpeqq_128 : (xmmword, xmmword) -> xmmword
 function avx_pcmpeqq_128(a, b) =
   cmp_eq(a[127..64], b[127..64]) @

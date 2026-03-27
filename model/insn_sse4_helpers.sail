@@ -8,110 +8,7 @@
 // packed_widen_unop(op, src_eb, dst_eb, src) in insn_vex.sail.
 // See PackedWidenOp enum: PW_SignExtend, PW_ZeroExtend.
 
-// =========================================================================
-// SSE4.1 min/max signed/unsigned helpers (128/256-bit only, for VEX use)
-// =========================================================================
-
-val avx_pminsb_128 : (xmmword, xmmword) -> xmmword
-function avx_pminsb_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    let va = a[(lo + 7)..lo];
-    let vb = b[(lo + 7)..lo];
-    r[(lo + 7)..lo] = min_s(va, vb);
-  };
-  r
-}
-
-val avx_pminsb_256 : (ymmword, ymmword) -> ymmword
-function avx_pminsb_256(a, b) =
-  avx_pminsb_128(a[255..128], b[255..128]) @ avx_pminsb_128(a[127..0], b[127..0])
-
-val avx_pminsd_128 : (xmmword, xmmword) -> xmmword
-function avx_pminsd_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let va = a[(lo + 31)..lo];
-    let vb = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = min_s(va, vb);
-  };
-  r
-}
-
-val avx_pminsd_256 : (ymmword, ymmword) -> ymmword
-function avx_pminsd_256(a, b) =
-  avx_pminsd_128(a[255..128], b[255..128]) @ avx_pminsd_128(a[127..0], b[127..0])
-
-val avx_pminud_128 : (xmmword, xmmword) -> xmmword
-function avx_pminud_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let av : dword = a[(lo + 31)..lo];
-    let bv : dword = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = min_u(av, bv)
-  };
-  r
-}
-
-val avx_pminud_256 : (ymmword, ymmword) -> ymmword
-function avx_pminud_256(a, b) =
-  avx_pminud_128(a[255..128], b[255..128]) @ avx_pminud_128(a[127..0], b[127..0])
-
-val avx_pmaxsb_128 : (xmmword, xmmword) -> xmmword
-function avx_pmaxsb_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    let va = a[(lo + 7)..lo];
-    let vb = b[(lo + 7)..lo];
-    r[(lo + 7)..lo] = max_s(va, vb);
-  };
-  r
-}
-
-val avx_pmaxsb_256 : (ymmword, ymmword) -> ymmword
-function avx_pmaxsb_256(a, b) =
-  avx_pmaxsb_128(a[255..128], b[255..128]) @ avx_pmaxsb_128(a[127..0], b[127..0])
-
-val avx_pmaxsd_128 : (xmmword, xmmword) -> xmmword
-function avx_pmaxsd_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let va = a[(lo + 31)..lo];
-    let vb = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = max_s(va, vb);
-  };
-  r
-}
-
-val avx_pmaxsd_256 : (ymmword, ymmword) -> ymmword
-function avx_pmaxsd_256(a, b) =
-  avx_pmaxsd_128(a[255..128], b[255..128]) @ avx_pmaxsd_128(a[127..0], b[127..0])
-
-val avx_pmaxud_128 : (xmmword, xmmword) -> xmmword
-function avx_pmaxud_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let av : dword = a[(lo + 31)..lo];
-    let bv : dword = b[(lo + 31)..lo];
-    r[(lo + 31)..lo] = max_u(av, bv)
-  };
-  r
-}
-
-val avx_pmaxud_256 : (ymmword, ymmword) -> ymmword
-function avx_pmaxud_256(a, b) =
-  avx_pmaxud_128(a[255..128], b[255..128]) @ avx_pmaxud_128(a[127..0], b[127..0])
-
-// =========================================================================
-// SSE4.1 multiply helpers (128/256-bit only, for VEX use)
-// =========================================================================
-
+// pmuldq and pmulld kept for VEX (not yet in packed_binop)
 val avx_pmuldq_128 : (xmmword, xmmword) -> xmmword
 function avx_pmuldq_128(a, b) = {
   let lo_prod : bits(64) = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
@@ -122,21 +19,6 @@ function avx_pmuldq_128(a, b) = {
 val avx_pmuldq_256 : (ymmword, ymmword) -> ymmword
 function avx_pmuldq_256(a, b) =
   avx_pmuldq_128(a[255..128], b[255..128]) @ avx_pmuldq_128(a[127..0], b[127..0])
-
-val avx_pmulld_128 : (xmmword, xmmword) -> xmmword
-function avx_pmulld_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let prod : int = signed(a[(lo + 31)..lo]) * signed(b[(lo + 31)..lo]);
-    r[(lo + 31)..lo] = to_bits_truncate(prod);
-  };
-  r
-}
-
-val avx_pmulld_256 : (ymmword, ymmword) -> ymmword
-function avx_pmulld_256(a, b) =
-  avx_pmulld_128(a[255..128], b[255..128]) @ avx_pmulld_128(a[127..0], b[127..0])
 
 // =========================================================================
 // VPACKUSDW: pack dwords to words with unsigned saturation (for VEX use)

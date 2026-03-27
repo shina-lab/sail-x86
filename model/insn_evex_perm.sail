@@ -1136,12 +1136,9 @@ function dispatch_evex_perm(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let src1_idx = pfx.evex_vvvvv;
-      match pfx.evex_ll {
-        0 => evex_write(dst, evex_wmask(pfx, 8), avx_pminuw_128(read_xmm(src1_idx), evex_src(128,modrm, src, pfx))),
-        1 => evex_write(dst, evex_wmask(pfx, 16), avx_pminuw_256(read_ymm(src1_idx), evex_src(256,modrm, src, pfx))),
-        2 => evex_write(dst, evex_wmask(pfx, 32), avx_pminuw_512(read_zmm(src1_idx), evex_src(512,modrm, src, pfx))),
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let mask = evex_wmask(pfx, vl / 16);
+      evex_write(dst, mask, packed_binop(PB_MinU, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       if ~(pfx.rex_w) then {
         // VPBROADCASTMW2D: broadcast low word of k-register to all dword elements

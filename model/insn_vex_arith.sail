@@ -1148,132 +1148,88 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pminsb_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pminsb_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 39: VPMINSD (66 prefix)
-  // Packed minimum of signed dwords
   57 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pminsd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pminsd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinS, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3A: VPMINUW (66 prefix)
-  // Packed minimum of unsigned words
   58 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pminuw_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pminuw_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3B: VPMINUD (66 prefix)
-  // Packed minimum of unsigned dwords
   59 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pminud_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pminud_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinU, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3C: VPMAXSB (66 prefix)
-  // Packed maximum of signed bytes
   60 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmaxsb_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmaxsb_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3D: VPMAXSD (66 prefix)
-  // Packed maximum of signed dwords
   61 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmaxsd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmaxsd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxS, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3E: VPMAXUW (66 prefix)
-  // Packed maximum of unsigned words
   62 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_maxuw_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_maxuw_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 3F: VPMAXUD (66 prefix)
-  // Packed maximum of unsigned dwords
   63 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmaxud_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmaxud_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxU, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 40: VPMULLD (66 prefix)
-  // Multiply packed dword integers, store low 32 bits of each result
   64 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmulld_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmulld_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MulLow, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 41: VPHMINPOSUW (66 prefix, VEX.128 only, vvvv must be 1111b)
