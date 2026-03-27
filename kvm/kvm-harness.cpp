@@ -359,7 +359,7 @@ struct KvmVm {
     for (int i = 0; i < 16; i++)
       memcpy(xs + 0x580 + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
 
-    // XSTATE_BV at offset 0x200: all AVX-512 components
+    // XSTATE_BV: mark all AVX-512 components as valid
     u64 xstate_bv = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
     memcpy(xs + 0x200, &xstate_bv, 8);
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
@@ -725,6 +725,7 @@ std::vector<TestCase> build_tests() {
   add_avx_scalar_tests(tests);
   add_avx_narrow_tests(tests);
   add_avx_cmp_tests(tests);
+  add_avx_perm_tests(tests);
 
   return tests;
 }

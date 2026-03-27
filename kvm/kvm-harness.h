@@ -284,5 +284,6 @@ void add_avx_fma_tests(std::vector<TestCase> &tests);
 void add_avx_scalar_tests(std::vector<TestCase> &tests);
 void add_avx_narrow_tests(std::vector<TestCase> &tests);
 void add_avx_cmp_tests(std::vector<TestCase> &tests);
+void add_avx_perm_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H
