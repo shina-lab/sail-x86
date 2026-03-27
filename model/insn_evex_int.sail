@@ -569,51 +569,28 @@ function avx_psraw_imm(vl, a, count) = {
 }
 
 // VPSRAD: arithmetic right shift dwords by imm
-val arith_shr_dwords_128b : (xmmword, range(0, 255)) -> xmmword
-function arith_shr_dwords_128b(a, count) =
-  (a[127..96] >>> count) @
-  (a[95..64] >>> count) @
-  (a[63..32] >>> count) @
-  (a[31..0] >>> count)
-
-val arith_shr_dwords_256b : (ymmword, range(0, 255)) -> ymmword
-function arith_shr_dwords_256b(a, count) =
-  (a[255..224] >>> count) @
-  (a[223..192] >>> count) @
-  (a[191..160] >>> count) @
-  (a[159..128] >>> count) @
-  (a[127..96] >>> count) @
-  (a[95..64] >>> count) @
-  (a[63..32] >>> count) @
-  (a[31..0] >>> count)
-
-val arith_shr_dwords_512b : (zmmword, range(0, 255)) -> zmmword
-function arith_shr_dwords_512b(a, count) =
-  arith_shr_dwords_256b(a[511..256], count) @ arith_shr_dwords_256b(a[255..0], count)
+val arith_shr_dwords : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), range(0, 255)) -> bits('vl)
+function arith_shr_dwords(a, count) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = a[(lo + 31)..lo] >>> count;
+  };
+  r
+}
 
 // VPSRAQ: arithmetic right shift qwords by imm (AVX-512 new)
-val arith_shr_qwords_128b : (xmmword, range(0, 255)) -> xmmword
-function arith_shr_qwords_128b(a, count) =
-  (a[127..64] >>> count) @
-  (a[63..0] >>> count)
-
-val arith_shr_qwords_256b : (ymmword, range(0, 255)) -> ymmword
-function arith_shr_qwords_256b(a, count) =
-  (a[255..192] >>> count) @
-  (a[191..128] >>> count) @
-  (a[127..64] >>> count) @
-  (a[63..0] >>> count)
-
-val arith_shr_qwords_512b : (zmmword, range(0, 255)) -> zmmword
-function arith_shr_qwords_512b(a, count) =
-  (a[511..448] >>> count) @
-  (a[447..384] >>> count) @
-  (a[383..320] >>> count) @
-  (a[319..256] >>> count) @
-  (a[255..192] >>> count) @
-  (a[191..128] >>> count) @
-  (a[127..64] >>> count) @
-  (a[63..0] >>> count)
+val arith_shr_qwords : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), range(0, 255)) -> bits('vl)
+function arith_shr_qwords(a, count) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = a[(lo + 63)..lo] >>> count;
+  };
+  r
+}
 
 // VPSLLDQ: byte shift left per 128-bit lane
 val avx_pslldq_lane : (xmmword, range(0, 255)) -> xmmword
@@ -660,13 +637,16 @@ function evex_vprold_128(src, cnt) = {
   r
 }
 
-val evex_vprold_256 : (ymmword, ymmword) -> ymmword
-function evex_vprold_256(a, b) =
-  evex_vprold_128(a[255..128], b[255..128]) @ evex_vprold_128(a[127..0], b[127..0])
-
-val evex_vprold_512 : (zmmword, zmmword) -> zmmword
-function evex_vprold_512(a, b) =
-  evex_vprold_256(a[511..256], b[511..256]) @ evex_vprold_256(a[255..0], b[255..0])
+val evex_vprold : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), bits('vl)) -> bits('vl)
+function evex_vprold(src, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (lane from 0 to ('vl / 128 - 1)) {
+    let lo = lane * 128;
+    r[(lo + 127)..lo] = evex_vprold_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+  };
+  r
+}
 
 val evex_vprord_128 : (xmmword, xmmword) -> xmmword
 function evex_vprord_128(src, cnt) = {
@@ -680,13 +660,16 @@ function evex_vprord_128(src, cnt) = {
   r
 }
 
-val evex_vprord_256 : (ymmword, ymmword) -> ymmword
-function evex_vprord_256(a, b) =
-  evex_vprord_128(a[255..128], b[255..128]) @ evex_vprord_128(a[127..0], b[127..0])
-
-val evex_vprord_512 : (zmmword, zmmword) -> zmmword
-function evex_vprord_512(a, b) =
-  evex_vprord_256(a[511..256], b[511..256]) @ evex_vprord_256(a[255..0], b[255..0])
+val evex_vprord : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), bits('vl)) -> bits('vl)
+function evex_vprord(src, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (lane from 0 to ('vl / 128 - 1)) {
+    let lo = lane * 128;
+    r[(lo + 127)..lo] = evex_vprord_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+  };
+  r
+}
 
 val evex_vprolq_128 : (xmmword, xmmword) -> xmmword
 function evex_vprolq_128(src, cnt) = {
@@ -700,13 +683,16 @@ function evex_vprolq_128(src, cnt) = {
   r
 }
 
-val evex_vprolq_256 : (ymmword, ymmword) -> ymmword
-function evex_vprolq_256(a, b) =
-  evex_vprolq_128(a[255..128], b[255..128]) @ evex_vprolq_128(a[127..0], b[127..0])
-
-val evex_vprolq_512 : (zmmword, zmmword) -> zmmword
-function evex_vprolq_512(a, b) =
-  evex_vprolq_256(a[511..256], b[511..256]) @ evex_vprolq_256(a[255..0], b[255..0])
+val evex_vprolq : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), bits('vl)) -> bits('vl)
+function evex_vprolq(src, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (lane from 0 to ('vl / 128 - 1)) {
+    let lo = lane * 128;
+    r[(lo + 127)..lo] = evex_vprolq_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+  };
+  r
+}
 
 val evex_vprorq_128 : (xmmword, xmmword) -> xmmword
 function evex_vprorq_128(src, cnt) = {
@@ -720,13 +706,16 @@ function evex_vprorq_128(src, cnt) = {
   r
 }
 
-val evex_vprorq_256 : (ymmword, ymmword) -> ymmword
-function evex_vprorq_256(a, b) =
-  evex_vprorq_128(a[255..128], b[255..128]) @ evex_vprorq_128(a[127..0], b[127..0])
-
-val evex_vprorq_512 : (zmmword, zmmword) -> zmmword
-function evex_vprorq_512(a, b) =
-  evex_vprorq_256(a[511..256], b[511..256]) @ evex_vprorq_256(a[255..0], b[255..0])
+val evex_vprorq : forall 'vl, 'vl in {128, 256, 512}.
+  (bits('vl), bits('vl)) -> bits('vl)
+function evex_vprorq(src, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (lane from 0 to ('vl / 128 - 1)) {
+    let lo = lane * 128;
+    r[(lo + 127)..lo] = evex_vprorq_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+  };
+  r
+}
 
 // =========================================================================
 // Shift by XMM count: count comes from low 64 bits of XMM register
@@ -848,7 +837,7 @@ function avx_psraw_xmm(vl, a, count_xmm) = {
 // VPSRAD by xmm count
 val avx_psrad_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psrad_xmm_lane(a, count_xmm) =
-  arith_shr_dwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
+  arith_shr_dwords(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psrad_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psrad_xmm(vl, a, count_xmm) = {
@@ -863,7 +852,7 @@ function avx_psrad_xmm(vl, a, count_xmm) = {
 // VPSRAQ by xmm count
 val avx_psraq_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psraq_xmm_lane(a, count_xmm) =
-  arith_shr_qwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
+  arith_shr_qwords(a, clamp_shift_bv64(count_xmm[63..0]))
 
 val avx_psraq_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psraq_xmm(vl, a, count_xmm) = {
@@ -1585,42 +1574,42 @@ function dispatch_evex_int(op, pfx) = {
       (true, 0, 0) => {
         let c : bits(64) = zero_extend(imm);
         let cv : xmmword = c @ c;
-        evex_write(dst, evex_wmask(pfx, 2), evex_vprorq_128(read_xmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 2), evex_vprorq(read_xmm(src), cv))
       },
       (true, 0, 1) => {
         let c : bits(64) = zero_extend(imm);
         let cv : ymmword = c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 4), evex_vprorq_256(read_ymm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 4), evex_vprorq(read_ymm(src), cv))
       },
       (true, 0, 2) => {
         let c : bits(64) = zero_extend(imm);
         let cv : zmmword = c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 8), evex_vprorq_512(read_zmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 8), evex_vprorq(read_zmm(src), cv))
       },
       // VPROLQ zmm1/ymm1/xmm1, zmm2/ymm2/xmm2/m512/m256/m128, imm8
       (true, 1, 0) => {
         let c : bits(64) = zero_extend(imm);
         let cv : xmmword = c @ c;
-        evex_write(dst, evex_wmask(pfx, 2), evex_vprolq_128(read_xmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 2), evex_vprolq(read_xmm(src), cv))
       },
       (true, 1, 1) => {
         let c : bits(64) = zero_extend(imm);
         let cv : ymmword = c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 4), evex_vprolq_256(read_ymm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 4), evex_vprolq(read_ymm(src), cv))
       },
       (true, 1, 2) => {
         let c : bits(64) = zero_extend(imm);
         let cv : zmmword = c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 8), evex_vprolq_512(read_zmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 8), evex_vprolq(read_zmm(src), cv))
       },
       // VPSRLQ zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
       (true, 2, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_psrlq_imm_lane(read_xmm(src), count)),
       (true, 2, 1) => evex_write(dst, evex_wmask(pfx, 4), avx_psrlq_imm(read_ymm(src), count)),
       (true, 2, 2) => evex_write(dst, evex_wmask(pfx, 8), avx_psrlq_imm(read_zmm(src), count)),
       // VPSRAQ zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
-      (true, 4, 0) => evex_write(dst, evex_wmask(pfx, 2), arith_shr_qwords_128b(read_xmm(src), count)),
-      (true, 4, 1) => evex_write(dst, evex_wmask(pfx, 4), arith_shr_qwords_256b(read_ymm(src), count)),
-      (true, 4, 2) => evex_write(dst, evex_wmask(pfx, 8), arith_shr_qwords_512b(read_zmm(src), count)),
+      (true, 4, 0) => evex_write(dst, evex_wmask(pfx, 2), arith_shr_qwords(read_xmm(src), count)),
+      (true, 4, 1) => evex_write(dst, evex_wmask(pfx, 4), arith_shr_qwords(read_ymm(src), count)),
+      (true, 4, 2) => evex_write(dst, evex_wmask(pfx, 8), arith_shr_qwords(read_zmm(src), count)),
       // VPSLLQ zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
       (true, 6, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_psllq_imm_lane(read_xmm(src), count)),
       (true, 6, 1) => evex_write(dst, evex_wmask(pfx, 4), avx_psllq_imm(read_ymm(src), count)),
@@ -1629,42 +1618,42 @@ function dispatch_evex_int(op, pfx) = {
       (false, 0, 0) => {
         let c : bits(32) = zero_extend(imm);
         let cv : xmmword = c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 4), evex_vprord_128(read_xmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 4), evex_vprord(read_xmm(src), cv))
       },
       (false, 0, 1) => {
         let c : bits(32) = zero_extend(imm);
         let cv : ymmword = c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 8), evex_vprord_256(read_ymm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 8), evex_vprord(read_ymm(src), cv))
       },
       (false, 0, 2) => {
         let c : bits(32) = zero_extend(imm);
         let cv : zmmword = c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 16), evex_vprord_512(read_zmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 16), evex_vprord(read_zmm(src), cv))
       },
       // VPROLD zmm1/ymm1/xmm1, zmm2/ymm2/xmm2/m512/m256/m128, imm8
       (false, 1, 0) => {
         let c : bits(32) = zero_extend(imm);
         let cv : xmmword = c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 4), evex_vprold_128(read_xmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 4), evex_vprold(read_xmm(src), cv))
       },
       (false, 1, 1) => {
         let c : bits(32) = zero_extend(imm);
         let cv : ymmword = c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 8), evex_vprold_256(read_ymm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 8), evex_vprold(read_ymm(src), cv))
       },
       (false, 1, 2) => {
         let c : bits(32) = zero_extend(imm);
         let cv : zmmword = c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c @ c;
-        evex_write(dst, evex_wmask(pfx, 16), evex_vprold_512(read_zmm(src), cv))
+        evex_write(dst, evex_wmask(pfx, 16), evex_vprold(read_zmm(src), cv))
       },
       // VPSRLD zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
       (false, 2, 0) => evex_write(dst, evex_wmask(pfx, 4), avx_psrld_imm_lane(read_xmm(src), count)),
       (false, 2, 1) => evex_write(dst, evex_wmask(pfx, 8), avx_psrld_imm(read_ymm(src), count)),
       (false, 2, 2) => evex_write(dst, evex_wmask(pfx, 16), avx_psrld_imm(read_zmm(src), count)),
       // VPSRAD zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
-      (false, 4, 0) => evex_write(dst, evex_wmask(pfx, 4), arith_shr_dwords_128b(read_xmm(src), count)),
-      (false, 4, 1) => evex_write(dst, evex_wmask(pfx, 8), arith_shr_dwords_256b(read_ymm(src), count)),
-      (false, 4, 2) => evex_write(dst, evex_wmask(pfx, 16), arith_shr_dwords_512b(read_zmm(src), count)),
+      (false, 4, 0) => evex_write(dst, evex_wmask(pfx, 4), arith_shr_dwords(read_xmm(src), count)),
+      (false, 4, 1) => evex_write(dst, evex_wmask(pfx, 8), arith_shr_dwords(read_ymm(src), count)),
+      (false, 4, 2) => evex_write(dst, evex_wmask(pfx, 16), arith_shr_dwords(read_zmm(src), count)),
       // VPSLLD zmm1/ymm1/xmm1, zmm2/ymm2/xmm2, imm8
       (false, 6, 0) => evex_write(dst, evex_wmask(pfx, 4), avx_pslld_imm_lane(read_xmm(src), count)),
       (false, 6, 1) => evex_write(dst, evex_wmask(pfx, 8), avx_pslld_imm(read_ymm(src), count)),

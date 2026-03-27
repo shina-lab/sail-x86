@@ -16,90 +16,83 @@ function evex_get_mask32(pfx) = evex_kmask64(pfx)[31..0]
 // FP16 special operation helpers (unary)
 // =========================================================================
 
-val vgetexpph_xmm : xmmword -> xmmword
-function vgetexpph_xmm(a) =
-  __f16_getexp(a[127..112]) @ __f16_getexp(a[111..96]) @
-  __f16_getexp(a[95..80]) @ __f16_getexp(a[79..64]) @
-  __f16_getexp(a[63..48]) @ __f16_getexp(a[47..32]) @
-  __f16_getexp(a[31..16]) @ __f16_getexp(a[15..0])
-val vgetexpph_ymm : ymmword -> ymmword
-function vgetexpph_ymm(a) = vgetexpph_xmm(a[255..128]) @ vgetexpph_xmm(a[127..0])
-val vgetexpph_zmm : zmmword -> zmmword
-function vgetexpph_zmm(a) = vgetexpph_ymm(a[511..256]) @ vgetexpph_ymm(a[255..0])
+val vgetexpph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
+function vgetexpph(a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_getexp(a[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vrcpph_xmm : xmmword -> xmmword
-function vrcpph_xmm(a) =
-  __f16_rcp(a[127..112]) @ __f16_rcp(a[111..96]) @
-  __f16_rcp(a[95..80]) @ __f16_rcp(a[79..64]) @
-  __f16_rcp(a[63..48]) @ __f16_rcp(a[47..32]) @
-  __f16_rcp(a[31..16]) @ __f16_rcp(a[15..0])
-val vrcpph_ymm : ymmword -> ymmword
-function vrcpph_ymm(a) = vrcpph_xmm(a[255..128]) @ vrcpph_xmm(a[127..0])
-val vrcpph_zmm : zmmword -> zmmword
-function vrcpph_zmm(a) = vrcpph_ymm(a[511..256]) @ vrcpph_ymm(a[255..0])
+val vrcpph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
+function vrcpph(a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_rcp(a[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vrsqrtph_xmm : xmmword -> xmmword
-function vrsqrtph_xmm(a) =
-  __f16_rsqrt(a[127..112]) @ __f16_rsqrt(a[111..96]) @
-  __f16_rsqrt(a[95..80]) @ __f16_rsqrt(a[79..64]) @
-  __f16_rsqrt(a[63..48]) @ __f16_rsqrt(a[47..32]) @
-  __f16_rsqrt(a[31..16]) @ __f16_rsqrt(a[15..0])
-val vrsqrtph_ymm : ymmword -> ymmword
-function vrsqrtph_ymm(a) = vrsqrtph_xmm(a[255..128]) @ vrsqrtph_xmm(a[127..0])
-val vrsqrtph_zmm : zmmword -> zmmword
-function vrsqrtph_zmm(a) = vrsqrtph_ymm(a[511..256]) @ vrsqrtph_ymm(a[255..0])
+val vrsqrtph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
+function vrsqrtph(a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_rsqrt(a[(lo + 15)..lo]);
+  };
+  r
+}
 
 // =========================================================================
 // FP16 special operation helpers (binary: scalef)
 // =========================================================================
 
-val vscalefph_xmm : (xmmword, xmmword) -> xmmword
-function vscalefph_xmm(a, b) =
-  __f16_scalef(a[127..112], b[127..112]) @ __f16_scalef(a[111..96], b[111..96]) @
-  __f16_scalef(a[95..80], b[95..80]) @ __f16_scalef(a[79..64], b[79..64]) @
-  __f16_scalef(a[63..48], b[63..48]) @ __f16_scalef(a[47..32], b[47..32]) @
-  __f16_scalef(a[31..16], b[31..16]) @ __f16_scalef(a[15..0], b[15..0])
-val vscalefph_ymm : (ymmword, ymmword) -> ymmword
-function vscalefph_ymm(a, b) = vscalefph_xmm(a[255..128], b[255..128]) @ vscalefph_xmm(a[127..0], b[127..0])
-val vscalefph_zmm : (zmmword, zmmword) -> zmmword
-function vscalefph_zmm(a, b) = vscalefph_ymm(a[511..256], b[511..256]) @ vscalefph_ymm(a[255..0], b[255..0])
+val vscalefph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
+function vscalefph(a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_scalef(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+  };
+  r
+}
 
 // =========================================================================
 // FP16 imm8 operation helpers (rndscale, getmant, reduce)
 // =========================================================================
 
-val vrndscaleph_xmm : (xmmword, byte) -> xmmword
-function vrndscaleph_xmm(a, imm) =
-  __f16_rndscale(a[127..112], imm) @ __f16_rndscale(a[111..96], imm) @
-  __f16_rndscale(a[95..80], imm) @ __f16_rndscale(a[79..64], imm) @
-  __f16_rndscale(a[63..48], imm) @ __f16_rndscale(a[47..32], imm) @
-  __f16_rndscale(a[31..16], imm) @ __f16_rndscale(a[15..0], imm)
-val vrndscaleph_ymm : (ymmword, byte) -> ymmword
-function vrndscaleph_ymm(a, imm) = vrndscaleph_xmm(a[255..128], imm) @ vrndscaleph_xmm(a[127..0], imm)
-val vrndscaleph_zmm : (zmmword, byte) -> zmmword
-function vrndscaleph_zmm(a, imm) = vrndscaleph_ymm(a[511..256], imm) @ vrndscaleph_ymm(a[255..0], imm)
+val vrndscaleph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
+function vrndscaleph(a, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_rndscale(a[(lo + 15)..lo], imm);
+  };
+  r
+}
 
-val vgetmantph_xmm : (xmmword, byte) -> xmmword
-function vgetmantph_xmm(a, imm) =
-  __f16_getmant(a[127..112], imm) @ __f16_getmant(a[111..96], imm) @
-  __f16_getmant(a[95..80], imm) @ __f16_getmant(a[79..64], imm) @
-  __f16_getmant(a[63..48], imm) @ __f16_getmant(a[47..32], imm) @
-  __f16_getmant(a[31..16], imm) @ __f16_getmant(a[15..0], imm)
-val vgetmantph_ymm : (ymmword, byte) -> ymmword
-function vgetmantph_ymm(a, imm) = vgetmantph_xmm(a[255..128], imm) @ vgetmantph_xmm(a[127..0], imm)
-val vgetmantph_zmm : (zmmword, byte) -> zmmword
-function vgetmantph_zmm(a, imm) = vgetmantph_ymm(a[511..256], imm) @ vgetmantph_ymm(a[255..0], imm)
+val vgetmantph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
+function vgetmantph(a, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_getmant(a[(lo + 15)..lo], imm);
+  };
+  r
+}
 
-val vreduceph_xmm : (xmmword, byte) -> xmmword
-function vreduceph_xmm(a, imm) =
-  __f16_reduce(a[127..112], imm) @ __f16_reduce(a[111..96], imm) @
-  __f16_reduce(a[95..80], imm) @ __f16_reduce(a[79..64], imm) @
-  __f16_reduce(a[63..48], imm) @ __f16_reduce(a[47..32], imm) @
-  __f16_reduce(a[31..16], imm) @ __f16_reduce(a[15..0], imm)
-val vreduceph_ymm : (ymmword, byte) -> ymmword
-function vreduceph_ymm(a, imm) = vreduceph_xmm(a[255..128], imm) @ vreduceph_xmm(a[127..0], imm)
-val vreduceph_zmm : (zmmword, byte) -> zmmword
-function vreduceph_zmm(a, imm) = vreduceph_ymm(a[511..256], imm) @ vreduceph_ymm(a[255..0], imm)
+val vreduceph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
+function vreduceph(a, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_reduce(a[(lo + 15)..lo], imm);
+  };
+  r
+}
 
 // =========================================================================
 // FP16 FMADDSUB/FMSUBADD helpers
@@ -107,43 +100,29 @@ function vreduceph_zmm(a, imm) = vreduceph_ymm(a[511..256], imm) @ vreduceph_ymm
 // FMSUBADD: even elements add, odd elements subtract
 // =========================================================================
 
-val vfmaddsubph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfmaddsubph_xmm(a, b, c) =
-  __f16_fmadd(a[127..112], b[127..112], c[127..112]) @
-  __f16_fmsub(a[111..96], b[111..96], c[111..96]) @
-  __f16_fmadd(a[95..80], b[95..80], c[95..80]) @
-  __f16_fmsub(a[79..64], b[79..64], c[79..64]) @
-  __f16_fmadd(a[63..48], b[63..48], c[63..48]) @
-  __f16_fmsub(a[47..32], b[47..32], c[47..32]) @
-  __f16_fmadd(a[31..16], b[31..16], c[31..16]) @
-  __f16_fmsub(a[15..0], b[15..0], c[15..0])
-val vfmaddsubph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfmaddsubph_ymm(a, b, c) =
-  vfmaddsubph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfmaddsubph_xmm(a[127..0], b[127..0], c[127..0])
-val vfmaddsubph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfmaddsubph_zmm(a, b, c) =
-  vfmaddsubph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfmaddsubph_ymm(a[255..0], b[255..0], c[255..0])
+val vfmaddsubph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfmaddsubph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    if i % 2 == 1
+    then r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
+    else r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vfmsubaddph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfmsubaddph_xmm(a, b, c) =
-  __f16_fmsub(a[127..112], b[127..112], c[127..112]) @
-  __f16_fmadd(a[111..96], b[111..96], c[111..96]) @
-  __f16_fmsub(a[95..80], b[95..80], c[95..80]) @
-  __f16_fmadd(a[79..64], b[79..64], c[79..64]) @
-  __f16_fmsub(a[63..48], b[63..48], c[63..48]) @
-  __f16_fmadd(a[47..32], b[47..32], c[47..32]) @
-  __f16_fmsub(a[31..16], b[31..16], c[31..16]) @
-  __f16_fmadd(a[15..0], b[15..0], c[15..0])
-val vfmsubaddph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfmsubaddph_ymm(a, b, c) =
-  vfmsubaddph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfmsubaddph_xmm(a[127..0], b[127..0], c[127..0])
-val vfmsubaddph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfmsubaddph_zmm(a, b, c) =
-  vfmsubaddph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfmsubaddph_ymm(a[255..0], b[255..0], c[255..0])
+val vfmsubaddph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfmsubaddph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    if i % 2 == 1
+    then r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
+    else r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
 // =========================================================================
 // FP16 compare predicate helper
@@ -222,24 +201,15 @@ function fpclass(sign, exp, frac, imm) = {
 val fpclass_f16 : (word, byte) -> bit
 function fpclass_f16(v, imm) = fpclass(v[15], v[14..10], v[9..0], imm)
 
-val vfpclassph_xmm : (xmmword, byte) -> byte
-function vfpclassph_xmm(a, imm) =
-  fpclass_f16(a[127..112], imm) @
-  fpclass_f16(a[111..96], imm) @
-  fpclass_f16(a[95..80], imm) @
-  fpclass_f16(a[79..64], imm) @
-  fpclass_f16(a[63..48], imm) @
-  fpclass_f16(a[47..32], imm) @
-  fpclass_f16(a[31..16], imm) @
-  fpclass_f16(a[15..0], imm)
-
-val vfpclassph_ymm : (ymmword, byte) -> word
-function vfpclassph_ymm(a, imm) =
-  vfpclassph_xmm(a[255..128], imm) @ vfpclassph_xmm(a[127..0], imm)
-
-val vfpclassph_zmm : (zmmword, byte) -> dword
-function vfpclassph_zmm(a, imm) =
-  vfpclassph_ymm(a[511..256], imm) @ vfpclassph_ymm(a[255..0], imm)
+val vfpclassph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> qword
+function vfpclassph(a, imm) = {
+  var r : qword = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[i] = fpclass_f16(a[(lo + 15)..lo], imm);
+  };
+  r
+}
 
 // =========================================================================
 // Complex FP16 multiply/accumulate helpers
@@ -257,24 +227,17 @@ function cfmaddcph_pair(s1_re, s1_im, s2_re, s2_im, a_re, a_im, conj) = {
     (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
 }
 
-val cfmaddcph_xmm : (xmmword, xmmword, xmmword, bool) -> xmmword
-function cfmaddcph_xmm(src1, src2, acc, conj) = {
-  let (r0, i0) = cfmaddcph_pair(src1[15..0], src1[31..16], src2[15..0], src2[31..16], acc[15..0], acc[31..16], conj);
-  let (r1, i1) = cfmaddcph_pair(src1[47..32], src1[63..48], src2[47..32], src2[63..48], acc[47..32], acc[63..48], conj);
-  let (r2, i2) = cfmaddcph_pair(src1[79..64], src1[95..80], src2[79..64], src2[95..80], acc[79..64], acc[95..80], conj);
-  let (r3, i3) = cfmaddcph_pair(src1[111..96], src1[127..112], src2[111..96], src2[127..112], acc[111..96], acc[127..112], conj);
-  i3 @ r3 @ i2 @ r2 @ i1 @ r1 @ i0 @ r0
+val cfmaddcph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl), bool) -> bits('vl)
+function cfmaddcph(src1, src2, acc, conj) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    let (re, im) = cfmaddcph_pair(src1[(lo+15)..lo], src1[(lo+31)..(lo+16)], src2[(lo+15)..lo], src2[(lo+31)..(lo+16)], acc[(lo+15)..lo], acc[(lo+31)..(lo+16)], conj);
+    r[(lo + 15)..lo] = re;
+    r[(lo + 31)..(lo + 16)] = im;
+  };
+  r
 }
-
-val cfmaddcph_ymm : (ymmword, ymmword, ymmword, bool) -> ymmword
-function cfmaddcph_ymm(src1, src2, acc, conj) =
-  cfmaddcph_xmm(src1[255..128], src2[255..128], acc[255..128], conj) @
-  cfmaddcph_xmm(src1[127..0], src2[127..0], acc[127..0], conj)
-
-val cfmaddcph_zmm : (zmmword, zmmword, zmmword, bool) -> zmmword
-function cfmaddcph_zmm(src1, src2, acc, conj) =
-  cfmaddcph_ymm(src1[511..256], src2[511..256], acc[511..256], conj) @
-  cfmaddcph_ymm(src1[255..0], src2[255..0], acc[255..0], conj)
 
 // Complex multiply one pair: dest = src1 * src2 (or conjugate of src2)
 val cfmulcph_pair : (word, word, word, word, bool) -> (word, word)
@@ -287,24 +250,17 @@ function cfmulcph_pair(s1_re, s1_im, s2_re, s2_im, conj) = {
     (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
 }
 
-val cfmulcph_xmm : (xmmword, xmmword, bool) -> xmmword
-function cfmulcph_xmm(src1, src2, conj) = {
-  let (r0, i0) = cfmulcph_pair(src1[15..0], src1[31..16], src2[15..0], src2[31..16], conj);
-  let (r1, i1) = cfmulcph_pair(src1[47..32], src1[63..48], src2[47..32], src2[63..48], conj);
-  let (r2, i2) = cfmulcph_pair(src1[79..64], src1[95..80], src2[79..64], src2[95..80], conj);
-  let (r3, i3) = cfmulcph_pair(src1[111..96], src1[127..112], src2[111..96], src2[127..112], conj);
-  i3 @ r3 @ i2 @ r2 @ i1 @ r1 @ i0 @ r0
+val cfmulcph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bool) -> bits('vl)
+function cfmulcph(src1, src2, conj) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    let (re, im) = cfmulcph_pair(src1[(lo+15)..lo], src1[(lo+31)..(lo+16)], src2[(lo+15)..lo], src2[(lo+31)..(lo+16)], conj);
+    r[(lo + 15)..lo] = re;
+    r[(lo + 31)..(lo + 16)] = im;
+  };
+  r
 }
-
-val cfmulcph_ymm : (ymmword, ymmword, bool) -> ymmword
-function cfmulcph_ymm(src1, src2, conj) =
-  cfmulcph_xmm(src1[255..128], src2[255..128], conj) @
-  cfmulcph_xmm(src1[127..0], src2[127..0], conj)
-
-val cfmulcph_zmm : (zmmword, zmmword, bool) -> zmmword
-function cfmulcph_zmm(src1, src2, conj) =
-  cfmulcph_ymm(src1[511..256], src2[511..256], conj) @
-  cfmulcph_ymm(src1[255..0], src2[255..0], conj)
 
 // =========================================================================
 // EVEX MAP5 dispatch — FP16 basic arithmetic (NP prefix, W=0)
@@ -1718,89 +1674,45 @@ function dispatch_evex_map5(opcode, pfx) = {
 // =========================================================================
 
 // FP16 FMA element-wise helpers
-val vfmadd_ph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfmadd_ph_xmm(a, b, c) =
-  __f16_fmadd(a[127..112], b[127..112], c[127..112]) @
-  __f16_fmadd(a[111..96], b[111..96], c[111..96]) @
-  __f16_fmadd(a[95..80], b[95..80], c[95..80]) @
-  __f16_fmadd(a[79..64], b[79..64], c[79..64]) @
-  __f16_fmadd(a[63..48], b[63..48], c[63..48]) @
-  __f16_fmadd(a[47..32], b[47..32], c[47..32]) @
-  __f16_fmadd(a[31..16], b[31..16], c[31..16]) @
-  __f16_fmadd(a[15..0], b[15..0], c[15..0])
+val vfmadd_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfmadd_ph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vfmadd_ph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfmadd_ph_ymm(a, b, c) =
-  vfmadd_ph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfmadd_ph_xmm(a[127..0], b[127..0], c[127..0])
+val vfmsub_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfmsub_ph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vfmadd_ph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfmadd_ph_zmm(a, b, c) =
-  vfmadd_ph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfmadd_ph_ymm(a[255..0], b[255..0], c[255..0])
+val vfnmadd_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfnmadd_ph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_fnmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
-val vfmsub_ph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfmsub_ph_xmm(a, b, c) =
-  __f16_fmsub(a[127..112], b[127..112], c[127..112]) @
-  __f16_fmsub(a[111..96], b[111..96], c[111..96]) @
-  __f16_fmsub(a[95..80], b[95..80], c[95..80]) @
-  __f16_fmsub(a[79..64], b[79..64], c[79..64]) @
-  __f16_fmsub(a[63..48], b[63..48], c[63..48]) @
-  __f16_fmsub(a[47..32], b[47..32], c[47..32]) @
-  __f16_fmsub(a[31..16], b[31..16], c[31..16]) @
-  __f16_fmsub(a[15..0], b[15..0], c[15..0])
-
-val vfmsub_ph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfmsub_ph_ymm(a, b, c) =
-  vfmsub_ph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfmsub_ph_xmm(a[127..0], b[127..0], c[127..0])
-
-val vfmsub_ph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfmsub_ph_zmm(a, b, c) =
-  vfmsub_ph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfmsub_ph_ymm(a[255..0], b[255..0], c[255..0])
-
-val vfnmadd_ph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfnmadd_ph_xmm(a, b, c) =
-  __f16_fnmadd(a[127..112], b[127..112], c[127..112]) @
-  __f16_fnmadd(a[111..96], b[111..96], c[111..96]) @
-  __f16_fnmadd(a[95..80], b[95..80], c[95..80]) @
-  __f16_fnmadd(a[79..64], b[79..64], c[79..64]) @
-  __f16_fnmadd(a[63..48], b[63..48], c[63..48]) @
-  __f16_fnmadd(a[47..32], b[47..32], c[47..32]) @
-  __f16_fnmadd(a[31..16], b[31..16], c[31..16]) @
-  __f16_fnmadd(a[15..0], b[15..0], c[15..0])
-
-val vfnmadd_ph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfnmadd_ph_ymm(a, b, c) =
-  vfnmadd_ph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfnmadd_ph_xmm(a[127..0], b[127..0], c[127..0])
-
-val vfnmadd_ph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfnmadd_ph_zmm(a, b, c) =
-  vfnmadd_ph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfnmadd_ph_ymm(a[255..0], b[255..0], c[255..0])
-
-val vfnmsub_ph_xmm : (xmmword, xmmword, xmmword) -> xmmword
-function vfnmsub_ph_xmm(a, b, c) =
-  __f16_fnmsub(a[127..112], b[127..112], c[127..112]) @
-  __f16_fnmsub(a[111..96], b[111..96], c[111..96]) @
-  __f16_fnmsub(a[95..80], b[95..80], c[95..80]) @
-  __f16_fnmsub(a[79..64], b[79..64], c[79..64]) @
-  __f16_fnmsub(a[63..48], b[63..48], c[63..48]) @
-  __f16_fnmsub(a[47..32], b[47..32], c[47..32]) @
-  __f16_fnmsub(a[31..16], b[31..16], c[31..16]) @
-  __f16_fnmsub(a[15..0], b[15..0], c[15..0])
-
-val vfnmsub_ph_ymm : (ymmword, ymmword, ymmword) -> ymmword
-function vfnmsub_ph_ymm(a, b, c) =
-  vfnmsub_ph_xmm(a[255..128], b[255..128], c[255..128]) @
-  vfnmsub_ph_xmm(a[127..0], b[127..0], c[127..0])
-
-val vfnmsub_ph_zmm : (zmmword, zmmword, zmmword) -> zmmword
-function vfnmsub_ph_zmm(a, b, c) =
-  vfnmsub_ph_ymm(a[511..256], b[511..256], c[511..256]) @
-  vfnmsub_ph_ymm(a[255..0], b[255..0], c[255..0])
+val vfnmsub_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function vfnmsub_ph(a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 16 - 1)) {
+    let lo = i * 16;
+    r[(lo + 15)..lo] = __f16_fnmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+  };
+  r
+}
 
 val dispatch_evex_map6 : (byte, Prefixes) -> unit
 function dispatch_evex_map6(opcode, pfx) = {
@@ -1822,21 +1734,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmadd_ph_xmm(a, c, b);
+          let r = vfmadd_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmadd_ph_ymm(a, c, b);
+          let r = vfmadd_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmadd_ph_zmm(a, c, b);  // 132: dest*src3 + src2
+          let r = vfmadd_ph(a, c, b);  // 132: dest*src3 + src2
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -1857,21 +1769,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmadd_ph_xmm(b, a, c);
+          let r = vfmadd_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmadd_ph_ymm(b, a, c);
+          let r = vfmadd_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmadd_ph_zmm(b, a, c);  // 213: src2*dest + src3
+          let r = vfmadd_ph(b, a, c);  // 213: src2*dest + src3
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -1892,21 +1804,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmadd_ph_xmm(b, c, a);
+          let r = vfmadd_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmadd_ph_ymm(b, c, a);
+          let r = vfmadd_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmadd_ph_zmm(b, c, a);  // 231: src2*src3 + dest
+          let r = vfmadd_ph(b, c, a);  // 231: src2*src3 + dest
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -1927,21 +1839,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmsub_ph_xmm(a, c, b);
+          let r = vfmsub_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmsub_ph_ymm(a, c, b);
+          let r = vfmsub_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmsub_ph_zmm(a, c, b);  // 132: dest*src3 - src2
+          let r = vfmsub_ph(a, c, b);  // 132: dest*src3 - src2
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -1962,21 +1874,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmsub_ph_xmm(b, a, c);
+          let r = vfmsub_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmsub_ph_ymm(b, a, c);
+          let r = vfmsub_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmsub_ph_zmm(b, a, c);  // 213: src2*dest - src3
+          let r = vfmsub_ph(b, a, c);  // 213: src2*dest - src3
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -1997,21 +1909,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmsub_ph_xmm(b, c, a);
+          let r = vfmsub_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmsub_ph_ymm(b, c, a);
+          let r = vfmsub_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmsub_ph_zmm(b, c, a);  // 231: src2*src3 - dest
+          let r = vfmsub_ph(b, c, a);  // 231: src2*src3 - dest
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2032,21 +1944,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_xmm(a, c, b);
+          let r = vfnmadd_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_ymm(a, c, b);
+          let r = vfnmadd_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_zmm(a, c, b);  // 132: -dest*src3 + src2
+          let r = vfnmadd_ph(a, c, b);  // 132: -dest*src3 + src2
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2067,21 +1979,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_xmm(b, a, c);
+          let r = vfnmadd_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_ymm(b, a, c);
+          let r = vfnmadd_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_zmm(b, a, c);  // 213: -src2*dest + src3
+          let r = vfnmadd_ph(b, a, c);  // 213: -src2*dest + src3
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2102,21 +2014,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_xmm(b, c, a);
+          let r = vfnmadd_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_ymm(b, c, a);
+          let r = vfnmadd_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmadd_ph_zmm(b, c, a);  // 231: -src2*src3 + dest
+          let r = vfnmadd_ph(b, c, a);  // 231: -src2*src3 + dest
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2137,21 +2049,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_xmm(a, c, b);
+          let r = vfnmsub_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_ymm(a, c, b);
+          let r = vfnmsub_ph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_zmm(a, c, b);  // 132: -dest*src3 - src2
+          let r = vfnmsub_ph(a, c, b);  // 132: -dest*src3 - src2
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2172,21 +2084,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_xmm(b, a, c);
+          let r = vfnmsub_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_ymm(b, a, c);
+          let r = vfnmsub_ph(b, a, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_zmm(b, a, c);  // 213: -src2*dest - src3
+          let r = vfnmsub_ph(b, a, c);  // 213: -src2*dest - src3
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2207,21 +2119,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_xmm(b, c, a);
+          let r = vfnmsub_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_ymm(b, c, a);
+          let r = vfnmsub_ph(b, c, a);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfnmsub_ph_zmm(b, c, a);  // 231: -src2*src3 - dest
+          let r = vfnmsub_ph(b, c, a);  // 231: -src2*src3 - dest
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2304,19 +2216,19 @@ function dispatch_evex_map6(opcode, pfx) = {
         0 => {
           let src1 = read_xmm(pfx.evex_vvvvv);
           let src2 = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vscalefph_xmm(src1, src2);
+          let r = vscalefph(src1, src2);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let src1 = read_ymm(pfx.evex_vvvvv);
           let src2 = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vscalefph_ymm(src1, src2);
+          let r = vscalefph(src1, src2);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let src1 = read_zmm(pfx.evex_vvvvv);
           let src2 = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vscalefph_zmm(src1, src2);
+          let r = vscalefph(src1, src2);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2349,17 +2261,17 @@ function dispatch_evex_map6(opcode, pfx) = {
       match pfx.evex_ll {
         0 => {
           let src = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vgetexpph_xmm(src);
+          let r = vgetexpph(src);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let src = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vgetexpph_ymm(src);
+          let r = vgetexpph(src);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let src = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vgetexpph_zmm(src);
+          let r = vgetexpph(src);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2391,17 +2303,17 @@ function dispatch_evex_map6(opcode, pfx) = {
       match pfx.evex_ll {
         0 => {
           let src = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vrcpph_xmm(src);
+          let r = vrcpph(src);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let src = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vrcpph_ymm(src);
+          let r = vrcpph(src);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let src = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vrcpph_zmm(src);
+          let r = vrcpph(src);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2433,17 +2345,17 @@ function dispatch_evex_map6(opcode, pfx) = {
       match pfx.evex_ll {
         0 => {
           let src = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vrsqrtph_xmm(src);
+          let r = vrsqrtph(src);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let src = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vrsqrtph_ymm(src);
+          let r = vrsqrtph(src);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let src = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vrsqrtph_zmm(src);
+          let r = vrsqrtph(src);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2478,21 +2390,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmaddsubph_xmm(a, c, b);
+          let r = vfmaddsubph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmaddsubph_ymm(a, c, b);
+          let r = vfmaddsubph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmaddsubph_zmm(a, c, b);
+          let r = vfmaddsubph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2513,21 +2425,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(dst);
           let b = read_xmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmsubaddph_xmm(a, c, b);
+          let r = vfmsubaddph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(dst);
           let b = read_ymm(pfx.evex_vvvvv);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmsubaddph_ymm(a, c, b);
+          let r = vfmsubaddph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(dst);
           let b = read_zmm(pfx.evex_vvvvv);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmsubaddph_zmm(a, c, b);
+          let r = vfmsubaddph(a, c, b);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2612,21 +2524,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(pfx.evex_vvvvv);
           let b = read_xmm(dst);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmaddsubph_xmm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(pfx.evex_vvvvv);
           let b = read_ymm(dst);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmaddsubph_ymm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(pfx.evex_vvvvv);
           let b = read_zmm(dst);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmaddsubph_zmm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2647,21 +2559,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(pfx.evex_vvvvv);
           let b = read_xmm(dst);
           let c = evex_bcast_src(128,modrm, src, pfx, 16);
-          let r = vfmsubaddph_xmm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(pfx.evex_vvvvv);
           let b = read_ymm(dst);
           let c = evex_bcast_src(256,modrm, src, pfx, 16);
-          let r = vfmsubaddph_ymm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(pfx.evex_vvvvv);
           let b = read_zmm(dst);
           let c = evex_bcast_src(512,modrm, src, pfx, 16);
-          let r = vfmsubaddph_zmm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2750,21 +2662,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(pfx.evex_vvvvv);
           let b = evex_bcast_src(128,modrm, src, pfx, 16);
           let c = read_xmm(dst);
-          let r = vfmaddsubph_xmm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(pfx.evex_vvvvv);
           let b = evex_bcast_src(256,modrm, src, pfx, 16);
           let c = read_ymm(dst);
-          let r = vfmaddsubph_ymm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(pfx.evex_vvvvv);
           let b = evex_bcast_src(512,modrm, src, pfx, 16);
           let c = read_zmm(dst);
-          let r = vfmaddsubph_zmm(a, b, c);
+          let r = vfmaddsubph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2785,21 +2697,21 @@ function dispatch_evex_map6(opcode, pfx) = {
           let a = read_xmm(pfx.evex_vvvvv);
           let b = evex_bcast_src(128,modrm, src, pfx, 16);
           let c = read_xmm(dst);
-          let r = vfmsubaddph_xmm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         1 => {
           let a = read_ymm(pfx.evex_vvvvv);
           let b = evex_bcast_src(256,modrm, src, pfx, 16);
           let c = read_ymm(dst);
-          let r = vfmsubaddph_ymm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         2 => {
           let a = read_zmm(pfx.evex_vvvvv);
           let b = evex_bcast_src(512,modrm, src, pfx, 16);
           let c = read_zmm(dst);
-          let r = vfmsubaddph_zmm(a, b, c);
+          let r = vfmsubaddph(a, b, c);
           evex_write(dst, evex_wmask(pfx, 32), r)
         },
         3 => raise_UD(),
@@ -2887,17 +2799,17 @@ function dispatch_evex_map6(opcode, pfx) = {
       match pfx.evex_ll {
         0 => {
           let acc : xmmword = read_xmm(dst);
-          let r = cfmaddcph_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32), acc, conj);
+          let r = cfmaddcph(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 4), r)
         },
         1 => {
           let acc : ymmword = read_ymm(dst);
-          let r = cfmaddcph_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32), acc, conj);
+          let r = cfmaddcph(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         2 => {
           let acc : zmmword = read_zmm(dst);
-          let r = cfmaddcph_zmm(read_zmm(pfx.evex_vvvvv), evex_bcast_src(512,modrm, src, pfx, 32), acc, conj);
+          let r = cfmaddcph(read_zmm(pfx.evex_vvvvv), evex_bcast_src(512,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         3 => raise_UD(),
@@ -2944,15 +2856,15 @@ function dispatch_evex_map6(opcode, pfx) = {
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
       match pfx.evex_ll {
         0 => {
-          let r = cfmulcph_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32), conj);
+          let r = cfmulcph(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32), conj);
           evex_write(dst, evex_wmask(pfx, 4), r)
         },
         1 => {
-          let r = cfmulcph_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32), conj);
+          let r = cfmulcph(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32), conj);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         2 => {
-          let r = cfmulcph_zmm(read_zmm(pfx.evex_vvvvv), evex_bcast_src(512,modrm, src, pfx, 32), conj);
+          let r = cfmulcph(read_zmm(pfx.evex_vvvvv), evex_bcast_src(512,modrm, src, pfx, 32), conj);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
         3 => raise_UD(),
