@@ -180,7 +180,6 @@ function avx_fmsubadd_pd_256(a, b, c) = avx_fmsubadd_pd_128(a[255..128], b[255..
 val avx_fmsubadd_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
 function avx_fmsubadd_pd_512(a, b, c) = avx_fmsubadd_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fmsubadd_pd_256(a[255..0], b[255..0], c[255..0])
 
-
 val exec_vfmadd132ss : (simd_idx, xmmword, xmmword) -> unit
 function exec_vfmadd132ss(dst, src2, src3) = {
   let d = read_xmm(dst);

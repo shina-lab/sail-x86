@@ -177,7 +177,6 @@ function avx_unpckhpd(vl, a, b) = {
 
 // Full 5-bit predicate (imm8[4:0]) for VCMPPS/VCMPPD/VCMPSS/VCMPSD.
 // Returns 1 bit (true/false) for a single element comparison.
-
 val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bit
 function cmp_pred5_f32(a, b, pred) = {
   let r = __compare_ss(a, b);
@@ -267,7 +266,6 @@ function cmp_pred5_f64(a, b, pred) = {
 }
 
 // VCMPPS → kmask: compare 16 f32 elements, return 16-bit mask
-
 val avx_vcmpps_kmask_128 : (xmmword, xmmword, range(0, 31)) -> bits(4)
 function avx_vcmpps_kmask_128(a, b, pred) = {
   var r : bits(4) = zeros();
@@ -308,8 +306,6 @@ function avx_vcmppd_kmask_512(a, b, pred) = {
   r
 }
 
-// FP16 compare predicate (5-bit imm8)
-
 val avx_cvtps2pd_2 : qword -> xmmword
 function avx_cvtps2pd_2(src) =
   __f32_to_f64(src[63..32]) @ __f32_to_f64(src[31..0])
@@ -323,7 +319,6 @@ function avx_cvtps2pd_8(src) =
   avx_cvtps2pd_4(src[255..128]) @ avx_cvtps2pd_4(src[127..0])
 
 // VCVTPD2PS: convert N f64 → N f32 (narrowing) — result is half-width
-
 val avx_cvtpd2ps_2 : xmmword -> qword
 function avx_cvtpd2ps_2(src) =
   __f64_to_f32(src[127..64]) @ __f64_to_f32(src[63..0])
@@ -342,7 +337,6 @@ function avx_cvtpd2ps_8(src) =
 // VSHUFPS: shuffle f32 per 128-bit lane
 // Low 2 elements from src1 lane (imm8[1:0], imm8[3:2])
 // High 2 elements from src2 lane (imm8[5:4], imm8[7:6])
-
 val shufps_lane : (bits(128), bits(128), bits(8)) -> bits(128)
 function shufps_lane(src1, src2, imm) =
   select4_f32(src2, imm[7..6]) @
@@ -364,7 +358,6 @@ function avx_shufps(vl, src1, src2, imm) = {
 // Each bit in imm8 selects low(0) or high(1) qword from src1/src2
 // Bit 0 → dest[63:0] from src1, Bit 1 → dest[127:64] from src2
 // Bit 2 → dest[191:128] from src1, Bit 3 → dest[255:192] from src2, etc.
-
 val shufpd_lane : (bits(128), bits(128), bit, bit) -> bits(128)
 function shufpd_lane(src1, src2, ctrl0, ctrl1) = {
   let lo : bits(64) = blend(src1[63..0], src1[127..64], ctrl0);
@@ -384,7 +377,6 @@ function avx_shufpd(vl, src1, src2, imm) = {
 }
 
 // VCVTTPS2UDQ: convert N f32 → N u32 (truncate)
-
 val avx_cvttps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttps2udq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -396,7 +388,6 @@ function avx_cvttps2udq(vl, src) = {
 }
 
 // VCVTTPD2UDQ: convert N f64 → N u32 (truncate), result is half width
-
 val avx_cvttpd2udq_2 : xmmword -> bits(64)
 function avx_cvttpd2udq_2(src) =
   __f64_to_uint32_trunc(src[127..64]) @ __f64_to_uint32_trunc(src[63..0])
@@ -410,7 +401,6 @@ function avx_cvttpd2udq_8(src) =
   avx_cvttpd2udq_4(src[511..256]) @ avx_cvttpd2udq_4(src[255..0])
 
 // VCVTPS2UDQ: convert N f32 → N u32 (round per MXCSR)
-
 val avx_cvtps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtps2udq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -422,7 +412,6 @@ function avx_cvtps2udq(vl, src) = {
 }
 
 // VCVTPD2UDQ: convert N f64 → N u32 (round per MXCSR), result is half width
-
 val avx_cvtpd2udq_2 : xmmword -> bits(64)
 function avx_cvtpd2udq_2(src) =
   __f64_to_uint32(src[127..64]) @ __f64_to_uint32(src[63..0])
@@ -436,7 +425,6 @@ function avx_cvtpd2udq_8(src) =
   avx_cvtpd2udq_4(src[511..256]) @ avx_cvtpd2udq_4(src[255..0])
 
 // VCVTTPS2UQQ: convert N f32 → N u64 (truncate), result is double width
-
 val avx_cvttps2uqq_2 : bits(64) -> xmmword
 function avx_cvttps2uqq_2(src) =
   __f32_to_uint64_trunc(src[63..32]) @ __f32_to_uint64_trunc(src[31..0])
@@ -450,7 +438,6 @@ function avx_cvttps2uqq_8(src) =
   avx_cvttps2uqq_4(src[255..128]) @ avx_cvttps2uqq_4(src[127..0])
 
 // VCVTTPD2UQQ: convert N f64 → N u64 (truncate)
-
 val avx_cvttpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttpd2uqq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -462,7 +449,6 @@ function avx_cvttpd2uqq(vl, src) = {
 }
 
 // VCVTPS2UQQ: convert N f32 → N u64 (round), result is double width
-
 val avx_cvtps2uqq_2 : bits(64) -> xmmword
 function avx_cvtps2uqq_2(src) =
   __f32_to_uint64(src[63..32]) @ __f32_to_uint64(src[31..0])
@@ -476,7 +462,6 @@ function avx_cvtps2uqq_8(src) =
   avx_cvtps2uqq_4(src[255..128]) @ avx_cvtps2uqq_4(src[127..0])
 
 // VCVTPD2UQQ: convert N f64 → N u64 (round)
-
 val avx_cvtpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtpd2uqq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -488,7 +473,6 @@ function avx_cvtpd2uqq(vl, src) = {
 }
 
 // VCVTTPS2QQ: convert N f32 → N i64 (truncate, widening)
-
 val avx_cvttps2qq_2 : bits(64) -> xmmword
 function avx_cvttps2qq_2(src) =
   __f32_to_int64_trunc(src[63..32]) @ __f32_to_int64_trunc(src[31..0])
@@ -502,7 +486,6 @@ function avx_cvttps2qq_8(src) =
   avx_cvttps2qq_4(src[255..128]) @ avx_cvttps2qq_4(src[127..0])
 
 // VCVTTPD2QQ: convert N f64 → N i64 (truncate)
-
 val avx_cvttpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttpd2qq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -514,7 +497,6 @@ function avx_cvttpd2qq(vl, src) = {
 }
 
 // VCVTPS2QQ: convert N f32 → N i64 (round, widening)
-
 val avx_cvtps2qq_2 : bits(64) -> xmmword
 function avx_cvtps2qq_2(src) =
   __f32_to_int64(src[63..32]) @ __f32_to_int64(src[31..0])
@@ -528,7 +510,6 @@ function avx_cvtps2qq_8(src) =
   avx_cvtps2qq_4(src[255..128]) @ avx_cvtps2qq_4(src[127..0])
 
 // VCVTPD2QQ: convert N f64 → N i64 (round)
-
 val avx_cvtpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtpd2qq(vl, src) = {
   var r : bits('vl) = zeros();
@@ -540,7 +521,6 @@ function avx_cvtpd2qq(vl, src) = {
 }
 
 // VCVTUDQ2PS: convert N u32 → N f32
-
 val avx_cvtudq2ps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtudq2ps(vl, src) = {
   var r : bits('vl) = zeros();
@@ -552,7 +532,6 @@ function avx_cvtudq2ps(vl, src) = {
 }
 
 // VCVTUQQ2PS: convert N u64 → N f32 (narrowing)
-
 val avx_cvtuqq2ps_2 : xmmword -> bits(64)
 function avx_cvtuqq2ps_2(src) =
   __uint64_to_f32(src[127..64]) @ __uint64_to_f32(src[63..0])
@@ -566,7 +545,6 @@ function avx_cvtuqq2ps_8(src) =
   avx_cvtuqq2ps_4(src[511..256]) @ avx_cvtuqq2ps_4(src[255..0])
 
 // VCVTQQ2PS: convert N i64 → N f32 (narrowing)
-
 val avx_cvtqq2ps_2 : xmmword -> bits(64)
 function avx_cvtqq2ps_2(src) =
   __int64_to_f32(src[127..64]) @ __int64_to_f32(src[63..0])
@@ -580,7 +558,6 @@ function avx_cvtqq2ps_8(src) =
   avx_cvtqq2ps_4(src[511..256]) @ avx_cvtqq2ps_4(src[255..0])
 
 // VCVTUDQ2PD: convert N u32 → N f64 (widening)
-
 val avx_cvtudq2pd_2 : bits(64) -> xmmword
 function avx_cvtudq2pd_2(src) =
   __uint32_to_f64(src[63..32]) @ __uint32_to_f64(src[31..0])
@@ -594,7 +571,6 @@ function avx_cvtudq2pd_8(src) =
   avx_cvtudq2pd_4(src[255..128]) @ avx_cvtudq2pd_4(src[127..0])
 
 // VCVTUQQ2PD: convert N u64 → N f64
-
 val avx_cvtuqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtuqq2pd(vl, src) = {
   var r : bits('vl) = zeros();
@@ -606,7 +582,6 @@ function avx_cvtuqq2pd(vl, src) = {
 }
 
 // VCVTDQ2PD: convert N i32 → N f64 (widening)
-
 val avx_cvtdq2pd_2 : bits(64) -> xmmword
 function avx_cvtdq2pd_2(src) =
   __int32_to_f64(src[63..32]) @ __int32_to_f64(src[31..0])
@@ -620,7 +595,6 @@ function avx_cvtdq2pd_8(src) =
   avx_cvtdq2pd_4(src[255..128]) @ avx_cvtdq2pd_4(src[127..0])
 
 // VCVTPD2DQ: convert N f64 → N i32 (round, narrowing)
-
 val avx_cvtpd2dq_2 : xmmword -> bits(64)
 function avx_cvtpd2dq_2(src) =
   __f64_to_int32(src[127..64]) @ __f64_to_int32(src[63..0])
@@ -634,7 +608,6 @@ function avx_cvtpd2dq_8(src) =
   avx_cvtpd2dq_4(src[511..256]) @ avx_cvtpd2dq_4(src[255..0])
 
 // VCVTTPD2DQ: convert N f64 → N i32 (truncate, narrowing)
-
 val avx_cvttpd2dq_2 : xmmword -> bits(64)
 function avx_cvttpd2dq_2(src) =
   __f64_to_int32_trunc(src[127..64]) @ __f64_to_int32_trunc(src[63..0])
@@ -648,7 +621,6 @@ function avx_cvttpd2dq_8(src) =
   avx_cvttpd2dq_4(src[511..256]) @ avx_cvttpd2dq_4(src[255..0])
 
 // VCVTQQ2PD: convert N i64 → N f64
-
 val avx_cvtqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtqq2pd(vl, src) = {
   var r : bits('vl) = zeros();
@@ -658,10 +630,6 @@ function avx_cvtqq2pd(vl, src) = {
   };
   r
 }
-
-// VPSHUFB: byte shuffle per 128-bit lane
-// For each byte in ctrl: if bit7 set → 0, else use low 4 bits as index in lane of src
-
 
 val dispatch_evex_fp : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_fp(op, pfx) = {

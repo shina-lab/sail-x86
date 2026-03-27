@@ -80,7 +80,6 @@ function mul_lo(a, b) = to_bits_truncate(signed(a) * signed(b))
 // PMULHW — Multiply Packed Signed Integers and Store High Result (16-bit)
 // PMULHUW — Multiply Packed Unsigned Integers and Store High Result (16-bit)
 // No flags affected.
-
 val mul_hi16s : (word, word) -> word
 function mul_hi16s(a, b) = {
   let product : dword = to_bits_truncate(signed(a) * signed(b));
@@ -491,18 +490,6 @@ function pcmpestrm(a, raw_la, b, raw_lb, imm8) = {
   let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm8);
   (pcmp_expand_mask(int_res2, ub, imm8[6]), cf, zf, sf, of)
 }
-
-// EXTRACTPS — Extract Packed Floating-Point Values (SSE4.1)
-//
-// Extracts a single-precision float from an XMM register at the offset
-// specified by imm8[1:0] and stores the 32-bit result in a GPR or memory.
-// In 64-bit mode with a GPR destination, the upper 32 bits are zeroed.
-// No flags affected.
-//
-// Uses extract_dword_from_xmm from pextrb.sail (same operation as PEXTRD).
-// INSERTPS — Insert Scalar Single-FP (SSE4.1)
-// Selects a float from src, inserts into dst at specified position, then zeroes selected lanes.
-// No flags affected.
 
 val dispatch_2byte_sse_int : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_sse_int(op, pfx) = {

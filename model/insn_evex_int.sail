@@ -264,7 +264,6 @@ function avx_pcmpgtd_mask_512(a, b) = {
 }
 
 // VPCMPEQW → kmask
-
 val avx_pcmpeqw_mask_128 : (xmmword, xmmword) -> byte
 function avx_pcmpeqw_mask_128(a, b) = {
   var r : byte = zeros();
@@ -323,7 +322,6 @@ function avx_punpcklbw(vl, a, b) = {
 }
 
 // VPUNPCKLWD: interleave low words from each 128-bit lane
-
 val avx_punpcklwd_lane : (xmmword, xmmword) -> xmmword
 function avx_punpcklwd_lane(a, b) = {
   var r : xmmword = zeros();
@@ -346,23 +344,15 @@ function avx_punpcklwd(vl, a, b) = {
   r
 }
 
-
-
 // VPUNPCKLDQ: interleave low dwords from each 128-bit lane
-
 val avx_punpckldq_lane : (xmmword, xmmword) -> xmmword
 function avx_punpckldq_lane(a, b) =
   b[63..32] @ a[63..32] @ b[31..0] @ a[31..0]
 
-
-
 // VPUNPCKLQDQ: interleave low qwords from each 128-bit lane
-
 val avx_punpcklqdq_lane : (xmmword, xmmword) -> xmmword
 function avx_punpcklqdq_lane(a, b) =
   b[63..0] @ a[63..0]
-
-
 
 // =========================================================================
 // VPUNPCKHBW: interleave high bytes from each 128-bit lane
@@ -410,10 +400,7 @@ function avx_punpckldq(vl, a, b) = {
   r
 }
 
-
-
 // VPUNPCKHWD: interleave high words from each 128-bit lane
-
 val avx_punpckhwd_lane : (xmmword, xmmword) -> xmmword
 function avx_punpckhwd_lane(a, b) = {
   var r : xmmword = zeros();
@@ -436,23 +423,15 @@ function avx_punpckhwd(vl, a, b) = {
   r
 }
 
-
-
 // VPUNPCKHDQ: interleave high dwords from each 128-bit lane
-
 val avx_punpckhdq_lane : (xmmword, xmmword) -> xmmword
 function avx_punpckhdq_lane(a, b) =
   b[127..96] @ a[127..96] @ b[95..64] @ a[95..64]
 
-
-
 // VPUNPCKHQDQ: interleave high qwords from each 128-bit lane
-
 val avx_punpckhqdq_lane : (xmmword, xmmword) -> xmmword
 function avx_punpckhqdq_lane(a, b) =
   b[127..64] @ a[127..64]
-
-
 
 // =========================================================================
 // VPACKSSWB: pack signed words to signed bytes with saturation
@@ -500,10 +479,7 @@ function avx_punpckhdq(vl, a, b) = {
   r
 }
 
-
-
 // VPACKSSDW: pack signed dwords to signed words with saturation
-
 val avx_packssdw_lane : (xmmword, xmmword) -> xmmword
 function avx_packssdw_lane(a, b) = {
   var r : xmmword = zeros();
@@ -525,10 +501,7 @@ function avx_packssdw(vl, a, b) = {
   r
 }
 
-
-
 // VPACKUSWB: pack signed words to unsigned bytes with saturation
-
 val avx_packuswb_lane : (xmmword, xmmword) -> xmmword
 function avx_packuswb_lane(a, b) = {
   var r : xmmword = zeros();
@@ -549,8 +522,6 @@ function avx_packuswb(vl, a, b) = {
   };
   r
 }
-
-
 
 // =========================================================================
 // VPSHUFD: shuffle dwords within each 128-bit lane by imm8
@@ -579,10 +550,7 @@ function avx_pshufd(vl, src, imm) = {
   r
 }
 
-
-
 // VPSHUFHW: shuffle high words within each 128-bit lane, low qword unchanged
-
 val avx_pshufhw_lane : (xmmword, byte) -> xmmword
 function avx_pshufhw_lane(src, imm) = {
   var r : xmmword = zeros();
@@ -607,10 +575,7 @@ function avx_pshufhw(vl, src, imm) = {
   r
 }
 
-
-
 // VPSHUFLW: shuffle low words within each 128-bit lane, high qword unchanged
-
 val avx_pshuflw_lane : (xmmword, byte) -> xmmword
 function avx_pshuflw_lane(src, imm) = {
   var r : xmmword = zeros();
@@ -635,15 +600,12 @@ function avx_pshuflw(vl, src, imm) = {
   r
 }
 
-
-
 // =========================================================================
 // Shift by immediate: VPSRLW/D/Q, VPSLLW/D/Q, VPSRAW/D, VPSRAQ
 // If count >= element_size, result is 0 (logical) or sign-extended (arithmetic)
 // =========================================================================
 
 // VPSRLW: logical right shift words by imm
-
 val avx_psrlw_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psrlw_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -664,10 +626,7 @@ function avx_psrlw_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSRLD: logical right shift dwords by imm
-
 val avx_psrld_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psrld_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -688,10 +647,7 @@ function avx_psrld_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSRLQ: logical right shift qwords by imm
-
 val avx_psrlq_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psrlq_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -710,10 +666,7 @@ function avx_psrlq_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSLLW: logical left shift words by imm
-
 val avx_psllw_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psllw_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -734,10 +687,7 @@ function avx_psllw_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSLLD: logical left shift dwords by imm
-
 val avx_pslld_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_pslld_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -758,10 +708,7 @@ function avx_pslld_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSLLQ: logical left shift qwords by imm
-
 val avx_psllq_imm_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psllq_imm_lane(a, count) = {
   var r : xmmword = zeros();
@@ -780,10 +727,7 @@ function avx_psllq_imm(vl, a, count) = {
   r
 }
 
-
-
 // VPSRAW: arithmetic right shift words by imm
-
 val arith_shr_words_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_words_128b(a, count) =
   (a[127..112] >>> count) @
@@ -819,7 +763,6 @@ function arith_shr_words_512b(a, count) =
   arith_shr_words_256b(a[511..256], count) @ arith_shr_words_256b(a[255..0], count)
 
 // VPSRAD: arithmetic right shift dwords by imm
-
 val arith_shr_dwords_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_dwords_128b(a, count) =
   (a[127..96] >>> count) @
@@ -843,7 +786,6 @@ function arith_shr_dwords_512b(a, count) =
   arith_shr_dwords_256b(a[511..256], count) @ arith_shr_dwords_256b(a[255..0], count)
 
 // VPSRAQ: arithmetic right shift qwords by imm (AVX-512 new)
-
 val arith_shr_qwords_128b : (xmmword, range(0, 255)) -> xmmword
 function arith_shr_qwords_128b(a, count) =
   (a[127..64] >>> count) @
@@ -867,9 +809,7 @@ function arith_shr_qwords_512b(a, count) =
   (a[127..64] >>> count) @
   (a[63..0] >>> count)
 
-
 // VPSLLDQ: byte shift left per 128-bit lane
-
 val avx_pslldq_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_pslldq_lane(a, count) = a << (count * 8)
 
@@ -884,7 +824,6 @@ function avx_pslldq(vl, a, count) = {
 }
 
 // VPSRLDQ: byte shift right per 128-bit lane
-
 val avx_psrldq_lane : (xmmword, range(0, 255)) -> xmmword
 function avx_psrldq_lane(a, count) = a >> (count * 8)
 
@@ -897,8 +836,6 @@ function avx_psrldq(vl, a, count) = {
   };
   r
 }
-
-
 
 // =========================================================================
 // VPROLD/Q: rotate left dwords/qwords (immediate via broadcast count vector)
@@ -998,11 +935,9 @@ function clamp_shift_bv64(raw) = {
 }
 
 // VPSRLW by xmm count
-
 val avx_psrlw_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psrlw_xmm_lane(a, count_xmm) =
   avx_psrlw_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psrlw_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psrlw_xmm(vl, a, count_xmm) = {
@@ -1014,13 +949,10 @@ function avx_psrlw_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSRLD by xmm count
-
 val avx_psrld_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psrld_xmm_lane(a, count_xmm) =
   avx_psrld_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psrld_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psrld_xmm(vl, a, count_xmm) = {
@@ -1032,13 +964,10 @@ function avx_psrld_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSRLQ by xmm count
-
 val avx_psrlq_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psrlq_xmm_lane(a, count_xmm) =
   avx_psrlq_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psrlq_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psrlq_xmm(vl, a, count_xmm) = {
@@ -1050,13 +979,10 @@ function avx_psrlq_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSLLW by xmm count
-
 val avx_psllw_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psllw_xmm_lane(a, count_xmm) =
   avx_psllw_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psllw_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psllw_xmm(vl, a, count_xmm) = {
@@ -1068,13 +994,10 @@ function avx_psllw_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSLLD by xmm count
-
 val avx_pslld_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_pslld_xmm_lane(a, count_xmm) =
   avx_pslld_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_pslld_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_pslld_xmm(vl, a, count_xmm) = {
@@ -1086,13 +1009,10 @@ function avx_pslld_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSLLQ by xmm count
-
 val avx_psllq_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psllq_xmm_lane(a, count_xmm) =
   avx_psllq_imm_lane(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psllq_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psllq_xmm(vl, a, count_xmm) = {
@@ -1104,13 +1024,10 @@ function avx_psllq_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSRAW by xmm count
-
 val avx_psraw_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psraw_xmm_lane(a, count_xmm) =
   arith_shr_words_128b(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psraw_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psraw_xmm(vl, a, count_xmm) = {
@@ -1122,13 +1039,10 @@ function avx_psraw_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSRAD by xmm count
-
 val avx_psrad_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psrad_xmm_lane(a, count_xmm) =
   arith_shr_dwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psrad_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psrad_xmm(vl, a, count_xmm) = {
@@ -1140,13 +1054,10 @@ function avx_psrad_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // VPSRAQ by xmm count
-
 val avx_psraq_xmm_lane : (xmmword, xmmword) -> xmmword
 function avx_psraq_xmm_lane(a, count_xmm) =
   arith_shr_qwords_128b(a, clamp_shift_bv64(count_xmm[63..0]))
-
 
 val avx_psraq_xmm : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), xmmword) -> bits('vl)
 function avx_psraq_xmm(vl, a, count_xmm) = {
@@ -1158,12 +1069,10 @@ function avx_psraq_xmm(vl, a, count_xmm) = {
   r
 }
 
-
 // =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values
 // Each pair of 32-bit floats: [A, B] → [A, A] (even index duplicated)
 // =========================================================================
-
 
 val dispatch_evex_int : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_int(op, pfx) = {

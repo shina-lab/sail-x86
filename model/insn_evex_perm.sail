@@ -4,7 +4,6 @@
 // Called from dispatch_evex_0f38 in insn_evex.sail.
 
 // Broadcast a byte to all lanes
-
 val broadcast_byte_zmm : byte -> zmmword
 function broadcast_byte_zmm(v) = {
   let w : word = v @ v;
@@ -55,8 +54,6 @@ val avx_pshufb_512 : (zmmword, zmmword) -> zmmword
 function avx_pshufb_512(src, ctrl) =
   avx_pshufb_256(src[511..256], ctrl[511..256]) @ avx_pshufb_256(src[255..0], ctrl[255..0])
 
-// VPMADDUBSW: multiply unsigned bytes by signed bytes, add pairs → signed words
-
 val avx_vpermilps_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermilps_128(src, ctrl) = {
   var r : xmmword = zeros();
@@ -78,7 +75,6 @@ function avx_vpermilps_512(src, ctrl) =
 
 // VPERMILPD (register control): per-element select within 128-bit lane
 // Each qword in ctrl: bit 1 selects low(0) or high(1) qword from lane
-
 val avx_vpermilpd_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermilpd_128(src, ctrl) = {
   let lo : bits(64) = blend(src[63..0], src[127..64], ctrl[1]);
@@ -95,7 +91,6 @@ function avx_vpermilpd_512(src, ctrl) =
   avx_vpermilpd_256(src[511..256], ctrl[511..256]) @ avx_vpermilpd_256(src[255..0], ctrl[255..0])
 
 // VPERMPS: full cross-lane permute of f32 using index register
-
 val avx_vpermps_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermps_256(src, idx) = {
   var r : ymmword = zeros();
@@ -119,7 +114,6 @@ function avx_vpermps_512(src, idx) = {
 }
 
 // VPERMPD: full cross-lane permute of f64 using index register
-
 val avx_vpermpd_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermpd_256(src, idx) = {
   var r : ymmword = zeros();
@@ -143,7 +137,6 @@ function avx_vpermpd_512(src, idx) = {
 }
 
 // VPERMD: full cross-lane permute of dwords using index register
-
 val avx_vpermd_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermd_256(src, idx) = {
   var r : ymmword = zeros();
@@ -167,7 +160,6 @@ function avx_vpermd_512(src, idx) = {
 }
 
 // VPERMQ: full cross-lane permute of qwords using index register
-
 val avx_vpermq_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermq_256(src, idx) = {
   var r : ymmword = zeros();
@@ -429,7 +421,6 @@ function popcount_mask(v, upto) = {
 
 // For expand/compress, we use a simpler strategy: iterate and use get_slice/set_slice
 // with computed bit offsets, working element-by-element.
-
 val avx_vexpandps_128 : (xmmword, byte) -> xmmword
 function avx_vexpandps_128(src, mask) = {
   var result : xmmword = zeros();
@@ -691,11 +682,6 @@ function avx_vpbroadcastmb2q_512(k) = {
   elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem
 }
 
-/* ---- VPDPBUSD: Multiply and Add Unsigned and Signed Bytes ---- */
-// For each dword position:
-//   temp = src1.u8[0]*src2.s8[0] + src1.u8[1]*src2.s8[1] + src1.u8[2]*src2.s8[2] + src1.u8[3]*src2.s8[3]
-//   dst.dword += temp
-
 val avx_vpshufbitqmb_lane : (qword, qword) -> byte
 function avx_vpshufbitqmb_lane(ctrl, src) = {
   var r : byte = zeros();
@@ -954,11 +940,6 @@ function avx_vpexpandw_512(src, mask) = {
   };
   result
 }
-
-/* ---- GFNI: Galois Field operations ---- */
-
-// GF(2^8) multiplication using AES polynomial (x^8 + x^4 + x^3 + x + 1)
-
 
 val dispatch_evex_perm : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_perm(op, pfx) = {

@@ -81,7 +81,6 @@ function opcode_to_alu(op) = {
   }
 }
 
-
 // ALU dispatch for opcodes 00-3F (columns 0-5).
 val dispatch_alu_opcode : (range(0, 63), Prefixes) -> unit
 function dispatch_alu_opcode(op, pfx) = {

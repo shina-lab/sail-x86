@@ -33,7 +33,6 @@
 // SMRAM helpers: read/write the state save area.
 // Offset is from SDM Table 34-3, relative to SMBASE + 0x8000.
 // We pass the offset as a bitvector to avoid Sail integer constraint issues.
-
 val smram_save64 : (bits(16), qword) -> unit
 function smram_save64(offset, v) = {
   let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);

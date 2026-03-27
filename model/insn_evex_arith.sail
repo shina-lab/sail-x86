@@ -43,8 +43,6 @@ function avx_pmaddubsw(a, b) = {
   r
 }
 
-
-
 // =========================================================================
 // VPACKUSDW: pack dwords to words with unsigned saturation
 // Per 128-bit lane: 4 dwords from src1 -> 4 words, 4 dwords from src2 -> 4 words
@@ -99,12 +97,6 @@ function avx_vpmov2m(eb, src) = {
   };
   r
 }
-
-/* ---- VSHUFF32X4 / VSHUFI32X4: 128-bit lane shuffle ---- */
-
-// Helper: select 128-bit lane from a 512-bit source
-
-
 
 /* ---- VPCONFLICTD/Q: conflict detection ---- */
 // For each element i, produce a bitmask of preceding elements (j < i) that have the same value.
@@ -202,16 +194,12 @@ function avx_vdpbf16ps(dst, src1, src2) = {
   r
 }
 
-
-
 /* ---- VCVTPH2PS/VCVTPS2PH: 512-bit variants (128/256 defined in insn_vex.sail) ---- */
 
 val avx_vcvtph2ps_512 : ymmword -> zmmword
 function avx_vcvtph2ps_512(src) = {
   avx_vcvtph2ps_256(src[255..128]) @ avx_vcvtph2ps_256(src[127..0])
 }
-
-// Immediate versions (VPSHLDW/D/Q imm8)
 
 val avx_vpmultishiftqb_lane : (qword, qword) -> qword
 function avx_vpmultishiftqb_lane(ctrl, src) = {
@@ -239,10 +227,6 @@ function avx_vpmultishiftqb(vl, ctrl, src) = {
   };
   r
 }
-
-/* ---- VPSHUFBITQMB: shuffle bits to mask (BITALG) ---- */
-// For each byte in src1, use it as an index to select a bit from the
-// corresponding qword lane of src2. The selected bit goes to kmask.
 
 val dispatch_evex_arith : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_arith(op, pfx) = {

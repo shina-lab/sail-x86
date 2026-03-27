@@ -4,7 +4,6 @@
 
 // VPGATHERDD / VGATHERDPS: 32-bit indices, 32-bit elements
 // ZMM: 16 elements, mask is 16 bits
-
 val exec_gather_d32_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_gather_d32_512(dst, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -58,7 +57,6 @@ function exec_gather_d32_128(dst, vsib, k_idx) = {
 
 // VPGATHERDQ / VGATHERDPD: 32-bit indices, 64-bit elements
 // ZMM: 8 qword elements, indices from YMM (8 dwords)
-
 val exec_gather_d64_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_gather_d64_512(dst, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -115,7 +113,6 @@ function exec_gather_d64_128(dst, vsib, k_idx) = {
 
 // VPGATHERQD / VGATHERQPS: 64-bit indices, 32-bit elements
 // ZMM index: 8 qwords → 8 dword results in YMM
-
 val exec_gather_q32_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_gather_q32_512(dst, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -172,7 +169,6 @@ function exec_gather_q32_128(dst, vsib, k_idx) = {
 }
 
 // VPGATHERQQ / VGATHERQPD: 64-bit indices, 64-bit elements
-
 val exec_gather_q64_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_gather_q64_512(dst, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -228,7 +224,6 @@ function exec_gather_q64_128(dst, vsib, k_idx) = {
 /* ---- Scatter: VPSCATTERQD/QQ, VSCATTERQPS/QPD (qword indices) ---- */
 
 // VPSCATTERDD / VSCATTERDPS: 32-bit indices, 32-bit elements
-
 val exec_scatter_d32_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_scatter_d32_512(src, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -278,7 +273,6 @@ function exec_scatter_d32_128(src, vsib, k_idx) = {
 }
 
 // VPSCATTERDQ / VSCATTERDPD: 32-bit indices, 64-bit elements
-
 val exec_scatter_d64_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_scatter_d64_512(src, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -331,7 +325,6 @@ function exec_scatter_d64_128(src, vsib, k_idx) = {
 }
 
 // VPSCATTERQD / VSCATTERQPS: 64-bit indices, 32-bit elements
-
 val exec_scatter_q32_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_scatter_q32_512(src, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -384,7 +377,6 @@ function exec_scatter_q32_128(src, vsib, k_idx) = {
 }
 
 // VPSCATTERQQ / VSCATTERQPD: 64-bit indices, 64-bit elements
-
 val exec_scatter_q64_512 : (simd_idx, VSIB, kreg_idx) -> unit
 function exec_scatter_q64_512(src, vsib, k_idx) = {
   let mask : qword = read_kreg(k_idx);
@@ -492,10 +484,6 @@ function avx_vpmadd52huq_512(dst, src1, src2) = {
   avx_vpmadd52huq_256(dst[255..0], src1[255..0], src2[255..0])
 }
 
-/* ---- VPMULTISHIFTQB: multi-shift qword bytes (VBMI) ---- */
-// For each byte in src1 (shift control), extract 8 consecutive bits from src2 qword
-// starting at bit position = src1_byte[5:0], within the same 64-bit lane.
-
 val avx_gf2p8mulb_128 : (xmmword, xmmword) -> xmmword
 function avx_gf2p8mulb_128(src1, src2) = {
   var r : xmmword = zeros();
@@ -517,11 +505,6 @@ function avx_gf2p8mulb_512(src1, src2) = {
   avx_gf2p8mulb_256(src1[511..256], src2[511..256]) @
   avx_gf2p8mulb_256(src1[255..0], src2[255..0])
 }
-
-// GF2P8AFFINEQB: For each byte in src1, compute an affine transformation
-// using an 8x8 bit matrix from the corresponding qword of src2, then XOR with imm8.
-// result_byte[i] = popcount(src1_byte & matrix_row[i]) ^ imm8[i]
-// where matrix_row[i] is the i-th byte of the qword (MSB first: row0 = qword[63:56])
 
 val avx_vexp2ps_512 : zmmword -> zmmword
 function avx_vexp2ps_512(src) = {
@@ -740,11 +723,6 @@ function vscalefpd_ymm(a, b) =
 val vscalefpd_zmm : (zmmword, zmmword) -> zmmword
 function vscalefpd_zmm(a, b) =
   vscalefpd_ymm(a[511..256], b[511..256]) @ vscalefpd_ymm(a[255..0], b[255..0])
-
-// VPMASKMOV — Conditional SIMD Integer Packed Loads and Stores (AVX2)
-//
-// Conditionally loads/stores packed dword/qword values using a mask register.
-// Modeled as external function (no YMM/ZMM infrastructure).
 
 val dispatch_evex_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_fma(op, pfx) = {

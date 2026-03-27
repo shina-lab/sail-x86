@@ -66,7 +66,6 @@ function avx_pcmpub_512(a, b, pred) =
   avx_pcmpub_256(a[255..0], b[255..0], pred)
 
 // VPCMPB: signed byte compare
-
 val avx_pcmpb_128 : (xmmword, xmmword, range(0, 7)) -> word
 function avx_pcmpb_128(a, b, pred) =
   cmp_s_pred(a[127..120], b[127..120], pred) @
@@ -97,7 +96,6 @@ function avx_pcmpb_512(a, b, pred) =
   avx_pcmpb_256(a[255..0], b[255..0], pred)
 
 // VPCMPUW: unsigned word compare
-
 val avx_pcmpuw_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpuw_128(a, b, pred) =
   cmp_u_pred(a[127..112], b[127..112], pred) @
@@ -120,7 +118,6 @@ function avx_pcmpuw_512(a, b, pred) =
   avx_pcmpuw_256(a[255..0], b[255..0], pred)
 
 // VPCMPW: signed word compare
-
 val avx_pcmpw_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpw_128(a, b, pred) =
   cmp_s_pred(a[127..112], b[127..112], pred) @
@@ -143,7 +140,6 @@ function avx_pcmpw_512(a, b, pred) =
   avx_pcmpw_256(a[255..0], b[255..0], pred)
 
 // VPCMPUD: unsigned dword compare producing kmask
-
 val avx_pcmpud_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpud_128(a, b, pred) = {
   let r : bits(4) =
@@ -171,7 +167,6 @@ function avx_pcmpud_512(a, b, pred) =
   avx_pcmpud_256(a[255..0], b[255..0], pred)
 
 // VPCMPD: signed dword compare
-
 val avx_pcmpd_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpd_128(a, b, pred) = {
   let r : bits(4) =
@@ -199,7 +194,6 @@ function avx_pcmpd_512(a, b, pred) =
   avx_pcmpd_256(a[255..0], b[255..0], pred)
 
 // VPCMPUQ: unsigned qword compare
-
 val avx_pcmpuq_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpuq_128(a, b, pred) = {
   let r : bits(2) =
@@ -230,7 +224,6 @@ function avx_pcmpuq_512(a, b, pred) =
   cmp_u_pred(a[63..0], b[63..0], pred)
 
 // VPCMPQ: signed qword compare
-
 val avx_pcmpq_128 : (xmmword, xmmword, range(0, 7)) -> byte
 function avx_pcmpq_128(a, b, pred) = {
   let r : bits(2) =
@@ -353,7 +346,6 @@ function cmp_pred5_f16(a, b, pred) = {
 }
 
 // VCMPPH → kmask: compare FP16 elements, return mask
-
 val avx_vcmpph_kmask_128 : (xmmword, xmmword, range(0, 31)) -> byte
 function avx_vcmpph_kmask_128(a, b, pred) = {
   var r : byte = zeros();
@@ -377,11 +369,6 @@ function avx_vcmpph_kmask_512(a, b, pred) = {
 }
 
 // =========================================================================
-// Packed FP conversions
-// =========================================================================
-
-// VCVTPS2PD: convert N f32 → N f64 (widening)
-
 val avx_vpermq_imm_256 : (ymmword, byte) -> ymmword
 function avx_vpermq_imm_256(src, imm) = {
   var r : ymmword = zeros();
@@ -404,7 +391,6 @@ function avx_vpermq_imm_512(src, imm) = {
 
 // VALIGND: concatenate src1(high):src2(low), shift right by imm dwords, take low bits.
 // Branchless: same pattern as VPALIGNR but at dword granularity.
-
 val avx_valignd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_valignd_128(src1, src2, imm) =
   ((src1 @ src2) >> (unsigned(imm[1..0]) * 32))[127..0]
@@ -418,7 +404,6 @@ function avx_valignd_512(src1, src2, imm) =
   ((src1 @ src2) >> (unsigned(imm[3..0]) * 32))[511..0]
 
 // VALIGNQ: concatenate src1(high):src2(low), shift right by imm qwords, take low bits.
-
 val avx_valignq_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_valignq_128(src1, src2, imm) =
   ((src1 @ src2) >> (unsigned(imm[0..0]) * 64))[127..0]
@@ -528,7 +513,6 @@ function select_lane_128_from_512(src, sel) = {
 // Actually SDM says: for 256-bit VSHUFF32X4:
 //   dst[127:0] = src1[imm8[0]*128+127 : imm8[0]*128]
 //   dst[255:128] = src2[imm8[1]*128+127 : imm8[1]*128]
-
 val avx_shuf_f32x4_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_shuf_f32x4_256(src1, src2, imm) = {
   let s0 : range(0, 1) = unsigned(imm[0]);
@@ -543,7 +527,6 @@ function avx_shuf_f32x4_256(src1, src2, imm) = {
 //   dst[255:128] = src1[imm8[3:2]*128+127 : ...]
 //   dst[383:256] = src2[imm8[5:4]*128+127 : ...]
 //   dst[511:384] = src2[imm8[7:6]*128+127 : ...]
-
 val avx_shuf_f32x4_512 : (zmmword, zmmword, byte) -> zmmword
 function avx_shuf_f32x4_512(src1, src2, imm) = {
   let s0 : range(0, 3) = unsigned(imm[1..0]);
@@ -611,17 +594,6 @@ function avx_vdbpsadbw_512(src1, src2, imm) = {
   let q3 = avx_vdbpsadbw_128(src1[511..384], src2[511..384], imm);
   q3 @ q2 @ q1 @ q0
 }
-
-/* ---- VEXPANDPS/PD: expand from contiguous to masked positions ---- */
-// These read contiguous elements from src and scatter into positions where mask=1.
-// Elements where mask=0 get zeroed (or kept from dst if merging, but we implement zero-masking).
-// The mask comes from a k-register, but at the helper level we just take the mask bits as an argument.
-
-// VEXPANDPS/PD and VCOMPRESSPS/PD use mask-based element rearrangement.
-// Since the mutable counter j confuses the type checker, we use a different approach:
-// count set bits below each position to determine source/dest indices.
-
-// Count set bits in positions [0, upto) of a byte mask
 
 val avx_vrndscaleps_128 : (xmmword, byte) -> xmmword
 function avx_vrndscaleps_128(src, imm) = {
@@ -776,7 +748,6 @@ val avx_fpclass_f64 : (qword, byte) -> bit
 function avx_fpclass_f64(src, imm) = fpclass(src[63], src[62..52], src[51..0], imm)
 
 // VFPCLASSPS/PD packed versions
-
 val avx_vfpclassps_128 : (xmmword, byte) -> byte
 function avx_vfpclassps_128(src, imm) = {
   let b0 : bits(1) = avx_fpclass_f32(src[31..0], imm);
@@ -949,12 +920,6 @@ function avx_vcvtps2ph_512(src, rc) = {
   avx_vcvtps2ph_256(src[511..256], rc) @ avx_vcvtps2ph_256(src[255..0], rc)
 }
 
-/* ---- Gather: VPGATHERDD/DQ, VGATHERDPS/DPD (dword indices) ---- */
-/* ---- Gather: VPGATHERQD/QQ, VGATHERQPS/QPD (qword indices) ---- */
-
-// Compute effective address for one gather element.
-// base + sign_extend(index) << scale
-
 val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
 function avx_vpclmulqdq_lane(src1, src2, imm8) = {
   let sel_a : qword = blend(src1[63..0], src1[127..64], imm8[0]);
@@ -980,7 +945,6 @@ function avx_vpclmulqdq_512(src1, src2, imm8) = {
   avx_vpclmulqdq_lane(src1[255..128], src2[255..128], imm8) @
   avx_vpclmulqdq_lane(src1[127..0], src2[127..0], imm8)
 }
-
 
 /* ---- VPSHLD/VPSHRD: packed shift double (VBMI2) ---- */
 
@@ -1045,7 +1009,6 @@ function avx_vpshldq_imm_512(src1, src2, imm8) = {
 }
 
 // Immediate versions (VPSHRDW/D/Q imm8)
-
 val avx_vpshrdw_imm_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_vpshrdw_imm_128(src1, src2, imm8) = {
   var r : xmmword = zeros();
@@ -1106,11 +1069,6 @@ function avx_vpshrdq_imm_512(src1, src2, imm8) = {
   avx_vpshrdq_imm_256(src1[255..0], src2[255..0], imm8)
 }
 
-/* ---- VPMADD52LUQ / VPMADD52HUQ: multiply-add unsigned 52-bit (IFMA) ---- */
-
-// Multiply two 52-bit unsigned values (low 52 bits of each qword)
-// and produce a 104-bit product. Return low or high 52 bits.
-
 val gf2p8_affine : (byte, qword, byte) -> byte
 function gf2p8_affine(src, matrix, imm8) = {
   var r : byte = zeros();
@@ -1159,7 +1117,6 @@ function avx_gf2p8affineqb_512(src1, src2, imm8) = {
 
 // GF2P8AFFINEINVQB: Same as AFFINEQB but first applies GF(2^8) inverse on src1
 // The inverse of 0 is 0 in GF(2^8).
-
 val gf2p8_inv : byte -> byte
 function gf2p8_inv(x) = {
   // Compute x^254 = x^(-1) in GF(2^8) using repeated squaring.
@@ -1205,11 +1162,6 @@ function avx_gf2p8affineinvqb_512(src1, src2, imm8) = {
   avx_gf2p8affineinvqb_256(src1[511..256], src2[511..256], imm8) @
   avx_gf2p8affineinvqb_256(src1[255..0], src2[255..0], imm8)
 }
-
-// =========================================================================
-// VEXP2PS/PD — Approximate 2^x (512-bit only, AVX-512ER / KNL)
-// =========================================================================
-
 
 val dispatch_evex_imm : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_imm(op, pfx) = {

@@ -235,7 +235,6 @@ function evex_wmask(pfx, n) =
     zeroing = pfx.evex_z,
   }
 
-
 // --- Scalar SS (32-bit) writemask ---
 // Applies mask bit 0 only to the lowest dword of an XMM result.
 // Upper bits [127:32] are already merged from src1 by the caller.
@@ -292,14 +291,12 @@ function evex_bcast_src(vl, modrm, rm, pfx, eb) = {
 }
 
 // Broadcast a 32-bit value to all 16 dword lanes of a ZMM register.
-
 val broadcast_f32_zmm : dword -> zmmword
 function broadcast_f32_zmm(v) =
   v @ v @ v @ v @ v @ v @ v @ v @
   v @ v @ v @ v @ v @ v @ v @ v
 
 // Broadcast a 64-bit value to all 8 qword lanes of a ZMM register.
-
 val broadcast_f64_zmm : qword -> zmmword
 function broadcast_f64_zmm(v) =
   v @ v @ v @ v @ v @ v @ v @ v
@@ -322,7 +319,6 @@ function broadcast_f64_xmm(v) =
 
 // Broadcast-aware source helpers: read source from reg/mem, applying
 // EVEX.b broadcast when the source is a memory operand.
-
 val evex_bcast_src_f32_zmm : (byte, RM, Prefixes, bool) -> zmmword
 function evex_bcast_src_f32_zmm(modrm, rm, pfx, is_mem) =
   if pfx.evex_b & is_mem then broadcast_f32_zmm(evex_src_m32(modrm, rm, pfx))
@@ -409,7 +405,6 @@ function gf2p8_mul(a, b) = {
 //
 // evex_begin_rc() saves the current MXCSR, overrides bits 14:13 with LL,
 // and returns (effective_ll, saved_mxcsr). Call evex_end_rc() to restore.
-
 val evex_begin_rc : (Prefixes, bool) -> (range(0, 3), dword)
 function evex_begin_rc(pfx, is_reg) = {
   let saved = __stmxcsr();

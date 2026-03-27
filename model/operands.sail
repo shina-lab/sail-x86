@@ -275,7 +275,6 @@ overload rm_reg = {read_reg_rm, write_reg_rm}
 //
 // Mirrors SDM pseudocode style: v(dest) = v(src) + v(dest)
 // Works uniformly on gpr_idx, GPRRef, RM, and MemRef operands.
-
 val read_memref_val : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), MemRef) -> bits('os)
 function read_memref_val(os, m) = read_mem(m)
 

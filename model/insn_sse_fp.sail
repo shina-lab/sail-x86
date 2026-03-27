@@ -1252,7 +1252,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
 }
 
 // XMM element extraction helpers (shared by decode_sse_fp and decode_sse_int)
-
 val extract_byte_from_xmm : (xmmword, byte) -> byte
 function extract_byte_from_xmm(s, imm8) = {
   let sel : range(0, 15) = unsigned(imm8[3..0]);
