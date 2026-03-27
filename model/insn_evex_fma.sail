@@ -158,281 +158,134 @@ function avx_vpmadd52huq_elem(dst, src1, src2) = {
   get_slice_int(64, sum, 0)
 }
 
-val avx_vpmadd52luq_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpmadd52luq_128(dst, src1, src2) = {
-  avx_vpmadd52luq_elem(dst[127..64], src1[127..64], src2[127..64]) @
-  avx_vpmadd52luq_elem(dst[63..0], src1[63..0], src2[63..0])
-}
-
-val avx_vpmadd52luq_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpmadd52luq_256(dst, src1, src2) = {
-  avx_vpmadd52luq_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpmadd52luq_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpmadd52luq_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpmadd52luq_512(dst, src1, src2) = {
-  avx_vpmadd52luq_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpmadd52luq_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
-val avx_vpmadd52huq_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_vpmadd52huq_128(dst, src1, src2) = {
-  avx_vpmadd52huq_elem(dst[127..64], src1[127..64], src2[127..64]) @
-  avx_vpmadd52huq_elem(dst[63..0], src1[63..0], src2[63..0])
-}
-
-val avx_vpmadd52huq_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_vpmadd52huq_256(dst, src1, src2) = {
-  avx_vpmadd52huq_128(dst[255..128], src1[255..128], src2[255..128]) @
-  avx_vpmadd52huq_128(dst[127..0], src1[127..0], src2[127..0])
-}
-
-val avx_vpmadd52huq_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_vpmadd52huq_512(dst, src1, src2) = {
-  avx_vpmadd52huq_256(dst[511..256], src1[511..256], src2[511..256]) @
-  avx_vpmadd52huq_256(dst[255..0], src1[255..0], src2[255..0])
-}
-
-val avx_gf2p8mulb_128 : (xmmword, xmmword) -> xmmword
-function avx_gf2p8mulb_128(src1, src2) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = gf2p8_mul(src1[(lo + 7)..lo], src2[(lo + 7)..lo]);
+val avx_vpmadd52luq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_vpmadd52luq(vl, dst, src1, src2) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = avx_vpmadd52luq_elem(dst[(lo + 63)..lo], src1[(lo + 63)..lo], src2[(lo + 63)..lo])
   };
   r
 }
 
-val avx_gf2p8mulb_256 : (ymmword, ymmword) -> ymmword
-function avx_gf2p8mulb_256(src1, src2) = {
-  avx_gf2p8mulb_128(src1[255..128], src2[255..128]) @
-  avx_gf2p8mulb_128(src1[127..0], src2[127..0])
+val avx_vpmadd52huq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_vpmadd52huq(vl, dst, src1, src2) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = avx_vpmadd52huq_elem(dst[(lo + 63)..lo], src1[(lo + 63)..lo], src2[(lo + 63)..lo])
+  };
+  r
 }
 
-val avx_gf2p8mulb_512 : (zmmword, zmmword) -> zmmword
-function avx_gf2p8mulb_512(src1, src2) = {
-  avx_gf2p8mulb_256(src1[511..256], src2[511..256]) @
-  avx_gf2p8mulb_256(src1[255..0], src2[255..0])
+val avx_gf2p8mulb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_gf2p8mulb(vl, src1, src2) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 8 - 1)) {
+    let lo = i * 8;
+    r[(lo + 7)..lo] = gf2p8_mul(src1[(lo + 7)..lo], src2[(lo + 7)..lo])
+  };
+  r
 }
 
-val avx_vexp2ps_512 : zmmword -> zmmword
-function avx_vexp2ps_512(src) = {
-  __f32_exp2(src[511..480]) @ __f32_exp2(src[479..448]) @
-  __f32_exp2(src[447..416]) @ __f32_exp2(src[415..384]) @
-  __f32_exp2(src[383..352]) @ __f32_exp2(src[351..320]) @
-  __f32_exp2(src[319..288]) @ __f32_exp2(src[287..256]) @
-  __f32_exp2(src[255..224]) @ __f32_exp2(src[223..192]) @
-  __f32_exp2(src[191..160]) @ __f32_exp2(src[159..128]) @
-  __f32_exp2(src[127..96])  @ __f32_exp2(src[95..64])   @
-  __f32_exp2(src[63..32])   @ __f32_exp2(src[31..0])
+// Per-element FP unary helpers (polymorphic over vl and eb)
+val avx_vexp2 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vexp2(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_exp2(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_exp2(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-val avx_vexp2pd_512 : zmmword -> zmmword
-function avx_vexp2pd_512(src) = {
-  __f64_exp2(src[511..448]) @ __f64_exp2(src[447..384]) @
-  __f64_exp2(src[383..320]) @ __f64_exp2(src[319..256]) @
-  __f64_exp2(src[255..192]) @ __f64_exp2(src[191..128]) @
-  __f64_exp2(src[127..64])  @ __f64_exp2(src[63..0])
+val avx_vrcp28 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vrcp28(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_rcp28(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_rcp28(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-// =========================================================================
-// VRCP28PS/PD/SS/SD — Approximate Reciprocal (28 bits, AVX-512ER / KNL)
-// =========================================================================
-
-val avx_vrcp28ps_512 : zmmword -> zmmword
-function avx_vrcp28ps_512(src) = {
-  __f32_rcp28(src[511..480]) @ __f32_rcp28(src[479..448]) @
-  __f32_rcp28(src[447..416]) @ __f32_rcp28(src[415..384]) @
-  __f32_rcp28(src[383..352]) @ __f32_rcp28(src[351..320]) @
-  __f32_rcp28(src[319..288]) @ __f32_rcp28(src[287..256]) @
-  __f32_rcp28(src[255..224]) @ __f32_rcp28(src[223..192]) @
-  __f32_rcp28(src[191..160]) @ __f32_rcp28(src[159..128]) @
-  __f32_rcp28(src[127..96])  @ __f32_rcp28(src[95..64])   @
-  __f32_rcp28(src[63..32])   @ __f32_rcp28(src[31..0])
+val avx_vrsqrt28 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vrsqrt28(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_rsqrt28(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_rsqrt28(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-val avx_vrcp28pd_512 : zmmword -> zmmword
-function avx_vrcp28pd_512(src) = {
-  __f64_rcp28(src[511..448]) @ __f64_rcp28(src[447..384]) @
-  __f64_rcp28(src[383..320]) @ __f64_rcp28(src[319..256]) @
-  __f64_rcp28(src[255..192]) @ __f64_rcp28(src[191..128]) @
-  __f64_rcp28(src[127..64])  @ __f64_rcp28(src[63..0])
+val avx_vgetexp : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vgetexp(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_getexp(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_getexp(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-// =========================================================================
-// VRSQRT28PS/PD/SS/SD — Approximate Reciprocal Square Root (28 bits, AVX-512ER / KNL)
-// =========================================================================
-
-val avx_vrsqrt28ps_512 : zmmword -> zmmword
-function avx_vrsqrt28ps_512(src) = {
-  __f32_rsqrt28(src[511..480]) @ __f32_rsqrt28(src[479..448]) @
-  __f32_rsqrt28(src[447..416]) @ __f32_rsqrt28(src[415..384]) @
-  __f32_rsqrt28(src[383..352]) @ __f32_rsqrt28(src[351..320]) @
-  __f32_rsqrt28(src[319..288]) @ __f32_rsqrt28(src[287..256]) @
-  __f32_rsqrt28(src[255..224]) @ __f32_rsqrt28(src[223..192]) @
-  __f32_rsqrt28(src[191..160]) @ __f32_rsqrt28(src[159..128]) @
-  __f32_rsqrt28(src[127..96])  @ __f32_rsqrt28(src[95..64])   @
-  __f32_rsqrt28(src[63..32])   @ __f32_rsqrt28(src[31..0])
+val avx_vrcp14 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vrcp14(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_rcp14(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_rcp14(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-val avx_vrsqrt28pd_512 : zmmword -> zmmword
-function avx_vrsqrt28pd_512(src) = {
-  __f64_rsqrt28(src[511..448]) @ __f64_rsqrt28(src[447..384]) @
-  __f64_rsqrt28(src[383..320]) @ __f64_rsqrt28(src[319..256]) @
-  __f64_rsqrt28(src[255..192]) @ __f64_rsqrt28(src[191..128]) @
-  __f64_rsqrt28(src[127..64])  @ __f64_rsqrt28(src[63..0])
+val avx_vrsqrt14 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl)) -> bits('vl)
+function avx_vrsqrt14(eb, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_rsqrt14(src[(lo + 'eb - 1)..lo]),
+      64 => __f64_rsqrt14(src[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
 }
 
-// VGETEXPPD — Convert Exponents of Packed Float64 Values to Float64 Values (AVX-512)
-// VGETEXPPS — Convert Exponents of Packed Float32 Values to Float32 Values (AVX-512)
-// VGETEXPSD — Convert Exponent of Scalar Float64 Value to Float64 Value (AVX-512)
-// VGETEXPSS — Convert Exponent of Scalar Float32 Value to Float32 Value (AVX-512)
-//
-// These instructions convert the biased exponent of each FP element to an
-// FP value representing the unbiased integer exponent.
-
-// =========================================================================
-// Packed PS (float32) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vgetexpps_xmm : xmmword -> xmmword
-function vgetexpps_xmm(a) =
-  __f32_getexp(a[127..96]) @ __f32_getexp(a[95..64]) @
-  __f32_getexp(a[63..32])  @ __f32_getexp(a[31..0])
-
-val vgetexpps_ymm : ymmword -> ymmword
-function vgetexpps_ymm(a) =
-  vgetexpps_xmm(a[255..128]) @ vgetexpps_xmm(a[127..0])
-
-val vgetexpps_zmm : zmmword -> zmmword
-function vgetexpps_zmm(a) =
-  vgetexpps_ymm(a[511..256]) @ vgetexpps_ymm(a[255..0])
-
-// =========================================================================
-// Packed PD (float64) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vgetexppd_xmm : xmmword -> xmmword
-function vgetexppd_xmm(a) =
-  __f64_getexp(a[127..64]) @ __f64_getexp(a[63..0])
-
-val vgetexppd_ymm : ymmword -> ymmword
-function vgetexppd_ymm(a) =
-  vgetexppd_xmm(a[255..128]) @ vgetexppd_xmm(a[127..0])
-
-val vgetexppd_zmm : zmmword -> zmmword
-function vgetexppd_zmm(a) =
-  vgetexppd_ymm(a[511..256]) @ vgetexppd_ymm(a[255..0])
-
-// VRCP14PD — Compute Approximate Reciprocals of Packed Float64 Values (AVX-512)
-// VRCP14PS — Compute Approximate Reciprocals of Packed Float32 Values (AVX-512)
-// VRCP14SD — Compute Approximate Reciprocal of Scalar Float64 Value (AVX-512)
-// VRCP14SS — Compute Approximate Reciprocal of Scalar Float32 Value (AVX-512)
-//
-// These instructions compute approximate reciprocals with a relative error
-// bound of 2^-14.
-
-// =========================================================================
-// Packed PS (float32) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vrcp14ps_xmm : xmmword -> xmmword
-function vrcp14ps_xmm(a) =
-  __f32_rcp14(a[127..96]) @ __f32_rcp14(a[95..64]) @
-  __f32_rcp14(a[63..32])  @ __f32_rcp14(a[31..0])
-
-val vrcp14ps_ymm : ymmword -> ymmword
-function vrcp14ps_ymm(a) =
-  vrcp14ps_xmm(a[255..128]) @ vrcp14ps_xmm(a[127..0])
-
-val vrcp14ps_zmm : zmmword -> zmmword
-function vrcp14ps_zmm(a) =
-  vrcp14ps_ymm(a[511..256]) @ vrcp14ps_ymm(a[255..0])
-
-// =========================================================================
-// Packed PD (float64) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vrcp14pd_xmm : xmmword -> xmmword
-function vrcp14pd_xmm(a) =
-  __f64_rcp14(a[127..64]) @ __f64_rcp14(a[63..0])
-
-val vrcp14pd_ymm : ymmword -> ymmword
-function vrcp14pd_ymm(a) =
-  vrcp14pd_xmm(a[255..128]) @ vrcp14pd_xmm(a[127..0])
-
-val vrcp14pd_zmm : zmmword -> zmmword
-function vrcp14pd_zmm(a) =
-  vrcp14pd_ymm(a[511..256]) @ vrcp14pd_ymm(a[255..0])
-
-// =========================================================================
-// VRCP28 / VRCPPH / VRCPSH stubs (external, no YMM/ZMM infrastructure yet)
-// =========================================================================
-
-val vrsqrt14ps_xmm : xmmword -> xmmword
-function vrsqrt14ps_xmm(a) =
-  __f32_rsqrt14(a[127..96]) @ __f32_rsqrt14(a[95..64]) @
-  __f32_rsqrt14(a[63..32])  @ __f32_rsqrt14(a[31..0])
-
-val vrsqrt14ps_ymm : ymmword -> ymmword
-function vrsqrt14ps_ymm(a) =
-  vrsqrt14ps_xmm(a[255..128]) @ vrsqrt14ps_xmm(a[127..0])
-
-val vrsqrt14ps_zmm : zmmword -> zmmword
-function vrsqrt14ps_zmm(a) =
-  vrsqrt14ps_ymm(a[511..256]) @ vrsqrt14ps_ymm(a[255..0])
-
-// =========================================================================
-// Packed PD (float64) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vrsqrt14pd_xmm : xmmword -> xmmword
-function vrsqrt14pd_xmm(a) =
-  __f64_rsqrt14(a[127..64]) @ __f64_rsqrt14(a[63..0])
-
-val vrsqrt14pd_ymm : ymmword -> ymmword
-function vrsqrt14pd_ymm(a) =
-  vrsqrt14pd_xmm(a[255..128]) @ vrsqrt14pd_xmm(a[127..0])
-
-val vrsqrt14pd_zmm : zmmword -> zmmword
-function vrsqrt14pd_zmm(a) =
-  vrsqrt14pd_ymm(a[511..256]) @ vrsqrt14pd_ymm(a[255..0])
-
-// =========================================================================
-// VRSQRT28 / VRSQRTPH / VRSQRTSH stubs (external, no YMM/ZMM infrastructure yet)
-// =========================================================================
-
-val vscalefps_xmm : (xmmword, xmmword) -> xmmword
-function vscalefps_xmm(a, b) =
-  __f32_scalef(a[127..96], b[127..96]) @
-  __f32_scalef(a[95..64],  b[95..64])  @
-  __f32_scalef(a[63..32],  b[63..32])  @
-  __f32_scalef(a[31..0],   b[31..0])
-
-val vscalefps_ymm : (ymmword, ymmword) -> ymmword
-function vscalefps_ymm(a, b) =
-  vscalefps_xmm(a[255..128], b[255..128]) @ vscalefps_xmm(a[127..0], b[127..0])
-
-val vscalefps_zmm : (zmmword, zmmword) -> zmmword
-function vscalefps_zmm(a, b) =
-  vscalefps_ymm(a[511..256], b[511..256]) @ vscalefps_ymm(a[255..0], b[255..0])
-
-// =========================================================================
-// Packed PD (float64) helpers: 128 -> 256 -> 512
-// =========================================================================
-
-val vscalefpd_xmm : (xmmword, xmmword) -> xmmword
-function vscalefpd_xmm(a, b) =
-  __f64_scalef(a[127..64], b[127..64]) @ __f64_scalef(a[63..0], b[63..0])
-
-val vscalefpd_ymm : (ymmword, ymmword) -> ymmword
-function vscalefpd_ymm(a, b) =
-  vscalefpd_xmm(a[255..128], b[255..128]) @ vscalefpd_xmm(a[127..0], b[127..0])
-
-val vscalefpd_zmm : (zmmword, zmmword) -> zmmword
-function vscalefpd_zmm(a, b) =
-  vscalefpd_ymm(a[511..256], b[511..256]) @ vscalefpd_ymm(a[255..0], b[255..0])
+val avx_vscalef : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl)) -> bits('vl)
+function avx_vscalef(eb, a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => __f32_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
+      64 => __f64_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
+    }
+  };
+  r
+}
 
 val dispatch_evex_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_fma(op, pfx) = {
@@ -848,9 +701,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
     match vl {
-      128 => evex_write(dst, mask, avx_vpmadd52luq_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
-      256 => evex_write(dst, mask, avx_vpmadd52luq_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
-      512 => evex_write(dst, mask, avx_vpmadd52luq_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
+      _ => evex_write(dst, mask, avx_vpmadd52luq(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
     }
   },
 
@@ -863,9 +714,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
     match vl {
-      128 => evex_write(dst, mask, avx_vpmadd52huq_128(read_xmm(dst), read_xmm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
-      256 => evex_write(dst, mask, avx_vpmadd52huq_256(read_ymm(dst), read_ymm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
-      512 => evex_write(dst, mask, avx_vpmadd52huq_512(read_zmm(dst), read_zmm(pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
+      _ => evex_write(dst, mask, avx_vpmadd52huq(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
     }
   },
 
@@ -1033,23 +882,9 @@ function dispatch_evex_fma(op, pfx) = {
     let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     // VSCALEFPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
     // VSCALEFPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
-    match (pfx.rex_w, eff_ll) {
-      (true, 0)  => evex_write(dst, evex_wmask(pfx, 2), vscalefpd_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 64))),
-      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), vscalefpd_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 64))),
-      (true, 2) => {
-        let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src(512,modrm, src, pfx, 64);
-        evex_write(dst, evex_wmask(pfx, 8), vscalefpd_zmm(src1, src2))
-      },
-      (false, 0) => evex_write(dst, evex_wmask(pfx, 4), vscalefps_xmm(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32))),
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), vscalefps_ymm(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32))),
-      (false, 2) => {
-        let src1 : zmmword = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_bcast_src(512,modrm, src, pfx, 32);
-        evex_write(dst, evex_wmask(pfx, 16), vscalefps_zmm(src1, src2))
-      },
-      _ => raise_UD(),
-    };
+    let vl = ll_to_vl(eff_ll);
+    let eb = evex_elem(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / eb), avx_vscalef(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, eb)));
     evex_end_rc(saved_mxcsr)
   },
 
@@ -1079,15 +914,9 @@ function dispatch_evex_fma(op, pfx) = {
     let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     // VGETEXPPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
     // VGETEXPPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    match (pfx.rex_w, eff_ll) {
-      (true, 0)  => evex_write(dst, evex_wmask(pfx, 2), vgetexppd_xmm(evex_bcast_src(128,modrm, src, pfx, 64))),
-      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), vgetexppd_ymm(evex_bcast_src(256,modrm, src, pfx, 64))),
-      (true, 2)  => evex_write(dst, evex_wmask(pfx, 8), vgetexppd_zmm(evex_bcast_src(512,modrm, src, pfx, 64))),
-      (false, 0) => evex_write(dst, evex_wmask(pfx, 4), vgetexpps_xmm(evex_bcast_src(128,modrm, src, pfx, 32))),
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), vgetexpps_ymm(evex_bcast_src(256,modrm, src, pfx, 32))),
-      (false, 2) => evex_write(dst, evex_wmask(pfx, 16), vgetexpps_zmm(evex_bcast_src(512,modrm, src, pfx, 32))),
-      _ => raise_UD(),
-    };
+    let vl = ll_to_vl(eff_ll);
+    let eb = evex_elem(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / eb), avx_vgetexp(eb, evex_bcast_src(vl, modrm, src, pfx, eb)));
     evex_end_rc(saved_mxcsr)
   },
 
@@ -1116,15 +945,9 @@ function dispatch_evex_fma(op, pfx) = {
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     // VRCP14PD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
     // VRCP14PS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => evex_write(dst, evex_wmask(pfx, 2), vrcp14pd_xmm(evex_bcast_src(128,modrm, src, pfx, 64))),
-      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), vrcp14pd_ymm(evex_bcast_src(256,modrm, src, pfx, 64))),
-      (true, 2)  => evex_write(dst, evex_wmask(pfx, 8), vrcp14pd_zmm(evex_bcast_src(512,modrm, src, pfx, 64))),
-      (false, 0) => evex_write(dst, evex_wmask(pfx, 4), vrcp14ps_xmm(evex_bcast_src(128,modrm, src, pfx, 32))),
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), vrcp14ps_ymm(evex_bcast_src(256,modrm, src, pfx, 32))),
-      (false, 2) => evex_write(dst, evex_wmask(pfx, 16), vrcp14ps_zmm(evex_bcast_src(512,modrm, src, pfx, 32))),
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / eb), avx_vrcp14(eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
   },
 
   // 0F38 4D: VRCP14SS (66,W0) / VRCP14SD (66,W1) [T1S]
@@ -1149,15 +972,9 @@ function dispatch_evex_fma(op, pfx) = {
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     // VRSQRT14PD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
     // VRSQRT14PS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    match (pfx.rex_w, pfx.evex_ll) {
-      (true, 0) => evex_write(dst, evex_wmask(pfx, 2), vrsqrt14pd_xmm(evex_bcast_src(128,modrm, src, pfx, 64))),
-      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), vrsqrt14pd_ymm(evex_bcast_src(256,modrm, src, pfx, 64))),
-      (true, 2)  => evex_write(dst, evex_wmask(pfx, 8), vrsqrt14pd_zmm(evex_bcast_src(512,modrm, src, pfx, 64))),
-      (false, 0) => evex_write(dst, evex_wmask(pfx, 4), vrsqrt14ps_xmm(evex_bcast_src(128,modrm, src, pfx, 32))),
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), vrsqrt14ps_ymm(evex_bcast_src(256,modrm, src, pfx, 32))),
-      (false, 2) => evex_write(dst, evex_wmask(pfx, 16), vrsqrt14ps_zmm(evex_bcast_src(512,modrm, src, pfx, 32))),
-      _ => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let eb = evex_elem(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / eb), avx_vrsqrt14(eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
   },
 
   // 0F38 4F: VRSQRT14SS (66,W0) / VRSQRT14SD (66,W1) [T1S]
@@ -1206,8 +1023,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vexp2pd_512(evex_bcast_src(512,modrm, src, pfx, 64)))
-    else evex_write(dst, evex_wmask(pfx, 16), avx_vexp2ps_512(evex_bcast_src(512,modrm, src, pfx, 32)))
+    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vexp2(64, evex_bcast_src(512,modrm, src, pfx, 64)))
+    else evex_write(dst, evex_wmask(pfx, 16), avx_vexp2(32, evex_bcast_src(512,modrm, src, pfx, 32)))
   },
 
   // 0F38 CA: VRCP28PS (66,W0) / VRCP28PD (66,W1) [ER] — 512-bit only
@@ -1217,8 +1034,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vrcp28pd_512(evex_bcast_src(512,modrm, src, pfx, 64)))
-    else evex_write(dst, evex_wmask(pfx, 16), avx_vrcp28ps_512(evex_bcast_src(512,modrm, src, pfx, 32)))
+    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vrcp28(64, evex_bcast_src(512,modrm, src, pfx, 64)))
+    else evex_write(dst, evex_wmask(pfx, 16), avx_vrcp28(32, evex_bcast_src(512,modrm, src, pfx, 32)))
   },
 
   // 0F38 CB: VRCP28SS (66,W0) / VRCP28SD (66,W1) [ER] — scalar
@@ -1240,8 +1057,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vrsqrt28pd_512(evex_bcast_src(512,modrm, src, pfx, 64)))
-    else evex_write(dst, evex_wmask(pfx, 16), avx_vrsqrt28ps_512(evex_bcast_src(512,modrm, src, pfx, 32)))
+    if pfx.rex_w then evex_write(dst, evex_wmask(pfx, 8), avx_vrsqrt28(64, evex_bcast_src(512,modrm, src, pfx, 64)))
+    else evex_write(dst, evex_wmask(pfx, 16), avx_vrsqrt28(32, evex_bcast_src(512,modrm, src, pfx, 32)))
   },
 
   // 0F38 CD: VRSQRT28SS (66,W0) / VRSQRT28SD (66,W1) [ER] — scalar
@@ -1265,9 +1082,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 8);
     match vl {
-      128 => evex_write(dst, mask, avx_gf2p8mulb_128(read_xmm(pfx.evex_vvvvv), evex_src(128, modrm, src, pfx))),
-      256 => evex_write(dst, mask, avx_gf2p8mulb_256(read_ymm(pfx.evex_vvvvv), evex_src(256, modrm, src, pfx))),
-      512 => evex_write(dst, mask, avx_gf2p8mulb_512(read_zmm(pfx.evex_vvvvv), evex_src(512, modrm, src, pfx))),
+      _ => evex_write(dst, mask, avx_gf2p8mulb(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx))),
     }
   },
 
