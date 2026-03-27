@@ -14,63 +14,15 @@ function avx_pminud_512(a, b) =
 // Each byte lane: if a[i] == b[i] then mask bit = 1, else 0
 // =========================================================================
 
-val avx_ptestmb_128 : (xmmword, xmmword) -> word
-function avx_ptestmb_128(a, b) =
-  is_nonzero(a[127..120] & b[127..120]) @
-  is_nonzero(a[119..112] & b[119..112]) @
-  is_nonzero(a[111..104] & b[111..104]) @
-  is_nonzero(a[103..96]  & b[103..96]) @
-  is_nonzero(a[95..88]   & b[95..88]) @
-  is_nonzero(a[87..80]   & b[87..80]) @
-  is_nonzero(a[79..72]   & b[79..72]) @
-  is_nonzero(a[71..64]   & b[71..64]) @
-  is_nonzero(a[63..56]   & b[63..56]) @
-  is_nonzero(a[55..48]   & b[55..48]) @
-  is_nonzero(a[47..40]   & b[47..40]) @
-  is_nonzero(a[39..32]   & b[39..32]) @
-  is_nonzero(a[31..24]   & b[31..24]) @
-  is_nonzero(a[23..16]   & b[23..16]) @
-  is_nonzero(a[15..8]    & b[15..8]) @
-  is_nonzero(a[7..0]     & b[7..0])
-
-val avx_ptestnmb_128 : (xmmword, xmmword) -> word
-function avx_ptestnmb_128(a, b) =
-  is_zero(a[127..120] & b[127..120]) @
-  is_zero(a[119..112] & b[119..112]) @
-  is_zero(a[111..104] & b[111..104]) @
-  is_zero(a[103..96]  & b[103..96]) @
-  is_zero(a[95..88]   & b[95..88]) @
-  is_zero(a[87..80]   & b[87..80]) @
-  is_zero(a[79..72]   & b[79..72]) @
-  is_zero(a[71..64]   & b[71..64]) @
-  is_zero(a[63..56]   & b[63..56]) @
-  is_zero(a[55..48]   & b[55..48]) @
-  is_zero(a[47..40]   & b[47..40]) @
-  is_zero(a[39..32]   & b[39..32]) @
-  is_zero(a[31..24]   & b[31..24]) @
-  is_zero(a[23..16]   & b[23..16]) @
-  is_zero(a[15..8]    & b[15..8]) @
-  is_zero(a[7..0]     & b[7..0])
-
-val avx_ptestmb_256 : (ymmword, ymmword) -> dword
-function avx_ptestmb_256(a, b) =
-  avx_ptestmb_128(a[255..128], b[255..128]) @
-  avx_ptestmb_128(a[127..0], b[127..0])
-
-val avx_ptestnmb_256 : (ymmword, ymmword) -> dword
-function avx_ptestnmb_256(a, b) =
-  avx_ptestnmb_128(a[255..128], b[255..128]) @
-  avx_ptestnmb_128(a[127..0], b[127..0])
-
-val avx_ptestmb_512 : (zmmword, zmmword) -> qword
-function avx_ptestmb_512(a, b) =
-  avx_ptestmb_256(a[511..256], b[511..256]) @
-  avx_ptestmb_256(a[255..0], b[255..0])
-
-val avx_ptestnmb_512 : (zmmword, zmmword) -> qword
-function avx_ptestnmb_512(a, b) =
-  avx_ptestnmb_256(a[511..256], b[511..256]) @
-  avx_ptestnmb_256(a[255..0], b[255..0])
+val avx_ptestmb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bit) -> qword
+function avx_ptestmb(a, b, neg) = {
+  var r : qword = zeros();
+  foreach (i from 0 to ('vl / 8 - 1)) {
+    let lo = i * 8;
+    r[i] = is_nonzero(a[(lo + 7)..lo] & b[(lo + 7)..lo]) ^ neg;
+  };
+  r
+}
 
 // =========================================================================
 // VPTESTMD/VPTESTNMD: dword version
@@ -1628,25 +1580,11 @@ function dispatch_evex_arith(op, pfx) = {
         write_kreg(dst_k, k_mask)
       },
       // VPTESTMB / VPTESTNMB (byte)
-      (false, 0) => {
-        let src1 = read_xmm(pfx.evex_vvvvv);
-        let src2 = evex_src_xmm(modrm, src, pfx);
-        let mask : word = avx_ptestmb_128(src1, src2) ^ (sign_extend(neg_bit));
-        let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-        write_kreg(dst_k, k_mask)
-      },
-      (false, 1) => {
-        let src1 = read_ymm(pfx.evex_vvvvv);
-        let src2 = evex_src_ymm(modrm, src, pfx);
-        let mask : dword = avx_ptestmb_256(src1, src2) ^ (sign_extend(neg_bit));
-        let k_mask : qword = zero_extend(mask) & evex_kmask64(pfx);
-        write_kreg(dst_k, k_mask)
-      },
-      (false, 2) => {
-        let src1 = read_zmm(pfx.evex_vvvvv);
-        let src2 = evex_src_zmm(modrm, src, pfx);
-        let mask : qword = avx_ptestmb_512(src1, src2) ^ (sign_extend(neg_bit));
-        let k_mask : qword = mask & evex_kmask64(pfx);
+      (false, _) => {
+        let vl = evex_vl(pfx);
+        let src1 = read_simd(vl, pfx.evex_vvvvv);
+        let src2 = evex_src(vl, modrm, src, pfx);
+        let k_mask : qword = avx_ptestmb(src1, src2, neg_bit) & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
       },
       _ => raise_UD(),
