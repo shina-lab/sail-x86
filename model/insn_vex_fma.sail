@@ -62,8 +62,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmadd132sd(dst, src2, src3)
-    else exec_vfmadd132ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMAdd, FMA_132, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 9A: VFMSUB132PS (W0) / VFMSUB132PD (W1)
@@ -85,8 +84,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmsub132sd(dst, src2, src3)
-    else exec_vfmsub132ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMSub, FMA_132, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 9C: VFNMADD132PS (W0) / VFNMADD132PD (W1)
@@ -108,8 +106,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmadd132sd(dst, src2, src3)
-    else exec_vfnmadd132ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMAdd, FMA_132, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 9E: VFNMSUB132PS (W0) / VFNMSUB132PD (W1)
@@ -131,8 +128,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmsub132sd(dst, src2, src3)
-    else exec_vfnmsub132ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMSub, FMA_132, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 A6: VFMADDSUB213PS (W0) / VFMADDSUB213PD (W1)
@@ -176,8 +172,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmadd213sd(dst, src2, src3)
-    else exec_vfmadd213ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMAdd, FMA_213, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 AA: VFMSUB213PS (W0) / VFMSUB213PD (W1)
@@ -199,8 +194,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmsub213sd(dst, src2, src3)
-    else exec_vfmsub213ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMSub, FMA_213, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 AC: VFNMADD213PS (W0) / VFNMADD213PD (W1)
@@ -222,8 +216,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmadd213sd(dst, src2, src3)
-    else exec_vfnmadd213ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMAdd, FMA_213, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 AE: VFNMSUB213PS (W0) / VFNMSUB213PD (W1)
@@ -245,8 +238,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmsub213sd(dst, src2, src3)
-    else exec_vfnmsub213ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMSub, FMA_213, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 B6: VFMADDSUB231PS (W0) / VFMADDSUB231PD (W1)
@@ -290,8 +282,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmadd231sd(dst, src2, src3)
-    else exec_vfmadd231ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMAdd, FMA_231, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 BA: VFMSUB231PS (W0) / VFMSUB231PD (W1)
@@ -313,8 +304,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfmsub231sd(dst, src2, src3)
-    else exec_vfmsub231ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FMSub, FMA_231, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 BC: VFNMADD231PS (W0) / VFNMADD231PD (W1)
@@ -336,8 +326,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmadd231sd(dst, src2, src3)
-    else exec_vfnmadd231ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMAdd, FMA_231, pfx.vex_w, dst, src2, src3)
   },
 
   // 0F38 BE: VFNMSUB231PS (W0) / VFNMSUB231PD (W1)
@@ -359,8 +348,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let src2 = read_xmm(pfx.vex_vvvv);
     let src3 = decode_vex_src_xmm(modrm, src, pfx);
-    if pfx.vex_w then exec_vfnmsub231sd(dst, src2, src3)
-    else exec_vfnmsub231ss(dst, src2, src3)
+    exec_vfma_scalar(PT_FNMSub, FMA_231, pfx.vex_w, dst, src2, src3)
   },
 
   _ => raise_UD(),

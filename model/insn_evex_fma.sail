@@ -395,8 +395,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmadd132sd(dst, src2, src3)
-    else exec_vfmadd132ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMAdd, FMA_132, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -425,8 +424,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmsub132sd(dst, src2, src3)
-    else exec_vfmsub132ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMSub, FMA_132, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -455,8 +453,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmadd132sd(dst, src2, src3)
-    else exec_vfnmadd132ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMAdd, FMA_132, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -485,8 +482,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmsub132sd(dst, src2, src3)
-    else exec_vfnmsub132ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMSub, FMA_132, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -597,8 +593,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmadd213sd(dst, src2, src3)
-    else exec_vfmadd213ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMAdd, FMA_213, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -627,8 +622,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmsub213sd(dst, src2, src3)
-    else exec_vfmsub213ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMSub, FMA_213, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -657,8 +651,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmadd213sd(dst, src2, src3)
-    else exec_vfnmadd213ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMAdd, FMA_213, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -687,8 +680,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmsub213sd(dst, src2, src3)
-    else exec_vfnmsub213ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMSub, FMA_213, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -777,8 +769,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmadd231sd(dst, src2, src3)
-    else exec_vfmadd231ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMAdd, FMA_231, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -807,8 +798,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfmsub231sd(dst, src2, src3)
-    else exec_vfmsub231ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FMSub, FMA_231, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -837,8 +827,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmadd231sd(dst, src2, src3)
-    else exec_vfnmadd231ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMAdd, FMA_231, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -867,8 +856,7 @@ function dispatch_evex_fma(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let src2 = read_xmm(pfx.evex_vvvvv);
     let src3 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then exec_vfnmsub231sd(dst, src2, src3)
-    else exec_vfnmsub231ss(dst, src2, src3);
+    exec_vfma_scalar(PT_FNMSub, FMA_231, pfx.rex_w, dst, src2, src3);
     evex_end_rc(saved_mxcsr)
   },
 

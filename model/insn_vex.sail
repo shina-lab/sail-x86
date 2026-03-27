@@ -170,6 +170,33 @@ function packed_ternop(op, eb, a, b, c) = {
 }
 
 // =========================================================================
+// Scalar FMA: unified dispatch for all 24 scalar FMA variants.
+// Replaces exec_vfmadd132ss/sd, exec_vfmsub213ss/sd, etc.
+// =========================================================================
+
+enum FMAOrder = { FMA_132, FMA_213, FMA_231 }
+
+val exec_vfma_scalar : (PackedTernaryOp, FMAOrder, bool, simd_idx, xmmword, xmmword) -> unit
+function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
+  let d = read_xmm(dst);
+  if ~(is64) then {
+    let r : dword = match order {
+      FMA_132 => packed_ternary_elem(op, d[31..0], src3[31..0], src2[31..0]),
+      FMA_213 => packed_ternary_elem(op, src2[31..0], d[31..0], src3[31..0]),
+      FMA_231 => packed_ternary_elem(op, src2[31..0], src3[31..0], d[31..0]),
+    };
+    write_xmm(dst, d[127..32] @ r)
+  } else {
+    let r : qword = match order {
+      FMA_132 => packed_ternary_elem(op, d[63..0], src3[63..0], src2[63..0]),
+      FMA_213 => packed_ternary_elem(op, src2[63..0], d[63..0], src3[63..0]),
+      FMA_231 => packed_ternary_elem(op, src2[63..0], src3[63..0], d[63..0]),
+    };
+    write_xmm(dst, d[127..64] @ r)
+  }
+}
+
+// =========================================================================
 // Packed 32-bit ternary operations (fixed dword element size)
 //
 // For operations like VNNI that decompose each dword internally
