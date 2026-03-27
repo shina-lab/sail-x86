@@ -355,14 +355,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 0B: VPMULHRSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  11 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MulHRS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  11 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulHRS, 16, pfx) },
 
   // 0F38 18: VBROADCASTSS xmm1, xmm2/m32 (VEX.128/256)
   // SDM: VEX.vvvv must be 1111b
@@ -520,37 +513,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 1C: VPABSB xmm/ymm, xmm/ymm/m (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  28 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unop(PU_Abs, 8, decode_vex_src(modrm, src2, pfx)))
-  },
-
+  28 => { if mp != MP_66 then raise_UD(); vex_exec_unop(PU_Abs, 8, pfx) },
   // 0F38 1D: VPABSW xmm/ymm, xmm/ymm/m (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  29 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unop(PU_Abs, 16, decode_vex_src(modrm, src2, pfx)))
-  },
-
+  29 => { if mp != MP_66 then raise_UD(); vex_exec_unop(PU_Abs, 16, pfx) },
   // 0F38 1E: VPABSD xmm/ymm, xmm/ymm/m (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  30 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unop(PU_Abs, 32, decode_vex_src(modrm, src2, pfx)))
-  },
+  30 => { if mp != MP_66 then raise_UD(); vex_exec_unop(PU_Abs, 32, pfx) },
 
   // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src
   242 => {
@@ -949,15 +916,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 29: VPCMPEQQ (66 prefix)
-  // Compare packed qwords for equality; result is all 1s or all 0s per lane
-  41 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpEq, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  41 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 64, pfx) },
 
   // 0F38 2A: VMOVNTDQA (66 prefix, vvvv must be 1111b)
   // Non-temporal aligned load; memory-only source

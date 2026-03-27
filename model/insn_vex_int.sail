@@ -179,34 +179,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F 64: VPCMPGTB (66 prefix)
-  100 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpGt, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  100 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 8, pfx) },
   // 0F 65: VPCMPGTW (66 prefix)
-  101 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpGt, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  101 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 16, pfx) },
   // 0F 66: VPCMPGTD (66 prefix)
-  102 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpGt, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  102 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 32, pfx) },
 
   // 0F 67: VPACKUSWB (66 prefix)
   103 => {
@@ -533,34 +510,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F 74: VPCMPEQB (66 prefix)
-  116 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpEq, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  116 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 8, pfx) },
   // 0F 75: VPCMPEQW (66 prefix)
-  117 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpEq, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  117 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 16, pfx) },
   // 0F 76: VPCMPEQD xmm/ymm (66 prefix)
-  118 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_CmpEq, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  118 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 32, pfx) },
 
   // 0F 77: VZEROUPPER (VEX.128) / VZEROALL (VEX.256)
   // SDM: VEX.vvvv must be 1111b
@@ -998,24 +952,9 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F D4: VPADDQ (66 prefix)
-  212 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Add, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  212 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Add, 64, pfx) },
   // 0F D5: VPMULLW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  213 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MulLow, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  213 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulLow, 16, pfx) },
 
   // 0F D6: VMOVQ xmm1/m64, xmm2 (66 prefix, VEX.128 only)
   // SDM: VEX.vvvv must be 1111b, VEX.L must be 0
@@ -1058,34 +997,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F D8: VPSUBUSB (66 prefix)
-  216 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatSubU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  216 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatSubU, 8, pfx) },
   // 0F D9: VPSUBUSW (66 prefix)
-  217 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatSubU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  217 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatSubU, 16, pfx) },
   // 0F DA: VPMINUB (66 prefix)
-  218 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  218 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinU, 8, pfx) },
 
   // 0F DB: VPAND (66 prefix)
   219 => {
@@ -1101,34 +1017,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F DC: VPADDUSB (66 prefix)
-  220 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatAddU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  220 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddU, 8, pfx) },
   // 0F DD: VPADDUSW (66 prefix)
-  221 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatAddU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  221 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddU, 16, pfx) },
   // 0F DE: VPMAXUB (66 prefix)
-  222 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  222 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxU, 8, pfx) },
 
   // 0F DF: VPANDN (66 prefix)
   223 => {
@@ -1144,14 +1037,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F E0: VPAVGB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  224 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Avg, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  224 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Avg, 8, pfx) },
 
   // 0F E1: VPSRAW xmm/ymm, xmm/ymm, xmm/m128 (66 prefix) — shift by xmm count
   225 => {
@@ -1186,34 +1072,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F E3: VPAVGW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  227 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Avg, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  227 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Avg, 16, pfx) },
   // 0F E4: VPMULHUW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  228 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MulHighU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  228 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulHighU, 16, pfx) },
   // 0F E5: VPMULHW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  229 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MulHighS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  229 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulHighS, 16, pfx) },
 
   // 0F E6: VCVTDQ2PD (F3) / VCVTPD2DQ (F2) / VCVTTPD2DQ (66)
   230 => {
@@ -1290,34 +1153,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F E8: VPSUBSB (66 prefix)
-  232 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatSubS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  232 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatSubS, 8, pfx) },
   // 0F E9: VPSUBSW (66 prefix)
-  233 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatSubS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  233 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatSubS, 16, pfx) },
   // 0F EA: VPMINSW (66 prefix)
-  234 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  234 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinS, 16, pfx) },
 
   // 0F EB: VPOR (66 prefix)
   235 => {
@@ -1333,34 +1173,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F EC: VPADDSB (66 prefix)
-  236 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatAddS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  236 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddS, 8, pfx) },
   // 0F ED: VPADDSW (66 prefix)
-  237 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_SatAddS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  237 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddS, 16, pfx) },
   // 0F EE: VPMAXSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  238 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  238 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxS, 16, pfx) },
 
   // 0F EF: VPXOR (66 prefix)
   239 => {
@@ -1509,74 +1326,19 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F F8: VPSUBB (66 prefix)
-  248 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Sub, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  248 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Sub, 8, pfx) },
   // 0F F9: VPSUBW (66 prefix)
-  249 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Sub, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  249 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Sub, 16, pfx) },
   // 0F FA: VPSUBD (66 prefix)
-  250 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Sub, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  250 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Sub, 32, pfx) },
   // 0F FB: VPSUBQ (66 prefix)
-  251 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Sub, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  251 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Sub, 64, pfx) },
   // 0F FC: VPADDB (66 prefix)
-  252 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Add, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  252 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Add, 8, pfx) },
   // 0F FD: VPADDW (66 prefix)
-  253 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Add, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  253 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Add, 16, pfx) },
   // 0F FE: VPADDD (66 prefix)
-  254 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_Add, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  254 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Add, 32, pfx) },
 
   _ => raise_UD(),
   }
