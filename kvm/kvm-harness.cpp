@@ -723,6 +723,7 @@ std::vector<TestCase> build_tests() {
   add_avx_shift_tests(tests);
   add_avx_fma_tests(tests);
   add_avx_scalar_tests(tests);
+  add_avx_narrow_tests(tests);
 
   return tests;
 }

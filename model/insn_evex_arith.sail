@@ -358,7 +358,7 @@ function dispatch_evex_arith(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    let mask = evex_wmask(pfx, vl / 8);
+    let mask = evex_wmask(pfx, vl / 16);
     evex_write(dst, mask, avx_packusdw(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 32)))
   },
 
