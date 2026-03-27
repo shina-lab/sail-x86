@@ -114,133 +114,27 @@ function avx_unpckhpd(vl, a, b) = {
 // FP compare predicate (5-bit imm8 for AVX/AVX-512 VCMPPS/VCMPPD)
 // =========================================================================
 
-// Full 5-bit predicate (imm8[4:0]) for VCMPPS/VCMPPD/VCMPSS/VCMPSD.
-// Returns 1 bit (true/false) for a single element comparison.
-val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bit
-function cmp_pred5_f32(a, b, pred) = {
-  let r = __compare_ss(a, b);
-  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
-  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
-  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
-  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
-  let le : bit = lt | eq;
-  match pred {
-    0  => eq,                    // EQ_OQ
-    1  => lt,                    // LT_OS
-    2  => le,                    // LE_OS
-    3  => unord,                 // UNORD_Q
-    4  => ~(eq) & ~(unord),      // NEQ_UQ
-    5  => ~(lt) | unord,         // NLT_US
-    6  => ~(le) | unord,         // NLE_US
-    7  => ~(unord),              // ORD_Q
-    8  => eq | unord,            // EQ_UQ
-    9  => lt | unord,            // NGE_US
-    10 => le | unord,            // NGT_US
-    11 => 0b0,                   // FALSE_OQ
-    12 => ~(eq),                 // NEQ_OQ
-    13 => ~(lt),                 // GE_OS
-    14 => gt | eq,               // GT_OS
-    15 => 0b1,                   // TRUE_UQ
-    16 => eq,                    // EQ_OS
-    17 => lt,                    // LT_OQ
-    18 => le,                    // LE_OQ
-    19 => unord,                 // UNORD_S
-    20 => ~(eq) | unord,         // NEQ_US
-    21 => ~(lt) | unord,         // NLT_UQ
-    22 => ~(le) | unord,         // NLE_UQ
-    23 => ~(unord),              // ORD_S
-    24 => eq | unord,            // EQ_US
-    25 => lt | unord,            // NGE_UQ
-    26 => le | unord,            // NGT_UQ
-    27 => 0b0,                   // FALSE_OS
-    28 => ~(eq),                 // NEQ_OS
-    29 => ~(lt),                 // GE_OQ
-    30 => gt | eq,               // GT_OQ
-    31 => 0b1,                   // TRUE_US
-  }
-}
+// cmp_pred5_f32, cmp_pred5_f64, eval_fp_predicate: defined in insn_sse_fp.sail
 
-val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bit
-function cmp_pred5_f64(a, b, pred) = {
-  let r = __compare_sd(a, b);
-  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
-  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
-  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
-  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
-  let le : bit = lt | eq;
-  match pred {
-    0  => eq,                    // EQ_OQ
-    1  => lt,                    // LT_OS
-    2  => le,                    // LE_OS
-    3  => unord,                 // UNORD_Q
-    4  => ~(eq) & ~(unord),      // NEQ_UQ
-    5  => ~(lt) | unord,         // NLT_US
-    6  => ~(le) | unord,         // NLE_US
-    7  => ~(unord),              // ORD_Q
-    8  => eq | unord,            // EQ_UQ
-    9  => lt | unord,            // NGE_US
-    10 => le | unord,            // NGT_US
-    11 => 0b0,                   // FALSE_OQ
-    12 => ~(eq),                 // NEQ_OQ
-    13 => ~(lt),                 // GE_OS
-    14 => gt | eq,               // GT_OS
-    15 => 0b1,                   // TRUE_UQ
-    16 => eq,                    // EQ_OS
-    17 => lt,                    // LT_OQ
-    18 => le,                    // LE_OQ
-    19 => unord,                 // UNORD_S
-    20 => ~(eq) | unord,         // NEQ_US
-    21 => ~(lt) | unord,         // NLT_UQ
-    22 => ~(le) | unord,         // NLE_UQ
-    23 => ~(unord),              // ORD_S
-    24 => eq | unord,            // EQ_US
-    25 => lt | unord,            // NGE_UQ
-    26 => le | unord,            // NGT_UQ
-    27 => 0b0,                   // FALSE_OS
-    28 => ~(eq),                 // NEQ_OS
-    29 => ~(lt),                 // GE_OQ
-    30 => gt | eq,               // GT_OQ
-    31 => 0b1,                   // TRUE_US
-  }
-}
-
-// VCMPPS → kmask: compare 16 f32 elements, return 16-bit mask
-val avx_vcmpps_kmask_128 : (xmmword, xmmword, range(0, 31)) -> bits(4)
-function avx_vcmpps_kmask_128(a, b, pred) = {
-  var r : bits(4) = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred);
+// Polymorphic compare-to-kmask for EVEX VCMPPS/VCMPPD
+val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
+  (implicit('vl), bits('vl), bits('vl), range(0, 31)) -> qword
+function avx_vcmpps_kmask(vl, a, b, pred) = {
+  var r : qword = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred)
   };
   r
 }
 
-val avx_vcmpps_kmask_512 : (zmmword, zmmword, range(0, 31)) -> word
-function avx_vcmpps_kmask_512(a, b, pred) = {
-  var r : word = zeros();
-  foreach (i from 0 to 15) {
-    let lo : range(0, 480) = i * 32;
-    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred);
-  };
-  r
-}
-
-val avx_vcmppd_kmask_128 : (xmmword, xmmword, range(0, 31)) -> bits(2)
-function avx_vcmppd_kmask_128(a, b, pred) = {
-  var r : bits(2) = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred);
-  };
-  r
-}
-
-val avx_vcmppd_kmask_512 : (zmmword, zmmword, range(0, 31)) -> byte
-function avx_vcmppd_kmask_512(a, b, pred) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 448) = i * 64;
-    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred);
+val avx_vcmppd_kmask : forall 'vl, 'vl in {128, 256, 512}.
+  (implicit('vl), bits('vl), bits('vl), range(0, 31)) -> qword
+function avx_vcmppd_kmask(vl, a, b, pred) = {
+  var r : qword = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred)
   };
   r
 }
@@ -1845,55 +1739,15 @@ function dispatch_evex_fp(op, pfx) = {
       MP_NONE => {
         let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
-        match pfx.evex_ll {
-          0 => {
-            let src1 = read_xmm(src1_idx);
-            let src2 = evex_bcast_src(128,modrm, src, pfx, 32);
-            let r = avx_vcmpps_kmask_128(src1, src2, pred);
-            write_kreg(dst_k, zero_extend(r))
-          },
-          1 => {
-            let src1 = read_ymm(src1_idx);
-            let src2 = evex_bcast_src(256,modrm, src, pfx, 32);
-            let r = avx_vcmpps_kmask_128(src1[255..128], src2[255..128], pred) @
-                    avx_vcmpps_kmask_128(src1[127..0], src2[127..0], pred);
-            write_kreg(dst_k, zero_extend(r))
-          },
-          2 => {
-            let src1 = read_zmm(src1_idx);
-            let src2 = evex_bcast_src(512,modrm, src, pfx, 32);
-            let result = avx_vcmpps_kmask_512(src1, src2, pred);
-            write_kreg(dst_k, zero_extend(result))
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        write_kreg(dst_k, avx_vcmpps_kmask(read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, 32), pred))
       },
       // VCMPPD → k
       MP_66 => {
         let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
-        match pfx.evex_ll {
-          0 => {
-            let src1 = read_xmm(src1_idx);
-            let src2 = evex_bcast_src(128,modrm, src, pfx, 64);
-            let r = avx_vcmppd_kmask_128(src1, src2, pred);
-            write_kreg(dst_k, zero_extend(r))
-          },
-          1 => {
-            let src1 = read_ymm(src1_idx);
-            let src2 = evex_bcast_src(256,modrm, src, pfx, 64);
-            let r = avx_vcmppd_kmask_128(src1[255..128], src2[255..128], pred) @
-                    avx_vcmppd_kmask_128(src1[127..0], src2[127..0], pred);
-            write_kreg(dst_k, zero_extend(r))
-          },
-          2 => {
-            let src1 = read_zmm(src1_idx);
-            let src2 = evex_bcast_src(512,modrm, src, pfx, 64);
-            let result = avx_vcmppd_kmask_512(src1, src2, pred);
-            write_kreg(dst_k, zero_extend(result))
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        write_kreg(dst_k, avx_vcmppd_kmask(read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, 64), pred))
       },
       // VCMPSS → k (scalar, bit 0 only)
       MP_F3 => {

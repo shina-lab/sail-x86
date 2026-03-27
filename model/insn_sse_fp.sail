@@ -67,21 +67,20 @@ function exec_movsldup(dst, src) = {
 // SSE floating-point dispatch
 // =========================================================================
 
-// FP comparison predicate helpers (used by CMPPS/CMPPD/CMPSS/CMPSD)
-// VCMPPS/PD/SS/SD predicate evaluation.
-// SDM defines 32 predicates (imm8[4:0]). Bits [3:0] select the comparison;
-// bit 4 only changes signaling vs quiet (affects exceptions, not results).
-// Predicates 0-7: base set. 8-15: some swap NaN handling. 16-31: repeat
-// with signaling/quiet flipped (same results as 0-15).
-val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
-function cmp_pred_f32(a, b, pred) = {
-  let r = __compare_ss(a, b);
+// FP comparison predicate helpers (used by CMPPS/CMPPD/CMPSS/CMPSD and
+// EVEX VCMPPS/PD/SS/SD). SDM defines 32 predicates (imm8[4:0]).
+// Predicates 16-31 repeat 0-15 with signaling/quiet flipped (same results).
+//
+// eval_fp_predicate: shared predicate logic on a comparison result.
+// Returns 1 bit. Used by both SSE (sign-extended to mask) and EVEX (bit to kmask).
+val eval_fp_predicate : (FPCompareResult, bits(4)) -> bit
+function eval_fp_predicate(r, pred) = {
   let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
   let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
   let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
   let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
   let le : bit = lt | eq;
-  let cond : bit = match pred[3..0] {
+  match pred {
     0x0 => eq,                      // EQ_OQ
     0x1 => lt,                      // LT_OS
     0x2 => le,                      // LE_OS
@@ -98,38 +97,23 @@ function cmp_pred_f32(a, b, pred) = {
     0xD => ~(lt) & ~(unord),        // GE_OS (false for NaN)
     0xE => gt,                      // GT_OS (false for NaN)
     0xF => 0b1,                     // TRUE_UQ
-  };
-  sign_extend(cond)
+  }
 }
 
+// SSE CMPPS/CMPPD: returns full-width mask (all-ones or all-zeros per element)
+val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
+function cmp_pred_f32(a, b, pred) = sign_extend(eval_fp_predicate(__compare_ss(a, b), pred[3..0]))
+
 val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
-function cmp_pred_f64(a, b, pred) = {
-  let r = __compare_sd(a, b);
-  let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
-  let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
-  let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
-  let gt : bit = match r { FP_GT => 0b1, _ => 0b0 };
-  let le : bit = lt | eq;
-  let cond : bit = match pred[3..0] {
-    0x0 => eq,
-    0x1 => lt,
-    0x2 => le,
-    0x3 => unord,
-    0x4 => ~(eq),
-    0x5 => ~(lt),
-    0x6 => ~(le),
-    0x7 => ~(unord),
-    0x8 => eq | unord,
-    0x9 => lt | unord,
-    0xA => le | unord,
-    0xB => 0b0,
-    0xC => ~(eq) & ~(unord),
-    0xD => ~(lt) & ~(unord),
-    0xE => gt,
-    0xF => 0b1,
-  };
-  sign_extend(cond)
-}
+function cmp_pred_f64(a, b, pred) = sign_extend(eval_fp_predicate(__compare_sd(a, b), pred[3..0]))
+
+// EVEX VCMPPS/VCMPPD: returns 1 bit per element (for kmask)
+// pred[3:0] selects comparison; pred[4] only affects signaling (not modeled).
+val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bit
+function cmp_pred5_f32(a, b, pred) = eval_fp_predicate(__compare_ss(a, b), to_bits(4, pred % 16))
+
+val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bit
+function cmp_pred5_f64(a, b, pred) = eval_fp_predicate(__compare_sd(a, b), to_bits(4, pred % 16))
 
 // SHUFPS helper: select one of four dwords by 2-bit index
 val select_dword : (xmmword, bits(2)) -> dword
