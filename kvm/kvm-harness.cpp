@@ -729,6 +729,7 @@ std::vector<TestCase> build_tests() {
   add_avx_conv_tests(tests);
   add_avx_special_tests(tests);
   add_avx_mov_tests(tests);
+  add_avx_vex_only_tests(tests);
 
   return tests;
 }
