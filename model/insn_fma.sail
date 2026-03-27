@@ -1,184 +1,42 @@
 // x86-64 — FMA Shared Helpers
 //
-// Packed and scalar FMA variants (fmadd, fmsub, fnmadd, fnmsub,
-// fmaddsub, fmsubadd) for PS/PD in 128/256/512-bit widths,
-// plus scalar SS/SD exec_* helpers.
+// Polymorphic FMA helpers and scalar SS/SD exec_* helpers.
 
-val avx_fmadd_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmadd_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = __f32_fmadd(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
+// FMADDSUB: even elements get a*b-c, odd elements get a*b+c.
+val avx_fmaddsub : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_fmaddsub(eb, a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    let ae = a[(lo + 'eb - 1)..lo];
+    let be = b[(lo + 'eb - 1)..lo];
+    let ce = c[(lo + 'eb - 1)..lo];
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => if i % 2 == 0 then __f32_fmsub(ae, be, ce) else __f32_fmadd(ae, be, ce),
+      64 => if i % 2 == 0 then __f64_fmsub(ae, be, ce) else __f64_fmadd(ae, be, ce),
+    };
   };
   r
 }
 
-val avx_fmadd_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmadd_ps_256(a, b, c) = avx_fmadd_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmadd_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmadd_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmadd_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    r[(lo + 63)..lo] = __f64_fmadd(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
+// FMSUBADD: even elements get a*b+c, odd elements get a*b-c.
+val avx_fmsubadd : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_fmsubadd(eb, a, b, c) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    let ae = a[(lo + 'eb - 1)..lo];
+    let be = b[(lo + 'eb - 1)..lo];
+    let ce = c[(lo + 'eb - 1)..lo];
+    r[(lo + 'eb - 1)..lo] = match eb {
+      32 => if i % 2 == 0 then __f32_fmadd(ae, be, ce) else __f32_fmsub(ae, be, ce),
+      64 => if i % 2 == 0 then __f64_fmadd(ae, be, ce) else __f64_fmsub(ae, be, ce),
+    };
   };
   r
 }
-
-val avx_fmadd_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmadd_pd_256(a, b, c) = avx_fmadd_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmadd_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmsub_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = __f32_fmsub(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
-  };
-  r
-}
-
-val avx_fmsub_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmsub_ps_256(a, b, c) = avx_fmsub_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsub_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmsub_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmsub_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    r[(lo + 63)..lo] = __f64_fmsub(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
-  };
-  r
-}
-
-val avx_fmsub_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmsub_pd_256(a, b, c) = avx_fmsub_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsub_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmadd_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fnmadd_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = __f32_fnmadd(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
-  };
-  r
-}
-
-val avx_fnmadd_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fnmadd_ps_256(a, b, c) = avx_fnmadd_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmadd_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmadd_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fnmadd_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    r[(lo + 63)..lo] = __f64_fnmadd(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
-  };
-  r
-}
-
-val avx_fnmadd_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fnmadd_pd_256(a, b, c) = avx_fnmadd_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmadd_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fnmsub_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = __f32_fnmsub(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
-  };
-  r
-}
-
-val avx_fnmsub_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fnmsub_ps_256(a, b, c) = avx_fnmsub_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmsub_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fnmsub_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fnmsub_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    r[(lo + 63)..lo] = __f64_fnmsub(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
-  };
-  r
-}
-
-val avx_fnmsub_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fnmsub_pd_256(a, b, c) = avx_fnmsub_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fnmsub_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmaddsub_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmaddsub_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    if i % 2 == 0
-    then r[(lo + 31)..lo] = __f32_fmsub(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo])
-    else r[(lo + 31)..lo] = __f32_fmadd(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
-  };
-  r
-}
-
-val avx_fmaddsub_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmaddsub_ps_256(a, b, c) = avx_fmaddsub_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmaddsub_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmaddsub_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmaddsub_ps_512(a, b, c) = avx_fmaddsub_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fmaddsub_ps_256(a[255..0], b[255..0], c[255..0])
-
-val avx_fmaddsub_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmaddsub_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    if i % 2 == 0
-    then r[(lo + 63)..lo] = __f64_fmsub(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo])
-    else r[(lo + 63)..lo] = __f64_fmadd(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
-  };
-  r
-}
-
-val avx_fmaddsub_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmaddsub_pd_256(a, b, c) = avx_fmaddsub_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmaddsub_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmaddsub_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmaddsub_pd_512(a, b, c) = avx_fmaddsub_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fmaddsub_pd_256(a[255..0], b[255..0], c[255..0])
-
-val avx_fmsubadd_ps_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmsubadd_ps_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    if i % 2 == 0
-    then r[(lo + 31)..lo] = __f32_fmadd(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo])
-    else r[(lo + 31)..lo] = __f32_fmsub(a[(lo + 31)..lo], b[(lo + 31)..lo], c[(lo + 31)..lo]);
-  };
-  r
-}
-
-val avx_fmsubadd_ps_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmsubadd_ps_256(a, b, c) = avx_fmsubadd_ps_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsubadd_ps_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmsubadd_ps_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmsubadd_ps_512(a, b, c) = avx_fmsubadd_ps_256(a[511..256], b[511..256], c[511..256]) @ avx_fmsubadd_ps_256(a[255..0], b[255..0], c[255..0])
-
-val avx_fmsubadd_pd_128 : (xmmword, xmmword, xmmword) -> xmmword
-function avx_fmsubadd_pd_128(a, b, c) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    if i % 2 == 0
-    then r[(lo + 63)..lo] = __f64_fmadd(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo])
-    else r[(lo + 63)..lo] = __f64_fmsub(a[(lo + 63)..lo], b[(lo + 63)..lo], c[(lo + 63)..lo]);
-  };
-  r
-}
-
-val avx_fmsubadd_pd_256 : (ymmword, ymmword, ymmword) -> ymmword
-function avx_fmsubadd_pd_256(a, b, c) = avx_fmsubadd_pd_128(a[255..128], b[255..128], c[255..128]) @ avx_fmsubadd_pd_128(a[127..0], b[127..0], c[127..0])
-
-val avx_fmsubadd_pd_512 : (zmmword, zmmword, zmmword) -> zmmword
-function avx_fmsubadd_pd_512(a, b, c) = avx_fmsubadd_pd_256(a[511..256], b[511..256], c[511..256]) @ avx_fmsubadd_pd_256(a[255..0], b[255..0], c[255..0])
 
 val exec_vfmadd132ss : (simd_idx, xmmword, xmmword) -> unit
 function exec_vfmadd132ss(dst, src2, src3) = {

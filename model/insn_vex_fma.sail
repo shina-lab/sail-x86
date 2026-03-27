@@ -19,15 +19,6 @@ function dispatch_vex_0f38_fma(op, pfx) = {
 
   // -----------------------------------------------------------------------
   // VEX FMA3 instructions (0F38 96..BF)
-  //
-  // All require 66 mandatory prefix.
-  // W=0 selects PS/SS variants, W=1 selects PD/SD variants.
-  // L=0 for 128-bit (or scalar), L=1 for 256-bit.
-  //
-  // Operand mapping (avx_fmadd(a,b,c) computes a*b+c):
-  //   132: a=dst, b=rm,  c=vvvv
-  //   213: a=vvvv, b=dst, c=rm
-  //   231: a=vvvv, b=rm,  c=dst
   // -----------------------------------------------------------------------
 
   // 0F38 96: VFMADDSUB132PS (W0) / VFMADDSUB132PD (W1)
@@ -36,13 +27,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 97: VFMSUBADD132PS (W0) / VFMSUBADD132PD (W1)
@@ -51,13 +38,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 98: VFMADD132PS (W0) / VFMADD132PD (W1)
@@ -66,13 +49,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 99: VFMADD132SS (W0) / VFMADD132SD (W1)
@@ -93,13 +72,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 9B: VFMSUB132SS (W0) / VFMSUB132SD (W1)
@@ -120,13 +95,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 9D: VFNMADD132SS (W0) / VFNMADD132SD (W1)
@@ -147,13 +118,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx), read_ymm(vvvv))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx), read_xmm(vvvv))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
   },
 
   // 0F38 9F: VFNMSUB132SS (W0) / VFNMSUB132SD (W1)
@@ -174,13 +141,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 A7: VFMSUBADD213PS (W0) / VFMSUBADD213PD (W1)
@@ -189,13 +152,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 A8: VFMADD213PS (W0) / VFMADD213PD (W1)
@@ -204,13 +163,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 A9: VFMADD213SS (W0) / VFMADD213SD (W1)
@@ -231,13 +186,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 AB: VFMSUB213SS (W0) / VFMSUB213SD (W1)
@@ -258,13 +209,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 AD: VFNMADD213SS (W0) / VFNMADD213SD (W1)
@@ -285,13 +232,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(vvvv), read_ymm(dst), decode_vex_src_ymm(modrm, src, pfx))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(vvvv), read_xmm(dst), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 AF: VFNMSUB213SS (W0) / VFNMSUB213SD (W1)
@@ -312,13 +255,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmaddsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmaddsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmaddsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmaddsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 B7: VFMSUBADD231PS (W0) / VFMSUBADD231PD (W1)
@@ -327,13 +266,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsubadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmsubadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmsubadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmsubadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 B8: VFMADD231PS (W0) / VFMADD231PD (W1)
@@ -342,13 +277,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 B9: VFMADD231SS (W0) / VFMADD231SD (W1)
@@ -369,13 +300,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fmsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fmsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fmsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fmsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 BB: VFMSUB231SS (W0) / VFMSUB231SD (W1)
@@ -396,13 +323,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmadd_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fnmadd_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fnmadd_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fnmadd_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 BD: VFNMADD231SS (W0) / VFNMADD231SD (W1)
@@ -423,13 +346,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_w, pfx.vex_l) {
-      (true, true)   => write_ymm(dst, avx_fnmsub_pd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (true, false)  => write_xmm(dst, avx_fnmsub_pd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-      (false, true)  => write_ymm(dst, avx_fnmsub_ps_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx), read_ymm(dst))),
-      (false, false) => write_xmm(dst, avx_fnmsub_ps_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx), read_xmm(dst))),
-    }
+    let vl = vex_vl(pfx);
+    let eb = vex_elem(pfx);
+    write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
   },
 
   // 0F38 BF: VFNMSUB231SS (W0) / VFNMSUB231SD (W1)

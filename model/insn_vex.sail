@@ -418,20 +418,26 @@ function decode_vex3(byte1, byte2) = {
   (pfx, mmmmm)
 }
 
-// Helper: decode VEX XMM/YMM source from ModR/M r/m field.
-// Returns (xmm_value, ymm_value, is_memory, effective_addr).
-// For register operands, reads the register. For memory, loads from memory.
-val decode_vex_src_xmm : (byte, RM, Prefixes) -> xmmword
-function decode_vex_src_xmm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+// VEX vector length and element size helpers.
+val vex_vl : Prefixes -> {128, 256}
+function vex_vl(pfx) = if pfx.vex_l then 256 else 128
+
+val vex_elem : Prefixes -> {32, 64}
+function vex_elem(pfx) = if pfx.vex_w then 64 else 32
+
+// Polymorphic VEX source read from r/m field: register or memory.
+val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), byte, RM, Prefixes) -> bits('vl)
+function decode_vex_src(vl, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => read_mem(m),
 }
 
+// Monomorphic aliases (used by legacy callers).
+val decode_vex_src_xmm : (byte, RM, Prefixes) -> xmmword
+function decode_vex_src_xmm(modrm, rm, pfx) = decode_vex_src(128, modrm, rm, pfx)
+
 val decode_vex_src_ymm : (byte, RM, Prefixes) -> ymmword
-function decode_vex_src_ymm(modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(m) => read_mem(m),
-}
+function decode_vex_src_ymm(modrm, rm, pfx) = decode_vex_src(256, modrm, rm, pfx)
 
 // =========================================================================
 // FP16 <-> FP32 conversion helpers (used by VEX VCVTPH2PS/VCVTPS2PH and EVEX)
