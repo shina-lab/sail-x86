@@ -673,7 +673,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 : dword = read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0];
-            evex_write_ss(dst, src1[127..32] @ src2, pfx)
+            evex_write_scalar(dst, src1[127..32] @ src2, pfx, 32)
           },
         }
       },
@@ -689,7 +689,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 : qword = read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0];
-            evex_write_sd(dst, src1[127..64] @ src2, pfx)
+            evex_write_scalar(dst, src1[127..64] @ src2, pfx, 64)
           },
         }
       },
@@ -748,7 +748,7 @@ function dispatch_evex_fp(op, pfx) = {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 : dword = read_xmm(src)[31..0];
-            evex_write_ss(dst, src1[127..32] @ src2, pfx)
+            evex_write_scalar(dst, src1[127..32] @ src2, pfx, 32)
           },
         }
       },
@@ -762,7 +762,7 @@ function dispatch_evex_fp(op, pfx) = {
             let dst = evex_rm_reg_idx(modrm, pfx);
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 : qword = read_xmm(src)[63..0];
-            evex_write_sd(dst, src1[127..64] @ src2, pfx)
+            evex_write_scalar(dst, src1[127..64] @ src2, pfx, 64)
           },
         }
       },
@@ -1251,7 +1251,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_add(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_add(src1[31..0], src2_f32), pfx, 32)
       },
       // VADDSD (scalar f64, EVEX) — supports {er}
       MP_F2 => {
@@ -1260,7 +1260,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_add(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_add(src1[63..0], src2_f64), pfx, 64)
       },
     };
     evex_end_rc(saved_mxcsr)
@@ -1293,7 +1293,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_mul(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_mul(src1[31..0], src2_f32), pfx, 32)
       },
       // VMULSD (scalar f64, EVEX) — supports {er}
       MP_F2 => {
@@ -1302,7 +1302,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_mul(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_mul(src1[63..0], src2_f64), pfx, 64)
       },
     };
     evex_end_rc(saved_mxcsr)
@@ -1475,7 +1475,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_sub(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_sub(src1[31..0], src2_f32), pfx, 32)
       },
       // VSUBSD (scalar f64, EVEX) — supports {er}
       MP_F2 => {
@@ -1484,7 +1484,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_sub(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_sub(src1[63..0], src2_f64), pfx, 64)
       },
     };
     evex_end_rc(saved_mxcsr)
@@ -1839,7 +1839,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_sqrt(src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_sqrt(src2_f32), pfx, 32)
       },
       // VSQRTSD (scalar f64, EVEX) — supports {er}
       MP_F2 => {
@@ -1848,7 +1848,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_sqrt(src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_sqrt(src2_f64), pfx, 64)
       },
     };
     evex_end_rc(saved_mxcsr)
@@ -1880,7 +1880,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_min(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_min(src1[31..0], src2_f32), pfx, 32)
       },
       // VMINSD (scalar f64, EVEX)
       MP_F2 => {
@@ -1889,7 +1889,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_min(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_min(src1[63..0], src2_f64), pfx, 64)
       },
     }
   },
@@ -1921,7 +1921,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_div(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_div(src1[31..0], src2_f32), pfx, 32)
       },
       // VDIVSD (scalar f64, EVEX) — supports {er}
       MP_F2 => {
@@ -1930,7 +1930,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_div(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_div(src1[63..0], src2_f64), pfx, 64)
       },
     };
     evex_end_rc(saved_mxcsr)
@@ -1962,7 +1962,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
           RM_mem(m) => v(m),
         };
-        evex_write_ss(dst, src1[127..32] @ __f32_max(src1[31..0], src2_f32), pfx)
+        evex_write_scalar(dst, src1[127..32] @ __f32_max(src1[31..0], src2_f32), pfx, 32)
       },
       // VMAXSD (scalar f64, EVEX)
       MP_F2 => {
@@ -1971,7 +1971,7 @@ function dispatch_evex_fp(op, pfx) = {
           RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
           RM_mem(m) => v(m),
         };
-        evex_write_sd(dst, src1[127..64] @ __f64_max(src1[63..0], src2_f64), pfx)
+        evex_write_scalar(dst, src1[127..64] @ __f64_max(src1[63..0], src2_f64), pfx, 64)
       },
     }
   },

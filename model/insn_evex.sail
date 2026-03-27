@@ -154,7 +154,8 @@ function apply_writemask(wm, result, old_dst) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('nm - 1)) {
     let lo = i * ('vl / 'nm);
-    r[(lo + 'vl / 'nm - 1)..lo] = blend(base[(lo + 'vl / 'nm - 1)..lo], result[(lo + 'vl / 'nm - 1)..lo], mask[i])
+    let hi = lo + 'vl / 'nm - 1;
+    r[hi..lo] = blend(base[hi..lo], result[hi..lo], mask[i])
   };
   r
 }
@@ -191,30 +192,15 @@ function evex_wmask(pfx, n) =
     zeroing = pfx.evex_z,
   }
 
-// --- Scalar SS (32-bit) writemask ---
-// Applies mask bit 0 only to the lowest dword of an XMM result.
-// Upper bits [127:32] are already merged from src1 by the caller.
-val evex_write_ss : (simd_idx, xmmword, Prefixes) -> unit
-function evex_write_ss(dst, result, pfx) = {
+// Scalar writemask write: only the lowest 'eb bits are subject to masking,
+// upper XMM bits always come from result (src1).
+val evex_write_scalar : forall 'eb, 'eb in {16, 32, 64}.
+  (simd_idx, xmmword, Prefixes, int('eb)) -> unit
+function evex_write_scalar(dst, result, pfx, eb) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  let merge : dword = blend(read_xmm(dst)[31..0], zeros(), pfx.evex_z);
-  write_xmm(dst, result[127..32] @ blend(merge, result[31..0], mask_bit))
-}
-
-// --- Scalar SH (16-bit FP16) writemask ---
-val evex_write_sh : (simd_idx, xmmword, Prefixes) -> unit
-function evex_write_sh(dst, result, pfx) = {
-  let mask_bit : bit = evex_kmask64(pfx)[0];
-  let merge : word = blend(read_xmm(dst)[15..0], zeros(), pfx.evex_z);
-  write_xmm(dst, result[127..16] @ blend(merge, result[15..0], mask_bit))
-}
-
-// --- Scalar SD (64-bit) writemask ---
-val evex_write_sd : (simd_idx, xmmword, Prefixes) -> unit
-function evex_write_sd(dst, result, pfx) = {
-  let mask_bit : bit = evex_kmask64(pfx)[0];
-  let merge : qword = blend(read_xmm(dst)[63..0], zeros(), pfx.evex_z);
-  write_xmm(dst, result[127..64] @ blend(merge, result[63..0], mask_bit))
+  let merge : bits('eb) = blend(read_xmm(dst)[('eb - 1)..0], zeros(), pfx.evex_z);
+  let lo : bits('eb) = blend(merge, result[('eb - 1)..0], mask_bit);
+  write_xmm(dst, result[127..'eb] @ lo)
 }
 
 // Polymorphic broadcast: replicate an 'eb-bit element to fill 'vl bits.

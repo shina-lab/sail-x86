@@ -2050,7 +2050,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         let r = __f32_rndscale(src2[31..0], imm);
-        evex_write_ss(dst, src1[127..32] @ r, pfx)
+        evex_write_scalar(dst, src1[127..32] @ r, pfx, 32)
       },
       MP_NONE => {
         // VRNDSCALESH: scalar FP16 round
@@ -2061,7 +2061,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         let r : word = __f16_rndscale(src2[15..0], imm);
-        evex_write_sh(dst, src1[127..16] @ r, pfx)
+        evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),
     }
@@ -2078,7 +2078,7 @@ function dispatch_evex_imm(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
     let r = __f64_rndscale(src2[63..0], imm);
-    evex_write_sd(dst, src1[127..64] @ r, pfx)
+    evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
   },
 
   // 0F3A 23: VSHUFF32X4 (66, W=0) / VSHUFF64X2 (66, W=1) — shuffle 128-bit lanes (FP)
@@ -2162,8 +2162,8 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         if pfx.vex_w
-        then evex_write_sd(dst, src1[127..64] @ __f64_getmant(src2[63..0], imm), pfx)
-        else evex_write_ss(dst, src1[127..32] @ __f32_getmant(src2[31..0], imm), pfx)
+        then evex_write_scalar(dst, src1[127..64] @ __f64_getmant(src2[63..0], imm), pfx, 64)
+        else evex_write_scalar(dst, src1[127..32] @ __f32_getmant(src2[31..0], imm), pfx, 32)
       },
       MP_NONE => {
         // VGETMANTSH: scalar FP16 extract mantissa
@@ -2175,7 +2175,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         let r : word = __f16_getmant(src2[15..0], imm);
-        evex_write_sh(dst, src1[127..16] @ r, pfx)
+        evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),
     }
@@ -2266,14 +2266,14 @@ function dispatch_evex_imm(op, pfx) = {
         RM_mem(m) => v(m),
       };
       let r = avx_range_f64(src1[63..0], src2, imm);
-      evex_write_sd(dst, src1[127..64] @ r, pfx)
+      evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
     } else {
       let src2 : dword = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
         RM_mem(m) => v(m),
       };
       let r = avx_range_f32(src1[31..0], src2, imm);
-      evex_write_ss(dst, src1[127..32] @ r, pfx)
+      evex_write_scalar(dst, src1[127..32] @ r, pfx, 32)
     }
   },
 
@@ -2313,8 +2313,8 @@ function dispatch_evex_imm(op, pfx) = {
     // VFIXUPIMMSD xmm1, xmm2, xmm3/m64, imm8
     // VFIXUPIMMSS xmm1, xmm2, xmm3/m32, imm8
     if pfx.vex_w
-    then evex_write_sd(dst, src1[127..64] @ __f64_fixupimm(dst_xmm[63..0], src1[63..0], src2[63..0], imm), pfx)
-    else evex_write_ss(dst, src1[127..32] @ __f32_fixupimm(dst_xmm[31..0], src1[31..0], src2[31..0], imm), pfx)
+    then evex_write_scalar(dst, src1[127..64] @ __f64_fixupimm(dst_xmm[63..0], src1[63..0], src2[63..0], imm), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ __f32_fixupimm(dst_xmm[31..0], src1[31..0], src2[31..0], imm), pfx, 32)
   },
 
   // 0F3A 56: VREDUCEPS (66, W=0) / VREDUCEPD (66, W=1) / VREDUCEPH (NP, W=0)
@@ -2380,8 +2380,8 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         if pfx.vex_w
-        then evex_write_sd(dst, src1[127..64] @ __f64_reduce(src2[63..0], imm), pfx)
-        else evex_write_ss(dst, src1[127..32] @ __f32_reduce(src2[31..0], imm), pfx)
+        then evex_write_scalar(dst, src1[127..64] @ __f64_reduce(src2[63..0], imm), pfx, 64)
+        else evex_write_scalar(dst, src1[127..32] @ __f32_reduce(src2[31..0], imm), pfx, 32)
       },
       MP_NONE => {
         // VREDUCESH: scalar FP16 reduce
@@ -2393,7 +2393,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         let r : word = __f16_reduce(src2[15..0], imm);
-        evex_write_sh(dst, src1[127..16] @ r, pfx)
+        evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),
     }

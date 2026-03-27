@@ -350,7 +350,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_sqrt(src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -406,7 +406,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_mul(src1[15..0], src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -433,7 +433,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_sub(src1[15..0], src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -458,7 +458,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_min(src1[15..0], src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -485,7 +485,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_div(src1[15..0], src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -510,7 +510,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f16_max(src1[15..0], src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -569,7 +569,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : qword = __f16_to_f64(src2);
-          evex_write_sd(dst, src1[127..64] @ r, pfx)
+          evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
         },
         MP_66 => {
           // VCVTPD2PH: packed FP64 to FP16 (W=1)
@@ -612,7 +612,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f64_to_f16(src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
       }
     },
@@ -791,7 +791,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VMOVSH reg-reg: 3-operand (src1=vvvvv upper bits, src2=src low 16 bits)
           let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
           let src2 : word = read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0];
-          evex_write_sh(dst, src1[127..16] @ src2, pfx)
+          evex_write_scalar(dst, src1[127..16] @ src2, pfx, 16)
         },
       }
     },
@@ -826,12 +826,12 @@ function dispatch_evex_map5(opcode, pfx) = {
         // VCVTSI2SH r64 → FP16
         let x : qword = v(src);
         let r : word = __int64_to_f16(x);
-        evex_write_sh(dst, src1[127..16] @ r, pfx)
+        evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       } else {
         // VCVTSI2SH r32 → FP16
         let x : dword = v(src);
         let r : word = __int32_to_f16(x);
-        evex_write_sh(dst, src1[127..16] @ r, pfx)
+        evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       }
     },
 
@@ -1296,12 +1296,12 @@ function dispatch_evex_map5(opcode, pfx) = {
             // VCVTUSI2SH r64 → FP16
             let x : qword = v(src);
             let r : word = __uint64_to_f16(x);
-            evex_write_sh(dst, src1[127..16] @ r, pfx)
+            evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
           } else {
             // VCVTUSI2SH r32 → FP16
             let x : dword = v(src);
             let r : word = __uint32_to_f16(x);
-            evex_write_sh(dst, src1[127..16] @ r, pfx)
+            evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
           }
         },
         _ => raise_UD(),
@@ -1703,7 +1703,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : word = __f32_to_f16(src2);
-          evex_write_sh(dst, src1[127..16] @ r, pfx)
+          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
       }
@@ -2336,7 +2336,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_scalef(src1[15..0], src2);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x42: VGETEXPPH (66, W=0)
@@ -2378,7 +2378,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_getexp(src2);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x4C: VRCPPH (66, W=0)
@@ -2420,7 +2420,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_rcp(src2);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x4E: VRSQRTPH (66, W=0)
@@ -2462,7 +2462,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_rsqrt(src2);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x96: VFMADDSUB132PH (66, W=0)
@@ -2548,7 +2548,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fmadd(a, c, src1[15..0]);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x9B: VFMSUB132SH (66, W=0)
@@ -2564,7 +2564,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fmsub(a, c, src1[15..0]);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x9D: VFNMADD132SH (66, W=0)
@@ -2580,7 +2580,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fnmadd(a, c, src1[15..0]);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x9F: VFNMSUB132SH (66, W=0)
@@ -2596,7 +2596,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fnmsub(a, c, src1[15..0]);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xA6: VFMADDSUB213PH (66, W=0)
@@ -2683,7 +2683,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fmadd(a, b, c);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xAB: VFMSUB213SH (66, W=0)
@@ -2700,7 +2700,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fmsub(a, b, c);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xAD: VFNMADD213SH (66, W=0)
@@ -2717,7 +2717,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fnmadd(a, b, c);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xAF: VFNMSUB213SH (66, W=0)
@@ -2734,7 +2734,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let r : word = __f16_fnmsub(a, b, c);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xB6: VFMADDSUB231PH (66, W=0)
@@ -2821,7 +2821,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       };
       let b : word = read_xmm(dst)[15..0];
       let r : word = __f16_fmadd(a, c, b);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xBB: VFMSUB231SH (66, W=0)
@@ -2838,7 +2838,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       };
       let b : word = read_xmm(dst)[15..0];
       let r : word = __f16_fmsub(a, c, b);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xBD: VFNMADD231SH (66, W=0)
@@ -2855,7 +2855,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       };
       let b : word = read_xmm(dst)[15..0];
       let r : word = __f16_fnmadd(a, c, b);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0xBF: VFNMSUB231SH (66, W=0)
@@ -2872,7 +2872,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       };
       let b : word = read_xmm(dst)[15..0];
       let r : word = __f16_fnmsub(a, c, b);
-      evex_write_sh(dst, src1[127..16] @ r, pfx)
+      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
     // MAP6 0x56: VFCMADDCPH (F2, W=0) / VFMADDCPH (F3, W=0) — complex multiply-accumulate
