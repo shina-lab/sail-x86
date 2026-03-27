@@ -12,7 +12,7 @@ add_executable(kvm_harness
   kvm-tests-features.cpp
   kvm-tests-compat.cpp
   kvm-tests-xsave.cpp
-  kvm-tests-avx-comprehensive.cpp
+  kvm-tests-avx-fp.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -180,12 +180,10 @@ set(KVM_CATEGORIES
   XGETBV
   IA32_XSS
   "CPUID XSAVE"
+  "AVX FP packed"
   "MOVQ store"
   "K-register ops"
   "Vec stores"
-  "AVX FP arith"
-  "AVX int arith"
-  "AVX int logical"
 )
 
 foreach(cat ${KVM_CATEGORIES})

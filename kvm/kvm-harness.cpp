@@ -718,7 +718,7 @@ std::vector<TestCase> build_tests() {
   add_feature_tests(tests);
   add_compat_tests(tests);
   add_xsave_tests(tests);
-  add_avx_comprehensive_tests(tests);
+  add_avx_fp_tests(tests);
 
   return tests;
 }
