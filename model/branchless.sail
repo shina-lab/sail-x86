@@ -249,6 +249,24 @@ function sat_u32(x) = {
   min_u(x, hi)[31..0]
 }
 
+// Polymorphic signed saturation: dispatch to sat_s{8,16,32} by destination width.
+val sat_s : forall 'n 'dst, 'dst in {8, 16, 32} & 'n > 'dst & 'n <= 64.
+  (int('dst), bits('n)) -> bits('dst)
+function sat_s(dst, x) = match dst {
+  8  => sat_s8(x),
+  16 => sat_s16(x),
+  32 => sat_s32(x),
+}
+
+// Polymorphic unsigned saturation: dispatch to sat_u{8,16,32} by destination width.
+val sat_u : forall 'n 'dst, 'dst in {8, 16, 32} & 'n > 'dst & 'n <= 64.
+  (int('dst), bits('n)) -> bits('dst)
+function sat_u(dst, x) = match dst {
+  8  => sat_u8(x),
+  16 => sat_u16(x),
+  32 => sat_u32(x),
+}
+
 // Multiply high with rounding and scale: ((a*b) >> (n-2) + 1) >> 1
 val mulhrs : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
 function mulhrs(a, b) = {

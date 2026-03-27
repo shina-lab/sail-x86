@@ -171,6 +171,50 @@ function packed_binop(op, eb, a, b) = {
   r
 }
 
+// Generic packed narrowing unary operation (each element shrinks).
+enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS }
+
+val packed_narrow_elem : forall 'src 'dst, 'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
+  (PackedNarrowOp, int('dst), bits('src)) -> bits('dst)
+function packed_narrow_elem(op, dst, a) = match op {
+  PN_Trunc => a[('dst - 1)..0],
+  PN_SatU  => sat_u(dst, a),
+  PN_SatS  => sat_s(dst, a),
+}
+
+val packed_narrow_unop : forall 'vl 'src 'dst,
+  'vl in {128, 256, 512} & 'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
+  (PackedNarrowOp, int('src), int('dst), bits('vl)) -> bits('vl)
+function packed_narrow_unop(op, src_eb, dst_eb, a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'src - 1)) {
+    let slo = i * 'src;
+    let dlo = i * 'dst;
+    r[(dlo + 'dst - 1)..dlo] = packed_narrow_elem(op, dst_eb, a[(slo + 'src - 1)..slo])
+  };
+  r
+}
+
+// Generic packed widening unary operation (each element expands).
+enum PackedWidenOp = { PW_SignExtend, PW_ZeroExtend }
+
+val packed_widen_unop : forall 'vl 'src 'dst,
+  'vl in {128, 256, 512} & 'src in {8, 16, 32} & 'dst in {16, 32, 64} & 'dst > 'src.
+  (PackedWidenOp, int('src), int('dst), bits('vl)) -> bits('vl)
+function packed_widen_unop(op, src_eb, dst_eb, a) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'dst - 1)) {
+    let slo = i * 'src;
+    let dlo = i * 'dst;
+    let elem = a[(slo + 'src - 1)..slo];
+    r[(dlo + 'dst - 1)..dlo] = match op {
+      PW_SignExtend => sign_extend(dst_eb, elem),
+      PW_ZeroExtend => zero_extend(dst_eb, elem),
+    }
+  };
+  r
+}
+
 // Generic packed ternary operation (element-wise, three sources).
 enum PackedTernaryOp = {
   PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub,

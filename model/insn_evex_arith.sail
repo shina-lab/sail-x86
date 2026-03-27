@@ -51,13 +51,16 @@ function avx_pmaddubsw(a, b) = {
 // Each signed dword is clamped to [0, 65535] before truncation
 // =========================================================================
 
-val avx_packusdw_512 : (zmmword, zmmword) -> zmmword
-function avx_packusdw_512(a, b) =
-  avx_packusdw_256(a[511..256], b[511..256]) @ avx_packusdw_256(a[255..0], b[255..0])
-
-val avx_pmuldq_512 : (zmmword, zmmword) -> zmmword
-function avx_pmuldq_512(a, b) =
-  avx_pmuldq_256(a[511..256], b[511..256]) @ avx_pmuldq_256(a[255..0], b[255..0])
+// PMULDQ: polymorphic version wrapping the 128-bit lane helper
+val avx_pmuldq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_pmuldq(vl, a, b) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 128 - 1)) {
+    let lo = i * 128;
+    r[(lo + 127)..lo] = avx_pmuldq_128(a[(lo + 127)..lo], b[(lo + 127)..lo])
+  };
+  r
+}
 
 // =========================================================================
 // VPERMI2/VPERMT2: 2-source permute using index vector
@@ -65,239 +68,8 @@ function avx_pmuldq_512(a, b) =
 // vperm2_q: select qwords from combined (t1,t2) table using idx
 // =========================================================================
 
-// --- VPMOVWB: truncate word -> byte ---
-
-val avx_pmovwb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovwb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let slo = i * 16;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = src[(slo + 7)..slo];
-  };
-  r
-}
-
-// --- VPMOVDB: truncate dword -> byte ---
-
-val avx_pmovdb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovdb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = src[(slo + 7)..slo];
-  };
-  r
-}
-
-// --- VPMOVQB: truncate qword -> byte ---
-
-val avx_pmovqb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovqb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = src[(slo + 7)..slo];
-  };
-  r
-}
-
-// --- VPMOVDW: truncate dword -> word ---
-
-val avx_pmovdw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovdw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = src[(slo + 15)..slo];
-  };
-  r
-}
-
-// --- VPMOVQW: truncate qword -> word ---
-
-val avx_pmovqw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovqw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = src[(slo + 15)..slo];
-  };
-  r
-}
-
-// --- VPMOVQD: truncate qword -> dword ---
-
-val avx_pmovqd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovqd(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 32;
-    r[(dlo + 31)..dlo] = src[(slo + 31)..slo];
-  };
-  r
-}
-
-// --- VPMOVUSWB: unsigned-saturate word -> byte ---
-
-val avx_pmovuswb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovuswb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let slo = i * 16;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 15)..slo]);
-  };
-  r
-}
-
-// --- VPMOVUSDB: unsigned-saturate dword -> byte ---
-
-val avx_pmovusdb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovusdb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 31)..slo]);
-  };
-  r
-}
-
-// --- VPMOVUSQB: unsigned-saturate qword -> byte ---
-
-val avx_pmovusqb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovusqb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_u8(src[(slo + 63)..slo]);
-  };
-  r
-}
-
-// --- VPMOVUSDW: unsigned-saturate dword -> word ---
-
-val avx_pmovusdw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovusdw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 31)..slo]);
-  };
-  r
-}
-
-// --- VPMOVUSQW: unsigned-saturate qword -> word ---
-
-val avx_pmovusqw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovusqw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = sat_u16(src[(slo + 63)..slo]);
-  };
-  r
-}
-
-// --- VPMOVUSQD: unsigned-saturate qword -> dword ---
-
-val avx_pmovusqd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovusqd(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 32;
-    r[(dlo + 31)..dlo] = sat_u32(src[(slo + 63)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSWB: signed-saturate word -> byte ---
-
-val avx_pmovswb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovswb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let slo = i * 16;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 15)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSDB: signed-saturate dword -> byte ---
-
-val avx_pmovsdb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovsdb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 31)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSQB: signed-saturate qword -> byte ---
-
-val avx_pmovsqb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovsqb(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 8;
-    r[(dlo + 7)..dlo] = sat_s8(src[(slo + 63)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSDW: signed-saturate dword -> word ---
-
-val avx_pmovsdw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovsdw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 31)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSQW: signed-saturate qword -> word ---
-
-val avx_pmovsqw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovsqw(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = sat_s16(src[(slo + 63)..slo]);
-  };
-  r
-}
-
-// --- VPMOVSQD: signed-saturate qword -> dword ---
-
-val avx_pmovsqd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_pmovsqd(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let slo = i * 64;
-    let dlo = i * 32;
-    r[(dlo + 31)..dlo] = sat_s32(src[(slo + 63)..slo]);
-  };
-  r
-}
+// All 18 VPMOV narrowing functions replaced by packed_narrow_unop(op, src_eb, dst_eb, src)
+// in insn_vex.sail. See PackedNarrowOp enum: PN_Trunc, PN_SatU, PN_SatS.
 
 // =====================================================================
 // VPMOVM2: mask register -> vector (each bit -> all-ones or all-zeros element)
@@ -669,20 +441,15 @@ function dispatch_evex_arith(op, pfx) = {
     evex_write(dst, mask, packed_binop(PB_MinU, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb)))
   },
 
-  // 0F38 2B: VPACKUSDW (66,W0) [BW]
+  // 0F38 2B: VPACKUSDW (66,W0) [BW] — supports m32bcst
   43 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let src1_idx = pfx.evex_vvvvv;
-    match pfx.evex_ll {
-      0 => evex_write(dst, evex_wmask(pfx, 8), avx_packusdw_128(read_xmm(src1_idx), evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem))),
-      1 => evex_write(dst, evex_wmask(pfx, 16), avx_packusdw_256(read_ymm(src1_idx), evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem))),
-      2 => evex_write(dst, evex_wmask(pfx, 32), avx_packusdw_512(read_zmm(src1_idx), evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem))),
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    let mask = evex_wmask(pfx, vl / 8);
+    evex_write(dst, mask, avx_packusdw(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 32)))
   },
 
   // 0F38 3C: VPMAXSB (66) [BW]
@@ -765,13 +532,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-      let src1_idx = pfx.evex_vvvvv;
-      match pfx.evex_ll {
-        0 => evex_write(dst, evex_wmask(pfx, 2), avx_pmuldq_128(read_xmm(src1_idx), evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem))),
-        1 => evex_write(dst, evex_wmask(pfx, 4), avx_pmuldq_256(read_ymm(src1_idx), evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem))),
-        2 => evex_write(dst, evex_wmask(pfx, 8), avx_pmuldq_512(read_zmm(src1_idx), evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem))),
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      let mask = evex_wmask(pfx, vl / 64);
+      evex_write(dst, mask, avx_pmuldq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
     } else if mp == MP_F3 then {
       // VPMOVM2B (W0) / VPMOVM2W (W1): mask register -> vector
       let modrm = fetch(1);
@@ -860,7 +623,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovuswb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -886,7 +649,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovusdb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -912,7 +675,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 64;
-      let res = avx_pmovusqb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -953,7 +716,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovusdw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -980,7 +743,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovusqw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1007,7 +770,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovusqd(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatU, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1027,13 +790,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, avx_pmovsxbw(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 16, src))
     } else if mp == MP_F3 then {
       // VPMOVSWB: src=reg, dst=r/m (narrowing: word->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovswb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1053,13 +816,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
       let src = evex_widen_src_4(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, avx_pmovsxbd(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVSDB: src=reg, dst=r/m (narrowing: dword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovsdb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1079,13 +842,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
       let src = evex_widen_src_8(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovsxbq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQB: src=reg, dst=r/m (narrowing: qword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 64;
-      let res = avx_pmovsqb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1105,13 +868,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, avx_pmovsxwd(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 16, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVSDW: src=reg, dst=r/m (narrowing: dword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovsdw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1131,13 +894,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
       let src = evex_widen_src_4(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovsxwq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 16, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQW: src=reg, dst=r/m (narrowing: qword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovsqw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1157,13 +920,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovsxdq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 32, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQD: src=reg, dst=r/m (narrowing: qword->dword, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovsqd(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_SatS, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1183,13 +946,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, avx_pmovzxbw(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 16, src))
     } else if mp == MP_F3 then {
       // VPMOVWB: src=reg, dst=r/m (narrowing: word->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovwb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1209,13 +972,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
       let src = evex_widen_src_4(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, avx_pmovzxbd(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVDB: src=reg, dst=r/m (narrowing: dword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovdb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1235,13 +998,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
       let src = evex_widen_src_8(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovzxbq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQB: src=reg, dst=r/m (narrowing: qword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 64;
-      let res = avx_pmovqb(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1261,13 +1024,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, avx_pmovzxwd(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 16, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVDW: src=reg, dst=r/m (narrowing: dword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovdw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1287,13 +1050,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
       let src = evex_widen_src_4(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovzxwq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 16, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQW: src=reg, dst=r/m (narrowing: qword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 32;
-      let res = avx_pmovqw(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
@@ -1352,13 +1115,13 @@ function dispatch_evex_arith(op, pfx) = {
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
       let src = evex_widen_src_2(vl, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmovzxdq(src))
+      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 32, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQD: src=reg, dst=r/m (narrowing: qword->dword, truncation)
       let src = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let nbytes = vl / 16;
-      let res = avx_pmovqd(read_simd(vl, src));
+      let res = packed_narrow_unop(PN_Trunc, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
       match dest {
         RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res[127..0]),
