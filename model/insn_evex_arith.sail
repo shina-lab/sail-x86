@@ -596,20 +596,8 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src = modrm_rm_evex(modrm, pfx, vl / 16);
-      match vl {
-        128 => {
-          let half : xmmword = evex_widen_src_2(modrm, src, pfx);
-          evex_write(dst, evex_wmask(pfx, 4), avx_vcvtph2ps(half[63..0]))
-        },
-        256 => {
-          let half : ymmword = evex_widen_src_2(modrm, src, pfx);
-          evex_write(dst, evex_wmask(pfx, 8), avx_vcvtph2ps(half[127..0]))
-        },
-        512 => {
-          let half : zmmword = evex_widen_src_2(modrm, src, pfx);
-          evex_write(dst, evex_wmask(pfx, 16), avx_vcvtph2ps(half[255..0]))
-        },
-      }
+      let mask = evex_wmask(pfx, vl / 32);
+      evex_write(dst, mask, avx_vcvtph2ps(evex_widen_src(vl, 2, modrm, src, pfx)))
     } else if mp == MP_F3 then {
       let modrm = fetch(1);
       let src = evex_reg_idx(modrm, pfx);
@@ -678,9 +666,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 16, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 16, src))
     } else if mp == MP_F3 then {
       // VPMOVSWB: src=reg, dst=r/m (narrowing: word->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -701,9 +689,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 32, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVSDB: src=reg, dst=r/m (narrowing: dword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -724,9 +712,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
-      let src = evex_widen_src_8(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 8, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 8, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQB: src=reg, dst=r/m (narrowing: qword->byte, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -747,9 +735,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 16, 32, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 16, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVSDW: src=reg, dst=r/m (narrowing: dword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -770,9 +758,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 16, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 16, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQW: src=reg, dst=r/m (narrowing: qword->word, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -793,9 +781,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_SignExtend, 32, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 32, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVSQD: src=reg, dst=r/m (narrowing: qword->dword, signed saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -816,9 +804,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 16, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 16, src))
     } else if mp == MP_F3 then {
       // VPMOVWB: src=reg, dst=r/m (narrowing: word->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -839,9 +827,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 32, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVDB: src=reg, dst=r/m (narrowing: dword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -862,9 +850,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 64);
-      let src = evex_widen_src_8(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 8, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 8, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQB: src=reg, dst=r/m (narrowing: qword->byte, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -885,9 +873,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 16, 32, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 16, 32, src))
     } else if mp == MP_F3 then {
       // VPMOVDW: src=reg, dst=r/m (narrowing: dword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -908,9 +896,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src_4(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 16, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 16, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQW: src=reg, dst=r/m (narrowing: qword->word, truncation)
       let src = evex_reg_idx(modrm, pfx);
@@ -970,9 +958,9 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_rm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src_2(vl, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_widen_unop(PW_ZeroExtend, 32, 64, src))
+      evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 32, 64, src))
     } else if mp == MP_F3 then {
       // VPMOVQD: src=reg, dst=r/m (narrowing: qword->dword, truncation)
       let src = evex_reg_idx(modrm, pfx);

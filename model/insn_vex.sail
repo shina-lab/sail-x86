@@ -198,10 +198,11 @@ function packed_narrow_unop(op, src_eb, dst_eb, a) = {
 // Generic packed widening unary operation (each element expands).
 enum PackedWidenOp = { PW_SignExtend, PW_ZeroExtend }
 
-val packed_widen_unop : forall 'vl 'src 'dst,
-  'vl in {128, 256, 512} & 'src in {8, 16, 32} & 'dst in {16, 32, 64} & 'dst > 'src.
-  (PackedWidenOp, int('src), int('dst), bits('vl)) -> bits('vl)
-function packed_widen_unop(op, src_eb, dst_eb, a) = {
+val packed_widen_unop : forall 'vl 'n 'src 'dst,
+  'vl in {128, 256, 512} & 'src in {8, 16, 32} & 'dst in {16, 32, 64} & 'dst > 'src &
+  'n > 0 & 'n * 'dst == 'vl * 'src.
+  (implicit('vl), PackedWidenOp, int('src), int('dst), bits('n)) -> bits('vl)
+function packed_widen_unop(vl, op, src_eb, dst_eb, a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'dst - 1)) {
     let slo = i * 'src;

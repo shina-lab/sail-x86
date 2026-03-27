@@ -836,14 +836,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 8, 16, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 16, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 8, 16, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 16, src))
     }
   },
 
@@ -856,17 +856,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 8, 32, src))
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 32, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 8, 32, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 32, src))
     }
   },
 
@@ -879,17 +879,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 8, 64, src))
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(16, m)),
+      let src : bits(16) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
+        RM_mem(m) => v(16, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 8, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 64, src))
     }
   },
 
@@ -902,14 +902,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 16, 32, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 16, 32, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 16, 32, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 16, 32, src))
     }
   },
 
@@ -922,17 +922,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 16, 64, src))
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 16, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 16, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 16, 64, src))
     }
   },
 
@@ -945,14 +945,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_SignExtend, 32, 64, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 32, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_SignExtend, 32, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 32, 64, src))
     }
   },
 
@@ -1021,14 +1021,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 8, 16, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 16, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 8, 16, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 16, src))
     }
   },
 
@@ -1041,17 +1041,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 8, 32, src))
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 32, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 8, 32, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 32, src))
     }
   },
 
@@ -1064,17 +1064,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 8, 64, src))
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(16, m)),
+      let src : bits(16) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
+        RM_mem(m) => v(16, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 8, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 64, src))
     }
   },
 
@@ -1087,14 +1087,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 16, 32, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 16, 32, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 16, 32, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 16, 32, src))
     }
   },
 
@@ -1107,17 +1107,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = match src2 {
-        RM_reg(_) => zero_extend(read_xmm(modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 16, 64, src))
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 16, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(32, m)),
+      let src : bits(32) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
+        RM_mem(m) => v(32, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 16, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 16, 64, src))
     }
   },
 
@@ -1130,14 +1130,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = zero_extend(decode_vex_src_xmm(modrm, src2, pfx));
-      write_ymm(dst, packed_widen_unop(PW_ZeroExtend, 32, 64, src))
+      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 32, 64, src))
     } else {
-      let src : xmmword = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => zero_extend(v(64, m)),
+      let src : bits(64) = match src2 {
+        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
+        RM_mem(m) => v(64, m),
       };
-      write_xmm(dst, packed_widen_unop(PW_ZeroExtend, 32, 64, src))
+      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 32, 64, src))
     }
   },
 

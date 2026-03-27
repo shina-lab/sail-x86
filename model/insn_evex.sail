@@ -90,43 +90,17 @@ function evex_src(vl, modrm, rm, pfx) = match rm {
   RM_mem(m) => read_mem(m),
 }
 
-// Read source for widening PMOVSX/PMOVZX with 2:1 ratio (bw, wd, dq):
-// memory reads vl/2 bits, register reads full vl.
-val evex_widen_src_2 : forall 'vl, 'vl in {128, 256, 512}.
-  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
-function evex_widen_src_2(vl, modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => match vl {
-    128 => zero_extend(read_mem(64, m)),
-    256 => zero_extend(read_mem(128, m)),
-    512 => zero_extend(read_mem(256, m)),
-  },
-}
-
-// Read source for widening PMOVSX/PMOVZX with 4:1 ratio (bd, wq):
-// memory reads vl/4 bits, register reads full vl.
-val evex_widen_src_4 : forall 'vl, 'vl in {128, 256, 512}.
-  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
-function evex_widen_src_4(vl, modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => match vl {
-    128 => zero_extend(read_mem(32, m)),
-    256 => zero_extend(read_mem(64, m)),
-    512 => zero_extend(read_mem(128, m)),
-  },
-}
-
-// Read source for widening PMOVSX/PMOVZX with 8:1 ratio (bq):
-// memory reads vl/8 bits, register reads full vl.
-val evex_widen_src_8 : forall 'vl, 'vl in {128, 256, 512}.
-  (implicit('vl), byte, RM, Prefixes) -> bits('vl)
-function evex_widen_src_8(vl, modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_simd(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => match vl {
-    128 => zero_extend(read_mem(16, m)),
-    256 => zero_extend(read_mem(32, m)),
-    512 => zero_extend(read_mem(64, m)),
-  },
+// Read narrow source for widening instructions.
+// Returns vl/ratio bits from register or memory.
+val evex_widen_src : forall 'vl 'r, 'vl in {128, 256, 512} & 'r in {2, 4, 8}.
+  (implicit('vl), int('r), byte, RM, Prefixes) -> bits(div('vl, 'r))
+function evex_widen_src(vl, ratio, modrm, rm, pfx) = {
+  let idx = evex_rm_reg_idx(modrm, pfx);
+  let n = vl / ratio;
+  match rm {
+    RM_reg(_) => ZMM[idx][n - 1 .. 0],
+    RM_mem(m) => read_mem(n, m),
+  }
 }
 
 // Get the effective 64-bit opmask: aaa=0 → all-ones (no masking), else kreg(aaa).
