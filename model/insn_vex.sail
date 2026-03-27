@@ -268,60 +268,6 @@ function packed_ternop32(op, a, b, c) = {
 // 128-bit packed integer add/sub helpers
 // =========================================================================
 
-val avx_paddb_128 : (xmmword, xmmword) -> xmmword
-function avx_paddb_128(a, b) =
-  (a[127..120] + b[127..120]) @ (a[119..112] + b[119..112]) @
-  (a[111..104] + b[111..104]) @ (a[103..96]  + b[103..96])  @
-  (a[95..88]   + b[95..88])   @ (a[87..80]   + b[87..80])   @
-  (a[79..72]   + b[79..72])   @ (a[71..64]   + b[71..64])   @
-  (a[63..56]   + b[63..56])   @ (a[55..48]   + b[55..48])   @
-  (a[47..40]   + b[47..40])   @ (a[39..32]   + b[39..32])   @
-  (a[31..24]   + b[31..24])   @ (a[23..16]   + b[23..16])   @
-  (a[15..8]    + b[15..8])    @ (a[7..0]     + b[7..0])
-
-val avx_paddw_128 : (xmmword, xmmword) -> xmmword
-function avx_paddw_128(a, b) =
-  (a[127..112] + b[127..112]) @ (a[111..96] + b[111..96]) @
-  (a[95..80]   + b[95..80])   @ (a[79..64]  + b[79..64])  @
-  (a[63..48]   + b[63..48])   @ (a[47..32]  + b[47..32])  @
-  (a[31..16]   + b[31..16])   @ (a[15..0]   + b[15..0])
-
-val avx_paddd_128 : (xmmword, xmmword) -> xmmword
-function avx_paddd_128(a, b) =
-  (a[127..96] + b[127..96]) @ (a[95..64] + b[95..64]) @
-  (a[63..32]  + b[63..32])  @ (a[31..0]  + b[31..0])
-
-val avx_paddq_128 : (xmmword, xmmword) -> xmmword
-function avx_paddq_128(a, b) =
-  (a[127..64] + b[127..64]) @ (a[63..0] + b[63..0])
-
-val avx_psubb_128 : (xmmword, xmmword) -> xmmword
-function avx_psubb_128(a, b) =
-  (a[127..120] - b[127..120]) @ (a[119..112] - b[119..112]) @
-  (a[111..104] - b[111..104]) @ (a[103..96]  - b[103..96])  @
-  (a[95..88]   - b[95..88])   @ (a[87..80]   - b[87..80])   @
-  (a[79..72]   - b[79..72])   @ (a[71..64]   - b[71..64])   @
-  (a[63..56]   - b[63..56])   @ (a[55..48]   - b[55..48])   @
-  (a[47..40]   - b[47..40])   @ (a[39..32]   - b[39..32])   @
-  (a[31..24]   - b[31..24])   @ (a[23..16]   - b[23..16])   @
-  (a[15..8]    - b[15..8])    @ (a[7..0]     - b[7..0])
-
-val avx_psubw_128 : (xmmword, xmmword) -> xmmword
-function avx_psubw_128(a, b) =
-  (a[127..112] - b[127..112]) @ (a[111..96] - b[111..96]) @
-  (a[95..80]   - b[95..80])   @ (a[79..64]  - b[79..64])  @
-  (a[63..48]   - b[63..48])   @ (a[47..32]  - b[47..32])  @
-  (a[31..16]   - b[31..16])   @ (a[15..0]   - b[15..0])
-
-val avx_psubd_128 : (xmmword, xmmword) -> xmmword
-function avx_psubd_128(a, b) =
-  (a[127..96] - b[127..96]) @ (a[95..64] - b[95..64]) @
-  (a[63..32]  - b[63..32])  @ (a[31..0]  - b[31..0])
-
-val avx_psubq_128 : (xmmword, xmmword) -> xmmword
-function avx_psubq_128(a, b) =
-  (a[127..64] - b[127..64]) @ (a[63..0] - b[63..0])
-
 // Decode a 2-byte VEX prefix (C5 already consumed, byte1 is the payload).
 // Returns (Prefixes, opcode_map) where opcode_map is always 1 (0F).
 val decode_vex2 : byte -> (Prefixes, range(0, 31))
@@ -541,55 +487,9 @@ function vex_pmaddubsw_256(a, b) =
   vex_pmaddubsw_128(a[255..128], b[255..128]) @ vex_pmaddubsw_128(a[127..0], b[127..0])
 
 // VPMULHRSW: packed multiply high with round and scale
-val vex_pmulhrsw_128 : (xmmword, xmmword) -> xmmword
-function vex_pmulhrsw_128(a, b) =
-  mulhrsw(a[127..112], b[127..112]) @ mulhrsw(a[111..96], b[111..96]) @
-  mulhrsw(a[95..80], b[95..80]) @ mulhrsw(a[79..64], b[79..64]) @
-  mulhrsw(a[63..48], b[63..48]) @ mulhrsw(a[47..32], b[47..32]) @
-  mulhrsw(a[31..16], b[31..16]) @ mulhrsw(a[15..0], b[15..0])
-
-val vex_pmulhrsw_256 : (ymmword, ymmword) -> ymmword
-function vex_pmulhrsw_256(a, b) =
-  vex_pmulhrsw_128(a[255..128], b[255..128]) @ vex_pmulhrsw_128(a[127..0], b[127..0])
-
 // VPABSB: absolute value of packed signed bytes
-val vex_pabsb_128 : xmmword -> xmmword
-function vex_pabsb_128(a) =
-  abs(a[127..120]) @ abs(a[119..112]) @
-  abs(a[111..104]) @ abs(a[103..96])  @
-  abs(a[95..88])   @ abs(a[87..80])   @
-  abs(a[79..72])   @ abs(a[71..64])   @
-  abs(a[63..56])   @ abs(a[55..48])   @
-  abs(a[47..40])   @ abs(a[39..32])   @
-  abs(a[31..24])   @ abs(a[23..16])   @
-  abs(a[15..8])    @ abs(a[7..0])
-
-val vex_pabsb_256 : ymmword -> ymmword
-function vex_pabsb_256(a) =
-  vex_pabsb_128(a[255..128]) @ vex_pabsb_128(a[127..0])
-
 // VPABSW: absolute value of packed signed words
-val vex_pabsw_128 : xmmword -> xmmword
-function vex_pabsw_128(a) =
-  abs(a[127..112]) @ abs(a[111..96]) @
-  abs(a[95..80])   @ abs(a[79..64])  @
-  abs(a[63..48])   @ abs(a[47..32])  @
-  abs(a[31..16])   @ abs(a[15..0])
-
-val vex_pabsw_256 : ymmword -> ymmword
-function vex_pabsw_256(a) =
-  vex_pabsw_128(a[255..128]) @ vex_pabsw_128(a[127..0])
-
 // VPABSD: absolute value of packed signed dwords
-val vex_pabsd_128 : xmmword -> xmmword
-function vex_pabsd_128(a) =
-  abs(a[127..96]) @ abs(a[95..64]) @
-  abs(a[63..32])  @ abs(a[31..0])
-
-val vex_pabsd_256 : ymmword -> ymmword
-function vex_pabsd_256(a) =
-  vex_pabsd_128(a[255..128]) @ vex_pabsd_128(a[127..0])
-
 // VPHADDW: horizontal add packed words (one 128-bit lane)
 // result = [src2 adjacent-pair sums (high half)] @ [src1 adjacent-pair sums (low half)]
 val avx_phaddw_128 : (xmmword, xmmword) -> xmmword
@@ -702,16 +602,6 @@ function avx_psignd_256(a, b) =
 // SSE4.1 integer helpers — PMINUW, PCMPEQQ, PHMINPOSUW
 // =========================================================================
 
-val avx_pcmpeqq_128 : (xmmword, xmmword) -> xmmword
-function avx_pcmpeqq_128(a, b) =
-  cmp_eq(a[127..64], b[127..64]) @
-  cmp_eq(a[63..0], b[63..0])
-
-val avx_pcmpeqq_256 : (ymmword, ymmword) -> ymmword
-function avx_pcmpeqq_256(a, b) =
-  avx_pcmpeqq_128(a[255..128], b[255..128]) @
-  avx_pcmpeqq_128(a[127..0], b[127..0])
-
 // PHMINPOSUW: find minimum unsigned word among 8 words.
 // Result: bits[15:0] = min value, bits[18:16] = index of min, rest zeroed.
 val avx_phminposuw_128 : xmmword -> xmmword
@@ -769,67 +659,9 @@ function avx_phminposuw_128(src) = {
 // =========================================================================
 
 // VPAVGB 128: unsigned byte average = (a + b + 1) >> 1
-val vex_pavgb_128 : (xmmword, xmmword) -> xmmword
-function vex_pavgb_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    r[(lo + 7)..lo] = avg(a[(lo + 7)..lo], b[(lo + 7)..lo]);
-  };
-  r
-}
-
-val vex_pavgb_256 : (ymmword, ymmword) -> ymmword
-function vex_pavgb_256(a, b) =
-  vex_pavgb_128(a[255..128], b[255..128]) @ vex_pavgb_128(a[127..0], b[127..0])
-
 // VPAVGW 128: unsigned word average
-val vex_pavgw_128 : (xmmword, xmmword) -> xmmword
-function vex_pavgw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = avg(a[(lo + 15)..lo], b[(lo + 15)..lo]);
-  };
-  r
-}
-
-val vex_pavgw_256 : (ymmword, ymmword) -> ymmword
-function vex_pavgw_256(a, b) =
-  vex_pavgw_128(a[255..128], b[255..128]) @ vex_pavgw_128(a[127..0], b[127..0])
-
 // VPMULHUW 128: multiply packed unsigned words, store high 16 bits
-val vex_pmulhuw_128 : (xmmword, xmmword) -> xmmword
-function vex_pmulhuw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let prod : int = unsigned(a[(lo + 15)..lo]) * unsigned(b[(lo + 15)..lo]);
-    r[(lo + 15)..lo] = get_slice_int(16, prod, 16);
-  };
-  r
-}
-
-val vex_pmulhuw_256 : (ymmword, ymmword) -> ymmword
-function vex_pmulhuw_256(a, b) =
-  vex_pmulhuw_128(a[255..128], b[255..128]) @ vex_pmulhuw_128(a[127..0], b[127..0])
-
 // VPMULHW 128: multiply packed signed words, store high 16 bits
-val vex_pmulhw_128 : (xmmword, xmmword) -> xmmword
-function vex_pmulhw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let prod : int = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
-    r[(lo + 15)..lo] = get_slice_int(16, prod, 16);
-  };
-  r
-}
-
-val vex_pmulhw_256 : (ymmword, ymmword) -> ymmword
-function vex_pmulhw_256(a, b) =
-  vex_pmulhw_128(a[255..128], b[255..128]) @ vex_pmulhw_128(a[127..0], b[127..0])
-
 // VPMADDWD 128: multiply signed words, add adjacent pairs to dwords
 val vex_pmaddwd_128 : (xmmword, xmmword) -> xmmword
 function vex_pmaddwd_128(a, b) = {
@@ -852,50 +684,7 @@ function vex_pmaddwd_256(a, b) =
 // =========================================================================
 
 // VPCMPGTB/W/D: compare packed signed for greater-than
-val vex_pcmpgtb_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpgtb_128(a, b) =
-  cmp_gt(a[127..120], b[127..120]) @ cmp_gt(a[119..112], b[119..112]) @
-  cmp_gt(a[111..104], b[111..104]) @ cmp_gt(a[103..96],  b[103..96])  @
-  cmp_gt(a[95..88],   b[95..88])   @ cmp_gt(a[87..80],   b[87..80])   @
-  cmp_gt(a[79..72],   b[79..72])   @ cmp_gt(a[71..64],   b[71..64])   @
-  cmp_gt(a[63..56],   b[63..56])   @ cmp_gt(a[55..48],   b[55..48])   @
-  cmp_gt(a[47..40],   b[47..40])   @ cmp_gt(a[39..32],   b[39..32])   @
-  cmp_gt(a[31..24],   b[31..24])   @ cmp_gt(a[23..16],   b[23..16])   @
-  cmp_gt(a[15..8],    b[15..8])    @ cmp_gt(a[7..0],     b[7..0])
-
-val vex_pcmpgtw_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpgtw_128(a, b) =
-  cmp_gt(a[127..112], b[127..112]) @ cmp_gt(a[111..96], b[111..96]) @
-  cmp_gt(a[95..80],   b[95..80])   @ cmp_gt(a[79..64],  b[79..64])  @
-  cmp_gt(a[63..48],   b[63..48])   @ cmp_gt(a[47..32],  b[47..32])  @
-  cmp_gt(a[31..16],   b[31..16])   @ cmp_gt(a[15..0],   b[15..0])
-
-val vex_pcmpgtd_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpgtd_128(a, b) =
-  cmp_gt(a[127..96], b[127..96]) @
-  cmp_gt(a[95..64], b[95..64]) @
-  cmp_gt(a[63..32], b[63..32]) @
-  cmp_gt(a[31..0], b[31..0])
-
 // VPCMPEQB/W: compare packed for equality
-val vex_pcmpeqb_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpeqb_128(a, b) =
-  cmp_eq(a[127..120], b[127..120]) @ cmp_eq(a[119..112], b[119..112]) @
-  cmp_eq(a[111..104], b[111..104]) @ cmp_eq(a[103..96],  b[103..96])  @
-  cmp_eq(a[95..88],   b[95..88])   @ cmp_eq(a[87..80],   b[87..80])   @
-  cmp_eq(a[79..72],   b[79..72])   @ cmp_eq(a[71..64],   b[71..64])   @
-  cmp_eq(a[63..56],   b[63..56])   @ cmp_eq(a[55..48],   b[55..48])   @
-  cmp_eq(a[47..40],   b[47..40])   @ cmp_eq(a[39..32],   b[39..32])   @
-  cmp_eq(a[31..24],   b[31..24])   @ cmp_eq(a[23..16],   b[23..16])   @
-  cmp_eq(a[15..8],    b[15..8])    @ cmp_eq(a[7..0],     b[7..0])
-
-val vex_pcmpeqw_128 : (xmmword, xmmword) -> xmmword
-function vex_pcmpeqw_128(a, b) =
-  cmp_eq(a[127..112], b[127..112]) @ cmp_eq(a[111..96], b[111..96]) @
-  cmp_eq(a[95..80],   b[95..80])   @ cmp_eq(a[79..64],  b[79..64])  @
-  cmp_eq(a[63..48],   b[63..48])   @ cmp_eq(a[47..32],  b[47..32])  @
-  cmp_eq(a[31..16],   b[31..16])   @ cmp_eq(a[15..0],   b[15..0])
-
 // VPACKSSWB/VPACKUSWB/VPACKSSDW: pack with saturation
 val vex_packsswb_128 : (xmmword, xmmword) -> xmmword
 function vex_packsswb_128(a, b) =
@@ -968,17 +757,6 @@ function vex_punpckhqdq_128(a, b) =
   b[127..64] @ a[127..64]
 
 // VPMULLW: multiply packed signed words, store low 16 bits
-val vex_pmullw_128 : (xmmword, xmmword) -> xmmword
-function vex_pmullw_128(a, b) =
-  mul_lo(a[127..112], b[127..112]) @ mul_lo(a[111..96], b[111..96]) @
-  mul_lo(a[95..80],   b[95..80])   @ mul_lo(a[79..64],  b[79..64])  @
-  mul_lo(a[63..48],   b[63..48])   @ mul_lo(a[47..32],  b[47..32])  @
-  mul_lo(a[31..16],   b[31..16])   @ mul_lo(a[15..0],   b[15..0])
-
-val vex_pmullw_256 : (ymmword, ymmword) -> ymmword
-function vex_pmullw_256(a, b) =
-  vex_pmullw_128(a[255..128], b[255..128]) @ vex_pmullw_128(a[127..0], b[127..0])
-
 // VPMULUDQ: multiply packed unsigned dwords (lanes 0,2), produce qword results
 val vex_pmuludq_128 : (xmmword, xmmword) -> xmmword
 function vex_pmuludq_128(a, b) = {
@@ -1010,113 +788,8 @@ function vex_psadbw_256(a, b) =
   vex_psadbw_128(a[255..128], b[255..128]) @ vex_psadbw_128(a[127..0], b[127..0])
 
 // VPMINUB/VPMAXUB: min/max of packed unsigned bytes
-val vex_pminub_128 : (xmmword, xmmword) -> xmmword
-function vex_pminub_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8; let hi = lo + 7;
-    let av : byte = a[(hi)..(lo)]; let bv : byte = b[(hi)..(lo)];
-    r[(hi)..(lo)] = min_u(av, bv)
-  };
-  r
-}
-
-val vex_pmaxub_128 : (xmmword, xmmword) -> xmmword
-function vex_pmaxub_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 8; let hi = lo + 7;
-    let av : byte = a[(hi)..(lo)]; let bv : byte = b[(hi)..(lo)];
-    r[(hi)..(lo)] = max_u(av, bv)
-  };
-  r
-}
-
 // VPMINSW: minimum of packed signed words
-val vex_pminsw_128 : (xmmword, xmmword) -> xmmword
-function vex_pminsw_128(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 16; let hi = lo + 15;
-    let av : word = a[(hi)..(lo)]; let bv : word = b[(hi)..(lo)];
-    r[(hi)..(lo)] = min_s(av, bv)
-  };
-  r
-}
-
 // Saturation add/sub for packed bytes and words (128-bit lanes)
-val vex_paddsb_128 : (xmmword, xmmword) -> xmmword
-function vex_paddsb_128(a, b) =
-  sat_add_s(a[127..120], b[127..120]) @ sat_add_s(a[119..112], b[119..112]) @
-  sat_add_s(a[111..104], b[111..104]) @ sat_add_s(a[103..96],  b[103..96])  @
-  sat_add_s(a[95..88],   b[95..88])   @ sat_add_s(a[87..80],   b[87..80])   @
-  sat_add_s(a[79..72],   b[79..72])   @ sat_add_s(a[71..64],   b[71..64])   @
-  sat_add_s(a[63..56],   b[63..56])   @ sat_add_s(a[55..48],   b[55..48])   @
-  sat_add_s(a[47..40],   b[47..40])   @ sat_add_s(a[39..32],   b[39..32])   @
-  sat_add_s(a[31..24],   b[31..24])   @ sat_add_s(a[23..16],   b[23..16])   @
-  sat_add_s(a[15..8],    b[15..8])    @ sat_add_s(a[7..0],     b[7..0])
-
-val vex_paddsw_128 : (xmmword, xmmword) -> xmmword
-function vex_paddsw_128(a, b) =
-  sat_add_s(a[127..112], b[127..112]) @ sat_add_s(a[111..96], b[111..96]) @
-  sat_add_s(a[95..80],   b[95..80])   @ sat_add_s(a[79..64],  b[79..64])  @
-  sat_add_s(a[63..48],   b[63..48])   @ sat_add_s(a[47..32],  b[47..32])  @
-  sat_add_s(a[31..16],   b[31..16])   @ sat_add_s(a[15..0],   b[15..0])
-
-val vex_paddusb_128 : (xmmword, xmmword) -> xmmword
-function vex_paddusb_128(a, b) =
-  sat_add_u(a[127..120], b[127..120]) @ sat_add_u(a[119..112], b[119..112]) @
-  sat_add_u(a[111..104], b[111..104]) @ sat_add_u(a[103..96],  b[103..96])  @
-  sat_add_u(a[95..88],   b[95..88])   @ sat_add_u(a[87..80],   b[87..80])   @
-  sat_add_u(a[79..72],   b[79..72])   @ sat_add_u(a[71..64],   b[71..64])   @
-  sat_add_u(a[63..56],   b[63..56])   @ sat_add_u(a[55..48],   b[55..48])   @
-  sat_add_u(a[47..40],   b[47..40])   @ sat_add_u(a[39..32],   b[39..32])   @
-  sat_add_u(a[31..24],   b[31..24])   @ sat_add_u(a[23..16],   b[23..16])   @
-  sat_add_u(a[15..8],    b[15..8])    @ sat_add_u(a[7..0],     b[7..0])
-
-val vex_paddusw_128 : (xmmword, xmmword) -> xmmword
-function vex_paddusw_128(a, b) =
-  sat_add_u(a[127..112], b[127..112]) @ sat_add_u(a[111..96], b[111..96]) @
-  sat_add_u(a[95..80],   b[95..80])   @ sat_add_u(a[79..64],  b[79..64])  @
-  sat_add_u(a[63..48],   b[63..48])   @ sat_add_u(a[47..32],  b[47..32])  @
-  sat_add_u(a[31..16],   b[31..16])   @ sat_add_u(a[15..0],   b[15..0])
-
-val vex_psubsb_128 : (xmmword, xmmword) -> xmmword
-function vex_psubsb_128(a, b) =
-  sat_sub_s(a[127..120], b[127..120]) @ sat_sub_s(a[119..112], b[119..112]) @
-  sat_sub_s(a[111..104], b[111..104]) @ sat_sub_s(a[103..96],  b[103..96])  @
-  sat_sub_s(a[95..88],   b[95..88])   @ sat_sub_s(a[87..80],   b[87..80])   @
-  sat_sub_s(a[79..72],   b[79..72])   @ sat_sub_s(a[71..64],   b[71..64])   @
-  sat_sub_s(a[63..56],   b[63..56])   @ sat_sub_s(a[55..48],   b[55..48])   @
-  sat_sub_s(a[47..40],   b[47..40])   @ sat_sub_s(a[39..32],   b[39..32])   @
-  sat_sub_s(a[31..24],   b[31..24])   @ sat_sub_s(a[23..16],   b[23..16])   @
-  sat_sub_s(a[15..8],    b[15..8])    @ sat_sub_s(a[7..0],     b[7..0])
-
-val vex_psubsw_128 : (xmmword, xmmword) -> xmmword
-function vex_psubsw_128(a, b) =
-  sat_sub_s(a[127..112], b[127..112]) @ sat_sub_s(a[111..96], b[111..96]) @
-  sat_sub_s(a[95..80],   b[95..80])   @ sat_sub_s(a[79..64],  b[79..64])  @
-  sat_sub_s(a[63..48],   b[63..48])   @ sat_sub_s(a[47..32],  b[47..32])  @
-  sat_sub_s(a[31..16],   b[31..16])   @ sat_sub_s(a[15..0],   b[15..0])
-
-val vex_psubusb_128 : (xmmword, xmmword) -> xmmword
-function vex_psubusb_128(a, b) =
-  sat_sub_u(a[127..120], b[127..120]) @ sat_sub_u(a[119..112], b[119..112]) @
-  sat_sub_u(a[111..104], b[111..104]) @ sat_sub_u(a[103..96],  b[103..96])  @
-  sat_sub_u(a[95..88],   b[95..88])   @ sat_sub_u(a[87..80],   b[87..80])   @
-  sat_sub_u(a[79..72],   b[79..72])   @ sat_sub_u(a[71..64],   b[71..64])   @
-  sat_sub_u(a[63..56],   b[63..56])   @ sat_sub_u(a[55..48],   b[55..48])   @
-  sat_sub_u(a[47..40],   b[47..40])   @ sat_sub_u(a[39..32],   b[39..32])   @
-  sat_sub_u(a[31..24],   b[31..24])   @ sat_sub_u(a[23..16],   b[23..16])   @
-  sat_sub_u(a[15..8],    b[15..8])    @ sat_sub_u(a[7..0],     b[7..0])
-
-val vex_psubusw_128 : (xmmword, xmmword) -> xmmword
-function vex_psubusw_128(a, b) =
-  sat_sub_u(a[127..112], b[127..112]) @ sat_sub_u(a[111..96], b[111..96]) @
-  sat_sub_u(a[95..80],   b[95..80])   @ sat_sub_u(a[79..64],  b[79..64])  @
-  sat_sub_u(a[63..48],   b[63..48])   @ sat_sub_u(a[47..32],  b[47..32])  @
-  sat_sub_u(a[31..16],   b[31..16])   @ sat_sub_u(a[15..0],   b[15..0])
-
 // Packed shift helpers for 128-bit lanes
 val vex_psrlw_128 : (xmmword, nat) -> xmmword
 function vex_psrlw_128(a, c) =
