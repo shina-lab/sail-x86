@@ -211,6 +211,20 @@ function evex_write(dst, wm, result) = {
   ZMM[dst] = zero_extend(apply_writemask(wm, result, old))
 }
 
+// Write to register or memory with writemask applied.
+// For register: applies writemask (merge/zero), zeroes upper bits.
+// For memory: writes only masked elements (unmasked bytes untouched).
+val evex_write_rm : forall 'vl 'nm, 'vl > 0 & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0 & 'vl <= 512.
+  (RM, byte, Prefixes, Writemask('nm), bits('vl)) -> unit
+function evex_write_rm(dst, modrm, pfx, wm, result) = match dst {
+  RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), wm, result),
+  RM_mem(m) => {
+    let nbytes = 'vl / 8;
+    let num_elems = length(wm.bits);
+    evex_masked_mem_store(m, zero_extend(result), evex_kmask64(pfx), nbytes, nbytes / num_elems)
+  },
+}
+
 // Construct a Writemask from prefixes, vector length, and element size.
 // Returns Writemask with 'vl/'eb mask bits (one per element).
 // Construct Writemask for N elements from EVEX prefixes.

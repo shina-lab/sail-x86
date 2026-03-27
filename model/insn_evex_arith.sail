@@ -625,10 +625,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 16), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -651,10 +648,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatU, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -677,10 +671,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_SatU, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -718,10 +709,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -745,10 +733,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatU, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -772,10 +757,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -798,10 +780,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 16), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -824,10 +803,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatS, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -850,10 +826,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_SatS, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -876,10 +849,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -902,10 +872,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatS, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -928,10 +895,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -954,10 +918,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 16, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 16), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -980,10 +941,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_Trunc, 32, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -1006,10 +964,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_Trunc, 64, 8, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 1),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -1032,10 +987,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 32, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 32), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -1058,10 +1010,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_Trunc, 64, 16, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 2),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -1123,10 +1072,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 64, 32, read_simd(vl, src));
       let dest = modrm_rm_evex(modrm, pfx, nbytes);
-      match dest {
-        RM_reg(_) => evex_write(evex_rm_reg_idx(modrm, pfx), evex_wmask(pfx, vl / 64), res),
-        RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), nbytes, 4),
-      }
+      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
