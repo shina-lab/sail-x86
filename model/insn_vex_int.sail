@@ -184,13 +184,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pcmpgtb_128(s1[255..128], s2[255..128]) @ vex_pcmpgtb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pcmpgtb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpGt, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 65: VPCMPGTW (66 prefix)
@@ -199,13 +194,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pcmpgtw_128(s1[255..128], s2[255..128]) @ vex_pcmpgtw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pcmpgtw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpGt, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 66: VPCMPGTD (66 prefix)
@@ -214,13 +204,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pcmpgtd_128(s1[255..128], s2[255..128]) @ vex_pcmpgtd_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pcmpgtd_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpGt, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 67: VPACKUSWB (66 prefix)
@@ -553,13 +538,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pcmpeqb_128(s1[255..128], s2[255..128]) @ vex_pcmpeqb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pcmpeqb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpEq, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 75: VPCMPEQW (66 prefix)
@@ -568,13 +548,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pcmpeqw_128(s1[255..128], s2[255..128]) @ vex_pcmpeqw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pcmpeqw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpEq, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 76: VPCMPEQD xmm/ymm (66 prefix)
@@ -583,21 +558,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst,
-        cmp_eq(src1[255..224], src2[255..224]) @ cmp_eq(src1[223..192], src2[223..192]) @
-        cmp_eq(src1[191..160], src2[191..160]) @ cmp_eq(src1[159..128], src2[159..128]) @
-        cmp_eq(src1[127..96], src2[127..96])   @ cmp_eq(src1[95..64], src2[95..64]) @
-        cmp_eq(src1[63..32], src2[63..32])     @ cmp_eq(src1[31..0], src2[31..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst,
-        cmp_eq(src1[127..96], src2[127..96]) @ cmp_eq(src1[95..64], src2[95..64]) @
-        cmp_eq(src1[63..32], src2[63..32])   @ cmp_eq(src1[31..0], src2[31..0]))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_CmpEq, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F 77: VZEROUPPER (VEX.128) / VZEROALL (VEX.256)
@@ -1041,15 +1003,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_paddq_128(src1[255..128], src2[255..128]) @ avx_paddq_128(src1[127..0], src2[127..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_paddq_128(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Add, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F D5: VPMULLW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -1058,11 +1013,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, vex_pmullw_256(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_pmullw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MulLow, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F D6: VMOVQ xmm1/m64, xmm2 (66 prefix, VEX.128 only)
@@ -1111,13 +1063,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_psubusb_128(s1[255..128], s2[255..128]) @ vex_psubusb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_psubusb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatSubU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F D9: VPSUBUSW (66 prefix)
@@ -1126,13 +1073,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_psubusw_128(s1[255..128], s2[255..128]) @ vex_psubusw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_psubusw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatSubU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F DA: VPMINUB (66 prefix)
@@ -1141,13 +1083,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pminub_128(s1[255..128], s2[255..128]) @ vex_pminub_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pminub_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F DB: VPAND (66 prefix)
@@ -1169,13 +1106,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_paddusb_128(s1[255..128], s2[255..128]) @ vex_paddusb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_paddusb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatAddU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F DD: VPADDUSW (66 prefix)
@@ -1184,13 +1116,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_paddusw_128(s1[255..128], s2[255..128]) @ vex_paddusw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_paddusw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatAddU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F DE: VPMAXUB (66 prefix)
@@ -1199,13 +1126,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pmaxub_128(s1[255..128], s2[255..128]) @ vex_pmaxub_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pmaxub_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxU, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F DF: VPANDN (66 prefix)
@@ -1227,11 +1149,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, vex_pavgb_256(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_pavgb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Avg, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F E1: VPSRAW xmm/ymm, xmm/ymm, xmm/m128 (66 prefix) — shift by xmm count
@@ -1272,11 +1191,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, vex_pavgw_256(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_pavgw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Avg, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F E4: VPMULHUW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -1285,11 +1201,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, vex_pmulhuw_256(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_pmulhuw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MulHighU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F E5: VPMULHW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -1298,11 +1211,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, vex_pmulhw_256(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_pmulhw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MulHighS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F E6: VCVTDQ2PD (F3) / VCVTPD2DQ (F2) / VCVTTPD2DQ (66)
@@ -1385,13 +1295,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_psubsb_128(s1[255..128], s2[255..128]) @ vex_psubsb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_psubsb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatSubS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F E9: VPSUBSW (66 prefix)
@@ -1400,13 +1305,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_psubsw_128(s1[255..128], s2[255..128]) @ vex_psubsw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_psubsw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatSubS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F EA: VPMINSW (66 prefix)
@@ -1415,13 +1315,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pminsw_128(s1[255..128], s2[255..128]) @ vex_pminsw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_pminsw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MinS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F EB: VPOR (66 prefix)
@@ -1443,13 +1338,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_paddsb_128(s1[255..128], s2[255..128]) @ vex_paddsb_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_paddsb_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatAddS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F ED: VPADDSW (66 prefix)
@@ -1458,13 +1348,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let s2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_paddsw_128(s1[255..128], s2[255..128]) @ vex_paddsw_128(s1[127..0], s2[127..0]))
-    } else {
-      write_xmm(dst, vex_paddsw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_SatAddS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F EE: VPMAXSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -1473,27 +1358,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      var result : ymmword = zeros();
-      foreach (i from 0 to 15) {
-        let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
-        let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = max_s(a, b)
-      };
-      write_ymm(dst, result)
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      var result : xmmword = zeros();
-      foreach (i from 0 to 7) {
-        let a : bits(16) = src1[(i * 16 + 15) .. (i * 16)];
-        let b : bits(16) = src2[(i * 16 + 15) .. (i * 16)];
-        result[(i * 16 + 15) .. (i * 16)] = max_s(a, b)
-      };
-      write_xmm(dst, result)
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_MaxS, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F EF: VPXOR (66 prefix)
@@ -1648,15 +1514,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psubb_128(src1[255..128], src2[255..128]) @ avx_psubb_128(src1[127..0], src2[127..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_psubb_128(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Sub, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F F9: VPSUBW (66 prefix)
@@ -1665,13 +1524,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psubw_128(src1[255..128], src2[255..128]) @ avx_psubw_128(src1[127..0], src2[127..0]))
-    } else {
-      write_xmm(dst, avx_psubw_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Sub, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F FA: VPSUBD (66 prefix)
@@ -1680,13 +1534,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psubd_128(src1[255..128], src2[255..128]) @ avx_psubd_128(src1[127..0], src2[127..0]))
-    } else {
-      write_xmm(dst, avx_psubd_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Sub, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F FB: VPSUBQ (66 prefix)
@@ -1695,13 +1544,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psubq_128(src1[255..128], src2[255..128]) @ avx_psubq_128(src1[127..0], src2[127..0]))
-    } else {
-      write_xmm(dst, avx_psubq_128(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Sub, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F FC: VPADDB (66 prefix)
@@ -1710,15 +1554,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_paddb_128(src1[255..128], src2[255..128]) @ avx_paddb_128(src1[127..0], src2[127..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_paddb_128(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Add, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F FD: VPADDW (66 prefix)
@@ -1727,15 +1564,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_paddw_128(src1[255..128], src2[255..128]) @ avx_paddw_128(src1[127..0], src2[127..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_paddw_128(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Add, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F FE: VPADDD (66 prefix)
@@ -1744,15 +1574,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_paddd_128(src1[255..128], src2[255..128]) @ avx_paddd_128(src1[127..0], src2[127..0]))
-    } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_paddd_128(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_binop(PB_Add, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   _ => raise_UD(),

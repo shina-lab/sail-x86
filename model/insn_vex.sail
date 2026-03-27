@@ -8,85 +8,6 @@
 // 3-byte VEX (C4): [C4] [R̄.X̄.B̄.mmmmm] [W.vvvv.L.pp]
 
 // =========================================================================
-// 128-bit packed FP helpers — lane operations for AVX
-// =========================================================================
-
-val vaddps_xmm : (xmmword, xmmword) -> xmmword
-function vaddps_xmm(a, b) =
-  __f32_add(a[127..96], b[127..96]) @
-  __f32_add(a[95..64],  b[95..64])  @
-  __f32_add(a[63..32],  b[63..32])  @
-  __f32_add(a[31..0],   b[31..0])
-
-val vsubps_xmm : (xmmword, xmmword) -> xmmword
-function vsubps_xmm(a, b) =
-  __f32_sub(a[127..96], b[127..96]) @
-  __f32_sub(a[95..64],  b[95..64])  @
-  __f32_sub(a[63..32],  b[63..32])  @
-  __f32_sub(a[31..0],   b[31..0])
-
-val vmulps_xmm : (xmmword, xmmword) -> xmmword
-function vmulps_xmm(a, b) =
-  __f32_mul(a[127..96], b[127..96]) @
-  __f32_mul(a[95..64],  b[95..64])  @
-  __f32_mul(a[63..32],  b[63..32])  @
-  __f32_mul(a[31..0],   b[31..0])
-
-val vdivps_xmm : (xmmword, xmmword) -> xmmword
-function vdivps_xmm(a, b) =
-  __f32_div(a[127..96], b[127..96]) @
-  __f32_div(a[95..64],  b[95..64])  @
-  __f32_div(a[63..32],  b[63..32])  @
-  __f32_div(a[31..0],   b[31..0])
-
-val vminps_xmm : (xmmword, xmmword) -> xmmword
-function vminps_xmm(a, b) =
-  __f32_min(a[127..96], b[127..96]) @
-  __f32_min(a[95..64],  b[95..64])  @
-  __f32_min(a[63..32],  b[63..32])  @
-  __f32_min(a[31..0],   b[31..0])
-
-val vmaxps_xmm : (xmmword, xmmword) -> xmmword
-function vmaxps_xmm(a, b) =
-  __f32_max(a[127..96], b[127..96]) @
-  __f32_max(a[95..64],  b[95..64])  @
-  __f32_max(a[63..32],  b[63..32])  @
-  __f32_max(a[31..0],   b[31..0])
-
-val vsqrtps_xmm : xmmword -> xmmword
-function vsqrtps_xmm(a) =
-  __f32_sqrt(a[127..96]) @ __f32_sqrt(a[95..64]) @
-  __f32_sqrt(a[63..32])  @ __f32_sqrt(a[31..0])
-
-val vaddpd_xmm : (xmmword, xmmword) -> xmmword
-function vaddpd_xmm(a, b) =
-  __f64_add(a[127..64], b[127..64]) @ __f64_add(a[63..0], b[63..0])
-
-val vsubpd_xmm : (xmmword, xmmword) -> xmmword
-function vsubpd_xmm(a, b) =
-  __f64_sub(a[127..64], b[127..64]) @ __f64_sub(a[63..0], b[63..0])
-
-val vmulpd_xmm : (xmmword, xmmword) -> xmmword
-function vmulpd_xmm(a, b) =
-  __f64_mul(a[127..64], b[127..64]) @ __f64_mul(a[63..0], b[63..0])
-
-val vdivpd_xmm : (xmmword, xmmword) -> xmmword
-function vdivpd_xmm(a, b) =
-  __f64_div(a[127..64], b[127..64]) @ __f64_div(a[63..0], b[63..0])
-
-val vminpd_xmm : (xmmword, xmmword) -> xmmword
-function vminpd_xmm(a, b) =
-  __f64_min(a[127..64], b[127..64]) @ __f64_min(a[63..0], b[63..0])
-
-val vmaxpd_xmm : (xmmword, xmmword) -> xmmword
-function vmaxpd_xmm(a, b) =
-  __f64_max(a[127..64], b[127..64]) @ __f64_max(a[63..0], b[63..0])
-
-val vsqrtpd_xmm : xmmword -> xmmword
-function vsqrtpd_xmm(a) =
-  __f64_sqrt(a[127..64]) @ __f64_sqrt(a[63..0])
-
-// =========================================================================
 // Generic packed element-wise operations
 // =========================================================================
 
@@ -123,6 +44,7 @@ enum PackedBinOp = {
   PB_Srl, PB_Sra, PB_Sll,
   PB_MulLow, PB_MulHighS, PB_MulHighU, PB_MulHRS,
   PB_Ror, PB_Rol,
+  PB_CmpEq, PB_CmpGt,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
 }
 
@@ -150,6 +72,8 @@ function packed_elem_op(op, a, b) = match op {
   PB_MulHRS   => mulhrs(a, b),
   PB_Ror      => rotr(a, unsigned(b) % 'eb),
   PB_Rol      => rotl(a, unsigned(b) % 'eb),
+  PB_CmpEq    => cmp_eq(a, b),
+  PB_CmpGt    => cmp_gt(a, b),
   PB_FAdd     => fadd(a, b),
   PB_FSub     => fsub(a, b),
   PB_FMul     => fmul(a, b),

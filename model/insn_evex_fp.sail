@@ -3,67 +3,6 @@
 // FP mov, arithmetic, compare, and convert instructions.
 // Called from dispatch_evex_0f in insn_evex.sail.
 
-val vaddps_ymm : (ymmword, ymmword) -> ymmword
-function vaddps_ymm(a, b) =
-  vaddps_xmm(a[255..128], b[255..128]) @ vaddps_xmm(a[127..0], b[127..0])
-
-val vsubps_ymm : (ymmword, ymmword) -> ymmword
-function vsubps_ymm(a, b) =
-  vsubps_xmm(a[255..128], b[255..128]) @ vsubps_xmm(a[127..0], b[127..0])
-
-val vmulps_ymm : (ymmword, ymmword) -> ymmword
-function vmulps_ymm(a, b) =
-  vmulps_xmm(a[255..128], b[255..128]) @ vmulps_xmm(a[127..0], b[127..0])
-
-val vdivps_ymm : (ymmword, ymmword) -> ymmword
-function vdivps_ymm(a, b) =
-  vdivps_xmm(a[255..128], b[255..128]) @ vdivps_xmm(a[127..0], b[127..0])
-
-val vminps_ymm : (ymmword, ymmword) -> ymmword
-function vminps_ymm(a, b) =
-  vminps_xmm(a[255..128], b[255..128]) @ vminps_xmm(a[127..0], b[127..0])
-
-val vmaxps_ymm : (ymmword, ymmword) -> ymmword
-function vmaxps_ymm(a, b) =
-  vmaxps_xmm(a[255..128], b[255..128]) @ vmaxps_xmm(a[127..0], b[127..0])
-
-val vsqrtps_ymm : ymmword -> ymmword
-function vsqrtps_ymm(a) =
-  vsqrtps_xmm(a[255..128]) @ vsqrtps_xmm(a[127..0])
-
-val vaddpd_ymm : (ymmword, ymmword) -> ymmword
-function vaddpd_ymm(a, b) =
-  vaddpd_xmm(a[255..128], b[255..128]) @ vaddpd_xmm(a[127..0], b[127..0])
-
-val vsubpd_ymm : (ymmword, ymmword) -> ymmword
-function vsubpd_ymm(a, b) =
-  vsubpd_xmm(a[255..128], b[255..128]) @ vsubpd_xmm(a[127..0], b[127..0])
-
-val vmulpd_ymm : (ymmword, ymmword) -> ymmword
-function vmulpd_ymm(a, b) =
-  vmulpd_xmm(a[255..128], b[255..128]) @ vmulpd_xmm(a[127..0], b[127..0])
-
-val vdivpd_ymm : (ymmword, ymmword) -> ymmword
-function vdivpd_ymm(a, b) =
-  vdivpd_xmm(a[255..128], b[255..128]) @ vdivpd_xmm(a[127..0], b[127..0])
-
-val vminpd_ymm : (ymmword, ymmword) -> ymmword
-function vminpd_ymm(a, b) =
-  vminpd_xmm(a[255..128], b[255..128]) @ vminpd_xmm(a[127..0], b[127..0])
-
-val vmaxpd_ymm : (ymmword, ymmword) -> ymmword
-function vmaxpd_ymm(a, b) =
-  vmaxpd_xmm(a[255..128], b[255..128]) @ vmaxpd_xmm(a[127..0], b[127..0])
-
-val vsqrtpd_ymm : ymmword -> ymmword
-function vsqrtpd_ymm(a) =
-  vsqrtpd_xmm(a[255..128]) @ vsqrtpd_xmm(a[127..0])
-
-// =========================================================================
-// Packed integer add/sub helpers (byte/word/dword/qword)
-// 128-bit: manually unrolled. 256-bit: split into two 128-bit halves.
-// =========================================================================
-
 // =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values (per 128-bit lane)
 // Each pair of 32-bit floats: [A, B] → [A, A] (even index duplicated)
