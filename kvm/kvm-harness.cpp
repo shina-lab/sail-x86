@@ -343,18 +343,24 @@ struct KvmVm {
     // ST(0)-ST(7) at offset 32, 16 bytes stride — already zero from memset
     // MXCSR at offset 0x18
     memcpy(xs + 0x18, &tc.initial.mxcsr, 4);
-    // XMM0-XMM15 at offset 0xA0 (16 bytes each)
-    for (int i = 0; i < 16; i++) {
-      memcpy(xs + 0xA0 + i * 16,     &tc.initial.xmm[i].lo, 8);
-      memcpy(xs + 0xA0 + i * 16 + 8, &tc.initial.xmm[i].hi, 8);
-    }
+    // XMM0-XMM15 low 128 bits at offset 0xA0 (16 bytes each)
+    for (int i = 0; i < 16; i++)
+      memcpy(xs + 0xA0 + i * 16, &tc.initial.xmm[i].q[0], 16);
+    // YMM0-YMM15 upper 128 bits at offset 0x240 (component 2/AVX, 16 bytes each)
+    for (int i = 0; i < 16; i++)
+      memcpy(xs + 0x240 + i * 16, &tc.initial.xmm[i].q[2], 16);
     // Opmask registers (k0-k7) at offset 0x340 (component 5, 8 bytes each)
-    // Offset from CPUID leaf 0xD subleaf 5: EBX=0x340
     for (int i = 0; i < 8; i++)
       memcpy(xs + 0x340 + i * 8, &tc.initial.kregs[i], 8);
+    // ZMM0-ZMM15 upper 256 bits at offset 0x380 (component 6/ZMM_Hi256, 32 bytes each)
+    for (int i = 0; i < 16; i++)
+      memcpy(xs + 0x380 + i * 32, &tc.initial.xmm[i].q[4], 32);
+    // ZMM16-ZMM31 full 512 bits at offset 0x580 (component 7/Hi16_ZMM, 64 bytes each)
+    for (int i = 0; i < 16; i++)
+      memcpy(xs + 0x580 + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
 
-    // XSTATE_BV at offset 0x200: bits 0(x87) + 1(SSE) + 2(AVX) + 5(opmask)
-    u64 xstate_bv = 0x27;  // bits 0,1,2,5
+    // XSTATE_BV at offset 0x200: all AVX-512 components
+    u64 xstate_bv = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
     memcpy(xs + 0x200, &xstate_bv, 8);
     ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
 
@@ -458,13 +464,21 @@ struct KvmVm {
     ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave);
     u8 *xs = (u8 *)&xsave;
     memcpy(&state.mxcsr, xs + 0x18, 4);
-    for (int i = 0; i < 16; i++) {
-      memcpy(&state.xmm[i].lo, xs + 0xA0 + i * 16,     8);
-      memcpy(&state.xmm[i].hi, xs + 0xA0 + i * 16 + 8, 8);
-    }
-    // Opmask registers (k0-k7) at offset 0x340 (component 5)
+    // XMM0-15 low 128 bits
+    for (int i = 0; i < 16; i++)
+      memcpy(&state.xmm[i].q[0], xs + 0xA0 + i * 16, 16);
+    // YMM0-15 upper 128 bits
+    for (int i = 0; i < 16; i++)
+      memcpy(&state.xmm[i].q[2], xs + 0x240 + i * 16, 16);
+    // Opmask registers (k0-k7)
     for (int i = 0; i < 8; i++)
       memcpy(&state.kregs[i], xs + 0x340 + i * 8, 8);
+    // ZMM0-15 upper 256 bits
+    for (int i = 0; i < 16; i++)
+      memcpy(&state.xmm[i].q[4], xs + 0x380 + i * 32, 32);
+    // ZMM16-31 full 512 bits
+    for (int i = 0; i < 16; i++)
+      memcpy(&state.xmm[16 + i].q[0], xs + 0x580 + i * 64, 64);
     return state;
   }
 
@@ -596,14 +610,13 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);
 
-  // Set XMM registers and MXCSR
+  // Set ZMM registers and MXCSR
   model.mxcsr_state.mxcsr = tc.initial.mxcsr;
-  for (int i = 0; i < 16; i++) {
-    u8 bytes[16];
-    memcpy(bytes,     &tc.initial.xmm[i].lo, 8);
-    memcpy(bytes + 8, &tc.initial.xmm[i].hi, 8);
+  for (int i = 0; i < 32; i++) {
+    u8 bytes[64];
+    memcpy(bytes, &tc.initial.xmm[i].q[0], 64);
     RECREATE(lbits)(&model.zZMM.data[i]);
-    bytes_to_xmm(&model.zZMM.data[i], bytes);
+    bytes_to_zmm(&model.zZMM.data[i], bytes);
   }
 
   // Set k-registers (opmask)
@@ -677,11 +690,10 @@ done:
   };
 
   state.mxcsr = model.mxcsr_state.mxcsr;
-  for (int i = 0; i < 16; i++) {
-    u8 bytes[16];
-    xmm_to_bytes(model.zZMM.data[i], bytes);
-    memcpy(&state.xmm[i].lo, bytes,     8);
-    memcpy(&state.xmm[i].hi, bytes + 8, 8);
+  for (int i = 0; i < 32; i++) {
+    u8 bytes[64];
+    zmm_to_bytes(model.zZMM.data[i], bytes);
+    memcpy(&state.xmm[i].q[0], bytes, 64);
   }
   for (int i = 0; i < 8; i++)
     state.kregs[i] = model.zKREG.data[i];

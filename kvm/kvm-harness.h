@@ -16,25 +16,29 @@
 #include <asm/kvm.h>
 #include <vector>
 
-// lbits helpers for XMM register access
-inline void xmm_to_bytes(lbits val, u8 *out) {
+// lbits helpers for ZMM register access (full 512-bit)
+inline void zmm_to_bytes(lbits val, u8 *out) {
   mpz_t tmp;
   mpz_init_set(tmp, *val.bits);
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 64; i++) {
     out[i] = (u8)(mpz_get_ui(tmp) & 0xFF);
     mpz_fdiv_q_2exp(tmp, tmp, 8);
   }
   mpz_clear(tmp);
 }
 
-inline void bytes_to_xmm(lbits *out, const u8 *in) {
+inline void bytes_to_zmm(lbits *out, const u8 *in) {
   mpz_set_ui(*out->bits, 0);
-  for (int i = 16; i > 0; i--) {
+  for (int i = 64; i > 0; i--) {
     mpz_mul_2exp(*out->bits, *out->bits, 8);
     mpz_add_ui(*out->bits, *out->bits, in[i - 1]);
   }
-  out->len = 512;  // ZMM registers are 512-bit; upper bits are implicitly zero
+  out->len = 512;
 }
+
+// Legacy aliases
+inline void xmm_to_bytes(lbits val, u8 *out) { zmm_to_bytes(val, out); }
+inline void bytes_to_xmm(lbits *out, const u8 *in) { bytes_to_zmm(out, in); }
 
 // Guest physical memory layout (identity-mapped, 2MB total):
 //   0x00000 - 0x00FFF  PML4
@@ -74,15 +78,24 @@ static constexpr u64 FL_ZF_ONLY = FL_ZF;
 static constexpr u64 FL_CF_ZF = FL_CF | FL_ZF;
 static constexpr u64 FL_NONE = 0;
 
-// 128-bit XMM value stored as two 64-bit halves (little-endian).
-struct XmmVal {
-  u64 lo = 0, hi = 0;
-  bool operator==(const XmmVal &o) const { return lo == o.lo && hi == o.hi; }
-  bool operator!=(const XmmVal &o) const { return !(*this == o); }
+// 512-bit ZMM value stored as eight 64-bit quadwords (little-endian).
+// Union provides .lo/.hi aliases for backward compatibility with XMM-only tests.
+struct ZmmVal {
+  union {
+    u64 q[8];
+    struct { u64 lo, hi; };  // aliases for q[0], q[1]
+  };
+  bool operator==(const ZmmVal &o) const { return memcmp(q, o.q, 64) == 0; }
+  bool operator!=(const ZmmVal &o) const { return !(*this == o); }
+  bool is_zero() const {
+    for (int i = 0; i < 8; i++) if (q[i]) return false;
+    return true;
+  }
 };
+using XmmVal = ZmmVal;  // backward compat
 
-inline XmmVal xmm_from_f32(float a, float b, float c, float d) {
-  XmmVal v;
+inline ZmmVal xmm_from_f32(float a, float b, float c, float d) {
+  ZmmVal v;
   u32 parts[4];
   memcpy(&parts[0], &a, 4);
   memcpy(&parts[1], &b, 4);
@@ -93,19 +106,22 @@ inline XmmVal xmm_from_f32(float a, float b, float c, float d) {
   return v;
 }
 
-inline XmmVal xmm_from_f64(double a, double b) {
-  XmmVal v;
+inline ZmmVal xmm_from_f64(double a, double b) {
+  ZmmVal v;
   memcpy(&v.lo, &a, 8);
   memcpy(&v.hi, &b, 8);
   return v;
 }
 
-inline XmmVal xmm_from_u64(u64 lo, u64 hi) {
-  return {lo, hi};
+inline ZmmVal xmm_from_u64(u64 lo, u64 hi) {
+  ZmmVal v;
+  v.lo = lo;
+  v.hi = hi;
+  return v;
 }
 
-inline XmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
-  XmmVal v;
+inline ZmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
+  ZmmVal v;
   v.lo = (u64)a | ((u64)b << 32);
   v.hi = (u64)c | ((u64)d << 32);
   return v;
@@ -131,9 +147,9 @@ struct ArchState {
   u64 r15 = 0;
   u64 rip = 0;
   u64 rflags = 0;
-  XmmVal xmm[16] = {};
-  u32 mxcsr = 0x1F80;  // default MXCSR
-  u64 kregs[8] = {};    // AVX-512 opmask registers k0-k7
+  ZmmVal xmm[32] = {};  // full 512-bit ZMM registers (named xmm for backward compat)
+  u32 mxcsr = 0x1F80;   // default MXCSR
+  u64 kregs[8] = {};     // AVX-512 opmask registers k0-k7
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -146,9 +162,17 @@ struct ArchState {
     fprintf(stderr, "    R12=%016lx R13=%016lx R14=%016lx R15=%016lx\n",
             r12, r13, r14, r15);
     fprintf(stderr, "    RIP=%016lx RFLAGS=%016lx MXCSR=%08x\n", rip, rflags, mxcsr);
-    for (int i = 0; i < 16; i++) {
-      if (xmm[i].lo || xmm[i].hi)
-        fprintf(stderr, "    XMM%-2d=%016lx%016lx\n", i, xmm[i].hi, xmm[i].lo);
+    for (int i = 0; i < 32; i++) {
+      if (!xmm[i].is_zero()) {
+        bool upper = false;
+        for (int j = 2; j < 8; j++) if (xmm[i].q[j]) upper = true;
+        if (upper)
+          fprintf(stderr, "    ZMM%-2d=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n",
+                  i, xmm[i].q[7], xmm[i].q[6], xmm[i].q[5], xmm[i].q[4],
+                  xmm[i].q[3], xmm[i].q[2], xmm[i].q[1], xmm[i].q[0]);
+        else
+          fprintf(stderr, "    XMM%-2d=%016lx%016lx\n", i, xmm[i].hi, xmm[i].lo);
+      }
     }
   }
 
@@ -179,11 +203,16 @@ struct ArchState {
     cmp("R15", r15, other.r15);
     // Skip RIP: KVM advances past HLT, Sail points at it.
     cmp("RFLAGS", rflags & flags_mask, other.rflags & flags_mask);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 32; i++) {
       if (xmm_mask & (1u << i)) {
         if (xmm[i] != other.xmm[i]) {
-          fprintf(stderr, "  MISMATCH XMM%d: kvm=%016lx%016lx sail=%016lx%016lx\n",
-                  i, xmm[i].hi, xmm[i].lo, other.xmm[i].hi, other.xmm[i].lo);
+          fprintf(stderr, "  MISMATCH ZMM%d: kvm=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n"
+                  "                 sail=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n",
+                  i,
+                  xmm[i].q[7], xmm[i].q[6], xmm[i].q[5], xmm[i].q[4],
+                  xmm[i].q[3], xmm[i].q[2], xmm[i].q[1], xmm[i].q[0],
+                  other.xmm[i].q[7], other.xmm[i].q[6], other.xmm[i].q[5], other.xmm[i].q[4],
+                  other.xmm[i].q[3], other.xmm[i].q[2], other.xmm[i].q[1], other.xmm[i].q[0]);
           ok = false;
         }
       }
