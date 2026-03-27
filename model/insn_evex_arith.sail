@@ -1254,90 +1254,18 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 66: VPBLENDMB (66,W0) / VPBLENDMW (66,W1) — mask-controlled byte/word blend
+  // Semantics: writemask selects src2 (mask=1) or merge/zero from src1 (mask=0).
   102 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 2 else 1);
-    let src1_idx = pfx.evex_vvvvv;
-    let k : qword = evex_kmask64(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPBLENDMW: word blend
-      (true, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_src_xmm(modrm, src, pfx);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 7) {
-          let lo = i * 16;
-          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 8), result)
-      },
-      (true, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_src_ymm(modrm, src, pfx);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 15) {
-          let lo = i * 16;
-          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 16), result)
-      },
-      (true, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_src_zmm(modrm, src, pfx);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 31) {
-          let lo = i * 16;
-          result[(lo + 15) .. lo] = blend(src1_eff[(lo + 15) .. lo], src2[(lo + 15) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 32), result)
-      },
-      // VPBLENDMB: byte blend
-      (false, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_src_xmm(modrm, src, pfx);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 15) {
-          let lo = i * 8;
-          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 16), result)
-      },
-      (false, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_src_ymm(modrm, src, pfx);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 31) {
-          let lo = i * 8;
-          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 32), result)
-      },
-      (false, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_src_zmm(modrm, src, pfx);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 63) {
-          let lo = i * 8;
-          result[(lo + 7) .. lo] = blend(src1_eff[(lo + 7) .. lo], src2[(lo + 7) .. lo], k[i])
-        };
-        evex_write(dst, evex_wmask(pfx, 64), result)
-      },
-      _ => raise_UD(),
-    }
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let vl = evex_vl(pfx);
+    let src1 = read_simd(vl, pfx.evex_vvvvv);
+    if pfx.rex_w then
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 16), evex_src(modrm, src, pfx), src1))
+    else
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 8), evex_src(modrm, src, pfx), src1))
   },
 
   _ => raise_UD(),

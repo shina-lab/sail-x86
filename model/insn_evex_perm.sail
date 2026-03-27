@@ -1724,179 +1724,33 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 64: VPBLENDMD (66,W0) / VPBLENDMQ (66,W1) — mask-controlled blend
+  // Semantics: writemask selects src2 (mask=1) or merge/zero from src1 (mask=0).
   100 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let src1_idx = pfx.evex_vvvvv;
-    let k : qword = evex_kmask64(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPBLENDMQ: qword blend
-      (true, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 1) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_xmm(dst, result)
-      },
-      (true, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 3) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_ymm(dst, result)
-      },
-      (true, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 7) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_zmm(dst, result)
-      },
-      // VPBLENDMD: dword blend
-      (false, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 3) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_xmm(dst, result)
-      },
-      (false, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 7) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_ymm(dst, result)
-      },
-      (false, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 15) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_zmm(dst, result)
-      },
-      _ => raise_UD(),
-    }
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let vl = evex_vl(pfx);
+    let src1 = read_simd(vl, pfx.evex_vvvvv);
+    if pfx.rex_w then
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 64), evex_bcast_src(modrm, src, pfx, 64), src1))
+    else
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 32), evex_bcast_src(modrm, src, pfx, 32), src1))
   },
 
   // 0F38 65: VBLENDMPS (66,W0) / VBLENDMPD (66,W1) — mask-controlled FP blend
+  // Semantics: writemask selects src2 (mask=1) or merge/zero from src1 (mask=0).
   101 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let src1_idx = pfx.evex_vvvvv;
-    let k : qword = evex_kmask64(pfx);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VBLENDMPD: qword blend
-      (true, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_bcast_src_f64_xmm(modrm, src, pfx, is_mem);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 1) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_xmm(dst, result)
-      },
-      (true, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_bcast_src_f64_ymm(modrm, src, pfx, is_mem);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 3) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_ymm(dst, result)
-      },
-      (true, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_bcast_src_f64_zmm(modrm, src, pfx, is_mem);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 7) {
-          let lo = i * 64;
-          result[(lo + 63) .. lo] = blend(src1_eff[(lo + 63) .. lo], src2[(lo + 63) .. lo], k[i])
-        };
-        write_zmm(dst, result)
-      },
-      // VBLENDMPS: dword blend
-      (false, 0) => {
-        let src1 : xmmword = read_xmm(src1_idx);
-        let src2 : xmmword = evex_bcast_src_f32_xmm(modrm, src, pfx, is_mem);
-        let z_keep : xmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : xmmword = src1 & z_keep;
-        var result : xmmword = zeros();
-        foreach (i from 0 to 3) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_xmm(dst, result)
-      },
-      (false, 1) => {
-        let src1 : ymmword = read_ymm(src1_idx);
-        let src2 : ymmword = evex_bcast_src_f32_ymm(modrm, src, pfx, is_mem);
-        let z_keep : ymmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : ymmword = src1 & z_keep;
-        var result : ymmword = zeros();
-        foreach (i from 0 to 7) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_ymm(dst, result)
-      },
-      (false, 2) => {
-        let src1 : zmmword = read_zmm(src1_idx);
-        let src2 : zmmword = evex_bcast_src_f32_zmm(modrm, src, pfx, is_mem);
-        let z_keep : zmmword = sign_extend(~(pfx.evex_z));
-        let src1_eff : zmmword = src1 & z_keep;
-        var result : zmmword = zeros();
-        foreach (i from 0 to 15) {
-          let lo = i * 32;
-          result[(lo + 31) .. lo] = blend(src1_eff[(lo + 31) .. lo], src2[(lo + 31) .. lo], k[i])
-        };
-        write_zmm(dst, result)
-      },
-      _ => raise_UD(),
-    }
+    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let vl = evex_vl(pfx);
+    let src1 = read_simd(vl, pfx.evex_vvvvv);
+    if pfx.rex_w then
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 64), evex_bcast_src(modrm, src, pfx, 64), src1))
+    else
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 32), evex_bcast_src(modrm, src, pfx, 32), src1))
   },
 
   _ => raise_UD(),
