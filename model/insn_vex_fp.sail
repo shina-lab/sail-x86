@@ -2,10 +2,38 @@
 //
 // Floating-point moves, arithmetic, compare, convert, shuffle, unpack.
 
-// Forward declarations for conversion helpers (defined in insn_evex_fp.sail)
-val avx_cvtdq2ps_256 : ymmword -> ymmword
-val avx_cvtps2dq_256 : ymmword -> ymmword
-val avx_cvttps2dq_256 : ymmword -> ymmword
+// VCVTDQ2PS: convert N i32 → N f32
+val avx_cvtdq2ps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_cvtdq2ps(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __int32_to_f32(src[(lo + 31)..lo]);
+  };
+  r
+}
+
+// VCVTPS2DQ: convert N f32 → N i32 (round per MXCSR)
+val avx_cvtps2dq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_cvtps2dq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_to_int32(src[(lo + 31)..lo]);
+  };
+  r
+}
+
+// VCVTTPS2DQ: convert N f32 → N i32 (truncate)
+val avx_cvttps2dq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
+function avx_cvttps2dq(vl, src) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_to_int32_trunc(src[(lo + 31)..lo]);
+  };
+  r
+}
 
 val dispatch_vex_0f_fp : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f_fp(op, pfx) = {
@@ -758,12 +786,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
           if pfx.vex_vvvv != 0 then raise_UD();
           match mp {
             // VCVTDQ2PS ymm1, ymm2/m256
-            MP_NONE => write_ymm(dst, avx_cvtdq2ps_256(src2)),
+            MP_NONE => write_ymm(dst, avx_cvtdq2ps(src2)),
             // VCVTPS2DQ ymm1, ymm2/m256
-            MP_66   => write_ymm(dst, avx_cvtps2dq_256(src2)),
+            MP_66   => write_ymm(dst, avx_cvtps2dq(src2)),
             MP_F2   => raise_UD(),
             // VCVTTPS2DQ ymm1, ymm2/m256
-            MP_F3   => write_ymm(dst, avx_cvttps2dq_256(src2)),
+            MP_F3   => write_ymm(dst, avx_cvttps2dq(src2)),
           }
         },
         // VSUBPS/VSUBPD

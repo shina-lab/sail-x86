@@ -212,12 +212,12 @@ function evex_write(dst, wm, result) =
 // Construct a Writemask from prefixes, vector length, and element size.
 // Returns Writemask with 'vl/'eb mask bits (one per element).
 // Construct Writemask for N elements from EVEX prefixes.
-val evex_wmask : forall 'nm, 'nm in {2, 4, 8, 16, 32, 64}.
-  (Prefixes, int('nm)) -> Writemask('nm)
-function evex_wmask(pfx, nm) = struct {
-  bits = evex_kmask64(pfx)[('nm - 1)..0],
-  zeroing = pfx.evex_z,
-}
+val evex_wmask : forall 'n, 'n in {2, 4, 8, 16, 32, 64}. (Prefixes, int('n)) -> Writemask('n)
+function evex_wmask(pfx, n) =
+  struct {
+    bits = evex_kmask64(pfx)[('n - 1)..0],
+    zeroing = pfx.evex_z,
+  }
 
 // =========================================================================
 // Shared helpers (used by multiple EVEX dispatch files)
@@ -245,7 +245,6 @@ function apply_writemask_ps_zmm(result, old_dst, mask_val, zeroing) = {
 }
 
 // Apply 8-bit writemask to a 512-bit ZMM result (64-bit elements, 8 lanes).
-
 val apply_writemask_pd_zmm : (zmmword, zmmword, byte, bit) -> zmmword
 function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
   let base : zmmword = old_dst & sign_extend(~(zeroing));
@@ -260,7 +259,6 @@ function apply_writemask_pd_zmm(result, old_dst, mask_val, zeroing) = {
 }
 
 // Apply 4-bit writemask to a 128-bit XMM result (32-bit elements, 4 lanes).
-
 val apply_writemask_ps_xmm : (xmmword, xmmword, word, bit) -> xmmword
 function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
   let base : xmmword = old_dst & sign_extend(~(zeroing));
@@ -271,7 +269,6 @@ function apply_writemask_ps_xmm(result, old_dst, mask_val, zeroing) = {
 }
 
 // Apply 8-bit writemask to a 256-bit YMM result (32-bit elements, 8 lanes).
-
 val apply_writemask_ps_ymm : (ymmword, ymmword, word, bit) -> ymmword
 function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
   let base : ymmword = old_dst & sign_extend(~(zeroing));
@@ -286,7 +283,6 @@ function apply_writemask_ps_ymm(result, old_dst, mask_val, zeroing) = {
 }
 
 // Apply 2-bit writemask to a 128-bit XMM result (64-bit elements, 2 lanes).
-
 val apply_writemask_pd_xmm : (xmmword, xmmword, byte, bit) -> xmmword
 function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
   let base : xmmword = old_dst & sign_extend(~(zeroing));
@@ -295,7 +291,6 @@ function apply_writemask_pd_xmm(result, old_dst, mask_val, zeroing) = {
 }
 
 // Apply 4-bit writemask to a 256-bit YMM result (64-bit elements, 4 lanes).
-
 val apply_writemask_pd_ymm : (ymmword, ymmword, byte, bit) -> ymmword
 function apply_writemask_pd_ymm(result, old_dst, mask_val, zeroing) = {
   let base : ymmword = old_dst & sign_extend(~(zeroing));

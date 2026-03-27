@@ -463,12 +463,12 @@ function avx_vpmultishiftqb_lane(ctrl, src) = {
   r
 }
 
-val avx_vpmultishiftqb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_vpmultishiftqb(ctrl, src) = {
+val avx_vpmultishiftqb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_vpmultishiftqb(vl, ctrl, src) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpmultishiftqb_lane(ctrl[(lo + 63)..lo], src[(lo + 63)..lo]);
+    r[(lo + 63)..lo] = avx_vpmultishiftqb_lane(ctrl[(lo + 63)..lo], src[(lo + 63)..lo])
   };
   r
 }
@@ -1463,7 +1463,6 @@ function dispatch_evex_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 8);
     evex_write(dst, mask, avx_vpmultishiftqb(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
