@@ -886,5 +886,690 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
-}
 
+  // =====================================================================
+  // Tests moved from kvm-tests-vex.cpp (non-AVX)
+  // =====================================================================
+
+  // =====================================================================
+  // BMI2 — bit manipulation instructions (GPR tests)
+  // =====================================================================
+  cat = "BMI2";
+  {
+    // BZHI eax, ecx, edx — zero high bits in ecx starting at bit position in edx
+    // VEX.NDS.LZ.0F38.W0 F5 /r — C4 E2 68 F5 C1
+    // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx index)
+    // byte2: W=0,vvvv=1101,L=0,pp=00 → 0x68
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0xDEADBEEF12345678;
+      s.rdx = 16;
+      // 32-bit: eax = ecx[31:0] with bits above 16 cleared = 0x5678
+      tests.push_back({"bzhi eax,ecx,edx bit16", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI with zero index → result=0, ZF=1
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0xFFFFFFFF;
+      s.rdx = 0;
+      tests.push_back({"bzhi eax,ecx,edx bit0", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI 64-bit: rax, rcx, rdx
+    // W=1: byte2 = 0b1_1101_0_00 = 0xE8
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0xFFFFFFFFFFFFFFFF;
+      s.rdx = 32;
+      tests.push_back({"bzhi rax,rcx,rdx bit32", cat,
+                       {0xC4, 0xE2, 0xE8, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+    // BZHI with index >= operand size → CF=1, result unchanged
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 40;  // >= 32 for W0
+      tests.push_back({"bzhi eax,ecx,edx overflow", cat,
+                       {0xC4, 0xE2, 0x68, 0xF5, 0xC1}, s,
+                       FL_ZF | FL_SF | FL_CF | FL_OF});
+    }
+
+    // PDEP eax, ecx, edx — parallel bit deposit
+    // VEX.NDS.LZ.F2.0F38.W0 F5 /r — C4 E2 73 F5 C2
+    // reg=0(eax dest), vvvv=~1=1110(ecx src), rm=2(edx mask)
+    // byte2: W=0,vvvv=1110,L=0,pp=11(F2) → 0x73
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x000000FF;  // source bits
+      s.rdx = 0x55555555;  // mask: every other bit
+      tests.push_back({"pdep eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x73, 0xF5, 0xC2}, s, FL_NONE});
+    }
+    // PDEP 64-bit
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x00000000000000FF;
+      s.rdx = 0x5555555555555555;
+      // W=1: byte2 = 0b1_1110_0_11 = 0xF3
+      tests.push_back({"pdep rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xF3, 0xF5, 0xC2}, s, FL_NONE});
+    }
+
+    // PEXT eax, ecx, edx — parallel bit extract
+    // VEX.NDS.LZ.F3.0F38.W0 F5 /r — C4 E2 72 F5 C2
+    // byte2: W=0,vvvv=1110,L=0,pp=10(F3) → 0x72
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0xAAAAAAAA;  // source
+      s.rdx = 0x55555555;  // mask: every other bit
+      tests.push_back({"pext eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x72, 0xF5, 0xC2}, s, FL_NONE});
+    }
+    // PEXT 64-bit
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0xAAAAAAAAAAAAAAAA;
+      s.rdx = 0x5555555555555555;
+      // W=1: byte2 = 0b1_1110_0_10 = 0xF2
+      tests.push_back({"pext rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xF2, 0xF5, 0xC2}, s, FL_NONE});
+    }
+
+    // MULX ebx, eax, ecx — unsigned multiply EDX * ECX → EBX:EAX
+    // VEX.NDD.LZ.F2.0F38.W0 F6 /r — C4 E2 7B F6 D9
+    // reg=3(ebx hi), vvvv=~0=1111(eax lo), rm=1(ecx src)
+    // byte2: W=0,vvvv=1111,L=0,pp=11(F2) → 0x7B
+    // ModRM: mod=11, reg=011, rm=001 → 0xD9
+    // Implicit src1 = EDX
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdx = 100;
+      s.rcx = 200;
+      tests.push_back({"mulx ebx,eax,ecx 100*200", cat,
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+    }
+    // MULX with large values to produce high part
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdx = 0xFFFFFFFF;
+      s.rcx = 0xFFFFFFFF;
+      tests.push_back({"mulx ebx,eax,ecx max32", cat,
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+    }
+    // MULX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rdx = 0x100000000;
+      s.rcx = 0x100000000;
+      tests.push_back({"mulx rbx,rax,rcx 64", cat,
+                       {0xC4, 0xE2, 0xFB, 0xF6, 0xD9}, s, FL_NONE});
+    }
+
+    // SARX eax, ecx, edx — arithmetic shift right without flags
+    // VEX.NDS.LZ.F3.0F38.W0 F7 /r — C4 E2 6A F7 C1
+    // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx count)
+    // byte2: W=0,vvvv=1101,L=0,pp=10(F3) → 0x6A
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x80000000;  // negative when treated as signed 32-bit
+      s.rdx = 4;
+      tests.push_back({"sarx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x6A, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHLX eax, ecx, edx — logical shift left without flags
+    // VEX.NDS.LZ.66.0F38.W0 F7 /r — C4 E2 69 F7 C1
+    // byte2: W=0,vvvv=1101,L=0,pp=01(66) → 0x69
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 8;
+      tests.push_back({"shlx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x69, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHRX eax, ecx, edx — logical shift right without flags
+    // VEX.NDS.LZ.F2.0F38.W0 F7 /r — C4 E2 6B F7 C1
+    // byte2: W=0,vvvv=1101,L=0,pp=11(F2) → 0x6B
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      s.rdx = 8;
+      tests.push_back({"shrx eax,ecx,edx", cat,
+                       {0xC4, 0xE2, 0x6B, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SARX 64-bit: W=1, byte2 = 0b1_1101_0_10 = 0xEA
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x8000000000000000;
+      s.rdx = 16;
+      tests.push_back({"sarx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xEA, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHLX 64-bit: W=1, byte2 = 0b1_1101_0_01 = 0xE9
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x0000000000000001;
+      s.rdx = 63;
+      tests.push_back({"shlx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xE9, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // SHRX 64-bit: W=1, byte2 = 0b1_1101_0_11 = 0xEB
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x8000000000000000;
+      s.rdx = 32;
+      tests.push_back({"shrx rax,rcx,rdx 64", cat,
+                       {0xC4, 0xE2, 0xEB, 0xF7, 0xC1}, s, FL_NONE});
+    }
+
+    // RORX eax, ecx, 4 — rotate right without flags
+    // VEX.LZ.F2.0F3A.W0 F0 /r ib — C4 E3 7B F0 C1 04
+    // byte1=0xE3 (mmmmm=00011=0F3A), byte2: W=0,vvvv=1111,L=0,pp=11(F2) → 0x7B
+    // reg=0(eax dest), rm=1(ecx src), imm=4
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x12345678;
+      tests.push_back({"rorx eax,ecx,4", cat,
+                       {0xC4, 0xE3, 0x7B, 0xF0, 0xC1, 0x04}, s, FL_NONE});
+    }
+    // RORX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
+    {
+      ArchState s;
+      s.rflags = 0x2;
+      s.rcx = 0x123456789ABCDEF0;
+      tests.push_back({"rorx rax,rcx,8 64", cat,
+                       {0xC4, 0xE3, 0xFB, 0xF0, 0xC1, 0x08}, s, FL_NONE});
+    }
+  }
+  // =====================================================================
+  // Indirect JMP/CALL — register and memory operands
+  // =====================================================================
+  cat = "Indirect JMP";
+  {
+    // JMP rax: FF E0 — jump to rax (CODE_ADDR + 2 = right after the JMP)
+    {
+      TestCase tc;
+      tc.name = "jmp rax";
+      tc.category = cat;
+      tc.code = {0xFF, 0xE0};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 2;  // target = after JMP
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // JMP rax skipping bytes: FF E0 CC CC (jump over INT3s)
+    {
+      TestCase tc;
+      tc.name = "jmp rax (skip INT3)";
+      tc.category = cat;
+      tc.code = {0xFF, 0xE0, 0xCC, 0xCC};  // JMP rax, INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 4;  // skip the INT3 bytes
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // JMP [rdi]: FF 27 — indirect through memory
+    {
+      TestCase tc;
+      tc.name = "jmp [rdi]";
+      tc.category = cat;
+      tc.code = {0xFF, 0x27, 0xCC, 0xCC};  // JMP [rdi], INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      // [DATA_ADDR] = CODE_ADDR + 4 (skip JMP and INT3s)
+      u64 target = CODE_ADDR + 4;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &target, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL rax: FF D0 — push return addr, jump to rax
+    // target = CODE_ADDR + 2 (right after CALL), so RET addr = CODE_ADDR+2
+    // RSP should decrease by 8
+    {
+      TestCase tc;
+      tc.name = "call rax";
+      tc.category = cat;
+      tc.code = {0xFF, 0xD0};  // CALL rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 2;  // target = right after CALL (then HLT)
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL [rdi]: FF 17 — indirect call through memory
+    {
+      TestCase tc;
+      tc.name = "call [rdi]";
+      tc.category = cat;
+      tc.code = {0xFF, 0x17, 0xCC, 0xCC};  // CALL [rdi], INT3, INT3
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      u64 target2 = CODE_ADDR + 4;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &target2, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // CALL rax + RET: call to a RET instruction, verify round-trip.
+    // Layout: CALL rax; NOP; NOP; NOP; HLT; RET
+    // CALL pushes CODE_ADDR+2, jumps to CODE_ADDR+6 (RET).
+    // RET pops CODE_ADDR+2, jumps there. NOPs then HLT.
+    {
+      TestCase tc;
+      tc.name = "call rax + ret";
+      tc.category = cat;
+      tc.code = {0xFF, 0xD0,           // 0: CALL rax (2 bytes)
+                 0x90, 0x90, 0x90,     // 2: NOP NOP NOP (landing pad)
+                 0xF4,                 // 5: HLT (stop after return)
+                 0xC3};                // 6: RET (target of CALL)
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = CODE_ADDR + 6;  // point to the RET
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // FP conversion edge cases
+  // =====================================================================
+  cat = "FP conv edge";
+  {
+    auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
+                        u32 xmm_cmp = 0x1) {
+      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+    };
+
+    ArchState s;
+    s.rflags = 0x2;
+    s.mxcsr = 0x1F80;  // default MXCSR
+
+    // CVTPS2PD xmm0, xmm1: 0F 5A C1 (convert 2 floats → 2 doubles)
+    // Denormal float: 0x00000001 = smallest subnormal
+    s.xmm[1] = xmm_from_u32(0x00000001, 0x80000001, 0, 0);  // +denorm, -denorm
+    add_xmm("cvtps2pd denormals", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with NaN: 0x7FC00000 = quiet NaN, 0x7F800001 = signaling NaN
+    s.xmm[1] = xmm_from_u32(0x7FC00000, 0x7F800001, 0, 0);
+    add_xmm("cvtps2pd NaN", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with Inf: 0x7F800000 = +Inf, 0xFF800000 = -Inf
+    s.xmm[1] = xmm_from_u32(0x7F800000, 0xFF800000, 0, 0);
+    add_xmm("cvtps2pd Inf", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPS2PD with -0: 0x80000000
+    s.xmm[1] = xmm_from_u32(0x80000000, 0x00000000, 0, 0);  // -0, +0
+    add_xmm("cvtps2pd neg zero", {0x0F, 0x5A, 0xC1}, s);
+
+    // CVTPD2PS xmm0, xmm1: 66 0F 5A C1 (convert 2 doubles → 2 floats)
+    // Large double that loses precision: 1.0 + 2^-24 (just beyond float precision)
+    {
+      double d1 = 1.0 + ldexp(1.0, -24);  // 1.0000000596... rounds to 1.0f
+      double d2 = 1.0e38;                   // large but representable as float
+      u64 b1, b2;
+      memcpy(&b1, &d1, 8);
+      memcpy(&b2, &d2, 8);
+      s.xmm[1] = xmm_from_u64(b1, b2);
+    }
+    add_xmm("cvtpd2ps precision loss", {0x66, 0x0F, 0x5A, 0xC1}, s);
+
+    // CVTSD2SS xmm0, xmm1: F2 0F 5A C1 (convert scalar double → scalar float)
+    // Double that's too large for float: ~3.5e38 → +Inf
+    {
+      double big = 3.5e38;
+      u64 bbig;
+      memcpy(&bbig, &big, 8);
+      s.xmm[0] = xmm_from_u32(0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF);
+      s.xmm[1] = xmm_from_u64(bbig, 0);
+    }
+    add_xmm("cvtsd2ss overflow to inf", {0xF2, 0x0F, 0x5A, 0xC1}, s);
+
+    // CVTSI2SS xmm0, eax: F3 0F 2A C0 (convert int32 → float)
+    // Large integer that can't be exactly represented: 2^24 + 1 = 16777217
+    s.xmm[0] = {};
+    s.rax = 16777217;  // 2^24+1: rounds to 16777216.0f or 16777218.0f
+    add_xmm("cvtsi2ss large int", {0xF3, 0x0F, 0x2A, 0xC0}, s);
+
+    // CVTSI2SS xmm0, rax: F3 48 0F 2A C0 (convert int64 → float)
+    s.rax = (1ULL << 53) + 1;  // just beyond double precision
+    add_xmm("cvtsi2ss int64 rounding", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, s);
+
+    // CVTSD2SS round-trip: double → float → double
+    // Start with a double that's exactly representable as float
+    {
+      float f = 1.5f;
+      double d = (double)f;
+      u64 bd;
+      memcpy(&bd, &d, 8);
+      s.xmm[1] = xmm_from_u64(bd, 0);
+      s.xmm[0] = {};
+    }
+    // CVTSD2SS xmm0, xmm1; CVTSS2SD xmm0, xmm0
+    add_xmm("cvtsd2ss+cvtss2sd round-trip",
+             {0xF2, 0x0F, 0x5A, 0xC1,   // cvtsd2ss xmm0, xmm1
+              0xF3, 0x0F, 0x5A, 0xC0},  // cvtss2sd xmm0, xmm0
+             s);
+  }
+
+  // =====================================================================
+  // PUSH/POP memory operands
+  // =====================================================================
+  cat = "PUSH/POP mem";
+  {
+    // PUSH qword [rdi]: FF 37 — push value at [rdi] onto stack
+    // Stack is verified by comparing RSP and the value pushed (read via POP rax)
+    {
+      TestCase tc;
+      tc.name = "push qword [rdi]";
+      tc.category = cat;
+      // push qword [rdi]; pop rax (verify stack content)
+      tc.code = {0xFF, 0x37,  // push qword [rdi]
+                 0x58};        // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      u64 val = 0xDEADBEEFCAFEBABEULL;
+      tc.init_data.resize(8);
+      memcpy(tc.init_data.data(), &val, 8);
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // POP qword [rdi]: 8F 07 — pop from stack into memory
+    {
+      TestCase tc;
+      tc.name = "pop qword [rdi]";
+      tc.category = cat;
+      // push rax; pop qword [rdi]
+      tc.code = {0x50,         // push rax
+                 0x8F, 0x07};  // pop qword [rdi]
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x123456789ABCDEF0ULL;
+      tc.flags_mask = FL_NONE;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm16: 66 68 imm16 — push 16-bit immediate
+    // Verify stack content via pop
+    {
+      TestCase tc;
+      tc.name = "push imm16 0x1234";
+      tc.category = cat;
+      // push 0x1234; pop rax
+      tc.code = {0x66, 0x68, 0x34, 0x12,  // push 0x1234
+                 0x66, 0x58};               // pop ax (16-bit)
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rax = 0;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm8: 6A imm8 — push sign-extended 8-bit immediate
+    {
+      TestCase tc;
+      tc.name = "push imm8 0xFF (-1)";
+      tc.category = cat;
+      // push -1; pop rax
+      tc.code = {0x6A, 0xFF,  // push -1 (sign-extended to 64-bit)
+                 0x58};        // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+
+    // PUSH imm32: 68 imm32 — push sign-extended 32-bit immediate
+    {
+      TestCase tc;
+      tc.name = "push imm32 0x80000000";
+      tc.category = cat;
+      // push 0x80000000; pop rax (sign-extends to 0xFFFFFFFF80000000)
+      tc.code = {0x68, 0x00, 0x00, 0x00, 0x80,  // push 0x80000000
+                 0x58};                            // pop rax
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = FL_NONE;
+      tests.push_back(std::move(tc));
+    }
+  }
+
+  // =====================================================================
+  // LOCK prefix memory operations — read-modify-write on memory
+  // =====================================================================
+  cat = "LOCK mem";
+  {
+    // LOCK ADD [rdi], eax: F0 01 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock add [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x01, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x100;
+      tc.init_data = {0x34, 0x12, 0x00, 0x00};  // [rdi] = 0x1234
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK ADD [rdi], rax: F0 48 01 07  (64-bit)
+    {
+      TestCase tc;
+      tc.name = "lock add [rdi],rax 64";
+      tc.category = cat;
+      tc.code = {0xF0, 0x48, 0x01, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0x1000000000ULL;
+      tc.init_data = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 8;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK SUB [rdi], ecx: F0 29 0F  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock sub [rdi],ecx 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x29, 0x0F};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rcx = 1;
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 - 1 = underflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK OR [rdi], eax: F0 09 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock or [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x09, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFF00FF00;
+      tc.init_data = {0x0F, 0x0F, 0x0F, 0x0F};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK AND [rdi], eax: F0 21 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock and [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x21, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFF00FF00;
+      tc.init_data = {0xAB, 0xCD, 0xEF, 0x12};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK XOR [rdi], eax: F0 31 07  (32-bit)
+    {
+      TestCase tc;
+      tc.name = "lock xor [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x31, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0xFFFFFFFF;
+      tc.init_data = {0xAA, 0x55, 0xAA, 0x55};
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK INC dword [rdi]: F0 FF 07
+    {
+      TestCase tc;
+      tc.name = "lock inc dword [rdi]";
+      tc.category = cat;
+      tc.code = {0xF0, 0xFF, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.init_data = {0xFF, 0xFF, 0xFF, 0x7F};  // 0x7FFFFFFF → overflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK DEC dword [rdi]: F0 FF 0F
+    {
+      TestCase tc;
+      tc.name = "lock dec dword [rdi]";
+      tc.category = cat;
+      tc.code = {0xF0, 0xFF, 0x0F};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 → underflow
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK XADD [rdi], eax: F0 0F C1 07
+    // Swaps src and dst, then adds. [rdi] += eax, eax gets old [rdi].
+    {
+      TestCase tc;
+      tc.name = "lock xadd [rdi],eax 32";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xC1, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 10;
+      tc.init_data = {0x05, 0x00, 0x00, 0x00};  // [rdi] = 5
+      tc.flags_mask = FL_ALL;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTS [rdi], eax: F0 0F AB 07
+    // Set bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock bts [rdi],eax (bit 3)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xAB, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 3;  // set bit 3
+      tc.init_data = {0x00, 0x00, 0x00, 0x00};  // bit 3 was 0
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTR [rdi], eax: F0 0F B3 07
+    // Reset bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock btr [rdi],eax (bit 7)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xB3, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 7;  // reset bit 7
+      tc.init_data = {0xFF, 0x00, 0x00, 0x00};  // bit 7 was 1
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+
+    // LOCK BTC [rdi], eax: F0 0F BB 07
+    // Complement bit eax in [rdi], CF = old bit value
+    {
+      TestCase tc;
+      tc.name = "lock btc [rdi],eax (bit 0)";
+      tc.category = cat;
+      tc.code = {0xF0, 0x0F, 0xBB, 0x07};
+      tc.initial = {};
+      tc.initial.rflags = 0x2;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rax = 0;  // toggle bit 0
+      tc.init_data = {0x01, 0x00, 0x00, 0x00};  // bit 0 was 1 → 0
+      tc.flags_mask = FL_CF;
+      tc.compare_data_len = 4;
+      tests.push_back(std::move(tc));
+    }
+  }
+}

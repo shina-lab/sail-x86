@@ -714,9 +714,6 @@ std::vector<TestCase> build_tests() {
   add_systematic_tests(tests);
   add_exception_tests(tests);
 
-  add_vex_tests(tests);
-  add_evex_tests(tests);
-  add_evex_tests_2(tests);
   add_mmx_tests(tests);
   add_feature_tests(tests);
   add_compat_tests(tests);

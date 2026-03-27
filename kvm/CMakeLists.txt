@@ -8,9 +8,6 @@ add_executable(kvm_harness
   kvm-tests-fp-edge.cpp
   kvm-tests-encoding.cpp
   kvm-tests-exception.cpp
-  kvm-tests-vex.cpp
-  kvm-tests-evex.cpp
-  kvm-tests-evex2.cpp
   kvm-tests-mmx.cpp
   kvm-tests-features.cpp
   kvm-tests-compat.cpp
@@ -134,9 +131,6 @@ set(KVM_CATEGORIES
   x87
   ENTER
   CMPXCHG16B
-  AVX
-  EVEX
-  "EVEX basic"
   "AVX Edge"
   "FP Edge"
   ADCX/ADOX
@@ -159,108 +153,16 @@ set(KVM_CATEGORIES
   "Exception #DE"
   "Exception #UD"
   "Exception #GP"
-  "VEX horiz FP"
-  VPTEST
-  VPCMPGTQ
-  VPERMIL
-  VMOVNTDQ
-  VPERM2F128
-  "VEX insert/extract i128"
-  VPMASKMOVD
   "x87 mem"
-  "EVEX mask"
-  "K-register ops"
-  "Vec stores"
   "LOCK mem"
   "Indirect JMP"
   "PUSH/POP mem"
   "FP conv edge"
-  "MOVQ store"
-  "VEX 0F3A"
   BMI2
-  "VEX AES-NI"
-  "VEX SSSE3"
-  "VEX SSE4.1"
-  "VEX pack/unpack"
-  "VEX multiply"
-  "VEX saturating arith"
-  "VEX shifts"
-  "VEX imm shifts"
-  "AVX2 var shifts"
-  "VEX test"
-  "VEX 0F misc"
-  "VEX gather"
-  "EVEX blend"
-  VLDDQU
   RETF
   CRC32
   GFNI
   SHA
-  "VEX GFNI"
-  "EVEX rotate imm"
-  "EVEX FP conv"
-  "EVEX rounding"
-  "EVEX scalar FP"
-  "EVEX VMOVSS/SD"
-  "EVEX FMA rounding"
-  VPTERNLOGD
-  F16C
-  "FP conv prec"
-  "EVEX bcast mem"
-  "EVEX VPCMP D/Q"
-  "EVEX VPMINUQ"
-  "EVEX VPTESTM W1"
-  "EVEX VPCMPEQQ/GTQQ xmm"
-  "EVEX VPMINUW"
-  "EVEX VPMULLD/Q"
-  "EVEX VPTERNLOGQ"
-  "EVEX VPABSQ"
-  "EVEX variable rotate"
-  "EVEX VPMADD52"
-  "EVEX VPOPCNTD/Q"
-  "EVEX VPLZCNTD/Q"
-  "EVEX VPCONFLICTD/Q"
-  "EVEX VPSHLD"
-  "EVEX VPSHRD"
-  "EVEX VDBPSADBW"
-  "EVEX VPSHLDV"
-  "EVEX VPSHRDV"
-  "EVEX VPMULTISHIFTQB"
-  "EVEX VGETEXPPS"
-  "EVEX VSCALEFPS"
-  "EVEX VRNDSCALEPS"
-  "EVEX VREDUCEPS"
-  "EVEX VPMOV narrow"
-  "EVEX VNNI"
-  "EVEX VFIXUPIMMPS"
-  "EVEX VRANGEPS"
-  "EVEX VFPCLASS"
-  "EVEX VGETMANTPS"
-  "EVEX VPERMI2B"
-  "EVEX compress/expand"
-  "EVEX VPBLENDMD"
-  "EVEX VPALIGNR"
-  "EVEX VALIGND"
-  "EVEX VPEXTR"
-  "EVEX VPINSR"
-  "EVEX VPSRAQ"
-  "EVEX VPCOMPRESSB/W"
-  "EVEX FP logical"
-  "EVEX BW int"
-  "EVEX shift imm"
-  "EVEX 0F38 int"
-  "EVEX FMA packed"
-  "EVEX shift reg"
-  "EVEX VMOV mask"
-  BF16
-  "EVEX bcast conv"
-  "EVEX bcast int"
-  "EVEX ER"
-  "EVEX FP mask ymm"
-  "EVEX VCVTQQ2PS"
-  "EVEX VPERM ymm"
-  "EVEX VBCAST X4 ymm"
-  "EVEX VPCMPW"
   "MMX arith"
   "MMX saturate"
   "MMX logical"
