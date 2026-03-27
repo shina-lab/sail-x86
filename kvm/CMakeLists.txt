@@ -20,6 +20,7 @@ add_executable(kvm_harness
   kvm-tests-avx-narrow.cpp
   kvm-tests-avx-cmp.cpp
   kvm-tests-avx-perm.cpp
+  kvm-tests-avx-conv.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
@@ -195,6 +196,7 @@ set(KVM_CATEGORIES
   "AVX narrow"
   "AVX cmp"
   "AVX perm"
+  "AVX conv"
   "MOVQ store"
   "K-register ops"
   "Vec stores"

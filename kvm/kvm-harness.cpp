@@ -726,6 +726,7 @@ std::vector<TestCase> build_tests() {
   add_avx_narrow_tests(tests);
   add_avx_cmp_tests(tests);
   add_avx_perm_tests(tests);
+  add_avx_conv_tests(tests);
 
   return tests;
 }
