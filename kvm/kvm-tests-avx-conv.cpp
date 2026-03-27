@@ -257,4 +257,212 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     e.reg = 0; e.vvvv = 0; e.rm = 1; e.LL = 0; e.aaa = 0; e.z = false;
     tests.push_back({"VCVTSS2SD xmm", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
   }
+
+  // =====================================================================
+  // More scalar conversions
+  // VCVTSI2SS: EVEX.F3.0F.W0 2A /r (i32→f32 from GPR)
+  // VCVTSI2SD: EVEX.F2.0F.W0 2A /r (i32→f64 from GPR)
+  // VCVTUSI2SS: EVEX.F3.0F.W0 7B /r (u32→f32)
+  // VCVTUSI2SD: EVEX.F2.0F.W0 7B /r (u32→f64)
+  // VCVTSS2SI: EVEX.F3.0F.W0 2D /r (f32→i32 to GPR)
+  // VCVTSD2SI: EVEX.F2.0F.W0 2D /r (f64→i32 to GPR)  [W1 for 64-bit]
+  // VCVTTSS2SI: EVEX.F3.0F.W0 2C /r (f32→i32 truncate)
+  // VCVTTSD2SI: EVEX.F2.0F.W0 2C /r (f64→i32 truncate) [W1 for 64-bit]
+  // VCVTSS2USI: EVEX.F3.0F.W0 79 /r
+  // VCVTSD2USI: EVEX.F2.0F.W0 79 /r [W1 for 64-bit]
+  // VCVTTSS2USI: EVEX.F3.0F.W0 78 /r
+  // VCVTTSD2USI: EVEX.F2.0F.W0 78 /r [W1 for 64-bit]
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    s.rax = 12345;
+    s.xmm[1] = xmm_from_u64(0xBBBBBBBBBBBBBBBB, 0xCCCCCCCCCCCCCCCC);
+
+    Evex e; e.mm = 1; e.reg = 0; e.vvvv = 1; e.rm = 0;  // rm=rax(GPR)
+    e.LL = 0; e.aaa = 0; e.z = false;
+
+    // VCVTSI2SS xmm0, xmm1, eax
+    e.pp = 2; e.W = false; e.opcode = 0x2A;
+    tests.push_back({"VCVTSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    // VCVTSI2SD xmm0, xmm1, eax
+    e.pp = 3; e.W = false; e.opcode = 0x2A;
+    tests.push_back({"VCVTSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    // VCVTUSI2SS xmm0, xmm1, eax
+    e.pp = 2; e.W = false; e.opcode = 0x7B;
+    tests.push_back({"VCVTUSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    // VCVTUSI2SD xmm0, xmm1, eax
+    e.pp = 3; e.W = false; e.opcode = 0x7B;
+    tests.push_back({"VCVTUSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float f = 42.7f; memcpy(&s.xmm[1].q[0], &f, 4);
+    Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.LL = 0; e.aaa = 0; e.z = false;
+
+    // VCVTSS2SI eax, xmm1
+    e.pp = 2; e.W = false; e.opcode = 0x2D;
+    tests.push_back({"VCVTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTTSS2SI eax, xmm1
+    e.opcode = 0x2C;
+    tests.push_back({"VCVTTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTSS2USI eax, xmm1
+    e.opcode = 0x79;
+    tests.push_back({"VCVTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTTSS2USI eax, xmm1
+    e.opcode = 0x78;
+    tests.push_back({"VCVTTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    double d = 42.7; memcpy(&s.xmm[1].q[0], &d, 8);
+    Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.LL = 0; e.aaa = 0; e.z = false;
+
+    // VCVTSD2SI eax, xmm1
+    e.pp = 3; e.W = false; e.opcode = 0x2D;
+    tests.push_back({"VCVTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTTSD2SI eax, xmm1
+    e.opcode = 0x2C;
+    tests.push_back({"VCVTTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTSD2USI eax, xmm1
+    e.opcode = 0x79;
+    tests.push_back({"VCVTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    // VCVTTSD2USI eax, xmm1
+    e.opcode = 0x78;
+    tests.push_back({"VCVTTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+  }
+
+  // =====================================================================
+  // VCVTDQ2PD: EVEX.F3.0F.W0 E6 /r (i32→f64, widening)
+  // VCVTUDQ2PD: EVEX.F3.0F.W0 7A /r (u32→f64, widening)
+  // VCVTPS2QQ: EVEX.66.0F.W0 7B /r (f32→i64, widening)
+  // VCVTPS2UQQ: EVEX.66.0F.W0 79 /r (f32→u64, widening)
+  // VCVTTPS2QQ: EVEX.66.0F.W0 7A /r (f32→i64, trunc)
+  // VCVTTPS2UQQ: EVEX.66.0F.W0 78 /r (f32→u64, trunc)
+  // VCVTUQQ2PS: EVEX.F2.0F.W1 7A /r (u64→f32, narrowing)
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    int32_t ivals[] = {1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12, 13, -14, 15, -16};
+    memcpy(s.xmm[1].q, ivals, 64);
+
+    Evex e; e.mm = 1; e.pp = 2; e.W = false; e.opcode = 0xE6;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    u32 uvals[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    memcpy(s.xmm[1].q, uvals, 64);
+
+    Evex e; e.mm = 1; e.pp = 2; e.W = false; e.opcode = 0x7A;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTUDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+  }
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float fvals[] = {1.5f, 2.7f, -3.0f, 100.9f, 0.5f, -255.1f, 0.0f, -1.0f,
+                     1000.5f, -999.9f, 42.42f, 0.001f, 65535.5f, -32768.5f, 1.0f, -0.0f};
+    memcpy(s.xmm[1].q, fvals, 64);
+
+    Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.opcode = 0x7B;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+    e.opcode = 0x7A;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+  }
+  // VCVTPS2UQQ/VCVTTPS2UQQ (unsigned)
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    float fvals[] = {1.5f, 2.7f, 3.0f, 100.9f, 0.5f, 255.1f, 0.0f, 1.0f,
+                     1000.5f, 999.9f, 42.42f, 0.001f, 65535.5f, 32768.5f, 1.0f, 0.0f};
+    memcpy(s.xmm[1].q, fvals, 64);
+
+    Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.opcode = 0x79;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+    e.opcode = 0x78;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+  }
+  // VCVTUQQ2PS: narrowing u64→f32
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 1000 * (i + 1) + 42;
+    Evex e; e.mm = 1; e.pp = 3; e.W = true; e.opcode = 0x7A;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    for (int ll = 0; ll <= 2; ll++) {
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VCVTUQQ2PS ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    }
+  }
+
+  // =====================================================================
+  // Scalar FP compare with immediate
+  // VCMPSS: EVEX.F3.0F.W0 C2 /r ib
+  // VCMPSD: EVEX.F2.0F.W1 C2 /r ib
+  // =====================================================================
+  {
+    static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
+
+    ArchState s = {}; s.rflags = 0x2;
+    float f1 = 3.0f, f2 = 5.0f;
+    memcpy(&s.xmm[1].q[0], &f1, 4);
+    memcpy(&s.xmm[2].q[0], &f2, 4);
+
+    Evex e; e.mm = 1; e.pp = 2; e.W = false; e.opcode = 0xC2;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.LL = 0; e.aaa = 0; e.z = false;
+
+    auto code = e.encode_rr_imm(0);  // EQ
+    code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+    tests.push_back({"VCMPSS EQ", cat, code, s, FL_NONE, 0, false});
+    code = e.encode_rr_imm(1);  // LT
+    code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+    tests.push_back({"VCMPSS LT", cat, code, s, FL_NONE, 0, false});
+  }
+  {
+    static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
+
+    ArchState s = {}; s.rflags = 0x2;
+    double d1 = 3.0, d2 = 5.0;
+    memcpy(&s.xmm[1].q[0], &d1, 8);
+    memcpy(&s.xmm[2].q[0], &d2, 8);
+
+    Evex e; e.mm = 1; e.pp = 3; e.W = true; e.opcode = 0xC2;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.LL = 0; e.aaa = 0; e.z = false;
+
+    auto code = e.encode_rr_imm(0);
+    code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+    tests.push_back({"VCMPSD EQ", cat, code, s, FL_NONE, 0, false});
+    code = e.encode_rr_imm(1);
+    code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
+    tests.push_back({"VCMPSD LT", cat, code, s, FL_NONE, 0, false});
+  }
 }
