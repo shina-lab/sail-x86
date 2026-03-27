@@ -163,4 +163,96 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     e.pp = 3; e.W = true; e.opcode = 0x10;
     add_scalar("VMOVSD", e, s);
   }
+
+  // ---- Scalar immediate-operand instructions ----
+
+  // VRNDSCALESS: EVEX.66.0F3A.W0 0A /r ib
+  // VRNDSCALESD: EVEX.66.0F3A.W1 0B /r ib
+  {
+    ArchState ss = make_ss_state(3.7f, 0.0f);  // value to round
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x0A;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VRNDSCALESS xmm", cat, e.encode_rr_imm(0), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(3.7, 0.0);
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x0B;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VRNDSCALESD xmm", cat, e.encode_rr_imm(0), sd, FL_NONE, 0x7, false});
+  }
+
+  // VGETEXPSS: EVEX.66.0F38.W0 43 /r
+  // VGETEXPSD: EVEX.66.0F38.W1 43 /r
+  {
+    ArchState ss = make_ss_state(0.0f, 8.0f);  // getexp(8.0) = 3.0
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x43;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VGETEXPSS xmm", cat, e.encode_rr(), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(0.0, 8.0);
+    Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x43;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VGETEXPSD xmm", cat, e.encode_rr(), sd, FL_NONE, 0x7, false});
+  }
+
+  // VSCALEFSS: EVEX.66.0F38.W0 2D /r
+  // VSCALEFSD: EVEX.66.0F38.W1 2D /r
+  {
+    ArchState ss = make_ss_state(2.0f, 3.0f);  // scalef(2.0, 3.0) = 2.0 * 2^3 = 16.0
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x2D;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VSCALEFSS xmm", cat, e.encode_rr(), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(2.0, 3.0);
+    Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x2D;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VSCALEFSD xmm", cat, e.encode_rr(), sd, FL_NONE, 0x7, false});
+  }
+
+  // VGETMANTSS: EVEX.66.0F3A.W0 27 /r ib
+  // VGETMANTSD: EVEX.66.0F3A.W1 27 /r ib
+  {
+    ArchState ss = make_ss_state(0.0f, 8.0f);
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x27;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VGETMANTSS xmm", cat, e.encode_rr_imm(0), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(0.0, 8.0);
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x27;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VGETMANTSD xmm", cat, e.encode_rr_imm(0), sd, FL_NONE, 0x7, false});
+  }
+
+  // VREDUCESS: EVEX.66.0F3A.W0 57 /r ib
+  // VREDUCESD: EVEX.66.0F3A.W1 57 /r ib
+  {
+    ArchState ss = make_ss_state(0.0f, 3.14f);
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x57;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VREDUCESS xmm", cat, e.encode_rr_imm(0x08), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(0.0, 3.14);
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x57;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VREDUCESD xmm", cat, e.encode_rr_imm(0x08), sd, FL_NONE, 0x7, false});
+  }
+
+  // VRANGESS: EVEX.66.0F3A.W0 51 /r ib
+  // VRANGESD: EVEX.66.0F3A.W1 51 /r ib
+  {
+    ArchState ss = make_ss_state(3.0f, 5.0f);
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x51;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VRANGESS xmm", cat, e.encode_rr_imm(0), ss, FL_NONE, 0x7, false});
+  }
+  {
+    ArchState sd = make_sd_state(3.0, 5.0);
+    Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x51;
+    e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
+    tests.push_back({"VRANGESD xmm", cat, e.encode_rr_imm(0), sd, FL_NONE, 0x7, false});
+  }
 }
