@@ -190,7 +190,7 @@ struct Writemask('n : Int), 'n > 0 = {
 // Apply writemask to a vector result. Element size = 'vl / 'nm.
 // Per element: mask bit=1 → write result, bit=0 → keep or zero (per zeroing flag).
 // Branchless: base = old_dst & sign_extend(~zeroing), then blend(base, result, mask[i]).
-val apply_writemask : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+val apply_writemask : forall 'vl 'nm, 'vl > 0 & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
   (Writemask('nm), bits('vl), bits('vl)) -> bits('vl)
 function apply_writemask(wm, result, old_dst) = {
   let mask = wm.bits;
@@ -203,11 +203,13 @@ function apply_writemask(wm, result, old_dst) = {
   r
 }
 
-// Write a SIMD register with writemask applied.
-val evex_write : forall 'vl 'nm, 'vl in {128, 256, 512} & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0.
+// Write a SIMD register with writemask applied, zeroing upper bits.
+val evex_write : forall 'vl 'nm, 'vl > 0 & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0 & 'vl <= 512.
   (simd_idx, Writemask('nm), bits('vl)) -> unit
-function evex_write(dst, wm, result) =
-  write_simd(dst, apply_writemask(wm, result, read_simd(dst)))
+function evex_write(dst, wm, result) = {
+  let old : bits('vl) = ZMM[dst][('vl - 1)..0];
+  ZMM[dst] = zero_extend(apply_writemask(wm, result, old))
+}
 
 // Construct a Writemask from prefixes, vector length, and element size.
 // Returns Writemask with 'vl/'eb mask bits (one per element).
