@@ -719,6 +719,7 @@ std::vector<TestCase> build_tests() {
   add_compat_tests(tests);
   add_xsave_tests(tests);
   add_avx_fp_tests(tests);
+  add_avx_int_tests(tests);
 
   return tests;
 }
