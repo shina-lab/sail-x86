@@ -341,7 +341,7 @@ function decode_vex_src_ymm(modrm, rm, pfx) = decode_vex_src(256, modrm, rm, pfx
 // =========================================================================
 
 // 3-operand VEX binop: dst = packed_binop(op, eb, vvvv, rm)
-val vex_exec_binop : (PackedBinOp, {|8, 16, 32, 64|}, Prefixes) -> unit
+val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
@@ -351,7 +351,7 @@ function vex_exec_binop(op, eb, pfx) = {
 }
 
 // 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
-val vex_exec_unop : (PackedUnaryOp, {|8, 16, 32, 64|}, Prefixes) -> unit
+val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_unop(op, eb, pfx) = {
   if pfx.vex_vvvv != 0 then raise_UD();
   let modrm = fetch(1);

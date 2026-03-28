@@ -1496,7 +1496,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
@@ -1509,7 +1509,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
@@ -1525,7 +1525,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
@@ -1538,7 +1538,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 1) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
@@ -1632,7 +1632,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
@@ -1645,7 +1645,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
@@ -1661,7 +1661,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
@@ -1674,7 +1674,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         foreach (i from 0 to 1) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
-            let addr = gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale);
+            let addr = gather_addr(vsib.vsib_base, idx, vsib.vsib_scale);
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };

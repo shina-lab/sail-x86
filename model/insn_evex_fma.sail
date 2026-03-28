@@ -1,136 +1,43 @@
 // x86-64 — EVEX FMA Instructions (0F38 map)
 
-// gather_addr and gather_addr_q are defined in insn_sse4_helpers.sail
+// gather_addr is defined in insn_sse4_helpers.sail
 
-// VPGATHERDD / VGATHERDPS: dword indices, dword elements (same width)
-val exec_gather_d32 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_gather_d32(vl, dst, vsib, k_idx) = {
+// Unified EVEX gather: parameterized by index width 'iw and element width 'ew.
+// Covers all four combinations: d32 (32,32), d64 (32,64), q32 (64,32), q64 (64,64).
+val exec_gather : forall 'vl 'iw 'ew, 'vl in {128, 256, 512} & 'iw in {32, 64} & 'ew in {32, 64}.
+  (implicit('vl), int('iw), int('ew), simd_idx, VSIB, kreg_idx) -> unit
+function exec_gather(vl, iw, ew, dst, vsib, k_idx) = {
   let mask = read_kreg(k_idx);
-  var result : bits('vl) = read_simd(dst);
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
+  var result : bits(512) = ZMM[dst];
+  let indices : bits(512) = ZMM[vsib.vsib_vidx];
+  let n = vl / (if iw >= ew then iw else ew);
+  foreach (i from 0 to (n - 1)) {
     if mask[i] == 0b1 then {
-      let idx : dword = indices[(lo + 31)..lo];
-      result = [result with (lo + 31)..lo = read_mem(gather_addr(vsib.vsib_base, idx, vsib.vsib_scale))];
+      let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
+      let v : bits('ew) = read_mem(gather_addr(vsib.vsib_base, idx, vsib.vsib_scale));
+      let olo = i * ew;
+      result = (result & ~(zero_extend(ones() : bits('ew)) << olo)) | (zero_extend(v) << olo);
     }
   };
-  write_simd(vl, dst, result);
+  // Zero from active region (n * ew) to 511
+  ZMM[dst] = result & (ones() >> (512 - n * ew));
   write_kreg(k_idx, zeros())
 }
 
-// VPGATHERDQ / VGATHERDPD: dword indices, qword elements
-// Index vector is half width (vl/2 bits of dwords).
-val exec_gather_d64 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_gather_d64(vl, dst, vsib, k_idx) = {
+// Unified EVEX scatter: parameterized by index width 'iw and element width 'ew.
+val exec_scatter : forall 'vl 'iw 'ew, 'vl in {128, 256, 512} & 'iw in {32, 64} & 'ew in {32, 64}.
+  (implicit('vl), int('iw), int('ew), simd_idx, VSIB, kreg_idx) -> unit
+function exec_scatter(vl, iw, ew, src, vsib, k_idx) = {
   let mask = read_kreg(k_idx);
-  var result : bits('vl) = read_simd(dst);
-  let n = vl / 64;
+  let data : bits(512) = ZMM[src];
+  let indices : bits(512) = ZMM[vsib.vsib_vidx];
+  let n = vl / (if iw >= ew then iw else ew);
   foreach (i from 0 to (n - 1)) {
-    let ilo = i * 32;
-    let olo = i * 64;
     if mask[i] == 0b1 then {
-      let idx : dword = ZMM[vsib.vsib_vidx][(ilo + 31)..ilo];
-      result = [result with (olo + 63)..olo = read_mem(gather_addr(vsib.vsib_base, idx, vsib.vsib_scale))];
+      let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
+      let v : bits('ew) = (data >> (i * ew))[ew - 1 .. 0];
+      write_mem(ew, gather_addr(vsib.vsib_base, idx, vsib.vsib_scale), v);
     }
-  };
-  write_simd(vl, dst, result);
-  write_kreg(k_idx, zeros())
-}
-
-// VPGATHERQD / VGATHERQPS: qword indices, dword elements
-// Output is half width (vl/2 bits of dwords), written to lower half of register.
-val exec_gather_q32 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_gather_q32(vl, dst, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  let n = vl / 64;
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  var result : bits(div('vl, 2)) = ZMM[dst][(vl / 2 - 1)..0];
-  foreach (i from 0 to (n - 1)) {
-    let ilo = i * 64;
-    let olo = i * 32;
-    if mask[i] == 0b1 then {
-      let idx : qword = indices[(ilo + 63)..ilo];
-      result = [result with (olo + 31)..olo = read_mem(gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale))];
-    }
-  };
-  // Zero-extend the narrow result to full register width
-  ZMM[dst] = zero_extend(result);
-  write_kreg(k_idx, zeros())
-}
-
-// VPGATHERQQ / VGATHERQPD: qword indices, qword elements (same width)
-val exec_gather_q64 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_gather_q64(vl, dst, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  var result : bits('vl) = read_simd(dst);
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    if mask[i] == 0b1 then {
-      let idx : qword = indices[(lo + 63)..lo];
-      result = [result with (lo + 63)..lo = read_mem(gather_addr_q(vsib.vsib_base, idx, vsib.vsib_scale))];
-    }
-  };
-  write_simd(vl, dst, result);
-  write_kreg(k_idx, zeros())
-}
-
-/* ---- Scatter: VPSCATTERDD/DQ, VSCATTERDPS/DPD (dword indices) ---- */
-// VPSCATTERDD / VSCATTERDPS: dword indices, dword elements
-val exec_scatter_d32 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_scatter_d32(vl, src, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  let data : bits('vl) = read_simd(src);
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    if mask[i] == 0b1 then
-      write_mem(32, gather_addr(vsib.vsib_base, indices[(lo + 31)..lo], vsib.vsib_scale), data[(lo + 31)..lo]);
-  };
-  write_kreg(k_idx, zeros())
-}
-
-// VPSCATTERDQ / VSCATTERDPD: dword indices, qword elements
-val exec_scatter_d64 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_scatter_d64(vl, src, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  let data : bits('vl) = read_simd(src);
-  let n = vl / 64;
-  foreach (i from 0 to (n - 1)) {
-    let ilo = i * 32;
-    let olo = i * 64;
-    if mask[i] == 0b1 then
-      write_mem(64, gather_addr(vsib.vsib_base, ZMM[vsib.vsib_vidx][(ilo + 31)..ilo], vsib.vsib_scale), data[(olo + 63)..olo]);
-  };
-  write_kreg(k_idx, zeros())
-}
-
-// VPSCATTERQD / VSCATTERQPS: qword indices, dword elements
-val exec_scatter_q32 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_scatter_q32(vl, src, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  let n = vl / 64;
-  foreach (i from 0 to (n - 1)) {
-    let ilo = i * 64;
-    let olo = i * 32;
-    if mask[i] == 0b1 then
-      write_mem(32, gather_addr_q(vsib.vsib_base, indices[(ilo + 63)..ilo], vsib.vsib_scale), ZMM[src][(olo + 31)..olo]);
-  };
-  write_kreg(k_idx, zeros())
-}
-
-// VPSCATTERQQ / VSCATTERQPD: qword indices, qword elements
-val exec_scatter_q64 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx, VSIB, kreg_idx) -> unit
-function exec_scatter_q64(vl, src, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  let data : bits('vl) = read_simd(src);
-  let indices : bits('vl) = read_simd(vsib.vsib_vidx);
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    if mask[i] == 0b1 then
-      write_mem(64, gather_addr_q(vsib.vsib_base, indices[(lo + 63)..lo], vsib.vsib_scale), data[(lo + 63)..lo]);
   };
   write_kreg(k_idx, zeros())
 }
@@ -299,8 +206,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_gather_d64(vl, dst, vsib, pfx.evex_aaa)
-    else exec_gather_d32(vl, dst, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_gather(vl, 32, 64, dst, vsib, pfx.evex_aaa)
+    else exec_gather(vl, 32, 32, dst, vsib, pfx.evex_aaa)
   },
 
   // 0F38 91: VPGATHERQD (66,W0) / VPGATHERQQ (66,W1) [F]
@@ -310,8 +217,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_gather_q64(vl, dst, vsib, pfx.evex_aaa)
-    else exec_gather_q32(vl, dst, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_gather(vl, 64, 64, dst, vsib, pfx.evex_aaa)
+    else exec_gather(vl, 64, 32, dst, vsib, pfx.evex_aaa)
   },
 
   // 0F38 92: VGATHERDPS (66,W0) / VGATHERDPD (66,W1) [F]
@@ -321,8 +228,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_gather_d64(vl, dst, vsib, pfx.evex_aaa)
-    else exec_gather_d32(vl, dst, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_gather(vl, 32, 64, dst, vsib, pfx.evex_aaa)
+    else exec_gather(vl, 32, 32, dst, vsib, pfx.evex_aaa)
   },
 
   // 0F38 93: VGATHERQPS (66,W0) / VGATHERQPD (66,W1) [F]
@@ -332,8 +239,8 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_gather_q64(vl, dst, vsib, pfx.evex_aaa)
-    else exec_gather_q32(vl, dst, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_gather(vl, 64, 64, dst, vsib, pfx.evex_aaa)
+    else exec_gather(vl, 64, 32, dst, vsib, pfx.evex_aaa)
   },
 
   // =====================================================================
@@ -497,8 +404,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_scatter_d64(vl, src, vsib, pfx.evex_aaa)
-    else exec_scatter_d32(vl, src, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_scatter(vl, 32, 64, src, vsib, pfx.evex_aaa)
+    else exec_scatter(vl, 32, 32, src, vsib, pfx.evex_aaa)
   },
 
   // 0F38 A1: VPSCATTERQD (66,W0) / VPSCATTERQQ (66,W1) [F]
@@ -508,8 +415,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_scatter_q64(vl, src, vsib, pfx.evex_aaa)
-    else exec_scatter_q32(vl, src, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_scatter(vl, 64, 64, src, vsib, pfx.evex_aaa)
+    else exec_scatter(vl, 64, 32, src, vsib, pfx.evex_aaa)
   },
 
   // 0F38 A2: VSCATTERDPS (66,W0) / VSCATTERDPD (66,W1) [F]
@@ -519,8 +426,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_scatter_d64(vl, src, vsib, pfx.evex_aaa)
-    else exec_scatter_d32(vl, src, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_scatter(vl, 32, 64, src, vsib, pfx.evex_aaa)
+    else exec_scatter(vl, 32, 32, src, vsib, pfx.evex_aaa)
   },
 
   // 0F38 A3: VSCATTERQPS (66,W0) / VSCATTERQPD (66,W1) [F]
@@ -530,8 +437,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    if pfx.rex_w then exec_scatter_q64(vl, src, vsib, pfx.evex_aaa)
-    else exec_scatter_q32(vl, src, vsib, pfx.evex_aaa)
+    if pfx.rex_w then exec_scatter(vl, 64, 64, src, vsib, pfx.evex_aaa)
+    else exec_scatter(vl, 64, 32, src, vsib, pfx.evex_aaa)
   },
 
   // =====================================================================

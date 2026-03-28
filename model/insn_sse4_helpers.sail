@@ -54,24 +54,14 @@ function avx_packusdw(vl, a, b) = {
 // Gather address computation (shared by VEX and EVEX gather instructions)
 // =========================================================================
 
-val gather_addr : (qword, dword, range(0, 3)) -> qword
-function gather_addr(base, idx32, scale) = {
-  let offset : qword = sign_extend(idx32);
+val gather_addr : forall 'n, 'n in {32, 64}. (qword, bits('n), range(0, 3)) -> qword
+function gather_addr(base, idx, scale) = {
+  let offset : qword = sign_extend(idx);
   match scale {
     0 => base + offset,
     1 => base + (offset << 1),
     2 => base + (offset << 2),
     3 => base + (offset << 3),
-  }
-}
-
-val gather_addr_q : (qword, qword, range(0, 3)) -> qword
-function gather_addr_q(base, idx64, scale) = {
-  match scale {
-    0 => base + idx64,
-    1 => base + (idx64 << 1),
-    2 => base + (idx64 << 2),
-    3 => base + (idx64 << 3),
   }
 }
 
