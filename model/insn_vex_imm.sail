@@ -144,41 +144,33 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   match op {
 
-  // 0F3A 18: VINSERTF128 ymm1, ymm2, xmm3/m128, imm8
-  24 => {
-    if mp != MP_66 then raise_UD();
-    if ~(pfx.vex_l) then raise_UD();
+  // 0F3A 18: VINSERTF128 / 0F3A 38: VINSERTI128
+  // ymm1, ymm2, xmm3/m128, imm8 (66, VEX.256 only) — identical semantics
+  op if op == 24 | op == 56 => {
+    if mp != MP_66 | ~(pfx.vex_l) then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : ymmword = read_simd(pfx.vex_vvvv);
-    let src2 : xmmword = match src {
-      RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-      RM_mem(m) => read_mem(m),
-    };
+    let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
     let imm = fetch(1);
-    // imm8[0] selects which 128-bit lane to replace
-    if imm[0] == 0b0 then
-      write_simd(256, dst, src1[255..128] @ src2)
-    else
-      write_simd(256, dst, src2 @ src1[127..0])
+    if imm[0] == 0b0 then write_simd(256, dst, src1[255..128] @ src2)
+    else write_simd(256, dst, src2 @ src1[127..0])
   },
 
-  // 0F3A 19: VEXTRACTF128 xmm1/m128, ymm2, imm8
-  25 => {
-    if mp != MP_66 then raise_UD();
-    if ~(pfx.vex_l) then raise_UD();
+  // 0F3A 19: VEXTRACTF128 / 0F3A 39: VEXTRACTI128
+  // xmm1/m128, ymm2, imm8 (66, VEX.256 only, vvvv must be 1111b) — identical
+  op if op == 25 | op == 57 => {
+    if mp != MP_66 | ~(pfx.vex_l) | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
-    let src_ymm : ymmword = read_simd(src);
     let imm = fetch(1);
-    let extracted : xmmword =
-      if imm[0] == 0b0 then src_ymm[127..0]
-      else src_ymm[255..128];
+    let x : ymmword = read_simd(src);
+    let extracted : xmmword = if imm[0] == 0b0 then x[127..0] else x[255..128];
     match dest {
       RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), extracted),
-      RM_mem(m) => write_mem(m,extracted),
+      RM_mem(m) => write_mem(m, extracted),
     }
   },
 
@@ -675,8 +667,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
-  // 0F3A 06: VPERM2F128 ymm, ymm, ymm/m256, imm8 (66, VEX.256 only)
-  6 => {
+  // 0F3A 06: VPERM2F128 / 0F3A 46: VPERM2I128
+  // ymm, ymm, ymm/m256, imm8 (66, VEX.256 only) — identical semantics
+  op if op == 6 | op == 70 => {
     if mp != MP_66 | ~(pfx.vex_l) then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
@@ -687,109 +680,34 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     // Low 128-bit result selected by imm8[1:0], zeroed if imm8[3]
     let sel_lo : range(0, 3) = unsigned(imm[1..0]);
     let lo_selected : xmmword = match sel_lo {
-      0 => src1[127..0],
-      1 => src1[255..128],
-      2 => src2[127..0],
-      3 => src2[255..128],
+      0 => src1[127..0], 1 => src1[255..128],
+      2 => src2[127..0], 3 => src2[255..128],
     };
     let lo_result : xmmword = lo_selected & sign_extend(~(imm[3]));
     // High 128-bit result selected by imm8[5:4], zeroed if imm8[7]
     let sel_hi : range(0, 3) = unsigned(imm[5..4]);
     let hi_selected : xmmword = match sel_hi {
-      0 => src1[127..0],
-      1 => src1[255..128],
-      2 => src2[127..0],
-      3 => src2[255..128],
+      0 => src1[127..0], 1 => src1[255..128],
+      2 => src2[127..0], 3 => src2[255..128],
     };
     let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
     write_simd(256, dst, hi_result @ lo_result)
   },
 
-  // 0F3A 38: VINSERTI128 ymm, ymm, xmm/m128, imm8 (66, VEX.256 only)
-  56 => {
-    if mp != MP_66 | ~(pfx.vex_l) then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_simd(pfx.vex_vvvv);
-    let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-    let imm = fetch(1);
-    if imm[0] == 0b0 then {
-      // Insert into lower 128 bits
-      write_simd(256, dst, src1[255..128] @ src2)
-    } else {
-      // Insert into upper 128 bits
-      write_simd(256, dst, src2 @ src1[127..0])
-    }
-  },
+  // 0F3A 38: VINSERTI128 — merged with 0F3A 18 above
+  // 0F3A 39: VEXTRACTI128 — merged with 0F3A 19 above
 
-  // 0F3A 39: VEXTRACTI128 xmm/m128, ymm, imm8 (66, VEX.256 only, vvvv must be 1111b)
-  57 => {
-    if mp != MP_66 | ~(pfx.vex_l) | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
-    let dest = modrm_rm(modrm, pfx);
-    let imm = fetch(1);
-    let x : ymmword = read_simd(src);
-    let extracted : xmmword = (x >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
-    match dest {
-      RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), extracted),
-      RM_mem(m) => write_mem(m,extracted),
-    }
-  },
-
-  // 0F3A 46: VPERM2I128 ymm, ymm, ymm/m256, imm8 (66, VEX.256 only)
-  70 => {
-    if mp != MP_66 | ~(pfx.vex_l) then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_simd(pfx.vex_vvvv);
-    let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-    let imm = fetch(1);
-    // Same logic as VPERM2F128
-    let sel_lo : range(0, 3) = unsigned(imm[1..0]);
-    let lo_selected : xmmword = match sel_lo {
-      0 => src1[127..0],
-      1 => src1[255..128],
-      2 => src2[127..0],
-      3 => src2[255..128],
-    };
-    let lo_result : xmmword = lo_selected & sign_extend(~(imm[3]));
-    let sel_hi : range(0, 3) = unsigned(imm[5..4]);
-    let hi_selected : xmmword = match sel_hi {
-      0 => src1[127..0],
-      1 => src1[255..128],
-      2 => src2[127..0],
-      3 => src2[255..128],
-    };
-    let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
-    write_simd(256, dst, hi_result @ lo_result)
-  },
+  // 0F3A 46: VPERM2I128 — merged with 0F3A 06 above
 
   // VGF2P8AFFINEQB: VEX.128/256.66.0F3A.W1 CE /r ib
   206 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(src1_idx);
-      let src2 : ymmword = match src {
-        RM_reg(_) => read_simd(256, modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
-      let imm = fetch(1);
-      let lo = avx_gf2p8affineqb(src1[127..0], src2[127..0], imm);
-      let hi = avx_gf2p8affineqb(src1[255..128], src2[255..128], imm);
-      write_simd(256, dst, hi @ lo)
-    } else {
-      let src1 : xmmword = read_simd(src1_idx);
-      let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_gf2p8affineqb(src1, src2, imm))
-    }
+    let vl = vex_vl(pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_gf2p8affineqb(read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), imm))
   },
 
   // VGF2P8AFFINEINVQB: VEX.128/256.66.0F3A.W1 CF /r ib
@@ -797,24 +715,10 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(src1_idx);
-      let src2 : ymmword = match src {
-        RM_reg(_) => read_simd(256, modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
-      let imm = fetch(1);
-      let lo = avx_gf2p8affineinvqb(src1[127..0], src2[127..0], imm);
-      let hi = avx_gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
-      write_simd(256, dst, hi @ lo)
-    } else {
-      let src1 : xmmword = read_simd(src1_idx);
-      let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_gf2p8affineinvqb(src1, src2, imm))
-    }
+    let vl = vex_vl(pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_gf2p8affineinvqb(read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), imm))
   },
 
   _ => raise_UD(),

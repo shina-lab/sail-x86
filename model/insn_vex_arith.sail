@@ -1304,17 +1304,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(src1_idx);
-      let src2 : ymmword = decode_vex_src(modrm, src, pfx);
-      write_simd(256, dst, avx_gf2p8mulb(src1, src2))
-    } else {
-      let src1 : xmmword = read_simd(src1_idx);
-      let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
-      write_simd(128, dst, avx_gf2p8mulb(src1, src2))
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, avx_gf2p8mulb(read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   _ => raise_UD(),
