@@ -165,19 +165,6 @@ function avx_insertps(dst, src, imm8, is_mem) = {
   d3 @ d2 @ d1 @ d0
 }
 
-// Extract word from XMM at position sel (0..7)
-function extract_word_from_xmm(s, sel) = {
-  match sel {
-    0 => s[15..0],
-    1 => s[31..16],
-    2 => s[47..32],
-    3 => s[63..48],
-    4 => s[79..64],
-    5 => s[95..80],
-    6 => s[111..96],
-    7 => s[127..112]
-  }
-}
 
 // =========================================================================
 // VEX 0F3A map dispatch
@@ -542,7 +529,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let x : byte = extract_byte_from_xmm(read_simd(128, src), imm);
+    let x : byte = (ZMM[src] >> (unsigned(imm[3..0]) * 8))[7..0];
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
@@ -562,7 +549,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
-    let w : word = extract_word_from_xmm(read_simd(128, src), sel);
+    let w : word = (ZMM[src] >> (sel * 16))[15..0];
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);
@@ -583,10 +570,10 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     let src_xmm : xmmword = read_simd(src);
     match (dest, pfx.rex_w) {
-      (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(src_xmm, imm),
-      (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(src_xmm, imm),
-      (RM_mem(m), true)  => v(m) = extract_qword_from_xmm(src_xmm, imm),
-      (RM_mem(m), false) => v(m) = extract_dword_from_xmm(src_xmm, imm),
+      (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = (src_xmm >> (unsigned(imm[0]) * 64))[63..0],
+      (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = (src_xmm >> (unsigned(imm[1..0]) * 32))[31..0],
+      (RM_mem(m), true)  => v(m) = (src_xmm >> (unsigned(imm[0]) * 64))[63..0],
+      (RM_mem(m), false) => v(m) = (src_xmm >> (unsigned(imm[1..0]) * 32))[31..0],
     }
   },
 
@@ -599,7 +586,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let x : dword = extract_dword_from_xmm(read_simd(128, src), imm);
+    let x : dword = (ZMM[src] >> (unsigned(imm[1..0]) * 32))[31..0];
     match dest {
       RM_reg(_) => {
         let dst_reg = modrm_rm_reg(modrm, pfx);

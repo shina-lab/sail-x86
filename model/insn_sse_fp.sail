@@ -2,9 +2,6 @@
 //
 // SSE/SSE2/SSE3 data movement, arithmetic, conversion, and comparison.
 
-// Forward declaration (defined in insn_vex_imm.sail)
-val extract_word_from_xmm : (xmmword, range(0, 7)) -> word
-
 // =========================================================================
 // SSE floating-point dispatch
 // =========================================================================
@@ -1167,50 +1164,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
   }
 }
 
-// XMM element extraction helpers (shared by decode_sse_fp and decode_sse_int)
-val extract_byte_from_xmm : (xmmword, byte) -> byte
-function extract_byte_from_xmm(s, imm8) = {
-  let sel : range(0, 15) = unsigned(imm8[3..0]);
-  match sel {
-    0  => s[7..0],
-    1  => s[15..8],
-    2  => s[23..16],
-    3  => s[31..24],
-    4  => s[39..32],
-    5  => s[47..40],
-    6  => s[55..48],
-    7  => s[63..56],
-    8  => s[71..64],
-    9  => s[79..72],
-    10 => s[87..80],
-    11 => s[95..88],
-    12 => s[103..96],
-    13 => s[111..104],
-    14 => s[119..112],
-    15 => s[127..120]
-  }
-}
-
-val extract_dword_from_xmm : (xmmword, byte) -> dword
-function extract_dword_from_xmm(s, imm8) = {
-  let sel : range(0, 3) = unsigned(imm8[1..0]);
-  match sel {
-    0 => s[31..0],
-    1 => s[63..32],
-    2 => s[95..64],
-    3 => s[127..96]
-  }
-}
-
-val extract_qword_from_xmm : (xmmword, byte) -> qword
-function extract_qword_from_xmm(s, imm8) = {
-  let sel : range(0, 1) = unsigned(imm8[0]);
-  match sel {
-    0 => s[63..0],
-    1 => s[127..64]
-  }
-}
-
 // INSERTPS — Insert Scalar Single-Precision FP Value (SSE4.1)
 val exec_insertps : (simd_idx, xmmword, byte) -> unit
 function exec_insertps(dst, src, imm8) = {
@@ -1343,7 +1296,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     21 => {
       let imm = fetch(1);
       let sel : range(0, 7) = unsigned(imm[2..0]);
-      let w : word = extract_word_from_xmm(read_simd(xreg), sel);
+      let w : word = (ZMM[xreg] >> (sel * 16))[15..0];
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
@@ -1356,7 +1309,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // EXTRACTPS r/m32, xmm, imm8
     23 => {
       let imm = fetch(1);
-      let data = extract_dword_from_xmm(read_simd(xreg), imm);
+      let data = (ZMM[xreg] >> (unsigned(imm[1..0]) * 32))[31..0];
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);

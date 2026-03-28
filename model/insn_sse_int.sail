@@ -2549,7 +2549,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — PEXTRB r/m8, xmm, imm8
     20 => {
       let imm = fetch(1);
-      let x = extract_byte_from_xmm(read_simd(xreg), imm);
+      let x = (ZMM[xreg] >> (unsigned(imm[3..0]) * 8))[7..0];
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
@@ -2564,10 +2564,10 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch(1);
       let xmm_src : xmmword = read_simd(xreg);
       match (src, pfx.rex_w) {
-        (RM_reg(_), true)  => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(xmm_src, imm),
-        (RM_reg(_), false) => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(xmm_src, imm),
-        (RM_mem(m), true)  => v(m) = extract_qword_from_xmm(xmm_src, imm),
-        (RM_mem(m), false) => v(m) = extract_dword_from_xmm(xmm_src, imm),
+        (RM_reg(_), true)  => v(modrm_rm_reg(modrm, pfx)) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
+        (RM_reg(_), false) => v(modrm_rm_reg(modrm, pfx)) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
+        (RM_mem(m), true)  => v(m) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
+        (RM_mem(m), false) => v(m) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
       }
     },
 
