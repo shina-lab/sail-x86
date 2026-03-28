@@ -659,8 +659,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match src {
           RM_reg(_) => {
             match mp {
-              MP_66 => exec_movdqa(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-              MP_F3 => exec_movdqu(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
+              MP_66 => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
+              MP_F3 => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
               _     => raise_UD(),
             }
           },
@@ -969,8 +969,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => {
             let dst_xmm = modrm_xmm_rm(modrm, pfx);
             match mp {
-              MP_66 => exec_movdqa(dst_xmm, read_simd(xreg)),
-              MP_F3 => exec_movdqu(dst_xmm, read_simd(xreg)),
+              MP_66 => ZMM[dst_xmm][127..0] = read_simd(xreg),
+              MP_F3 => ZMM[dst_xmm][127..0] = read_simd(xreg),
               _     => raise_UD(),
             }
           },

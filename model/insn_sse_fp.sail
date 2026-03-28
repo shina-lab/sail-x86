@@ -6,64 +6,6 @@
 val extract_word_from_xmm : (xmmword, range(0, 7)) -> word
 
 // =========================================================================
-// SSE move helpers
-// =========================================================================
-
-val exec_movaps : (simd_idx, xmmword) -> unit
-function exec_movaps(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movapd : (simd_idx, xmmword) -> unit
-function exec_movapd(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movups : (simd_idx, xmmword) -> unit
-function exec_movups(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movupd_load : (simd_idx, xmmword) -> unit
-function exec_movupd_load(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movdqa : (simd_idx, xmmword) -> unit
-function exec_movdqa(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movdqu : (simd_idx, xmmword) -> unit
-function exec_movdqu(dst, src) = {
-  ZMM[dst][127..0] = src
-}
-
-val exec_movsd_xmm : (simd_idx, xmmword) -> unit
-function exec_movsd_xmm(dst, src) = {
-  var xmm : xmmword = read_simd(dst);
-  xmm[63..0] = src[63..0];
-  ZMM[dst][127..0] = xmm
-}
-
-val exec_movss_xmm : (simd_idx, xmmword) -> unit
-function exec_movss_xmm(dst, src) = {
-  var xmm : xmmword = read_simd(dst);
-  xmm[31..0] = src[31..0];
-  ZMM[dst][127..0] = xmm
-}
-
-val exec_movshdup : (simd_idx, xmmword) -> unit
-function exec_movshdup(dst, src) = {
-  ZMM[dst][127..0] = src[127..96] @ src[127..96] @ src[63..32] @ src[63..32]
-}
-
-val exec_movsldup : (simd_idx, xmmword) -> unit
-function exec_movsldup(dst, src) = {
-  ZMM[dst][127..0] = src[95..64] @ src[95..64] @ src[31..0] @ src[31..0]
-}
-
-// =========================================================================
 // SSE floating-point dispatch
 // =========================================================================
 
@@ -135,35 +77,29 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_NONE => {
           // MOVUPS xmm1, xmm2/m128
           match src {
-            RM_reg(_) => exec_movups(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
+            RM_reg(_) => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
             RM_mem(m) => ZMM[xreg][127..0] = read_mem(m),
           }
         },
         MP_66 => {
           // MOVUPD xmm1, xmm2/m128
           match src {
-            RM_reg(_) => exec_movupd_load(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
+            RM_reg(_) => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
             RM_mem(m) => ZMM[xreg][127..0] = read_mem(m),
           }
         },
         MP_F3 => {
           // MOVSS xmm1, xmm2/m32
           match src {
-            RM_reg(_) => exec_movss_xmm(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(m) => {
-              let x : xmmword = zero_extend(v(32, m));
-              ZMM[xreg][127..0] = x
-            },
+            RM_reg(_) => ZMM[xreg][31..0] = ZMM[modrm_xmm_rm(modrm, pfx)][31..0],
+            RM_mem(m) => ZMM[xreg][127..0] = zero_extend(v(32, m)),
           }
         },
         MP_F2 => {
           // MOVSD xmm1, xmm2/m64
           match src {
-            RM_reg(_) => exec_movsd_xmm(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(m) => {
-              let x : xmmword = zero_extend(v(64, m));
-              ZMM[xreg][127..0] = x
-            },
+            RM_reg(_) => ZMM[xreg][63..0] = ZMM[modrm_xmm_rm(modrm, pfx)][63..0],
+            RM_mem(m) => ZMM[xreg][127..0] = zero_extend(v(64, m)),
           }
         },
       }
@@ -178,7 +114,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_NONE => {
           // MOVUPS xmm2/m128, xmm1
           match dest {
-            RM_reg(_) => exec_movups(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
+            RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][127..0] = read_simd(xreg),
             RM_mem(m) => {
               write_mem(m, read_simd(128, xreg))
             },
@@ -187,7 +123,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_66 => {
           // MOVUPD xmm2/m128, xmm1
           match dest {
-            RM_reg(_) => exec_movupd_load(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
+            RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][127..0] = read_simd(xreg),
             RM_mem(m) => {
               write_mem(m, read_simd(128, xreg))
             },
@@ -196,21 +132,15 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F3 => {
           // MOVSS m32, xmm1
           match dest {
-            RM_reg(_) => exec_movss_xmm(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
-            RM_mem(m) => {
-              let data : xmmword = read_simd(xreg);
-              v(m) = data[31..0]
-            },
+            RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][31..0] = ZMM[xreg][31..0],
+            RM_mem(m) => v(m) = ZMM[xreg][31..0],
           }
         },
         MP_F2 => {
           // MOVSD m64, xmm1
           match dest {
-            RM_reg(_) => exec_movsd_xmm(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
-            RM_mem(m) => {
-              let data : xmmword = read_simd(xreg);
-              v(m) = data[63..0]
-            },
+            RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][63..0] = ZMM[xreg][63..0],
+            RM_mem(m) => v(m) = ZMM[xreg][63..0],
           }
         },
       }
@@ -245,10 +175,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F3 => {
           // MOVSLDUP xmm1, xmm2/m128 (SSE3)
           if ~(has_sse3) then raise_UD();
-          match src {
-            RM_reg(_) => exec_movsldup(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(m) => exec_movsldup(xreg, read_mem(m)),
-          }
+          let d : xmmword = match src {
+            RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
+            RM_mem(m) => read_mem(m),
+          };
+          ZMM[xreg][127..0] = d[95..64] @ d[95..64] @ d[31..0] @ d[31..0]
         },
         MP_F2 => {
           // MOVDDUP xmm1, xmm2/m64 (SSE3)
@@ -350,10 +281,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F3 => {
           // MOVSHDUP xmm1, xmm2/m128 (SSE3)
           if ~(has_sse3) then raise_UD();
-          match src {
-            RM_reg(_) => exec_movshdup(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-            RM_mem(m) => exec_movshdup(xreg, read_mem(m)),
-          }
+          let d : xmmword = match src {
+            RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
+            RM_mem(m) => read_mem(m),
+          };
+          ZMM[xreg][127..0] = d[127..96] @ d[127..96] @ d[63..32] @ d[63..32];
         },
         _ => raise_UD(),
       }
@@ -374,8 +306,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match src {
         RM_reg(_) => {
           match mp {
-            MP_NONE => exec_movaps(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
-            MP_66   => exec_movapd(xreg, read_simd(modrm_xmm_rm(modrm, pfx))),
+            MP_NONE => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
+            MP_66   => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
             _       => raise_UD(),
           }
         },
@@ -395,8 +327,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match dest {
         RM_reg(_) => {
           match mp {
-            MP_NONE => exec_movaps(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
-            MP_66   => exec_movapd(modrm_xmm_rm(modrm, pfx), read_simd(xreg)),
+            MP_NONE => ZMM[modrm_xmm_rm(modrm, pfx)][127..0] = read_simd(xreg),
+            MP_66   => ZMM[modrm_xmm_rm(modrm, pfx)][127..0] = read_simd(xreg),
             _       => raise_UD(),
           }
         },
