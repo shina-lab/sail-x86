@@ -64,6 +64,55 @@ add_custom_command(
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/insn-ud-test.c
 )
 
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse-fp-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse-fp-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse-cvt-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse-cvt-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse-int-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse-int-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse-int-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse-int-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse-shuf-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse-shuf-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse-shuf-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse-shuf-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse3-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse3-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse3-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse3-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse4-test
+  COMMAND gcc -static -nostdlib -msse4.2 -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse4-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse4-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse4-test.c
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sse-crypto-test
+  COMMAND gcc -static -nostdlib -msse4.2 -maes -mpclmul -mgfni -mno-avx -o ${CMAKE_CURRENT_BINARY_DIR}/sse-crypto-test
+    ${CMAKE_CURRENT_SOURCE_DIR}/sse-crypto-test.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/sse-crypto-test.c
+)
+
 add_custom_target(test-binaries ALL
   DEPENDS
     ${CMAKE_CURRENT_BINARY_DIR}/hello
@@ -75,6 +124,13 @@ add_custom_target(test-binaries ALL
     ${CMAKE_CURRENT_BINARY_DIR}/avx512-test
     ${CMAKE_CURRENT_BINARY_DIR}/cpuid-test
     ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse-int-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse-shuf-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse3-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse4-test
+    ${CMAKE_CURRENT_BINARY_DIR}/sse-crypto-test
 )
 
 # Test: hello (raw syscall, no libc)
@@ -153,6 +209,15 @@ add_test(NAME ok-v2-roundps  COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/i
 add_test(NAME ok-v2-blendvps COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test blendvps)
 add_test(NAME ok-v2-pblendw  COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pblendw)
 add_test(NAME ok-v2-popcnt   COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test popcnt)
+
+# Test: Legacy SSE instructions
+add_test(NAME sse-fp-test    COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test)
+add_test(NAME sse-cvt-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test)
+add_test(NAME sse-int-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-int-test)
+add_test(NAME sse-shuf-test  COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-shuf-test)
+add_test(NAME sse3-test      COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse3-test)
+add_test(NAME sse4-test      COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse4-test)
+add_test(NAME sse-crypto-test COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-crypto-test)
 
 # Test: /usr/bin/wc (dynamic binary)
 add_test(
