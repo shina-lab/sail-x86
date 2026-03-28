@@ -116,6 +116,17 @@ function vex_exec_pack(op, src_eb, dst_eb, pfx) = {
   write_simd(vl, dst, packed_pack(op, src_eb, dst_eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
 
+// 3-operand VEX shift-by-xmm: dst = uniform_shift(op, eb, vvvv, count_from_rm[63:0])
+val vex_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
+function vex_exec_shift(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let c : nat = unsigned(decode_vex_src(128, modrm, src, pfx)[63..0]);
+  let vl = vex_vl(pfx);
+  write_simd(vl, dst, packed_uniform_shift(op, eb, read_simd(vl, pfx.vex_vvvv), c))
+}
+
 // 3-operand VEX binop: dst = packed_binop(op, eb, vvvv, rm)
 val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
 function vex_exec_binop(op, eb, pfx) = {
