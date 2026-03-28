@@ -17,21 +17,13 @@ enum FMAOrder = { FMA_132, FMA_213, FMA_231 }
 val exec_vfma_scalar : (PackedTernaryOp, FMAOrder, bool, simd_idx, xmmword, xmmword) -> unit
 function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
   let d = read_xmm(dst);
-  if ~(is64) then {
-    let r : dword = match order {
-      FMA_132 => packed_ternary_elem(op, d[31..0], src3[31..0], src2[31..0]),
-      FMA_213 => packed_ternary_elem(op, src2[31..0], d[31..0], src3[31..0]),
-      FMA_231 => packed_ternary_elem(op, src2[31..0], src3[31..0], d[31..0]),
-    };
-    write_xmm(dst, d[127..32] @ r)
-  } else {
-    let r : qword = match order {
-      FMA_132 => packed_ternary_elem(op, d[63..0], src3[63..0], src2[63..0]),
-      FMA_213 => packed_ternary_elem(op, src2[63..0], d[63..0], src3[63..0]),
-      FMA_231 => packed_ternary_elem(op, src2[63..0], src3[63..0], d[63..0]),
-    };
-    write_xmm(dst, d[127..64] @ r)
-  }
+  let (a, b, c) = match order {
+    FMA_132 => (d, src3, src2),
+    FMA_213 => (src2, d, src3),
+    FMA_231 => (src2, src3, d),
+  };
+  let eb = if is64 then 64 else 32;
+  write_xmm(dst, d[127..eb] @ packed_ternary_elem(op, a[(eb - 1)..0], b[(eb - 1)..0], c[(eb - 1)..0]))
 }
 
 // =========================================================================
