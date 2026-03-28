@@ -477,19 +477,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   37 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 32, 64, pfx) },
 
   // 0F38 28: VPMULDQ (66 prefix)
-  // Multiply signed dwords at positions 0 and 2 producing qword results
-  40 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_simd(256, dst, avx_pmuldq_256(read_simd(256, vvvv), decode_vex_src(256, modrm, src, pfx)))
-    } else {
-      write_simd(128, dst, avx_pmuldq_128(read_simd(vvvv), decode_vex_src(128, modrm, src, pfx)))
-    }
-  },
+  40 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmuldq, 64, pfx) },
 
   // 0F38 29: VPCMPEQQ (66 prefix)
   41 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 64, pfx) },

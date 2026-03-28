@@ -49,17 +49,6 @@ function avx_pmaddubsw(a, b) = {
 // Each signed dword is clamped to [0, 65535] before truncation
 // =========================================================================
 
-// PMULDQ: polymorphic version wrapping the 128-bit lane helper
-val avx_pmuldq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_pmuldq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) {
-    let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pmuldq_128(a[(lo + 127)..lo], b[(lo + 127)..lo])
-  };
-  r
-}
-
 // =========================================================================
 // VPERMI2/VPERMT2: 2-source permute using index vector
 // vperm2_d: select dwords from combined (t1,t2) table using idx
@@ -369,7 +358,7 @@ function dispatch_evex_arith(op, pfx) = {
       let is_mem : bool = match src { RM_mem(_) => true, _ => false };
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, avx_pmuldq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
+      evex_write(dst, mask, packed_binop(PB_Pmuldq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
     } else if mp == MP_F3 then {
       // VPMOVM2B (W0) / VPMOVM2W (W1): mask register -> vector
       let modrm = fetch(1);

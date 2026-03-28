@@ -996,16 +996,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     36 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend, 16, 64, src_xmm[31..0]),
     37 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend, 32, 64, src_xmm[63..0]),
 
-    // SSE4.1 — PMULDQ (signed 32×32→64, uses dword elements 0 and 2)
-    40 => {
-      // PMULDQ uses signed dwords, unlike PMULUDQ which uses unsigned.
-      // PB_Pmuludq does unsigned — we need a separate approach.
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let hi : qword = to_bits_truncate(signed(a[95..64]) * signed(b[95..64]));
-      let lo : qword = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
-      ZMM[xreg][127..0] = hi @ lo
-    },
+    // SSE4.1 — PMULDQ (signed 32×32→64)
+    40 => ZMM[xreg][127..0] = packed_binop(PB_Pmuldq, 64, read_simd(xreg), src_xmm),
     // PCMPEQQ xmm1, xmm2/m128
     41 => ZMM[xreg][127..0] = packed_binop(PB_CmpEq, 64, read_simd(xreg), src_xmm),
     // MOVNTDQA xmm, m128

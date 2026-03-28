@@ -4,26 +4,6 @@
 // EVEX (insn_evex_arith.sail) instruction dispatch. This file must
 // be included before both.
 
-// All 12 PMOVSX/PMOVZX widening functions replaced by
-// packed_widen_unop(op, src_eb, dst_eb, src) in insn_vex.sail.
-// See PackedWidenOp enum: PW_SignExtend, PW_ZeroExtend.
-
-// pmuldq and pmulld kept for VEX (not yet in packed_binop)
-val avx_pmuldq_128 : (xmmword, xmmword) -> xmmword
-function avx_pmuldq_128(a, b) = {
-  let lo_prod : bits(64) = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
-  let hi_prod : bits(64) = to_bits_truncate(signed(a[95..64]) * signed(b[95..64]));
-  hi_prod @ lo_prod
-}
-
-val avx_pmuldq_256 : (ymmword, ymmword) -> ymmword
-function avx_pmuldq_256(a, b) =
-  avx_pmuldq_128(a[255..128], b[255..128]) @ avx_pmuldq_128(a[127..0], b[127..0])
-
-// =========================================================================
-// VPACKUSDW: pack dwords to words with unsigned saturation (for VEX use)
-// =========================================================================
-
 // =========================================================================
 // Gather address computation (shared by VEX and EVEX gather instructions)
 // =========================================================================
