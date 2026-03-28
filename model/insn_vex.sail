@@ -119,14 +119,3 @@ function vex_exec_binop(op, eb, pfx) = {
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
-
-// 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
-val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
-function vex_exec_unop(op, eb, pfx) = {
-  if pfx.vex_vvvv != 0 then raise_UD();
-  let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
-  let vl = vex_vl(pfx);
-  write_simd(vl, dst, packed_unop(op, eb, decode_vex_src(modrm, src, pfx)))
-}

@@ -59,6 +59,17 @@ function avx_phminposuw_128(src) = {
   zeros(109) @ mi @ mv
 }
 
+// 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
+val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
+function vex_exec_unop(op, eb, pfx) = {
+  if pfx.vex_vvvv != 0 then raise_UD();
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let vl = vex_vl(pfx);
+  write_simd(vl, dst, packed_unop(op, eb, decode_vex_src(modrm, src, pfx)))
+}
+
 // VMASKMOVPS load 128-bit: conditional load of dword lanes based on sign bit of mask
 val vex_maskmovps_load_128 : (xmmword, xmmword) -> xmmword
 function vex_maskmovps_load_128(mask, data) =

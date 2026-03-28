@@ -60,6 +60,20 @@ function avx_vpmadd52(vl, shift, dst, src1, src2) = {
   r
 }
 
+// EVEX scalar FMA: decode modrm, handle embedded rounding, dispatch
+val evex_exec_fma_scalar : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
+function evex_exec_fma_scalar(op, order, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+  let is_mem : bool = match src { RM_mem(_) => true, _ => false };
+  let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+  let src2 = read_xmm(pfx.evex_vvvvv);
+  let src3 = evex_src(128, modrm, src, pfx);
+  exec_vfma_scalar(op, order, pfx.rex_w, dst, src2, src3);
+  evex_end_rc(saved_mxcsr)
+}
+
 val dispatch_evex_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_fma(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
@@ -159,18 +173,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 99: VFMADD132SS (66,W0) / VFMADD132SD (66,W1) [F]
-  153 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMAdd, FMA_132, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  153 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMAdd, FMA_132, pfx) },
 
   // 0F38 9A: VFMSUB132PS (66,W0) / VFMSUB132PD (66,W1) [F]
   154 => {
@@ -188,18 +191,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 9B: VFMSUB132SS (66,W0) / VFMSUB132SD (66,W1) [F]
-  155 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMSub, FMA_132, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  155 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMSub, FMA_132, pfx) },
 
   // 0F38 9C: VFNMADD132PS (66,W0) / VFNMADD132PD (66,W1) [F]
   156 => {
@@ -217,18 +209,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 9D: VFNMADD132SS (66,W0) / VFNMADD132SD (66,W1) [F]
-  157 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMAdd, FMA_132, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  157 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMAdd, FMA_132, pfx) },
 
   // 0F38 9E: VFNMSUB132PS (66,W0) / VFNMSUB132PD (66,W1) [F]
   158 => {
@@ -246,18 +227,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 9F: VFNMSUB132SS (66,W0) / VFNMSUB132SD (66,W1) [F]
-  159 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMSub, FMA_132, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  159 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMSub, FMA_132, pfx) },
 
   // =====================================================================
   // Scatter (0xA0-0xA3) — VSIB addressing
@@ -357,18 +327,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 A9: VFMADD213SS (66,W0) / VFMADD213SD (66,W1) [F]
-  169 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMAdd, FMA_213, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  169 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMAdd, FMA_213, pfx) },
 
   // 0F38 AA: VFMSUB213PS (66,W0) / VFMSUB213PD (66,W1) [F]
   170 => {
@@ -386,18 +345,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 AB: VFMSUB213SS (66,W0) / VFMSUB213SD (66,W1) [F]
-  171 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMSub, FMA_213, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  171 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMSub, FMA_213, pfx) },
 
   // 0F38 AC: VFNMADD213PS (66,W0) / VFNMADD213PD (66,W1) [F]
   172 => {
@@ -415,18 +363,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 AD: VFNMADD213SS (66,W0) / VFNMADD213SD (66,W1) [F]
-  173 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMAdd, FMA_213, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  173 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMAdd, FMA_213, pfx) },
 
   // 0F38 AE: VFNMSUB213PS (66,W0) / VFNMSUB213PD (66,W1) [F]
   174 => {
@@ -444,18 +381,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 AF: VFNMSUB213SS (66,W0) / VFNMSUB213SD (66,W1) [F]
-  175 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMSub, FMA_213, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  175 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMSub, FMA_213, pfx) },
 
   // 0F38 B4: VPMADD52LUQ (66,W1) [IFMA]
   180 => {
@@ -533,18 +459,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 B9: VFMADD231SS (66,W0) / VFMADD231SD (66,W1) [F]
-  185 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMAdd, FMA_231, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  185 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMAdd, FMA_231, pfx) },
 
   // 0F38 BA: VFMSUB231PS (66,W0) / VFMSUB231PD (66,W1) [F]
   186 => {
@@ -562,18 +477,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 BB: VFMSUB231SS (66,W0) / VFMSUB231SD (66,W1) [F]
-  187 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FMSub, FMA_231, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  187 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FMSub, FMA_231, pfx) },
 
   // 0F38 BC: VFNMADD231PS (66,W0) / VFNMADD231PD (66,W1) [F]
   188 => {
@@ -591,18 +495,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 BD: VFNMADD231SS (66,W0) / VFNMADD231SD (66,W1) [F]
-  189 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMAdd, FMA_231, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  189 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMAdd, FMA_231, pfx) },
 
   // 0F38 BE: VFNMSUB231PS (66,W0) / VFNMSUB231PD (66,W1) [F]
   190 => {
@@ -620,18 +513,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 BF: VFNMSUB231SS (66,W0) / VFNMSUB231SD (66,W1) [F]
-  191 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { RM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let src2 = read_xmm(pfx.evex_vvvvv);
-    let src3 = evex_src(128,modrm, src, pfx);
-    exec_vfma_scalar(PT_FNMSub, FMA_231, pfx.rex_w, dst, src2, src3);
-    evex_end_rc(saved_mxcsr)
-  },
+  191 => { if mp != MP_66 then raise_UD(); evex_exec_fma_scalar(PT_FNMSub, FMA_231, pfx) },
 
   // 0F38 2C: VSCALEFPS (66,W0) / VSCALEFPD (66,W1) [F]
   44 => {
