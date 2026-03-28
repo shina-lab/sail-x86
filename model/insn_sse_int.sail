@@ -2646,7 +2646,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // GFNI — GF2P8MULB (66 0F 38 CF)
     207 => {
-      write_xmm_legacy(xreg, __gf2p8mulb(read_xmm(xreg), src_xmm))
+      write_xmm_legacy(xreg, avx_gf2p8mulb(read_xmm(xreg), src_xmm))
     },
 
     _ => raise_UD(),
@@ -2852,14 +2852,14 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     206 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm_legacy(xreg, __gf2p8affineqb(read_xmm(xreg), src_xmm, imm))
+      write_xmm_legacy(xreg, avx_gf2p8affineqb(read_xmm(xreg), src_xmm, imm))
     },
 
     // GFNI — GF2P8AFFINEINVQB (66 0F 3A CF)
     207 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm_legacy(xreg, __gf2p8affineinvqb(read_xmm(xreg), src_xmm, imm))
+      write_xmm_legacy(xreg, avx_gf2p8affineinvqb(read_xmm(xreg), src_xmm, imm))
     },
 
     _ => raise_UD(),

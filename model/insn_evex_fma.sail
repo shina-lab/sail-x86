@@ -835,25 +835,17 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
-  //
-  // GFNI byte-wise ops (gf2p8_mul, gf2p8_affineqb, gf2p8_affineinvqb) have
-  // a fixed element size of 8 bits, so they don't fit the packed_binop pattern.
+  // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
   207 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let 'vl = evex_vl(pfx);
+    let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 8);
-    let a : bits('vl) = read_simd(pfx.evex_vvvvv);
-    let b : bits('vl) = evex_src(modrm, src, pfx);
-    var r : bits('vl) = zeros();
-    foreach (i from 0 to ('vl / 8 - 1)) {
-      let lo = i * 8;
-      let hi = lo + 7;
-      r[hi..lo] = gf2p8_mul(a[hi..lo], b[hi..lo])
-    };
-    evex_write(dst, mask, r)
+    match vl {
+      _ => evex_write(dst, mask, avx_gf2p8mulb(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx))),
+    }
   },
 
   _ => raise_UD(),

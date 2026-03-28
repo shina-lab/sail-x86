@@ -283,3 +283,49 @@ function funnelshl(a, b, cnt) = ((a @ b) << (cnt % 'n))[('n * 2 - 1) .. 'n]
 // Funnel shift right: (b @ a) >> cnt, take low 'n bits.
 val funnelshr : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), nat) -> bits('n)
 function funnelshr(a, b, cnt) = ((b @ a) >> (cnt % 'n))[('n - 1) .. 0]
+
+// =========================================================================
+// GFNI primitives (GF(2^8) with irreducible polynomial x^8+x^4+x^3+x+1)
+// =========================================================================
+
+val gf2p8_mul : (byte, byte) -> byte
+function gf2p8_mul(a, b) = {
+  var result : bits(9) = zeros();
+  var aa : bits(9) = zero_extend(a);
+  foreach (i from 0 to 7) {
+    result = result ^ (sign_extend(b[i..i]) & aa);
+    aa = aa << 1;
+    aa = aa ^ (sign_extend(aa[8]) & 0b100011011) // 0x11B
+  };
+  result[7..0]
+}
+
+val gf2p8_affine : (byte, qword, byte) -> byte
+function gf2p8_affine(src, matrix, imm8) = {
+  var r : byte = zeros();
+  foreach (i from 0 to 7) {
+    let row_lo : range(0, 56) = (7 - i) * 8;
+    let row : byte = matrix[(row_lo + 7)..row_lo];
+    let product : byte = src & row;
+    let x4 : bits(4) = product[7..4] ^ product[3..0];
+    let x2 : bits(2) = x4[3..2] ^ x4[1..0];
+    let bit : bit = (x2[1] ^ x2[0])[0];
+    r[i] = bit ^ imm8[i];
+  };
+  r
+}
+
+val gf2p8_inv : byte -> byte
+function gf2p8_inv(x) = {
+  let x2 = gf2p8_mul(x, x);
+  let x3 = gf2p8_mul(x2, x);
+  let x6 = gf2p8_mul(x3, x3);
+  let x12 = gf2p8_mul(x6, x6);
+  let x15 = gf2p8_mul(x12, x3);
+  let x30 = gf2p8_mul(x15, x15);
+  let x60 = gf2p8_mul(x30, x30);
+  let x63 = gf2p8_mul(x60, x3);
+  let x126 = gf2p8_mul(x63, x63);
+  let x252 = gf2p8_mul(x126, x126);
+  gf2p8_mul(x252, x2)
+}

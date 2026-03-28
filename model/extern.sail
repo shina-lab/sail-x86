@@ -353,14 +353,6 @@ val __aesimc : xmmword -> xmmword
 val __aeskeygenassist : (xmmword, byte) -> xmmword
 
 // =========================================================================
-// GFNI
-// =========================================================================
-
-val __gf2p8mulb : (xmmword, xmmword) -> xmmword
-val __gf2p8affineqb : (xmmword, xmmword, byte) -> xmmword
-val __gf2p8affineinvqb : (xmmword, xmmword, byte) -> xmmword
-
-// =========================================================================
 // SHA
 // =========================================================================
 

@@ -1921,19 +1921,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      // 256-bit: call __gf2p8mulb on each 128-bit half
       let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = match src {
-        RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
-      let lo = __gf2p8mulb(src1[127..0], src2[127..0]);
-      let hi = __gf2p8mulb(src1[255..128], src2[255..128]);
-      write_ymm(dst, hi @ lo)
+      let src2 : ymmword = decode_vex_src(modrm, src, pfx);
+      write_ymm(dst, avx_gf2p8mulb(src1, src2))
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
-      write_xmm(dst, __gf2p8mulb(src1, src2))
+      write_xmm(dst, avx_gf2p8mulb(src1, src2))
     }
   },
 

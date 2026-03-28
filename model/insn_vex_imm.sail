@@ -919,14 +919,14 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         RM_mem(m) => read_mem(m),
       };
       let imm = fetch(1);
-      let lo = __gf2p8affineqb(src1[127..0], src2[127..0], imm);
-      let hi = __gf2p8affineqb(src1[255..128], src2[255..128], imm);
+      let lo = avx_gf2p8affineqb(src1[127..0], src2[127..0], imm);
+      let hi = avx_gf2p8affineqb(src1[255..128], src2[255..128], imm);
       write_ymm(dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, __gf2p8affineqb(src1, src2, imm))
+      write_xmm(dst, avx_gf2p8affineqb(src1, src2, imm))
     }
   },
 
@@ -944,14 +944,14 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         RM_mem(m) => read_mem(m),
       };
       let imm = fetch(1);
-      let lo = __gf2p8affineinvqb(src1[127..0], src2[127..0], imm);
-      let hi = __gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
+      let lo = avx_gf2p8affineinvqb(src1[127..0], src2[127..0], imm);
+      let hi = avx_gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
       write_ymm(dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, __gf2p8affineinvqb(src1, src2, imm))
+      write_xmm(dst, avx_gf2p8affineinvqb(src1, src2, imm))
     }
   },
 

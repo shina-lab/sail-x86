@@ -229,18 +229,6 @@ val avx_vpshrdq_elem : (qword, qword, nat) -> qword
 function avx_vpshrdq_elem(src1, src2, cnt) =
   ((src2 @ src1) >> (cnt % 64))[63..0]
 
-val gf2p8_mul : (byte, byte) -> byte
-function gf2p8_mul(a, b) = {
-  var result : bits(9) = zeros();
-  var aa : bits(9) = zero_extend(a);
-  foreach (i from 0 to 7) {
-    result = result ^ (sign_extend(b[i..i]) & aa);
-    aa = aa << 1;
-    aa = aa ^ (sign_extend(aa[8]) & 0b100011011) // 0x11B
-  };
-  result[7..0]
-}
-
 // =========================================================================
 // EVEX Embedded Rounding Control
 // =========================================================================
