@@ -92,6 +92,20 @@ function cmp_pred5_f32(a, b, pred) = eval_fp_predicate(fp_compare(a, b), to_bits
 val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bit
 function cmp_pred5_f64(a, b, pred) = eval_fp_predicate(fp_compare(a, b), to_bits(4, pred % 16))
 
+// Packed FP compare with predicate: element-wise CMPPS/CMPPD
+val packed_cmp_pred : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl), bits(5)) -> bits('vl)
+function packed_cmp_pred(eb, a, b, pred) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let hi = (i + 1) * 'eb - 1;
+    let lo = i * 'eb;
+    r[hi..lo] = if eb == 32 then cmp_pred_f32(a[hi..lo], b[hi..lo], pred)
+                else cmp_pred_f64(a[hi..lo], b[hi..lo], pred)
+  };
+  r
+}
+
 // SHUFPS helper: select one of four dwords by 2-bit index
 val select_dword : (xmmword, bits(2)) -> dword
 function select_dword(v, sel) = {
@@ -920,39 +934,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
       };
       let imm = fetch(1);
+      let a : xmmword = read_simd(xreg);
+      let pred : bits(5) = zero_extend(imm[2..0]);
       match mp {
-        MP_NONE => {
-          let a : xmmword = read_simd(xreg);
-          let pred : bits(5) = zero_extend(imm[2..0]);
-          let r : xmmword =
-            cmp_pred_f32(a[127..96], src_xmm[127..96], pred) @
-            cmp_pred_f32(a[95..64], src_xmm[95..64], pred) @
-            cmp_pred_f32(a[63..32], src_xmm[63..32], pred) @
-            cmp_pred_f32(a[31..0], src_xmm[31..0], pred);
-          ZMM[xreg][127..0] = r
-        },
-        MP_66 => {
-          let a : xmmword = read_simd(xreg);
-          let pred : bits(5) = zero_extend(imm[2..0]);
-          let r : xmmword =
-            cmp_pred_f64(a[127..64], src_xmm[127..64], pred) @
-            cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
-          ZMM[xreg][127..0] = r
-        },
-        MP_F3 => {
-          let a : xmmword = read_simd(xreg);
-          let pred : bits(5) = zero_extend(imm[2..0]);
-          let low : dword = cmp_pred_f32(a[31..0], src_xmm[31..0], pred);
-          let r : xmmword = a[127..32] @ low;
-          ZMM[xreg][127..0] = r
-        },
-        MP_F2 => {
-          let a : xmmword = read_simd(xreg);
-          let pred : bits(5) = zero_extend(imm[2..0]);
-          let low : qword = cmp_pred_f64(a[63..0], src_xmm[63..0], pred);
-          let r : xmmword = a[127..64] @ low;
-          ZMM[xreg][127..0] = r
-        },
+        MP_NONE => ZMM[xreg][127..0] = packed_cmp_pred(32, a, src_xmm, pred),
+        MP_66   => ZMM[xreg][127..0] = packed_cmp_pred(64, a, src_xmm, pred),
+        MP_F3   => ZMM[xreg][127..0] = a[127..32] @ cmp_pred_f32(a[31..0], src_xmm[31..0], pred),
+        MP_F2   => ZMM[xreg][127..0] = a[127..64] @ cmp_pred_f64(a[63..0], src_xmm[63..0], pred),
       }
     },
     // 0F D0: ADDSUBPS/ADDSUBPD (SSE3)

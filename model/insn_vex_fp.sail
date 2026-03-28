@@ -938,41 +938,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
     match mp {
       // VCMPPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_NONE => {
-        if pfx.vex_l then {
-          let src1 : ymmword = read_simd(pfx.vex_vvvv);
-          let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-          write_simd(256, dst, cmp_pred_f32(src1[255..224], src2[255..224], pred) @
-                          cmp_pred_f32(src1[223..192], src2[223..192], pred) @
-                          cmp_pred_f32(src1[191..160], src2[191..160], pred) @
-                          cmp_pred_f32(src1[159..128], src2[159..128], pred) @
-                          cmp_pred_f32(src1[127..96],  src2[127..96],  pred) @
-                          cmp_pred_f32(src1[95..64],   src2[95..64],   pred) @
-                          cmp_pred_f32(src1[63..32],   src2[63..32],   pred) @
-                          cmp_pred_f32(src1[31..0],    src2[31..0],    pred))
-        } else {
-          let src1 : xmmword = read_simd(pfx.vex_vvvv);
-          let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-          write_simd(128, dst, cmp_pred_f32(src1[127..96], src2[127..96], pred) @
-                          cmp_pred_f32(src1[95..64],  src2[95..64],  pred) @
-                          cmp_pred_f32(src1[63..32],  src2[63..32],  pred) @
-                          cmp_pred_f32(src1[31..0],   src2[31..0],   pred))
-        }
+        let vl = vex_vl(pfx);
+        write_simd(vl, dst, packed_cmp_pred(32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), pred))
       },
       // VCMPPD xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_66 => {
-        if pfx.vex_l then {
-          let src1 : ymmword = read_simd(pfx.vex_vvvv);
-          let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-          write_simd(256, dst, cmp_pred_f64(src1[255..192], src2[255..192], pred) @
-                          cmp_pred_f64(src1[191..128], src2[191..128], pred) @
-                          cmp_pred_f64(src1[127..64],  src2[127..64],  pred) @
-                          cmp_pred_f64(src1[63..0],    src2[63..0],    pred))
-        } else {
-          let src1 : xmmword = read_simd(pfx.vex_vvvv);
-          let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-          write_simd(128, dst, cmp_pred_f64(src1[127..64], src2[127..64], pred) @
-                          cmp_pred_f64(src1[63..0],   src2[63..0],   pred))
-        }
+        let vl = vex_vl(pfx);
+        write_simd(vl, dst, packed_cmp_pred(64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), pred))
       },
       // VCMPSS (scalar, VEX.L ignored)
       MP_F3 => {
