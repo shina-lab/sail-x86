@@ -79,6 +79,19 @@ function vex_exec_widen(op, src_eb, dst_eb, pfx) = {
   write_simd(vl, dst, packed_widen_unop(vl, op, src_eb, dst_eb, s))
 }
 
+// VEX broadcast: replicate low eb bits from xmm/mem to fill vl.
+val vex_exec_broadcast : forall 'eb, 'eb in {8, 16, 32, 64}.
+  (int('eb), Prefixes) -> unit
+function vex_exec_broadcast(eb, pfx) = {
+  if pfx.vex_vvvv != 0 then raise_UD();
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let elem : bits('eb) = vex_read_narrow_src(modrm, src, pfx);
+  let vl = vex_vl(pfx);
+  write_simd(vl, dst, broadcast(vl, elem))
+}
+
 // 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
 val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_unop(op, eb, pfx) = {
@@ -164,39 +177,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   11 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulHRS, 16, pfx) },
 
   // 0F38 18: VBROADCASTSS xmm1, xmm2/m32 (VEX.128/256)
-  // SDM: VEX.vvvv must be 1111b
-  24 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val32 : dword = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-      RM_mem(m) => v(m),
-    };
-    if pfx.vex_l then {
-      // 256-bit: broadcast to 8 dwords
-      write_ymm(dst, val32 @ val32 @ val32 @ val32 @
-                     val32 @ val32 @ val32 @ val32)
-    } else {
-      // 128-bit: broadcast to 4 dwords
-      write_xmm(dst, val32 @ val32 @ val32 @ val32)
-    }
-  },
+  24 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(32, pfx) },
 
   // 0F38 19: VBROADCASTSD ymm1, xmm2/m64 (VEX.256 only)
-  // SDM: VEX.128 form #UDs, VEX.vvvv must be 1111b
   25 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
+    if mp != MP_66 then raise_UD();
     if ~(pfx.vex_l) then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val64 : qword = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-      RM_mem(m) => v(m),
-    };
-    write_ymm(dst, val64 @ val64 @ val64 @ val64)
+    vex_exec_broadcast(64, pfx)
   },
 
   // 0F38 1A: VBROADCASTF128 ymm1, m128 (VEX.256 only)
@@ -212,81 +199,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 78: VPBROADCASTB xmm/ymm, xmm/m8 (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  120 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val8 : byte = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[7..0],
-      RM_mem(m) => v(m),
-    };
-    if pfx.vex_l then {
-      write_ymm(dst, val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @
-                     val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @
-                     val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @
-                     val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8)
-    } else {
-      write_xmm(dst, val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @
-                     val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8 @ val8)
-    }
-  },
-
+  120 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(8, pfx) },
   // 0F38 79: VPBROADCASTW xmm/ymm, xmm/m16 (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  121 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val16 : word = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
-      RM_mem(m) => v(m),
-    };
-    if pfx.vex_l then {
-      write_ymm(dst, val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16 @
-                     val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16)
-    } else {
-      write_xmm(dst, val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16 @ val16)
-    }
-  },
-
-  // 0F38 58: VPBROADCASTD xmm/ymm, xmm/m32 (66 prefix) — same as VBROADCASTSS but int
-  // SDM: VEX.vvvv must be 1111b
-  88 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val32 : dword = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-      RM_mem(m) => v(m),
-    };
-    if pfx.vex_l then {
-      write_ymm(dst, val32 @ val32 @ val32 @ val32 @ val32 @ val32 @ val32 @ val32)
-    } else {
-      write_xmm(dst, val32 @ val32 @ val32 @ val32)
-    }
-  },
-
+  121 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(16, pfx) },
+  // 0F38 58: VPBROADCASTD xmm/ymm, xmm/m32 (66 prefix)
+  88 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(32, pfx) },
   // 0F38 59: VPBROADCASTQ xmm/ymm, xmm/m64 (66 prefix)
-  // SDM: VEX.vvvv must be 1111b
-  89 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let val64 : qword = match src {
-      RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-      RM_mem(m) => v(m),
-    };
-    if pfx.vex_l then {
-      write_ymm(dst, val64 @ val64 @ val64 @ val64)
-    } else {
-      write_xmm(dst, val64 @ val64)
-    }
-  },
+  89 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(64, pfx) },
 
   // 0F38 5A: VBROADCASTI128 ymm, m128 (VEX.256 only, vvvv must be 1111b)
   90 => {

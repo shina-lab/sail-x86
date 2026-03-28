@@ -176,17 +176,6 @@ function evex_write_scalar(dst, result, pfx, eb) = {
 }
 
 // Polymorphic broadcast: replicate an 'eb-bit element to fill 'vl bits.
-val broadcast : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
-  (implicit('vl), bits('eb)) -> bits('vl)
-function broadcast(vl, v) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 'eb - 1)) {
-    let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = v
-  };
-  r
-}
-
 // Polymorphic broadcast-aware source: read source from reg/mem,
 // applying EVEX.b broadcast when the source is a memory operand.
 val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
