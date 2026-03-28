@@ -139,36 +139,31 @@ function dispatch_vex_0f_fp(op, pfx) = {
           _ => raise_UD(),
         }
       },
-      // VMOVSLDUP xmm1, xmm2/m128: duplicate even-indexed floats
-      // SDM: DEST = [SRC[95:64], SRC[95:64], SRC[31:0], SRC[31:0]]
+      // VMOVSLDUP: per-lane, duplicate even-indexed dwords [d1,d1,d0,d0]
       MP_F3 => {
         if pfx.vex_vvvv != 0 then raise_UD();
-        if pfx.vex_l then {
-          let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-          write_simd(256, dst, src[223..192] @ src[223..192] @
-                         src[159..128] @ src[159..128] @
-                         src[95..64] @ src[95..64] @
-                         src[31..0] @ src[31..0])
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, src[95..64] @ src[95..64] @
-                         src[31..0] @ src[31..0])
-        }
+        let vl = vex_vl(pfx);
+        let src = decode_vex_src(vl, modrm, src2, pfx);
+        var r : ymmword = zeros();
+        foreach (i from 0 to (vl / 64 - 1)) {
+          let lo = i * 64;
+          r[(lo + 63)..(lo + 32)] = src[(lo + 31)..lo];
+          r[(lo + 31)..lo] = src[(lo + 31)..lo]
+        };
+        write_simd(vl, dst, r[(vl - 1)..0])
       },
-      // VMOVDDUP xmm1, xmm2/m64: duplicate low qword
-      // SDM 128: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0]
-      // SDM 256: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0];
-      //          DEST[191:128] := SRC[191:128]; DEST[255:192] := SRC[191:128]
+      // VMOVDDUP: per-lane, duplicate low qword [q0,q0]
       MP_F2 => {
         if pfx.vex_vvvv != 0 then raise_UD();
-        if pfx.vex_l then {
-          let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-          write_simd(256, dst, src[191..128] @ src[191..128] @
-                         src[63..0] @ src[63..0])
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, src[63..0] @ src[63..0])
-        }
+        let vl = vex_vl(pfx);
+        let src = decode_vex_src(vl, modrm, src2, pfx);
+        var r : ymmword = zeros();
+        foreach (i from 0 to (vl / 128 - 1)) {
+          let lo = i * 128;
+          r[(lo + 127)..(lo + 64)] = src[(lo + 63)..lo];
+          r[(lo + 63)..lo] = src[(lo + 63)..lo]
+        };
+        write_simd(vl, dst, r[(vl - 1)..0])
       },
     }
   },
@@ -229,21 +224,18 @@ function dispatch_vex_0f_fp(op, pfx) = {
         }
       },
       MP_F2 => raise_UD(),
-      // VMOVSHDUP xmm1, xmm2/m128: duplicate odd-indexed floats
-      // SDM: DEST = [SRC[127:96], SRC[127:96], SRC[63:32], SRC[63:32]]
+      // VMOVSHDUP: per-lane, duplicate odd-indexed dwords [d1,d1,d0,d0] from high halves
       MP_F3 => {
         if pfx.vex_vvvv != 0 then raise_UD();
-        if pfx.vex_l then {
-          let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-          write_simd(256, dst, src[255..224] @ src[255..224] @
-                         src[191..160] @ src[191..160] @
-                         src[127..96] @ src[127..96] @
-                         src[63..32] @ src[63..32])
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, src[127..96] @ src[127..96] @
-                         src[63..32] @ src[63..32])
-        }
+        let vl = vex_vl(pfx);
+        let src = decode_vex_src(vl, modrm, src2, pfx);
+        var r : ymmword = zeros();
+        foreach (i from 0 to (vl / 64 - 1)) {
+          let lo = i * 64;
+          r[(lo + 63)..(lo + 32)] = src[(lo + 63)..(lo + 32)];
+          r[(lo + 31)..lo] = src[(lo + 63)..(lo + 32)]
+        };
+        write_simd(vl, dst, r[(vl - 1)..0])
       },
     }
   },
