@@ -63,10 +63,10 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
-      write_mm(dst, sat_s8(s[63..48]) @ sat_s8(s[47..32]) @
-                     sat_s8(s[31..16]) @ sat_s8(s[15..0]) @
-                     sat_s8(d[63..48]) @ sat_s8(d[47..32]) @
-                     sat_s8(d[31..16]) @ sat_s8(d[15..0]));
+      write_mm(dst, sat_s(8, s[63..48]) @ sat_s(8, s[47..32]) @
+                     sat_s(8, s[31..16]) @ sat_s(8, s[15..0]) @
+                     sat_s(8, d[63..48]) @ sat_s(8, d[47..32]) @
+                     sat_s(8, d[31..16]) @ sat_s(8, d[15..0]));
       mmx_touch()
     },
 
@@ -114,10 +114,10 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
-      write_mm(dst, sat_su8(s[63..48]) @ sat_su8(s[47..32]) @
-                     sat_su8(s[31..16]) @ sat_su8(s[15..0]) @
-                     sat_su8(d[63..48]) @ sat_su8(d[47..32]) @
-                     sat_su8(d[31..16]) @ sat_su8(d[15..0]));
+      write_mm(dst, sat_su(8, s[63..48]) @ sat_su(8, s[47..32]) @
+                     sat_su(8, s[31..16]) @ sat_su(8, s[15..0]) @
+                     sat_su(8, d[63..48]) @ sat_su(8, d[47..32]) @
+                     sat_su(8, d[31..16]) @ sat_su(8, d[15..0]));
       mmx_touch()
     },
 
@@ -162,8 +162,8 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
-      write_mm(dst, sat_s16(s[63..32]) @ sat_s16(s[31..0]) @
-                     sat_s16(d[63..32]) @ sat_s16(d[31..0]));
+      write_mm(dst, sat_s(16, s[63..32]) @ sat_s(16, s[31..0]) @
+                     sat_s(16, d[63..32]) @ sat_s(16, d[31..0]));
       mmx_touch()
     },
 

@@ -532,14 +532,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_s8(s[127..112]) @ sat_s8(s[111..96]) @
-              sat_s8(s[95..80])   @ sat_s8(s[79..64]) @
-              sat_s8(s[63..48])   @ sat_s8(s[47..32]) @
-              sat_s8(s[31..16])   @ sat_s8(s[15..0]) @
-              sat_s8(d[127..112]) @ sat_s8(d[111..96]) @
-              sat_s8(d[95..80])   @ sat_s8(d[79..64]) @
-              sat_s8(d[63..48])   @ sat_s8(d[47..32]) @
-              sat_s8(d[31..16])   @ sat_s8(d[15..0]);
+              sat_s(8, s[127..112]) @ sat_s(8, s[111..96]) @
+              sat_s(8, s[95..80])   @ sat_s(8, s[79..64]) @
+              sat_s(8, s[63..48])   @ sat_s(8, s[47..32]) @
+              sat_s(8, s[31..16])   @ sat_s(8, s[15..0]) @
+              sat_s(8, d[127..112]) @ sat_s(8, d[111..96]) @
+              sat_s(8, d[95..80])   @ sat_s(8, d[79..64]) @
+              sat_s(8, d[63..48])   @ sat_s(8, d[47..32]) @
+              sat_s(8, d[31..16])   @ sat_s(8, d[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PCMPGTB xmm1, xmm2/m128
@@ -584,14 +584,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_su8(s[127..112]) @ sat_su8(s[111..96]) @
-              sat_su8(s[95..80])   @ sat_su8(s[79..64]) @
-              sat_su8(s[63..48])   @ sat_su8(s[47..32]) @
-              sat_su8(s[31..16])   @ sat_su8(s[15..0]) @
-              sat_su8(d[127..112]) @ sat_su8(d[111..96]) @
-              sat_su8(d[95..80])   @ sat_su8(d[79..64]) @
-              sat_su8(d[63..48])   @ sat_su8(d[47..32]) @
-              sat_su8(d[31..16])   @ sat_su8(d[15..0]);
+              sat_su(8, s[127..112]) @ sat_su(8, s[111..96]) @
+              sat_su(8, s[95..80])   @ sat_su(8, s[79..64]) @
+              sat_su(8, s[63..48])   @ sat_su(8, s[47..32]) @
+              sat_su(8, s[31..16])   @ sat_su(8, s[15..0]) @
+              sat_su(8, d[127..112]) @ sat_su(8, d[111..96]) @
+              sat_su(8, d[95..80])   @ sat_su(8, d[79..64]) @
+              sat_su(8, d[63..48])   @ sat_su(8, d[47..32]) @
+              sat_su(8, d[31..16])   @ sat_su(8, d[15..0]);
             write_xmm_legacy(xreg, r)
           },
           // PUNPCKHBW xmm1, xmm2/m128
@@ -634,10 +634,10 @@ function dispatch_2byte_sse_int(op, pfx) = {
             let d : xmmword = read_xmm(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
-              sat_s16(s[127..96]) @ sat_s16(s[95..64]) @
-              sat_s16(s[63..32])  @ sat_s16(s[31..0]) @
-              sat_s16(d[127..96]) @ sat_s16(d[95..64]) @
-              sat_s16(d[63..32])  @ sat_s16(d[31..0]);
+              sat_s(16, s[127..96]) @ sat_s(16, s[95..64]) @
+              sat_s(16, s[63..32])  @ sat_s(16, s[31..0]) @
+              sat_s(16, d[127..96]) @ sat_s(16, d[95..64]) @
+              sat_s(16, d[63..32])  @ sat_s(16, d[31..0]);
             write_xmm_legacy(xreg, r)
           },
           _ => raise_UD(),
@@ -2373,14 +2373,14 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     43 => {
       let a : xmmword = read_xmm(xreg);
       let b : xmmword = src_xmm;
-      let w0 : word = sat_su16(a[31..0]);
-      let w1 : word = sat_su16(a[63..32]);
-      let w2 : word = sat_su16(a[95..64]);
-      let w3 : word = sat_su16(a[127..96]);
-      let w4 : word = sat_su16(b[31..0]);
-      let w5 : word = sat_su16(b[63..32]);
-      let w6 : word = sat_su16(b[95..64]);
-      let w7 : word = sat_su16(b[127..96]);
+      let w0 : word = sat_su(a[31..0]);
+      let w1 : word = sat_su(a[63..32]);
+      let w2 : word = sat_su(a[95..64]);
+      let w3 : word = sat_su(a[127..96]);
+      let w4 : word = sat_su(b[31..0]);
+      let w5 : word = sat_su(b[63..32]);
+      let w6 : word = sat_su(b[95..64]);
+      let w7 : word = sat_su(b[127..96]);
       write_xmm_legacy(xreg, w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0)
     },
 

@@ -109,8 +109,8 @@ val packed_narrow_elem : forall 'src 'dst, 'src in {16, 32, 64} & 'dst in {8, 16
   (PackedNarrowOp, int('dst), bits('src)) -> bits('dst)
 function packed_narrow_elem(op, dst, a) = match op {
   PN_Trunc => a[('dst - 1)..0],
-  PN_SatU  => sat_u(dst, a),
-  PN_SatS  => sat_s(dst, a),
+  PN_SatU  => sat_u(a),
+  PN_SatS  => sat_s(a),
 }
 
 val packed_narrow_unop : forall 'vl 'src 'dst,

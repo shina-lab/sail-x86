@@ -6,14 +6,14 @@
 // Branchless POPCNT
 val popcount : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> range(0, 'n)
 function popcount(v) = {
-  let x1 : qword = zero_extend(v);
-  let x2 = (x1 & 0x5555555555555555) + ((x1 >> 1)  & 0x5555555555555555);
-  let x3 = (x2 & 0x3333333333333333) + ((x2 >> 2)  & 0x3333333333333333);
-  let x4 = (x3 & 0x0f0f0f0f0f0f0f0f) + ((x3 >> 4)  & 0x0f0f0f0f0f0f0f0f);
-  let x5 = (x4 & 0x00ff00ff00ff00ff) + ((x4 >> 8)  & 0x00ff00ff00ff00ff);
-  let x6 = (x5 & 0x0000ffff0000ffff) + ((x5 >> 16) & 0x0000ffff0000ffff);
-  let x7 = (x6 & 0x00000000ffffffff) + ((x6 >> 32) & 0x00000000ffffffff);
-  let x = unsigned(x7);
+  let x : qword = zero_extend(v);
+  let x = (x & 0x5555555555555555) + ((x >> 1)  & 0x5555555555555555);
+  let x = (x & 0x3333333333333333) + ((x >> 2)  & 0x3333333333333333);
+  let x = (x & 0x0f0f0f0f0f0f0f0f) + ((x >> 4)  & 0x0f0f0f0f0f0f0f0f);
+  let x = (x & 0x00ff00ff00ff00ff) + ((x >> 8)  & 0x00ff00ff00ff00ff);
+  let x = (x & 0x0000ffff0000ffff) + ((x >> 16) & 0x0000ffff0000ffff);
+  let x = (x & 0x00000000ffffffff) + ((x >> 32) & 0x00000000ffffffff);
+  let x = unsigned(x);
   assert(x <= 'n);
   x
 }
@@ -21,14 +21,14 @@ function popcount(v) = {
 // or_reduce: 1 if any bit is set, 0 otherwise (branchless tree reduction).
 val or_reduce : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bits(1)
 function or_reduce(v) = {
-  let x1 : qword = zero_extend(v);
-  let x2 = x1 | (x1 >> 1);
-  let x3 = x2 | (x2 >> 2);
-  let x4 = x3 | (x3 >> 4);
-  let x5 = x4 | (x4 >> 8);
-  let x6 = x5 | (x5 >> 16);
-  let x7 = x6 | (x6 >> 32);
-  x7[0]
+  let x : qword = zero_extend(v);
+  let x = x | (x >> 1);
+  let x = x | (x >> 2);
+  let x = x | (x >> 4);
+  let x = x | (x >> 8);
+  let x = x | (x >> 16);
+  let x = x | (x >> 32);
+  x[0]
 }
 
 // is_nonzero: 0 if all bits are zero, 1 otherwise.
@@ -211,76 +211,30 @@ function avg(a, b) = {
   sum['n .. 1]
 }
 
-// Signed saturation: clamp to target signed range, truncate.
-val sat_s8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_s8(x) = {
-  let lo : bits('n) = sign_extend(0x80);
-  let hi : bits('n) = sign_extend(0x7F);
-  min_s(max_s(x, lo), hi)[7..0]
+// Signed saturation: clamp signed x to [-(2^(dst-1)), 2^(dst-1)-1], truncate.
+val sat_s : forall 'n 'dst, 0 < 'dst & 'dst < 'n & 'n <= 64.
+  (implicit('dst), bits('n)) -> bits('dst)
+function sat_s(dst, x) = {
+  let hi : bits('n) = zero_extend(ones(dst - 1));
+  let lo : bits('n) = ~(hi);
+  min_s(max_s(x, lo), hi)[('dst - 1)..0]
 }
 
-val sat_s16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_s16(x) = {
-  let lo : bits('n) = sign_extend(0x8000);
-  let hi : bits('n) = sign_extend(0x7FFF);
-  min_s(max_s(x, lo), hi)[15..0]
+// Signed-to-unsigned saturation: clamp signed x to [0, 2^dst-1], truncate.
+val sat_su : forall 'n 'dst, 0 < 'dst & 'dst < 'n & 'n <= 64.
+  (implicit('dst), bits('n)) -> bits('dst)
+function sat_su(dst, x) = {
+  let hi : bits('n) = zero_extend(ones(dst));
+  let lo : bits('n) = zeros();
+  min_s(max_s(x, lo), hi)[('dst - 1)..0]
 }
 
-val sat_s32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
-function sat_s32(x) = {
-  let lo : bits('n) = sign_extend(0x80000000);
-  let hi : bits('n) = sign_extend(0x7FFFFFFF);
-  min_s(max_s(x, lo), hi)[31..0]
-}
-
-// Signed-to-unsigned saturation: clamp to [0, max_unsigned], truncate.
-val sat_su8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_su8(x) = {
-  let hi : bits('n) = zero_extend(0xFF);
-  min_s(max_s(x, zeros()), hi)[7..0]
-}
-
-val sat_su16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_su16(x) = {
-  let hi : bits('n) = zero_extend(0xFFFF);
-  min_s(max_s(x, zeros()), hi)[15..0]
-}
-
-// Unsigned saturation: clamp to target unsigned range, truncate.
-val sat_u8 : forall 'n, 8 < 'n & 'n <= 64. bits('n) -> byte
-function sat_u8(x) = {
-  let hi : bits('n) = zero_extend(0xFF);
-  min_u(x, hi)[7..0]
-}
-
-val sat_u16 : forall 'n, 16 < 'n & 'n <= 64. bits('n) -> word
-function sat_u16(x) = {
-  let hi : bits('n) = zero_extend(0xFFFF);
-  min_u(x, hi)[15..0]
-}
-
-val sat_u32 : forall 'n, 32 < 'n & 'n <= 64. bits('n) -> dword
-function sat_u32(x) = {
-  let hi : bits('n) = zero_extend(0xFFFFFFFF);
-  min_u(x, hi)[31..0]
-}
-
-// Polymorphic signed saturation: dispatch to sat_s{8,16,32} by destination width.
-val sat_s : forall 'n 'dst, 'dst in {8, 16, 32} & 'n > 'dst & 'n <= 64.
-  (int('dst), bits('n)) -> bits('dst)
-function sat_s(dst, x) = match dst {
-  8  => sat_s8(x),
-  16 => sat_s16(x),
-  32 => sat_s32(x),
-}
-
-// Polymorphic unsigned saturation: dispatch to sat_u{8,16,32} by destination width.
-val sat_u : forall 'n 'dst, 'dst in {8, 16, 32} & 'n > 'dst & 'n <= 64.
-  (int('dst), bits('n)) -> bits('dst)
-function sat_u(dst, x) = match dst {
-  8  => sat_u8(x),
-  16 => sat_u16(x),
-  32 => sat_u32(x),
+// Unsigned saturation: clamp unsigned x to [0, 2^dst-1], truncate.
+val sat_u : forall 'n 'dst, 0 < 'dst & 'dst < 'n & 'n <= 64.
+  (implicit('dst), bits('n)) -> bits('dst)
+function sat_u(dst, x) = {
+  let hi : bits('n) = zero_extend(ones(dst));
+  min_u(x, hi)[('dst - 1)..0]
 }
 
 // Multiply high with rounding and scale: ((a*b) >> (n-2) + 1) >> 1
