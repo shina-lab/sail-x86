@@ -356,109 +356,6 @@ function avx_psadbw(vl, a, b) = {
   r
 }
 
-val avx_punpcklbw_lane : (xmmword, xmmword) -> xmmword
-function avx_punpcklbw_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let src_lo : range(0, 56) = i * 8; let dst_lo : range(0, 112) = i * 16;
-    r[(dst_lo + 7)..dst_lo] = a[(src_lo + 7)..src_lo];
-    r[(dst_lo + 15)..(dst_lo + 8)] = b[(src_lo + 7)..src_lo];
-  };
-  r
-}
-
-val avx_punpcklbw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpcklbw(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpcklbw_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpcklwd_lane : (xmmword, xmmword) -> xmmword
-function avx_punpcklwd_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let src_lo : range(0, 48) = i * 16; let dst_lo : range(0, 96) = i * 32;
-    r[(dst_lo + 15)..dst_lo] = a[(src_lo + 15)..src_lo];
-    r[(dst_lo + 31)..(dst_lo + 16)] = b[(src_lo + 15)..src_lo];
-  };
-  r
-}
-
-val avx_punpcklwd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpcklwd(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpcklwd_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpckldq_lane : (xmmword, xmmword) -> xmmword
-function avx_punpckldq_lane(a, b) = b[63..32] @ a[63..32] @ b[31..0] @ a[31..0]
-
-val avx_punpcklqdq_lane : (xmmword, xmmword) -> xmmword
-function avx_punpcklqdq_lane(a, b) = b[63..0] @ a[63..0]
-
-val avx_punpckhbw_lane : (xmmword, xmmword) -> xmmword
-function avx_punpckhbw_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let src_lo : range(0, 120) = i * 8 + 64; let dst_lo : range(0, 112) = i * 16;
-    r[(dst_lo + 7)..dst_lo] = a[(src_lo + 7)..src_lo];
-    r[(dst_lo + 15)..(dst_lo + 8)] = b[(src_lo + 7)..src_lo];
-  };
-  r
-}
-
-val avx_punpckhbw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpckhbw(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpckhbw_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpcklqdq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpcklqdq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpcklqdq_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpckldq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpckldq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpckldq_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpckhwd_lane : (xmmword, xmmword) -> xmmword
-function avx_punpckhwd_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let src_lo : range(0, 112) = i * 16 + 64; let dst_lo : range(0, 96) = i * 32;
-    r[(dst_lo + 15)..dst_lo] = a[(src_lo + 15)..src_lo];
-    r[(dst_lo + 31)..(dst_lo + 16)] = b[(src_lo + 15)..src_lo];
-  };
-  r
-}
-
-val avx_punpckhwd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpckhwd(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpckhwd_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpckhdq_lane : (xmmword, xmmword) -> xmmword
-function avx_punpckhdq_lane(a, b) = b[127..96] @ a[127..96] @ b[95..64] @ a[95..64]
-
-val avx_punpckhqdq_lane : (xmmword, xmmword) -> xmmword
-function avx_punpckhqdq_lane(a, b) = b[127..64] @ a[127..64]
 
 val avx_packsswb_lane : (xmmword, xmmword) -> xmmword
 function avx_packsswb_lane(a, b) = {
@@ -479,21 +376,6 @@ function avx_packsswb(vl, a, b) = {
   r
 }
 
-val avx_punpckhqdq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpckhqdq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpckhqdq_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_punpckhdq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_punpckhdq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_punpckhdq_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
 
 val avx_packssdw_lane : (xmmword, xmmword) -> xmmword
 function avx_packssdw_lane(a, b) = {

@@ -126,6 +126,26 @@ function packed_horiz_binop(op, eb, lane, a, b) = {
   r
 }
 
+// Interleave elements from two sources (PUNPCKLBW/WD/DQ/QDQ, PUNPCKHBW/WD/DQ/QDQ).
+// Within each 128-bit lane, takes elements from the low (half=0) or high (half=64)
+// half of a and b, and interleaves them: r[2i]=a[half+i], r[2i+1]=b[half+i].
+val packed_unpack : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), {0, 64}, bits('vl), bits('vl)) -> bits('vl)
+function packed_unpack(eb, half, a, b) = {
+  var r : bits('vl) = zeros();
+  let elems_per_half = 64 / eb;
+  foreach (j from 0 to ('vl / 128 - 1)) {
+    let lbase = j * 128;
+    foreach (i from 0 to (elems_per_half - 1)) {
+      let src_lo = lbase + half + i * eb;
+      let dst_lo = lbase + i * 2 * eb;
+      r[(dst_lo + eb - 1)..dst_lo] = a[(src_lo + eb - 1)..src_lo];
+      r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = b[(src_lo + eb - 1)..src_lo];
+    }
+  };
+  r
+}
+
 // Generic packed narrowing unary operation (each element shrinks).
 enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS }
 

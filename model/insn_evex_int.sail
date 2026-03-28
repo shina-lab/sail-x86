@@ -1014,7 +1014,7 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 8), avx_punpcklbw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / 8), packed_unpack(8, 0, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F 61: VPUNPCKLWD (66, EVEX) [BW]
@@ -1024,7 +1024,7 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 16), avx_punpcklwd(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / 16), packed_unpack(16, 0, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F 62: VPUNPCKLDQ (66, EVEX, W0) [F] — supports m32bcst
@@ -1035,7 +1035,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 32), avx_punpckldq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, evex_wmask(pfx, vl / 32), packed_unpack(32, 0, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F 63: VPACKSSWB (66, EVEX) [BW]
@@ -1067,7 +1067,7 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 8), avx_punpckhbw(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / 8), packed_unpack(8, 64, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F 69: VPUNPCKHWD (66, EVEX) [BW]
@@ -1077,7 +1077,7 @@ function dispatch_evex_int(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 16), avx_punpckhwd(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / 16), packed_unpack(16, 64, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F 6A: VPUNPCKHDQ (66, EVEX, W0) [F] — supports m32bcst
@@ -1088,7 +1088,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 32), avx_punpckhdq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, evex_wmask(pfx, vl / 32), packed_unpack(32, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F 6B: VPACKSSDW (66, EVEX, W0) [BW] — supports m32bcst
@@ -1110,7 +1110,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 64), avx_punpcklqdq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+    evex_write(dst, evex_wmask(pfx, vl / 64), packed_unpack(64, 0, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
   },
 
   // 0F 6D: VPUNPCKHQDQ (66, EVEX, W1) [F] — supports m64bcst
@@ -1121,7 +1121,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 64), avx_punpckhqdq(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+    evex_write(dst, evex_wmask(pfx, vl / 64), packed_unpack(64, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
   },
 
   // 0F 70: VPSHUFD (66, W0, m32bcst) / VPSHUFHW (F3) / VPSHUFLW (F2)
