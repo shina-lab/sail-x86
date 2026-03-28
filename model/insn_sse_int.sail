@@ -157,8 +157,8 @@ function mpsadbw(dst, src, imm8) = {
     let d1 : byte = dst[(base + 15) .. (base + 8)];
     let d2 : byte = dst[(base + 23) .. (base + 16)];
     let d3 : byte = dst[(base + 31) .. (base + 24)];
-    let sad : int = abs_diff8(d0, s0) + abs_diff8(d1, s1) +
-                    abs_diff8(d2, s2) + abs_diff8(d3, s3);
+    let sad : int = abs_diff(d0, s0) + abs_diff(d1, s1) +
+                    abs_diff(d2, s2) + abs_diff(d3, s3);
     let lo : range(0, 112) = j * 16;
     result[(lo + 15) .. lo] = to_bits_truncate(16, sad)
   };

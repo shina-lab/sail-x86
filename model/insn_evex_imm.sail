@@ -405,7 +405,7 @@ function avx_vdbpsadbw_128(src1, src2, imm) = {
       let t1_base : range(0, 11) = bb + w;  // sliding window start byte
       var sad : int = 0;
       foreach (k from 0 to 3) {
-        sad = sad + abs_diff8(xmm_byte(src1, s1_base + k), xmm_byte(tmp1, t1_base + k));
+        sad = sad + abs_diff(xmm_byte(src1, s1_base + k), xmm_byte(tmp1, t1_base + k));
       };
       let wrd : word = get_slice_int(16, sad, 0);
       let dst_bit : range(0, 112) = (blk * 4 + w) * 16;

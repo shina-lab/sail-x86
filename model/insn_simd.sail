@@ -53,9 +53,7 @@ enum PackedBinOp = {
   PB_PSign,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
   PB_FPScalef,
-  PB_Psadbw, PB_Pmaddubsw, PB_Pmaddwd, PB_Pmuludq,
-  // Per-128-bit-lane operations (used with eb=128)
-  PB_Pshufb,
+  PB_Psadbw, PB_Pmaddubsw, PB_Pmaddwd, PB_Pmuludq, PB_Pshufb,
   PB_HorizAddW, PB_HorizAddD, PB_HorizSatAddW,
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
 }
@@ -99,19 +97,14 @@ function packed_elem_op(op, a, b) = match op {
   PB_FMin     => { assert('eb <= 64); fp_min(a, b) },
   PB_FMax     => { assert('eb <= 64); fp_max(a, b) },
   PB_FPScalef => { assert('eb <= 64); fp_scalef(a, b) },
-  // Per-128-bit-lane operations
-  PB_Pshufb => { assert('eb == 128); pshufb(a, b) },
+
+  // Ops with internal sub-element structure
   PB_Pmaddubsw => { assert('eb == 16); pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },
-  PB_Pmuludq => {
-    assert('eb == 64);
-    to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0]))
-  },
-  PB_Pmaddwd => {
-    assert('eb == 32);
-    get_slice_int(32, signed(a[15..0]) * signed(b[15..0]) + signed(a[31..16]) * signed(b[31..16]), 0)
-  },
-  PB_Psadbw => { assert('eb == 64); psadbw(a, b)
-  },
+  PB_Pmaddwd   => { assert('eb == 32); to_bits_truncate(signed(a[15..0])  * signed(b[15..0]) +
+                                                        signed(a[31..16]) * signed(b[31..16])) },
+  PB_Pmuludq   => { assert('eb == 64); to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0])) },
+  PB_Psadbw       => { assert('eb == 64);  psadbw(a, b) },
+  PB_Pshufb       => { assert('eb == 128); pshufb(a, b) },
   PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, a, b) },
   PB_HorizAddD    => { assert('eb == 128); packed_horiz(PB_Add, 32, a, b) },
   PB_HorizSatAddW => { assert('eb == 128); packed_horiz(PB_SatAddS, 16, a, b) },
@@ -120,6 +113,7 @@ function packed_elem_op(op, a, b) = match op {
   PB_HorizSatSubW => { assert('eb == 128); packed_horiz(PB_SatSubS, 16, a, b) },
 }
 
+// Horizontal binary op within a 128-bit lane.
 function packed_horiz(op, ew, a, b) = {
   var r : bits(128) = zeros();
   foreach (i from 0 to (64 / ew - 1)) {
