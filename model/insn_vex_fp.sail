@@ -15,7 +15,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     match mp {
       // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
-      mp if mp == MP_NONE | mp == MP_66 => {
+      MP_NONE => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        let vl = vex_vl(pfx);
+        write_simd(vl, dst, decode_vex_src(modrm, src, pfx))
+      },
+      MP_66 => {
         if pfx.vex_vvvv != 0 then raise_UD();
         let vl = vex_vl(pfx);
         write_simd(vl, dst, decode_vex_src(modrm, src, pfx))
@@ -63,7 +68,15 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dest = modrm_rm(modrm, pfx);
     match mp {
       // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
-      mp if mp == MP_NONE | mp == MP_66 => {
+      MP_NONE => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        let vl = vex_vl(pfx);
+        match dest {
+          RM_reg(_) => write_simd(vl, modrm_xmm_rm(modrm, pfx), read_simd(vl, src)),
+          RM_mem(m) => write_mem(m, read_simd(vl, src)),
+        }
+      },
+      MP_66 => {
         if pfx.vex_vvvv != 0 then raise_UD();
         let vl = vex_vl(pfx);
         match dest {

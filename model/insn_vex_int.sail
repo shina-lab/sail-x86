@@ -606,20 +606,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_F2 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    match src {
-      RM_mem(m) => {
-        let a = seg_linear(m, if pfx.vex_l then 32 else 16);
-        if pfx.vex_l then {
-          let lo : xmmword = read_mem(a);
-          let hi : xmmword = read_mem(a + 16);
-          write_simd(256, dst, hi @ lo)
-        } else {
-          write_simd(128, dst, read_mem(a))
-        }
-      },
-      RM_reg(_) => raise_UD(),
-    }
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, rm_mem(vl, modrm_rm(modrm, pfx)))
   },
 
   // 0F F1-F3: VPSLLW/D/Q xmm/ymm, xmm/ymm, xmm/m128 (66 prefix) — shift by xmm count
