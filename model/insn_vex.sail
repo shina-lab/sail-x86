@@ -16,7 +16,7 @@ enum FMAOrder = { FMA_132, FMA_213, FMA_231 }
 
 val exec_vfma_scalar : (PackedTernaryOp, FMAOrder, bool, simd_idx, xmmword, xmmword) -> unit
 function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
-  let d = read_xmm(dst);
+  let d : xmmword = read_simd(dst);
   let (a, b, c) : (xmmword, xmmword, xmmword) = match order {
     FMA_132 => (d, src3, src2),
     FMA_213 => (src2, d, src3),

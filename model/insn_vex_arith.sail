@@ -62,7 +62,7 @@ function avx_phminposuw_128(src) = {
 // Read low 'n bits from xmm register or memory.
 val vex_read_narrow_src : forall 'n, 0 < 'n & 'n <= 128. (implicit('n), byte, RM, Prefixes) -> bits('n)
 function vex_read_narrow_src(n, modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[('n - 1)..0],
+  RM_reg(_) => read_simd(128, modrm_xmm_rm(modrm, pfx))[('n - 1)..0],
   RM_mem(m) => read_mem(m),
 }
 
@@ -494,9 +494,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let vvvv = pfx.vex_vvvv;
     if pfx.vex_l then {
-      write_simd(256, dst, avx_pmuldq_256(read_ymm(vvvv), decode_vex_src(256, modrm, src, pfx)))
+      write_simd(256, dst, avx_pmuldq_256(read_simd(256, vvvv), decode_vex_src(256, modrm, src, pfx)))
     } else {
-      write_simd(128, dst, avx_pmuldq_128(read_xmm(vvvv), decode_vex_src(128, modrm, src, pfx)))
+      write_simd(128, dst, avx_pmuldq_128(read_simd(vvvv), decode_vex_src(128, modrm, src, pfx)))
     }
   },
 

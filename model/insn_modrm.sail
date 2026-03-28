@@ -359,6 +359,6 @@ function fetch_modrm_raw(pfx) = {
 // Helper: decode XMM src operand value (read from register or memory).
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, src, pfx) = match src {
-  RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
+  RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => read_mem(m),
 }

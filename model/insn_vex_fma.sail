@@ -16,7 +16,7 @@ function vex_exec_fma_scalar(op, order, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
-  let src2 = read_xmm(pfx.vex_vvvv);
+  let src2 : xmmword = read_simd(pfx.vex_vvvv);
   let src3 = decode_vex_src(128, modrm, src, pfx);
   exec_vfma_scalar(op, order, pfx.vex_w, dst, src2, src3)
 }

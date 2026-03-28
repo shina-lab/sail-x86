@@ -170,7 +170,7 @@ val evex_write_scalar : forall 'eb, 'eb in {16, 32, 64}.
   (simd_idx, xmmword, Prefixes, int('eb)) -> unit
 function evex_write_scalar(dst, result, pfx, eb) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
-  let merge : bits('eb) = blend(read_xmm(dst)[('eb - 1)..0], zeros(), pfx.evex_z);
+  let merge : bits('eb) = blend(read_simd(128, dst)[('eb - 1)..0], zeros(), pfx.evex_z);
   let lo : bits('eb) = blend(merge, result[('eb - 1)..0], mask_bit);
   write_simd(128, dst, result[127..'eb] @ lo)
 }

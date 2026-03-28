@@ -239,8 +239,8 @@ function dispatch_vex_0f_int(op, pfx) = {
       // Requires alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned.
       MP_66 => match src {
         RM_reg(_) =>
-          if pfx.vex_l then write_simd(256, dst, read_ymm(modrm_xmm_rm(modrm, pfx)))
-          else write_simd(128, dst, read_xmm(modrm_xmm_rm(modrm, pfx))),
+          if pfx.vex_l then write_simd(256, dst, read_simd(256, modrm_xmm_rm(modrm, pfx)))
+          else write_simd(128, dst, read_simd(modrm_xmm_rm(modrm, pfx))),
         RM_mem(m) => {
           if pfx.vex_l then {
             let a = seg_linear(m, 32);
@@ -477,7 +477,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     match mp {
       MP_66 => {
         // VMOVD/VMOVQ xmm -> r/m
-        let src = read_xmm(modrm_xmm_reg(modrm, pfx));
+        let src : xmmword = read_simd(modrm_xmm_reg(modrm, pfx));
         match (src2, pfx.vex_w) {
           (RM_reg(r), true)  => v(r) = src[63..0],
           (RM_reg(r), false) => v(r) = src[31..0],
@@ -490,7 +490,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         let dst = modrm_xmm_reg(modrm, pfx);
         match src2 {
           RM_reg(_) => {
-            let src = read_xmm(modrm_xmm_rm(modrm, pfx));
+            let src : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
             write_simd(128, dst, zero_extend(src[63..0]))
           },
           RM_mem(m) => {
@@ -515,9 +515,9 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_reg(_) => {
         let dst = modrm_xmm_rm(modrm, pfx);
         if pfx.vex_l then {
-          write_simd(256, dst, read_ymm(src))
+          write_simd(256, dst, read_simd(256, src))
         } else {
-          write_simd(128, dst, read_xmm(src))
+          write_simd(128, dst, read_simd(128, src))
         }
       },
       RM_mem(m) => {
@@ -530,9 +530,9 @@ function dispatch_vex_0f_int(op, pfx) = {
           }
         };
         if pfx.vex_l then {
-          write_mem(m,read_ymm(src))
+          write_mem(m,read_simd(256, src))
         } else {
-          write_mem(m,read_xmm(src))
+          write_mem(m, read_simd(128, src))
         }
       },
     }
@@ -770,7 +770,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let src_xmm = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let x : qword = read_xmm(src_xmm)[63..0];
+    let x : qword = read_simd(128, src_xmm)[63..0];
     match src {
       RM_reg(_) => {
         write_simd(128, modrm_xmm_rm(modrm, pfx), zero_extend(x))
@@ -816,9 +816,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      write_simd(256, dst, read_ymm(pfx.vex_vvvv) & decode_vex_src(256, modrm, src, pfx))
+      write_simd(256, dst, read_simd(256, pfx.vex_vvvv) & decode_vex_src(256, modrm, src, pfx))
     } else {
-      write_simd(128, dst, read_xmm(pfx.vex_vvvv) & decode_vex_src(128, modrm, src, pfx))
+      write_simd(128, dst, read_simd(pfx.vex_vvvv) & decode_vex_src(128, modrm, src, pfx))
     }
   },
 
@@ -836,9 +836,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      write_simd(256, dst, ~(read_ymm(pfx.vex_vvvv)) & decode_vex_src(256, modrm, src, pfx))
+      write_simd(256, dst, ~(read_simd(256, pfx.vex_vvvv)) & decode_vex_src(256, modrm, src, pfx))
     } else {
-      write_simd(128, dst, ~(read_xmm(pfx.vex_vvvv)) & decode_vex_src(128, modrm, src, pfx))
+      write_simd(128, dst, ~(read_simd(pfx.vex_vvvv)) & decode_vex_src(128, modrm, src, pfx))
     }
   },
 
@@ -936,7 +936,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         } else {
           let a = seg_linear(m, 16);
           if unsigned(a) % 16 != 0 then raise_GP0();
-          write_mem(a, read_xmm(src))
+          write_mem(a, read_simd(128, src))
         }
       },
       RM_reg(_) => raise_UD(),
@@ -957,9 +957,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      write_simd(256, dst, read_ymm(pfx.vex_vvvv) | decode_vex_src(256, modrm, src, pfx))
+      write_simd(256, dst, read_simd(256, pfx.vex_vvvv) | decode_vex_src(256, modrm, src, pfx))
     } else {
-      write_simd(128, dst, read_xmm(pfx.vex_vvvv) | decode_vex_src(128, modrm, src, pfx))
+      write_simd(128, dst, read_simd(pfx.vex_vvvv) | decode_vex_src(128, modrm, src, pfx))
     }
   },
 

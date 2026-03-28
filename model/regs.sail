@@ -99,15 +99,6 @@ type simd_idx = range(0, 31)
 
 register ZMM : vector(32, zmmword)
 
-val read_xmm : simd_idx -> xmmword
-function read_xmm(idx) = ZMM[idx][127..0]
-
-val read_ymm : simd_idx -> ymmword
-function read_ymm(idx) = ZMM[idx][255..0]
-
-val read_zmm : simd_idx -> zmmword
-function read_zmm(idx) = ZMM[idx]
-
 // Polymorphic SIMD read by vector length.
 val read_simd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx) -> bits('vl)
 function read_simd(vl, idx) = match vl {
@@ -126,11 +117,7 @@ function write_simd(vl, idx, v) = match vl {
 
 // Legacy SSE write: preserves upper bits beyond 128
 val write_xmm_legacy : (simd_idx, xmmword) -> unit
-function write_xmm_legacy(idx, v) = {
-  var r : zmmword = ZMM[idx];
-  r[127..0] = v;
-  ZMM[idx] = r
-}
+function write_xmm_legacy(idx, v) = ZMM[idx][127..0] = v
 
 // =========================================================================
 // AVX-512 Opmask registers (k0-k7)
