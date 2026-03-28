@@ -557,19 +557,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
+        if mp != MP_66 & mp != MP_F3 then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        match src {
-          RM_reg(_) => {
-            match mp {
-              MP_66 => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
-              MP_F3 => ZMM[xreg][127..0] = read_simd(modrm_xmm_rm(modrm, pfx)),
-              _     => raise_UD(),
-            }
-          },
-          RM_mem(m) => ZMM[xreg][127..0] = read_mem(m),
-        }
+        ZMM[xreg][127..0] = decode_xmm_src(modrm, src, pfx)
       }
     },
 
@@ -582,17 +574,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
+        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let imm = fetch(1);
         match mp {
-          // PSHUFD xmm1, xmm2/m128, imm8
           MP_66 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufd, src_xmm, imm),
-          // PSHUFHW xmm1, xmm2/m128, imm8
           MP_F3 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufhw, src_xmm, imm),
-          // PSHUFLW xmm1, xmm2/m128, imm8
           MP_F2 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshuflw, src_xmm, imm),
           _     => raise_UD(),
         }

@@ -42,52 +42,37 @@ function mmx_exec_shift(op, eb, pfx) = {
 
 function dispatch_mmx(op, pfx) = {
   match op {
-    // 0F 60: PUNPCKLBW mm, mm/m32
-    96 => {
+    // 0F 60-62: PUNPCKLBW/WD/DQ mm, mm/m32
+    // MMX unpack low: interleave low elements from d and s
+    op if 96 <= op & op <= 98 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
+      let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = read_mm(dst);
-      write_mm(dst, s[31..24] @ d[31..24] @ s[23..16] @ d[23..16] @
-                     s[15..8]  @ d[15..8]  @ s[7..0]   @ d[7..0]);
-      mmx_touch()
-    },
-
-    // 0F 61: PUNPCKLWD mm, mm/m32
-    97 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, s[31..16] @ d[31..16] @ s[15..0] @ d[15..0]);
-      mmx_touch()
-    },
-
-    // 0F 62: PUNPCKLDQ mm, mm/m32
-    98 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, s[31..0] @ d[31..0]);
-      mmx_touch()
+      let eb : {8, 16, 32} = match op { 96 => 8, 97 => 16, _ => 32 };
+      let n = 32 / eb;
+      var r : qword = zeros();
+      foreach (i from 0 to (n - 1)) {
+        let src_lo = i * eb;
+        let dst_lo = i * 2 * eb;
+        r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
+        r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
+      };
+      write_mm(dst, r); mmx_touch()
     },
 
     // 0F 63: PACKSSWB mm, mm/m64
     99 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
+      let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = read_mm(dst);
-      write_mm(dst, sat_s(8, s[63..48]) @ sat_s(8, s[47..32]) @
-                     sat_s(8, s[31..16]) @ sat_s(8, s[15..0]) @
-                     sat_s(8, d[63..48]) @ sat_s(8, d[47..32]) @
-                     sat_s(8, d[31..16]) @ sat_s(8, d[15..0]));
-      mmx_touch()
+      var r : qword = zeros();
+      foreach (i from 0 to 3) {
+        r[(i * 8 + 7)..(i * 8)] = sat_s(8, d[(i * 16 + 15)..(i * 16)]);
+        r[(i * 8 + 39)..(i * 8 + 32)] = sat_s(8, s[(i * 16 + 15)..(i * 16)])
+      };
+      write_mm(dst, r); mmx_touch()
     },
 
     // 0F 64-66: PCMPGTB/W/D mm, mm/m64
@@ -99,56 +84,40 @@ function dispatch_mmx(op, pfx) = {
     103 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
+      let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = read_mm(dst);
-      write_mm(dst, sat_su(8, s[63..48]) @ sat_su(8, s[47..32]) @
-                     sat_su(8, s[31..16]) @ sat_su(8, s[15..0]) @
-                     sat_su(8, d[63..48]) @ sat_su(8, d[47..32]) @
-                     sat_su(8, d[31..16]) @ sat_su(8, d[15..0]));
-      mmx_touch()
+      var r : qword = zeros();
+      foreach (i from 0 to 3) {
+        r[(i * 8 + 7)..(i * 8)] = sat_su(8, d[(i * 16 + 15)..(i * 16)]);
+        r[(i * 8 + 39)..(i * 8 + 32)] = sat_su(8, s[(i * 16 + 15)..(i * 16)])
+      };
+      write_mm(dst, r); mmx_touch()
     },
 
-    // 0F 68: PUNPCKHBW mm, mm/m64
-    104 => {
+    // 0F 68-6A: PUNPCKHBW/WD/DQ mm, mm/m64
+    // MMX unpack high: interleave high elements from d and s
+    op if 104 <= op & op <= 106 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
+      let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = read_mm(dst);
-      write_mm(dst, s[63..56] @ d[63..56] @ s[55..48] @ d[55..48] @
-                     s[47..40] @ d[47..40] @ s[39..32] @ d[39..32]);
-      mmx_touch()
-    },
-
-    // 0F 69: PUNPCKHWD mm, mm/m64
-    105 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, s[63..48] @ d[63..48] @ s[47..32] @ d[47..32]);
-      mmx_touch()
-    },
-
-    // 0F 6A: PUNPCKHDQ mm, mm/m64
-    106 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, s[63..32] @ d[63..32]);
-      mmx_touch()
+      let eb : {8, 16, 32} = match op { 104 => 8, 105 => 16, _ => 32 };
+      let n = 32 / eb;
+      var r : qword = zeros();
+      foreach (i from 0 to (n - 1)) {
+        let src_lo = 32 + i * eb;
+        let dst_lo = i * 2 * eb;
+        r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
+        r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
+      };
+      write_mm(dst, r); mmx_touch()
     },
 
     // 0F 6B: PACKSSDW mm, mm/m64
     107 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
+      let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = read_mm(dst);
       write_mm(dst, sat_s(16, s[63..32]) @ sat_s(16, s[31..0]) @
                      sat_s(16, d[63..32]) @ sat_s(16, d[31..0]));
