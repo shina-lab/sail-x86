@@ -186,9 +186,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     vex_exec_broadcast(64, pfx)
   },
 
-  // 0F38 1A: VBROADCASTF128 ymm1, m128 (VEX.256 only)
-  // SDM: VEX.vvvv must be 1111b
-  26 => {
+  // 0F38 1A: VBROADCASTF128 / 0F38 5A: VBROADCASTI128
+  // ymm1, m128 (VEX.256 only, vvvv must be 1111b)
+  op if op == 26 | op == 90 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     if ~(pfx.vex_l) then raise_UD();
     let modrm = fetch(1);
@@ -207,16 +207,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 59: VPBROADCASTQ xmm/ymm, xmm/m64 (66 prefix)
   89 => { if mp != MP_66 then raise_UD(); vex_exec_broadcast(64, pfx) },
 
-  // 0F38 5A: VBROADCASTI128 ymm, m128 (VEX.256 only, vvvv must be 1111b)
-  90 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    if ~(pfx.vex_l) then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let x : xmmword = rm_mem(src);
-    write_simd(256, dst, x @ x)
-  },
+  // 0F38 5A: VBROADCASTI128 — merged with 0F38 1A above
 
   // 0F38 13: VCVTPH2PS xmm/ymm, xmm/m64/m128 (66 prefix)
   // SDM: VEX.vvvv must be 1111b

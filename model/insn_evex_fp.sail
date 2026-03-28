@@ -163,9 +163,6 @@ function avx_cvtpd2ps(n, src) = {
   r
 }
 
-// avx_cvtdq2ps, avx_cvtps2dq, avx_cvttps2dq: defined in insn_vex_fp.sail
-// (needed before VEX dispatch call sites)
-
 // VSHUFPS: shuffle f32 per 128-bit lane
 // Low 2 elements from src1 lane (imm8[1:0], imm8[3:2])
 // High 2 elements from src2 lane (imm8[5:4], imm8[7:6])
@@ -1176,7 +1173,7 @@ function dispatch_evex_fp(op, pfx) = {
           (false, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 32);
-            evex_write(dst, mask, avx_cvtdq2ps(evex_bcast_src(vl, modrm, src, pfx, 32)))
+            evex_write(dst, mask, packed_unop(PU_CvtDQ2PS, 32, evex_bcast_src(vl, modrm, src, pfx, 32)))
           },
           _ => raise_UD(),
         }
@@ -1185,13 +1182,13 @@ function dispatch_evex_fp(op, pfx) = {
       MP_66 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, avx_cvtps2dq(evex_bcast_src(vl, modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_unop(PU_CvtPS2DQ, 32, evex_bcast_src(vl, modrm, src, pfx, 32)))
       },
       // VCVTTPS2DQ (truncation — no {er} but no harm from the wrapper)
       MP_F3 => {
         let vl = ll_to_vl(eff_ll);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, avx_cvttps2dq(evex_bcast_src(vl, modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_unop(PU_CvtTPS2DQ, 32, evex_bcast_src(vl, modrm, src, pfx, 32)))
       },
       _ => raise_UD(),
     };

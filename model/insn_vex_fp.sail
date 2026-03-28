@@ -2,39 +2,6 @@
 //
 // Floating-point moves, arithmetic, compare, convert, shuffle, unpack.
 
-// VCVTDQ2PS: convert N i32 → N f32
-val avx_cvtdq2ps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtdq2ps(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __int32_to_f32(src[(lo + 31)..lo]);
-  };
-  r
-}
-
-// VCVTPS2DQ: convert N f32 → N i32 (round per MXCSR)
-val avx_cvtps2dq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtps2dq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_int32(src[(lo + 31)..lo]);
-  };
-  r
-}
-
-// VCVTTPS2DQ: convert N f32 → N i32 (truncate)
-val avx_cvttps2dq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvttps2dq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_int32_trunc(src[(lo + 31)..lo]);
-  };
-  r
-}
-
 val dispatch_vex_0f_fp : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f_fp(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
@@ -47,23 +14,11 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     match mp {
-      // VMOVUPS (vvvv reserved)
-      MP_NONE => {
+      // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
+      mp if mp == MP_NONE | mp == MP_66 => {
         if pfx.vex_vvvv != 0 then raise_UD();
-        if pfx.vex_l then {
-          write_simd(256, dst, decode_vex_src(256, modrm, src, pfx))
-        } else {
-          write_simd(128, dst, decode_vex_src(128, modrm, src, pfx))
-        }
-      },
-      // VMOVUPD (vvvv reserved)
-      MP_66 => {
-        if pfx.vex_vvvv != 0 then raise_UD();
-        if pfx.vex_l then {
-          write_simd(256, dst, decode_vex_src(256, modrm, src, pfx))
-        } else {
-          write_simd(128, dst, decode_vex_src(128, modrm, src, pfx))
-        }
+        let vl = vex_vl(pfx);
+        write_simd(vl, dst, decode_vex_src(modrm, src, pfx))
       },
       // VMOVSS xmm1, xmm2, xmm3 or xmm1, m32
       // Memory form: VEX.vvvv must be 1111b.
@@ -107,46 +62,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     match mp {
-      // VMOVUPS (vvvv reserved)
-      MP_NONE => {
+      // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
+      mp if mp == MP_NONE | mp == MP_66 => {
         if pfx.vex_vvvv != 0 then raise_UD();
+        let vl = vex_vl(pfx);
         match dest {
-          RM_reg(_) => {
-            let dst = modrm_xmm_rm(modrm, pfx);
-            if pfx.vex_l then {
-              write_simd(256, dst, read_simd(256, src))
-            } else {
-              write_simd(128, dst, read_simd(128, src))
-            }
-          },
-          RM_mem(m) => {
-            if pfx.vex_l then {
-              write_mem(m,read_simd(256, src))
-            } else {
-              write_mem(m, read_simd(128, src))
-            }
-          },
-        }
-      },
-      // VMOVUPD (vvvv reserved)
-      MP_66 => {
-        if pfx.vex_vvvv != 0 then raise_UD();
-        match dest {
-          RM_reg(_) => {
-            let dst = modrm_xmm_rm(modrm, pfx);
-            if pfx.vex_l then {
-              write_simd(256, dst, read_simd(256, src))
-            } else {
-              write_simd(128, dst, read_simd(128, src))
-            }
-          },
-          RM_mem(m) => {
-            if pfx.vex_l then {
-              write_mem(m,read_simd(256, src))
-            } else {
-              write_mem(m, read_simd(128, src))
-            }
-          },
+          RM_reg(_) => write_simd(vl, modrm_xmm_rm(modrm, pfx), read_simd(vl, src)),
+          RM_mem(m) => write_mem(m, read_simd(vl, src)),
         }
       },
       // VMOVSS xmm1, xmm2, xmm3 or VMOVSS m32, xmm1
@@ -335,59 +257,36 @@ function dispatch_vex_0f_fp(op, pfx) = {
     rm_mem(64, dest) = read_simd(128, src)[127..64]
   },
 
-  // 0F 28: VMOVAPS/VMOVAPD (load)
-  // SDM: VEX.vvvv must be 1111b
+  // 0F 28: VMOVAPS/VMOVAPD (load, vvvv reserved)
   40 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
     match src {
-      RM_reg(_) => {
-        if pfx.vex_l then {
-          write_simd(256, dst, read_simd(256, modrm_xmm_rm(modrm, pfx)));
-        } else {
-          write_simd(128, dst, read_simd(modrm_xmm_rm(modrm, pfx)));
-        }
-      },
+      RM_reg(_) => write_simd(vl, dst, read_simd(vl, modrm_xmm_rm(modrm, pfx))),
       RM_mem(m) => {
-        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
-        if pfx.vex_l then {
-          if unsigned(seg_linear(m, 0)) % 32 != 0 then raise_GP0();
-          write_simd(256, dst, read_mem(m))
-        } else {
-          if unsigned(seg_linear(m, 0)) % 16 != 0 then raise_GP0();
-          write_simd(128, dst, read_mem(m))
-        }
+        let align : {16, 32} = if pfx.vex_l then 32 else 16;
+        if unsigned(seg_linear(m, 0)) % align != 0 then raise_GP0();
+        write_simd(vl, dst, read_mem(m))
       },
     }
   },
 
-  // 0F 29: VMOVAPS/VMOVAPD (store)
-  // SDM: VEX.vvvv must be 1111b
+  // 0F 29: VMOVAPS/VMOVAPD (store, vvvv reserved)
   41 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
     match dest {
-      RM_reg(_) => {
-        let dst = modrm_xmm_rm(modrm, pfx);
-        if pfx.vex_l then {
-          write_simd(256, dst, read_simd(256, src))
-        } else {
-          write_simd(128, dst, read_simd(128, src))
-        }
-      },
+      RM_reg(_) => write_simd(vl, modrm_xmm_rm(modrm, pfx), read_simd(vl, src)),
       RM_mem(m) => {
-        // VMOVAPS/VMOVAPD require alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned
-        if pfx.vex_l then {
-          if unsigned(seg_linear(m, 0)) % 32 != 0 then raise_GP0();
-          write_mem(m, read_simd(256, src))
-        } else {
-          if unsigned(seg_linear(m, 0)) % 16 != 0 then raise_GP0();
-          write_mem(m, read_simd(128, src))
-        }
+        let align : {16, 32} = if pfx.vex_l then 32 else 16;
+        if unsigned(seg_linear(m, 0)) % align != 0 then raise_GP0();
+        write_mem(m, read_simd(vl, src))
       },
     }
   },
@@ -713,12 +612,12 @@ function dispatch_vex_0f_fp(op, pfx) = {
           if pfx.vex_vvvv != 0 then raise_UD();
           match mp {
             // VCVTDQ2PS ymm1, ymm2/m256
-            MP_NONE => write_simd(256, dst, avx_cvtdq2ps(src2)),
+            MP_NONE => write_simd(256, dst, packed_unop(PU_CvtDQ2PS, 32, src2)),
             // VCVTPS2DQ ymm1, ymm2/m256
-            MP_66   => write_simd(256, dst, avx_cvtps2dq(src2)),
+            MP_66   => write_simd(256, dst, packed_unop(PU_CvtPS2DQ, 32, src2)),
             MP_F2   => raise_UD(),
             // VCVTTPS2DQ ymm1, ymm2/m256
-            MP_F3   => write_simd(256, dst, avx_cvttps2dq(src2)),
+            MP_F3   => write_simd(256, dst, packed_unop(PU_CvtTPS2DQ, 32, src2)),
           }
         },
         // VSUBPS/VSUBPD
@@ -797,22 +696,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
         11 => {
           if pfx.vex_vvvv != 0 then raise_UD();
           match mp {
-            // VCVTDQ2PS xmm1, xmm2/m128
-            MP_NONE => {
-              write_simd(128, dst, __int32_to_f32(src2[127..96]) @ __int32_to_f32(src2[95..64]) @
-                __int32_to_f32(src2[63..32]) @ __int32_to_f32(src2[31..0]))
-            },
-            // VCVTPS2DQ xmm1, xmm2/m128
-            MP_66 => {
-              write_simd(128, dst, __f32_to_int32(src2[127..96]) @ __f32_to_int32(src2[95..64]) @
-                __f32_to_int32(src2[63..32]) @ __f32_to_int32(src2[31..0]))
-            },
-            MP_F2 => raise_UD(),
-            // VCVTTPS2DQ xmm1, xmm2/m128
-            MP_F3 => {
-              write_simd(128, dst, __f32_to_int32_trunc(src2[127..96]) @ __f32_to_int32_trunc(src2[95..64]) @
-                __f32_to_int32_trunc(src2[63..32]) @ __f32_to_int32_trunc(src2[31..0]))
-            },
+            MP_NONE => write_simd(128, dst, packed_unop(PU_CvtDQ2PS,  32, src2)),
+            MP_66   => write_simd(128, dst, packed_unop(PU_CvtPS2DQ,  32, src2)),
+            MP_F3   => write_simd(128, dst, packed_unop(PU_CvtTPS2DQ, 32, src2)),
+            _       => raise_UD(),
           }
         },
         // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)

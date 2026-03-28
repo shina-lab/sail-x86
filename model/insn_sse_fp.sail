@@ -714,25 +714,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ
-        11 => {
-          match mp {
-            MP_NONE => {
-              let r : xmmword = __int32_to_f32(src_xmm[127..96]) @ __int32_to_f32(src_xmm[95..64]) @
-                __int32_to_f32(src_xmm[63..32]) @ __int32_to_f32(src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let r : xmmword = __f32_to_int32(src_xmm[127..96]) @ __f32_to_int32(src_xmm[95..64]) @
-                __f32_to_int32(src_xmm[63..32]) @ __f32_to_int32(src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_F3 => {
-              let r : xmmword = __f32_to_int32_trunc(src_xmm[127..96]) @ __f32_to_int32_trunc(src_xmm[95..64]) @
-                __f32_to_int32_trunc(src_xmm[63..32]) @ __f32_to_int32_trunc(src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            _       => raise_UD(),
-          }
+        11 => match mp {
+          MP_NONE => ZMM[xreg][127..0] = packed_unop(PU_CvtDQ2PS, 32, src_xmm),
+          MP_66   => ZMM[xreg][127..0] = packed_unop(PU_CvtPS2DQ, 32, src_xmm),
+          MP_F3   => ZMM[xreg][127..0] = packed_unop(PU_CvtTPS2DQ, 32, src_xmm),
+          _       => raise_UD(),
         },
         // 0F 5C: SUB
         12 => sse_exec_fp_binop(PB_FSub, xreg, src_xmm, mp),
