@@ -1328,13 +1328,13 @@ function dispatch_evex_perm(op, pfx) = {
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPEXPANDW
-      (true, 0) => write_xmm(dst, avx_vpexpandw_128(evex_src(128,modrm, src, pfx), k[7..0])),
-      (true, 1) => write_ymm(dst, avx_vpexpandw_256(evex_src(256,modrm, src, pfx), k[15..0])),
-      (true, 2) => write_zmm(dst, avx_vpexpandw_512(evex_src(512,modrm, src, pfx), k[31..0])),
+      (true, 0) => write_simd(128, dst, avx_vpexpandw_128(evex_src(128,modrm, src, pfx), k[7..0])),
+      (true, 1) => write_simd(256, dst, avx_vpexpandw_256(evex_src(256,modrm, src, pfx), k[15..0])),
+      (true, 2) => write_simd(512, dst, avx_vpexpandw_512(evex_src(512,modrm, src, pfx), k[31..0])),
       // VPEXPANDB
-      (false, 0) => write_xmm(dst, avx_vpexpandb_128(evex_src(128,modrm, src, pfx), k[15..0])),
-      (false, 1) => write_ymm(dst, avx_vpexpandb_256(evex_src(256,modrm, src, pfx), k[31..0])),
-      (false, 2) => write_zmm(dst, avx_vpexpandb_512(evex_src(512,modrm, src, pfx), k[63..0])),
+      (false, 0) => write_simd(128, dst, avx_vpexpandb_128(evex_src(128,modrm, src, pfx), k[15..0])),
+      (false, 1) => write_simd(256, dst, avx_vpexpandb_256(evex_src(256,modrm, src, pfx), k[31..0])),
+      (false, 2) => write_simd(512, dst, avx_vpexpandb_512(evex_src(512,modrm, src, pfx), k[63..0])),
       _ => raise_UD(),
     }
   },
@@ -1351,13 +1351,13 @@ function dispatch_evex_perm(op, pfx) = {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
         match (pfx.rex_w, pfx.evex_ll) {
           // VPCOMPRESSW
-          (true, 0) => write_xmm(dst_reg, avx_vpcompressw_128(read_xmm(src), k[7..0])),
-          (true, 1) => write_ymm(dst_reg, avx_vpcompressw_256(read_ymm(src), k[15..0])),
-          (true, 2) => write_zmm(dst_reg, avx_vpcompressw_512(read_zmm(src), k[31..0])),
+          (true, 0) => write_simd(128, dst_reg, avx_vpcompressw_128(read_xmm(src), k[7..0])),
+          (true, 1) => write_simd(256, dst_reg, avx_vpcompressw_256(read_ymm(src), k[15..0])),
+          (true, 2) => write_simd(512, dst_reg, avx_vpcompressw_512(read_zmm(src), k[31..0])),
           // VPCOMPRESSB
-          (false, 0) => write_xmm(dst_reg, avx_vpcompressb_128(read_xmm(src), k[15..0])),
-          (false, 1) => write_ymm(dst_reg, avx_vpcompressb_256(read_ymm(src), k[31..0])),
-          (false, 2) => write_zmm(dst_reg, avx_vpcompressb_512(read_zmm(src), k[63..0])),
+          (false, 0) => write_simd(128, dst_reg, avx_vpcompressb_128(read_xmm(src), k[15..0])),
+          (false, 1) => write_simd(256, dst_reg, avx_vpcompressb_256(read_ymm(src), k[31..0])),
+          (false, 2) => write_simd(512, dst_reg, avx_vpcompressb_512(read_zmm(src), k[63..0])),
           _ => raise_UD(),
         }
       },
@@ -1513,13 +1513,13 @@ function dispatch_evex_perm(op, pfx) = {
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VEXPANDPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-      (true, 0) => write_xmm(dst, avx_vexpandpd_128(evex_src(128,modrm, src, pfx), k[7..0])),
-      (true, 1) => write_ymm(dst, avx_vexpandpd_256(evex_src(256,modrm, src, pfx), k[7..0])),
-      (true, 2) => write_zmm(dst, avx_vexpandpd_512(evex_src(512,modrm, src, pfx), k[7..0])),
+      (true, 0) => write_simd(128, dst, avx_vexpandpd_128(evex_src(128,modrm, src, pfx), k[7..0])),
+      (true, 1) => write_simd(256, dst, avx_vexpandpd_256(evex_src(256,modrm, src, pfx), k[7..0])),
+      (true, 2) => write_simd(512, dst, avx_vexpandpd_512(evex_src(512,modrm, src, pfx), k[7..0])),
       // VEXPANDPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-      (false, 0) => write_xmm(dst, avx_vexpandps_128(evex_src(128,modrm, src, pfx), k[7..0])),
-      (false, 1) => write_ymm(dst, avx_vexpandps_256(evex_src(256,modrm, src, pfx), k[7..0])),
-      (false, 2) => write_zmm(dst, avx_vexpandps_512(evex_src(512,modrm, src, pfx), k[15..0])),
+      (false, 0) => write_simd(128, dst, avx_vexpandps_128(evex_src(128,modrm, src, pfx), k[7..0])),
+      (false, 1) => write_simd(256, dst, avx_vexpandps_256(evex_src(256,modrm, src, pfx), k[7..0])),
+      (false, 2) => write_simd(512, dst, avx_vexpandps_512(evex_src(512,modrm, src, pfx), k[15..0])),
       _ => raise_UD(),
     }
   },
@@ -1534,13 +1534,13 @@ function dispatch_evex_perm(op, pfx) = {
     let k : qword = evex_kmask64(pfx);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPEXPANDQ — same as VEXPANDPD (qword elements)
-      (true, 0) => write_xmm(dst, avx_vexpandpd_128(evex_src(128,modrm, src, pfx), k[7..0])),
-      (true, 1) => write_ymm(dst, avx_vexpandpd_256(evex_src(256,modrm, src, pfx), k[7..0])),
-      (true, 2) => write_zmm(dst, avx_vexpandpd_512(evex_src(512,modrm, src, pfx), k[7..0])),
+      (true, 0) => write_simd(128, dst, avx_vexpandpd_128(evex_src(128,modrm, src, pfx), k[7..0])),
+      (true, 1) => write_simd(256, dst, avx_vexpandpd_256(evex_src(256,modrm, src, pfx), k[7..0])),
+      (true, 2) => write_simd(512, dst, avx_vexpandpd_512(evex_src(512,modrm, src, pfx), k[7..0])),
       // VPEXPANDD — same as VEXPANDPS (dword elements)
-      (false, 0) => write_xmm(dst, avx_vexpandps_128(evex_src(128,modrm, src, pfx), k[7..0])),
-      (false, 1) => write_ymm(dst, avx_vexpandps_256(evex_src(256,modrm, src, pfx), k[7..0])),
-      (false, 2) => write_zmm(dst, avx_vexpandps_512(evex_src(512,modrm, src, pfx), k[15..0])),
+      (false, 0) => write_simd(128, dst, avx_vexpandps_128(evex_src(128,modrm, src, pfx), k[7..0])),
+      (false, 1) => write_simd(256, dst, avx_vexpandps_256(evex_src(256,modrm, src, pfx), k[7..0])),
+      (false, 2) => write_simd(512, dst, avx_vexpandps_512(evex_src(512,modrm, src, pfx), k[15..0])),
       _ => raise_UD(),
     }
   },
@@ -1557,12 +1557,12 @@ function dispatch_evex_perm(op, pfx) = {
       RM_reg(_) => {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
         match (pfx.rex_w, pfx.evex_ll) {
-          (true, 0) => write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])),
-          (true, 1) => write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])),
-          (true, 2) => write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])),
-          (false, 0) => write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])),
-          (false, 1) => write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])),
-          (false, 2) => write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])),
+          (true, 0) => write_simd(128, dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])),
+          (true, 1) => write_simd(256, dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])),
+          (true, 2) => write_simd(512, dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])),
+          (false, 0) => write_simd(128, dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])),
+          (false, 1) => write_simd(256, dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])),
+          (false, 2) => write_simd(512, dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])),
           _ => raise_UD(),
         }
       },
@@ -1593,12 +1593,12 @@ function dispatch_evex_perm(op, pfx) = {
       RM_reg(_) => {
         let dst_reg = evex_rm_reg_idx(modrm, pfx);
         match (pfx.rex_w, pfx.evex_ll) {
-          (true, 0) => write_xmm(dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])),
-          (true, 1) => write_ymm(dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])),
-          (true, 2) => write_zmm(dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])),
-          (false, 0) => write_xmm(dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])),
-          (false, 1) => write_ymm(dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])),
-          (false, 2) => write_zmm(dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])),
+          (true, 0) => write_simd(128, dst_reg, avx_vcompresspd_128(read_xmm(src), k[7..0])),
+          (true, 1) => write_simd(256, dst_reg, avx_vcompresspd_256(read_ymm(src), k[7..0])),
+          (true, 2) => write_simd(512, dst_reg, avx_vcompresspd_512(read_zmm(src), k[7..0])),
+          (false, 0) => write_simd(128, dst_reg, avx_vcompressps_128(read_xmm(src), k[7..0])),
+          (false, 1) => write_simd(256, dst_reg, avx_vcompressps_256(read_ymm(src), k[7..0])),
+          (false, 2) => write_simd(512, dst_reg, avx_vcompressps_512(read_zmm(src), k[15..0])),
           _ => raise_UD(),
         }
       },

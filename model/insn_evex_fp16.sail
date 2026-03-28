@@ -335,7 +335,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           };
           let r : word = fp_add(src1[15..0], src2);
           let result : xmmword = src1[127..16] @ r;
-          write_xmm(dst, result)
+          write_simd(128, dst, result)
         },
         _ => raise_UD(),
       }
@@ -741,7 +741,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_mem(m) => {
           // VMOVSH load: 2-operand, load 16-bit, zero-extend to 128-bit
           let src : word = v(m);
-          write_xmm(dst, zero_extend(src))
+          write_simd(128, dst, zero_extend(src))
         },
         RM_reg(_) => {
           // VMOVSH reg-reg: 3-operand (src1=vvvvv upper bits, src2=src low 16 bits)
@@ -768,7 +768,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let dst_reg = evex_rm_reg_idx(modrm, pfx);
           let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
           let src2 : word = read_xmm(src)[15..0];
-          write_xmm(dst_reg, src1[127..16] @ src2)
+          write_simd(128, dst_reg, src1[127..16] @ src2)
         },
       }
     },
@@ -873,7 +873,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => v(64, modrm_rm_reg(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      write_xmm(dst, zero_extend(src))
+      write_simd(128, dst, zero_extend(src))
     },
 
     // MAP5 0x78: VCVTTPH2UDQ (NP), VCVTTPH2UQQ (66), VCVTTSH2USI (F3)
@@ -2198,7 +2198,7 @@ function dispatch_evex_map6(opcode, pfx) = {
             RM_mem(m) => v(m),
           };
           let r : dword = __f16_to_f32(src2);
-          write_xmm(dst, src1[127..32] @ r)
+          write_simd(128, dst, src1[127..32] @ r)
         },
         _ => raise_UD(),
       }
@@ -2842,7 +2842,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
         (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
-      write_xmm(dst, src1[127..32] @ r_im @ r_re)
+      write_simd(128, dst, src1[127..32] @ r_im @ r_re)
     },
 
     // MAP6 0xD6: VFCMULCPH (F2, W=0) / VFMULCPH (F3, W=0) — complex multiply
@@ -2894,7 +2894,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
         (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
-      write_xmm(dst, src1[127..32] @ r_im @ r_re)
+      write_simd(128, dst, src1[127..32] @ r_im @ r_re)
     },
 
     _ => raise_UD(),

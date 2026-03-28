@@ -1028,7 +1028,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(read_xmm(src), rc);
         match dest {
-          RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
+          RM_reg(_) => write_simd(128, evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 8, 2)
         }
       },
@@ -1038,7 +1038,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(read_ymm(src), rc);
         match dest {
-          RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
+          RM_reg(_) => write_simd(128, evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 16, 2)
         }
       },
@@ -1048,7 +1048,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(read_zmm(src), rc);
         match dest {
-          RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
+          RM_reg(_) => write_simd(256, evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 32, 2)
         }
       },
@@ -1170,7 +1170,7 @@ function dispatch_evex_imm(op, pfx) = {
     var result = read_xmm(pfx.evex_vvvvv);
     let lo : range(0, 120) = sel * 8;
     result[(lo + 7)..lo] = byte_val;
-    write_xmm(dst, result)
+    write_simd(128, dst, result)
   },
 
   // 0F3A 21: VINSERTPS (66, W=0) — insert single-precision from XMM/mem into XMM
@@ -1202,7 +1202,7 @@ function dispatch_evex_imm(op, pfx) = {
     result[63..32]  = result[63..32]  & sign_extend(~(imm[1]));
     result[95..64]  = result[95..64]  & sign_extend(~(imm[2]));
     result[127..96] = result[127..96] & sign_extend(~(imm[3]));
-    write_xmm(dst, result)
+    write_simd(128, dst, result)
   },
 
   // 0F3A 22: VPINSRD (66, W=0) / VPINSRQ (66, W=1) — insert dword/qword from GPR/mem into XMM
@@ -1220,7 +1220,7 @@ function dispatch_evex_imm(op, pfx) = {
       var result = read_xmm(pfx.evex_vvvvv);
       let lo : range(0, 64) = sel * 64;
       result[(lo + 63)..lo] = qword_val;
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     } else {
       // VPINSRD: imm8[1:0] selects dword position
       let src = modrm_rm_evex(modrm, pfx, 4);
@@ -1230,7 +1230,7 @@ function dispatch_evex_imm(op, pfx) = {
       var result = read_xmm(pfx.evex_vvvvv);
       let lo : range(0, 96) = sel * 32;
       result[(lo + 31)..lo] = dword_val;
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 

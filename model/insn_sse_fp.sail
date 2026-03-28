@@ -1041,7 +1041,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           match dest {
             RM_reg(_) => {
               let dst_xmm = modrm_xmm_rm(modrm, pfx);
-              write_xmm(dst_xmm, zero_extend(data[63..0]))
+              write_simd(128, dst_xmm, zero_extend(data[63..0]))
             },
             RM_mem(m) => v(m) = data[63..0],
           }

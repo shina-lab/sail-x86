@@ -195,7 +195,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let x : xmmword = rm_mem(src);
-    write_ymm(dst, x @ x)
+    write_simd(256, dst, x @ x)
   },
 
   // 0F38 78: VPBROADCASTB xmm/ymm, xmm/m8 (66 prefix)
@@ -215,7 +215,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let x : xmmword = rm_mem(src);
-    write_ymm(dst, x @ x)
+    write_simd(256, dst, x @ x)
   },
 
   // 0F38 13: VCVTPH2PS xmm/ymm, xmm/m64/m128 (66 prefix)
@@ -229,11 +229,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_l then {
       // 256-bit: 8 FP16 -> 8 FP32
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, avx_vcvtph2ps(src))
+      write_simd(256, dst, avx_vcvtph2ps(src))
     } else {
       // 128-bit: 4 FP16 -> 4 FP32
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      write_xmm(dst, avx_vcvtph2ps(src[63..0]))
+      write_simd(128, dst, avx_vcvtph2ps(src[63..0]))
     }
   },
 
@@ -292,7 +292,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-    write_xmm(dst, __aesimc(src))
+    write_simd(128, dst, __aesimc(src))
   },
 
   // 0F38 DC: VAESENC — VEX.128.66.0F38.WIG DC
@@ -305,7 +305,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
-    write_xmm(dst, __aesenc(state, roundkey))
+    write_simd(128, dst, __aesenc(state, roundkey))
   },
 
   // 0F38 DD: VAESENCLAST — VEX.128.66.0F38.WIG DD
@@ -318,7 +318,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
-    write_xmm(dst, __aesenclast(state, roundkey))
+    write_simd(128, dst, __aesenclast(state, roundkey))
   },
 
   // 0F38 DE: VAESDEC — VEX.128.66.0F38.WIG DE
@@ -331,7 +331,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
-    write_xmm(dst, __aesdec(state, roundkey))
+    write_simd(128, dst, __aesdec(state, roundkey))
   },
 
   // 0F38 DF: VAESDECLAST — VEX.128.66.0F38.WIG DF
@@ -344,7 +344,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
-    write_xmm(dst, __aesdeclast(state, roundkey))
+    write_simd(128, dst, __aesdeclast(state, roundkey))
   },
 
   // 0F38 F5: BZHI (NP) / PDEP (F2) / PEXT (F3) — multiplexed by mandatory prefix
@@ -494,9 +494,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let vvvv = pfx.vex_vvvv;
     if pfx.vex_l then {
-      write_ymm(dst, avx_pmuldq_256(read_ymm(vvvv), decode_vex_src(256, modrm, src, pfx)))
+      write_simd(256, dst, avx_pmuldq_256(read_ymm(vvvv), decode_vex_src(256, modrm, src, pfx)))
     } else {
-      write_xmm(dst, avx_pmuldq_128(read_xmm(vvvv), decode_vex_src(128, modrm, src, pfx)))
+      write_simd(128, dst, avx_pmuldq_128(read_xmm(vvvv), decode_vex_src(128, modrm, src, pfx)))
     }
   },
 
@@ -510,8 +510,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then write_ymm(dst, rm_mem(src))
-    else write_xmm(dst, rm_mem(src))
+    if pfx.vex_l then write_simd(256, dst, rm_mem(src))
+    else write_simd(128, dst, rm_mem(src))
   },
 
   // 0F38 2B: VPACKUSDW (66 prefix)
@@ -630,7 +630,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-    write_xmm(dst, avx_phminposuw_128(src))
+    write_simd(128, dst, avx_phminposuw_128(src))
   },
 
   // 0F38 0E: VTESTPS xmm, xmm/m128 or ymm, ymm/m256 (VEX.128/256.66.0F38.W0)
@@ -702,7 +702,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-    write_ymm(dst, vex_vpermd_256(ctrl, src))
+    write_simd(256, dst, vex_vpermd_256(ctrl, src))
   },
 
   // 0F38 2C: VMASKMOVPS load xmm1, xmm2, m128 (VEX.128/256.66.0F38.W0)
@@ -715,11 +715,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_l then {
       let mask : ymmword = read_ymm(pfx.vex_vvvv);
       let data : ymmword = rm_mem(src);
-      write_ymm(dst, vex_maskmovps_load_256(mask, data))
+      write_simd(256, dst, vex_maskmovps_load_256(mask, data))
     } else {
       let mask : xmmword = read_xmm(pfx.vex_vvvv);
       let data : xmmword = rm_mem(src);
-      write_xmm(dst, vex_maskmovps_load_128(mask, data))
+      write_simd(128, dst, vex_maskmovps_load_128(mask, data))
     }
   },
 
@@ -733,11 +733,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_l then {
       let mask : ymmword = read_ymm(pfx.vex_vvvv);
       let data : ymmword = rm_mem(src);
-      write_ymm(dst, vex_maskmovpd_load_256(mask, data))
+      write_simd(256, dst, vex_maskmovpd_load_256(mask, data))
     } else {
       let mask : xmmword = read_xmm(pfx.vex_vvvv);
       let data : xmmword = rm_mem(src);
-      write_xmm(dst, vex_maskmovpd_load_128(mask, data))
+      write_simd(128, dst, vex_maskmovpd_load_128(mask, data))
     }
   },
 
@@ -811,7 +811,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-    write_ymm(dst, vex_vpermd_256(ctrl, src))
+    write_simd(256, dst, vex_vpermd_256(ctrl, src))
   },
 
   // 0F38 45: VPSRLVD (W0) / VPSRLVQ (W1) (VEX.128/256.66.0F38)
@@ -853,8 +853,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -866,8 +866,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     } else {
       // VPGATHERDD: dword indices, dword elements
@@ -882,8 +882,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -895,8 +895,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     }
   },
@@ -921,8 +921,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -934,8 +934,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     } else {
       // VPGATHERQD: qword indices, dword elements
@@ -950,8 +950,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -963,8 +963,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     }
   },
@@ -989,8 +989,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -1002,8 +1002,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     } else {
       // VGATHERDPS: dword indices, f32 elements
@@ -1018,8 +1018,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -1031,8 +1031,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     }
   },
@@ -1057,8 +1057,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_ymm(dst, result);
-        write_ymm(mask_idx, zeros())
+        write_simd(256, dst, result);
+        write_simd(256, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -1070,8 +1070,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 64 + 63) .. (i * 64)] = read_mem(64, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     } else {
       // VGATHERQPS: qword indices, f32 elements
@@ -1086,8 +1086,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       } else {
         var result : xmmword = read_xmm(dst);
         let mask : xmmword = read_xmm(mask_idx);
@@ -1099,8 +1099,8 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
-        write_xmm(dst, result);
-        write_xmm(mask_idx, zeros())
+        write_simd(128, dst, result);
+        write_simd(128, mask_idx, zeros())
       }
     }
   },
@@ -1125,7 +1125,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
         result[(i * 32 + 31) .. (i * 32)] = src[((sel + 4) * 32 + 31) .. ((sel + 4) * 32)]
       };
-      write_ymm(dst, result)
+      write_simd(256, dst, result)
     } else {
       let src : xmmword = read_xmm(pfx.vex_vvvv);
       let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
@@ -1134,7 +1134,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
         result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
       };
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 
@@ -1158,7 +1158,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
       let s3 : range(0, 1) = unsigned(ctrl[193]);
       result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
-      write_ymm(dst, result)
+      write_simd(256, dst, result)
     } else {
       let src : xmmword = read_xmm(pfx.vex_vvvv);
       let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
@@ -1167,7 +1167,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
       let s1 : range(0, 1) = unsigned(ctrl[65]);
       result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 
@@ -1213,7 +1213,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
         result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
       };
-      write_ymm(dst, result)
+      write_simd(256, dst, result)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
@@ -1223,7 +1223,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
         result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
       };
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 
@@ -1246,7 +1246,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
               if mask[(i * 64 + 63)] == 0b1 then
                 result[(i * 64 + 63) .. (i * 64)] = read_mem(64, a + to_bits(64, i * 8))
             };
-            write_ymm(dst, result)
+            write_simd(256, dst, result)
           },
           (false, true) => {
             let mask : xmmword = read_xmm(mask_idx);
@@ -1255,7 +1255,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
               if mask[(i * 64 + 63)] == 0b1 then
                 result[(i * 64 + 63) .. (i * 64)] = read_mem(64, a + to_bits(64, i * 8))
             };
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
           // VPMASKMOVD: dword elements
           (true, false) => {
@@ -1265,7 +1265,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
               if mask[(i * 32 + 31)] == 0b1 then
                 result[(i * 32 + 31) .. (i * 32)] = read_mem(32, a + to_bits(64, i * 4))
             };
-            write_ymm(dst, result)
+            write_simd(256, dst, result)
           },
           (false, false) => {
             let mask : xmmword = read_xmm(mask_idx);
@@ -1274,7 +1274,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
               if mask[(i * 32 + 31)] == 0b1 then
                 result[(i * 32 + 31) .. (i * 32)] = read_mem(32, a + to_bits(64, i * 4))
             };
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
         }
       },
@@ -1344,11 +1344,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_idx);
       let src2 : ymmword = decode_vex_src(modrm, src, pfx);
-      write_ymm(dst, avx_gf2p8mulb(src1, src2))
+      write_simd(256, dst, avx_gf2p8mulb(src1, src2))
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
-      write_xmm(dst, avx_gf2p8mulb(src1, src2))
+      write_simd(128, dst, avx_gf2p8mulb(src1, src2))
     }
   },
 

@@ -418,7 +418,7 @@ function dispatch_evex_fp(op, pfx) = {
         match src2 {
           RM_mem(m) => {
             let data : dword = v(m);
-            write_xmm(dst, zero_extend(data))
+            write_simd(128, dst, zero_extend(data))
           },
           RM_reg(_) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -434,7 +434,7 @@ function dispatch_evex_fp(op, pfx) = {
         match src2 {
           RM_mem(m) => {
             let data : qword = v(m);
-            write_xmm(dst, zero_extend(data))
+            write_simd(128, dst, zero_extend(data))
           },
           RM_reg(_) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
@@ -534,14 +534,14 @@ function dispatch_evex_fp(op, pfx) = {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
             let result : xmmword = src1[127..64] @ src2[127..64];
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
           // VMOVLPS xmm2, xmm1, m64
           RM_mem(m) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let m64val = v(64, m);
             let result : xmmword = src1[127..64] @ m64val;
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
         }
       },
@@ -552,7 +552,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let m64val : qword = rm_mem(src);
         let result : xmmword = src1[127..64] @ m64val;
-        write_xmm(dst, result)
+        write_simd(128, dst, result)
       },
       // VMOVSLDUP xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_F3 => {
@@ -656,14 +656,14 @@ function dispatch_evex_fp(op, pfx) = {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let src2 = read_xmm(evex_rm_reg_idx(modrm, pfx));
             let result : xmmword = src2[63..0] @ src1[63..0];
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
           // VMOVHPS xmm2, xmm1, m64
           RM_mem(m) => {
             let src1 = read_xmm(pfx.evex_vvvvv);
             let m64val = v(64, m);
             let result : xmmword = m64val @ src1[63..0];
-            write_xmm(dst, result)
+            write_simd(128, dst, result)
           },
         }
       },
@@ -674,7 +674,7 @@ function dispatch_evex_fp(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let m64val : qword = rm_mem(src);
         let result : xmmword = m64val @ src1[63..0];
-        write_xmm(dst, result)
+        write_simd(128, dst, result)
       },
       // VMOVSHDUP xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
       MP_F3 => {
@@ -764,7 +764,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var xmm : xmmword = src1;
         xmm[31..0] = result;
-        write_xmm(dst, xmm)
+        write_simd(128, dst, xmm)
       },
       // VCVTSI2SD xmm1, xmm2, r/m32
       MP_F2 => {
@@ -774,7 +774,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var xmm : xmmword = src1;
         xmm[63..0] = result;
-        write_xmm(dst, xmm)
+        write_simd(128, dst, xmm)
       },
       _ => raise_UD(),
     };
@@ -1136,7 +1136,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var result : xmmword = src1;
         result[63..0] = __f32_to_f64(src_f32);
-        write_xmm(dst, result);
+        write_simd(128, dst, result);
         evex_end_rc(saved_mxcsr)
       },
       // VCVTSD2SS: scalar f64→f32 — supports {er}
@@ -1151,7 +1151,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var result : xmmword = src1;
         result[31..0] = __f64_to_f32(src_f64);
-        write_xmm(dst, result);
+        write_simd(128, dst, result);
         evex_end_rc(saved_mxcsr)
       },
     }
@@ -1534,7 +1534,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var dst_val = src1;
         dst_val[31..0] = result_f32;
-        write_xmm(dst_xmm, dst_val);
+        write_simd(128, dst_xmm, dst_val);
         evex_end_rc(saved_mxcsr)
       },
       // VCVTUSI2SD: scalar u32/u64→f64 — W1 supports {er}
@@ -1554,7 +1554,7 @@ function dispatch_evex_fp(op, pfx) = {
         };
         var dst_val = src1;
         dst_val[63..0] = result_f64;
-        write_xmm(dst_xmm, dst_val);
+        write_simd(128, dst_xmm, dst_val);
         evex_end_rc(saved_mxcsr)
       },
       _ => raise_UD(),

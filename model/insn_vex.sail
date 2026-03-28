@@ -23,7 +23,7 @@ function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
     FMA_231 => (src2, src3, d),
   };
   let eb = if is64 then 64 else 32;
-  write_xmm(dst, d[127..eb] @ packed_ternary_elem(op, a[(eb - 1)..0], b[(eb - 1)..0], c[(eb - 1)..0]))
+  write_simd(128, dst, d[127..eb] @ packed_ternary_elem(op, a[(eb - 1)..0], b[(eb - 1)..0], c[(eb - 1)..0]))
 }
 
 // =========================================================================

@@ -102,28 +102,11 @@ register ZMM : vector(32, zmmword)
 val read_xmm : simd_idx -> xmmword
 function read_xmm(idx) = ZMM[idx][127..0]
 
-val write_xmm : (simd_idx, xmmword) -> unit
-function write_xmm(idx, v) = {
-  var r : zmmword = zeros();
-  r[127..0] = v;
-  ZMM[idx] = r
-}
-
 val read_ymm : simd_idx -> ymmword
 function read_ymm(idx) = ZMM[idx][255..0]
 
-val write_ymm : (simd_idx, ymmword) -> unit
-function write_ymm(idx, v) = {
-  var r : zmmword = zeros();
-  r[255..0] = v;
-  ZMM[idx] = r
-}
-
 val read_zmm : simd_idx -> zmmword
 function read_zmm(idx) = ZMM[idx]
-
-val write_zmm : (simd_idx, zmmword) -> unit
-function write_zmm(idx, v) = ZMM[idx] = v
 
 // Polymorphic SIMD read by vector length.
 val read_simd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), simd_idx) -> bits('vl)

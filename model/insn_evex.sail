@@ -172,7 +172,7 @@ function evex_write_scalar(dst, result, pfx, eb) = {
   let mask_bit : bit = evex_kmask64(pfx)[0];
   let merge : bits('eb) = blend(read_xmm(dst)[('eb - 1)..0], zeros(), pfx.evex_z);
   let lo : bits('eb) = blend(merge, result[('eb - 1)..0], mask_bit);
-  write_xmm(dst, result[127..'eb] @ lo)
+  write_simd(128, dst, result[127..'eb] @ lo)
 }
 
 // Polymorphic broadcast: replicate an 'eb-bit element to fill 'vl bits.

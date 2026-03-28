@@ -205,9 +205,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     // imm8[0] selects which 128-bit lane to replace
     if imm[0] == 0b0 then
-      write_ymm(dst, src1[255..128] @ src2)
+      write_simd(256, dst, src1[255..128] @ src2)
     else
-      write_ymm(dst, src2 @ src1[127..0])
+      write_simd(256, dst, src2 @ src1[127..0])
   },
 
   // 0F3A 19: VEXTRACTF128 xmm1/m128, ymm2, imm8
@@ -223,7 +223,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       if imm[0] == 0b0 then src_ymm[127..0]
       else src_ymm[255..128];
     match dest {
-      RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
+      RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), extracted),
       RM_mem(m) => write_mem(m,extracted),
     }
   },
@@ -297,7 +297,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let vl = if pfx.vex_l then 256 else 128;
     let res = avx_vcvtps2ph(read_simd(vl, src), rc);
     match dest {
-      RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(res)),
+      RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), zero_extend(res)),
       RM_mem(m) => write_mem(m, res),
     }
   },
@@ -313,7 +313,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
     let imm = fetch(1);
-    write_xmm(dst, __aeskeygenassist(src, imm))
+    write_simd(128, dst, __aeskeygenassist(src, imm))
   },
 
   // 0F3A F0: RORX — VEX.LZ.F2.0F3A.W0/W1 F0
@@ -340,7 +340,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     let imm = fetch(1);
-    write_ymm(dst, avx_vpermq(src, imm))
+    write_simd(256, dst, avx_vpermq(src, imm))
   },
 
   // 0F3A 01: VPERMPD ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
@@ -355,7 +355,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     let imm = fetch(1);
     // Same permutation as VPERMQ — permute qwords (doubles are 64-bit like qwords)
-    write_ymm(dst, avx_vpermq(src, imm))
+    write_simd(256, dst, avx_vpermq(src, imm))
   },
 
   // 0F3A 02: VPBLENDD xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66, W0)
@@ -368,12 +368,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
-      write_ymm(dst, avx_pblendd_256(src1, src2, imm))
+      write_simd(256, dst, avx_pblendd_256(src1, src2, imm))
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_pblendd_128(src1, src2, imm))
+      write_simd(128, dst, avx_pblendd_128(src1, src2, imm))
     }
   },
 
@@ -389,11 +389,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let imm = fetch(1);
       let lo : xmmword = avx_roundps_128(src[127..0], imm);
       let hi : xmmword = avx_roundps_128(src[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_roundps_128(src, imm))
+      write_simd(128, dst, avx_roundps_128(src, imm))
     }
   },
 
@@ -409,11 +409,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let imm = fetch(1);
       let lo : xmmword = avx_roundpd_128(src[127..0], imm);
       let hi : xmmword = avx_roundpd_128(src[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_roundpd_128(src, imm))
+      write_simd(128, dst, avx_roundpd_128(src, imm))
     }
   },
 
@@ -431,7 +431,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     };
     let imm = fetch(1);
     let rounded : dword = fp_round(src2_lo, imm);
-    write_xmm(dst, src1[127..32] @ rounded)
+    write_simd(128, dst, src1[127..32] @ rounded)
   },
 
   // 0F3A 0B: VROUNDSD xmm, xmm, xmm/m64, imm8 (66) — VEX.128 only, has vvvv source
@@ -448,7 +448,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     };
     let imm = fetch(1);
     let rounded : qword = fp_round(src2_lo, imm);
-    write_xmm(dst, src1[127..64] @ rounded)
+    write_simd(128, dst, src1[127..64] @ rounded)
   },
 
   // 0F3A 0C: VBLENDPS xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
@@ -461,12 +461,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
-      write_ymm(dst, avx_blendps_256(src1, src2, imm))
+      write_simd(256, dst, avx_blendps_256(src1, src2, imm))
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_blendps_128(src1, src2, imm))
+      write_simd(128, dst, avx_blendps_128(src1, src2, imm))
     }
   },
 
@@ -480,12 +480,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
-      write_ymm(dst, avx_blendpd_256(src1, src2, imm))
+      write_simd(256, dst, avx_blendpd_256(src1, src2, imm))
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_blendpd_128(src1, src2, imm))
+      write_simd(128, dst, avx_blendpd_128(src1, src2, imm))
     }
   },
 
@@ -502,12 +502,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       // For 256-bit, same imm8 pattern applies to each 128-bit lane
       let lo : xmmword = avx_pblendw_128(src1[127..0], src2[127..0], imm);
       let hi : xmmword = avx_pblendw_128(src1[255..128], src2[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_pblendw_128(src1, src2, imm))
+      write_simd(128, dst, avx_pblendw_128(src1, src2, imm))
     }
   },
 
@@ -524,12 +524,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       // Each 128-bit lane is aligned independently
       let lo : xmmword = avx_palignr_128(src1[127..0], src2[127..0], imm);
       let hi : xmmword = avx_palignr_128(src1[255..128], src2[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_palignr_128(src1, src2, imm))
+      write_simd(128, dst, avx_palignr_128(src1, src2, imm))
     }
   },
 
@@ -623,7 +623,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     };
     let imm = fetch(1);
     let sel : range(0, 15) = unsigned(imm[3..0]);
-    write_xmm(dst, insert_byte(src1, x, sel))
+    write_simd(128, dst, insert_byte(src1, x, sel))
   },
 
   // 0F3A 21: VINSERTPS xmm, xmm, xmm/m32, imm8 (66) — VEX.128 only
@@ -640,7 +640,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       RM_mem(m) => zero_extend(v(32, m)),
     };
     let imm = fetch(1);
-    write_xmm(dst, avx_insertps(dst_base, src, imm, is_mem))
+    write_simd(128, dst, avx_insertps(dst_base, src, imm, is_mem))
   },
 
   // 0F3A 22: VPINSRD/VPINSRQ xmm, xmm, r/m, imm8 (66) — VEX.128 only
@@ -660,12 +660,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         0 => src1[127..64] @ x,
         1 => x @ src1[63..0]
       };
-      write_xmm(dst, r)
+      write_simd(128, dst, r)
     } else {
       // VPINSRD xmm1, xmm2, r/m32, imm8
       let x : dword = v(src);
       let sel : range(0, 3) = unsigned(imm[1..0]);
-      write_xmm(dst, insert_dword(src1, x, sel))
+      write_simd(128, dst, insert_dword(src1, x, sel))
     }
   },
 
@@ -682,12 +682,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       // 256-bit DPPS: each 128-bit lane independently
       let lo : xmmword = avx_dpps_128(src1[127..0], src2[127..0], imm);
       let hi : xmmword = avx_dpps_128(src1[255..128], src2[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_dpps_128(src1, src2, imm))
+      write_simd(128, dst, avx_dpps_128(src1, src2, imm))
     }
   },
 
@@ -701,7 +701,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1 : xmmword = read_xmm(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
     let imm = fetch(1);
-    write_xmm(dst, avx_dppd_128(src1, src2, imm))
+    write_simd(128, dst, avx_dppd_128(src1, src2, imm))
   },
 
   // 0F3A 42: VMPSADBW xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
@@ -717,12 +717,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       // 256-bit: each 128-bit lane independently, imm8[2:0] for low lane, imm8[5:3] for high lane
       let lo : xmmword = mpsadbw(src1[127..0], src2[127..0], 0b00000 @ imm[2..0]);
       let hi : xmmword = mpsadbw(src1[255..128], src2[255..128], 0b00000 @ imm[5..3]);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, mpsadbw(src1, src2, imm))
+      write_simd(128, dst, mpsadbw(src1, src2, imm))
     }
   },
 
@@ -740,7 +740,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let sel_a : qword = blend(src1[63..0], src1[127..64], imm[0]);
     let sel_b : qword = blend(src2[63..0], src2[127..64], imm[4]);
     let result : xmmword = pclmulqdq(sel_a, sel_b);
-    write_xmm(dst, result)
+    write_simd(128, dst, result)
   },
 
   // 0F3A 04: VPERMILPS xmm/ymm, xmm/ymm/m, imm8 (66, vvvv must be 1111b)
@@ -762,7 +762,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         let sel : range(0, 3) = unsigned(imm[((i - 4) * 2 + 1) .. ((i - 4) * 2)]);
         result[(i * 32 + 31) .. (i * 32)] = src[((sel + 4) * 32 + 31) .. ((sel + 4) * 32)]
       };
-      write_ymm(dst, result)
+      write_simd(256, dst, result)
     } else {
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
@@ -770,7 +770,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         let sel : range(0, 3) = unsigned(imm[(i * 2 + 1) .. (i * 2)]);
         result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
       };
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 
@@ -794,7 +794,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
       let s3 : range(0, 1) = unsigned(imm[3]);
       result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
-      write_ymm(dst, result)
+      write_simd(256, dst, result)
     } else {
       let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
@@ -802,7 +802,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
       let s1 : range(0, 1) = unsigned(imm[1]);
       result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      write_xmm(dst, result)
+      write_simd(128, dst, result)
     }
   },
 
@@ -833,7 +833,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       3 => src2[255..128],
     };
     let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
-    write_ymm(dst, hi_result @ lo_result)
+    write_simd(256, dst, hi_result @ lo_result)
   },
 
   // 0F3A 38: VINSERTI128 ymm, ymm, xmm/m128, imm8 (66, VEX.256 only)
@@ -847,10 +847,10 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     if imm[0] == 0b0 then {
       // Insert into lower 128 bits
-      write_ymm(dst, src1[255..128] @ src2)
+      write_simd(256, dst, src1[255..128] @ src2)
     } else {
       // Insert into upper 128 bits
-      write_ymm(dst, src2 @ src1[127..0])
+      write_simd(256, dst, src2 @ src1[127..0])
     }
   },
 
@@ -864,7 +864,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let x : ymmword = read_ymm(src);
     let extracted : xmmword = (x >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
     match dest {
-      RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), extracted),
+      RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), extracted),
       RM_mem(m) => write_mem(m,extracted),
     }
   },
@@ -895,7 +895,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       3 => src2[255..128],
     };
     let hi_result : xmmword = hi_selected & sign_extend(~(imm[7]));
-    write_ymm(dst, hi_result @ lo_result)
+    write_simd(256, dst, hi_result @ lo_result)
   },
 
   // VGF2P8AFFINEQB: VEX.128/256.66.0F3A.W1 CE /r ib
@@ -914,12 +914,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let imm = fetch(1);
       let lo = avx_gf2p8affineqb(src1[127..0], src2[127..0], imm);
       let hi = avx_gf2p8affineqb(src1[255..128], src2[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_gf2p8affineqb(src1, src2, imm))
+      write_simd(128, dst, avx_gf2p8affineqb(src1, src2, imm))
     }
   },
 
@@ -939,12 +939,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let imm = fetch(1);
       let lo = avx_gf2p8affineinvqb(src1[127..0], src2[127..0], imm);
       let hi = avx_gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
-      write_ymm(dst, hi @ lo)
+      write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      write_xmm(dst, avx_gf2p8affineinvqb(src1, src2, imm))
+      write_simd(128, dst, avx_gf2p8affineinvqb(src1, src2, imm))
     }
   },
 
