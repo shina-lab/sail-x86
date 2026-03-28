@@ -697,39 +697,23 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 2C: VMASKMOVPS load xmm1, xmm2, m128 (VEX.128/256.66.0F38.W0)
-  // dst = modrm_reg, mask = vvvv, src = memory (RM_reg → #UD)
   44 => {
     if mp != MP_66 | pfx.vex_w then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let mask : ymmword = read_simd(pfx.vex_vvvv);
-      let data : ymmword = rm_mem(src);
-      write_simd(256, dst, vex_maskmovps_load_256(mask, data))
-    } else {
-      let mask : xmmword = read_simd(pfx.vex_vvvv);
-      let data : xmmword = rm_mem(src);
-      write_simd(128, dst, vex_maskmovps_load_128(mask, data))
-    }
+    if pfx.vex_l then write_simd(256, dst, vex_maskmovps_load_256(read_simd(pfx.vex_vvvv), rm_mem(src)))
+    else write_simd(128, dst, vex_maskmovps_load_128(read_simd(pfx.vex_vvvv), rm_mem(src)))
   },
 
   // 0F38 2D: VMASKMOVPD load xmm1, xmm2, m128 (VEX.128/256.66.0F38.W0)
-  // dst = modrm_reg, mask = vvvv, src = memory (RM_reg → #UD)
   45 => {
     if mp != MP_66 | pfx.vex_w then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let mask : ymmword = read_simd(pfx.vex_vvvv);
-      let data : ymmword = rm_mem(src);
-      write_simd(256, dst, vex_maskmovpd_load_256(mask, data))
-    } else {
-      let mask : xmmword = read_simd(pfx.vex_vvvv);
-      let data : xmmword = rm_mem(src);
-      write_simd(128, dst, vex_maskmovpd_load_128(mask, data))
-    }
+    if pfx.vex_l then write_simd(256, dst, vex_maskmovpd_load_256(read_simd(pfx.vex_vvvv), rm_mem(src)))
+    else write_simd(128, dst, vex_maskmovpd_load_128(read_simd(pfx.vex_vvvv), rm_mem(src)))
   },
 
   // 0F38 2E: VMASKMOVPS store m128, xmm2, xmm1 (VEX.128/256.66.0F38.W0)
