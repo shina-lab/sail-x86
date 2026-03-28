@@ -58,9 +58,14 @@ enum PackedBinOp = {
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
 }
 
+// PMADDWD per-pair: signed * signed + signed * signed
+val pmaddwd_pair : (word, word, word, word) -> dword
+function pmaddwd_pair(a, b, c, d) =
+  to_bits_truncate(signed(a) * signed(b) + signed(c) * signed(d))
+
 // Forward declaration — defined after packed_elem_op.
 val packed_horiz : forall 'ew, 'ew in {16, 32}.
-  (PackedBinOp, int('ew), bits(128), bits(128)) -> bits(128)
+  (PackedBinOp, int('ew), bits(128)) -> bits(64)
 
 // Per-element dispatch: applies the operation to one pair of elements.
 // Most ops work at eb in {8,16,32,64}; lane ops (PB_Pshufb etc.) work at eb=128.
@@ -104,23 +109,21 @@ function packed_elem_op(op, a, b) = match op {
   PB_Pmuludq      => { assert('eb == 64);  to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0])) },
   PB_Psadbw       => { assert('eb == 64);  psadbw(a, b) },
   PB_Pshufb       => { assert('eb == 128); pshufb(a, b) },
-  PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, a, b) },
-  PB_HorizAddD    => { assert('eb == 128); packed_horiz(PB_Add, 32, a, b) },
-  PB_HorizSatAddW => { assert('eb == 128); packed_horiz(PB_SatAddS, 16, a, b) },
-  PB_HorizSubW    => { assert('eb == 128); packed_horiz(PB_Sub, 16, a, b) },
-  PB_HorizSubD    => { assert('eb == 128); packed_horiz(PB_Sub, 32, a, b) },
-  PB_HorizSatSubW => { assert('eb == 128); packed_horiz(PB_SatSubS, 16, a, b) },
+  PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, b)     @ packed_horiz(PB_Add, 16, a) },
+  PB_HorizAddD    => { assert('eb == 128); packed_horiz(PB_Add, 32, b)     @ packed_horiz(PB_Add, 32, a) },
+  PB_HorizSatAddW => { assert('eb == 128); packed_horiz(PB_SatAddS, 16, b) @ packed_horiz(PB_SatAddS, 16, a) },
+  PB_HorizSubW    => { assert('eb == 128); packed_horiz(PB_Sub, 16, b)     @ packed_horiz(PB_Sub, 16, a) },
+  PB_HorizSubD    => { assert('eb == 128); packed_horiz(PB_Sub, 32, b)     @ packed_horiz(PB_Sub, 32, a) },
+  PB_HorizSatSubW => { assert('eb == 128); packed_horiz(PB_SatSubS, 16, b) @ packed_horiz(PB_SatSubS, 16, a) },
 }
 
-// Horizontal binary op within a 128-bit lane.
-function packed_horiz(op, ew, a, b) = {
-  var r : bits(128) = zeros();
+// Reduce adjacent ew-bit element pairs within a 128-bit vector, producing 64 bits.
+function packed_horiz(op, ew, src) = {
+  var r : bits(64) = zeros();
   foreach (i from 0 to (64 / ew - 1)) {
-    let src = i * 2 * ew;
-    let a_dst = i * ew;
-    let b_dst = a_dst + 64;
-    r[(a_dst + ew - 1)..a_dst] = packed_elem_op(op, a[(src + ew - 1)..src], a[(src + 2 * ew - 1)..(src + ew)]);
-    r[(b_dst + ew - 1)..b_dst] = packed_elem_op(op, b[(src + ew - 1)..src], b[(src + 2 * ew - 1)..(src + ew)]);
+    let s = i * 2 * ew;
+    let d = i * ew;
+    r[(d + ew - 1)..d] = packed_elem_op(op, src[(s + ew - 1)..s], src[(s + 2 * ew - 1)..(s + ew)]);
   };
   r
 }
