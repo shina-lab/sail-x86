@@ -244,3 +244,54 @@ function evex_begin_rc(pfx, is_reg) = {
 
 val evex_end_rc : dword -> unit
 function evex_end_rc(saved) = __ldmxcsr(saved)
+
+// =========================================================================
+// EVEX dispatch helpers — absorb common modrm + mask + write pattern
+// =========================================================================
+
+// 3-operand EVEX binop with broadcast: dst = op(vvvvv, bcast_src) {mask}
+// eb must be 32 or 64 (broadcast is only for dword/qword elements).
+val evex_exec_binop_bcast : (PackedBinOp, {32, 64}, Prefixes) -> unit
+function evex_exec_binop_bcast(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  // vl in {128,256,512}, eb in {32,64} → vl/eb in {2,4,8,16}
+  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, eb)))
+}
+
+// 3-operand EVEX binop without broadcast (byte/word): dst = op(vvvvv, src) {mask}
+val evex_exec_binop : (PackedBinOp, {8, 16, 32, 64}, Prefixes) -> unit
+function evex_exec_binop(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  // vl in {128,256,512}, eb in {8,16,32,64} → vl/eb in {2,4,8,16,32,64}
+  let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+}
+
+// 2-operand EVEX unop with broadcast: dst = op(bcast_src) {mask}
+val evex_exec_unop_bcast : (PackedUnaryOp, {32, 64}, Prefixes) -> unit
+function evex_exec_unop_bcast(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
+}
+
+// 2-operand EVEX unop without broadcast: dst = op(src) {mask}
+val evex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
+function evex_exec_unop(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, modrm, src, pfx)))
+}
