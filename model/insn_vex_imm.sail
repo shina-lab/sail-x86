@@ -7,68 +7,18 @@
 // VEX 0F3A helpers — blend, palignr, round, dpps/dppd, permute
 // =========================================================================
 
-// VBLENDPS 128-bit: for each dword i, select from src1 or src2 based on imm8[i]
-val avx_blendps_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_blendps_128(src1, src2, imm) =
-  blend(src1[127..96], src2[127..96], imm[3]) @
-  blend(src1[95..64],  src2[95..64],  imm[2]) @
-  blend(src1[63..32],  src2[63..32],  imm[1]) @
-  blend(src1[31..0],   src2[31..0],   imm[0])
-
-val avx_blendps_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_blendps_256(src1, src2, imm) =
-  blend(src1[255..224], src2[255..224], imm[7]) @
-  blend(src1[223..192], src2[223..192], imm[6]) @
-  blend(src1[191..160], src2[191..160], imm[5]) @
-  blend(src1[159..128], src2[159..128], imm[4]) @
-  blend(src1[127..96],  src2[127..96],  imm[3]) @
-  blend(src1[95..64],   src2[95..64],   imm[2]) @
-  blend(src1[63..32],   src2[63..32],   imm[1]) @
-  blend(src1[31..0],    src2[31..0],    imm[0])
-
-// VBLENDPD 128-bit: for each qword i, select based on imm8[i]
-val avx_blendpd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_blendpd_128(src1, src2, imm) =
-  blend(src1[127..64], src2[127..64], imm[1]) @
-  blend(src1[63..0],   src2[63..0],   imm[0])
-
-val avx_blendpd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_blendpd_256(src1, src2, imm) =
-  blend(src1[255..192], src2[255..192], imm[3]) @
-  blend(src1[191..128], src2[191..128], imm[2]) @
-  blend(src1[127..64],  src2[127..64],  imm[1]) @
-  blend(src1[63..0],    src2[63..0],    imm[0])
-
-// VPBLENDW 128-bit: for each word i, select based on imm8[i]
-val avx_pblendw_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_pblendw_128(src1, src2, imm) =
-  blend(src1[127..112], src2[127..112], imm[7]) @
-  blend(src1[111..96],  src2[111..96],  imm[6]) @
-  blend(src1[95..80],   src2[95..80],   imm[5]) @
-  blend(src1[79..64],   src2[79..64],   imm[4]) @
-  blend(src1[63..48],   src2[63..48],   imm[3]) @
-  blend(src1[47..32],   src2[47..32],   imm[2]) @
-  blend(src1[31..16],   src2[31..16],   imm[1]) @
-  blend(src1[15..0],    src2[15..0],    imm[0])
-
-// VPBLENDD 128-bit: for each dword i, select based on imm8[i]
-val avx_pblendd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_pblendd_128(src1, src2, imm) =
-  blend(src1[127..96], src2[127..96], imm[3]) @
-  blend(src1[95..64],  src2[95..64],  imm[2]) @
-  blend(src1[63..32],  src2[63..32],  imm[1]) @
-  blend(src1[31..0],   src2[31..0],   imm[0])
-
-val avx_pblendd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_pblendd_256(src1, src2, imm) =
-  blend(src1[255..224], src2[255..224], imm[7]) @
-  blend(src1[223..192], src2[223..192], imm[6]) @
-  blend(src1[191..160], src2[191..160], imm[5]) @
-  blend(src1[159..128], src2[159..128], imm[4]) @
-  blend(src1[127..96],  src2[127..96],  imm[3]) @
-  blend(src1[95..64],   src2[95..64],   imm[2]) @
-  blend(src1[63..32],   src2[63..32],   imm[1]) @
-  blend(src1[31..0],    src2[31..0],    imm[0])
+// Immediate blend: for each eb-wide element i, select src1 or src2 based on sel[i].
+val avx_blend_imm : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), byte) -> bits('vl)
+function avx_blend_imm(eb, src1, src2, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    assert(i < 8);
+    r[(lo + 'eb - 1)..lo] = blend(src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm[i])
+  };
+  r
+}
 
 // VPALIGNR 128-bit: concatenate src1(high):src2(low), shift right by imm bytes, take low 128 bits
 val avx_palignr_128 : (xmmword, xmmword, byte) -> xmmword
@@ -351,17 +301,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(256, dst, avx_pblendd_256(src1, src2, imm))
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_pblendd_128(src1, src2, imm))
-    }
+    let vl = vex_vl(pfx);
+    let src1 = read_simd(vl, pfx.vex_vvvv);
+    let src2 = decode_vex_src(vl, modrm, src, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_blend_imm(32, src1, src2, imm))
   },
 
   // 0F3A 08: VROUNDPS xmm/ymm, xmm/ymm/m, imm8 (66) — vvvv must be 1111b
@@ -444,17 +388,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(256, dst, avx_blendps_256(src1, src2, imm))
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_blendps_128(src1, src2, imm))
-    }
+    let vl = vex_vl(pfx);
+    let src1 = read_simd(vl, pfx.vex_vvvv);
+    let src2 = decode_vex_src(vl, modrm, src, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_blend_imm(32, src1, src2, imm))
   },
 
   // 0F3A 0D: VBLENDPD xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
@@ -463,38 +401,31 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(256, dst, avx_blendpd_256(src1, src2, imm))
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_blendpd_128(src1, src2, imm))
-    }
+    let vl = vex_vl(pfx);
+    let src1 = read_simd(vl, pfx.vex_vvvv);
+    let src2 = decode_vex_src(vl, modrm, src, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_blend_imm(64, src1, src2, imm))
   },
 
   // 0F3A 0E: VPBLENDW xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
+  // For 256-bit, same imm8 pattern applies to each 128-bit lane
   14 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
+    let imm = fetch(1);
     if pfx.vex_l then {
       let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      let imm = fetch(1);
-      // For 256-bit, same imm8 pattern applies to each 128-bit lane
-      let lo : xmmword = avx_pblendw_128(src1[127..0], src2[127..0], imm);
-      let hi : xmmword = avx_pblendw_128(src1[255..128], src2[255..128], imm);
+      let lo = avx_blend_imm(16, src1[127..0], src2[127..0], imm);
+      let hi = avx_blend_imm(16, src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
       let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_pblendw_128(src1, src2, imm))
+      write_simd(128, dst, avx_blend_imm(16, src1, src2, imm))
     }
   },
 
