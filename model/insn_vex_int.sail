@@ -546,23 +546,23 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
           // Lane 1 (upper 128): same pattern
-          let d7 : dword = __f32_add(b[223..192], b[255..224]);
-          let d6 : dword = __f32_add(b[159..128], b[191..160]);
-          let d5 : dword = __f32_add(a[223..192], a[255..224]);
-          let d4 : dword = __f32_add(a[159..128], a[191..160]);
+          let d7 : dword = fp_add(b[223..192], b[255..224]);
+          let d6 : dword = fp_add(b[159..128], b[191..160]);
+          let d5 : dword = fp_add(a[223..192], a[255..224]);
+          let d4 : dword = fp_add(a[159..128], a[191..160]);
           // Lane 0 (lower 128)
-          let d3 : dword = __f32_add(b[95..64], b[127..96]);
-          let d2 : dword = __f32_add(b[31..0], b[63..32]);
-          let d1 : dword = __f32_add(a[95..64], a[127..96]);
-          let d0 : dword = __f32_add(a[31..0], a[63..32]);
+          let d3 : dword = fp_add(b[95..64], b[127..96]);
+          let d2 : dword = fp_add(b[31..0], b[63..32]);
+          let d1 : dword = fp_add(a[95..64], a[127..96]);
+          let d0 : dword = fp_add(a[31..0], a[63..32]);
           write_ymm(dst, d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-          let d3 : dword = __f32_add(b[95..64], b[127..96]);
-          let d2 : dword = __f32_add(b[31..0], b[63..32]);
-          let d1 : dword = __f32_add(a[95..64], a[127..96]);
-          let d0 : dword = __f32_add(a[31..0], a[63..32]);
+          let d3 : dword = fp_add(b[95..64], b[127..96]);
+          let d2 : dword = fp_add(b[31..0], b[63..32]);
+          let d1 : dword = fp_add(a[95..64], a[127..96]);
+          let d0 : dword = fp_add(a[31..0], a[63..32]);
           write_xmm(dst, d3 @ d2 @ d1 @ d0)
         }
       },
@@ -571,17 +571,17 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
           // Lane 1
-          let q3 : qword = __f64_add(b[191..128], b[255..192]);
-          let q2 : qword = __f64_add(a[191..128], a[255..192]);
+          let q3 : qword = fp_add(b[191..128], b[255..192]);
+          let q2 : qword = fp_add(a[191..128], a[255..192]);
           // Lane 0
-          let q1 : qword = __f64_add(b[63..0], b[127..64]);
-          let q0 : qword = __f64_add(a[63..0], a[127..64]);
+          let q1 : qword = fp_add(b[63..0], b[127..64]);
+          let q0 : qword = fp_add(a[63..0], a[127..64]);
           write_ymm(dst, q3 @ q2 @ q1 @ q0)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-          let q1 : qword = __f64_add(b[63..0], b[127..64]);
-          let q0 : qword = __f64_add(a[63..0], a[127..64]);
+          let q1 : qword = fp_add(b[63..0], b[127..64]);
+          let q0 : qword = fp_add(a[63..0], a[127..64]);
           write_xmm(dst, q1 @ q0)
         }
       },
@@ -599,22 +599,22 @@ function dispatch_vex_0f_int(op, pfx) = {
         if pfx.vex_l then {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-          let d7 : dword = __f32_sub(b[223..192], b[255..224]);
-          let d6 : dword = __f32_sub(b[159..128], b[191..160]);
-          let d5 : dword = __f32_sub(a[223..192], a[255..224]);
-          let d4 : dword = __f32_sub(a[159..128], a[191..160]);
-          let d3 : dword = __f32_sub(b[95..64], b[127..96]);
-          let d2 : dword = __f32_sub(b[31..0], b[63..32]);
-          let d1 : dword = __f32_sub(a[95..64], a[127..96]);
-          let d0 : dword = __f32_sub(a[31..0], a[63..32]);
+          let d7 : dword = fp_sub(b[223..192], b[255..224]);
+          let d6 : dword = fp_sub(b[159..128], b[191..160]);
+          let d5 : dword = fp_sub(a[223..192], a[255..224]);
+          let d4 : dword = fp_sub(a[159..128], a[191..160]);
+          let d3 : dword = fp_sub(b[95..64], b[127..96]);
+          let d2 : dword = fp_sub(b[31..0], b[63..32]);
+          let d1 : dword = fp_sub(a[95..64], a[127..96]);
+          let d0 : dword = fp_sub(a[31..0], a[63..32]);
           write_ymm(dst, d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-          let d3 : dword = __f32_sub(b[95..64], b[127..96]);
-          let d2 : dword = __f32_sub(b[31..0], b[63..32]);
-          let d1 : dword = __f32_sub(a[95..64], a[127..96]);
-          let d0 : dword = __f32_sub(a[31..0], a[63..32]);
+          let d3 : dword = fp_sub(b[95..64], b[127..96]);
+          let d2 : dword = fp_sub(b[31..0], b[63..32]);
+          let d1 : dword = fp_sub(a[95..64], a[127..96]);
+          let d0 : dword = fp_sub(a[31..0], a[63..32]);
           write_xmm(dst, d3 @ d2 @ d1 @ d0)
         }
       },
@@ -622,16 +622,16 @@ function dispatch_vex_0f_int(op, pfx) = {
         if pfx.vex_l then {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-          let q3 : qword = __f64_sub(b[191..128], b[255..192]);
-          let q2 : qword = __f64_sub(a[191..128], a[255..192]);
-          let q1 : qword = __f64_sub(b[63..0], b[127..64]);
-          let q0 : qword = __f64_sub(a[63..0], a[127..64]);
+          let q3 : qword = fp_sub(b[191..128], b[255..192]);
+          let q2 : qword = fp_sub(a[191..128], a[255..192]);
+          let q1 : qword = fp_sub(b[63..0], b[127..64]);
+          let q0 : qword = fp_sub(a[63..0], a[127..64]);
           write_ymm(dst, q3 @ q2 @ q1 @ q0)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-          let q1 : qword = __f64_sub(b[63..0], b[127..64]);
-          let q0 : qword = __f64_sub(a[63..0], a[127..64]);
+          let q1 : qword = fp_sub(b[63..0], b[127..64]);
+          let q0 : qword = fp_sub(a[63..0], a[127..64]);
           write_xmm(dst, q1 @ q0)
         }
       },
@@ -860,23 +860,23 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
           let r : ymmword =
-            __f32_add(a[255..224], b[255..224]) @
-            __f32_sub(a[223..192], b[223..192]) @
-            __f32_add(a[191..160], b[191..160]) @
-            __f32_sub(a[159..128], b[159..128]) @
-            __f32_add(a[127..96], b[127..96]) @
-            __f32_sub(a[95..64], b[95..64]) @
-            __f32_add(a[63..32], b[63..32]) @
-            __f32_sub(a[31..0], b[31..0]);
+            fp_add(a[255..224], b[255..224]) @
+            fp_sub(a[223..192], b[223..192]) @
+            fp_add(a[191..160], b[191..160]) @
+            fp_sub(a[159..128], b[159..128]) @
+            fp_add(a[127..96], b[127..96]) @
+            fp_sub(a[95..64], b[95..64]) @
+            fp_add(a[63..32], b[63..32]) @
+            fp_sub(a[31..0], b[31..0]);
           write_ymm(dst, r)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
           let r : xmmword =
-            __f32_add(a[127..96], b[127..96]) @
-            __f32_sub(a[95..64], b[95..64]) @
-            __f32_add(a[63..32], b[63..32]) @
-            __f32_sub(a[31..0], b[31..0]);
+            fp_add(a[127..96], b[127..96]) @
+            fp_sub(a[95..64], b[95..64]) @
+            fp_add(a[63..32], b[63..32]) @
+            fp_sub(a[31..0], b[31..0]);
           write_xmm(dst, r)
         }
       },
@@ -885,17 +885,17 @@ function dispatch_vex_0f_int(op, pfx) = {
           let a : ymmword = read_ymm(pfx.vex_vvvv);
           let b : ymmword = decode_vex_src_ymm(modrm, src, pfx);
           let r : ymmword =
-            __f64_add(a[255..192], b[255..192]) @
-            __f64_sub(a[191..128], b[191..128]) @
-            __f64_add(a[127..64], b[127..64]) @
-            __f64_sub(a[63..0], b[63..0]);
+            fp_add(a[255..192], b[255..192]) @
+            fp_sub(a[191..128], b[191..128]) @
+            fp_add(a[127..64], b[127..64]) @
+            fp_sub(a[63..0], b[63..0]);
           write_ymm(dst, r)
         } else {
           let a : xmmword = read_xmm(pfx.vex_vvvv);
           let b : xmmword = decode_vex_src_xmm(modrm, src, pfx);
           let r : xmmword =
-            __f64_add(a[127..64], b[127..64]) @
-            __f64_sub(a[63..0], b[63..0]);
+            fp_add(a[127..64], b[127..64]) @
+            fp_sub(a[63..0], b[63..0]);
           write_xmm(dst, r)
         }
       },

@@ -21,7 +21,7 @@ function vgetexpph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_getexp(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_getexp(a[(lo + 15)..lo]);
   };
   r
 }
@@ -31,7 +31,7 @@ function vrcpph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_rcp(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_rcp(a[(lo + 15)..lo]);
   };
   r
 }
@@ -41,7 +41,7 @@ function vrsqrtph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_rsqrt(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_rsqrt(a[(lo + 15)..lo]);
   };
   r
 }
@@ -55,7 +55,7 @@ function vscalefph(a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_scalef(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_scalef(a[(lo + 15)..lo], b[(lo + 15)..lo]);
   };
   r
 }
@@ -69,7 +69,7 @@ function vrndscaleph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_rndscale(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_rndscale(a[(lo + 15)..lo], imm);
   };
   r
 }
@@ -79,7 +79,7 @@ function vgetmantph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_getmant(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_getmant(a[(lo + 15)..lo], imm);
   };
   r
 }
@@ -89,7 +89,7 @@ function vreduceph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_reduce(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_reduce(a[(lo + 15)..lo], imm);
   };
   r
 }
@@ -106,8 +106,8 @@ function vfmaddsubph(a, b, c) = {
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
     if i % 2 == 1
-    then r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
-    else r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    then r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
+    else r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -118,8 +118,8 @@ function vfmsubaddph(a, b, c) = {
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
     if i % 2 == 1
-    then r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
-    else r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    then r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
+    else r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -130,7 +130,7 @@ function vfmsubaddph(a, b, c) = {
 
 val cmp_f16_pred : (word, word, range(0, 31)) -> bit
 function cmp_f16_pred(a, b, pred) = {
-  let c = __f16_compare(a, b);
+  let c = fp_compare(a, b);
   let unord : bit = match c { FP_UNORDERED => 0b1, _ => 0b0 };
   let eq : bit = match c { FP_EQ => 0b1, _ => 0b0 };
   let lt : bit = match c { FP_LT => 0b1, _ => 0b0 };
@@ -219,12 +219,12 @@ function vfpclassph(a, imm) = {
 // conj=true: conjugate (VFCMADDCPH), conj=false: normal (VFMADDCPH)
 val cfmaddcph_pair : (word, word, word, word, word, word, bool) -> (word, word)
 function cfmaddcph_pair(s1_re, s1_im, s2_re, s2_im, a_re, a_im, conj) = {
-  let tmp_re : word = __f16_fmadd(s1_re, s2_re, a_re);
-  let tmp_im : word = __f16_fmadd(s1_im, s2_re, a_im);
+  let tmp_re : word = fp_fmadd(s1_re, s2_re, a_re);
+  let tmp_im : word = fp_fmadd(s1_im, s2_re, a_im);
   if conj then
-    (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+    (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
   else
-    (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
+    (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im))
 }
 
 val cfmaddcph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl), bool) -> bits('vl)
@@ -242,12 +242,12 @@ function cfmaddcph(src1, src2, acc, conj) = {
 // Complex multiply one pair: dest = src1 * src2 (or conjugate of src2)
 val cfmulcph_pair : (word, word, word, word, bool) -> (word, word)
 function cfmulcph_pair(s1_re, s1_im, s2_re, s2_im, conj) = {
-  let tmp_re : word = __f16_mul(s1_re, s2_re);
-  let tmp_im : word = __f16_mul(s1_im, s2_re);
+  let tmp_re : word = fp_mul(s1_re, s2_re);
+  let tmp_im : word = fp_mul(s1_im, s2_re);
   if conj then
-    (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+    (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
   else
-    (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im))
+    (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im))
 }
 
 val cfmulcph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bool) -> bits('vl)
@@ -305,7 +305,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_sqrt(src2);
+          let r : word = fp_sqrt(src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -333,7 +333,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_add(src1[15..0], src2);
+          let r : word = fp_add(src1[15..0], src2);
           let result : xmmword = src1[127..16] @ r;
           write_xmm(dst, result)
         },
@@ -361,7 +361,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_mul(src1[15..0], src2);
+          let r : word = fp_mul(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -388,7 +388,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_sub(src1[15..0], src2);
+          let r : word = fp_sub(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -413,7 +413,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_min(src1[15..0], src2);
+          let r : word = fp_min(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -440,7 +440,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_div(src1[15..0], src2);
+          let r : word = fp_div(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -465,7 +465,7 @@ function dispatch_evex_map5(opcode, pfx) = {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
           };
-          let r : word = __f16_max(src1[15..0], src2);
+          let r : word = fp_max(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
         _ => raise_UD(),
@@ -834,7 +834,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      match __f16_compare(a, b) {
+      match fp_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
         FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -854,7 +854,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      match __f16_compare(a, b) {
+      match fp_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
         FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -1679,7 +1679,7 @@ function vfmadd_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -1689,7 +1689,7 @@ function vfmsub_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -1699,7 +1699,7 @@ function vfnmadd_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_fnmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fnmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -1709,7 +1709,7 @@ function vfnmsub_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = __f16_fnmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fnmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
   };
   r
 }
@@ -2247,7 +2247,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_scalef(src1[15..0], src2);
+      let r : word = fp_scalef(src1[15..0], src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2289,7 +2289,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_getexp(src2);
+      let r : word = fp_getexp(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2331,7 +2331,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_rcp(src2);
+      let r : word = fp_rcp(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2373,7 +2373,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_rsqrt(src2);
+      let r : word = fp_rsqrt(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2459,7 +2459,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fmadd(a, c, src1[15..0]);
+      let r : word = fp_fmadd(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2475,7 +2475,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fmsub(a, c, src1[15..0]);
+      let r : word = fp_fmsub(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2491,7 +2491,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fnmadd(a, c, src1[15..0]);
+      let r : word = fp_fnmadd(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2507,7 +2507,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fnmsub(a, c, src1[15..0]);
+      let r : word = fp_fnmsub(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2594,7 +2594,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fmadd(a, b, c);
+      let r : word = fp_fmadd(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2611,7 +2611,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fmsub(a, b, c);
+      let r : word = fp_fmsub(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2628,7 +2628,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fnmadd(a, b, c);
+      let r : word = fp_fnmadd(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2645,7 +2645,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      let r : word = __f16_fnmsub(a, b, c);
+      let r : word = fp_fnmsub(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2732,7 +2732,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let b : word = read_xmm(dst)[15..0];
-      let r : word = __f16_fmadd(a, c, b);
+      let r : word = fp_fmadd(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2749,7 +2749,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let b : word = read_xmm(dst)[15..0];
-      let r : word = __f16_fmsub(a, c, b);
+      let r : word = fp_fmsub(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2766,7 +2766,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let b : word = read_xmm(dst)[15..0];
-      let r : word = __f16_fnmadd(a, c, b);
+      let r : word = fp_fnmadd(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2783,7 +2783,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         RM_mem(m) => v(m),
       };
       let b : word = read_xmm(dst)[15..0];
-      let r : word = __f16_fnmsub(a, c, b);
+      let r : word = fp_fnmsub(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
 
@@ -2836,12 +2836,12 @@ function dispatch_evex_map6(opcode, pfx) = {
       let s2_im : word = src2[31..16];
       let a_re : word = acc[15..0];
       let a_im : word = acc[31..16];
-      let tmp_re : word = __f16_fmadd(s1_re, s2_re, a_re);
-      let tmp_im : word = __f16_fmadd(s1_im, s2_re, a_im);
+      let tmp_re : word = fp_fmadd(s1_re, s2_re, a_re);
+      let tmp_im : word = fp_fmadd(s1_im, s2_re, a_im);
       let (r_re, r_im) : (word, word) = if conj then
-        (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+        (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
-        (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im));
+        (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
       write_xmm(dst, src1[127..32] @ r_im @ r_re)
     },
 
@@ -2888,12 +2888,12 @@ function dispatch_evex_map6(opcode, pfx) = {
       let s1_im : word = src1[31..16];
       let s2_re : word = src2[15..0];
       let s2_im : word = src2[31..16];
-      let tmp_re : word = __f16_mul(s1_re, s2_re);
-      let tmp_im : word = __f16_mul(s1_im, s2_re);
+      let tmp_re : word = fp_mul(s1_re, s2_re);
+      let tmp_im : word = fp_mul(s1_im, s2_re);
       let (r_re, r_im) : (word, word) = if conj then
-        (__f16_fmadd(s1_im, s2_im, tmp_re), __f16_fnmadd(s1_re, s2_im, tmp_im))
+        (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
-        (__f16_fnmadd(s1_im, s2_im, tmp_re), __f16_fmadd(s1_re, s2_im, tmp_im));
+        (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
       write_xmm(dst, src1[127..32] @ r_im @ r_re)
     },
 

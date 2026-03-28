@@ -573,7 +573,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : dword = read_xmm(src_reg)[31..0];
         let b : dword = src[31..0];
-        match __f32_compare(a, b) {
+        match fp_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -591,7 +591,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : qword = read_xmm(src_reg)[63..0];
         let b : qword = src[63..0];
-        match __f64_compare(a, b) {
+        match fp_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -621,7 +621,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : dword = read_xmm(src_reg)[31..0];
         let b : dword = src[31..0];
-        match __f32_compare(a, b) {
+        match fp_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -639,7 +639,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : qword = read_xmm(src_reg)[63..0];
         let b : qword = src[63..0];
-        match __f64_compare(a, b) {
+        match fp_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -714,10 +714,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
           if pfx.vex_vvvv != 0 then raise_UD();
           match mp {
             MP_NONE => {
-              let hi = __f32_rsqrt(src2[255..224]) @ __f32_rsqrt(src2[223..192]) @
-                       __f32_rsqrt(src2[191..160]) @ __f32_rsqrt(src2[159..128]);
-              let lo = __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
-                       __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]);
+              let hi = fp_rsqrt(src2[255..224]) @ fp_rsqrt(src2[223..192]) @
+                       fp_rsqrt(src2[191..160]) @ fp_rsqrt(src2[159..128]);
+              let lo = fp_rsqrt(src2[127..96]) @ fp_rsqrt(src2[95..64]) @
+                       fp_rsqrt(src2[63..32])  @ fp_rsqrt(src2[31..0]);
               write_ymm(dst, hi @ lo)
             },
             _ => raise_UD(),
@@ -728,10 +728,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
           if pfx.vex_vvvv != 0 then raise_UD();
           match mp {
             MP_NONE => {
-              let hi = __f32_rcp(src2[255..224]) @ __f32_rcp(src2[223..192]) @
-                       __f32_rcp(src2[191..160]) @ __f32_rcp(src2[159..128]);
-              let lo = __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
-                       __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]);
+              let hi = fp_rcp(src2[255..224]) @ fp_rcp(src2[223..192]) @
+                       fp_rcp(src2[191..160]) @ fp_rcp(src2[159..128]);
+              let lo = fp_rcp(src2[127..96]) @ fp_rcp(src2[95..64]) @
+                       fp_rcp(src2[63..32])  @ fp_rcp(src2[31..0]);
               write_ymm(dst, hi @ lo)
             },
             _ => raise_UD(),
@@ -829,27 +829,27 @@ function dispatch_vex_0f_fp(op, pfx) = {
         1 => match mp {
           MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_xmm(dst, packed_unop(PU_FSqrt, 32, src2)) },
           MP_66   => { if pfx.vex_vvvv != 0 then raise_UD(); write_xmm(dst, packed_unop(PU_FSqrt, 64, src2)) },
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_sqrt(src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_sqrt(src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_sqrt(src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_sqrt(src2[63..0])),
         },
         // VRSQRTPS (NP, vvvv reserved) / VRSQRTSS (F3, scalar merge)
         2 => match mp {
           MP_NONE => {
             if pfx.vex_vvvv != 0 then raise_UD();
-            write_xmm(dst, __f32_rsqrt(src2[127..96]) @ __f32_rsqrt(src2[95..64]) @
-                           __f32_rsqrt(src2[63..32])  @ __f32_rsqrt(src2[31..0]))
+            write_xmm(dst, fp_rsqrt(src2[127..96]) @ fp_rsqrt(src2[95..64]) @
+                           fp_rsqrt(src2[63..32])  @ fp_rsqrt(src2[31..0]))
           },
-          MP_F3 => write_xmm(dst, src1[127..32] @ __f32_rsqrt(src2[31..0])),
+          MP_F3 => write_xmm(dst, src1[127..32] @ fp_rsqrt(src2[31..0])),
           _ => raise_UD(),
         },
         // VRCPPS (NP, vvvv reserved) / VRCPSS (F3, scalar merge)
         3 => match mp {
           MP_NONE => {
             if pfx.vex_vvvv != 0 then raise_UD();
-            write_xmm(dst, __f32_rcp(src2[127..96]) @ __f32_rcp(src2[95..64]) @
-                           __f32_rcp(src2[63..32])  @ __f32_rcp(src2[31..0]))
+            write_xmm(dst, fp_rcp(src2[127..96]) @ fp_rcp(src2[95..64]) @
+                           fp_rcp(src2[63..32])  @ fp_rcp(src2[31..0]))
           },
-          MP_F3 => write_xmm(dst, src1[127..32] @ __f32_rcp(src2[31..0])),
+          MP_F3 => write_xmm(dst, src1[127..32] @ fp_rcp(src2[31..0])),
           _ => raise_UD(),
         },
         // VANDPS/VANDPD
@@ -864,15 +864,15 @@ function dispatch_vex_0f_fp(op, pfx) = {
         8 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FAdd, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FAdd, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_add(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_add(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_add(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_add(src1[63..0], src2[63..0])),
         },
         // VMULPS/VMULPD/VMULSS/VMULSD
         9 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FMul, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FMul, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_mul(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_mul(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_mul(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_mul(src1[63..0], src2[63..0])),
         },
         // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ (unary, vvvv reserved)
         11 => {
@@ -925,29 +925,29 @@ function dispatch_vex_0f_fp(op, pfx) = {
         12 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FSub, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FSub, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_sub(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_sub(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_sub(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_sub(src1[63..0], src2[63..0])),
         },
         // VMINPS/VMINPD/VMINSS/VMINSD
         13 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FMin, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FMin, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_min(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_min(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_min(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_min(src1[63..0], src2[63..0])),
         },
         // VDIVPS/VDIVPD/VDIVSS/VDIVSD
         14 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FDiv, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FDiv, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_div(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_div(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_div(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_div(src1[63..0], src2[63..0])),
         },
         // VMAXPS/VMAXPD/VMAXSS/VMAXSD
         15 => match mp {
           MP_NONE => write_xmm(dst, packed_binop(PB_FMax, 32, src1, src2)),
           MP_66   => write_xmm(dst, packed_binop(PB_FMax, 64, src1, src2)),
-          MP_F3   => write_xmm(dst, src1[127..32] @ __f32_max(src1[31..0], src2[31..0])),
-          MP_F2   => write_xmm(dst, src1[127..64] @ __f64_max(src1[63..0], src2[63..0])),
+          MP_F3   => write_xmm(dst, src1[127..32] @ fp_max(src1[31..0], src2[31..0])),
+          MP_F2   => write_xmm(dst, src1[127..64] @ fp_max(src1[63..0], src2[63..0])),
         },
         _ => raise_UD(),
       }

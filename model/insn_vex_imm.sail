@@ -81,31 +81,31 @@ function avx_palignr_128(src1, src2, imm) = {
 // VROUNDPS 128-bit
 val avx_roundps_128 : (xmmword, byte) -> xmmword
 function avx_roundps_128(src, imm) = {
-  let d0 : dword = __f32_round(src[31..0], imm);
-  let d1 : dword = __f32_round(src[63..32], imm);
-  let d2 : dword = __f32_round(src[95..64], imm);
-  let d3 : dword = __f32_round(src[127..96], imm);
+  let d0 : dword = fp_round(src[31..0], imm);
+  let d1 : dword = fp_round(src[63..32], imm);
+  let d2 : dword = fp_round(src[95..64], imm);
+  let d3 : dword = fp_round(src[127..96], imm);
   d3 @ d2 @ d1 @ d0
 }
 
 // VROUNDPD 128-bit
 val avx_roundpd_128 : (xmmword, byte) -> xmmword
 function avx_roundpd_128(src, imm) = {
-  let lo : qword = __f64_round(src[63..0], imm);
-  let hi : qword = __f64_round(src[127..64], imm);
+  let lo : qword = fp_round(src[63..0], imm);
+  let hi : qword = fp_round(src[127..64], imm);
   hi @ lo
 }
 
 // VDPPS 128-bit: dot product of packed singles
 val avx_dpps_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dpps_128(a, b, imm) = {
-  let temp0 : dword = __f32_mul(a[31..0], b[31..0]) & sign_extend(imm[4]);
-  let temp1 : dword = __f32_mul(a[63..32], b[63..32]) & sign_extend(imm[5]);
-  let temp2 : dword = __f32_mul(a[95..64], b[95..64]) & sign_extend(imm[6]);
-  let temp3 : dword = __f32_mul(a[127..96], b[127..96]) & sign_extend(imm[7]);
-  let sum01 : dword = __f32_add(temp0, temp1);
-  let sum23 : dword = __f32_add(temp2, temp3);
-  let sum : dword = __f32_add(sum01, sum23);
+  let temp0 : dword = fp_mul(a[31..0], b[31..0]) & sign_extend(imm[4]);
+  let temp1 : dword = fp_mul(a[63..32], b[63..32]) & sign_extend(imm[5]);
+  let temp2 : dword = fp_mul(a[95..64], b[95..64]) & sign_extend(imm[6]);
+  let temp3 : dword = fp_mul(a[127..96], b[127..96]) & sign_extend(imm[7]);
+  let sum01 : dword = fp_add(temp0, temp1);
+  let sum23 : dword = fp_add(temp2, temp3);
+  let sum : dword = fp_add(sum01, sum23);
   let d0 : dword = sum & sign_extend(imm[0]);
   let d1 : dword = sum & sign_extend(imm[1]);
   let d2 : dword = sum & sign_extend(imm[2]);
@@ -116,9 +116,9 @@ function avx_dpps_128(a, b, imm) = {
 // VDPPD 128-bit: dot product of packed doubles
 val avx_dppd_128 : (xmmword, xmmword, byte) -> xmmword
 function avx_dppd_128(a, b, imm) = {
-  let temp0 : qword = __f64_mul(a[63..0], b[63..0]) & sign_extend(imm[4]);
-  let temp1 : qword = __f64_mul(a[127..64], b[127..64]) & sign_extend(imm[5]);
-  let sum : qword = __f64_add(temp0, temp1);
+  let temp0 : qword = fp_mul(a[63..0], b[63..0]) & sign_extend(imm[4]);
+  let temp1 : qword = fp_mul(a[127..64], b[127..64]) & sign_extend(imm[5]);
+  let sum : qword = fp_add(temp0, temp1);
   let lo : qword = sum & sign_extend(imm[0]);
   let hi : qword = sum & sign_extend(imm[1]);
   hi @ lo
@@ -437,7 +437,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       RM_mem(m) => v(m),
     };
     let imm = fetch(1);
-    let rounded : dword = __f32_round(src2_lo, imm);
+    let rounded : dword = fp_round(src2_lo, imm);
     write_xmm(dst, src1[127..32] @ rounded)
   },
 
@@ -454,7 +454,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       RM_mem(m) => v(m),
     };
     let imm = fetch(1);
-    let rounded : qword = __f64_round(src2_lo, imm);
+    let rounded : qword = fp_round(src2_lo, imm);
     write_xmm(dst, src1[127..64] @ rounded)
   },
 

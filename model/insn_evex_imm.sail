@@ -162,7 +162,7 @@ function vpternlog(a, b, c, imm) = {
 
 val cmp_pred5_f16 : (word, word, range(0, 31)) -> bit
 function cmp_pred5_f16(a, b, pred) = {
-  let r = __f16_compare(a, b);
+  let r = fp_compare(a, b);
   let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
   let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
   let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
@@ -433,8 +433,8 @@ function avx_vrndscale(eb, src, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_rndscale(src[(lo + 'eb - 1)..lo], imm),
-      64 => __f64_rndscale(src[(lo + 'eb - 1)..lo], imm),
+      32 => fp_rndscale(src[(lo + 'eb - 1)..lo], imm),
+      64 => fp_rndscale(src[(lo + 'eb - 1)..lo], imm),
     }
   };
   r
@@ -449,8 +449,8 @@ function avx_vgetmant(eb, src, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_getmant(src[(lo + 'eb - 1)..lo], imm),
-      64 => __f64_getmant(src[(lo + 'eb - 1)..lo], imm),
+      32 => fp_getmant(src[(lo + 'eb - 1)..lo], imm),
+      64 => fp_getmant(src[(lo + 'eb - 1)..lo], imm),
     }
   };
   r
@@ -465,8 +465,8 @@ function avx_vreduce(eb, src, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_reduce(src[(lo + 'eb - 1)..lo], imm),
-      64 => __f64_reduce(src[(lo + 'eb - 1)..lo], imm),
+      32 => fp_reduce(src[(lo + 'eb - 1)..lo], imm),
+      64 => fp_reduce(src[(lo + 'eb - 1)..lo], imm),
     }
   };
   r
@@ -481,8 +481,8 @@ function avx_vfixupimm(eb, dst, src1, src2, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
-      64 => __f64_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
+      32 => fp_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
+      64 => fp_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
     }
   };
   r
@@ -534,8 +534,8 @@ function avx_range_f32(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
   // SDM: SNaN check — return quieted SNaN (we don't model IE flag)
-  let src1_is_nan : bool = __f32_compare(src1, src1) == FP_UNORDERED;
-  let src2_is_nan : bool = __f32_compare(src2, src2) == FP_UNORDERED;
+  let src1_is_nan : bool = fp_compare(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = fp_compare(src2, src2) == FP_UNORDERED;
   // SDM: QNaN priority — non-NaN operand wins
   //   IF (SRC2 = QNAN) THEN TMP := SRC1
   //   ELSE IF (SRC1 = QNAN) THEN TMP := SRC2
@@ -544,19 +544,19 @@ function avx_range_f32(src1, src2, imm) = {
     if src2_is_nan then src1
     else if src1_is_nan then src2
     else match op {
-      0 => if __f32_compare(src1, src2) != FP_GT then src1 else src2,  // min: src1<=src2 ? src1 : src2
-      1 => if __f32_compare(src1, src2) != FP_GT then src2 else src1,  // max: src1<=src2 ? src2 : src1
+      0 => if fp_compare(src1, src2) != FP_GT then src1 else src2,  // min: src1<=src2 ? src1 : src2
+      1 => if fp_compare(src1, src2) != FP_GT then src2 else src1,  // max: src1<=src2 ? src2 : src1
       // abs_min: |src1|<=|src2| ? src1 : src2
       2 => {
         let a1 : dword = 0b0 @ src1[30..0];
         let a2 : dword = 0b0 @ src2[30..0];
-        if __f32_compare(a1, a2) != FP_GT then src1 else src2
+        if fp_compare(a1, a2) != FP_GT then src1 else src2
       },
       // abs_max: |src1|<=|src2| ? src2 : src1
       3 => {
         let a1 : dword = 0b0 @ src1[30..0];
         let a2 : dword = 0b0 @ src2[30..0];
-        if __f32_compare(a1, a2) != FP_GT then src2 else src1
+        if fp_compare(a1, a2) != FP_GT then src2 else src1
       },
     };
   // Phase 2: apply sign control (SDM: SignSelCtl)
@@ -573,23 +573,23 @@ val avx_range_f64 : (qword, qword, byte) -> qword
 function avx_range_f64(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
-  let src1_is_nan : bool = __f64_compare(src1, src1) == FP_UNORDERED;
-  let src2_is_nan : bool = __f64_compare(src2, src2) == FP_UNORDERED;
+  let src1_is_nan : bool = fp_compare(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = fp_compare(src2, src2) == FP_UNORDERED;
   let tmp : qword =
     if src2_is_nan then src1
     else if src1_is_nan then src2
     else match op {
-      0 => if __f64_compare(src1, src2) != FP_GT then src1 else src2,
-      1 => if __f64_compare(src1, src2) != FP_GT then src2 else src1,
+      0 => if fp_compare(src1, src2) != FP_GT then src1 else src2,
+      1 => if fp_compare(src1, src2) != FP_GT then src2 else src1,
       2 => {
         let a1 : qword = 0b0 @ src1[62..0];
         let a2 : qword = 0b0 @ src2[62..0];
-        if __f64_compare(a1, a2) != FP_GT then src1 else src2
+        if fp_compare(a1, a2) != FP_GT then src1 else src2
       },
       3 => {
         let a1 : qword = 0b0 @ src1[62..0];
         let a2 : qword = 0b0 @ src2[62..0];
-        if __f64_compare(a1, a2) != FP_GT then src2 else src1
+        if fp_compare(a1, a2) != FP_GT then src2 else src1
       },
     };
   match sign_ctl {
@@ -1565,7 +1565,7 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch(1);
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
-        let r = __f32_rndscale(src2[31..0], imm);
+        let r = fp_rndscale(src2[31..0], imm);
         evex_write_scalar(dst, src1[127..32] @ r, pfx, 32)
       },
       MP_NONE => {
@@ -1576,7 +1576,7 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch(1);
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
-        let r : word = __f16_rndscale(src2[15..0], imm);
+        let r : word = fp_rndscale(src2[15..0], imm);
         evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),
@@ -1593,7 +1593,7 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
-    let r = __f64_rndscale(src2[63..0], imm);
+    let r = fp_rndscale(src2[63..0], imm);
     evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
   },
 
@@ -1678,8 +1678,8 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         if pfx.vex_w
-        then evex_write_scalar(dst, src1[127..64] @ __f64_getmant(src2[63..0], imm), pfx, 64)
-        else evex_write_scalar(dst, src1[127..32] @ __f32_getmant(src2[31..0], imm), pfx, 32)
+        then evex_write_scalar(dst, src1[127..64] @ fp_getmant(src2[63..0], imm), pfx, 64)
+        else evex_write_scalar(dst, src1[127..32] @ fp_getmant(src2[31..0], imm), pfx, 32)
       },
       MP_NONE => {
         // VGETMANTSH: scalar FP16 extract mantissa
@@ -1690,7 +1690,7 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch(1);
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
-        let r : word = __f16_getmant(src2[15..0], imm);
+        let r : word = fp_getmant(src2[15..0], imm);
         evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),
@@ -1829,8 +1829,8 @@ function dispatch_evex_imm(op, pfx) = {
     // VFIXUPIMMSD xmm1, xmm2, xmm3/m64, imm8
     // VFIXUPIMMSS xmm1, xmm2, xmm3/m32, imm8
     if pfx.vex_w
-    then evex_write_scalar(dst, src1[127..64] @ __f64_fixupimm(dst_xmm[63..0], src1[63..0], src2[63..0], imm), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_fixupimm(dst_xmm[31..0], src1[31..0], src2[31..0], imm), pfx, 32)
+    then evex_write_scalar(dst, src1[127..64] @ fp_fixupimm(dst_xmm[63..0], src1[63..0], src2[63..0], imm), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_fixupimm(dst_xmm[31..0], src1[31..0], src2[31..0], imm), pfx, 32)
   },
 
   // 0F3A 56: VREDUCEPS (66, W=0) / VREDUCEPD (66, W=1) / VREDUCEPH (NP, W=0)
@@ -1896,8 +1896,8 @@ function dispatch_evex_imm(op, pfx) = {
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
         if pfx.vex_w
-        then evex_write_scalar(dst, src1[127..64] @ __f64_reduce(src2[63..0], imm), pfx, 64)
-        else evex_write_scalar(dst, src1[127..32] @ __f32_reduce(src2[31..0], imm), pfx, 32)
+        then evex_write_scalar(dst, src1[127..64] @ fp_reduce(src2[63..0], imm), pfx, 64)
+        else evex_write_scalar(dst, src1[127..32] @ fp_reduce(src2[31..0], imm), pfx, 32)
       },
       MP_NONE => {
         // VREDUCESH: scalar FP16 reduce
@@ -1908,7 +1908,7 @@ function dispatch_evex_imm(op, pfx) = {
         let imm = fetch(1);
         let src1 = read_xmm(pfx.evex_vvvvv);
         let src2 = evex_src(128,modrm, src, pfx);
-        let r : word = __f16_reduce(src2[15..0], imm);
+        let r : word = fp_reduce(src2[15..0], imm);
         evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
       },
       _ => raise_UD(),

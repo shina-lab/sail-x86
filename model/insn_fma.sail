@@ -13,8 +13,8 @@ function avx_fmaddsub(eb, a, b, c) = {
     let be = b[(lo + 'eb - 1)..lo];
     let ce = c[(lo + 'eb - 1)..lo];
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => if i % 2 == 0 then __f32_fmsub(ae, be, ce) else __f32_fmadd(ae, be, ce),
-      64 => if i % 2 == 0 then __f64_fmsub(ae, be, ce) else __f64_fmadd(ae, be, ce),
+      32 => if i % 2 == 0 then fp_fmsub(ae, be, ce) else fp_fmadd(ae, be, ce),
+      64 => if i % 2 == 0 then fp_fmsub(ae, be, ce) else fp_fmadd(ae, be, ce),
     };
   };
   r
@@ -31,8 +31,8 @@ function avx_fmsubadd(eb, a, b, c) = {
     let be = b[(lo + 'eb - 1)..lo];
     let ce = c[(lo + 'eb - 1)..lo];
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => if i % 2 == 0 then __f32_fmadd(ae, be, ce) else __f32_fmsub(ae, be, ce),
-      64 => if i % 2 == 0 then __f64_fmadd(ae, be, ce) else __f64_fmsub(ae, be, ce),
+      32 => if i % 2 == 0 then fp_fmadd(ae, be, ce) else fp_fmsub(ae, be, ce),
+      64 => if i % 2 == 0 then fp_fmadd(ae, be, ce) else fp_fmsub(ae, be, ce),
     };
   };
   r

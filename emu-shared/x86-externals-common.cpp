@@ -462,7 +462,7 @@ u64 Model::z__f64_round(u64 a, u64 imm8) {
 // FP comparison
 // =========================================================================
 
-enum zFPCompareResult Model::z__compare_ss(u64 a, u64 b) {
+enum zFPCompareResult Model::z__f32_compare(u64 a, u64 b) {
   a = f32_daz_bits(a, mxcsr_state.mxcsr);
   b = f32_daz_bits(b, mxcsr_state.mxcsr);
   float fa;
@@ -478,7 +478,7 @@ enum zFPCompareResult Model::z__compare_ss(u64 a, u64 b) {
   return zFP_EQ;
 }
 
-enum zFPCompareResult Model::z__compare_sd(u64 a, u64 b) {
+enum zFPCompareResult Model::z__f64_compare(u64 a, u64 b) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   b = f64_daz_bits(b, mxcsr_state.mxcsr);
   double fa;
@@ -494,7 +494,7 @@ enum zFPCompareResult Model::z__compare_sd(u64 a, u64 b) {
   return zFP_EQ;
 }
 
-enum zFPCompareResult Model::z__compare_sh(u64 a, u64 b) {
+enum zFPCompareResult Model::z__f16_compare(u64 a, u64 b) {
   // Convert FP16 to FP32 for comparison
   _Float16 ha;
   _Float16 hb;

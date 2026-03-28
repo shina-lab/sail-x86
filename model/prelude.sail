@@ -14,8 +14,8 @@ $include <hex_bits_signed.sail>
 
 val unreachable : forall ('a : Type). unit -> 'a
 function unreachable() = {
-  assert(false);
-  exit() // never reached; satisfies type checker
+  print_endline("unreachable");
+  exit()
 }
 
 overload ~ = {not_bool, not_vec}
@@ -28,10 +28,17 @@ val sub_vec_int = pure {c: "sub_bits_int", cpp: "sub_bits_int", _: "sub_vec_int"
 overload operator - = {sub_vec, sub_vec_int}
 overload operator * = {mult_atom, mult_int}
 
-val quot_positive_round_zero = pure {interpreter: "quot_round_zero", lem: "hardware_quot", c: "tdiv_int", cpp: "tdiv_int"} : forall 'n 'm, 'n >= 0 & 'm > 0. (int('n), int('m)) -> int(div('n, 'm))
-val rem_positive_round_zero = pure {interpreter: "rem_round_zero", lem: "hardware_mod", c: "tmod_int", cpp: "tmod_int"} : forall 'n 'm, 'n >= 0 & 'm > 0. (int('n), int('m)) -> int(mod('n, 'm))
-val quot_round_zero = pure {interpreter: "quot_round_zero", lem: "hardware_quot", c: "tdiv_int", cpp: "tdiv_int"} : forall 'm, 'm != 0. (int, int('m)) -> int
-val rem_round_zero = pure {interpreter: "rem_round_zero", lem: "hardware_mod", c: "tmod_int", cpp: "tmod_int"} : forall 'm, 'm != 0. (int, int('m)) -> int
+val quot_positive_round_zero = pure {interpreter: "quot_round_zero", lem: "hardware_quot", c: "tdiv_int", cpp: "tdiv_int"}
+  : forall 'n 'm, 'n >= 0 & 'm > 0. (int('n), int('m)) -> int(div('n, 'm))
+
+val rem_positive_round_zero = pure {interpreter: "rem_round_zero", lem: "hardware_mod", c: "tmod_int", cpp: "tmod_int"}
+  : forall 'n 'm, 'n >= 0 & 'm > 0. (int('n), int('m)) -> int(mod('n, 'm))
+
+val quot_round_zero = pure {interpreter: "quot_round_zero", lem: "hardware_quot", c: "tdiv_int", cpp: "tdiv_int"}
+  : forall 'm, 'm != 0. (int, int('m)) -> int
+
+val rem_round_zero = pure {interpreter: "rem_round_zero", lem: "hardware_mod", c: "tmod_int", cpp: "tmod_int"}
+  : forall 'm, 'm != 0. (int, int('m)) -> int
 
 overload operator / = {quot_positive_round_zero}
 overload operator % = {rem_positive_round_zero}

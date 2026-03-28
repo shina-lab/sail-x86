@@ -48,29 +48,29 @@ function dispatch_x87_d8(modrm, src, _) = {
       let src : fp80 = __f80_from_f32(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
-        0 => x87_write_st(0, __f80_add(st0, src)),
-        1 => x87_write_st(0, __f80_mul(st0, src)),
-        2 => x87_set_sw_cc(__f80_compare(st0, src)),
-        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, __f80_sub(st0, src)),
-        5 => x87_write_st(0, __f80_sub(src, st0)),
-        6 => x87_write_st(0, __f80_div(st0, src)),
-        7 => x87_write_st(0, __f80_div(src, st0)),
+        0 => x87_write_st(0, fp_add(st0, src)),
+        1 => x87_write_st(0, fp_mul(st0, src)),
+        2 => x87_set_sw_cc(fp_compare(st0, src)),
+        3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
+        4 => x87_write_st(0, fp_sub(st0, src)),
+        5 => x87_write_st(0, fp_sub(src, st0)),
+        6 => x87_write_st(0, fp_div(st0, src)),
+        7 => x87_write_st(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
       match reg {
-        0 => x87_write_st(0, __f80_add(x87_read_st(0), x87_read_st(sti))),
-        1 => x87_write_st(0, __f80_mul(x87_read_st(0), x87_read_st(sti))),
-        2 => x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
+        0 => x87_write_st(0, fp_add(x87_read_st(0), x87_read_st(sti))),
+        1 => x87_write_st(0, fp_mul(x87_read_st(0), x87_read_st(sti))),
+        2 => x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
         3 => {
-          x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
-        4 => x87_write_st(0, __f80_sub(x87_read_st(0), x87_read_st(sti))),
-        5 => x87_write_st(0, __f80_sub(x87_read_st(sti), x87_read_st(0))),
-        6 => x87_write_st(0, __f80_div(x87_read_st(0), x87_read_st(sti))),
-        7 => x87_write_st(0, __f80_div(x87_read_st(sti), x87_read_st(0))),
+        4 => x87_write_st(0, fp_sub(x87_read_st(0), x87_read_st(sti))),
+        5 => x87_write_st(0, fp_sub(x87_read_st(sti), x87_read_st(0))),
+        6 => x87_write_st(0, fp_div(x87_read_st(0), x87_read_st(sti))),
+        7 => x87_write_st(0, fp_div(x87_read_st(sti), x87_read_st(0))),
       }
     },
   }
@@ -117,7 +117,7 @@ function dispatch_x87_d9(modrm, operand, _) = {
             // FABS
             225 => x87_write_st(0, __f80_abs(x87_read_st(0))),
             // FTST
-            228 => x87_set_sw_cc(__f80_compare(x87_read_st(0), __f80_zero())),
+            228 => x87_set_sw_cc(fp_compare(x87_read_st(0), __f80_zero())),
             // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign
             229 => {
               let val80 : fp80 = x87_read_st(0);
@@ -188,7 +188,7 @@ function dispatch_x87_d9(modrm, operand, _) = {
               x87_write_st(0, result)
             },
             // FSQRT
-            250 => x87_write_st(0, __f80_sqrt(x87_read_st(0))),
+            250 => x87_write_st(0, fp_sqrt(x87_read_st(0))),
             // FSINCOS — sin in ST(0), push cos
             251 => {
               let src = x87_read_st(0);
@@ -224,14 +224,14 @@ function dispatch_x87_da(modrm, src, _) = {
       let src : fp80 = __f80_from_int32(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
-        0 => x87_write_st(0, __f80_add(st0, src)),
-        1 => x87_write_st(0, __f80_mul(st0, src)),
-        2 => x87_set_sw_cc(__f80_compare(st0, src)),
-        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, __f80_sub(st0, src)),
-        5 => x87_write_st(0, __f80_sub(src, st0)),
-        6 => x87_write_st(0, __f80_div(st0, src)),
-        7 => x87_write_st(0, __f80_div(src, st0)),
+        0 => x87_write_st(0, fp_add(st0, src)),
+        1 => x87_write_st(0, fp_mul(st0, src)),
+        2 => x87_set_sw_cc(fp_compare(st0, src)),
+        3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
+        4 => x87_write_st(0, fp_sub(st0, src)),
+        5 => x87_write_st(0, fp_sub(src, st0)),
+        6 => x87_write_st(0, fp_div(st0, src)),
+        7 => x87_write_st(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
@@ -243,7 +243,7 @@ function dispatch_x87_da(modrm, src, _) = {
         // FUCOMPP
         5 => {
           if sti == 1 then {
-            x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(1)));
+            x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(1)));
             let _ = x87_pop();
             let _ = x87_pop()
           } else {
@@ -298,8 +298,8 @@ function dispatch_x87_db(modrm, operand, _) = {
             raise_UD()
           }
         },
-        5 => x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
-        6 => x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
+        5 => x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
+        6 => x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
         7 => raise_UD(),
       }
     },
@@ -319,27 +319,27 @@ function dispatch_x87_dc(modrm, src, _) = {
       let src : fp80 = __f80_from_f64(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
-        0 => x87_write_st(0, __f80_add(st0, src)),
-        1 => x87_write_st(0, __f80_mul(st0, src)),
-        2 => x87_set_sw_cc(__f80_compare(st0, src)),
-        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, __f80_sub(st0, src)),
-        5 => x87_write_st(0, __f80_sub(src, st0)),
-        6 => x87_write_st(0, __f80_div(st0, src)),
-        7 => x87_write_st(0, __f80_div(src, st0)),
+        0 => x87_write_st(0, fp_add(st0, src)),
+        1 => x87_write_st(0, fp_mul(st0, src)),
+        2 => x87_set_sw_cc(fp_compare(st0, src)),
+        3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
+        4 => x87_write_st(0, fp_sub(st0, src)),
+        5 => x87_write_st(0, fp_sub(src, st0)),
+        6 => x87_write_st(0, fp_div(st0, src)),
+        7 => x87_write_st(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
       // Note: SUB/SUBR and DIV/DIVR are swapped vs D8
       match reg {
-        0 => x87_write_st(sti, __f80_add(x87_read_st(sti), x87_read_st(0))),
-        1 => x87_write_st(sti, __f80_mul(x87_read_st(sti), x87_read_st(0))),
+        0 => x87_write_st(sti, fp_add(x87_read_st(sti), x87_read_st(0))),
+        1 => x87_write_st(sti, fp_mul(x87_read_st(sti), x87_read_st(0))),
         2 => raise_UD(),
         3 => raise_UD(),
-        4 => x87_write_st(sti, __f80_sub(x87_read_st(0), x87_read_st(sti))),
-        5 => x87_write_st(sti, __f80_sub(x87_read_st(sti), x87_read_st(0))),
-        6 => x87_write_st(sti, __f80_div(x87_read_st(0), x87_read_st(sti))),
-        7 => x87_write_st(sti, __f80_div(x87_read_st(sti), x87_read_st(0))),
+        4 => x87_write_st(sti, fp_sub(x87_read_st(0), x87_read_st(sti))),
+        5 => x87_write_st(sti, fp_sub(x87_read_st(sti), x87_read_st(0))),
+        6 => x87_write_st(sti, fp_div(x87_read_st(0), x87_read_st(sti))),
+        7 => x87_write_st(sti, fp_div(x87_read_st(sti), x87_read_st(0))),
       }
     },
   }
@@ -378,9 +378,9 @@ function dispatch_x87_dd(modrm, operand, _) = {
         1 => raise_UD(),
         2 => x87_write_st(sti, x87_read_st(0)),
         3 => { x87_write_st(sti, x87_read_st(0)); let _ = x87_pop() },
-        4 => x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti))),
+        4 => x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
         5 => {
-          x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
         6 => raise_UD(),
@@ -403,14 +403,14 @@ function dispatch_x87_de(modrm, src, _) = {
       let src : fp80 = __f80_from_int16(v(m));
       let st0 : fp80 = x87_read_st(0);
       match reg {
-        0 => x87_write_st(0, __f80_add(st0, src)),
-        1 => x87_write_st(0, __f80_mul(st0, src)),
-        2 => x87_set_sw_cc(__f80_compare(st0, src)),
-        3 => { x87_set_sw_cc(__f80_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, __f80_sub(st0, src)),
-        5 => x87_write_st(0, __f80_sub(src, st0)),
-        6 => x87_write_st(0, __f80_div(st0, src)),
-        7 => x87_write_st(0, __f80_div(src, st0)),
+        0 => x87_write_st(0, fp_add(st0, src)),
+        1 => x87_write_st(0, fp_mul(st0, src)),
+        2 => x87_set_sw_cc(fp_compare(st0, src)),
+        3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
+        4 => x87_write_st(0, fp_sub(st0, src)),
+        5 => x87_write_st(0, fp_sub(src, st0)),
+        6 => x87_write_st(0, fp_div(st0, src)),
+        7 => x87_write_st(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
@@ -418,19 +418,19 @@ function dispatch_x87_de(modrm, src, _) = {
       // Note: SUB/SUBR and DIV/DIVR swapped vs DA
       match reg {
         0 => {
-          let result = __f80_add(x87_read_st(sti), x87_read_st(0));
+          let result = fp_add(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
         1 => {
-          let result = __f80_mul(x87_read_st(sti), x87_read_st(0));
+          let result = fp_mul(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
         // FCOMPP
         2 => {
           if modrm_val == 217 then {
-            x87_set_sw_cc(__f80_compare(x87_read_st(0), x87_read_st(1)));
+            x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(1)));
             let _ = x87_pop();
             let _ = x87_pop()
           } else {
@@ -440,25 +440,25 @@ function dispatch_x87_de(modrm, src, _) = {
         3 => raise_UD(),
         // FSUBRP — ST(i) = ST(0) - ST(i), pop
         4 => {
-          let result = __f80_sub(x87_read_st(0), x87_read_st(sti));
+          let result = fp_sub(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
         // FSUBP — ST(i) = ST(i) - ST(0), pop
         5 => {
-          let result = __f80_sub(x87_read_st(sti), x87_read_st(0));
+          let result = fp_sub(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
         // FDIVRP — ST(i) = ST(0) / ST(i), pop
         6 => {
-          let result = __f80_div(x87_read_st(0), x87_read_st(sti));
+          let result = fp_div(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
         // FDIVP — ST(i) = ST(i) / ST(0), pop
         7 => {
-          let result = __f80_div(x87_read_st(sti), x87_read_st(0));
+          let result = fp_div(x87_read_st(sti), x87_read_st(0));
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
@@ -501,12 +501,12 @@ function dispatch_x87_df(modrm, operand, _) = {
         },
         // FUCOMIP — unordered compare, set RFLAGS, pop
         5 => {
-          x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
         // FCOMIP — compare, set RFLAGS, pop
         6 => {
-          x87_set_rflags_cc(__f80_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
           let _ = x87_pop()
         },
         _ => raise_UD(),

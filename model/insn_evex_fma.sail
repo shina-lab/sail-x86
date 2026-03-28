@@ -78,8 +78,8 @@ function avx_vexp2(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_exp2(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_exp2(src[(lo + 'eb - 1)..lo]),
+      32 => fp_exp2(src[(lo + 'eb - 1)..lo]),
+      64 => fp_exp2(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -92,8 +92,8 @@ function avx_vrcp28(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_rcp28(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_rcp28(src[(lo + 'eb - 1)..lo]),
+      32 => fp_rcp28(src[(lo + 'eb - 1)..lo]),
+      64 => fp_rcp28(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -106,8 +106,8 @@ function avx_vrsqrt28(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_rsqrt28(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_rsqrt28(src[(lo + 'eb - 1)..lo]),
+      32 => fp_rsqrt28(src[(lo + 'eb - 1)..lo]),
+      64 => fp_rsqrt28(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -120,8 +120,8 @@ function avx_vgetexp(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_getexp(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_getexp(src[(lo + 'eb - 1)..lo]),
+      32 => fp_getexp(src[(lo + 'eb - 1)..lo]),
+      64 => fp_getexp(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -134,8 +134,8 @@ function avx_vrcp14(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_rcp14(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_rcp14(src[(lo + 'eb - 1)..lo]),
+      32 => fp_rcp14(src[(lo + 'eb - 1)..lo]),
+      64 => fp_rcp14(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -148,8 +148,8 @@ function avx_vrsqrt14(eb, src) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_rsqrt14(src[(lo + 'eb - 1)..lo]),
-      64 => __f64_rsqrt14(src[(lo + 'eb - 1)..lo]),
+      32 => fp_rsqrt14(src[(lo + 'eb - 1)..lo]),
+      64 => fp_rsqrt14(src[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -162,8 +162,8 @@ function avx_vscalef(eb, a, b) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => __f32_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
-      64 => __f64_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
+      32 => fp_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
+      64 => fp_scalef(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]),
     }
   };
   r
@@ -769,8 +769,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
     // VSCALEFSD xmm1, xmm2, xmm3/m64 / VSCALEFSS xmm1, xmm2, xmm3/m32
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_scalef(src1[63..0], src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_scalef(src1[31..0], src2[31..0]), pfx, 32);
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_scalef(src1[63..0], src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_scalef(src1[31..0], src2[31..0]), pfx, 32);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -801,8 +801,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
     // VGETEXPSD xmm1, xmm2, xmm3/m64 / VGETEXPSS xmm1, xmm2, xmm3/m32
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_getexp(src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_getexp(src2[31..0]), pfx, 32);
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_getexp(src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_getexp(src2[31..0]), pfx, 32);
     evex_end_rc(saved_mxcsr)
   },
 
@@ -829,8 +829,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
     // VRCP14SD xmm1, xmm2, xmm3/m64 / VRCP14SS xmm1, xmm2, xmm3/m32
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_rcp14(src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_rcp14(src2[31..0]), pfx, 32)
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rcp14(src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_rcp14(src2[31..0]), pfx, 32)
   },
 
   // 0F38 4E: VRSQRT14PS (66,W0) / VRSQRT14PD (66,W1) [F]
@@ -856,8 +856,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
     // VRSQRT14SD xmm1, xmm2, xmm3/m64 / VRSQRT14SS xmm1, xmm2, xmm3/m32
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_rsqrt14(src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_rsqrt14(src2[31..0]), pfx, 32)
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rsqrt14(src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_rsqrt14(src2[31..0]), pfx, 32)
   },
 
   // 0F38 2A: VPBROADCASTMB2Q (F3, W=1) [CD] — also VMOVNTDQA (66)
@@ -916,8 +916,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_rcp28(src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_rcp28(src2[31..0]), pfx, 32)
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rcp28(src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_rcp28(src2[31..0]), pfx, 32)
   },
 
   // 0F38 CC: VRSQRT28PS (66,W0) / VRSQRT28PD (66,W1) [ER] — 512-bit only
@@ -939,8 +939,8 @@ function dispatch_evex_fma(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 = read_xmm(pfx.evex_vvvvv);
     let src2 = evex_src(128,modrm, src, pfx);
-    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ __f64_rsqrt28(src2[63..0]), pfx, 64)
-    else evex_write_scalar(dst, src1[127..32] @ __f32_rsqrt28(src2[31..0]), pfx, 32)
+    if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rsqrt28(src2[63..0]), pfx, 64)
+    else evex_write_scalar(dst, src1[127..32] @ fp_rsqrt28(src2[31..0]), pfx, 32)
   },
 
   // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
