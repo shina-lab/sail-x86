@@ -188,6 +188,22 @@ function sat_add_u(a, b) = {
   wide[('n - 1) .. 0] | sign_extend(wide['n])
 }
 
+val sat_sub_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_sub_s(a, b) = {
+  let wide : bits('n + 1) = sign_extend(a) - sign_extend(b);
+  let result : bits('n) = wide[('n - 1) .. 0];
+  let overflow : bit = wide['n] ^ result['n - 1];
+  let msb_only : bits('n) = zero_extend(0b1) << ('n - 1);
+  let clamp : bits('n) = msb_only ^ sign_extend(~(wide['n]));
+  blend(result, clamp, overflow)
+}
+
+val sat_sub_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function sat_sub_u(a, b) = {
+  let wide : bits('n + 1) = zero_extend(a) - zero_extend(b);
+  wide[('n - 1) .. 0] & sign_extend(~(wide['n]))
+}
+
 // Rounding average: (a + b + 1) >> 1
 val avg : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
 function avg(a, b) = {
@@ -275,14 +291,6 @@ function mulhrs(a, b) = {
   let rounded : bits('n * 2) = to_bits_truncate(signed(shifted) + 1);
   (rounded >>> 1)[('n - 1)..0]
 }
-
-// Funnel shift left: (a @ b) << cnt, take high 'n bits.
-val funnelshl : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), nat) -> bits('n)
-function funnelshl(a, b, cnt) = ((a @ b) << (cnt % 'n))[('n * 2 - 1) .. 'n]
-
-// Funnel shift right: (b @ a) >> cnt, take low 'n bits.
-val funnelshr : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), nat) -> bits('n)
-function funnelshr(a, b, cnt) = ((b @ a) >> (cnt % 'n))[('n - 1) .. 0]
 
 // =========================================================================
 // GFNI primitives (GF(2^8) with irreducible polynomial x^8+x^4+x^3+x+1)

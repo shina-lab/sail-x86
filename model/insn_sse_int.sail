@@ -151,23 +151,6 @@ function psign(a, b) = {
 // PSUBUSB/PSUBUSW — Subtract Packed Unsigned Integers with Unsigned Saturation
 // No flags affected.
 // Branchless: detect overflow/underflow via sign bits of wide difference.
-val sat_sub_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function sat_sub_s(a, b) = {
-  let wide : bits('n + 1) = sign_extend(a) - sign_extend(b);
-  let result : bits('n) = wide[('n - 1) .. 0];
-  let overflow : bit = wide['n] ^ result['n - 1];
-  let msb_only : bits('n) = zero_extend(0b1) << ('n - 1);
-  let clamp : bits('n) = msb_only ^ sign_extend(~(wide['n]));
-  blend(result, clamp, overflow)
-}
-
-// Branchless: borrow bit of wide difference → mask to zero.
-val sat_sub_u : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function sat_sub_u(a, b) = {
-  let wide : bits('n + 1) = zero_extend(a) - zero_extend(b);
-  wide[('n - 1) .. 0] & sign_extend(~(wide['n]))
-}
-
 // =========================================================================
 // PCLMULQDQ — Carry-Less Multiplication (SDM Vol.2B §4-242)
 //
