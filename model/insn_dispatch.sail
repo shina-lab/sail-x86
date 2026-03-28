@@ -394,17 +394,17 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         match op3 {
           // SHA1NEXTE xmm1, xmm2/m128
-          200 => write_xmm_legacy(xreg, __sha1nexte(read_simd(xreg), src_xmm)),
+          200 => ZMM[xreg][127..0] = __sha1nexte(read_simd(xreg), src_xmm),
           // SHA1MSG1 xmm1, xmm2/m128
-          201 => write_xmm_legacy(xreg, __sha1msg1(read_simd(xreg), src_xmm)),
+          201 => ZMM[xreg][127..0] = __sha1msg1(read_simd(xreg), src_xmm),
           // SHA1MSG2 xmm1, xmm2/m128
-          202 => write_xmm_legacy(xreg, __sha1msg2(read_simd(xreg), src_xmm)),
+          202 => ZMM[xreg][127..0] = __sha1msg2(read_simd(xreg), src_xmm),
           // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
-          203 => write_xmm_legacy(xreg, __sha256rnds2(read_simd(xreg), src_xmm, read_simd(0))),
+          203 => ZMM[xreg][127..0] = __sha256rnds2(read_simd(xreg), src_xmm, read_simd(0)),
           // SHA256MSG1 xmm1, xmm2/m128
-          204 => write_xmm_legacy(xreg, __sha256msg1(read_simd(xreg), src_xmm)),
+          204 => ZMM[xreg][127..0] = __sha256msg1(read_simd(xreg), src_xmm),
           // SHA256MSG2 xmm1, xmm2/m128
-          205 => write_xmm_legacy(xreg, __sha256msg2(read_simd(xreg), src_xmm)),
+          205 => ZMM[xreg][127..0] = __sha256msg2(read_simd(xreg), src_xmm),
           _ => raise_UD(),
         }
       } else {
@@ -432,7 +432,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let src = modrm_rm(modrm, pfx);
           let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
           let imm : byte = fetch(1);
-          write_xmm_legacy(xreg, __sha1rnds4(read_simd(xreg), src_xmm, imm))
+          ZMM[xreg][127..0] = __sha1rnds4(read_simd(xreg), src_xmm, imm)
         },
         _  => {
           if ~(has_ssse3) then raise_UD();

@@ -115,10 +115,6 @@ function write_simd(vl, idx, v) = match vl {
   512 => ZMM[idx] = v
 }
 
-// Legacy SSE write: preserves upper bits beyond 128
-val write_xmm_legacy : (simd_idx, xmmword) -> unit
-function write_xmm_legacy(idx, v) = ZMM[idx][127..0] = v
-
 // =========================================================================
 // AVX-512 Opmask registers (k0-k7)
 //
