@@ -745,10 +745,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let reg = modrm_reg(modrm, pfx);
         let _ = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
-        let mask : word = src_xmm[127] @ src_xmm[119] @ src_xmm[111] @ src_xmm[103] @
-                               src_xmm[95]  @ src_xmm[87]  @ src_xmm[79]  @ src_xmm[71] @
-                               src_xmm[63]  @ src_xmm[55]  @ src_xmm[47]  @ src_xmm[39] @
-                               src_xmm[31]  @ src_xmm[23]  @ src_xmm[15]  @ src_xmm[7];
+        var mask : word = zeros();
+        foreach (i from 0 to 15) { mask[i] = src_xmm[i * 8 + 7] };
         v(reg) = zero_extend(32, mask)
       }
     },
@@ -756,36 +754,24 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F DB: PAND xmm, xmm/m128 (66 prefix)
     219 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
+      if mp != MP_66 then dispatch_mmx(op, pfx)
+      else {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        ZMM[xreg][127..0] = a & b
+        ZMM[xreg][127..0] = read_simd(xreg) & decode_xmm_src(modrm, src, pfx)
       }
     },
 
     // 0F DF: PANDN xmm, xmm/m128 (66 prefix)
     223 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
+      if mp != MP_66 then dispatch_mmx(op, pfx)
+      else {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm
+        ZMM[xreg][127..0] = ~(read_simd(xreg)) & decode_xmm_src(modrm, src, pfx)
       }
     },
 
@@ -795,36 +781,24 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F EB: POR xmm, xmm/m128 (66 prefix)
     235 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
+      if mp != MP_66 then dispatch_mmx(op, pfx)
+      else {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        ZMM[xreg][127..0] = read_simd(xreg) | src_xmm
+        ZMM[xreg][127..0] = read_simd(xreg) | decode_xmm_src(modrm, src, pfx)
       }
     },
 
     // 0F EF: PXOR xmm, xmm/m128 (66 prefix)
     239 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
+      if mp != MP_66 then dispatch_mmx(op, pfx)
+      else {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        ZMM[xreg][127..0] = a ^ b
+        ZMM[xreg][127..0] = read_simd(xreg) ^ decode_xmm_src(modrm, src, pfx)
       }
     },
 
