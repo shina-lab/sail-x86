@@ -711,31 +711,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
         },
         // VRSQRTPS (NP only, vvvv reserved, 256-bit)
         2 => {
-          if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            MP_NONE => {
-              let hi = fp_rsqrt(src2[255..224]) @ fp_rsqrt(src2[223..192]) @
-                       fp_rsqrt(src2[191..160]) @ fp_rsqrt(src2[159..128]);
-              let lo = fp_rsqrt(src2[127..96]) @ fp_rsqrt(src2[95..64]) @
-                       fp_rsqrt(src2[63..32])  @ fp_rsqrt(src2[31..0]);
-              write_simd(256, dst, hi @ lo)
-            },
-            _ => raise_UD(),
-          }
+          if pfx.vex_vvvv != 0 | mp != MP_NONE then raise_UD();
+          write_simd(256, dst, packed_unop(PU_FRsqrt, 32, src2))
         },
         // VRCPPS (NP only, vvvv reserved, 256-bit)
         3 => {
-          if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            MP_NONE => {
-              let hi = fp_rcp(src2[255..224]) @ fp_rcp(src2[223..192]) @
-                       fp_rcp(src2[191..160]) @ fp_rcp(src2[159..128]);
-              let lo = fp_rcp(src2[127..96]) @ fp_rcp(src2[95..64]) @
-                       fp_rcp(src2[63..32])  @ fp_rcp(src2[31..0]);
-              write_simd(256, dst, hi @ lo)
-            },
-            _ => raise_UD(),
-          }
+          if pfx.vex_vvvv != 0 | mp != MP_NONE then raise_UD();
+          write_simd(256, dst, packed_unop(PU_FRcp, 32, src2))
         },
         // VANDPS/VANDPD
         4 => write_simd(256, dst, src1 & src2),
@@ -834,21 +816,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
         },
         // VRSQRTPS (NP, vvvv reserved) / VRSQRTSS (F3, scalar merge)
         2 => match mp {
-          MP_NONE => {
-            if pfx.vex_vvvv != 0 then raise_UD();
-            write_simd(128, dst, fp_rsqrt(src2[127..96]) @ fp_rsqrt(src2[95..64]) @
-                           fp_rsqrt(src2[63..32])  @ fp_rsqrt(src2[31..0]))
-          },
+          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FRsqrt, 32, src2)) },
           MP_F3 => write_simd(128, dst, src1[127..32] @ fp_rsqrt(src2[31..0])),
           _ => raise_UD(),
         },
         // VRCPPS (NP, vvvv reserved) / VRCPSS (F3, scalar merge)
         3 => match mp {
-          MP_NONE => {
-            if pfx.vex_vvvv != 0 then raise_UD();
-            write_simd(128, dst, fp_rcp(src2[127..96]) @ fp_rcp(src2[95..64]) @
-                           fp_rcp(src2[63..32])  @ fp_rcp(src2[31..0]))
-          },
+          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FRcp, 32, src2)) },
           MP_F3 => write_simd(128, dst, src1[127..32] @ fp_rcp(src2[31..0])),
           _ => raise_UD(),
         },
