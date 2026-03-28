@@ -273,7 +273,7 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   (sat & of_mask) | (wide[15..0] & ~(of_mask))
 }
 
-// PSADBW per-byte: absolute difference of unsigned bytes.
+// PSADBW: absolute difference of unsigned bytes.
 val abs_diff8 : (byte, byte) -> int
 function abs_diff8(a, b) = {
   let d1 : bits(9) = (0b0 @ a) - (0b0 @ b);
@@ -282,6 +282,15 @@ function abs_diff8(a, b) = {
   let m2 : byte = sign_extend(~(d2[8]));
   unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
 }
+
+// PSADBW: sum of absolute differences of 8 unsigned byte pairs, zero-extended to 64 bits.
+val psadbw : (bits(64), bits(64)) -> bits(64)
+function psadbw(a, b) =
+  zero_extend(get_slice_int(16,
+    abs_diff8(a[63..56], b[63..56]) + abs_diff8(a[55..48], b[55..48]) +
+    abs_diff8(a[47..40], b[47..40]) + abs_diff8(a[39..32], b[39..32]) +
+    abs_diff8(a[31..24], b[31..24]) + abs_diff8(a[23..16], b[23..16]) +
+    abs_diff8(a[15..8],  b[15..8])  + abs_diff8(a[7..0],   b[7..0]), 0))
 
 // FP16 <-> FP32 conversion.
 val fp16_to_fp32 : bits(16) -> bits(32)

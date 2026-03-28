@@ -797,12 +797,7 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let s : qword = mmx_read_rm(modrm, src);
       let d : qword = read_mm(dst);
-      let sum : int =
-        abs_diff8(d[63..56], s[63..56]) + abs_diff8(d[55..48], s[55..48]) +
-        abs_diff8(d[47..40], s[47..40]) + abs_diff8(d[39..32], s[39..32]) +
-        abs_diff8(d[31..24], s[31..24]) + abs_diff8(d[23..16], s[23..16]) +
-        abs_diff8(d[15..8],  s[15..8])  + abs_diff8(d[7..0],   s[7..0]);
-      write_mm(dst, zero_extend(to_bits_truncate(16, sum)));
+      write_mm(dst, psadbw(d, s));
       mmx_touch()
     },
 

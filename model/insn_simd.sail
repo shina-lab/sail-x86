@@ -110,13 +110,7 @@ function packed_elem_op(op, a, b) = match op {
     assert('eb == 32);
     get_slice_int(32, signed(a[15..0]) * signed(b[15..0]) + signed(a[31..16]) * signed(b[31..16]), 0)
   },
-  PB_Psadbw => {
-    assert('eb == 64);
-    zero_extend(get_slice_int(16,
-      abs_diff8(a[63..56], b[63..56]) + abs_diff8(a[55..48], b[55..48]) +
-      abs_diff8(a[47..40], b[47..40]) + abs_diff8(a[39..32], b[39..32]) +
-      abs_diff8(a[31..24], b[31..24]) + abs_diff8(a[23..16], b[23..16]) +
-      abs_diff8(a[15..8],  b[15..8])  + abs_diff8(a[7..0],   b[7..0]), 0))
+  PB_Psadbw => { assert('eb == 64); psadbw(a, b)
   },
   PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, a, b) },
   PB_HorizAddD    => { assert('eb == 128); packed_horiz(PB_Add, 32, a, b) },
