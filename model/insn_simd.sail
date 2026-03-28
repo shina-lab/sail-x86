@@ -195,7 +195,7 @@ function packed_lane_imm_op(op, src, imm) = {
 // Uniform packed shift: apply a scalar shift count to all elements.
 enum PackedShiftOp = { PS_Srl, PS_Sra, PS_Sll }
 
-val packed_uniform_shift : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
+val packed_uniform_shift : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64, 128}.
   (PackedShiftOp, int('eb), bits('vl), nat) -> bits('vl)
 function packed_uniform_shift(op, eb, src, count) = {
   var r : bits('vl) = zeros();
@@ -304,6 +304,7 @@ function packed_widen_unop(vl, op, src_eb, dst_eb, a) = {
 enum PackedTernaryOp = {
   PT_FMAdd, PT_FMSub, PT_FNMAdd, PT_FNMSub,
   PT_FunnelShl, PT_FunnelShr,
+  PT_DPBusd, PT_DPBusds, PT_DPWssd, PT_DPWssds,
 }
 
 val packed_ternary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
@@ -315,6 +316,35 @@ function packed_ternary_elem(op, a, b, c) = match op {
   PT_FNMSub     => fp_fnmsub(a, b, c),
   PT_FunnelShl  => ((a @ b) << (unsigned(c) % 'eb))[('eb * 2 - 1) .. 'eb],
   PT_FunnelShr  => ((b @ a) >> (unsigned(c) % 'eb))[('eb - 1) .. 0],
+
+  PT_DPBusd => {
+    assert('eb == 32);
+    to_bits_truncate(32, signed(a)
+      + unsigned(b[7..0])   * signed(c[7..0])
+      + unsigned(b[15..8])  * signed(c[15..8])
+      + unsigned(b[23..16]) * signed(c[23..16])
+      + unsigned(b[31..24]) * signed(c[31..24]))
+  },
+  PT_DPBusds => {
+    assert('eb == 32);
+    sat_s(to_bits_truncate(33, signed(a)
+      + unsigned(b[7..0])   * signed(c[7..0])
+      + unsigned(b[15..8])  * signed(c[15..8])
+      + unsigned(b[23..16]) * signed(c[23..16])
+      + unsigned(b[31..24]) * signed(c[31..24])))
+  },
+  PT_DPWssd => {
+    assert('eb == 32);
+    to_bits_truncate(32, signed(a)
+      + signed(b[15..0])  * signed(c[15..0])
+      + signed(b[31..16]) * signed(c[31..16]))
+  },
+  PT_DPWssds => {
+    assert('eb == 32);
+    sat_s(to_bits_truncate(33, signed(a)
+      + signed(b[15..0])  * signed(c[15..0])
+      + signed(b[31..16]) * signed(c[31..16])))
+  },
 }
 
 val packed_ternop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.

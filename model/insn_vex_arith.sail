@@ -97,111 +97,6 @@ function vex_vpermd_256(ctrl, src) = {
   result
 }
 
-// VPSRLVD 128-bit: variable logical right shift, dword granularity
-val vex_psrlvd_128 : (xmmword, xmmword) -> xmmword
-function vex_psrlvd_128(data, shift) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) >> count
-  };
-  result
-}
-
-val vex_psrlvd_256 : (ymmword, ymmword) -> ymmword
-function vex_psrlvd_256(data, shift) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) >> count
-  };
-  result
-}
-
-// VPSRLVQ 128-bit: variable logical right shift, qword granularity
-val vex_psrlvq_128 : (xmmword, xmmword) -> xmmword
-function vex_psrlvq_128(data, shift) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) >> count
-  };
-  result
-}
-
-val vex_psrlvq_256 : (ymmword, ymmword) -> ymmword
-function vex_psrlvq_256(data, shift) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 3) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) >> count
-  };
-  result
-}
-
-// VPSRAVD 128-bit: variable arithmetic right shift, dword granularity
-val vex_psravd_128 : (xmmword, xmmword) -> xmmword
-function vex_psravd_128(data, shift) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)] >>> count
-  };
-  result
-}
-
-val vex_psravd_256 : (ymmword, ymmword) -> ymmword
-function vex_psravd_256(data, shift) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = data[(i * 32 + 31) .. (i * 32)] >>> count
-  };
-  result
-}
-
-// VPSLLVD 128-bit: variable logical left shift, dword granularity
-val vex_psllvd_128 : (xmmword, xmmword) -> xmmword
-function vex_psllvd_128(data, shift) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) << count
-  };
-  result
-}
-
-val vex_psllvd_256 : (ymmword, ymmword) -> ymmword
-function vex_psllvd_256(data, shift) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 32 + 31) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = (data[(i * 32 + 31) .. (i * 32)]) << count
-  };
-  result
-}
-
-// VPSLLVQ 128-bit: variable logical left shift, qword granularity
-val vex_psllvq_128 : (xmmword, xmmword) -> xmmword
-function vex_psllvq_128(data, shift) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 1) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) << count
-  };
-  result
-}
-
-val vex_psllvq_256 : (ymmword, ymmword) -> ymmword
-function vex_psllvq_256(data, shift) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 3) {
-    let count : range(0, 4294967295) = unsigned(shift[(i * 64 + 31) .. (i * 64)]);
-    result[(i * 64 + 63) .. (i * 64)] = (data[(i * 64 + 63) .. (i * 64)]) << count
-  };
-  result
-}
-
 val dispatch_vex_0f38_arith : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f38_arith(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
@@ -1231,58 +1126,22 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 45: VPSRLVD (W0) / VPSRLVQ (W1) (VEX.128/256.66.0F38)
-  // Variable logical right shift per element
   69 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_l, pfx.vex_w) {
-      // VPSRLVQ ymm1, ymm2, ymm3/m256
-      (true, true)   => write_ymm(dst, vex_psrlvq_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx))),
-      // VPSRLVQ xmm1, xmm2, xmm3/m128
-      (false, true)  => write_xmm(dst, vex_psrlvq_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx))),
-      // VPSRLVD ymm1, ymm2, ymm3/m256
-      (true, false)  => write_ymm(dst, vex_psrlvd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx))),
-      // VPSRLVD xmm1, xmm2, xmm3/m128
-      (false, false) => write_xmm(dst, vex_psrlvd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let eb = vex_elem(pfx);
+    vex_exec_binop(PB_Srl, eb, pfx)
   },
-
   // 0F38 46: VPSRAVD (VEX.128/256.66.0F38.W0)
-  // Variable arithmetic right shift, dword only (no qword form in AVX2)
   70 => {
     if mp != MP_66 | pfx.vex_w then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, vex_psravd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, vex_psravd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    vex_exec_binop(PB_Sra, 32, pfx)
   },
 
   // 0F38 47: VPSLLVD (W0) / VPSLLVQ (W1) (VEX.128/256.66.0F38)
-  // Variable logical left shift per element
   71 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    match (pfx.vex_l, pfx.vex_w) {
-      // VPSLLVQ ymm1, ymm2, ymm3/m256
-      (true, true)   => write_ymm(dst, vex_psllvq_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx))),
-      // VPSLLVQ xmm1, xmm2, xmm3/m128
-      (false, true)  => write_xmm(dst, vex_psllvq_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx))),
-      // VPSLLVD ymm1, ymm2, ymm3/m256
-      (true, false)  => write_ymm(dst, vex_psllvd_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx))),
-      // VPSLLVD xmm1, xmm2, xmm3/m128
-      (false, false) => write_xmm(dst, vex_psllvd_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx))),
-    }
+    let eb = vex_elem(pfx);
+    vex_exec_binop(PB_Sll, eb, pfx)
   },
 
   // 0F38 90: VPGATHERDD (66,W0) / VPGATHERDQ (66,W1) — dword indices, VEX gather

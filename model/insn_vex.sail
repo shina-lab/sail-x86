@@ -35,65 +35,6 @@ function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
 }
 
 // =========================================================================
-// Packed 32-bit ternary operations (fixed dword element size)
-//
-// For operations like VNNI that decompose each dword internally
-// (e.g. multiply bytes/words within each dword and accumulate)
-// but don't generalize to other element sizes.
-// =========================================================================
-
-// Signed saturation to 32-bit range.
-enum TernaryOp32 = { TO32_DPBusd, TO32_DPBusds, TO32_DPWssd, TO32_DPWssds }
-
-val ternary_elem32 : (TernaryOp32, dword, dword, dword) -> dword
-function ternary_elem32(op, dst, s1, s2) = match op {
-  // VPDPBUSD: unsigned bytes × signed bytes, sum 4 products, accumulate
-  TO32_DPBusd => {
-    let sum : int = signed(dst)
-      + unsigned(s1[7..0])   * signed(s2[7..0])
-      + unsigned(s1[15..8])  * signed(s2[15..8])
-      + unsigned(s1[23..16]) * signed(s2[23..16])
-      + unsigned(s1[31..24]) * signed(s2[31..24]);
-    to_bits_truncate(32, sum)
-  },
-  // VPDPBUSDS: same with signed dword saturation
-  TO32_DPBusds => {
-    let sum : int = signed(dst)
-      + unsigned(s1[7..0])   * signed(s2[7..0])
-      + unsigned(s1[15..8])  * signed(s2[15..8])
-      + unsigned(s1[23..16]) * signed(s2[23..16])
-      + unsigned(s1[31..24]) * signed(s2[31..24]);
-    sat_s(to_bits_truncate(33, sum))
-  },
-  // VPDPWSSD: signed words × signed words, sum 2 products, accumulate
-  TO32_DPWssd => {
-    let sum : int = signed(dst)
-      + signed(s1[15..0])  * signed(s2[15..0])
-      + signed(s1[31..16]) * signed(s2[31..16]);
-    get_slice_int(32, sum, 0)
-  },
-  // VPDPWSSDS: same with signed dword saturation
-  TO32_DPWssds => {
-    let sum : int = signed(dst)
-      + signed(s1[15..0])  * signed(s2[15..0])
-      + signed(s1[31..16]) * signed(s2[31..16]);
-    sat_s(to_bits_truncate(33, sum))
-  },
-}
-
-val packed_ternop32 : forall 'vl, 'vl in {128, 256, 512}.
-  (TernaryOp32, bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function packed_ternop32(op, a, b, c) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let hi = i * 32 + 31;
-    let lo = i * 32;
-    r[hi..lo] = ternary_elem32(op, a[hi..lo], b[hi..lo], c[hi..lo])
-  };
-  r
-}
-
-// =========================================================================
 // 128-bit packed integer add/sub helpers
 // =========================================================================
 
@@ -189,8 +130,3 @@ function vex_exec_unop(op, eb, pfx) = {
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_unop(op, eb, decode_vex_src(modrm, src, pfx)))
 }
-
-// =========================================================================
-// SSSE3 VEX helpers — 128-bit lane operations
-// =========================================================================
-

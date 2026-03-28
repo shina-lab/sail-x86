@@ -1074,7 +1074,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop32(TO32_DPBusd, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPBusd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F38 51: VPDPBUSDS (66) [VNNI]
@@ -1085,7 +1085,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop32(TO32_DPBusds, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPBusds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F38 52: VPDPWSSD (66) [VNNI] / VDPBF16PS (F3) [BF16]
@@ -1099,7 +1099,7 @@ function dispatch_evex_arith(op, pfx) = {
         // VPDPWSSD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, packed_ternop32(TO32_DPWssd, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_ternop(PT_DPWssd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
       },
       MP_F3 => {
         // VDPBF16PS: BF16 dot product accumulating to FP32 (W=0)
@@ -1120,7 +1120,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop32(TO32_DPWssds, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPWssds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
   },
 
   // 0F38 54: VPOPCNTB (66, W=0) / VPOPCNTW (66, W=1) [BITALG]
