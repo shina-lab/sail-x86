@@ -268,11 +268,9 @@ function dispatch_mmx(op, pfx) = {
     215 => {
       let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
-      let src = modrm_mm_rm(modrm);
-      let x : qword = read_mm(src);
-      let mask : byte =
-        x[63] @ x[55] @ x[47] @ x[39] @
-        x[31] @ x[23] @ x[15] @ x[7];
+      let x : qword = read_mm(modrm_mm_rm(modrm));
+      var mask : byte = zeros();
+      foreach (i from 0 to 7) { mask[i] = x[i * 8 + 7] };
       v(dst_gpr) = zero_extend(32, mask);
       mmx_touch()
     },
