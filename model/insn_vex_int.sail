@@ -512,44 +512,35 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
+    let n : {2, 4} = if pfx.vex_l then 4 else 2;
     match mp {
-      // VCVTDQ2PD: 2/4 dword ints -> 2/4 doubles
+      // VCVTDQ2PD: N dword ints -> N doubles
       MP_F3 => {
-        if pfx.vex_l then {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          let r3 = __int32_to_f64(src[127..96]);
-          let r2 = __int32_to_f64(src[95..64]);
-          let r1 = __int32_to_f64(src[63..32]);
-          let r0 = __int32_to_f64(src[31..0]);
-          write_simd(256, dst, r3 @ r2 @ r1 @ r0)
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, __int32_to_f64(src[63..32]) @ __int32_to_f64(src[31..0]))
-        }
+        let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
+        var r : ymmword = zeros();
+        foreach (i from 0 to (n - 1)) {
+          r[(i * 64 + 63)..(i * 64)] = __int32_to_f64(src[(i * 32 + 31)..(i * 32)])
+        };
+        write_simd(vl, dst, r[(vl - 1)..0])
       },
-      // VCVTPD2DQ: 2/4 doubles -> 2/4 dword ints (rounding)
+      // VCVTPD2DQ: N doubles -> N dword ints (rounding)
       MP_F2 => {
-        if pfx.vex_l then {
-          let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-          let r : xmmword = __f64_to_int32(src[255..192]) @ __f64_to_int32(src[191..128]) @
-                            __f64_to_int32(src[127..64])  @ __f64_to_int32(src[63..0]);
-          write_simd(128, dst, r)
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, zeros(64) @ __f64_to_int32(src[127..64]) @ __f64_to_int32(src[63..0]))
-        }
+        let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
+        var r : xmmword = zeros();
+        foreach (i from 0 to (n - 1)) {
+          r[(i * 32 + 31)..(i * 32)] = __f64_to_int32(src[(i * 64 + 63)..(i * 64)])
+        };
+        write_simd(128, dst, r)
       },
-      // VCVTTPD2DQ: 2/4 doubles -> 2/4 dword ints (truncating)
+      // VCVTTPD2DQ: N doubles -> N dword ints (truncating)
       MP_66 => {
-        if pfx.vex_l then {
-          let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-          let r : xmmword = __f64_to_int32_trunc(src[255..192]) @ __f64_to_int32_trunc(src[191..128]) @
-                            __f64_to_int32_trunc(src[127..64])  @ __f64_to_int32_trunc(src[63..0]);
-          write_simd(128, dst, r)
-        } else {
-          let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-          write_simd(128, dst, zeros(64) @ __f64_to_int32_trunc(src[127..64]) @ __f64_to_int32_trunc(src[63..0]))
-        }
+        let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
+        var r : xmmword = zeros();
+        foreach (i from 0 to (n - 1)) {
+          r[(i * 32 + 31)..(i * 32)] = __f64_to_int32_trunc(src[(i * 64 + 63)..(i * 64)])
+        };
+        write_simd(128, dst, r)
       },
       _ => raise_UD(),
     }
