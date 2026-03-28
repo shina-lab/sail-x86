@@ -289,11 +289,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       // 256-bit: 8 FP16 -> 8 FP32
-      let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, avx_vcvtph2ps(src))
     } else {
       // 128-bit: 4 FP16 -> 4 FP32
-      let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
       write_xmm(dst, avx_vcvtph2ps(src[63..0]))
     }
   },
@@ -371,7 +371,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+    let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
     write_xmm(dst, __aesimc(src))
   },
 
@@ -384,7 +384,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
-    let roundkey : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+    let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_xmm(dst, __aesenc(state, roundkey))
   },
 
@@ -397,7 +397,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
-    let roundkey : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+    let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_xmm(dst, __aesenclast(state, roundkey))
   },
 
@@ -410,7 +410,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
-    let roundkey : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+    let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_xmm(dst, __aesdec(state, roundkey))
   },
 
@@ -423,7 +423,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let state : xmmword = read_xmm(pfx.vex_vvvv);
-    let roundkey : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+    let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_xmm(dst, __aesdeclast(state, roundkey))
   },
 
@@ -566,7 +566,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 16, src))
     } else {
       let src : bits(64) = match src2 {
@@ -632,7 +632,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 16, 32, src))
     } else {
       let src : bits(64) = match src2 {
@@ -675,7 +675,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 32, 64, src))
     } else {
       let src : bits(64) = match src2 {
@@ -695,9 +695,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     let vvvv = pfx.vex_vvvv;
     if pfx.vex_l then {
-      write_ymm(dst, avx_pmuldq_256(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
+      write_ymm(dst, avx_pmuldq_256(read_ymm(vvvv), decode_vex_src(256, modrm, src, pfx)))
     } else {
-      write_xmm(dst, avx_pmuldq_128(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
+      write_xmm(dst, avx_pmuldq_128(read_xmm(vvvv), decode_vex_src(128, modrm, src, pfx)))
     }
   },
 
@@ -733,7 +733,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 16, src))
     } else {
       let src : bits(64) = match src2 {
@@ -799,7 +799,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 16, 32, src))
     } else {
       let src : bits(64) = match src2 {
@@ -842,7 +842,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src = decode_vex_src_xmm(modrm, src2, pfx);
+      let src = decode_vex_src(128, modrm, src2, pfx);
       write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 32, 64, src))
     } else {
       let src : bits(64) = match src2 {
@@ -951,7 +951,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+    let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
     write_xmm(dst, avx_phminposuw_128(src))
   },
 
@@ -966,14 +966,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
+      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
@@ -995,14 +995,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
+      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
@@ -1023,7 +1023,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
-    let src : ymmword = decode_vex_src_ymm(modrm, src2, pfx);
+    let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     write_ymm(dst, vex_vpermd_256(ctrl, src))
   },
 
@@ -1132,7 +1132,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
-    let src : ymmword = decode_vex_src_ymm(modrm, src2, pfx);
+    let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     write_ymm(dst, vex_vpermd_256(ctrl, src))
   },
 
@@ -1436,7 +1436,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : ymmword = read_ymm(pfx.vex_vvvv);
-      let ctrl : ymmword = decode_vex_src_ymm(modrm, src2, pfx);
+      let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
       var result : ymmword = zeros();
       // Per 128-bit lane, select from 4 dwords within that lane
       foreach (i from 0 to 3) {
@@ -1450,7 +1450,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, result)
     } else {
       let src : xmmword = read_xmm(pfx.vex_vvvv);
-      let ctrl : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+      let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
       foreach (i from 0 to 3) {
         let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
@@ -1469,7 +1469,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src : ymmword = read_ymm(pfx.vex_vvvv);
-      let ctrl : ymmword = decode_vex_src_ymm(modrm, src2, pfx);
+      let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
       var result : ymmword = zeros();
       // Per 128-bit lane, select from 2 qwords within that lane using bit 1
       let s0 : range(0, 1) = unsigned(ctrl[1]);
@@ -1483,7 +1483,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, result)
     } else {
       let src : xmmword = read_xmm(pfx.vex_vvvv);
-      let ctrl : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
+      let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
       let s0 : range(0, 1) = unsigned(ctrl[1]);
       result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
@@ -1501,14 +1501,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
+      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
       let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
       ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
@@ -1528,7 +1528,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
       let src1 : ymmword = read_ymm(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
+      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       var result : ymmword = zeros();
       foreach (i from 0 to 3) {
         let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];
@@ -1538,7 +1538,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       write_ymm(dst, result)
     } else {
       let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
+      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       var result : xmmword = zeros();
       foreach (i from 0 to 1) {
         let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];

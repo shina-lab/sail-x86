@@ -17,7 +17,7 @@ enum FMAOrder = { FMA_132, FMA_213, FMA_231 }
 val exec_vfma_scalar : (PackedTernaryOp, FMAOrder, bool, simd_idx, xmmword, xmmword) -> unit
 function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
   let d = read_xmm(dst);
-  let (a, b, c) = match order {
+  let (a, b, c) : (xmmword, xmmword, xmmword) = match order {
     FMA_132 => (d, src3, src2),
     FMA_213 => (src2, d, src3),
     FMA_231 => (src2, src3, d),
@@ -90,13 +90,6 @@ function decode_vex_src(vl, modrm, rm, pfx) = match rm {
   RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => read_mem(m),
 }
-
-// Monomorphic aliases (used by legacy callers).
-val decode_vex_src_xmm : (byte, RM, Prefixes) -> xmmword
-function decode_vex_src_xmm(modrm, rm, pfx) = decode_vex_src(128, modrm, rm, pfx)
-
-val decode_vex_src_ymm : (byte, RM, Prefixes) -> ymmword
-function decode_vex_src_ymm(modrm, rm, pfx) = decode_vex_src(256, modrm, rm, pfx)
 
 // =========================================================================
 // VEX dispatch helpers: absorb common modrm decode + read/write pattern
