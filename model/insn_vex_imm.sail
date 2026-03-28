@@ -41,22 +41,26 @@ function avx_palignr_128(src1, src2, imm) = {
   (concat >> (shift_bytes * 8))[127..0]
 }
 
-// VROUNDPS 128-bit
-val avx_roundps_128 : (xmmword, byte) -> xmmword
-function avx_roundps_128(src, imm) = {
-  let d0 : dword = fp_round(src[31..0], imm);
-  let d1 : dword = fp_round(src[63..32], imm);
-  let d2 : dword = fp_round(src[95..64], imm);
-  let d3 : dword = fp_round(src[127..96], imm);
-  d3 @ d2 @ d1 @ d0
+// VROUNDPS: round each f32 element per imm control
+val avx_roundps : forall 'vl, 'vl in {128, 256}. (implicit('vl), bits('vl), byte) -> bits('vl)
+function avx_roundps(vl, src, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = fp_round(src[(lo + 31)..lo], imm)
+  };
+  r
 }
 
-// VROUNDPD 128-bit
-val avx_roundpd_128 : (xmmword, byte) -> xmmword
-function avx_roundpd_128(src, imm) = {
-  let lo : qword = fp_round(src[63..0], imm);
-  let hi : qword = fp_round(src[127..64], imm);
-  hi @ lo
+// VROUNDPD: round each f64 element per imm control
+val avx_roundpd : forall 'vl, 'vl in {128, 256}. (implicit('vl), bits('vl), byte) -> bits('vl)
+function avx_roundpd(vl, src, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = fp_round(src[(lo + 63)..lo], imm)
+  };
+  r
 }
 
 // VDPPS 128-bit: dot product of packed singles
@@ -313,42 +317,26 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A 08: VROUNDPS xmm/ymm, xmm/ymm/m, imm8 (66) — vvvv must be 1111b
   8 => {
-    if mp != MP_66 then raise_UD();
-    if pfx.vex_vvvv != 0 then raise_UD();
+    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      let imm = fetch(1);
-      let lo : xmmword = avx_roundps_128(src[127..0], imm);
-      let hi : xmmword = avx_roundps_128(src[255..128], imm);
-      write_simd(256, dst, hi @ lo)
-    } else {
-      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_roundps_128(src, imm))
-    }
+    let vl = vex_vl(pfx);
+    let src = decode_vex_src(vl, modrm, src2, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_roundps(src, imm))
   },
 
   // 0F3A 09: VROUNDPD xmm/ymm, xmm/ymm/m, imm8 (66) — vvvv must be 1111b
   9 => {
-    if mp != MP_66 then raise_UD();
-    if pfx.vex_vvvv != 0 then raise_UD();
+    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      let imm = fetch(1);
-      let lo : xmmword = avx_roundpd_128(src[127..0], imm);
-      let hi : xmmword = avx_roundpd_128(src[255..128], imm);
-      write_simd(256, dst, hi @ lo)
-    } else {
-      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      let imm = fetch(1);
-      write_simd(128, dst, avx_roundpd_128(src, imm))
-    }
+    let vl = vex_vl(pfx);
+    let src = decode_vex_src(vl, modrm, src2, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, avx_roundpd(src, imm))
   },
 
   // 0F3A 0A: VROUNDSS xmm, xmm, xmm/m32, imm8 (66) — VEX.128 only, has vvvv source
@@ -402,6 +390,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     if pfx.vex_l then {
       let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
+      // VPBLENDW 256-bit: same imm8 applied to each 128-bit lane independently
       let lo = avx_blend_imm(16, src1[127..0], src2[127..0], imm);
       let hi = avx_blend_imm(16, src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
