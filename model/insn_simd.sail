@@ -157,6 +157,76 @@ function packed_binop(op, eb, a, b) = {
   r
 }
 
+// Per-lane unary-with-immediate operations (PSHUFD, PSHUFHW, PSHUFLW).
+enum PackedLaneImmOp = { PLI_Pshufd, PLI_Pshufhw, PLI_Pshuflw }
+
+val packed_lane_imm_elem : (PackedLaneImmOp, bits(128), byte) -> bits(128)
+function packed_lane_imm_elem(op, src, imm) = match op {
+  PLI_Pshufd => {
+    var r : bits(128) = zeros();
+    foreach (i from 0 to 3) {
+      let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
+      let dst_lo = i * 32;
+      let src_lo = sel * 32;
+      r[(dst_lo + 31)..dst_lo] = src[(src_lo + 31)..src_lo]
+    };
+    r
+  },
+  PLI_Pshufhw => {
+    var r : bits(128) = zeros();
+    r[63..0] = src[63..0];
+    foreach (i from 0 to 3) {
+      let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
+      let dst_lo = i * 16 + 64;
+      let src_lo = sel * 16 + 64;
+      r[(dst_lo + 15)..dst_lo] = src[(src_lo + 15)..src_lo]
+    };
+    r
+  },
+  PLI_Pshuflw => {
+    var r : bits(128) = zeros();
+    r[127..64] = src[127..64];
+    foreach (i from 0 to 3) {
+      let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
+      let dst_lo = i * 16;
+      let src_lo = sel * 16;
+      r[(dst_lo + 15)..dst_lo] = src[(src_lo + 15)..src_lo]
+    };
+    r
+  },
+}
+
+val packed_lane_imm_op : forall 'vl, 'vl in {128, 256, 512}.
+  (PackedLaneImmOp, bits('vl), byte) -> bits('vl)
+function packed_lane_imm_op(op, src, imm) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 128 - 1)) {
+    let hi = (i + 1) * 128 - 1;
+    let lo = i * 128;
+    r[hi..lo] = packed_lane_imm_elem(op, src[hi..lo], imm)
+  };
+  r
+}
+
+// Uniform packed shift: apply a scalar shift count to all elements.
+enum PackedShiftOp = { PS_Srl, PS_Sra, PS_Sll }
+
+val packed_uniform_shift : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
+  (PackedShiftOp, int('eb), bits('vl), nat) -> bits('vl)
+function packed_uniform_shift(op, eb, src, count) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let hi = (i + 1) * 'eb - 1;
+    let lo = i * 'eb;
+    r[hi..lo] = match op {
+      PS_Srl => src[hi..lo] >> count,
+      PS_Sra => src[hi..lo] >>> count,
+      PS_Sll => src[hi..lo] << count,
+    }
+  };
+  r
+}
+
 // Horizontal packed binary operation: within each lane, pair adjacent elements
 // from a (lower half of lane result) and b (upper half), apply op.
 // Lane size is 64 for MMX, 128 for SSE/VEX/EVEX.

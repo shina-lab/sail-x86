@@ -1134,15 +1134,15 @@ function dispatch_evex_int(op, pfx) = {
     match mp {
       MP_66 => {
         let vl = evex_vl(pfx);
-        evex_write(dst, evex_wmask(pfx, vl / 32), avx_pshufd(evex_bcast_src(vl, modrm, src, pfx, 32), imm))
+        evex_write(dst, evex_wmask(pfx, vl / 32), packed_lane_imm_op(PLI_Pshufd, evex_bcast_src(vl, modrm, src, pfx, 32), imm))
       },
       MP_F3 => {
         let vl = evex_vl(pfx);
-        evex_write(dst, evex_wmask(pfx, vl / 16), avx_pshufhw(evex_src(vl, modrm, src, pfx), imm))
+        evex_write(dst, evex_wmask(pfx, vl / 16), packed_lane_imm_op(PLI_Pshufhw, evex_src(vl, modrm, src, pfx), imm))
       },
       MP_F2 => {
         let vl = evex_vl(pfx);
-        evex_write(dst, evex_wmask(pfx, vl / 16), avx_pshuflw(evex_src(vl, modrm, src, pfx), imm))
+        evex_write(dst, evex_wmask(pfx, vl / 16), packed_lane_imm_op(PLI_Pshuflw, evex_src(vl, modrm, src, pfx), imm))
       },
       _ => raise_UD(),
     }

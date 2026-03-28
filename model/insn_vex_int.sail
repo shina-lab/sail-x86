@@ -271,56 +271,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : ymmword = decode_vex_src_ymm(modrm, src2, pfx);
-      let imm = fetch(1);
-      // Shuffle low 128-bit lane
-      let lo : xmmword = src[127..0];
-      let l0 : dword = match unsigned(imm[1..0]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
-      };
-      let l1 : dword = match unsigned(imm[3..2]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
-      };
-      let l2 : dword = match unsigned(imm[5..4]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
-      };
-      let l3 : dword = match unsigned(imm[7..6]) {
-        0 => lo[31..0], 1 => lo[63..32], 2 => lo[95..64], 3 => lo[127..96],
-      };
-      // Shuffle high 128-bit lane
-      let hi : xmmword = src[255..128];
-      let h0 : dword = match unsigned(imm[1..0]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
-      };
-      let h1 : dword = match unsigned(imm[3..2]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
-      };
-      let h2 : dword = match unsigned(imm[5..4]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
-      };
-      let h3 : dword = match unsigned(imm[7..6]) {
-        0 => hi[31..0], 1 => hi[63..32], 2 => hi[95..64], 3 => hi[127..96],
-      };
-      write_ymm(dst, (h3 @ h2 @ h1 @ h0) @ (l3 @ l2 @ l1 @ l0))
-    } else {
-      let src : xmmword = decode_vex_src_xmm(modrm, src2, pfx);
-      let imm = fetch(1);
-      let d0 : dword = match unsigned(imm[1..0]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
-      };
-      let d1 : dword = match unsigned(imm[3..2]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
-      };
-      let d2 : dword = match unsigned(imm[5..4]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
-      };
-      let d3 : dword = match unsigned(imm[7..6]) {
-        0 => src[31..0], 1 => src[63..32], 2 => src[95..64], 3 => src[127..96],
-      };
-      write_xmm(dst, d3 @ d2 @ d1 @ d0)
-    }
+    let src = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
+    let s = decode_vex_src(vl, modrm, src, pfx);
+    let imm = fetch(1);
+    write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm))
   },
 
   // 0F 71: Group 12 — VPSRLW/VPSRAW/VPSLLW imm8 (66 prefix)
@@ -337,17 +292,17 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then {
       let a : ymmword = read_ymm(src_idx);
       match reg_field {
-        2 => write_ymm(dst, vex_psrlw_128(a[255..128], c) @ vex_psrlw_128(a[127..0], c)),
-        4 => write_ymm(dst, vex_psraw_128(a[255..128], c) @ vex_psraw_128(a[127..0], c)),
-        6 => write_ymm(dst, vex_psllw_128(a[255..128], c) @ vex_psllw_128(a[127..0], c)),
+        2 => write_ymm(dst, packed_uniform_shift(PS_Srl, 16, a[255..128], c) @ packed_uniform_shift(PS_Srl, 16, a[127..0], c)),
+        4 => write_ymm(dst, packed_uniform_shift(PS_Sra, 16, a[255..128], c) @ packed_uniform_shift(PS_Sra, 16, a[127..0], c)),
+        6 => write_ymm(dst, packed_uniform_shift(PS_Sll, 16, a[255..128], c) @ packed_uniform_shift(PS_Sll, 16, a[127..0], c)),
         _ => raise_UD(),
       }
     } else {
       let a : xmmword = read_xmm(src_idx);
       match reg_field {
-        2 => write_xmm(dst, vex_psrlw_128(a, c)),
-        4 => write_xmm(dst, vex_psraw_128(a, c)),
-        6 => write_xmm(dst, vex_psllw_128(a, c)),
+        2 => write_xmm(dst, packed_uniform_shift(PS_Srl, 16, a, c)),
+        4 => write_xmm(dst, packed_uniform_shift(PS_Sra, 16, a, c)),
+        6 => write_xmm(dst, packed_uniform_shift(PS_Sll, 16, a, c)),
         _ => raise_UD(),
       }
     }
@@ -366,17 +321,17 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then {
       let a : ymmword = read_ymm(src_idx);
       match reg_field {
-        2 => write_ymm(dst, vex_psrld_128(a[255..128], c) @ vex_psrld_128(a[127..0], c)),
-        4 => write_ymm(dst, vex_psrad_128(a[255..128], c) @ vex_psrad_128(a[127..0], c)),
-        6 => write_ymm(dst, vex_pslld_128(a[255..128], c) @ vex_pslld_128(a[127..0], c)),
+        2 => write_ymm(dst, packed_uniform_shift(PS_Srl, 32, a[255..128], c) @ packed_uniform_shift(PS_Srl, 32, a[127..0], c)),
+        4 => write_ymm(dst, packed_uniform_shift(PS_Sra, 32, a[255..128], c) @ packed_uniform_shift(PS_Sra, 32, a[127..0], c)),
+        6 => write_ymm(dst, packed_uniform_shift(PS_Sll, 32, a[255..128], c) @ packed_uniform_shift(PS_Sll, 32, a[127..0], c)),
         _ => raise_UD(),
       }
     } else {
       let a : xmmword = read_xmm(src_idx);
       match reg_field {
-        2 => write_xmm(dst, vex_psrld_128(a, c)),
-        4 => write_xmm(dst, vex_psrad_128(a, c)),
-        6 => write_xmm(dst, vex_pslld_128(a, c)),
+        2 => write_xmm(dst, packed_uniform_shift(PS_Srl, 32, a, c)),
+        4 => write_xmm(dst, packed_uniform_shift(PS_Sra, 32, a, c)),
+        6 => write_xmm(dst, packed_uniform_shift(PS_Sll, 32, a, c)),
         _ => raise_UD(),
       }
     }
@@ -399,7 +354,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       match reg_field {
         2 => {
           // VPSRLQ
-          write_ymm(dst, vex_psrlq_128(hi, c) @ vex_psrlq_128(lo, c))
+          write_ymm(dst, packed_uniform_shift(PS_Srl, 64, hi, c) @ packed_uniform_shift(PS_Srl, 64, lo, c))
         },
         3 => {
           // VPSRLDQ: byte shift right per 128-bit lane
@@ -407,7 +362,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         },
         6 => {
           // VPSLLQ
-          write_ymm(dst, vex_psllq_128(hi, c) @ vex_psllq_128(lo, c))
+          write_ymm(dst, packed_uniform_shift(PS_Sll, 64, hi, c) @ packed_uniform_shift(PS_Sll, 64, lo, c))
         },
         7 => {
           // VPSLLDQ: byte shift left per 128-bit lane
@@ -418,9 +373,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     } else {
       let a : xmmword = read_xmm(src_idx);
       match reg_field {
-        2 => write_xmm(dst, vex_psrlq_128(a, c)),
+        2 => write_xmm(dst, packed_uniform_shift(PS_Srl, 64, a, c)),
         3 => write_xmm(dst, a >> (c * 8)),
-        6 => write_xmm(dst, vex_psllq_128(a, c)),
+        6 => write_xmm(dst, packed_uniform_shift(PS_Sll, 64, a, c)),
         7 => write_xmm(dst, a << (c * 8)),
         _ => raise_UD(),
       }
@@ -831,9 +786,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psrlw_128(s1[255..128], c) @ vex_psrlw_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Srl, 16, s1[255..128], c) @ packed_uniform_shift(PS_Srl, 16, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psrlw_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Srl, 16, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -847,9 +802,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psrld_128(s1[255..128], c) @ vex_psrld_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Srl, 32, s1[255..128], c) @ packed_uniform_shift(PS_Srl, 32, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psrld_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Srl, 32, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -863,9 +818,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psrlq_128(s1[255..128], c) @ vex_psrlq_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Srl, 64, s1[255..128], c) @ packed_uniform_shift(PS_Srl, 64, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psrlq_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Srl, 64, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -967,9 +922,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psraw_128(s1[255..128], c) @ vex_psraw_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Sra, 16, s1[255..128], c) @ packed_uniform_shift(PS_Sra, 16, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psraw_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Sra, 16, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -983,9 +938,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psrad_128(s1[255..128], c) @ vex_psrad_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Sra, 32, s1[255..128], c) @ packed_uniform_shift(PS_Sra, 32, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psrad_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Sra, 32, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -1146,9 +1101,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psllw_128(s1[255..128], c) @ vex_psllw_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Sll, 16, s1[255..128], c) @ packed_uniform_shift(PS_Sll, 16, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psllw_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Sll, 16, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -1162,9 +1117,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_pslld_128(s1[255..128], c) @ vex_pslld_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Sll, 32, s1[255..128], c) @ packed_uniform_shift(PS_Sll, 32, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_pslld_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Sll, 32, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
@@ -1178,9 +1133,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     let c : nat = unsigned(cnt_xmm[63..0]);
     if pfx.vex_l then {
       let s1 : ymmword = read_ymm(pfx.vex_vvvv);
-      write_ymm(dst, vex_psllq_128(s1[255..128], c) @ vex_psllq_128(s1[127..0], c))
+      write_ymm(dst, packed_uniform_shift(PS_Sll, 64, s1[255..128], c) @ packed_uniform_shift(PS_Sll, 64, s1[127..0], c))
     } else {
-      write_xmm(dst, vex_psllq_128(read_xmm(pfx.vex_vvvv), c))
+      write_xmm(dst, packed_uniform_shift(PS_Sll, 64, read_xmm(pfx.vex_vvvv), c))
     }
   },
 
