@@ -12,7 +12,10 @@
 // =========================================================================
 
 // Generic packed unary operation (element-wise, one source).
-enum PackedUnaryOp = { PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt }
+enum PackedUnaryOp = {
+  PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt,
+  PU_FPGetexp, PU_FPRcp14, PU_FPRsqrt14, PU_FPRcp28, PU_FPRsqrt28, PU_FPExp2
+}
 
 val packed_unary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedUnaryOp, bits('eb)) -> bits('eb)
@@ -20,7 +23,13 @@ function packed_unary_elem(op, a) = match op {
   PU_Abs    => abs(a),
   PU_Popcnt => to_bits(popcount(a)),
   PU_Lzcnt  => to_bits(clz(a)),
-  PU_FSqrt  => fp_sqrt(a),
+  PU_FSqrt    => fp_sqrt(a),
+  PU_FPGetexp  => fp_getexp(a),
+  PU_FPRcp14   => fp_rcp14(a),
+  PU_FPRsqrt14 => fp_rsqrt14(a),
+  PU_FPRcp28   => fp_rcp28(a),
+  PU_FPRsqrt28 => fp_rsqrt28(a),
+  PU_FPExp2    => fp_exp2(a),
 }
 
 val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
@@ -46,40 +55,42 @@ enum PackedBinOp = {
   PB_Ror, PB_Rol,
   PB_CmpEq, PB_CmpGt,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
+  PB_FPScalef,
 }
 
 // Per-element dispatch: applies the operation to one pair of elements.
 val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedBinOp, bits('eb), bits('eb)) -> bits('eb)
 function packed_elem_op(op, a, b) = match op {
-  PB_Add      => a + b,
-  PB_Sub      => a - b,
-  PB_SatAddS  => sat_add_s(a, b),
-  PB_SatSubS  => sat_sub_s(a, b),
-  PB_SatAddU  => sat_add_u(a, b),
-  PB_SatSubU  => sat_sub_u(a, b),
-  PB_MinU     => min_u(a, b),
-  PB_MaxU     => max_u(a, b),
-  PB_MinS     => min_s(a, b),
-  PB_MaxS     => max_s(a, b),
-  PB_Avg      => avg(a, b),
-  PB_Srl      => a >> b,
-  PB_Sra      => a >>> unsigned(b),
-  PB_Sll      => a << b,
-  PB_MulLow   => to_bits_truncate(signed(a) * signed(b)),
-  PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
-  PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
-  PB_MulHRS   => mulhrs(a, b),
-  PB_Ror      => rotr(a, unsigned(b) % 'eb),
-  PB_Rol      => rotl(a, unsigned(b) % 'eb),
-  PB_CmpEq    => cmp_eq(a, b),
-  PB_CmpGt    => cmp_gt(a, b),
-  PB_FAdd     => fp_add(a, b),
-  PB_FSub     => fp_sub(a, b),
-  PB_FMul     => fp_mul(a, b),
-  PB_FDiv     => fp_div(a, b),
-  PB_FMin     => fp_min(a, b),
-  PB_FMax     => fp_max(a, b),
+  PB_Add       => a + b,
+  PB_Sub       => a - b,
+  PB_SatAddS   => sat_add_s(a, b),
+  PB_SatSubS   => sat_sub_s(a, b),
+  PB_SatAddU   => sat_add_u(a, b),
+  PB_SatSubU   => sat_sub_u(a, b),
+  PB_MinU      => min_u(a, b),
+  PB_MaxU      => max_u(a, b),
+  PB_MinS      => min_s(a, b),
+  PB_MaxS      => max_s(a, b),
+  PB_Avg       => avg(a, b),
+  PB_Srl       => a >> b,
+  PB_Sra       => a >>> unsigned(b),
+  PB_Sll       => a << b,
+  PB_MulLow    => to_bits_truncate(signed(a) * signed(b)),
+  PB_MulHighS  => get_slice_int('eb, signed(a) * signed(b), 'eb),
+  PB_MulHighU  => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
+  PB_MulHRS    => mulhrs(a, b),
+  PB_Ror       => rotr(a, unsigned(b) % 'eb),
+  PB_Rol       => rotl(a, unsigned(b) % 'eb),
+  PB_CmpEq     => cmp_eq(a, b),
+  PB_CmpGt     => cmp_gt(a, b),
+  PB_FAdd      => fp_add(a, b),
+  PB_FSub      => fp_sub(a, b),
+  PB_FMul      => fp_mul(a, b),
+  PB_FDiv      => fp_div(a, b),
+  PB_FMin      => fp_min(a, b),
+  PB_FMax      => fp_max(a, b),
+  PB_FPScalef  => fp_scalef(a, b),
 }
 
 // Apply a packed binary operation element-wise across a vector.
