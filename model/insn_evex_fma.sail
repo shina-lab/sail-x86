@@ -60,16 +60,6 @@ function avx_vpmadd52(vl, shift, dst, src1, src2) = {
   r
 }
 
-val avx_gf2p8mulb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_gf2p8mulb(vl, src1, src2) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) {
-    let lo = i * 8;
-    r[(lo + 7)..lo] = gf2p8_mul(src1[(lo + 7)..lo], src2[(lo + 7)..lo])
-  };
-  r
-}
-
 val dispatch_evex_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_fma(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
@@ -845,16 +835,25 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
+  //
+  // GFNI byte-wise ops (gf2p8_mul, gf2p8_affineqb, gf2p8_affineinvqb) have
+  // a fixed element size of 8 bits, so they don't fit the packed_binop pattern.
   207 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
+    let 'vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 8);
-    match vl {
-      _ => evex_write(dst, mask, avx_gf2p8mulb(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx))),
-    }
+    let a : bits('vl) = read_simd(pfx.evex_vvvvv);
+    let b : bits('vl) = evex_src(modrm, src, pfx);
+    var r : bits('vl) = zeros();
+    foreach (i from 0 to ('vl / 8 - 1)) {
+      let lo = i * 8;
+      let hi = lo + 7;
+      r[hi..lo] = gf2p8_mul(a[hi..lo], b[hi..lo])
+    };
+    evex_write(dst, mask, r)
   },
 
   _ => raise_UD(),
