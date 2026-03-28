@@ -179,6 +179,16 @@ function vex_exec_binop(op, eb, pfx) = {
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
 
+// 3-operand VEX horizontal binop: dst = packed_horiz_binop(op, eb, 128, vvvv, rm)
+val vex_exec_horiz_binop : (PackedBinOp, {16, 32}, Prefixes) -> unit
+function vex_exec_horiz_binop(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let vl = vex_vl(pfx);
+  write_simd(vl, dst, packed_horiz_binop(op, eb, 128, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
+}
+
 // 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
 val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_unop(op, eb, pfx) = {
@@ -189,10 +199,6 @@ function vex_exec_unop(op, eb, pfx) = {
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_unop(op, eb, decode_vex_src(modrm, src, pfx)))
 }
-
-// =========================================================================
-// FP16 <-> FP32 conversion helpers (used by VEX VCVTPH2PS/VCVTPS2PH and EVEX)
-// =========================================================================
 
 // =========================================================================
 // SSSE3 VEX helpers — 128-bit lane operations
@@ -232,80 +238,6 @@ function vex_pmaddubsw_128(a, b) = {
 val vex_pmaddubsw_256 : (ymmword, ymmword) -> ymmword
 function vex_pmaddubsw_256(a, b) =
   vex_pmaddubsw_128(a[255..128], b[255..128]) @ vex_pmaddubsw_128(a[127..0], b[127..0])
-
-// VPMULHRSW: packed multiply high with round and scale
-// VPABSB: absolute value of packed signed bytes
-// VPABSW: absolute value of packed signed words
-// VPABSD: absolute value of packed signed dwords
-// VPHADDW: horizontal add packed words (one 128-bit lane)
-// result = [src2 adjacent-pair sums (high half)] @ [src1 adjacent-pair sums (low half)]
-val avx_phaddw_128 : (xmmword, xmmword) -> xmmword
-function avx_phaddw_128(a, b) =
-  (b[127..112] + b[111..96]) @ (b[95..80] + b[79..64]) @
-  (b[63..48] + b[47..32]) @ (b[31..16] + b[15..0]) @
-  (a[127..112] + a[111..96]) @ (a[95..80] + a[79..64]) @
-  (a[63..48] + a[47..32]) @ (a[31..16] + a[15..0])
-
-val avx_phaddw_256 : (ymmword, ymmword) -> ymmword
-function avx_phaddw_256(a, b) =
-  avx_phaddw_128(a[255..128], b[255..128]) @ avx_phaddw_128(a[127..0], b[127..0])
-
-// VPHADDD: horizontal add packed dwords (one 128-bit lane)
-val avx_phaddd_128 : (xmmword, xmmword) -> xmmword
-function avx_phaddd_128(a, b) =
-  (b[127..96] + b[95..64]) @ (b[63..32] + b[31..0]) @
-  (a[127..96] + a[95..64]) @ (a[63..32] + a[31..0])
-
-val avx_phaddd_256 : (ymmword, ymmword) -> ymmword
-function avx_phaddd_256(a, b) =
-  avx_phaddd_128(a[255..128], b[255..128]) @ avx_phaddd_128(a[127..0], b[127..0])
-
-// VPHADDSW: horizontal add packed signed words with saturation (one 128-bit lane)
-val avx_phaddsw_128 : (xmmword, xmmword) -> xmmword
-function avx_phaddsw_128(a, b) =
-  sat_add_s(b[127..112], b[111..96]) @ sat_add_s(b[95..80], b[79..64]) @
-  sat_add_s(b[63..48], b[47..32]) @ sat_add_s(b[31..16], b[15..0]) @
-  sat_add_s(a[127..112], a[111..96]) @ sat_add_s(a[95..80], a[79..64]) @
-  sat_add_s(a[63..48], a[47..32]) @ sat_add_s(a[31..16], a[15..0])
-
-val avx_phaddsw_256 : (ymmword, ymmword) -> ymmword
-function avx_phaddsw_256(a, b) =
-  avx_phaddsw_128(a[255..128], b[255..128]) @ avx_phaddsw_128(a[127..0], b[127..0])
-
-// VPHSUBW: horizontal subtract packed words (one 128-bit lane)
-// Each pair: low - high (e.g. a[15:0] - a[31:16])
-val avx_phsubw_128 : (xmmword, xmmword) -> xmmword
-function avx_phsubw_128(a, b) =
-  (b[111..96] - b[127..112]) @ (b[79..64] - b[95..80]) @
-  (b[47..32] - b[63..48]) @ (b[15..0] - b[31..16]) @
-  (a[111..96] - a[127..112]) @ (a[79..64] - a[95..80]) @
-  (a[47..32] - a[63..48]) @ (a[15..0] - a[31..16])
-
-val avx_phsubw_256 : (ymmword, ymmword) -> ymmword
-function avx_phsubw_256(a, b) =
-  avx_phsubw_128(a[255..128], b[255..128]) @ avx_phsubw_128(a[127..0], b[127..0])
-
-// VPHSUBD: horizontal subtract packed dwords (one 128-bit lane)
-val avx_phsubd_128 : (xmmword, xmmword) -> xmmword
-function avx_phsubd_128(a, b) =
-  (b[95..64] - b[127..96]) @ (b[31..0] - b[63..32]) @
-  (a[95..64] - a[127..96]) @ (a[31..0] - a[63..32])
-
-val avx_phsubd_256 : (ymmword, ymmword) -> ymmword
-function avx_phsubd_256(a, b) =
-  avx_phsubd_128(a[255..128], b[255..128]) @ avx_phsubd_128(a[127..0], b[127..0])
-
-// VPHSUBSW: horizontal subtract packed signed words with saturation (one 128-bit lane)
-val avx_phsubsw_128 : (xmmword, xmmword) -> xmmword
-function avx_phsubsw_128(a, b) =
-  sat_sub_s(b[111..96], b[127..112]) @ sat_sub_s(b[79..64], b[95..80]) @
-  sat_sub_s(b[47..32], b[63..48]) @ sat_sub_s(b[15..0], b[31..16]) @
-  sat_sub_s(a[111..96], a[127..112]) @ sat_sub_s(a[79..64], a[95..80]) @
-  sat_sub_s(a[47..32], a[63..48]) @ sat_sub_s(a[15..0], a[31..16])
-
-val avx_phsubsw_256 : (ymmword, ymmword) -> ymmword
-function avx_phsubsw_256(a, b) =
-  avx_phsubsw_128(a[255..128], b[255..128]) @ avx_phsubsw_128(a[127..0], b[127..0])
 
 // =========================================================================
 // SSE4.1 integer helpers — PMINUW, PCMPEQQ, PHMINPOSUW

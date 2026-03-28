@@ -2100,36 +2100,11 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       write_xmm_legacy(xreg, r)
     },
     // PHADDW xmm1, xmm2/m128
-    1  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        (b[127..112] + b[111..96]) @ (b[95..80] + b[79..64]) @
-        (b[63..48] + b[47..32]) @ (b[31..16] + b[15..0]) @
-        (a[127..112] + a[111..96]) @ (a[95..80] + a[79..64]) @
-        (a[63..48] + a[47..32]) @ (a[31..16] + a[15..0]);
-      write_xmm_legacy(xreg, r)
-    },
+    1  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Add, 16, 128, read_xmm(xreg), src_xmm)),
     // PHADDD xmm1, xmm2/m128
-    2  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        (b[127..96] + b[95..64]) @ (b[63..32] + b[31..0]) @
-        (a[127..96] + a[95..64]) @ (a[63..32] + a[31..0]);
-      write_xmm_legacy(xreg, r)
-    },
+    2  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Add, 32, 128, read_xmm(xreg), src_xmm)),
     // PHADDSW xmm1, xmm2/m128
-    3  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        sat_add_s(b[127..112], b[111..96]) @ sat_add_s(b[95..80], b[79..64]) @
-        sat_add_s(b[63..48], b[47..32]) @ sat_add_s(b[31..16], b[15..0]) @
-        sat_add_s(a[127..112], a[111..96]) @ sat_add_s(a[95..80], a[79..64]) @
-        sat_add_s(a[63..48], a[47..32]) @ sat_add_s(a[31..16], a[15..0]);
-      write_xmm_legacy(xreg, r)
-    },
+    3  => write_xmm_legacy(xreg, packed_horiz_binop(PB_SatAddS, 16, 128, read_xmm(xreg), src_xmm)),
     // PMADDUBSW xmm1, xmm2/m128
     4  => {
       let a : xmmword = read_xmm(xreg);
@@ -2146,36 +2121,11 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       write_xmm_legacy(xreg, r)
     },
     // PHSUBW xmm1, xmm2/m128
-    5  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        (b[111..96] - b[127..112]) @ (b[79..64] - b[95..80]) @
-        (b[47..32] - b[63..48]) @ (b[15..0] - b[31..16]) @
-        (a[111..96] - a[127..112]) @ (a[79..64] - a[95..80]) @
-        (a[47..32] - a[63..48]) @ (a[15..0] - a[31..16]);
-      write_xmm_legacy(xreg, r)
-    },
+    5  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Sub, 16, 128, read_xmm(xreg), src_xmm)),
     // PHSUBD xmm1, xmm2/m128
-    6  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        (b[95..64] - b[127..96]) @ (b[31..0] - b[63..32]) @
-        (a[95..64] - a[127..96]) @ (a[31..0] - a[63..32]);
-      write_xmm_legacy(xreg, r)
-    },
+    6  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Sub, 32, 128, read_xmm(xreg), src_xmm)),
     // PHSUBSW xmm1, xmm2/m128
-    7  => {
-      let a : xmmword = read_xmm(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        sat_sub_s(b[111..96], b[127..112]) @ sat_sub_s(b[79..64], b[95..80]) @
-        sat_sub_s(b[47..32], b[63..48]) @ sat_sub_s(b[15..0], b[31..16]) @
-        sat_sub_s(a[111..96], a[127..112]) @ sat_sub_s(a[79..64], a[95..80]) @
-        sat_sub_s(a[47..32], a[63..48]) @ sat_sub_s(a[15..0], a[31..16]);
-      write_xmm_legacy(xreg, r)
-    },
+    7  => write_xmm_legacy(xreg, packed_horiz_binop(PB_SatSubS, 16, 128, read_xmm(xreg), src_xmm)),
     // PSIGNB xmm1, xmm2/m128
     8  => {
       let a : xmmword = read_xmm(xreg);

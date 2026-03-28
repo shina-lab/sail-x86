@@ -104,6 +104,28 @@ function packed_binop(op, eb, a, b) = {
   r
 }
 
+// Horizontal packed binary operation: within each lane, pair adjacent elements
+// from a (lower half of lane result) and b (upper half), apply op.
+// Lane size is 64 for MMX, 128 for SSE/VEX/EVEX.
+val packed_horiz_binop : forall 'vl 'lane 'eb,
+  'vl in {64, 128, 256} & 'lane in {64, 128} & 'eb in {16, 32}.
+  (PackedBinOp, int('eb), int('lane), bits('vl), bits('vl)) -> bits('vl)
+function packed_horiz_binop(op, eb, lane, a, b) = {
+  var r : bits('vl) = zeros();
+  let n_pairs = lane / (2 * eb);
+  foreach (j from 0 to ('vl / 'lane - 1)) {
+    let lbase = j * lane;
+    foreach (i from 0 to (n_pairs - 1)) {
+      let src_lo = lbase + i * 2 * eb;
+      let a_lo = lbase + i * eb;
+      let b_lo = lbase + (n_pairs + i) * eb;
+      r[(a_lo + eb - 1)..a_lo] = packed_elem_op(op, a[(src_lo + eb - 1)..src_lo], a[(src_lo + 2 * eb - 1)..(src_lo + eb)]);
+      r[(b_lo + eb - 1)..b_lo] = packed_elem_op(op, b[(src_lo + eb - 1)..src_lo], b[(src_lo + 2 * eb - 1)..(src_lo + eb)]);
+    }
+  };
+  r
+}
+
 // Generic packed narrowing unary operation (each element shrinks).
 enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS }
 
