@@ -24,25 +24,6 @@ function avx_ptestm(eb, a, b, neg) = {
 // imm8: 0=eq, 1=lt, 2=le, 4=neq, 5=nlt(>=), 6=nle(>)
 // =========================================================================
 
-val avx_pmaddubsw : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function avx_pmaddubsw(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    let b0 = i * 16;
-    let b1 = i * 16 + 8;
-    let prod0 : int = unsigned(a[(b0 + 7)..b0]) * signed(b[(b0 + 7)..b0]);
-    let prod1 : int = unsigned(a[(b1 + 7)..b1]) * signed(b[(b1 + 7)..b1]);
-    let sum : int = prod0 + prod1;
-    let wide : bits(17) = get_slice_int(17, sum, 0);
-    let sign : bit = wide[16];
-    let of_mask : word = sign_extend(sign ^ wide[15]);
-    let sat_val : word = sign_extend(sign) ^ 0x7FFF;
-    r[(lo + 15)..lo] = (sat_val & of_mask) | (wide[15..0] & ~(of_mask));
-  };
-  r
-}
-
 // =========================================================================
 // VPACKUSDW: pack dwords to words with unsigned saturation
 // Per 128-bit lane: 4 dwords from src1 -> 4 words, 4 dwords from src2 -> 4 words
@@ -335,16 +316,7 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 7A: VPBROADCASTB from GPR (66, W=0)
   // r/m field selects a GPR (mod=11 always for this opcode)
   // 0F38 04: VPMADDUBSW (66) [BW]
-  4 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let src1_idx = pfx.evex_vvvvv;
-    let vl = evex_vl(pfx);
-    let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, avx_pmaddubsw(read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
-  },
+  4 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_Pmaddubsw, 16, pfx) },
 
   // 0F38 0B: VPMULHRSW (66) [BW]
   11 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_MulHRS, 16, pfx) },
