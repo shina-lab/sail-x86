@@ -372,3 +372,116 @@ val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
 val __sha256msg1 : (xmmword, xmmword) -> xmmword
 val __sha256msg2 : (xmmword, xmmword) -> xmmword
 
+// =========================================================================
+// Polymorphic FP wrappers (dispatch by bitvector width)
+// =========================================================================
+
+// Unary
+val fp_sqrt : forall 'n, 'n in {8, 16, 32, 64, 80}. bits('n) -> bits('n)
+function fp_sqrt(x) =
+  match 'n { 8 => undefined, 16 => __f16_sqrt(x), 32 => __f32_sqrt(x), 64 => __f64_sqrt(x), 80 => __f80_sqrt(x) }
+
+val fp_getexp : forall 'n, 'n in {16, 32, 64}. bits('n) -> bits('n)
+function fp_getexp(x) =
+  match 'n { 16 => __f16_getexp(x), 32 => __f32_getexp(x), 64 => __f64_getexp(x) }
+
+val fp_rcp : forall 'n, 'n in {16, 32}. bits('n) -> bits('n)
+function fp_rcp(x) =
+  match 'n { 16 => __f16_rcp(x), 32 => __f32_rcp(x) }
+
+val fp_rsqrt : forall 'n, 'n in {16, 32}. bits('n) -> bits('n)
+function fp_rsqrt(x) =
+  match 'n { 16 => __f16_rsqrt(x), 32 => __f32_rsqrt(x) }
+
+val fp_rcp14 : forall 'n, 'n in {32, 64}. bits('n) -> bits('n)
+function fp_rcp14(x) =
+  match 'n { 32 => __f32_rcp14(x), 64 => __f64_rcp14(x) }
+
+val fp_rsqrt14 : forall 'n, 'n in {32, 64}. bits('n) -> bits('n)
+function fp_rsqrt14(x) =
+  match 'n { 32 => __f32_rsqrt14(x), 64 => __f64_rsqrt14(x) }
+
+val fp_rcp28 : forall 'n, 'n in {32, 64}. bits('n) -> bits('n)
+function fp_rcp28(x) =
+  match 'n { 32 => __f32_rcp28(x), 64 => __f64_rcp28(x) }
+
+val fp_rsqrt28 : forall 'n, 'n in {32, 64}. bits('n) -> bits('n)
+function fp_rsqrt28(x) =
+  match 'n { 32 => __f32_rsqrt28(x), 64 => __f64_rsqrt28(x) }
+
+val fp_exp2 : forall 'n, 'n in {32, 64}. bits('n) -> bits('n)
+function fp_exp2(x) =
+  match 'n { 32 => __f32_exp2(x), 64 => __f64_exp2(x) }
+
+// Binary
+val fp_add : forall 'n, 'n in {8, 16, 32, 64, 80}. (bits('n), bits('n)) -> bits('n)
+function fp_add(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_add(a, b), 32 => __f32_add(a, b), 64 => __f64_add(a, b), 80 => __f80_add(a, b) }
+
+val fp_sub : forall 'n, 'n in {8, 16, 32, 64, 80}. (bits('n), bits('n)) -> bits('n)
+function fp_sub(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_sub(a, b), 32 => __f32_sub(a, b), 64 => __f64_sub(a, b), 80 => __f80_sub(a, b) }
+
+val fp_mul : forall 'n, 'n in {8, 16, 32, 64, 80}. (bits('n), bits('n)) -> bits('n)
+function fp_mul(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_mul(a, b), 32 => __f32_mul(a, b), 64 => __f64_mul(a, b), 80 => __f80_mul(a, b) }
+
+val fp_div : forall 'n, 'n in {8, 16, 32, 64, 80}. (bits('n), bits('n)) -> bits('n)
+function fp_div(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_div(a, b), 32 => __f32_div(a, b), 64 => __f64_div(a, b), 80 => __f80_div(a, b) }
+
+val fp_min : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fp_min(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_min(a, b), 32 => __f32_min(a, b), 64 => __f64_min(a, b) }
+
+val fp_max : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fp_max(a, b) =
+  match 'n { 8 => undefined, 16 => __f16_max(a, b), 32 => __f32_max(a, b), 64 => __f64_max(a, b) }
+
+val fp_scalef : forall 'n, 'n in {16, 32, 64}. (bits('n), bits('n)) -> bits('n)
+function fp_scalef(a, b) =
+  match 'n { 16 => __f16_scalef(a, b), 32 => __f32_scalef(a, b), 64 => __f64_scalef(a, b) }
+
+// Binary with byte imm
+val fp_round : forall 'n, 'n in {32, 64}. (bits('n), byte) -> bits('n)
+function fp_round(x, imm) =
+  match 'n { 32 => __f32_round(x, imm), 64 => __f64_round(x, imm) }
+
+val fp_rndscale : forall 'n, 'n in {16, 32, 64}. (bits('n), byte) -> bits('n)
+function fp_rndscale(x, imm) =
+  match 'n { 16 => __f16_rndscale(x, imm), 32 => __f32_rndscale(x, imm), 64 => __f64_rndscale(x, imm) }
+
+val fp_getmant : forall 'n, 'n in {16, 32, 64}. (bits('n), byte) -> bits('n)
+function fp_getmant(x, imm) =
+  match 'n { 16 => __f16_getmant(x, imm), 32 => __f32_getmant(x, imm), 64 => __f64_getmant(x, imm) }
+
+val fp_reduce : forall 'n, 'n in {16, 32, 64}. (bits('n), byte) -> bits('n)
+function fp_reduce(x, imm) =
+  match 'n { 16 => __f16_reduce(x, imm), 32 => __f32_reduce(x, imm), 64 => __f64_reduce(x, imm) }
+
+// Ternary FMA
+val fp_fmadd : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fp_fmadd(a, b, c) =
+  match 'n { 8 => undefined, 16 => __f16_fmadd(a, b, c), 32 => __f32_fmadd(a, b, c), 64 => __f64_fmadd(a, b, c) }
+
+val fp_fmsub : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fp_fmsub(a, b, c) =
+  match 'n { 8 => undefined, 16 => __f16_fmsub(a, b, c), 32 => __f32_fmsub(a, b, c), 64 => __f64_fmsub(a, b, c) }
+
+val fp_fnmadd : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fp_fnmadd(a, b, c) =
+  match 'n { 8 => undefined, 16 => __f16_fnmadd(a, b, c), 32 => __f32_fnmadd(a, b, c), 64 => __f64_fnmadd(a, b, c) }
+
+val fp_fnmsub : forall 'n, 'n in {8, 16, 32, 64}. (bits('n), bits('n), bits('n)) -> bits('n)
+function fp_fnmsub(a, b, c) =
+  match 'n { 8 => undefined, 16 => __f16_fnmsub(a, b, c), 32 => __f32_fnmsub(a, b, c), 64 => __f64_fnmsub(a, b, c) }
+
+// Ternary with byte imm
+val fp_fixupimm : forall 'n, 'n in {32, 64}. (bits('n), bits('n), bits('n), byte) -> bits('n)
+function fp_fixupimm(a, b, c, imm) =
+  match 'n { 32 => __f32_fixupimm(a, b, c, imm), 64 => __f64_fixupimm(a, b, c, imm) }
+
+// Comparison
+val fp_compare : forall 'n, 'n in {16, 32, 64, 80}. (bits('n), bits('n)) -> FPCompareResult
+function fp_compare(a, b) =
+  match 'n { 16 => __compare_sh(a, b), 32 => __compare_ss(a, b), 64 => __compare_sd(a, b), 80 => __f80_compare(a, b) }

@@ -20,7 +20,7 @@ function packed_unary_elem(op, a) = match op {
   PU_Abs    => abs(a),
   PU_Popcnt => to_bits(popcount(a)),
   PU_Lzcnt  => to_bits(clz(a)),
-  PU_FSqrt  => fsqrt(a),
+  PU_FSqrt  => fp_sqrt(a),
 }
 
 val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
@@ -74,12 +74,12 @@ function packed_elem_op(op, a, b) = match op {
   PB_Rol      => rotl(a, unsigned(b) % 'eb),
   PB_CmpEq    => cmp_eq(a, b),
   PB_CmpGt    => cmp_gt(a, b),
-  PB_FAdd     => fadd(a, b),
-  PB_FSub     => fsub(a, b),
-  PB_FMul     => fmul(a, b),
-  PB_FDiv     => fdiv(a, b),
-  PB_FMin     => fmin(a, b),
-  PB_FMax     => fmax(a, b),
+  PB_FAdd     => fp_add(a, b),
+  PB_FSub     => fp_sub(a, b),
+  PB_FMul     => fp_mul(a, b),
+  PB_FDiv     => fp_div(a, b),
+  PB_FMin     => fp_min(a, b),
+  PB_FMax     => fp_max(a, b),
 }
 
 // Apply a packed binary operation element-wise across a vector.
@@ -149,10 +149,10 @@ enum PackedTernaryOp = {
 val packed_ternary_elem : forall 'eb, 'eb in {8, 16, 32, 64}.
   (PackedTernaryOp, bits('eb), bits('eb), bits('eb)) -> bits('eb)
 function packed_ternary_elem(op, a, b, c) = match op {
-  PT_FMAdd      => fmadd(a, b, c),
-  PT_FMSub      => fmsub(a, b, c),
-  PT_FNMAdd     => fnmadd(a, b, c),
-  PT_FNMSub     => fnmsub(a, b, c),
+  PT_FMAdd      => fp_fmadd(a, b, c),
+  PT_FMSub      => fp_fmsub(a, b, c),
+  PT_FNMAdd     => fp_fnmadd(a, b, c),
+  PT_FNMSub     => fp_fnmsub(a, b, c),
   PT_FunnelShl  => funnelshl(a, b, unsigned(c)),
   PT_FunnelShr  => funnelshr(a, b, unsigned(c)),
 }
