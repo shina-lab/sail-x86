@@ -878,19 +878,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let x : word = v(src);
         let imm = fetch(1);
-        let v_0 : xmmword = read_simd(xreg);
-        let sel : range(0, 7) = unsigned(imm[2..0]);
-        let r : xmmword = match sel {
-          0 => v_0[127..16] @ x,
-          1 => v_0[127..32] @ x @ v_0[15..0],
-          2 => v_0[127..48] @ x @ v_0[31..0],
-          3 => v_0[127..64] @ x @ v_0[47..0],
-          4 => v_0[127..80] @ x @ v_0[63..0],
-          5 => v_0[127..96] @ x @ v_0[79..0],
-          6 => v_0[127..112] @ x @ v_0[95..0],
-          7 => x @ v_0[111..0]
-        };
-        ZMM[xreg][127..0] = r
+        let sel : nat = unsigned(imm[2..0]);
+        let mask : xmmword = ~(zero_extend(0xFFFF) << (sel * 16));
+        ZMM[xreg][127..0] = (read_simd(xreg) & mask) | (zero_extend(x) << (sel * 16))
       }
     },
 
@@ -905,18 +895,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let _ = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
         let imm = fetch(1);
-        let sel : range(0, 7) = unsigned(imm[2..0]);
-        let word : word = match sel {
-          0 => src_xmm[15..0],
-          1 => src_xmm[31..16],
-          2 => src_xmm[47..32],
-          3 => src_xmm[63..48],
-          4 => src_xmm[79..64],
-          5 => src_xmm[95..80],
-          6 => src_xmm[111..96],
-          7 => src_xmm[127..112]
-        };
-        v(reg) = zero_extend(32, word)
+        let sel : nat = unsigned(imm[2..0]);
+        v(reg) = zero_extend(32, (src_xmm >> (sel * 16))[15..0])
       }
     },
 

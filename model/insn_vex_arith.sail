@@ -1199,33 +1199,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 37: VPCMPGTQ xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  55 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      var result : ymmword = zeros();
-      foreach (i from 0 to 3) {
-        let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];
-        let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
-        result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
-      };
-      write_simd(256, dst, result)
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      var result : xmmword = zeros();
-      foreach (i from 0 to 1) {
-        let a : bits(64) = src1[(i * 64 + 63) .. (i * 64)];
-        let b : bits(64) = src2[(i * 64 + 63) .. (i * 64)];
-        result[(i * 64 + 63) .. (i * 64)] = cmp_gt(a, b)
-      };
-      write_simd(128, dst, result)
-    }
-  },
+  55 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 64, pfx) },
 
   // 0F38 8C: VPMASKMOVD/Q (load) xmm/ymm, xmm/ymm, m (66 prefix)
   140 => {
