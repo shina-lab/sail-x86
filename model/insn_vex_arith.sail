@@ -327,39 +327,20 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if ~(has_bmi1) then raise_UD();
     if mp != MP_NONE then raise_UD();
     let (reg_field, src2) = fetch_modrm_raw(pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
+    let 'os : {32, 64} = if pfx.vex_w then 64 else 32;
     let src = v(os, src2);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
-    match reg_field {
-      // BLSR: dest = (src - 1) & src
-      1 => {
-        let result = (src - 1) & src;
-        v(dst) = result;
-        SF = result[os - 1];
-        ZF = is_zero(result);
-        CF = is_zero(src);
-        OF = 0b0
-      },
-      // BLSMSK: dest = (src - 1) ^ src
-      2 => {
-        let result = (src - 1) ^ src;
-        v(dst) = result;
-        SF = result[os - 1];
-        ZF = 0b0;
-        CF = is_zero(src);
-        OF = 0b0
-      },
-      // BLSI: dest = (-src) & src (isolate lowest set bit)
-      3 => {
-        let result = (~(src) + 1) & src;
-        v(dst) = result;
-        SF = result[os - 1];
-        ZF = is_zero(result);
-        CF = is_nonzero(src);
-        OF = 0b0
-      },
+    let (result, cf) : (bits('os), bit) = match reg_field {
+      1 => ((src - 1) & src,    is_zero(src)),    // BLSR
+      2 => ((src - 1) ^ src,    is_zero(src)),    // BLSMSK
+      3 => ((~(src) + 1) & src, is_nonzero(src)), // BLSI
       _ => raise_UD(),
-    }
+    };
+    v(dst) = result;
+    SF = result[os - 1];
+    ZF = if reg_field == 2 then 0b0 else is_zero(result);
+    CF = cf;
+    OF = 0b0
   },
 
   // 0F38 DB: VAESIMC — VEX.128.66.0F38.WIG DB
