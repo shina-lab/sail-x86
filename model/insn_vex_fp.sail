@@ -525,230 +525,124 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
   // 0F 50-5F: Packed arithmetic (columns 1-15, column 0 handled above)
   // Common pattern: dst = vvvv OP src (3-operand)
+  // Packed variants (NP/66) support 128/256-bit via VEX.L; scalar variants (F3/F2) are 128-bit only.
   op if 81 <= op & op <= 95 => {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let col : range(0, 15) = op - 80;
-
-    if pfx.vex_l then {
-      // 256-bit YMM path
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      match col {
-        // VSQRTPS/VSQRTPD (unary, vvvv reserved)
-        1 => {
+    let vl = vex_vl(pfx);
+    // Read at full vector length; scalar ops only access low bits
+    let src1 : ymmword = read_simd(256, pfx.vex_vvvv);
+    let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
+    match col {
+      // VSQRTPS/VSQRTPD/VSQRTSS/VSQRTSD
+      1 => match mp {
+        MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(vl, dst, packed_unop(PU_FSqrt, 32, src2[(vl-1)..0])) },
+        MP_66   => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(vl, dst, packed_unop(PU_FSqrt, 64, src2[(vl-1)..0])) },
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_sqrt(src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_sqrt(src2[63..0])),
+      },
+      // VRSQRTPS (NP) / VRSQRTSS (F3)
+      2 => match mp {
+        MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(vl, dst, packed_unop(PU_FRsqrt, 32, src2[(vl-1)..0])) },
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_rsqrt(src2[31..0])),
+        _       => raise_UD(),
+      },
+      // VRCPPS (NP) / VRCPSS (F3)
+      3 => match mp {
+        MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(vl, dst, packed_unop(PU_FRcp, 32, src2[(vl-1)..0])) },
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_rcp(src2[31..0])),
+        _       => raise_UD(),
+      },
+      // VANDPS/VANDPD
+      4 => write_simd(vl, dst, src1[(vl-1)..0] & src2[(vl-1)..0]),
+      // VANDNPS/VANDNPD
+      5 => write_simd(vl, dst, ~(src1[(vl-1)..0]) & src2[(vl-1)..0]),
+      // VORPS/VORPD
+      6 => write_simd(vl, dst, src1[(vl-1)..0] | src2[(vl-1)..0]),
+      // VXORPS/VXORPD
+      7 => write_simd(vl, dst, src1[(vl-1)..0] ^ src2[(vl-1)..0]),
+      // VADDPS/VADDPD/VADDSS/VADDSD
+      8 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FAdd, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FAdd, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_add(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_add(src1[63..0], src2[63..0])),
+      },
+      // VMULPS/VMULPD/VMULSS/VMULSD
+      9 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FMul, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FMul, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_mul(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_mul(src1[63..0], src2[63..0])),
+      },
+      // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS
+      10 => match mp {
+        // VCVTPS2PD: N floats -> N doubles (vvvv reserved)
+        MP_NONE => {
           if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            MP_NONE => write_simd(256, dst, packed_unop(PU_FSqrt, 32, src2)),
-            MP_66   => write_simd(256, dst, packed_unop(PU_FSqrt, 64, src2)),
-            _ => raise_UD(),
-          }
+          var r : ymmword = zeros();
+          let n : {2, 4} = if pfx.vex_l then 4 else 2;
+          foreach (i from 0 to (n - 1)) {
+            r[(i * 64 + 63)..(i * 64)] = __f32_to_f64(src2[(i * 32 + 31)..(i * 32)])
+          };
+          write_simd(vl, dst, r[(vl - 1)..0])
         },
-        // VRSQRTPS (NP only, vvvv reserved, 256-bit)
-        2 => {
-          if pfx.vex_vvvv != 0 | mp != MP_NONE then raise_UD();
-          write_simd(256, dst, packed_unop(PU_FRsqrt, 32, src2))
-        },
-        // VRCPPS (NP only, vvvv reserved, 256-bit)
-        3 => {
-          if pfx.vex_vvvv != 0 | mp != MP_NONE then raise_UD();
-          write_simd(256, dst, packed_unop(PU_FRcp, 32, src2))
-        },
-        // VANDPS/VANDPD
-        4 => write_simd(256, dst, src1 & src2),
-        // VANDNPS/VANDNPD
-        5 => write_simd(256, dst, ~(src1) & src2),
-        // VORPS/VORPD
-        6 => write_simd(256, dst, src1 | src2),
-        // VXORPS/VXORPD
-        7 => write_simd(256, dst, src1 ^ src2),
-        // VADDPS/VADDPD
-        8 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FAdd, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FAdd, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        // VMULPS/VMULPD
-        9 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FMul, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FMul, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        // VCVTPS2PD/VCVTPD2PS (256-bit, vvvv reserved)
-        10 => {
+        // VCVTPD2PS: N doubles -> N floats (vvvv reserved)
+        MP_66 => {
           if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            // VCVTPS2PD: 4 floats -> 4 doubles
-            MP_NONE => {
-              let r3 = __f32_to_f64(src2[127..96]);
-              let r2 = __f32_to_f64(src2[95..64]);
-              let r1 = __f32_to_f64(src2[63..32]);
-              let r0 = __f32_to_f64(src2[31..0]);
-              write_simd(256, dst, r3 @ r2 @ r1 @ r0)
-            },
-            // VCVTPD2PS: 4 doubles -> 4 floats (in low 128)
-            MP_66 => {
-              let r3 = __f64_to_f32(src2[255..192]);
-              let r2 = __f64_to_f32(src2[191..128]);
-              let r1 = __f64_to_f32(src2[127..64]);
-              let r0 = __f64_to_f32(src2[63..0]);
-              write_simd(128, dst, r3 @ r2 @ r1 @ r0)
-            },
-            _ => raise_UD(),
-          }
+          let n : {2, 4} = if pfx.vex_l then 4 else 2;
+          var r : xmmword = zeros();
+          foreach (i from 0 to (n - 1)) {
+            r[(i * 32 + 31)..(i * 32)] = __f64_to_f32(src2[(i * 64 + 63)..(i * 64)])
+          };
+          write_simd(128, dst, r)
         },
-        // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ (256-bit, vvvv reserved)
-        // SDM: 8 element-wise conversions on 32-bit lanes, upper zeroed
-        11 => {
-          if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            // VCVTDQ2PS ymm1, ymm2/m256
-            MP_NONE => write_simd(256, dst, packed_unop(PU_CvtDQ2PS, 32, src2)),
-            // VCVTPS2DQ ymm1, ymm2/m256
-            MP_66   => write_simd(256, dst, packed_unop(PU_CvtPS2DQ, 32, src2)),
-            MP_F2   => raise_UD(),
-            // VCVTTPS2DQ ymm1, ymm2/m256
-            MP_F3   => write_simd(256, dst, packed_unop(PU_CvtTPS2DQ, 32, src2)),
-          }
-        },
-        // VSUBPS/VSUBPD
-        12 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FSub, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FSub, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        // VMINPS/VMINPD
-        13 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FMin, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FMin, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        // VDIVPS/VDIVPD
-        14 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FDiv, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FDiv, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        // VMAXPS/VMAXPD
-        15 => match mp {
-          MP_NONE => write_simd(256, dst, packed_binop(PB_FMax, 32, src1, src2)),
-          MP_66   => write_simd(256, dst, packed_binop(PB_FMax, 64, src1, src2)),
-          _ => raise_UD(),
-        },
-        _ => raise_UD(),
-      }
-    } else {
-      // 128-bit XMM path (upper bits zeroed by write_xmm)
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      match col {
-        // VSQRTPS/VSQRTPD/VSQRTSS/VSQRTSD
-        1 => match mp {
-          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FSqrt, 32, src2)) },
-          MP_66   => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FSqrt, 64, src2)) },
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_sqrt(src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_sqrt(src2[63..0])),
-        },
-        // VRSQRTPS (NP, vvvv reserved) / VRSQRTSS (F3, scalar merge)
-        2 => match mp {
-          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FRsqrt, 32, src2)) },
-          MP_F3 => write_simd(128, dst, src1[127..32] @ fp_rsqrt(src2[31..0])),
-          _ => raise_UD(),
-        },
-        // VRCPPS (NP, vvvv reserved) / VRCPSS (F3, scalar merge)
-        3 => match mp {
-          MP_NONE => { if pfx.vex_vvvv != 0 then raise_UD(); write_simd(128, dst, packed_unop(PU_FRcp, 32, src2)) },
-          MP_F3 => write_simd(128, dst, src1[127..32] @ fp_rcp(src2[31..0])),
-          _ => raise_UD(),
-        },
-        // VANDPS/VANDPD
-        4 => write_simd(128, dst, src1 & src2),
-        // VANDNPS/VANDNPD
-        5 => write_simd(128, dst, ~(src1) & src2),
-        // VORPS/VORPD
-        6 => write_simd(128, dst, src1 | src2),
-        // VXORPS/VXORPD
-        7 => write_simd(128, dst, src1 ^ src2),
-        // VADDPS/VADDPD/VADDSS/VADDSD
-        8 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FAdd, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FAdd, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_add(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_add(src1[63..0], src2[63..0])),
-        },
-        // VMULPS/VMULPD/VMULSS/VMULSD
-        9 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FMul, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FMul, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_mul(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_mul(src1[63..0], src2[63..0])),
-        },
-        // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ (unary, vvvv reserved)
-        11 => {
-          if pfx.vex_vvvv != 0 then raise_UD();
-          match mp {
-            MP_NONE => write_simd(128, dst, packed_unop(PU_CvtDQ2PS,  32, src2)),
-            MP_66   => write_simd(128, dst, packed_unop(PU_CvtPS2DQ,  32, src2)),
-            MP_F3   => write_simd(128, dst, packed_unop(PU_CvtTPS2DQ, 32, src2)),
-            _       => raise_UD(),
-          }
-        },
-        // VCVTPS2PD/VCVTPD2PS/VCVTSS2SD/VCVTSD2SS (128-bit)
-        10 => match mp {
-          // VCVTPS2PD: 2 floats -> 2 doubles (vvvv reserved)
-          MP_NONE => {
-            if pfx.vex_vvvv != 0 then raise_UD();
-            let r1 = __f32_to_f64(src2[63..32]);
-            let r0 = __f32_to_f64(src2[31..0]);
-            write_simd(128, dst, r1 @ r0)
-          },
-          // VCVTPD2PS: 2 doubles -> 2 floats (vvvv reserved)
-          MP_66 => {
-            if pfx.vex_vvvv != 0 then raise_UD();
-            let r1 = __f64_to_f32(src2[127..64]);
-            let r0 = __f64_to_f32(src2[63..0]);
-            write_simd(128, dst, zeros(64) @ r1 @ r0)
-          },
-          // VCVTSS2SD: scalar float -> double
-          MP_F3 => {
-            write_simd(128, dst, src1[127..64] @ __f32_to_f64(src2[31..0]))
-          },
-          // VCVTSD2SS: scalar double -> float
-          MP_F2 => {
-            write_simd(128, dst, src1[127..32] @ __f64_to_f32(src2[63..0]))
-          },
-        },
-        // VSUBPS/VSUBPD/VSUBSS/VSUBSD
-        12 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FSub, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FSub, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_sub(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_sub(src1[63..0], src2[63..0])),
-        },
-        // VMINPS/VMINPD/VMINSS/VMINSD
-        13 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FMin, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FMin, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_min(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_min(src1[63..0], src2[63..0])),
-        },
-        // VDIVPS/VDIVPD/VDIVSS/VDIVSD
-        14 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FDiv, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FDiv, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_div(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_div(src1[63..0], src2[63..0])),
-        },
-        // VMAXPS/VMAXPD/VMAXSS/VMAXSD
-        15 => match mp {
-          MP_NONE => write_simd(128, dst, packed_binop(PB_FMax, 32, src1, src2)),
-          MP_66   => write_simd(128, dst, packed_binop(PB_FMax, 64, src1, src2)),
-          MP_F3   => write_simd(128, dst, src1[127..32] @ fp_max(src1[31..0], src2[31..0])),
-          MP_F2   => write_simd(128, dst, src1[127..64] @ fp_max(src1[63..0], src2[63..0])),
-        },
-        _ => raise_UD(),
-      }
+        // VCVTSS2SD: scalar float -> double
+        MP_F3 => write_simd(128, dst, src1[127..64] @ __f32_to_f64(src2[31..0])),
+        // VCVTSD2SS: scalar double -> float
+        MP_F2 => write_simd(128, dst, src1[127..32] @ __f64_to_f32(src2[63..0])),
+      },
+      // VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ
+      11 => {
+        if pfx.vex_vvvv != 0 then raise_UD();
+        match mp {
+          MP_NONE => write_simd(vl, dst, packed_unop(PU_CvtDQ2PS,  32, src2[(vl-1)..0])),
+          MP_66   => write_simd(vl, dst, packed_unop(PU_CvtPS2DQ,  32, src2[(vl-1)..0])),
+          MP_F3   => write_simd(vl, dst, packed_unop(PU_CvtTPS2DQ, 32, src2[(vl-1)..0])),
+          _       => raise_UD(),
+        }
+      },
+      // VSUBPS/VSUBPD/VSUBSS/VSUBSD
+      12 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FSub, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FSub, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_sub(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_sub(src1[63..0], src2[63..0])),
+      },
+      // VMINPS/VMINPD/VMINSS/VMINSD
+      13 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FMin, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FMin, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_min(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_min(src1[63..0], src2[63..0])),
+      },
+      // VDIVPS/VDIVPD/VDIVSS/VDIVSD
+      14 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FDiv, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FDiv, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_div(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_div(src1[63..0], src2[63..0])),
+      },
+      // VMAXPS/VMAXPD/VMAXSS/VMAXSD
+      15 => match mp {
+        MP_NONE => write_simd(vl, dst, packed_binop(PB_FMax, 32, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_66   => write_simd(vl, dst, packed_binop(PB_FMax, 64, src1[(vl-1)..0], src2[(vl-1)..0])),
+        MP_F3   => write_simd(128, dst, src1[127..32] @ fp_max(src1[31..0], src2[31..0])),
+        MP_F2   => write_simd(128, dst, src1[127..64] @ fp_max(src1[63..0], src2[63..0])),
+      },
+      _ => raise_UD(),
     }
   },
 
