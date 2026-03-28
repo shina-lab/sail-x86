@@ -624,29 +624,16 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    if pfx.vex_l then {
-      let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      var result : ymmword = zeros();
-      // Bit 0 selects for element 0, bit 1 for element 1 (lane 0)
-      // Bit 2 selects for element 2, bit 3 for element 3 (lane 1)
-      let s0 : range(0, 1) = unsigned(imm[0]);
-      result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(imm[1]);
-      result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      let s2 : range(0, 1) = unsigned(imm[2]);
-      result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
-      let s3 : range(0, 1) = unsigned(imm[3]);
-      result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
-      write_simd(256, dst, result)
-    } else {
-      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      var result : xmmword = zeros();
-      let s0 : range(0, 1) = unsigned(imm[0]);
-      result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(imm[1]);
-      result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      write_simd(128, dst, result)
-    }
+    let vl = vex_vl(pfx);
+    let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
+    // Per-lane qword select: within each 128-bit lane, imm8[i] selects low or high qword
+    var result : ymmword = zeros();
+    foreach (i from 0 to (vl / 64 - 1)) {
+      let lane_base = (i / 2) * 128;
+      let sel : range(0, 1) = unsigned(imm[i]);
+      result[(i * 64 + 63)..(i * 64)] = src[(lane_base + sel * 64 + 63)..(lane_base + sel * 64)]
+    };
+    write_simd(vl, dst, result[(vl - 1)..0])
   },
 
   // 0F3A 06: VPERM2F128 / 0F3A 46: VPERM2I128
