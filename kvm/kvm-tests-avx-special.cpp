@@ -139,11 +139,11 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
     s.xmm[2] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
 
-    struct { const char *name; u8 opcode; } aes[] = {
-      {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
-      {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
-    };
     // TODO: EVEX-encoded AES not yet implemented in Sail model
+    // struct { const char *name; u8 opcode; } aes[] = {
+    //   {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
+    //   {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
+    // };
     // for (const auto &a : aes) {
     //   Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
     //   e.reg = 0; e.vvvv = 1; e.rm = 2;

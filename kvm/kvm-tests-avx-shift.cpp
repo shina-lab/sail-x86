@@ -43,7 +43,6 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     // reg field = opcode extension, rm = source, vvvv = destination
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl_name[] = {"xmm", "ymm", "zmm"};
-      const int vl_bits[] = {128, 256, 512};
       e.LL = ll;
 
       // No mask

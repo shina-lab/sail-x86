@@ -1,25 +1,5 @@
 #include "kvm-avx-encoder.h"
 
-// VL256/512 only helper
-static void add_evex_rr_tests_vl(
-    std::vector<TestCase> &tests, const std::string &cat, const char *mnemonic,
-    Evex base, ArchState init, u32 xmm_cmp, u32 kmask_val, int min_ll) {
-  const char *vl_name[] = {"xmm", "ymm", "zmm"};
-  const int vl_bits[] = {128, 256, 512};
-  for (int ll = min_ll; ll <= 2; ll++) {
-    std::string suffix = std::string(vl_name[ll]) + " (VL" + std::to_string(vl_bits[ll]) + ")";
-    base.LL = ll;
-    base.aaa = 0; base.z = false;
-    tests.push_back({std::string(mnemonic) + " " + suffix,
-                     cat, base.encode_rr(), init, FL_NONE, xmm_cmp, false});
-    if (kmask_val) {
-      base.aaa = 1; base.z = true;
-      tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}{z}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_NONE, xmm_cmp, false});
-    }
-  }
-}
-
 void add_avx_conv_tests(std::vector<TestCase> &tests) {
   std::string cat = "AVX conv";
 

@@ -3,10 +3,6 @@
 void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   std::string cat = "AVX narrow";
 
-  auto zmm_to_data = [](const ZmmVal &v) {
-    std::vector<u8> d(64); memcpy(d.data(), v.q, 64); return d;
-  };
-
   // =====================================================================
   // VPMOV narrowing (18 variants): truncation, signed sat, unsigned sat
   // These write to reg or memory. For reg: writemask applies.

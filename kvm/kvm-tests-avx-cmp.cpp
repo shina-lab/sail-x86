@@ -105,7 +105,6 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       e.LL = ll;
       const char *vl_name[] = {"xmm", "ymm", "zmm"};
-      const int vl_bits[] = {128, 256, 512};
       std::string suffix = std::string(vl_name[ll]) + " imm=" + std::to_string(imm);
 
       e.aaa = 0; e.z = false;
