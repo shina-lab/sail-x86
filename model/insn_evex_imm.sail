@@ -162,7 +162,7 @@ function vpternlog(a, b, c, imm) = {
 
 val cmp_pred5_f16 : (word, word, range(0, 31)) -> bit
 function cmp_pred5_f16(a, b, pred) = {
-  let r = __compare_sh(a, b);
+  let r = __f16_compare(a, b);
   let unord : bit = match r { FP_UNORDERED => 0b1, _ => 0b0 };
   let eq : bit = match r { FP_EQ => 0b1, _ => 0b0 };
   let lt : bit = match r { FP_LT => 0b1, _ => 0b0 };
@@ -534,8 +534,8 @@ function avx_range_f32(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
   // SDM: SNaN check — return quieted SNaN (we don't model IE flag)
-  let src1_is_nan : bool = __compare_ss(src1, src1) == FP_UNORDERED;
-  let src2_is_nan : bool = __compare_ss(src2, src2) == FP_UNORDERED;
+  let src1_is_nan : bool = __f32_compare(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = __f32_compare(src2, src2) == FP_UNORDERED;
   // SDM: QNaN priority — non-NaN operand wins
   //   IF (SRC2 = QNAN) THEN TMP := SRC1
   //   ELSE IF (SRC1 = QNAN) THEN TMP := SRC2
@@ -544,19 +544,19 @@ function avx_range_f32(src1, src2, imm) = {
     if src2_is_nan then src1
     else if src1_is_nan then src2
     else match op {
-      0 => if __compare_ss(src1, src2) != FP_GT then src1 else src2,  // min: src1<=src2 ? src1 : src2
-      1 => if __compare_ss(src1, src2) != FP_GT then src2 else src1,  // max: src1<=src2 ? src2 : src1
+      0 => if __f32_compare(src1, src2) != FP_GT then src1 else src2,  // min: src1<=src2 ? src1 : src2
+      1 => if __f32_compare(src1, src2) != FP_GT then src2 else src1,  // max: src1<=src2 ? src2 : src1
       // abs_min: |src1|<=|src2| ? src1 : src2
       2 => {
         let a1 : dword = 0b0 @ src1[30..0];
         let a2 : dword = 0b0 @ src2[30..0];
-        if __compare_ss(a1, a2) != FP_GT then src1 else src2
+        if __f32_compare(a1, a2) != FP_GT then src1 else src2
       },
       // abs_max: |src1|<=|src2| ? src2 : src1
       3 => {
         let a1 : dword = 0b0 @ src1[30..0];
         let a2 : dword = 0b0 @ src2[30..0];
-        if __compare_ss(a1, a2) != FP_GT then src2 else src1
+        if __f32_compare(a1, a2) != FP_GT then src2 else src1
       },
     };
   // Phase 2: apply sign control (SDM: SignSelCtl)
@@ -573,23 +573,23 @@ val avx_range_f64 : (qword, qword, byte) -> qword
 function avx_range_f64(src1, src2, imm) = {
   let op : range(0, 3) = unsigned(imm[1..0]);
   let sign_ctl : range(0, 3) = unsigned(imm[3..2]);
-  let src1_is_nan : bool = __compare_sd(src1, src1) == FP_UNORDERED;
-  let src2_is_nan : bool = __compare_sd(src2, src2) == FP_UNORDERED;
+  let src1_is_nan : bool = __f64_compare(src1, src1) == FP_UNORDERED;
+  let src2_is_nan : bool = __f64_compare(src2, src2) == FP_UNORDERED;
   let tmp : qword =
     if src2_is_nan then src1
     else if src1_is_nan then src2
     else match op {
-      0 => if __compare_sd(src1, src2) != FP_GT then src1 else src2,
-      1 => if __compare_sd(src1, src2) != FP_GT then src2 else src1,
+      0 => if __f64_compare(src1, src2) != FP_GT then src1 else src2,
+      1 => if __f64_compare(src1, src2) != FP_GT then src2 else src1,
       2 => {
         let a1 : qword = 0b0 @ src1[62..0];
         let a2 : qword = 0b0 @ src2[62..0];
-        if __compare_sd(a1, a2) != FP_GT then src1 else src2
+        if __f64_compare(a1, a2) != FP_GT then src1 else src2
       },
       3 => {
         let a1 : qword = 0b0 @ src1[62..0];
         let a2 : qword = 0b0 @ src2[62..0];
-        if __compare_sd(a1, a2) != FP_GT then src2 else src1
+        if __f64_compare(a1, a2) != FP_GT then src2 else src1
       },
     };
   match sign_ctl {

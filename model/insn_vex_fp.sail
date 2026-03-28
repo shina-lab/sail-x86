@@ -573,7 +573,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : dword = read_xmm(src_reg)[31..0];
         let b : dword = src[31..0];
-        match __compare_ss(a, b) {
+        match __f32_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -591,7 +591,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : qword = read_xmm(src_reg)[63..0];
         let b : qword = src[63..0];
-        match __compare_sd(a, b) {
+        match __f64_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -621,7 +621,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : dword = read_xmm(src_reg)[31..0];
         let b : dword = src[31..0];
-        match __compare_ss(a, b) {
+        match __f32_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -639,7 +639,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         };
         let a : qword = read_xmm(src_reg)[63..0];
         let b : qword = src[63..0];
-        match __compare_sd(a, b) {
+        match __f64_compare(a, b) {
           FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
           FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
           FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },

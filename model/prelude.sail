@@ -12,6 +12,12 @@ $include <generic_equality.sail>
 $include <hex_bits.sail>
 $include <hex_bits_signed.sail>
 
+val unreachable : forall ('a : Type). unit -> 'a
+function unreachable() = {
+  assert(false);
+  exit() // never reached; satisfies type checker
+}
+
 overload ~ = {not_bool, not_vec}
 overload operator & = {and_vec}
 overload operator | = {or_vec}

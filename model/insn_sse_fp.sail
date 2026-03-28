@@ -102,18 +102,18 @@ function eval_fp_predicate(r, pred) = {
 
 // SSE CMPPS/CMPPD: returns full-width mask (all-ones or all-zeros per element)
 val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
-function cmp_pred_f32(a, b, pred) = sign_extend(eval_fp_predicate(__compare_ss(a, b), pred[3..0]))
+function cmp_pred_f32(a, b, pred) = sign_extend(eval_fp_predicate(__f32_compare(a, b), pred[3..0]))
 
 val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
-function cmp_pred_f64(a, b, pred) = sign_extend(eval_fp_predicate(__compare_sd(a, b), pred[3..0]))
+function cmp_pred_f64(a, b, pred) = sign_extend(eval_fp_predicate(__f64_compare(a, b), pred[3..0]))
 
 // EVEX VCMPPS/VCMPPD: returns 1 bit per element (for kmask)
 // pred[3:0] selects comparison; pred[4] only affects signaling (not modeled).
 val cmp_pred5_f32 : (dword, dword, range(0, 31)) -> bit
-function cmp_pred5_f32(a, b, pred) = eval_fp_predicate(__compare_ss(a, b), to_bits(4, pred % 16))
+function cmp_pred5_f32(a, b, pred) = eval_fp_predicate(__f32_compare(a, b), to_bits(4, pred % 16))
 
 val cmp_pred5_f64 : (qword, qword, range(0, 31)) -> bit
-function cmp_pred5_f64(a, b, pred) = eval_fp_predicate(__compare_sd(a, b), to_bits(4, pred % 16))
+function cmp_pred5_f64(a, b, pred) = eval_fp_predicate(__f64_compare(a, b), to_bits(4, pred % 16))
 
 // SHUFPS helper: select one of four dwords by 2-bit index
 val select_dword : (xmmword, bits(2)) -> dword
@@ -584,7 +584,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_NONE => {
           let a : dword = read_xmm(xreg)[31..0];
           let b : dword = src_xmm[31..0];
-          match __compare_ss(a, b) {
+          match __f32_compare(a, b) {
             FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
             FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
             FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -597,7 +597,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_66 => {
           let a : qword = read_xmm(xreg)[63..0];
           let b : qword = src_xmm[63..0];
-          match __compare_sd(a, b) {
+          match __f64_compare(a, b) {
             FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
             FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
             FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -628,7 +628,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_NONE => {
           let a : dword = read_xmm(xreg)[31..0];
           let b : dword = src_xmm[31..0];
-          match __compare_ss(a, b) {
+          match __f32_compare(a, b) {
             FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
             FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
             FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -641,7 +641,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_66 => {
           let a : qword = read_xmm(xreg)[63..0];
           let b : qword = src_xmm[63..0];
-          match __compare_sd(a, b) {
+          match __f64_compare(a, b) {
             FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
             FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
             FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },

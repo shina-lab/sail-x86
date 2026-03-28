@@ -130,7 +130,7 @@ function vfmsubaddph(a, b, c) = {
 
 val cmp_f16_pred : (word, word, range(0, 31)) -> bit
 function cmp_f16_pred(a, b, pred) = {
-  let c = __compare_sh(a, b);
+  let c = __f16_compare(a, b);
   let unord : bit = match c { FP_UNORDERED => 0b1, _ => 0b0 };
   let eq : bit = match c { FP_EQ => 0b1, _ => 0b0 };
   let lt : bit = match c { FP_LT => 0b1, _ => 0b0 };
@@ -834,7 +834,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      match __compare_sh(a, b) {
+      match __f16_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
         FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
@@ -854,7 +854,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
       };
-      match __compare_sh(a, b) {
+      match __f16_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
         FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
