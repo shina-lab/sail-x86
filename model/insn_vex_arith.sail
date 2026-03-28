@@ -160,20 +160,20 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 00: VPSHUFB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   0 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pshufb, 128, pfx) },
   // 0F38 01: VPHADDW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  1 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Add, 16, pfx) },
+  1 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizAddW, 128, pfx) },
   // 0F38 02: VPHADDD xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  2 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Add, 32, pfx) },
+  2 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizAddD, 128, pfx) },
   // 0F38 03: VPHADDSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  3 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_SatAddS, 16, pfx) },
+  3 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSatAddW, 128, pfx) },
   // 0F38 04: VPMADDUBSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   4 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddubsw, 128, pfx) },
 
   // 0F38 05: VPHSUBW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  5 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Sub, 16, pfx) },
+  5 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSubW, 128, pfx) },
   // 0F38 06: VPHSUBD xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  6 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Sub, 32, pfx) },
+  6 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSubD, 128, pfx) },
   // 0F38 07: VPHSUBSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  7 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_SatSubS, 16, pfx) },
+  7 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSatSubW, 128, pfx) },
 
   // 0F38 08: VPSIGNB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   8 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_PSign, 8, pfx) },

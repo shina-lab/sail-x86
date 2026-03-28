@@ -2059,11 +2059,11 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       write_xmm_legacy(xreg, r)
     },
     // PHADDW xmm1, xmm2/m128
-    1  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Add, 16, 128, read_xmm(xreg), src_xmm)),
+    1  => write_xmm_legacy(xreg, packed_binop(PB_HorizAddW, 128, read_xmm(xreg), src_xmm)),
     // PHADDD xmm1, xmm2/m128
-    2  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Add, 32, 128, read_xmm(xreg), src_xmm)),
+    2  => write_xmm_legacy(xreg, packed_binop(PB_HorizAddD, 128, read_xmm(xreg), src_xmm)),
     // PHADDSW xmm1, xmm2/m128
-    3  => write_xmm_legacy(xreg, packed_horiz_binop(PB_SatAddS, 16, 128, read_xmm(xreg), src_xmm)),
+    3  => write_xmm_legacy(xreg, packed_binop(PB_HorizSatAddW, 128, read_xmm(xreg), src_xmm)),
     // PMADDUBSW xmm1, xmm2/m128
     4  => {
       let a : xmmword = read_xmm(xreg);
@@ -2080,11 +2080,11 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       write_xmm_legacy(xreg, r)
     },
     // PHSUBW xmm1, xmm2/m128
-    5  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Sub, 16, 128, read_xmm(xreg), src_xmm)),
+    5  => write_xmm_legacy(xreg, packed_binop(PB_HorizSubW, 128, read_xmm(xreg), src_xmm)),
     // PHSUBD xmm1, xmm2/m128
-    6  => write_xmm_legacy(xreg, packed_horiz_binop(PB_Sub, 32, 128, read_xmm(xreg), src_xmm)),
+    6  => write_xmm_legacy(xreg, packed_binop(PB_HorizSubD, 128, read_xmm(xreg), src_xmm)),
     // PHSUBSW xmm1, xmm2/m128
-    7  => write_xmm_legacy(xreg, packed_horiz_binop(PB_SatSubS, 16, 128, read_xmm(xreg), src_xmm)),
+    7  => write_xmm_legacy(xreg, packed_binop(PB_HorizSatSubW, 128, read_xmm(xreg), src_xmm)),
     // PSIGNB xmm1, xmm2/m128
     8  => {
       let a : xmmword = read_xmm(xreg);

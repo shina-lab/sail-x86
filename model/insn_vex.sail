@@ -179,16 +179,6 @@ function vex_exec_binop(op, eb, pfx) = {
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
 
-// 3-operand VEX horizontal binop: dst = packed_horiz_binop(op, eb, 128, vvvv, rm)
-val vex_exec_horiz_binop : (PackedBinOp, {16, 32}, Prefixes) -> unit
-function vex_exec_horiz_binop(op, eb, pfx) = {
-  let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
-  let vl = vex_vl(pfx);
-  write_simd(vl, dst, packed_horiz_binop(op, eb, 128, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-}
-
 // 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
 val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_unop(op, eb, pfx) = {
@@ -259,6 +249,3 @@ function avx_phminposuw_128(src) = {
 
   zeros(109) @ mi @ mv
 }
-
-
-
