@@ -260,21 +260,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src : xmmword = match src {
-        RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
+      let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
-        MP_NONE => {
-          let d : xmmword = read_simd(xreg);
-          let s : xmmword = src;
-          ZMM[xreg][127..0] = s[63..32] @ d[63..32] @ s[31..0] @ d[31..0]
-        },
-        MP_66 => {
-          let d : xmmword = read_simd(xreg);
-          let s : xmmword = src;
-          ZMM[xreg][127..0] = s[63..0] @ d[63..0]
-        },
+        MP_NONE => ZMM[xreg][127..0] = packed_unpack(32, 0, read_simd(xreg), src_xmm),
+        MP_66   => ZMM[xreg][127..0] = packed_unpack(64, 0, read_simd(xreg), src_xmm),
         _       => raise_UD(),
       }
     },
@@ -284,21 +273,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src : xmmword = match src {
-        RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
+      let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
-        MP_NONE => {
-          let d : xmmword = read_simd(xreg);
-          let s : xmmword = src;
-          ZMM[xreg][127..0] = s[127..96] @ d[127..96] @ s[95..64] @ d[95..64]
-        },
-        MP_66 => {
-          let d : xmmword = read_simd(xreg);
-          let s : xmmword = src;
-          ZMM[xreg][127..0] = s[127..64] @ d[127..64]
-        },
+        MP_NONE => ZMM[xreg][127..0] = packed_unpack(32, 64, read_simd(xreg), src_xmm),
+        MP_66   => ZMM[xreg][127..0] = packed_unpack(64, 64, read_simd(xreg), src_xmm),
         _       => raise_UD(),
       }
     },

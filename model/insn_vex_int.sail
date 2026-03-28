@@ -19,79 +19,23 @@ function dispatch_vex_0f_int(op, pfx) = {
 
   match op {
 
-  // 0F 41: KAND{W,B,D,Q} k1, k2, k3
-  // SDM: DEST := SRC1 AND SRC2 (width by NP+W0=W, 66+W0=B, NP+W1=Q, 66+W1=D)
-  65 => {
+  // 0F 41-47,4A: K-register binary ops {AND,ANDN,OR,XNOR,XOR,ADD}
+  // All share same decode: k1=modrm.reg, k2=vvvv, k3=modrm.rm
+  op if (65 <= op & op <= 66) | (68 <= op & op <= 71) | op == 74 => {
     let modrm = fetch(1);
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = read_kreg(k2) & read_kreg(k3);
+    let k2 : qword = read_kreg(pfx.vex_vvvv % 8);
+    let k3 : qword = read_kreg(unsigned(modrm[2..0]));
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, result & mask)
-  },
-
-  // 0F 42: KANDN{W,B,D,Q} k1, k2, k3
-  66 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = ~(read_kreg(k2)) & read_kreg(k3);
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, result & mask)
-  },
-
-  // 0F 44: KNOT{W,B,D,Q} k1, k2
-  68 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, ~(read_kreg(k2)) & mask)
-  },
-
-  // 0F 45: KOR{W,B,D,Q} k1, k2, k3
-  69 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = read_kreg(k2) | read_kreg(k3);
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, result & mask)
-  },
-
-  // 0F 46: KXNOR{W,B,D,Q} k1, k2, k3
-  70 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = ~(read_kreg(k2) ^ read_kreg(k3));
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, result & mask)
-  },
-
-  // 0F 47: KXOR{W,B,D,Q} k1, k2, k3
-  71 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = read_kreg(k2) ^ read_kreg(k3);
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
-    write_kreg(k1, result & mask)
-  },
-
-  // 0F 4A: KADD{W,B,D,Q} k1, k2, k3
-  74 => {
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = pfx.vex_vvvv % 8;
-    let k3 : range(0, 7) = unsigned(modrm[2..0]);
-    let result : qword = read_kreg(k2) + read_kreg(k3);
-    let mask : qword = kreg_width_mask(mp, pfx.vex_w);
+    let result : qword = match op {
+      65 => k2 & k3,           // KAND
+      66 => ~(k2) & k3,       // KANDN
+      68 => ~(k3) & mask,     // KNOT (unary: only uses k3=modrm.rm)
+      69 => k2 | k3,           // KOR
+      70 => ~(k2 ^ k3),       // KXNOR
+      71 => k2 ^ k3,           // KXOR
+      _  => k2 + k3,           // KADD (op==74)
+    };
     write_kreg(k1, result & mask)
   },
 

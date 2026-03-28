@@ -261,71 +261,16 @@ function dispatch_vex_0f_fp(op, pfx) = {
   },
 
   // 0F 14: VUNPCKLPS (NP) / VUNPCKLPD (66)
-  20 => {
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      match mp {
-        // VUNPCKLPS ymm1, ymm2, ymm3/m256
-        MP_NONE => {
-          let lo = src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0];
-          let hi = src2[191..160] @ src1[191..160] @ src2[159..128] @ src1[159..128];
-          write_simd(256, dst, hi @ lo)
-        },
-        // VUNPCKLPD ymm1, ymm2, ymm3/m256
-        MP_66 => {
-          let lo = src2[63..0] @ src1[63..0];
-          let hi = src2[191..128] @ src1[191..128];
-          write_simd(256, dst, hi @ lo)
-        },
-        _ => raise_UD(),
-      }
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      match mp {
-        MP_NONE => write_simd(128, dst, src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0]),
-        MP_66   => write_simd(128, dst, src2[63..0] @ src1[63..0]),
-        _       => raise_UD(),
-      }
-    }
+  20 => match mp {
+    MP_NONE => vex_exec_unpack(32,  0, pfx),
+    MP_66   => vex_exec_unpack(64,  0, pfx),
+    _       => raise_UD(),
   },
-
   // 0F 15: VUNPCKHPS (NP) / VUNPCKHPD (66)
-  21 => {
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(pfx.vex_vvvv);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      match mp {
-        // VUNPCKHPS ymm1, ymm2, ymm3/m256
-        MP_NONE => {
-          let lo = src2[127..96] @ src1[127..96] @ src2[95..64] @ src1[95..64];
-          let hi = src2[255..224] @ src1[255..224] @ src2[223..192] @ src1[223..192];
-          write_simd(256, dst, hi @ lo)
-        },
-        // VUNPCKHPD ymm1, ymm2, ymm3/m256
-        MP_66 => {
-          let lo = src2[127..64] @ src1[127..64];
-          let hi = src2[255..192] @ src1[255..192];
-          write_simd(256, dst, hi @ lo)
-        },
-        _ => raise_UD(),
-      }
-    } else {
-      let src1 : xmmword = read_simd(pfx.vex_vvvv);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      match mp {
-        MP_NONE => write_simd(128, dst, src2[127..96] @ src1[127..96] @ src2[95..64] @ src1[95..64]),
-        MP_66   => write_simd(128, dst, src2[127..64] @ src1[127..64]),
-        _ => raise_UD(),
-      }
-    }
+  21 => match mp {
+    MP_NONE => vex_exec_unpack(32, 64, pfx),
+    MP_66   => vex_exec_unpack(64, 64, pfx),
+    _       => raise_UD(),
   },
 
   // 0F 16: VMOVHPS/VMOVLHPS (NP) / VMOVHPD (66) / VMOVSHDUP (F3)
