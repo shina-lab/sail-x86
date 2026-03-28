@@ -804,43 +804,11 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 45: VPSRLVD (66,W0) / VPSRLVQ (66,W1) [F]
-  69 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let src1_idx = pfx.evex_vvvvv;
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_binop(PB_Srl, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
-  },
-
+  69 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Srl, evex_elem(pfx), pfx) },
   // 0F38 46: VPSRAVD (66,W0) / VPSRAVQ (66,W1) [F]
-  70 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let src1_idx = pfx.evex_vvvvv;
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_binop(PB_Sra, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
-  },
-
+  70 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Sra, evex_elem(pfx), pfx) },
   // 0F38 47: VPSLLVD (66,W0) / VPSLLVQ (66,W1) [F]
-  71 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let src1_idx = pfx.evex_vvvvv;
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_binop(PB_Sll, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
-  },
+  71 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Sll, evex_elem(pfx), pfx) },
 
   // 0F38 35: VPMOVZXDQ (66) [F] / VPMOVQD (F3) [F]
   53 => {
