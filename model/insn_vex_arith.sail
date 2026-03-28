@@ -93,10 +93,10 @@ function vex_exec_unop(op, eb, pfx) = {
 // VMASKMOVPS load 128-bit: conditional load of dword lanes based on sign bit of mask
 val vex_maskmovps_load_128 : (xmmword, xmmword) -> xmmword
 function vex_maskmovps_load_128(mask, data) =
-  blend(0x00000000, data[127..96], mask[127]) @
-  blend(0x00000000, data[95..64],  mask[95]) @
-  blend(0x00000000, data[63..32],  mask[63]) @
-  blend(0x00000000, data[31..0],   mask[31])
+  (data[127..96] & sign_extend(mask[127])) @
+  (data[95..64]  & sign_extend(mask[95])) @
+  (data[63..32]  & sign_extend(mask[63])) @
+  (data[31..0]   & sign_extend(mask[31]))
 
 val vex_maskmovps_load_256 : (ymmword, ymmword) -> ymmword
 function vex_maskmovps_load_256(mask, data) =
@@ -106,8 +106,8 @@ function vex_maskmovps_load_256(mask, data) =
 // VMASKMOVPD load 128-bit: conditional load of qword lanes based on sign bit of mask
 val vex_maskmovpd_load_128 : (xmmword, xmmword) -> xmmword
 function vex_maskmovpd_load_128(mask, data) =
-  blend(0x0000000000000000, data[127..64], mask[127]) @
-  blend(0x0000000000000000, data[63..0],   mask[63])
+  (data[127..64] & sign_extend(mask[127])) @
+  (data[63..0]   & sign_extend(mask[63]))
 
 val vex_maskmovpd_load_256 : (ymmword, ymmword) -> ymmword
 function vex_maskmovpd_load_256(mask, data) =
