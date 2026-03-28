@@ -99,10 +99,9 @@ function packed_elem_op(op, a, b) = match op {
   PB_FPScalef => { assert('eb <= 64); fp_scalef(a, b) },
 
   // Ops with internal sub-element structure
-  PB_Pmaddubsw => { assert('eb == 16); pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },
-  PB_Pmaddwd   => { assert('eb == 32); to_bits_truncate(signed(a[15..0])  * signed(b[15..0]) +
-                                                        signed(a[31..16]) * signed(b[31..16])) },
-  PB_Pmuludq   => { assert('eb == 64); to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0])) },
+  PB_Pmaddubsw    => { assert('eb == 16);  pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },
+  PB_Pmaddwd      => { assert('eb == 32);  pmaddwd_pair(a[15..0], b[15..0], a[31..16], b[31..16]) },
+  PB_Pmuludq      => { assert('eb == 64);  to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0])) },
   PB_Psadbw       => { assert('eb == 64);  psadbw(a, b) },
   PB_Pshufb       => { assert('eb == 128); pshufb(a, b) },
   PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, a, b) },

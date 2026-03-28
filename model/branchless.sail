@@ -273,6 +273,11 @@ function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
   (sat & of_mask) | (wide[15..0] & ~(of_mask))
 }
 
+// PMADDWD per-pair: signed * signed + signed * signed
+val pmaddwd_pair : (word, word, word, word) -> dword
+function pmaddwd_pair(a, b, c, d) =
+  to_bits_truncate(signed(a) * signed(b) + signed(c) * signed(d))
+
 // Absolute difference of unsigned bytes.
 val abs_diff : forall 'n, 'n > 0. (bits('n), bits('n)) -> int
 function abs_diff(a, b) = {
