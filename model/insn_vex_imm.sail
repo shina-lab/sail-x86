@@ -605,34 +605,16 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   },
 
   // 0F3A 04: VPERMILPS xmm/ymm, xmm/ymm/m, imm8 (66, vvvv must be 1111b)
+  // Per-lane dword shuffle — same as VPSHUFD
   4 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
+    let src = decode_vex_src(vl, modrm, src2, pfx);
     let imm = fetch(1);
-    if pfx.vex_l then {
-      let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      var result : ymmword = zeros();
-      // Each 128-bit lane: same imm8 selects dwords within that lane
-      foreach (i from 0 to 3) {
-        let sel : range(0, 3) = unsigned(imm[(i * 2 + 1) .. (i * 2)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
-      };
-      foreach (i from 4 to 7) {
-        let sel : range(0, 3) = unsigned(imm[((i - 4) * 2 + 1) .. ((i - 4) * 2)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[((sel + 4) * 32 + 31) .. ((sel + 4) * 32)]
-      };
-      write_simd(256, dst, result)
-    } else {
-      let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      var result : xmmword = zeros();
-      foreach (i from 0 to 3) {
-        let sel : range(0, 3) = unsigned(imm[(i * 2 + 1) .. (i * 2)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
-      };
-      write_simd(128, dst, result)
-    }
+    write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, src, imm))
   },
 
   // 0F3A 05: VPERMILPD xmm/ymm, xmm/ymm/m, imm8 (66, vvvv must be 1111b)
