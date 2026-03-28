@@ -7,7 +7,7 @@
 // VEX 0F3A helpers — blend, palignr, round, dpps/dppd, permute
 // =========================================================================
 
-// Immediate blend: for each eb-wide element i, select src1 or src2 based on sel[i].
+// Immediate blend: for each eb-wide element i, select src1 or src2 based on imm[i].
 val avx_blend_imm : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {16, 32, 64}.
   (int('eb), bits('vl), bits('vl), byte) -> bits('vl)
 function avx_blend_imm(eb, src1, src2, imm) = {
@@ -18,6 +18,19 @@ function avx_blend_imm(eb, src1, src2, imm) = {
     r[(lo + 'eb - 1)..lo] = blend(src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm[i])
   };
   r
+}
+
+// VEX blend dispatch helper.
+val vex_exec_blend : ({16, 32, 64}, Prefixes) -> unit
+function vex_exec_blend(eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let vl = vex_vl(pfx);
+  let src1 = read_simd(vl, pfx.vex_vvvv);
+  let src2 = decode_vex_src(vl, modrm, src, pfx);
+  let imm = fetch(1);
+  write_simd(vl, dst, avx_blend_imm(eb, src1, src2, imm))
 }
 
 // VPALIGNR 128-bit: concatenate src1(high):src2(low), shift right by imm bytes, take low 128 bits
@@ -296,17 +309,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   },
 
   // 0F3A 02: VPBLENDD xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66, W0)
-  2 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let src1 = read_simd(vl, pfx.vex_vvvv);
-    let src2 = decode_vex_src(vl, modrm, src, pfx);
-    let imm = fetch(1);
-    write_simd(vl, dst, avx_blend_imm(32, src1, src2, imm))
-  },
+  2 => { if mp != MP_66 then raise_UD(); vex_exec_blend(32, pfx) },
 
   // 0F3A 08: VROUNDPS xmm/ymm, xmm/ymm/m, imm8 (66) — vvvv must be 1111b
   8 => {
@@ -383,29 +386,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   },
 
   // 0F3A 0C: VBLENDPS xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
-  12 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let src1 = read_simd(vl, pfx.vex_vvvv);
-    let src2 = decode_vex_src(vl, modrm, src, pfx);
-    let imm = fetch(1);
-    write_simd(vl, dst, avx_blend_imm(32, src1, src2, imm))
-  },
-
+  12 => { if mp != MP_66 then raise_UD(); vex_exec_blend(32, pfx) },
   // 0F3A 0D: VBLENDPD xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
-  13 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let src1 = read_simd(vl, pfx.vex_vvvv);
-    let src2 = decode_vex_src(vl, modrm, src, pfx);
-    let imm = fetch(1);
-    write_simd(vl, dst, avx_blend_imm(64, src1, src2, imm))
+  13 => { if mp != MP_66 then raise_UD(); vex_exec_blend(64, pfx)
   },
 
   // 0F3A 0E: VPBLENDW xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
