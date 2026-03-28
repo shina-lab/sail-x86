@@ -44,43 +44,18 @@ function exec_scatter(vl, iw, ew, src, vsib, k_idx) = {
 
 /* ---- VPCLMULQDQ: carry-less multiply per 128-bit lane ---- */
 
-val avx_vpmadd52luq_elem : (qword, qword, qword) -> qword
-function avx_vpmadd52luq_elem(dst, src1, src2) = {
-  let a : int = unsigned(src1[51..0]);
-  let b : int = unsigned(src2[51..0]);
-  let product : int = a * b;
-  let low52 : qword = get_slice_int(64, product, 0);
-  // Add low 52 bits of product to dst, keep result as 64-bit
-  let sum : int = unsigned(dst) + unsigned(low52[51..0] : bits(52));
-  get_slice_int(64, sum, 0)
-}
-
-val avx_vpmadd52huq_elem : (qword, qword, qword) -> qword
-function avx_vpmadd52huq_elem(dst, src1, src2) = {
-  let a : int = unsigned(src1[51..0]);
-  let b : int = unsigned(src2[51..0]);
-  let product : int = a * b;
-  let high52 : qword = get_slice_int(64, product, 52);
-  let sum : int = unsigned(dst) + unsigned(high52[51..0] : bits(52));
-  get_slice_int(64, sum, 0)
-}
-
-val avx_vpmadd52luq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_vpmadd52luq(vl, dst, src1, src2) = {
+// VPMADD52LUQ (shift=0) extracts low 52 bits of 52×52 product;
+// VPMADD52HUQ (shift=52) extracts high 52 bits.
+val avx_vpmadd52 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), int, bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_vpmadd52(vl, shift, dst, src1, src2) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpmadd52luq_elem(dst[(lo + 63)..lo], src1[(lo + 63)..lo], src2[(lo + 63)..lo])
-  };
-  r
-}
-
-val avx_vpmadd52huq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_vpmadd52huq(vl, dst, src1, src2) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpmadd52huq_elem(dst[(lo + 63)..lo], src1[(lo + 63)..lo], src2[(lo + 63)..lo])
+    let a : int = unsigned(src1[(lo + 63)..lo][51..0]);
+    let b : int = unsigned(src2[(lo + 63)..lo][51..0]);
+    let extracted : qword = get_slice_int(64, a * b, shift);
+    let sum : int = unsigned(dst[(lo + 63)..lo]) + unsigned(extracted[51..0] : bits(52));
+    r[(lo + 63)..lo] = get_slice_int(64, sum, 0)
   };
   r
 }
@@ -600,7 +575,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
     match vl {
-      _ => evex_write(dst, mask, avx_vpmadd52luq(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
+      _ => evex_write(dst, mask, avx_vpmadd52(0, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
     }
   },
 
@@ -613,7 +588,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
     match vl {
-      _ => evex_write(dst, mask, avx_vpmadd52huq(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
+      _ => evex_write(dst, mask, avx_vpmadd52(52, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64))),
     }
   },
 
