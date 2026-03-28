@@ -1097,69 +1097,41 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 0C: VPERMILPS xmm/ymm, xmm/ymm, xmm/ymm/m (66, register-controlled)
-  // VEX.NDS: VPERMILPS dst(reg), src(vvvv), ctrl(r/m)
   12 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : ymmword = read_simd(pfx.vex_vvvv);
-      let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      var result : ymmword = zeros();
-      // Per 128-bit lane, select from 4 dwords within that lane
-      foreach (i from 0 to 3) {
-        let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
-      };
-      foreach (i from 4 to 7) {
-        let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[((sel + 4) * 32 + 31) .. ((sel + 4) * 32)]
-      };
-      write_simd(256, dst, result)
-    } else {
-      let src : xmmword = read_simd(pfx.vex_vvvv);
-      let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      var result : xmmword = zeros();
-      foreach (i from 0 to 3) {
-        let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
-        result[(i * 32 + 31) .. (i * 32)] = src[(sel * 32 + 31) .. (sel * 32)]
-      };
-      write_simd(128, dst, result)
-    }
+    let vl = vex_vl(pfx);
+    let src : ymmword = read_simd(256, pfx.vex_vvvv);
+    let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
+    // Per 128-bit lane, ctrl[i*32+1:i*32] selects one of 4 dwords within that lane
+    var result : ymmword = zeros();
+    foreach (i from 0 to (vl / 32 - 1)) {
+      let lane_base = (i / 4) * 128;
+      let sel : range(0, 3) = unsigned(ctrl[(i * 32 + 1) .. (i * 32)]);
+      result[(i * 32 + 31) .. (i * 32)] = src[(lane_base + sel * 32 + 31) .. (lane_base + sel * 32)]
+    };
+    write_simd(vl, dst, result[(vl - 1)..0])
   },
 
   // 0F38 0D: VPERMILPD xmm/ymm, xmm/ymm, xmm/ymm/m (66, register-controlled)
-  // VEX.NDS: VPERMILPD dst(reg), src(vvvv), ctrl(r/m)
   13 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : ymmword = read_simd(pfx.vex_vvvv);
-      let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
-      var result : ymmword = zeros();
-      // Per 128-bit lane, select from 2 qwords within that lane using bit 1
-      let s0 : range(0, 1) = unsigned(ctrl[1]);
-      result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(ctrl[65]);
-      result[127..64] = src[(s1 * 64 + 63 + 0) .. (s1 * 64 + 0)];
-      let s2 : range(0, 1) = unsigned(ctrl[129]);
-      result[191..128] = src[((s2 + 2) * 64 + 63) .. ((s2 + 2) * 64)];
-      let s3 : range(0, 1) = unsigned(ctrl[193]);
-      result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
-      write_simd(256, dst, result)
-    } else {
-      let src : xmmword = read_simd(pfx.vex_vvvv);
-      let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
-      var result : xmmword = zeros();
-      let s0 : range(0, 1) = unsigned(ctrl[1]);
-      result[63..0] = src[(s0 * 64 + 63) .. (s0 * 64)];
-      let s1 : range(0, 1) = unsigned(ctrl[65]);
-      result[127..64] = src[(s1 * 64 + 63) .. (s1 * 64)];
-      write_simd(128, dst, result)
-    }
+    let vl = vex_vl(pfx);
+    let src : ymmword = read_simd(256, pfx.vex_vvvv);
+    let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
+    // Per 128-bit lane, ctrl[i*64+1] selects one of 2 qwords within that lane
+    var result : ymmword = zeros();
+    foreach (i from 0 to (vl / 64 - 1)) {
+      let lane_base = (i / 2) * 128;
+      let sel : range(0, 1) = unsigned(ctrl[i * 64 + 1]);
+      result[(i * 64 + 63) .. (i * 64)] = src[(lane_base + sel * 64 + 63) .. (lane_base + sel * 64)]
+    };
+    write_simd(vl, dst, result[(vl - 1)..0])
   },
 
   // 0F38 17: VPTEST xmm/ymm, xmm/ymm/m (66 prefix, vvvv must be 1111b)
