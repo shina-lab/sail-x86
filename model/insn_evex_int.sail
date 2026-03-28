@@ -937,7 +937,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
-    evex_write(dst, mask, packed_binop(PB_Pmuludq, 128, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
+    evex_write(dst, mask, packed_binop(PB_Pmuludq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
   },
 
   // 0F F5: VPMADDWD (66, EVEX) [BW]
@@ -948,7 +948,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_binop(PB_Pmaddwd, 128, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_binop(PB_Pmaddwd, 32, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F F6: VPSADBW (66, EVEX) [BW] — no writemask
@@ -959,7 +959,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 64);
-    evex_write(dst, mask, packed_binop(PB_Psadbw, 128, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_binop(PB_Psadbw, 64, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F 64: VPCMPGTB → kmask (66, EVEX) [BW]

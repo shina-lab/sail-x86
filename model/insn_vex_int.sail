@@ -1140,11 +1140,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F F4: VPMULUDQ xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  244 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmuludq, 128, pfx) },
+  244 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmuludq, 64, pfx) },
   // 0F F5: VPMADDWD xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  245 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddwd, 128, pfx) },
+  245 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddwd, 32, pfx) },
   // 0F F6: VPSADBW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  246 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Psadbw, 128, pfx) },
+  246 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Psadbw, 64, pfx) },
 
   // 0F F7: VMASKMOVDQU xmm, xmm (66 prefix, vvvv must be 1111b, VEX.L=0)
   247 => {

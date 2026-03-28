@@ -166,7 +166,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 03: VPHADDSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   3 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSatAddW, 128, pfx) },
   // 0F38 04: VPMADDUBSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  4 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddubsw, 128, pfx) },
+  4 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddubsw, 16, pfx) },
 
   // 0F38 05: VPHSUBW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   5 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizSubW, 128, pfx) },

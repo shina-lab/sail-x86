@@ -53,8 +53,9 @@ enum PackedBinOp = {
   PB_PSign,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
   PB_FPScalef,
+  PB_Psadbw, PB_Pmaddubsw, PB_Pmaddwd, PB_Pmuludq,
   // Per-128-bit-lane operations (used with eb=128)
-  PB_Pshufb, PB_Pmaddubsw, PB_Pmuludq, PB_Pmaddwd, PB_Psadbw,
+  PB_Pshufb,
   PB_HorizAddW, PB_HorizAddD, PB_HorizSatAddW,
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
 }
@@ -101,52 +102,31 @@ function packed_elem_op(op, a, b) = match op {
   // Per-128-bit-lane operations
   PB_Pshufb => {
     assert('eb == 128);
-    var r : bits(128) = zeros();
-    foreach (i from 0 to 15) {
-      let lo = i * 8;
-      r[(lo + 7)..lo] = pshufb_byte(a, b[(lo + 7)..lo])
-    };
-    r
+    pshufb_byte(a, b[127..120]) @ pshufb_byte(a, b[119..112]) @
+    pshufb_byte(a, b[111..104]) @ pshufb_byte(a, b[103..96])  @
+    pshufb_byte(a, b[95..88])   @ pshufb_byte(a, b[87..80])   @
+    pshufb_byte(a, b[79..72])   @ pshufb_byte(a, b[71..64])   @
+    pshufb_byte(a, b[63..56])   @ pshufb_byte(a, b[55..48])   @
+    pshufb_byte(a, b[47..40])   @ pshufb_byte(a, b[39..32])   @
+    pshufb_byte(a, b[31..24])   @ pshufb_byte(a, b[23..16])   @
+    pshufb_byte(a, b[15..8])    @ pshufb_byte(a, b[7..0])
   },
-  PB_Pmaddubsw => {
-    assert('eb == 128);
-    var r : bits(128) = zeros();
-    foreach (i from 0 to 7) {
-      let lo = i * 16;
-      r[(lo + 15)..lo] = pmaddubsw_pair(a[(lo + 7)..lo], b[(lo + 7)..lo], a[(lo + 15)..(lo + 8)], b[(lo + 15)..(lo + 8)])
-    };
-    r
-  },
+  PB_Pmaddubsw => { assert('eb == 16); pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },
   PB_Pmuludq => {
-    assert('eb == 128);
-    let p0 : qword = to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0]));
-    let p1 : qword = to_bits(64, unsigned(a[95..64]) * unsigned(b[95..64]));
-    p1 @ p0
+    assert('eb == 64);
+    to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0]))
   },
   PB_Pmaddwd => {
-    assert('eb == 128);
-    var r : bits(128) = zeros();
-    foreach (i from 0 to 3) {
-      let lo = i * 32;
-      let w0 = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
-      let w1 = signed(a[(lo + 31)..(lo + 16)]) * signed(b[(lo + 31)..(lo + 16)]);
-      r[(lo + 31)..lo] = get_slice_int(32, w0 + w1, 0)
-    };
-    r
+    assert('eb == 32);
+    get_slice_int(32, signed(a[15..0]) * signed(b[15..0]) + signed(a[31..16]) * signed(b[31..16]), 0)
   },
   PB_Psadbw => {
-    assert('eb == 128);
-    var r : bits(128) = zeros();
-    foreach (k from 0 to 1) {
-      let base = k * 64;
-      var sum : int = 0;
-      foreach (i from 0 to 7) {
-        let lo = base + i * 8;
-        sum = sum + abs_diff8(a[(lo + 7)..lo], b[(lo + 7)..lo])
-      };
-      r[(base + 63)..base] = zero_extend(get_slice_int(16, sum, 0))
-    };
-    r
+    assert('eb == 64);
+    zero_extend(get_slice_int(16,
+      abs_diff8(a[63..56], b[63..56]) + abs_diff8(a[55..48], b[55..48]) +
+      abs_diff8(a[47..40], b[47..40]) + abs_diff8(a[39..32], b[39..32]) +
+      abs_diff8(a[31..24], b[31..24]) + abs_diff8(a[23..16], b[23..16]) +
+      abs_diff8(a[15..8],  b[15..8])  + abs_diff8(a[7..0],   b[7..0]), 0))
   },
   PB_HorizAddW    => { assert('eb == 128); packed_horiz(PB_Add, 16, a, b) },
   PB_HorizAddD    => { assert('eb == 128); packed_horiz(PB_Add, 32, a, b) },
