@@ -16,6 +16,26 @@ function mmx_read_rm(modrm, src) = {
   }
 }
 
+// MMX dispatch helpers — absorb common modrm + read + write + touch pattern
+val mmx_exec_binop : (PackedBinOp, {8, 16, 32, 64}, Prefixes) -> unit
+function mmx_exec_binop(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_mm_reg(modrm);
+  let src = modrm_rm(modrm, pfx);
+  write_mm(dst, packed_binop(op, eb, read_mm(dst), mmx_read_rm(modrm, src)));
+  mmx_touch()
+}
+
+val mmx_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
+function mmx_exec_shift(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_mm_reg(modrm);
+  let src = modrm_rm(modrm, pfx);
+  let c : nat = unsigned(mmx_read_rm(modrm, src)[63..0]);
+  write_mm(dst, packed_uniform_shift(op, eb, read_mm(dst), c));
+  mmx_touch()
+}
+
 // =========================================================================
 // MMX dispatch — handles all 0F xx opcodes when mandatory prefix is NONE
 // =========================================================================
@@ -70,42 +90,10 @@ function dispatch_mmx(op, pfx) = {
       mmx_touch()
     },
 
-    // 0F 64: PCMPGTB mm, mm/m64
-    100 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt(d[63..56], s[63..56]) @ cmp_gt(d[55..48], s[55..48]) @
-                     cmp_gt(d[47..40], s[47..40]) @ cmp_gt(d[39..32], s[39..32]) @
-                     cmp_gt(d[31..24], s[31..24]) @ cmp_gt(d[23..16], s[23..16]) @
-                     cmp_gt(d[15..8],  s[15..8])  @ cmp_gt(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F 65: PCMPGTW mm, mm/m64
-    101 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt(d[63..48], s[63..48]) @ cmp_gt(d[47..32], s[47..32]) @
-                     cmp_gt(d[31..16], s[31..16]) @ cmp_gt(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
-    // 0F 66: PCMPGTD mm, mm/m64
-    102 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_gt(d[63..32], s[63..32]) @ cmp_gt(d[31..0], s[31..0]));
-      mmx_touch()
-    },
+    // 0F 64-66: PCMPGTB/W/D mm, mm/m64
+    100 => mmx_exec_binop(PB_CmpGt,  8, pfx),
+    101 => mmx_exec_binop(PB_CmpGt, 16, pfx),
+    102 => mmx_exec_binop(PB_CmpGt, 32, pfx),
 
     // 0F 67: PACKUSWB mm, mm/m64
     103 => {
@@ -213,116 +201,30 @@ function dispatch_mmx(op, pfx) = {
       mmx_touch()
     },
 
-    // 0F 71: Group 12 — PSRLW/PSRAW/PSLLW mm, imm8
-    113 => {
+    // 0F 71-73: Group 12/13/14 — shift mm, imm8
+    op if 113 <= op & op <= 115 => {
       let modrm = fetch(1);
       let dst = modrm_mm_rm(modrm);
-      let imm = fetch(1);
-      let c : nat = unsigned(imm);
+      let c : nat = unsigned(fetch(1));
       let d : qword = read_mm(dst);
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      match reg_field {
-        2 => {
-          write_mm(dst, (d[63..48] >> c) @ (d[47..32] >> c) @
-                         (d[31..16] >> c) @ (d[15..0] >> c));
-          mmx_touch()
-        },
-        4 => {
-          write_mm(dst, (d[63..48] >>> c) @ (d[47..32] >>> c) @
-                         (d[31..16] >>> c) @ (d[15..0] >>> c));
-          mmx_touch()
-        },
-        6 => {
-          write_mm(dst, (d[63..48] << c) @ (d[47..32] << c) @
-                         (d[31..16] << c) @ (d[15..0] << c));
-          mmx_touch()
-        },
-        _ => raise_UD(),
-      }
-    },
-
-    // 0F 72: Group 13 — PSRLD/PSRAD/PSLLD mm, imm8
-    114 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_rm(modrm);
-      let imm = fetch(1);
-      let c : nat = unsigned(imm);
-      let d : qword = read_mm(dst);
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      match reg_field {
-        2 => {
-          write_mm(dst, (d[63..32] >> c) @ (d[31..0] >> c));
-          mmx_touch()
-        },
-        4 => {
-          write_mm(dst, (d[63..32] >>> c) @ (d[31..0] >>> c));
-          mmx_touch()
-        },
-        6 => {
-          write_mm(dst, (d[63..32] << c) @ (d[31..0] << c));
-          mmx_touch()
-        },
-        _ => raise_UD(),
-      }
-    },
-
-    // 0F 73: Group 14 — PSRLQ/PSLLQ mm, imm8
-    115 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_rm(modrm);
-      let imm = fetch(1);
-      let c : nat = unsigned(imm);
-      let d : qword = read_mm(dst);
-      let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-      match reg_field {
-        2 => {
-          write_mm(dst, (d >> c));
-          mmx_touch()
-        },
-        6 => {
-          write_mm(dst, (d << c));
-          mmx_touch()
-        },
-        _ => raise_UD(),
-      }
-    },
-
-    // 0F 74: PCMPEQB mm, mm/m64
-    116 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq(d[63..56], s[63..56]) @ cmp_eq(d[55..48], s[55..48]) @
-                     cmp_eq(d[47..40], s[47..40]) @ cmp_eq(d[39..32], s[39..32]) @
-                     cmp_eq(d[31..24], s[31..24]) @ cmp_eq(d[23..16], s[23..16]) @
-                     cmp_eq(d[15..8],  s[15..8])  @ cmp_eq(d[7..0],   s[7..0]));
+      match (op, unsigned(modrm[5..3])) {
+        (113, 2) => write_mm(dst, packed_uniform_shift(PS_Srl, 16, d, c)),
+        (113, 4) => write_mm(dst, packed_uniform_shift(PS_Sra, 16, d, c)),
+        (113, 6) => write_mm(dst, packed_uniform_shift(PS_Sll, 16, d, c)),
+        (114, 2) => write_mm(dst, packed_uniform_shift(PS_Srl, 32, d, c)),
+        (114, 4) => write_mm(dst, packed_uniform_shift(PS_Sra, 32, d, c)),
+        (114, 6) => write_mm(dst, packed_uniform_shift(PS_Sll, 32, d, c)),
+        (_, 2)   => write_mm(dst, packed_uniform_shift(PS_Srl, 64, d, c)),
+        (_, 6)   => write_mm(dst, packed_uniform_shift(PS_Sll, 64, d, c)),
+        _        => raise_UD(),
+      };
       mmx_touch()
     },
 
-    // 0F 75: PCMPEQW mm, mm/m64
-    117 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq(d[63..48], s[63..48]) @ cmp_eq(d[47..32], s[47..32]) @
-                     cmp_eq(d[31..16], s[31..16]) @ cmp_eq(d[15..0], s[15..0]));
-      mmx_touch()
-    },
-
-    // 0F 76: PCMPEQD mm, mm/m64
-    118 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, cmp_eq(d[63..32], s[63..32]) @ cmp_eq(d[31..0], s[31..0]));
-      mmx_touch()
-    },
+    // 0F 74-76: PCMPEQB/W/D mm, mm/m64
+    116 => mmx_exec_binop(PB_CmpEq,  8, pfx),
+    117 => mmx_exec_binop(PB_CmpEq, 16, pfx),
+    118 => mmx_exec_binop(PB_CmpEq, 32, pfx),
 
     // 0F 7E: MOVD r/m32, mm (or MOVQ r/m64, mm with REX.W)
     126 => {
@@ -384,62 +286,14 @@ function dispatch_mmx(op, pfx) = {
       mmx_touch()
     },
 
-    // 0F D1: PSRLW mm, mm/m64
-    209 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..48] >> c) @ (d[47..32] >> c) @
-                     (d[31..16] >> c) @ (d[15..0] >> c));
-      mmx_touch()
-    },
-
-    // 0F D2: PSRLD mm, mm/m64
-    210 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..32] >> c) @ (d[31..0] >> c));
-      mmx_touch()
-    },
-
-    // 0F D3: PSRLQ mm, mm/m64
-    211 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d >> c));
-      mmx_touch()
-    },
-
+    // 0F D1-D3: PSRLW/D/Q mm, mm/m64
+    209 => mmx_exec_shift(PS_Srl, 16, pfx),
+    210 => mmx_exec_shift(PS_Srl, 32, pfx),
+    211 => mmx_exec_shift(PS_Srl, 64, pfx),
     // 0F D4: PADDQ mm, mm/m64
-    212 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, d + s);
-      mmx_touch()
-    },
-
+    212 => mmx_exec_binop(PB_Add, 64, pfx),
     // 0F D5: PMULLW mm, mm/m64
-    213 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, mul_lo(d[63..48], s[63..48]) @ mul_lo(d[47..32], s[47..32]) @
-                     mul_lo(d[31..16], s[31..16]) @ mul_lo(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
+    213 => mmx_exec_binop(PB_MulLow, 16, pfx),
 
     // 0F D7: PMOVMSKB r32, mm
     215 => {
@@ -454,178 +308,42 @@ function dispatch_mmx(op, pfx) = {
       mmx_touch()
     },
 
-    // 0F D8: PSUBUSB mm, mm/m64
-    216 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_sub_u(d[63..56], s[63..56]) @ sat_sub_u(d[55..48], s[55..48]) @
-                     sat_sub_u(d[47..40], s[47..40]) @ sat_sub_u(d[39..32], s[39..32]) @
-                     sat_sub_u(d[31..24], s[31..24]) @ sat_sub_u(d[23..16], s[23..16]) @
-                     sat_sub_u(d[15..8],  s[15..8])  @ sat_sub_u(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F D9: PSUBUSW mm, mm/m64
-    217 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_sub_u(d[63..48], s[63..48]) @ sat_sub_u(d[47..32], s[47..32]) @
-                     sat_sub_u(d[31..16], s[31..16]) @ sat_sub_u(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
+    // 0F D8-D9: PSUBUSB/W mm, mm/m64
+    216 => mmx_exec_binop(PB_SatSubU,  8, pfx),
+    217 => mmx_exec_binop(PB_SatSubU, 16, pfx),
 
     // 0F DA: PMINUB mm, mm/m64
-    218 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, min_u(d[63..56], s[63..56]) @ min_u(d[55..48], s[55..48]) @
-                     min_u(d[47..40], s[47..40]) @ min_u(d[39..32], s[39..32]) @
-                     min_u(d[31..24], s[31..24]) @ min_u(d[23..16], s[23..16]) @
-                     min_u(d[15..8],  s[15..8])  @ min_u(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
+    218 => mmx_exec_binop(PB_MinU, 8, pfx),
     // 0F DB: PAND mm, mm/m64
     219 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      write_mm(dst, read_mm(dst) & s);
+      write_mm(dst, read_mm(dst) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
       mmx_touch()
     },
-
-    // 0F DC: PADDUSB mm, mm/m64
-    220 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_add_u(d[63..56], s[63..56]) @ sat_add_u(d[55..48], s[55..48]) @
-                     sat_add_u(d[47..40], s[47..40]) @ sat_add_u(d[39..32], s[39..32]) @
-                     sat_add_u(d[31..24], s[31..24]) @ sat_add_u(d[23..16], s[23..16]) @
-                     sat_add_u(d[15..8],  s[15..8])  @ sat_add_u(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F DD: PADDUSW mm, mm/m64
-    221 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_add_u(d[63..48], s[63..48]) @ sat_add_u(d[47..32], s[47..32]) @
-                     sat_add_u(d[31..16], s[31..16]) @ sat_add_u(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    // 0F DC-DD: PADDUSB/W mm, mm/m64
+    220 => mmx_exec_binop(PB_SatAddU,  8, pfx),
+    221 => mmx_exec_binop(PB_SatAddU, 16, pfx),
     // 0F DE: PMAXUB mm, mm/m64
-    222 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, max_u(d[63..56], s[63..56]) @ max_u(d[55..48], s[55..48]) @
-                     max_u(d[47..40], s[47..40]) @ max_u(d[39..32], s[39..32]) @
-                     max_u(d[31..24], s[31..24]) @ max_u(d[23..16], s[23..16]) @
-                     max_u(d[15..8],  s[15..8])  @ max_u(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
+    222 => mmx_exec_binop(PB_MaxU, 8, pfx),
     // 0F DF: PANDN mm, mm/m64
     223 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      write_mm(dst, ~(read_mm(dst)) & s);
+      write_mm(dst, ~(read_mm(dst)) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
       mmx_touch()
     },
-
     // 0F E0: PAVGB mm, mm/m64
-    224 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, avg(d[63..56], s[63..56]) @ avg(d[55..48], s[55..48]) @
-                     avg(d[47..40], s[47..40]) @ avg(d[39..32], s[39..32]) @
-                     avg(d[31..24], s[31..24]) @ avg(d[23..16], s[23..16]) @
-                     avg(d[15..8],  s[15..8])  @ avg(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F E1: PSRAW mm, mm/m64
-    225 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..48] >>> c) @ (d[47..32] >>> c) @
-                     (d[31..16] >>> c) @ (d[15..0] >>> c));
-      mmx_touch()
-    },
-
-    // 0F E2: PSRAD mm, mm/m64
-    226 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..32] >>> c) @ (d[31..0] >>> c));
-      mmx_touch()
-    },
-
+    224 => mmx_exec_binop(PB_Avg, 8, pfx),
+    // 0F E1-E2: PSRAW/D mm, mm/m64
+    225 => mmx_exec_shift(PS_Sra, 16, pfx),
+    226 => mmx_exec_shift(PS_Sra, 32, pfx),
     // 0F E3: PAVGW mm, mm/m64
-    227 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, avg(d[63..48], s[63..48]) @ avg(d[47..32], s[47..32]) @
-                     avg(d[31..16], s[31..16]) @ avg(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    227 => mmx_exec_binop(PB_Avg, 16, pfx),
     // 0F E4: PMULHUW mm, mm/m64
-    228 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, mul_hi16u(d[63..48], s[63..48]) @ mul_hi16u(d[47..32], s[47..32]) @
-                     mul_hi16u(d[31..16], s[31..16]) @ mul_hi16u(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    228 => mmx_exec_binop(PB_MulHighU, 16, pfx),
     // 0F E5: PMULHW mm, mm/m64
-    229 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, mul_hi16s(d[63..48], s[63..48]) @ mul_hi16s(d[47..32], s[47..32]) @
-                     mul_hi16s(d[31..16], s[31..16]) @ mul_hi16s(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
+    229 => mmx_exec_binop(PB_MulHighS, 16, pfx),
 
     // 0F E7: MOVNTQ m64, mm
     231 => {
@@ -635,171 +353,40 @@ function dispatch_mmx(op, pfx) = {
       rm_mem(dest) = read_mm(src); mmx_touch()
     },
 
-    // 0F E8: PSUBSB mm, mm/m64
-    232 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_sub_s(d[63..56], s[63..56]) @ sat_sub_s(d[55..48], s[55..48]) @
-                     sat_sub_s(d[47..40], s[47..40]) @ sat_sub_s(d[39..32], s[39..32]) @
-                     sat_sub_s(d[31..24], s[31..24]) @ sat_sub_s(d[23..16], s[23..16]) @
-                     sat_sub_s(d[15..8],  s[15..8])  @ sat_sub_s(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F E9: PSUBSW mm, mm/m64
-    233 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_sub_s(d[63..48], s[63..48]) @ sat_sub_s(d[47..32], s[47..32]) @
-                     sat_sub_s(d[31..16], s[31..16]) @ sat_sub_s(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    // 0F E8-E9: PSUBSB/W mm, mm/m64
+    232 => mmx_exec_binop(PB_SatSubS,  8, pfx),
+    233 => mmx_exec_binop(PB_SatSubS, 16, pfx),
     // 0F EA: PMINSW mm, mm/m64
-    234 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, min_s(d[63..48], s[63..48]) @ min_s(d[47..32], s[47..32]) @
-                     min_s(d[31..16], s[31..16]) @ min_s(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    234 => mmx_exec_binop(PB_MinS, 16, pfx),
     // 0F EB: POR mm, mm/m64
     235 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      write_mm(dst, read_mm(dst) | s);
+      write_mm(dst, read_mm(dst) | mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
       mmx_touch()
     },
-
-    // 0F EC: PADDSB mm, mm/m64
-    236 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_add_s(d[63..56], s[63..56]) @ sat_add_s(d[55..48], s[55..48]) @
-                     sat_add_s(d[47..40], s[47..40]) @ sat_add_s(d[39..32], s[39..32]) @
-                     sat_add_s(d[31..24], s[31..24]) @ sat_add_s(d[23..16], s[23..16]) @
-                     sat_add_s(d[15..8],  s[15..8])  @ sat_add_s(d[7..0],   s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F ED: PADDSW mm, mm/m64
-    237 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, sat_add_s(d[63..48], s[63..48]) @ sat_add_s(d[47..32], s[47..32]) @
-                     sat_add_s(d[31..16], s[31..16]) @ sat_add_s(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    // 0F EC-ED: PADDSB/W mm, mm/m64
+    236 => mmx_exec_binop(PB_SatAddS,  8, pfx),
+    237 => mmx_exec_binop(PB_SatAddS, 16, pfx),
     // 0F EE: PMAXSW mm, mm/m64
-    238 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, max_s(d[63..48], s[63..48]) @ max_s(d[47..32], s[47..32]) @
-                     max_s(d[31..16], s[31..16]) @ max_s(d[15..0],  s[15..0]));
-      mmx_touch()
-    },
-
+    238 => mmx_exec_binop(PB_MaxS, 16, pfx),
     // 0F EF: PXOR mm, mm/m64
     239 => {
       let modrm = fetch(1);
       let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      write_mm(dst, read_mm(dst) ^ s);
+      write_mm(dst, read_mm(dst) ^ mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
       mmx_touch()
     },
-
-    // 0F F1: PSLLW mm, mm/m64
-    241 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..48] << c) @ (d[47..32] << c) @
-                     (d[31..16] << c) @ (d[15..0] << c));
-      mmx_touch()
-    },
-
-    // 0F F2: PSLLD mm, mm/m64
-    242 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..32] << c) @ (d[31..0] << c));
-      mmx_touch()
-    },
-
-    // 0F F3: PSLLQ mm, mm/m64
-    243 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let c : nat = unsigned(mmx_read_rm(modrm, src));
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d << c));
-      mmx_touch()
-    },
-
+    // 0F F1-F3: PSLLW/D/Q mm, mm/m64
+    241 => mmx_exec_shift(PS_Sll, 16, pfx),
+    242 => mmx_exec_shift(PS_Sll, 32, pfx),
+    243 => mmx_exec_shift(PS_Sll, 64, pfx),
     // 0F F4: PMULUDQ mm, mm/m64
-    244 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      let result : qword = to_bits_truncate(unsigned(d[31..0]) * unsigned(s[31..0]));
-      write_mm(dst, result);
-      mmx_touch()
-    },
-
+    244 => mmx_exec_binop(PB_Pmuludq, 64, pfx),
     // 0F F5: PMADDWD mm, mm/m64
-    245 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      let d1 : dword = to_bits_truncate(signed(d[63..48]) * signed(s[63..48]) + signed(d[47..32]) * signed(s[47..32]));
-      let d0 : dword = to_bits_truncate(signed(d[31..16]) * signed(s[31..16]) + signed(d[15..0]) * signed(s[15..0]));
-      write_mm(dst, d1 @ d0);
-      mmx_touch()
-    },
-
+    245 => mmx_exec_binop(PB_Pmaddwd, 32, pfx),
     // 0F F6: PSADBW mm, mm/m64
-    246 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, psadbw(d, s));
-      mmx_touch()
-    },
+    246 => mmx_exec_binop(PB_Psadbw, 64, pfx),
 
     // 0F F7: MASKMOVQ mm, mm
     247 => {
@@ -825,90 +412,15 @@ function dispatch_mmx(op, pfx) = {
       }
     },
 
-    // 0F F8: PSUBB mm, mm/m64
-    248 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..56] - s[63..56]) @ (d[55..48] - s[55..48]) @
-                     (d[47..40] - s[47..40]) @ (d[39..32] - s[39..32]) @
-                     (d[31..24] - s[31..24]) @ (d[23..16] - s[23..16]) @
-                     (d[15..8]  - s[15..8])  @ (d[7..0]   - s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F F9: PSUBW mm, mm/m64
-    249 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..48] - s[63..48]) @ (d[47..32] - s[47..32]) @
-                     (d[31..16] - s[31..16]) @ (d[15..0]  - s[15..0]));
-      mmx_touch()
-    },
-
-    // 0F FA: PSUBD mm, mm/m64
-    250 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..32] - s[63..32]) @ (d[31..0] - s[31..0]));
-      mmx_touch()
-    },
-
-    // 0F FB: PSUBQ mm, mm/m64
-    251 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, d - s);
-      mmx_touch()
-    },
-
-    // 0F FC: PADDB mm, mm/m64
-    252 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..56] + s[63..56]) @ (d[55..48] + s[55..48]) @
-                     (d[47..40] + s[47..40]) @ (d[39..32] + s[39..32]) @
-                     (d[31..24] + s[31..24]) @ (d[23..16] + s[23..16]) @
-                     (d[15..8]  + s[15..8])  @ (d[7..0]   + s[7..0]));
-      mmx_touch()
-    },
-
-    // 0F FD: PADDW mm, mm/m64
-    253 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..48] + s[63..48]) @ (d[47..32] + s[47..32]) @
-                     (d[31..16] + s[31..16]) @ (d[15..0]  + s[15..0]));
-      mmx_touch()
-    },
-
-    // 0F FE: PADDD mm, mm/m64
-    254 => {
-      let modrm = fetch(1);
-      let dst = modrm_mm_reg(modrm);
-      let src = modrm_rm(modrm, pfx);
-      let s : qword = mmx_read_rm(modrm, src);
-      let d : qword = read_mm(dst);
-      write_mm(dst, (d[63..32] + s[63..32]) @ (d[31..0] + s[31..0]));
-      mmx_touch()
-    },
+    // 0F F8-FB: PSUBB/W/D/Q mm, mm/m64
+    248 => mmx_exec_binop(PB_Sub,  8, pfx),
+    249 => mmx_exec_binop(PB_Sub, 16, pfx),
+    250 => mmx_exec_binop(PB_Sub, 32, pfx),
+    251 => mmx_exec_binop(PB_Sub, 64, pfx),
+    // 0F FC-FE: PADDB/W/D mm, mm/m64
+    252 => mmx_exec_binop(PB_Add,  8, pfx),
+    253 => mmx_exec_binop(PB_Add, 16, pfx),
+    254 => mmx_exec_binop(PB_Add, 32, pfx),
 
     _ => raise_UD(),
   }

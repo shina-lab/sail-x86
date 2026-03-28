@@ -49,7 +49,7 @@ function packed_unary_elem(op, a) = match op {
   PU_FPExp2    => fp_exp2(a),
 }
 
-val packed_unop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+val packed_unop : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (PackedUnaryOp, int('eb), bits('vl)) -> bits('vl)
 function packed_unop(op, eb, a) = {
   var r : bits('vl) = zeros();
@@ -161,7 +161,7 @@ function packed_horiz(op, ew, src) = {
 }
 
 // Apply a packed binary operation element-wise across a vector.
-val packed_binop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64, 128}.
+val packed_binop : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {8, 16, 32, 64, 128}.
   (PackedBinOp, int('eb), bits('vl), bits('vl)) -> bits('vl)
 function packed_binop(op, eb, a, b) = {
   var r : bits('vl) = zeros();
@@ -227,7 +227,7 @@ function packed_lane_imm_op(op, src, imm) = {
 // Uniform packed shift: apply a scalar shift count to all elements.
 enum PackedShiftOp = { PS_Srl, PS_Sra, PS_Sll }
 
-val packed_uniform_shift : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64, 128}.
+val packed_uniform_shift : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {16, 32, 64, 128}.
   (PackedShiftOp, int('eb), bits('vl), nat) -> bits('vl)
 function packed_uniform_shift(op, eb, src, count) = {
   var r : bits('vl) = zeros();
