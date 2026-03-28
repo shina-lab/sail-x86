@@ -177,6 +177,32 @@ function packed_ternop(op, eb, a, b, c) = {
 }
 
 // =========================================================================
+// FP16 <-> FP32 packed conversion
+// =========================================================================
+
+val avx_vcvtph2ps : forall 'n, 'n in {64, 128, 256}. bits('n) -> bits('n * 2)
+function avx_vcvtph2ps(src) = {
+  var r : bits('n * 2) = zeros();
+  foreach (i from 0 to ('n / 16 - 1)) {
+    let src_lo = i * 16;
+    let dst_lo = i * 32;
+    r[(dst_lo + 31)..dst_lo] = fp16_to_fp32(src[(src_lo + 15)..src_lo]);
+  };
+  r
+}
+
+val avx_vcvtps2ph : forall 'n, 'n in {128, 256, 512}. (bits('n), bits(2)) -> bits(div('n, 2))
+function avx_vcvtps2ph(src, rc) = {
+  var r : bits(div('n, 2)) = zeros();
+  foreach (i from 0 to ('n / 32 - 1)) {
+    let src_lo = i * 32;
+    let dst_lo = i * 16;
+    r[(dst_lo + 15)..dst_lo] = fp32_to_fp16(src[(src_lo + 31)..src_lo], rc);
+  };
+  r
+}
+
+// =========================================================================
 // GFNI vector operations
 // =========================================================================
 

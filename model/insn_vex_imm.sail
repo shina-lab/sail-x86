@@ -294,18 +294,11 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
     let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
-    if pfx.vex_l then {
-      let res : xmmword = avx_vcvtps2ph_256(read_ymm(src), rc);
-      match dest {
-        RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), res),
-        RM_mem(m) => write_mem(m,res),
-      }
-    } else {
-      let res : bits(64) = avx_vcvtps2ph_128(read_xmm(src), rc);
-      match dest {
-        RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(res)),
-        RM_mem(m) => v(m) = res,
-      }
+    let vl = if pfx.vex_l then 256 else 128;
+    let res = avx_vcvtps2ph(read_simd(vl, src), rc);
+    match dest {
+      RM_reg(_) => write_xmm(modrm_xmm_rm(modrm, pfx), zero_extend(res)),
+      RM_mem(m) => write_mem(m, res),
     }
   },
 

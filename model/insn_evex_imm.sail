@@ -616,11 +616,6 @@ function avx_vrange(eb, src1, src2, imm) = {
 
 /* ---- VPBROADCASTMB2Q / VPBROADCASTMW2D: broadcast mask to vector ---- */
 
-val avx_vcvtps2ph_512 : (zmmword, bits(2)) -> ymmword
-function avx_vcvtps2ph_512(src, rc) = {
-  avx_vcvtps2ph_256(src[511..256], rc) @ avx_vcvtps2ph_256(src[255..0], rc)
-}
-
 val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
 function avx_vpclmulqdq_lane(src1, src2, imm8) = {
   let sel_a : qword = blend(src1[63..0], src1[127..64], imm8[0]);
@@ -1031,7 +1026,7 @@ function dispatch_evex_imm(op, pfx) = {
         let dest = modrm_rm_evex(modrm, pfx, 8);
         let imm = fetch(1);
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
-        let res = avx_vcvtps2ph_128(read_xmm(src), rc);
+        let res = avx_vcvtps2ph(read_xmm(src), rc);
         match dest {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), zero_extend(res)),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 8, 2)
@@ -1041,7 +1036,7 @@ function dispatch_evex_imm(op, pfx) = {
         let dest = modrm_rm_evex(modrm, pfx, 16);
         let imm = fetch(1);
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
-        let res = avx_vcvtps2ph_256(read_ymm(src), rc);
+        let res = avx_vcvtps2ph(read_ymm(src), rc);
         match dest {
           RM_reg(_) => write_xmm(evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 16, 2)
@@ -1051,7 +1046,7 @@ function dispatch_evex_imm(op, pfx) = {
         let dest = modrm_rm_evex(modrm, pfx, 32);
         let imm = fetch(1);
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
-        let res = avx_vcvtps2ph_512(read_zmm(src), rc);
+        let res = avx_vcvtps2ph(read_zmm(src), rc);
         match dest {
           RM_reg(_) => write_ymm(evex_rm_reg_idx(modrm, pfx), res),
           RM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 32, 2)
