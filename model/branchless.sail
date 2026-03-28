@@ -244,14 +244,20 @@ function sat_u(dst, x) = {
   min_u(x, hi)[('dst - 1)..0]
 }
 
-// FP16 <-> FP32 conversion.
-
-// PSHUFB per-byte: select byte from data by low 4 bits of mask; zero if mask[7] set.
-val pshufb_byte : (xmmword, byte) -> byte
-function pshufb_byte(data, mask) = {
-  let idx : range(0, 15) = unsigned(mask[3..0]);
-  let selected : byte = (data >> (idx * 8))[7..0];
-  selected & sign_extend(~(mask[7]))
+// PSHUFB: per-byte shuffle within a 128-bit lane.
+// Each result byte is selected from src by the low 4 bits of the corresponding
+// ctrl byte. If ctrl byte's high bit is set, the result byte is zero.
+val pshufb : (bits(128), bits(128)) -> bits(128)
+function pshufb(src, ctrl) = {
+  var r : bits(128) = zeros();
+  foreach (i from 0 to 15) {
+    let lo = i * 8;
+    let mask : byte = ctrl[(lo + 7)..lo];
+    let idx : range(0, 15) = unsigned(mask[3..0]);
+    let selected : byte = (src >> (idx * 8))[7..0];
+    r[(lo + 7)..lo] = selected & sign_extend(~(mask[7]))
+  };
+  r
 }
 
 // PMADDUBSW per-pair: unsigned*signed byte multiply, add adjacent, saturate to word.
@@ -277,6 +283,7 @@ function abs_diff8(a, b) = {
   unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
 }
 
+// FP16 <-> FP32 conversion.
 val fp16_to_fp32 : bits(16) -> bits(32)
 function fp16_to_fp32(h) = {
   let sign : bits(1) = h[15..15];

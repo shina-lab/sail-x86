@@ -2044,20 +2044,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
   match op {
 
     // SSSE3 — PSHUFB
-    0  => {
-      let d : xmmword = read_xmm(xreg);
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        pshufb_byte(d, s[127..120]) @ pshufb_byte(d, s[119..112]) @
-        pshufb_byte(d, s[111..104]) @ pshufb_byte(d, s[103..96]) @
-        pshufb_byte(d, s[95..88])   @ pshufb_byte(d, s[87..80]) @
-        pshufb_byte(d, s[79..72])   @ pshufb_byte(d, s[71..64]) @
-        pshufb_byte(d, s[63..56])   @ pshufb_byte(d, s[55..48]) @
-        pshufb_byte(d, s[47..40])   @ pshufb_byte(d, s[39..32]) @
-        pshufb_byte(d, s[31..24])   @ pshufb_byte(d, s[23..16]) @
-        pshufb_byte(d, s[15..8])    @ pshufb_byte(d, s[7..0]);
-      write_xmm_legacy(xreg, r)
-    },
+    0  => write_xmm_legacy(xreg, pshufb(read_xmm(xreg), src_xmm)),
     // PHADDW xmm1, xmm2/m128
     1  => write_xmm_legacy(xreg, packed_binop(PB_HorizAddW, 128, read_xmm(xreg), src_xmm)),
     // PHADDD xmm1, xmm2/m128

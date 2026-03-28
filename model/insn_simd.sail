@@ -100,17 +100,7 @@ function packed_elem_op(op, a, b) = match op {
   PB_FMax     => { assert('eb <= 64); fp_max(a, b) },
   PB_FPScalef => { assert('eb <= 64); fp_scalef(a, b) },
   // Per-128-bit-lane operations
-  PB_Pshufb => {
-    assert('eb == 128);
-    pshufb_byte(a, b[127..120]) @ pshufb_byte(a, b[119..112]) @
-    pshufb_byte(a, b[111..104]) @ pshufb_byte(a, b[103..96])  @
-    pshufb_byte(a, b[95..88])   @ pshufb_byte(a, b[87..80])   @
-    pshufb_byte(a, b[79..72])   @ pshufb_byte(a, b[71..64])   @
-    pshufb_byte(a, b[63..56])   @ pshufb_byte(a, b[55..48])   @
-    pshufb_byte(a, b[47..40])   @ pshufb_byte(a, b[39..32])   @
-    pshufb_byte(a, b[31..24])   @ pshufb_byte(a, b[23..16])   @
-    pshufb_byte(a, b[15..8])    @ pshufb_byte(a, b[7..0])
-  },
+  PB_Pshufb => { assert('eb == 128); pshufb(a, b) },
   PB_Pmaddubsw => { assert('eb == 16); pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },
   PB_Pmuludq => {
     assert('eb == 64);

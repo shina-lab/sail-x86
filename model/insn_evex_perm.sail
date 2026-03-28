@@ -9,27 +9,6 @@
 // AVX-512 packed unsigned byte minimum
 // =========================================================================
 
-val avx_pshufb_128 : (xmmword, xmmword) -> xmmword
-function avx_pshufb_128(src, ctrl) = {
-  var r : xmmword = zeros();
-  foreach (j from 0 to 15) {
-    let jj : range(0, 120) = j * 8;
-    let c : byte = ctrl[(jj + 7)..jj];
-    r[(jj + 7)..jj] = pshufb_byte(src, c)
-  };
-  r
-}
-
-val avx_pshufb : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_pshufb(vl, src, ctrl) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) {
-    let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pshufb_128(src[(lo + 127)..lo], ctrl[(lo + 127)..lo])
-  };
-  r
-}
-
 val avx_vpermilps_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermilps_128(src, ctrl) = {
   var r : xmmword = zeros();
@@ -1209,7 +1188,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 8), avx_pshufb(read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / 8), packed_binop(PB_Pshufb, 128, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
   },
 
   // 0F38 75: VPERMI2B (66,W0) [VBMI] / VPERMI2W (66,W1) [BW]
