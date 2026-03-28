@@ -399,15 +399,7 @@ function dispatch_evex_arith(op, pfx) = {
   30 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_Abs, 32, pfx) },
 
   // 0F38 1F: VPABSQ (66,W1) [F]
-  31 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let mask = evex_wmask(pfx, vl / 64);
-    evex_write(dst, mask, packed_unop(PU_Abs, 64, evex_bcast_src(vl, modrm, src, pfx, 64)))
-  },
+  31 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_Abs, 64, pfx) },
 
   // 0F38 10: VPSRLVW (66,W1) [BW] / VPMOVUSWB (F3) [BW]
   16 => {
@@ -920,16 +912,7 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 44: VPLZCNTD (66, W=0) / VPLZCNTQ (66, W=1) [CD]
-  68 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_unop(PU_Lzcnt, eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
-  },
+  68 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_Lzcnt, evex_elem(pfx), pfx) },
 
   // 0F38 50: VPDPBUSD (66) [VNNI]
   80 => {
@@ -1001,16 +984,7 @@ function dispatch_evex_arith(op, pfx) = {
   },
 
   // 0F38 55: VPOPCNTD (66, W=0) / VPOPCNTQ (66, W=1) [VPOPCNTDQ]
-  85 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_unop(PU_Popcnt, eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
-  },
+  85 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_Popcnt, evex_elem(pfx), pfx) },
 
   // 0F38 C4: VPCONFLICTD (66, W=0) / VPCONFLICTQ (66, W=1) [CD]
   196 => {
