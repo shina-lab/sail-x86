@@ -445,10 +445,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     let x : byte = (ZMM[src] >> (unsigned(imm[3..0]) * 8))[7..0];
     match dest {
-      RM_reg(_) => {
-        let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(dst_reg) = zero_extend(32, x);
-      },
+      RM_reg(r) => v(r) = zero_extend(32, x),
       RM_mem(m) => v(m) = x,
     }
   },
@@ -465,10 +462,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let w : word = (ZMM[src] >> (sel * 16))[15..0];
     match dest {
-      RM_reg(_) => {
-        let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(dst_reg) = zero_extend(32, w);
-      },
+      RM_reg(r) => v(r) = zero_extend(32, w),
       RM_mem(m) => v(m) = w,
     }
   },
@@ -482,13 +476,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let src_xmm : xmmword = read_simd(src);
-    match (dest, pfx.rex_w) {
-      (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = (src_xmm >> (unsigned(imm[0]) * 64))[63..0],
-      (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = (src_xmm >> (unsigned(imm[1..0]) * 32))[31..0],
-      (RM_mem(m), true)  => v(m) = (src_xmm >> (unsigned(imm[0]) * 64))[63..0],
-      (RM_mem(m), false) => v(m) = (src_xmm >> (unsigned(imm[1..0]) * 32))[31..0],
-    }
+    let eb = if pfx.rex_w then 64 else 32;
+    v(dest) = (ZMM[src] >> (unsigned(imm[(eb / 32 - 1)..0]) * eb))[(eb - 1)..0]
   },
 
   // 0F3A 17: VEXTRACTPS r/m32, xmm, imm8 (66) — VEX.128 only, vvvv must be 1111b
@@ -500,14 +489,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let x : dword = (ZMM[src] >> (unsigned(imm[1..0]) * 32))[31..0];
-    match dest {
-      RM_reg(_) => {
-        let dst_reg = modrm_rm_reg(modrm, pfx);
-        v(dst_reg) = x;
-      },
-      RM_mem(m) => v(m) = x,
-    }
+    v(dest) = (ZMM[src] >> (unsigned(imm[1..0]) * 32))[31..0]
   },
 
   // 0F3A 20: VPINSRB xmm, xmm, r/m8, imm8 (66) — VEX.128 only
@@ -518,10 +500,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_simd(pfx.vex_vvvv);
-    let x : byte = match src {
-      RM_reg(_) => v(modrm_rm_reg(modrm, pfx)),
-      RM_mem(m) => v(m),
-    };
+    let x : byte = v(src);
     let imm = fetch(1);
     let sel : range(0, 15) = unsigned(imm[3..0]);
     write_simd(128, dst, insert_byte(src1, x, sel))

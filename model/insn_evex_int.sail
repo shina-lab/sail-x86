@@ -667,10 +667,10 @@ function dispatch_evex_int(op, pfx) = {
     let src_xmm : xmmword = read_simd(src);
     match (dest, pfx.rex_w) {
       // VMOVQ: store qword from XMM to GPR/mem
-      (RM_reg(_), true)    => v(modrm_rm_reg(modrm, pfx)) = src_xmm[63..0],
+      (RM_reg(r), true) => v(r) = src_xmm[63..0],
       (RM_mem(m), true)   => v(m) = src_xmm[63..0],
       // VMOVD: store dword from XMM to GPR/mem
-      (RM_reg(_), false)   => v(modrm_rm_reg(modrm, pfx)) = src_xmm[31..0],
+      (RM_reg(r), false) => v(r) = src_xmm[31..0],
       (RM_mem(m), false)  => v(m) = src_xmm[31..0],
     }
   },
@@ -1320,7 +1320,7 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, 2);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     let word_val : bits(16) = match src {
-      RM_reg(_) => v(32, modrm_rm_reg(modrm, pfx))[15..0],
+      RM_reg(r) => v(32, r)[15..0],
       RM_mem(m) => v(m),
     };
     let imm = fetch(1);

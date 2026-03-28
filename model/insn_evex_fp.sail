@@ -748,7 +748,7 @@ function dispatch_evex_fp(op, pfx) = {
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
     let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
     let src_val : qword = match src {
-      RM_reg(_) => zero_extend(v(os, modrm_rm_reg(modrm, pfx))),
+      RM_reg(r) => zero_extend(v(os, r)),
       RM_mem(m) => match os {
         64 => v(m),
         _    => zero_extend(v(32, m)),
@@ -1524,14 +1524,8 @@ function dispatch_evex_fp(op, pfx) = {
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-        let result_f32 : dword = match (rm2, pfx.rex_w) {
-          // W1: u64→f32
-          (RM_reg(_), true) => __uint64_to_f32(v(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(m), true) => __uint64_to_f32(v(m)),
-          // W0: u32→f32
-          (RM_reg(_), false) => __uint32_to_f32(v(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(m), false) => __uint32_to_f32(v(m)),
-        };
+        let result_f32 : dword =
+          if pfx.rex_w then __uint64_to_f32(v(rm2)) else __uint32_to_f32(v(rm2));
         var dst_val = src1;
         dst_val[31..0] = result_f32;
         write_simd(128, dst_xmm, dst_val);
@@ -1544,14 +1538,8 @@ function dispatch_evex_fp(op, pfx) = {
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-        let result_f64 : qword = match (rm2, pfx.rex_w) {
-          // W1: u64→f64
-          (RM_reg(_), true) => __uint64_to_f64(v(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(m), true) => __uint64_to_f64(v(m)),
-          // W0: u32→f64
-          (RM_reg(_), false) => __uint32_to_f64(v(modrm_rm_reg(modrm, pfx))),
-          (RM_mem(m), false) => __uint32_to_f64(v(m)),
-        };
+        let result_f64 : qword =
+          if pfx.rex_w then __uint64_to_f64(v(rm2)) else __uint32_to_f64(v(rm2));
         var dst_val = src1;
         dst_val[63..0] = result_f64;
         write_simd(128, dst_xmm, dst_val);

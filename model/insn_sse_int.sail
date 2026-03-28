@@ -2564,8 +2564,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch(1);
       let xmm_src : xmmword = read_simd(xreg);
       match (src, pfx.rex_w) {
-        (RM_reg(_), true)  => v(modrm_rm_reg(modrm, pfx)) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
-        (RM_reg(_), false) => v(modrm_rm_reg(modrm, pfx)) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
+        (RM_reg(r), true) => v(r) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
+        (RM_reg(r), false) => v(r) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
         (RM_mem(m), true)  => v(m) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
         (RM_mem(m), false) => v(m) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
       }

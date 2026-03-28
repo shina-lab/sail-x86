@@ -870,7 +870,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
       let src : word = match src {
-        RM_reg(_) => v(64, modrm_rm_reg(modrm, pfx))[15..0],
+        RM_reg(r) => v(64, r)[15..0],
         RM_mem(m) => v(m),
       };
       write_simd(128, dst, zero_extend(src))
