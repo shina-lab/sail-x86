@@ -24,7 +24,7 @@ function broadcast(vl, v) = {
 
 // Generic packed unary operation (element-wise, one source).
 enum PackedUnaryOp = {
-  PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt,
+  PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt, PU_FRsqrt, PU_FRcp,
   PU_FPGetexp, PU_FPRcp14, PU_FPRsqrt14, PU_FPRcp28, PU_FPRsqrt28, PU_FPExp2
 }
 
@@ -35,6 +35,8 @@ function packed_unary_elem(op, a) = match op {
   PU_Popcnt    => to_bits(popcount(a)),
   PU_Lzcnt     => to_bits(clz(a)),
   PU_FSqrt     => fp_sqrt(a),
+  PU_FRsqrt    => fp_rsqrt(a),
+  PU_FRcp      => fp_rcp(a),
   PU_FPGetexp  => fp_getexp(a),
   PU_FPRcp14   => fp_rcp14(a),
   PU_FPRsqrt14 => fp_rsqrt14(a),
@@ -72,6 +74,7 @@ enum PackedBinOp = {
   PB_HorizAddW, PB_HorizAddD, PB_HorizSatAddW,
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
   PB_HorizFAddS, PB_HorizFAddD, PB_HorizFSubS, PB_HorizFSubD,
+  PB_FAddSubS, PB_FAddSubD,
 }
 
 // PMADDWD per-pair: signed * signed + signed * signed
@@ -135,6 +138,11 @@ function packed_elem_op(op, a, b) = match op {
   PB_HorizFAddD   => { assert('eb == 128); packed_horiz(PB_FAdd, 64, b) @ packed_horiz(PB_FAdd, 64, a) },
   PB_HorizFSubS   => { assert('eb == 128); packed_horiz(PB_FSub, 32, b) @ packed_horiz(PB_FSub, 32, a) },
   PB_HorizFSubD   => { assert('eb == 128); packed_horiz(PB_FSub, 64, b) @ packed_horiz(PB_FSub, 64, a) },
+  // ADDSUBPS: even dwords use SUB, odd dwords use ADD
+  PB_FAddSubS     => { assert('eb == 128); fp_add(a[127..96], b[127..96]) @ fp_sub(a[95..64], b[95..64]) @
+                                             fp_add(a[63..32], b[63..32]) @ fp_sub(a[31..0], b[31..0]) },
+  // ADDSUBPD: low qword uses SUB, high qword uses ADD
+  PB_FAddSubD     => { assert('eb == 128); fp_add(a[127..64], b[127..64]) @ fp_sub(a[63..0], b[63..0]) },
 }
 
 // Reduce adjacent ew-bit element pairs within a 128-bit vector, producing 64 bits.

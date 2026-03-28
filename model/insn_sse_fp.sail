@@ -3,6 +3,44 @@
 // SSE/SSE2/SSE3 data movement, arithmetic, conversion, and comparison.
 
 // =========================================================================
+// SSE FP dispatch helpers — all-prefix binop/unop (PS/PD/SS/SD)
+// =========================================================================
+
+// SSE FP binary: MP_NONE=PS(32), MP_66=PD(64), MP_F3=SS, MP_F2=SD
+val sse_exec_fp_binop : (PackedBinOp, simd_idx, xmmword, MandatoryPrefix) -> unit
+function sse_exec_fp_binop(op, xreg, src_xmm, mp) = match mp {
+  MP_NONE => ZMM[xreg][127..0] = packed_binop(op, 32, read_simd(xreg), src_xmm),
+  MP_66   => ZMM[xreg][127..0] = packed_binop(op, 64, read_simd(xreg), src_xmm),
+  MP_F3   => {
+    var xmm : xmmword = read_simd(xreg);
+    xmm[31..0] = packed_elem_op(op, xmm[31..0], src_xmm[31..0]);
+    ZMM[xreg][127..0] = xmm
+  },
+  MP_F2   => {
+    var xmm : xmmword = read_simd(xreg);
+    xmm[63..0] = packed_elem_op(op, xmm[63..0], src_xmm[63..0]);
+    ZMM[xreg][127..0] = xmm
+  },
+}
+
+// SSE FP unary: MP_NONE=PS(32), MP_66=PD(64), MP_F3=SS, MP_F2=SD
+val sse_exec_fp_unop : (PackedUnaryOp, simd_idx, xmmword, MandatoryPrefix) -> unit
+function sse_exec_fp_unop(op, xreg, src_xmm, mp) = match mp {
+  MP_NONE => ZMM[xreg][127..0] = packed_unop(op, 32, src_xmm),
+  MP_66   => ZMM[xreg][127..0] = packed_unop(op, 64, src_xmm),
+  MP_F3   => {
+    var xmm : xmmword = read_simd(xreg);
+    xmm[31..0] = packed_unary_elem(op, src_xmm[31..0]);
+    ZMM[xreg][127..0] = xmm
+  },
+  MP_F2   => {
+    var xmm : xmmword = read_simd(xreg);
+    xmm[63..0] = packed_unary_elem(op, src_xmm[63..0]);
+    ZMM[xreg][127..0] = xmm
+  },
+}
+
+// =========================================================================
 // SSE floating-point dispatch
 // =========================================================================
 
@@ -621,30 +659,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let arith_op : range(0, 15) = op - 80;
       match arith_op {
         // 0F 51: SQRT
-        1 => {
-          match mp {
-            MP_NONE => {
-              let r : xmmword = fp_sqrt(src_xmm[127..96]) @
-              fp_sqrt(src_xmm[95..64]) @
-              fp_sqrt(src_xmm[63..32]) @
-              fp_sqrt(src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              ZMM[xreg][127..0] = fp_sqrt(src_xmm[127..64]) @ fp_sqrt(src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_sqrt(src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_sqrt(src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        1 => sse_exec_fp_unop(PU_FSqrt, xreg, src_xmm, mp),
         // 0F 54: ANDPS/ANDPD
         4 => {
           match mp {
@@ -678,61 +693,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         // 0F 58: ADD
-        8 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_add(a[127..96], src_xmm[127..96]) @
-              fp_add(a[95..64], src_xmm[95..64]) @
-              fp_add(a[63..32], src_xmm[63..32]) @
-              fp_add(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              let lo : qword = fp_add(a[63..0], src_xmm[63..0]);
-              let hi : qword = fp_add(a[127..64], src_xmm[127..64]);
-              ZMM[xreg][127..0] = hi @ lo
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_add(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_add(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        8 => sse_exec_fp_binop(PB_FAdd, xreg, src_xmm, mp),
         // 0F 59: MUL
-        9 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_mul(a[127..96], src_xmm[127..96]) @
-              fp_mul(a[95..64], src_xmm[95..64]) @
-              fp_mul(a[63..32], src_xmm[63..32]) @
-              fp_mul(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              ZMM[xreg][127..0] = fp_mul(a[127..64], src_xmm[127..64]) @ fp_mul(a[63..0], src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_mul(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_mul(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        9 => sse_exec_fp_binop(PB_FMul, xreg, src_xmm, mp),
         // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
         10 => {
           match mp {
@@ -780,150 +743,32 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         // 0F 5C: SUB
-        12 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_sub(a[127..96], src_xmm[127..96]) @
-              fp_sub(a[95..64], src_xmm[95..64]) @
-              fp_sub(a[63..32], src_xmm[63..32]) @
-              fp_sub(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              ZMM[xreg][127..0] = fp_sub(a[127..64], src_xmm[127..64]) @ fp_sub(a[63..0], src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_sub(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_sub(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        12 => sse_exec_fp_binop(PB_FSub, xreg, src_xmm, mp),
         // 0F 5D: MIN
-        13 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_min(a[127..96], src_xmm[127..96]) @
-              fp_min(a[95..64], src_xmm[95..64]) @
-              fp_min(a[63..32], src_xmm[63..32]) @
-              fp_min(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              ZMM[xreg][127..0] = fp_min(a[127..64], src_xmm[127..64]) @ fp_min(a[63..0], src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_min(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_min(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        13 => sse_exec_fp_binop(PB_FMin, xreg, src_xmm, mp),
         // 0F 5E: DIV
-        14 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_div(a[127..96], src_xmm[127..96]) @
-              fp_div(a[95..64], src_xmm[95..64]) @
-              fp_div(a[63..32], src_xmm[63..32]) @
-              fp_div(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              ZMM[xreg][127..0] = fp_div(a[127..64], src_xmm[127..64]) @ fp_div(a[63..0], src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_div(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_div(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        14 => sse_exec_fp_binop(PB_FDiv, xreg, src_xmm, mp),
         // 0F 5F: MAX
-        15 => {
-          match mp {
-            MP_NONE => {
-              let a : xmmword = read_simd(xreg);
-              let r : xmmword = fp_max(a[127..96], src_xmm[127..96]) @
-              fp_max(a[95..64], src_xmm[95..64]) @
-              fp_max(a[63..32], src_xmm[63..32]) @
-              fp_max(a[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = r
-            },
-            MP_66 => {
-              let a : xmmword = read_simd(xreg);
-              ZMM[xreg][127..0] = fp_max(a[127..64], src_xmm[127..64]) @ fp_max(a[63..0], src_xmm[63..0])
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_max(xmm[31..0], src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F2 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = fp_max(xmm[63..0], src_xmm[63..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-          }
-        },
+        15 => sse_exec_fp_binop(PB_FMax, xreg, src_xmm, mp),
         // 0F 52: RSQRTPS/RSQRTSS
-        2 => {
-          match mp {
-            MP_NONE => {
-              var xmm : xmmword = zeros();
-              xmm[31..0]   = fp_rsqrt(src_xmm[31..0]);
-              xmm[63..32]  = fp_rsqrt(src_xmm[63..32]);
-              xmm[95..64]  = fp_rsqrt(src_xmm[95..64]);
-              xmm[127..96] = fp_rsqrt(src_xmm[127..96]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_rsqrt(src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            _       => raise_UD(),
-          }
+        2 => match mp {
+          MP_NONE => ZMM[xreg][127..0] = packed_unop(PU_FRsqrt, 32, src_xmm),
+          MP_F3 => {
+            var xmm : xmmword = read_simd(xreg);
+            xmm[31..0] = fp_rsqrt(src_xmm[31..0]);
+            ZMM[xreg][127..0] = xmm
+          },
+          _ => raise_UD(),
         },
         // 0F 53: RCPPS/RCPSS
-        3 => {
-          match mp {
-            MP_NONE => {
-              var xmm : xmmword = zeros();
-              xmm[31..0]   = fp_rcp(src_xmm[31..0]);
-              xmm[63..32]  = fp_rcp(src_xmm[63..32]);
-              xmm[95..64]  = fp_rcp(src_xmm[95..64]);
-              xmm[127..96] = fp_rcp(src_xmm[127..96]);
-              ZMM[xreg][127..0] = xmm
-            },
-            MP_F3 => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[31..0] = fp_rcp(src_xmm[31..0]);
-              ZMM[xreg][127..0] = xmm
-            },
-            _       => raise_UD(),
-          }
+        3 => match mp {
+          MP_NONE => ZMM[xreg][127..0] = packed_unop(PU_FRcp, 32, src_xmm),
+          MP_F3 => {
+            var xmm : xmmword = read_simd(xreg);
+            xmm[31..0] = fp_rcp(src_xmm[31..0]);
+            ZMM[xreg][127..0] = xmm
+          },
+          _ => raise_UD(),
         },
         _ => raise_UD(),
       }
@@ -1041,21 +886,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
-        MP_F2 => {
-          let a : xmmword = read_simd(xreg);
-          let d0 : dword = fp_add(a[31..0], a[63..32]);
-          let d1 : dword = fp_add(a[95..64], a[127..96]);
-          let d2 : dword = fp_add(src_xmm[31..0], src_xmm[63..32]);
-          let d3 : dword = fp_add(src_xmm[95..64], src_xmm[127..96]);
-          ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
-        },
-        MP_66 => {
-          let a : xmmword = read_simd(xreg);
-          let lo : qword = fp_add(a[63..0], a[127..64]);
-          let hi : qword = fp_add(src_xmm[63..0], src_xmm[127..64]);
-          ZMM[xreg][127..0] = hi @ lo
-        },
-        _       => raise_UD(),
+        MP_F2 => ZMM[xreg][127..0] = packed_binop(PB_HorizFAddS, 128, read_simd(xreg), src_xmm),
+        MP_66 => ZMM[xreg][127..0] = packed_binop(PB_HorizFAddD, 128, read_simd(xreg), src_xmm),
+        _     => raise_UD(),
       }
     },
     // 0F 7D: HSUBPS/HSUBPD (SSE3)
@@ -1067,21 +900,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
-        MP_F2 => {
-          let a : xmmword = read_simd(xreg);
-          let d0 : dword = fp_sub(a[31..0], a[63..32]);
-          let d1 : dword = fp_sub(a[95..64], a[127..96]);
-          let d2 : dword = fp_sub(src_xmm[31..0], src_xmm[63..32]);
-          let d3 : dword = fp_sub(src_xmm[95..64], src_xmm[127..96]);
-          ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
-        },
-        MP_66 => {
-          let a : xmmword = read_simd(xreg);
-          let lo : qword = fp_sub(a[63..0], a[127..64]);
-          let hi : qword = fp_sub(src_xmm[63..0], src_xmm[127..64]);
-          ZMM[xreg][127..0] = hi @ lo
-        },
-        _       => raise_UD(),
+        MP_F2 => ZMM[xreg][127..0] = packed_binop(PB_HorizFSubS, 128, read_simd(xreg), src_xmm),
+        MP_66 => ZMM[xreg][127..0] = packed_binop(PB_HorizFSubD, 128, read_simd(xreg), src_xmm),
+        _     => raise_UD(),
       }
     },
     // 0F C2: CMPPS/CMPPD/CMPSS/CMPSD xmm, xmm/m, imm8
@@ -1143,21 +964,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
-        MP_F2 => {
-          let a : xmmword = read_simd(xreg);
-          let d0 : dword = fp_sub(a[31..0], src_xmm[31..0]);
-          let d1 : dword = fp_add(a[63..32], src_xmm[63..32]);
-          let d2 : dword = fp_sub(a[95..64], src_xmm[95..64]);
-          let d3 : dword = fp_add(a[127..96], src_xmm[127..96]);
-          ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
-        },
-        MP_66 => {
-          let a : xmmword = read_simd(xreg);
-          let lo : qword = fp_sub(a[63..0], src_xmm[63..0]);
-          let hi : qword = fp_add(a[127..64], src_xmm[127..64]);
-          ZMM[xreg][127..0] = hi @ lo
-        },
-        _       => raise_UD(),
+        MP_F2 => ZMM[xreg][127..0] = packed_binop(PB_FAddSubS, 128, read_simd(xreg), src_xmm),
+        MP_66 => ZMM[xreg][127..0] = packed_binop(PB_FAddSubD, 128, read_simd(xreg), src_xmm),
+        _     => raise_UD(),
       }
     },
     _ => raise_UD(),

@@ -520,57 +520,10 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F D0: VADDSUBPS (F2) / VADDSUBPD (66) — alternating sub/add
-  208 => {
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    match mp {
-      MP_F2 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          let r : ymmword =
-            fp_add(a[255..224], b[255..224]) @
-            fp_sub(a[223..192], b[223..192]) @
-            fp_add(a[191..160], b[191..160]) @
-            fp_sub(a[159..128], b[159..128]) @
-            fp_add(a[127..96], b[127..96]) @
-            fp_sub(a[95..64], b[95..64]) @
-            fp_add(a[63..32], b[63..32]) @
-            fp_sub(a[31..0], b[31..0]);
-          write_simd(256, dst, r)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let r : xmmword =
-            fp_add(a[127..96], b[127..96]) @
-            fp_sub(a[95..64], b[95..64]) @
-            fp_add(a[63..32], b[63..32]) @
-            fp_sub(a[31..0], b[31..0]);
-          write_simd(128, dst, r)
-        }
-      },
-      MP_66 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          let r : ymmword =
-            fp_add(a[255..192], b[255..192]) @
-            fp_sub(a[191..128], b[191..128]) @
-            fp_add(a[127..64], b[127..64]) @
-            fp_sub(a[63..0], b[63..0]);
-          write_simd(256, dst, r)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let r : xmmword =
-            fp_add(a[127..64], b[127..64]) @
-            fp_sub(a[63..0], b[63..0]);
-          write_simd(128, dst, r)
-        }
-      },
-      _ => raise_UD(),
-    }
+  208 => match mp {
+    MP_F2 => vex_exec_binop(PB_FAddSubS, 128, pfx),
+    MP_66 => vex_exec_binop(PB_FAddSubD, 128, pfx),
+    _     => raise_UD(),
   },
 
   // 0F D1: VPSRLW xmm/ymm, xmm/ymm, xmm/m128 (66 prefix) — shift by xmm count
