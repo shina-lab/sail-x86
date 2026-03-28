@@ -1008,19 +1008,23 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
     20 => {
       let a : xmmword = read_simd(xreg);
       let m : xmmword = read_simd(0);
-      let d0 : dword = blend(a[31..0], src_xmm[31..0], m[31]);
-      let d1 : dword = blend(a[63..32], src_xmm[63..32], m[63]);
-      let d2 : dword = blend(a[95..64], src_xmm[95..64], m[95]);
-      let d3 : dword = blend(a[127..96], src_xmm[127..96], m[127]);
-      ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
+      var r : xmmword = zeros();
+      foreach (i from 0 to 3) {
+        let lo = i * 32;
+        r[(lo + 31)..lo] = blend(a[(lo + 31)..lo], src_xmm[(lo + 31)..lo], m[lo + 31])
+      };
+      ZMM[xreg][127..0] = r
     },
     // BLENDVPD xmm1, xmm2/m128, <XMM0>
     21 => {
       let a : xmmword = read_simd(xreg);
       let m : xmmword = read_simd(0);
-      let lo : qword = blend(a[63..0], src_xmm[63..0], m[63]);
-      let hi : qword = blend(a[127..64], src_xmm[127..64], m[127]);
-      ZMM[xreg][127..0] = hi @ lo
+      var r : xmmword = zeros();
+      foreach (i from 0 to 1) {
+        let lo = i * 64;
+        r[(lo + 63)..lo] = blend(a[(lo + 63)..lo], src_xmm[(lo + 63)..lo], m[lo + 63])
+      };
+      ZMM[xreg][127..0] = r
     },
     _  => raise_UD(),
   }
@@ -1036,22 +1040,27 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
   let xreg = modrm_xmm_reg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
   match op {
-    // SSE4.1 — round
+    // SSE4.1 — ROUNDPS xmm1, xmm2/m128, imm8
     8 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let d0 : dword = fp_round(src_xmm[31..0], imm);
-      let d1 : dword = fp_round(src_xmm[63..32], imm);
-      let d2 : dword = fp_round(src_xmm[95..64], imm);
-      let d3 : dword = fp_round(src_xmm[127..96], imm);
-      ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
+      var r : xmmword = zeros();
+      foreach (i from 0 to 3) {
+        let lo = i * 32;
+        r[(lo + 31)..lo] = fp_round(src_xmm[(lo + 31)..lo], imm)
+      };
+      ZMM[xreg][127..0] = r
     },
+    // ROUNDPD xmm1, xmm2/m128, imm8
     9 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let lo : qword = fp_round(src_xmm[63..0], imm);
-      let hi : qword = fp_round(src_xmm[127..64], imm);
-      ZMM[xreg][127..0] = hi @ lo
+      var r : xmmword = zeros();
+      foreach (i from 0 to 1) {
+        let lo = i * 64;
+        r[(lo + 63)..lo] = fp_round(src_xmm[(lo + 63)..lo], imm)
+      };
+      ZMM[xreg][127..0] = r
     },
     10 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
@@ -1068,24 +1077,29 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       ZMM[xreg][127..0] = a[127..64] @ lo
     },
 
-    // SSE4.1 — blend
+    // SSE4.1 — BLENDPS xmm1, xmm2/m128, imm8
     12 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      ZMM[xreg][127..0] =
-        blend(a[127..96], src_xmm[127..96], imm[3]) @
-        blend(a[95..64],  src_xmm[95..64],  imm[2]) @
-        blend(a[63..32],  src_xmm[63..32],  imm[1]) @
-        blend(a[31..0],   src_xmm[31..0],   imm[0])
+      var r : xmmword = zeros();
+      foreach (i from 0 to 3) {
+        let lo = i * 32;
+        r[(lo + 31)..lo] = blend(a[(lo + 31)..lo], src_xmm[(lo + 31)..lo], imm[i])
+      };
+      ZMM[xreg][127..0] = r
     },
+    // BLENDPD xmm1, xmm2/m128, imm8
     13 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      ZMM[xreg][127..0] =
-        blend(a[127..64], src_xmm[127..64], imm[1]) @
-        blend(a[63..0],   src_xmm[63..0],   imm[0])
+      var r : xmmword = zeros();
+      foreach (i from 0 to 1) {
+        let lo = i * 64;
+        r[(lo + 63)..lo] = blend(a[(lo + 63)..lo], src_xmm[(lo + 63)..lo], imm[i])
+      };
+      ZMM[xreg][127..0] = r
     },
 
     // PEXTRW r/m16, xmm, imm8 (SSE4.1, 66 0F 3A 15)
