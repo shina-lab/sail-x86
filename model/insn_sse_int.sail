@@ -134,14 +134,6 @@ function select_low_word(v, sel) = {
   v[(idx * 16 + 15) .. (idx * 16)]
 }
 
-// PSIGNB/PSIGNW/PSIGND — Packed Sign (SSSE3)
-// Per lane: if b < 0, result = -a; if b == 0, result = 0; if b > 0, result = a.
-val psign : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function psign(a, b) = {
-  let neg_mask : bits('n) = sign_extend(b['n - 1]);
-  ((a ^ neg_mask) - neg_mask) & sign_extend(is_nonzero(b))
-}
-
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
 // PSRLW/PSRLD/PSRLQ — Shift Packed Data Right Logical
 // PSRAW/PSRAD — Shift Packed Data Right Arithmetic

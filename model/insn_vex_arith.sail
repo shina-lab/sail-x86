@@ -301,58 +301,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   },
 
   // 0F38 08: VPSIGNB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  8 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psignb_256(src1, src2))
-    } else {
-      let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_psignb_128(src1, src2))
-    }
-  },
-
+  8 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_PSign, 8, pfx) },
   // 0F38 09: VPSIGNW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  9 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psignw_256(src1, src2))
-    } else {
-      let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_psignw_128(src1, src2))
-    }
-  },
-
+  9 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_PSign, 16, pfx) },
   // 0F38 0A: VPSIGND xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  10 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, avx_psignd_256(src1, src2))
-    } else {
-      let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, avx_psignd_128(src1, src2))
-    }
-  },
+  10 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_PSign, 32, pfx) },
 
   // 0F38 0B: VPMULHRSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   11 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulHRS, 16, pfx) },

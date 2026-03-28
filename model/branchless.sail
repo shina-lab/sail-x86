@@ -104,6 +104,13 @@ function cmp_gt(a, b) = sign_extend(is_gt(a, b))
 // Min/max
 // =========================================================================
 
+// PSIGN: negate if b < 0, zero if b == 0, keep if b > 0.
+val psign : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
+function psign(a, b) = {
+  let neg_mask : bits('n) = sign_extend(b['n - 1]);
+  ((a ^ neg_mask) - neg_mask) & sign_extend(is_nonzero(b))
+}
+
 val max_s : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
 function max_s(a, b) = blend(a, b, is_gt(b, a))
 

@@ -307,44 +307,6 @@ val avx_phsubsw_256 : (ymmword, ymmword) -> ymmword
 function avx_phsubsw_256(a, b) =
   avx_phsubsw_128(a[255..128], b[255..128]) @ avx_phsubsw_128(a[127..0], b[127..0])
 
-// VPSIGNB: negate/zero/keep bytes (one 128-bit lane)
-val avx_psignb_128 : (xmmword, xmmword) -> xmmword
-function avx_psignb_128(a, b) =
-  psign(a[127..120], b[127..120]) @ psign(a[119..112], b[119..112]) @
-  psign(a[111..104], b[111..104]) @ psign(a[103..96], b[103..96]) @
-  psign(a[95..88], b[95..88]) @ psign(a[87..80], b[87..80]) @
-  psign(a[79..72], b[79..72]) @ psign(a[71..64], b[71..64]) @
-  psign(a[63..56], b[63..56]) @ psign(a[55..48], b[55..48]) @
-  psign(a[47..40], b[47..40]) @ psign(a[39..32], b[39..32]) @
-  psign(a[31..24], b[31..24]) @ psign(a[23..16], b[23..16]) @
-  psign(a[15..8], b[15..8]) @ psign(a[7..0], b[7..0])
-
-val avx_psignb_256 : (ymmword, ymmword) -> ymmword
-function avx_psignb_256(a, b) =
-  avx_psignb_128(a[255..128], b[255..128]) @ avx_psignb_128(a[127..0], b[127..0])
-
-// VPSIGNW: negate/zero/keep words (one 128-bit lane)
-val avx_psignw_128 : (xmmword, xmmword) -> xmmword
-function avx_psignw_128(a, b) =
-  psign(a[127..112], b[127..112]) @ psign(a[111..96], b[111..96]) @
-  psign(a[95..80], b[95..80]) @ psign(a[79..64], b[79..64]) @
-  psign(a[63..48], b[63..48]) @ psign(a[47..32], b[47..32]) @
-  psign(a[31..16], b[31..16]) @ psign(a[15..0], b[15..0])
-
-val avx_psignw_256 : (ymmword, ymmword) -> ymmword
-function avx_psignw_256(a, b) =
-  avx_psignw_128(a[255..128], b[255..128]) @ avx_psignw_128(a[127..0], b[127..0])
-
-// VPSIGND: negate/zero/keep dwords (one 128-bit lane)
-val avx_psignd_128 : (xmmword, xmmword) -> xmmword
-function avx_psignd_128(a, b) =
-  psign(a[127..96], b[127..96]) @ psign(a[95..64], b[95..64]) @
-  psign(a[63..32], b[63..32]) @ psign(a[31..0], b[31..0])
-
-val avx_psignd_256 : (ymmword, ymmword) -> ymmword
-function avx_psignd_256(a, b) =
-  avx_psignd_128(a[255..128], b[255..128]) @ avx_psignd_128(a[127..0], b[127..0])
-
 // =========================================================================
 // SSE4.1 integer helpers — PMINUW, PCMPEQQ, PHMINPOSUW
 // =========================================================================

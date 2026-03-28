@@ -50,6 +50,7 @@ enum PackedBinOp = {
   PB_MulLow, PB_MulHighS, PB_MulHighU, PB_MulHRS,
   PB_Ror, PB_Rol,
   PB_CmpEq, PB_CmpGt,
+  PB_PSign,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
   PB_FPScalef,
 }
@@ -80,6 +81,7 @@ function packed_elem_op(op, a, b) = match op {
   PB_Rol      => rotl(a, unsigned(b) % 'eb),
   PB_CmpEq    => cmp_eq(a, b),
   PB_CmpGt    => cmp_gt(a, b),
+  PB_PSign    => psign(a, b),
   PB_FAdd     => fp_add(a, b),
   PB_FSub     => fp_sub(a, b),
   PB_FMul     => fp_mul(a, b),
