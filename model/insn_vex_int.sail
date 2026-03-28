@@ -110,32 +110,20 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
     match mp {
-      // VMOVDQA xmm1/ymm1, xmm2/ymm2/m128/m256
-      // Requires alignment: 32 for YMM, 16 for XMM; #GP(0) if unaligned.
+      // VMOVDQA — requires alignment
       MP_66 => match src {
-        RM_reg(_) =>
-          if pfx.vex_l then write_simd(256, dst, read_simd(256, modrm_xmm_rm(modrm, pfx)))
-          else write_simd(128, dst, read_simd(modrm_xmm_rm(modrm, pfx))),
+        RM_reg(_) => write_simd(vl, dst, read_simd(vl, modrm_xmm_rm(modrm, pfx))),
         RM_mem(m) => {
-          if pfx.vex_l then {
-            let a = seg_linear(m, 32);
-            if unsigned(a) % 32 != 0 then raise_GP0();
-            write_simd(256, dst, read_mem(a))
-          } else {
-            let a = seg_linear(m, 16);
-            if unsigned(a) % 16 != 0 then raise_GP0();
-            write_simd(128, dst, read_mem(a))
-          }
+          let align : {16, 32} = if pfx.vex_l then 32 else 16;
+          let a = seg_linear(m, align);
+          if unsigned(a) % align != 0 then raise_GP0();
+          write_simd(vl, dst, read_mem(a))
         },
       },
-      // VMOVDQU xmm1/ymm1, xmm2/ymm2/m128/m256
-      MP_F3 =>
-        if pfx.vex_l then {
-          write_simd(256, dst, decode_vex_src(256, modrm, src, pfx))
-        } else {
-          write_simd(128, dst, decode_vex_src(128, modrm, src, pfx))
-        },
+      // VMOVDQU — unaligned OK
+      MP_F3 => write_simd(vl, dst, decode_vex_src(modrm, src, pfx)),
       _ => raise_UD(),
     }
   },
@@ -274,29 +262,15 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
     match dest {
-      RM_reg(_) => {
-        let dst = modrm_xmm_rm(modrm, pfx);
-        if pfx.vex_l then {
-          write_simd(256, dst, read_simd(256, src))
-        } else {
-          write_simd(128, dst, read_simd(128, src))
-        }
-      },
+      RM_reg(_) => write_simd(vl, modrm_xmm_rm(modrm, pfx), read_simd(vl, src)),
       RM_mem(m) => {
         if mp == MP_66 then {
-          let a = seg_linear(m, if pfx.vex_l then 32 else 16);
-          if pfx.vex_l then {
-            if unsigned(a) % 32 != 0 then raise_GP0();
-          } else {
-            if unsigned(a) % 16 != 0 then raise_GP0();
-          }
+          let align : {16, 32} = if pfx.vex_l then 32 else 16;
+          if unsigned(seg_linear(m, align)) % align != 0 then raise_GP0()
         };
-        if pfx.vex_l then {
-          write_mem(m,read_simd(256, src))
-        } else {
-          write_mem(m, read_simd(128, src))
-        }
+        write_mem(m, read_simd(vl, src))
       },
     }
   },
