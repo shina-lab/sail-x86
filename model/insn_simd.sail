@@ -147,7 +147,7 @@ function packed_unpack(eb, half, a, b) = {
 }
 
 // Generic packed narrowing unary operation (each element shrinks).
-enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS }
+enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS, PN_SatSU }
 
 val packed_narrow_elem : forall 'src 'dst, 'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
   (PackedNarrowOp, int('dst), bits('src)) -> bits('dst)
@@ -155,6 +155,7 @@ function packed_narrow_elem(op, dst, a) = match op {
   PN_Trunc => a[('dst - 1)..0],
   PN_SatU  => sat_u(a),
   PN_SatS  => sat_s(a),
+  PN_SatSU => sat_su(a),
 }
 
 val packed_narrow_unop : forall 'vl 'src 'dst,
@@ -166,6 +167,29 @@ function packed_narrow_unop(op, src_eb, dst_eb, a) = {
     let slo = i * 'src;
     let dlo = i * 'dst;
     r[(dlo + 'dst - 1)..dlo] = packed_narrow_elem(op, dst_eb, a[(slo + 'src - 1)..slo])
+  };
+  r
+}
+
+// Two-source narrowing pack: within each 128-bit lane, narrow elements from a
+// into the lower half and from b into the upper half, applying saturation.
+// Covers PACKSSWB (PN_SatS, 16→8), PACKSSDW (PN_SatS, 32→16),
+// PACKUSWB (PN_SatSU, 16→8), PACKUSDW (PN_SatSU, 32→16).
+val packed_pack : forall 'vl 'src 'dst,
+  'vl in {128, 256, 512} & 'src in {16, 32} & 'dst in {8, 16} & 'src == 'dst * 2.
+  (PackedNarrowOp, int('src), int('dst), bits('vl), bits('vl)) -> bits('vl)
+function packed_pack(op, src, dst, a, b) = {
+  var r : bits('vl) = zeros();
+  let elems = 128 / src;
+  foreach (j from 0 to ('vl / 128 - 1)) {
+    let lbase = j * 128;
+    foreach (i from 0 to (elems - 1)) {
+      let slo = lbase + i * src;
+      let a_lo = lbase + i * dst;
+      let b_lo = lbase + 64 + i * dst;
+      r[(a_lo + dst - 1)..a_lo] = packed_narrow_elem(op, dst, a[(slo + src - 1)..slo]);
+      r[(b_lo + dst - 1)..b_lo] = packed_narrow_elem(op, dst, b[(slo + src - 1)..slo]);
+    }
   };
   r
 }

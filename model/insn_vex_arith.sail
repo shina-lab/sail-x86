@@ -792,15 +792,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // Pack dwords to words with unsigned saturation
   43 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let vvvv = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      write_ymm(dst, avx_packusdw(read_ymm(vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_packusdw_lane(read_xmm(vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
+    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, packed_pack(PN_SatSU, 32, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
   // 0F38 30: VPMOVZXBW (66 prefix, vvvv must be 1111b)

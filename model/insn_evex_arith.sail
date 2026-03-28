@@ -353,7 +353,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_rm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, avx_packusdw(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_pack(PN_SatSU, 32, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 32)))
   },
 
   // 0F38 3C: VPMAXSB (66) [BW]

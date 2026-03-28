@@ -24,32 +24,6 @@ function avx_pmuldq_256(a, b) =
 // VPACKUSDW: pack dwords to words with unsigned saturation (for VEX use)
 // =========================================================================
 
-val avx_packusdw_lane : (xmmword, xmmword) -> xmmword
-function avx_packusdw_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let src_lo : range(0, 96) = i * 32;
-    let dst_lo : range(0, 48) = i * 16;
-    r[(dst_lo + 15)..dst_lo] = sat_su(a[(src_lo + 31)..src_lo]);
-  };
-  foreach (i from 0 to 3) {
-    let src_lo : range(0, 96) = i * 32;
-    let dst_lo : range(64, 112) = 64 + i * 16;
-    r[(dst_lo + 15)..dst_lo] = sat_su(b[(src_lo + 31)..src_lo]);
-  };
-  r
-}
-
-val avx_packusdw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_packusdw(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) {
-    let lo = i * 128;
-    r[(lo + 127)..lo] = avx_packusdw_lane(a[(lo + 127)..lo], b[(lo + 127)..lo])
-  };
-  r
-}
-
 // =========================================================================
 // Gather address computation (shared by VEX and EVEX gather instructions)
 // =========================================================================
