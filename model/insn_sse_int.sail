@@ -599,8 +599,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F 71: Group 12 — PSRLW/PSRAW/PSLLW imm8 (66 or no prefix)
-    113 => {
+    // 0F 71-73: Group 12/13/14 — PSxxx imm8 (66 or no prefix)
+    op if 113 <= op & op <= 115 => {
       let mp = get_mandatory_prefix(pfx);
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
@@ -610,56 +610,22 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let _ = modrm_rm(modrm, pfx);
         let xreg = modrm_xmm_rm(modrm, pfx);
         let c : nat = unsigned(fetch(1));
-        match unsigned(modrm[5..3]) {
-          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 16, read_simd(xreg), c),
-          4 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 16, read_simd(xreg), c),
-          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 16, read_simd(xreg), c),
-          _ => raise_UD(),
-        }
-      }
-    },
-
-    // 0F 72: Group 13 — PSRLD/PSRAD/PSLLD imm8 (66 or no prefix)
-    114 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp == MP_NONE then {
-        dispatch_mmx(op, pfx)
-      } else {
-        if mp != MP_66 then raise_UD();
-        let modrm = fetch(1);
-        let _ = modrm_rm(modrm, pfx);
-        let xreg = modrm_xmm_rm(modrm, pfx);
-        let c : nat = unsigned(fetch(1));
-        match unsigned(modrm[5..3]) {
-          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 32, read_simd(xreg), c),
-          4 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 32, read_simd(xreg), c),
-          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 32, read_simd(xreg), c),
-          _ => raise_UD(),
-        }
-      }
-    },
-
-    // 0F 73: Group 14 — PSRLQ/PSRLDQ/PSLLQ/PSLLDQ imm8 (66 or no prefix)
-    115 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp == MP_NONE then {
-        dispatch_mmx(op, pfx)
-      } else {
-        if mp != MP_66 then raise_UD();
-        let modrm = fetch(1);
-        let _ = modrm_rm(modrm, pfx);
-        let xreg = modrm_xmm_rm(modrm, pfx);
-        let c : nat = unsigned(fetch(1));
-        match unsigned(modrm[5..3]) {
-          // PSRLQ xmm1, imm8
-          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 64, read_simd(xreg), c),
-          // PSRLDQ xmm1, imm8 — byte shift of whole 128-bit register
-          3 => ZMM[xreg][127..0] = read_simd(128, xreg) >> (c * 8),
-          // PSLLQ xmm1, imm8
-          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 64, read_simd(xreg), c),
-          // PSLLDQ xmm1, imm8 — byte shift of whole 128-bit register
-          7 => ZMM[xreg][127..0] = read_simd(128, xreg) << (c * 8),
-          _ => raise_UD(),
+        let a : xmmword = read_simd(xreg);
+        match (op, unsigned(modrm[5..3])) {
+          // Group 12: word shifts
+          (113, 2) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 16, a, c),
+          (113, 4) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 16, a, c),
+          (113, 6) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 16, a, c),
+          // Group 13: dword shifts
+          (114, 2) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 32, a, c),
+          (114, 4) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 32, a, c),
+          (114, 6) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 32, a, c),
+          // Group 14: qword shifts + byte shifts
+          (_, 2) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 64, a, c),
+          (_, 6) => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 64, a, c),
+          (_, 3) => ZMM[xreg][127..0] = a >> (c * 8),  // PSRLDQ
+          (_, 7) => ZMM[xreg][127..0] = a << (c * 8),  // PSLLDQ
+          _      => raise_UD(),
         }
       }
     },

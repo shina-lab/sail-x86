@@ -154,47 +154,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm))
   },
 
-  // 0F 71: Group 12 — VPSRLW/VPSRAW/VPSLLW imm8 (66 prefix)
+  // 0F 71-73: Group 12/13/14 — VPSxxx imm8 (66 prefix)
   // VEX: modrm.rm = src, vvvv = dst
-  113 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    let _ = modrm_rm(modrm, pfx);
-    let src_idx = modrm_xmm_rm(modrm, pfx);
-    let dst = pfx.vex_vvvv;
-    let c : nat = unsigned(fetch(1));
-    let vl = vex_vl(pfx);
-    let a = read_simd(vl, src_idx);
-    match reg_field {
-      2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 16, a, c)),
-      4 => write_simd(vl, dst, packed_uniform_shift(PS_Sra, 16, a, c)),
-      6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 16, a, c)),
-      _ => raise_UD(),
-    }
-  },
-
-  // 0F 72: Group 13 — VPSRLD/VPSRAD/VPSLLD imm8 (66 prefix)
-  114 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    let _ = modrm_rm(modrm, pfx);
-    let src_idx = modrm_xmm_rm(modrm, pfx);
-    let dst = pfx.vex_vvvv;
-    let c : nat = unsigned(fetch(1));
-    let vl = vex_vl(pfx);
-    let a = read_simd(vl, src_idx);
-    match reg_field {
-      2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 32, a, c)),
-      4 => write_simd(vl, dst, packed_uniform_shift(PS_Sra, 32, a, c)),
-      6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 32, a, c)),
-      _ => raise_UD(),
-    }
-  },
-
-  // 0F 73: Group 14 — VPSRLQ/VPSRLDQ/VPSLLQ/VPSLLDQ imm8 (66 prefix)
-  115 => {
+  op if 113 <= op & op <= 115 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
@@ -203,14 +165,30 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = pfx.vex_vvvv;
     let c : range(0, 255) = unsigned(fetch(1));
     let vl = vex_vl(pfx);
-    match reg_field {
-      2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 64, read_simd(vl, src_idx), c)),
-      6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 64, read_simd(vl, src_idx), c)),
-      // VPSRLDQ: byte shift right per 128-bit lane
-      3 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 128, read_simd(vl, src_idx), c * 8)),
-      // VPSLLDQ: byte shift left per 128-bit lane
-      7 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 128, read_simd(vl, src_idx), c * 8)),
-      _ => raise_UD(),
+    let a = read_simd(vl, src_idx);
+    match op {
+      // Group 12: word shifts
+      113 => match reg_field {
+        2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 16, a, c)),
+        4 => write_simd(vl, dst, packed_uniform_shift(PS_Sra, 16, a, c)),
+        6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 16, a, c)),
+        _ => raise_UD(),
+      },
+      // Group 13: dword shifts
+      114 => match reg_field {
+        2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 32, a, c)),
+        4 => write_simd(vl, dst, packed_uniform_shift(PS_Sra, 32, a, c)),
+        6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 32, a, c)),
+        _ => raise_UD(),
+      },
+      // Group 14: qword shifts + byte shifts
+      _ => match reg_field {
+        2 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 64, a, c)),
+        6 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 64, a, c)),
+        3 => write_simd(vl, dst, packed_uniform_shift(PS_Srl, 128, a, c * 8)),
+        7 => write_simd(vl, dst, packed_uniform_shift(PS_Sll, 128, a, c * 8)),
+        _ => raise_UD(),
+      },
     }
   },
 
