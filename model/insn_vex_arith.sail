@@ -303,7 +303,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let state : xmmword = read_xmm(pfx.vex_vvvv);
+    let state : xmmword = read_simd(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_simd(128, dst, __aesenc(state, roundkey))
   },
@@ -316,7 +316,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let state : xmmword = read_xmm(pfx.vex_vvvv);
+    let state : xmmword = read_simd(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_simd(128, dst, __aesenclast(state, roundkey))
   },
@@ -329,7 +329,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let state : xmmword = read_xmm(pfx.vex_vvvv);
+    let state : xmmword = read_simd(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_simd(128, dst, __aesdec(state, roundkey))
   },
@@ -342,7 +342,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let state : xmmword = read_xmm(pfx.vex_vvvv);
+    let state : xmmword = read_simd(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, modrm, src, pfx);
     write_simd(128, dst, __aesdeclast(state, roundkey))
   },
@@ -643,14 +643,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1_idx = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
@@ -672,14 +672,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1_idx = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
@@ -700,7 +700,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
+    let ctrl : ymmword = read_simd(pfx.vex_vvvv);
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     write_simd(256, dst, vex_vpermd_256(ctrl, src))
   },
@@ -713,11 +713,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let mask : ymmword = read_ymm(pfx.vex_vvvv);
+      let mask : ymmword = read_simd(pfx.vex_vvvv);
       let data : ymmword = rm_mem(src);
       write_simd(256, dst, vex_maskmovps_load_256(mask, data))
     } else {
-      let mask : xmmword = read_xmm(pfx.vex_vvvv);
+      let mask : xmmword = read_simd(pfx.vex_vvvv);
       let data : xmmword = rm_mem(src);
       write_simd(128, dst, vex_maskmovps_load_128(mask, data))
     }
@@ -731,11 +731,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let mask : ymmword = read_ymm(pfx.vex_vvvv);
+      let mask : ymmword = read_simd(pfx.vex_vvvv);
       let data : ymmword = rm_mem(src);
       write_simd(256, dst, vex_maskmovpd_load_256(mask, data))
     } else {
-      let mask : xmmword = read_xmm(pfx.vex_vvvv);
+      let mask : xmmword = read_simd(pfx.vex_vvvv);
       let data : xmmword = rm_mem(src);
       write_simd(128, dst, vex_maskmovpd_load_128(mask, data))
     }
@@ -753,15 +753,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       RM_mem(m) => {
         let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
-          let mask : ymmword = read_ymm(pfx.vex_vvvv);
-          let src : ymmword = read_ymm(src_idx);
+          let mask : ymmword = read_simd(pfx.vex_vvvv);
+          let src : ymmword = read_simd(src_idx);
           foreach (i from 0 to 7) {
             if mask[(i * 32 + 31)] == 0b1 then
               write_mem(32, a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
           }
         } else {
-          let mask : xmmword = read_xmm(pfx.vex_vvvv);
-          let src : xmmword = read_xmm(src_idx);
+          let mask : xmmword = read_simd(pfx.vex_vvvv);
+          let src : xmmword = read_simd(src_idx);
           foreach (i from 0 to 3) {
             if mask[(i * 32 + 31)] == 0b1 then
               write_mem(32, a + zero_extend(to_bits(64, i * 4)), src[(i * 32 + 31) .. (i * 32)])
@@ -783,15 +783,15 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       RM_mem(m) => {
         let a = seg_linear(m, if pfx.vex_l then 32 else 16);
         if pfx.vex_l then {
-          let mask : ymmword = read_ymm(pfx.vex_vvvv);
-          let src : ymmword = read_ymm(src_idx);
+          let mask : ymmword = read_simd(pfx.vex_vvvv);
+          let src : ymmword = read_simd(src_idx);
           foreach (i from 0 to 3) {
             if mask[(i * 64 + 63)] == 0b1 then
               write_mem(64, a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
           }
         } else {
-          let mask : xmmword = read_xmm(pfx.vex_vvvv);
-          let src : xmmword = read_xmm(src_idx);
+          let mask : xmmword = read_simd(pfx.vex_vvvv);
+          let src : xmmword = read_simd(src_idx);
           foreach (i from 0 to 1) {
             if mask[(i * 64 + 63)] == 0b1 then
               write_mem(64, a + zero_extend(to_bits(64, i * 8)), src[(i * 64 + 63) .. (i * 64)])
@@ -809,7 +809,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    let ctrl : ymmword = read_ymm(pfx.vex_vvvv);
+    let ctrl : ymmword = read_simd(pfx.vex_vvvv);
     let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
     write_simd(256, dst, vex_vpermd_256(ctrl, src))
   },
@@ -843,9 +843,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_w then {
       // VPGATHERDQ: dword indices, qword elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -856,9 +856,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -872,9 +872,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     } else {
       // VPGATHERDD: dword indices, dword elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 7) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -885,9 +885,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -911,9 +911,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_w then {
       // VPGATHERQQ: qword indices, qword elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -924,9 +924,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -940,9 +940,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     } else {
       // VPGATHERQD: qword indices, dword elements
       if pfx.vex_l then {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -953,9 +953,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(128, dst, result);
         write_simd(128, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -979,9 +979,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_w then {
       // VGATHERDPD: dword indices, f64 elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -992,9 +992,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -1008,9 +1008,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     } else {
       // VGATHERDPS: dword indices, f32 elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 7) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -1021,9 +1021,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : dword = indices[(i * 32 + 31) .. (i * 32)];
@@ -1047,9 +1047,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if pfx.vex_w then {
       // VGATHERQPD: qword indices, f64 elements
       if pfx.vex_l then {
-        var result : ymmword = read_ymm(dst);
-        let mask : ymmword = read_ymm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : ymmword = read_simd(dst);
+        let mask : ymmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -1060,9 +1060,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(256, dst, result);
         write_simd(256, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 64 + 63)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -1076,9 +1076,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     } else {
       // VGATHERQPS: qword indices, f32 elements
       if pfx.vex_l then {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : ymmword = read_ymm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : ymmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 3) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -1089,9 +1089,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         write_simd(128, dst, result);
         write_simd(128, mask_idx, zeros())
       } else {
-        var result : xmmword = read_xmm(dst);
-        let mask : xmmword = read_xmm(mask_idx);
-        let indices : xmmword = read_xmm(vsib.vsib_vidx);
+        var result : xmmword = read_simd(dst);
+        let mask : xmmword = read_simd(mask_idx);
+        let indices : xmmword = read_simd(vsib.vsib_vidx);
         foreach (i from 0 to 1) {
           if mask[(i * 32 + 31)] == 0b1 then {
             let idx : qword = indices[(i * 64 + 63) .. (i * 64)];
@@ -1113,7 +1113,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = read_ymm(pfx.vex_vvvv);
+      let src : ymmword = read_simd(pfx.vex_vvvv);
       let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
       var result : ymmword = zeros();
       // Per 128-bit lane, select from 4 dwords within that lane
@@ -1127,7 +1127,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       };
       write_simd(256, dst, result)
     } else {
-      let src : xmmword = read_xmm(pfx.vex_vvvv);
+      let src : xmmword = read_simd(pfx.vex_vvvv);
       let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
       foreach (i from 0 to 3) {
@@ -1146,7 +1146,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src : ymmword = read_ymm(pfx.vex_vvvv);
+      let src : ymmword = read_simd(pfx.vex_vvvv);
       let ctrl : ymmword = decode_vex_src(256, modrm, src2, pfx);
       var result : ymmword = zeros();
       // Per 128-bit lane, select from 2 qwords within that lane using bit 1
@@ -1160,7 +1160,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       result[255..192] = src[((s3 + 2) * 64 + 63) .. ((s3 + 2) * 64)];
       write_simd(256, dst, result)
     } else {
-      let src : xmmword = read_xmm(pfx.vex_vvvv);
+      let src : xmmword = read_simd(pfx.vex_vvvv);
       let ctrl : xmmword = decode_vex_src(128, modrm, src2, pfx);
       var result : xmmword = zeros();
       let s0 : range(0, 1) = unsigned(ctrl[1]);
@@ -1178,14 +1178,14 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1_idx = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let tmp1 : ymmword = src1 & src2;
       let tmp2 : ymmword = ~(src1) & src2;
       ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
       CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let tmp1 : xmmword = src1 & src2;
       let tmp2 : xmmword = ~(src1) & src2;
@@ -1205,7 +1205,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       var result : ymmword = zeros();
       foreach (i from 0 to 3) {
@@ -1215,7 +1215,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
       };
       write_simd(256, dst, result)
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       var result : xmmword = zeros();
       foreach (i from 0 to 1) {
@@ -1240,7 +1240,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         match (pfx.vex_l, pfx.rex_w) {
           // VPMASKMOVQ: qword elements
           (true, true) => {
-            let mask : ymmword = read_ymm(mask_idx);
+            let mask : ymmword = read_simd(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 3) {
               if mask[(i * 64 + 63)] == 0b1 then
@@ -1249,7 +1249,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             write_simd(256, dst, result)
           },
           (false, true) => {
-            let mask : xmmword = read_xmm(mask_idx);
+            let mask : xmmword = read_simd(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 1) {
               if mask[(i * 64 + 63)] == 0b1 then
@@ -1259,7 +1259,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           },
           // VPMASKMOVD: dword elements
           (true, false) => {
-            let mask : ymmword = read_ymm(mask_idx);
+            let mask : ymmword = read_simd(mask_idx);
             var result : ymmword = zeros();
             foreach (i from 0 to 7) {
               if mask[(i * 32 + 31)] == 0b1 then
@@ -1268,7 +1268,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             write_simd(256, dst, result)
           },
           (false, false) => {
-            let mask : xmmword = read_xmm(mask_idx);
+            let mask : xmmword = read_simd(mask_idx);
             var result : xmmword = zeros();
             foreach (i from 0 to 3) {
               if mask[(i * 32 + 31)] == 0b1 then
@@ -1295,16 +1295,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         match (pfx.vex_l, pfx.rex_w) {
           // VPMASKMOVQ: qword elements
           (true, true) => {
-            let mask : ymmword = read_ymm(mask_idx);
-            let data : ymmword = read_ymm(src);
+            let mask : ymmword = read_simd(mask_idx);
+            let data : ymmword = read_simd(src);
             foreach (i from 0 to 3) {
               if mask[(i * 64 + 63)] == 0b1 then
                 write_mem(64, a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
             }
           },
           (false, true) => {
-            let mask : xmmword = read_xmm(mask_idx);
-            let data : xmmword = read_xmm(src);
+            let mask : xmmword = read_simd(mask_idx);
+            let data : xmmword = read_simd(src);
             foreach (i from 0 to 1) {
               if mask[(i * 64 + 63)] == 0b1 then
                 write_mem(64, a + to_bits(64, i * 8), data[(i * 64 + 63) .. (i * 64)])
@@ -1312,16 +1312,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
           },
           // VPMASKMOVD: dword elements
           (true, false) => {
-            let mask : ymmword = read_ymm(mask_idx);
-            let data : ymmword = read_ymm(src);
+            let mask : ymmword = read_simd(mask_idx);
+            let data : ymmword = read_simd(src);
             foreach (i from 0 to 7) {
               if mask[(i * 32 + 31)] == 0b1 then
                 write_mem(32, a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
             }
           },
           (false, false) => {
-            let mask : xmmword = read_xmm(mask_idx);
-            let data : xmmword = read_xmm(src);
+            let mask : xmmword = read_simd(mask_idx);
+            let data : xmmword = read_simd(src);
             foreach (i from 0 to 3) {
               if mask[(i * 32 + 31)] == 0b1 then
                 write_mem(32, a + to_bits(64, i * 4), data[(i * 32 + 31) .. (i * 32)])
@@ -1342,11 +1342,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = decode_vex_src(modrm, src, pfx);
       write_simd(256, dst, avx_gf2p8mulb(src1, src2))
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       write_simd(128, dst, avx_gf2p8mulb(src1, src2))
     }

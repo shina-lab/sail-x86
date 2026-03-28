@@ -197,7 +197,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+    let src1 : ymmword = read_simd(pfx.vex_vvvv);
     let src2 : xmmword = match src {
       RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
       RM_mem(m) => read_mem(m),
@@ -217,7 +217,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
-    let src_ymm : ymmword = read_ymm(src);
+    let src_ymm : ymmword = read_simd(src);
     let imm = fetch(1);
     let extracted : xmmword =
       if imm[0] == 0b0 then src_ymm[127..0]
@@ -365,12 +365,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(256, dst, avx_pblendd_256(src1, src2, imm))
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_pblendd_128(src1, src2, imm))
@@ -424,7 +424,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let src2_lo : dword = match src {
       RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
       RM_mem(m) => v(m),
@@ -441,7 +441,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let src2_lo : qword = match src {
       RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
       RM_mem(m) => v(m),
@@ -458,12 +458,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(256, dst, avx_blendps_256(src1, src2, imm))
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_blendps_128(src1, src2, imm))
@@ -477,12 +477,12 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(256, dst, avx_blendpd_256(src1, src2, imm))
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_blendpd_128(src1, src2, imm))
@@ -496,7 +496,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       // For 256-bit, same imm8 pattern applies to each 128-bit lane
@@ -504,7 +504,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi : xmmword = avx_pblendw_128(src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_pblendw_128(src1, src2, imm))
@@ -518,7 +518,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       // Each 128-bit lane is aligned independently
@@ -526,7 +526,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi : xmmword = avx_palignr_128(src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_palignr_128(src1, src2, imm))
@@ -581,7 +581,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let src_xmm : xmmword = read_xmm(src);
+    let src_xmm : xmmword = read_simd(src);
     match (dest, pfx.rex_w) {
       (RM_reg(_), true)     => v(modrm_rm_reg(modrm, pfx)) = extract_qword_from_xmm(src_xmm, imm),
       (RM_reg(_), false)    => v(modrm_rm_reg(modrm, pfx)) = extract_dword_from_xmm(src_xmm, imm),
@@ -616,7 +616,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let x : byte = match src {
       RM_reg(_) => v(modrm_rm_reg(modrm, pfx)),
       RM_mem(m) => v(m),
@@ -633,7 +633,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src2 = modrm_rm(modrm, pfx);
-    let dst_base : xmmword = read_xmm(pfx.vex_vvvv);
+    let dst_base : xmmword = read_simd(pfx.vex_vvvv);
     let is_mem : bool = match src2 { RM_reg(_) => false, RM_mem(_) => true };
     let src : xmmword = match src2 {
       RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
@@ -650,7 +650,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let imm = fetch(1);
     if pfx.rex_w then {
       // VPINSRQ xmm1, xmm2, r/m64, imm8
@@ -676,7 +676,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       // 256-bit DPPS: each 128-bit lane independently
@@ -684,7 +684,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi : xmmword = avx_dpps_128(src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_dpps_128(src1, src2, imm))
@@ -698,7 +698,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
     let imm = fetch(1);
     write_simd(128, dst, avx_dppd_128(src1, src2, imm))
@@ -711,7 +711,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       let imm = fetch(1);
       // 256-bit: each 128-bit lane independently, imm8[2:0] for low lane, imm8[5:3] for high lane
@@ -719,7 +719,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi : xmmword = mpsadbw(src1[255..128], src2[255..128], 0b00000 @ imm[5..3]);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, mpsadbw(src1, src2, imm))
@@ -734,7 +734,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
     let imm = fetch(1);
     let sel_a : qword = blend(src1[63..0], src1[127..64], imm[0]);
@@ -812,7 +812,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+    let src1 : ymmword = read_simd(pfx.vex_vvvv);
     let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
     let imm = fetch(1);
     // Low 128-bit result selected by imm8[1:0], zeroed if imm8[3]
@@ -842,7 +842,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+    let src1 : ymmword = read_simd(pfx.vex_vvvv);
     let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
     let imm = fetch(1);
     if imm[0] == 0b0 then {
@@ -861,7 +861,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xmm_reg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let x : ymmword = read_ymm(src);
+    let x : ymmword = read_simd(src);
     let extracted : xmmword = (x >> (unsigned(zero_extend(imm[0]) : bits(1)) * 128))[127..0];
     match dest {
       RM_reg(_) => write_simd(128, modrm_xmm_rm(modrm, pfx), extracted),
@@ -875,7 +875,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+    let src1 : ymmword = read_simd(pfx.vex_vvvv);
     let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
     let imm = fetch(1);
     // Same logic as VPERM2F128
@@ -906,7 +906,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = match src {
         RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(m) => read_mem(m),
@@ -916,7 +916,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi = avx_gf2p8affineqb(src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_gf2p8affineqb(src1, src2, imm))
@@ -931,7 +931,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src1_idx = pfx.vex_vvvv;
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
+      let src1 : ymmword = read_simd(src1_idx);
       let src2 : ymmword = match src {
         RM_reg(_) => read_ymm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(m) => read_mem(m),
@@ -941,7 +941,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
       let hi = avx_gf2p8affineinvqb(src1[255..128], src2[255..128], imm);
       write_simd(256, dst, hi @ lo)
     } else {
-      let src1 : xmmword = read_xmm(src1_idx);
+      let src1 : xmmword = read_simd(src1_idx);
       let src2 : xmmword = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
       write_simd(128, dst, avx_gf2p8affineinvqb(src1, src2, imm))

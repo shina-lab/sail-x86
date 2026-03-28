@@ -445,7 +445,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match sub_op {
           // PUNPCKLBW xmm1, xmm2/m128
           0 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[63..56] @ d[63..56] @
@@ -460,7 +460,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PUNPCKLWD xmm1, xmm2/m128
           1 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[63..48] @ d[63..48] @
@@ -471,7 +471,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PUNPCKLDQ xmm1, xmm2/m128
           2 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[63..32] @ d[63..32] @
@@ -480,7 +480,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PACKSSWB xmm1, xmm2/m128
           3 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
               sat_s(8, s[127..112]) @ sat_s(8, s[111..96]) @
@@ -495,7 +495,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PCMPGTB xmm1, xmm2/m128
           4 => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_gt(a[127..120], b[127..120]) @ cmp_gt(a[119..112], b[119..112]) @
@@ -510,7 +510,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PCMPGTW xmm1, xmm2/m128
           5 => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_gt(a[127..112], b[127..112]) @ cmp_gt(a[111..96], b[111..96]) @
@@ -521,7 +521,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PCMPGTD xmm1, xmm2/m128
           6 => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_gt(a[127..96], b[127..96]) @
@@ -532,7 +532,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PACKUSWB xmm1, xmm2/m128
           7 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
               sat_su(8, s[127..112]) @ sat_su(8, s[111..96]) @
@@ -547,7 +547,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PUNPCKHBW xmm1, xmm2/m128
           8 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[127..120] @ d[127..120] @
@@ -562,7 +562,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PUNPCKHWD xmm1, xmm2/m128
           9 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[127..112] @ d[127..112] @
@@ -573,7 +573,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PUNPCKHDQ xmm1, xmm2/m128
           10 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let result : xmmword =
               s[127..96] @ d[127..96] @
@@ -582,7 +582,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PACKSSDW xmm1, xmm2/m128
           11 => {
-            let d : xmmword = read_xmm(xreg);
+            let d : xmmword = read_simd(xreg);
             let s : xmmword = src_xmm;
             let r : xmmword =
               sat_s(16, s[127..96]) @ sat_s(16, s[95..64]) @
@@ -607,7 +607,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(m) => read_mem(m),
       };
-      let d : xmmword = read_xmm(xreg);
+      let d : xmmword = read_simd(xreg);
       let s : xmmword = src_xmm;
       write_xmm_legacy(xreg, s[63..0] @ d[63..0])
     },
@@ -623,7 +623,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
         RM_mem(m) => read_mem(m),
       };
-      let d : xmmword = read_xmm(xreg);
+      let d : xmmword = read_simd(xreg);
       let s : xmmword = src_xmm;
       write_xmm_legacy(xreg, s[127..64] @ d[127..64])
     },
@@ -738,7 +738,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRLW xmm1, imm8
           2 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..112] >> c) @ (a[111..96] >> c) @
               (a[95..80] >> c) @ (a[79..64] >> c) @
@@ -749,7 +749,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRAW xmm1, imm8
           4 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..112] >>> c) @ (a[111..96] >>> c) @
               (a[95..80] >>> c) @ (a[79..64] >>> c) @
@@ -760,7 +760,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSLLW xmm1, imm8
           6 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..112] << c) @ (a[111..96] << c) @
               (a[95..80] << c) @ (a[79..64] << c) @
@@ -789,7 +789,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRLD xmm1, imm8
           2 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..96] >> c) @ (a[95..64] >> c) @
               (a[63..32] >> c) @ (a[31..0] >> c);
@@ -798,7 +798,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRAD xmm1, imm8
           4 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..96] >>> c) @ (a[95..64] >>> c) @
               (a[63..32] >>> c) @ (a[31..0] >>> c);
@@ -807,7 +807,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSLLD xmm1, imm8
           6 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword =
               (a[127..96] << c) @ (a[95..64] << c) @
               (a[63..32] << c) @ (a[31..0] << c);
@@ -834,27 +834,27 @@ function dispatch_2byte_sse_int(op, pfx) = {
           // PSRLQ xmm1, imm8
           2 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
             write_xmm_legacy(xreg, r)
           },
           // PSRLDQ xmm1, imm8
           3 => {
             let c : range(0, 255) = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             write_xmm_legacy(xreg, a >> (c * 8))
           },
           // PSLLQ xmm1, imm8
           6 => {
             let c : nat = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
             write_xmm_legacy(xreg, r)
           },
           // PSLLDQ xmm1, imm8
           7 => {
             let c : range(0, 255) = unsigned(imm);
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             write_xmm_legacy(xreg, a << (c * 8))
           },
           _ => raise_UD(),
@@ -878,7 +878,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match op {
           // PCMPEQB xmm1, xmm2/m128
           116 => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_eq(a[127..120], b[127..120]) @ cmp_eq(a[119..112], b[119..112]) @
@@ -893,7 +893,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PCMPEQW xmm1, xmm2/m128
           117 => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_eq(a[127..112], b[127..112]) @ cmp_eq(a[111..96], b[111..96]) @
@@ -904,7 +904,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // PCMPEQD xmm1, xmm2/m128
           _   => {
-            let a : xmmword = read_xmm(xreg);
+            let a : xmmword = read_simd(xreg);
             let b : xmmword = src_xmm;
             let r : xmmword =
               cmp_eq(a[127..96], b[127..96]) @
@@ -990,7 +990,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let reg = modrm_reg(modrm, pfx);
         let _ = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+        let src_xmm : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
         let mask : word = src_xmm[127] @ src_xmm[119] @ src_xmm[111] @ src_xmm[103] @
                                src_xmm[95]  @ src_xmm[87]  @ src_xmm[79]  @ src_xmm[71] @
                                src_xmm[63]  @ src_xmm[55]  @ src_xmm[47]  @ src_xmm[39] @
@@ -1012,7 +1012,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         write_xmm_legacy(xreg, a & b)
       }
@@ -1048,7 +1048,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           mul_hi16s(a[127..112], b[127..112]) @ mul_hi16s(a[111..96], b[111..96]) @
@@ -1089,7 +1089,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         write_xmm_legacy(xreg, a ^ b)
       }
@@ -1108,7 +1108,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..64] + b[127..64]) @ (a[63..0] + b[63..0]);
         write_xmm_legacy(xreg, r)
@@ -1128,7 +1128,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let hi : qword = to_bits_truncate(unsigned(a[95..64]) * unsigned(b[95..64]));
         let lo : qword = to_bits_truncate(unsigned(a[31..0]) * unsigned(b[31..0]));
@@ -1150,7 +1150,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           (a[127..120] - b[127..120]) @ (a[119..112] - b[119..112]) @
@@ -1178,7 +1178,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..112] - b[127..112]) @
                              (a[111..96] - b[111..96]) @
@@ -1205,7 +1205,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..96] - b[127..96]) @
                              (a[95..64] - b[95..64]) @
@@ -1228,7 +1228,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..64] - b[127..64]) @ (a[63..0] - b[63..0]);
         write_xmm_legacy(xreg, r)
@@ -1248,7 +1248,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         var result : xmmword = zeros();
         result[7..0]     = a[7..0]     + b[7..0];
@@ -1284,7 +1284,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..112] + b[127..112]) @
                              (a[111..96] + b[111..96]) @
@@ -1311,7 +1311,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword = (a[127..96] + b[127..96]) @
                              (a[95..64] + b[95..64]) @
@@ -1334,7 +1334,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           avg(a[127..120], b[127..120]) @ avg(a[119..112], b[119..112]) @
@@ -1362,7 +1362,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           min_u(a[127..120], b[127..120]) @ min_u(a[119..112], b[119..112]) @
@@ -1390,7 +1390,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           max_u(a[127..120], b[127..120]) @ max_u(a[119..112], b[119..112]) @
@@ -1418,7 +1418,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx)),
           RM_mem(m) => read_mem(m),
         };
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         write_xmm_legacy(xreg, psadbw(a[127..64], b[127..64]) @ psadbw(a[63..0], b[63..0]))
       }
@@ -1449,7 +1449,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let x : word = v(src);
         let imm = fetch(1);
-        let v_0 : xmmword = read_xmm(xreg);
+        let v_0 : xmmword = read_simd(xreg);
         let sel : range(0, 7) = unsigned(imm[2..0]);
         let r : xmmword = match sel {
           0 => v_0[127..16] @ x,
@@ -1474,7 +1474,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let reg = modrm_reg(modrm, pfx);
         let _ = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+        let src_xmm : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
         let imm = fetch(1);
         let sel : range(0, 7) = unsigned(imm[2..0]);
         let word : word = match sel {
@@ -1502,7 +1502,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..112] >> c) @ (a[111..96] >> c) @
           (a[95..80] >> c) @ (a[79..64] >> c) @
@@ -1523,7 +1523,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..96] >> c) @ (a[95..64] >> c) @
           (a[63..32] >> c) @ (a[31..0] >> c);
@@ -1542,7 +1542,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
         write_xmm_legacy(xreg, r)
       }
@@ -1558,7 +1558,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           mul_lo(a[127..112], b[127..112]) @ mul_lo(a[111..96], b[111..96]) @
@@ -1599,7 +1599,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_sub_u(a[127..120], b[127..120]) @ sat_sub_u(a[119..112], b[119..112]) @
@@ -1624,7 +1624,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_sub_u(a[127..112], b[127..112]) @ sat_sub_u(a[111..96], b[111..96]) @
@@ -1645,7 +1645,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_add_u(a[127..120], b[127..120]) @ sat_add_u(a[119..112], b[119..112]) @
@@ -1670,7 +1670,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_add_u(a[127..112], b[127..112]) @ sat_add_u(a[111..96], b[111..96]) @
@@ -1692,7 +1692,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..112] >>> c) @ (a[111..96] >>> c) @
           (a[95..80] >>> c) @ (a[79..64] >>> c) @
@@ -1713,7 +1713,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..96] >>> c) @ (a[95..64] >>> c) @
           (a[63..32] >>> c) @ (a[31..0] >>> c);
@@ -1731,7 +1731,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           avg(a[127..112], b[127..112]) @ avg(a[111..96], b[111..96]) @
@@ -1752,7 +1752,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           mul_hi16u(a[127..112], b[127..112]) @ mul_hi16u(a[111..96], b[111..96]) @
@@ -1773,7 +1773,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_sub_s(a[127..120], b[127..120]) @ sat_sub_s(a[119..112], b[119..112]) @
@@ -1798,7 +1798,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_sub_s(a[127..112], b[127..112]) @ sat_sub_s(a[111..96], b[111..96]) @
@@ -1819,7 +1819,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_add_s(a[127..120], b[127..120]) @ sat_add_s(a[119..112], b[119..112]) @
@@ -1844,7 +1844,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           sat_add_s(a[127..112], b[127..112]) @ sat_add_s(a[111..96], b[111..96]) @
@@ -1877,7 +1877,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..112] << c) @ (a[111..96] << c) @
           (a[95..80] << c) @ (a[79..64] << c) @
@@ -1898,7 +1898,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword =
           (a[127..96] << c) @ (a[95..64] << c) @
           (a[63..32] << c) @ (a[31..0] << c);
@@ -1917,7 +1917,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
         let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
         write_xmm_legacy(xreg, r)
       }
@@ -1933,7 +1933,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let d3 : dword = to_bits_truncate(signed(a[127..112]) * signed(b[127..112]) +
                                               signed(a[111..96]) * signed(b[111..96]));
@@ -1957,7 +1957,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let _ = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+        let src_xmm : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
         let addr = v(64, RDI);
         maskmovdqu(read_xmm(xreg), src_xmm, addr)
       }
@@ -1973,7 +1973,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           max_s(a[127..112], b[127..112]) @ max_s(a[111..96], b[111..96]) @
@@ -1994,7 +1994,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_xmm(xreg);
+        let a : xmmword = read_simd(xreg);
         let b : xmmword = src_xmm;
         let r : xmmword =
           min_s(a[127..112], b[127..112]) @ min_s(a[111..96], b[111..96]) @
@@ -2034,7 +2034,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     3  => write_xmm_legacy(xreg, packed_binop(PB_HorizSatAddW, 128, read_xmm(xreg), src_xmm)),
     // PMADDUBSW xmm1, xmm2/m128
     4  => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         pmaddubsw_pair(a[127..120], b[127..120], a[119..112], b[119..112]) @
@@ -2055,7 +2055,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     7  => write_xmm_legacy(xreg, packed_binop(PB_HorizSatSubW, 128, read_xmm(xreg), src_xmm)),
     // PSIGNB xmm1, xmm2/m128
     8  => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         psign(a[127..120], b[127..120]) @ psign(a[119..112], b[119..112]) @
@@ -2070,7 +2070,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PSIGNW xmm1, xmm2/m128
     9  => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         psign(a[127..112], b[127..112]) @ psign(a[111..96], b[111..96]) @
@@ -2081,7 +2081,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PSIGND xmm1, xmm2/m128
     10 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         psign(a[127..96], b[127..96]) @ psign(a[95..64], b[95..64]) @
@@ -2090,7 +2090,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMULHRSW xmm1, xmm2/m128
     11 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         mulhrsw(a[127..112], b[127..112]) @ mulhrsw(a[111..96], b[111..96]) @
@@ -2102,8 +2102,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PBLENDVB (implicit XMM0 mask)
     16 => {
-      let a : xmmword = read_xmm(xreg);
-      let m : xmmword = read_xmm(0);
+      let a : xmmword = read_simd(xreg);
+      let m : xmmword = read_simd(0);
       let r0  : byte = blend(a[7..0],     src_xmm[7..0],     m[7]);
       let r1  : byte = blend(a[15..8],    src_xmm[15..8],    m[15]);
       let r2  : byte = blend(a[23..16],   src_xmm[23..16],   m[23]);
@@ -2125,7 +2125,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PTEST
     23 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let temp1 : xmmword = a & b;
       let temp2 : xmmword = (~(a)) & b;
@@ -2220,7 +2220,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PMULDQ
     40 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let hi : qword = to_bits_truncate(signed(a[95..64]) * signed(b[95..64]));
       let lo : qword = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
@@ -2229,7 +2229,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PCMPEQQ xmm1, xmm2/m128
     41 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword = cmp_eq(a[127..64], b[127..64]) @ cmp_eq(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
@@ -2240,7 +2240,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PACKUSDW xmm1, xmm2/m128
     43 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let w0 : word = sat_su(a[31..0]);
       let w1 : word = sat_su(a[63..32]);
@@ -2303,7 +2303,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.2 — PCMPGTQ
     55 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword = cmp_gt(a[127..64], b[127..64]) @ cmp_gt(a[63..0], b[63..0]);
       write_xmm_legacy(xreg, r)
@@ -2311,7 +2311,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PMINSB
     56 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         min_s(a[127..120], b[127..120]) @ min_s(a[119..112], b[119..112]) @
@@ -2326,7 +2326,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMINSD xmm1, xmm2/m128
     57 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         min_s(a[127..96], b[127..96]) @ min_s(a[95..64], b[95..64]) @
@@ -2335,7 +2335,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMINUW xmm1, xmm2/m128
     58 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         min_u(a[127..112], b[127..112]) @ min_u(a[111..96], b[111..96]) @
@@ -2346,7 +2346,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMINUD xmm1, xmm2/m128
     59 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         min_u(a[127..96], b[127..96]) @ min_u(a[95..64], b[95..64]) @
@@ -2355,7 +2355,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMAXSB xmm1, xmm2/m128
     60 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         max_s(a[127..120], b[127..120]) @ max_s(a[119..112], b[119..112]) @
@@ -2370,7 +2370,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMAXSD xmm1, xmm2/m128
     61 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         max_s(a[127..96], b[127..96]) @ max_s(a[95..64], b[95..64]) @
@@ -2379,7 +2379,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMAXUW xmm1, xmm2/m128
     62 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         max_u(a[127..112], b[127..112]) @ max_u(a[111..96], b[111..96]) @
@@ -2390,7 +2390,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     },
     // PMAXUD xmm1, xmm2/m128
     63 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         max_u(a[127..96], b[127..96]) @ max_u(a[95..64], b[95..64]) @
@@ -2400,7 +2400,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PMULLD
     64 => {
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let r : xmmword =
         mul_lo(a[127..96], b[127..96]) @ mul_lo(a[95..64], b[95..64]) @
@@ -2470,28 +2470,28 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     // AES-NI — AESENC
     220 => {
       if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_xmm(xreg);
+      let state : xmmword = read_simd(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesenc(state, roundkey))
     },
     // AES-NI — AESENCLAST (0F 38 DD)
     221 => {
       if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_xmm(xreg);
+      let state : xmmword = read_simd(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesenclast(state, roundkey))
     },
     // AES-NI — AESDEC (0F 38 DE)
     222 => {
       if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_xmm(xreg);
+      let state : xmmword = read_simd(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesdec(state, roundkey))
     },
     // AES-NI — AESDECLAST
     223 => {
       if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_xmm(xreg);
+      let state : xmmword = read_simd(xreg);
       let roundkey : xmmword = src_xmm;
       write_xmm_legacy(xreg, __aesdeclast(state, roundkey))
     },
@@ -2521,7 +2521,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     14 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       write_xmm_legacy(xreg,
         blend(a[127..112], b[127..112], imm[7]) @
@@ -2538,7 +2538,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     15 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let d : xmmword = read_xmm(xreg);
+      let d : xmmword = read_simd(xreg);
       let s : xmmword = src_xmm;
       let concat : ymmword = d @ s;
       let shift_bytes : range(0, 255) = unsigned(imm);
@@ -2578,7 +2578,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         RM_reg(r) => v(r),
         RM_mem(m) => read_mem(m),
       };
-      let v_0 : xmmword = read_xmm(xreg);
+      let v_0 : xmmword = read_simd(xreg);
       let sel : range(0, 15) = unsigned(imm[3..0]);
       let r : xmmword = insert_byte(v_0, x, sel);
       write_xmm_legacy(xreg, r)
@@ -2589,7 +2589,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch(1);
       if pfx.rex_w then {
         let x : qword = v(src);
-        let v_0 : xmmword = read_xmm(xreg);
+        let v_0 : xmmword = read_simd(xreg);
         let sel : range(0, 1) = unsigned(imm[0]);
         let r : xmmword = match sel {
           0 => v_0[127..64] @ x,
@@ -2598,7 +2598,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
         write_xmm_legacy(xreg, r)
       } else {
         let x : dword = v(src);
-        let v_0 : xmmword = read_xmm(xreg);
+        let v_0 : xmmword = read_simd(xreg);
         let sel : range(0, 3) = unsigned(imm[1..0]);
         let r : xmmword = insert_dword(v_0, x, sel);
         write_xmm_legacy(xreg, r)
@@ -2609,7 +2609,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     66 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       write_xmm_legacy(xreg, mpsadbw(a, b, imm))
     },
@@ -2619,7 +2619,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       if ~(has_pclmulqdq) then raise_UD();
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
       let sel_b : qword = blend(b[63..0], b[127..64], imm[4]);
@@ -2630,7 +2630,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     96 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
@@ -2647,7 +2647,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     97 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
@@ -2664,7 +2664,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     98 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let (mask, cf_val, zf_val, sf_val, of_val) = pcmpistrm(a, b, imm);
       write_xmm_legacy(0, mask);
@@ -2679,7 +2679,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     99 => {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
-      let a : xmmword = read_xmm(xreg);
+      let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let (idx, cf_val, zf_val, sf_val, of_val) = pcmpistri(a, b, imm);
       v(RCX) = idx;

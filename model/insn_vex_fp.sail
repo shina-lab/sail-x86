@@ -71,8 +71,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
         match src {
           RM_reg(_) => {
             // reg-reg: merge src2[127:32] with src3[31:0]
-            let src2 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src3 : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+            let src2 : xmmword = read_simd(pfx.vex_vvvv);
+            let src3 : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
             write_simd(128, dst, src2[127..32] @ src3[31..0])
           },
           RM_mem(m) => {
@@ -87,8 +87,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
       MP_F2 => {
         match src {
           RM_reg(_) => {
-            let src2 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src3 : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+            let src2 : xmmword = read_simd(pfx.vex_vvvv);
+            let src3 : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
             write_simd(128, dst, src2[127..64] @ src3[63..0])
           },
           RM_mem(m) => {
@@ -155,8 +155,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
         match dest {
           RM_reg(_) => {
             let dst = modrm_xmm_rm(modrm, pfx);
-            let src2 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src3 : xmmword = read_xmm(src);
+            let src2 : xmmword = read_simd(pfx.vex_vvvv);
+            let src3 : xmmword = read_simd(src);
             write_simd(128, dst, src2[127..32] @ src3[31..0])
           },
           RM_mem(m) => {
@@ -171,8 +171,8 @@ function dispatch_vex_0f_fp(op, pfx) = {
         match dest {
           RM_reg(_) => {
             let dst = modrm_xmm_rm(modrm, pfx);
-            let src2 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src3 : xmmword = read_xmm(src);
+            let src2 : xmmword = read_simd(pfx.vex_vvvv);
+            let src3 : xmmword = read_simd(src);
             write_simd(128, dst, src2[127..64] @ src3[63..0])
           },
           RM_mem(m) => {
@@ -194,13 +194,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
         match src2 {
           // VMOVHLPS: dst[63:0] = src2[127:64], dst[127:64] = vvvv[127:64]
           RM_reg(_) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src2 : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
+            let src2 : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
             write_simd(128, dst, src1[127..64] @ src2[127..64])
           },
           // VMOVLPS: dst[63:0] = m64, dst[127:64] = vvvv[127:64]
           RM_mem(m) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
             let data : qword = v(m);
             write_simd(128, dst, src1[127..64] @ data)
           },
@@ -210,7 +210,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       MP_66 => {
         match src2 {
           RM_mem(m) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
             let data : qword = v(m);
             write_simd(128, dst, src1[127..64] @ data)
           },
@@ -266,7 +266,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       match mp {
         // VUNPCKLPS ymm1, ymm2, ymm3/m256
@@ -284,7 +284,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         _ => raise_UD(),
       }
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       match mp {
         MP_NONE => write_simd(128, dst, src2[63..32] @ src1[63..32] @ src2[31..0] @ src1[31..0]),
@@ -300,7 +300,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       match mp {
         // VUNPCKHPS ymm1, ymm2, ymm3/m256
@@ -318,7 +318,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         _ => raise_UD(),
       }
     } else {
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       match mp {
         MP_NONE => write_simd(128, dst, src2[127..96] @ src1[127..96] @ src2[95..64] @ src1[95..64]),
@@ -338,13 +338,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
         match src2 {
           // VMOVLHPS: dst[127:64] = src2[63:0], dst[63:0] = vvvv[63:0]
           RM_reg(_) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
-            let src2 : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
+            let src2 : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
             write_simd(128, dst, src2[63..0] @ src1[63..0])
           },
           // VMOVHPS: dst[63:0] = vvvv[63:0], dst[127:64] = m64
           RM_mem(m) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
             let data : qword = v(m);
             write_simd(128, dst, data @ src1[63..0])
           },
@@ -354,7 +354,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       MP_66 => {
         match src2 {
           RM_mem(m) => {
-            let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+            let src1 : xmmword = read_simd(pfx.vex_vvvv);
             let data : qword = v(m);
             write_simd(128, dst, data @ src1[63..0])
           },
@@ -452,7 +452,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+    let src1 : xmmword = read_simd(pfx.vex_vvvv);
     match mp {
       // VCVTSI2SS xmm1, xmm2, r/m32
       MP_F3 => {
@@ -662,23 +662,23 @@ function dispatch_vex_0f_fp(op, pfx) = {
     match mp {
       MP_NONE => {
         if pfx.vex_l then {
-          let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
+          let src : ymmword = read_simd(modrm_xmm_rm(modrm, pfx));
           let mask : byte = src[255] @ src[223] @ src[191] @ src[159] @
                             src[127] @ src[95] @ src[63] @ src[31];
           v(reg) = zero_extend(32, mask)
         } else {
-          let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+          let src : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[127] @ src[95] @ src[63] @ src[31];
           v(reg) = zero_extend(32, mask)
         }
       },
       MP_66 => {
         if pfx.vex_l then {
-          let src : ymmword = read_ymm(modrm_xmm_rm(modrm, pfx));
+          let src : ymmword = read_simd(modrm_xmm_rm(modrm, pfx));
           let mask : bits(4) = src[255] @ src[191] @ src[127] @ src[63];
           v(reg) = zero_extend(32, mask)
         } else {
-          let src : xmmword = read_xmm(modrm_xmm_rm(modrm, pfx));
+          let src : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
           let mask : bits(2) = src[127] @ src[63];
           v(reg) = zero_extend(32, mask)
         }
@@ -697,7 +697,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
 
     if pfx.vex_l then {
       // 256-bit YMM path
-      let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+      let src1 : ymmword = read_simd(pfx.vex_vvvv);
       let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
       match col {
         // VSQRTPS/VSQRTPD (unary, vvvv reserved)
@@ -822,7 +822,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       }
     } else {
       // 128-bit XMM path (upper bits zeroed by write_xmm)
-      let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+      let src1 : xmmword = read_simd(pfx.vex_vvvv);
       let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
       match col {
         // VSQRTPS/VSQRTPD/VSQRTSS/VSQRTSD
@@ -965,7 +965,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       // VCMPPS xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_NONE => {
         if pfx.vex_l then {
-          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src1 : ymmword = read_simd(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
           write_simd(256, dst, cmp_pred_f32(src1[255..224], src2[255..224], pred) @
                           cmp_pred_f32(src1[223..192], src2[223..192], pred) @
@@ -976,7 +976,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
                           cmp_pred_f32(src1[63..32],   src2[63..32],   pred) @
                           cmp_pred_f32(src1[31..0],    src2[31..0],    pred))
         } else {
-          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src1 : xmmword = read_simd(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
           write_simd(128, dst, cmp_pred_f32(src1[127..96], src2[127..96], pred) @
                           cmp_pred_f32(src1[95..64],  src2[95..64],  pred) @
@@ -987,14 +987,14 @@ function dispatch_vex_0f_fp(op, pfx) = {
       // VCMPPD xmm1/ymm1, xmm2/ymm2, xmm3/ymm3/m128/m256, imm8
       MP_66 => {
         if pfx.vex_l then {
-          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src1 : ymmword = read_simd(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
           write_simd(256, dst, cmp_pred_f64(src1[255..192], src2[255..192], pred) @
                           cmp_pred_f64(src1[191..128], src2[191..128], pred) @
                           cmp_pred_f64(src1[127..64],  src2[127..64],  pred) @
                           cmp_pred_f64(src1[63..0],    src2[63..0],    pred))
         } else {
-          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src1 : xmmword = read_simd(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
           write_simd(128, dst, cmp_pred_f64(src1[127..64], src2[127..64], pred) @
                           cmp_pred_f64(src1[63..0],   src2[63..0],   pred))
@@ -1002,13 +1002,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
       },
       // VCMPSS (scalar, VEX.L ignored)
       MP_F3 => {
-        let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+        let src1 : xmmword = read_simd(pfx.vex_vvvv);
         let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
         write_simd(128, dst, src1[127..32] @ cmp_pred_f32(src1[31..0], src2[31..0], pred))
       },
       // VCMPSD (scalar, VEX.L ignored)
       MP_F2 => {
-        let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+        let src1 : xmmword = read_simd(pfx.vex_vvvv);
         let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
         write_simd(128, dst, src1[127..64] @ cmp_pred_f64(src1[63..0], src2[63..0], pred))
       },
@@ -1030,7 +1030,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
         let s3 : range(0, 3) = unsigned(imm[7..6]);
         if pfx.vex_l then {
           // 256-bit: two independent 128-bit lane shuffles, same imm8
-          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src1 : ymmword = read_simd(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
           // Low lane: r0-r1 from src1[127..0], r2-r3 from src2[127..0]
           let r0 : dword = src1[(32*s0+31) .. (32*s0)];
@@ -1044,7 +1044,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let r7 : dword = src2[(32*s3+159) .. (32*s3+128)];
           write_simd(256, dst, r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
         } else {
-          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src1 : xmmword = read_simd(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
           let r0 : dword = src1[(32*s0+31) .. (32*s0)];
           let r1 : dword = src1[(32*s1+31) .. (32*s1)];
@@ -1057,7 +1057,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       MP_66 => {
         if pfx.vex_l then {
           // 256-bit: 4 qwords, each selected by one imm8 bit
-          let src1 : ymmword = read_ymm(pfx.vex_vvvv);
+          let src1 : ymmword = read_simd(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
           let r0 : qword = blend(src1[63..0],    src1[127..64],  imm[0]);
           let r1 : qword = blend(src2[63..0],    src2[127..64],  imm[1]);
@@ -1065,7 +1065,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let r3 : qword = blend(src2[191..128], src2[255..192], imm[3]);
           write_simd(256, dst, r3 @ r2 @ r1 @ r0)
         } else {
-          let src1 : xmmword = read_xmm(pfx.vex_vvvv);
+          let src1 : xmmword = read_simd(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
           let r0 : qword = blend(src1[63..0], src1[127..64], imm[0]);
           let r1 : qword = blend(src2[63..0], src2[127..64], imm[1]);

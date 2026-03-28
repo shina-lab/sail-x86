@@ -300,7 +300,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           // VSQRTSH: scalar FP16 square root (lowest 16 bits)
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -328,7 +328,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           // VADDSH: scalar FP16 add (lowest 16 bits)
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -356,7 +356,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           evex_end_rc(saved)
         },
         MP_F3 => {
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -383,7 +383,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           evex_end_rc(saved)
         },
         MP_F3 => {
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -408,7 +408,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           evex_write(dst, mask, packed_binop(PB_FMin, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 16)));
         },
         MP_F3 => {
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -435,7 +435,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           evex_end_rc(saved)
         },
         MP_F3 => {
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -460,7 +460,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           evex_write(dst, mask, packed_binop(PB_FMax, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 16)));
         },
         MP_F3 => {
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -519,7 +519,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F3 => {
           // VCVTSH2SD: scalar FP16 to FP64
           let src = modrm_rm_evex(modrm, pfx, 2);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -562,7 +562,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F2 => {
           // VCVTSD2SH: scalar FP64 to FP16
           let src = modrm_rm_evex(modrm, pfx, 8);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : qword = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[63..0],
             RM_mem(m) => v(m),
@@ -745,7 +745,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         RM_reg(_) => {
           // VMOVSH reg-reg: 3-operand (src1=vvvvv upper bits, src2=src low 16 bits)
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0];
           evex_write_scalar(dst, src1[127..16] @ src2, pfx, 16)
         },
@@ -766,7 +766,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         RM_reg(_) => {
           // VMOVSH reg-reg store: 3-operand (src1=vvvvv upper bits, src2=reg low 16)
           let dst_reg = evex_rm_reg_idx(modrm, pfx);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = read_xmm(src)[15..0];
           write_simd(128, dst_reg, src1[127..16] @ src2)
         },
@@ -777,7 +777,7 @@ function dispatch_evex_map5(opcode, pfx) = {
     42 => {
       if mp != MP_F3 then raise_UD();
       let (dst, src) = fetch_modrm_evex(pfx, if pfx.vex_w then 8 else 4);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       if pfx.vex_w then {
         // VCVTSI2SH r64 → FP16
         let x : qword = v(src);
@@ -1247,7 +1247,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F3 => {
           // VCVTUSI2SH: unsigned int to scalar FP16
           let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           if pfx.vex_w then {
             // VCVTUSI2SH r64 → FP16
             let x : qword = v(src);
@@ -1653,7 +1653,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_NONE => {
           // VCVTSS2SH: scalar FP32 to FP16 (EVEX.NP.MAP5.W0)
           let src = modrm_rm_evex(modrm, pfx, 4);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : dword = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
             RM_mem(m) => v(m),
@@ -2192,7 +2192,7 @@ function dispatch_evex_map6(opcode, pfx) = {
         MP_F3 => {
           // VCVTSH2SS: scalar FP16 to FP32
           let src = modrm_rm_evex(modrm, pfx, 2);
-          let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = match src {
             RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
             RM_mem(m) => v(m),
@@ -2242,7 +2242,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
@@ -2284,7 +2284,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
@@ -2326,7 +2326,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
@@ -2368,7 +2368,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
         RM_mem(m) => v(m),
@@ -2453,7 +2453,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_xmm(dst)[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2469,7 +2469,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_xmm(dst)[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2485,7 +2485,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_xmm(dst)[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2501,7 +2501,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_xmm(dst)[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2587,7 +2587,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_xmm(dst)[15..0];
       let c : word = match src {
@@ -2604,7 +2604,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_xmm(dst)[15..0];
       let c : word = match src {
@@ -2621,7 +2621,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_xmm(dst)[15..0];
       let c : word = match src {
@@ -2638,7 +2638,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_xmm(dst)[15..0];
       let c : word = match src {
@@ -2725,7 +2725,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2742,7 +2742,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2759,7 +2759,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2776,7 +2776,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let c : word = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[15..0],
@@ -2798,17 +2798,17 @@ function dispatch_evex_map6(opcode, pfx) = {
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
       match pfx.evex_ll {
         0 => {
-          let acc : xmmword = read_xmm(dst);
+          let acc : xmmword = read_simd(dst);
           let r = cfmaddcph(read_xmm(pfx.evex_vvvvv), evex_bcast_src(128,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 4), r)
         },
         1 => {
-          let acc : ymmword = read_ymm(dst);
+          let acc : ymmword = read_simd(dst);
           let r = cfmaddcph(read_ymm(pfx.evex_vvvvv), evex_bcast_src(256,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 8), r)
         },
         2 => {
-          let acc : zmmword = read_zmm(dst);
+          let acc : zmmword = read_simd(dst);
           let r = cfmaddcph(read_zmm(pfx.evex_vvvvv), evex_bcast_src(512,modrm, src, pfx, 32), acc, conj);
           evex_write(dst, evex_wmask(pfx, 16), r)
         },
@@ -2824,12 +2824,12 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 4);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : dword = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
         RM_mem(m) => v(m),
       };
-      let acc : xmmword = read_xmm(dst);
+      let acc : xmmword = read_simd(dst);
       let s1_re : word = src1[15..0];
       let s1_im : word = src1[31..16];
       let s2_re : word = src2[15..0];
@@ -2879,7 +2879,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, 4);
-      let src1 : xmmword = read_xmm(pfx.evex_vvvvv);
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : dword = match src {
         RM_reg(_) => read_xmm(evex_rm_reg_idx(modrm, pfx))[31..0],
         RM_mem(m) => v(m),
