@@ -43,15 +43,6 @@ function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
 // =========================================================================
 
 // Signed saturation to 32-bit range.
-val sat_s32_int : int -> dword
-function sat_s32_int(v) = {
-  let wide : bits(33) = get_slice_int(33, v, 0);
-  let sign : bit = wide[32];
-  let of_mask : dword = sign_extend(sign ^ wide[31]);
-  let sat : dword = sign_extend(sign) ^ 0x7FFFFFFF;
-  (sat & of_mask) | (wide[31..0] & ~(of_mask))
-}
-
 enum TernaryOp32 = { TO32_DPBusd, TO32_DPBusds, TO32_DPWssd, TO32_DPWssds }
 
 val ternary_elem32 : (TernaryOp32, dword, dword, dword) -> dword
@@ -63,7 +54,7 @@ function ternary_elem32(op, dst, s1, s2) = match op {
       + unsigned(s1[15..8])  * signed(s2[15..8])
       + unsigned(s1[23..16]) * signed(s2[23..16])
       + unsigned(s1[31..24]) * signed(s2[31..24]);
-    get_slice_int(32, sum, 0)
+    to_bits_truncate(32, sum)
   },
   // VPDPBUSDS: same with signed dword saturation
   TO32_DPBusds => {
@@ -72,7 +63,7 @@ function ternary_elem32(op, dst, s1, s2) = match op {
       + unsigned(s1[15..8])  * signed(s2[15..8])
       + unsigned(s1[23..16]) * signed(s2[23..16])
       + unsigned(s1[31..24]) * signed(s2[31..24]);
-    sat_s32_int(sum)
+    sat_s(to_bits_truncate(33, sum))
   },
   // VPDPWSSD: signed words × signed words, sum 2 products, accumulate
   TO32_DPWssd => {
@@ -86,7 +77,7 @@ function ternary_elem32(op, dst, s1, s2) = match op {
     let sum : int = signed(dst)
       + signed(s1[15..0])  * signed(s2[15..0])
       + signed(s1[31..16]) * signed(s2[31..16]);
-    sat_s32_int(sum)
+    sat_s(to_bits_truncate(33, sum))
   },
 }
 
