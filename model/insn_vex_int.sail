@@ -1185,43 +1185,11 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F F4: VPMULUDQ xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  244 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmuludq(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmuludq_lane(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
-  },
-
+  244 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmuludq, 128, pfx) },
   // 0F F5: VPMADDWD xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  245 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, avx_pmaddwd(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_pmaddwd_lane(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
-  },
-
+  245 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddwd, 128, pfx) },
   // 0F F6: VPSADBW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  246 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      write_ymm(dst, avx_psadbw(read_ymm(pfx.vex_vvvv), decode_vex_src_ymm(modrm, src, pfx)))
-    } else {
-      write_xmm(dst, avx_psadbw_lane(read_xmm(pfx.vex_vvvv), decode_vex_src_xmm(modrm, src, pfx)))
-    }
-  },
+  246 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Psadbw, 128, pfx) },
 
   // 0F F7: VMASKMOVDQU xmm, xmm (66 prefix, vvvv must be 1111b, VEX.L=0)
   247 => {

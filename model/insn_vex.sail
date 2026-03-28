@@ -170,7 +170,7 @@ function decode_vex_src_ymm(modrm, rm, pfx) = decode_vex_src(256, modrm, rm, pfx
 // =========================================================================
 
 // 3-operand VEX binop: dst = packed_binop(op, eb, vvvv, rm)
-val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64}, Prefixes) -> unit
+val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
 function vex_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
@@ -203,41 +203,6 @@ function vex_exec_unop(op, eb, pfx) = {
 // =========================================================================
 // SSSE3 VEX helpers — 128-bit lane operations
 // =========================================================================
-
-// VPSHUFB: byte shuffle per 128-bit lane (each byte selected by low 4 bits of ctrl;
-// high bit of ctrl byte → zero)
-val vex_pshufb_128 : (xmmword, xmmword) -> xmmword
-function vex_pshufb_128(src, ctrl) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 15) {
-    let c : byte = ctrl[(i*8+7)..(i*8)];
-    result[(i*8+7)..(i*8)] = pshufb_byte(src, c)
-  };
-  result
-}
-
-val vex_pshufb_256 : (ymmword, ymmword) -> ymmword
-function vex_pshufb_256(src, ctrl) =
-  vex_pshufb_128(src[255..128], ctrl[255..128]) @ vex_pshufb_128(src[127..0], ctrl[127..0])
-
-// VPMADDUBSW: multiply unsigned bytes by signed bytes, add adjacent pairs with saturation
-val vex_pmaddubsw_128 : (xmmword, xmmword) -> xmmword
-function vex_pmaddubsw_128(a, b) = {
-  var result : xmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let a_even : byte = a[(lo+7)..lo];
-    let b_even : byte = b[(lo+7)..lo];
-    let a_odd  : byte = a[(lo+15)..(lo+8)];
-    let b_odd  : byte = b[(lo+15)..(lo+8)];
-    result[(lo+15)..lo] = pmaddubsw_pair(a_even, b_even, a_odd, b_odd)
-  };
-  result
-}
-
-val vex_pmaddubsw_256 : (ymmword, ymmword) -> ymmword
-function vex_pmaddubsw_256(a, b) =
-  vex_pmaddubsw_128(a[255..128], b[255..128]) @ vex_pmaddubsw_128(a[127..0], b[127..0])
 
 // =========================================================================
 // SSE4.1 integer helpers — PMINUW, PCMPEQQ, PHMINPOSUW
@@ -295,66 +260,6 @@ function avx_phminposuw_128(src) = {
   zeros(109) @ mi @ mv
 }
 
-// =========================================================================
-// Polymorphic per-128-bit-lane operations (shared by VEX and EVEX)
-// =========================================================================
-
-val avx_pmuludq_lane : (xmmword, xmmword) -> xmmword
-function avx_pmuludq_lane(a, b) = {
-  let prod1 : qword = to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0]));
-  let prod0 : qword = to_bits(64, unsigned(a[95..64]) * unsigned(b[95..64]));
-  prod0 @ prod1
-}
-
-val avx_pmuludq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_pmuludq(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pmuludq_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_pmaddwd_lane : (xmmword, xmmword) -> xmmword
-function avx_pmaddwd_lane(a, b) = {
-  var r : xmmword = zeros();
-  foreach (i from 0 to 3) {
-    let wlo : range(0, 96) = i * 32;
-    let w0 = signed(a[(wlo + 15)..wlo]) * signed(b[(wlo + 15)..wlo]);
-    let w1 = signed(a[(wlo + 31)..(wlo + 16)]) * signed(b[(wlo + 31)..(wlo + 16)]);
-    r[(wlo + 31)..wlo] = get_slice_int(32, w0 + w1, 0);
-  };
-  r
-}
-
-val avx_pmaddwd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_pmaddwd(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pmaddwd_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
-
-val avx_psadbw_64 : (bits(64), bits(64)) -> bits(64)
-function avx_psadbw_64(a, b) = {
-  var sum : int = 0;
-  foreach (i from 0 to 7) {
-    let lo : range(0, 56) = i * 8;
-    sum = sum + abs_diff8(a[(lo + 7)..lo], b[(lo + 7)..lo]);
-  };
-  zero_extend(get_slice_int(16, sum, 0))
-}
-
-val avx_psadbw_lane : (xmmword, xmmword) -> xmmword
-function avx_psadbw_lane(a, b) =
-  avx_psadbw_64(a[127..64], b[127..64]) @ avx_psadbw_64(a[63..0], b[63..0])
-
-val avx_psadbw : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
-function avx_psadbw(vl, a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) { let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psadbw_lane(a[(lo + 127)..lo], b[(lo + 127)..lo]) };
-  r
-}
 
 val avx_pshufd_lane : (xmmword, byte) -> xmmword
 function avx_pshufd_lane(src, imm) = {

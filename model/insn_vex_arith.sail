@@ -157,47 +157,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   match op {
 
   // 0F38 00: VPSHUFB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  0 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pshufb_256(src1, src2))
-    } else {
-      let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, vex_pshufb_128(src1, src2))
-    }
-  },
-
+  // 0F38 00: VPSHUFB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
+  0 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pshufb, 128, pfx) },
   // 0F38 01: VPHADDW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   1 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Add, 16, pfx) },
   // 0F38 02: VPHADDD xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   2 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Add, 32, pfx) },
   // 0F38 03: VPHADDSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   3 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_SatAddS, 16, pfx) },
-
   // 0F38 04: VPMADDUBSW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  4 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    let src1_idx = pfx.vex_vvvv;
-    if pfx.vex_l then {
-      let src1 : ymmword = read_ymm(src1_idx);
-      let src2 : ymmword = decode_vex_src_ymm(modrm, src, pfx);
-      write_ymm(dst, vex_pmaddubsw_256(src1, src2))
-    } else {
-      let src1 : xmmword = read_xmm(src1_idx);
-      let src2 : xmmword = decode_vex_src_xmm(modrm, src, pfx);
-      write_xmm(dst, vex_pmaddubsw_128(src1, src2))
-    }
-  },
+  4 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pmaddubsw, 128, pfx) },
 
   // 0F38 05: VPHSUBW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   5 => { if mp != MP_66 then raise_UD(); vex_exec_horiz_binop(PB_Sub, 16, pfx) },

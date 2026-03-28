@@ -53,46 +53,99 @@ enum PackedBinOp = {
   PB_PSign,
   PB_FAdd, PB_FSub, PB_FMul, PB_FDiv, PB_FMin, PB_FMax,
   PB_FPScalef,
+  // Per-128-bit-lane operations (used with eb=128)
+  PB_Pshufb, PB_Pmaddubsw, PB_Pmuludq, PB_Pmaddwd, PB_Psadbw,
 }
 
 // Per-element dispatch: applies the operation to one pair of elements.
-val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64}.
+// Most ops work at eb in {8,16,32,64}; lane ops (PB_Pshufb etc.) work at eb=128.
+val packed_elem_op : forall 'eb, 'eb in {8, 16, 32, 64, 128}.
   (PackedBinOp, bits('eb), bits('eb)) -> bits('eb)
 function packed_elem_op(op, a, b) = match op {
   PB_Add      => a + b,
   PB_Sub      => a - b,
-  PB_SatAddS  => sat_add_s(a, b),
-  PB_SatSubS  => sat_sub_s(a, b),
-  PB_SatAddU  => sat_add_u(a, b),
-  PB_SatSubU  => sat_sub_u(a, b),
-  PB_MinU     => min_u(a, b),
-  PB_MaxU     => max_u(a, b),
-  PB_MinS     => min_s(a, b),
-  PB_MaxS     => max_s(a, b),
-  PB_Avg      => avg(a, b),
+  PB_SatAddS  => { assert('eb <= 64); sat_add_s(a, b) },
+  PB_SatSubS  => { assert('eb <= 64); sat_sub_s(a, b) },
+  PB_SatAddU  => { assert('eb <= 64); sat_add_u(a, b) },
+  PB_SatSubU  => { assert('eb <= 64); sat_sub_u(a, b) },
+  PB_MinU     => { assert('eb <= 64); min_u(a, b) },
+  PB_MaxU     => { assert('eb <= 64); max_u(a, b) },
+  PB_MinS     => { assert('eb <= 64); min_s(a, b) },
+  PB_MaxS     => { assert('eb <= 64); max_s(a, b) },
+  PB_Avg      => { assert('eb <= 64); avg(a, b) },
   PB_Srl      => a >> b,
   PB_Sra      => a >>> unsigned(b),
   PB_Sll      => a << b,
   PB_MulLow   => to_bits_truncate(signed(a) * signed(b)),
   PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
   PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
-  PB_MulHRS   => mulhrs(a, b),
-  PB_Ror      => rotr(a, unsigned(b) % 'eb),
-  PB_Rol      => rotl(a, unsigned(b) % 'eb),
-  PB_CmpEq    => cmp_eq(a, b),
-  PB_CmpGt    => cmp_gt(a, b),
-  PB_PSign    => psign(a, b),
-  PB_FAdd     => fp_add(a, b),
-  PB_FSub     => fp_sub(a, b),
-  PB_FMul     => fp_mul(a, b),
-  PB_FDiv     => fp_div(a, b),
-  PB_FMin     => fp_min(a, b),
-  PB_FMax     => fp_max(a, b),
-  PB_FPScalef => fp_scalef(a, b),
+  PB_MulHRS   => { assert('eb <= 64); mulhrs(a, b) },
+  PB_Ror      => { assert('eb <= 64); rotr(a, unsigned(b) % 'eb) },
+  PB_Rol      => { assert('eb <= 64); rotl(a, unsigned(b) % 'eb) },
+  PB_CmpEq    => { assert('eb <= 64); cmp_eq(a, b) },
+  PB_CmpGt    => { assert('eb <= 64); cmp_gt(a, b) },
+  PB_PSign    => { assert('eb <= 64); psign(a, b) },
+  PB_FAdd     => { assert('eb <= 64); fp_add(a, b) },
+  PB_FSub     => { assert('eb <= 64); fp_sub(a, b) },
+  PB_FMul     => { assert('eb <= 64); fp_mul(a, b) },
+  PB_FDiv     => { assert('eb <= 64); fp_div(a, b) },
+  PB_FMin     => { assert('eb <= 64); fp_min(a, b) },
+  PB_FMax     => { assert('eb <= 64); fp_max(a, b) },
+  PB_FPScalef => { assert('eb <= 64); fp_scalef(a, b) },
+  // Per-128-bit-lane operations
+  PB_Pshufb => {
+    assert('eb == 128);
+    var r : bits(128) = zeros();
+    foreach (i from 0 to 15) {
+      let lo = i * 8;
+      r[(lo + 7)..lo] = pshufb_byte(a, b[(lo + 7)..lo])
+    };
+    r
+  },
+  PB_Pmaddubsw => {
+    assert('eb == 128);
+    var r : bits(128) = zeros();
+    foreach (i from 0 to 7) {
+      let lo = i * 16;
+      r[(lo + 15)..lo] = pmaddubsw_pair(a[(lo + 7)..lo], b[(lo + 7)..lo], a[(lo + 15)..(lo + 8)], b[(lo + 15)..(lo + 8)])
+    };
+    r
+  },
+  PB_Pmuludq => {
+    assert('eb == 128);
+    let p0 : qword = to_bits(64, unsigned(a[31..0]) * unsigned(b[31..0]));
+    let p1 : qword = to_bits(64, unsigned(a[95..64]) * unsigned(b[95..64]));
+    p1 @ p0
+  },
+  PB_Pmaddwd => {
+    assert('eb == 128);
+    var r : bits(128) = zeros();
+    foreach (i from 0 to 3) {
+      let lo = i * 32;
+      let w0 = signed(a[(lo + 15)..lo]) * signed(b[(lo + 15)..lo]);
+      let w1 = signed(a[(lo + 31)..(lo + 16)]) * signed(b[(lo + 31)..(lo + 16)]);
+      r[(lo + 31)..lo] = get_slice_int(32, w0 + w1, 0)
+    };
+    r
+  },
+  PB_Psadbw => {
+    assert('eb == 128);
+    var r : bits(128) = zeros();
+    foreach (k from 0 to 1) {
+      let base = k * 64;
+      var sum : int = 0;
+      foreach (i from 0 to 7) {
+        let lo = base + i * 8;
+        sum = sum + abs_diff8(a[(lo + 7)..lo], b[(lo + 7)..lo])
+      };
+      r[(base + 63)..base] = zero_extend(get_slice_int(16, sum, 0))
+    };
+    r
+  },
 }
 
 // Apply a packed binary operation element-wise across a vector.
-val packed_binop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+val packed_binop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64, 128}.
   (PackedBinOp, int('eb), bits('vl), bits('vl)) -> bits('vl)
 function packed_binop(op, eb, a, b) = {
   var r : bits('vl) = zeros();

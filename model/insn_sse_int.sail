@@ -44,23 +44,6 @@ function insert_dword(v, d, sel) = {
   (v & mask) | (zero_extend(d) << shift)
 }
 
-// PMADDUBSW — Multiply and Add Packed Signed and Unsigned Bytes (SSSE3)
-// Multiplies unsigned bytes from src1 with signed bytes from src2,
-// then adds adjacent pairs with signed saturation to produce 16-bit results.
-// No flags affected.
-val pmaddubsw_pair : (byte, byte, byte, byte) -> word
-function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
-  let p1 : int = unsigned(a_even) * signed(b_even);
-  let p2 : int = unsigned(a_odd) * signed(b_odd);
-  let sum : int = p1 + p2;
-  // Branchless signed saturation to 16-bit via 17-bit overflow detection
-  let wide : bits(17) = get_slice_int(17, sum, 0);
-  let sign : bits(1) = wide[16];
-  let of_mask : word = sign_extend(sign ^ wide[15]);
-  let sat : word = sign_extend(sign) ^ 0x7FFF;
-  (sat & of_mask) | (wide[15..0] & ~(of_mask))
-}
-
 // PMULHRSW — Packed Multiply High with Round and Scale (SSSE3)
 // No flags affected.
 val mulhrsw : (word, word) -> word
@@ -90,30 +73,6 @@ val mul_hi16u : (word, word) -> word
 function mul_hi16u(a, b) = {
   let product : dword = to_bits_truncate(unsigned(a) * unsigned(b));
   product[31..16]
-}
-
-// PSADBW — Compute Sum of Absolute Differences
-// Computes absolute differences of unsigned byte pairs, then sums each 8-byte group.
-// Result is zero-extended to 64 bits per qword lane. No flags affected.
-val abs_diff8 : (byte, byte) -> int
-function abs_diff8(a, b) = {
-  let d1 : bits(9) = (0b0 @ a) - (0b0 @ b);
-  let d2 : bits(9) = (0b0 @ b) - (0b0 @ a);
-  let m1 : byte = sign_extend(~(d1[8]));
-  let m2 : byte = sign_extend(~(d2[8]));
-  unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
-}
-
-// PSHUFB — Packed Shuffle Bytes (SSSE3)
-// Each byte in result is selected from dst by the low 4 bits of the corresponding
-// byte in src. If the high bit of the selector byte is set, the result byte is zero.
-// No flags affected.
-// Branchless: shift right by idx*8, take low byte, AND with zero-mask.
-val pshufb_byte : (xmmword, byte) -> byte
-function pshufb_byte(data, mask) = {
-  let idx : range(0, 15) = unsigned(mask[3..0]);
-  let selected : byte = (data >> (idx * 8))[7..0];
-  selected & sign_extend(~(mask[7]))
 }
 
 // PSHUFHW — Shuffle Packed High Words

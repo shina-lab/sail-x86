@@ -246,6 +246,37 @@ function sat_u(dst, x) = {
 
 // FP16 <-> FP32 conversion.
 
+// PSHUFB per-byte: select byte from data by low 4 bits of mask; zero if mask[7] set.
+val pshufb_byte : (xmmword, byte) -> byte
+function pshufb_byte(data, mask) = {
+  let idx : range(0, 15) = unsigned(mask[3..0]);
+  let selected : byte = (data >> (idx * 8))[7..0];
+  selected & sign_extend(~(mask[7]))
+}
+
+// PMADDUBSW per-pair: unsigned*signed byte multiply, add adjacent, saturate to word.
+val pmaddubsw_pair : (byte, byte, byte, byte) -> word
+function pmaddubsw_pair(a_even, b_even, a_odd, b_odd) = {
+  let p1 : int = unsigned(a_even) * signed(b_even);
+  let p2 : int = unsigned(a_odd) * signed(b_odd);
+  let sum : int = p1 + p2;
+  let wide : bits(17) = get_slice_int(17, sum, 0);
+  let sign : bits(1) = wide[16];
+  let of_mask : word = sign_extend(sign ^ wide[15]);
+  let sat : word = sign_extend(sign) ^ 0x7FFF;
+  (sat & of_mask) | (wide[15..0] & ~(of_mask))
+}
+
+// PSADBW per-byte: absolute difference of unsigned bytes.
+val abs_diff8 : (byte, byte) -> int
+function abs_diff8(a, b) = {
+  let d1 : bits(9) = (0b0 @ a) - (0b0 @ b);
+  let d2 : bits(9) = (0b0 @ b) - (0b0 @ a);
+  let m1 : byte = sign_extend(~(d1[8]));
+  let m2 : byte = sign_extend(~(d2[8]));
+  unsigned((d1[7..0] & m1) | (d2[7..0] & m2))
+}
+
 val fp16_to_fp32 : bits(16) -> bits(32)
 function fp16_to_fp32(h) = {
   let sign : bits(1) = h[15..15];
