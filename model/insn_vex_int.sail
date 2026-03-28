@@ -118,95 +118,27 @@ function dispatch_vex_0f_int(op, pfx) = {
     }
   },
 
-  // 0F 60: VPUNPCKLBW (66 prefix)
-  96 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(8, 0, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-  // 0F 61: VPUNPCKLWD (66 prefix)
-  97 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(16, 0, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-  // 0F 62: VPUNPCKLDQ (66 prefix)
-  98 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(32, 0, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  // 0F 60-62: VPUNPCKLBW/WD/DQ (66 prefix)
+  96  => { if mp != MP_66 then raise_UD(); vex_exec_unpack( 8, 0, pfx) },
+  97  => { if mp != MP_66 then raise_UD(); vex_exec_unpack(16, 0, pfx) },
+  98  => { if mp != MP_66 then raise_UD(); vex_exec_unpack(32, 0, pfx) },
   // 0F 63: VPACKSSWB (66 prefix)
-  99 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_pack(PN_SatS, 16, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
-  // 0F 64: VPCMPGTB (66 prefix)
-  100 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 8, pfx) },
-  // 0F 65: VPCMPGTW (66 prefix)
+  99  => { if mp != MP_66 then raise_UD(); vex_exec_pack(PN_SatS, 16, 8, pfx) },
+  // 0F 64-66: VPCMPGTB/W/D (66 prefix)
+  100 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt,  8, pfx) },
   101 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 16, pfx) },
-  // 0F 66: VPCMPGTD (66 prefix)
   102 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpGt, 32, pfx) },
-
   // 0F 67: VPACKUSWB (66 prefix)
-  103 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_pack(PN_SatSU, 16, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
-  // 0F 68: VPUNPCKHBW (66 prefix)
-  104 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(8, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-  // 0F 69: VPUNPCKHWD (66 prefix)
-  105 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(16, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-  // 0F 6A: VPUNPCKHDQ (66 prefix)
-  106 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(32, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
+  103 => { if mp != MP_66 then raise_UD(); vex_exec_pack(PN_SatSU, 16, 8, pfx) },
+  // 0F 68-6A: VPUNPCKHBW/WD/DQ (66 prefix)
+  104 => { if mp != MP_66 then raise_UD(); vex_exec_unpack( 8, 64, pfx) },
+  105 => { if mp != MP_66 then raise_UD(); vex_exec_unpack(16, 64, pfx) },
+  106 => { if mp != MP_66 then raise_UD(); vex_exec_unpack(32, 64, pfx) },
   // 0F 6B: VPACKSSDW (66 prefix)
-  107 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_pack(PN_SatS, 32, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-
-  // 0F 6C: VPUNPCKLQDQ (66 prefix)
-  108 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(64, 0, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
-  // 0F 6D: VPUNPCKHQDQ (66 prefix)
-  109 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_unpack(64, 64, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
-  },
+  107 => { if mp != MP_66 then raise_UD(); vex_exec_pack(PN_SatS, 32, 16, pfx) },
+  // 0F 6C-6D: VPUNPCKLQDQ/VPUNPCKHQDQ (66 prefix)
+  108 => { if mp != MP_66 then raise_UD(); vex_exec_unpack(64,  0, pfx) },
+  109 => { if mp != MP_66 then raise_UD(); vex_exec_unpack(64, 64, pfx) },
 
   // 0F 6E: VMOVD/VMOVQ gpr/mem -> xmm (66 prefix)
   // SDM: VEX.vvvv must be 1111b
@@ -365,107 +297,16 @@ function dispatch_vex_0f_int(op, pfx) = {
   },
 
   // 0F 7C: VHADDPS (F2) / VHADDPD (66)
-  124 => {
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    match mp {
-      MP_F2 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          // Lane 1 (upper 128): same pattern
-          let d7 : dword = fp_add(b[223..192], b[255..224]);
-          let d6 : dword = fp_add(b[159..128], b[191..160]);
-          let d5 : dword = fp_add(a[223..192], a[255..224]);
-          let d4 : dword = fp_add(a[159..128], a[191..160]);
-          // Lane 0 (lower 128)
-          let d3 : dword = fp_add(b[95..64], b[127..96]);
-          let d2 : dword = fp_add(b[31..0], b[63..32]);
-          let d1 : dword = fp_add(a[95..64], a[127..96]);
-          let d0 : dword = fp_add(a[31..0], a[63..32]);
-          write_simd(256, dst, d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let d3 : dword = fp_add(b[95..64], b[127..96]);
-          let d2 : dword = fp_add(b[31..0], b[63..32]);
-          let d1 : dword = fp_add(a[95..64], a[127..96]);
-          let d0 : dword = fp_add(a[31..0], a[63..32]);
-          write_simd(128, dst, d3 @ d2 @ d1 @ d0)
-        }
-      },
-      MP_66 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          // Lane 1
-          let q3 : qword = fp_add(b[191..128], b[255..192]);
-          let q2 : qword = fp_add(a[191..128], a[255..192]);
-          // Lane 0
-          let q1 : qword = fp_add(b[63..0], b[127..64]);
-          let q0 : qword = fp_add(a[63..0], a[127..64]);
-          write_simd(256, dst, q3 @ q2 @ q1 @ q0)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let q1 : qword = fp_add(b[63..0], b[127..64]);
-          let q0 : qword = fp_add(a[63..0], a[127..64]);
-          write_simd(128, dst, q1 @ q0)
-        }
-      },
-      _ => raise_UD(),
-    }
+  124 => match mp {
+    MP_F2 => vex_exec_binop(PB_HorizFAddS, 128, pfx),
+    MP_66 => vex_exec_binop(PB_HorizFAddD, 128, pfx),
+    _     => raise_UD(),
   },
-
   // 0F 7D: VHSUBPS (F2) / VHSUBPD (66)
-  125 => {
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
-    match mp {
-      MP_F2 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          let d7 : dword = fp_sub(b[223..192], b[255..224]);
-          let d6 : dword = fp_sub(b[159..128], b[191..160]);
-          let d5 : dword = fp_sub(a[223..192], a[255..224]);
-          let d4 : dword = fp_sub(a[159..128], a[191..160]);
-          let d3 : dword = fp_sub(b[95..64], b[127..96]);
-          let d2 : dword = fp_sub(b[31..0], b[63..32]);
-          let d1 : dword = fp_sub(a[95..64], a[127..96]);
-          let d0 : dword = fp_sub(a[31..0], a[63..32]);
-          write_simd(256, dst, d7 @ d6 @ d5 @ d4 @ d3 @ d2 @ d1 @ d0)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let d3 : dword = fp_sub(b[95..64], b[127..96]);
-          let d2 : dword = fp_sub(b[31..0], b[63..32]);
-          let d1 : dword = fp_sub(a[95..64], a[127..96]);
-          let d0 : dword = fp_sub(a[31..0], a[63..32]);
-          write_simd(128, dst, d3 @ d2 @ d1 @ d0)
-        }
-      },
-      MP_66 => {
-        if pfx.vex_l then {
-          let a : ymmword = read_simd(pfx.vex_vvvv);
-          let b : ymmword = decode_vex_src(256, modrm, src, pfx);
-          let q3 : qword = fp_sub(b[191..128], b[255..192]);
-          let q2 : qword = fp_sub(a[191..128], a[255..192]);
-          let q1 : qword = fp_sub(b[63..0], b[127..64]);
-          let q0 : qword = fp_sub(a[63..0], a[127..64]);
-          write_simd(256, dst, q3 @ q2 @ q1 @ q0)
-        } else {
-          let a : xmmword = read_simd(pfx.vex_vvvv);
-          let b : xmmword = decode_vex_src(128, modrm, src, pfx);
-          let q1 : qword = fp_sub(b[63..0], b[127..64]);
-          let q0 : qword = fp_sub(a[63..0], a[127..64]);
-          write_simd(128, dst, q1 @ q0)
-        }
-      },
-      _ => raise_UD(),
-    }
+  125 => match mp {
+    MP_F2 => vex_exec_binop(PB_HorizFSubS, 128, pfx),
+    MP_66 => vex_exec_binop(PB_HorizFSubD, 128, pfx),
+    _     => raise_UD(),
   },
 
   // 0F 7E: VMOVD/VMOVQ xmm -> gpr/mem (66 prefix) / VMOVQ xmm,xmm/m64 (F3 prefix)

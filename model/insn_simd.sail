@@ -71,6 +71,7 @@ enum PackedBinOp = {
   PB_Psadbw, PB_Pmaddubsw, PB_Pmaddwd, PB_Pmuludq, PB_Pshufb,
   PB_HorizAddW, PB_HorizAddD, PB_HorizSatAddW,
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
+  PB_HorizFAddS, PB_HorizFAddD, PB_HorizFSubS, PB_HorizFSubD,
 }
 
 // PMADDWD per-pair: signed * signed + signed * signed
@@ -79,7 +80,7 @@ function pmaddwd_pair(a, b, c, d) =
   to_bits_truncate(signed(a) * signed(b) + signed(c) * signed(d))
 
 // Forward declaration — defined after packed_elem_op.
-val packed_horiz : forall 'ew, 'ew in {16, 32}.
+val packed_horiz : forall 'ew, 'ew in {16, 32, 64}.
   (PackedBinOp, int('ew), bits(128)) -> bits(64)
 
 // Per-element dispatch: applies the operation to one pair of elements.
@@ -130,6 +131,10 @@ function packed_elem_op(op, a, b) = match op {
   PB_HorizSubW    => { assert('eb == 128); packed_horiz(PB_Sub, 16, b)     @ packed_horiz(PB_Sub, 16, a) },
   PB_HorizSubD    => { assert('eb == 128); packed_horiz(PB_Sub, 32, b)     @ packed_horiz(PB_Sub, 32, a) },
   PB_HorizSatSubW => { assert('eb == 128); packed_horiz(PB_SatSubS, 16, b) @ packed_horiz(PB_SatSubS, 16, a) },
+  PB_HorizFAddS   => { assert('eb == 128); packed_horiz(PB_FAdd, 32, b) @ packed_horiz(PB_FAdd, 32, a) },
+  PB_HorizFAddD   => { assert('eb == 128); packed_horiz(PB_FAdd, 64, b) @ packed_horiz(PB_FAdd, 64, a) },
+  PB_HorizFSubS   => { assert('eb == 128); packed_horiz(PB_FSub, 32, b) @ packed_horiz(PB_FSub, 32, a) },
+  PB_HorizFSubD   => { assert('eb == 128); packed_horiz(PB_FSub, 64, b) @ packed_horiz(PB_FSub, 64, a) },
 }
 
 // Reduce adjacent ew-bit element pairs within a 128-bit vector, producing 64 bits.

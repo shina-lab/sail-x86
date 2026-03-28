@@ -7,6 +7,53 @@
 val dispatch_mmx : (range(0, 255), Prefixes) -> unit
 
 // =========================================================================
+// SSE dispatch helpers — absorb common decode boilerplate
+// =========================================================================
+
+// 2-operand SSE binop with MMX fallback: dst = packed_binop(dst, src)
+val sse_exec_binop : (range(0, 255), PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
+function sse_exec_binop(op, binop_op, eb, pfx) = {
+  let mp = get_mandatory_prefix(pfx);
+  if mp != MP_66 then dispatch_mmx(op, pfx)
+  else {
+    let modrm = fetch(1);
+    let xreg = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
+    let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+    ZMM[xreg][127..0] = packed_binop(binop_op, eb, read_simd(xreg), src_xmm)
+  }
+}
+
+// 2-operand SSE unary op with MMX fallback: dst = packed_unop(src)
+val sse_exec_unop : (range(0, 255), PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
+function sse_exec_unop(op, unop_op, eb, pfx) = {
+  let mp = get_mandatory_prefix(pfx);
+  if mp != MP_66 then dispatch_mmx(op, pfx)
+  else {
+    let modrm = fetch(1);
+    let xreg = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
+    let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+    ZMM[xreg][127..0] = packed_unop(unop_op, eb, src_xmm)
+  }
+}
+
+// 2-operand SSE shift-by-xmm with MMX fallback: dst = shift(dst, count from src[63:0])
+val sse_exec_shift : (range(0, 255), PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
+function sse_exec_shift(op, shift_op, eb, pfx) = {
+  let mp = get_mandatory_prefix(pfx);
+  if mp != MP_66 then dispatch_mmx(op, pfx)
+  else {
+    let modrm = fetch(1);
+    let xreg = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_rm(modrm, pfx);
+    let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+    let c : nat = unsigned(src_xmm[63..0]);
+    ZMM[xreg][127..0] = packed_uniform_shift(shift_op, eb, read_simd(xreg), c)
+  }
+}
+
+// =========================================================================
 // SSE integer helper functions
 // =========================================================================
 
@@ -428,7 +475,7 @@ function pcmpestrm(a, raw_la, b, raw_lb, imm8) = {
 val dispatch_2byte_sse_int : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_sse_int(op, pfx) = {
   match op {
-    // 0F 60-6B: PUNPCK*/PACKSSWB/PCMPGT*/PUNPCK*/PACKSSDW/PCMPEQ*
+    // 0F 60-6B: PUNPCK*/PACKSSWB/PCMPGT*/PACKUSWB/PUNPCKH*/PACKSSDW
     op if 96 <= op & op <= 107 => {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_66 then {
@@ -437,161 +484,28 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let sub_op : range(0, 15) = op - 96;
-        match sub_op {
-          // PUNPCKLBW xmm1, xmm2/m128
-          0 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[63..56] @ d[63..56] @
-              s[55..48] @ d[55..48] @
-              s[47..40] @ d[47..40] @
-              s[39..32] @ d[39..32] @
-              s[31..24] @ d[31..24] @
-              s[23..16] @ d[23..16] @
-              s[15..8]  @ d[15..8]  @
-              s[7..0]   @ d[7..0];
-            ZMM[xreg][127..0] = result
-          },
-          // PUNPCKLWD xmm1, xmm2/m128
-          1 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[63..48] @ d[63..48] @
-              s[47..32] @ d[47..32] @
-              s[31..16] @ d[31..16] @
-              s[15..0]  @ d[15..0];
-            ZMM[xreg][127..0] = result
-          },
-          // PUNPCKLDQ xmm1, xmm2/m128
-          2 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[63..32] @ d[63..32] @
-              s[31..0]  @ d[31..0];
-            ZMM[xreg][127..0] = result
-          },
-          // PACKSSWB xmm1, xmm2/m128
-          3 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let r : xmmword =
-              sat_s(8, s[127..112]) @ sat_s(8, s[111..96]) @
-              sat_s(8, s[95..80])   @ sat_s(8, s[79..64]) @
-              sat_s(8, s[63..48])   @ sat_s(8, s[47..32]) @
-              sat_s(8, s[31..16])   @ sat_s(8, s[15..0]) @
-              sat_s(8, d[127..112]) @ sat_s(8, d[111..96]) @
-              sat_s(8, d[95..80])   @ sat_s(8, d[79..64]) @
-              sat_s(8, d[63..48])   @ sat_s(8, d[47..32]) @
-              sat_s(8, d[31..16])   @ sat_s(8, d[15..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PCMPGTB xmm1, xmm2/m128
-          4 => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_gt(a[127..120], b[127..120]) @ cmp_gt(a[119..112], b[119..112]) @
-              cmp_gt(a[111..104], b[111..104]) @ cmp_gt(a[103..96], b[103..96]) @
-              cmp_gt(a[95..88], b[95..88]) @ cmp_gt(a[87..80], b[87..80]) @
-              cmp_gt(a[79..72], b[79..72]) @ cmp_gt(a[71..64], b[71..64]) @
-              cmp_gt(a[63..56], b[63..56]) @ cmp_gt(a[55..48], b[55..48]) @
-              cmp_gt(a[47..40], b[47..40]) @ cmp_gt(a[39..32], b[39..32]) @
-              cmp_gt(a[31..24], b[31..24]) @ cmp_gt(a[23..16], b[23..16]) @
-              cmp_gt(a[15..8], b[15..8]) @ cmp_gt(a[7..0], b[7..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PCMPGTW xmm1, xmm2/m128
-          5 => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_gt(a[127..112], b[127..112]) @ cmp_gt(a[111..96], b[111..96]) @
-              cmp_gt(a[95..80], b[95..80]) @ cmp_gt(a[79..64], b[79..64]) @
-              cmp_gt(a[63..48], b[63..48]) @ cmp_gt(a[47..32], b[47..32]) @
-              cmp_gt(a[31..16], b[31..16]) @ cmp_gt(a[15..0], b[15..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PCMPGTD xmm1, xmm2/m128
-          6 => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_gt(a[127..96], b[127..96]) @
-              cmp_gt(a[95..64], b[95..64]) @
-              cmp_gt(a[63..32], b[63..32]) @
-              cmp_gt(a[31..0], b[31..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PACKUSWB xmm1, xmm2/m128
-          7 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let r : xmmword =
-              sat_su(8, s[127..112]) @ sat_su(8, s[111..96]) @
-              sat_su(8, s[95..80])   @ sat_su(8, s[79..64]) @
-              sat_su(8, s[63..48])   @ sat_su(8, s[47..32]) @
-              sat_su(8, s[31..16])   @ sat_su(8, s[15..0]) @
-              sat_su(8, d[127..112]) @ sat_su(8, d[111..96]) @
-              sat_su(8, d[95..80])   @ sat_su(8, d[79..64]) @
-              sat_su(8, d[63..48])   @ sat_su(8, d[47..32]) @
-              sat_su(8, d[31..16])   @ sat_su(8, d[15..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PUNPCKHBW xmm1, xmm2/m128
-          8 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[127..120] @ d[127..120] @
-              s[119..112] @ d[119..112] @
-              s[111..104] @ d[111..104] @
-              s[103..96]  @ d[103..96]  @
-              s[95..88]   @ d[95..88]   @
-              s[87..80]   @ d[87..80]   @
-              s[79..72]   @ d[79..72]   @
-              s[71..64]   @ d[71..64];
-            ZMM[xreg][127..0] = result
-          },
-          // PUNPCKHWD xmm1, xmm2/m128
-          9 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[127..112] @ d[127..112] @
-              s[111..96]  @ d[111..96]  @
-              s[95..80]   @ d[95..80]   @
-              s[79..64]   @ d[79..64];
-            ZMM[xreg][127..0] = result
-          },
-          // PUNPCKHDQ xmm1, xmm2/m128
-          10 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let result : xmmword =
-              s[127..96] @ d[127..96] @
-              s[95..64]  @ d[95..64];
-            ZMM[xreg][127..0] = result
-          },
-          // PACKSSDW xmm1, xmm2/m128
-          11 => {
-            let d : xmmword = read_simd(xreg);
-            let s : xmmword = src_xmm;
-            let r : xmmword =
-              sat_s(16, s[127..96]) @ sat_s(16, s[95..64]) @
-              sat_s(16, s[63..32])  @ sat_s(16, s[31..0]) @
-              sat_s(16, d[127..96]) @ sat_s(16, d[95..64]) @
-              sat_s(16, d[63..32])  @ sat_s(16, d[31..0]);
-            ZMM[xreg][127..0] = r
-          },
-          _ => raise_UD(),
+        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+        let d : xmmword = read_simd(xreg);
+        match (op - 96) {
+          // PUNPCKLBW/WD/DQ
+          0  => ZMM[xreg][127..0] = packed_unpack( 8, 0, d, src_xmm),
+          1  => ZMM[xreg][127..0] = packed_unpack(16, 0, d, src_xmm),
+          2  => ZMM[xreg][127..0] = packed_unpack(32, 0, d, src_xmm),
+          // PACKSSWB
+          3  => ZMM[xreg][127..0] = packed_pack(PN_SatS, 16, 8, d, src_xmm),
+          // PCMPGTB/W/D
+          4  => ZMM[xreg][127..0] = packed_binop(PB_CmpGt,  8, d, src_xmm),
+          5  => ZMM[xreg][127..0] = packed_binop(PB_CmpGt, 16, d, src_xmm),
+          6  => ZMM[xreg][127..0] = packed_binop(PB_CmpGt, 32, d, src_xmm),
+          // PACKUSWB
+          7  => ZMM[xreg][127..0] = packed_pack(PN_SatSU, 16, 8, d, src_xmm),
+          // PUNPCKHBW/WD/DQ
+          8  => ZMM[xreg][127..0] = packed_unpack( 8, 64, d, src_xmm),
+          9  => ZMM[xreg][127..0] = packed_unpack(16, 64, d, src_xmm),
+          10 => ZMM[xreg][127..0] = packed_unpack(32, 64, d, src_xmm),
+          // PACKSSDW
+          11 => ZMM[xreg][127..0] = packed_pack(PN_SatS, 32, 16, d, src_xmm),
+          _  => raise_UD(),
         }
       }
     },
@@ -603,13 +517,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src_xmm : xmmword = match src {
-        RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
-      let d : xmmword = read_simd(xreg);
-      let s : xmmword = src_xmm;
-      ZMM[xreg][127..0] = s[63..0] @ d[63..0]
+      let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+      ZMM[xreg][127..0] = packed_unpack(64, 0, read_simd(xreg), src_xmm)
     },
 
     // 0F 6D: PUNPCKHQDQ (SSE2 only, no MMX form)
@@ -619,13 +528,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src_xmm : xmmword = match src {
-        RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-        RM_mem(m) => read_mem(m),
-      };
-      let d : xmmword = read_simd(xreg);
-      let s : xmmword = src_xmm;
-      ZMM[xreg][127..0] = s[127..64] @ d[127..64]
+      let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+      ZMM[xreg][127..0] = packed_unpack(64, 64, read_simd(xreg), src_xmm)
     },
 
     // 0F 6E: MOVD/MOVQ xmm, r/m32 (or r/m64 with REX.W)
@@ -685,38 +589,11 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let imm = fetch(1);
         match mp {
           // PSHUFD xmm1, xmm2/m128, imm8
-          MP_66 => {
-            let s : xmmword = src_xmm;
-            let sel0 : range(0, 3) = unsigned(imm[1..0]);
-            let sel1 : range(0, 3) = unsigned(imm[3..2]);
-            let sel2 : range(0, 3) = unsigned(imm[5..4]);
-            let sel3 : range(0, 3) = unsigned(imm[7..6]);
-            let d0 : dword = s[(sel0 * 32 + 31) .. (sel0 * 32)];
-            let d1 : dword = s[(sel1 * 32 + 31) .. (sel1 * 32)];
-            let d2 : dword = s[(sel2 * 32 + 31) .. (sel2 * 32)];
-            let d3 : dword = s[(sel3 * 32 + 31) .. (sel3 * 32)];
-            ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
-          },
+          MP_66 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufd, src_xmm, imm),
           // PSHUFHW xmm1, xmm2/m128, imm8
-          MP_F3 => {
-            let s : xmmword = src_xmm;
-            let low : qword = s[63..0];
-            let w0 : word = select_high_word(s, imm[1..0]);
-            let w1 : word = select_high_word(s, imm[3..2]);
-            let w2 : word = select_high_word(s, imm[5..4]);
-            let w3 : word = select_high_word(s, imm[7..6]);
-            ZMM[xreg][127..0] = w3 @ w2 @ w1 @ w0 @ low
-          },
+          MP_F3 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufhw, src_xmm, imm),
           // PSHUFLW xmm1, xmm2/m128, imm8
-          MP_F2 => {
-            let s : xmmword = src_xmm;
-            let high : qword = s[127..64];
-            let w0 : word = select_low_word(s, imm[1..0]);
-            let w1 : word = select_low_word(s, imm[3..2]);
-            let w2 : word = select_low_word(s, imm[5..4]);
-            let w3 : word = select_low_word(s, imm[7..6]);
-            ZMM[xreg][127..0] = high @ w3 @ w2 @ w1 @ w0
-          },
+          MP_F2 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshuflw, src_xmm, imm),
           _     => raise_UD(),
         }
       }
@@ -730,44 +607,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
       } else {
         if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = modrm_rm(modrm, pfx);
         let xreg = modrm_xmm_rm(modrm, pfx);
-        let imm = fetch(1);
-        match reg_field {
-          // PSRLW xmm1, imm8
-          2 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..112] >> c) @ (a[111..96] >> c) @
-              (a[95..80] >> c) @ (a[79..64] >> c) @
-              (a[63..48] >> c) @ (a[47..32] >> c) @
-              (a[31..16] >> c) @ (a[15..0] >> c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSRAW xmm1, imm8
-          4 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..112] >>> c) @ (a[111..96] >>> c) @
-              (a[95..80] >>> c) @ (a[79..64] >>> c) @
-              (a[63..48] >>> c) @ (a[47..32] >>> c) @
-              (a[31..16] >>> c) @ (a[15..0] >>> c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSLLW xmm1, imm8
-          6 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..112] << c) @ (a[111..96] << c) @
-              (a[95..80] << c) @ (a[79..64] << c) @
-              (a[63..48] << c) @ (a[47..32] << c) @
-              (a[31..16] << c) @ (a[15..0] << c);
-            ZMM[xreg][127..0] = r
-          },
+        let c : nat = unsigned(fetch(1));
+        match unsigned(modrm[5..3]) {
+          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 16, read_simd(xreg), c),
+          4 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 16, read_simd(xreg), c),
+          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 16, read_simd(xreg), c),
           _ => raise_UD(),
         }
       }
@@ -781,38 +627,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
       } else {
         if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = modrm_rm(modrm, pfx);
         let xreg = modrm_xmm_rm(modrm, pfx);
-        let imm = fetch(1);
-        match reg_field {
-          // PSRLD xmm1, imm8
-          2 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..96] >> c) @ (a[95..64] >> c) @
-              (a[63..32] >> c) @ (a[31..0] >> c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSRAD xmm1, imm8
-          4 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..96] >>> c) @ (a[95..64] >>> c) @
-              (a[63..32] >>> c) @ (a[31..0] >>> c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSLLD xmm1, imm8
-          6 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword =
-              (a[127..96] << c) @ (a[95..64] << c) @
-              (a[63..32] << c) @ (a[31..0] << c);
-            ZMM[xreg][127..0] = r
-          },
+        let c : nat = unsigned(fetch(1));
+        match unsigned(modrm[5..3]) {
+          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 32, read_simd(xreg), c),
+          4 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sra, 32, read_simd(xreg), c),
+          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 32, read_simd(xreg), c),
           _ => raise_UD(),
         }
       }
@@ -826,96 +647,29 @@ function dispatch_2byte_sse_int(op, pfx) = {
       } else {
         if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
-        let reg_field : range(0, 7) = unsigned(modrm[5..3]);
         let _ = modrm_rm(modrm, pfx);
         let xreg = modrm_xmm_rm(modrm, pfx);
-        let imm = fetch(1);
-        match reg_field {
+        let c : nat = unsigned(fetch(1));
+        match unsigned(modrm[5..3]) {
           // PSRLQ xmm1, imm8
-          2 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSRLDQ xmm1, imm8
-          3 => {
-            let c : range(0, 255) = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            ZMM[xreg][127..0] = a >> (c * 8)
-          },
+          2 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Srl, 64, read_simd(xreg), c),
+          // PSRLDQ xmm1, imm8 — byte shift of whole 128-bit register
+          3 => ZMM[xreg][127..0] = read_simd(128, xreg) >> (c * 8),
           // PSLLQ xmm1, imm8
-          6 => {
-            let c : nat = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
-            ZMM[xreg][127..0] = r
-          },
-          // PSLLDQ xmm1, imm8
-          7 => {
-            let c : range(0, 255) = unsigned(imm);
-            let a : xmmword = read_simd(xreg);
-            ZMM[xreg][127..0] = a << (c * 8)
-          },
+          6 => ZMM[xreg][127..0] = packed_uniform_shift(PS_Sll, 64, read_simd(xreg), c),
+          // PSLLDQ xmm1, imm8 — byte shift of whole 128-bit register
+          7 => ZMM[xreg][127..0] = read_simd(128, xreg) << (c * 8),
           _ => raise_UD(),
         }
       }
     },
 
-    // 0F 74-76: PCMPEQB/PCMPEQW/PCMPEQD (66 prefix)
-    op if 116 <= op & op <= 118 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        match op {
-          // PCMPEQB xmm1, xmm2/m128
-          116 => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_eq(a[127..120], b[127..120]) @ cmp_eq(a[119..112], b[119..112]) @
-              cmp_eq(a[111..104], b[111..104]) @ cmp_eq(a[103..96], b[103..96]) @
-              cmp_eq(a[95..88], b[95..88]) @ cmp_eq(a[87..80], b[87..80]) @
-              cmp_eq(a[79..72], b[79..72]) @ cmp_eq(a[71..64], b[71..64]) @
-              cmp_eq(a[63..56], b[63..56]) @ cmp_eq(a[55..48], b[55..48]) @
-              cmp_eq(a[47..40], b[47..40]) @ cmp_eq(a[39..32], b[39..32]) @
-              cmp_eq(a[31..24], b[31..24]) @ cmp_eq(a[23..16], b[23..16]) @
-              cmp_eq(a[15..8], b[15..8]) @ cmp_eq(a[7..0], b[7..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PCMPEQW xmm1, xmm2/m128
-          117 => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_eq(a[127..112], b[127..112]) @ cmp_eq(a[111..96], b[111..96]) @
-              cmp_eq(a[95..80], b[95..80]) @ cmp_eq(a[79..64], b[79..64]) @
-              cmp_eq(a[63..48], b[63..48]) @ cmp_eq(a[47..32], b[47..32]) @
-              cmp_eq(a[31..16], b[31..16]) @ cmp_eq(a[15..0], b[15..0]);
-            ZMM[xreg][127..0] = r
-          },
-          // PCMPEQD xmm1, xmm2/m128
-          _   => {
-            let a : xmmword = read_simd(xreg);
-            let b : xmmword = src_xmm;
-            let r : xmmword =
-              cmp_eq(a[127..96], b[127..96]) @
-              cmp_eq(a[95..64], b[95..64]) @
-              cmp_eq(a[63..32], b[63..32]) @
-              cmp_eq(a[31..0], b[31..0]);
-            ZMM[xreg][127..0] = r
-          },
-        }
-      }
-    },
+    // PCMPEQB xmm1, xmm2/m128
+    116 => sse_exec_binop(op, PB_CmpEq,  8, pfx),
+    // PCMPEQW xmm1, xmm2/m128
+    117 => sse_exec_binop(op, PB_CmpEq, 16, pfx),
+    // PCMPEQD xmm1, xmm2/m128
+    118 => sse_exec_binop(op, PB_CmpEq, 32, pfx),
 
     // 0F 7E: MOVD/MOVQ r/m32, xmm (66) / MOVQ xmm,xmm/m64 (F3) / MOVD r/m32, mm (NP)
     126 => {
@@ -1036,28 +790,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
     },
 
     // 0F E5: PMULHW xmm, xmm/m128 (66 prefix)
-    229 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          mul_hi16s(a[127..112], b[127..112]) @ mul_hi16s(a[111..96], b[111..96]) @
-          mul_hi16s(a[95..80], b[95..80]) @ mul_hi16s(a[79..64], b[79..64]) @
-          mul_hi16s(a[63..48], b[63..48]) @ mul_hi16s(a[47..32], b[47..32]) @
-          mul_hi16s(a[31..16], b[31..16]) @ mul_hi16s(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    229 => sse_exec_binop(op, PB_MulHighS, 16, pfx),
 
     // 0F EB: POR xmm, xmm/m128 (66 prefix)
     235 => {
@@ -1096,333 +829,29 @@ function dispatch_2byte_sse_int(op, pfx) = {
     },
 
     // 0F D4: PADDQ (66 prefix)
-    212 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..64] + b[127..64]) @ (a[63..0] + b[63..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    212 => sse_exec_binop(op, PB_Add, 64, pfx),
 
     // 0F F4: PMULUDQ (66 prefix)
-    244 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let hi : qword = to_bits_truncate(unsigned(a[95..64]) * unsigned(b[95..64]));
-        let lo : qword = to_bits_truncate(unsigned(a[31..0]) * unsigned(b[31..0]));
-        let r : xmmword = hi @ lo;
-        ZMM[xreg][127..0] = r
-      }
-    },
+    244 => sse_exec_binop(op, PB_Pmuludq, 64, pfx),
 
-    // 0F F8: PSUBB (66 prefix)
-    248 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          (a[127..120] - b[127..120]) @ (a[119..112] - b[119..112]) @
-          (a[111..104] - b[111..104]) @ (a[103..96] - b[103..96]) @
-          (a[95..88] - b[95..88]) @ (a[87..80] - b[87..80]) @
-          (a[79..72] - b[79..72]) @ (a[71..64] - b[71..64]) @
-          (a[63..56] - b[63..56]) @ (a[55..48] - b[55..48]) @
-          (a[47..40] - b[47..40]) @ (a[39..32] - b[39..32]) @
-          (a[31..24] - b[31..24]) @ (a[23..16] - b[23..16]) @
-          (a[15..8] - b[15..8]) @ (a[7..0] - b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F F9: PSUBW (66 prefix)
-    249 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..112] - b[127..112]) @
-                             (a[111..96] - b[111..96]) @
-                             (a[95..80] - b[95..80]) @
-                             (a[79..64] - b[79..64]) @
-                             (a[63..48] - b[63..48]) @
-                             (a[47..32] - b[47..32]) @
-                             (a[31..16] - b[31..16]) @
-                             (a[15..0] - b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F FA: PSUBD (66 prefix)
-    250 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..96] - b[127..96]) @
-                             (a[95..64] - b[95..64]) @
-                             (a[63..32] - b[63..32]) @
-                             (a[31..0] - b[31..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F FB: PSUBQ (66 prefix)
-    251 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..64] - b[127..64]) @ (a[63..0] - b[63..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F FC: PADDB (66 prefix)
-    252 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        var result : xmmword = zeros();
-        result[7..0]     = a[7..0]     + b[7..0];
-        result[15..8]    = a[15..8]    + b[15..8];
-        result[23..16]   = a[23..16]   + b[23..16];
-        result[31..24]   = a[31..24]   + b[31..24];
-        result[39..32]   = a[39..32]   + b[39..32];
-        result[47..40]   = a[47..40]   + b[47..40];
-        result[55..48]   = a[55..48]   + b[55..48];
-        result[63..56]   = a[63..56]   + b[63..56];
-        result[71..64]   = a[71..64]   + b[71..64];
-        result[79..72]   = a[79..72]   + b[79..72];
-        result[87..80]   = a[87..80]   + b[87..80];
-        result[95..88]   = a[95..88]   + b[95..88];
-        result[103..96]  = a[103..96]  + b[103..96];
-        result[111..104] = a[111..104] + b[111..104];
-        result[119..112] = a[119..112] + b[119..112];
-        result[127..120] = a[127..120] + b[127..120];
-        ZMM[xreg][127..0] = result
-      }
-    },
-
-    // 0F FD: PADDW (66 prefix)
-    253 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..112] + b[127..112]) @
-                             (a[111..96] + b[111..96]) @
-                             (a[95..80] + b[95..80]) @
-                             (a[79..64] + b[79..64]) @
-                             (a[63..48] + b[63..48]) @
-                             (a[47..32] + b[47..32]) @
-                             (a[31..16] + b[31..16]) @
-                             (a[15..0] + b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F FE: PADDD (66 prefix)
-    254 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword = (a[127..96] + b[127..96]) @
-                             (a[95..64] + b[95..64]) @
-                             (a[63..32] + b[63..32]) @
-                             (a[31..0] + b[31..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    // 0F F8-FB: PSUBB/W/D/Q (66 prefix)
+    248 => sse_exec_binop(op, PB_Sub,  8, pfx),
+    249 => sse_exec_binop(op, PB_Sub, 16, pfx),
+    250 => sse_exec_binop(op, PB_Sub, 32, pfx),
+    251 => sse_exec_binop(op, PB_Sub, 64, pfx),
+    // 0F FC-FE: PADDB/W/D (66 prefix)
+    252 => sse_exec_binop(op, PB_Add,  8, pfx),
+    253 => sse_exec_binop(op, PB_Add, 16, pfx),
+    254 => sse_exec_binop(op, PB_Add, 32, pfx),
 
     // 0F E0: PAVGB (66 prefix)
-    224 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          avg(a[127..120], b[127..120]) @ avg(a[119..112], b[119..112]) @
-          avg(a[111..104], b[111..104]) @ avg(a[103..96], b[103..96]) @
-          avg(a[95..88], b[95..88]) @ avg(a[87..80], b[87..80]) @
-          avg(a[79..72], b[79..72]) @ avg(a[71..64], b[71..64]) @
-          avg(a[63..56], b[63..56]) @ avg(a[55..48], b[55..48]) @
-          avg(a[47..40], b[47..40]) @ avg(a[39..32], b[39..32]) @
-          avg(a[31..24], b[31..24]) @ avg(a[23..16], b[23..16]) @
-          avg(a[15..8], b[15..8]) @ avg(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    224 => sse_exec_binop(op, PB_Avg, 8, pfx),
     // 0F DA: PMINUB (66 prefix)
-    218 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          min_u(a[127..120], b[127..120]) @ min_u(a[119..112], b[119..112]) @
-          min_u(a[111..104], b[111..104]) @ min_u(a[103..96], b[103..96]) @
-          min_u(a[95..88], b[95..88]) @ min_u(a[87..80], b[87..80]) @
-          min_u(a[79..72], b[79..72]) @ min_u(a[71..64], b[71..64]) @
-          min_u(a[63..56], b[63..56]) @ min_u(a[55..48], b[55..48]) @
-          min_u(a[47..40], b[47..40]) @ min_u(a[39..32], b[39..32]) @
-          min_u(a[31..24], b[31..24]) @ min_u(a[23..16], b[23..16]) @
-          min_u(a[15..8], b[15..8]) @ min_u(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    218 => sse_exec_binop(op, PB_MinU, 8, pfx),
     // 0F DE: PMAXUB (66 prefix)
-    222 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          max_u(a[127..120], b[127..120]) @ max_u(a[119..112], b[119..112]) @
-          max_u(a[111..104], b[111..104]) @ max_u(a[103..96], b[103..96]) @
-          max_u(a[95..88], b[95..88]) @ max_u(a[87..80], b[87..80]) @
-          max_u(a[79..72], b[79..72]) @ max_u(a[71..64], b[71..64]) @
-          max_u(a[63..56], b[63..56]) @ max_u(a[55..48], b[55..48]) @
-          max_u(a[47..40], b[47..40]) @ max_u(a[39..32], b[39..32]) @
-          max_u(a[31..24], b[31..24]) @ max_u(a[23..16], b[23..16]) @
-          max_u(a[15..8], b[15..8]) @ max_u(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    222 => sse_exec_binop(op, PB_MaxU, 8, pfx),
     // 0F F6: PSADBW (66 prefix)
-    246 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = match src {
-          RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-          RM_mem(m) => read_mem(m),
-        };
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        ZMM[xreg][127..0] = psadbw(a[127..64], b[127..64]) @ psadbw(a[63..0], b[63..0])
-      }
-    },
+    246 => sse_exec_binop(op, PB_Psadbw, 64, pfx),
 
     // 0F E7: MOVNTDQ m128, xmm (66 prefix) / MOVNTQ m64, mm (no prefix)
     231 => {
@@ -1491,83 +920,13 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F D1: PSRLW xmm, xmm/m128 (66 prefix)
-    209 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..112] >> c) @ (a[111..96] >> c) @
-          (a[95..80] >> c) @ (a[79..64] >> c) @
-          (a[63..48] >> c) @ (a[47..32] >> c) @
-          (a[31..16] >> c) @ (a[15..0] >> c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F D2: PSRLD xmm, xmm/m128 (66 prefix)
-    210 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..96] >> c) @ (a[95..64] >> c) @
-          (a[63..32] >> c) @ (a[31..0] >> c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F D3: PSRLQ xmm, xmm/m128 (66 prefix)
-    211 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword = (a[127..64] >> c) @ (a[63..0] >> c);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    // 0F D1-D3: PSRLW/D/Q xmm, xmm/m128 (66 prefix)
+    209 => sse_exec_shift(op, PS_Srl, 16, pfx),
+    210 => sse_exec_shift(op, PS_Srl, 32, pfx),
+    211 => sse_exec_shift(op, PS_Srl, 64, pfx),
 
     // 0F D5: PMULLW (66 prefix)
-    213 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          mul_lo(a[127..112], b[127..112]) @ mul_lo(a[111..96], b[111..96]) @
-          mul_lo(a[95..80], b[95..80]) @ mul_lo(a[79..64], b[79..64]) @
-          mul_lo(a[63..48], b[63..48]) @ mul_lo(a[47..32], b[47..32]) @
-          mul_lo(a[31..16], b[31..16]) @ mul_lo(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    213 => sse_exec_binop(op, PB_MulLow, 16, pfx),
 
     // 0F D6: MOVQ xmm1/m64, xmm2 (66 prefix)
     214 => {
@@ -1589,271 +948,27 @@ function dispatch_2byte_sse_int(op, pfx) = {
       }
     },
 
-    // 0F D8: PSUBUSB (66 prefix)
-    216 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_sub_u(a[127..120], b[127..120]) @ sat_sub_u(a[119..112], b[119..112]) @
-          sat_sub_u(a[111..104], b[111..104]) @ sat_sub_u(a[103..96], b[103..96]) @
-          sat_sub_u(a[95..88], b[95..88]) @ sat_sub_u(a[87..80], b[87..80]) @
-          sat_sub_u(a[79..72], b[79..72]) @ sat_sub_u(a[71..64], b[71..64]) @
-          sat_sub_u(a[63..56], b[63..56]) @ sat_sub_u(a[55..48], b[55..48]) @
-          sat_sub_u(a[47..40], b[47..40]) @ sat_sub_u(a[39..32], b[39..32]) @
-          sat_sub_u(a[31..24], b[31..24]) @ sat_sub_u(a[23..16], b[23..16]) @
-          sat_sub_u(a[15..8], b[15..8]) @ sat_sub_u(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    // 0F D8-D9: PSUBUSB/W (66 prefix)
+    216 => sse_exec_binop(op, PB_SatSubU,  8, pfx),
+    217 => sse_exec_binop(op, PB_SatSubU, 16, pfx),
+    // 0F DC-DD: PADDUSB/W (66 prefix)
+    220 => sse_exec_binop(op, PB_SatAddU,  8, pfx),
+    221 => sse_exec_binop(op, PB_SatAddU, 16, pfx),
 
-    // 0F D9: PSUBUSW (66 prefix)
-    217 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_sub_u(a[127..112], b[127..112]) @ sat_sub_u(a[111..96], b[111..96]) @
-          sat_sub_u(a[95..80], b[95..80]) @ sat_sub_u(a[79..64], b[79..64]) @
-          sat_sub_u(a[63..48], b[63..48]) @ sat_sub_u(a[47..32], b[47..32]) @
-          sat_sub_u(a[31..16], b[31..16]) @ sat_sub_u(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F DC: PADDUSB (66 prefix)
-    220 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_add_u(a[127..120], b[127..120]) @ sat_add_u(a[119..112], b[119..112]) @
-          sat_add_u(a[111..104], b[111..104]) @ sat_add_u(a[103..96], b[103..96]) @
-          sat_add_u(a[95..88], b[95..88]) @ sat_add_u(a[87..80], b[87..80]) @
-          sat_add_u(a[79..72], b[79..72]) @ sat_add_u(a[71..64], b[71..64]) @
-          sat_add_u(a[63..56], b[63..56]) @ sat_add_u(a[55..48], b[55..48]) @
-          sat_add_u(a[47..40], b[47..40]) @ sat_add_u(a[39..32], b[39..32]) @
-          sat_add_u(a[31..24], b[31..24]) @ sat_add_u(a[23..16], b[23..16]) @
-          sat_add_u(a[15..8], b[15..8]) @ sat_add_u(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F DD: PADDUSW (66 prefix)
-    221 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_add_u(a[127..112], b[127..112]) @ sat_add_u(a[111..96], b[111..96]) @
-          sat_add_u(a[95..80], b[95..80]) @ sat_add_u(a[79..64], b[79..64]) @
-          sat_add_u(a[63..48], b[63..48]) @ sat_add_u(a[47..32], b[47..32]) @
-          sat_add_u(a[31..16], b[31..16]) @ sat_add_u(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F E1: PSRAW xmm, xmm/m128 (66 prefix)
-    225 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..112] >>> c) @ (a[111..96] >>> c) @
-          (a[95..80] >>> c) @ (a[79..64] >>> c) @
-          (a[63..48] >>> c) @ (a[47..32] >>> c) @
-          (a[31..16] >>> c) @ (a[15..0] >>> c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F E2: PSRAD xmm, xmm/m128 (66 prefix)
-    226 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..96] >>> c) @ (a[95..64] >>> c) @
-          (a[63..32] >>> c) @ (a[31..0] >>> c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    // 0F E1-E2: PSRAW/D xmm, xmm/m128 (66 prefix)
+    225 => sse_exec_shift(op, PS_Sra, 16, pfx),
+    226 => sse_exec_shift(op, PS_Sra, 32, pfx),
     // 0F E3: PAVGW (66 prefix)
-    227 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          avg(a[127..112], b[127..112]) @ avg(a[111..96], b[111..96]) @
-          avg(a[95..80], b[95..80]) @ avg(a[79..64], b[79..64]) @
-          avg(a[63..48], b[63..48]) @ avg(a[47..32], b[47..32]) @
-          avg(a[31..16], b[31..16]) @ avg(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    227 => sse_exec_binop(op, PB_Avg, 16, pfx),
     // 0F E4: PMULHUW (66 prefix)
-    228 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          mul_hi16u(a[127..112], b[127..112]) @ mul_hi16u(a[111..96], b[111..96]) @
-          mul_hi16u(a[95..80], b[95..80]) @ mul_hi16u(a[79..64], b[79..64]) @
-          mul_hi16u(a[63..48], b[63..48]) @ mul_hi16u(a[47..32], b[47..32]) @
-          mul_hi16u(a[31..16], b[31..16]) @ mul_hi16u(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    228 => sse_exec_binop(op, PB_MulHighU, 16, pfx),
 
-    // 0F E8: PSUBSB (66 prefix)
-    232 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_sub_s(a[127..120], b[127..120]) @ sat_sub_s(a[119..112], b[119..112]) @
-          sat_sub_s(a[111..104], b[111..104]) @ sat_sub_s(a[103..96], b[103..96]) @
-          sat_sub_s(a[95..88], b[95..88]) @ sat_sub_s(a[87..80], b[87..80]) @
-          sat_sub_s(a[79..72], b[79..72]) @ sat_sub_s(a[71..64], b[71..64]) @
-          sat_sub_s(a[63..56], b[63..56]) @ sat_sub_s(a[55..48], b[55..48]) @
-          sat_sub_s(a[47..40], b[47..40]) @ sat_sub_s(a[39..32], b[39..32]) @
-          sat_sub_s(a[31..24], b[31..24]) @ sat_sub_s(a[23..16], b[23..16]) @
-          sat_sub_s(a[15..8], b[15..8]) @ sat_sub_s(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F E9: PSUBSW (66 prefix)
-    233 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_sub_s(a[127..112], b[127..112]) @ sat_sub_s(a[111..96], b[111..96]) @
-          sat_sub_s(a[95..80], b[95..80]) @ sat_sub_s(a[79..64], b[79..64]) @
-          sat_sub_s(a[63..48], b[63..48]) @ sat_sub_s(a[47..32], b[47..32]) @
-          sat_sub_s(a[31..16], b[31..16]) @ sat_sub_s(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F EC: PADDSB (66 prefix)
-    236 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_add_s(a[127..120], b[127..120]) @ sat_add_s(a[119..112], b[119..112]) @
-          sat_add_s(a[111..104], b[111..104]) @ sat_add_s(a[103..96], b[103..96]) @
-          sat_add_s(a[95..88], b[95..88]) @ sat_add_s(a[87..80], b[87..80]) @
-          sat_add_s(a[79..72], b[79..72]) @ sat_add_s(a[71..64], b[71..64]) @
-          sat_add_s(a[63..56], b[63..56]) @ sat_add_s(a[55..48], b[55..48]) @
-          sat_add_s(a[47..40], b[47..40]) @ sat_add_s(a[39..32], b[39..32]) @
-          sat_add_s(a[31..24], b[31..24]) @ sat_add_s(a[23..16], b[23..16]) @
-          sat_add_s(a[15..8], b[15..8]) @ sat_add_s(a[7..0], b[7..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F ED: PADDSW (66 prefix)
-    237 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          sat_add_s(a[127..112], b[127..112]) @ sat_add_s(a[111..96], b[111..96]) @
-          sat_add_s(a[95..80], b[95..80]) @ sat_add_s(a[79..64], b[79..64]) @
-          sat_add_s(a[63..48], b[63..48]) @ sat_add_s(a[47..32], b[47..32]) @
-          sat_add_s(a[31..16], b[31..16]) @ sat_add_s(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    // 0F E8-E9: PSUBSB/W (66 prefix)
+    232 => sse_exec_binop(op, PB_SatSubS,  8, pfx),
+    233 => sse_exec_binop(op, PB_SatSubS, 16, pfx),
+    // 0F EC-ED: PADDSB/W (66 prefix)
+    236 => sse_exec_binop(op, PB_SatAddS,  8, pfx),
+    237 => sse_exec_binop(op, PB_SatAddS, 16, pfx),
 
     // 0F F0: LDDQU xmm, m128 (F2 prefix, SSE3)
     240 => {
@@ -1866,87 +981,12 @@ function dispatch_2byte_sse_int(op, pfx) = {
       write_simd(128, xreg, rm_mem(src))
     },
 
-    // 0F F1: PSLLW xmm, xmm/m128 (66 prefix)
-    241 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..112] << c) @ (a[111..96] << c) @
-          (a[95..80] << c) @ (a[79..64] << c) @
-          (a[63..48] << c) @ (a[47..32] << c) @
-          (a[31..16] << c) @ (a[15..0] << c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F F2: PSLLD xmm, xmm/m128 (66 prefix)
-    242 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword =
-          (a[127..96] << c) @ (a[95..64] << c) @
-          (a[63..32] << c) @ (a[31..0] << c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
-    // 0F F3: PSLLQ xmm, xmm/m128 (66 prefix)
-    243 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let c : nat = unsigned(src_xmm[63..0]);
-        let a : xmmword = read_simd(xreg);
-        let r : xmmword = (a[127..64] << c) @ (a[63..0] << c);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    // 0F F1-F3: PSLLW/D/Q xmm, xmm/m128 (66 prefix)
+    241 => sse_exec_shift(op, PS_Sll, 16, pfx),
+    242 => sse_exec_shift(op, PS_Sll, 32, pfx),
+    243 => sse_exec_shift(op, PS_Sll, 64, pfx),
     // 0F F5: PMADDWD (66 prefix)
-    245 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let d3 : dword = to_bits_truncate(signed(a[127..112]) * signed(b[127..112]) +
-                                              signed(a[111..96]) * signed(b[111..96]));
-        let d2 : dword = to_bits_truncate(signed(a[95..80]) * signed(b[95..80]) +
-                                              signed(a[79..64]) * signed(b[79..64]));
-        let d1 : dword = to_bits_truncate(signed(a[63..48]) * signed(b[63..48]) +
-                                              signed(a[47..32]) * signed(b[47..32]));
-        let d0 : dword = to_bits_truncate(signed(a[31..16]) * signed(b[31..16]) +
-                                              signed(a[15..0]) * signed(b[15..0]));
-        let r : xmmword = d3 @ d2 @ d1 @ d0;
-        ZMM[xreg][127..0] = r
-      }
-    },
+    245 => sse_exec_binop(op, PB_Pmaddwd, 32, pfx),
 
     // 0F F7: MASKMOVDQU xmm, xmm (66 prefix)
     247 => {
@@ -1964,46 +1004,9 @@ function dispatch_2byte_sse_int(op, pfx) = {
     },
 
     // 0F EE: PMAXSW (66 prefix)
-    238 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          max_s(a[127..112], b[127..112]) @ max_s(a[111..96], b[111..96]) @
-          max_s(a[95..80], b[95..80]) @ max_s(a[79..64], b[79..64]) @
-          max_s(a[63..48], b[63..48]) @ max_s(a[47..32], b[47..32]) @
-          max_s(a[31..16], b[31..16]) @ max_s(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
-
+    238 => sse_exec_binop(op, PB_MaxS, 16, pfx),
     // 0F EA: PMINSW (66 prefix)
-    234 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-        let a : xmmword = read_simd(xreg);
-        let b : xmmword = src_xmm;
-        let r : xmmword =
-          min_s(a[127..112], b[127..112]) @ min_s(a[111..96], b[111..96]) @
-          min_s(a[95..80], b[95..80]) @ min_s(a[79..64], b[79..64]) @
-          min_s(a[63..48], b[63..48]) @ min_s(a[47..32], b[47..32]) @
-          min_s(a[31..16], b[31..16]) @ min_s(a[15..0], b[15..0]);
-        ZMM[xreg][127..0] = r
-      }
-    },
+    234 => sse_exec_binop(op, PB_MinS, 16, pfx),
     _ => raise_UD(),
   }
 }
@@ -2033,94 +1036,31 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     // PHADDSW xmm1, xmm2/m128
     3  => ZMM[xreg][127..0] = packed_binop(PB_HorizSatAddW, 128, read_simd(xreg), src_xmm),
     // PMADDUBSW xmm1, xmm2/m128
-    4  => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        pmaddubsw_pair(a[127..120], b[127..120], a[119..112], b[119..112]) @
-        pmaddubsw_pair(a[111..104], b[111..104], a[103..96], b[103..96]) @
-        pmaddubsw_pair(a[95..88], b[95..88], a[87..80], b[87..80]) @
-        pmaddubsw_pair(a[79..72], b[79..72], a[71..64], b[71..64]) @
-        pmaddubsw_pair(a[63..56], b[63..56], a[55..48], b[55..48]) @
-        pmaddubsw_pair(a[47..40], b[47..40], a[39..32], b[39..32]) @
-        pmaddubsw_pair(a[31..24], b[31..24], a[23..16], b[23..16]) @
-        pmaddubsw_pair(a[15..8], b[15..8], a[7..0], b[7..0]);
-      ZMM[xreg][127..0] = r
-    },
+    4  => ZMM[xreg][127..0] = packed_binop(PB_Pmaddubsw, 16, read_simd(xreg), src_xmm),
     // PHSUBW xmm1, xmm2/m128
     5  => ZMM[xreg][127..0] = packed_binop(PB_HorizSubW, 128, read_simd(xreg), src_xmm),
     // PHSUBD xmm1, xmm2/m128
     6  => ZMM[xreg][127..0] = packed_binop(PB_HorizSubD, 128, read_simd(xreg), src_xmm),
     // PHSUBSW xmm1, xmm2/m128
     7  => ZMM[xreg][127..0] = packed_binop(PB_HorizSatSubW, 128, read_simd(xreg), src_xmm),
-    // PSIGNB xmm1, xmm2/m128
-    8  => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        psign(a[127..120], b[127..120]) @ psign(a[119..112], b[119..112]) @
-        psign(a[111..104], b[111..104]) @ psign(a[103..96], b[103..96]) @
-        psign(a[95..88], b[95..88]) @ psign(a[87..80], b[87..80]) @
-        psign(a[79..72], b[79..72]) @ psign(a[71..64], b[71..64]) @
-        psign(a[63..56], b[63..56]) @ psign(a[55..48], b[55..48]) @
-        psign(a[47..40], b[47..40]) @ psign(a[39..32], b[39..32]) @
-        psign(a[31..24], b[31..24]) @ psign(a[23..16], b[23..16]) @
-        psign(a[15..8], b[15..8]) @ psign(a[7..0], b[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PSIGNW xmm1, xmm2/m128
-    9  => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        psign(a[127..112], b[127..112]) @ psign(a[111..96], b[111..96]) @
-        psign(a[95..80], b[95..80]) @ psign(a[79..64], b[79..64]) @
-        psign(a[63..48], b[63..48]) @ psign(a[47..32], b[47..32]) @
-        psign(a[31..16], b[31..16]) @ psign(a[15..0], b[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PSIGND xmm1, xmm2/m128
-    10 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        psign(a[127..96], b[127..96]) @ psign(a[95..64], b[95..64]) @
-        psign(a[63..32], b[63..32]) @ psign(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
+    // PSIGNB/W/D xmm1, xmm2/m128
+    8  => ZMM[xreg][127..0] = packed_binop(PB_PSign,  8, read_simd(xreg), src_xmm),
+    9  => ZMM[xreg][127..0] = packed_binop(PB_PSign, 16, read_simd(xreg), src_xmm),
+    10 => ZMM[xreg][127..0] = packed_binop(PB_PSign, 32, read_simd(xreg), src_xmm),
     // PMULHRSW xmm1, xmm2/m128
-    11 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        mulhrsw(a[127..112], b[127..112]) @ mulhrsw(a[111..96], b[111..96]) @
-        mulhrsw(a[95..80], b[95..80]) @ mulhrsw(a[79..64], b[79..64]) @
-        mulhrsw(a[63..48], b[63..48]) @ mulhrsw(a[47..32], b[47..32]) @
-        mulhrsw(a[31..16], b[31..16]) @ mulhrsw(a[15..0], b[15..0]);
-      ZMM[xreg][127..0] = r
-    },
+    11 => ZMM[xreg][127..0] = packed_binop(PB_MulHRS, 16, read_simd(xreg), src_xmm),
 
     // SSE4.1 — PBLENDVB (implicit XMM0 mask)
     16 => {
       let a : xmmword = read_simd(xreg);
       let m : xmmword = read_simd(0);
-      let r0  : byte = blend(a[7..0],     src_xmm[7..0],     m[7]);
-      let r1  : byte = blend(a[15..8],    src_xmm[15..8],    m[15]);
-      let r2  : byte = blend(a[23..16],   src_xmm[23..16],   m[23]);
-      let r3  : byte = blend(a[31..24],   src_xmm[31..24],   m[31]);
-      let r4  : byte = blend(a[39..32],   src_xmm[39..32],   m[39]);
-      let r5  : byte = blend(a[47..40],   src_xmm[47..40],   m[47]);
-      let r6  : byte = blend(a[55..48],   src_xmm[55..48],   m[55]);
-      let r7  : byte = blend(a[63..56],   src_xmm[63..56],   m[63]);
-      let r8  : byte = blend(a[71..64],   src_xmm[71..64],   m[71]);
-      let r9  : byte = blend(a[79..72],   src_xmm[79..72],   m[79]);
-      let r10 : byte = blend(a[87..80],   src_xmm[87..80],   m[87]);
-      let r11 : byte = blend(a[95..88],   src_xmm[95..88],   m[95]);
-      let r12 : byte = blend(a[103..96],  src_xmm[103..96],  m[103]);
-      let r13 : byte = blend(a[111..104], src_xmm[111..104], m[111]);
-      let r14 : byte = blend(a[119..112], src_xmm[119..112], m[119]);
-      let r15 : byte = blend(a[127..120], src_xmm[127..120], m[127]);
-      ZMM[xreg][127..0] = r15 @ r14 @ r13 @ r12 @ r11 @ r10 @ r9 @ r8 @ r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0
+      // For each byte, select src_xmm if high bit of mask byte is set, else keep a
+      var r : xmmword = zeros();
+      foreach (i from 0 to 15) {
+        let lo = i * 8;
+        r[(lo + 7)..lo] = blend(a[(lo + 7)..lo], src_xmm[(lo + 7)..lo], m[lo + 7])
+      };
+      ZMM[xreg][127..0] = r
     },
 
     // SSE4.1 — PTEST
@@ -2137,276 +1077,60 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       SF = 0b0
     },
 
-    // SSSE3 — PABSB
-    28 => {
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        abs(b[127..120]) @ abs(b[119..112]) @
-        abs(b[111..104]) @ abs(b[103..96]) @
-        abs(b[95..88]) @ abs(b[87..80]) @
-        abs(b[79..72]) @ abs(b[71..64]) @
-        abs(b[63..56]) @ abs(b[55..48]) @
-        abs(b[47..40]) @ abs(b[39..32]) @
-        abs(b[31..24]) @ abs(b[23..16]) @
-        abs(b[15..8]) @ abs(b[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PABSW xmm1, xmm2/m128
-    29 => {
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        abs(b[127..112]) @ abs(b[111..96]) @
-        abs(b[95..80]) @ abs(b[79..64]) @
-        abs(b[63..48]) @ abs(b[47..32]) @
-        abs(b[31..16]) @ abs(b[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PABSD xmm1, xmm2/m128
-    30 => {
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        abs(b[127..96]) @ abs(b[95..64]) @
-        abs(b[63..32]) @ abs(b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
+    // SSSE3 — PABSB/W/D
+    28 => ZMM[xreg][127..0] = packed_unop(PU_Abs,  8, src_xmm),
+    29 => ZMM[xreg][127..0] = packed_unop(PU_Abs, 16, src_xmm),
+    30 => ZMM[xreg][127..0] = packed_unop(PU_Abs, 32, src_xmm),
 
-    // SSE4.1 — PMOVSXBW
-    32 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        sign_extend(16, s[63..56]) @ sign_extend(16, s[55..48]) @
-        sign_extend(16, s[47..40]) @ sign_extend(16, s[39..32]) @
-        sign_extend(16, s[31..24]) @ sign_extend(16, s[23..16]) @
-        sign_extend(16, s[15..8])  @ sign_extend(16, s[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVSXBD xmm1, xmm2/m32
-    33 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        sign_extend(32, s[31..24]) @ sign_extend(32, s[23..16]) @
-        sign_extend(32, s[15..8])  @ sign_extend(32, s[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVSXBQ xmm1, xmm2/m16
-    34 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = sign_extend(s[15..8]);
-      let lo : qword = sign_extend(s[7..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
-    // PMOVSXWD xmm1, xmm2/m64
-    35 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        sign_extend(32, s[63..48]) @ sign_extend(32, s[47..32]) @
-        sign_extend(32, s[31..16]) @ sign_extend(32, s[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVSXWQ xmm1, xmm2/m32
-    36 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = sign_extend(s[31..16]);
-      let lo : qword = sign_extend(s[15..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
-    // PMOVSXDQ xmm1, xmm2/m64
-    37 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = sign_extend(s[63..32]);
-      let lo : qword = sign_extend(s[31..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
+    // SSE4.1 — PMOVSXBW/BD/BQ/WD/WQ/DQ
+    32 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 16, src_xmm[63..0]),
+    33 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 32, src_xmm[31..0]),
+    34 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 64, src_xmm[15..0]),
+    35 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend, 16, 32, src_xmm[63..0]),
+    36 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend, 16, 64, src_xmm[31..0]),
+    37 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend, 32, 64, src_xmm[63..0]),
 
-    // SSE4.1 — PMULDQ
+    // SSE4.1 — PMULDQ (signed 32×32→64, uses dword elements 0 and 2)
     40 => {
+      // PMULDQ uses signed dwords, unlike PMULUDQ which uses unsigned.
+      // PB_Pmuludq does unsigned — we need a separate approach.
       let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
       let hi : qword = to_bits_truncate(signed(a[95..64]) * signed(b[95..64]));
       let lo : qword = to_bits_truncate(signed(a[31..0]) * signed(b[31..0]));
-      let r : xmmword = hi @ lo;
-      ZMM[xreg][127..0] = r
+      ZMM[xreg][127..0] = hi @ lo
     },
     // PCMPEQQ xmm1, xmm2/m128
-    41 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword = cmp_eq(a[127..64], b[127..64]) @ cmp_eq(a[63..0], b[63..0]);
-      ZMM[xreg][127..0] = r
-    },
+    41 => ZMM[xreg][127..0] = packed_binop(PB_CmpEq, 64, read_simd(xreg), src_xmm),
     // MOVNTDQA xmm, m128
     42 => {
       ZMM[xreg][127..0] = rm_mem(src)
     },
     // PACKUSDW xmm1, xmm2/m128
-    43 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let w0 : word = sat_su(a[31..0]);
-      let w1 : word = sat_su(a[63..32]);
-      let w2 : word = sat_su(a[95..64]);
-      let w3 : word = sat_su(a[127..96]);
-      let w4 : word = sat_su(b[31..0]);
-      let w5 : word = sat_su(b[63..32]);
-      let w6 : word = sat_su(b[95..64]);
-      let w7 : word = sat_su(b[127..96]);
-      ZMM[xreg][127..0] = w7 @ w6 @ w5 @ w4 @ w3 @ w2 @ w1 @ w0
-    },
+    43 => ZMM[xreg][127..0] = packed_pack(PN_SatSU, 32, 16, read_simd(xreg), src_xmm),
 
-    // SSE4.1 — PMOVZXBW
-    48 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        zero_extend(16, s[63..56]) @ zero_extend(16, s[55..48]) @
-        zero_extend(16, s[47..40]) @ zero_extend(16, s[39..32]) @
-        zero_extend(16, s[31..24]) @ zero_extend(16, s[23..16]) @
-        zero_extend(16, s[15..8])  @ zero_extend(16, s[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVZXBD xmm1, xmm2/m32
-    49 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        zero_extend(32, s[31..24]) @ zero_extend(32, s[23..16]) @
-        zero_extend(32, s[15..8])  @ zero_extend(32, s[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVZXBQ xmm1, xmm2/m16
-    50 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = zero_extend(s[15..8]);
-      let lo : qword = zero_extend(s[7..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
-    // PMOVZXWD xmm1, xmm2/m64
-    51 => {
-      let s : xmmword = src_xmm;
-      let r : xmmword =
-        zero_extend(32, s[63..48]) @ zero_extend(32, s[47..32]) @
-        zero_extend(32, s[31..16]) @ zero_extend(32, s[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMOVZXWQ xmm1, xmm2/m32
-    52 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = zero_extend(s[31..16]);
-      let lo : qword = zero_extend(s[15..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
-    // PMOVZXDQ xmm1, xmm2/m64
-    53 => {
-      let s : xmmword = src_xmm;
-      let hi : qword = zero_extend(s[63..32]);
-      let lo : qword = zero_extend(s[31..0]);
-      ZMM[xreg][127..0] = hi @ lo
-    },
+    // SSE4.1 — PMOVZXBW/BD/BQ/WD/WQ/DQ
+    48 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 16, src_xmm[63..0]),
+    49 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 32, src_xmm[31..0]),
+    50 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 64, src_xmm[15..0]),
+    51 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend, 16, 32, src_xmm[63..0]),
+    52 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend, 16, 64, src_xmm[31..0]),
+    53 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend, 32, 64, src_xmm[63..0]),
 
     // SSE4.2 — PCMPGTQ
-    55 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword = cmp_gt(a[127..64], b[127..64]) @ cmp_gt(a[63..0], b[63..0]);
-      ZMM[xreg][127..0] = r
-    },
-
-    // SSE4.1 — PMINSB
-    56 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        min_s(a[127..120], b[127..120]) @ min_s(a[119..112], b[119..112]) @
-        min_s(a[111..104], b[111..104]) @ min_s(a[103..96], b[103..96]) @
-        min_s(a[95..88], b[95..88]) @ min_s(a[87..80], b[87..80]) @
-        min_s(a[79..72], b[79..72]) @ min_s(a[71..64], b[71..64]) @
-        min_s(a[63..56], b[63..56]) @ min_s(a[55..48], b[55..48]) @
-        min_s(a[47..40], b[47..40]) @ min_s(a[39..32], b[39..32]) @
-        min_s(a[31..24], b[31..24]) @ min_s(a[23..16], b[23..16]) @
-        min_s(a[15..8], b[15..8]) @ min_s(a[7..0], b[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMINSD xmm1, xmm2/m128
-    57 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        min_s(a[127..96], b[127..96]) @ min_s(a[95..64], b[95..64]) @
-        min_s(a[63..32], b[63..32]) @ min_s(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMINUW xmm1, xmm2/m128
-    58 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        min_u(a[127..112], b[127..112]) @ min_u(a[111..96], b[111..96]) @
-        min_u(a[95..80], b[95..80]) @ min_u(a[79..64], b[79..64]) @
-        min_u(a[63..48], b[63..48]) @ min_u(a[47..32], b[47..32]) @
-        min_u(a[31..16], b[31..16]) @ min_u(a[15..0], b[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMINUD xmm1, xmm2/m128
-    59 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        min_u(a[127..96], b[127..96]) @ min_u(a[95..64], b[95..64]) @
-        min_u(a[63..32], b[63..32]) @ min_u(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMAXSB xmm1, xmm2/m128
-    60 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        max_s(a[127..120], b[127..120]) @ max_s(a[119..112], b[119..112]) @
-        max_s(a[111..104], b[111..104]) @ max_s(a[103..96], b[103..96]) @
-        max_s(a[95..88], b[95..88]) @ max_s(a[87..80], b[87..80]) @
-        max_s(a[79..72], b[79..72]) @ max_s(a[71..64], b[71..64]) @
-        max_s(a[63..56], b[63..56]) @ max_s(a[55..48], b[55..48]) @
-        max_s(a[47..40], b[47..40]) @ max_s(a[39..32], b[39..32]) @
-        max_s(a[31..24], b[31..24]) @ max_s(a[23..16], b[23..16]) @
-        max_s(a[15..8], b[15..8]) @ max_s(a[7..0], b[7..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMAXSD xmm1, xmm2/m128
-    61 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        max_s(a[127..96], b[127..96]) @ max_s(a[95..64], b[95..64]) @
-        max_s(a[63..32], b[63..32]) @ max_s(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMAXUW xmm1, xmm2/m128
-    62 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        max_u(a[127..112], b[127..112]) @ max_u(a[111..96], b[111..96]) @
-        max_u(a[95..80], b[95..80]) @ max_u(a[79..64], b[79..64]) @
-        max_u(a[63..48], b[63..48]) @ max_u(a[47..32], b[47..32]) @
-        max_u(a[31..16], b[31..16]) @ max_u(a[15..0], b[15..0]);
-      ZMM[xreg][127..0] = r
-    },
-    // PMAXUD xmm1, xmm2/m128
-    63 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        max_u(a[127..96], b[127..96]) @ max_u(a[95..64], b[95..64]) @
-        max_u(a[63..32], b[63..32]) @ max_u(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
-
+    55 => ZMM[xreg][127..0] = packed_binop(PB_CmpGt, 64, read_simd(xreg), src_xmm),
+    // SSE4.1 — PMINSB/SD, PMINUW/UD
+    56 => ZMM[xreg][127..0] = packed_binop(PB_MinS,  8, read_simd(xreg), src_xmm),
+    57 => ZMM[xreg][127..0] = packed_binop(PB_MinS, 32, read_simd(xreg), src_xmm),
+    58 => ZMM[xreg][127..0] = packed_binop(PB_MinU, 16, read_simd(xreg), src_xmm),
+    59 => ZMM[xreg][127..0] = packed_binop(PB_MinU, 32, read_simd(xreg), src_xmm),
+    // SSE4.1 — PMAXSB/SD, PMAXUW/UD
+    60 => ZMM[xreg][127..0] = packed_binop(PB_MaxS,  8, read_simd(xreg), src_xmm),
+    61 => ZMM[xreg][127..0] = packed_binop(PB_MaxS, 32, read_simd(xreg), src_xmm),
+    62 => ZMM[xreg][127..0] = packed_binop(PB_MaxU, 16, read_simd(xreg), src_xmm),
+    63 => ZMM[xreg][127..0] = packed_binop(PB_MaxU, 32, read_simd(xreg), src_xmm),
     // SSE4.1 — PMULLD
-    64 => {
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let r : xmmword =
-        mul_lo(a[127..96], b[127..96]) @ mul_lo(a[95..64], b[95..64]) @
-        mul_lo(a[63..32], b[63..32]) @ mul_lo(a[31..0], b[31..0]);
-      ZMM[xreg][127..0] = r
-    },
+    64 => ZMM[xreg][127..0] = packed_binop(PB_MulLow, 32, read_simd(xreg), src_xmm),
     // PHMINPOSUW xmm1, xmm2/m128
     65 => {
       let s : xmmword = src_xmm;
@@ -2522,16 +1246,12 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let src_xmm = decode_xmm_src(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      ZMM[xreg][127..0] =
-        blend(a[127..112], b[127..112], imm[7]) @
-        blend(a[111..96],  b[111..96],  imm[6]) @
-        blend(a[95..80],   b[95..80],   imm[5]) @
-        blend(a[79..64],   b[79..64],   imm[4]) @
-        blend(a[63..48],   b[63..48],   imm[3]) @
-        blend(a[47..32],   b[47..32],   imm[2]) @
-        blend(a[31..16],   b[31..16],   imm[1]) @
-        blend(a[15..0],    b[15..0],    imm[0])
+      var r : xmmword = zeros();
+      foreach (i from 0 to 7) {
+        let lo = i * 16;
+        r[(lo + 15)..lo] = blend(a[(lo + 15)..lo], src_xmm[(lo + 15)..lo], imm[i])
+      };
+      ZMM[xreg][127..0] = r
     },
 
     // SSSE3 — PALIGNR
