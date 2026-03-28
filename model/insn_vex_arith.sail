@@ -59,6 +59,26 @@ function avx_phminposuw_128(src) = {
   zeros(109) @ mi @ mv
 }
 
+// Read low 'n bits from xmm register or memory.
+val vex_read_narrow_src : forall 'n, 0 < 'n & 'n <= 128. (implicit('n), byte, RM, Prefixes) -> bits('n)
+function vex_read_narrow_src(n, modrm, rm, pfx) = match rm {
+  RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[('n - 1)..0],
+  RM_mem(m) => read_mem(m),
+}
+
+// VEX widening unop: VPMOVSX/VPMOVZX dispatch helper.
+val vex_exec_widen : forall 'src 'dst, 'src in {8, 16, 32} & 'dst in {16, 32, 64} & 'dst > 'src.
+  (PackedWidenOp, int('src), int('dst), Prefixes) -> unit
+function vex_exec_widen(op, src_eb, dst_eb, pfx) = {
+  if pfx.vex_vvvv != 0 then raise_UD();
+  let modrm = fetch(1);
+  let dst = modrm_xmm_reg(modrm, pfx);
+  let src = modrm_rm(modrm, pfx);
+  let vl = if pfx.vex_l then 256 else 128;
+  let s = vex_read_narrow_src(vl * src_eb / dst_eb, modrm, src, pfx);
+  write_simd(vl, dst, packed_widen_unop(vl, op, src_eb, dst_eb, s))
+}
+
 // 2-operand VEX unop: dst = packed_unop(op, eb, rm) — vvvv must be 0
 val vex_exec_unop : (PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
 function vex_exec_unop(op, eb, pfx) = {
@@ -538,134 +558,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // SSE4.1 sign/zero-extend, arithmetic, min/max (0F38 20..41)
   // -----------------------------------------------------------------------
 
-  // 0F38 20: VPMOVSXBW (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 8 bytes (low qword) to 8 words
-  // 256-bit: sign-extend 16 bytes (full xmm) to 16 words
-  32 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 16, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 16, src))
-    }
-  },
-
-  // 0F38 21: VPMOVSXBD (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 4 bytes (32 bits) to 4 dwords
-  // 256-bit: sign-extend 8 bytes (64 bits) to 8 dwords
-  33 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 32, src))
-    } else {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 32, src))
-    }
-  },
-
-  // 0F38 22: VPMOVSXBQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 2 bytes (16 bits) to 2 qwords
-  // 256-bit: sign-extend 4 bytes (32 bits) to 4 qwords
-  34 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 8, 64, src))
-    } else {
-      let src : bits(16) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
-        RM_mem(m) => v(16, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 8, 64, src))
-    }
-  },
-
-  // 0F38 23: VPMOVSXWD (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 4 words (64 bits) to 4 dwords
-  // 256-bit: sign-extend 8 words (128 bits) to 8 dwords
-  35 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 16, 32, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 16, 32, src))
-    }
-  },
-
-  // 0F38 24: VPMOVSXWQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 2 words (32 bits) to 2 qwords
-  // 256-bit: sign-extend 4 words (64 bits) to 4 qwords
-  36 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 16, 64, src))
-    } else {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 16, 64, src))
-    }
-  },
-
-  // 0F38 25: VPMOVSXDQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: sign-extend 2 dwords (64 bits) to 2 qwords
-  // 256-bit: sign-extend 4 dwords (128 bits) to 4 qwords
-  37 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_SignExtend, 32, 64, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_SignExtend, 32, 64, src))
-    }
-  },
+  // 0F38 20-25: VPMOVSXBW/BD/BQ/WD/WQ/DQ (66 prefix, vvvv must be 1111b)
+  32 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 8, 16, pfx) },
+  33 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 8, 32, pfx) },
+  34 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 8, 64, pfx) },
+  35 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 16, 32, pfx) },
+  36 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 16, 64, pfx) },
+  37 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_SignExtend, 32, 64, pfx) },
 
   // 0F38 28: VPMULDQ (66 prefix)
   // Multiply signed dwords at positions 0 and 2 producing qword results
@@ -705,134 +604,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     write_simd(vl, dst, packed_pack(PN_SatSU, 32, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
   },
 
-  // 0F38 30: VPMOVZXBW (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 8 bytes (64 bits) to 8 words
-  // 256-bit: zero-extend 16 bytes (128 bits) to 16 words
-  48 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 16, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 16, src))
-    }
-  },
-
-  // 0F38 31: VPMOVZXBD (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 4 bytes (32 bits) to 4 dwords
-  // 256-bit: zero-extend 8 bytes (64 bits) to 8 dwords
-  49 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 32, src))
-    } else {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 32, src))
-    }
-  },
-
-  // 0F38 32: VPMOVZXBQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 2 bytes (16 bits) to 2 qwords
-  // 256-bit: zero-extend 4 bytes (32 bits) to 4 qwords
-  50 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 8, 64, src))
-    } else {
-      let src : bits(16) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[15..0],
-        RM_mem(m) => v(16, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 8, 64, src))
-    }
-  },
-
-  // 0F38 33: VPMOVZXWD (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 4 words (64 bits) to 4 dwords
-  // 256-bit: zero-extend 8 words (128 bits) to 8 dwords
-  51 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 16, 32, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 16, 32, src))
-    }
-  },
-
-  // 0F38 34: VPMOVZXWQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 2 words (32 bits) to 2 qwords
-  // 256-bit: zero-extend 4 words (64 bits) to 4 qwords
-  52 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 16, 64, src))
-    } else {
-      let src : bits(32) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[31..0],
-        RM_mem(m) => v(32, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 16, 64, src))
-    }
-  },
-
-  // 0F38 35: VPMOVZXDQ (66 prefix, vvvv must be 1111b)
-  // 128-bit: zero-extend 2 dwords (64 bits) to 2 qwords
-  // 256-bit: zero-extend 4 dwords (128 bits) to 4 qwords
-  53 => {
-    if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src = decode_vex_src(128, modrm, src2, pfx);
-      write_ymm(dst, packed_widen_unop(256, PW_ZeroExtend, 32, 64, src))
-    } else {
-      let src : bits(64) = match src2 {
-        RM_reg(_) => read_xmm(modrm_xmm_rm(modrm, pfx))[63..0],
-        RM_mem(m) => v(64, m),
-      };
-      write_xmm(dst, packed_widen_unop(128, PW_ZeroExtend, 32, 64, src))
-    }
-  },
+  // 0F38 30-35: VPMOVZXBW/BD/BQ/WD/WQ/DQ (66 prefix, vvvv must be 1111b)
+  48 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 8, 16, pfx) },
+  49 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 8, 32, pfx) },
+  50 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 8, 64, pfx) },
+  51 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 16, 32, pfx) },
+  52 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 16, 64, pfx) },
+  53 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 32, 64, pfx) },
 
   // 0F38 38: VPMINSB (66 prefix)
   // Packed minimum of signed bytes
