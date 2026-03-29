@@ -22,7 +22,7 @@ function mmx_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = unsigned(modrm[5..3]);
   let src = modrm_rm(modrm, pfx);
-  write_mm(dst, packed_binop(op, eb, x87_ST[dst][63..0], mmx_read_rm(modrm, src)))
+  x87_ST[dst] = ones(16) @ (packed_binop(op, eb, x87_ST[dst][63..0], mmx_read_rm(modrm, src)))
 }
 
 val mmx_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
@@ -31,7 +31,7 @@ function mmx_exec_shift(op, eb, pfx) = {
   let dst = unsigned(modrm[5..3]);
   let src = modrm_rm(modrm, pfx);
   let c : nat = unsigned(mmx_read_rm(modrm, src)[63..0]);
-  write_mm(dst, packed_uniform_shift(op, eb, x87_ST[dst][63..0], c))
+  x87_ST[dst] = ones(16) @ (packed_uniform_shift(op, eb, x87_ST[dst][63..0], c))
 }
 
 // =========================================================================
@@ -56,7 +56,7 @@ function dispatch_mmx(op, pfx) = {
         r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
         r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
       };
-      write_mm(dst, r)
+      x87_ST[dst] = ones(16) @ (r)
     },
 
     // 0F 63: PACKSSWB mm, mm/m64
@@ -70,7 +70,7 @@ function dispatch_mmx(op, pfx) = {
         r[(i * 8 + 7)..(i * 8)] = sat_s(8, d[(i * 16 + 15)..(i * 16)]);
         r[(i * 8 + 39)..(i * 8 + 32)] = sat_s(8, s[(i * 16 + 15)..(i * 16)])
       };
-      write_mm(dst, r)
+      x87_ST[dst] = ones(16) @ (r)
     },
 
     // 0F 64-66: PCMPGTB/W/D mm, mm/m64
@@ -89,7 +89,7 @@ function dispatch_mmx(op, pfx) = {
         r[(i * 8 + 7)..(i * 8)] = sat_su(8, d[(i * 16 + 15)..(i * 16)]);
         r[(i * 8 + 39)..(i * 8 + 32)] = sat_su(8, s[(i * 16 + 15)..(i * 16)])
       };
-      write_mm(dst, r)
+      x87_ST[dst] = ones(16) @ (r)
     },
 
     // 0F 68-6A: PUNPCKHBW/WD/DQ mm, mm/m64
@@ -108,7 +108,7 @@ function dispatch_mmx(op, pfx) = {
         r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
         r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
       };
-      write_mm(dst, r)
+      x87_ST[dst] = ones(16) @ (r)
     },
 
     // 0F 6B: PACKSSDW mm, mm/m64
@@ -117,7 +117,7 @@ function dispatch_mmx(op, pfx) = {
       let dst = unsigned(modrm[5..3]);
       let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = x87_ST[dst][63..0];
-      write_mm(dst, sat_s(16, s[63..32]) @ sat_s(16, s[31..0]) @
+      x87_ST[dst] = ones(16) @ (sat_s(16, s[63..32]) @ sat_s(16, s[31..0]) @
                      sat_s(16, d[63..32]) @ sat_s(16, d[31..0]))
     },
 
@@ -126,12 +126,8 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
       let src = modrm_rm(modrm, pfx);
-      match (src, pfx.rex_w) {
-        (RM_reg(r), true)  => write_mm(dst, v(64, r)),
-        (RM_mem(m), true)  => write_mm(dst, v(m)),
-        (RM_reg(r), false) => write_mm(dst, zero_extend(v(32, r))),
-        (RM_mem(m), false) => write_mm(dst, zero_extend(v(32, m))),
-      }
+      let os : {32, 64} = if pfx.rex_w then 64 else 32;
+      x87_ST[dst] = ones(16) @ (zero_extend(v(os, src)) : qword)
     },
 
     // 0F 6F: MOVQ mm, mm/m64
@@ -139,7 +135,7 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
       let src = modrm_rm(modrm, pfx);
-      write_mm(dst, mmx_read_rm(modrm, src))
+      x87_ST[dst] = ones(16) @ (mmx_read_rm(modrm, src))
     },
 
     // 0F 70: PSHUFW mm, mm/m64, imm8
@@ -161,7 +157,7 @@ function dispatch_mmx(op, pfx) = {
       let w3 : word = match unsigned(imm[7..6]) {
         0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
       };
-      write_mm(dst, w3 @ w2 @ w1 @ w0)
+      x87_ST[dst] = ones(16) @ (w3 @ w2 @ w1 @ w0)
     },
 
     // 0F 71-73: Group 12/13/14 — shift mm, imm8
@@ -171,14 +167,14 @@ function dispatch_mmx(op, pfx) = {
       let c : nat = unsigned(fetch(1));
       let d : qword = x87_ST[dst][63..0];
       match (op, unsigned(modrm[5..3])) {
-        (113, 2) => write_mm(dst, packed_uniform_shift(PS_Srl, 16, d, c)),
-        (113, 4) => write_mm(dst, packed_uniform_shift(PS_Sra, 16, d, c)),
-        (113, 6) => write_mm(dst, packed_uniform_shift(PS_Sll, 16, d, c)),
-        (114, 2) => write_mm(dst, packed_uniform_shift(PS_Srl, 32, d, c)),
-        (114, 4) => write_mm(dst, packed_uniform_shift(PS_Sra, 32, d, c)),
-        (114, 6) => write_mm(dst, packed_uniform_shift(PS_Sll, 32, d, c)),
-        (_, 2)   => write_mm(dst, packed_uniform_shift(PS_Srl, 64, d, c)),
-        (_, 6)   => write_mm(dst, packed_uniform_shift(PS_Sll, 64, d, c)),
+        (113, 2) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Srl, 16, d, c)),
+        (113, 4) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Sra, 16, d, c)),
+        (113, 6) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Sll, 16, d, c)),
+        (114, 2) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Srl, 32, d, c)),
+        (114, 4) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Sra, 32, d, c)),
+        (114, 6) => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Sll, 32, d, c)),
+        (_, 2)   => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Srl, 64, d, c)),
+        (_, 6)   => x87_ST[dst] = ones(16) @ (packed_uniform_shift(PS_Sll, 64, d, c)),
         _        => raise_UD(),
       }
     },
@@ -209,7 +205,7 @@ function dispatch_mmx(op, pfx) = {
       let dest = modrm_rm(modrm, pfx);
       let x : qword = x87_ST[src][63..0];
       match dest {
-        RM_reg(_) => write_mm(unsigned(modrm[2..0]), x),
+        RM_reg(_) => x87_ST[unsigned(modrm[2..0])] = ones(16) @ (x),
         RM_mem(m) => v(m) = x,
       }
     },
@@ -228,7 +224,7 @@ function dispatch_mmx(op, pfx) = {
       var d : qword = x87_ST[dst][63..0];
       let lo = sel * 16;
       d[(lo + 15) .. lo] = w;
-      write_mm(dst, d)
+      x87_ST[dst] = ones(16) @ (d)
     },
 
     // 0F C5: PEXTRW r32, mm, imm8
@@ -274,7 +270,7 @@ function dispatch_mmx(op, pfx) = {
     219 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
+      x87_ST[dst] = ones(16) @ (x87_ST[dst][63..0] & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F DC-DD: PADDUSB/W mm, mm/m64
@@ -288,7 +284,7 @@ function dispatch_mmx(op, pfx) = {
     223 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, ~(x87_ST[dst][63..0]) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
+      x87_ST[dst] = ones(16) @ (~(x87_ST[dst][63..0]) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F E0: PAVGB mm, mm/m64
@@ -326,7 +322,7 @@ function dispatch_mmx(op, pfx) = {
     235 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] | mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
+      x87_ST[dst] = ones(16) @ (x87_ST[dst][63..0] | mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F EC-ED: PADDSB/W mm, mm/m64
@@ -340,7 +336,7 @@ function dispatch_mmx(op, pfx) = {
     239 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] ^ mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
+      x87_ST[dst] = ones(16) @ (x87_ST[dst][63..0] ^ mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F F1-F3: PSLLW/D/Q mm, mm/m64

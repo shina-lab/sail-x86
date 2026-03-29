@@ -448,14 +448,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let src_val : qword = decode_scalar_src(src);
           mmx_touch();
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
-          write_mm(mm_dst, __f32_to_int32_trunc(src_val[63..32]) @ __f32_to_int32_trunc(src_val[31..0]))
+          x87_ST[mm_dst] = ones(16) @ (__f32_to_int32_trunc(src_val[63..32]) @ __f32_to_int32_trunc(src_val[31..0]))
         },
         // CVTTPD2PI mm, xmm/m128 (66)
         MP_66 => {
           let src_xmm : xmmword = decode_xmm_src(src);
           mmx_touch();
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
-          write_mm(mm_dst, __f64_to_int32_trunc(src_xmm[127..64]) @ __f64_to_int32_trunc(src_xmm[63..0]))
+          x87_ST[mm_dst] = ones(16) @ (__f64_to_int32_trunc(src_xmm[127..64]) @ __f64_to_int32_trunc(src_xmm[63..0]))
         },
       }
     },
@@ -490,14 +490,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let src_val : qword = decode_scalar_src(src);
           mmx_touch();
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
-          write_mm(mm_dst, __f32_to_int32(src_val[63..32]) @ __f32_to_int32(src_val[31..0]))
+          x87_ST[mm_dst] = ones(16) @ (__f32_to_int32(src_val[63..32]) @ __f32_to_int32(src_val[31..0]))
         },
         // CVTPD2PI mm, xmm/m128 (66)
         MP_66 => {
           let src_xmm : xmmword = decode_xmm_src(src);
           mmx_touch();
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
-          write_mm(mm_dst, __f64_to_int32(src_xmm[127..64]) @ __f64_to_int32(src_xmm[63..0]))
+          x87_ST[mm_dst] = ones(16) @ (__f64_to_int32(src_xmm[127..64]) @ __f64_to_int32(src_xmm[63..0]))
         },
       }
     },
@@ -762,7 +762,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let xi = xrm_reg(modrm_xrm(modrm, pfx));
           let mm_dst : range(0, 7) = unsigned(modrm[5..3]);
           mmx_touch();
-          write_mm(mm_dst, read_simd(128, xi)[63..0])
+          x87_ST[mm_dst] = ones(16) @ (read_simd(128, xi)[63..0])
         },
         // F3 0F D6: MOVQ2DQ xmm, mm — SDM: DEST[63:0] := SRC; DEST[127:64] := 0
         MP_F3 => {

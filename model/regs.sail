@@ -189,11 +189,6 @@ function x87_init() = {
 // tag bits as valid (tag word = 0x0000).
 // =========================================================================
 
-val write_mm : (range(0, 7), qword) -> unit
-function write_mm(idx, v) = {
-  x87_ST[idx] = ones(16) @ v
-}
-
 // Called on any MMX instruction: set TOS=0, all tags=valid.
 val mmx_touch : unit -> unit
 function mmx_touch() = {
