@@ -1040,7 +1040,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 32), avx_vpermilps(read_simd(vl, src1_idx), evex_bcast_src(vl, src, pfx, 32)))
@@ -1053,7 +1053,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 64), avx_vpermilpd(read_simd(vl, src1_idx), evex_bcast_src(vl, src, pfx, 64)))
@@ -1115,7 +1115,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let src1_idx = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMI2Q
@@ -1137,7 +1137,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let src1_idx = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMI2PD (same as Q)
@@ -1159,7 +1159,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMT2Q
@@ -1181,7 +1181,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
       // VPERMT2PD

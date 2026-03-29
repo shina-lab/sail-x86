@@ -327,7 +327,7 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+  
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_binop(PB_Pmuldq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64)))
@@ -902,7 +902,7 @@ function dispatch_evex_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     match mp {
       MP_66 => {
         // VPDPWSSD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
@@ -953,7 +953,7 @@ function dispatch_evex_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / eb);

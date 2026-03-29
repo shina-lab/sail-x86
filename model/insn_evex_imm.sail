@@ -652,7 +652,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       1 => evex_write(dst, evex_wmask(pfx, 4), avx_vpermq_imm_256(evex_bcast_src(256, src, pfx, 64), imm)),
@@ -668,7 +668,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       1 => evex_write(dst, evex_wmask(pfx, 4), avx_vpermq_imm_256(evex_bcast_src(256, src, pfx, 64), imm)),
@@ -684,7 +684,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.vex_w, pfx.evex_ll) {
       // VALIGNQ xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512, imm8
@@ -706,7 +706,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       0 => evex_write(dst, evex_wmask(pfx, 4), avx_vpermilps_imm_128(evex_bcast_src(128, src, pfx, 32), imm)),
@@ -723,7 +723,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       0 => evex_write(dst, evex_wmask(pfx, 2), avx_vpermilpd_imm_128(evex_bcast_src(128, src, pfx, 64), imm)),
@@ -1008,7 +1008,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1031,7 +1031,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
     match (pfx.rex_w, pfx.evex_ll) {
@@ -1054,7 +1054,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPTERNLOGQ (m64bcst, W=1)
@@ -1359,7 +1359,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match pfx.evex_ll {
           0 => evex_write(dst, evex_wmask(pfx, 4), avx_vrndscale(32,evex_bcast_src(128, src, pfx, 32), imm)),
@@ -1373,7 +1373,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match pfx.evex_ll {
           0 => {
@@ -1405,7 +1405,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       0 => evex_write(dst, evex_wmask(pfx, 2), avx_vrndscale(64,evex_bcast_src(128, src, pfx, 64), imm)),
@@ -1465,7 +1465,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.vex_w, pfx.evex_ll) {
       (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), avx_shuf_f32x4_256(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 64), imm)),
@@ -1483,7 +1483,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match (pfx.vex_w, pfx.evex_ll) {
           // VGETMANTPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512, imm8
@@ -1503,7 +1503,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match pfx.evex_ll {
           0 => {
@@ -1581,7 +1581,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.vex_w, pfx.evex_ll) {
       (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), avx_shuf_f32x4_256(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 64), imm)),
@@ -1616,7 +1616,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.vex_w, pfx.evex_ll) {
       (true, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_vrange(64,read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), imm)),
@@ -1661,7 +1661,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.vex_w, pfx.evex_ll) {
       // VFIXUPIMMPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512, imm8
@@ -1701,7 +1701,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match (pfx.vex_w, pfx.evex_ll) {
           // VREDUCEPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512, imm8
@@ -1721,7 +1721,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match pfx.evex_ll {
           0 => {
@@ -1783,7 +1783,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst_k : range(0, 7) = unsigned(modrm[5..3]);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match (pfx.vex_w, pfx.evex_ll) {
           // VFPCLASSPD k1, xmm2/ymm2/zmm2/m128/m256/m512, imm8
@@ -1803,7 +1803,7 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst_k : range(0, 7) = unsigned(modrm[5..3]);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-        let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+    
         let imm = fetch(1);
         match pfx.evex_ll {
           0 => {
@@ -1867,7 +1867,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       0 => evex_write(dst, evex_wmask(pfx, 16), avx_gf2p8affineqb(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), imm)),
@@ -1884,7 +1884,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match pfx.evex_ll {
       0 => evex_write(dst, evex_wmask(pfx, 16), avx_gf2p8affineinvqb(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), imm)),
@@ -1917,7 +1917,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPSHLDQ (W=1)
@@ -1955,7 +1955,7 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+
     let imm = fetch(1);
     match (pfx.rex_w, pfx.evex_ll) {
       // VPSHRDQ (W=1)
