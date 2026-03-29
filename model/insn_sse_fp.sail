@@ -62,11 +62,12 @@ function eval_fp_predicate(r, pred) = {
 }
 
 // SSE CMPPS/CMPPD: returns full-width mask (all-ones or all-zeros per element)
-val cmp_pred_f32 : (dword, dword, bits(5)) -> dword
-function cmp_pred_f32(a, b, pred) = sign_extend(eval_fp_predicate(fp_compare(a, b), pred[3..0]))
-
-val cmp_pred_f64 : (qword, qword, bits(5)) -> qword
-function cmp_pred_f64(a, b, pred) = sign_extend(eval_fp_predicate(fp_compare(a, b), pred[3..0]))
+val cmp_pred : forall 'n, 'n in {32, 64}. (bits('n), bits('n), bits(5)) -> bits('n)
+function cmp_pred(a, b, pred) =
+  match('n) {
+    32 => sign_extend(eval_fp_predicate(fp_compare(a, b), pred[3..0])),
+    64 => sign_extend(eval_fp_predicate(fp_compare(a, b), pred[3..0])),
+  }
 
 // EVEX VCMPPS/VCMPPD: returns 1 bit per element (for kmask)
 // pred[3:0] selects comparison; pred[4] only affects signaling (not modeled).
@@ -84,8 +85,7 @@ function packed_cmp_pred(eb, a, b, pred) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = if eb == 32 then cmp_pred_f32(a[hi..lo], b[hi..lo], pred)
-                else cmp_pred_f64(a[hi..lo], b[hi..lo], pred)
+    r[hi..lo] = cmp_pred(a[hi..lo], b[hi..lo], pred)
   };
   r
 }
@@ -802,8 +802,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => ZMM[xreg][127..0] = packed_cmp_pred(32, a, src_xmm, pred),
         MP_66   => ZMM[xreg][127..0] = packed_cmp_pred(64, a, src_xmm, pred),
-        MP_F3   => ZMM[xreg][127..0] = a[127..32] @ cmp_pred_f32(a[31..0], src_xmm[31..0], pred),
-        MP_F2   => ZMM[xreg][127..0] = a[127..64] @ cmp_pred_f64(a[63..0], src_xmm[63..0], pred),
+        MP_F3   => ZMM[xreg][127..0] = a[127..32] @ cmp_pred(a[31..0], src_xmm[31..0], pred),
+        MP_F2   => ZMM[xreg][127..0] = a[127..64] @ cmp_pred(a[63..0], src_xmm[63..0], pred),
       }
     },
     // 0F D0: ADDSUBPS/ADDSUBPD (SSE3)

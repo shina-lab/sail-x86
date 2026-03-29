@@ -679,13 +679,13 @@ function dispatch_vex_0f_fp(op, pfx) = {
       MP_F3 => {
         let src1 : xmmword = read_simd(pfx.vex_vvvv);
         let src2 : xmmword = decode_vex_src(128, src);
-        write_simd(128, dst, src1[127..32] @ cmp_pred_f32(src1[31..0], src2[31..0], pred))
+        write_simd(128, dst, src1[127..32] @ cmp_pred(src1[31..0], src2[31..0], pred))
       },
       // VCMPSD (scalar, VEX.L ignored)
       MP_F2 => {
         let src1 : xmmword = read_simd(pfx.vex_vvvv);
         let src2 : xmmword = decode_vex_src(128, src);
-        write_simd(128, dst, src1[127..64] @ cmp_pred_f64(src1[63..0], src2[63..0], pred))
+        write_simd(128, dst, src1[127..64] @ cmp_pred(src1[63..0], src2[63..0], pred))
       },
     }
   },
