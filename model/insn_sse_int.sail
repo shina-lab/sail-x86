@@ -123,24 +123,6 @@ function mul_hi16u(a, b) = {
   product[31..16]
 }
 
-// PSHUFHW — Shuffle Packed High Words
-// Low qword copied unchanged from src. High qword: 4 words selected
-// from src's high qword by imm8. No flags affected.
-val select_high_word : (xmmword, bits(2)) -> word
-function select_high_word(v, sel) = {
-  let idx : range(0, 3) = unsigned(sel);
-  v[(idx * 16 + 79) .. (idx * 16 + 64)]
-}
-
-// PSHUFLW — Shuffle Packed Low Words
-// High qword copied unchanged from src. Low qword: 4 words selected
-// from src's low qword by imm8. No flags affected.
-val select_low_word : (xmmword, bits(2)) -> word
-function select_low_word(v, sel) = {
-  let idx : range(0, 3) = unsigned(sel);
-  v[(idx * 16 + 15) .. (idx * 16)]
-}
-
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
 // PSRLW/PSRLD/PSRLQ — Shift Packed Data Right Logical
 // PSRAW/PSRAD — Shift Packed Data Right Arithmetic
@@ -815,8 +797,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xi = xrm_reg(modrm_xrm(modrm, pfx));
         let src_xmm : xmmword = read_simd(xi);
         let imm = fetch(1);
-        let sel : nat = unsigned(imm[2..0]);
-        v(reg) = zero_extend(32, (src_xmm >> (sel * 16))[15..0])
+        v(reg) = zero_extend(32, velem(16, src_xmm, imm[2..0]))
       }
     },
 
@@ -1098,7 +1079,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — PEXTRB r/m8, xmm, imm8
     20 => {
       let imm = fetch(1);
-      let x = (ZMM[xreg] >> (unsigned(imm[3..0]) * 8))[7..0];
+      let x = velem(8, ZMM[xreg], imm[3..0]);
       match src {
         RM_reg(_) => {
           let dst_reg = modrm_rm_reg(modrm, pfx);
@@ -1113,9 +1094,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let imm = fetch(1);
       let xmm_src : xmmword = read_simd(xreg);
       if pfx.rex_w then {
-        v(src) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0]
+        v(src) = velem(64, xmm_src, imm[0])
       } else {
-        v(src) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0]
+        v(src) = velem(32, xmm_src, imm[1..0])
       }
     },
 

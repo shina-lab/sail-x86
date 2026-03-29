@@ -94,10 +94,10 @@ function avx_dppd_128(a, b, imm) = {
 // VPERMQ: permute 256-bit qwords based on imm8
 val avx_vpermq : (ymmword, byte) -> ymmword
 function avx_vpermq(src, imm) = {
-  let q0 : qword = (src >> (unsigned(imm[1..0]) * 64))[63..0];
-  let q1 : qword = (src >> (unsigned(imm[3..2]) * 64))[63..0];
-  let q2 : qword = (src >> (unsigned(imm[5..4]) * 64))[63..0];
-  let q3 : qword = (src >> (unsigned(imm[7..6]) * 64))[63..0];
+  let q0 : qword = velem(64, src, imm[1..0]);
+  let q1 : qword = velem(64, src, imm[3..2]);
+  let q2 : qword = velem(64, src, imm[5..4]);
+  let q3 : qword = velem(64, src, imm[7..6]);
   q3 @ q2 @ q1 @ q0
 }
 
@@ -349,7 +349,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xreg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let x : byte = (ZMM[src] >> (unsigned(imm[3..0]) * 8))[7..0];
+    let x : byte = velem(8, ZMM[src], imm[3..0]);
     match dest {
       RM_reg(r) => v(r) = zero_extend(32, x),
       RM_mem(m) => v(m) = x,
@@ -365,8 +365,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xreg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    let sel : range(0, 7) = unsigned(imm[2..0]);
-    let w : word = (ZMM[src] >> (sel * 16))[15..0];
+    let w : word = velem(16, ZMM[src], imm[2..0]);
     match dest {
       RM_reg(r) => v(r) = zero_extend(32, w),
       RM_mem(m) => v(m) = w,
@@ -395,7 +394,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let src = modrm_xreg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     let imm = fetch(1);
-    v(dest) = (ZMM[src] >> (unsigned(imm[1..0]) * 32))[31..0]
+    v(dest) = velem(32, ZMM[src], imm[1..0])
   },
 
   // 0F3A 20: VPINSRB xmm, xmm, r/m8, imm8 (66) — VEX.128 only

@@ -614,23 +614,23 @@ function dispatch_vex_0f_fp(op, pfx) = {
           let src1 : ymmword = read_simd(pfx.vex_vvvv);
           let src2 : ymmword = decode_vex_src(256, src);
           // Low lane: r0-r1 from src1[127..0], r2-r3 from src2[127..0]
-          let r0 : dword = src1[(32*s0+31) .. (32*s0)];
-          let r1 : dword = src1[(32*s1+31) .. (32*s1)];
-          let r2 : dword = src2[(32*s2+31) .. (32*s2)];
-          let r3 : dword = src2[(32*s3+31) .. (32*s3)];
+          let r0 : dword = velem(32, src1, s0);
+          let r1 : dword = velem(32, src1, s1);
+          let r2 : dword = velem(32, src2, s2);
+          let r3 : dword = velem(32, src2, s3);
           // High lane: r4-r5 from src1[255..128], r6-r7 from src2[255..128]
-          let r4 : dword = src1[(32*s0+159) .. (32*s0+128)];
-          let r5 : dword = src1[(32*s1+159) .. (32*s1+128)];
-          let r6 : dword = src2[(32*s2+159) .. (32*s2+128)];
-          let r7 : dword = src2[(32*s3+159) .. (32*s3+128)];
+          let r4 : dword = velem(32, src1, s0 + 4);
+          let r5 : dword = velem(32, src1, s1 + 4);
+          let r6 : dword = velem(32, src2, s2 + 4);
+          let r7 : dword = velem(32, src2, s3 + 4);
           write_simd(256, dst, r7 @ r6 @ r5 @ r4 @ r3 @ r2 @ r1 @ r0)
         } else {
           let src1 : xmmword = read_simd(pfx.vex_vvvv);
           let src2 : xmmword = decode_vex_src(128, src);
-          let r0 : dword = src1[(32*s0+31) .. (32*s0)];
-          let r1 : dword = src1[(32*s1+31) .. (32*s1)];
-          let r2 : dword = src2[(32*s2+31) .. (32*s2)];
-          let r3 : dword = src2[(32*s3+31) .. (32*s3)];
+          let r0 : dword = velem(32, src1, s0);
+          let r1 : dword = velem(32, src1, s1);
+          let r2 : dword = velem(32, src2, s2);
+          let r3 : dword = velem(32, src2, s3);
           write_simd(128, dst, r3 @ r2 @ r1 @ r0)
         }
       },

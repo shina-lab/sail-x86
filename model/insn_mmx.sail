@@ -145,10 +145,10 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let src : qword = mmx_read_rm(modrm, src);
       let imm = fetch(1);
-      let w0 : word = (src >> (unsigned(imm[1..0]) * 16))[15..0];
-      let w1 : word = (src >> (unsigned(imm[3..2]) * 16))[15..0];
-      let w2 : word = (src >> (unsigned(imm[5..4]) * 16))[15..0];
-      let w3 : word = (src >> (unsigned(imm[7..6]) * 16))[15..0];
+      let w0 : word = velem(16, src, imm[1..0]);
+      let w1 : word = velem(16, src, imm[3..2]);
+      let w2 : word = velem(16, src, imm[5..4]);
+      let w3 : word = velem(16, src, imm[7..6]);
       x87_ST[dst] = ones(16) @ (w3 @ w2 @ w1 @ w0)
     },
 

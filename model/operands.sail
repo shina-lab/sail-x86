@@ -331,6 +331,23 @@ function get_address_size(pfx) =
   }
 
 // =========================================================================
+// SIMD element extraction
+// =========================================================================
+
+// Extract the i-th element of width 'eb from a bitvector.
+// velem(32, src, 2) returns src[95..64] — the third dword.
+// Index can be nat or bitvector.
+val velem_nat : forall 'vl 'eb, 'vl > 0 & 'eb > 0 & 'vl >= 'eb.
+  (int('eb), bits('vl), nat) -> bits('eb)
+function velem_nat(eb, v, i) = (v >> (i * eb))[('eb - 1) .. 0]
+
+val velem_bits : forall 'vl 'eb 'ib, 'vl > 0 & 'eb > 0 & 'vl >= 'eb & 'ib > 0.
+  (int('eb), bits('vl), bits('ib)) -> bits('eb)
+function velem_bits(eb, v, i) = (v >> (unsigned(i) * eb))[('eb - 1) .. 0]
+
+overload velem = {velem_nat, velem_bits}
+
+// =========================================================================
 // SIMD register index helpers (extending 3-bit fields with REX bits)
 // =========================================================================
 

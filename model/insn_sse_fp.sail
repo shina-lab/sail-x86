@@ -91,13 +91,6 @@ function packed_cmp_pred(eb, a, b, pred) = {
   r
 }
 
-// SHUFPS helper: select one of four dwords by 2-bit index
-val select_dword : (xmmword, bits(2)) -> dword
-function select_dword(v, sel) = {
-  let idx : range(0, 3) = unsigned(sel);
-  v[(idx * 32 + 31) .. (idx * 32)]
-}
-
 val dispatch_2byte_sse_fp : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_sse_fp(op, pfx) = {
   match op {
@@ -566,10 +559,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       match mp {
         MP_NONE => {
           let d : xmmword = read_simd(xreg);
-          let d0 : dword = select_dword(d, imm[1..0]);
-          let d1 : dword = select_dword(d, imm[3..2]);
-          let d2 : dword = select_dword(src_xmm, imm[5..4]);
-          let d3 : dword = select_dword(src_xmm, imm[7..6]);
+          let d0 : dword = velem(32, d, imm[1..0]);
+          let d1 : dword = velem(32, d, imm[3..2]);
+          let d2 : dword = velem(32, src_xmm, imm[5..4]);
+          let d3 : dword = velem(32, src_xmm, imm[7..6]);
           ZMM[xreg][127..0] = d3 @ d2 @ d1 @ d0
         },
         MP_66 => {
@@ -866,7 +859,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     21 => {
       let imm = fetch(1);
       let sel : range(0, 7) = unsigned(imm[2..0]);
-      let w : word = (ZMM[xreg] >> (sel * 16))[15..0];
+      let w : word = velem(16, ZMM[xreg], sel);
       match src {
         XRM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = zero_extend(32, w),
         XRM_mem(m) => v(m) = w,
@@ -876,7 +869,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // EXTRACTPS r/m32, xmm, imm8
     23 => {
       let imm = fetch(1);
-      let data = (ZMM[xreg] >> (unsigned(imm[1..0]) * 32))[31..0];
+      let data = velem(32, ZMM[xreg], imm[1..0]);
       match src {
         XRM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = data,
         XRM_mem(m) => v(m) = data,
