@@ -7,6 +7,39 @@
 val evex_get_mask32 : Prefixes -> dword
 function evex_get_mask32(pfx) = evex_kmask64(pfx)[31..0]
 
+// EVEX FP16 binary arithmetic helper for PH/SH with {er} support.
+val evex_fp16_binop_er : (PackedBinOp, simd_idx, XRM, MandatoryPrefix, Prefixes) -> unit
+function evex_fp16_binop_er(op, dst, src, mp, pfx) = {
+  let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+  match mp {
+    MP_NONE => {
+      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
+      let vl = ll_to_vl(eff_ll);
+      evex_write(dst, evex_wmask(pfx, vl / 16), packed_binop(op, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
+      evex_end_rc(saved)
+    },
+    MP_F3 => {
+      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+      evex_write_scalar(dst, src1[127..16] @ packed_elem_op(op, src1[15..0], decode_scalar_src(16, src)), pfx, 16)
+    },
+    _ => raise_UD(),
+  }
+}
+
+// EVEX FP16 binary arithmetic helper for PH/SH without {er} (MIN/MAX).
+val evex_fp16_binop : (PackedBinOp, simd_idx, XRM, MandatoryPrefix, Prefixes) -> unit
+function evex_fp16_binop(op, dst, src, mp, pfx) = match mp {
+  MP_NONE => {
+    let vl = evex_vl(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / 16), packed_binop(op, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)))
+  },
+  MP_F3 => {
+    let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+    evex_write_scalar(dst, src1[127..16] @ packed_elem_op(op, src1[15..0], decode_scalar_src(16, src)), pfx, 16)
+  },
+  _ => raise_UD(),
+}
+
 // =========================================================================
 // FP16 broadcast helpers
 // =========================================================================
@@ -308,146 +341,52 @@ function dispatch_evex_map5(opcode, pfx) = {
       }
     },
 
-    // MAP5 0x58: VADDPH (NP, W=0) or VADDSH (F3, W=0)
+    // MAP5 0x58: VADDPH/VADDSH
     88 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-          let vl = ll_to_vl(eff_ll);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FAdd, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-          evex_end_rc(saved)
-        },
-        MP_F3 => {
-          // VADDSH: scalar FP16 add (lowest 16 bits)
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_add(src1[15..0], src2);
-          let result : xmmword = src1[127..16] @ r;
-          write_simd(128, dst, result)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop_er(PB_FAdd, dst, src, mp, pfx)
     },
 
-    // MAP5 0x59: VMULPH (NP, W=0) or VMULSH (F3, W=0)
+    // MAP5 0x59: VMULPH/VMULSH
     89 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-          let vl = ll_to_vl(eff_ll);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FMul, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-          evex_end_rc(saved)
-        },
-        MP_F3 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_mul(src1[15..0], src2);
-          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop_er(PB_FMul, dst, src, mp, pfx)
     },
 
-    // MAP5 0x5C: VSUBPH (NP, W=0) or VSUBSH (F3, W=0)
+    // MAP5 0x5C: VSUBPH/VSUBSH
     92 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-          let vl = ll_to_vl(eff_ll);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FSub, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-          evex_end_rc(saved)
-        },
-        MP_F3 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_sub(src1[15..0], src2);
-          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop_er(PB_FSub, dst, src, mp, pfx)
     },
 
-    // MAP5 0x5D: VMINPH (NP, W=0) or VMINSH (F3, W=0)
+    // MAP5 0x5D: VMINPH/VMINSH
     93 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let vl = evex_vl(pfx);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FMin, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-        },
-        MP_F3 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_min(src1[15..0], src2);
-          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop(PB_FMin, dst, src, mp, pfx)
     },
 
-    // MAP5 0x5E: VDIVPH (NP, W=0) or VDIVSH (F3, W=0)
+    // MAP5 0x5E: VDIVPH/VDIVSH
     94 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-          let vl = ll_to_vl(eff_ll);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FDiv, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-          evex_end_rc(saved)
-        },
-        MP_F3 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_div(src1[15..0], src2);
-          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop_er(PB_FDiv, dst, src, mp, pfx)
     },
 
-    // MAP5 0x5F: VMAXPH (NP, W=0) or VMAXSH (F3, W=0)
+    // MAP5 0x5F: VMAXPH/VMAXSH
     95 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match mp {
-        MP_NONE => {
-          let vl = evex_vl(pfx);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_binop(PB_FMax, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 16)));
-        },
-        MP_F3 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = decode_scalar_src(src);
-          let r : word = fp_max(src1[15..0], src2);
-          evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-        },
-        _ => raise_UD(),
-      }
+      evex_fp16_binop(PB_FMax, dst, src, mp, pfx)
     },
 
     // MAP5 0x5A: VCVTPH2PD (NP), VCVTSH2SD (F3), VCVTPD2PH (66/W1), VCVTSD2SH (F2/W1)
