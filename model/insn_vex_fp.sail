@@ -11,7 +11,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 10: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (load)
   16 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     match mp {
       // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
@@ -64,7 +64,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 11: VMOVUPS/VMOVUPD/VMOVSS/VMOVSD (store)
   17 => {
     let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_xreg(modrm, pfx);
     let dest = modrm_xrm(modrm, pfx);
     match mp {
       // VMOVUPS (NP) / VMOVUPD (66) — vvvv reserved
@@ -120,7 +120,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 12: VMOVLPS/VMOVHLPS (NP) / VMOVLPD (66) / VMOVSLDUP (F3) / VMOVDDUP (F2)
   18 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src2 = modrm_xrm(modrm, pfx);
     match mp {
       MP_NONE => {
@@ -183,7 +183,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   19 => {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_xreg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     rm_mem(64, dest) = read_simd(128, src)[63..0]
   },
@@ -204,7 +204,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 16: VMOVHPS/VMOVLHPS (NP) / VMOVHPD (66) / VMOVSHDUP (F3)
   22 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src2 = modrm_xrm(modrm, pfx);
     match mp {
       MP_NONE => {
@@ -255,7 +255,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   23 => {
     if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_xreg(modrm, pfx);
     let dest = modrm_rm(modrm, pfx);
     rm_mem(64, dest) = read_simd(128, src)[127..64]
   },
@@ -264,7 +264,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   40 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     match src {
@@ -281,7 +281,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   41 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_xreg(modrm, pfx);
     let dest = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     match dest {
@@ -297,7 +297,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F 2A: VCVTSI2SS (F3) / VCVTSI2SD (F2) — int to scalar float
   42 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
     let src1 : xmmword = read_simd(pfx.vex_vvvv);
     match mp {
@@ -330,7 +330,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   43 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src = modrm_xmm_reg(modrm, pfx);
+    let src = modrm_xreg(modrm, pfx);
     let dest = modrm_xrm(modrm, pfx);
     match dest {
       XRM_mem(m) => {
@@ -409,7 +409,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   46 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src_reg = modrm_xmm_reg(modrm, pfx);
+    let src_reg = modrm_xreg(modrm, pfx);
     let src2 = modrm_xrm(modrm, pfx);
     match mp {
       // VUCOMISS xmm1, xmm2/m32
@@ -457,7 +457,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   47 => {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
-    let src_reg = modrm_xmm_reg(modrm, pfx);
+    let src_reg = modrm_xreg(modrm, pfx);
     let src2 = modrm_xrm(modrm, pfx);
     match mp {
       // VCOMISS xmm1, xmm2/m32
@@ -539,7 +539,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // Packed variants (NP/66) support 128/256-bit via VEX.L; scalar variants (F3/F2) are 128-bit only.
   op if 81 <= op & op <= 95 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let col : range(0, 15) = op - 80;
     let vl = vex_vl(pfx);
@@ -660,7 +660,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F C2: VCMPPS/VCMPPD/VCMPSS/VCMPSD imm8
   194 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let imm = fetch(1);
     let pred : bits(5) = imm[4..0];
@@ -693,7 +693,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
   // 0F C6: VSHUFPS (NP) / VSHUFPD (66) imm8
   198 => {
     let modrm = fetch(1);
-    let dst = modrm_xmm_reg(modrm, pfx);
+    let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let imm = fetch(1);
     match mp {

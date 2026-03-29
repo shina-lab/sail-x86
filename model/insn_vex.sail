@@ -99,7 +99,7 @@ function decode_vex_src(vl, modrm, xm, pfx) = match xm {
 val vex_exec_unpack : ({8, 16, 32, 64}, {0, 64}, Prefixes) -> unit
 function vex_exec_unpack(eb, half, pfx) = {
   let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
+  let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_unpack(eb, half, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
@@ -110,7 +110,7 @@ val vex_exec_pack : forall 'src 'dst, 'src in {16, 32} & 'dst in {8, 16} & 'src 
   (PackedNarrowOp, int('src), int('dst), Prefixes) -> unit
 function vex_exec_pack(op, src_eb, dst_eb, pfx) = {
   let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
+  let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_pack(op, src_eb, dst_eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
@@ -120,7 +120,7 @@ function vex_exec_pack(op, src_eb, dst_eb, pfx) = {
 val vex_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
 function vex_exec_shift(op, eb, pfx) = {
   let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
+  let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let c : nat = unsigned(decode_vex_src(128, modrm, src, pfx)[63..0]);
   let vl = vex_vl(pfx);
@@ -131,7 +131,7 @@ function vex_exec_shift(op, eb, pfx) = {
 val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
 function vex_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
-  let dst = modrm_xmm_reg(modrm, pfx);
+  let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))

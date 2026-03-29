@@ -389,7 +389,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(src);
         match op3 {
@@ -428,7 +428,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
           if ~(has_sha) then raise_UD();
           let modrm = fetch(1);
-          let xreg = modrm_xmm_reg(modrm, pfx);
+          let xreg = modrm_xreg(modrm, pfx);
           let src = modrm_xrm(modrm, pfx);
           let src_xmm : xmmword = decode_xmm_src(src);
           let imm : byte = fetch(1);

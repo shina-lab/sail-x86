@@ -334,10 +334,6 @@ function get_address_size(pfx) =
 // SIMD register index helpers (extending 3-bit fields with REX bits)
 // =========================================================================
 
-val modrm_xmm_reg : (byte, Prefixes) -> simd_idx
-function modrm_xmm_reg(modrm, pfx) =
+val modrm_xreg : (byte, Prefixes) -> simd_idx
+function modrm_xreg(modrm, pfx) =
   unsigned(pfx.rex_r @ modrm[5..3])
-
-val modrm_xmm_rm : (byte, Prefixes) -> simd_idx
-function modrm_xmm_rm(modrm, pfx) =
-  unsigned(pfx.rex_b @ modrm[2..0])

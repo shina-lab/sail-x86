@@ -17,7 +17,7 @@ function sse_exec_binop(op, binop_op, eb, pfx) = {
   if mp != MP_66 then dispatch_mmx(op, pfx)
   else {
     let modrm = fetch(1);
-    let xreg = modrm_xmm_reg(modrm, pfx);
+    let xreg = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let src_xmm : xmmword = decode_xmm_src(src);
     ZMM[xreg][127..0] = packed_binop(binop_op, eb, read_simd(xreg), src_xmm)
@@ -31,7 +31,7 @@ function sse_exec_unop(op, unop_op, eb, pfx) = {
   if mp != MP_66 then dispatch_mmx(op, pfx)
   else {
     let modrm = fetch(1);
-    let xreg = modrm_xmm_reg(modrm, pfx);
+    let xreg = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let src_xmm : xmmword = decode_xmm_src(src);
     ZMM[xreg][127..0] = packed_unop(unop_op, eb, src_xmm)
@@ -45,7 +45,7 @@ function sse_exec_shift(op, shift_op, eb, pfx) = {
   if mp != MP_66 then dispatch_mmx(op, pfx)
   else {
     let modrm = fetch(1);
-    let xreg = modrm_xmm_reg(modrm, pfx);
+    let xreg = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let src_xmm : xmmword = decode_xmm_src(src);
     let c : nat = unsigned(src_xmm[63..0]);
@@ -482,7 +482,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(src);
         let d : xmmword = read_simd(xreg);
@@ -515,7 +515,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_66 then raise_UD();
       let modrm = fetch(1);
-      let xreg = modrm_xmm_reg(modrm, pfx);
+      let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(src);
       ZMM[xreg][127..0] = packed_unpack(64, 0, read_simd(xreg), src_xmm)
@@ -526,7 +526,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_66 then raise_UD();
       let modrm = fetch(1);
-      let xreg = modrm_xmm_reg(modrm, pfx);
+      let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
       let src_xmm : xmmword = decode_xmm_src(src);
       ZMM[xreg][127..0] = packed_unpack(64, 64, read_simd(xreg), src_xmm)
@@ -540,7 +540,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         match (src, pfx.rex_w) {
           (RM_reg(r), true)  => ZMM[xreg][127..0] = zero_extend(v(64, r)),
@@ -559,7 +559,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       } else {
         if mp != MP_66 & mp != MP_F3 then raise_UD();
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         // MOVDQA (66) requires 16-byte alignment; MOVDQU (F3) does not
         if mp == MP_66 then {
@@ -577,7 +577,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         let src_xmm : xmmword = decode_xmm_src(src);
         let imm = fetch(1);
@@ -638,7 +638,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         match mp {
           // MOVD/MOVQ r/m, xmm
           MP_66 => {
-            let src_xmm = modrm_xmm_reg(modrm, pfx);
+            let src_xmm = modrm_xreg(modrm, pfx);
             let x : xmmword = read_simd(src_xmm);
             match (src, pfx.rex_w) {
               (RM_reg(r), true)  => v(r) = x[63..0],
@@ -649,7 +649,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
           },
           // MOVQ xmm1, xmm2/m64
           MP_F3 => {
-            let xreg = modrm_xmm_reg(modrm, pfx);
+            let xreg = modrm_xreg(modrm, pfx);
             match src {
               RM_reg(_) => {
                 let xi = unsigned(pfx.rex_b @ modrm[2..0]);
@@ -673,7 +673,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let dest = modrm_xrm(modrm, pfx);
         match dest {
           XRM_reg(xi) => {
@@ -714,7 +714,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp != MP_66 then dispatch_mmx(op, pfx)
       else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         ZMM[xreg][127..0] = read_simd(xreg) & decode_xmm_src(src)
       }
@@ -726,7 +726,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp != MP_66 then dispatch_mmx(op, pfx)
       else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         ZMM[xreg][127..0] = ~(read_simd(xreg)) & decode_xmm_src(src)
       }
@@ -741,7 +741,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp != MP_66 then dispatch_mmx(op, pfx)
       else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         ZMM[xreg][127..0] = read_simd(xreg) | decode_xmm_src(src)
       }
@@ -753,7 +753,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp != MP_66 then dispatch_mmx(op, pfx)
       else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
         ZMM[xreg][127..0] = read_simd(xreg) ^ decode_xmm_src(src)
       }
@@ -792,7 +792,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       } else {
         if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let dest = modrm_rm(modrm, pfx);
         check_alignment(dest, 16);
         rm_mem(dest) = read_simd(128, xreg)
@@ -806,7 +806,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
         let x : word = v(src);
         let imm = fetch(1);
@@ -847,7 +847,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let src_xmm = modrm_xmm_reg(modrm, pfx);
+        let src_xmm = modrm_xreg(modrm, pfx);
         let dest = modrm_xrm(modrm, pfx);
         let x : qword = read_simd(128, src_xmm)[63..0];
         match dest {
@@ -885,7 +885,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let mp = get_mandatory_prefix(pfx);
       if mp != MP_F2 then raise_UD();
       let modrm = fetch(1);
-      let xreg = modrm_xmm_reg(modrm, pfx);
+      let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
       write_simd(128, xreg, rm_mem(src))
     },
@@ -904,7 +904,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         dispatch_mmx(op, pfx)
       } else {
         let modrm = fetch(1);
-        let xreg = modrm_xmm_reg(modrm, pfx);
+        let xreg = modrm_xreg(modrm, pfx);
         let xi = xrm_reg(modrm_xrm(modrm, pfx));
         let src_xmm : xmmword = read_simd(xi);
         let addr = v(64, RDI);
@@ -931,7 +931,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
   let mp = get_mandatory_prefix(pfx);
   if mp != MP_66 then raise_UD();
   let modrm = fetch(1);
-  let xreg = modrm_xmm_reg(modrm, pfx);
+  let xreg = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
 
   // PMOVSX/PMOVZX read less than 128 bits from memory (no alignment check).
@@ -1148,7 +1148,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
   let mp = get_mandatory_prefix(pfx);
   if mp != MP_66 then raise_UD();
   let modrm = fetch(1);
-  let xreg = modrm_xmm_reg(modrm, pfx);
+  let xreg = modrm_xreg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
   let xsrc : XRM = match src {
     RM_reg(_) => XRM_reg(unsigned(pfx.rex_b @ modrm[2..0])),

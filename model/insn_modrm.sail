@@ -343,7 +343,7 @@ function modrm_rm(modrm, pfx) = {
 // Decode ModR/M r/m as a SIMD register-or-memory operand.
 val modrm_xrm : (byte, Prefixes) -> XRM
 function modrm_xrm(modrm, pfx) = match modrm_rm(modrm, pfx) {
-  RM_reg(_) => XRM_reg(modrm_xmm_rm(modrm, pfx)),
+  RM_reg(_) => XRM_reg(unsigned(pfx.rex_b @ modrm[2..0])),
   RM_mem(m) => XRM_mem(m),
 }
 

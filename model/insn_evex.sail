@@ -26,10 +26,11 @@ function evex_rm_reg_idx(modrm, pfx) = {
 
 // Decode ModR/M r/m as a SIMD register-or-memory operand with EVEX compressed disp8.
 val modrm_xrm_evex : (byte, Prefixes, range(1, 64)) -> XRM
-function modrm_xrm_evex(modrm, pfx, disp_n) = match modrm_rm_evex(modrm, pfx, disp_n) {
-  RM_reg(_) => XRM_reg(evex_rm_reg_idx(modrm, pfx)),
-  RM_mem(m) => XRM_mem(m),
-}
+function modrm_xrm_evex(modrm, pfx, disp_n) =
+  match modrm_rm_evex(modrm, pfx, disp_n) {
+    RM_reg(_) => XRM_reg(evex_rm_reg_idx(modrm, pfx)),
+    RM_mem(m) => XRM_mem(m),
+  }
 
 // Fetch and decode ModR/M byte with EVEX compressed disp8.
 // Returns 5-bit destination register index and XRM operand.
