@@ -1091,12 +1091,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     15 => {
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
-      let d : xmmword = read_simd(xreg);
-      let s : xmmword = src_xmm;
-      let concat : ymmword = d @ s;
-      let shift_bytes : range(0, 255) = unsigned(imm);
-      let r : xmmword = (concat >> (shift_bytes * 8))[127..0];
-      ZMM[xreg][127..0] = r
+      let concat : ymmword = read_simd(xreg) @ src_xmm;
+      ZMM[xreg][127..0] = (concat >> (unsigned(imm) * 8))[127..0]
     },
 
     // SSE4.1 — PEXTRB r/m8, xmm, imm8
@@ -1126,11 +1122,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — PINSRB xmm, r/m8, imm8
     32 => {
       let imm = fetch(1);
-      let x : byte = v(src);
-      let v_0 : xmmword = read_simd(xreg);
-      let sel : range(0, 15) = unsigned(imm[3..0]);
-      let r : xmmword = insert_byte(v_0, x, sel);
-      ZMM[xreg][127..0] = r
+      ZMM[xreg][127..0] = insert_byte(read_simd(xreg), v(src), unsigned(imm[3..0]))
     },
 
     // SSE4.1 — PINSRD/PINSRQ xmm, r/m, imm8

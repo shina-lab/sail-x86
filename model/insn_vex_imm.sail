@@ -94,14 +94,10 @@ function avx_dppd_128(a, b, imm) = {
 // VPERMQ: permute 256-bit qwords based on imm8
 val avx_vpermq : (ymmword, byte) -> ymmword
 function avx_vpermq(src, imm) = {
-  let sel0 : range(0, 3) = unsigned(imm[1..0]);
-  let sel1 : range(0, 3) = unsigned(imm[3..2]);
-  let sel2 : range(0, 3) = unsigned(imm[5..4]);
-  let sel3 : range(0, 3) = unsigned(imm[7..6]);
-  let q0 : qword = match sel0 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
-  let q1 : qword = match sel1 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
-  let q2 : qword = match sel2 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
-  let q3 : qword = match sel3 { 0 => src[63..0], 1 => src[127..64], 2 => src[191..128], 3 => src[255..192] };
+  let q0 : qword = (src >> (unsigned(imm[1..0]) * 64))[63..0];
+  let q1 : qword = (src >> (unsigned(imm[3..2]) * 64))[63..0];
+  let q2 : qword = (src >> (unsigned(imm[5..4]) * 64))[63..0];
+  let q3 : qword = (src >> (unsigned(imm[7..6]) * 64))[63..0];
   q3 @ q2 @ q1 @ q0
 }
 
@@ -174,60 +170,22 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
-  // 0F3A 30: KSHIFTRW (66,W1) / KSHIFTRB (66,W0)
-  48 => {
+  // 0F3A 30-33: KSHIFTR/L {B,W,D,Q}
+  // 30=KSHIFTR B/W, 31=KSHIFTR D/Q, 32=KSHIFTL B/W, 33=KSHIFTL D/Q
+  op if 48 <= op & op <= 51 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let k1 : range(0, 7) = unsigned(modrm[5..3]);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let imm = fetch(1);
-    let shift : range(0, 255) = unsigned(imm);
+    let shift : range(0, 255) = unsigned(fetch(1));
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
-    let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
+    let mask : qword = if op == 48 | op == 50
+      then (0x000000000000FF00 & w_mask) | 0x00000000000000FF
+      else (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
     let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, (src >> shift) & mask)
-  },
-
-  // 0F3A 31: KSHIFTRD (66,W0) / KSHIFTRQ (66,W1)
-  49 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let imm = fetch(1);
-    let shift : range(0, 255) = unsigned(imm);
-    let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
-    let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
-    let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, (src >> shift) & mask)
-  },
-
-  // 0F3A 32: KSHIFTLW (66,W1) / KSHIFTLB (66,W0)
-  50 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let imm = fetch(1);
-    let shift : range(0, 255) = unsigned(imm);
-    let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
-    let mask : qword = (0x000000000000FF00 & w_mask) | 0x00000000000000FF;
-    let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, (src << shift) & mask)
-  },
-
-  // 0F3A 33: KSHIFTLD (66,W0) / KSHIFTLQ (66,W1)
-  51 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
-    let k2 : range(0, 7) = unsigned(modrm[2..0]);
-    let imm = fetch(1);
-    let shift : range(0, 255) = unsigned(imm);
-    let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
-    let mask : qword = (0xFFFFFFFF00000000 & w_mask) | 0x00000000FFFFFFFF;
-    let src : qword = read_kreg(k2) & mask;
-    write_kreg(k1, (src << shift) & mask)
+    if op <= 49
+    then write_kreg(k1, (src >> shift) & mask)
+    else write_kreg(k1, (src << shift) & mask)
   },
 
   // 0F3A 1D: VCVTPS2PH xmm/m64/m128, xmm/ymm, imm8 (66 prefix)
@@ -275,32 +233,13 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     v(os, dst) = rotr(src, shift);
   },
 
-  // 0F3A 00: VPERMQ ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
-  0 => {
-    if mp != MP_66 then raise_UD();
-    if ~(pfx.vex_l) then raise_UD();
-    if ~(pfx.vex_w) then raise_UD();
-    if pfx.vex_vvvv != 0 then raise_UD();
+  // 0F3A 00: VPERMQ / 0F3A 01: VPERMPD — ymm1, ymm2/m256, imm8 (66, W1, VEX.256)
+  op if op == 0 | op == 1 => {
+    if mp != MP_66 | ~(pfx.vex_l) | ~(pfx.vex_w) | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
-    let src2 = modrm_xrm(modrm, pfx);
-    let src : ymmword = decode_vex_src(256, src2);
+    let src : ymmword = decode_vex_src(256, modrm_xrm(modrm, pfx));
     let imm = fetch(1);
-    write_simd(256, dst, avx_vpermq(src, imm))
-  },
-
-  // 0F3A 01: VPERMPD ymm1, ymm2/m256, imm8 (66, W1) — VEX.256 only
-  1 => {
-    if mp != MP_66 then raise_UD();
-    if ~(pfx.vex_l) then raise_UD();
-    if ~(pfx.vex_w) then raise_UD();
-    if pfx.vex_vvvv != 0 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src2 = modrm_xrm(modrm, pfx);
-    let src : ymmword = decode_vex_src(256, src2);
-    let imm = fetch(1);
-    // Same permutation as VPERMQ — permute qwords (doubles are 64-bit like qwords)
     write_simd(256, dst, avx_vpermq(src, imm))
   },
 
@@ -331,38 +270,24 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     write_simd(vl, dst, avx_roundpd(src, imm))
   },
 
-  // 0F3A 0A: VROUNDSS xmm, xmm, xmm/m32, imm8 (66) — VEX.128 only, has vvvv source
+  // 0F3A 0A: VROUNDSS xmm, xmm, xmm/m32, imm8 (66) — VEX.128 only
   10 => {
-    if mp != MP_66 then raise_UD();
-    if pfx.vex_l then raise_UD();
+    if mp != MP_66 | pfx.vex_l then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
-    let src1 : xmmword = read_simd(pfx.vex_vvvv);
-    let src2_lo : dword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[31..0],
-      XRM_mem(m)  => v(m),
-    };
     let imm = fetch(1);
-    let rounded : dword = fp_round(src2_lo, imm);
-    write_simd(128, dst, src1[127..32] @ rounded)
+    write_simd(128, dst, read_simd(128, pfx.vex_vvvv)[127..32] @ fp_round(decode_scalar_src(src) : dword, imm))
   },
 
-  // 0F3A 0B: VROUNDSD xmm, xmm, xmm/m64, imm8 (66) — VEX.128 only, has vvvv source
+  // 0F3A 0B: VROUNDSD xmm, xmm, xmm/m64, imm8 (66) — VEX.128 only
   11 => {
-    if mp != MP_66 then raise_UD();
-    if pfx.vex_l then raise_UD();
+    if mp != MP_66 | pfx.vex_l then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
-    let src1 : xmmword = read_simd(pfx.vex_vvvv);
-    let src2_lo : qword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[63..0],
-      XRM_mem(m)  => v(m),
-    };
     let imm = fetch(1);
-    let rounded : qword = fp_round(src2_lo, imm);
-    write_simd(128, dst, src1[127..64] @ rounded)
+    write_simd(128, dst, read_simd(128, pfx.vex_vvvv)[127..64] @ fp_round(decode_scalar_src(src) : qword, imm))
   },
 
   // 0F3A 0C: VBLENDPS xmm/ymm, xmm/ymm, xmm/ymm/m, imm8 (66)
