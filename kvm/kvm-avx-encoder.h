@@ -157,6 +157,12 @@ struct Vex {
     v.push_back(0x00 | ((reg & 7) << 3) | 7);  // mod=00, rm=111 (rdi)
     return v;
   }
+
+  std::vector<u8> encode_rm_mem_imm(u8 imm) const {
+    auto v = encode_rm_mem();
+    v.push_back(imm);
+    return v;
+  }
 };
 
 // =========================================================================

@@ -612,23 +612,19 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     write_simd(128, dst, avx_phminposuw_128(src))
   },
 
-  // 0F38 0E: VTESTPS xmm, xmm/m128 or ymm, ymm/m256 (VEX.128/256.66.0F38.W0)
-  // SDM: VEX.vvvv must be 1111b
-  // Sets ZF if AND(src1, src2) == 0; sets CF if AND(NOT src1, src2) == 0
-  // VTESTPS (0F38 0E) / VTESTPD (0F38 0F) — bit-level identical
-  // Clears OF, AF, PF, SF
+  // VTESTPS (0F38 0E) / VTESTPD (0F38 0F)
+  // VEX.128/256.66.0F38.W0, vvvv must be 1111b
+  // ZF ← AND(SRC, DEST) == 0; CF ← AND(SRC, NOT(DEST)) == 0
   op if op == 14 | op == 15 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 | pfx.vex_w then raise_UD();
     let modrm = fetch(1);
     let src1_idx = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    // Read at 256 bits always; for L=0 upper 128 are zeros
-    let src1 : ymmword = read_simd(256, src1_idx);
-    let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-    let tmp1 : ymmword = src1 & src2;
-    let tmp2 : ymmword = ~(src1) & src2;
-    ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
-    CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
+    let vl = vex_vl(pfx);
+    let src1 = read_simd(vl, src1_idx);
+    let src2 = decode_vex_src(vl, modrm, src, pfx);
+    ZF = is_zero(src1 & src2);
+    CF = is_zero(~(src1) & src2);
     OF = 0b0;
     AF = 0b0;
     PF = 0b0;
@@ -1076,21 +1072,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let src1_idx = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_l then {
-      let src1 : ymmword = read_simd(src1_idx);
-      let src2 : ymmword = decode_vex_src(256, modrm, src, pfx);
-      let tmp1 : ymmword = src1 & src2;
-      let tmp2 : ymmword = ~(src1) & src2;
-      ZF = is_zero(tmp1[255..192] | tmp1[191..128] | tmp1[127..64] | tmp1[63..0]);
-      CF = is_zero(tmp2[255..192] | tmp2[191..128] | tmp2[127..64] | tmp2[63..0]);
-    } else {
-      let src1 : xmmword = read_simd(src1_idx);
-      let src2 : xmmword = decode_vex_src(128, modrm, src, pfx);
-      let tmp1 : xmmword = src1 & src2;
-      let tmp2 : xmmword = ~(src1) & src2;
-      ZF = is_zero(tmp1[127..64] | tmp1[63..0]);
-      CF = is_zero(tmp2[127..64] | tmp2[63..0]);
-    };
+    let vl = vex_vl(pfx);
+    let src1 = read_simd(vl, src1_idx);
+    let src2 = decode_vex_src(vl, modrm, src, pfx);
+    ZF = is_zero(src1 & src2);
+    CF = is_zero(~(src1) & src2);
     OF = 0b0;
     AF = 0b0;
     PF = 0b0;

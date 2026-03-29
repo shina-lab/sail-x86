@@ -259,6 +259,24 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VTESTPD xmm", cat, v.encode_rr(), s, FL_CF | FL_ZF, 0, false});
     v.L = true;
     tests.push_back({"VTESTPD ymm", cat, v.encode_rr(), s, FL_CF | FL_ZF, 0, false});
+
+    // Memory forms: src2 from [rdi] (all-zero memory → ZF=1, CF=0)
+    s.rdi = DATA_ADDR;
+    std::vector<u8> data(32, 0);
+    v.opcode = 0x0E; v.reg = 1;
+    v.L = false;
+    { TestCase tc = {"VTESTPS xmm [rdi]", cat, v.encode_rm_mem(), s, FL_CF | FL_ZF, 0, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.L = true;
+    { TestCase tc = {"VTESTPS ymm [rdi]", cat, v.encode_rm_mem(), s, FL_CF | FL_ZF, 0, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.opcode = 0x0F;
+    v.L = false;
+    { TestCase tc = {"VTESTPD xmm [rdi]", cat, v.encode_rm_mem(), s, FL_CF | FL_ZF, 0, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.L = true;
+    { TestCase tc = {"VTESTPD ymm [rdi]", cat, v.encode_rm_mem(), s, FL_CF | FL_ZF, 0, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
   }
 
   // VDPPD: VEX.66.0F3A.WIG 41 /r ib (double dot product)
@@ -573,6 +591,49 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPSHUFB xmm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
     v.L = true;
     tests.push_back({"VPSHUFB ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+  }
+
+  // VPSHUFHW VEX: VEX.F3.0F.WIG 70 /r ib
+  // VPSHUFLW VEX: VEX.F2.0F.WIG 70 /r ib
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+
+    Vex v; v.mm = 1; v.W = false; v.opcode = 0x70;
+    v.reg = 0; v.vvvv = 0; v.rm = 1;
+
+    // VPSHUFHW (F3)
+    v.pp = 2;
+    v.L = false;
+    tests.push_back({"VPSHUFHW xmm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPSHUFHW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+
+    // VPSHUFLW (F2)
+    v.pp = 3;
+    v.L = false;
+    tests.push_back({"VPSHUFLW xmm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+    v.L = true;
+    tests.push_back({"VPSHUFLW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+
+    // Memory forms
+    s.rdi = DATA_ADDR;
+    std::vector<u8> data(32);
+    for (int i = 0; i < 32; i++) data[i] = ((u8 *)s.xmm[1].q)[i];
+    v.pp = 2; v.reg = 0;
+    v.L = false;
+    { TestCase tc = {"VPSHUFHW xmm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), s, FL_NONE, 0x3, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.L = true;
+    { TestCase tc = {"VPSHUFHW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), s, FL_NONE, 0x3, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.pp = 3;
+    v.L = false;
+    { TestCase tc = {"VPSHUFLW xmm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), s, FL_NONE, 0x3, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
+    v.L = true;
+    { TestCase tc = {"VPSHUFLW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), s, FL_NONE, 0x3, false};
+      tc.init_data = data; tests.push_back(std::move(tc)); }
   }
 
   // VPCLMULQDQ VEX: VEX.66.0F3A.WIG 44 /r ib

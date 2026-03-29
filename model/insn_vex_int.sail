@@ -128,10 +128,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     }
   },
 
-  // 0F 70: VPSHUFD xmm/ymm, xmm/ymm/m, imm8 (66 prefix)
+  // 0F 70: VPSHUFD (66) / VPSHUFHW (F3) / VPSHUFLW (F2)
   // SDM: VEX.vvvv must be 1111b. 256-bit shuffles each 128-bit lane independently.
   112 => {
-    if mp != MP_66 then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
@@ -139,7 +138,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let vl = vex_vl(pfx);
     let s = decode_vex_src(vl, modrm, src, pfx);
     let imm = fetch(1);
-    write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm))
+    match mp {
+      MP_66 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm)),
+      MP_F3 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufhw, s, imm)),
+      MP_F2 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshuflw, s, imm)),
+      _     => raise_UD(),
+    }
   },
 
   // 0F 71-73: Group 12/13/14 — VPSxxx imm8 (66 prefix)

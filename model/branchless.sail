@@ -19,24 +19,27 @@ function popcount(v) = {
 }
 
 // or_reduce: 1 if any bit is set, 0 otherwise (branchless tree reduction).
-val or_reduce : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bits(1)
+val or_reduce : forall 'n, 0 < 'n & 'n <= 512. bits('n) -> bits(1)
 function or_reduce(v) = {
-  let x : qword = zero_extend(v);
+  let x : zmmword = zero_extend(v);
   let x = x | (x >> 1);
   let x = x | (x >> 2);
   let x = x | (x >> 4);
   let x = x | (x >> 8);
   let x = x | (x >> 16);
   let x = x | (x >> 32);
+  let x = x | (x >> 64);
+  let x = x | (x >> 128);
+  let x = x | (x >> 256);
   x[0]
 }
 
 // is_nonzero: 0 if all bits are zero, 1 otherwise.
-val is_nonzero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
+val is_nonzero : forall 'n, 0 < 'n & 'n <= 512. bits('n) -> bit
 function is_nonzero(v) = or_reduce(v)[0]
 
 // is_zero: 1 if all bits are zero, 0 otherwise.
-val is_zero : forall 'n, 0 < 'n & 'n <= 64. bits('n) -> bit
+val is_zero : forall 'n, 0 < 'n & 'n <= 512. bits('n) -> bit
 function is_zero(v) = ~(is_nonzero(v))
 
 // is_eq: 1 if a == b, 0 otherwise.
