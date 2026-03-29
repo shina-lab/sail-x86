@@ -15,7 +15,6 @@ core {
     paging.sail,
     mem.sail,
     interrupts.sail,
-    x87_regs.sail,
 }
 
 decode {
