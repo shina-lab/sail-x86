@@ -182,12 +182,8 @@ function dispatch_mmx(op, pfx) = {
       let src = unsigned(modrm[5..3]);
       let dest = modrm_rm(modrm, pfx);
       let x : qword = x87_ST[src][63..0];
-      match (dest, pfx.rex_w) {
-        (RM_reg(r), true)  => v(r) = x,
-        (RM_mem(m), true)  => v(m) = x,
-        (RM_reg(r), false) => v(r) = x[31..0],
-        (RM_mem(m), false) => v(32, m) = x[31..0],
-      }
+      let os : {32, 64} = if pfx.rex_w then 64 else 32;
+      v(dest) = x[os - 1 .. 0]
     },
 
     // 0F 7F: MOVQ mm/m64, mm
@@ -207,15 +203,11 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
       let src = modrm_rm(modrm, pfx);
-      let w : word = match src {
-        RM_reg(r) => v(32, r)[15..0],
-        RM_mem(m) => v(m),
-      };
       let imm = fetch(1);
       let sel : range(0, 3) = unsigned(imm[1..0]);
       var d : qword = x87_ST[dst][63..0];
       let lo = sel * 16;
-      d[(lo + 15) .. lo] = w;
+      d[(lo + 15) .. lo] = v(src);
       x87_ST[dst] = ones(16) @ (d)
     },
 
@@ -236,8 +228,10 @@ function dispatch_mmx(op, pfx) = {
     209 => mmx_exec_shift(PS_Srl, 16, pfx),
     210 => mmx_exec_shift(PS_Srl, 32, pfx),
     211 => mmx_exec_shift(PS_Srl, 64, pfx),
+
     // 0F D4: PADDQ mm, mm/m64
     212 => mmx_exec_binop(PB_Add, 64, pfx),
+
     // 0F D5: PMULLW mm, mm/m64
     213 => mmx_exec_binop(PB_MulLow, 16, pfx),
 
