@@ -394,5 +394,5 @@ function dispatch_mmx(op, pfx) = {
     _ => raise_UD(),
   };
 
-  mmx_touch();
+  mmx_touch()
 }

@@ -85,8 +85,8 @@ val vex_elem : Prefixes -> {32, 64}
 function vex_elem(pfx) = if pfx.vex_w then 64 else 32
 
 // Polymorphic VEX source read from r/m field: register or memory.
-val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), byte, XRM, Prefixes) -> bits('vl)
-function decode_vex_src(vl, modrm, xm, pfx) = match xm {
+val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), XRM) -> bits('vl)
+function decode_vex_src(vl, xm) = match xm {
   XRM_reg(xi) => read_simd(xi),
   XRM_mem(m)  => read_mem(m),
 }
@@ -102,7 +102,7 @@ function vex_exec_unpack(eb, half, pfx) = {
   let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
-  write_simd(vl, dst, packed_unpack(eb, half, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
+  write_simd(vl, dst, packed_unpack(eb, half, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
 }
 
 // 3-operand VEX pack: dst = packed_pack(op, src_eb, dst_eb, vvvv, rm)
@@ -113,7 +113,7 @@ function vex_exec_pack(op, src_eb, dst_eb, pfx) = {
   let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
-  write_simd(vl, dst, packed_pack(op, src_eb, dst_eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
+  write_simd(vl, dst, packed_pack(op, src_eb, dst_eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
 }
 
 // 3-operand VEX shift-by-xmm: dst = uniform_shift(op, eb, vvvv, count_from_rm[63:0])
@@ -122,7 +122,7 @@ function vex_exec_shift(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
-  let c : nat = unsigned(decode_vex_src(128, modrm, src, pfx)[63..0]);
+  let c : nat = unsigned(decode_vex_src(128, src)[63..0]);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_uniform_shift(op, eb, read_simd(vl, pfx.vex_vvvv), c))
 }
@@ -134,5 +134,5 @@ function vex_exec_binop(op, eb, pfx) = {
   let dst = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
-  write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
+  write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
 }

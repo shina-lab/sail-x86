@@ -123,7 +123,7 @@ function dispatch_vex_0f_int(op, pfx) = {
         },
       },
       // VMOVDQU — unaligned OK
-      MP_F3 => write_simd(vl, dst, decode_vex_src(modrm, src, pfx)),
+      MP_F3 => write_simd(vl, dst, decode_vex_src(src)),
       _ => raise_UD(),
     }
   },
@@ -136,7 +136,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    let s = decode_vex_src(vl, modrm, src, pfx);
+    let s = decode_vex_src(vl, src);
     let imm = fetch(1);
     match mp {
       MP_66 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm)),
@@ -476,7 +476,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) & decode_vex_src(modrm, src, pfx))
+    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) & decode_vex_src(src))
   },
 
   // 0F DC: VPADDUSB (66 prefix)
@@ -491,7 +491,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    write_simd(vl, dst, ~(read_simd(vl, pfx.vex_vvvv)) & decode_vex_src(modrm, src, pfx))
+    write_simd(vl, dst, ~(read_simd(vl, pfx.vex_vvvv)) & decode_vex_src(src))
   },
 
   // 0F E0: VPAVGB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
@@ -519,7 +519,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     match mp {
       // VCVTDQ2PD: N dword ints -> N doubles
       MP_F3 => {
-        let src : xmmword = decode_vex_src(128, modrm, src2, pfx);
+        let src : xmmword = decode_vex_src(128, src2);
         var r : ymmword = zeros();
         foreach (i from 0 to (n - 1)) {
           r[(i * 64 + 63)..(i * 64)] = __int32_to_f64(src[(i * 32 + 31)..(i * 32)])
@@ -528,7 +528,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       // VCVTPD2DQ: N doubles -> N dword ints (rounding)
       MP_F2 => {
-        let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
+        let src : ymmword = decode_vex_src(256, src2);
         var r : xmmword = zeros();
         foreach (i from 0 to (n - 1)) {
           r[(i * 32 + 31)..(i * 32)] = __f64_to_int32(src[(i * 64 + 63)..(i * 64)])
@@ -537,7 +537,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       },
       // VCVTTPD2DQ: N doubles -> N dword ints (truncating)
       MP_66 => {
-        let src : ymmword = decode_vex_src(256, modrm, src2, pfx);
+        let src : ymmword = decode_vex_src(256, src2);
         var r : xmmword = zeros();
         foreach (i from 0 to (n - 1)) {
           r[(i * 32 + 31)..(i * 32)] = __f64_to_int32_trunc(src[(i * 64 + 63)..(i * 64)])
@@ -585,7 +585,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) | decode_vex_src(modrm, src, pfx))
+    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) | decode_vex_src(src))
   },
 
   // 0F EC: VPADDSB (66 prefix)
@@ -600,7 +600,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) ^ decode_vex_src(modrm, src, pfx))
+    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) ^ decode_vex_src(src))
   },
 
   // 0F F0: VLDDQU xmm/ymm, m128/m256 (F2 prefix) — unaligned load

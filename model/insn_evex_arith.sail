@@ -201,7 +201,7 @@ function dispatch_evex_arith(op, pfx) = {
     let eb : {8, 16} = if pfx.rex_w then 16 else 8;
     let vl = evex_vl(pfx);
     let src1 = read_simd(vl, pfx.evex_vvvvv);
-    let src2 = evex_src(vl, modrm, src, pfx);
+    let src2 = evex_src(vl, src);
     let k_mask : qword = avx_ptestm(eb, src1, src2, neg_bit) & evex_kmask64(pfx);
     write_kreg(dst_k, k_mask)
   },
@@ -215,7 +215,7 @@ function dispatch_evex_arith(op, pfx) = {
     let neg_bit : bit = bool_to_bit(mp == MP_F3);
     let eb : {32, 64} = if pfx.rex_w then 64 else 32;
     let vl = evex_vl(pfx);
-    let k_mask : qword = avx_ptestm(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb), neg_bit) & evex_kmask64(pfx);
+    let k_mask : qword = avx_ptestm(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb), neg_bit) & evex_kmask64(pfx);
     write_kreg(dst_k, k_mask)
   },
 
@@ -234,7 +234,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst_k : range(0, 7) = unsigned(modrm[5..3]);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
       let vl = evex_vl(pfx);
-      let k_mask = avx_pcmpeq_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)) & evex_kmask64(pfx);
+      let k_mask = avx_pcmpeq_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 64)) & evex_kmask64(pfx);
       write_kreg(dst_k, k_mask)
     } else {
       raise_UD()
@@ -248,7 +248,7 @@ function dispatch_evex_arith(op, pfx) = {
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpgt_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)) & evex_kmask64(pfx);
+    let k_mask = avx_pcmpgt_mask(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 64)) & evex_kmask64(pfx);
     write_kreg(dst_k, k_mask)
   },
 
@@ -301,7 +301,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, packed_pack(PN_SatSU, 32, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_pack(PN_SatSU, 32, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 32)))
   },
 
   // 0F38 3C: VPMAXSB (66) [BW]
@@ -330,7 +330,7 @@ function dispatch_evex_arith(op, pfx) = {
       let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_binop(PB_Pmuldq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, 64)))
+      evex_write(dst, mask, packed_binop(PB_Pmuldq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64)))
     } else if mp == MP_F3 then {
       // VPMOVM2B (W0) / VPMOVM2W (W1): mask register -> vector
       let modrm = fetch(1);
@@ -371,7 +371,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_binop(PB_Srl, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
+      evex_write(dst, mask, packed_binop(PB_Srl, 16, read_simd(vl, src1_idx), evex_src(vl, src)))
     } else if mp == MP_F3 then {
       // VPMOVUSWB: src=reg, dst=r/m (narrowing: word->byte, unsigned saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -379,7 +379,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 16, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -394,7 +394,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_binop(PB_Sra, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
+      evex_write(dst, mask, packed_binop(PB_Sra, 16, read_simd(vl, src1_idx), evex_src(vl, src)))
     } else if mp == MP_F3 then {
       // VPMOVUSDB: src=reg, dst=r/m (narrowing: dword->byte, unsigned saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -402,7 +402,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatU, 32, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -417,7 +417,7 @@ function dispatch_evex_arith(op, pfx) = {
       let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_binop(PB_Sll, 16, read_simd(vl, src1_idx), evex_src(vl, modrm, src, pfx)))
+      evex_write(dst, mask, packed_binop(PB_Sll, 16, read_simd(vl, src1_idx), evex_src(vl, src)))
     } else if mp == MP_F3 then {
       // VPMOVUSQB: src=reg, dst=r/m (narrowing: qword->byte, unsigned saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -425,7 +425,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_SatU, 64, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -441,7 +441,7 @@ function dispatch_evex_arith(op, pfx) = {
       let vl = evex_vl(pfx);
       let src = modrm_xrm_evex(modrm, pfx, vl / 16);
       let mask = evex_wmask(pfx, vl / 32);
-      evex_write(dst, mask, avx_vcvtph2ps(evex_widen_src(vl, 2, modrm, src, pfx)))
+      evex_write(dst, mask, avx_vcvtph2ps(evex_widen_src(vl, 2, src)))
     } else if mp == MP_F3 then {
       let modrm = fetch(1);
       let src = evex_reg_idx(modrm, pfx);
@@ -449,7 +449,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 32, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -465,7 +465,7 @@ function dispatch_evex_arith(op, pfx) = {
       let vl = evex_vl(pfx);
       let eb = evex_elem(pfx);
       let mask = evex_wmask(pfx, vl / eb);
-      evex_write(dst, mask, packed_binop(PB_Ror, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
+      evex_write(dst, mask, packed_binop(PB_Ror, eb, read_simd(vl, src1_idx), evex_bcast_src(src, pfx, eb)))
     } else if mp == MP_F3 then {
       // VPMOVUSQW: src=reg, dst=r/m (narrowing: qword->word, unsigned saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -473,7 +473,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatU, 64, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -489,7 +489,7 @@ function dispatch_evex_arith(op, pfx) = {
       let vl = evex_vl(pfx);
       let eb = evex_elem(pfx);
       let mask = evex_wmask(pfx, vl / eb);
-      evex_write(dst, mask, packed_binop(PB_Rol, eb, read_simd(vl, src1_idx), evex_bcast_src(modrm, src, pfx, eb)))
+      evex_write(dst, mask, packed_binop(PB_Rol, eb, read_simd(vl, src1_idx), evex_bcast_src(src, pfx, eb)))
     } else if mp == MP_F3 then {
       // VPMOVUSQD: src=reg, dst=r/m (narrowing: qword->dword, unsigned saturation)
       let src = evex_reg_idx(modrm, pfx);
@@ -497,7 +497,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatU, 64, 32, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -510,7 +510,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 16);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 16, src))
     } else if mp == MP_F3 then {
@@ -520,7 +520,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 16, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -533,7 +533,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, src2);
       let mask = evex_wmask(pfx, vl / 32);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 32, src))
     } else if mp == MP_F3 then {
@@ -543,7 +543,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatS, 32, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -556,7 +556,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 64);
-      let src = evex_widen_src(vl, 8, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 8, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 8, 64, src))
     } else if mp == MP_F3 then {
@@ -566,7 +566,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_SatS, 64, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -579,7 +579,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 32);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 16, 32, src))
     } else if mp == MP_F3 then {
@@ -589,7 +589,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 32, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -602,7 +602,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 16, 64, src))
     } else if mp == MP_F3 then {
@@ -612,7 +612,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_SatS, 64, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -625,7 +625,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_SignExtend, 32, 64, src))
     } else if mp == MP_F3 then {
@@ -635,7 +635,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_SatS, 64, 32, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -648,7 +648,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 16);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 16, src))
     } else if mp == MP_F3 then {
@@ -658,7 +658,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 16, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 16), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 16), res)
     } else {
       raise_UD()
     }
@@ -671,7 +671,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, src2);
       let mask = evex_wmask(pfx, vl / 32);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 32, src))
     } else if mp == MP_F3 then {
@@ -681,7 +681,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_Trunc, 32, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -694,7 +694,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 64);
-      let src = evex_widen_src(vl, 8, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 8, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 8, 64, src))
     } else if mp == MP_F3 then {
@@ -704,7 +704,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 64;
       let res = packed_narrow_unop(PN_Trunc, 64, 8, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -717,7 +717,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 32);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 16, 32, src))
     } else if mp == MP_F3 then {
@@ -727,7 +727,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 32, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 32), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 32), res)
     } else {
       raise_UD()
     }
@@ -740,7 +740,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 32);
-      let src = evex_widen_src(vl, 4, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 4, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 16, 64, src))
     } else if mp == MP_F3 then {
@@ -750,7 +750,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 32;
       let res = packed_narrow_unop(PN_Trunc, 64, 16, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -770,7 +770,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let vl = evex_vl(pfx);
       let src2 = modrm_xrm_evex(modrm, pfx, vl / 16);
-      let src = evex_widen_src(vl, 2, modrm, src2, pfx);
+      let src = evex_widen_src(vl, 2, src2);
       let mask = evex_wmask(pfx, vl / 64);
       evex_write(dst, mask, packed_widen_unop(vl, PW_ZeroExtend, 32, 64, src))
     } else if mp == MP_F3 then {
@@ -780,7 +780,7 @@ function dispatch_evex_arith(op, pfx) = {
       let nbytes = vl / 16;
       let res = packed_narrow_unop(PN_Trunc, 64, 32, read_simd(vl, src));
       let dest = modrm_xrm_evex(modrm, pfx, nbytes);
-      evex_write_rm(dest, modrm, pfx, evex_wmask(pfx, vl / 64), res)
+      evex_write_rm(dest, pfx, evex_wmask(pfx, vl / 64), res)
     } else {
       raise_UD()
     }
@@ -795,7 +795,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 16);
-    evex_write(dst, mask, packed_ternop(PT_FunnelShl, 16, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_ternop(PT_FunnelShl, 16, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
   },
 
   // 0F38 71: VPSHLDVD (66, W=0) / VPSHLDVQ (66, W=1) [VBMI2]
@@ -807,7 +807,7 @@ function dispatch_evex_arith(op, pfx) = {
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_ternop(PT_FunnelShl, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb)))
+    evex_write(dst, mask, packed_ternop(PT_FunnelShl, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb)))
   },
 
   // 0F38 72: VPSHRDVW (66,W1) / VCVTNE2PS2BF16 (F2,W0) / VCVTNEPS2BF16 (F3,W0)
@@ -821,7 +821,7 @@ function dispatch_evex_arith(op, pfx) = {
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 16);
-        evex_write(dst, mask, packed_ternop(PT_FunnelShr, 16, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+        evex_write(dst, mask, packed_ternop(PT_FunnelShr, 16, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
       },
       MP_F2 => {
         // VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 (W=0)
@@ -830,7 +830,7 @@ function dispatch_evex_arith(op, pfx) = {
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 16);
         let s1 = read_simd(vl, pfx.evex_vvvvv);
-        let s2 = evex_bcast_src(vl, modrm, src, pfx, 32);
+        let s2 = evex_bcast_src(vl, src, pfx, 32);
         evex_write(dst, mask, avx_vcvtne2ps2bf16(s1, s2))
       },
       MP_F3 => {
@@ -838,7 +838,7 @@ function dispatch_evex_arith(op, pfx) = {
         if pfx.rex_w then raise_UD();
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let vl = evex_vl(pfx);
-        let res = avx_vcvtneps2bf16(evex_bcast_src(vl, modrm, src, pfx, 32));
+        let res = avx_vcvtneps2bf16(evex_bcast_src(vl, src, pfx, 32));
         match vl {
           128 => evex_write(dst, evex_wmask(pfx, 8), zero_extend(128, res)),
           256 => evex_write(dst, evex_wmask(pfx, 8), res),
@@ -858,7 +858,7 @@ function dispatch_evex_arith(op, pfx) = {
     let vl = evex_vl(pfx);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_ternop(PT_FunnelShr, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, eb)))
+    evex_write(dst, mask, packed_ternop(PT_FunnelShr, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb)))
   },
 
   // 0F38 83: VPMULTISHIFTQB (66,W1) [VBMI]
@@ -869,7 +869,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 8);
-    evex_write(dst, mask, avx_vpmultishiftqb(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 64)))
+    evex_write(dst, mask, avx_vpmultishiftqb(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 64)))
   },
 
   // 0F38 44: VPLZCNTD (66, W=0) / VPLZCNTQ (66, W=1) [CD]
@@ -883,7 +883,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop(PT_DPBusd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPBusd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)))
   },
 
   // 0F38 51: VPDPBUSDS (66) [VNNI]
@@ -894,7 +894,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop(PT_DPBusds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPBusds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)))
   },
 
   // 0F38 52: VPDPWSSD (66) [VNNI] / VDPBF16PS (F3) [BF16]
@@ -908,14 +908,14 @@ function dispatch_evex_arith(op, pfx) = {
         // VPDPWSSD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, packed_ternop(PT_DPWssd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, packed_ternop(PT_DPWssd, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)))
       },
       MP_F3 => {
         // VDPBF16PS: BF16 dot product accumulating to FP32 (W=0)
         if pfx.rex_w then raise_UD();
         let vl = evex_vl(pfx);
         let mask = evex_wmask(pfx, vl / 32);
-        evex_write(dst, mask, avx_vdpbf16ps(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+        evex_write(dst, mask, avx_vdpbf16ps(read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)))
       },
       _ => raise_UD(),
     }
@@ -929,7 +929,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / 32);
-    evex_write(dst, mask, packed_ternop(PT_DPWssds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(modrm, src, pfx, 32)))
+    evex_write(dst, mask, packed_ternop(PT_DPWssds, 32, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)))
   },
 
   // 0F38 54: VPOPCNTB (66, W=0) / VPOPCNTW (66, W=1) [BITALG]
@@ -941,7 +941,7 @@ function dispatch_evex_arith(op, pfx) = {
     let vl = evex_vl(pfx);
     let eb : {8, 16} = if pfx.rex_w then 16 else 8;
     let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_unop(PU_Popcnt, eb, evex_src(vl, modrm, src, pfx)))
+    evex_write(dst, mask, packed_unop(PU_Popcnt, eb, evex_src(vl, src)))
   },
 
   // 0F38 55: VPOPCNTD (66, W=0) / VPOPCNTQ (66, W=1) [VPOPCNTDQ]
@@ -957,7 +957,7 @@ function dispatch_evex_arith(op, pfx) = {
     let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
     let mask = evex_wmask(pfx, vl / eb);
-    let bcast_src = evex_bcast_src(vl, modrm, src, pfx, eb);
+    let bcast_src = evex_bcast_src(vl, src, pfx, eb);
     evex_write(dst, mask, avx_vpconflict(eb, bcast_src))
   },
 
@@ -971,9 +971,9 @@ function dispatch_evex_arith(op, pfx) = {
     let vl = evex_vl(pfx);
     let src1 = read_simd(vl, pfx.evex_vvvvv);
     if pfx.rex_w then
-      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 16), evex_src(modrm, src, pfx), src1))
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 16), evex_src(src), src1))
     else
-      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 8), evex_src(modrm, src, pfx), src1))
+      write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 8), evex_src(src), src1))
   },
 
   _ => raise_UD(),

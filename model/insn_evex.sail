@@ -92,8 +92,8 @@ val evex_elem : Prefixes -> {32, 64}
 function evex_elem(pfx) = if pfx.rex_w then 64 else 32
 
 // Polymorphic SIMD source read from r/m field: register or memory.
-val evex_src : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), byte, XRM, Prefixes) -> bits('vl)
-function evex_src(vl, modrm, xm, pfx) = match xm {
+val evex_src : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), XRM) -> bits('vl)
+function evex_src(vl, xm) = match xm {
   XRM_reg(xi) => read_simd(xi),
   XRM_mem(m)  => read_mem(m),
 }
@@ -101,8 +101,8 @@ function evex_src(vl, modrm, xm, pfx) = match xm {
 // Read narrow source for widening instructions.
 // Returns vl/ratio bits from register or memory.
 val evex_widen_src : forall 'vl 'r, 'vl in {128, 256, 512} & 'r in {2, 4, 8}.
-  (implicit('vl), int('r), byte, XRM, Prefixes) -> bits(div('vl, 'r))
-function evex_widen_src(vl, ratio, modrm, xm, pfx) = {
+  (implicit('vl), int('r), XRM) -> bits(div('vl, 'r))
+function evex_widen_src(vl, ratio, xm) = {
   let n = vl / ratio;
   match xm {
     XRM_reg(xi) => ZMM[xi][n - 1 .. 0],
@@ -151,8 +151,8 @@ function evex_write(dst, wm, result) = {
 // For register: applies writemask (merge/zero), zeroes upper bits.
 // For memory: writes only masked elements (unmasked bytes untouched).
 val evex_write_rm : forall 'vl 'nm, 'vl > 0 & 'nm > 0 & 'vl >= 'nm & mod('vl, 'nm) == 0 & 'vl <= 512.
-  (XRM, byte, Prefixes, Writemask('nm), bits('vl)) -> unit
-function evex_write_rm(dst, modrm, pfx, wm, result) = match dst {
+  (XRM, Prefixes, Writemask('nm), bits('vl)) -> unit
+function evex_write_rm(dst, pfx, wm, result) = match dst {
   XRM_reg(xi) => evex_write(xi, wm, result),
   XRM_mem(m)  => {
     let nbytes = 'vl / 8;
@@ -186,8 +186,8 @@ function evex_write_scalar(dst, result, pfx, eb) = {
 // Polymorphic broadcast-aware source: read source from reg/mem,
 // applying EVEX.b broadcast when the source is a memory operand.
 val evex_bcast_src : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
-  (implicit('vl), byte, XRM, Prefixes, int('eb)) -> bits('vl)
-function evex_bcast_src(vl, modrm, xm, pfx, eb) = match xm {
+  (implicit('vl), XRM, Prefixes, int('eb)) -> bits('vl)
+function evex_bcast_src(vl, xm, pfx, eb) = match xm {
   XRM_mem(m)  => if pfx.evex_b then broadcast(read_mem(eb, m)) else read_mem(m),
   XRM_reg(xi) => ZMM[xi][(vl - 1)..0],
 }
@@ -263,7 +263,7 @@ function evex_exec_binop_bcast(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   // vl in {128,256,512}, eb in {32,64} → vl/eb in {2,4,8,16}
   let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, modrm, src, pfx, eb)))
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb)))
 }
 
 // 3-operand EVEX binop without broadcast (byte/word): dst = op(vvvvv, src) {mask}
@@ -275,7 +275,7 @@ function evex_exec_binop(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   // vl in {128,256,512}, eb in {8,16,32,64} → vl/eb in {2,4,8,16,32,64}
   let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
-  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, modrm, src, pfx)))
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
 }
 
 // 2-operand EVEX unop with broadcast: dst = op(bcast_src) {mask}
@@ -286,7 +286,7 @@ function evex_exec_unop_bcast(op, eb, pfx) = {
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
   let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_bcast_src(vl, modrm, src, pfx, eb)))
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_bcast_src(vl, src, pfx, eb)))
 }
 
 // 2-operand EVEX unop without broadcast: dst = op(src) {mask}
@@ -297,5 +297,5 @@ function evex_exec_unop(op, eb, pfx) = {
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
   let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
-  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, modrm, src, pfx)))
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, src)))
 }
