@@ -624,8 +624,16 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let vl = vex_vl(pfx);
     let src1 = read_simd(vl, src1_idx);
     let src2 = decode_vex_src(vl, modrm, src, pfx);
-    ZF = is_zero(src1 & src2);
-    CF = is_zero(~(src1) & src2);
+    // VTESTPS/PD test only sign bits (unlike VPTEST which tests all bits)
+    let eb : {32, 64} = if op == 14 then 32 else 64;
+    let tmp1 = src1 & src2;
+    let tmp2 = ~(src1) & src2;
+    ZF = 0b1;
+    CF = 0b1;
+    foreach (i from 0 to (vl / eb - 1)) {
+      ZF = ZF & ~(tmp1[(i + 1) * eb - 1]);
+      CF = CF & ~(tmp2[(i + 1) * eb - 1])
+    };
     OF = 0b0;
     AF = 0b0;
     PF = 0b0;
