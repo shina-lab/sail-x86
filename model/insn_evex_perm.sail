@@ -48,49 +48,8 @@ function avx_vpermilpd(vl, src, ctrl) = {
   r
 }
 
-// VPERMPS: full cross-lane permute of f32 using index register
-val avx_vpermps_256 : (ymmword, ymmword) -> ymmword
-function avx_vpermps_256(src, idx) = {
-  var r : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[2..0])
-  };
-  r
-}
-
-val avx_vpermps_512 : (zmmword, zmmword) -> zmmword
-function avx_vpermps_512(src, idx) = {
-  var r : zmmword = zeros();
-  foreach (i from 0 to 15) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[3..0])
-  };
-  r
-}
-
-// VPERMPD: full cross-lane permute of f64 using index register
-val avx_vpermpd_256 : (ymmword, ymmword) -> ymmword
-function avx_vpermpd_256(src, idx) = {
-  var r : ymmword = zeros();
-  foreach (i from 0 to 3) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[1..0])
-  };
-  r
-}
-
-val avx_vpermpd_512 : (zmmword, zmmword) -> zmmword
-function avx_vpermpd_512(src, idx) = {
-  var r : zmmword = zeros();
-  foreach (i from 0 to 7) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[2..0])
-  };
-  r
-}
-
-// VPERMD: full cross-lane permute of dwords using index register
+// Full cross-lane permute of dwords using index register.
+// Used for VPERMPS/VPERMD (identical at data level).
 val avx_vpermd_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermd_256(src, idx) = {
   var r : ymmword = zeros();
@@ -111,7 +70,8 @@ function avx_vpermd_512(src, idx) = {
   r
 }
 
-// VPERMQ: full cross-lane permute of qwords using index register
+// Full cross-lane permute of qwords using index register.
+// Used for VPERMPD/VPERMQ (identical at data level).
 val avx_vpermq_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermq_256(src, idx) = {
   var r : ymmword = zeros();
@@ -1100,39 +1060,17 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 16: VPERMPS (66,W0) / VPERMPD (66,W1) [F]
-  // 0F38 16: VPERMPS (66,W0) / VPERMPD (66,W1) [F]
-  22 => {
+  // 0F38 36: VPERMD (66,W0) / VPERMQ (66,W1) [F]
+  // FP and integer permutes are identical at the data level.
+  op if op == 22 | op == 54 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
     let idx_reg = pfx.evex_vvvvv;
     match (pfx.rex_w, pfx.evex_ll) {
-      // VPERMPD
-      (true, 1) => evex_write(dst, evex_wmask(pfx, 4), avx_vpermpd_256(evex_bcast_src(256, src, pfx, 64), read_simd(256, idx_reg))),
-      (true, 2) => evex_write(dst, evex_wmask(pfx, 8), avx_vpermpd_512(evex_bcast_src(512, src, pfx, 64), ZMM[idx_reg])),
-      // VPERMPS
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), avx_vpermps_256(evex_bcast_src(256, src, pfx, 32), read_simd(256, idx_reg))),
-      (false, 2) => evex_write(dst, evex_wmask(pfx, 16), avx_vpermps_512(evex_bcast_src(512, src, pfx, 32), ZMM[idx_reg])),
-      _ => raise_UD(),
-    }
-  },
-
-  // 0F38 36: VPERMD (66,W0) / VPERMQ (66,W1) [F]
-  // 0F38 36: VPERMD (66,W0) / VPERMQ (66,W1) [F]
-  54 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let idx_reg = pfx.evex_vvvvv;
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPERMQ
-      (true, 1) => evex_write(dst, evex_wmask(pfx, 4), avx_vpermq_256(evex_bcast_src(256, src, pfx, 64), read_simd(256, idx_reg))),
-      (true, 2) => evex_write(dst, evex_wmask(pfx, 8), avx_vpermq_512(evex_bcast_src(512, src, pfx, 64), ZMM[idx_reg])),
-      // VPERMD
+      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), avx_vpermq_256(evex_bcast_src(256, src, pfx, 64), read_simd(256, idx_reg))),
+      (true, 2)  => evex_write(dst, evex_wmask(pfx, 8), avx_vpermq_512(evex_bcast_src(512, src, pfx, 64), ZMM[idx_reg])),
       (false, 1) => evex_write(dst, evex_wmask(pfx, 8), avx_vpermd_256(evex_bcast_src(256, src, pfx, 32), read_simd(256, idx_reg))),
       (false, 2) => evex_write(dst, evex_wmask(pfx, 16), avx_vpermd_512(evex_bcast_src(512, src, pfx, 32), ZMM[idx_reg])),
       _ => raise_UD(),
