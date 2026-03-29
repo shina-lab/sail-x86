@@ -542,12 +542,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        match (src, pfx.rex_w) {
-          (RM_reg(r), true)  => ZMM[xreg][127..0] = zero_extend(v(64, r)),
-          (RM_mem(m), true)  => ZMM[xreg][127..0] = zero_extend(read_mem(64, m)),
-          (RM_reg(r), false) => ZMM[xreg][127..0] = zero_extend(v(32, r)),
-          (RM_mem(m), false) => ZMM[xreg][127..0] = zero_extend(read_mem(32, m)),
-        }
+        let os : {32, 64} = if pfx.rex_w then 64 else 32;
+        ZMM[xreg][127..0] = zero_extend(v(os, src))
       }
     },
 
@@ -640,12 +636,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
           MP_66 => {
             let src_xmm = modrm_xreg(modrm, pfx);
             let x : xmmword = read_simd(src_xmm);
-            match (src, pfx.rex_w) {
-              (RM_reg(r), true)  => v(r) = x[63..0],
-              (RM_mem(m), true)  => write_mem(64, m, x[63..0]),
-              (RM_reg(r), false) => v(r) = x[31..0],
-              (RM_mem(m), false) => write_mem(32, m, x[31..0]),
-            }
+            let os : {32, 64} = if pfx.rex_w then 64 else 32;
+            v(src) = x[os - 1 .. 0]
           },
           // MOVQ xmm1, xmm2/m64
           MP_F3 => {
@@ -672,17 +664,12 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
+        if mp != MP_66 & mp != MP_F3 then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let dest = modrm_xrm(modrm, pfx);
         match dest {
-          XRM_reg(xi) => {
-            match mp {
-              MP_66 => ZMM[xi][127..0] = read_simd(xreg),
-              MP_F3 => ZMM[xi][127..0] = read_simd(xreg),
-              _     => raise_UD(),
-            }
-          },
+          XRM_reg(xi) => ZMM[xi][127..0] = read_simd(xreg),
           XRM_mem(m) => {
             // MOVDQA (66) requires 16-byte alignment; MOVDQU (F3) does not
             if mp == MP_66 then check_alignment(m, 16);
@@ -1198,21 +1185,17 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     22 => {
       let imm = fetch(1);
       let xmm_src : xmmword = read_simd(xreg);
-      match (src, pfx.rex_w) {
-        (RM_reg(r), true) => v(r) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
-        (RM_reg(r), false) => v(r) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
-        (RM_mem(m), true)  => v(m) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0],
-        (RM_mem(m), false) => v(m) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0],
+      if pfx.rex_w then {
+        v(src) = (xmm_src >> (unsigned(imm[0]) * 64))[63..0]
+      } else {
+        v(src) = (xmm_src >> (unsigned(imm[1..0]) * 32))[31..0]
       }
     },
 
     // SSE4.1 — PINSRB xmm, r/m8, imm8
     32 => {
       let imm = fetch(1);
-      let x : byte = match src {
-        RM_reg(r) => v(r),
-        RM_mem(m) => read_mem(m),
-      };
+      let x : byte = v(src);
       let v_0 : xmmword = read_simd(xreg);
       let sel : range(0, 15) = unsigned(imm[3..0]);
       let r : xmmword = insert_byte(v_0, x, sel);
