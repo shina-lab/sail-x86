@@ -11,16 +11,8 @@ val sse_exec_fp_binop : (PackedBinOp, simd_idx, xmmword, MandatoryPrefix) -> uni
 function sse_exec_fp_binop(op, xreg, src_xmm, mp) = match mp {
   MP_NONE => ZMM[xreg][127..0] = packed_binop(op, 32, read_simd(xreg), src_xmm),
   MP_66   => ZMM[xreg][127..0] = packed_binop(op, 64, read_simd(xreg), src_xmm),
-  MP_F3   => {
-    var xmm : xmmword = read_simd(xreg);
-    xmm[31..0] = packed_elem_op(op, xmm[31..0], src_xmm[31..0]);
-    ZMM[xreg][127..0] = xmm
-  },
-  MP_F2   => {
-    var xmm : xmmword = read_simd(xreg);
-    xmm[63..0] = packed_elem_op(op, xmm[63..0], src_xmm[63..0]);
-    ZMM[xreg][127..0] = xmm
-  },
+  MP_F3   => ZMM[xreg][31..0]  = packed_elem_op(op, ZMM[xreg][31..0], src_xmm[31..0]),
+  MP_F2   => ZMM[xreg][63..0]  = packed_elem_op(op, ZMM[xreg][63..0], src_xmm[63..0]),
 }
 
 // SSE FP unary: MP_NONE=PS(32), MP_66=PD(64), MP_F3=SS, MP_F2=SD
@@ -28,16 +20,8 @@ val sse_exec_fp_unop : (PackedUnaryOp, simd_idx, xmmword, MandatoryPrefix) -> un
 function sse_exec_fp_unop(op, xreg, src_xmm, mp) = match mp {
   MP_NONE => ZMM[xreg][127..0] = packed_unop(op, 32, src_xmm),
   MP_66   => ZMM[xreg][127..0] = packed_unop(op, 64, src_xmm),
-  MP_F3   => {
-    var xmm : xmmword = read_simd(xreg);
-    xmm[31..0] = packed_unary_elem(op, src_xmm[31..0]);
-    ZMM[xreg][127..0] = xmm
-  },
-  MP_F2   => {
-    var xmm : xmmword = read_simd(xreg);
-    xmm[63..0] = packed_unary_elem(op, src_xmm[63..0]);
-    ZMM[xreg][127..0] = xmm
-  },
+  MP_F3   => ZMM[xreg][31..0]  = packed_unary_elem(op, src_xmm[31..0]),
+  MP_F2   => ZMM[xreg][63..0]  = packed_unary_elem(op, src_xmm[63..0]),
 }
 
 // =========================================================================
@@ -575,7 +559,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         4 => {
           match mp {
             MP_NONE => ZMM[xreg][127..0] = read_simd(xreg) & src_xmm,
-            MP_66 => ZMM[xreg][127..0] = read_simd(xreg) & src_xmm,
+            MP_66   => ZMM[xreg][127..0] = read_simd(xreg) & src_xmm,
             _       => raise_UD(),
           }
         },
@@ -583,7 +567,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         5 => {
           match mp {
             MP_NONE => ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm,
-            MP_66 => ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm,
+            MP_66   => ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm,
             _       => raise_UD(),
           }
         },
@@ -591,7 +575,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         6 => {
           match mp {
             MP_NONE => ZMM[xreg][127..0] = read_simd(xreg) | src_xmm,
-            MP_66 => ZMM[xreg][127..0] = read_simd(xreg) | src_xmm,
+            MP_66   => ZMM[xreg][127..0] = read_simd(xreg) | src_xmm,
             _       => raise_UD(),
           }
         },
@@ -599,7 +583,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         7 => {
           match mp {
             MP_NONE => ZMM[xreg][127..0] = (read_simd(xreg) ^ src_xmm),
-            MP_66 => ZMM[xreg][127..0] = (read_simd(xreg) ^ src_xmm),
+            MP_66   => ZMM[xreg][127..0] = (read_simd(xreg) ^ src_xmm),
             _       => raise_UD(),
           }
         },
@@ -764,7 +748,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let r : xmmword = zeros(64) @ hi @ lo;
           ZMM[xreg][127..0] = r
         },
-        _       => raise_UD(),
+        _ => raise_UD(),
       }
     },
     // 0F 2B: MOVNTPS/MOVNTPD m128, xmm (requires 16-byte alignment)
@@ -990,10 +974,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let sel : range(0, 7) = unsigned(imm[2..0]);
       let w : word = (ZMM[xreg] >> (sel * 16))[15..0];
       match src {
-        XRM_reg(_) => {
-          let dst_reg = modrm_rm_reg(modrm, pfx);
-          v(dst_reg) = zero_extend(32, w)
-        },
+        XRM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = zero_extend(32, w),
         XRM_mem(m) => v(m) = w,
       }
     },
@@ -1003,10 +984,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       let imm = fetch(1);
       let data = (ZMM[xreg] >> (unsigned(imm[1..0]) * 32))[31..0];
       match src {
-        XRM_reg(_) => {
-          let dst_reg = modrm_rm_reg(modrm, pfx);
-          v(dst_reg) = data;
-        },
+        XRM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = data,
         XRM_mem(m) => v(m) = data,
       }
     },
