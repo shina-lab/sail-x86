@@ -22,8 +22,7 @@ function mmx_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = unsigned(modrm[5..3]);
   let src = modrm_rm(modrm, pfx);
-  write_mm(dst, packed_binop(op, eb, x87_ST[dst][63..0], mmx_read_rm(modrm, src)));
-  mmx_touch()
+  write_mm(dst, packed_binop(op, eb, x87_ST[dst][63..0], mmx_read_rm(modrm, src)))
 }
 
 val mmx_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
@@ -32,8 +31,7 @@ function mmx_exec_shift(op, eb, pfx) = {
   let dst = unsigned(modrm[5..3]);
   let src = modrm_rm(modrm, pfx);
   let c : nat = unsigned(mmx_read_rm(modrm, src)[63..0]);
-  write_mm(dst, packed_uniform_shift(op, eb, x87_ST[dst][63..0], c));
-  mmx_touch()
+  write_mm(dst, packed_uniform_shift(op, eb, x87_ST[dst][63..0], c))
 }
 
 // =========================================================================
@@ -58,8 +56,7 @@ function dispatch_mmx(op, pfx) = {
         r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
         r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
       };
-      write_mm(dst, r);
-      mmx_touch()
+      write_mm(dst, r)
     },
 
     // 0F 63: PACKSSWB mm, mm/m64
@@ -73,8 +70,7 @@ function dispatch_mmx(op, pfx) = {
         r[(i * 8 + 7)..(i * 8)] = sat_s(8, d[(i * 16 + 15)..(i * 16)]);
         r[(i * 8 + 39)..(i * 8 + 32)] = sat_s(8, s[(i * 16 + 15)..(i * 16)])
       };
-      write_mm(dst, r);
-      mmx_touch()
+      write_mm(dst, r)
     },
 
     // 0F 64-66: PCMPGTB/W/D mm, mm/m64
@@ -93,8 +89,7 @@ function dispatch_mmx(op, pfx) = {
         r[(i * 8 + 7)..(i * 8)] = sat_su(8, d[(i * 16 + 15)..(i * 16)]);
         r[(i * 8 + 39)..(i * 8 + 32)] = sat_su(8, s[(i * 16 + 15)..(i * 16)])
       };
-      write_mm(dst, r);
-      mmx_touch()
+      write_mm(dst, r)
     },
 
     // 0F 68-6A: PUNPCKHBW/WD/DQ mm, mm/m64
@@ -113,8 +108,7 @@ function dispatch_mmx(op, pfx) = {
         r[(dst_lo + eb - 1)..dst_lo] = d[(src_lo + eb - 1)..src_lo];
         r[(dst_lo + 2 * eb - 1)..(dst_lo + eb)] = s[(src_lo + eb - 1)..src_lo]
       };
-      write_mm(dst, r);
-      mmx_touch()
+      write_mm(dst, r)
     },
 
     // 0F 6B: PACKSSDW mm, mm/m64
@@ -124,8 +118,7 @@ function dispatch_mmx(op, pfx) = {
       let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
       let d : qword = x87_ST[dst][63..0];
       write_mm(dst, sat_s(16, s[63..32]) @ sat_s(16, s[31..0]) @
-                     sat_s(16, d[63..32]) @ sat_s(16, d[31..0]));
-      mmx_touch()
+                     sat_s(16, d[63..32]) @ sat_s(16, d[31..0]))
     },
 
     // 0F 6E: MOVD mm, r/m32 (or MOVQ mm, r/m64 with REX.W)
@@ -138,8 +131,7 @@ function dispatch_mmx(op, pfx) = {
         (RM_mem(m), true)  => write_mm(dst, v(m)),
         (RM_reg(r), false) => write_mm(dst, zero_extend(v(32, r))),
         (RM_mem(m), false) => write_mm(dst, zero_extend(v(32, m))),
-      };
-      mmx_touch()
+      }
     },
 
     // 0F 6F: MOVQ mm, mm/m64
@@ -147,8 +139,7 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
       let src = modrm_rm(modrm, pfx);
-      write_mm(dst, mmx_read_rm(modrm, src));
-      mmx_touch()
+      write_mm(dst, mmx_read_rm(modrm, src))
     },
 
     // 0F 70: PSHUFW mm, mm/m64, imm8
@@ -170,8 +161,7 @@ function dispatch_mmx(op, pfx) = {
       let w3 : word = match unsigned(imm[7..6]) {
         0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
       };
-      write_mm(dst, w3 @ w2 @ w1 @ w0);
-      mmx_touch()
+      write_mm(dst, w3 @ w2 @ w1 @ w0)
     },
 
     // 0F 71-73: Group 12/13/14 — shift mm, imm8
@@ -190,8 +180,7 @@ function dispatch_mmx(op, pfx) = {
         (_, 2)   => write_mm(dst, packed_uniform_shift(PS_Srl, 64, d, c)),
         (_, 6)   => write_mm(dst, packed_uniform_shift(PS_Sll, 64, d, c)),
         _        => raise_UD(),
-      };
-      mmx_touch()
+      }
     },
 
     // 0F 74-76: PCMPEQB/W/D mm, mm/m64
@@ -210,8 +199,7 @@ function dispatch_mmx(op, pfx) = {
         (RM_mem(m), true)  => v(m) = x,
         (RM_reg(r), false) => v(r) = x[31..0],
         (RM_mem(m), false) => v(32, m) = x[31..0],
-      };
-      mmx_touch()
+      }
     },
 
     // 0F 7F: MOVQ mm/m64, mm
@@ -223,8 +211,7 @@ function dispatch_mmx(op, pfx) = {
       match dest {
         RM_reg(_) => write_mm(unsigned(modrm[2..0]), x),
         RM_mem(m) => v(m) = x,
-      };
-      mmx_touch()
+      }
     },
 
     // 0F C4: PINSRW mm, r32/m16, imm8
@@ -241,8 +228,7 @@ function dispatch_mmx(op, pfx) = {
       var d : qword = x87_ST[dst][63..0];
       let lo = sel * 16;
       d[(lo + 15) .. lo] = w;
-      write_mm(dst, d);
-      mmx_touch()
+      write_mm(dst, d)
     },
 
     // 0F C5: PEXTRW r32, mm, imm8
@@ -255,8 +241,7 @@ function dispatch_mmx(op, pfx) = {
       let x : qword = x87_ST[src][63..0];
       let lo = sel * 16;
       let w : word = x[(lo + 15) .. lo];
-      v(dst_gpr) = zero_extend(32, w);
-      mmx_touch()
+      v(dst_gpr) = zero_extend(32, w)
     },
 
     // 0F D1-D3: PSRLW/D/Q mm, mm/m64
@@ -275,8 +260,7 @@ function dispatch_mmx(op, pfx) = {
       let x : qword = x87_ST[unsigned(modrm[2..0])][63..0];
       var mask : byte = zeros();
       foreach (i from 0 to 7) { mask[i] = x[i * 8 + 7] };
-      v(dst_gpr) = zero_extend(32, mask);
-      mmx_touch()
+      v(dst_gpr) = zero_extend(32, mask)
     },
 
     // 0F D8-D9: PSUBUSB/W mm, mm/m64
@@ -290,8 +274,7 @@ function dispatch_mmx(op, pfx) = {
     219 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] & mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
-      mmx_touch()
+      write_mm(dst, x87_ST[dst][63..0] & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F DC-DD: PADDUSB/W mm, mm/m64
@@ -305,8 +288,7 @@ function dispatch_mmx(op, pfx) = {
     223 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, ~(x87_ST[dst][63..0]) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
-      mmx_touch()
+      write_mm(dst, ~(x87_ST[dst][63..0]) & mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F E0: PAVGB mm, mm/m64
@@ -330,8 +312,7 @@ function dispatch_mmx(op, pfx) = {
       let modrm = fetch(1);
       let src = unsigned(modrm[5..3]);
       let dest = modrm_rm(modrm, pfx);
-      rm_mem(dest) = x87_ST[src][63..0];
-      mmx_touch()
+      rm_mem(dest) = x87_ST[src][63..0]
     },
 
     // 0F E8-E9: PSUBSB/W mm, mm/m64
@@ -345,8 +326,7 @@ function dispatch_mmx(op, pfx) = {
     235 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] | mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
-      mmx_touch()
+      write_mm(dst, x87_ST[dst][63..0] | mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F EC-ED: PADDSB/W mm, mm/m64
@@ -360,8 +340,7 @@ function dispatch_mmx(op, pfx) = {
     239 => {
       let modrm = fetch(1);
       let dst = unsigned(modrm[5..3]);
-      write_mm(dst, x87_ST[dst][63..0] ^ mmx_read_rm(modrm, modrm_rm(modrm, pfx)));
-      mmx_touch()
+      write_mm(dst, x87_ST[dst][63..0] ^ mmx_read_rm(modrm, modrm_rm(modrm, pfx)))
     },
 
     // 0F F1-F3: PSLLW/D/Q mm, mm/m64
@@ -395,8 +374,7 @@ function dispatch_mmx(op, pfx) = {
               let b : byte = data[(base + 7) .. base];
               write_mem(addr + zero_extend(to_bits(64, i)), b)
             }
-          };
-          mmx_touch()
+          }
         },
         RM_mem(_) => raise_UD(),
       }
@@ -414,5 +392,7 @@ function dispatch_mmx(op, pfx) = {
     254 => mmx_exec_binop(PB_Add, 32, pfx),
 
     _ => raise_UD(),
-  }
+  };
+
+  mmx_touch();
 }
