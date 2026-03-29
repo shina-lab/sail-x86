@@ -11,6 +11,24 @@
 //   231: a=vvvv, b=rm,  c=dst
 
 
+// VEX packed FMADDSUB/FMSUBADD
+val vex_exec_fmaddsub_packed : (bool, FMAOrder, Prefixes) -> unit
+function vex_exec_fmaddsub_packed(is_addsub, order, pfx) = {
+  let modrm = fetch(1);
+  let dst = modrm_xreg(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
+  let vl = vex_vl(pfx);
+  let eb = vex_elem(pfx);
+  let d = read_simd(vl, dst);
+  let v = read_simd(vl, pfx.vex_vvvv);
+  let r = decode_vex_src(vl, src);
+  match order {
+    FMA_132 => write_simd(vl, dst, if is_addsub then avx_fmaddsub(eb, d, r, v) else avx_fmsubadd(eb, d, r, v)),
+    FMA_213 => write_simd(vl, dst, if is_addsub then avx_fmaddsub(eb, v, d, r) else avx_fmsubadd(eb, v, d, r)),
+    FMA_231 => write_simd(vl, dst, if is_addsub then avx_fmaddsub(eb, v, r, d) else avx_fmsubadd(eb, v, r, d)),
+  }
+}
+
 // VEX packed FMA: decode modrm, read sources, apply packed ternary op
 val vex_exec_fma_packed : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
 function vex_exec_fma_packed(op, order, pfx) = {
@@ -51,27 +69,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
   // VEX FMA3 instructions (0F38 96..BF)
   // -----------------------------------------------------------------------
 
-  // 0F38 96: VFMADDSUB132PS (W0) / VFMADDSUB132PD (W1)
-  150 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, dst), decode_vex_src(src), read_simd(vl, pfx.vex_vvvv)))
-  },
-
-  // 0F38 97: VFMSUBADD132PS (W0) / VFMSUBADD132PD (W1)
-  151 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, dst), decode_vex_src(src), read_simd(vl, pfx.vex_vvvv)))
-  },
+  // 0F38 96/97: VFMADDSUB/FMSUBADD 132 PS/PD
+  150 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(true,  FMA_132, pfx) },
+  151 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(false, FMA_132, pfx) },
 
   // 0F38 98-9F: VFMADD/VFMSUB/VFNMADD/VFNMSUB 132 PS/PD/SS/SD
   152 => { if mp != MP_66 then raise_UD(); vex_exec_fma_packed(PT_FMAdd,  FMA_132, pfx) },
@@ -83,27 +83,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
   158 => { if mp != MP_66 then raise_UD(); vex_exec_fma_packed(PT_FNMSub, FMA_132, pfx) },
   159 => { if mp != MP_66 then raise_UD(); vex_exec_fma_scalar(PT_FNMSub, FMA_132, pfx) },
 
-  // 0F38 A6: VFMADDSUB213PS (W0) / VFMADDSUB213PD (W1)
-  166 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(src)))
-  },
-
-  // 0F38 A7: VFMSUBADD213PS (W0) / VFMSUBADD213PD (W1)
-  167 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(src)))
-  },
+  // 0F38 A6/A7: VFMADDSUB/FMSUBADD 213 PS/PD
+  166 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(true,  FMA_213, pfx) },
+  167 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(false, FMA_213, pfx) },
 
   // 0F38 A8-AF: VFMADD/VFMSUB/VFNMADD/VFNMSUB 213 PS/PD/SS/SD
   168 => { if mp != MP_66 then raise_UD(); vex_exec_fma_packed(PT_FMAdd,  FMA_213, pfx) },
@@ -115,27 +97,9 @@ function dispatch_vex_0f38_fma(op, pfx) = {
   174 => { if mp != MP_66 then raise_UD(); vex_exec_fma_packed(PT_FNMSub, FMA_213, pfx) },
   175 => { if mp != MP_66 then raise_UD(); vex_exec_fma_scalar(PT_FNMSub, FMA_213, pfx) },
 
-  // 0F38 B6: VFMADDSUB231PS (W0) / VFMADDSUB231PD (W1)
-  182 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src), read_simd(vl, dst)))
-  },
-
-  // 0F38 B7: VFMSUBADD231PS (W0) / VFMSUBADD231PD (W1)
-  183 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    let eb = vex_elem(pfx);
-    write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src), read_simd(vl, dst)))
-  },
+  // 0F38 B6/B7: VFMADDSUB/FMSUBADD 231 PS/PD
+  182 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(true,  FMA_231, pfx) },
+  183 => { if mp != MP_66 then raise_UD(); vex_exec_fmaddsub_packed(false, FMA_231, pfx) },
 
   // 0F38 B8-BF: VFMADD/VFMSUB/VFNMADD/VFNMSUB 231 PS/PD/SS/SD
   184 => { if mp != MP_66 then raise_UD(); vex_exec_fma_packed(PT_FMAdd,  FMA_231, pfx) },
