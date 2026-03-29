@@ -163,8 +163,8 @@ val avx_vpmultishiftqb_lane : (qword, qword) -> qword
 function avx_vpmultishiftqb_lane(ctrl, src) = {
   var r : qword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 56) = i * 8;
-    let shift : nat = unsigned(ctrl[(lo + 5)..(lo)]);
+    let lo = i * 8;
+    let shift : nat = unsigned(velem(8, ctrl, i)[5..0]);
     // Extract 8 bits starting at 'shift' from src (wrapping within 64 bits)
     var byte_val : byte = zeros();
     foreach (b from 0 to 7) {

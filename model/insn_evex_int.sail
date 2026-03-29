@@ -247,9 +247,9 @@ function evex_vprold_128(src, cnt) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
+    let c : range(0, 31) = unsigned(velem(32, cnt, i)[4..0]);
     let elem : bits(32) = velem(32, src, i);
-    r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits_truncate(5, 32 - c));
+    r[(lo + 31)..lo] = shift_bits_left(elem, velem(32, cnt, i)[4..0]) | shift_bits_right(elem, to_bits_truncate(5, 32 - c));
   };
   r
 }
@@ -270,9 +270,9 @@ function evex_vprord_128(src, cnt) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
+    let c : range(0, 31) = unsigned(velem(32, cnt, i)[4..0]);
     let elem : bits(32) = velem(32, src, i);
-    r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits_truncate(5, 32 - c));
+    r[(lo + 31)..lo] = shift_bits_right(elem, velem(32, cnt, i)[4..0]) | shift_bits_left(elem, to_bits_truncate(5, 32 - c));
   };
   r
 }
@@ -293,9 +293,9 @@ function evex_vprolq_128(src, cnt) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
+    let c : range(0, 63) = unsigned(velem(64, cnt, i)[5..0]);
     let elem : bits(64) = velem(64, src, i);
-    r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits_truncate(6, 64 - c));
+    r[(lo + 63)..lo] = shift_bits_left(elem, velem(64, cnt, i)[5..0]) | shift_bits_right(elem, to_bits_truncate(6, 64 - c));
   };
   r
 }
@@ -316,9 +316,9 @@ function evex_vprorq_128(src, cnt) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
-    let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
+    let c : range(0, 63) = unsigned(velem(64, cnt, i)[5..0]);
     let elem : bits(64) = velem(64, src, i);
-    r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits_truncate(6, 64 - c));
+    r[(lo + 63)..lo] = shift_bits_right(elem, velem(64, cnt, i)[5..0]) | shift_bits_left(elem, to_bits_truncate(6, 64 - c));
   };
   r
 }

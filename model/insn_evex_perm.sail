@@ -13,8 +13,8 @@ val avx_vpermilps_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermilps_128(src, ctrl) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = velem(32, src, ctrl[(lo + 1)..lo]);
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, velem(32, ctrl, i)[1..0]);
   };
   r
 }
@@ -95,9 +95,8 @@ val avx_vpermd_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermd_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 224) = i * 32;
-    let sel : range(0, 224) = unsigned(idx[(lo + 2)..lo]) * 32;
-    r[(lo + 31)..lo] = src[(sel + 31)..sel];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[2..0])
   };
   r
 }
@@ -106,9 +105,8 @@ val avx_vpermd_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermd_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 480) = i * 32;
-    let sel : range(0, 480) = unsigned(idx[(lo + 3)..lo]) * 32;
-    r[(lo + 31)..lo] = src[(sel + 31)..sel];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[3..0])
   };
   r
 }
@@ -118,9 +116,8 @@ val avx_vpermq_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermq_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 3) {
-    let lo : range(0, 192) = i * 64;
-    let sel : range(0, 192) = unsigned(idx[(lo + 1)..lo]) * 64;
-    r[(lo + 63)..lo] = src[(sel + 63)..sel];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[1..0])
   };
   r
 }
@@ -129,9 +126,8 @@ val avx_vpermq_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermq_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 448) = i * 64;
-    let sel : range(0, 448) = unsigned(idx[(lo + 2)..lo]) * 64;
-    r[(lo + 63)..lo] = src[(sel + 63)..sel];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[2..0])
   };
   r
 }
@@ -145,9 +141,8 @@ function avx_vperm2_d_128(t1, t2, idx) = {
   let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
-    let lo : range(0, 96) = i * 32;
-    let id : range(0, 7) = unsigned(idx[(lo + 2)..lo]);
-    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, combined, velem(32, idx, i)[2..0])
   };
   r
 }
@@ -157,9 +152,8 @@ function avx_vperm2_d_256(t1, t2, idx) = {
   let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 224) = i * 32;
-    let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, combined, velem(32, idx, i)[3..0])
   };
   r
 }
@@ -169,9 +163,8 @@ function avx_vperm2_d_512(t1, t2, idx) = {
   let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 480) = i * 32;
-    let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    r[(lo + 31)..lo] = combined[(id * 32 + 31) .. (id * 32)];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, combined, velem(32, idx, i)[4..0])
   };
   r
 }
@@ -181,9 +174,8 @@ function avx_vperm2_q_128(t1, t2, idx) = {
   let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 1) {
-    let lo : range(0, 64) = i * 64;
-    let id : range(0, 3) = unsigned(idx[(lo + 1)..lo]);
-    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, combined, velem(64, idx, i)[1..0])
   };
   r
 }
@@ -193,9 +185,8 @@ function avx_vperm2_q_256(t1, t2, idx) = {
   let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 3) {
-    let lo : range(0, 192) = i * 64;
-    let id : range(0, 7) = unsigned(idx[(lo + 2)..lo]);
-    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, combined, velem(64, idx, i)[2..0])
   };
   r
 }
@@ -205,9 +196,8 @@ function avx_vperm2_q_512(t1, t2, idx) = {
   let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 448) = i * 64;
-    let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    r[(lo + 63)..lo] = combined[(id * 64 + 63) .. (id * 64)];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, combined, velem(64, idx, i)[3..0])
   };
   r
 }
@@ -219,9 +209,8 @@ function avx_vperm2_w_128(t1, t2, idx) = {
   let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, combined, velem(16, idx, i)[3..0])
   };
   r
 }
@@ -231,9 +220,8 @@ function avx_vperm2_w_256(t1, t2, idx) = {
   let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 240) = i * 16;
-    let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, combined, velem(16, idx, i)[4..0])
   };
   r
 }
@@ -243,9 +231,8 @@ function avx_vperm2_w_512(t1, t2, idx) = {
   let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 31) {
-    let lo : range(0, 496) = i * 16;
-    let id : range(0, 63) = unsigned(idx[(lo + 5)..lo]);
-    r[(lo + 15)..lo] = combined[(id * 16 + 15) .. (id * 16)];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, combined, velem(16, idx, i)[5..0])
   };
   r
 }
@@ -256,10 +243,8 @@ val avx_vpermw_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermw_128(src, idx) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 112) = i * 16;
-    let id : range(0, 7) = unsigned(idx[(lo + 2)..lo]);
-    let sel : range(0, 112) = id * 16;
-    r[(lo + 15)..lo] = src[(sel + 15)..sel];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, src, velem(16, idx, i)[2..0])
   };
   r
 }
@@ -268,10 +253,8 @@ val avx_vpermw_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermw_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 240) = i * 16;
-    let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    let sel : range(0, 240) = id * 16;
-    r[(lo + 15)..lo] = src[(sel + 15)..sel];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, src, velem(16, idx, i)[3..0])
   };
   r
 }
@@ -280,10 +263,8 @@ val avx_vpermw_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermw_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 31) {
-    let lo : range(0, 496) = i * 16;
-    let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    let sel : range(0, 496) = id * 16;
-    r[(lo + 15)..lo] = src[(sel + 15)..sel];
+    let lo = i * 16;
+    r[(lo + 15)..lo] = velem(16, src, velem(16, idx, i)[4..0])
   };
   r
 }
@@ -295,9 +276,8 @@ function avx_vperm2_b_128(t1, t2, idx) = {
   let combined : bits(256) = t2 @ t1;
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, combined, velem(8, idx, i)[4..0])
   };
   r
 }
@@ -307,9 +287,8 @@ function avx_vperm2_b_256(t1, t2, idx) = {
   let combined : zmmword = t2 @ t1;
   var r : ymmword = zeros();
   foreach (i from 0 to 31) {
-    let lo : range(0, 248) = i * 8;
-    let id : range(0, 63) = unsigned(idx[(lo + 5)..lo]);
-    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, combined, velem(8, idx, i)[5..0])
   };
   r
 }
@@ -319,9 +298,8 @@ function avx_vperm2_b_512(t1, t2, idx) = {
   let combined : bits(1024) = t2 @ t1;
   var r : zmmword = zeros();
   foreach (i from 0 to 63) {
-    let lo : range(0, 504) = i * 8;
-    let id : range(0, 127) = unsigned(idx[(lo + 6)..lo]);
-    r[(lo + 7)..lo] = combined[(id * 8 + 7) .. (id * 8)];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, combined, velem(8, idx, i)[6..0])
   };
   r
 }
@@ -332,10 +310,8 @@ val avx_vpermb_128 : (xmmword, xmmword) -> xmmword
 function avx_vpermb_128(src, idx) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 120) = i * 8;
-    let id : range(0, 15) = unsigned(idx[(lo + 3)..lo]);
-    let sel : range(0, 120) = id * 8;
-    r[(lo + 7)..lo] = src[(sel + 7)..sel];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, src, velem(8, idx, i)[3..0])
   };
   r
 }
@@ -344,10 +320,8 @@ val avx_vpermb_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermb_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 31) {
-    let lo : range(0, 248) = i * 8;
-    let id : range(0, 31) = unsigned(idx[(lo + 4)..lo]);
-    let sel : range(0, 248) = id * 8;
-    r[(lo + 7)..lo] = src[(sel + 7)..sel];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, src, velem(8, idx, i)[4..0])
   };
   r
 }
@@ -356,10 +330,8 @@ val avx_vpermb_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermb_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 63) {
-    let lo : range(0, 504) = i * 8;
-    let id : range(0, 63) = unsigned(idx[(lo + 5)..lo]);
-    let sel : range(0, 504) = id * 8;
-    r[(lo + 7)..lo] = src[(sel + 7)..sel];
+    let lo = i * 8;
+    r[(lo + 7)..lo] = velem(8, src, velem(8, idx, i)[5..0])
   };
   r
 }
@@ -640,8 +612,7 @@ val avx_vpshufbitqmb_lane : (qword, qword) -> byte
 function avx_vpshufbitqmb_lane(ctrl, src) = {
   var r : byte = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 56) = i * 8;
-    let bit_idx : range(0, 63) = unsigned(ctrl[(lo + 5)..(lo)]);
+    let bit_idx : range(0, 63) = unsigned(velem(8, ctrl, i)[5..0]);
     r[i] = src[bit_idx];
   };
   r
