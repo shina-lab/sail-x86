@@ -51,10 +51,10 @@ function avx_vpmadd52(vl, shift, dst, src1, src2) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    let a : int = unsigned(src1[(lo + 63)..lo][51..0]);
-    let b : int = unsigned(src2[(lo + 63)..lo][51..0]);
+    let a : int = unsigned(velem(64, src1, i)[51..0]);
+    let b : int = unsigned(velem(64, src2, i)[51..0]);
     let extracted : qword = get_slice_int(64, a * b, shift);
-    let sum : int = unsigned(dst[(lo + 63)..lo]) + unsigned(extracted[51..0] : bits(52));
+    let sum : int = unsigned(velem(64, dst, i)) + unsigned(extracted[51..0] : bits(52));
     r[(lo + 63)..lo] = get_slice_int(64, sum, 0)
   };
   r

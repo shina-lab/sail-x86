@@ -14,7 +14,7 @@ function avx_ptestm(eb, a, b, neg) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    r[i] = is_nonzero(a[(lo + 'eb - 1)..lo] & b[(lo + 'eb - 1)..lo]) ^ neg;
+    r[i] = is_nonzero(velem('eb, a, i) & velem('eb, b, i)) ^ neg;
   };
   r
 }
@@ -153,7 +153,7 @@ function avx_vdpbf16ps(dst, src1, src2) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[(lo + 31)..lo] = __vdpbf16ps_elem(dst[(lo + 31)..lo], src1[(lo + 31)..lo], src2[(lo + 31)..lo]);
+    r[(lo + 31)..lo] = __vdpbf16ps_elem(velem(32, dst, i), velem(32, src1, i), velem(32, src2, i));
   };
   r
 }
@@ -181,7 +181,7 @@ function avx_vpmultishiftqb(vl, ctrl, src) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpmultishiftqb_lane(ctrl[(lo + 63)..lo], src[(lo + 63)..lo])
+    r[(lo + 63)..lo] = avx_vpmultishiftqb_lane(velem(64, ctrl, i), velem(64, src, i))
   };
   r
 }

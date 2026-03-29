@@ -148,8 +148,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
         var r : ymmword = zeros();
         foreach (i from 0 to (vl / 64 - 1)) {
           let lo = i * 64;
-          r[(lo + 63)..(lo + 32)] = src[(lo + 31)..lo];
-          r[(lo + 31)..lo] = src[(lo + 31)..lo]
+          let even = velem(32, src, i * 2);
+          r[(lo + 63)..(lo + 32)] = even;
+          r[(lo + 31)..lo] = even
         };
         write_simd(vl, dst, r[(vl - 1)..0])
       },
@@ -161,8 +162,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
         var r : ymmword = zeros();
         foreach (i from 0 to (vl / 128 - 1)) {
           let lo = i * 128;
-          r[(lo + 127)..(lo + 64)] = src[(lo + 63)..lo];
-          r[(lo + 63)..lo] = src[(lo + 63)..lo]
+          let low_q = velem(64, src, i * 2);
+          r[(lo + 127)..(lo + 64)] = low_q;
+          r[(lo + 63)..lo] = low_q
         };
         write_simd(vl, dst, r[(vl - 1)..0])
       },
@@ -233,8 +235,9 @@ function dispatch_vex_0f_fp(op, pfx) = {
         var r : ymmword = zeros();
         foreach (i from 0 to (vl / 64 - 1)) {
           let lo = i * 64;
-          r[(lo + 63)..(lo + 32)] = src[(lo + 63)..(lo + 32)];
-          r[(lo + 31)..lo] = src[(lo + 63)..(lo + 32)]
+          let odd = velem(32, src, i * 2 + 1);
+          r[(lo + 63)..(lo + 32)] = odd;
+          r[(lo + 31)..lo] = odd
         };
         write_simd(vl, dst, r[(vl - 1)..0])
       },

@@ -760,7 +760,7 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 3) {
         let lo = i * 32;
-        r[(lo + 31)..lo] = blend(a[(lo + 31)..lo], src_xmm[(lo + 31)..lo], m[lo + 31])
+        r[(lo + 31)..lo] = blend(velem(32, a, i), velem(32, src_xmm, i), m[lo + 31])
       };
       ZMM[xreg][127..0] = r
     },
@@ -771,7 +771,7 @@ function dispatch_3byte_38_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 1) {
         let lo = i * 64;
-        r[(lo + 63)..lo] = blend(a[(lo + 63)..lo], src_xmm[(lo + 63)..lo], m[lo + 63])
+        r[(lo + 63)..lo] = blend(velem(64, a, i), velem(64, src_xmm, i), m[lo + 63])
       };
       ZMM[xreg][127..0] = r
     },
@@ -796,7 +796,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 3) {
         let lo = i * 32;
-        r[(lo + 31)..lo] = fp_round(src_xmm[(lo + 31)..lo], imm)
+        r[(lo + 31)..lo] = fp_round(velem(32, src_xmm, i), imm)
       };
       ZMM[xreg][127..0] = r
     },
@@ -807,7 +807,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 1) {
         let lo = i * 64;
-        r[(lo + 63)..lo] = fp_round(src_xmm[(lo + 63)..lo], imm)
+        r[(lo + 63)..lo] = fp_round(velem(64, src_xmm, i), imm)
       };
       ZMM[xreg][127..0] = r
     },
@@ -836,7 +836,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 3) {
         let lo = i * 32;
-        r[(lo + 31)..lo] = blend(a[(lo + 31)..lo], src_xmm[(lo + 31)..lo], imm[i])
+        r[(lo + 31)..lo] = blend(velem(32, a, i), velem(32, src_xmm, i), imm[i])
       };
       ZMM[xreg][127..0] = r
     },
@@ -848,7 +848,7 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 1) {
         let lo = i * 64;
-        r[(lo + 63)..lo] = blend(a[(lo + 63)..lo], src_xmm[(lo + 63)..lo], imm[i])
+        r[(lo + 63)..lo] = blend(velem(64, a, i), velem(64, src_xmm, i), imm[i])
       };
       ZMM[xreg][127..0] = r
     },

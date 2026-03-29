@@ -15,7 +15,7 @@ function avx_blend_imm(eb, src1, src2, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     assert(i < 8);
-    r[(lo + 'eb - 1)..lo] = blend(src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm[i])
+    r[(lo + 'eb - 1)..lo] = blend(velem('eb, src1, i), velem('eb, src2, i), imm[i])
   };
   r
 }
@@ -47,7 +47,7 @@ function avx_roundps(vl, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[(lo + 31)..lo] = fp_round(src[(lo + 31)..lo], imm)
+    r[(lo + 31)..lo] = fp_round(velem(32, src, i), imm)
   };
   r
 }
@@ -58,7 +58,7 @@ function avx_roundpd(vl, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = fp_round(src[(lo + 63)..lo], imm)
+    r[(lo + 63)..lo] = fp_round(velem(64, src, i), imm)
   };
   r
 }

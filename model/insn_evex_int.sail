@@ -58,7 +58,7 @@ function avx_psrlw_imm_lane(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = a[(lo + 15)..lo] >> count;
+    r[(lo + 15)..lo] = velem(16, a, i) >> count;
   };
   r
 }
@@ -68,7 +68,7 @@ function avx_psrlw_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrlw_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psrlw_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -79,7 +79,7 @@ function avx_psrld_imm_lane(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = a[(lo + 31)..lo] >> count;
+    r[(lo + 31)..lo] = velem(32, a, i) >> count;
   };
   r
 }
@@ -89,7 +89,7 @@ function avx_psrld_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrld_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psrld_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -108,7 +108,7 @@ function avx_psrlq_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrlq_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psrlq_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -119,7 +119,7 @@ function avx_psllw_imm_lane(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 7) {
     let lo : range(0, 112) = i * 16;
-    r[(lo + 15)..lo] = a[(lo + 15)..lo] << count;
+    r[(lo + 15)..lo] = velem(16, a, i) << count;
   };
   r
 }
@@ -129,7 +129,7 @@ function avx_psllw_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psllw_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psllw_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -140,7 +140,7 @@ function avx_pslld_imm_lane(a, count) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
-    r[(lo + 31)..lo] = a[(lo + 31)..lo] << count;
+    r[(lo + 31)..lo] = velem(32, a, i) << count;
   };
   r
 }
@@ -150,7 +150,7 @@ function avx_pslld_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pslld_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_pslld_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -169,7 +169,7 @@ function avx_psllq_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psllq_imm_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psllq_imm_lane(velem(128, a, i), count)
   };
   r
 }
@@ -180,7 +180,7 @@ function avx_psraw_imm(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = a[(lo + 15)..lo] >>> count
+    r[(lo + 15)..lo] = velem(16, a, i) >>> count
   };
   r
 }
@@ -192,7 +192,7 @@ function arith_shr_dwords(a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[(lo + 31)..lo] = a[(lo + 31)..lo] >>> count;
+    r[(lo + 31)..lo] = velem(32, a, i) >>> count;
   };
   r
 }
@@ -204,7 +204,7 @@ function arith_shr_qwords(a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = a[(lo + 63)..lo] >>> count;
+    r[(lo + 63)..lo] = velem(64, a, i) >>> count;
   };
   r
 }
@@ -218,7 +218,7 @@ function avx_pslldq(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pslldq_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_pslldq_lane(velem(128, a, i), count)
   };
   r
 }
@@ -232,7 +232,7 @@ function avx_psrldq(vl, a, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrldq_lane(a[(lo + 127)..lo], count)
+    r[(lo + 127)..lo] = avx_psrldq_lane(velem(128, a, i), count)
   };
   r
 }
@@ -248,7 +248,7 @@ function evex_vprold_128(src, cnt) = {
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
-    let elem : bits(32) = src[(lo + 31)..lo];
+    let elem : bits(32) = velem(32, src, i);
     r[(lo + 31)..lo] = shift_bits_left(elem, cnt[(lo + 4)..lo]) | shift_bits_right(elem, to_bits_truncate(5, 32 - c));
   };
   r
@@ -260,7 +260,7 @@ function evex_vprold(src, cnt) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = evex_vprold_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+    r[(lo + 127)..lo] = evex_vprold_128(velem(128, src, lane), velem(128, cnt, lane));
   };
   r
 }
@@ -271,7 +271,7 @@ function evex_vprord_128(src, cnt) = {
   foreach (i from 0 to 3) {
     let lo : range(0, 96) = i * 32;
     let c : range(0, 31) = unsigned(cnt[(lo + 4)..lo]);
-    let elem : bits(32) = src[(lo + 31)..lo];
+    let elem : bits(32) = velem(32, src, i);
     r[(lo + 31)..lo] = shift_bits_right(elem, cnt[(lo + 4)..lo]) | shift_bits_left(elem, to_bits_truncate(5, 32 - c));
   };
   r
@@ -283,7 +283,7 @@ function evex_vprord(src, cnt) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = evex_vprord_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+    r[(lo + 127)..lo] = evex_vprord_128(velem(128, src, lane), velem(128, cnt, lane));
   };
   r
 }
@@ -294,7 +294,7 @@ function evex_vprolq_128(src, cnt) = {
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
-    let elem : bits(64) = src[(lo + 63)..lo];
+    let elem : bits(64) = velem(64, src, i);
     r[(lo + 63)..lo] = shift_bits_left(elem, cnt[(lo + 5)..lo]) | shift_bits_right(elem, to_bits_truncate(6, 64 - c));
   };
   r
@@ -306,7 +306,7 @@ function evex_vprolq(src, cnt) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = evex_vprolq_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+    r[(lo + 127)..lo] = evex_vprolq_128(velem(128, src, lane), velem(128, cnt, lane));
   };
   r
 }
@@ -317,7 +317,7 @@ function evex_vprorq_128(src, cnt) = {
   foreach (i from 0 to 1) {
     let lo : range(0, 64) = i * 64;
     let c : range(0, 63) = unsigned(cnt[(lo + 5)..lo]);
-    let elem : bits(64) = src[(lo + 63)..lo];
+    let elem : bits(64) = velem(64, src, i);
     r[(lo + 63)..lo] = shift_bits_right(elem, cnt[(lo + 5)..lo]) | shift_bits_left(elem, to_bits_truncate(6, 64 - c));
   };
   r
@@ -329,7 +329,7 @@ function evex_vprorq(src, cnt) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = evex_vprorq_128(src[(lo + 127)..lo], cnt[(lo + 127)..lo]);
+    r[(lo + 127)..lo] = evex_vprorq_128(velem(128, src, lane), velem(128, cnt, lane));
   };
   r
 }
@@ -356,7 +356,7 @@ function avx_psrlw_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrlw_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psrlw_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -371,7 +371,7 @@ function avx_psrld_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrld_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psrld_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -386,7 +386,7 @@ function avx_psrlq_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrlq_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psrlq_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -401,7 +401,7 @@ function avx_psllw_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psllw_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psllw_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -416,7 +416,7 @@ function avx_pslld_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_pslld_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_pslld_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -431,7 +431,7 @@ function avx_psllq_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psllq_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psllq_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -446,7 +446,7 @@ function avx_psraw_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psraw_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psraw_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -461,7 +461,7 @@ function avx_psrad_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psrad_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psrad_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -476,7 +476,7 @@ function avx_psraq_xmm(vl, a, count_xmm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_psraq_xmm_lane(a[(lo + 127)..lo], count_xmm)
+    r[(lo + 127)..lo] = avx_psraq_xmm_lane(velem(128, a, i), count_xmm)
   };
   r
 }
@@ -1085,9 +1085,7 @@ function dispatch_evex_int(op, pfx) = {
     let src_xmm : xmmword = read_simd(xi);
     let dst_gpr = modrm_reg(modrm, pfx);
     let imm = fetch(1);
-    let sel : range(0, 7) = unsigned(imm[2..0]);
-    let lo : range(0, 112) = sel * 16;
-    let word_val : bits(16) = src_xmm[(lo + 15)..lo];
+    let word_val : bits(16) = velem(16, src_xmm, imm[2..0]);
     v(dst_gpr) = zero_extend(64, word_val)
   },
 

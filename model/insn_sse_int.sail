@@ -947,7 +947,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 15) {
         let lo = i * 8;
-        r[(lo + 7)..lo] = blend(a[(lo + 7)..lo], src_xmm[(lo + 7)..lo], m[lo + 7])
+        r[(lo + 7)..lo] = blend(velem(8, a, i), velem(8, src_xmm, i), m[lo + 7])
       };
       ZMM[xreg][127..0] = r
     },
@@ -1063,7 +1063,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       var r : xmmword = zeros();
       foreach (i from 0 to 7) {
         let lo = i * 16;
-        r[(lo + 15)..lo] = blend(a[(lo + 15)..lo], src_xmm[(lo + 15)..lo], imm[i])
+        r[(lo + 15)..lo] = blend(velem(16, a, i), velem(16, src_xmm, i), imm[i])
       };
       ZMM[xreg][127..0] = r
     },

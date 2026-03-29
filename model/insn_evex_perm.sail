@@ -24,7 +24,7 @@ function avx_vpermilps(vl, src, ctrl) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_vpermilps_128(src[(lo + 127)..lo], ctrl[(lo + 127)..lo])
+    r[(lo + 127)..lo] = avx_vpermilps_128(velem(128, src, i), velem(128, ctrl, i))
   };
   r
 }
@@ -43,7 +43,7 @@ function avx_vpermilpd(vl, src, ctrl) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = avx_vpermilpd_128(src[(lo + 127)..lo], ctrl[(lo + 127)..lo])
+    r[(lo + 127)..lo] = avx_vpermilpd_128(velem(128, src, i), velem(128, ctrl, i))
   };
   r
 }
@@ -53,9 +53,8 @@ val avx_vpermps_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermps_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 224) = i * 32;
-    let sel : range(0, 224) = unsigned(idx[(lo + 2)..lo]) * 32;
-    r[(lo + 31)..lo] = src[(sel + 31)..sel];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[2..0])
   };
   r
 }
@@ -64,9 +63,8 @@ val avx_vpermps_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermps_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 15) {
-    let lo : range(0, 480) = i * 32;
-    let sel : range(0, 480) = unsigned(idx[(lo + 3)..lo]) * 32;
-    r[(lo + 31)..lo] = src[(sel + 31)..sel];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, velem(32, idx, i)[3..0])
   };
   r
 }
@@ -76,9 +74,8 @@ val avx_vpermpd_256 : (ymmword, ymmword) -> ymmword
 function avx_vpermpd_256(src, idx) = {
   var r : ymmword = zeros();
   foreach (i from 0 to 3) {
-    let lo : range(0, 192) = i * 64;
-    let sel : range(0, 192) = unsigned(idx[(lo + 1)..lo]) * 64;
-    r[(lo + 63)..lo] = src[(sel + 63)..sel];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[1..0])
   };
   r
 }
@@ -87,9 +84,8 @@ val avx_vpermpd_512 : (zmmword, zmmword) -> zmmword
 function avx_vpermpd_512(src, idx) = {
   var r : zmmword = zeros();
   foreach (i from 0 to 7) {
-    let lo : range(0, 448) = i * 64;
-    let sel : range(0, 448) = unsigned(idx[(lo + 2)..lo]) * 64;
-    r[(lo + 63)..lo] = src[(sel + 63)..sel];
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, src, velem(64, idx, i)[2..0])
   };
   r
 }
