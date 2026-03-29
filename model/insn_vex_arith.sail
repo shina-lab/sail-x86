@@ -9,53 +9,16 @@
 
 // PHMINPOSUW: find minimum unsigned word among 8 words.
 // Result: bits[15:0] = min value, bits[18:16] = index of min, rest zeroed.
-val avx_phminposuw_128 : xmmword -> xmmword
 function avx_phminposuw_128(src) = {
   var mv : word = src[15..0];
   var mi : bits(3) = 0b000;
-
-  let v1 : word = src[31..16];
-  let d1 : bits(17) = (0b0 @ v1) - (0b0 @ mv);
-  let u1 : word = sign_extend(d1[16]);
-  mv = (v1 & u1) | (mv & ~(u1));
-  mi = (0b001 & u1[2..0]) | (mi & ~(u1[2..0]));
-
-  let v2 : word = src[47..32];
-  let d2 : bits(17) = (0b0 @ v2) - (0b0 @ mv);
-  let u2 : word = sign_extend(d2[16]);
-  mv = (v2 & u2) | (mv & ~(u2));
-  mi = (0b010 & u2[2..0]) | (mi & ~(u2[2..0]));
-
-  let v3 : word = src[63..48];
-  let d3 : bits(17) = (0b0 @ v3) - (0b0 @ mv);
-  let u3 : word = sign_extend(d3[16]);
-  mv = (v3 & u3) | (mv & ~(u3));
-  mi = (0b011 & u3[2..0]) | (mi & ~(u3[2..0]));
-
-  let v4 : word = src[79..64];
-  let d4 : bits(17) = (0b0 @ v4) - (0b0 @ mv);
-  let u4 : word = sign_extend(d4[16]);
-  mv = (v4 & u4) | (mv & ~(u4));
-  mi = (0b100 & u4[2..0]) | (mi & ~(u4[2..0]));
-
-  let v5 : word = src[95..80];
-  let d5 : bits(17) = (0b0 @ v5) - (0b0 @ mv);
-  let u5 : word = sign_extend(d5[16]);
-  mv = (v5 & u5) | (mv & ~(u5));
-  mi = (0b101 & u5[2..0]) | (mi & ~(u5[2..0]));
-
-  let v6 : word = src[111..96];
-  let d6 : bits(17) = (0b0 @ v6) - (0b0 @ mv);
-  let u6 : word = sign_extend(d6[16]);
-  mv = (v6 & u6) | (mv & ~(u6));
-  mi = (0b110 & u6[2..0]) | (mi & ~(u6[2..0]));
-
-  let v7 : word = src[127..112];
-  let d7 : bits(17) = (0b0 @ v7) - (0b0 @ mv);
-  let u7 : word = sign_extend(d7[16]);
-  mv = (v7 & u7) | (mv & ~(u7));
-  mi = (0b111 & u7[2..0]) | (mi & ~(u7[2..0]));
-
+  foreach (i from 1 to 7) {
+    let vi : word = src[(i * 16 + 15) .. (i * 16)];
+    let d : bits(17) = (0b0 @ vi) - (0b0 @ mv);
+    let u : word = sign_extend(d[16]);
+    mv = (vi & u) | (mv & ~(u));
+    mi = (to_bits(3, i) & u[2..0]) | (mi & ~(u[2..0]))
+  };
   zeros(109) @ mi @ mv
 }
 
@@ -492,12 +455,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
+    let vl = vex_vl(pfx);
     match src {
-      XRM_mem(m) => {
-        check_alignment(m, if pfx.vex_l then 32 else 16);
-        if pfx.vex_l then write_simd(256, dst, read_mem(m))
-        else write_simd(128, dst, read_mem(m))
-      },
+      XRM_mem(m) => { check_alignment(m, vl / 8); write_simd(vl, dst, read_mem(m)) },
       XRM_reg(_) => raise_UD(),
     }
   },
@@ -519,96 +479,17 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   52 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 16, 64, pfx) },
   53 => { if mp != MP_66 then raise_UD(); vex_exec_widen(PW_ZeroExtend, 32, 64, pfx) },
 
-  // 0F38 38: VPMINSB (66 prefix)
-  // Packed minimum of signed bytes
-  56 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 39: VPMINSD (66 prefix)
-  57 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinS, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3A: VPMINUW (66 prefix)
-  58 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3B: VPMINUD (66 prefix)
-  59 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MinU, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3C: VPMAXSB (66 prefix)
-  60 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxS, 8, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3D: VPMAXSD (66 prefix)
-  61 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxS, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3E: VPMAXUW (66 prefix)
-  62 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxU, 16, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
-  // 0F38 3F: VPMAXUD (66 prefix)
-  63 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MaxU, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
-
+  // 0F38 38-3F: VPMINSB/SD, VPMINUW/UD, VPMAXSB/SD, VPMAXUW/UD (66 prefix)
+  56 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinS,  8, pfx) },
+  57 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinS, 32, pfx) },
+  58 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinU, 16, pfx) },
+  59 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinU, 32, pfx) },
+  60 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxS,  8, pfx) },
+  61 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxS, 32, pfx) },
+  62 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxU, 16, pfx) },
+  63 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxU, 32, pfx) },
   // 0F38 40: VPMULLD (66 prefix)
-  64 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, packed_binop(PB_MulLow, 32, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
-  },
+  64 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MulLow, 32, pfx) },
 
   // 0F38 41: VPHMINPOSUW (66 prefix, VEX.128 only, vvvv must be 1111b)
   65 => {

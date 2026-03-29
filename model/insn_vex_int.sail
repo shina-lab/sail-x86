@@ -202,9 +202,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     } else {
       // VZEROUPPER: zero upper bits (255:128) of ZMM0-ZMM15
       foreach (i from 0 to 15) {
-        var r : zmmword = ZMM[i];
-        r[511..128] = zeros();
-        ZMM[i] = r
+        ZMM[i][511..128] = zeros()
       }
     }
   },
@@ -232,12 +230,8 @@ function dispatch_vex_0f_int(op, pfx) = {
       MP_66 => {
         // VMOVD/VMOVQ xmm -> r/m
         let src : xmmword = read_simd(modrm_xreg(modrm, pfx));
-        match (src2, pfx.vex_w) {
-          (RM_reg(r), true)  => v(r) = src[63..0],
-          (RM_reg(r), false) => v(r) = src[31..0],
-          (RM_mem(m), true)  => v(m) = src[63..0],
-          (RM_mem(m), false) => v(m) = src[31..0],
-        }
+        let os : {32, 64} = if pfx.vex_w then 64 else 32;
+        v(src2) = src[os - 1 .. 0]
       },
       MP_F3 => {
         // VMOVQ xmm1, xmm2/m64

@@ -173,18 +173,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               let src : xmmword = read_simd(xi);
               ZMM[xreg][127..0] = read_simd(128, xreg)[127..64] @ src[127..64]
             },
-            XRM_mem(m) => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[63..0] = v(m);
-              ZMM[xreg][127..0] = xmm
-            },
+            XRM_mem(m) => ZMM[xreg][63..0] = v(m),
           }
         },
-        MP_66 => {
-          // MOVLPD xmm, m64
-          var xmm : xmmword = read_simd(xreg);
-          match src { XRM_reg(_) => raise_UD(), XRM_mem(m) => xmm[63..0] = v(m) };
-          ZMM[xreg][127..0] = xmm
+        // MOVLPD xmm, m64
+        MP_66 => match src {
+          XRM_reg(_) => raise_UD(),
+          XRM_mem(m) => ZMM[xreg][63..0] = v(m),
         },
         MP_F3 => {
           // MOVSLDUP xmm1, xmm2/m128 (SSE3)
@@ -195,16 +190,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         MP_F2 => {
           // MOVDDUP xmm1, xmm2/m64 (SSE3)
           if ~(has_sse3) then raise_UD();
-          match src {
-            XRM_reg(xi) => {
-              let s : xmmword = read_simd(xi);
-              ZMM[xreg][127..0] = s[63..0] @ s[63..0]
-            },
-            XRM_mem(m) => {
-              let lo = v(64, m);
-              ZMM[xreg][127..0] = lo @ lo
-            },
-          }
+          let lo : qword = decode_scalar_src(src);
+          ZMM[xreg][127..0] = lo @ lo
         },
       }
     },
@@ -255,17 +242,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
               let src : xmmword = read_simd(xi);
               ZMM[xreg][127..0] = src[63..0] @ read_simd(128, xreg)[63..0]
             },
-            XRM_mem(m) => {
-              var xmm : xmmword = read_simd(xreg);
-              xmm[127..64] = v(m);
-              ZMM[xreg][127..0] = xmm
-            },
+            XRM_mem(m) => ZMM[xreg][127..64] = v(m),
           }
         },
-        MP_66 => {
-          var xmm : xmmword = read_simd(xreg);
-          match src { XRM_reg(_) => raise_UD(), XRM_mem(m) => xmm[127..64] = v(m) };
-          ZMM[xreg][127..0] = xmm
+        // MOVHPD xmm, m64
+        MP_66 => match src {
+          XRM_reg(_) => raise_UD(),
+          XRM_mem(m) => ZMM[xreg][127..64] = v(m),
         },
         MP_F3 => {
           // MOVSHDUP xmm1, xmm2/m128 (SSE3)

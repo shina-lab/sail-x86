@@ -3,8 +3,9 @@
 // SSE/SSE2/SSSE3/SSE4.1/SSE4.2 packed integer arithmetic, logical,
 // shift, pack/unpack, compare, AES-NI, and PCLMULQDQ.
 
-// Forward declaration — defined in insn_mmx.sail (compiled after this file)
+// Forward declarations — defined in files compiled after this one
 val dispatch_mmx : (range(0, 255), Prefixes) -> unit
+val avx_phminposuw_128 : xmmword -> xmmword
 
 // =========================================================================
 // SSE dispatch helpers — absorb common decode boilerplate
@@ -1030,93 +1031,23 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     // SSE4.1 — PMULLD
     64 => ZMM[xreg][127..0] = packed_binop(PB_MulLow, 32, read_simd(xreg), src_xmm),
     // PHMINPOSUW xmm1, xmm2/m128
-    65 => {
-      let s : xmmword = src_xmm;
-      let w0 : word = s[15..0];
-      let w1 : word = s[31..16];
-      let w2 : word = s[47..32];
-      let w3 : word = s[63..48];
-      let w4 : word = s[79..64];
-      let w5 : word = s[95..80];
-      let w6 : word = s[111..96];
-      let w7 : word = s[127..112];
-
-      // Find minimum value and index (lowest index wins on tie) — branchless
-      var mv : word = w0;
-      var mi : word = 0x0000;
-
-      let d1 : bits(17) = (0b0 @ w1) - (0b0 @ mv);
-      let u1 : word = sign_extend(d1[16]);
-      mv = (w1 & u1) | (mv & ~(u1));
-      mi = (0x0001 & u1) | (mi & ~(u1));
-
-      let d2 : bits(17) = (0b0 @ w2) - (0b0 @ mv);
-      let u2 : word = sign_extend(d2[16]);
-      mv = (w2 & u2) | (mv & ~(u2));
-      mi = (0x0002 & u2) | (mi & ~(u2));
-
-      let d3 : bits(17) = (0b0 @ w3) - (0b0 @ mv);
-      let u3 : word = sign_extend(d3[16]);
-      mv = (w3 & u3) | (mv & ~(u3));
-      mi = (0x0003 & u3) | (mi & ~(u3));
-
-      let d4 : bits(17) = (0b0 @ w4) - (0b0 @ mv);
-      let u4 : word = sign_extend(d4[16]);
-      mv = (w4 & u4) | (mv & ~(u4));
-      mi = (0x0004 & u4) | (mi & ~(u4));
-
-      let d5 : bits(17) = (0b0 @ w5) - (0b0 @ mv);
-      let u5 : word = sign_extend(d5[16]);
-      mv = (w5 & u5) | (mv & ~(u5));
-      mi = (0x0005 & u5) | (mi & ~(u5));
-
-      let d6 : bits(17) = (0b0 @ w6) - (0b0 @ mv);
-      let u6 : word = sign_extend(d6[16]);
-      mv = (w6 & u6) | (mv & ~(u6));
-      mi = (0x0006 & u6) | (mi & ~(u6));
-
-      let d7 : bits(17) = (0b0 @ w7) - (0b0 @ mv);
-      let u7 : word = sign_extend(d7[16]);
-      mv = (w7 & u7) | (mv & ~(u7));
-      mi = (0x0007 & u7) | (mi & ~(u7));
-
-      ZMM[xreg][127..0] = zeros(96) @ mi @ mv
-    },
+    65 => ZMM[xreg][127..0] = avx_phminposuw_128(src_xmm),
 
     // AES-NI — AESIMC
-    219 => {
-      if ~(has_aesni) then raise_UD();
-      let s : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aesimc(s)
-    },
+    219 => { if ~(has_aesni) then raise_UD();
+             ZMM[xreg][127..0] = __aesimc(src_xmm) },
     // AES-NI — AESENC
-    220 => {
-      if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_simd(xreg);
-      let roundkey : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aesenc(state, roundkey)
-    },
-    // AES-NI — AESENCLAST (0F 38 DD)
-    221 => {
-      if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_simd(xreg);
-      let roundkey : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aesenclast(state, roundkey)
-    },
-    // AES-NI — AESDEC (0F 38 DE)
-    222 => {
-      if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_simd(xreg);
-      let roundkey : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aesdec(state, roundkey)
-    },
+    220 => { if ~(has_aesni) then raise_UD();
+             ZMM[xreg][127..0] = __aesenc(read_simd(xreg), src_xmm) },
+    // AES-NI — AESENCLAST
+    221 => { if ~(has_aesni) then raise_UD();
+             ZMM[xreg][127..0] = __aesenclast(read_simd(xreg), src_xmm) },
+    // AES-NI — AESDEC
+    222 => { if ~(has_aesni) then raise_UD();
+             ZMM[xreg][127..0] = __aesdec(read_simd(xreg), src_xmm) },
     // AES-NI — AESDECLAST
-    223 => {
-      if ~(has_aesni) then raise_UD();
-      let state : xmmword = read_simd(xreg);
-      let roundkey : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aesdeclast(state, roundkey)
-    },
+    223 => { if ~(has_aesni) then raise_UD();
+             ZMM[xreg][127..0] = __aesdeclast(read_simd(xreg), src_xmm) },
 
     // GFNI — GF2P8MULB (66 0F 38 CF)
     207 => {
@@ -1227,9 +1158,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     66 => {
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      ZMM[xreg][127..0] = mpsadbw(a, b, imm)
+      ZMM[xreg][127..0] = mpsadbw(read_simd(xreg), src_xmm, imm)
     },
 
     // PCLMULQDQ xmm1, xmm2/m128, imm8
@@ -1238,9 +1167,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
       let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
-      let sel_b : qword = blend(b[63..0], b[127..64], imm[4]);
+      let sel_b : qword = blend(src_xmm[63..0], src_xmm[127..64], imm[4]);
       ZMM[xreg][127..0] = pclmulqdq(sel_a, sel_b)
     },
 
@@ -1248,11 +1176,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     96 => {
       let src_xmm = decode_xmm_src_u(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
-      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpestrm(a, la, b, lb, imm);
+      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpestrm(read_simd(xreg), la, src_xmm, lb, imm);
       ZMM[0][127..0] = mask;
       CF = cf_val;
       ZF = zf_val;
@@ -1265,11 +1191,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     97 => {
       let src_xmm = decode_xmm_src_u(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
-      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpestri(a, la, b, lb, imm);
+      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpestri(read_simd(xreg), la, src_xmm, lb, imm);
       v(RCX) = idx;
       CF = cf_val;
       ZF = zf_val;
@@ -1282,9 +1206,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     98 => {
       let src_xmm = decode_xmm_src_u(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpistrm(a, b, imm);
+      let (mask, cf_val, zf_val, sf_val, of_val) = pcmpistrm(read_simd(xreg), src_xmm, imm);
       ZMM[0][127..0] = mask;
       CF = cf_val;
       ZF = zf_val;
@@ -1297,9 +1219,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     99 => {
       let src_xmm = decode_xmm_src_u(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let b : xmmword = src_xmm;
-      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpistri(a, b, imm);
+      let (idx, cf_val, zf_val, sf_val, of_val) = pcmpistri(read_simd(xreg), src_xmm, imm);
       v(RCX) = idx;
       CF = cf_val;
       ZF = zf_val;
@@ -1312,10 +1232,8 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // AES-NI — AESKEYGENASSIST
     223 => {
       if ~(has_aesni) then raise_UD();
-      let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
-      let s : xmmword = src_xmm;
-      ZMM[xreg][127..0] = __aeskeygenassist(s, imm)
+      ZMM[xreg][127..0] = __aeskeygenassist(decode_xmm_src(xsrc), imm)
     },
 
     // GFNI — GF2P8AFFINEQB (66 0F 3A CE)
