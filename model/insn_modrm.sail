@@ -387,6 +387,14 @@ function decode_sse_fp_src(modrm, src, pfx, mp) = match src {
 // Scalar FP source: reads low 'eb bits from XMM register or 'eb bits from memory.
 val decode_scalar_src : forall 'eb, 'eb in {32, 64}. (implicit('eb), byte, RM, Prefixes) -> bits('eb)
 function decode_scalar_src(eb, modrm, src, pfx) = match src {
-  RM_reg(_) => read_simd(128, modrm_xmm_rm(modrm, pfx))[('eb - 1) .. 0],
+  RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][('eb - 1) .. 0],
+  RM_mem(m) => read_mem(m),
+}
+
+// Partial XMM source: reads low 'n bits from XMM register or 'n bits from memory.
+// No alignment check (used for PMOVSX/PMOVZX which read m16/m32/m64).
+val decode_xmm_partial_src : forall 'n, 'n in {16, 32, 64}. (implicit('n), byte, RM, Prefixes) -> bits('n)
+function decode_xmm_partial_src(n, modrm, src, pfx) = match src {
+  RM_reg(_) => ZMM[modrm_xmm_rm(modrm, pfx)][('n - 1) .. 0],
   RM_mem(m) => read_mem(m),
 }

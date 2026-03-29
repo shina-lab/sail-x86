@@ -938,9 +938,20 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
   let modrm = fetch(1);
   let xreg = modrm_xmm_reg(modrm, pfx);
   let src = modrm_rm(modrm, pfx);
-  let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
-  match op {
 
+  // PMOVSX/PMOVZX read less than 128 bits from memory (no alignment check).
+  // Decode them before the aligned 128-bit read to avoid spurious #GP.
+  let src_xmm : xmmword =
+    if op == 32 | op == 35 | op == 37 | op == 48 | op == 51 | op == 53 then
+      zero_extend(decode_xmm_partial_src(64, modrm, src, pfx))
+    else if op == 33 | op == 36 | op == 49 | op == 52 then
+      zero_extend(decode_xmm_partial_src(32, modrm, src, pfx))
+    else if op == 34 | op == 50 then
+      zero_extend(decode_xmm_partial_src(16, modrm, src, pfx))
+    else
+      decode_xmm_src(modrm, src, pfx);
+
+  match op {
     // SSSE3 — PSHUFB
     0  => ZMM[xreg][127..0] = pshufb(read_simd(xreg), src_xmm),
     // PHADDW xmm1, xmm2/m128
@@ -994,7 +1005,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     29 => ZMM[xreg][127..0] = packed_unop(PU_Abs, 16, src_xmm),
     30 => ZMM[xreg][127..0] = packed_unop(PU_Abs, 32, src_xmm),
 
-    // SSE4.1 — PMOVSXBW/BD/BQ/WD/WQ/DQ
+    // SSE4.1 — PMOVSXBW/BD/BQ/WD/WQ/DQ (read m64/m32/m16, no alignment)
     32 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 16, src_xmm[63..0]),
     33 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 32, src_xmm[31..0]),
     34 => ZMM[xreg][127..0] = packed_widen_unop(PW_SignExtend,  8, 64, src_xmm[15..0]),
@@ -1013,7 +1024,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     // PACKUSDW xmm1, xmm2/m128
     43 => ZMM[xreg][127..0] = packed_pack(PN_SatSU, 32, 16, read_simd(xreg), src_xmm),
 
-    // SSE4.1 — PMOVZXBW/BD/BQ/WD/WQ/DQ
+    // SSE4.1 — PMOVZXBW/BD/BQ/WD/WQ/DQ (read m64/m32/m16, no alignment)
     48 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 16, src_xmm[63..0]),
     49 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 32, src_xmm[31..0]),
     50 => ZMM[xreg][127..0] = packed_widen_unop(PW_ZeroExtend,  8, 64, src_xmm[15..0]),

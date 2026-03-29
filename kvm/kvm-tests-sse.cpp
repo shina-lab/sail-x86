@@ -700,12 +700,28 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // NOTE: RCPPS/RCPSS/RSQRTPS/RSQRTSS are approximate instructions with
-  // implementation-defined precision, so we cannot do exact comparison.
-  // But we can still test alignment behavior.
+  // implementation-defined precision (~1.5*2^-12 relative error per SDM),
+  // so we use tolerance-based XMM comparison for the scalar misalign tests.
   add_misalign_fault("rsqrtps xmm0,[rdi] misaligned", {0x0F, 0x52, 0x07});
-  add_misalign_ok("rsqrtss xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x52, 0x07});
+  {
+    TestCase tc;
+    tc.name = "rsqrtss xmm0,[rdi] misaligned"; tc.category = cat;
+    tc.code = {0xF3, 0x0F, 0x52, 0x07};
+    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.flags_mask = 0; tc.xmm_mask = 0x1; tc.init_data = align_data;
+    tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
+    tests.push_back(std::move(tc));
+  }
   add_misalign_fault("rcpps xmm0,[rdi] misaligned", {0x0F, 0x53, 0x07});
-  add_misalign_ok("rcpss xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x53, 0x07});
+  {
+    TestCase tc;
+    tc.name = "rcpss xmm0,[rdi] misaligned"; tc.category = cat;
+    tc.code = {0xF3, 0x0F, 0x53, 0x07};
+    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.flags_mask = 0; tc.xmm_mask = 0x1; tc.init_data = align_data;
+    tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
+    tests.push_back(std::move(tc));
+  }
 
   // SSE conversions — remaining variants
   {

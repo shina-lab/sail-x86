@@ -600,8 +600,12 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src_xmm : xmmword = decode_sse_fp_src(modrm, src, pfx, mp);
       let arith_op : range(0, 15) = op - 80;
+      // CVTPS2PD (0F 5A, NP) reads xmm/m64, not xmm/m128
+      let src_xmm : xmmword = if arith_op == 10 & mp == MP_NONE then
+        zero_extend(decode_xmm_partial_src(64, modrm, src, pfx))
+      else
+        decode_sse_fp_src(modrm, src, pfx, mp);
       match arith_op {
         // 0F 51: SQRT
         1 => sse_exec_fp_unop(PU_FSqrt, xreg, src_xmm, mp),
@@ -644,20 +648,24 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // 0F 5A: CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS
         10 => {
           match mp {
+            // CVTPS2PD: reads xmm/m64 (already decoded above)
             MP_NONE => {
               let r : xmmword = __f32_to_f64(src_xmm[63..32]) @ __f32_to_f64(src_xmm[31..0]);
               ZMM[xreg][127..0] = r
             },
+            // CVTPD2PS: reads xmm/m128
             MP_66 => {
               let r : xmmword = zeros(64) @ __f64_to_f32(src_xmm[127..64]) @ __f64_to_f32(src_xmm[63..0]);
               ZMM[xreg][127..0] = r
             },
+            // CVTSS2SD: reads xmm/m32
             MP_F3 => {
               let result : qword = __f32_to_f64(src_xmm[31..0]);
               var xmm : xmmword = read_simd(xreg);
               xmm[63..0] = result;
               ZMM[xreg][127..0] = xmm
             },
+            // CVTSD2SS: reads xmm/m64
             MP_F2 => {
               let result : dword = __f64_to_f32(src_xmm[63..0]);
               var xmm : xmmword = read_simd(xreg);
@@ -777,17 +785,22 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
       match mp {
+        // CVTDQ2PD: reads only 64 bits (two dwords), no alignment required
         MP_F3 => {
-          let r : xmmword = __int32_to_f64(src_xmm[63..32]) @ __int32_to_f64(src_xmm[31..0]);
+          let lo64 : qword = decode_xmm_partial_src(64, modrm, src, pfx);
+          let r : xmmword = __int32_to_f64(lo64[63..32]) @ __int32_to_f64(lo64[31..0]);
           ZMM[xreg][127..0] = r
         },
+        // CVTPD2DQ: reads 128 bits, 16-byte alignment required
         MP_F2 => {
+          let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
           let r : xmmword = zeros(64) @ __f64_to_int32(src_xmm[127..64]) @ __f64_to_int32(src_xmm[63..0]);
           ZMM[xreg][127..0] = r
         },
+        // CVTTPD2DQ: reads 128 bits, 16-byte alignment required
         MP_66 => {
+          let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
           let lo : dword = __f64_to_int32_trunc(src_xmm[63..0]);
           let hi : dword = __f64_to_int32_trunc(src_xmm[127..64]);
           let r : xmmword = zeros(64) @ hi @ lo;
@@ -970,18 +983,20 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
       };
       ZMM[xreg][127..0] = r
     },
+    // ROUNDSS: reads 32 bits from memory, no alignment required
     10 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src32 : dword = decode_scalar_src(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      let lo : dword = fp_round(src_xmm[31..0], imm);
+      let lo : dword = fp_round(src32, imm);
       ZMM[xreg][127..0] = a[127..32] @ lo
     },
+    // ROUNDSD: reads 64 bits from memory, no alignment required
     11 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src64 : qword = decode_scalar_src(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
-      let lo : qword = fp_round(src_xmm[63..0], imm);
+      let lo : qword = fp_round(src64, imm);
       ZMM[xreg][127..0] = a[127..64] @ lo
     },
 

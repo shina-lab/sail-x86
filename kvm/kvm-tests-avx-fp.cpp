@@ -229,11 +229,19 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
     add_vok("VMINSD xmm,[rdi] misaligned", vex_bin(3, 0x5D, false));
     add_vok("VMAXSS xmm,[rdi] misaligned", vex_bin(2, 0x5F, false));
     add_vok("VMAXSD xmm,[rdi] misaligned", vex_bin(3, 0x5F, false));
-    // VEX VRSQRTPS/VRCPPS — no alignment
-    add_vok("VRSQRTPS xmm,[rdi] misaligned", vex_un(0, 0x52, false));
-    add_vok("VRSQRTSS xmm,[rdi] misaligned", vex_bin(2, 0x52, false));
-    add_vok("VRCPPS xmm,[rdi] misaligned", vex_un(0, 0x53, false));
-    add_vok("VRCPSS xmm,[rdi] misaligned", vex_bin(2, 0x53, false));
+    // VEX VRSQRTPS/VRCPPS — no alignment, approximate (~1.5*2^-12 relative error)
+    auto add_vok_approx = [&](const std::string &name, std::vector<u8> code) {
+      TestCase tc; tc.name = name; tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+      tc.xmm_mask = 0x1; tc.init_data = adata;
+      tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
+      tests.push_back(std::move(tc));
+    };
+    add_vok_approx("VRSQRTPS xmm,[rdi] misaligned", vex_un(0, 0x52, false));
+    add_vok_approx("VRSQRTSS xmm,[rdi] misaligned", vex_bin(2, 0x52, false));
+    add_vok_approx("VRCPPS xmm,[rdi] misaligned", vex_un(0, 0x53, false));
+    add_vok_approx("VRCPSS xmm,[rdi] misaligned", vex_bin(2, 0x53, false));
     // VEX VCMPPS/VCMPPD/VCMPSS/VCMPSD — no alignment
     { auto c = vex_bin(0, 0xC2, false); c.push_back(0); add_vok("VCMPPS xmm,[rdi] misaligned", c); }
     { auto c = vex_bin(1, 0xC2, false); c.push_back(0); add_vok("VCMPPD xmm,[rdi] misaligned", c); }
