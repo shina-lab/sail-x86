@@ -114,7 +114,7 @@ function avx_unpckhpd(vl, a, b) = {
 // FP compare predicate (5-bit imm8 for AVX/AVX-512 VCMPPS/VCMPPD)
 // =========================================================================
 
-// cmp_pred5_f32, cmp_pred5_f64, eval_fp_predicate: defined in insn_sse_fp.sail
+// cmp_pred5, cmp_pred5, eval_fp_predicate: defined in insn_sse_fp.sail
 
 // Polymorphic compare-to-kmask for EVEX VCMPPS/VCMPPD
 val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
@@ -123,7 +123,7 @@ function avx_vcmpps_kmask(vl, a, b, pred) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[i] = cmp_pred5_f32(a[(lo+31)..lo], b[(lo+31)..lo], pred)
+    r[i] = cmp_pred5(a[(lo+31)..lo], b[(lo+31)..lo], pred)
   };
   r
 }
@@ -134,7 +134,7 @@ function avx_vcmppd_kmask(vl, a, b, pred) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[i] = cmp_pred5_f64(a[(lo+63)..lo], b[(lo+63)..lo], pred)
+    r[i] = cmp_pred5(a[(lo+63)..lo], b[(lo+63)..lo], pred)
   };
   r
 }
@@ -1744,7 +1744,7 @@ function dispatch_evex_fp(op, pfx) = {
           XRM_reg(xi) => read_simd(128, xi)[31..0],
           XRM_mem(m) => v(m),
         };
-        write_kreg(dst_k, zero_extend(cmp_pred5_f32(src1_f32, src2_f32, pred)))
+        write_kreg(dst_k, zero_extend(cmp_pred5(src1_f32, src2_f32, pred)))
       },
       // VCMPSD → k (scalar, bit 0 only)
       MP_F2 => {
@@ -1756,7 +1756,7 @@ function dispatch_evex_fp(op, pfx) = {
           XRM_reg(xi) => read_simd(128, xi)[63..0],
           XRM_mem(m) => v(m),
         };
-        write_kreg(dst_k, zero_extend(cmp_pred5_f64(src1_f64, src2_f64, pred)))
+        write_kreg(dst_k, zero_extend(cmp_pred5(src1_f64, src2_f64, pred)))
       },
     }
   },
