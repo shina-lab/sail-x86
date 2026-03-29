@@ -54,9 +54,8 @@ val packed_unop : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {8, 16, 32
 function packed_unop(op, eb, a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = packed_unary_elem(op, a[hi..lo])
+    r[(lo + 'eb - 1)..lo] = packed_unary_elem(op, velem('eb, a, i))
   };
   r
 }
@@ -167,9 +166,8 @@ val packed_binop : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {8, 16, 3
 function packed_binop(op, eb, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = packed_elem_op(op, a[hi..lo], b[hi..lo])
+    r[(lo + 'eb - 1)..lo] = packed_elem_op(op, velem('eb, a, i), velem('eb, b, i))
   };
   r
 }
@@ -183,9 +181,8 @@ function packed_lane_imm_elem(op, src, imm) = match op {
     var r : bits(128) = zeros();
     foreach (i from 0 to 3) {
       let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
-      let dst_lo = i * 32;
-      let src_lo = sel * 32;
-      r[(dst_lo + 31)..dst_lo] = src[(src_lo + 31)..src_lo]
+      let lo = i * 32;
+      r[(lo + 31)..lo] = velem(32, src, sel)
     };
     r
   },
@@ -194,9 +191,8 @@ function packed_lane_imm_elem(op, src, imm) = match op {
     r[63..0] = src[63..0];
     foreach (i from 0 to 3) {
       let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
-      let dst_lo = i * 16 + 64;
-      let src_lo = sel * 16 + 64;
-      r[(dst_lo + 15)..dst_lo] = src[(src_lo + 15)..src_lo]
+      let lo = i * 16 + 64;
+      r[(lo + 15)..lo] = velem(16, src, sel + 4)
     };
     r
   },
@@ -205,9 +201,8 @@ function packed_lane_imm_elem(op, src, imm) = match op {
     r[127..64] = src[127..64];
     foreach (i from 0 to 3) {
       let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
-      let dst_lo = i * 16;
-      let src_lo = sel * 16;
-      r[(dst_lo + 15)..dst_lo] = src[(src_lo + 15)..src_lo]
+      let lo = i * 16;
+      r[(lo + 15)..lo] = velem(16, src, sel)
     };
     r
   },
@@ -218,9 +213,8 @@ val packed_lane_imm_op : forall 'vl, 'vl in {128, 256, 512}.
 function packed_lane_imm_op(op, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
-    let hi = (i + 1) * 128 - 1;
     let lo = i * 128;
-    r[hi..lo] = packed_lane_imm_elem(op, src[hi..lo], imm)
+    r[(lo + 127)..lo] = packed_lane_imm_elem(op, velem(128, src, i), imm)
   };
   r
 }
@@ -233,12 +227,12 @@ val packed_uniform_shift : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {
 function packed_uniform_shift(op, eb, src, count) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = match op {
-      PS_Srl => src[hi..lo] >> count,
-      PS_Sra => src[hi..lo] >>> count,
-      PS_Sll => src[hi..lo] << count,
+    let e = velem('eb, src, i);
+    r[(lo + 'eb - 1)..lo] = match op {
+      PS_Srl => e >> count,
+      PS_Sra => e >>> count,
+      PS_Sll => e << count,
     }
   };
   r
@@ -385,9 +379,8 @@ val packed_ternop : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 
 function packed_ternop(op, eb, a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = packed_ternary_elem(op, a[hi..lo], b[hi..lo], c[hi..lo])
+    r[(lo + 'eb - 1)..lo] = packed_ternary_elem(op, velem('eb, a, i), velem('eb, b, i), velem('eb, c, i))
   };
   r
 }
@@ -400,9 +393,8 @@ val avx_vcvtph2ps : forall 'n, 'n in {64, 128, 256}. bits('n) -> bits('n * 2)
 function avx_vcvtph2ps(src) = {
   var r : bits('n * 2) = zeros();
   foreach (i from 0 to ('n / 16 - 1)) {
-    let src_lo = i * 16;
-    let dst_lo = i * 32;
-    r[(dst_lo + 31)..dst_lo] = fp16_to_fp32(src[(src_lo + 15)..src_lo]);
+    let lo = i * 32;
+    r[(lo + 31)..lo] = fp16_to_fp32(velem(16, src, i));
   };
   r
 }
@@ -411,9 +403,8 @@ val avx_vcvtps2ph : forall 'n, 'n in {128, 256, 512}. (bits('n), bits(2)) -> bit
 function avx_vcvtps2ph(src, rc) = {
   var r : bits(div('n, 2)) = zeros();
   foreach (i from 0 to ('n / 32 - 1)) {
-    let src_lo = i * 32;
-    let dst_lo = i * 16;
-    r[(dst_lo + 15)..dst_lo] = fp32_to_fp16(src[(src_lo + 31)..src_lo], rc);
+    let lo = i * 16;
+    r[(lo + 15)..lo] = fp32_to_fp16(velem(32, src, i), rc);
   };
   r
 }
@@ -428,7 +419,7 @@ function avx_gf2p8mulb(src1, src2) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 8 - 1)) {
     let lo = i * 8;
-    r[(lo + 7)..lo] = gf2p8_mul(src1[(lo + 7)..lo], src2[(lo + 7)..lo]);
+    r[(lo + 7)..lo] = gf2p8_mul(velem(8, src1, i), velem(8, src2, i));
   };
   r
 }
@@ -440,8 +431,7 @@ function avx_gf2p8affineqb(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 8 - 1)) {
     let lo = i * 8;
-    let lane = (i / 8) * 64;
-    r[(lo + 7)..lo] = gf2p8_affine(src1[(lo + 7)..lo], src2[(lane + 63)..lane], imm8);
+    r[(lo + 7)..lo] = gf2p8_affine(velem(8, src1, i), velem(64, src2, i / 8), imm8);
   };
   r
 }
@@ -453,8 +443,7 @@ function avx_gf2p8affineinvqb(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 8 - 1)) {
     let lo = i * 8;
-    let lane = (i / 8) * 64;
-    r[(lo + 7)..lo] = gf2p8_affine(gf2p8_inv(src1[(lo + 7)..lo]), src2[(lane + 63)..lane], imm8);
+    r[(lo + 7)..lo] = gf2p8_affine(gf2p8_inv(velem(8, src1, i)), velem(64, src2, i / 8), imm8);
   };
   r
 }

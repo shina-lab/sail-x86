@@ -9,9 +9,9 @@ function avx_fmaddsub(eb, a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    let ae = a[(lo + 'eb - 1)..lo];
-    let be = b[(lo + 'eb - 1)..lo];
-    let ce = c[(lo + 'eb - 1)..lo];
+    let ae = velem('eb, a, i);
+    let be = velem('eb, b, i);
+    let ce = velem('eb, c, i);
     r[(lo + 'eb - 1)..lo] = match eb {
       32 => if i % 2 == 0 then fp_fmsub(ae, be, ce) else fp_fmadd(ae, be, ce),
       64 => if i % 2 == 0 then fp_fmsub(ae, be, ce) else fp_fmadd(ae, be, ce),
@@ -27,9 +27,9 @@ function avx_fmsubadd(eb, a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    let ae = a[(lo + 'eb - 1)..lo];
-    let be = b[(lo + 'eb - 1)..lo];
-    let ce = c[(lo + 'eb - 1)..lo];
+    let ae = velem('eb, a, i);
+    let be = velem('eb, b, i);
+    let ce = velem('eb, c, i);
     r[(lo + 'eb - 1)..lo] = match eb {
       32 => if i % 2 == 0 then fp_fmadd(ae, be, ce) else fp_fmsub(ae, be, ce),
       64 => if i % 2 == 0 then fp_fmadd(ae, be, ce) else fp_fmsub(ae, be, ce),

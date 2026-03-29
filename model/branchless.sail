@@ -255,9 +255,8 @@ function pshufb(src, ctrl) = {
   var r : bits(128) = zeros();
   foreach (i from 0 to 15) {
     let lo = i * 8;
-    let mask : byte = ctrl[(lo + 7)..lo];
-    let idx : range(0, 15) = unsigned(mask[3..0]);
-    let selected : byte = (src >> (idx * 8))[7..0];
+    let mask : byte = velem(8, ctrl, i);
+    let selected : byte = velem(8, src, mask[3..0]);
     r[(lo + 7)..lo] = selected & sign_extend(~(mask[7]))
   };
   r
