@@ -192,11 +192,6 @@ function evex_bcast_src(vl, xm, pfx, eb) = match xm {
   XRM_reg(xi) => ZMM[xi][(vl - 1)..0],
 }
 
-val select4_f32 : (bits(128), bits(2)) -> bits(32)
-function select4_f32(src, ctrl) = {
-  let lo : range(0, 96) = unsigned(ctrl) * 32;
-  src[(lo + 31)..lo]
-}
 
 val avx_vpshldw_elem : (word, word, nat) -> word
 function avx_vpshldw_elem(src1, src2, cnt) =

@@ -13,7 +13,7 @@ function avx_movsldup(vl, src) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    let s = src[(lo + 127)..lo];
+    let s : xmmword = velem(128, src, i);
     r[(lo + 127)..lo] = s[95..64] @ s[95..64] @ s[31..0] @ s[31..0]
   };
   r
@@ -29,7 +29,7 @@ function avx_movshdup(vl, src) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    let s = src[(lo + 127)..lo];
+    let s : xmmword = velem(128, src, i);
     r[(lo + 127)..lo] = s[127..96] @ s[127..96] @ s[63..32] @ s[63..32]
   };
   r
@@ -43,9 +43,9 @@ function avx_movshdup(vl, src) = {
 val avx_movddup : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_movddup(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 128 - 1)) {
-    let lo = i * 128;
-    r[(lo + 127)..lo] = src[(lo + 63)..lo] @ src[(lo + 63)..lo]
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = velem(64, src, (i / 2) * 2)
   };
   r
 }
@@ -59,8 +59,8 @@ function avx_unpcklps(vl, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    let la = a[(lo + 127)..lo];
-    let lb = b[(lo + 127)..lo];
+    let la : xmmword = velem(128, a, i);
+    let lb : xmmword = velem(128, b, i);
     r[(lo + 127)..lo] = lb[63..32] @ la[63..32] @ lb[31..0] @ la[31..0]
   };
   r
@@ -75,8 +75,8 @@ function avx_unpckhps(vl, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    let la = a[(lo + 127)..lo];
-    let lb = b[(lo + 127)..lo];
+    let la : xmmword = velem(128, a, i);
+    let lb : xmmword = velem(128, b, i);
     r[(lo + 127)..lo] = lb[127..96] @ la[127..96] @ lb[95..64] @ la[95..64]
   };
   r
@@ -91,7 +91,7 @@ function avx_unpcklpd(vl, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = b[(lo + 63)..lo] @ a[(lo + 63)..lo]
+    r[(lo + 127)..lo] = velem(64, b, i * 2) @ velem(64, a, i * 2)
   };
   r
 }
@@ -105,7 +105,7 @@ function avx_unpckhpd(vl, a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = b[(lo + 127)..(lo + 64)] @ a[(lo + 127)..(lo + 64)]
+    r[(lo + 127)..lo] = velem(64, b, i * 2 + 1) @ velem(64, a, i * 2 + 1)
   };
   r
 }
@@ -142,9 +142,8 @@ val avx_cvtps2pd : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 32)) -> bits(
 function avx_cvtps2pd(n, src) = {
   var r : bits('n * 64) = zeros();
   foreach (i from 0 to ('n - 1)) {
-    let slo = i * 32;
-    let dlo = i * 64;
-    r[(dlo + 63)..dlo] = __f32_to_f64(src[(slo + 31)..slo])
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f32_to_f64(velem(32, src, i))
   };
   r
 }
@@ -154,9 +153,8 @@ val avx_cvtpd2ps : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 64)) -> bits(
 function avx_cvtpd2ps(n, src) = {
   var r : bits('n * 32) = zeros();
   foreach (i from 0 to ('n - 1)) {
-    let slo = i * 64;
-    let dlo = i * 32;
-    r[(dlo + 31)..dlo] = __f64_to_f32(src[(slo + 63)..slo])
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f64_to_f32(velem(64, src, i))
   };
   r
 }
@@ -166,17 +164,17 @@ function avx_cvtpd2ps(n, src) = {
 // High 2 elements from src2 lane (imm8[5:4], imm8[7:6])
 val shufps_lane : (bits(128), bits(128), bits(8)) -> bits(128)
 function shufps_lane(src1, src2, imm) =
-  select4_f32(src2, imm[7..6]) @
-  select4_f32(src2, imm[5..4]) @
-  select4_f32(src1, imm[3..2]) @
-  select4_f32(src1, imm[1..0])
+  velem(32, src2, imm[7..6]) @
+  velem(32, src2, imm[5..4]) @
+  velem(32, src1, imm[3..2]) @
+  velem(32, src1, imm[1..0])
 
 val avx_shufps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl), bits(8)) -> bits('vl)
 function avx_shufps(vl, src1, src2, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    r[(lo + 127)..lo] = shufps_lane(src1[(lo + 127)..lo], src2[(lo + 127)..lo], imm)
+    r[(lo + 127)..lo] = shufps_lane(velem(128, src1, i), velem(128, src2, i), imm)
   };
   r
 }
@@ -197,8 +195,7 @@ function avx_shufpd(vl, src1, src2, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 128 - 1)) {
     let lo = i * 128;
-    let b0 = i * 2;
-    r[(lo + 127)..lo] = shufpd_lane(src1[(lo + 127)..lo], src2[(lo + 127)..lo], imm[b0], imm[b0 + 1])
+    r[(lo + 127)..lo] = shufpd_lane(velem(128, src1, i), velem(128, src2, i), imm[i * 2], imm[i * 2 + 1])
   };
   r
 }
@@ -207,32 +204,40 @@ function avx_shufpd(vl, src1, src2, imm) = {
 val avx_cvttpd2udq : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 64)) -> bits('n * 32)
 function avx_cvttpd2udq(n, src) = {
   var r : bits('n * 32) = zeros();
-  foreach (i from 0 to ('n - 1)) { let slo = i * 64; let dlo = i * 32;
-    r[(dlo + 31)..dlo] = __f64_to_uint32_trunc(src[(slo + 63)..slo]) };
+  foreach (i from 0 to ('n - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f64_to_uint32_trunc(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtpd2udq : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 64)) -> bits('n * 32)
 function avx_cvtpd2udq(n, src) = {
   var r : bits('n * 32) = zeros();
-  foreach (i from 0 to ('n - 1)) { let slo = i * 64; let dlo = i * 32;
-    r[(dlo + 31)..dlo] = __f64_to_uint32(src[(slo + 63)..slo]) };
+  foreach (i from 0 to ('n - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f64_to_uint32(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtpd2dq : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 64)) -> bits('n * 32)
 function avx_cvtpd2dq(n, src) = {
   var r : bits('n * 32) = zeros();
-  foreach (i from 0 to ('n - 1)) { let slo = i * 64; let dlo = i * 32;
-    r[(dlo + 31)..dlo] = __f64_to_int32(src[(slo + 63)..slo]) };
+  foreach (i from 0 to ('n - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f64_to_int32(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvttpd2dq : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 64)) -> bits('n * 32)
 function avx_cvttpd2dq(n, src) = {
   var r : bits('n * 32) = zeros();
-  foreach (i from 0 to ('n - 1)) { let slo = i * 64; let dlo = i * 32;
-    r[(dlo + 31)..dlo] = __f64_to_int32_trunc(src[(slo + 63)..slo]) };
+  foreach (i from 0 to ('n - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f64_to_int32_trunc(velem(64, src, i))
+  };
   r
 }
 
@@ -257,72 +262,90 @@ function avx_cvtqq2ps(n, src) = {
 val avx_cvttps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttps2udq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) { let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_uint32_trunc(src[(lo + 31)..lo]) };
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_to_uint32_trunc(velem(32, src, i))
+  };
   r
 }
 
 val avx_cvtps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtps2udq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) { let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_uint32(src[(lo + 31)..lo]) };
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __f32_to_uint32(velem(32, src, i))
+  };
   r
 }
 
 val avx_cvttpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttpd2uqq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_uint64_trunc(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_to_uint64_trunc(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtpd2uqq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_uint64(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_to_uint64(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvttpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvttpd2qq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_int64_trunc(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_to_int64_trunc(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtpd2qq(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_int64(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __f64_to_int64(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtudq2ps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtudq2ps(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) { let lo = i * 32;
-    r[(lo + 31)..lo] = __uint32_to_f32(src[(lo + 31)..lo]) };
+  foreach (i from 0 to ('vl / 32 - 1)) {
+    let lo = i * 32;
+    r[(lo + 31)..lo] = __uint32_to_f32(velem(32, src, i))
+  };
   r
 }
 
 val avx_cvtuqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtuqq2pd(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __uint64_to_f64(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __uint64_to_f64(velem(64, src, i))
+  };
   r
 }
 
 val avx_cvtqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_cvtqq2pd(vl, src) = {
   var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { let lo = i * 64;
-    r[(lo + 63)..lo] = __int64_to_f64(src[(lo + 63)..lo]) };
+  foreach (i from 0 to ('vl / 64 - 1)) {
+    let lo = i * 64;
+    r[(lo + 63)..lo] = __int64_to_f64(velem(64, src, i))
+  };
   r
 }
 
