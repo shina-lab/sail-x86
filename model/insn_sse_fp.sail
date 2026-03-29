@@ -397,7 +397,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // High quadword unchanged.
         MP_NONE => {
           let mm_src : qword = match src {
-            RM_reg(_) => { mmx_touch(); read_mm(unsigned(modrm[2..0])) },
+            RM_reg(_) => { mmx_touch(); x87_ST[unsigned(modrm[2..0])][63..0] },
             RM_mem(m) => v(m),
           };
           var xmm : xmmword = read_simd(xreg);
@@ -408,7 +408,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // CVTPI2PD xmm, mm/m64 (66 prefix) — SDM: full XMM write
         MP_66 => {
           let mm_src : qword = match src {
-            RM_reg(_) => { mmx_touch(); read_mm(unsigned(modrm[2..0])) },
+            RM_reg(_) => { mmx_touch(); x87_ST[unsigned(modrm[2..0])][63..0] },
             RM_mem(m) => v(m),
           };
           let lo : qword = __int32_to_f64(mm_src[31..0]);
@@ -770,7 +770,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let _ = modrm_rm(modrm, pfx);
           let dst_xmm = modrm_xreg(modrm, pfx);
           let mm_src : range(0, 7) = unsigned(modrm[2..0]);
-          ZMM[dst_xmm][127..0] = zero_extend(read_mm(mm_src))
+          ZMM[dst_xmm][127..0] = zero_extend(x87_ST[mm_src][63..0])
         },
         _ => raise_UD(),
       }
