@@ -122,8 +122,7 @@ val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
 function avx_vcmpps_kmask(vl, a, b, pred) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[i] = cmp_pred5(a[(lo+31)..lo], b[(lo+31)..lo], pred)
+    r[i] = cmp_pred5(velem(32, a, i), velem(32, b, i), pred)
   };
   r
 }
@@ -133,8 +132,7 @@ val avx_vcmppd_kmask : forall 'vl, 'vl in {128, 256, 512}.
 function avx_vcmppd_kmask(vl, a, b, pred) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[i] = cmp_pred5(a[(lo+63)..lo], b[(lo+63)..lo], pred)
+    r[i] = cmp_pred5(velem(64, a, i), velem(64, b, i), pred)
   };
   r
 }

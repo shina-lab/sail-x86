@@ -29,8 +29,7 @@ val avx_pcmpeq_mask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32
 function avx_pcmpeq_mask(eb, a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let lo = i * 'eb;
-    r[i] = is_eq(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]);
+    r[i] = is_eq(velem('eb, a, i), velem('eb, b, i))
   };
   r
 }
@@ -40,8 +39,7 @@ val avx_pcmpgt_mask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32
 function avx_pcmpgt_mask(eb, a, b) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let lo = i * 'eb;
-    r[i] = is_gt(a[(lo + 'eb - 1)..lo], b[(lo + 'eb - 1)..lo]);
+    r[i] = is_gt(velem('eb, a, i), velem('eb, b, i))
   };
   r
 }

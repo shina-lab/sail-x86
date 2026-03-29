@@ -40,10 +40,7 @@ val avx_pcmpub : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpub(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) {
-    let lo = i * 8;
-    r[i] = cmp_u_pred(a[(lo + 7)..lo], b[(lo + 7)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 8 - 1)) { r[i] = cmp_u_pred(velem(8, a, i), velem(8, b, i), pred) };
   r
 }
 
@@ -52,10 +49,7 @@ val avx_pcmpb : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpb(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) {
-    let lo = i * 8;
-    r[i] = cmp_s_pred(a[(lo + 7)..lo], b[(lo + 7)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 8 - 1)) { r[i] = cmp_s_pred(velem(8, a, i), velem(8, b, i), pred) };
   r
 }
 
@@ -64,10 +58,7 @@ val avx_pcmpuw : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpuw(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[i] = cmp_u_pred(a[(lo + 15)..lo], b[(lo + 15)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 16 - 1)) { r[i] = cmp_u_pred(velem(16, a, i), velem(16, b, i), pred) };
   r
 }
 
@@ -76,10 +67,7 @@ val avx_pcmpw : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpw(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[i] = cmp_s_pred(a[(lo + 15)..lo], b[(lo + 15)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 16 - 1)) { r[i] = cmp_s_pred(velem(16, a, i), velem(16, b, i), pred) };
   r
 }
 
@@ -88,10 +76,7 @@ val avx_pcmpud : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpud(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[i] = cmp_u_pred(a[(lo + 31)..lo], b[(lo + 31)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 32 - 1)) { r[i] = cmp_u_pred(velem(32, a, i), velem(32, b, i), pred) };
   r
 }
 
@@ -100,10 +85,7 @@ val avx_pcmpd : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpd(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[i] = cmp_s_pred(a[(lo + 31)..lo], b[(lo + 31)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 32 - 1)) { r[i] = cmp_s_pred(velem(32, a, i), velem(32, b, i), pred) };
   r
 }
 
@@ -112,10 +94,7 @@ val avx_pcmpuq : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpuq(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[i] = cmp_u_pred(a[(lo + 63)..lo], b[(lo + 63)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 64 - 1)) { r[i] = cmp_u_pred(velem(64, a, i), velem(64, b, i), pred) };
   r
 }
 
@@ -124,10 +103,7 @@ val avx_pcmpq : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), range(0, 7)) -> qword
 function avx_pcmpq(a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[i] = cmp_s_pred(a[(lo + 63)..lo], b[(lo + 63)..lo], pred);
-  };
+  foreach (i from 0 to ('vl / 64 - 1)) { r[i] = cmp_s_pred(velem(64, a, i), velem(64, b, i), pred) };
   r
 }
 
@@ -210,8 +186,7 @@ val avx_vcmpph_kmask : forall 'vl, 'vl in {128, 256, 512}.
 function avx_vcmpph_kmask(a, b, pred) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[i] = cmp_pred5_f16(a[(lo + 15)..lo], b[(lo + 15)..lo], pred);
+    r[i] = cmp_pred5_f16(velem(16, a, i), velem(16, b, i), pred);
   };
   r
 }

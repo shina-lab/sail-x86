@@ -84,9 +84,8 @@ val packed_cmp_pred : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {32, 64}.
 function packed_cmp_pred(eb, a, b, pred) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
-    let hi = (i + 1) * 'eb - 1;
     let lo = i * 'eb;
-    r[hi..lo] = cmp_pred(a[hi..lo], b[hi..lo], pred)
+    r[(lo + 'eb - 1)..lo] = cmp_pred(velem('eb, a, i), velem('eb, b, i), pred)
   };
   r
 }
