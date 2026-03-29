@@ -3,10 +3,6 @@
 // Half-precision (16-bit) packed and scalar floating-point arithmetic,
 // conversions, and special operations.
 
-// Get 32-bit writemask for FP16 ZMM (32 lanes)
-val evex_get_mask32 : Prefixes -> dword
-function evex_get_mask32(pfx) = evex_kmask64(pfx)[31..0]
-
 // EVEX FP16 binary arithmetic helper for PH/SH with {er} support.
 val evex_fp16_binop_er : (PackedBinOp, simd_idx, XRM, MandatoryPrefix, Prefixes) -> unit
 function evex_fp16_binop_er(op, dst, src, mp, pfx) = match mp {
@@ -157,49 +153,6 @@ function vfmsubaddph(a, b, c) = {
 // =========================================================================
 // FP16 compare predicate helper
 // =========================================================================
-
-val cmp_f16_pred : (word, word, range(0, 31)) -> bit
-function cmp_f16_pred(a, b, pred) = {
-  let c = fp_compare(a, b);
-  let unord : bit = match c { FP_UNORDERED => 0b1, _ => 0b0 };
-  let eq : bit = match c { FP_EQ => 0b1, _ => 0b0 };
-  let lt : bit = match c { FP_LT => 0b1, _ => 0b0 };
-  let le : bit = lt | eq;
-  match pred {
-    0  => eq,                    // EQ_OQ
-    1  => lt,                    // LT_OS
-    2  => le,                    // LE_OS
-    3  => unord,                 // UNORD_Q
-    4  => ~(eq) | unord,         // NEQ_UQ
-    5  => ~(lt) | unord,         // NLT_US
-    6  => ~(le) | unord,         // NLE_US
-    7  => ~(unord),              // ORD_Q
-    8  => eq | unord,            // EQ_UQ
-    9  => lt | unord,            // NGE_US
-    10 => le | unord,            // NGT_US
-    11 => 0b0,               // FALSE_OQ
-    12 => ~(eq) & ~(unord),      // NEQ_OQ
-    13 => ~(lt) & ~(unord),      // GE_OS
-    14 => ~(le) & ~(unord),      // GT_OS
-    15 => 0b1,                // TRUE_UQ
-    16 => eq,                    // EQ_OS
-    17 => lt,                    // LT_OQ
-    18 => le,                    // LE_OQ
-    19 => unord,                 // UNORD_S
-    20 => ~(eq) | unord,         // NEQ_US
-    21 => ~(lt) | unord,         // NLT_UQ
-    22 => ~(le) | unord,         // NLE_UQ
-    23 => ~(unord),              // ORD_S
-    24 => eq | unord,            // EQ_US
-    25 => lt | unord,            // NGE_UQ
-    26 => le | unord,            // NGT_UQ
-    27 => 0b0,               // FALSE_OS
-    28 => ~(eq) & ~(unord),      // NEQ_OS
-    29 => ~(lt) & ~(unord),      // GE_OQ
-    30 => ~(le) & ~(unord),      // GT_OQ
-    31 => 0b1,                // TRUE_US
-  }
-}
 
 // =========================================================================
 // FP16 FPCLASS helper (pure Sail bit manipulation)
@@ -1570,18 +1523,6 @@ function evex_exec_fma16_packed(op, order, pfx) = {
   };
   evex_end_rc(saved)
 }
-
-val vfmadd_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfmadd_ph(a, b, c) = packed_ternop(PT_FMAdd, 16, a, b, c)
-
-val vfmsub_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfmsub_ph(a, b, c) = packed_ternop(PT_FMSub, 16, a, b, c)
-
-val vfnmadd_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfnmadd_ph(a, b, c) = packed_ternop(PT_FNMAdd, 16, a, b, c)
-
-val vfnmsub_ph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfnmsub_ph(a, b, c) = packed_ternop(PT_FNMSub, 16, a, b, c)
 
 val dispatch_evex_map6 : (byte, Prefixes) -> unit
 function dispatch_evex_map6(opcode, pfx) = {

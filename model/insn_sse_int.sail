@@ -25,19 +25,7 @@ function sse_exec_binop(op, binop_op, eb, pfx) = {
   }
 }
 
-// 2-operand SSE unary op with MMX fallback: dst = packed_unop(src)
-val sse_exec_unop : (range(0, 255), PackedUnaryOp, {8, 16, 32, 64}, Prefixes) -> unit
-function sse_exec_unop(op, unop_op, eb, pfx) = {
-  let mp = get_mandatory_prefix(pfx);
-  if mp != MP_66 then dispatch_mmx(op, pfx)
-  else {
-    let modrm = fetch(1);
-    let xreg = modrm_xreg(modrm, pfx);
-    let src = modrm_xrm(modrm, pfx);
-    let src_xmm : xmmword = decode_xmm_src(src);
-    ZMM[xreg][127..0] = packed_unop(unop_op, eb, src_xmm)
-  }
-}
+
 
 // 2-operand SSE shift-by-xmm with MMX fallback: dst = shift(dst, count from src[63:0])
 val sse_exec_shift : (range(0, 255), PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
@@ -90,37 +78,6 @@ function insert_dword(v, d, sel) = {
   let shift : nat = sel * 32;
   let mask : xmmword = ~(zero_extend(0xFFFFFFFF) << shift);
   (v & mask) | (zero_extend(d) << shift)
-}
-
-// PMULHRSW — Packed Multiply High with Round and Scale (SSSE3)
-// No flags affected.
-val mulhrsw : (word, word) -> word
-function mulhrsw(a, b) = {
-  let product : dword = to_bits_truncate(signed(a) * signed(b));
-  let rounded : dword = product + 0x00004000;
-
-  // Take bits [30..15] which is equivalent to arithmetic right shift by 15
-  rounded[30..15]
-}
-
-// PMULLW/PMULLD — Multiply Packed Signed Integers and Store Low Result
-// No flags affected.
-val mul_lo : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n)) -> bits('n)
-function mul_lo(a, b) = to_bits_truncate(signed(a) * signed(b))
-
-// PMULHW — Multiply Packed Signed Integers and Store High Result (16-bit)
-// PMULHUW — Multiply Packed Unsigned Integers and Store High Result (16-bit)
-// No flags affected.
-val mul_hi16s : (word, word) -> word
-function mul_hi16s(a, b) = {
-  let product : dword = to_bits_truncate(signed(a) * signed(b));
-  product[31..16]
-}
-
-val mul_hi16u : (word, word) -> word
-function mul_hi16u(a, b) = {
-  let product : dword = to_bits_truncate(unsigned(a) * unsigned(b));
-  product[31..16]
 }
 
 // PSLLW/PSLLD/PSLLQ — Shift Packed Data Left Logical
