@@ -357,21 +357,30 @@ function fetch_modrm_raw(pfx) = {
 }
 
 // Helper: decode XMM src operand value (read from register or memory).
+// Enforces 16-byte alignment for memory operands (legacy SSE default).
 val decode_xmm_src : (byte, RM, Prefixes) -> xmmword
 function decode_xmm_src(modrm, src, pfx) = match src {
+  RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
+  RM_mem(m) => { check_alignment(m, 16); read_mem(m) },
+}
+
+// Unaligned variant: no alignment check (for MOVDQU, PCMPxSTRx, etc.).
+val decode_xmm_src_u : (byte, RM, Prefixes) -> xmmword
+function decode_xmm_src_u(modrm, src, pfx) = match src {
   RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => read_mem(m),
 }
 
 // SSE FP source: scalar reads 32/64 bits, packed reads 128 bits.
 // F3 (SS) → 32-bit memory read; F2 (SD) → 64-bit; NP/66 (PS/PD) → 128-bit.
+// Packed path enforces 16-byte alignment; scalar paths do not.
 val decode_sse_fp_src : (byte, RM, Prefixes, MandatoryPrefix) -> xmmword
 function decode_sse_fp_src(modrm, src, pfx, mp) = match src {
   RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => match mp {
     MP_F3 => zero_extend(read_mem(32, m)),
     MP_F2 => zero_extend(read_mem(64, m)),
-    _     => read_mem(m),
+    _     => { check_alignment(m, 16); read_mem(m) },
   },
 }
 

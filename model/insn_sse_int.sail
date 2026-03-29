@@ -561,7 +561,12 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        ZMM[xreg][127..0] = decode_xmm_src(modrm, src, pfx)
+        // MOVDQA (66) requires 16-byte alignment; MOVDQU (F3) does not
+        if mp == MP_66 then {
+          ZMM[xreg][127..0] = decode_xmm_src(modrm, src, pfx)
+        } else {
+          ZMM[xreg][127..0] = decode_xmm_src_u(modrm, src, pfx)
+        }
       }
     },
 
@@ -681,6 +686,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
             }
           },
           RM_mem(m) => {
+            // MOVDQA (66) requires 16-byte alignment; MOVDQU (F3) does not
+            if mp == MP_66 then check_alignment(m, 16);
             write_mem(m, read_simd(128, xreg))
           },
         }
@@ -789,6 +796,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
         let dest = modrm_rm(modrm, pfx);
+        check_alignment(dest, 16);
         rm_mem(dest) = read_simd(128, xreg)
       }
     },
@@ -1242,9 +1250,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       ZMM[xreg][127..0] = pclmulqdq(sel_a, sel_b)
     },
 
-    // SSE4.2 — PCMPESTRM
+    // SSE4.2 — PCMPESTRM (no alignment requirement — SDM exception class 4)
     96 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src_xmm = decode_xmm_src_u(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
@@ -1259,9 +1267,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       AF = 0b0;
       PF = 0b0
     },
-    // SSE4.2 — PCMPESTRI
+    // SSE4.2 — PCMPESTRI (no alignment requirement — SDM exception class 4)
     97 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src_xmm = decode_xmm_src_u(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
@@ -1276,9 +1284,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       AF = 0b0;
       PF = 0b0
     },
-    // SSE4.2 — PCMPISTRM
+    // SSE4.2 — PCMPISTRM (no alignment requirement — SDM exception class 4)
     98 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src_xmm = decode_xmm_src_u(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;
@@ -1291,9 +1299,9 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       AF = 0b0;
       PF = 0b0
     },
-    // SSE4.2 — PCMPISTRI
+    // SSE4.2 — PCMPISTRI (no alignment requirement — SDM exception class 4)
     99 => {
-      let src_xmm = decode_xmm_src(modrm, src, pfx);
+      let src_xmm = decode_xmm_src_u(modrm, src, pfx);
       let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let b : xmmword = src_xmm;

@@ -269,6 +269,20 @@ overload rm = {read_rm_val, write_rm_val}
 overload rm_mem = {read_mem_rm, write_mem_rm}
 overload rm_reg = {read_reg_rm, write_reg_rm}
 
+// Alignment check: raises #GP(0) if linear address is not aligned.
+// No-op for register operands.
+val check_memref_alignment : forall 'a, 'a in {16, 32, 64}. (MemRef, int('a)) -> unit
+function check_memref_alignment(m, align) =
+  if unsigned(seg_linear(m, 0)) % align != 0 then raise_GP0()
+
+val check_rm_alignment : forall 'a, 'a in {16, 32, 64}. (RM, int('a)) -> unit
+function check_rm_alignment(rm, align) = match rm {
+  RM_mem(m) => check_memref_alignment(m, align),
+  RM_reg(_) => (),
+}
+
+overload check_alignment = {check_memref_alignment, check_rm_alignment}
+
 // =========================================================================
 // Universal operand accessor v()
 // =========================================================================

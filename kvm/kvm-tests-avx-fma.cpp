@@ -61,6 +61,15 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
   memcpy(spd.xmm[1].q, pd1, 64);
   memcpy(spd.xmm[2].q, pd2, 64);
 
+  std::vector<u8> adata(64, 0x42);
+  auto add_vok = [&](const std::string &name, std::vector<u8> code) {
+    TestCase tc; tc.name = name; tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.xmm_mask = 0x1; tc.init_data = adata;
+    tests.push_back(std::move(tc));
+  };
+
   for (const auto &op : ops) {
     u8 opcodes[] = {op.opc_132, op.opc_213, op.opc_231};
 
@@ -74,6 +83,10 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.mm = 2; e.pp = 1; e.W = false; e.opcode = opc;
         e.reg = 0; e.vvvv = 1; e.rm = 2;
         add_evex_rr_tests(tests, cat, name.c_str(), e, sps, 0x7, 0x5555);
+        // VEX misaligned — no alignment required
+        Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = opc;
+        v.reg = 0; v.vvvv = 1; v.L = false;
+        add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());
       }
 
       // PD variant
@@ -83,6 +96,9 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.mm = 2; e.pp = 1; e.W = true; e.opcode = opc;
         e.reg = 0; e.vvvv = 1; e.rm = 2;
         add_evex_rr_tests(tests, cat, name.c_str(), e, spd, 0x7, 0x55);
+        Vex v; v.mm = 2; v.pp = 1; v.W = true; v.opcode = opc;
+        v.reg = 0; v.vvvv = 1; v.L = false;
+        add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());
       }
     }
   }
@@ -136,6 +152,9 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.aaa = 1; e.z = true;
         tests.push_back({name + " xmm {k1}{z}", cat,
                          concat(set_kmask(1), e.encode_rr()), sss, FL_NONE, 0x7, false});
+        Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = opc;
+        v.reg = 0; v.vvvv = 1; v.L = false;
+        add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());
       }
 
       // SD
@@ -149,6 +168,9 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.aaa = 1; e.z = true;
         tests.push_back({name + " xmm {k1}{z}", cat,
                          concat(set_kmask(1), e.encode_rr()), ssd, FL_NONE, 0x7, false});
+        Vex v; v.mm = 2; v.pp = 1; v.W = true; v.opcode = opc;
+        v.reg = 0; v.vvvv = 1; v.L = false;
+        add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());
       }
     }
   }

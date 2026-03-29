@@ -333,8 +333,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         RM_mem(m) => {
-          // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(m.addr) % 16 != 0 then raise_GP0();
+          check_alignment(m, 16);
           ZMM[xreg][127..0] = read_mem(m)
         },
       }
@@ -354,8 +353,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           }
         },
         RM_mem(m) => {
-          // MOVAPS/MOVAPD require 16-byte alignment; #GP(0) if unaligned
-          if unsigned(m.addr) % 16 != 0 then raise_GP0();
+          check_alignment(m, 16);
           write_mem(m, read_simd(128, xreg))
         },
       }
@@ -668,12 +666,15 @@ function dispatch_2byte_sse_fp(op, pfx) = {
             },
           }
         },
-        // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ
-        11 => match mp {
-          MP_NONE => ZMM[xreg][127..0] = packed_unop(PU_CvtDQ2PS, 32, src_xmm),
-          MP_66   => ZMM[xreg][127..0] = packed_unop(PU_CvtPS2DQ, 32, src_xmm),
-          MP_F3   => ZMM[xreg][127..0] = packed_unop(PU_CvtTPS2DQ, 32, src_xmm),
-          _       => raise_UD(),
+        // 0F 5B: CVTDQ2PS/CVTPS2DQ/CVTTPS2DQ — all packed (F3 is NOT scalar)
+        11 => {
+          let s : xmmword = if mp == MP_F3 then decode_xmm_src(modrm, src, pfx) else src_xmm;
+          match mp {
+            MP_NONE => ZMM[xreg][127..0] = packed_unop(PU_CvtDQ2PS, 32, s),
+            MP_66   => ZMM[xreg][127..0] = packed_unop(PU_CvtPS2DQ, 32, s),
+            MP_F3   => ZMM[xreg][127..0] = packed_unop(PU_CvtTPS2DQ, 32, s),
+            _       => raise_UD(),
+          }
         },
         // 0F 5C: SUB
         12 => sse_exec_fp_binop(PB_FSub, xreg, src_xmm, mp),
@@ -795,13 +796,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         _       => raise_UD(),
       }
     },
-    // 0F 2B: MOVNTPS/MOVNTPD m128, xmm
+    // 0F 2B: MOVNTPS/MOVNTPD m128, xmm (requires 16-byte alignment)
     43 => {
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch(1);
       let xreg = modrm_xmm_reg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
       if mp != MP_NONE & mp != MP_66 then raise_UD();
+      check_alignment(dest, 16);
       rm_mem(dest) = read_simd(128, xreg)
     },
     // 0F 7C: HADDPS/HADDPD (SSE3)

@@ -76,6 +76,15 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_evex_rm_tests(tests, cat, name, e, sm, 0x3, zmm_to_data(s.xmm[2]), kmask);
   };
 
+  std::vector<u8> adata(64, 0x42);
+  auto add_vok = [&](const std::string &name, std::vector<u8> code) {
+    TestCase tc; tc.name = name; tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.xmm_mask = 0x1; tc.init_data = adata;
+    tests.push_back(std::move(tc));
+  };
+
   // ---- Shift by xmm count (count in low 64-bit of xmm2) ----
   // VPSLLW: 66 0F F1, WIG   VPSRLW: 66 0F D1, WIG   VPSRAW: 66 0F E1, WIG
   // VPSLLD: 66 0F F2, W0    VPSRLD: 66 0F D2, W0    VPSRAD: 66 0F E2, W0
@@ -89,6 +98,11 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_reg("VPSLLW", 1, false, 0xF1, sw, 0x55555555);
     add_shift_reg("VPSRLW", 1, false, 0xD1, sw, 0x55555555);
     add_shift_reg("VPSRAW", 1, false, 0xE1, sw, 0x55555555);
+    // VEX shift-by-count misaligned (count from [rdi])
+    { Vex v; v.mm = 1; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.L = false;
+      v.opcode = 0xF1; add_vok("VPSLLW xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xD1; add_vok("VPSRLW xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xE1; add_vok("VPSRAW xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
   {
     ArchState sd; sd.rflags = 0x2;
@@ -98,6 +112,10 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
 
     add_shift_reg("VPSLLD", 1, false, 0xF2, sd, 0xAAAA);
     add_shift_reg("VPSRLD", 1, false, 0xD2, sd, 0xAAAA);
+    { Vex v; v.mm = 1; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.L = false;
+      v.opcode = 0xF2; add_vok("VPSLLD xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xD2; add_vok("VPSRLD xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xE2; add_vok("VPSRAD xmm,[rdi] misaligned", v.encode_rm_mem()); }
     add_shift_reg("VPSRAD", 1, false, 0xE2, sd, 0xAAAA);
   }
   {
@@ -109,6 +127,9 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_reg("VPSLLQ", 1, true, 0xF3, sq, 0x55);
     add_shift_reg("VPSRLQ", 1, true, 0xD3, sq, 0x55);
     add_shift_reg("VPSRAQ", 1, true, 0xE2, sq, 0x55);  // same opcode as VPSRAD, W1
+    { Vex v; v.mm = 1; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.L = false;
+      v.opcode = 0xF3; add_vok("VPSLLQ xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xD3; add_vok("VPSRLQ xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
 
   // ---- Shift by immediate ----
@@ -178,6 +199,11 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_var_shift("VPSLLVD", 2, false, 0x47, sd, 0xAAAA);
     add_var_shift("VPSRLVD", 2, false, 0x45, sd, 0xAAAA);
     add_var_shift("VPSRAVD", 2, false, 0x46, sd, 0xAAAA);
+    // VEX variable shift misaligned
+    { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.L = false;
+      v.opcode = 0x47; add_vok("VPSLLVD xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0x45; add_vok("VPSRLVD xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0x46; add_vok("VPSRAVD xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
   {
     ArchState sq; sq.rflags = 0x2;
@@ -188,6 +214,9 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_var_shift("VPSLLVQ", 2, true, 0x47, sq, 0x55);
     add_var_shift("VPSRLVQ", 2, true, 0x45, sq, 0x55);
     add_var_shift("VPSRAVQ", 2, true, 0x46, sq, 0x55);
+    { Vex v; v.mm = 2; v.pp = 1; v.W = true; v.reg = 0; v.vvvv = 1; v.L = false;
+      v.opcode = 0x47; add_vok("VPSLLVQ xmm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0x45; add_vok("VPSRLVQ xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
 
   // ---- Rotate by immediate (AVX-512 VBMI2) ----

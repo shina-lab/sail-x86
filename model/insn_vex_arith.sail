@@ -483,12 +483,13 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   41 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_CmpEq, 64, pfx) },
 
   // 0F38 2A: VMOVNTDQA (66 prefix, vvvv must be 1111b)
-  // Non-temporal aligned load; memory-only source
+  // Non-temporal aligned load; requires 16/32-byte alignment
   42 => {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
+    check_alignment(src, if pfx.vex_l then 32 else 16);
     if pfx.vex_l then write_simd(256, dst, rm_mem(src))
     else write_simd(128, dst, rm_mem(src))
   },
