@@ -66,8 +66,7 @@ function evex_exec_fma_scalar(op, order, pfx) = {
   let modrm = fetch(1);
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-  let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-  let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+  let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
   let src2 : xmmword = read_simd(pfx.evex_vvvvv);
   let src3 = evex_src(128, src);
   exec_vfma_scalar(op, order, pfx.rex_w, dst, src2, src3);
@@ -80,8 +79,7 @@ function evex_exec_fma_packed(op, order, pfx) = {
   let modrm = fetch(1);
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-  let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-  let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+  let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
   let vl = ll_to_vl(eff_ll);
   let eb = evex_elem(pfx);
   let d = read_simd(vl, dst);
@@ -124,8 +122,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -139,8 +136,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -216,8 +212,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -231,8 +226,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -286,8 +280,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -301,8 +294,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let vl = ll_to_vl(eff_ll);
     let eb = evex_elem(pfx);
     let mask = evex_wmask(pfx, vl / eb);
@@ -326,8 +318,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     // VSCALEFPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
     // VSCALEFPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512
     let vl = ll_to_vl(eff_ll);
@@ -342,8 +333,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     let src2 = evex_src(128, src);
     // VSCALEFSD xmm1, xmm2, xmm3/m64 / VSCALEFSS xmm1, xmm2, xmm3/m32
@@ -358,8 +348,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (eff_ll, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (eff_ll, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     // VGETEXPPD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
     // VGETEXPPS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
     let vl = ll_to_vl(eff_ll);
@@ -374,8 +363,7 @@ function dispatch_evex_fma(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
+    let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     let src2 = evex_src(128, src);
     // VGETEXPSD xmm1, xmm2, xmm3/m64 / VGETEXPSS xmm1, xmm2, xmm3/m32

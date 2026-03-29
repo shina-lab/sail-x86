@@ -241,6 +241,13 @@ function evex_begin_rc(pfx, is_reg) = {
   }
 }
 
+// Convenience: begin rounding control from XRM operand (reg → apply RC, mem → don't)
+val evex_begin_rc_xrm : (Prefixes, XRM) -> (range(0, 3), dword)
+function evex_begin_rc_xrm(pfx, src) = {
+  let is_reg : bool = match src { XRM_reg(_) => true, XRM_mem(_) => false };
+  evex_begin_rc(pfx, is_reg)
+}
+
 val evex_end_rc : dword -> unit
 function evex_end_rc(saved) = __ldmxcsr(saved)
 
