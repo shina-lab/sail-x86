@@ -213,7 +213,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     if mp != MP_66 & mp != MP_F3 then raise_UD();
     let neg_bit : bit = bool_to_bit(mp == MP_F3);
-    let eb : {32, 64} = if pfx.rex_w then 64 else 32;
+    let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
     let k_mask : qword = avx_ptestm(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb), neg_bit) & evex_kmask64(pfx);
     write_kreg(dst_k, k_mask)
@@ -262,7 +262,7 @@ function dispatch_evex_arith(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
       let k_val = read_kreg(k_idx);
-      let eb : {32, 64} = if pfx.rex_w then 64 else 32;
+      let eb = evex_elem(pfx);
       let vl = evex_vl(pfx);
       let mask = evex_wmask(pfx, vl / eb);
       let result = avx_vpmovm2(vl, eb, k_val);
@@ -281,7 +281,7 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst_k : kreg_idx = unsigned(modrm[5..3]);
       let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
-      let eb : {32, 64} = if pfx.rex_w then 64 else 32;
+      let eb = evex_elem(pfx);
       let vl = evex_vl(pfx);
       write_kreg(dst_k, avx_vpmov2m(eb, read_simd(vl, xi)))
     } else {

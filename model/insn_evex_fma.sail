@@ -129,7 +129,7 @@ function dispatch_evex_fma(op, pfx) = {
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let idx_eb : {32, 64} = if op == 144 | op == 146 then 32 else 64;
-    let eb : {32, 64} = if pfx.rex_w then 64 else 32;
+    let eb = evex_elem(pfx);
     exec_gather(vl, idx_eb, eb, dst, vsib, pfx.evex_aaa)
   },
 
