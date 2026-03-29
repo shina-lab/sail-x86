@@ -245,10 +245,8 @@ val avx_vpermilps_imm_128 : (xmmword, byte) -> xmmword
 function avx_vpermilps_imm_128(src, imm) = {
   var r : xmmword = zeros();
   foreach (i from 0 to 3) {
-    let sel : range(0, 3) = unsigned(imm[(i * 2 + 1)..(i * 2)]);
-    let dst_lo : range(0, 96) = i * 32;
-    let src_lo : range(0, 96) = sel * 32;
-    r[(dst_lo + 31)..dst_lo] = src[(src_lo + 31)..src_lo];
+    let lo = i * 32;
+    r[(lo + 31)..lo] = velem(32, src, imm[(i * 2 + 1)..(i * 2)]);
   };
   r
 }
@@ -259,7 +257,7 @@ function avx_vpermilps_imm(src, imm) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = avx_vpermilps_imm_128(src[(lo + 127)..lo], imm);
+    r[(lo + 127)..lo] = avx_vpermilps_imm_128(velem(128, src, lane), imm);
   };
   r
 }
@@ -267,13 +265,8 @@ function avx_vpermilps_imm(src, imm) = {
 /* ---- VPERMILPD (imm8): in-lane qword permute ---- */
 
 val avx_vpermilpd_imm_128 : (xmmword, byte) -> xmmword
-function avx_vpermilpd_imm_128(src, imm) = {
-  let s0 : range(0, 1) = unsigned(imm[0]);
-  let s1 : range(0, 1) = unsigned(imm[1]);
-  let lo0 : range(0, 64) = s0 * 64;
-  let lo1 : range(0, 64) = s1 * 64;
-  src[(lo1 + 63)..lo1] @ src[(lo0 + 63)..lo0]
-}
+function avx_vpermilpd_imm_128(src, imm) =
+  velem(64, src, imm[1]) @ velem(64, src, imm[0])
 
 val avx_vpermilpd_imm : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), byte) -> bits('vl)
@@ -281,8 +274,7 @@ function avx_vpermilpd_imm(src, imm) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    let lane_imm : byte = imm >> (lane * 2);
-    r[(lo + 127)..lo] = avx_vpermilpd_imm_128(src[(lo + 127)..lo], lane_imm);
+    r[(lo + 127)..lo] = avx_vpermilpd_imm_128(velem(128, src, lane), imm >> (lane * 2));
   };
   r
 }
@@ -295,7 +287,7 @@ function avx_palignr(src1, src2, imm) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = avx_palignr_128(src1[(lo + 127)..lo], src2[(lo + 127)..lo], imm);
+    r[(lo + 127)..lo] = avx_palignr_128(velem(128, src1, lane), velem(128, src2, lane), imm);
   };
   r
 }
@@ -306,15 +298,6 @@ function avx_palignr(src1, src2, imm) = {
 
 // --- VPMOVWB: truncate word -> byte ---
 
-val select_lane_128_from_512 : (zmmword, range(0, 3)) -> xmmword
-function select_lane_128_from_512(src, sel) = {
-  match sel {
-    0 => src[127..0],
-    1 => src[255..128],
-    2 => src[383..256],
-    3 => src[511..384],
-  }
-}
 
 // VSHUFF32X4 / VSHUFI32X4 (256-bit): shuffle 128-bit lanes
 // imm8[0] selects src2 lane for dst[127:0], imm8[1] selects src2 lane for dst[255:128]
@@ -326,8 +309,8 @@ val avx_shuf_f32x4_256 : (ymmword, ymmword, byte) -> ymmword
 function avx_shuf_f32x4_256(src1, src2, imm) = {
   let s0 : range(0, 1) = unsigned(imm[0]);
   let s1 : range(0, 1) = unsigned(imm[1]);
-  let lane0 : xmmword = (src1 >> (s0 * 128))[127..0];
-  let lane1 : xmmword = (src2 >> (s1 * 128))[127..0];
+  let lane0 : xmmword = velem(128, src1, s0);
+  let lane1 : xmmword = velem(128, src2, s1);
   lane1 @ lane0
 }
 
@@ -342,10 +325,10 @@ function avx_shuf_f32x4_512(src1, src2, imm) = {
   let s1 : range(0, 3) = unsigned(imm[3..2]);
   let s2 : range(0, 3) = unsigned(imm[5..4]);
   let s3 : range(0, 3) = unsigned(imm[7..6]);
-  let lane0 = select_lane_128_from_512(src1, s0);
-  let lane1 = select_lane_128_from_512(src1, s1);
-  let lane2 = select_lane_128_from_512(src2, s2);
-  let lane3 = select_lane_128_from_512(src2, s3);
+  let lane0 = velem(128,src1, s0);
+  let lane1 = velem(128,src1, s1);
+  let lane2 = velem(128,src2, s2);
+  let lane3 = velem(128,src2, s3);
   lane3 @ lane2 @ lane1 @ lane0
 }
 
@@ -396,7 +379,7 @@ function avx_vdbpsadbw(src1, src2, imm) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = avx_vdbpsadbw_128(src1[(lo + 127)..lo], src2[(lo + 127)..lo], imm);
+    r[(lo + 127)..lo] = avx_vdbpsadbw_128(velem(128, src1, lane), velem(128, src2, lane), imm);
   };
   r
 }
@@ -407,10 +390,8 @@ function avx_vrndscale(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = match eb {
-      32 => fp_rndscale(src[(lo + 'eb - 1)..lo], imm),
-      64 => fp_rndscale(src[(lo + 'eb - 1)..lo], imm),
-    }
+    let e = velem('eb, src, i);
+    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_rndscale(e, imm), 64 => fp_rndscale(e, imm) }
   };
   r
 }
@@ -423,10 +404,8 @@ function avx_vgetmant(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = match eb {
-      32 => fp_getmant(src[(lo + 'eb - 1)..lo], imm),
-      64 => fp_getmant(src[(lo + 'eb - 1)..lo], imm),
-    }
+    let e = velem('eb, src, i);
+    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_getmant(e, imm), 64 => fp_getmant(e, imm) }
   };
   r
 }
@@ -439,10 +418,8 @@ function avx_vreduce(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    r[(lo + 'eb - 1)..lo] = match eb {
-      32 => fp_reduce(src[(lo + 'eb - 1)..lo], imm),
-      64 => fp_reduce(src[(lo + 'eb - 1)..lo], imm),
-    }
+    let e = velem('eb, src, i);
+    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_reduce(e, imm), 64 => fp_reduce(e, imm) }
   };
   r
 }
@@ -456,8 +433,8 @@ function avx_vfixupimm(eb, dst, src1, src2, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => fp_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
-      64 => fp_fixupimm(dst[(lo + 'eb - 1)..lo], src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
+      32 => fp_fixupimm(velem(32, dst, i), velem(32, src1, i), velem(32, src2, i), imm),
+      64 => fp_fixupimm(velem(64, dst, i), velem(64, src1, i), velem(64, src2, i), imm),
     }
   };
   r
