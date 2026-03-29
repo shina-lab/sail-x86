@@ -392,7 +392,7 @@ function decode_sse_fp_src(src, mp) = match src {
 }
 
 // Scalar FP source: reads low 'eb bits from XMM register or 'eb bits from memory.
-val decode_scalar_src : forall 'eb, 'eb in {32, 64}. (implicit('eb), XRM) -> bits('eb)
+val decode_scalar_src : forall 'eb, 'eb in {8, 16, 32, 64}. (implicit('eb), XRM) -> bits('eb)
 function decode_scalar_src(eb, src) = match src {
   XRM_reg(xi) => ZMM[xi][('eb - 1) .. 0],
   XRM_mem(m)  => read_mem(m),

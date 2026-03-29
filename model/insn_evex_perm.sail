@@ -838,10 +838,7 @@ function dispatch_evex_perm(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     // Tuple1 Scalar: disp_n = 4 for dword
     let src = modrm_xrm_evex(modrm, pfx, 4);
-    let elem : dword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[31..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : dword = decode_scalar_src(32, src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, elem))
   },
@@ -852,10 +849,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 8);
-    let elem : qword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[63..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : qword = decode_scalar_src(64, src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, elem))
   },
@@ -889,10 +883,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 4);
-    let elem : dword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[31..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : dword = decode_scalar_src(32, src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, elem))
   },
@@ -904,10 +895,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 8);
-    let elem : qword = match src {
-      XRM_reg(xi) => read_simd(128, xi)[63..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : qword = decode_scalar_src(64, src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, elem))
   },
@@ -919,10 +907,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 4);
-    let elem : byte = match src {
-      XRM_reg(xi) => read_simd(128, xi)[7..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : byte = decode_scalar_src(src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 8), broadcast(vl, elem))
   },
@@ -933,10 +918,7 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 4);
-    let elem : word = match src {
-      XRM_reg(xi) => read_simd(128, xi)[15..0],
-      XRM_mem(m) => v(m),
-    };
+    let elem : word = decode_scalar_src(16, src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 16), broadcast(vl, elem))
   },

@@ -300,10 +300,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F3 => {
           // VSQRTSH: scalar FP16 square root (lowest 16 bits)
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_sqrt(src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -328,10 +325,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         MP_F3 => {
           // VADDSH: scalar FP16 add (lowest 16 bits)
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_add(src1[15..0], src2);
           let result : xmmword = src1[127..16] @ r;
           write_simd(128, dst, result)
@@ -356,10 +350,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_mul(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -383,10 +374,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_sub(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -408,10 +396,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_min(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -435,10 +420,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_div(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -460,10 +442,7 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : word = fp_max(src1[15..0], src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -485,19 +464,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : dword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[31..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : dword = decode_scalar_src(32, src);
               let r : xmmword =
                 __f16_to_f64(src[31..16]) @ __f16_to_f64(src[15..0]);
               evex_write(dst, evex_wmask(pfx, 2), r)
             },
             1 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : ymmword =
                 __f16_to_f64(src[63..48]) @ __f16_to_f64(src[47..32]) @
                 __f16_to_f64(src[31..16]) @ __f16_to_f64(src[15..0]);
@@ -519,10 +492,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTSH2SD: scalar FP16 to FP64
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : qword = __f16_to_f64(src2);
           evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
         },
@@ -562,10 +532,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTSD2SH: scalar FP64 to FP16
           let src = modrm_xrm_evex(modrm, pfx, 8);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : qword = match src {
-            XRM_reg(xi) => read_simd(128, xi)[63..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : qword = decode_scalar_src(64, src);
           let r : word = __f64_to_f16(src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -648,10 +615,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : xmmword =
                 __f16_to_int32(src[63..48]) @ __f16_to_int32(src[47..32]) @
                 __f16_to_int32(src[31..16]) @ __f16_to_int32(src[15..0]);
@@ -692,10 +656,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : xmmword =
                 __f16_to_int32_trunc(src[63..48]) @ __f16_to_int32_trunc(src[47..32]) @
                 __f16_to_int32_trunc(src[31..16]) @ __f16_to_int32_trunc(src[15..0]);
@@ -798,10 +759,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src : word = decode_scalar_src(16, src);
       if pfx.vex_w then
         v(dst_gpr) = __f16_to_int64_trunc(src)
       else
@@ -814,10 +772,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src : word = decode_scalar_src(16, src);
       if pfx.vex_w then
         v(dst_gpr) = __f16_to_int64(src)
       else
@@ -831,10 +786,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let src_reg = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let a : word = read_simd(128, src_reg)[15..0];
-      let b : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let b : word = decode_scalar_src(16, src);
       match fp_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
@@ -851,10 +803,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let src_reg = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let a : word = read_simd(128, src_reg)[15..0];
-      let b : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let b : word = decode_scalar_src(16, src);
       match fp_compare(a, b) {
         FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
         FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
@@ -891,10 +840,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : xmmword =
                 __f16_to_uint32_trunc(src[63..48]) @ __f16_to_uint32_trunc(src[47..32]) @
                 __f16_to_uint32_trunc(src[31..16]) @ __f16_to_uint32_trunc(src[15..0]);
@@ -934,19 +880,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : dword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[31..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : dword = decode_scalar_src(32, src);
               let r : xmmword =
                 __f16_to_uint64_trunc(src[31..16]) @ __f16_to_uint64_trunc(src[15..0]);
               evex_write(dst, evex_wmask(pfx, 2), r)
             },
             1 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : ymmword =
                 __f16_to_uint64_trunc(src[63..48]) @ __f16_to_uint64_trunc(src[47..32]) @
                 __f16_to_uint64_trunc(src[31..16]) @ __f16_to_uint64_trunc(src[15..0]);
@@ -968,10 +908,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTTSH2USI: scalar FP16 to unsigned int (truncation)
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let dst_gpr = modrm_reg(modrm, pfx);
-          let src : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src : word = decode_scalar_src(src);
           if pfx.vex_w then
             v(dst_gpr) = __f16_to_uint64_trunc(src)
           else
@@ -996,10 +933,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : xmmword =
                 __f16_to_uint32(src[63..48]) @ __f16_to_uint32(src[47..32]) @
                 __f16_to_uint32(src[31..16]) @ __f16_to_uint32(src[15..0]);
@@ -1041,19 +975,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
-              let src : dword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[31..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : dword = decode_scalar_src(32, src);
               let r : xmmword =
                 __f16_to_uint64(src[31..16]) @ __f16_to_uint64(src[15..0]);
               evex_write(dst, evex_wmask(pfx, 2), r)
             },
             1 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : ymmword =
                 __f16_to_uint64(src[63..48]) @ __f16_to_uint64(src[47..32]) @
                 __f16_to_uint64(src[31..16]) @ __f16_to_uint64(src[15..0]);
@@ -1076,10 +1004,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTSH2USI: scalar FP16 to unsigned int (rounding)
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let dst_gpr = modrm_reg(modrm, pfx);
-          let src : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src : word = decode_scalar_src(src);
           if pfx.vex_w then
             v(dst_gpr) = __f16_to_uint64(src)
           else
@@ -1103,19 +1028,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : dword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[31..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : dword = decode_scalar_src(32, src);
               let r : xmmword =
                 __f16_to_int64_trunc(src[31..16]) @ __f16_to_int64_trunc(src[15..0]);
               evex_write(dst, evex_wmask(pfx, 2), r)
             },
             1 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : ymmword =
                 __f16_to_int64_trunc(src[63..48]) @ __f16_to_int64_trunc(src[47..32]) @
                 __f16_to_int64_trunc(src[31..16]) @ __f16_to_int64_trunc(src[15..0]);
@@ -1214,19 +1133,13 @@ function dispatch_evex_map5(opcode, pfx) = {
           let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
           match eff_ll {
             0 => {
-              let src : dword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[31..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : dword = decode_scalar_src(32, src);
               let r : xmmword =
                 __f16_to_int64(src[31..16]) @ __f16_to_int64(src[15..0]);
               evex_write(dst, evex_wmask(pfx, 2), r)
             },
             1 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : ymmword =
                 __f16_to_int64(src[63..48]) @ __f16_to_int64(src[47..32]) @
                 __f16_to_int64(src[31..16]) @ __f16_to_int64(src[15..0]);
@@ -1655,10 +1568,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTSS2SH: scalar FP32 to FP16 (EVEX.NP.MAP5.W0)
           let src = modrm_xrm_evex(modrm, pfx, 4);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : dword = match src {
-            XRM_reg(xi) => read_simd(128, xi)[31..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : dword = decode_scalar_src(32, src);
           let r : word = __f32_to_f16(src2);
           evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
         },
@@ -2156,10 +2066,7 @@ function dispatch_evex_map6(opcode, pfx) = {
           let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
           match pfx.evex_ll {
             0 => {
-              let src : qword = match src {
-                XRM_reg(xi) => read_simd(128, xi)[63..0],
-                XRM_mem(m) => v(m),
-              };
+              let src : qword = decode_scalar_src(64, src);
               let r : xmmword =
                 __f16_to_f32(src[63..48]) @ __f16_to_f32(src[47..32]) @
                 __f16_to_f32(src[31..16]) @ __f16_to_f32(src[15..0]);
@@ -2194,10 +2101,7 @@ function dispatch_evex_map6(opcode, pfx) = {
           // VCVTSH2SS: scalar FP16 to FP32
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 : word = match src {
-            XRM_reg(xi) => read_simd(128, xi)[15..0],
-            XRM_mem(m) => v(m),
-          };
+          let src2 : word = decode_scalar_src(src);
           let r : dword = __f16_to_f32(src2);
           write_simd(128, dst, src1[127..32] @ r)
         },
@@ -2244,10 +2148,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : word = decode_scalar_src(16, src);
       let r : word = fp_scalef(src1[15..0], src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2286,10 +2187,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : word = decode_scalar_src(16, src);
       let r : word = fp_getexp(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2328,10 +2226,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : word = decode_scalar_src(16, src);
       let r : word = fp_rcp(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2370,10 +2265,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : word = decode_scalar_src(16, src);
       let r : word = fp_rsqrt(src2);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2456,10 +2348,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fmadd(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2472,10 +2361,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fmsub(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2488,10 +2374,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fnmadd(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2504,10 +2387,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fnmsub(a, c, src1[15..0]);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2591,10 +2471,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fmadd(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2608,10 +2485,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fmsub(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2625,10 +2499,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fnmadd(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2642,10 +2513,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
       let b : word = read_simd(128, dst)[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let r : word = fp_fnmsub(a, b, c);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
     },
@@ -2728,10 +2596,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let b : word = read_simd(128, dst)[15..0];
       let r : word = fp_fmadd(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
@@ -2745,10 +2610,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let b : word = read_simd(128, dst)[15..0];
       let r : word = fp_fmsub(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
@@ -2762,10 +2624,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let b : word = read_simd(128, dst)[15..0];
       let r : word = fp_fnmadd(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
@@ -2779,10 +2638,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let a : word = src1[15..0];
-      let c : word = match src {
-        XRM_reg(xi) => read_simd(128, xi)[15..0],
-        XRM_mem(m) => v(m),
-      };
+      let c : word = decode_scalar_src(16, src);
       let b : word = read_simd(128, dst)[15..0];
       let r : word = fp_fnmsub(a, c, b);
       evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
@@ -2826,10 +2682,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 4);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : dword = match src {
-        XRM_reg(xi) => read_simd(128, xi)[31..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : dword = decode_scalar_src(32, src);
       let acc : xmmword = read_simd(dst);
       let s1_re : word = src1[15..0];
       let s1_im : word = src1[31..16];
@@ -2881,10 +2734,7 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 4);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let src2 : dword = match src {
-        XRM_reg(xi) => read_simd(128, xi)[31..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : dword = decode_scalar_src(32, src);
       let s1_re : word = src1[15..0];
       let s1_im : word = src1[31..16];
       let s2_re : word = src2[15..0];

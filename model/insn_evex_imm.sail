@@ -1638,17 +1638,11 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     if pfx.vex_w then {
-      let src2 : qword = match src {
-        XRM_reg(xi) => read_simd(128, xi)[63..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : qword = decode_scalar_src(64, src);
       let r = avx_range_f64(src1[63..0], src2, imm);
       evex_write_scalar(dst, src1[127..64] @ r, pfx, 64)
     } else {
-      let src2 : dword = match src {
-        XRM_reg(xi) => read_simd(128, xi)[31..0],
-        XRM_mem(m) => v(m),
-      };
+      let src2 : dword = decode_scalar_src(32, src);
       let r = avx_range_f32(src1[31..0], src2, imm);
       evex_write_scalar(dst, src1[127..32] @ r, pfx, 32)
     }
