@@ -1524,6 +1524,44 @@ function dispatch_evex_map5(opcode, pfx) = {
 // =========================================================================
 
 // FP16 FMA element-wise helpers
+// EVEX FP16 packed FMADDSUB/FMSUBADD helper
+val evex_exec_fmaddsub16_packed : (bool, FMAOrder, Prefixes) -> unit
+function evex_exec_fmaddsub16_packed(is_addsub, order, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
+  let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
+  let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
+  let vl = ll_to_vl(eff_ll);
+  let d = read_simd(vl, dst);
+  let v = read_simd(vl, pfx.evex_vvvvv);
+  let r = evex_bcast_src(vl, src, pfx, 16);
+  let mask = evex_wmask(pfx, vl / 16);
+  match order {
+    FMA_132 => evex_write(dst, mask, if is_addsub then vfmaddsubph(d, r, v) else vfmsubaddph(d, r, v)),
+    FMA_213 => evex_write(dst, mask, if is_addsub then vfmaddsubph(v, d, r) else vfmsubaddph(v, d, r)),
+    FMA_231 => evex_write(dst, mask, if is_addsub then vfmaddsubph(v, r, d) else vfmsubaddph(v, r, d)),
+  };
+  evex_end_rc(saved)
+}
+
+// EVEX FP16 scalar FMA helper
+val evex_exec_fma16_scalar : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
+function evex_exec_fma16_scalar(op, order, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_xrm_evex(modrm, pfx, 2);
+  let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+  let d : word = read_simd(128, dst)[15..0];
+  let r : word = decode_scalar_src(16, src);
+  let result : word = match order {
+    FMA_132 => packed_ternary_elem(op, d, r, src1[15..0]),
+    FMA_213 => packed_ternary_elem(op, src1[15..0], d, r),
+    FMA_231 => packed_ternary_elem(op, src1[15..0], r, d),
+  };
+  evex_write_scalar(dst, src1[127..16] @ result, pfx, 16)
+}
+
 // EVEX FP16 packed FMA helper: decode, apply packed ternary op with {er}
 val evex_exec_fma16_packed : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
 function evex_exec_fma16_packed(op, order, pfx) = {
@@ -1816,378 +1854,58 @@ function dispatch_evex_map6(opcode, pfx) = {
     },
 
     // MAP6 0x96: VFMADDSUB132PH (66, W=0)
-    150 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(dst);
-          let b : xmmword = read_simd(pfx.evex_vvvvv);
-          let c = evex_bcast_src(128, src, pfx, 16);
-          let r = vfmaddsubph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, dst);
-          let b = read_simd(256, pfx.evex_vvvvv);
-          let c = evex_bcast_src(256, src, pfx, 16);
-          let r = vfmaddsubph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[dst];
-          let b = ZMM[pfx.evex_vvvvv];
-          let c = evex_bcast_src(512, src, pfx, 16);
-          let r = vfmaddsubph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    150 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(true, FMA_132, pfx) },
 
     // MAP6 0x97: VFMSUBADD132PH (66, W=0)
-    151 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(dst);
-          let b : xmmword = read_simd(pfx.evex_vvvvv);
-          let c = evex_bcast_src(128, src, pfx, 16);
-          let r = vfmsubaddph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, dst);
-          let b = read_simd(256, pfx.evex_vvvvv);
-          let c = evex_bcast_src(256, src, pfx, 16);
-          let r = vfmsubaddph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[dst];
-          let b = ZMM[pfx.evex_vvvvv];
-          let c = evex_bcast_src(512, src, pfx, 16);
-          let r = vfmsubaddph(a, c, b);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    151 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(false, FMA_132, pfx) },
 
     // MAP6 0x99: VFMADD132SH (66, W=0)
-    153 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fmadd(a, c, src1[15..0]);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    153 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMAdd, FMA_132, pfx) },
 
     // MAP6 0x9B: VFMSUB132SH (66, W=0)
-    155 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fmsub(a, c, src1[15..0]);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    155 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMSub, FMA_132, pfx) },
 
     // MAP6 0x9D: VFNMADD132SH (66, W=0)
-    157 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fnmadd(a, c, src1[15..0]);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    157 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMAdd, FMA_132, pfx) },
 
     // MAP6 0x9F: VFNMSUB132SH (66, W=0)
-    159 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fnmsub(a, c, src1[15..0]);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    159 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMSub, FMA_132, pfx) },
 
     // MAP6 0xA6: VFMADDSUB213PH (66, W=0)
-    166 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(pfx.evex_vvvvv);
-          let b : xmmword = read_simd(dst);
-          let c = evex_bcast_src(128, src, pfx, 16);
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, pfx.evex_vvvvv);
-          let b = read_simd(256, dst);
-          let c = evex_bcast_src(256, src, pfx, 16);
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[pfx.evex_vvvvv];
-          let b = ZMM[dst];
-          let c = evex_bcast_src(512, src, pfx, 16);
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    166 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(true, FMA_213, pfx) },
 
     // MAP6 0xA7: VFMSUBADD213PH (66, W=0)
-    167 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(pfx.evex_vvvvv);
-          let b : xmmword = read_simd(dst);
-          let c = evex_bcast_src(128, src, pfx, 16);
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, pfx.evex_vvvvv);
-          let b = read_simd(256, dst);
-          let c = evex_bcast_src(256, src, pfx, 16);
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[pfx.evex_vvvvv];
-          let b = ZMM[dst];
-          let c = evex_bcast_src(512, src, pfx, 16);
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    167 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(false, FMA_213, pfx) },
 
     // MAP6 0xA9: VFMADD213SH (66, W=0)
-    169 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let b : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fmadd(a, b, c);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    169 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMAdd, FMA_213, pfx) },
 
     // MAP6 0xAB: VFMSUB213SH (66, W=0)
-    171 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let b : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fmsub(a, b, c);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    171 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMSub, FMA_213, pfx) },
 
     // MAP6 0xAD: VFNMADD213SH (66, W=0)
-    173 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let b : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fnmadd(a, b, c);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    173 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMAdd, FMA_213, pfx) },
 
     // MAP6 0xAF: VFNMSUB213SH (66, W=0)
-    175 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let b : word = read_simd(128, dst)[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let r : word = fp_fnmsub(a, b, c);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    175 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMSub, FMA_213, pfx) },
 
     // MAP6 0xB6: VFMADDSUB231PH (66, W=0)
-    182 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(pfx.evex_vvvvv);
-          let b = evex_bcast_src(128, src, pfx, 16);
-          let c : xmmword = read_simd(dst);
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, pfx.evex_vvvvv);
-          let b = evex_bcast_src(256, src, pfx, 16);
-          let c = read_simd(256, dst);
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[pfx.evex_vvvvv];
-          let b = evex_bcast_src(512, src, pfx, 16);
-          let c = ZMM[dst];
-          let r = vfmaddsubph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    182 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(true, FMA_231, pfx) },
 
     // MAP6 0xB7: VFMSUBADD231PH (66, W=0)
-    183 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
-      match eff_ll {
-        0 => {
-          let a : xmmword = read_simd(pfx.evex_vvvvv);
-          let b = evex_bcast_src(128, src, pfx, 16);
-          let c : xmmword = read_simd(dst);
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let a = read_simd(256, pfx.evex_vvvvv);
-          let b = evex_bcast_src(256, src, pfx, 16);
-          let c = read_simd(256, dst);
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let a = ZMM[pfx.evex_vvvvv];
-          let b = evex_bcast_src(512, src, pfx, 16);
-          let c = ZMM[dst];
-          let r = vfmsubaddph(a, b, c);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
-      evex_end_rc(saved)
-    },
+    183 => { if mp != MP_66 then raise_UD(); evex_exec_fmaddsub16_packed(false, FMA_231, pfx) },
 
     // MAP6 0xB9: VFMADD231SH (66, W=0)
-    185 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let b : word = read_simd(128, dst)[15..0];
-      let r : word = fp_fmadd(a, c, b);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    185 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMAdd, FMA_231, pfx) },
 
     // MAP6 0xBB: VFMSUB231SH (66, W=0)
-    187 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let b : word = read_simd(128, dst)[15..0];
-      let r : word = fp_fmsub(a, c, b);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    187 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FMSub, FMA_231, pfx) },
 
     // MAP6 0xBD: VFNMADD231SH (66, W=0)
-    189 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let b : word = read_simd(128, dst)[15..0];
-      let r : word = fp_fnmadd(a, c, b);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    189 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMAdd, FMA_231, pfx) },
 
     // MAP6 0xBF: VFNMSUB231SH (66, W=0)
-    191 => {
-      if mp != MP_66 then raise_UD();
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, 2);
-      let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-      let a : word = src1[15..0];
-      let c : word = decode_scalar_src(16, src);
-      let b : word = read_simd(128, dst)[15..0];
-      let r : word = fp_fnmsub(a, c, b);
-      evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-    },
+    191 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_scalar(PT_FNMSub, FMA_231, pfx) },
 
     // MAP6 0x56: VFCMADDCPH (F2, W=0) / VFMADDCPH (F3, W=0) — complex multiply-accumulate
     86 => {
