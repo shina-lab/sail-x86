@@ -454,8 +454,7 @@ val avx_vfpclassps : forall 'vl, 'vl in {128, 256, 512}.
 function avx_vfpclassps(src, imm) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[i] = avx_fpclass_f32(src[(lo + 31)..lo], imm);
+    r[i] = avx_fpclass_f32(velem(32, src, i), imm);
   };
   r
 }
@@ -465,8 +464,7 @@ val avx_vfpclasspd : forall 'vl, 'vl in {128, 256, 512}.
 function avx_vfpclasspd(src, imm) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[i] = avx_fpclass_f64(src[(lo + 63)..lo], imm);
+    r[i] = avx_fpclass_f64(velem(64, src, i), imm);
   };
   r
 }
@@ -559,8 +557,8 @@ function avx_vrange(eb, src1, src2, imm) = {
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     r[(lo + 'eb - 1)..lo] = match eb {
-      32 => avx_range_f32(src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
-      64 => avx_range_f64(src1[(lo + 'eb - 1)..lo], src2[(lo + 'eb - 1)..lo], imm),
+      32 => avx_range_f32(velem(32, src1, i), velem(32, src2, i), imm),
+      64 => avx_range_f64(velem(64, src1, i), velem(64, src2, i), imm),
     }
   };
   r
@@ -581,7 +579,7 @@ function avx_vpclmulqdq(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = avx_vpclmulqdq_lane(src1[(lo + 127)..lo], src2[(lo + 127)..lo], imm8);
+    r[(lo + 127)..lo] = avx_vpclmulqdq_lane(velem(128, src1, lane), velem(128, src2, lane), imm8);
   };
   r
 }
@@ -593,7 +591,7 @@ function avx_vpshldw_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = avx_vpshldw_elem(src1[(lo + 15)..lo], src2[(lo + 15)..lo], unsigned(imm8));
+    r[(lo + 15)..lo] = avx_vpshldw_elem(velem(16, src1, i), velem(16, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -602,7 +600,7 @@ function avx_vpshldd_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[(lo + 31)..lo] = avx_vpshldd_elem(src1[(lo + 31)..lo], src2[(lo + 31)..lo], unsigned(imm8));
+    r[(lo + 31)..lo] = avx_vpshldd_elem(velem(32, src1, i), velem(32, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -611,7 +609,7 @@ function avx_vpshldq_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpshldq_elem(src1[(lo + 63)..lo], src2[(lo + 63)..lo], unsigned(imm8));
+    r[(lo + 63)..lo] = avx_vpshldq_elem(velem(64, src1, i), velem(64, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -620,7 +618,7 @@ function avx_vpshrdw_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = avx_vpshrdw_elem(src1[(lo + 15)..lo], src2[(lo + 15)..lo], unsigned(imm8));
+    r[(lo + 15)..lo] = avx_vpshrdw_elem(velem(16, src1, i), velem(16, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -629,7 +627,7 @@ function avx_vpshrdd_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    r[(lo + 31)..lo] = avx_vpshrdd_elem(src1[(lo + 31)..lo], src2[(lo + 31)..lo], unsigned(imm8));
+    r[(lo + 31)..lo] = avx_vpshrdd_elem(velem(32, src1, i), velem(32, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -638,7 +636,7 @@ function avx_vpshrdq_imm(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 64 - 1)) {
     let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpshrdq_elem(src1[(lo + 63)..lo], src2[(lo + 63)..lo], unsigned(imm8));
+    r[(lo + 63)..lo] = avx_vpshrdq_elem(velem(64, src1, i), velem(64, src2, i), unsigned(imm8));
   }; r
 }
 
@@ -761,8 +759,7 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let sel : range(0, 15) = unsigned(imm[3..0]);
     let src_xmm : xmmword = read_simd(src);
-    let lo : range(0, 120) = sel * 8;
-    let extracted_byte : byte = src_xmm[(lo + 7)..lo];
+    let extracted_byte : byte = velem(8, src_xmm, sel);
     match dest {
       RM_reg(r) => v(r) = zero_extend(32, extracted_byte),
       RM_mem(m) => v(m) = extracted_byte,
@@ -779,8 +776,7 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let src_xmm : xmmword = read_simd(src);
-    let lo : range(0, 112) = sel * 16;
-    let extracted_word : word = src_xmm[(lo + 15)..lo];
+    let extracted_word : word = velem(16, src_xmm, sel);
     match dest {
       RM_reg(r) => v(r) = zero_extend(32, extracted_word),
       RM_mem(m) => v(m) = extracted_word,
@@ -799,8 +795,7 @@ function dispatch_evex_imm(op, pfx) = {
       let dest = modrm_rm_evex(modrm, pfx, 8);
       let imm = fetch(1);
       let sel : range(0, 1) = unsigned(imm[0]);
-      let lo : range(0, 64) = sel * 64;
-      let extracted : qword = src_xmm[(lo + 63)..lo];
+      let extracted : qword = velem(64, src_xmm, sel);
       match dest {
         RM_reg(r) => v(r) = extracted,
         RM_mem(m) => v(m) = extracted,
@@ -810,8 +805,7 @@ function dispatch_evex_imm(op, pfx) = {
       let dest = modrm_rm_evex(modrm, pfx, 4);
       let imm = fetch(1);
       let sel : range(0, 3) = unsigned(imm[1..0]);
-      let lo : range(0, 96) = sel * 32;
-      let extracted : dword = src_xmm[(lo + 31)..lo];
+      let extracted : dword = velem(32, src_xmm, sel);
       match dest {
         RM_reg(r) => v(r) = extracted,
         RM_mem(m) => v(m) = extracted,
@@ -829,8 +823,7 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let sel : range(0, 3) = unsigned(imm[1..0]);
     let src_xmm : xmmword = read_simd(src);
-    let lo : range(0, 96) = sel * 32;
-    let extracted : dword = src_xmm[(lo + 31)..lo];
+    let extracted : dword = velem(32, src_xmm, sel);
     match dest {
       RM_reg(r) => v(r) = extracted,
       RM_mem(m) => v(m) = extracted,

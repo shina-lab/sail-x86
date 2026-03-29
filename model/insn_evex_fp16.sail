@@ -21,7 +21,7 @@ function vgetexpph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_getexp(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_getexp(velem(16, a, i));
   };
   r
 }
@@ -31,7 +31,7 @@ function vrcpph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rcp(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_rcp(velem(16, a, i));
   };
   r
 }
@@ -41,7 +41,7 @@ function vrsqrtph(a) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rsqrt(a[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_rsqrt(velem(16, a, i));
   };
   r
 }
@@ -55,7 +55,7 @@ function vscalefph(a, b) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_scalef(a[(lo + 15)..lo], b[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_scalef(velem(16, a, i), velem(16, b, i));
   };
   r
 }
@@ -69,7 +69,7 @@ function vrndscaleph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rndscale(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_rndscale(velem(16, a, i), imm);
   };
   r
 }
@@ -79,7 +79,7 @@ function vgetmantph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_getmant(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_getmant(velem(16, a, i), imm);
   };
   r
 }
@@ -89,7 +89,7 @@ function vreduceph(a, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_reduce(a[(lo + 15)..lo], imm);
+    r[(lo + 15)..lo] = fp_reduce(velem(16, a, i), imm);
   };
   r
 }
@@ -106,8 +106,8 @@ function vfmaddsubph(a, b, c) = {
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
     if i % 2 == 1
-    then r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
-    else r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    then r[(lo + 15)..lo] = fp_fmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i))
+    else r[(lo + 15)..lo] = fp_fmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
@@ -118,8 +118,8 @@ function vfmsubaddph(a, b, c) = {
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
     if i % 2 == 1
-    then r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo])
-    else r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    then r[(lo + 15)..lo] = fp_fmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i))
+    else r[(lo + 15)..lo] = fp_fmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
@@ -205,8 +205,7 @@ val vfpclassph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> qword
 function vfpclassph(a, imm) = {
   var r : qword = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[i] = fpclass_f16(a[(lo + 15)..lo], imm);
+    r[i] = fpclass_f16(velem(16, a, i), imm);
   };
   r
 }
@@ -232,7 +231,7 @@ function cfmaddcph(src1, src2, acc, conj) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    let (re, im) = cfmaddcph_pair(src1[(lo+15)..lo], src1[(lo+31)..(lo+16)], src2[(lo+15)..lo], src2[(lo+31)..(lo+16)], acc[(lo+15)..lo], acc[(lo+31)..(lo+16)], conj);
+    let (re, im) = cfmaddcph_pair(velem(16, src1, i*2), velem(16, src1, i*2+1), velem(16, src2, i*2), velem(16, src2, i*2+1), velem(16, acc, i*2), velem(16, acc, i*2+1), conj);
     r[(lo + 15)..lo] = re;
     r[(lo + 31)..(lo + 16)] = im;
   };
@@ -255,7 +254,7 @@ function cfmulcph(src1, src2, conj) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 32 - 1)) {
     let lo = i * 32;
-    let (re, im) = cfmulcph_pair(src1[(lo+15)..lo], src1[(lo+31)..(lo+16)], src2[(lo+15)..lo], src2[(lo+31)..(lo+16)], conj);
+    let (re, im) = cfmulcph_pair(velem(16, src1, i*2), velem(16, src1, i*2+1), velem(16, src2, i*2), velem(16, src2, i*2+1), conj);
     r[(lo + 15)..lo] = re;
     r[(lo + 31)..(lo + 16)] = im;
   };
@@ -1681,7 +1680,7 @@ function vfmadd_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_fmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
@@ -1691,7 +1690,7 @@ function vfmsub_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_fmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
@@ -1701,7 +1700,7 @@ function vfnmadd_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_fnmadd(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fnmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
@@ -1711,7 +1710,7 @@ function vfnmsub_ph(a, b, c) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 16 - 1)) {
     let lo = i * 16;
-    r[(lo + 15)..lo] = fp_fnmsub(a[(lo + 15)..lo], b[(lo + 15)..lo], c[(lo + 15)..lo]);
+    r[(lo + 15)..lo] = fp_fnmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i));
   };
   r
 }
