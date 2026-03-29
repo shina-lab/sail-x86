@@ -145,18 +145,10 @@ function dispatch_mmx(op, pfx) = {
       let src = modrm_rm(modrm, pfx);
       let src : qword = mmx_read_rm(modrm, src);
       let imm = fetch(1);
-      let w0 : word = match unsigned(imm[1..0]) {
-        0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
-      };
-      let w1 : word = match unsigned(imm[3..2]) {
-        0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
-      };
-      let w2 : word = match unsigned(imm[5..4]) {
-        0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
-      };
-      let w3 : word = match unsigned(imm[7..6]) {
-        0 => src[15..0], 1 => src[31..16], 2 => src[47..32], 3 => src[63..48],
-      };
+      let w0 : word = (src >> (unsigned(imm[1..0]) * 16))[15..0];
+      let w1 : word = (src >> (unsigned(imm[3..2]) * 16))[15..0];
+      let w2 : word = (src >> (unsigned(imm[5..4]) * 16))[15..0];
+      let w3 : word = (src >> (unsigned(imm[7..6]) * 16))[15..0];
       x87_ST[dst] = ones(16) @ (w3 @ w2 @ w1 @ w0)
     },
 
