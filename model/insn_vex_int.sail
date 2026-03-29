@@ -109,13 +109,13 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     match mp {
       // VMOVDQA — requires alignment
       MP_66 => match src {
-        RM_reg(_) => write_simd(vl, dst, read_simd(vl, modrm_xmm_rm(modrm, pfx))),
-        RM_mem(m) => {
+        XRM_reg(xi) => write_simd(vl, dst, read_simd(vl, xi)),
+        XRM_mem(m) => {
           let align : {16, 32} = if pfx.vex_l then 32 else 16;
           let a = seg_linear(m, align);
           if unsigned(a) % align != 0 then raise_GP0();
@@ -134,7 +134,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let s = decode_vex_src(vl, modrm, src, pfx);
     let imm = fetch(1);
@@ -152,12 +152,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    let _ = modrm_rm(modrm, pfx);
-    let src_idx = modrm_xmm_rm(modrm, pfx);
+    let xi = xrm_reg(modrm_xrm(modrm, pfx));
     let dst = pfx.vex_vvvv;
     let c : range(0, 255) = unsigned(fetch(1));
     let vl = vex_vl(pfx);
-    let a = read_simd(vl, src_idx);
+    let a = read_simd(vl, xi);
     match op {
       // Group 12: word shifts
       113 => match reg_field {
@@ -245,8 +244,8 @@ function dispatch_vex_0f_int(op, pfx) = {
         let dst = modrm_xmm_reg(modrm, pfx);
         match src2 {
           RM_reg(_) => {
-            let src : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
-            write_simd(128, dst, zero_extend(src[63..0]))
+            let xi = unsigned(pfx.rex_b @ modrm[2..0]);
+            write_simd(128, dst, zero_extend(read_simd(128, xi)[63..0]))
           },
           RM_mem(m) => {
             let data : qword = v(m);
@@ -265,11 +264,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = modrm_rm(modrm, pfx);
+    let dest = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     match dest {
-      RM_reg(_) => write_simd(vl, modrm_xmm_rm(modrm, pfx), read_simd(vl, src)),
-      RM_mem(m) => {
+      XRM_reg(xi) => write_simd(vl, xi, read_simd(vl, src)),
+      XRM_mem(m) => {
         if mp == MP_66 then {
           let align : {16, 32} = if pfx.vex_l then 32 else 16;
           if unsigned(seg_linear(m, align)) % align != 0 then raise_GP0()
@@ -412,7 +411,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 | pfx.vex_l then raise_UD();
     let modrm = fetch(1);
     let dst_gpr = modrm_reg(modrm, pfx);
-    let src : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
+    let xi = xrm_reg(modrm_xrm(modrm, pfx));
+    let src : xmmword = read_simd(xi);
     let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
     let result : word = src[(16 * sel + 15) .. (16 * sel)];
@@ -443,13 +443,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_l then raise_UD();
     let modrm = fetch(1);
     let src_xmm = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let dest = modrm_xrm(modrm, pfx);
     let x : qword = read_simd(128, src_xmm)[63..0];
-    match src {
-      RM_reg(_) => {
-        write_simd(128, modrm_xmm_rm(modrm, pfx), zero_extend(x))
-      },
-      RM_mem(m) => write_mem(m,x),
+    match dest {
+      XRM_reg(xi) => write_simd(128, xi, zero_extend(x)),
+      XRM_mem(m)  => write_mem(m, x),
     }
   },
 
@@ -458,9 +456,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let reg = modrm_reg(modrm, pfx);
-    let _ = modrm_rm(modrm, pfx);
+    let xi = xrm_reg(modrm_xrm(modrm, pfx));
     let nb : {16, 32} = if pfx.vex_l then 32 else 16;
-    let src : ymmword = read_simd(256, modrm_xmm_rm(modrm, pfx));
+    let src : ymmword = read_simd(256, xi);
     var mask : bits(32) = zeros();
     foreach (i from 0 to (nb - 1)) { mask[i] = src[i * 8 + 7] };
     v(reg) = zero_extend(64, mask)
@@ -476,7 +474,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F DB: VPAND (66 prefix)
   219 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
+    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) & decode_vex_src(modrm, src, pfx))
   },
@@ -491,7 +489,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F DF: VPANDN (66 prefix)
   223 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
+    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     write_simd(vl, dst, ~(read_simd(vl, pfx.vex_vvvv)) & decode_vex_src(modrm, src, pfx))
   },
@@ -515,7 +513,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     if pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src2 = modrm_rm(modrm, pfx);
+    let src2 = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let n : {2, 4} = if pfx.vex_l then 4 else 2;
     match mp {
@@ -556,9 +554,9 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = modrm_rm(modrm, pfx);
+    let dest = modrm_xrm(modrm, pfx);
     match dest {
-      RM_mem(m) => {
+      XRM_mem(m) => {
         if pfx.vex_l then {
           let a = seg_linear(m, 32);
           if unsigned(a) % 32 != 0 then raise_GP0();
@@ -571,7 +569,7 @@ function dispatch_vex_0f_int(op, pfx) = {
           write_mem(a, read_simd(128, src))
         }
       },
-      RM_reg(_) => raise_UD(),
+      XRM_reg(_) => raise_UD(),
     }
   },
 
@@ -585,7 +583,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F EB: VPOR (66 prefix)
   235 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
+    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) | decode_vex_src(modrm, src, pfx))
   },
@@ -600,7 +598,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F EF: VPXOR (66 prefix)
   239 => {
     if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_rm(modrm, pfx);
+    let modrm = fetch(1); let dst = modrm_xmm_reg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) ^ decode_vex_src(modrm, src, pfx))
   },
@@ -611,7 +609,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
     let vl = vex_vl(pfx);
-    write_simd(vl, dst, rm_mem(vl, modrm_rm(modrm, pfx)))
+    let src = modrm_xrm(modrm, pfx);
+    match src {
+      XRM_mem(m) => write_simd(vl, dst, read_mem(m)),
+      XRM_reg(_) => raise_UD(),
+    }
   },
 
   // 0F F1-F3: VPSLLW/D/Q xmm/ymm, xmm/ymm, xmm/m128 (66 prefix) — shift by xmm count
@@ -631,18 +633,18 @@ function dispatch_vex_0f_int(op, pfx) = {
     if mp != MP_66 | pfx.vex_vvvv != 0 | pfx.vex_l then raise_UD();
     let modrm = fetch(1);
     let src = modrm_xmm_reg(modrm, pfx);
-    let dest = modrm_rm(modrm, pfx);
+    let dest = modrm_xrm(modrm, pfx);
     match dest {
-      RM_reg(_) => {
+      XRM_reg(xi) => {
         let data : xmmword = read_simd(src);
-        let mask : xmmword = read_simd(modrm_xmm_rm(modrm, pfx));
+        let mask : xmmword = read_simd(xi);
         let addr : bits(64) = v(7); // RDI
         foreach (i from 0 to 15) {
           if mask[(i * 8 + 7)] == 0b1 then
             write_mem(8, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
         }
       },
-      RM_mem(_) => raise_UD(),
+      XRM_mem(_) => raise_UD(),
     }
   },
 

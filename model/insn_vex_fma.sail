@@ -15,7 +15,7 @@ val vex_exec_fma_scalar : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
 function vex_exec_fma_scalar(op, order, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
   let src2 : xmmword = read_simd(pfx.vex_vvvv);
   let src3 = decode_vex_src(128, modrm, src, pfx);
   exec_vfma_scalar(op, order, pfx.vex_w, dst, src2, src3)
@@ -37,7 +37,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -48,7 +48,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -59,7 +59,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -73,7 +73,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -87,7 +87,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -101,7 +101,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, dst), decode_vex_src(modrm, src, pfx), read_simd(vl, pfx.vex_vvvv)))
@@ -115,7 +115,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -126,7 +126,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -137,7 +137,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -151,7 +151,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -165,7 +165,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -179,7 +179,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, pfx.vex_vvvv), read_simd(vl, dst), decode_vex_src(modrm, src, pfx)))
@@ -193,7 +193,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmaddsub(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
@@ -204,7 +204,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, avx_fmsubadd(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
@@ -215,7 +215,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMAdd, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
@@ -229,7 +229,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FMSub, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
@@ -243,7 +243,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMAdd, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))
@@ -257,7 +257,7 @@ function dispatch_vex_0f38_fma(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xmm_reg(modrm, pfx);
-    let src = modrm_rm(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
     let eb = vex_elem(pfx);
     write_simd(vl, dst, packed_ternop(PT_FNMSub, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx), read_simd(vl, dst)))

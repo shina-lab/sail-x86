@@ -72,6 +72,21 @@ union RM = {
   RM_mem : MemRef,
 }
 
+// SIMD register-or-memory operand (XMM/YMM/ZMM).
+// Unlike RM (which carries a GPRRef), XRM carries a simd_idx directly.
+union XRM = {
+  XRM_reg : simd_idx,
+  XRM_mem : MemRef,
+}
+
+// Extract simd_idx from XRM, raising #UD if it's a memory operand.
+// Use for register-only SIMD instructions.
+val xrm_reg : XRM -> simd_idx
+function xrm_reg(xm) = match xm {
+  XRM_reg(xi) => xi,
+  XRM_mem(_)  => { raise_UD(); 0 },
+}
+
 // RIP-relative fixup for effective addresses.  When rip_rel_pending is true,
 // the offset was computed with an intermediate decode_pos (before trailing
 // imm bytes were fetched).  seg_linear() handles this automatically, so

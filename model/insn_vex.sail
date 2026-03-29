@@ -85,10 +85,10 @@ val vex_elem : Prefixes -> {32, 64}
 function vex_elem(pfx) = if pfx.vex_w then 64 else 32
 
 // Polymorphic VEX source read from r/m field: register or memory.
-val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), byte, RM, Prefixes) -> bits('vl)
-function decode_vex_src(vl, modrm, rm, pfx) = match rm {
-  RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
-  RM_mem(m) => read_mem(m),
+val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), byte, XRM, Prefixes) -> bits('vl)
+function decode_vex_src(vl, modrm, xm, pfx) = match xm {
+  XRM_reg(xi) => read_simd(xi),
+  XRM_mem(m)  => read_mem(m),
 }
 
 // =========================================================================
@@ -100,7 +100,7 @@ val vex_exec_unpack : ({8, 16, 32, 64}, {0, 64}, Prefixes) -> unit
 function vex_exec_unpack(eb, half, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_unpack(eb, half, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
@@ -111,7 +111,7 @@ val vex_exec_pack : forall 'src 'dst, 'src in {16, 32} & 'dst in {8, 16} & 'src 
 function vex_exec_pack(op, src_eb, dst_eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_pack(op, src_eb, dst_eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }
@@ -121,7 +121,7 @@ val vex_exec_shift : (PackedShiftOp, {16, 32, 64}, Prefixes) -> unit
 function vex_exec_shift(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
   let c : nat = unsigned(decode_vex_src(128, modrm, src, pfx)[63..0]);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_uniform_shift(op, eb, read_simd(vl, pfx.vex_vvvv), c))
@@ -132,7 +132,7 @@ val vex_exec_binop : (PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
 function vex_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = modrm_xmm_reg(modrm, pfx);
-  let src = modrm_rm(modrm, pfx);
+  let src = modrm_xrm(modrm, pfx);
   let vl = vex_vl(pfx);
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(modrm, src, pfx)))
 }

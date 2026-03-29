@@ -390,8 +390,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if ~(has_sha) then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xmm_reg(modrm, pfx);
-        let src = modrm_rm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+        let src = modrm_xrm(modrm, pfx);
+        let src_xmm : xmmword = decode_xmm_src(src);
         match op3 {
           // SHA1NEXTE xmm1, xmm2/m128
           200 => ZMM[xreg][127..0] = __sha1nexte(read_simd(xreg), src_xmm),
@@ -429,8 +429,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           if ~(has_sha) then raise_UD();
           let modrm = fetch(1);
           let xreg = modrm_xmm_reg(modrm, pfx);
-          let src = modrm_rm(modrm, pfx);
-          let src_xmm : xmmword = decode_xmm_src(modrm, src, pfx);
+          let src = modrm_xrm(modrm, pfx);
+          let src_xmm : xmmword = decode_xmm_src(src);
           let imm : byte = fetch(1);
           ZMM[xreg][127..0] = __sha1rnds4(read_simd(xreg), src_xmm, imm)
         },
