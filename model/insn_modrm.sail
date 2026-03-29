@@ -362,3 +362,22 @@ function decode_xmm_src(modrm, src, pfx) = match src {
   RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
   RM_mem(m) => read_mem(m),
 }
+
+// SSE FP source: scalar reads 32/64 bits, packed reads 128 bits.
+// F3 (SS) → 32-bit memory read; F2 (SD) → 64-bit; NP/66 (PS/PD) → 128-bit.
+val decode_sse_fp_src : (byte, RM, Prefixes, MandatoryPrefix) -> xmmword
+function decode_sse_fp_src(modrm, src, pfx, mp) = match src {
+  RM_reg(_) => read_simd(modrm_xmm_rm(modrm, pfx)),
+  RM_mem(m) => match mp {
+    MP_F3 => zero_extend(read_mem(32, m)),
+    MP_F2 => zero_extend(read_mem(64, m)),
+    _     => read_mem(m),
+  },
+}
+
+// Scalar FP source: reads low 'eb bits from XMM register or 'eb bits from memory.
+val decode_scalar_src : forall 'eb, 'eb in {32, 64}. (implicit('eb), byte, RM, Prefixes) -> bits('eb)
+function decode_scalar_src(eb, modrm, src, pfx) = match src {
+  RM_reg(_) => read_simd(128, modrm_xmm_rm(modrm, pfx))[('eb - 1) .. 0],
+  RM_mem(m) => read_mem(m),
+}
