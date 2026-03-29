@@ -26,6 +26,8 @@ function broadcast(vl, v) = {
 enum PackedUnaryOp = {
   PU_Abs, PU_Popcnt, PU_Lzcnt, PU_FSqrt, PU_FRsqrt, PU_FRcp,
   PU_CvtDQ2PS, PU_CvtPS2DQ, PU_CvtTPS2DQ,
+  PU_CvtPH2W,  PU_CvtPH2UW,  PU_CvtTPH2W, PU_CvtTPH2UW,
+  PU_CvtW2PH,  PU_CvtUW2PH,
   PU_FPGetexp, PU_FPRcp14, PU_FPRsqrt14, PU_FPRcp28, PU_FPRsqrt28, PU_FPExp2
 }
 
@@ -41,6 +43,12 @@ function packed_unary_elem(op, a) = match op {
   PU_CvtDQ2PS  => { assert('eb == 32); __int32_to_f32(a) },
   PU_CvtPS2DQ  => { assert('eb == 32); __f32_to_int32(a) },
   PU_CvtTPS2DQ => { assert('eb == 32); __f32_to_int32_trunc(a) },
+  PU_CvtPH2W   => { assert('eb == 16); __f16_to_int16(a) },
+  PU_CvtPH2UW  => { assert('eb == 16); __f16_to_uint16(a) },
+  PU_CvtTPH2W  => { assert('eb == 16); __f16_to_int16_trunc(a) },
+  PU_CvtTPH2UW => { assert('eb == 16); __f16_to_uint16_trunc(a) },
+  PU_CvtW2PH   => { assert('eb == 16); __int16_to_f16(a) },
+  PU_CvtUW2PH  => { assert('eb == 16); __uint16_to_f16(a) },
   PU_FPGetexp  => fp_getexp(a),
   PU_FPRcp14   => fp_rcp14(a),
   PU_FPRsqrt14 => fp_rsqrt14(a),
