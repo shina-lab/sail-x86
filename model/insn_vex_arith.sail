@@ -111,7 +111,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   match op {
 
   // 0F38 00: VPSHUFB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
-  // 0F38 00: VPSHUFB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   0 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Pshufb, 128, pfx) },
   // 0F38 01: VPHADDW xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   1 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_HorizAddW, 128, pfx) },

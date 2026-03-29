@@ -522,7 +522,6 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
-  // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
   207 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);

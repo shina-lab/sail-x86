@@ -855,7 +855,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 7B: VPBROADCASTW (66,W0) [BW] — from GPR
-  // 0F38 7B: VPBROADCASTW (66,W0) [BW] — from GPR
   123 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
@@ -865,7 +864,6 @@ function dispatch_evex_perm(op, pfx) = {
     evex_write(dst, evex_wmask(pfx, vl / 16), broadcast(vl, elem))
   },
 
-  // 0F38 7C: VPBROADCASTD (66 prefix, W=0)
   // 0F38 7C: VPBROADCASTD (66 prefix, W=0)
   124 => {
     if mp != MP_66 then raise_UD();
@@ -889,7 +887,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 59: VPBROADCASTQ (66,W1) [F] — from XMM/mem
-  // 0F38 59: VPBROADCASTQ (66,W1) [F] — from XMM/mem
   89 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
@@ -900,7 +897,6 @@ function dispatch_evex_perm(op, pfx) = {
     evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, elem))
   },
 
-  // 0F38 78: VPBROADCASTB (66,W0) [BW] — from XMM/mem
   // 0F38 78: VPBROADCASTB (66,W0) [BW] — from XMM/mem
   120 => {
     if mp != MP_66 then raise_UD();
@@ -924,7 +920,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 1A: VBROADCASTF32X4 (66,W0) / VBROADCASTF64X2 (66,W1) [F]
-  // 0F38 1A: VBROADCASTF32X4 (66,W0) / VBROADCASTF64X2 (66,W1) [F]
   26 => {
     if mp != MP_66 then raise_UD();
     let (dst, src) = fetch_modrm_evex(pfx, 16);
@@ -939,7 +934,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 1B: VBROADCASTF32X8 (66,W0) / VBROADCASTF64X4 (66,W1) [F] (512-bit only)
-  // 0F38 1B: VBROADCASTF32X8 (66,W0) / VBROADCASTF64X4 (66,W1) [F] (512-bit only)
   27 => {
     if mp != MP_66 then raise_UD();
     let (dst, src) = fetch_modrm_evex(pfx, 32);
@@ -948,7 +942,6 @@ function dispatch_evex_perm(op, pfx) = {
     else evex_write(dst, evex_wmask(pfx, 16), src @ src)
   },
 
-  // 0F38 5A: VBROADCASTI32X4 (66,W0) / VBROADCASTI64X2 (66,W1) [F]
   // 0F38 5A: VBROADCASTI32X4 (66,W0) / VBROADCASTI64X2 (66,W1) [F]
   90 => {
     if mp != MP_66 then raise_UD();
@@ -963,7 +956,6 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 5B: VBROADCASTI32X8 (66,W0) / VBROADCASTI64X4 (66,W1) [F] (512-bit only)
   // 0F38 5B: VBROADCASTI32X8 (66,W0) / VBROADCASTI64X4 (66,W1) [F] (512-bit only)
   91 => {
     if mp != MP_66 then raise_UD();
@@ -1016,7 +1008,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 0C: VPERMILPS (66,W0) — register control [F]
-  // 0F38 0C: VPERMILPS (66,W0) — register control [F]
   12 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
@@ -1028,7 +1019,6 @@ function dispatch_evex_perm(op, pfx) = {
     evex_write(dst, evex_wmask(pfx, vl / 32), avx_vpermilps(read_simd(vl, src1_idx), evex_bcast_src(vl, src, pfx, 32)))
   },
 
-  // 0F38 0D: VPERMILPD (66,W1) — register control [F]
   // 0F38 0D: VPERMILPD (66,W1) — register control [F]
   13 => {
     if mp != MP_66 then raise_UD();
@@ -1059,7 +1049,6 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 00: VPSHUFB (66) [BW]
   // 0F38 00: VPSHUFB (66) [BW]
   0 => {
     if mp != MP_66 then raise_UD();
@@ -1113,7 +1102,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 77: VPERMI2PS (66,W0) / VPERMI2PD (66,W1) [F]
-  // 0F38 77: VPERMI2PS (66,W0) / VPERMI2PD (66,W1) [F]
   119 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
@@ -1135,7 +1123,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 7E: VPERMT2D (66,W0) / VPERMT2Q (66,W1) [F]
-  // 0F38 7E: VPERMT2D (66,W0) / VPERMT2Q (66,W1) [F]
   126 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
@@ -1156,7 +1143,6 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 7F: VPERMT2PS (66,W0) / VPERMT2PD (66,W1) [F]
   // 0F38 7F: VPERMT2PS (66,W0) / VPERMT2PD (66,W1) [F]
   127 => {
     if mp != MP_66 then raise_UD();
@@ -1280,7 +1266,6 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 2A: VMOVNTDQA (66) [F] / VPBROADCASTMB2Q (F3,W1) [CD]
-  // 0F38 2A: VMOVNTDQA (66) [F] / VPBROADCASTMB2Q (F3,W1) [CD]
   42 => {
     if mp == MP_66 then {
       // VMOVNTDQA: memory source only (SDM: ModRM.MOD != 11b)
@@ -1321,7 +1306,6 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 8F: VPSHUFBITQMB (66,W0) [BITALG]
   // 0F38 8F: VPSHUFBITQMB (66,W0) [BITALG]
   143 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
@@ -1404,7 +1388,6 @@ function dispatch_evex_perm(op, pfx) = {
     }
   },
 
-  // 0F38 89: VPEXPANDD (66, W=0) / VPEXPANDQ (66, W=1) [F]
   // 0F38 89: VPEXPANDD (66, W=0) / VPEXPANDQ (66, W=1) [F]
   137 => {
     if mp != MP_66 then raise_UD();
