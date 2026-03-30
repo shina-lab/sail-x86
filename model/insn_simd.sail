@@ -561,7 +561,7 @@ function packed_funnel_shr_imm(eb, src1, src2, cnt) = {
     let lo = i * 'eb;
     let a = velem('eb, src1, i);
     let b = velem('eb, src2, i);
-    r[(lo + 'eb - 1)..lo] = velem('eb, (b @ b) >> (cnt % 'eb), 0)
+    r[(lo + 'eb - 1)..lo] = velem('eb, (b @ a) >> (cnt % 'eb), 0)
   };
   r
 }

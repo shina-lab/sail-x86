@@ -369,35 +369,6 @@ function avx_vfixupimm(eb, dst, src1, src2, imm) = {
   r
 }
 
-/* ---- VPLZCNTD/Q: count leading zeros per element ---- */
-
-val avx_fpclass_f32 : (dword, byte) -> bit
-function avx_fpclass_f32(src, imm) = fpclass(src[31], src[30..23], src[22..0], imm)
-
-val avx_fpclass_f64 : (qword, byte) -> bit
-function avx_fpclass_f64(src, imm) = fpclass(src[63], src[62..52], src[51..0], imm)
-
-// VFPCLASSPS/PD packed versions (polymorphic, returning qword mask)
-val avx_vfpclassps : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), byte) -> qword
-function avx_vfpclassps(src, imm) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    r[i] = avx_fpclass_f32(velem(32, src, i), imm);
-  };
-  r
-}
-
-val avx_vfpclasspd : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), byte) -> qword
-function avx_vfpclasspd(src, imm) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    r[i] = avx_fpclass_f64(velem(64, src, i), imm);
-  };
-  r
-}
-
 /* ---- VRANGEPS/PD: range restriction ---- */
 // VRANGE: for each element pair, select min/max/abs-min/abs-max then apply sign control
 // imm8[1:0] = operation (CmpOpCtl):
@@ -1495,19 +1466,10 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst_k : range(0, 7) = unsigned(modrm[5..3]);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    
         let imm = fetch(1);
-        match (pfx.vex_w, pfx.evex_ll) {
-          // VFPCLASSPD k1, xmm2/ymm2/zmm2/m128/m256/m512, imm8
-          (true, 0) => write_kreg(dst_k, avx_vfpclasspd(evex_bcast_src(128, src, pfx, 64), imm) & evex_kmask64(pfx)),
-          (true, 1) => write_kreg(dst_k, avx_vfpclasspd(evex_bcast_src(256, src, pfx, 64), imm) & evex_kmask64(pfx)),
-          (true, 2) => write_kreg(dst_k, avx_vfpclasspd(evex_bcast_src(512, src, pfx, 64), imm) & evex_kmask64(pfx)),
-          // VFPCLASSPS k1, xmm2/ymm2/zmm2/m128/m256/m512, imm8
-          (false, 0) => write_kreg(dst_k, avx_vfpclassps(evex_bcast_src(128, src, pfx, 32), imm) & evex_kmask64(pfx)),
-          (false, 1) => write_kreg(dst_k, avx_vfpclassps(evex_bcast_src(256, src, pfx, 32), imm) & evex_kmask64(pfx)),
-          (false, 2) => write_kreg(dst_k, avx_vfpclassps(evex_bcast_src(512, src, pfx, 32), imm) & evex_kmask64(pfx)),
-          _ => raise_UD(),
-        }
+        let eb = evex_elem(pfx);
+        let vl = evex_vl(pfx);
+        write_kreg(dst_k, packed_fpclass(eb, evex_bcast_src(vl, src, pfx, eb), imm) & evex_kmask64(pfx))
       },
       MP_NONE => {
         // VFPCLASSPH: classify packed FP16 → kmask
@@ -1517,7 +1479,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
         let imm = fetch(1);
         let vl = evex_vl(pfx);
-        write_kreg(dst_k, vfpclassph(evex_bcast_src(vl, src, pfx, 16), imm) & evex_kmask64(pfx))
+        write_kreg(dst_k, packed_fpclass(16, evex_bcast_src(vl, src, pfx, 16), imm) & evex_kmask64(pfx))
       },
       _ => raise_UD(),
     }
@@ -1532,8 +1494,8 @@ function dispatch_evex_imm(op, pfx) = {
         let src = modrm_xrm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
         let imm = fetch(1);
         let src = evex_src(128, src);
-        let result : bit = if pfx.vex_w then avx_fpclass_f64(src[63..0], imm)
-                            else avx_fpclass_f32(src[31..0], imm);
+        let result : bit = if pfx.vex_w then fpclass_elem(src[63..0], imm)
+                            else fpclass_elem(src[31..0], imm);
         let k_val : qword = zero_extend(result);
         let k_mask : qword = k_val & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)
@@ -1546,7 +1508,7 @@ function dispatch_evex_imm(op, pfx) = {
         let src = modrm_xrm_evex(modrm, pfx, 2);
         let imm = fetch(1);
         let src = evex_src(128, src);
-        let result : bit = fpclass_f16(src[15..0], imm);
+        let result : bit = fpclass_elem(src[15..0], imm);
         let k_val : qword = zero_extend(result);
         let k_mask : qword = k_val & evex_kmask64(pfx);
         write_kreg(dst_k, k_mask)

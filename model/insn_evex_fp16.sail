@@ -228,14 +228,21 @@ function fpclass(sign, exp, frac, imm) = {
   (imm[7] & is_snan)
 }
 
-val fpclass_f16 : (word, byte) -> bit
-function fpclass_f16(v, imm) = fpclass(v[15], v[14..10], v[9..0], imm)
+// Per-element fpclass: extract sign/exp/frac fields by element width.
+val fpclass_elem : forall 'eb, 'eb in {16, 32, 64}. (bits('eb), byte) -> bit
+function fpclass_elem(v, imm) = match 'eb {
+  16 => fpclass(v[15], v[14..10], v[9..0], imm),
+  32 => fpclass(v[31], v[30..23], v[22..0], imm),
+  64 => fpclass(v[63], v[62..52], v[51..0], imm),
+}
 
-val vfpclassph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> qword
-function vfpclassph(a, imm) = {
+// Packed fpclass: classify each element, return kmask.
+val packed_fpclass : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
+  (int('eb), bits('vl), byte) -> qword
+function packed_fpclass(eb, src, imm) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    r[i] = fpclass_f16(velem(16, a, i), imm);
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    r[i] = fpclass_elem(velem('eb, src, i), imm);
   };
   r
 }
