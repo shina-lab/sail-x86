@@ -2,7 +2,7 @@
 //
 // Integer min/max/abs, multiply, variable shifts, narrowing/widening
 // converts, VNNI, test-mask, and bit manipulation.
-// Called from dispatch_evex_0f38 in insn_evex.sail.
+// Called from dispatch_evex_0f38 in insn_evex_dispatch.sail.
 
 // =========================================================================
 // AVX-512 VPTESTM: test mask (element-wise AND → nonzero bit per element)
@@ -37,7 +37,7 @@ function avx_ptestm(eb, a, b, neg) = {
 // =========================================================================
 
 // All 18 VPMOV narrowing functions replaced by packed_narrow_unop(op, src_eb, dst_eb, src)
-// in insn_vex.sail. See PackedNarrowOp enum: PN_Trunc, PN_SatU, PN_SatS.
+// in insn_simd.sail. See PackedNarrowOp enum: PN_Trunc, PN_SatU, PN_SatS, PN_SatSU.
 
 // =====================================================================
 // VPMOVM2: mask register -> vector (each bit -> all-ones or all-zeros element)

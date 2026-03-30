@@ -35,5 +35,4 @@ function avx_fmsubadd(eb, a, b, c) = {
 }
 
 // exec_vfma_scalar and FMAOrder are defined in insn_vex.sail
-// (after PackedTernaryOp, which they depend on)
 

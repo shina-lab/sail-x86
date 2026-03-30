@@ -128,7 +128,7 @@ enum MandatoryPrefix = {
 
 // =========================================================================
 // Decode state — mutable position tracking during fetch
-// (decode_pos is defined in core/regs.sail so instruction implementations
+// (decode_pos is defined in regs.sail so instruction implementations
 // can access it for control-flow instructions)
 // =========================================================================
 

@@ -26,10 +26,6 @@ function exec_vfma_scalar(op, order, is64, dst, src2, src3) = {
   write_simd(128, dst, d[127..eb] @ packed_ternary_elem(op, a[(eb - 1)..0], b[(eb - 1)..0], c[(eb - 1)..0]))
 }
 
-// =========================================================================
-// 128-bit packed integer add/sub helpers
-// =========================================================================
-
 // Decode a 2-byte VEX prefix (C5 already consumed, byte1 is the payload).
 // Returns (Prefixes, opcode_map) where opcode_map is always 1 (0F).
 val decode_vex2 : byte -> (Prefixes, range(0, 31))

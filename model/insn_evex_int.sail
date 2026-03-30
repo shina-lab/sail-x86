@@ -1,10 +1,7 @@
 // x86-64 — EVEX Integer Operations (0F map)
 //
 // Packed integer arithmetic, logic, pack/unpack, shift, and compare.
-// Called from dispatch_evex_0f in insn_evex.sail.
-
-// paddb/paddw/paddd/paddq/psubb/psubw/psubd/psubq: EVEX dispatch uses packed_binop directly.
-// The _128 lane helpers remain in insn_vex.sail for VEX/SSE dispatch.
+// Called from dispatch_evex_0f in insn_evex_dispatch.sail.
 
 // =========================================================================
 // AVX-512 writemask helpers
@@ -415,11 +412,6 @@ function avx_psraq_xmm(vl, a, count_xmm) = {
   };
   r
 }
-
-// =========================================================================
-// VMOVSLDUP — Duplicate Even-Indexed Single-FP Values
-// Each pair of 32-bit floats: [A, B] → [A, A] (even index duplicated)
-// =========================================================================
 
 val dispatch_evex_int : (range(0, 255), Prefixes) -> unit
 function dispatch_evex_int(op, pfx) = {

@@ -2,7 +2,7 @@
 //
 // Insert/extract, permute-imm, ternlog, round, compare-imm,
 // classify, shift-imm, GFNI, and FP16 compare.
-// Called from dispatch_evex in insn_evex.sail.
+// Called from dispatch_evex_0f3a in insn_evex_dispatch.sail.
 
 val cmp_u_pred : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n), range(0, 7)) -> bit
 function cmp_u_pred(a, b, pred) = {
@@ -81,7 +81,7 @@ function vpternlog(a, b, c, imm) = {
 // AVX-512 Mask Register (k*) Instructions
 //
 // These instructions operate on opmask registers k0-k7.
-// Opmask registers are defined in core/regs.sail as KREG[8].
+// Opmask registers are defined in regs.sail as KREG[8].
 
 // =========================================================================
 // KADD -- Add Mask Registers
@@ -243,17 +243,8 @@ function avx_palignr(src1, src2, imm) = {
   r
 }
 
-// =========================================================================
-// Narrowing / Down-conversion helpers (VPMOV, VPMOVS, VPMOVUS)
-// =========================================================================
-
-// --- VPMOVWB: truncate word -> byte ---
-
-
 // VSHUFF32X4 / VSHUFI32X4 (256-bit): shuffle 128-bit lanes
-// imm8[0] selects src2 lane for dst[127:0], imm8[1] selects src2 lane for dst[255:128]
-// Wait, for 256-bit: imm8[0] selects which lane of src1 → dst low, imm8[1] selects which lane of src2 → dst high
-// Actually SDM says: for 256-bit VSHUFF32X4:
+// SDM: for 256-bit VSHUFF32X4:
 //   dst[127:0] = src1[imm8[0]*128+127 : imm8[0]*128]
 //   dst[255:128] = src2[imm8[1]*128+127 : imm8[1]*128]
 val avx_shuf_f32x4_256 : (ymmword, ymmword, byte) -> ymmword

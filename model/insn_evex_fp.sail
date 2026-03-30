@@ -1,7 +1,7 @@
 // x86-64 — EVEX FP Operations (0F map)
 //
 // FP mov, arithmetic, compare, and convert instructions.
-// Called from dispatch_evex_0f in insn_evex.sail.
+// Called from dispatch_evex_0f in insn_evex_dispatch.sail.
 
 // EVEX FP binary arithmetic helpers for PS/PD/SS/SD.
 // evex_fp_binop_er: with {er} rounding control (ADD/MUL/SUB/DIV).
@@ -157,7 +157,7 @@ function avx_unpckhpd(vl, a, b) = {
 // FP compare predicate (5-bit imm8 for AVX/AVX-512 VCMPPS/VCMPPD)
 // =========================================================================
 
-// cmp_pred5, cmp_pred5, eval_fp_predicate: defined in insn_sse_fp.sail
+// cmp_pred5, eval_fp_predicate: defined in insn_sse_fp.sail
 
 // Polymorphic compare-to-kmask for EVEX VCMPPS/VCMPPD
 val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
