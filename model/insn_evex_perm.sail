@@ -46,32 +46,18 @@ function avx_vpermilpd(vl, src, ctrl) = {
 /* ---- VPERMQ/VPERMPD (imm8): qword permute per 256-bit lane ---- */
 
 
-val avx_vpshufbitqmb_lane : (qword, qword) -> byte
-function avx_vpshufbitqmb_lane(ctrl, src) = {
-  var r : byte = zeros();
-  foreach (i from 0 to 7) {
-    let bit_idx : range(0, 63) = unsigned(velem(8, ctrl, i)[5..0]);
-    r[i] = src[bit_idx];
+// Per-qword-lane: each byte in ctrl selects a bit from the corresponding qword in src.
+val avx_vpshufbitqmb : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> qword
+function avx_vpshufbitqmb(ctrl, src) = {
+  var r : qword = zeros();
+  foreach (lane from 0 to ('vl / 64 - 1)) {
+    let s = velem(64, src, lane);
+    foreach (i from 0 to 7) {
+      let bit_idx : range(0, 63) = unsigned(velem(8, ctrl, lane * 8 + i)[5..0]);
+      r[lane * 8 + i] = s[bit_idx];
+    }
   };
   r
-}
-
-val avx_vpshufbitqmb_128 : (xmmword, xmmword) -> word
-function avx_vpshufbitqmb_128(ctrl, src) = {
-  avx_vpshufbitqmb_lane(ctrl[127..64], src[127..64]) @
-  avx_vpshufbitqmb_lane(ctrl[63..0], src[63..0])
-}
-
-val avx_vpshufbitqmb_256 : (ymmword, ymmword) -> dword
-function avx_vpshufbitqmb_256(ctrl, src) = {
-  avx_vpshufbitqmb_128(ctrl[255..128], src[255..128]) @
-  avx_vpshufbitqmb_128(ctrl[127..0], src[127..0])
-}
-
-val avx_vpshufbitqmb_512 : (zmmword, zmmword) -> qword
-function avx_vpshufbitqmb_512(ctrl, src) = {
-  avx_vpshufbitqmb_256(ctrl[511..256], src[511..256]) @
-  avx_vpshufbitqmb_256(ctrl[255..0], src[255..0])
 }
 
 val dispatch_evex_perm : (range(0, 255), Prefixes) -> unit
@@ -437,21 +423,8 @@ function dispatch_evex_perm(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    match pfx.evex_ll {
-      0 => {
-        let r = avx_vpshufbitqmb_128(read_simd(pfx.evex_vvvvv), evex_src(128, src));
-        write_kreg(dst_k, zero_extend(r))
-      },
-      1 => {
-        let r = avx_vpshufbitqmb_256(read_simd(256, pfx.evex_vvvvv), evex_src(256, src));
-        write_kreg(dst_k, zero_extend(r))
-      },
-      2 => {
-        let r = avx_vpshufbitqmb_512(ZMM[pfx.evex_vvvvv], evex_src(512, src));
-        write_kreg(dst_k, r)
-      },
-      3 => raise_UD(),
-    }
+    let vl = evex_vl(pfx);
+    write_kreg(dst_k, avx_vpshufbitqmb(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
   },
 
   // =====================================================================
