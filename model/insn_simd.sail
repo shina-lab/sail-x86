@@ -100,6 +100,7 @@ enum PackedBinOp = {
   PB_HorizSubW, PB_HorizSubD, PB_HorizSatSubW,
   PB_HorizFAddS, PB_HorizFAddD, PB_HorizFSubS, PB_HorizFSubD,
   PB_FAddSubS, PB_FAddSubD,
+  PB_And, PB_Or, PB_Xor, PB_Andn,
 }
 
 // PMADDWD per-pair: signed * signed + signed * signed
@@ -146,6 +147,10 @@ function packed_elem_op(op, a, b) = match op {
   PB_FMin     => { assert('eb <= 64); fp_min(a, b) },
   PB_FMax     => { assert('eb <= 64); fp_max(a, b) },
   PB_FPScalef => { assert('eb <= 64); fp_scalef(a, b) },
+  PB_And      => a & b,
+  PB_Or       => a | b,
+  PB_Xor      => a ^ b,
+  PB_Andn     => ~(a) & b,
 
   // Ops with internal sub-element structure
   PB_Pmaddubsw    => { assert('eb == 16);  pmaddubsw_pair(a[7..0], b[7..0], a[15..8], b[15..8]) },

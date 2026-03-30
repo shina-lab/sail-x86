@@ -449,41 +449,10 @@ function dispatch_evex_int(op, pfx) = {
     }
   },
 
-  // 0F EF: VPXORD (W0) / VPXORQ (W1) (EVEX, 66 prefix)
-  239 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) ^ evex_bcast_src(src, pfx, eb))
-  },
-
-  // 0F DB: VPANDD (W0) / VPANDQ (W1) (EVEX, 66 prefix)
-  219 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) & evex_bcast_src(src, pfx, eb))
-  },
-
-  // 0F EB: VPORD (W0) / VPORQ (W1) (EVEX, 66 prefix)
-  235 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, read_simd(vl, pfx.evex_vvvvv) | evex_bcast_src(src, pfx, eb))
-  },
+  // 0F DB: VPANDD/Q (66) / 0F EB: VPORD/Q (66) / 0F EF: VPXORD/Q (66)
+  219 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_And, evex_elem(pfx), pfx) },
+  235 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Or,  evex_elem(pfx), pfx) },
+  239 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Xor, evex_elem(pfx), pfx) },
 
   // 0F FE: VPADDD (EVEX, 66 prefix, W0)
   254 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Add, 32, pfx) },
@@ -569,16 +538,7 @@ function dispatch_evex_int(op, pfx) = {
   252 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_Add, 8, pfx) },
 
   // 0F DF: VPANDND (66,W0) / VPANDNQ (66,W1)
-  223 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, ~(read_simd(vl, pfx.evex_vvvvv)) & evex_bcast_src(src, pfx, eb))
-  },
+  223 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Andn, evex_elem(pfx), pfx) },
 
   // 0F FD: VPADDW (66, EVEX) [BW]
   253 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_Add, 16, pfx) },

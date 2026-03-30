@@ -466,12 +466,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   218 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinU, 8, pfx) },
 
   // 0F DB: VPAND (66 prefix)
-  219 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) & decode_vex_src(src))
-  },
+  219 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_And, 32, pfx) },
 
   // 0F DC: VPADDUSB (66 prefix)
   220 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddU, 8, pfx) },
@@ -481,12 +476,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   222 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxU, 8, pfx) },
 
   // 0F DF: VPANDN (66 prefix)
-  223 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, ~(read_simd(vl, pfx.vex_vvvv)) & decode_vex_src(src))
-  },
+  223 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Andn, 32, pfx) },
 
   // 0F E0: VPAVGB xmm/ymm, xmm/ymm, xmm/ymm/m (66 prefix)
   224 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Avg, 8, pfx) },
@@ -575,12 +565,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   234 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MinS, 16, pfx) },
 
   // 0F EB: VPOR (66 prefix)
-  235 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) | decode_vex_src(src))
-  },
+  235 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Or, 32, pfx) },
 
   // 0F EC: VPADDSB (66 prefix)
   236 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_SatAddS, 8, pfx) },
@@ -590,12 +575,8 @@ function dispatch_vex_0f_int(op, pfx) = {
   238 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_MaxS, 16, pfx) },
 
   // 0F EF: VPXOR (66 prefix)
-  239 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1); let dst = modrm_xreg(modrm, pfx); let src = modrm_xrm(modrm, pfx);
-    let vl = vex_vl(pfx);
-    write_simd(vl, dst, read_simd(vl, pfx.vex_vvvv) ^ decode_vex_src(src))
-  },
+  // 0F EF: VPXOR (66 prefix)
+  239 => { if mp != MP_66 then raise_UD(); vex_exec_binop(PB_Xor, 32, pfx) },
 
   // 0F F0: VLDDQU xmm/ymm, m128/m256 (F2 prefix) — unaligned load
   240 => {

@@ -636,55 +636,18 @@ function dispatch_2byte_sse_int(op, pfx) = {
     },
 
     // 0F DB: PAND xmm, xmm/m128 (66 prefix)
-    219 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then dispatch_mmx(op, pfx)
-      else {
-        let modrm = fetch(1);
-        let xreg = modrm_xreg(modrm, pfx);
-        let src = modrm_xrm(modrm, pfx);
-        ZMM[xreg][127..0] = read_simd(xreg) & decode_xmm_src(src)
-      }
-    },
+    219 => sse_exec_binop(op, PB_And, 32, pfx),
 
     // 0F DF: PANDN xmm, xmm/m128 (66 prefix)
-    223 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then dispatch_mmx(op, pfx)
-      else {
-        let modrm = fetch(1);
-        let xreg = modrm_xreg(modrm, pfx);
-        let src = modrm_xrm(modrm, pfx);
-        ZMM[xreg][127..0] = ~(read_simd(xreg)) & decode_xmm_src(src)
-      }
-    },
+    223 => sse_exec_binop(op, PB_Andn, 32, pfx),
 
     // 0F E5: PMULHW xmm, xmm/m128 (66 prefix)
     229 => sse_exec_binop(op, PB_MulHighS, 16, pfx),
 
     // 0F EB: POR xmm, xmm/m128 (66 prefix)
-    235 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then dispatch_mmx(op, pfx)
-      else {
-        let modrm = fetch(1);
-        let xreg = modrm_xreg(modrm, pfx);
-        let src = modrm_xrm(modrm, pfx);
-        ZMM[xreg][127..0] = read_simd(xreg) | decode_xmm_src(src)
-      }
-    },
-
+    235 => sse_exec_binop(op, PB_Or, 32, pfx),
     // 0F EF: PXOR xmm, xmm/m128 (66 prefix)
-    239 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then dispatch_mmx(op, pfx)
-      else {
-        let modrm = fetch(1);
-        let xreg = modrm_xreg(modrm, pfx);
-        let src = modrm_xrm(modrm, pfx);
-        ZMM[xreg][127..0] = read_simd(xreg) ^ decode_xmm_src(src)
-      }
-    },
+    239 => sse_exec_binop(op, PB_Xor, 32, pfx),
 
     // 0F D4: PADDQ (66 prefix)
     212 => sse_exec_binop(op, PB_Add, 64, pfx),
