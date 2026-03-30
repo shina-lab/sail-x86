@@ -494,6 +494,104 @@ function avx_gf2p8affineinvqb(src1, src2, imm8) = {
 }
 
 // =========================================================================
+// Cross-lane permute (1-source and 2-source)
+// =========================================================================
+
+// 1-source permute: for each element i, result[i] = src[idx[i] % n_elems].
+val packed_permute : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), bits('vl)) -> bits('vl)
+function packed_permute(eb, src, idx) = {
+  var r : bits('vl) = zeros();
+  let n = 'vl / 'eb;
+  foreach (i from 0 to (n - 1)) {
+    let j = unsigned(velem('eb, idx, i)) % n;
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = velem('eb, src, j)
+  };
+  r
+}
+
+// 2-source permute: for each element i, result[i] = concat(t1,t2)[idx[i] % (2*n_elems)].
+val packed_permute2 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function packed_permute2(eb, t1, t2, idx) = {
+  var r : bits('vl) = zeros();
+  let n = 'vl / 'eb;
+  foreach (i from 0 to (n - 1)) {
+    let j = unsigned(velem('eb, idx, i)) % (2 * n);
+    let k = j % n;
+    let sel : bit = bool_to_bit(j >= n);
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = blend(velem('eb, t1, k), velem('eb, t2, k), sel)
+  };
+  r
+}
+
+// =========================================================================
+// Expand/compress: mask-driven scatter/gather within a vector
+// =========================================================================
+
+// Count set bits in mask below position 'upto'.
+val popcount_mask : forall 'n, 0 < 'n & 'n <= 64. (bits('n), int) -> int
+function popcount_mask(v, upto) = {
+  assert(upto >= 0);
+  let w : qword = zero_extend(v);
+  popcount(w & ((0x0000000000000001 << upto) - 1))
+}
+
+// Expand: for each dest element i, if mask[i] is set, copy from the next
+// contiguous source element (indexed by popcount of lower mask bits).
+val packed_expand : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), qword) -> bits('vl)
+function packed_expand(eb, src, mask) = {
+  var result : bits('vl) = zeros();
+  let n = 'vl / 'eb;
+  foreach (i from 0 to (n - 1)) {
+    let j = popcount_mask(mask, i);
+    assert(j >= 0);
+    let lo = i * 'eb;
+    let src_elem : bits('eb) = get_slice_int('eb, unsigned(src), j * 'eb);
+    let lane_mask : bits('eb) = sign_extend(mask[i..i]);
+    result[(lo + 'eb - 1)..lo] = src_elem & lane_mask;
+  };
+  result
+}
+
+// Compress: for each source element i, if mask[i] is set, pack it into the
+// next contiguous dest position (indexed by popcount of lower mask bits).
+val packed_compress : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), qword) -> bits('vl)
+function packed_compress(eb, src, mask) = {
+  var result : bits('vl) = zeros();
+  let n = 'vl / 'eb;
+  foreach (i from 0 to (n - 1)) {
+    let j = popcount_mask(mask, i);
+    assert(j >= 0);
+    let src_elem : bits('eb) = get_slice_int('eb, unsigned(src), i * 'eb);
+    let lane_mask : bits('eb) = sign_extend(mask[i..i]);
+    result = result | (zero_extend(src_elem & lane_mask) << (j * 'eb));
+  };
+  result
+}
+
+// Compress to memory: write only the masked elements contiguously.
+val packed_compress_mem : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), qword, bits('vl), qword) -> unit
+function packed_compress_mem(eb, addr, src, mask) = {
+  let n = 'vl / 'eb;
+  foreach (i from 0 to (n - 1)) {
+    if mask[i] == 0b1 then {
+      let j = popcount_mask(mask, i);
+      assert(j >= 0);
+      let elem : bits('eb) = get_slice_int('eb, unsigned(src), i * 'eb);
+      let byte_off : int = j * ('eb / 8);
+      assert(byte_off >= 0 & byte_off < 512);
+      write_mem(addr + byte_off, elem);
+    };
+  };
+}
+
+// =========================================================================
 // FP compare → EFLAGS helper (UCOMISS/SD/SH, COMISS/SD/SH, FUCOMI, etc.)
 // Sets ZF/PF/CF from comparison result, clears OF/SF/AF.
 // =========================================================================

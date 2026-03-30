@@ -93,16 +93,6 @@ function vex_maskmovpd_load_256(mask, data) =
 // VMASKMOVPS store helpers: return (data_to_write, write_mask) pairs not needed;
 // we write individual dwords/qwords conditionally in the dispatch code.
 
-// VPERMPS/VPERMD 256-bit: permute 8 dwords using index vector
-val vex_vpermd_256 : (ymmword, ymmword) -> ymmword
-function vex_vpermd_256(ctrl, src) = {
-  var result : ymmword = zeros();
-  foreach (i from 0 to 7) {
-    let idx : range(0, 7) = unsigned(ctrl[(i * 32 + 2) .. (i * 32)]);
-    result[(i * 32 + 31) .. (i * 32)] = src[(idx * 32 + 31) .. (idx * 32)]
-  };
-  result
-}
 
 val dispatch_vex_0f38_arith : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f38_arith(op, pfx) = {
@@ -504,7 +494,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let src2 = modrm_xrm(modrm, pfx);
     let ctrl : ymmword = read_simd(pfx.vex_vvvv);
     let src : ymmword = decode_vex_src(256, src2);
-    write_simd(256, dst, vex_vpermd_256(ctrl, src))
+    write_simd(256, dst, packed_permute(32, src, ctrl))
   },
 
   // 0F38 2C: VMASKMOVPS load / 0F38 2D: VMASKMOVPD load (VEX.128/256.66.0F38.W0)
