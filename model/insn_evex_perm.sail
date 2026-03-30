@@ -45,23 +45,6 @@ function avx_vpermilpd(vl, src, ctrl) = {
 
 /* ---- VPERMQ/VPERMPD (imm8): qword permute per 256-bit lane ---- */
 
-val avx_vpbroadcastmb2q_128 : byte -> xmmword
-function avx_vpbroadcastmb2q_128(k) = {
-  let elem : qword = zero_extend(k);
-  elem @ elem
-}
-
-val avx_vpbroadcastmb2q_256 : byte -> ymmword
-function avx_vpbroadcastmb2q_256(k) = {
-  let elem : qword = zero_extend(k);
-  elem @ elem @ elem @ elem
-}
-
-val avx_vpbroadcastmb2q_512 : byte -> zmmword
-function avx_vpbroadcastmb2q_512(k) = {
-  let elem : qword = zero_extend(k);
-  elem @ elem @ elem @ elem @ elem @ elem @ elem @ elem
-}
 
 val avx_vpshufbitqmb_lane : (qword, qword) -> byte
 function avx_vpshufbitqmb_lane(ctrl, src) = {
@@ -484,12 +467,8 @@ function dispatch_evex_perm(op, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src_k : range(0, 7) = unsigned(modrm[2..0]);
       let k_byte : byte = read_kreg(src_k)[7..0];
-      match pfx.evex_ll {
-        0 => evex_write(dst, evex_wmask(pfx, 2), avx_vpbroadcastmb2q_128(k_byte)),
-        1 => evex_write(dst, evex_wmask(pfx, 4), avx_vpbroadcastmb2q_256(k_byte)),
-        2 => evex_write(dst, evex_wmask(pfx, 8), avx_vpbroadcastmb2q_512(k_byte)),
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, zero_extend(k_byte) : qword))
     } else if mp == MP_66 then {
       // VMOVNTDQA (already handled if present, otherwise fallthrough)
       let modrm = fetch(1);
