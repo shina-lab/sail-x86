@@ -21,8 +21,6 @@ function x87_set_sw_cc(cmp) = {
   x87_sw = sw
 }
 
-// FCOMI/FUCOMI use set_eflags_fp_compare from insn_sse_fp.sail
-
 // =========================================================================
 // D8: FADD/FMUL/FCOM/FCOMP/FSUB/FSUBR/FDIV/FDIVR (f32 mem or ST(i))
 // =========================================================================

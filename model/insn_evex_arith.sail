@@ -19,26 +19,6 @@ function avx_ptestm(eb, a, b, neg) = {
   r
 }
 
-// =========================================================================
-// VPCMPUB: compare unsigned bytes with imm8 predicate, produce kmask
-// imm8: 0=eq, 1=lt, 2=le, 4=neq, 5=nlt(>=), 6=nle(>)
-// =========================================================================
-
-// =========================================================================
-// VPACKUSDW: pack dwords to words with unsigned saturation
-// Per 128-bit lane: 4 dwords from src1 -> 4 words, 4 dwords from src2 -> 4 words
-// Each signed dword is clamped to [0, 65535] before truncation
-// =========================================================================
-
-// =========================================================================
-// VPERMI2/VPERMT2: 2-source permute using index vector
-// vperm2_d: select dwords from combined (t1,t2) table using idx
-// vperm2_q: select qwords from combined (t1,t2) table using idx
-// =========================================================================
-
-// All 18 VPMOV narrowing functions replaced by packed_narrow_unop(op, src_eb, dst_eb, src)
-// in insn_simd.sail. See PackedNarrowOp enum: PN_Trunc, PN_SatU, PN_SatS, PN_SatSU.
-
 // =====================================================================
 // VPMOVM2: mask register -> vector (each bit -> all-ones or all-zeros element)
 // =====================================================================

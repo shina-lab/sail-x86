@@ -34,15 +34,6 @@ function evex_fp16_binop(op, dst, src, mp, pfx) = match mp {
 }
 
 // =========================================================================
-// FP16 broadcast helpers
-// =========================================================================
-
-
-// FP16 unary/binary packed ops use packed_unop/packed_binop with 16-bit elements.
-// FP16 imm8 ops (rndscale, getmant, reduce) use packed_lane_imm_elem.
-// FP16 FMADDSUB/FMSUBADD use avx_fmaddsub/avx_fmsubadd with eb=16.
-
-// =========================================================================
 // FP16 widening conversion helpers (N × fp16 → N × wider)
 // =========================================================================
 
@@ -209,10 +200,6 @@ function avx_cvtpd2ph(n, src) = {
   };
   r
 }
-
-// =========================================================================
-// FP16 compare predicate helper
-// =========================================================================
 
 // =========================================================================
 // FP16 FPCLASS helper (pure Sail bit manipulation)

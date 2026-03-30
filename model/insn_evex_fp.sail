@@ -157,8 +157,6 @@ function avx_unpckhpd(vl, a, b) = {
 // FP compare predicate (5-bit imm8 for AVX/AVX-512 VCMPPS/VCMPPD)
 // =========================================================================
 
-// cmp_pred5, eval_fp_predicate: defined in insn_sse_fp.sail
-
 // Polymorphic compare-to-kmask for EVEX VCMPPS/VCMPPD
 val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
   (implicit('vl), bits('vl), bits('vl), range(0, 31)) -> qword
