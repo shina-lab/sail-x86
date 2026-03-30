@@ -91,6 +91,10 @@ function evex_vl(pfx) = ll_to_vl(pfx.evex_ll)
 val evex_elem : Prefixes -> {32, 64}
 function evex_elem(pfx) = if pfx.rex_w then 64 else 32
 
+// Byte/word element size from EVEX.W: W=0 → 8, W=1 → 16.
+val evex_elem_bw : Prefixes -> {8, 16}
+function evex_elem_bw(pfx) = if pfx.rex_w then 16 else 8
+
 // Polymorphic SIMD source read from r/m field: register or memory.
 val evex_src : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), XRM) -> bits('vl)
 function evex_src(vl, xm) = match xm {

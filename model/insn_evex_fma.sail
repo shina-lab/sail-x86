@@ -328,18 +328,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 4C: VRCP14PS (66,W0) / VRCP14PD (66,W1) [F]
-  76 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    // VRCP14PD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    // VRCP14PS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / eb), packed_unop(PU_FPRcp14, eb, evex_bcast_src(vl, src, pfx, eb)))
-  },
+  76 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_FPRcp14, evex_elem(pfx), pfx) },
 
   // 0F38 4D: VRCP14SS (66,W0) / VRCP14SD (66,W1) [T1S]
   77 => {
@@ -355,18 +344,7 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 4E: VRSQRT14PS (66,W0) / VRSQRT14PD (66,W1) [F]
-  78 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-    // VRSQRT14PD xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    // VRSQRT14PS xmm1/ymm1/zmm1, xmm2/ymm2/zmm2/m128/m256/m512
-    let vl = evex_vl(pfx);
-    let eb = evex_elem(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / eb), packed_unop(PU_FPRsqrt14, eb, evex_bcast_src(vl, src, pfx, eb)))
-  },
+  78 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_FPRsqrt14, evex_elem(pfx), pfx) },
 
   // 0F38 4F: VRSQRT14SS (66,W0) / VRSQRT14SD (66,W1) [T1S]
   79 => {

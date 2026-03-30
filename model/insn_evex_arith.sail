@@ -198,7 +198,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     if mp != MP_66 & mp != MP_F3 then raise_UD();
     let neg_bit : bit = bool_to_bit(mp == MP_F3);
-    let eb : {8, 16} = if pfx.rex_w then 16 else 8;
+    let eb = evex_elem_bw(pfx);
     let vl = evex_vl(pfx);
     let src1 = read_simd(vl, pfx.evex_vvvvv);
     let src2 = evex_src(vl, src);
@@ -226,7 +226,7 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst_k : kreg_idx = unsigned(modrm[5..3]);
       let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
-      let eb : {8, 16} = if pfx.rex_w then 16 else 8;
+      let eb = evex_elem_bw(pfx);
       let vl = evex_vl(pfx);
       write_kreg(dst_k, avx_vpmov2m(eb, read_simd(vl, xi)))
     } else if mp == MP_66 then {
@@ -327,7 +327,7 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
-      let eb : {8, 16} = if pfx.rex_w then 16 else 8;
+      let eb = evex_elem_bw(pfx);
       let vl = evex_vl(pfx);
       evex_write(dst, evex_wmask(pfx, vl / eb), avx_vpmovm2(vl, eb, read_kreg(k_idx)))
     } else {
@@ -692,16 +692,7 @@ function dispatch_evex_arith(op, pfx) = {
   83 => { if mp != MP_66 then raise_UD(); evex_exec_ternop_bcast(PT_DPWssds, 32, pfx) },
 
   // 0F38 54: VPOPCNTB (66, W=0) / VPOPCNTW (66, W=1) [BITALG]
-  84 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let eb : {8, 16} = if pfx.rex_w then 16 else 8;
-    let mask = evex_wmask(pfx, vl / eb);
-    evex_write(dst, mask, packed_unop(PU_Popcnt, eb, evex_src(vl, src)))
-  },
+  84 => { if mp != MP_66 then raise_UD(); evex_exec_unop(PU_Popcnt, evex_elem_bw(pfx), pfx) },
 
   // 0F38 55: VPOPCNTD (66, W=0) / VPOPCNTQ (66, W=1) [VPOPCNTDQ]
   85 => { if mp != MP_66 then raise_UD(); evex_exec_unop_bcast(PU_Popcnt, evex_elem(pfx), pfx) },
