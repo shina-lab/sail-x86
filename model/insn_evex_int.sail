@@ -3,24 +3,19 @@
 // Packed integer arithmetic, logic, pack/unpack, shift, and compare.
 // Called from dispatch_evex_0f in insn_evex_dispatch.sail.
 
-// =========================================================================
 // AVX-512 writemask helpers
 //
 // Per SDM: if aaa=0 (k0), no masking (all elements written).
 // Otherwise, each bit of the mask register controls one element.
 // z=0: merging (unmasked elements keep old dest value)
 // z=1: zeroing (unmasked elements become zero)
-// =========================================================================
 
 // Apply 16-bit writemask to a 512-bit ZMM result (32-bit elements, 16 lanes).
 // mask_val is the low 16 bits of the mask register.
 // old_dst is the previous destination value (for merging).
 
-// =========================================================================
 // Polymorphic compare-to-mask helpers for EVEX compare instructions.
 // Each compares 'vl/'eb elements and produces a qword mask (one bit per element).
-// =========================================================================
-
 val avx_pcmpeq_mask : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (int('eb), bits('vl), bits('vl)) -> qword
 function avx_pcmpeq_mask(eb, a, b) = {
@@ -68,10 +63,8 @@ function evex_exec_cmp_mask_bcast(cmp, eb, pfx) = {
   write_kreg(dst_k, k & evex_kmask64(pfx))
 }
 
-// =========================================================================
 // Shift by immediate: VPSRLW/D/Q, VPSLLW/D/Q, VPSRAW/D, VPSRAQ
 // If count >= element_size, result is 0 (logical) or sign-extended (arithmetic)
-// =========================================================================
 
 // VPSRLW: logical right shift words by imm
 val avx_psrlw_imm_lane : (xmmword, range(0, 255)) -> xmmword
@@ -169,11 +162,8 @@ function avx_psrldq(vl, a, count) = {
   r
 }
 
-// =========================================================================
 // VPROLD/Q: rotate left dwords/qwords (immediate via broadcast count vector)
 // VPRORD/Q: rotate right dwords/qwords
-// =========================================================================
-
 val evex_vprold_128 : (xmmword, xmmword) -> xmmword
 function evex_vprold_128(src, cnt) = {
   var r : xmmword = zeros();
@@ -266,11 +256,8 @@ function evex_vprorq(src, cnt) = {
   r
 }
 
-// =========================================================================
 // Shift by XMM count: count comes from low 64 bits of XMM register
 // Same functions as imm but count extracted from xmm src2[63:0]
-// =========================================================================
-
 val clamp_shift_bv64 : bits(64) -> range(0, 255)
 function clamp_shift_bv64(raw) = {
   let hi_nonzero : bit = is_nonzero(raw[63..56] | raw[55..48] | raw[47..40] | raw[39..32] | raw[31..24] | raw[23..16] | raw[15..8]);

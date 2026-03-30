@@ -4,10 +4,7 @@
 // converts, VNNI, test-mask, and bit manipulation.
 // Called from dispatch_evex_0f38 in insn_evex_dispatch.sail.
 
-// =========================================================================
 // AVX-512 VPTESTM: test mask (element-wise AND → nonzero bit per element)
-// =========================================================================
-
 val avx_ptestm : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (int('eb), bits('vl), bits('vl), bit) -> qword
 function avx_ptestm(eb, a, b, neg) = {
@@ -19,10 +16,7 @@ function avx_ptestm(eb, a, b, neg) = {
   r
 }
 
-// =====================================================================
 // VPMOVM2: mask register -> vector (each bit -> all-ones or all-zeros element)
-// =====================================================================
-
 val avx_vpmovm2 : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (implicit('vl), int('eb), qword) -> bits('vl)
 function avx_vpmovm2(vl, eb, k) = {
@@ -34,10 +28,7 @@ function avx_vpmovm2(vl, eb, k) = {
   r
 }
 
-// =====================================================================
 // VPMOV2M: vector -> mask (MSB of each element -> mask bit)
-// =====================================================================
-
 val avx_vpmov2m : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (int('eb), bits('vl)) -> qword
 function avx_vpmov2m(eb, src) = {

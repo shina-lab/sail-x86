@@ -3,7 +3,6 @@
 // Insert/extract, permute-imm, ternlog, round, compare-imm,
 // classify, shift-imm, GFNI, and FP16 compare.
 // Called from dispatch_evex_0f3a in insn_evex_dispatch.sail.
-
 val cmp_u_pred : forall 'n, 0 < 'n & 'n <= 64. (bits('n), bits('n), range(0, 7)) -> bit
 function cmp_u_pred(a, b, pred) = {
   let eq : bit = is_eq(a, b);
@@ -58,11 +57,8 @@ function avx_pcmp_s(eb, a, b, pred) = {
   r
 }
 
-// =========================================================================
 // VPTERNLOGD: ternary logic on 3 dword operands using 8-bit truth table
 // For each bit position: result = imm8[{a_bit, b_bit, c_bit}]
-// =========================================================================
-
 val vpternlog : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), bits('vl), byte) -> bits('vl)
 function vpternlog(a, b, c, imm) = {
@@ -74,19 +70,14 @@ function vpternlog(a, b, c, imm) = {
   r
 }
 
-// =========================================================================
 // AVX-512 opmask (k-register) operations
-// =========================================================================
 
 // AVX-512 Mask Register (k*) Instructions
 //
 // These instructions operate on opmask registers k0-k7.
 // Opmask registers are defined in regs.sail as KREG[8].
 
-// =========================================================================
 // KADD -- Add Mask Registers
-// =========================================================================
-
 val cmp_pred5_f16 : (word, word, range(0, 31)) -> bit
 function cmp_pred5_f16(a, b, pred) = {
   let r = fp_compare(a, b);
@@ -142,7 +133,6 @@ function avx_vcmpph_kmask(a, b, pred) = {
   r
 }
 
-// =========================================================================
 val avx_vpermq_imm_256 : (ymmword, byte) -> ymmword
 function avx_vpermq_imm_256(src, imm) = {
   var r : ymmword = zeros();

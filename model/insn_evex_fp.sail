@@ -46,11 +46,8 @@ function evex_fp_binop(op, dst, src, mp, pfx) = match mp {
   },
 }
 
-// =========================================================================
 // VMOVSLDUP — Duplicate Even-Indexed Single-FP Values (per 128-bit lane)
 // Each pair of 32-bit floats: [A, B] → [A, A] (even index duplicated)
-// =========================================================================
-
 val avx_movsldup : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_movsldup(vl, src) = {
   var r : bits('vl) = zeros();
@@ -62,11 +59,8 @@ function avx_movsldup(vl, src) = {
   r
 }
 
-// =========================================================================
 // VMOVSHDUP — Duplicate Odd-Indexed Single-FP Values (per 128-bit lane)
 // Each pair of 32-bit floats: [A, B] → [B, B] (odd index duplicated)
-// =========================================================================
-
 val avx_movshdup : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_movshdup(vl, src) = {
   var r : bits('vl) = zeros();
@@ -78,11 +72,8 @@ function avx_movshdup(vl, src) = {
   r
 }
 
-// =========================================================================
 // VMOVDDUP — Duplicate Low Double-FP Value in each 128-bit lane
 // Each 128-bit lane: [A, B] → [A, A] (low qword duplicated)
-// =========================================================================
-
 val avx_movddup : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
 function avx_movddup(vl, src) = {
   var r : bits('vl) = zeros();
@@ -93,10 +84,7 @@ function avx_movddup(vl, src) = {
   r
 }
 
-// =========================================================================
 // VUNPCKLPS — Unpack and Interleave Low Single-FP Values (per 128-bit lane)
-// =========================================================================
-
 val avx_unpcklps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
 function avx_unpcklps(vl, a, b) = {
   var r : bits('vl) = zeros();
@@ -109,10 +97,7 @@ function avx_unpcklps(vl, a, b) = {
   r
 }
 
-// =========================================================================
 // VUNPCKHPS — Unpack and Interleave High Single-FP Values (per 128-bit lane)
-// =========================================================================
-
 val avx_unpckhps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
 function avx_unpckhps(vl, a, b) = {
   var r : bits('vl) = zeros();
@@ -125,10 +110,7 @@ function avx_unpckhps(vl, a, b) = {
   r
 }
 
-// =========================================================================
 // VUNPCKLPD — Unpack and Interleave Low Double-FP Values (per 128-bit lane)
-// =========================================================================
-
 val avx_unpcklpd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
 function avx_unpcklpd(vl, a, b) = {
   var r : bits('vl) = zeros();
@@ -139,10 +121,7 @@ function avx_unpcklpd(vl, a, b) = {
   r
 }
 
-// =========================================================================
 // VUNPCKHPD — Unpack and Interleave High Double-FP Values (per 128-bit lane)
-// =========================================================================
-
 val avx_unpckhpd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl), bits('vl)) -> bits('vl)
 function avx_unpckhpd(vl, a, b) = {
   var r : bits('vl) = zeros();
@@ -153,9 +132,7 @@ function avx_unpckhpd(vl, a, b) = {
   r
 }
 
-// =========================================================================
 // FP compare predicate (5-bit imm8 for AVX/AVX-512 VCMPPS/VCMPPD)
-// =========================================================================
 
 // Polymorphic compare-to-kmask for EVEX VCMPPS/VCMPPD
 val avx_vcmpps_kmask : forall 'vl, 'vl in {128, 256, 512}.
@@ -178,9 +155,7 @@ function avx_vcmppd_kmask(vl, a, b, pred) = {
   r
 }
 
-// =========================================================================
 // Cross-width packed conversions (32↔64)
-// =========================================================================
 
 // 32→64 widening: N elements from dword to qword
 enum Widen32to64 = {

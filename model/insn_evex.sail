@@ -247,9 +247,7 @@ val avx_vpshrdq_elem : (qword, qword, nat) -> qword
 function avx_vpshrdq_elem(src1, src2, cnt) =
   ((src2 @ src1) >> (cnt % 64))[63..0]
 
-// =========================================================================
 // EVEX Embedded Rounding Control
-// =========================================================================
 // When EVEX.b=1 and the operand is register-only (ModRM.mod=11), the
 // EVEX.LL field encodes a static rounding mode instead of vector length:
 //   00=RN (round nearest), 01=RD (round down),
@@ -281,9 +279,7 @@ function evex_begin_rc_xrm(pfx, src) = {
 val evex_end_rc : dword -> unit
 function evex_end_rc(saved) = __ldmxcsr(saved)
 
-// =========================================================================
 // EVEX dispatch helpers — absorb common modrm + mask + write pattern
-// =========================================================================
 
 // 3-operand EVEX binop with broadcast: dst = op(vvvvv, bcast_src) {mask}
 // eb must be 32 or 64 (broadcast is only for dword/qword elements).
