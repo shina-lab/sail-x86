@@ -193,6 +193,32 @@ function evex_bcast_src(vl, xm, pfx, eb) = match xm {
 }
 
 
+// Helper for VPMOVSX/VPMOVZX widening load instructions (66 prefix).
+// Reads narrow source, sign/zero-extends to wider elements, writes with mask.
+val evex_exec_widen_load : forall 'src 'dst,
+  'src in {8, 16, 32} & 'dst in {16, 32, 64} & 'dst > 'src.
+  (PackedWidenOp, int('src), int('dst), byte, Prefixes) -> unit
+function evex_exec_widen_load(op, src_eb, dst_eb, modrm, pfx) = {
+  let dst = evex_reg_idx(modrm, pfx);
+  let vl = evex_vl(pfx);
+  let ratio = dst_eb / src_eb;
+  let src = evex_widen_src(vl, ratio, modrm_xrm_evex(modrm, pfx, vl / (ratio * 8)));
+  evex_write(dst, evex_wmask(pfx, vl / dst_eb), packed_widen_unop(vl, op, src_eb, dst_eb, src))
+}
+
+// Helper for VPMOV* narrowing store instructions (F3 prefix).
+// Reads full-width source, narrows with truncation/saturation, writes to r/m.
+val evex_exec_narrow_store : forall 'src 'dst,
+  'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
+  (PackedNarrowOp, int('src), int('dst), byte, Prefixes) -> unit
+function evex_exec_narrow_store(op, src_eb, dst_eb, modrm, pfx) = {
+  let src = evex_reg_idx(modrm, pfx);
+  let vl = evex_vl(pfx);
+  let res = packed_narrow_unop(op, src_eb, dst_eb, read_simd(vl, src));
+  let dest = modrm_xrm_evex(modrm, pfx, vl / src_eb * (dst_eb / 8));
+  evex_write_rm(dest, pfx, evex_wmask(pfx, vl / src_eb), res)
+}
+
 val avx_vpshldw_elem : (word, word, nat) -> word
 function avx_vpshldw_elem(src1, src2, cnt) =
   ((src1 @ src2) << (cnt % 16))[31..16]
