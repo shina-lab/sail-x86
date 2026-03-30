@@ -261,12 +261,9 @@ function dispatch_evex_arith(op, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
-      let k_val = read_kreg(k_idx);
       let eb = evex_elem(pfx);
       let vl = evex_vl(pfx);
-      let mask = evex_wmask(pfx, vl / eb);
-      let result = avx_vpmovm2(vl, eb, k_val);
-      evex_write(dst, mask, result)
+      evex_write(dst, evex_wmask(pfx, vl / eb), avx_vpmovm2(vl, eb, read_kreg(k_idx)))
     } else {
       raise_UD()
     }
@@ -324,24 +321,15 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 28: VPMULDQ (66,W1) [F] / VPMOVM2B (F3,W0) / VPMOVM2W (F3,W1) [BW]
   40 => {
     if mp == MP_66 then {
-      let modrm = fetch(1);
-      let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-  
-      let vl = evex_vl(pfx);
-      let mask = evex_wmask(pfx, vl / 64);
-      evex_write(dst, mask, packed_binop(PB_Pmuldq, 64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64)))
+      evex_exec_binop_bcast(PB_Pmuldq, 64, pfx)
     } else if mp == MP_F3 then {
       // VPMOVM2B (W0) / VPMOVM2W (W1): mask register -> vector
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let k_idx : kreg_idx = unsigned(modrm[2..0]);
-      let k_val = read_kreg(k_idx);
       let eb : {8, 16} = if pfx.rex_w then 16 else 8;
       let vl = evex_vl(pfx);
-      let mask = evex_wmask(pfx, vl / eb);
-      let result = avx_vpmovm2(vl, eb, k_val);
-      evex_write(dst, mask, result)
+      evex_write(dst, evex_wmask(pfx, vl / eb), avx_vpmovm2(vl, eb, read_kreg(k_idx)))
     } else {
       raise_UD()
     }
@@ -364,21 +352,36 @@ function dispatch_evex_arith(op, pfx) = {
 
   // 0F38 10: VPSRLVW (66,W1) [BW] / VPMOVUSWB (F3) [BW]
   16 => {
-    if mp == MP_66 then evex_exec_binop(PB_Srl, 16, pfx)
-    else if mp == MP_F3 then { let modrm = fetch(1); evex_exec_narrow_store(PN_SatU, 16, 8, modrm, pfx) }
-    else raise_UD()
+    if mp == MP_66 then {
+      evex_exec_binop(PB_Srl, 16, pfx)
+    } else if mp == MP_F3 then {
+      let modrm = fetch(1);
+      evex_exec_narrow_store(PN_SatU, 16, 8, modrm, pfx)
+    } else {
+      raise_UD()
+    }
   },
   // 0F38 11: VPSRAVW (66,W1) [BW] / VPMOVUSDB (F3) [F]
   17 => {
-    if mp == MP_66 then evex_exec_binop(PB_Sra, 16, pfx)
-    else if mp == MP_F3 then { let modrm = fetch(1); evex_exec_narrow_store(PN_SatU, 32, 8, modrm, pfx) }
-    else raise_UD()
+    if mp == MP_66 then {
+      evex_exec_binop(PB_Sra, 16, pfx)
+    } else if mp == MP_F3 then {
+      let modrm = fetch(1);
+      evex_exec_narrow_store(PN_SatU, 32, 8, modrm, pfx)
+    } else {
+      raise_UD()
+    }
   },
   // 0F38 12: VPSLLVW (66,W1) [BW] / VPMOVUSQB (F3) [F]
   18 => {
-    if mp == MP_66 then evex_exec_binop(PB_Sll, 16, pfx)
-    else if mp == MP_F3 then { let modrm = fetch(1); evex_exec_narrow_store(PN_SatU, 64, 8, modrm, pfx) }
-    else raise_UD()
+    if mp == MP_66 then {
+      evex_exec_binop(PB_Sll, 16, pfx)
+    } else if mp == MP_F3 then {
+      let modrm = fetch(1);
+      evex_exec_narrow_store(PN_SatU, 64, 8, modrm, pfx)
+    } else {
+      raise_UD()
+    }
   },
 
   // 0F38 13: VCVTPH2PS (66,W0) [F] / VPMOVUSDW (F3) [F]
@@ -403,15 +406,25 @@ function dispatch_evex_arith(op, pfx) = {
 
   // 0F38 14: VPRORVD (66,W0) / VPRORVQ (66,W1) [F] / VPMOVUSQW (F3) [F]
   20 => {
-    if mp == MP_66 then evex_exec_binop_bcast(PB_Ror, evex_elem(pfx), pfx)
-    else if mp == MP_F3 then { let modrm = fetch(1); evex_exec_narrow_store(PN_SatU, 64, 16, modrm, pfx) }
-    else raise_UD()
+    if mp == MP_66 then {
+      evex_exec_binop_bcast(PB_Ror, evex_elem(pfx), pfx)
+    } else if mp == MP_F3 then {
+      let modrm = fetch(1);
+      evex_exec_narrow_store(PN_SatU, 64, 16, modrm, pfx)
+    } else {
+      raise_UD()
+    }
   },
   // 0F38 15: VPROLVD (66,W0) / VPROLVQ (66,W1) [F] / VPMOVUSQD (F3) [F]
   21 => {
-    if mp == MP_66 then evex_exec_binop_bcast(PB_Rol, evex_elem(pfx), pfx)
-    else if mp == MP_F3 then { let modrm = fetch(1); evex_exec_narrow_store(PN_SatU, 64, 32, modrm, pfx) }
-    else raise_UD()
+    if mp == MP_66 then {
+      evex_exec_binop_bcast(PB_Rol, evex_elem(pfx), pfx)
+    } else if mp == MP_F3 then {
+      let modrm = fetch(1);
+      evex_exec_narrow_store(PN_SatU, 64, 32, modrm, pfx)
+    } else {
+      raise_UD()
+    }
   },
 
   // 0F38 20: VPMOVSXBW (66) [BW] / VPMOVSWB (F3) [BW]
