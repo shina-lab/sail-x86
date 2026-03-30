@@ -327,3 +327,14 @@ function evex_exec_unop(op, eb, pfx) = {
   let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
   evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, src)))
 }
+
+// 3-operand EVEX ternop with broadcast: dst = op(dst, vvvvv, bcast_src) {mask}
+val evex_exec_ternop_bcast : (PackedTernaryOp, {32, 64}, Prefixes) -> unit
+function evex_exec_ternop_bcast(op, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst = evex_reg_idx(modrm, pfx);
+  let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  evex_write(dst, evex_wmask(pfx, nm), packed_ternop(op, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb)))
+}
