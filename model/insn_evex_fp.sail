@@ -301,96 +301,7 @@ function avx_cvtqq2ps(n, src) = {
   r
 }
 
-// Same-width conversions (element-wise, already polymorphic over vl)
-val avx_cvttps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvttps2udq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_uint32_trunc(velem(32, src, i))
-  };
-  r
-}
-
-val avx_cvtps2udq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtps2udq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __f32_to_uint32(velem(32, src, i))
-  };
-  r
-}
-
-val avx_cvttpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvttpd2uqq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_uint64_trunc(velem(64, src, i))
-  };
-  r
-}
-
-val avx_cvtpd2uqq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtpd2uqq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_uint64(velem(64, src, i))
-  };
-  r
-}
-
-val avx_cvttpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvttpd2qq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_int64_trunc(velem(64, src, i))
-  };
-  r
-}
-
-val avx_cvtpd2qq : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtpd2qq(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __f64_to_int64(velem(64, src, i))
-  };
-  r
-}
-
-val avx_cvtudq2ps : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtudq2ps(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = __uint32_to_f32(velem(32, src, i))
-  };
-  r
-}
-
-val avx_cvtuqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtuqq2pd(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __uint64_to_f64(velem(64, src, i))
-  };
-  r
-}
-
-val avx_cvtqq2pd : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits('vl)
-function avx_cvtqq2pd(vl, src) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = __int64_to_f64(velem(64, src, i))
-  };
-  r
-}
+// Same-width conversions use PackedUnaryOp (PU_Cvt* variants in insn_simd.sail)
 
 // Widening conversions: N f32 → N u64/i64 (result is double width)
 val avx_cvttps2uqq : forall 'n, 'n in {2, 4, 8}. (int('n), bits('n * 32)) -> bits('n * 64)
@@ -1209,7 +1120,7 @@ function dispatch_evex_fp(op, pfx) = {
           (false, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 32);
-            evex_write(dst, mask, avx_cvttps2udq(evex_bcast_src(vl, src2, pfx, 32)))
+            evex_write(dst, mask, packed_unop(PU_CvtTPS2UDQ, 32, evex_bcast_src(vl, src2, pfx, 32)))
           },
           _ => raise_UD(),
         };
@@ -1245,7 +1156,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvttpd2uqq(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtTPD2UQQ, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTTPS2UQQ: f32→u64 trunc (widening)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvttps2uqq(2,evex_bcast_src(128, src, pfx, 32)[63..0])),
@@ -1278,7 +1189,7 @@ function dispatch_evex_fp(op, pfx) = {
           (false, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 32);
-            evex_write(dst, mask, avx_cvtps2udq(evex_bcast_src(vl, src, pfx, 32)))
+            evex_write(dst, mask, packed_unop(PU_CvtPS2UDQ, 32, evex_bcast_src(vl, src, pfx, 32)))
           },
           _ => raise_UD(),
         };
@@ -1314,7 +1225,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvtpd2uqq(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtPD2UQQ, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTPS2UQQ: f32→u64 round (widening)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvtps2uqq(2,evex_bcast_src(128, src, pfx, 32)[63..0])),
@@ -1343,7 +1254,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvttpd2qq(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtTPD2QQ, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTTPS2QQ: f32→i64 trunc (widening)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvttps2qq(2,evex_bcast_src(128, src, pfx, 32)[63..0])),
@@ -1363,7 +1274,7 @@ function dispatch_evex_fp(op, pfx) = {
           (false, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 32);
-            evex_write(dst, mask, avx_cvtudq2ps(evex_bcast_src(vl, src, pfx, 32)))
+            evex_write(dst, mask, packed_unop(PU_CvtUDQ2PS, 32, evex_bcast_src(vl, src, pfx, 32)))
           },
           _ => raise_UD(),
         }
@@ -1375,7 +1286,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvtuqq2pd(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtUQQ2PD, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTUDQ2PD: u32→f64 (widening, exact — no rounding needed)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvtudq2pd(2,evex_bcast_src(128, src, pfx, 32)[63..0])),
@@ -1404,7 +1315,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvtpd2qq(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtPD2QQ, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTPS2QQ: f32→i64 round (widening)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvtps2qq(2,evex_bcast_src(128, src, pfx, 32)[63..0])),
@@ -1589,7 +1500,7 @@ function dispatch_evex_fp(op, pfx) = {
           (true, _) => {
             let vl = ll_to_vl(eff_ll);
             let mask = evex_wmask(pfx, vl / 64);
-            evex_write(dst, mask, avx_cvtqq2pd(evex_bcast_src(vl, src, pfx, 64)))
+            evex_write(dst, mask, packed_unop(PU_CvtQQ2PD, 64, evex_bcast_src(vl, src, pfx, 64)))
           },
           // VCVTDQ2PD: i32→f64 (widening, exact — no rounding needed)
           (false, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_cvtdq2pd(2, evex_bcast_src(128, src, pfx, 32)[63..0])),

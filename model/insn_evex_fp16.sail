@@ -38,117 +38,10 @@ function evex_fp16_binop(op, dst, src, mp, pfx) = match mp {
 // =========================================================================
 
 
-// =========================================================================
-// FP16 special operation helpers (unary)
-// =========================================================================
+// FP16 unary/binary packed ops use packed_unop/packed_binop with 16-bit elements.
+// FP16 imm8 ops (rndscale, getmant, reduce) use packed_lane_imm_elem.
 
-val vgetexpph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
-function vgetexpph(a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_getexp(velem(16, a, i));
-  };
-  r
-}
-
-val vrcpph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
-function vrcpph(a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rcp(velem(16, a, i));
-  };
-  r
-}
-
-val vrsqrtph : forall 'vl, 'vl in {128, 256, 512}. bits('vl) -> bits('vl)
-function vrsqrtph(a) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rsqrt(velem(16, a, i));
-  };
-  r
-}
-
-// =========================================================================
-// FP16 special operation helpers (binary: scalef)
-// =========================================================================
-
-val vscalefph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
-function vscalefph(a, b) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_scalef(velem(16, a, i), velem(16, b, i));
-  };
-  r
-}
-
-// =========================================================================
-// FP16 imm8 operation helpers (rndscale, getmant, reduce)
-// =========================================================================
-
-val vrndscaleph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
-function vrndscaleph(a, imm) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_rndscale(velem(16, a, i), imm);
-  };
-  r
-}
-
-val vgetmantph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
-function vgetmantph(a, imm) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_getmant(velem(16, a, i), imm);
-  };
-  r
-}
-
-val vreduceph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), byte) -> bits('vl)
-function vreduceph(a, imm) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = fp_reduce(velem(16, a, i), imm);
-  };
-  r
-}
-
-// =========================================================================
-// FP16 FMADDSUB/FMSUBADD helpers
-// FMADDSUB: even elements subtract, odd elements add
-// FMSUBADD: even elements add, odd elements subtract
-// =========================================================================
-
-val vfmaddsubph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfmaddsubph(a, b, c) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    if i % 2 == 1
-    then r[(lo + 15)..lo] = fp_fmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i))
-    else r[(lo + 15)..lo] = fp_fmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i));
-  };
-  r
-}
-
-val vfmsubaddph : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), bits('vl)) -> bits('vl)
-function vfmsubaddph(a, b, c) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    if i % 2 == 1
-    then r[(lo + 15)..lo] = fp_fmsub(velem(16, a, i), velem(16, b, i), velem(16, c, i))
-    else r[(lo + 15)..lo] = fp_fmadd(velem(16, a, i), velem(16, b, i), velem(16, c, i));
-  };
-  r
-}
+// FP16 FMADDSUB/FMSUBADD use avx_fmaddsub/avx_fmsubadd with eb=16.
 
 // =========================================================================
 // FP16 compare predicate helper
@@ -271,13 +164,12 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
       match mp {
         MP_NONE => {
-          let (eff_ll, saved) = evex_begin_rc(pfx, ~(is_mem));
+          let (eff_ll, saved) = evex_begin_rc_xrm(pfx, src);
           let vl = ll_to_vl(eff_ll);
-          let mask = evex_wmask(pfx, vl / 16);
-          evex_write(dst, mask, packed_unop(PU_FSqrt, 16, evex_bcast_src(vl, src, pfx, 16)));
+          evex_write(dst, evex_wmask(pfx, vl / 16),
+                     packed_unop(PU_FSqrt, 16, evex_bcast_src(vl, src, pfx, 16)));
           evex_end_rc(saved)
         },
         MP_F3 => {
@@ -1190,9 +1082,9 @@ function evex_exec_fmaddsub16_packed(is_addsub, order, pfx) = {
   let r = evex_bcast_src(vl, src, pfx, 16);
   let mask = evex_wmask(pfx, vl / 16);
   match order {
-    FMA_132 => evex_write(dst, mask, if is_addsub then vfmaddsubph(d, r, v) else vfmsubaddph(d, r, v)),
-    FMA_213 => evex_write(dst, mask, if is_addsub then vfmaddsubph(v, d, r) else vfmsubaddph(v, d, r)),
-    FMA_231 => evex_write(dst, mask, if is_addsub then vfmaddsubph(v, r, d) else vfmsubaddph(v, r, d)),
+    FMA_132 => evex_write(dst, mask, if is_addsub then avx_fmaddsub(16, d, r, v) else avx_fmsubadd(16, d, r, v)),
+    FMA_213 => evex_write(dst, mask, if is_addsub then avx_fmaddsub(16, v, d, r) else avx_fmsubadd(16, v, d, r)),
+    FMA_231 => evex_write(dst, mask, if is_addsub then avx_fmaddsub(16, v, r, d) else avx_fmsubadd(16, v, r, d)),
   };
   evex_end_rc(saved)
 }
@@ -1338,27 +1230,9 @@ function dispatch_evex_map6(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
       let (eff_ll, saved) = evex_begin_rc_xrm(pfx, src);
-      match eff_ll {
-        0 => {
-          let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-          let src2 = evex_bcast_src(128, src, pfx, 16);
-          let r = vscalefph(src1, src2);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let src1 = read_simd(256, pfx.evex_vvvvv);
-          let src2 = evex_bcast_src(256, src, pfx, 16);
-          let r = vscalefph(src1, src2);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let src1 = ZMM[pfx.evex_vvvvv];
-          let src2 = evex_bcast_src(512, src, pfx, 16);
-          let r = vscalefph(src1, src2);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      };
+      let vl = ll_to_vl(eff_ll);
+      evex_write(dst, evex_wmask(pfx, vl / 16),
+                 packed_binop(PB_FPScalef, 16, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 16)));
       evex_end_rc(saved)
     },
 
@@ -1380,25 +1254,9 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        0 => {
-          let src = evex_bcast_src(128, src, pfx, 16);
-          let r = vgetexpph(src);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let src = evex_bcast_src(256, src, pfx, 16);
-          let r = vgetexpph(src);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let src = evex_bcast_src(512, src, pfx, 16);
-          let r = vgetexpph(src);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      evex_write(dst, evex_wmask(pfx, vl / 16),
+                 packed_unop(PU_FPGetexp, 16, evex_bcast_src(vl, src, pfx, 16)))
     },
 
     // MAP6 0x43: VGETEXPSH (66, W=0)
@@ -1419,25 +1277,9 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        0 => {
-          let src = evex_bcast_src(128, src, pfx, 16);
-          let r = vrcpph(src);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let src = evex_bcast_src(256, src, pfx, 16);
-          let r = vrcpph(src);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let src = evex_bcast_src(512, src, pfx, 16);
-          let r = vrcpph(src);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      evex_write(dst, evex_wmask(pfx, vl / 16),
+                 packed_unop(PU_FRcp, 16, evex_bcast_src(vl, src, pfx, 16)))
     },
 
     // MAP6 0x4D: VRCPSH (66, W=0)
@@ -1458,25 +1300,9 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-      let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
-      match pfx.evex_ll {
-        0 => {
-          let src = evex_bcast_src(128, src, pfx, 16);
-          let r = vrsqrtph(src);
-          evex_write(dst, evex_wmask(pfx, 8), r)
-        },
-        1 => {
-          let src = evex_bcast_src(256, src, pfx, 16);
-          let r = vrsqrtph(src);
-          evex_write(dst, evex_wmask(pfx, 16), r)
-        },
-        2 => {
-          let src = evex_bcast_src(512, src, pfx, 16);
-          let r = vrsqrtph(src);
-          evex_write(dst, evex_wmask(pfx, 32), r)
-        },
-        3 => raise_UD(),
-      }
+      let vl = evex_vl(pfx);
+      evex_write(dst, evex_wmask(pfx, vl / 16),
+                 packed_unop(PU_FRsqrt, 16, evex_bcast_src(vl, src, pfx, 16)))
     },
 
     // MAP6 0x4F: VRSQRTSH (66, W=0)

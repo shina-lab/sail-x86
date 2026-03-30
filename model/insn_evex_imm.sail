@@ -384,42 +384,39 @@ function avx_vdbpsadbw(src1, src2, imm) = {
   r
 }
 
-val avx_vrndscale : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+val avx_vrndscale : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
   (int('eb), bits('vl), byte) -> bits('vl)
 function avx_vrndscale(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    let e = velem('eb, src, i);
-    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_rndscale(e, imm), 64 => fp_rndscale(e, imm) }
+    r[(lo + 'eb - 1)..lo] = fp_rndscale(velem('eb, src, i), imm)
   };
   r
 }
 
 /* ---- VGETMANT: extract mantissa ---- */
 
-val avx_vgetmant : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+val avx_vgetmant : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
   (int('eb), bits('vl), byte) -> bits('vl)
 function avx_vgetmant(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    let e = velem('eb, src, i);
-    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_getmant(e, imm), 64 => fp_getmant(e, imm) }
+    r[(lo + 'eb - 1)..lo] = fp_getmant(velem('eb, src, i), imm)
   };
   r
 }
 
 /* ---- VREDUCE: reduce FP value ---- */
 
-val avx_vreduce : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+val avx_vreduce : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
   (int('eb), bits('vl), byte) -> bits('vl)
 function avx_vreduce(eb, src, imm) = {
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
-    let e = velem('eb, src, i);
-    r[(lo + 'eb - 1)..lo] = match eb { 32 => fp_reduce(e, imm), 64 => fp_reduce(e, imm) }
+    r[(lo + 'eb - 1)..lo] = fp_reduce(velem('eb, src, i), imm)
   };
   r
 }
@@ -1317,26 +1314,10 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-    
         let imm = fetch(1);
-        match pfx.evex_ll {
-          0 => {
-            let src = evex_bcast_src(128, src, pfx, 16);
-            let r = vrndscaleph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 8), r)
-          },
-          1 => {
-            let src = evex_bcast_src(256, src, pfx, 16);
-            let r = vrndscaleph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 16), r)
-          },
-          2 => {
-            let src = evex_bcast_src(512, src, pfx, 16);
-            let r = vrndscaleph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 32), r)
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        evex_write(dst, evex_wmask(pfx, vl / 16),
+                   avx_vrndscale(16, evex_bcast_src(vl, src, pfx, 16), imm))
       },
       _ => raise_UD(),
     }
@@ -1440,26 +1421,10 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-    
         let imm = fetch(1);
-        match pfx.evex_ll {
-          0 => {
-            let src = evex_bcast_src(128, src, pfx, 16);
-            let r = vgetmantph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 8), r)
-          },
-          1 => {
-            let src = evex_bcast_src(256, src, pfx, 16);
-            let r = vgetmantph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 16), r)
-          },
-          2 => {
-            let src = evex_bcast_src(512, src, pfx, 16);
-            let r = vgetmantph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 32), r)
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        evex_write(dst, evex_wmask(pfx, vl / 16),
+                   avx_vgetmant(16, evex_bcast_src(vl, src, pfx, 16), imm))
       },
       _ => raise_UD(),
     }
@@ -1638,26 +1603,10 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst = evex_reg_idx(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-    
         let imm = fetch(1);
-        match pfx.evex_ll {
-          0 => {
-            let src = evex_bcast_src(128, src, pfx, 16);
-            let r = vreduceph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 8), r)
-          },
-          1 => {
-            let src = evex_bcast_src(256, src, pfx, 16);
-            let r = vreduceph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 16), r)
-          },
-          2 => {
-            let src = evex_bcast_src(512, src, pfx, 16);
-            let r = vreduceph(src, imm);
-            evex_write(dst, evex_wmask(pfx, 32), r)
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        evex_write(dst, evex_wmask(pfx, vl / 16),
+                   avx_vreduce(16, evex_bcast_src(vl, src, pfx, 16), imm))
       },
       _ => raise_UD(),
     }
@@ -1720,26 +1669,9 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let dst_k : range(0, 7) = unsigned(modrm[5..3]);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
-    
         let imm = fetch(1);
-        match pfx.evex_ll {
-          0 => {
-            let mask : qword = vfpclassph(evex_bcast_src(128, src, pfx, 16), imm);
-            let k_mask : qword = mask & evex_kmask64(pfx);
-            write_kreg(dst_k, k_mask)
-          },
-          1 => {
-            let mask : qword = vfpclassph(evex_bcast_src(256, src, pfx, 16), imm);
-            let k_mask : qword = mask & evex_kmask64(pfx);
-            write_kreg(dst_k, k_mask)
-          },
-          2 => {
-            let mask : qword = vfpclassph(evex_bcast_src(512, src, pfx, 16), imm);
-            let k_mask : qword = mask & evex_kmask64(pfx);
-            write_kreg(dst_k, k_mask)
-          },
-          3 => raise_UD(),
-        }
+        let vl = evex_vl(pfx);
+        write_kreg(dst_k, vfpclassph(evex_bcast_src(vl, src, pfx, 16), imm) & evex_kmask64(pfx))
       },
       _ => raise_UD(),
     }
