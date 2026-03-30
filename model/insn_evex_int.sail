@@ -44,8 +44,32 @@ function avx_pcmpgt_mask(eb, a, b) = {
   r
 }
 
-// Per-lane operations moved to insn_vex.sail for shared VEX/EVEX use.
+// EVEX integer compare → kmask helpers
+enum CmpOp = { CMP_EQ, CMP_GT }
 
+val evex_exec_cmp_mask : (CmpOp, {8, 16}, Prefixes) -> unit
+function evex_exec_cmp_mask(cmp, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+  let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  let a = read_simd(vl, pfx.evex_vvvvv);
+  let b = evex_src(vl, src);
+  let k : qword = if cmp == CMP_EQ then avx_pcmpeq_mask(eb, a, b) else avx_pcmpgt_mask(eb, a, b);
+  write_kreg(dst_k, k & evex_kmask64(pfx))
+}
+
+val evex_exec_cmp_mask_bcast : (CmpOp, {32, 64}, Prefixes) -> unit
+function evex_exec_cmp_mask_bcast(cmp, eb, pfx) = {
+  let modrm = fetch(1);
+  let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+  let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+  let vl = evex_vl(pfx);
+  let a = read_simd(vl, pfx.evex_vvvvv);
+  let b = evex_bcast_src(vl, src, pfx, eb);
+  let k : qword = if cmp == CMP_EQ then avx_pcmpeq_mask(eb, a, b) else avx_pcmpgt_mask(eb, a, b);
+  write_kreg(dst_k, k & evex_kmask64(pfx))
+}
 
 // =========================================================================
 // Shift by immediate: VPSRLW/D/Q, VPSLLW/D/Q, VPSRAW/D, VPSRAQ
@@ -480,26 +504,9 @@ function dispatch_evex_int(op, pfx) = {
   },
 
   // 0F 74: VPCMPEQB → kmask (66, EVEX)
-  116 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpeq_mask(8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
-
+  116 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask(CMP_EQ,  8, pfx) },
   // 0F 76: VPCMPEQD → kmask (66, EVEX, W0) — supports m32bcst
-  118 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpeq_mask(32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
+  118 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask_bcast(CMP_EQ, 32, pfx) },
 
   // 0F 7E: VMOVD (66, W=0) / VMOVQ (66, W=1) — store from XMM to GPR/mem
   126 => {
@@ -580,48 +587,13 @@ function dispatch_evex_int(op, pfx) = {
   246 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_Psadbw, 64, pfx) },
 
   // 0F 64: VPCMPGTB → kmask (66, EVEX) [BW]
-  100 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpgt_mask(8, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
-
+  100 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask(CMP_GT,  8, pfx) },
   // 0F 65: VPCMPGTW → kmask (66, EVEX) [BW]
-  101 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpgt_mask(16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
-
+  101 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask(CMP_GT, 16, pfx) },
   // 0F 66: VPCMPGTD → kmask (66, EVEX, W0) [F] — supports m32bcst
-  102 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpgt_mask(32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, 32)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
-
+  102 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask_bcast(CMP_GT, 32, pfx) },
   // 0F 75: VPCMPEQW → kmask (66, EVEX) [BW]
-  117 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let vl = evex_vl(pfx);
-    let k_mask = avx_pcmpeq_mask(16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)) & evex_kmask64(pfx);
-    write_kreg(dst_k, k_mask)
-  },
+  117 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask(CMP_EQ, 16, pfx) },
 
   // 0F 51: VSQRTPS (NP) / VSQRTPD (66)
   // 0F 60: VPUNPCKLBW (66, EVEX) [BW]
