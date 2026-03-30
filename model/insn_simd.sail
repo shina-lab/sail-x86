@@ -386,8 +386,8 @@ function packed_ternary_elem(op, a, b, c) = match op {
   PT_FMSub      => fp_fmsub(a, b, c),
   PT_FNMAdd     => fp_fnmadd(a, b, c),
   PT_FNMSub     => fp_fnmsub(a, b, c),
-  PT_FunnelShl  => ((a @ b) << (unsigned(c) % 'eb))[('eb * 2 - 1) .. 'eb],
-  PT_FunnelShr  => ((b @ a) >> (unsigned(c) % 'eb))[('eb - 1) .. 0],
+  PT_FunnelShl  => velem('eb, (a @ b) << (unsigned(c) % 'eb), 1),
+  PT_FunnelShr  => velem('eb, (b @ a) >> (unsigned(c) % 'eb), 0),
 
   PT_DPBusd => {
     assert('eb == 32);
@@ -537,6 +537,33 @@ function popcount_mask(v, upto) = {
   assert(upto >= 0);
   let w : qword = zero_extend(v);
   popcount(w & ((0x0000000000000001 << upto) - 1))
+}
+
+// Packed funnel shift with immediate count (VPSHLD/VPSHRD imm forms).
+val packed_funnel_shl_imm : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), nat) -> bits('vl)
+function packed_funnel_shl_imm(eb, src1, src2, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    let a = velem('eb, src1, i);
+    let b = velem('eb, src2, i);
+    r[(lo + 'eb - 1)..lo] = velem('eb, (a @ b) << (cnt % 'eb), 1)
+  };
+  r
+}
+
+val packed_funnel_shr_imm : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), nat) -> bits('vl)
+function packed_funnel_shr_imm(eb, src1, src2, cnt) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    let a = velem('eb, src1, i);
+    let b = velem('eb, src2, i);
+    r[(lo + 'eb - 1)..lo] = velem('eb, (b @ b) >> (cnt % 'eb), 0)
+  };
+  r
 }
 
 // Expand: for each dest element i, if mask[i] is set, copy from the next

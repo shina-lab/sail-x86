@@ -515,59 +515,7 @@ function avx_vpclmulqdq(src1, src2, imm8) = {
 
 /* ---- VPSHLD/VPSHRD: packed shift double (VBMI2) ---- */
 
-val avx_vpshldw_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshldw_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = avx_vpshldw_elem(velem(16, src1, i), velem(16, src2, i), unsigned(imm8));
-  }; r
-}
-
-val avx_vpshldd_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshldd_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = avx_vpshldd_elem(velem(32, src1, i), velem(32, src2, i), unsigned(imm8));
-  }; r
-}
-
-val avx_vpshldq_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshldq_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpshldq_elem(velem(64, src1, i), velem(64, src2, i), unsigned(imm8));
-  }; r
-}
-
-val avx_vpshrdw_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshrdw_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) {
-    let lo = i * 16;
-    r[(lo + 15)..lo] = avx_vpshrdw_elem(velem(16, src1, i), velem(16, src2, i), unsigned(imm8));
-  }; r
-}
-
-val avx_vpshrdd_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshrdd_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let lo = i * 32;
-    r[(lo + 31)..lo] = avx_vpshrdd_elem(velem(32, src1, i), velem(32, src2, i), unsigned(imm8));
-  }; r
-}
-
-val avx_vpshrdq_imm : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl), byte) -> bits('vl)
-function avx_vpshrdq_imm(src1, src2, imm8) = {
-  var r : bits('vl) = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) {
-    let lo = i * 64;
-    r[(lo + 63)..lo] = avx_vpshrdq_elem(velem(64, src1, i), velem(64, src2, i), unsigned(imm8));
-  }; r
-}
+// VPSHLD/VPSHRD imm use packed_funnel_shl_imm / packed_funnel_shr_imm.
 
 
 val dispatch_evex_imm : (range(0, 255), Prefixes) -> unit
@@ -1639,7 +1587,7 @@ function dispatch_evex_imm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 16), avx_vpshldw_imm(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), imm))
+    evex_write(dst, evex_wmask(pfx, vl / 16), packed_funnel_shl_imm(16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), unsigned(imm)))
   },
 
   // 0F3A 71: VPSHLDD (66, W=0) / VPSHLDQ (66, W=1) [VBMI2]
@@ -1653,9 +1601,9 @@ function dispatch_evex_imm(op, pfx) = {
     let vl = evex_vl(pfx);
     let eb : {32, 64} = evex_elem(pfx);
     if pfx.rex_w then
-      evex_write(dst, evex_wmask(pfx, vl / 64), avx_vpshldq_imm(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64), imm))
+      evex_write(dst, evex_wmask(pfx, vl / 64), packed_funnel_shl_imm(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64), unsigned(imm)))
     else
-      evex_write(dst, evex_wmask(pfx, vl / 32), avx_vpshldd_imm(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 32), imm))
+      evex_write(dst, evex_wmask(pfx, vl / 32), packed_funnel_shl_imm(32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 32), unsigned(imm)))
   },
 
   // 0F3A 72: VPSHRDW (66, W=1) [VBMI2]
@@ -1666,7 +1614,7 @@ function dispatch_evex_imm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 16), avx_vpshrdw_imm(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), imm))
+    evex_write(dst, evex_wmask(pfx, vl / 16), packed_funnel_shr_imm(16, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), unsigned(imm)))
   },
 
   // 0F3A 73: VPSHRDD (66, W=0) / VPSHRDQ (66, W=1) [VBMI2]
@@ -1679,9 +1627,9 @@ function dispatch_evex_imm(op, pfx) = {
     let imm = fetch(1);
     let vl = evex_vl(pfx);
     if pfx.rex_w then
-      evex_write(dst, evex_wmask(pfx, vl / 64), avx_vpshrdq_imm(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64), imm))
+      evex_write(dst, evex_wmask(pfx, vl / 64), packed_funnel_shr_imm(64, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 64), unsigned(imm)))
     else
-      evex_write(dst, evex_wmask(pfx, vl / 32), avx_vpshrdd_imm(read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 32), imm))
+      evex_write(dst, evex_wmask(pfx, vl / 32), packed_funnel_shr_imm(32, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, 32), unsigned(imm)))
   },
 
   // 0F3A C2: VCMPPH (NP,W0) / VCMPSH (F3,W0) [FP16]

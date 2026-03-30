@@ -223,29 +223,6 @@ function evex_exec_narrow_store(op, src_eb, dst_eb, modrm, pfx) = {
   evex_write_rm(dest, pfx, evex_wmask(pfx, vl / src_eb), res)
 }
 
-val avx_vpshldw_elem : (word, word, nat) -> word
-function avx_vpshldw_elem(src1, src2, cnt) =
-  ((src1 @ src2) << (cnt % 16))[31..16]
-
-val avx_vpshldd_elem : (dword, dword, nat) -> dword
-function avx_vpshldd_elem(src1, src2, cnt) =
-  ((src1 @ src2) << (cnt % 32))[63..32]
-
-val avx_vpshldq_elem : (qword, qword, nat) -> qword
-function avx_vpshldq_elem(src1, src2, cnt) =
-  ((src1 @ src2) << (cnt % 64))[127..64]
-
-val avx_vpshrdw_elem : (word, word, nat) -> word
-function avx_vpshrdw_elem(src1, src2, cnt) =
-  ((src2 @ src1) >> (cnt % 16))[15..0]
-
-val avx_vpshrdd_elem : (dword, dword, nat) -> dword
-function avx_vpshrdd_elem(src1, src2, cnt) =
-  ((src2 @ src1) >> (cnt % 32))[31..0]
-
-val avx_vpshrdq_elem : (qword, qword, nat) -> qword
-function avx_vpshrdq_elem(src1, src2, cnt) =
-  ((src2 @ src1) >> (cnt % 64))[63..0]
 
 // EVEX Embedded Rounding Control
 // When EVEX.b=1 and the operand is register-only (ModRM.mod=11), the
