@@ -155,30 +155,14 @@ function avx_vpermq_imm_512(src, imm) = {
 
 // VALIGND: concatenate src1(high):src2(low), shift right by imm dwords, take low bits.
 // Branchless: same pattern as VPALIGNR but at dword granularity.
-val avx_valignd_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_valignd_128(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[1..0]) * 32))[127..0]
-
-val avx_valignd_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_valignd_256(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[2..0]) * 32))[255..0]
-
-val avx_valignd_512 : (zmmword, zmmword, byte) -> zmmword
-function avx_valignd_512(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[3..0]) * 32))[511..0]
-
-// VALIGNQ: concatenate src1(high):src2(low), shift right by imm qwords, take low bits.
-val avx_valignq_128 : (xmmword, xmmword, byte) -> xmmword
-function avx_valignq_128(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[0..0]) * 64))[127..0]
-
-val avx_valignq_256 : (ymmword, ymmword, byte) -> ymmword
-function avx_valignq_256(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[1..0]) * 64))[255..0]
-
-val avx_valignq_512 : (zmmword, zmmword, byte) -> zmmword
-function avx_valignq_512(src1, src2, imm) =
-  ((src1 @ src2) >> (unsigned(imm[2..0]) * 64))[511..0]
+// VALIGND/Q: concatenate src1(high):src2(low), shift right by imm elements, take low VL bits.
+val avx_valign : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl), byte) -> bits('vl)
+function avx_valign(eb, src1, src2, imm) = {
+  let n_elems = 'vl / 'eb;
+  let shift = unsigned(imm) % n_elems;
+  ((src1 @ src2) >> (shift * 'eb))[('vl - 1)..0]
+}
 
 /* ---- VPERMILPS (imm8): in-lane dword permute ---- */
 
@@ -468,19 +452,11 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-
     let imm = fetch(1);
-    match (pfx.vex_w, pfx.evex_ll) {
-      // VALIGNQ xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512, imm8
-      (true, 0) => evex_write(dst, evex_wmask(pfx, 2), avx_valignq_128(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), imm)),
-      (true, 1)  => evex_write(dst, evex_wmask(pfx, 4), avx_valignq_256(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 64), imm)),
-      (true, 2)  => evex_write(dst, evex_wmask(pfx, 8), avx_valignq_512(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 64), imm)),
-      // VALIGND xmm1/ymm1/zmm1, xmm2/ymm2/zmm2, xmm3/ymm3/zmm3/m128/m256/m512, imm8
-      (false, 0) => evex_write(dst, evex_wmask(pfx, 4), avx_valignd_128(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 32), imm)),
-      (false, 1) => evex_write(dst, evex_wmask(pfx, 8), avx_valignd_256(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 32), imm)),
-      (false, 2) => evex_write(dst, evex_wmask(pfx, 16), avx_valignd_512(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 32), imm)),
-      _ => raise_UD(),
-    }
+    let eb = evex_elem(pfx);
+    let vl = evex_vl(pfx);
+    evex_write(dst, evex_wmask(pfx, vl / eb),
+               avx_valign(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb), imm))
   },
 
   // 0F3A 04: VPERMILPS (66, W=0) — imm8-controlled in-lane dword permute
