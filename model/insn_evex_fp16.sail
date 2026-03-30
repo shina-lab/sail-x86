@@ -603,15 +603,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let src_reg = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
-      let a : word = read_simd(128, src_reg)[15..0];
-      let b : word = decode_scalar_src(16, src);
-      match fp_compare(a, b) {
-        FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
-        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-        FP_EQ        => { ZF = 0b1;  PF = 0b0; CF = 0b0; },
-      };
-      OF = 0b0; SF = 0b0; AF = 0b0
+      set_eflags_fp_compare(read_simd(128, src_reg)[15..0] : word, decode_scalar_src(16, src))
     },
 
     // MAP5 0x2F: VCOMISH (NP) — ordered compare scalar FP16, set EFLAGS
@@ -620,15 +612,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let src_reg = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
-      let a : word = read_simd(128, src_reg)[15..0];
-      let b : word = decode_scalar_src(16, src);
-      match fp_compare(a, b) {
-        FP_UNORDERED => { ZF = 0b1;  PF = 0b1;  CF = 0b1;  },
-        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-        FP_EQ        => { ZF = 0b1;  PF = 0b0; CF = 0b0; },
-      };
-      OF = 0b0; SF = 0b0; AF = 0b0
+      set_eflags_fp_compare(read_simd(128, src_reg)[15..0] : word, decode_scalar_src(16, src))
     },
 
     // MAP5 0x6E: VMOVW (66) — load 16-bit value to XMM low, zero-extend

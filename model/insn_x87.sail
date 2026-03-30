@@ -21,19 +21,7 @@ function x87_set_sw_cc(cmp) = {
   x87_sw = sw
 }
 
-// Set RFLAGS from FP comparison (for FCOMI/FUCOMI variants)
-val x87_set_rflags_cc : FPCompareResult -> unit
-function x87_set_rflags_cc(cmp) = {
-  match cmp {
-    FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
-    FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-    FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-    FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
-  };
-  OF = 0b0;
-  AF = 0b0;
-  SF = 0b0
-}
+// FCOMI/FUCOMI use set_eflags_fp_compare from insn_sse_fp.sail
 
 // =========================================================================
 // D8: FADD/FMUL/FCOM/FCOMP/FSUB/FSUBR/FDIV/FDIVR (f32 mem or ST(i))
@@ -298,8 +286,8 @@ function dispatch_x87_db(modrm, operand, _) = {
             raise_UD()
           }
         },
-        5 => x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
-        6 => x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
+        5 => set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti)),
+        6 => set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti)),
         7 => raise_UD(),
       }
     },
@@ -501,12 +489,12 @@ function dispatch_x87_df(modrm, operand, _) = {
         },
         // FUCOMIP — unordered compare, set RFLAGS, pop
         5 => {
-          x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
+          set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop()
         },
         // FCOMIP — compare, set RFLAGS, pop
         6 => {
-          x87_set_rflags_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
+          set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti));
           let _ = x87_pop()
         },
         _ => raise_UD(),

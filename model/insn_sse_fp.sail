@@ -410,18 +410,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
-      let cmp_result = if mp == MP_NONE
-        then fp_compare(read_simd(128, xreg)[31..0] : dword, decode_scalar_src(src))
-        else fp_compare(read_simd(128, xreg)[63..0] : qword, decode_scalar_src(src));
-      match cmp_result {
-        FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1 },
-        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0 },
-        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1 },
-        FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0 },
-      };
-      OF = 0b0;
-      AF = 0b0;
-      SF = 0b0
+      if mp == MP_NONE
+      then set_eflags_fp_compare(read_simd(128, xreg)[31..0] : dword, decode_scalar_src(src))
+      else set_eflags_fp_compare(read_simd(128, xreg)[63..0] : qword, decode_scalar_src(src))
     },
     // 0F 2F: COMISS/COMISD
     47 => {
@@ -430,18 +421,9 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
-      let cmp_result = if mp == MP_NONE
-        then fp_compare(read_simd(128, xreg)[31..0] : dword, decode_scalar_src(src))
-        else fp_compare(read_simd(128, xreg)[63..0] : qword, decode_scalar_src(src));
-      match cmp_result {
-        FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1 },
-        FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0 },
-        FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1 },
-        FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0 },
-      };
-      OF = 0b0;
-      AF = 0b0;
-      SF = 0b0
+      if mp == MP_NONE
+      then set_eflags_fp_compare(read_simd(128, xreg)[31..0] : dword, decode_scalar_src(src))
+      else set_eflags_fp_compare(read_simd(128, xreg)[63..0] : qword, decode_scalar_src(src))
     },
     // 0F 50: MOVMSKPS/MOVMSKPD
     80 => {

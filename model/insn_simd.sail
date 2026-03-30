@@ -469,3 +469,19 @@ function avx_gf2p8affineinvqb(src1, src2, imm8) = {
   };
   r
 }
+
+// =========================================================================
+// FP compare → EFLAGS helper (UCOMISS/SD/SH, COMISS/SD/SH, FUCOMI, etc.)
+// Sets ZF/PF/CF from comparison result, clears OF/SF/AF.
+// =========================================================================
+
+val set_eflags_fp_compare : forall 'n, 'n in {16, 32, 64, 80}. (bits('n), bits('n)) -> unit
+function set_eflags_fp_compare(a, b) = {
+  match fp_compare(a, b) {
+    FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1 },
+    FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0 },
+    FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1 },
+    FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0 },
+  };
+  OF = 0b0; SF = 0b0; AF = 0b0
+}

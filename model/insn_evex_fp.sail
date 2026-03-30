@@ -820,43 +820,13 @@ function dispatch_evex_fp(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
-      // VUCOMISS xmm1, xmm2/m32
       MP_NONE => {
-        let src2 = modrm_xrm_evex(modrm, pfx, 4);
-        let src : xmmword = match src2 {
-          XRM_reg(xi) => read_simd(xi),
-          XRM_mem(m) => zero_extend(v(32, m)),
-        };
-        let a : dword = read_simd(128, dst)[31..0];
-        let b : dword = src[31..0];
-        match fp_compare(a, b) {
-          FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
-          FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-          FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-          FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
-        };
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0
+        let src = modrm_xrm_evex(modrm, pfx, 4);
+        set_eflags_fp_compare(read_simd(128, dst)[31..0] : dword, decode_scalar_src(src))
       },
-      // VUCOMISD xmm1, xmm2/m64
       MP_66 => {
-        let src2 = modrm_xrm_evex(modrm, pfx, 8);
-        let src : xmmword = match src2 {
-          XRM_reg(xi) => read_simd(xi),
-          XRM_mem(m) => zero_extend(v(64, m)),
-        };
-        let a : qword = read_simd(128, dst)[63..0];
-        let b : qword = src[63..0];
-        match fp_compare(a, b) {
-          FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
-          FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-          FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-          FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
-        };
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0
+        let src = modrm_xrm_evex(modrm, pfx, 8);
+        set_eflags_fp_compare(read_simd(128, dst)[63..0] : qword, decode_scalar_src(src))
       },
       _ => raise_UD(),
     }
@@ -867,43 +837,13 @@ function dispatch_evex_fp(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     match mp {
-      // VCOMISS xmm1, xmm2/m32
       MP_NONE => {
-        let src2 = modrm_xrm_evex(modrm, pfx, 4);
-        let src : xmmword = match src2 {
-          XRM_reg(xi) => read_simd(xi),
-          XRM_mem(m) => zero_extend(v(32, m)),
-        };
-        let a : dword = read_simd(128, dst)[31..0];
-        let b : dword = src[31..0];
-        match fp_compare(a, b) {
-          FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
-          FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-          FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-          FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
-        };
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0
+        let src = modrm_xrm_evex(modrm, pfx, 4);
+        set_eflags_fp_compare(read_simd(128, dst)[31..0] : dword, decode_scalar_src(src))
       },
-      // VCOMISD xmm1, xmm2/m64
       MP_66 => {
-        let src2 = modrm_xrm_evex(modrm, pfx, 8);
-        let src : xmmword = match src2 {
-          XRM_reg(xi) => read_simd(xi),
-          XRM_mem(m) => zero_extend(v(64, m)),
-        };
-        let a : qword = read_simd(128, dst)[63..0];
-        let b : qword = src[63..0];
-        match fp_compare(a, b) {
-          FP_UNORDERED => { ZF = 0b1; PF = 0b1; CF = 0b1;  },
-          FP_GT        => { ZF = 0b0; PF = 0b0; CF = 0b0; },
-          FP_LT        => { ZF = 0b0; PF = 0b0; CF = 0b1;  },
-          FP_EQ        => { ZF = 0b1; PF = 0b0; CF = 0b0; },
-        };
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0
+        let src = modrm_xrm_evex(modrm, pfx, 8);
+        set_eflags_fp_compare(read_simd(128, dst)[63..0] : qword, decode_scalar_src(src))
       },
       _ => raise_UD(),
     }
