@@ -94,53 +94,18 @@ function avx_vpconflict(eb, src) = {
 // bit 0: QNaN, bit 1: +0, bit 2: -0, bit 3: +Inf, bit 4: -Inf
 // bit 5: denormal, bit 6: negative finite, bit 7: SNaN
 
-/* ---- BF16: convert FP32 to BFloat16 ---- */
-// Per SDM: RNE, denormals flush to zero, NaN→QNaN, infinity preserved.
-// This is pure integer arithmetic — no FPU involved.
-val convert_fp32_to_bf16 : dword -> word
-function convert_fp32_to_bf16(x) = {
-  let exp : byte = x[30..23];
-  let mant : bits(23) = x[22..0];
-  let exp_zero : bit = is_zero(exp);
-  let exp_all  : bit = is_zero(~(exp));
-  let mant_nz  : bit = is_nonzero(mant);
-  // Compute all four cases unconditionally
-  let r_zero   : word = x[31] @ zeros(15);                   // zero/denormal → signed zero
-  let r_nan    : word = x[31..16] | 0x0040;                  // NaN → force QNaN
-  let r_inf    : word = x[31..16];                            // infinity → preserve
-  let r_normal : word = (x + 0x00007FFF + zero_extend(x[16]))[31..16]; // normal → RNE
-  // Select by classification: start with normal, override special cases
-  let r1 : word = blend(r_normal, r_zero, exp_zero);
-  let r2 : word = blend(r1, r_inf, exp_all & ~(mant_nz));
-  blend(r2, r_nan, exp_all & mant_nz)
-}
-
-/* ---- VCVTNEPS2BF16: convert packed FP32 → packed BF16 (narrowing) ---- */
-val avx_vcvtneps2bf16 : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), bits('vl)) -> bits(div('vl, 2))
-function avx_vcvtneps2bf16(vl, src) = {
-  var r : bits(div('vl, 2)) = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) {
-    let slo = i * 32;
-    let dlo = i * 16;
-    r[(dlo + 15)..dlo] = convert_fp32_to_bf16(src[(slo + 31)..slo]);
-  };
-  r
-}
-
-/* ---- VCVTNE2PS2BF16: convert two packed FP32 → packed BF16 ---- */
-// Upper half of result = narrowed src1 (vvvv), lower half = narrowed src2 (rm)
+// VCVTNE2PS2BF16: convert two packed FP32 → packed BF16
+// Per 128-bit lane: lower half = narrowed src2, upper half = narrowed src1
 val avx_vcvtne2ps2bf16 : forall 'vl, 'vl in {128, 256, 512}. (bits('vl), bits('vl)) -> bits('vl)
 function avx_vcvtne2ps2bf16(src1, src2) = {
-  let n = 'vl / 32;  // number of dwords per source
   var r : bits('vl) = zeros();
-  // Lower half: convert src2 dwords to BF16
+  let n = 'vl / 32;
   foreach (i from 0 to (n - 1)) {
-    r[(i * 16 + 15)..(i * 16)] = convert_fp32_to_bf16(src2[(i * 32 + 31)..(i * 32)]);
+    r[(i * 16 + 15)..(i * 16)] = convert_fp32_to_bf16(velem(32, src2, i));
   };
-  // Upper half: convert src1 dwords to BF16
   foreach (i from 0 to (n - 1)) {
     let dlo = n * 16 + i * 16;
-    r[(dlo + 15)..dlo] = convert_fp32_to_bf16(src1[(i * 32 + 31)..(i * 32)]);
+    r[(dlo + 15)..dlo] = convert_fp32_to_bf16(velem(32, src1, i));
   };
   r
 }
@@ -620,7 +585,7 @@ function dispatch_evex_arith(op, pfx) = {
         if pfx.rex_w then raise_UD();
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let vl = evex_vl(pfx);
-        let res = avx_vcvtneps2bf16(evex_bcast_src(vl, src, pfx, 32));
+        let res = packed_narrow_unop(PN_FP32toBF16, 32, 16, evex_bcast_src(vl, src, pfx, 32));
         match vl {
           128 => evex_write(dst, evex_wmask(pfx, 8), zero_extend(128, res)),
           256 => evex_write(dst, evex_wmask(pfx, 8), res),

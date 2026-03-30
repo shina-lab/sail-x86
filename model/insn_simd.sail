@@ -286,7 +286,24 @@ function packed_unpack(eb, half, a, b) = {
 }
 
 // Generic packed narrowing unary operation (each element shrinks).
-enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS, PN_SatSU }
+// BF16 conversion: FP32 → BFloat16 (RNE, denormals flush to zero)
+val convert_fp32_to_bf16 : dword -> word
+function convert_fp32_to_bf16(x) = {
+  let exp : byte = x[30..23];
+  let mant : bits(23) = x[22..0];
+  let exp_zero : bit = is_zero(exp);
+  let exp_all  : bit = is_zero(~(exp));
+  let mant_nz  : bit = is_nonzero(mant);
+  let r_zero   : word = x[31] @ zeros(15);
+  let r_nan    : word = x[31..16] | 0x0040;
+  let r_inf    : word = x[31..16];
+  let r_normal : word = (x + 0x00007FFF + zero_extend(x[16]))[31..16];
+  let r1 : word = blend(r_normal, r_zero, exp_zero);
+  let r2 : word = blend(r1, r_inf, exp_all & ~(mant_nz));
+  blend(r2, r_nan, exp_all & mant_nz)
+}
+
+enum PackedNarrowOp = { PN_Trunc, PN_SatU, PN_SatS, PN_SatSU, PN_FP32toBF16 }
 
 val packed_narrow_elem : forall 'src 'dst, 'src in {16, 32, 64} & 'dst in {8, 16, 32} & 'src > 'dst.
   (PackedNarrowOp, int('dst), bits('src)) -> bits('dst)
@@ -295,6 +312,7 @@ function packed_narrow_elem(op, dst, a) = match op {
   PN_SatU  => sat_u(a),
   PN_SatS  => sat_s(a),
   PN_SatSU => sat_su(a),
+  PN_FP32toBF16 => { assert('src == 32 & 'dst == 16); convert_fp32_to_bf16(a) },
 }
 
 val packed_narrow_unop : forall 'vl 'src 'dst,

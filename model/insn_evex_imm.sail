@@ -36,74 +36,25 @@ function cmp_s_pred(a, b, pred) = {
   }
 }
 
-val avx_pcmpub : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpub(a, b, pred) = {
+// Polymorphic unsigned integer compare → kmask
+val avx_pcmp_u : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), range(0, 7)) -> qword
+function avx_pcmp_u(eb, a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) { r[i] = cmp_u_pred(velem(8, a, i), velem(8, b, i), pred) };
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    r[i] = cmp_u_pred(velem('eb, a, i), velem('eb, b, i), pred)
+  };
   r
 }
 
-// VPCMPB: signed byte compare
-val avx_pcmpb : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpb(a, b, pred) = {
+// Polymorphic signed integer compare → kmask
+val avx_pcmp_s : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
+  (int('eb), bits('vl), bits('vl), range(0, 7)) -> qword
+function avx_pcmp_s(eb, a, b, pred) = {
   var r : qword = zeros();
-  foreach (i from 0 to ('vl / 8 - 1)) { r[i] = cmp_s_pred(velem(8, a, i), velem(8, b, i), pred) };
-  r
-}
-
-// VPCMPUW: unsigned word compare
-val avx_pcmpuw : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpuw(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) { r[i] = cmp_u_pred(velem(16, a, i), velem(16, b, i), pred) };
-  r
-}
-
-// VPCMPW: signed word compare
-val avx_pcmpw : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpw(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 16 - 1)) { r[i] = cmp_s_pred(velem(16, a, i), velem(16, b, i), pred) };
-  r
-}
-
-// VPCMPUD: unsigned dword compare producing kmask
-val avx_pcmpud : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpud(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) { r[i] = cmp_u_pred(velem(32, a, i), velem(32, b, i), pred) };
-  r
-}
-
-// VPCMPD: signed dword compare
-val avx_pcmpd : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpd(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 32 - 1)) { r[i] = cmp_s_pred(velem(32, a, i), velem(32, b, i), pred) };
-  r
-}
-
-// VPCMPUQ: unsigned qword compare
-val avx_pcmpuq : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpuq(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { r[i] = cmp_u_pred(velem(64, a, i), velem(64, b, i), pred) };
-  r
-}
-
-// VPCMPQ: signed qword compare
-val avx_pcmpq : forall 'vl, 'vl in {128, 256, 512}.
-  (bits('vl), bits('vl), range(0, 7)) -> qword
-function avx_pcmpq(a, b, pred) = {
-  var r : qword = zeros();
-  foreach (i from 0 to ('vl / 64 - 1)) { r[i] = cmp_s_pred(velem(64, a, i), velem(64, b, i), pred) };
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    r[i] = cmp_s_pred(velem('eb, a, i), velem('eb, b, i), pred)
+  };
   r
 }
 
@@ -964,20 +915,11 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPCMPUQ (m64bcst, W=1)
-      (true, 0) => write_kreg(dst_k, avx_pcmpuq(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      (true, 1) => write_kreg(dst_k, avx_pcmpuq(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      (true, 2) => write_kreg(dst_k, avx_pcmpuq(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      // VPCMPUD (m32bcst, W=0)
-      (false, 0) => write_kreg(dst_k, avx_pcmpud(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      (false, 1) => write_kreg(dst_k, avx_pcmpud(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      (false, 2) => write_kreg(dst_k, avx_pcmpud(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      _ => raise_UD(),
-    }
+    let eb = evex_elem(pfx);
+    let vl = evex_vl(pfx);
+    write_kreg(dst_k, avx_pcmp_u(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb), pred) & evex_kmask64(pfx))
   },
 
   // 0F3A 1F: VPCMPD (66, W=0) / VPCMPQ (66, W=1) — signed dword/qword compare → kmask
@@ -986,20 +928,11 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPCMPQ (m64bcst, W=1)
-      (true, 0) => write_kreg(dst_k, avx_pcmpq(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      (true, 1) => write_kreg(dst_k, avx_pcmpq(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      (true, 2) => write_kreg(dst_k, avx_pcmpq(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 64), pred) & evex_kmask64(pfx)),
-      // VPCMPD (m32bcst, W=0)
-      (false, 0) => write_kreg(dst_k, avx_pcmpd(read_simd(pfx.evex_vvvvv), evex_bcast_src(128, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      (false, 1) => write_kreg(dst_k, avx_pcmpd(read_simd(256, pfx.evex_vvvvv), evex_bcast_src(256, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      (false, 2) => write_kreg(dst_k, avx_pcmpd(ZMM[pfx.evex_vvvvv], evex_bcast_src(512, src, pfx, 32), pred) & evex_kmask64(pfx)),
-      _ => raise_UD(),
-    }
+    let eb = evex_elem(pfx);
+    let vl = evex_vl(pfx);
+    write_kreg(dst_k, avx_pcmp_s(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb), pred) & evex_kmask64(pfx))
   },
 
   // 0F3A 25: VPTERNLOGD (66, W=0) / VPTERNLOGQ (66, W=1)
@@ -1262,17 +1195,9 @@ function dispatch_evex_imm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPCMPUW (word, W=1)
-      (true, 0) => write_kreg(dst_k, avx_pcmpuw(read_simd(pfx.evex_vvvvv), evex_src(128, src), pred) & evex_kmask64(pfx)),
-      (true, 1) => write_kreg(dst_k, avx_pcmpuw(read_simd(256, pfx.evex_vvvvv), evex_src(256, src), pred) & evex_kmask64(pfx)),
-      (true, 2) => write_kreg(dst_k, avx_pcmpuw(ZMM[pfx.evex_vvvvv], evex_src(512, src), pred) & evex_kmask64(pfx)),
-      // VPCMPUB (byte, W=0)
-      (false, 0) => write_kreg(dst_k, avx_pcmpub(read_simd(pfx.evex_vvvvv), evex_src(128, src), pred) & evex_kmask64(pfx)),
-      (false, 1) => write_kreg(dst_k, avx_pcmpub(read_simd(256, pfx.evex_vvvvv), evex_src(256, src), pred) & evex_kmask64(pfx)),
-      (false, 2) => write_kreg(dst_k, avx_pcmpub(ZMM[pfx.evex_vvvvv], evex_src(512, src), pred) & evex_kmask64(pfx)),
-      _ => raise_UD(),
-    }
+    let eb = evex_elem_bw(pfx);
+    let vl = evex_vl(pfx);
+    write_kreg(dst_k, avx_pcmp_u(eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), pred) & evex_kmask64(pfx))
   },
 
   // 0F3A 3F: VPCMPB (66, W=0) / VPCMPW (66, W=1) — signed byte/word compare → kmask
@@ -1283,17 +1208,9 @@ function dispatch_evex_imm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
-    match (pfx.rex_w, pfx.evex_ll) {
-      // VPCMPW (word, W=1)
-      (true, 0) => write_kreg(dst_k, avx_pcmpw(read_simd(pfx.evex_vvvvv), evex_src(128, src), pred) & evex_kmask64(pfx)),
-      (true, 1) => write_kreg(dst_k, avx_pcmpw(read_simd(256, pfx.evex_vvvvv), evex_src(256, src), pred) & evex_kmask64(pfx)),
-      (true, 2) => write_kreg(dst_k, avx_pcmpw(ZMM[pfx.evex_vvvvv], evex_src(512, src), pred) & evex_kmask64(pfx)),
-      // VPCMPB (byte, W=0)
-      (false, 0) => write_kreg(dst_k, avx_pcmpb(read_simd(pfx.evex_vvvvv), evex_src(128, src), pred) & evex_kmask64(pfx)),
-      (false, 1) => write_kreg(dst_k, avx_pcmpb(read_simd(256, pfx.evex_vvvvv), evex_src(256, src), pred) & evex_kmask64(pfx)),
-      (false, 2) => write_kreg(dst_k, avx_pcmpb(ZMM[pfx.evex_vvvvv], evex_src(512, src), pred) & evex_kmask64(pfx)),
-      _ => raise_UD(),
-    }
+    let eb = evex_elem_bw(pfx);
+    let vl = evex_vl(pfx);
+    write_kreg(dst_k, avx_pcmp_s(eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), pred) & evex_kmask64(pfx))
   },
 
   // 0F3A 08: VRNDSCALEPS (66, W=0) / VRNDSCALEPH (NP, W=0)
