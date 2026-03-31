@@ -601,21 +601,15 @@ function packed_compress(eb, src, mask) = {
   result
 }
 
-// Compress to memory: write only the masked elements contiguously.
+// Compress to memory: compress, then write only the populated bytes.
 val packed_compress_mem : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {8, 16, 32, 64}.
   (int('eb), qword, bits('vl), qword) -> unit
 function packed_compress_mem(eb, addr, src, mask) = {
-  let n = 'vl / 'eb;
-  foreach (i from 0 to (n - 1)) {
-    if mask[i] == 0b1 then {
-      let j = popcount_mask(mask, i);
-      assert(j >= 0);
-      let elem : bits('eb) = get_slice_int('eb, unsigned(src), i * 'eb);
-      let byte_off : int = j * ('eb / 8);
-      assert(byte_off >= 0 & byte_off < 512);
-      write_mem(addr + byte_off, elem);
-    };
-  };
+  let result = packed_compress(eb, src, mask);
+  let nbits = popcount_mask(mask, 'vl / 'eb) * 'eb;
+  assert(nbits >= 0 & nbits <= 'vl);
+  if nbits > 0 then
+    write_mem_linear(addr, truncate(result, nbits));
 }
 
 // =========================================================================
