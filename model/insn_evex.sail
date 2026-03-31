@@ -269,7 +269,9 @@ function evex_exec_binop_bcast(op, eb, pfx) = {
   // vl in {128,256,512}, eb in {32,64} → vl/eb in {2,4,8,16}
   let nm : range(2, 16) = vl / eb;
   assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb)))
+  let a = read_simd(vl, pfx.evex_vvvvv);
+  let b = evex_bcast_src(vl, src, pfx, eb);
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, a, b))
 }
 
 // 3-operand EVEX binop without broadcast (byte/word): dst = op(vvvvv, src) {mask}
@@ -281,7 +283,9 @@ function evex_exec_binop(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   let nm : range(1, 64) = vl / eb;
   assert(nm == 1 | nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
-  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
+  let a = read_simd(vl, pfx.evex_vvvvv);
+  let b = evex_src(vl, src);
+  evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, a, b))
 }
 
 // 2-operand EVEX unop with broadcast: dst = op(bcast_src) {mask}
@@ -293,7 +297,8 @@ function evex_exec_unop_bcast(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   let nm : range(2, 16) = vl / eb;
   assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_bcast_src(vl, src, pfx, eb)))
+  let a = evex_bcast_src(vl, src, pfx, eb);
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, a))
 }
 
 // 2-operand EVEX unop without broadcast: dst = op(src) {mask}
@@ -305,7 +310,8 @@ function evex_exec_unop(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   let nm : range(2, 64) = vl / eb;
   assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
-  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, src)))
+  let a = evex_src(vl, src);
+  evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, a))
 }
 
 // 3-operand EVEX ternop with broadcast: dst = op(dst, vvvvv, bcast_src) {mask}
@@ -317,5 +323,8 @@ function evex_exec_ternop_bcast(op, eb, pfx) = {
   let vl = evex_vl(pfx);
   let nm : range(2, 16) = vl / eb;
   assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-  evex_write(dst, evex_wmask(pfx, nm), packed_ternop(op, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb)))
+  let a = read_simd(vl, dst);
+  let b = read_simd(vl, pfx.evex_vvvvv);
+  let c = evex_bcast_src(vl, src, pfx, eb);
+  evex_write(dst, evex_wmask(pfx, nm), packed_ternop(op, eb, a, b, c))
 }
