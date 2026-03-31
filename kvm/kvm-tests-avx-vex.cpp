@@ -815,4 +815,95 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPMASKMOVQ xmm (st)", cat, v.encode_rm_mem(), s, FL_NONE, 0, false, std::vector<u8>(16, 0xCC), 16});
     add_vok("VPMASKMOVQ [rdi],xmm (st) misaligned", v.encode_rm_mem());
   }
+
+  // VBLENDVPS: VEX.66.0F3A.W0 4A /r is4
+  // VBLENDVPD: VEX.66.0F3A.W0 4B /r is4
+  // VPBLENDVB: VEX.66.0F3A.W0 4C /r is4
+  // 4-operand variable blend: imm8[7:4] = mask register index
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[1].q)[i] = 0xAAAAAAAA;
+    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[2].q)[i] = 0x55555555;
+    // xmm3 mask: sign bit set for even dwords
+    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[3].q)[i] = (i % 2 == 0) ? 0x80000000 : 0;
+
+    Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x4A;
+    v.reg = 0; v.vvvv = 1; v.rm = 2;
+    // imm8 = 0x30: mask from xmm3 (index 3 << 4)
+    v.L = false;
+    tests.push_back({"VBLENDVPS xmm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VBLENDVPS xmm,[rdi] misaligned", c); }
+    v.L = true;
+    tests.push_back({"VBLENDVPS ymm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VBLENDVPS ymm,[rdi] misaligned", c); }
+
+    // All mask bits set
+    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[3].q)[i] = 0x80000000;
+    v.L = false;
+    tests.push_back({"VBLENDVPS xmm all-b", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    v.L = true;
+    tests.push_back({"VBLENDVPS ymm all-b", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+
+    // VBLENDVPD
+    s.xmm[1].q[0] = 0x1111111111111111; s.xmm[1].q[1] = 0x2222222222222222;
+    s.xmm[1].q[2] = 0x3333333333333333; s.xmm[1].q[3] = 0x4444444444444444;
+    s.xmm[2].q[0] = 0xAAAAAAAAAAAAAAAA; s.xmm[2].q[1] = 0xBBBBBBBBBBBBBBBB;
+    s.xmm[2].q[2] = 0xCCCCCCCCCCCCCCCC; s.xmm[2].q[3] = 0xDDDDDDDDDDDDDDDD;
+    s.xmm[3].q[0] = 0x8000000000000000ULL; s.xmm[3].q[1] = 0;
+    s.xmm[3].q[2] = 0x8000000000000000ULL; s.xmm[3].q[3] = 0;
+    v.opcode = 0x4B;
+    v.L = false;
+    tests.push_back({"VBLENDVPD xmm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VBLENDVPD xmm,[rdi] misaligned", c); }
+    v.L = true;
+    tests.push_back({"VBLENDVPD ymm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VBLENDVPD ymm,[rdi] misaligned", c); }
+
+    // VPBLENDVB
+    for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i + 1;
+    for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 0x80 + i;
+    for (int i = 0; i < 32; i++) ((u8 *)s.xmm[3].q)[i] = (i % 2 == 0) ? 0x80 : 0x00;
+    v.opcode = 0x4C;
+    v.L = false;
+    tests.push_back({"VPBLENDVB xmm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VPBLENDVB xmm,[rdi] misaligned", c); }
+    v.L = true;
+    tests.push_back({"VPBLENDVB ymm", cat, v.encode_rr_imm(0x30), s, FL_NONE, 0x7, false});
+    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VPBLENDVB ymm,[rdi] misaligned", c); }
+  }
+
+  // VPCMPESTRM: VEX.66.0F3A.WIG 60 /r ib  VPCMPESTRI: 61
+  // VPCMPISTRM: VEX.66.0F3A.WIG 62 /r ib  VPCMPISTRI: 63
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    s.rax = 4; s.rdx = 4;
+    s.xmm[1] = xmm_from_u64(0x0000000061616161, 0);  // "aaaa\0..."
+    s.xmm[2] = xmm_from_u64(0x0000000062616261, 0);  // "abab\0..."
+
+    Vex v; v.mm = 3; v.pp = 1; v.W = false; v.L = false;
+    v.reg = 1; v.vvvv = 0; v.rm = 2;
+
+    v.opcode = 0x60;
+    tests.push_back({"VPCMPESTRM eq_any", cat, v.encode_rr_imm(0x00), s, FL_ALL, 0x1, false});
+    tests.push_back({"VPCMPESTRM eq_each", cat, v.encode_rr_imm(0x08), s, FL_ALL, 0x1, false});
+
+    v.opcode = 0x61;
+    s.xmm[1] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
+    s.xmm[2] = xmm_from_u64(0x000000007A796278, 0);  // "xbyz\0..."
+    tests.push_back({"VPCMPESTRI eq_any", cat, v.encode_rr_imm(0x00), s, FL_ALL, 0, false});
+    tests.push_back({"VPCMPESTRI eq_each", cat, v.encode_rr_imm(0x08), s, FL_ALL, 0, false});
+
+    // Implicit-length forms (RAX/RDX not used)
+    s.xmm[1] = xmm_from_u64(0x0000000061616161, 0);
+    s.xmm[2] = xmm_from_u64(0x0000000062616261, 0);
+    v.opcode = 0x62;
+    tests.push_back({"VPCMPISTRM eq_any", cat, v.encode_rr_imm(0x00), s, FL_ALL, 0x1, false});
+    tests.push_back({"VPCMPISTRM eq_each", cat, v.encode_rr_imm(0x08), s, FL_ALL, 0x1, false});
+
+    v.opcode = 0x63;
+    s.xmm[1] = xmm_from_u64(0x0000000064636261, 0);
+    s.xmm[2] = xmm_from_u64(0x000000007A796278, 0);
+    tests.push_back({"VPCMPISTRI eq_any", cat, v.encode_rr_imm(0x00), s, FL_ALL, 0, false});
+    tests.push_back({"VPCMPISTRI eq_ordered", cat, v.encode_rr_imm(0x0C), s, FL_ALL, 0, false});
+  }
 }

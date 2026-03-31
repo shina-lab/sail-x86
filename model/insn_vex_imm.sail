@@ -3,6 +3,18 @@
 // Blend, round, dpps, palignr, permil, insert/extract, cvtps2ph,
 // kshift, mpsadbw, pblendd.
 
+// Variable blend: for each eb-wide element, select src1 or src2 based on mask sign bit.
+val avx_blendv : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {8, 32, 64}.
+  (int('eb), bits('vl), bits('vl), bits('vl)) -> bits('vl)
+function avx_blendv(eb, src1, src2, mask) = {
+  var r : bits('vl) = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    let lo = i * 'eb;
+    r[(lo + 'eb - 1)..lo] = blend(velem('eb, src1, i), velem('eb, src2, i), mask[lo + 'eb - 1])
+  };
+  r
+}
+
 // Immediate blend: for each eb-wide element i, select src1 or src2 based on imm[i].
 val avx_blend_imm : forall 'vl 'eb, 'vl in {128, 256} & 'eb in {16, 32, 64}.
   (int('eb), bits('vl), bits('vl), byte) -> bits('vl)
@@ -358,6 +370,38 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A 44: VPCLMULQDQ — VEX.128 only
   68 => { if ~(has_pclmulqdq) | pfx.vex_l then raise_UD(); vex_exec_lane_bin_imm(VLBI_Pclmulqdq, pfx) },
+
+  // 0F3A 4A/4B/4C: VBLENDVPS/VPD/VB — variable blend, is4 (mask in imm8[7:4])
+  op if 74 <= op & op <= 76 => {
+    if pfx.vex_w then raise_UD();
+    let (dst, src2, imm) = vex_fetch_xrm_imm(pfx);
+    let eb : {8, 32, 64} = match op { 74 => 32, 75 => 64, _ => 8 };
+    let mask_idx : simd_idx = unsigned(imm[7..4]);
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, avx_blendv(eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(vl, src2), read_simd(vl, mask_idx)))
+  },
+
+  // 0F3A 60-63: VPCMPxSTRx — VEX.128, vvvv=1111b
+  // bit 0: 0=mask→XMM0, 1=index→ECX; bit 1: 0=explicit(EAX/EDX), 1=implicit
+  op if 96 <= op & op <= 99 => {
+    if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
+    let (dst, src2, imm) = vex_fetch_xrm_imm(pfx);
+    let a : xmmword = read_simd(dst);
+    let b : xmmword = decode_vex_src(128, src2);
+    let ub : range(0, 15) = if imm[0] == bitone then 7 else 15;
+    let la = if op >= 98 then pcmp_implicit_len(a, ub) else pcmp_clamp_len(v(RAX), ub + 1);
+    let lb = if op >= 98 then pcmp_implicit_len(b, ub) else pcmp_clamp_len(v(RDX), ub + 1);
+    let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm);
+    if op % 2 == 0
+      then ZMM[0][127..0] = pcmp_expand_mask(int_res2, ub, imm[6])
+      else v(RCX) = to_bits(32, pcmp_bit_index(int_res2, ub, imm[6]));
+    CF = cf;
+    ZF = zf;
+    SF = sf;
+    OF = of;
+    AF = 0b0;
+    PF = 0b0
+  },
 
   // 0F3A CE/CF: VGF2P8AFFINEQB / VGF2P8AFFINEINVQB
   op if op == 206 | op == 207 => {
