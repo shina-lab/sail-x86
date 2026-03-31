@@ -168,7 +168,7 @@ function evex_write_rm(dst, pfx, wm, result) = match dst {
 // Construct a Writemask from prefixes, vector length, and element size.
 // Returns Writemask with 'vl/'eb mask bits (one per element).
 // Construct Writemask for N elements from EVEX prefixes.
-val evex_wmask : forall 'n, 'n in {2, 4, 8, 16, 32, 64}. (Prefixes, int('n)) -> Writemask('n)
+val evex_wmask : forall 'n, 'n in {1, 2, 4, 8, 16, 32, 64}. (Prefixes, int('n)) -> Writemask('n)
 function evex_wmask(pfx, n) =
   struct {
     bits = evex_kmask64(pfx)[('n - 1)..0],
@@ -267,19 +267,20 @@ function evex_exec_binop_bcast(op, eb, pfx) = {
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
   // vl in {128,256,512}, eb in {32,64} → vl/eb in {2,4,8,16}
-  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  let nm : range(2, 16) = vl / eb;
+  assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
   evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb)))
 }
 
 // 3-operand EVEX binop without broadcast (byte/word): dst = op(vvvvv, src) {mask}
-val evex_exec_binop : (PackedBinOp, {8, 16, 32, 64}, Prefixes) -> unit
+val evex_exec_binop : (PackedBinOp, {8, 16, 32, 64, 128}, Prefixes) -> unit
 function evex_exec_binop(op, eb, pfx) = {
   let modrm = fetch(1);
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
-  // vl in {128,256,512}, eb in {8,16,32,64} → vl/eb in {2,4,8,16,32,64}
-  let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
+  let nm : range(1, 64) = vl / eb;
+  assert(nm == 1 | nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
   evex_write(dst, evex_wmask(pfx, nm), packed_binop(op, eb, read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
 }
 
@@ -290,7 +291,8 @@ function evex_exec_unop_bcast(op, eb, pfx) = {
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
-  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  let nm : range(2, 16) = vl / eb;
+  assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
   evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_bcast_src(vl, src, pfx, eb)))
 }
 
@@ -301,7 +303,8 @@ function evex_exec_unop(op, eb, pfx) = {
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
-  let nm : range(2, 64) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
+  let nm : range(2, 64) = vl / eb;
+  assert(nm == 2 | nm == 4 | nm == 8 | nm == 16 | nm == 32 | nm == 64);
   evex_write(dst, evex_wmask(pfx, nm), packed_unop(op, eb, evex_src(vl, src)))
 }
 
@@ -312,6 +315,7 @@ function evex_exec_ternop_bcast(op, eb, pfx) = {
   let dst = evex_reg_idx(modrm, pfx);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
-  let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
+  let nm : range(2, 16) = vl / eb;
+  assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
   evex_write(dst, evex_wmask(pfx, nm), packed_ternop(op, eb, read_simd(vl, dst), read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(src, pfx, eb)))
 }

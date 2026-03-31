@@ -66,7 +66,8 @@ function dispatch_evex_perm(op, pfx) = {
 
   match op {
   // 0F38 18: VBROADCASTSS (66,W0) / 0F38 19: VBROADCASTSD (66,W1)
-  op if op == 24 | op == 25 => {
+  // 0F38 58: VPBROADCASTD (66,W0) / 0F38 59: VPBROADCASTQ (66,W1) — from XMM/mem
+  op if op == 24 | op == 25 | op == 88 | op == 89 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
@@ -95,17 +96,6 @@ function dispatch_evex_perm(op, pfx) = {
     let elem : dword = v(src);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, elem))
-  },
-
-  // 0F38 58: VPBROADCASTD (66,W0) / 0F38 59: VPBROADCASTQ (66,W1) — from XMM/mem
-  op if op == 88 | op == 89 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let eb = evex_elem(pfx);
-    let src = modrm_xrm_evex(modrm, pfx, eb / 8);
-    let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / eb), broadcast(vl, decode_scalar_src(eb, src)))
   },
 
   // 0F38 78: VPBROADCASTB (66,W0) / 0F38 79: VPBROADCASTW (66,W0) — from XMM/mem
@@ -144,28 +134,14 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 3A: VPMINUW (66) [BW] / VPBROADCASTMW2D (F3,W0) [CD]
   58 => {
     if mp == MP_66 then {
-      // VPMINUW: packed minimum of unsigned words
+      evex_exec_binop(PB_MinU, 16, pfx)
+    } else if mp == MP_F3 then {
+      // VPBROADCASTMW2D: broadcast low word of k-register to all dword elements
+      if pfx.rex_w then raise_UD();
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      let src1_idx = pfx.evex_vvvvv;
       let vl = evex_vl(pfx);
-      let mask = evex_wmask(pfx, vl / 16);
-      evex_write(dst, mask, packed_binop(PB_MinU, 16, read_simd(vl, src1_idx), evex_src(vl, src)))
-    } else if mp == MP_F3 then {
-      if ~(pfx.rex_w) then {
-        // VPBROADCASTMW2D: broadcast low word of k-register to all dword elements
-        let modrm = fetch(1);
-        let dst = evex_reg_idx(modrm, pfx);
-        let k_idx : kreg_idx = unsigned(modrm[2..0]);
-        let k_val = read_kreg(k_idx);
-        let w : word = k_val[15..0];
-        let d : dword = zero_extend(w);
-        let vl = evex_vl(pfx);
-        evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, d))
-      } else {
-        raise_UD()
-      }
+      evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, zero_extend(read_kreg(unsigned(modrm[2..0]))[15..0]) : dword))
     } else {
       raise_UD()
     }
@@ -222,15 +198,7 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 00: VPSHUFB (66) [BW]
-  0 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-    let src1_idx = pfx.evex_vvvvv;
-    let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 8), packed_binop(PB_Pshufb, 128, read_simd(vl, src1_idx), evex_src(vl, src)))
-  },
+  0 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_Pshufb, 128, pfx) },
 
   // 0F38 75: VPERMI2B (66,W0) [VBMI] / VPERMI2W (66,W1) [BW]
   117 => {
