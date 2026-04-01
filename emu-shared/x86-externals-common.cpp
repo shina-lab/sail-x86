@@ -14,6 +14,12 @@
 #include <cstdlib>
 #include <climits>
 
+// Debug trace to stderr (unbuffered, visible even when stdout is piped)
+int trace_stderr(const char *s) {
+  fprintf(stderr, "%s\n", s);
+  return 0; // unit
+}
+
 namespace x86 {
 // Set the host FPU rounding mode based on 2-bit RC field.
 static void set_rounding(int rc) {

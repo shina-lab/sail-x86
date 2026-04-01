@@ -117,3 +117,4 @@ val to_bits_truncate : forall 'l, 'l >= 0. (implicit('l), int) -> bits('l)
 function to_bits_truncate(l, n) = get_slice_int(l, n, 0)
 
 val print_log = pure {c: "print_endline", cpp: "print_endline", _: "print_endline"} : string -> unit
+val trace_log = pure {c: "trace_stderr", cpp: "trace_stderr", _: "print_endline"} : string -> unit

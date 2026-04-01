@@ -174,7 +174,8 @@ function vmcs_read_field(encoding) = {
     0x00006C14 => Some(vmcs.host_rsp),
     0x00006C16 => Some(vmcs.host_rip),
 
-    _ => None(),
+    // Catch-all: return 0 for unrecognized fields rather than failing.
+    _ => Some(zeros()),
   }
 }
 
@@ -338,7 +339,10 @@ function vmcs_write_field(encoding, value) = {
     0x00006C14 => { vmcs.host_rsp = value; true },
     0x00006C16 => { vmcs.host_rip = value; true },
 
-    _ => false,
+    // Catch-all: accept writes to unrecognized fields (silently discard).
+    // This allows KVM to write fields we haven't modeled yet without
+    // triggering VMfailValid, which causes KVM to enter an error loop.
+    _ => true,
   }
 }
 
