@@ -679,7 +679,10 @@ function dispatch_2byte_gpr(op, pfx) = {
             7 => {
               if cur_cpl != 0 then raise_GP0();
               match dest {
-                RM_mem(_) => __tlb_flush(),
+                RM_mem(m) => {
+                  vmx_exit_if_invlpg(seg_linear(m, 1));
+                  __tlb_flush()
+                },
                 RM_reg(_) => raise_UD(),
               }
             },
@@ -828,7 +831,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 08: INVD — Invalidate Internal Caches (requires CPL=0)
     // SDM: Flush(InternalCaches); SignalFlush(ExternalCaches); Continue
     // Destructive: dirty cache lines discarded (not written back).
-    8 => if cur_cpl != 0 then raise_GP0(),
+    8 => {
+      if cur_cpl != 0 then raise_GP0();
+      vmx_exit_invd()
+    },
 
     // 0F 09: WBINVD — Write Back and Invalidate Cache (requires CPL=0)
     9 => if cur_cpl != 0 then raise_GP0(),
@@ -850,13 +856,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       let rex_r_eff : bit = if pfx.has_rex then pfx.rex_r else 0b0;
       let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
-      let cr_val : qword = match cr_idx {
-        0 => CR0,
-        2 => CR2,
-        3 => CR3,
-        4 => CR4,
-        8 => zero_extend(CR8),
-        _ => raise_UD(),
+      let cr_val : qword = match vmx_cr_read_shadow(cr_idx) {
+        Some(shadow_val) => shadow_val,
+        None() => match cr_idx {
+          0 => CR0,
+          2 => CR2,
+          3 => CR3,
+          4 => CR4,
+          8 => zero_extend(CR8),
+          _ => raise_UD(),
+        },
       };
       v(rm_idx) = cr_val
     },
@@ -870,6 +879,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let cr_idx : range(0, 15) = unsigned(rex_r_eff @ modrm[5..3]);
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let cr_val : qword = v(rm_idx);
+      vmx_exit_if_cr_write(cr_idx, cr_val);
       match cr_idx {
         0 => {
           CR0 = cr_val;
@@ -905,6 +915,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     33 => {
       if cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_dr_access();
       let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
@@ -926,6 +937,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
     35 => {
       if cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_dr_access();
       let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
@@ -946,6 +958,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
     48 => {
       if cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_wrmsr();
       let ecx : dword = v(RCX);
       let msr_val : qword = v(32, RDX) @ v(32, RAX);
 
@@ -978,6 +991,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
     49 => {
       if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_rdtsc();
       let tsc = __rdtsc();
       v(RAX) = tsc[31..0];
       v(RDX) = tsc[63..32]
@@ -1034,6 +1048,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {
       if cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_rdmsr();
       let ecx : dword = v(RCX);
       // Handle registers with Sail state specially
       let msr : qword = match ecx {

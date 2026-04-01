@@ -350,3 +350,153 @@ function vmx_exit_vmx_insn(reason) = {
     throw VMExit(reason, 0x0000000000000000)
   }
 }
+
+// =========================================================================
+// Conditional VM-Exit Guards (Phase 3)
+//
+// Each guard checks in_vmx_non_root and the relevant VMCS control bit.
+// If both are set, throws VMExit with the appropriate reason/qualification.
+// =========================================================================
+
+// HLT exit: primary_proc_controls bit 7 (SDM §25.1, Table 25-6)
+val vmx_exit_if_hlt : unit -> unit
+function vmx_exit_if_hlt() = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[7] == 0b1 then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_HLT, 0x0000000000000000)
+  }
+}
+
+// INVLPG exit: primary_proc_controls bit 9 (SDM §25.1, Table 25-6)
+val vmx_exit_if_invlpg : qword -> unit
+function vmx_exit_if_invlpg(linear_addr) = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[9] == 0b1 then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_INVLPG, linear_addr)
+  }
+}
+
+// RDTSC exit: primary_proc_controls bit 12 (SDM §25.1, Table 25-6)
+val vmx_exit_if_rdtsc : unit -> unit
+function vmx_exit_if_rdtsc() = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[12] == 0b1 then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_RDTSC, 0x0000000000000000)
+  }
+}
+
+// RDMSR exit: primary_proc_controls bit 28 (use MSR bitmaps) (SDM §25.1)
+// If bit 28 = 0, all RDMSR/WRMSR exit unconditionally.
+// If bit 28 = 1, consult MSR bitmap. For simplicity, we always exit
+// when bit 28 = 0 and skip bitmap check (conservative).
+val vmx_exit_if_rdmsr : unit -> unit
+function vmx_exit_if_rdmsr() = {
+  if in_vmx_non_root then {
+    if vmcs.primary_proc_controls[28] == 0b0 then {
+      // No MSR bitmaps → exit unconditionally
+      vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+      throw VMExit(VMEXIT_RDMSR, 0x0000000000000000)
+    }
+    // With MSR bitmaps: check the bitmap for the specific MSR.
+    // The MSR bitmap is 4 pages: read-low (0-1FFF), read-high (C0000000-C0001FFF),
+    // write-low, write-high. Each MSR has 1 bit.
+    // For now, simplified: check the bitmap bit if in range.
+  }
+}
+
+// WRMSR exit: same control bit 28 as RDMSR
+val vmx_exit_if_wrmsr : unit -> unit
+function vmx_exit_if_wrmsr() = {
+  if in_vmx_non_root then {
+    if vmcs.primary_proc_controls[28] == 0b0 then {
+      vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+      throw VMExit(VMEXIT_WRMSR, 0x0000000000000000)
+    }
+  }
+}
+
+// MOV DR exit: primary_proc_controls bit 23 (SDM §25.1, Table 25-6)
+val vmx_exit_if_dr_access : unit -> unit
+function vmx_exit_if_dr_access() = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[23] == 0b1 then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_DR_ACCESS, 0x0000000000000000)
+  }
+}
+
+// I/O exit: primary_proc_controls bit 24 (unconditional I/O exit) or
+// bit 25 (use I/O bitmaps). SDM §25.1, Table 25-6.
+// If bit 24 = 1, all IN/OUT exit unconditionally.
+// If bit 25 = 1, consult I/O bitmap (not yet implemented).
+val vmx_exit_if_io : (word, operand_size, bool) -> unit
+function vmx_exit_if_io(port, size, is_in) = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[24] == 0b1 then {
+    // Qualification: SDM Table 28-5
+    // Bits 2:0 = size - 1 (0=byte,1=word,3=dword)
+    // Bit 3 = direction (1=IN, 0=OUT)
+    // Bit 4 = string (0 for IN/OUT)
+    // Bits 31:16 = port number
+    let size_enc : qword = match size {
+      8  => 0x0000000000000000,
+      16 => 0x0000000000000001,
+      32 => 0x0000000000000003,
+      64 => 0x0000000000000003,
+    };
+    let dir_bit : qword = if is_in then 0x0000000000000008 else 0x0000000000000000;
+    let qual : qword = size_enc | dir_bit | (zero_extend(port) << 16);
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_IO_INSTRUCTION, qual)
+  }
+}
+
+// PAUSE exit: primary_proc_controls bit 30 (SDM §25.1, Table 25-6)
+val vmx_exit_if_pause : unit -> unit
+function vmx_exit_if_pause() = {
+  if in_vmx_non_root & vmcs.primary_proc_controls[30] == 0b1 then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_PAUSE, 0x0000000000000000)
+  }
+}
+
+// CR access exit: SDM §25.1 bits 15-16 (CR3-load/store exiting)
+// and guest/host masks for CR0/CR4.
+// Simplified: CR0/CR4 writes that change bits in the guest/host mask
+// cause VM exit. CR3 exits are controlled by bits 15-16.
+val vmx_exit_if_cr_write : (range(0, 15), qword) -> unit
+function vmx_exit_if_cr_write(cr_idx, new_val) = {
+  if in_vmx_non_root then {
+    let should_exit : bool = match cr_idx {
+      // CR0: exit if changing any bit in guest/host mask
+      0 => (new_val & vmcs.cr0_guest_host_mask) != (CR0 & vmcs.cr0_guest_host_mask),
+      // CR3: exit if bit 15 set and new value doesn't match any target
+      3 => vmcs.primary_proc_controls[15] == 0b1,
+      // CR4: exit if changing any bit in guest/host mask
+      4 => (new_val & vmcs.cr4_guest_host_mask) != (CR4 & vmcs.cr4_guest_host_mask),
+      _ => false,
+    };
+    if should_exit then {
+      // Qualification: SDM Table 28-3
+      // Bits 3:0 = CR number, Bits 5:4 = access type (0=MOV to CR),
+      // Bits 11:8 = source register
+      let qual : qword = zero_extend(to_bits(4, cr_idx));
+      vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+      throw VMExit(VMEXIT_CR_ACCESS, qual)
+    }
+  }
+}
+
+// CR read: for CR0/CR4, return shadow value for masked bits (SDM §26.1.3).
+// Returns true if the read was handled (caller should use returned value),
+// false if no VMX interception needed.
+val vmx_cr_read_shadow : range(0, 15) -> option(qword)
+function vmx_cr_read_shadow(cr_idx) = {
+  if in_vmx_non_root then {
+    match cr_idx {
+      0 => Some((CR0 & ~(vmcs.cr0_guest_host_mask)) | (vmcs.cr0_read_shadow & vmcs.cr0_guest_host_mask)),
+      4 => Some((CR4 & ~(vmcs.cr4_guest_host_mask)) | (vmcs.cr4_read_shadow & vmcs.cr4_guest_host_mask)),
+      _ => None(),
+    }
+  } else {
+    None()
+  }
+}

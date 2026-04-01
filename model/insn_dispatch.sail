@@ -879,6 +879,7 @@ function decode_execute() = {
 
       // 6C: INSB — Input byte from port DX to ES:[RDI]
       108 => {
+        vmx_exit_if_io(v(RDX), 8, true);
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
         else exec_ins(8, asz)
@@ -886,12 +887,14 @@ function decode_execute() = {
       // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
       109 => {
         let os = opsize(pfx);
+        vmx_exit_if_io(v(RDX), os, true);
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz, pfx)
         else exec_ins(os, asz)
       },
       // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
+        vmx_exit_if_io(v(RDX), 8, false);
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
         else exec_outs(8, asz, pfx)
@@ -899,6 +902,7 @@ function decode_execute() = {
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
       111 => {
         let os = opsize(pfx);
+        vmx_exit_if_io(v(RDX), os, false);
         let asz = get_address_size(pfx);
         if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
         else exec_outs(os, asz, pfx)
@@ -1067,7 +1071,7 @@ function decode_execute() = {
           let os = opsize(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {
-          ()
+          if pfx.has_rep then vmx_exit_if_pause()
         }
       },
 
@@ -1641,14 +1645,24 @@ function decode_execute() = {
       },
 
       // E4: IN AL, imm8
-      228 => exec_in(zero_extend(fetch(1)), 8),
+      228 => {
+        let port : word = zero_extend(fetch(1));
+        vmx_exit_if_io(port, 8, true);
+        exec_in(port, 8)
+      },
 
       // E5: IN eAX, imm8
-      229 => exec_in(zero_extend(fetch(1)), opsize(pfx)),
+      229 => {
+        let port : word = zero_extend(fetch(1));
+        let os = opsize(pfx);
+        vmx_exit_if_io(port, os, true);
+        exec_in(port, os)
+      },
 
       // E6: OUT imm8, AL
       230 => {
         let port : word = zero_extend(fetch(1));
+        vmx_exit_if_io(port, 8, false);
         exec_out(port, 8)
       },
 
@@ -1656,6 +1670,7 @@ function decode_execute() = {
       231 => {
         let port : word = zero_extend(fetch(1));
         let os = opsize(pfx);
+        vmx_exit_if_io(port, os, false);
         exec_out(port, os)
       },
 
@@ -1711,16 +1726,34 @@ function decode_execute() = {
       },
 
       // EC: IN AL, DX
-      236 => exec_in(v(RDX), 8),
+      236 => {
+        let port : word = v(RDX);
+        vmx_exit_if_io(port, 8, true);
+        exec_in(port, 8)
+      },
 
       // ED: IN eAX, DX
-      237 => exec_in(v(RDX), opsize(pfx)),
+      237 => {
+        let port : word = v(RDX);
+        let os = opsize(pfx);
+        vmx_exit_if_io(port, os, true);
+        exec_in(port, os)
+      },
 
       // EE: OUT DX, AL
-      238 => exec_out(v(RDX), 8),
+      238 => {
+        let port : word = v(RDX);
+        vmx_exit_if_io(port, 8, false);
+        exec_out(port, 8)
+      },
 
       // EF: OUT DX, eAX
-      239 => exec_out(v(RDX), opsize(pfx)),
+      239 => {
+        let port : word = v(RDX);
+        let os = opsize(pfx);
+        vmx_exit_if_io(port, os, false);
+        exec_out(port, os)
+      },
 
       // F1: INT1 / ICEBP — Generate #DB (vector 1) without setting DR6 bits.
       // SDM: delivers interrupt/exception to vector 1.
@@ -1729,6 +1762,7 @@ function decode_execute() = {
       // F4: HLT — SDM: #GP(0) if CPL > 0
       244 => {
         if cur_cpl != 0 then raise_GP0();
+        vmx_exit_if_hlt();
         system_state = SysHalted
       },
 
