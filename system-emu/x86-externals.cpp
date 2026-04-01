@@ -139,11 +139,31 @@ u64 Model::z__rdmsr(u64 addr) {
   case 0xC0000103: return 0;       // IA32_TSC_AUX
   case 0x17:  return 0;           // IA32_PLATFORM_ID
   case 0x34:  return 0;           // MSR_SMI_COUNT
-  case 0x3a:  return 0;           // IA32_FEATURE_CONTROL
+  // Note: IA32_FEATURE_CONTROL (0x3A) is handled in the Sail model's RDMSR dispatch
   case 0xfe:  return 0x508;        // IA32_MTRRCAP: 8 var ranges, fixed+WC supported
   case 0xce:  return 0;           // MSR_PLATFORM_INFO
   case 0x140: return 0;           // IA32_PERF_CAPABILITIES
   case 0x64e: return 0;           // MSR_PPERF
+  case 0x48:  return 0;           // IA32_SPEC_CTRL (Spectre mitigations — none)
+  case 0x122: return 0;           // IA32_TSX_CTRL (TSX — not supported)
+  case 0x492: return 0;           // IA32_VMX_PROCBASED_CTLS3 (no tertiary controls)
+  case 0xE1:  return 0;           // IA32_UMWAIT_CONTROL
+  case 0x560: case 0x561:         // IA32_RTIT_OUTPUT_BASE/MASK (Processor Trace — not supported)
+  case 0x570: case 0x571: case 0x572: // IA32_RTIT_CTL/STATUS/CR3_MATCH
+  case 0x580: case 0x581: case 0x582: case 0x583: // IA32_RTIT_ADDR0-1
+  case 0x584: case 0x585: case 0x586: case 0x587: // IA32_RTIT_ADDR2-3
+    return 0;
+  case 0x1C4: return 0;           // IA32_XFD (Extended Feature Disable — not supported)
+  case 0x1C5: return 0;           // IA32_XFD_ERR
+  case 0x6A0: case 0x6A2:        // IA32_U_CET, IA32_S_CET (CET — not supported)
+  case 0x6A4: case 0x6A5: case 0x6A6: case 0x6A7: case 0x6A8: // Shadow stack pointers
+    return 0;
+  case 0xD90: return 0;           // IA32_BNDCFGS (MPX — deprecated, not supported)
+  case 0xC0000081: return 0;      // IA32_STAR (SYSCALL segment selectors — set by kernel via WRMSR)
+  case 0xC0000082: return 0;      // IA32_LSTAR (64-bit SYSCALL target RIP)
+  case 0xC0000083: return 0;      // IA32_CSTAR (compat-mode SYSCALL target RIP)
+  case 0xC0000084: return 0;      // IA32_FMASK (SYSCALL RFLAGS mask)
+  case 0xC0010117: return 0;      // AMD MSR_VIRT_SPEC_CTRL (not applicable on Intel)
   default:
     { static int rdmsr_warn = 0;
       if (rdmsr_warn++ < 10)

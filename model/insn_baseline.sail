@@ -1088,6 +1088,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         0x0000048F => 0x003FFFFF00036DFB, // VMX_TRUE_EXIT_CTLS
         0x00000490 => 0x0000F3FF000011FB, // VMX_TRUE_ENTRY_CTLS
         0x00000491 => 0x0000000000000000, // VMX_VMFUNC: no VM functions
+        0x00000492 => 0x0000000000000000, // VMX_PROCBASED_CTLS3: no tertiary controls
         _ => __rdmsr(ecx),
       };
       v(RAX) = msr[31..0];
