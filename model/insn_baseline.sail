@@ -484,7 +484,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 D1: XSETBV — Write XCR (ECX selects register, EDX:EAX = value)
         // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists);
         // #GP(0) if attempting to set unsupported bits or violating constraints.
+        // Unconditional VM exit in non-root (SDM §26.1.2).
         209 => {
+          vmx_exit_xsetbv();
           if cur_cpl != 0 then raise_GP0();
           let ecx_val : dword = v(RCX);
           if ecx_val != 0x00000000 then raise_GP0();
@@ -547,28 +549,19 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // 0F 01 C1: VMCALL (SDM Vol.3C §31.2.6)
-        // Phase 2: stub that raises #UD for now
-        193 => {
-          vmx_check_preconditions();
-          raise_UD()  // Phase 2 will implement VM exit
-        },
+        193 => exec_vmcall(),
 
         // 0F 01 C2: VMLAUNCH (SDM Vol.3C §31.2.7)
-        // Phase 2: stub that raises #UD for now
-        194 => {
-          vmx_check_preconditions();
-          raise_UD()  // Phase 2 will implement VM entry
-        },
+        194 => exec_vmlaunch(),
 
         // 0F 01 C3: VMRESUME (SDM Vol.3C §31.2.7)
-        // Phase 2: stub that raises #UD for now
-        195 => {
-          vmx_check_preconditions();
-          raise_UD()  // Phase 2 will implement VM entry
-        },
+        195 => exec_vmresume(),
 
         // 0F 01 C4: VMXOFF (SDM Vol.3C §31.2.2)
-        196 => exec_vmxoff(),
+        196 => {
+          vmx_exit_vmx_insn(VMEXIT_VMXOFF);
+          exec_vmxoff()
+        },
 
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
@@ -1172,8 +1165,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
 
-    // 0F A2: CPUID
+    // 0F A2: CPUID — unconditional VM exit in non-root (SDM §26.1.2)
     162 => {
+      vmx_exit_cpuid();
       let leaf : dword = v(RAX);
       let subleaf : dword = v(RCX);
       let (eax, ebx, ecx, edx) = cpuid(leaf, subleaf);
@@ -1640,6 +1634,12 @@ function dispatch_2byte_gpr(op, pfx) = {
             // NP 0F C7 /6 mem → VMPTRLD
             // 66 0F C7 /6 mem → VMCLEAR
             // F3 0F C7 /6 mem → VMXON
+            if pfx.has_rep then
+              vmx_exit_vmx_insn(VMEXIT_VMXON)
+            else if pfx.has_opsize then
+              vmx_exit_vmx_insn(VMEXIT_VMCLEAR)
+            else
+              vmx_exit_vmx_insn(VMEXIT_VMPTRLD);
             let addr = seg_linear(m, 8);
             if pfx.has_rep then
               exec_vmxon(addr)
@@ -1666,6 +1666,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_mem(m) => {
             // /7 mem: VMPTRST — store current VMCS pointer
+            vmx_exit_vmx_insn(VMEXIT_VMPTRST);
             exec_vmptrst(seg_linear(m, 8))
           },
         },
@@ -1690,12 +1691,14 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 78: VMREAD r/m64, r64 (SDM Vol.3C §31.2.4)
     // In 64-bit mode, operand size is always 64 bits.
     120 => {
+      vmx_exit_vmx_insn(VMEXIT_VMREAD);
       let (reg, dest) = fetch_modrm(pfx);
       exec_vmread(pfx, dest, reg.gpr_idx)
     },
 
     // 0F 79: VMWRITE r64, r/m64 (SDM Vol.3C §31.2.5)
     121 => {
+      vmx_exit_vmx_insn(VMEXIT_VMWRITE);
       let (reg, src) = fetch_modrm(pfx);
       exec_vmwrite(pfx, src, reg.gpr_idx)
     },

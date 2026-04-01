@@ -88,10 +88,9 @@ function step() = {
         }
       },
       // VMX: VM exit from VMX non-root operation.
-      // Phase 2 will call complete_vm_exit(reason, qual) here.
+      // Save guest state, load host state, record exit info.
       VMExit(reason, qual) => {
-        GPR[RSP] = saved_rsp;
-        write_rflags(saved_rflags);
+        complete_vm_exit(reason, qual);
         return ()
       },
     };

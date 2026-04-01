@@ -29,6 +29,7 @@ decode {
     insn_prefixes.sail,
     insn_modrm.sail,
     smm.sail,
+    vmx.sail,
     insn_vmx.sail,
     insn_alu.sail,
     insn_x87.sail,

@@ -1,33 +1,10 @@
 // x86-64 — VMX Instruction Implementations
 //
 // SDM Vol.3C Chapter 31: VMX Instructions.
-// VMXON, VMXOFF, VMPTRLD, VMPTRST, VMCLEAR, VMREAD, VMWRITE.
-// VMLAUNCH, VMRESUME, VMCALL are stubs for Phase 2.
+// VMXON, VMXOFF, VMPTRLD, VMPTRST, VMCLEAR, VMREAD, VMWRITE,
+// VMLAUNCH, VMRESUME, VMCALL.
 
-// =========================================================================
-// VMfail result helpers (SDM Vol.3C §31.2)
-//
-// VMX instructions set RFLAGS to indicate success/failure:
-//   VMsucceed:     CF=0, PF=0, AF=0, ZF=0, SF=0, OF=0
-//   VMfailValid:   ZF=1, all others 0; write error number to VMCS
-//   VMfailInvalid: CF=1, all others 0 (no current VMCS)
-// =========================================================================
-
-val vmx_succeed : unit -> unit
-function vmx_succeed() = {
-  CF = 0b0; PF = 0b0; AF = 0b0; ZF = 0b0; SF = 0b0; OF = 0b0
-}
-
-val vmx_fail_valid : dword -> unit
-function vmx_fail_valid(error_number) = {
-  CF = 0b0; PF = 0b0; AF = 0b0; ZF = 0b1; SF = 0b0; OF = 0b0;
-  vmcs.vm_instruction_error = error_number
-}
-
-val vmx_fail_invalid : unit -> unit
-function vmx_fail_invalid() = {
-  CF = 0b1; PF = 0b0; AF = 0b0; ZF = 0b0; SF = 0b0; OF = 0b0
-}
+// VMfail/VMsucceed helpers are defined in vmx.sail (compiled before this file).
 
 // =========================================================================
 // Common VMX instruction checks
@@ -35,12 +12,11 @@ function vmx_fail_invalid() = {
 
 // Check common preconditions for VMX instructions (other than VMXON).
 // SDM §31.2: #UD if not in VMX operation, #GP(0) if CPL > 0.
+// In VMX non-root, VMX instructions cause unconditional VM exit.
 val vmx_check_preconditions : unit -> unit
 function vmx_check_preconditions() = {
   if ~(in_vmx_root) & ~(in_vmx_non_root) then raise_UD();
-  if cur_cpl != 0 then raise_GP0();
-  // In VMX non-root operation, VMX instructions cause VM exit
-  // (unconditional exits per SDM §26.1.2). Phase 2 will add this.
+  if cur_cpl != 0 then raise_GP0()
 }
 
 // =========================================================================
@@ -308,4 +284,71 @@ function exec_vmwrite(pfx, src, reg) = {
       None() => vmx_fail_valid(VMXERR_VMRW_UNSUPPORTED_FIELD),
     }
   }
+}
+
+// =========================================================================
+// VMLAUNCH — Launch Virtual Machine (SDM Vol.3C §31.2.7)
+//
+// Encoding: 0F 01 C2
+// Requires current VMCS with launch_state = "clear" (0).
+// Performs VM entry: validates VMCS, loads guest state, enters non-root.
+// =========================================================================
+
+val exec_vmlaunch : unit -> unit
+function exec_vmlaunch() = {
+  vmx_check_preconditions();
+
+  // Must be in VMX root
+  if ~(in_vmx_root) then { vmx_fail_invalid(); return () };
+
+  // Must have a current VMCS
+  match vmcs_ptr {
+    None() => { vmx_fail_invalid(); return () },
+    Some(_) => (),
+  };
+
+  vm_entry(true)
+}
+
+// =========================================================================
+// VMRESUME — Resume Virtual Machine (SDM Vol.3C §31.2.7)
+//
+// Encoding: 0F 01 C3
+// Requires current VMCS with launch_state = "launched" (1).
+// =========================================================================
+
+val exec_vmresume : unit -> unit
+function exec_vmresume() = {
+  vmx_check_preconditions();
+
+  if ~(in_vmx_root) then { vmx_fail_invalid(); return () };
+
+  match vmcs_ptr {
+    None() => { vmx_fail_invalid(); return () },
+    Some(_) => (),
+  };
+
+  vm_entry(false)
+}
+
+// =========================================================================
+// VMCALL — Call to VM Monitor (SDM Vol.3C §31.2.6)
+//
+// Encoding: 0F 01 C1
+// In VMX root: #UD (simplified; full behavior requires dual-monitor).
+// In VMX non-root: unconditional VM exit with reason VMEXIT_VMCALL.
+// =========================================================================
+
+val exec_vmcall : unit -> unit
+function exec_vmcall() = {
+  if ~(in_vmx_root) & ~(in_vmx_non_root) then raise_UD();
+  if cur_cpl != 0 then raise_GP0();
+
+  if in_vmx_non_root then {
+    vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+    throw VMExit(VMEXIT_VMCALL, 0x0000000000000000)
+  };
+
+  // In VMX root without dual-monitor treatment: VMfailValid
+  vmx_fail_valid(VMXERR_VMCALL_IN_ROOT)
 }
