@@ -101,7 +101,7 @@ function check_vmentry_controls() = {
 
   // Guest CR4 fixed-bit checks
   let cr4_fixed0 : qword = 0x0000000000002000;  // VMXE
-  let cr4_fixed1 : qword = 0x00000000003727FF;
+  let cr4_fixed1 : qword = 0x00000000FFFFFFFF;
   if (vmcs.guest_cr4 & cr4_fixed0) != cr4_fixed0 then return false;
   if (vmcs.guest_cr4 & cr4_fixed1) != vmcs.guest_cr4 then return false;
 

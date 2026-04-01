@@ -57,7 +57,7 @@ function exec_vmxon(addr) = {
 
   // CR4 fixed-bit enforcement:
   let cr4_fixed0 : qword = 0x0000000000002000;  // VMXE
-  let cr4_fixed1 : qword = 0x00000000003727FF;
+  let cr4_fixed1 : qword = 0x00000000FFFFFFFF;
   if (CR4 & cr4_fixed0) != cr4_fixed0 then raise_GP0();
   if (CR4 & cr4_fixed1) != CR4 then raise_GP0();
 
