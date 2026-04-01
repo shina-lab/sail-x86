@@ -56,27 +56,35 @@ function vmcs_read_field(encoding) = {
     // --- 64-bit read-only data field ---
     0x00002400 => Some(vmcs.guest_physical_address),
 
+    // --- 64-bit control fields (continued) ---
+    0x00002012 => Some(vmcs.virtual_apic_page_addr),
+
     // --- 64-bit guest-state fields ---
     0x00002800 => Some(vmcs.guest_vmcs_link_pointer),
     0x00002802 => Some(vmcs.guest_debugctl),
+    0x00002804 => Some(vmcs.guest_pat),
     0x00002806 => Some(vmcs.guest_efer),
 
     // --- 64-bit host-state fields ---
+    0x00002C00 => Some(vmcs.host_pat),
     0x00002C02 => Some(vmcs.host_efer),
 
     // --- 32-bit control fields ---
     0x00004000 => Some(zero_extend(vmcs.pin_based_controls)),
     0x00004002 => Some(zero_extend(vmcs.primary_proc_controls)),
     0x00004004 => Some(zero_extend(vmcs.exception_bitmap)),
-    0x00004010 => Some(zero_extend(vmcs.cr3_target_count)),
+    0x00004006 => Some(zero_extend(vmcs.page_fault_error_mask)),
+    0x00004008 => Some(zero_extend(vmcs.page_fault_error_match)),
+    0x0000400A => Some(zero_extend(vmcs.cr3_target_count)),
     0x0000400C => Some(zero_extend(vmcs.exit_controls)),
     0x0000400E => Some(zero_extend(vmcs.exit_msr_store_count)),
-    0x00004010 => Some(zero_extend(vmcs.cr3_target_count)),
+    0x00004010 => Some(zero_extend(vmcs.exit_msr_load_count)),
     0x00004012 => Some(zero_extend(vmcs.entry_controls)),
     0x00004014 => Some(zero_extend(vmcs.entry_msr_load_count)),
     0x00004016 => Some(zero_extend(vmcs.entry_interruption_info)),
     0x00004018 => Some(zero_extend(vmcs.entry_exception_errcode)),
     0x0000401A => Some(zero_extend(vmcs.entry_instr_length)),
+    0x0000401C => Some(zero_extend(vmcs.tpr_threshold)),
     0x0000401E => Some(zero_extend(vmcs.secondary_proc_controls)),
 
     // --- 32-bit read-only data fields ---
@@ -111,7 +119,7 @@ function vmcs_read_field(encoding) = {
     0x00004824 => Some(zero_extend(vmcs.guest_interruptibility)),
     0x00004826 => Some(zero_extend(vmcs.guest_activity_state)),
     0x0000482E => Some(zero_extend(vmcs.guest_preempt_timer)),
-    0x00004828 => Some(zero_extend(vmcs.guest_sysenter_cs)),
+    0x0000482A => Some(zero_extend(vmcs.guest_sysenter_cs)),
 
     // --- 32-bit host-state fields ---
     0x00004C00 => Some(zero_extend(vmcs.host_sysenter_cs)),
@@ -212,26 +220,35 @@ function vmcs_write_field(encoding, value) = {
     0x0000200C => { vmcs.entry_msr_load_addr = value; true },
     0x00002010 => { vmcs.tsc_offset = value; true },
 
+    // --- 64-bit control fields (continued) ---
+    0x00002012 => { vmcs.virtual_apic_page_addr = value; true },
+
     // --- 64-bit guest-state fields ---
     0x00002800 => { vmcs.guest_vmcs_link_pointer = value; true },
     0x00002802 => { vmcs.guest_debugctl = value; true },
+    0x00002804 => { vmcs.guest_pat = value; true },
     0x00002806 => { vmcs.guest_efer = value; true },
 
     // --- 64-bit host-state fields ---
+    0x00002C00 => { vmcs.host_pat = value; true },
     0x00002C02 => { vmcs.host_efer = value; true },
 
     // --- 32-bit control fields ---
     0x00004000 => { vmcs.pin_based_controls = value[31..0]; true },
     0x00004002 => { vmcs.primary_proc_controls = value[31..0]; true },
     0x00004004 => { vmcs.exception_bitmap = value[31..0]; true },
-    0x00004010 => { vmcs.cr3_target_count = value[31..0]; true },
+    0x00004006 => { vmcs.page_fault_error_mask = value[31..0]; true },
+    0x00004008 => { vmcs.page_fault_error_match = value[31..0]; true },
+    0x0000400A => { vmcs.cr3_target_count = value[31..0]; true },
     0x0000400C => { vmcs.exit_controls = value[31..0]; true },
     0x0000400E => { vmcs.exit_msr_store_count = value[31..0]; true },
+    0x00004010 => { vmcs.exit_msr_load_count = value[31..0]; true },
     0x00004012 => { vmcs.entry_controls = value[31..0]; true },
     0x00004014 => { vmcs.entry_msr_load_count = value[31..0]; true },
     0x00004016 => { vmcs.entry_interruption_info = value[31..0]; true },
     0x00004018 => { vmcs.entry_exception_errcode = value[31..0]; true },
     0x0000401A => { vmcs.entry_instr_length = value[31..0]; true },
+    0x0000401C => { vmcs.tpr_threshold = value[31..0]; true },
     0x0000401E => { vmcs.secondary_proc_controls = value[31..0]; true },
 
     // --- 32-bit read-only fields: writes are rejected ---
@@ -266,7 +283,7 @@ function vmcs_write_field(encoding, value) = {
     0x00004824 => { vmcs.guest_interruptibility = value[31..0]; true },
     0x00004826 => { vmcs.guest_activity_state = value[31..0]; true },
     0x0000482E => { vmcs.guest_preempt_timer = value[31..0]; true },
-    0x00004828 => { vmcs.guest_sysenter_cs = value[31..0]; true },
+    0x0000482A => { vmcs.guest_sysenter_cs = value[31..0]; true },
 
     // --- 32-bit host-state fields ---
     0x00004C00 => { vmcs.host_sysenter_cs = value[31..0]; true },
@@ -486,7 +503,15 @@ function vmcs_serialize(pa) = {
   phys_write(32, exit_info_base + 52, vmcs.vm_instruction_error);
 
   // Launch state (offset 656)
-  phys_write(32, base + 656, vmcs.launch_state)
+  phys_write(32, base + 656, vmcs.launch_state);
+
+  // Extended fields (offset 660)
+  phys_write(64, base + 660, vmcs.virtual_apic_page_addr);
+  phys_write(32, base + 668, vmcs.page_fault_error_mask);
+  phys_write(32, base + 672, vmcs.page_fault_error_match);
+  phys_write(32, base + 676, vmcs.tpr_threshold);
+  phys_write(64, base + 680, vmcs.guest_pat);
+  phys_write(64, base + 688, vmcs.host_pat)
 }
 
 val vmcs_deserialize : qword -> unit
@@ -627,5 +652,13 @@ function vmcs_deserialize(pa) = {
   vmcs.guest_physical_address = phys_read(64, exit_info_base + 44);
   vmcs.vm_instruction_error = phys_read(32, exit_info_base + 52);
 
-  vmcs.launch_state = phys_read(32, base + 656)
+  vmcs.launch_state = phys_read(32, base + 656);
+
+  // Extended fields (offset 660)
+  vmcs.virtual_apic_page_addr = phys_read(64, base + 660);
+  vmcs.page_fault_error_mask = phys_read(32, base + 668);
+  vmcs.page_fault_error_match = phys_read(32, base + 672);
+  vmcs.tpr_threshold = phys_read(32, base + 676);
+  vmcs.guest_pat = phys_read(64, base + 680);
+  vmcs.host_pat = phys_read(64, base + 688)
 }

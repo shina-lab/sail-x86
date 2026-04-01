@@ -118,6 +118,10 @@ struct VMCS_data = {
   io_bitmap_b             : qword,   // I/O bitmap B physical address (ports 8000-FFFF)
   msr_bitmap              : qword,   // MSR bitmap physical address
   tsc_offset              : qword,   // TSC offset
+  virtual_apic_page_addr  : qword,   // Virtual-APIC page address
+  page_fault_error_mask   : dword,   // Page-fault error-code mask
+  page_fault_error_match  : dword,   // Page-fault error-code match
+  tpr_threshold           : dword,   // TPR threshold
   cr0_guest_host_mask     : qword,   // CR0 guest/host mask
   cr0_read_shadow         : qword,   // CR0 read shadow
   cr4_guest_host_mask     : qword,   // CR4 guest/host mask
@@ -195,6 +199,7 @@ struct VMCS_data = {
   guest_idtr_limit        : dword,
 
   guest_efer              : qword,
+  guest_pat               : qword,   // Guest IA32_PAT
   guest_debugctl          : qword,
   guest_sysenter_cs       : dword,
   guest_sysenter_esp      : qword,
@@ -227,6 +232,7 @@ struct VMCS_data = {
   host_idtr_base          : qword,
 
   host_efer               : qword,
+  host_pat                : qword,   // Host IA32_PAT
   host_sysenter_cs        : dword,
   host_sysenter_esp       : qword,
   host_sysenter_eip       : qword,
@@ -259,6 +265,10 @@ function default_vmcs() = struct {
   io_bitmap_b             = zeros(),
   msr_bitmap              = zeros(),
   tsc_offset              = zeros(),
+  virtual_apic_page_addr  = zeros(),
+  page_fault_error_mask   = zeros(),
+  page_fault_error_match  = zeros(),
+  tpr_threshold           = zeros(),
   cr0_guest_host_mask     = zeros(),
   cr0_read_shadow         = zeros(),
   cr4_guest_host_mask     = zeros(),
@@ -333,6 +343,7 @@ function default_vmcs() = struct {
   guest_idtr_limit        = zeros(),
 
   guest_efer              = zeros(),
+  guest_pat               = zeros(),
   guest_debugctl          = zeros(),
   guest_sysenter_cs       = zeros(),
   guest_sysenter_esp      = zeros(),
@@ -364,6 +375,7 @@ function default_vmcs() = struct {
   host_idtr_base          = zeros(),
 
   host_efer               = zeros(),
+  host_pat                = zeros(),
   host_sysenter_cs        = zeros(),
   host_sysenter_esp       = zeros(),
   host_sysenter_eip       = zeros(),
