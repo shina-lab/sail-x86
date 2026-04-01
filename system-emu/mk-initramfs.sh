@@ -42,8 +42,12 @@ cp "$BUSYBOX" "$TMPDIR/bin/busybox"
 chmod 755 "$TMPDIR/bin/busybox"
 
 # Build and include 32-bit test binary
-gcc -m32 -nostdlib -static -o "$TMPDIR/bin/hello32" "$(dirname "$0")/hello32.S"
+gcc -m32 -static -O2 -o "$TMPDIR/bin/hello32" "$(dirname "$0")/hello32.c"
 chmod 755 "$TMPDIR/bin/hello32"
+
+# Build and include KVM VMX test binary
+gcc -static -O2 -o "$TMPDIR/bin/kvm-test" "$(dirname "$0")/kvm-test.c"
+chmod 755 "$TMPDIR/bin/kvm-test"
 
 # Create symlinks for all busybox applets
 for cmd in sh ash cat echo ls mkdir mount umount sleep clear \
@@ -109,7 +113,9 @@ fakeroot sh -c '
   mknod dev/tty0 c 4 0
   mknod dev/ttyS0 c 4 64
   mknod dev/null c 1 3
+  mknod dev/kvm c 10 232
   chmod 666 dev/null
+  chmod 666 dev/kvm
   find . | cpio -o -H newc 2>/dev/null
 ' > "$OUTPUT"
 
