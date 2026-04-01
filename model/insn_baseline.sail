@@ -81,7 +81,7 @@ function cpuid(leaf, subleaf) = {
     // select code paths based on the vendor string. Presenting as a
     // genuine Intel CPU ensures the same feature negotiation that would
     // happen on real hardware.
-    0 => (0x0000000D, 0x756E6547, 0x6C65746E, 0x49656E69),
+    0 => (0x00000016, 0x756E6547, 0x6C65746E, 0x49656E69),
 
     // Leaf 1: Family/Model/Stepping, feature bits
     1 => {
@@ -166,6 +166,15 @@ function cpuid(leaf, subleaf) = {
       (true, 7) => (0x00000400, 0x00000580, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
+
+    // Leaf 0x15: Time Stamp Counter / Core Crystal Clock
+    // EAX = denominator, EBX = numerator, ECX = crystal frequency (Hz)
+    // TSC freq = crystal_freq * numerator / denominator = 25MHz * 40 / 1 = 1GHz
+    21 => (0x00000001, 0x00000028, 0x017D7840, 0x00000000),
+
+    // Leaf 0x16: Processor Frequency Information (MHz)
+    // EAX = base freq, EBX = max freq, ECX = bus freq
+    22 => (0x000003E8, 0x000003E8, 0x00000064, 0x00000000),
 
     // Leaf 0x80000000: Max extended leaf
     2147483648 => (0x80000008, 0x00000000, 0x00000000, 0x00000000),
