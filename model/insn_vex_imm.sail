@@ -173,6 +173,9 @@ val dispatch_vex_0f3a : (byte, Prefixes) -> unit
 function dispatch_vex_0f3a(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
+  // RORX (F0h/240) is BMI2 GPR-only: no AVX requirement.
+  // All other opcodes are SIMD and require AVX.
+  if op != 240 & ~(avx_enabled()) then raise_UD();
   // All opcodes in this map require 66h mandatory prefix except RORX (F0h/240)
   if op != 240 & mp != MP_66 then raise_UD();
 

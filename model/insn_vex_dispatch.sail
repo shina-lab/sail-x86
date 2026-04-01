@@ -30,6 +30,11 @@ val dispatch_vex_0f38 : (byte, Prefixes) -> unit
 function dispatch_vex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
+  // BMI1/BMI2 GPR instructions (opcodes F2-F7) do not require AVX.
+  // All other VEX 0F38 instructions use SIMD and require avx_enabled().
+  let is_bmi = (242 <= op & op <= 247);
+  if ~(is_bmi) & ~(avx_enabled()) then raise_UD();
+
   match op {
     // SSSE3, SSE4, broadcast, BMI, variable shifts, gather, test, maskmov,
     // permute, VGF2P8MULB
@@ -59,7 +64,9 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // peeked at to distinguish VEX from LES/LDS).
 val dispatch_vex_with_byte2 : (byte, byte) -> unit
 function dispatch_vex_with_byte2(first_byte, b1) = {
-  if ~(avx_enabled()) then raise_UD();
+  // NOTE: avx_enabled() is NOT checked here.  VEX-encoded GPR-only
+  // instructions (BMI1/BMI2) do not require CR4.OSXSAVE or XCR0[AVX].
+  // The check is deferred to sub-dispatchers that handle SIMD instructions.
   let (pfx, map) : (Prefixes, range(0, 31)) =
     if first_byte == 0xC5 then {
       decode_vex2(b1)
@@ -72,7 +79,7 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
   let opcode = fetch(1);
 
   match map {
-    1 => dispatch_vex_0f(opcode, pfx),
+    1 => { if ~(avx_enabled()) then raise_UD(); dispatch_vex_0f(opcode, pfx) },
     2 => dispatch_vex_0f38(opcode, pfx),
     3 => dispatch_vex_0f3a(opcode, pfx),
     _ => raise_UD(),
@@ -81,7 +88,6 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
 
 val dispatch_vex : byte -> unit
 function dispatch_vex(first_byte) = {
-  if ~(avx_enabled()) then raise_UD();
   let b1 = fetch(1);
   dispatch_vex_with_byte2(first_byte, b1)
 }
