@@ -670,6 +670,13 @@ register vmxon_region_pa : qword = zeros()
 register has_vmx         : bool = false
 register vmcs            : VMCS_data = default_vmcs()
 
+// IA32_FEATURE_CONTROL MSR (0x3A)
+// Bit 0: Lock — once set, WRMSR to this MSR causes #GP(0)
+// Bit 1: Enable VMX in SMX operation
+// Bit 2: Enable VMX outside SMX operation
+// Default: locked + VMX-outside-SMX enabled (bits 0 and 2)
+register ia32_feature_control : qword = 0x0000000000000005
+
 // =========================================================================
 // A20 gate
 //

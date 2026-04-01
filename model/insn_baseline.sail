@@ -542,6 +542,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
         249 => {
           if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
+          vmx_exit_if_rdtscp();
           let tsc = __rdtsc();
           v(RAX) = tsc[31..0];
           v(RDX) = tsc[63..32];
@@ -837,7 +838,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F 09: WBINVD — Write Back and Invalidate Cache (requires CPL=0)
-    9 => if cur_cpl != 0 then raise_GP0(),
+    9 => {
+      if cur_cpl != 0 then raise_GP0();
+      vmx_exit_if_wbinvd()
+    },
 
     // 0F 0B: UD2
     11 => raise_UD(),
@@ -965,6 +969,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       // Handle EFER specially since it has a Sail register
       if ecx == 0xC0000080 then {
         EFER = msr_val
+      } else if ecx == 0x0000003A then {
+        // IA32_FEATURE_CONTROL: #GP(0) if lock bit (bit 0) is already set
+        if ia32_feature_control[0] == 0b1 then raise_GP0();
+        ia32_feature_control = msr_val
       } else if ecx == 0xC0000100 then {
         SegCache[FS].seg_base = msr_val
       } else if ecx == 0xC0000101 then {
@@ -975,6 +983,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         // IA32_XSS (0xDA0): supervisor state components for XSAVES/XRSTORS.
         // No supervisor components supported, so only 0 is valid.
         if msr_val != zeros() then raise_GP0()
+      } else if ecx >=_u 0x00000480 & ecx <=_u 0x00000491 then {
+        // VMX capability MSRs are read-only — #GP(0) on write
+        raise_GP0()
       } else {
         __wrmsr(ecx, msr_val)
       }
@@ -1053,10 +1064,30 @@ function dispatch_2byte_gpr(op, pfx) = {
       // Handle registers with Sail state specially
       let msr : qword = match ecx {
         0xC0000080 => EFER,
+        0x0000003A => ia32_feature_control,
         0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
         0xC0000100 => SegCache[FS].seg_base,
         0xC0000101 => SegCache[GS].seg_base,
         0xC0000102 => KERNEL_GS_BASE,
+        // VMX Capability MSRs (SDM Appendix A) — read-only
+        0x00000480 => 0x0018000000000001, // VMX_BASIC: rev=1, size=4096, WB, TRUE controls
+        0x00000481 => 0x0000003F00000016, // VMX_PINBASED_CTLS
+        0x00000482 => 0xFFF9FFFE0401E172, // VMX_PROCBASED_CTLS
+        0x00000483 => 0x003FFFFF00036DFF, // VMX_EXIT_CTLS
+        0x00000484 => 0x0000F1FF000011FF, // VMX_ENTRY_CTLS
+        0x00000485 => 0x0000000000000020, // VMX_MISC
+        0x00000486 => 0x0000000080000021, // VMX_CR0_FIXED0: PE+NE+PG must be 1
+        0x00000487 => 0x00000000FFFFFFFF, // VMX_CR0_FIXED1: all allowed
+        0x00000488 => 0x0000000000002000, // VMX_CR4_FIXED0: VMXE must be 1
+        0x00000489 => 0x00000000003727FF, // VMX_CR4_FIXED1: all implemented bits
+        0x0000048A => 0x000000000000002E, // VMX_VMCS_ENUM
+        0x0000048B => 0x0000000000000000, // VMX_PROCBASED_CTLS2: no secondary
+        0x0000048C => 0x0000000000000000, // VMX_EPT_VPID_CAP: no EPT/VPID
+        0x0000048D => 0x0000003F00000000, // VMX_TRUE_PINBASED_CTLS
+        0x0000048E => 0xFFF9FFFE04006172, // VMX_TRUE_PROCBASED_CTLS
+        0x0000048F => 0x003FFFFF00036DFB, // VMX_TRUE_EXIT_CTLS
+        0x00000490 => 0x0000F1FF000011FB, // VMX_TRUE_ENTRY_CTLS
+        0x00000491 => 0x0000000000000000, // VMX_VMFUNC: no VM functions
         _ => __rdmsr(ecx),
       };
       v(RAX) = msr[31..0];

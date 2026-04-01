@@ -394,6 +394,28 @@ function deliver_exception_inner(vec, err_code, software_int) = {
 // Triple fault throws Fault(EXN_MC, 0) as an unrecoverable signal.
 val deliver_exception : (exception_vector, dword, bool) -> unit
 function deliver_exception(vec, err_code, software_int) = {
+  // VMX exception bitmap check (SDM §25.2):
+  // If in VMX non-root and the exception vector's bit is set in the
+  // exception bitmap, cause a VM exit instead of delivering through IDT.
+  if in_vmx_non_root & vec <= 31 then {
+    if vmcs.exception_bitmap[vec] == 0b1 then {
+      // Qualification: bits 31:0 encode vector (7:0), type (10:8),
+      // error-code valid (bit 11), and NMI unblocking (bit 12).
+      let has_ec : bool = has_error_code(vec);
+      let int_type : bits(3) = if vec == 2 then 0b010 else 0b011; // NMI vs hardware exception
+      let qual : qword = zero_extend(to_bits(32, vec))
+                       | (zero_extend(int_type) << 8)
+                       | (if has_ec then 0x0000000000000800 else 0x0000000000000000);
+      // Also set exit_interruption_info and error code
+      vmcs.exit_interruption_info = to_bits(32, vec) | (zero_extend(int_type) << 8)
+                                  | (if has_ec then 0x00000800 else 0x00000000)
+                                  | 0x80000000;
+      if has_ec then vmcs.exit_interruption_errcode = err_code;
+      vmcs.exit_instr_length = 0x00000000;
+      throw VMExit(VMEXIT_EXCEPTION_NMI, qual)
+    }
+  };
+
   let second_class = classify_exception(vec);
 
   // === Double-fault escalation (SDM Vol.3 Table 7-5) ===

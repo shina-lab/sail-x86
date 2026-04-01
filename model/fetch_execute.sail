@@ -24,6 +24,17 @@ function step() = {
     let irq_vec = __check_pending_irq();
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;
+      // VMX: external interrupt exit (pin_based_controls bit 0)
+      if in_vmx_non_root & vmcs.pin_based_controls[0] == 0b1 then {
+        vmcs.exit_instr_length = 0x00000000;
+        // NMI exit (pin_based_controls bit 3) — vector 2
+        if vec == 2 & vmcs.pin_based_controls[3] == 0b1 then {
+          complete_vm_exit(VMEXIT_EXCEPTION_NMI, 0x0000000000000202);
+          return ()
+        };
+        complete_vm_exit(VMEXIT_EXTERNAL_INT, zero_extend(to_bits(32, vec)));
+        return ()
+      };
       try {
         deliver_exception(vec, 0x00000000, false);
         return ()
@@ -34,7 +45,10 @@ function step() = {
           fault_error_code = err2;
           return ()
         },
-        VMExit(_, _) => return (),
+        VMExit(reason, qual) => {
+          complete_vm_exit(reason, qual);
+          return ()
+        },
       }
     }
   };

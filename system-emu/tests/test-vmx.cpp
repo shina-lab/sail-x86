@@ -607,6 +607,303 @@ TEST(vmxoff) {
 }
 
 // =========================================================================
+// Helper: set up a complete VMCS for guest launch
+// =========================================================================
+static void setup_guest_vmcs(x86::Model &model, const u8 *guest_code_bytes, size_t len) {
+  // VMXON
+  model.phys_mem.write64(DATA_ADDR, VMXON_REGION);
+  u8 vmxon[] = {
+    0xF3, 0x0F, 0xC7, 0x34, 0x25,
+    (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
+    (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24),
+    0xF4,
+  };
+  run_code(model, CODE_ADDR, vmxon, sizeof(vmxon));
+
+  // VMCLEAR + VMPTRLD
+  model.phys_mem.write64(DATA_ADDR, VMCS_REGION);
+  u8 vmclear[] = {
+    0x66, 0x0F, 0xC7, 0x34, 0x25,
+    (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
+    (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24),
+    0xF4,
+  };
+  run_code(model, CODE_ADDR, vmclear, sizeof(vmclear));
+  u8 vmptrld[] = {
+    0x0F, 0xC7, 0x34, 0x25,
+    (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
+    (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24),
+    0xF4,
+  };
+  run_code(model, CODE_ADDR, vmptrld, sizeof(vmptrld));
+
+  // Guest state
+  model.zvmcs.zguest_cr0 = model.zCR0;
+  model.zvmcs.zguest_cr3 = model.zCR3;
+  model.zvmcs.zguest_cr4 = model.zCR4;
+  model.zvmcs.zguest_dr7 = 0x400;
+  model.zvmcs.zguest_rip = GUEST_CODE;
+  model.zvmcs.zguest_rsp = GUEST_STACK;
+  model.zvmcs.zguest_rflags = 0x2;
+  model.zvmcs.zguest_efer = model.zEFER;
+
+  model.zvmcs.zguest_cs_selector = 0x08;
+  model.zvmcs.zguest_cs_base = 0;
+  model.zvmcs.zguest_cs_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_cs_access = 0xA09B;
+
+  model.zvmcs.zguest_ss_selector = 0x10;
+  model.zvmcs.zguest_ss_base = 0;
+  model.zvmcs.zguest_ss_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_ss_access = 0xC093;
+
+  model.zvmcs.zguest_ds_selector = 0x10;
+  model.zvmcs.zguest_ds_base = 0;
+  model.zvmcs.zguest_ds_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_ds_access = 0xC093;
+
+  model.zvmcs.zguest_es_selector = 0x10;
+  model.zvmcs.zguest_es_base = 0;
+  model.zvmcs.zguest_es_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_es_access = 0xC093;
+
+  model.zvmcs.zguest_fs_selector = 0;
+  model.zvmcs.zguest_fs_base = 0;
+  model.zvmcs.zguest_fs_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_fs_access = 0x0093;
+
+  model.zvmcs.zguest_gs_selector = 0;
+  model.zvmcs.zguest_gs_base = 0;
+  model.zvmcs.zguest_gs_limit = 0xFFFFFFFF;
+  model.zvmcs.zguest_gs_access = 0x0093;
+
+  model.zvmcs.zguest_tr_selector = 0;
+  model.zvmcs.zguest_tr_base = 0;
+  model.zvmcs.zguest_tr_limit = 0xFF;
+  model.zvmcs.zguest_tr_access = 0x008B;
+
+  model.zvmcs.zguest_ldtr_selector = 0;
+  model.zvmcs.zguest_ldtr_base = 0;
+  model.zvmcs.zguest_ldtr_limit = 0;
+  model.zvmcs.zguest_ldtr_access = 0x0082;
+
+  model.zvmcs.zguest_gdtr_base = 0;
+  model.zvmcs.zguest_gdtr_limit = 0;
+  model.zvmcs.zguest_idtr_base = 0;
+  model.zvmcs.zguest_idtr_limit = 0;
+  model.zvmcs.zguest_vmcs_link_pointer = 0xFFFFFFFFFFFFFFFFULL;
+  model.zvmcs.zguest_activity_state = 0;
+
+  // Host state
+  model.zvmcs.zhost_cr0 = model.zCR0;
+  model.zvmcs.zhost_cr3 = model.zCR3;
+  model.zvmcs.zhost_cr4 = model.zCR4;
+  model.zvmcs.zhost_efer = model.zEFER;
+  model.zvmcs.zhost_rip = CODE_ADDR + 3;
+  model.zvmcs.zhost_rsp = STACK_TOP;
+  model.zvmcs.zhost_cs_selector = 0x08;
+  model.zvmcs.zhost_ss_selector = 0x10;
+  model.zvmcs.zhost_ds_selector = 0x10;
+  model.zvmcs.zhost_es_selector = 0x10;
+  model.zvmcs.zhost_fs_selector = 0;
+  model.zvmcs.zhost_gs_selector = 0;
+  model.zvmcs.zhost_tr_selector = 0x18;
+  model.zvmcs.zhost_gdtr_base = 0;
+  model.zvmcs.zhost_idtr_base = 0;
+
+  model.zvmcs.zexit_controls = (1U << 9);
+  model.zvmcs.zentry_controls = (1U << 9);
+
+  // Write guest code
+  model.phys_mem.write_bytes(GUEST_CODE, guest_code_bytes, len);
+}
+
+// =========================================================================
+// Test: RDMSR 0x480 returns VMX_BASIC value
+// =========================================================================
+TEST(msr_vmx_basic) {
+  x86::Model model;
+  init_vmx_model(model);
+
+  // RDMSR with ECX = 0x480
+  model.zGPR.data[1] = 0x480;  // RCX
+  u8 code[] = {
+    0x0F, 0x32,  // RDMSR
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, code, sizeof(code));
+  ASSERT_EQ(result, RUN_HALTED);
+  // VMX_BASIC = 0x0018000000000001
+  u64 msr_val = (model.zGPR.data[2] << 32) | (model.zGPR.data[0] & 0xFFFFFFFF);
+  ASSERT_EQ(msr_val, 0x0018000000000001UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: VMXON fails (#GP) when IA32_FEATURE_CONTROL lock bit not set
+// =========================================================================
+TEST(vmxon_feature_control_locked) {
+  x86::Model model;
+  init_vmx_model(model);
+  model.zia32_feature_control = 0x0;  // Clear lock bit
+
+  model.phys_mem.write64(DATA_ADDR, VMXON_REGION);
+  u8 code[] = {
+    0xF3, 0x0F, 0xC7, 0x34, 0x25,
+    (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
+    (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24),
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, code, sizeof(code));
+  ASSERT_EQ(result, RUN_FAULTED);
+  ASSERT_EQ(model.zfault_vector, 13L);  // #GP
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: VMXON fails (#GP) when CR0 misses PE (bit 0)
+// =========================================================================
+TEST(vmxon_cr0_fixed_bits) {
+  x86::Model model;
+  init_vmx_model(model);
+  model.zCR0 &= ~(1UL << 0);  // Clear PE
+
+  model.phys_mem.write64(DATA_ADDR, VMXON_REGION);
+  u8 code[] = {
+    0xF3, 0x0F, 0xC7, 0x34, 0x25,
+    (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
+    (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24),
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, code, sizeof(code));
+  ASSERT_EQ(result, RUN_FAULTED);
+  ASSERT_EQ(model.zfault_vector, 13L);  // #GP
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: Guest HLT with proc_controls[7]=1 causes VM exit with reason 0xC
+// =========================================================================
+TEST(hlt_exit) {
+  x86::Model model;
+  init_vmx_model(model);
+
+  u8 guest_code[] = { 0xF4 };  // HLT
+  setup_guest_vmcs(model, guest_code, sizeof(guest_code));
+  model.zvmcs.zprimary_proc_controls = (1U << 7);  // HLT exiting
+
+  u8 launch_code[] = {
+    0x0F, 0x01, 0xC2,  // VMLAUNCH
+    0xF4,              // HLT (host resumes here)
+  };
+  int result = run_code(model, CODE_ADDR, launch_code, sizeof(launch_code));
+  ASSERT_EQ(result, RUN_HALTED);
+  ASSERT_TRUE(model.zin_vmx_root);
+  ASSERT_TRUE(!model.zin_vmx_non_root);
+  ASSERT_EQ(model.zvmcs.zexit_reason, 0x0CU);  // VMEXIT_HLT
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: Guest IN with proc_controls[24]=1 causes VM exit with reason 0x1E
+// =========================================================================
+TEST(io_exit) {
+  x86::Model model;
+  init_vmx_model(model);
+
+  // IN AL, 0x71 (port 0x71, size 1 byte, direction=IN)
+  u8 guest_code[] = { 0xE4, 0x71 };  // IN AL, 0x71
+  setup_guest_vmcs(model, guest_code, sizeof(guest_code));
+  model.zvmcs.zprimary_proc_controls = (1U << 24);  // Unconditional I/O exiting
+
+  u8 launch_code[] = {
+    0x0F, 0x01, 0xC2,
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, launch_code, sizeof(launch_code));
+  ASSERT_EQ(result, RUN_HALTED);
+  ASSERT_TRUE(model.zin_vmx_root);
+  ASSERT_EQ(model.zvmcs.zexit_reason, 0x1EU);  // VMEXIT_IO_INSTRUCTION
+  // Qualification: port 0x71 in bits [31:16], size=0 (byte) in bits [2:0], direction=IN (bit 3)
+  ASSERT_EQ(model.zvmcs.zexit_qualification, (0x71UL << 16) | 0x8UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: VMLAUNCH then VMRESUME works correctly
+// =========================================================================
+TEST(vmresume) {
+  x86::Model model;
+  init_vmx_model(model);
+
+  // First: launch with CPUID to get an exit
+  u8 guest_cpuid[] = { 0x0F, 0xA2 };  // CPUID
+  setup_guest_vmcs(model, guest_cpuid, sizeof(guest_cpuid));
+
+  u8 launch_code[] = {
+    0x0F, 0x01, 0xC2,  // VMLAUNCH
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, launch_code, sizeof(launch_code));
+  ASSERT_EQ(result, RUN_HALTED);
+  ASSERT_TRUE(model.zin_vmx_root);
+  ASSERT_EQ(model.zvmcs.zexit_reason, 0x0AU);  // CPUID exit
+
+  // Now: VMRESUME — guest executes CPUID again (set guest RIP back)
+  model.zvmcs.zguest_rip = GUEST_CODE;
+
+  u8 resume_code[] = {
+    0x0F, 0x01, 0xC3,  // VMRESUME
+    0xF4,
+  };
+  result = run_code(model, CODE_ADDR, resume_code, sizeof(resume_code));
+  ASSERT_EQ(result, RUN_HALTED);
+  ASSERT_TRUE(model.zin_vmx_root);
+  ASSERT_EQ(model.zvmcs.zexit_reason, 0x0AU);  // CPUID exit again
+
+  model.model_fini();
+}
+
+// =========================================================================
+// Test: MSR bitmap — RDMSR with bit=1 exits, bit=0 doesn't
+// =========================================================================
+static constexpr u64 MSR_BITMAP_ADDR = 0x204000;  // 4KB aligned
+TEST(msr_bitmap) {
+  x86::Model model;
+  init_vmx_model(model);
+
+  // Set up MSR bitmap: bit for MSR 0x10 (RDMSR, low range) = 1
+  // MSR 0x10 is byte 2, bit 0 (0x10 / 8 = 2, 0x10 % 8 = 0)
+  memset(model.phys_mem.ram_ptr() + MSR_BITMAP_ADDR, 0, 4096);
+  model.phys_mem.write8(MSR_BITMAP_ADDR + 2, 0x01);  // Set bit for MSR 0x10
+
+  // Guest code: MOV ECX, 0x10; RDMSR
+  u8 guest_code[] = {
+    0xB9, 0x10, 0x00, 0x00, 0x00,  // MOV ECX, 0x10
+    0x0F, 0x32,                      // RDMSR
+  };
+  setup_guest_vmcs(model, guest_code, sizeof(guest_code));
+  model.zvmcs.zprimary_proc_controls = (1U << 28);  // Use MSR bitmaps
+  model.zvmcs.zmsr_bitmap = MSR_BITMAP_ADDR;
+
+  u8 launch_code[] = {
+    0x0F, 0x01, 0xC2,
+    0xF4,
+  };
+  int result = run_code(model, CODE_ADDR, launch_code, sizeof(launch_code));
+  ASSERT_EQ(result, RUN_HALTED);
+  ASSERT_TRUE(model.zin_vmx_root);
+  ASSERT_EQ(model.zvmcs.zexit_reason, 0x1FU);  // VMEXIT_RDMSR
+
+  model.model_fini();
+}
+
+// =========================================================================
 
 int main() {
   printf("VMX tests:\n");
@@ -617,6 +914,13 @@ int main() {
   run_test_vmcall_exit();
   run_test_vmcall_in_root();
   run_test_vmxoff();
+  run_test_msr_vmx_basic();
+  run_test_vmxon_feature_control_locked();
+  run_test_vmxon_cr0_fixed_bits();
+  run_test_hlt_exit();
+  run_test_io_exit();
+  run_test_vmresume();
+  run_test_msr_bitmap();
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
 }

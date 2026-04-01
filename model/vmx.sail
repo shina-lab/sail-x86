@@ -93,6 +93,71 @@ function check_vmentry_controls() = {
     if int_type == 0b001 then return false
   };
 
+  // Guest CR0 fixed-bit checks (SDM §27.2.1.1)
+  let cr0_fixed0 : qword = 0x0000000080000021;  // PE + NE + PG
+  let cr0_fixed1 : qword = 0x00000000FFFFFFFF;
+  if (vmcs.guest_cr0 & cr0_fixed0) != cr0_fixed0 then return false;
+  if (vmcs.guest_cr0 & cr0_fixed1) != vmcs.guest_cr0 then return false;
+
+  // Guest CR4 fixed-bit checks
+  let cr4_fixed0 : qword = 0x0000000000002000;  // VMXE
+  let cr4_fixed1 : qword = 0x00000000003727FF;
+  if (vmcs.guest_cr4 & cr4_fixed0) != cr4_fixed0 then return false;
+  if (vmcs.guest_cr4 & cr4_fixed1) != vmcs.guest_cr4 then return false;
+
+  true
+}
+
+// Check guest-state area (SDM §27.2.3).
+val check_vmentry_guest_state : unit -> bool
+function check_vmentry_guest_state() = {
+  let entry_ctl = vmcs.entry_controls;
+
+  // CR0 fixed-bit checks (same as check_vmentry_controls but here for completeness)
+  let cr0_fixed0 : qword = 0x0000000080000021;
+  if (vmcs.guest_cr0 & cr0_fixed0) != cr0_fixed0 then return false;
+
+  // CR4 fixed-bit checks
+  let cr4_fixed0 : qword = 0x0000000000002000;
+  if (vmcs.guest_cr4 & cr4_fixed0) != cr4_fixed0 then return false;
+
+  // CR0.PG=1 requires CR0.PE=1 (SDM §27.2.3.1)
+  if vmcs.guest_cr0[31] == 0b1 & vmcs.guest_cr0[0] == 0b0 then return false;
+
+  // IA-32e mode consistency (SDM §27.2.3.1):
+  // If entry controls bit 9 (IA-32e mode guest) = 1:
+  //   guest EFER.LMA must be 1, CR0.PG must be 1
+  // If entry controls bit 9 = 0:
+  //   guest EFER.LMA must be 0
+  if entry_ctl[9] == 0b1 then {
+    if vmcs.guest_efer[10] == 0b0 then return false;  // LMA must be 1
+    if vmcs.guest_cr0[31] == 0b0 then return false     // PG must be 1
+  } else {
+    if vmcs.guest_efer[10] == 0b1 then return false    // LMA must be 0
+  };
+
+  // RFLAGS checks (SDM §27.2.3.2):
+  // Bit 1 must be 1 (reserved, always 1)
+  if vmcs.guest_rflags[1] == 0b0 then return false;
+  // Bits 63:22 must be 0
+  if vmcs.guest_rflags[63..22] != zeros() then return false;
+
+  // If IA-32e mode guest, VM flag (bit 17) must be 0
+  if entry_ctl[9] == 0b1 & vmcs.guest_rflags[17] == 0b1 then return false;
+
+  // Activity state checks (SDM §27.2.3.4):
+  // Must be 0 (active) or 1 (HLT)
+  if unsigned(vmcs.guest_activity_state) > 1 then return false;
+
+  // CS type must be a code segment (type bit 3 = 1, S = 1)
+  if vmcs.guest_cs_access[3] == 0b0 then return false;
+  if vmcs.guest_cs_access[4] == 0b0 then return false;
+
+  // VMCS link pointer: if not 0xFFFFFFFFFFFFFFFF, must be 4KB-aligned
+  if vmcs.guest_vmcs_link_pointer != 0xFFFFFFFFFFFFFFFF then {
+    if vmcs.guest_vmcs_link_pointer[11..0] != 0x000 then return false
+  };
+
   true
 }
 
@@ -181,6 +246,10 @@ function vm_entry(is_launch) = {
   };
   if ~(check_vmentry_host_state()) then {
     vmx_fail_valid(VMXERR_VMENTRY_INVALID_HOST);
+    return ()
+  };
+  if ~(check_vmentry_guest_state()) then {
+    vmx_fail_valid(VMXERR_VMENTRY_INVALID_CTRL);
     return ()
   };
 
@@ -294,11 +363,45 @@ function vm_entry(is_launch) = {
   else
     system_state = SysRunning;
 
+  // --- VM-entry MSR load (SDM §27.6) ---
+  if unsigned(vmcs.entry_msr_load_count) > 0 then {
+    var msr_off : qword = zeros();
+    var msr_rem : dword = vmcs.entry_msr_load_count;
+    while unsigned(msr_rem) > 0 do {
+      let entry_addr : qword = vmcs.entry_msr_load_addr + msr_off;
+      let msr_idx : dword = phys_read(entry_addr);
+      let msr_val : qword = phys_read(entry_addr + 8);
+      match msr_idx {
+        0xC0000080 => EFER = msr_val,
+        0xC0000100 => SegCache[FS].seg_base = msr_val,
+        0xC0000101 => SegCache[GS].seg_base = msr_val,
+        0xC0000102 => KERNEL_GS_BASE = msr_val,
+        _ => __wrmsr(msr_idx, msr_val),
+      };
+      msr_off = msr_off + 16;
+      msr_rem = msr_rem - 1
+    }
+  };
+
   // --- Switch to VMX non-root ---
   in_vmx_non_root = true;
 
   // Mark as launched (for VMRESUME)
   if is_launch then vmcs.launch_state = 0x00000001;
+
+  // --- VM-entry event injection (SDM §27.6) ---
+  // If entry_interruption_info[31] (valid) is set, inject the event.
+  if vmcs.entry_interruption_info[31] == 0b1 then {
+    let inj_vec : exception_vector = unsigned(vmcs.entry_interruption_info[7..0]);
+    let inj_type : bits(3) = vmcs.entry_interruption_info[10..8];
+    let has_ec : bool = vmcs.entry_interruption_info[11] == 0b1;
+    let ec : dword = if has_ec then vmcs.entry_exception_errcode else 0x00000000;
+    // Type 3 = hardware exception, type 4 = software interrupt, type 6 = software exception
+    let is_sw : bool = inj_type == 0b100 | inj_type == 0b110;
+    deliver_exception(inj_vec, ec, is_sw);
+    // Clear valid bit after injection
+    vmcs.entry_interruption_info = vmcs.entry_interruption_info & 0x7FFFFFFF
+  };
 
   // Set next_rip so step() transfers control to guest RIP
   next_rip = Some(RIP)
@@ -310,6 +413,19 @@ function vm_entry(is_launch) = {
 // Called when a VM exit occurs. Saves guest state to VMCS, loads host
 // state from VMCS, records exit reason and qualification.
 // =========================================================================
+
+// Encode segment access rights for VMCS save (SDM §24.4.1):
+// Bits 3:0 = type, 4 = S, 6:5 = DPL, 7 = P, 13 = L, 14 = D/B, 15 = G
+val encode_seg_access : segreg_idx -> dword
+function encode_seg_access(seg) = {
+  zero_extend(SegCache[seg].seg_type)
+  | (zero_extend(SegCache[seg].seg_s) << 4)
+  | (to_bits(32, SegCache[seg].seg_dpl) << 5)
+  | (zero_extend(SegCache[seg].seg_present) << 7)
+  | (zero_extend(SegCache[seg].seg_l) << 13)
+  | (zero_extend(SegCache[seg].seg_db) << 14)
+  | (zero_extend(SegCache[seg].seg_g) << 15)
+}
 
 val complete_vm_exit : (dword, qword) -> unit
 function complete_vm_exit(reason, qual) = {
@@ -346,6 +462,14 @@ function complete_vm_exit(reason, qual) = {
   vmcs.guest_fs_limit = SegCache[FS].seg_limit;
   vmcs.guest_gs_limit = SegCache[GS].seg_limit;
 
+  // Save segment access rights (SDM §28.3.1.2)
+  vmcs.guest_es_access = encode_seg_access(ES);
+  vmcs.guest_cs_access = encode_seg_access(CS);
+  vmcs.guest_ss_access = encode_seg_access(SS);
+  vmcs.guest_ds_access = encode_seg_access(DS);
+  vmcs.guest_fs_access = encode_seg_access(FS);
+  vmcs.guest_gs_access = encode_seg_access(GS);
+
   vmcs.guest_gdtr_base = GDTR_base;
   vmcs.guest_gdtr_limit = zero_extend(GDTR_limit);
   vmcs.guest_idtr_base = IDTR_base;
@@ -364,6 +488,27 @@ function complete_vm_exit(reason, qual) = {
   vmcs.exit_reason = reason;
   vmcs.exit_qualification = qual;
   // exit_instr_length is set by the throwing instruction when applicable
+
+  // --- VM-exit MSR store (SDM §28.4.2) ---
+  // Save guest MSRs listed in the MSR-store area.
+  if unsigned(vmcs.exit_msr_store_count) > 0 then {
+    var msr_off : qword = zeros();
+    var msr_rem : dword = vmcs.exit_msr_store_count;
+    while unsigned(msr_rem) > 0 do {
+      let entry_addr : qword = vmcs.exit_msr_store_addr + msr_off;
+      let msr_idx : dword = phys_read(entry_addr);
+      let msr_val : qword = match msr_idx {
+        0xC0000080 => EFER,
+        0xC0000100 => SegCache[FS].seg_base,
+        0xC0000101 => SegCache[GS].seg_base,
+        0xC0000102 => KERNEL_GS_BASE,
+        _ => __rdmsr(msr_idx),
+      };
+      phys_write(64, entry_addr + 8, msr_val);
+      msr_off = msr_off + 16;
+      msr_rem = msr_rem - 1
+    }
+  };
 
   // --- Load host state from VMCS ---
   CR0 = vmcs.host_cr0;
@@ -423,6 +568,27 @@ function complete_vm_exit(reason, qual) = {
   // Host is always CPL 0
   cur_cpl = 0;
   system_state = SysRunning;
+
+  // --- VM-exit MSR load (SDM §28.5.4) ---
+  // Load host MSRs from the MSR-load area.
+  if unsigned(vmcs.exit_msr_load_count) > 0 then {
+    var msr_off : qword = zeros();
+    var msr_rem : dword = vmcs.exit_msr_load_count;
+    while unsigned(msr_rem) > 0 do {
+      let entry_addr : qword = vmcs.exit_msr_load_addr + msr_off;
+      let msr_idx : dword = phys_read(entry_addr);
+      let msr_val : qword = phys_read(entry_addr + 8);
+      match msr_idx {
+        0xC0000080 => EFER = msr_val,
+        0xC0000100 => SegCache[FS].seg_base = msr_val,
+        0xC0000101 => SegCache[GS].seg_base = msr_val,
+        0xC0000102 => KERNEL_GS_BASE = msr_val,
+        _ => __wrmsr(msr_idx, msr_val),
+      };
+      msr_off = msr_off + 16;
+      msr_rem = msr_rem - 1
+    }
+  };
 
   // --- Return to VMX root operation ---
   in_vmx_non_root = false;
@@ -513,22 +679,56 @@ function vmx_exit_if_rdtsc() = {
   }
 }
 
+// MSR bitmap helper (SDM §25.1.3):
+// Returns true if the bitmap indicates VM exit for the given MSR.
+// The 4KB bitmap has 4 regions of 1KB each:
+//   0x000: Read bitmap for MSRs 0x00000000–0x00001FFF
+//   0x400: Read bitmap for MSRs 0xC0000000–0xC0001FFF
+//   0x800: Write bitmap for MSRs 0x00000000–0x00001FFF
+//   0xC00: Write bitmap for MSRs 0xC0000000–0xC0001FFF
+val vmx_check_msr_bitmap : (dword, bool) -> bool
+function vmx_check_msr_bitmap(msr_idx, is_write) = {
+  // Determine region base offset and MSR-relative index
+  var region_base : qword = zeros();
+  var msr_rel : bits(13) = zeros();
+  var in_range : bool = false;
+
+  if msr_idx <=_u 0x00001FFF then {
+    region_base = if is_write then 0x0000000000000800 else zeros();
+    msr_rel = msr_idx[12..0];
+    in_range = true
+  } else if msr_idx >=_u 0xC0000000 & msr_idx <=_u 0xC0001FFF then {
+    region_base = if is_write then 0x0000000000000C00 else 0x0000000000000400;
+    msr_rel = msr_idx[12..0];
+    in_range = true
+  };
+
+  if ~(in_range) then {
+    // MSR not covered by bitmap → exit unconditionally
+    true
+  } else {
+    // msr_rel[12:3] = byte offset, msr_rel[2:0] = bit within byte
+    let addr : qword = vmcs.msr_bitmap + region_base + zero_extend(msr_rel[12..3]);
+    let byte_val : bits(8) = phys_read(addr);
+    let bit_in_byte : range(0, 7) = unsigned(msr_rel[2..0]);
+    byte_val[bit_in_byte] == 0b1
+  }
+}
+
 // RDMSR exit: primary_proc_controls bit 28 (use MSR bitmaps) (SDM §25.1)
-// If bit 28 = 0, all RDMSR/WRMSR exit unconditionally.
-// If bit 28 = 1, consult MSR bitmap. For simplicity, we always exit
-// when bit 28 = 0 and skip bitmap check (conservative).
+// If bit 28 = 0, all RDMSR exit unconditionally.
+// If bit 28 = 1, consult MSR bitmap for the specific MSR (in ECX).
 val vmx_exit_if_rdmsr : unit -> unit
 function vmx_exit_if_rdmsr() = {
   if in_vmx_non_root then {
-    if vmcs.primary_proc_controls[28] == 0b0 then {
-      // No MSR bitmaps → exit unconditionally
+    let should_exit : bool = if vmcs.primary_proc_controls[28] == 0b0 then
+      true  // No MSR bitmaps → exit unconditionally
+    else
+      vmx_check_msr_bitmap(v(RCX), false);
+    if should_exit then {
       vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
       throw VMExit(VMEXIT_RDMSR, 0x0000000000000000)
     }
-    // With MSR bitmaps: check the bitmap for the specific MSR.
-    // The MSR bitmap is 4 pages: read-low (0-1FFF), read-high (C0000000-C0001FFF),
-    // write-low, write-high. Each MSR has 1 bit.
-    // For now, simplified: check the bitmap bit if in range.
   }
 }
 
@@ -536,7 +736,11 @@ function vmx_exit_if_rdmsr() = {
 val vmx_exit_if_wrmsr : unit -> unit
 function vmx_exit_if_wrmsr() = {
   if in_vmx_non_root then {
-    if vmcs.primary_proc_controls[28] == 0b0 then {
+    let should_exit : bool = if vmcs.primary_proc_controls[28] == 0b0 then
+      true
+    else
+      vmx_check_msr_bitmap(v(RCX), true);
+    if should_exit then {
       vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
       throw VMExit(VMEXIT_WRMSR, 0x0000000000000000)
     }
@@ -552,13 +756,49 @@ function vmx_exit_if_dr_access() = {
   }
 }
 
+// I/O bitmap helper (SDM §25.1.3):
+// Bitmap A: ports 0x0000–0x7FFF (at vmcs.io_bitmap_a)
+// Bitmap B: ports 0x8000–0xFFFF (at vmcs.io_bitmap_b)
+// Returns true if any bit in the range [port, port+size-1] is set.
+val vmx_check_io_bitmap : (word, operand_size) -> bool
+function vmx_check_io_bitmap(port, size) = {
+  let nbytes : bits(3) = match size {
+    8  => 0b001,
+    16 => 0b010,
+    32 => 0b100,
+    _  => 0b100,
+  };
+  var any_set : bool = false;
+  foreach (i from 0 to 3) {
+    if to_bits(3, i) <_u nbytes then {
+      let p : bits(17) = zero_extend(port) + zero_extend(to_bits(3, i));
+      if p[16] == 0b0 then {
+        let port16 : word = p[15..0];
+        let bitmap_base : qword = if port16[15] == 0b0 then vmcs.io_bitmap_a else vmcs.io_bitmap_b;
+        // Bit index within the 32K-port region
+        let bit_idx : bits(15) = port16[14..0];
+        let addr : qword = bitmap_base + zero_extend(bit_idx[14..3]);
+        let byte_val : bits(8) = phys_read(addr);
+        let bit_in_byte : range(0, 7) = unsigned(bit_idx[2..0]);
+        if byte_val[bit_in_byte] == 0b1 then any_set = true
+      }
+    }
+  };
+  any_set
+}
+
 // I/O exit: primary_proc_controls bit 24 (unconditional I/O exit) or
 // bit 25 (use I/O bitmaps). SDM §25.1, Table 25-6.
+// If bit 25 = 1, consult I/O bitmap.
 // If bit 24 = 1, all IN/OUT exit unconditionally.
-// If bit 25 = 1, consult I/O bitmap (not yet implemented).
 val vmx_exit_if_io : (word, operand_size, bool) -> unit
 function vmx_exit_if_io(port, size, is_in) = {
-  if in_vmx_non_root & vmcs.primary_proc_controls[24] == 0b1 then {
+  let should_exit : bool =
+    if vmcs.primary_proc_controls[25] == 0b1 then
+      vmx_check_io_bitmap(port, size)
+    else
+      vmcs.primary_proc_controls[24] == 0b1;
+  if in_vmx_non_root & should_exit then {
     // Qualification: SDM Table 28-5
     // Bits 2:0 = size - 1 (0=byte,1=word,3=dword)
     // Bit 3 = direction (1=IN, 0=OUT)
@@ -583,6 +823,30 @@ function vmx_exit_if_pause() = {
   if in_vmx_non_root & vmcs.primary_proc_controls[30] == 0b1 then {
     vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
     throw VMExit(VMEXIT_PAUSE, 0x0000000000000000)
+  }
+}
+
+// WBINVD exit: secondary_proc_controls bit 6 (SDM §25.1, Table 25-7)
+val vmx_exit_if_wbinvd : unit -> unit
+function vmx_exit_if_wbinvd() = {
+  if in_vmx_non_root then {
+    // WBINVD exiting is controlled by secondary proc controls bit 6.
+    // But also check activate-secondary (primary bit 31).
+    if vmcs.primary_proc_controls[31] == 0b1 & vmcs.secondary_proc_controls[6] == 0b1 then {
+      vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+      throw VMExit(VMEXIT_WBINVD, 0x0000000000000000)
+    }
+  }
+}
+
+// RDTSCP exit: secondary_proc_controls bit 3 (SDM §25.3)
+val vmx_exit_if_rdtscp : unit -> unit
+function vmx_exit_if_rdtscp() = {
+  if in_vmx_non_root then {
+    if vmcs.primary_proc_controls[31] == 0b1 & vmcs.secondary_proc_controls[3] == 0b1 then {
+      vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+      throw VMExit(VMEXIT_RDTSCP, 0x0000000000000000)
+    }
   }
 }
 

@@ -43,6 +43,24 @@ function exec_vmxon(addr) = {
   // #GP(0) if EFLAGS.VM = 1 (V8086 mode)
   // (In our model, LongMode implies not V8086, and we check CR0.PE)
 
+  // IA32_FEATURE_CONTROL checks (SDM §24.11.5):
+  // Lock bit (bit 0) must be set, and VMX-outside-SMX (bit 2) must be enabled.
+  if ia32_feature_control[0] == 0b0 then raise_GP0();
+  if ia32_feature_control[2] == 0b0 then raise_GP0();
+
+  // CR0 fixed-bit enforcement (SDM §24.8):
+  // (CR0 & CR0_FIXED0) == CR0_FIXED0 and (CR0 | ~CR0_FIXED1) == CR0
+  let cr0_fixed0 : qword = 0x0000000080000021;  // PE + NE + PG
+  let cr0_fixed1 : qword = 0x00000000FFFFFFFF;
+  if (CR0 & cr0_fixed0) != cr0_fixed0 then raise_GP0();
+  if (CR0 & cr0_fixed1) != CR0 then raise_GP0();
+
+  // CR4 fixed-bit enforcement:
+  let cr4_fixed0 : qword = 0x0000000000002000;  // VMXE
+  let cr4_fixed1 : qword = 0x00000000003727FF;
+  if (CR4 & cr4_fixed0) != cr4_fixed0 then raise_GP0();
+  if (CR4 & cr4_fixed1) != CR4 then raise_GP0();
+
   // Already in VMX operation? VMfailValid if in root, #GP if in non-root.
   if in_vmx_root then {
     vmx_fail_valid(VMXERR_VMXON_IN_ROOT);
