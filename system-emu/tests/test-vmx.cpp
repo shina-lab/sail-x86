@@ -733,9 +733,9 @@ TEST(msr_vmx_basic) {
   };
   int result = run_code(model, CODE_ADDR, code, sizeof(code));
   ASSERT_EQ(result, RUN_HALTED);
-  // VMX_BASIC = 0x0018000000000001
+  // VMX_BASIC = 0x0098040000000001 (rev=1, size=1024, WB, TRUE controls)
   u64 msr_val = (model.zGPR.data[2] << 32) | (model.zGPR.data[0] & 0xFFFFFFFF);
-  ASSERT_EQ(msr_val, 0x0018000000000001UL);
+  ASSERT_EQ(msr_val, 0x0098040000000001UL);
 
   model.model_fini();
 }
