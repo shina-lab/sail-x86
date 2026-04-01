@@ -94,7 +94,10 @@ function check_vmentry_controls() = {
   };
 
   // Guest CR0 fixed-bit checks (SDM §27.2.1.1)
-  let cr0_fixed0 : qword = 0x0000000080000021;  // PE + NE + PG
+  // With unrestricted guest (secondary bit 7), PE and PG are not required.
+  let unrestricted : bool = proc1[31] == 0b1 & vmcs.secondary_proc_controls[7] == 0b1;
+  let cr0_fixed0 : qword = if unrestricted then 0x0000000000000020  // only NE
+                            else 0x0000000080000021;  // PE + NE + PG
   let cr0_fixed1 : qword = 0x00000000FFFFFFFF;
   if (vmcs.guest_cr0 & cr0_fixed0) != cr0_fixed0 then return false;
   if (vmcs.guest_cr0 & cr0_fixed1) != vmcs.guest_cr0 then return false;
@@ -113,8 +116,11 @@ val check_vmentry_guest_state : unit -> bool
 function check_vmentry_guest_state() = {
   let entry_ctl = vmcs.entry_controls;
 
-  // CR0 fixed-bit checks (same as check_vmentry_controls but here for completeness)
-  let cr0_fixed0 : qword = 0x0000000080000021;
+  // CR0 fixed-bit checks — relaxed with unrestricted guest
+  let unrestricted : bool = vmcs.primary_proc_controls[31] == 0b1
+                          & vmcs.secondary_proc_controls[7] == 0b1;
+  let cr0_fixed0 : qword = if unrestricted then 0x0000000000000020
+                            else 0x0000000080000021;
   if (vmcs.guest_cr0 & cr0_fixed0) != cr0_fixed0 then return false;
 
   // CR4 fixed-bit checks
@@ -385,6 +391,9 @@ function vm_entry(is_launch) = {
 
   // --- Switch to VMX non-root ---
   in_vmx_non_root = true;
+  // Cache EPT-active flag for fast phys_read/phys_write path
+  ept_active = vmcs.primary_proc_controls[31] == 0b1
+             & vmcs.secondary_proc_controls[1] == 0b1;
 
   // Mark as launched (for VMRESUME)
   if is_launch then vmcs.launch_state = 0x00000001;
@@ -592,6 +601,7 @@ function complete_vm_exit(reason, qual) = {
 
   // --- Return to VMX root operation ---
   in_vmx_non_root = false;
+  ept_active = false;
   // in_vmx_root remains true
 
   // RFLAGS: SDM §28.5.5: "RFLAGS is cleared, except bit 1 (always 1)"

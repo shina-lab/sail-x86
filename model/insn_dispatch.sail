@@ -326,6 +326,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if sse_em_blocked() then raise_UD();
         if ~(has_sse4_1) then raise_UD();
         dispatch_3byte_38_sse_fp(opcode3, pfx)
+      } else if op3 == 128 then {
+        // 66 0F 38 80: INVEPT r64, m128 — Invalidate EPT TLB
+        if cur_cpl != 0 then raise_GP0();
+        if ~(in_vmx_root) & ~(in_vmx_non_root) then raise_UD();
+        if in_vmx_non_root then {
+          vmcs.exit_instr_length = (decode_pos - insn_start)[31..0];
+          throw VMExit(VMEXIT_INVEPT, 0x0000000000000000)
+        };
+        let (reg, src) = fetch_modrm(pfx);
+        let _ : xmmword = rm_mem(src); // consume operand
+        __tlb_flush();
+        vmx_succeed()
       } else if op3 == 130 then {
         // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
         if cur_cpl != 0 then raise_GP0();

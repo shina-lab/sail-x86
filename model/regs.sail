@@ -677,6 +677,10 @@ register vmcs            : VMCS_data = default_vmcs()
 // Default: locked + VMX-outside-SMX enabled (bits 0 and 2)
 register ia32_feature_control : qword = 0x0000000000000005
 
+// Cached EPT-active flag. Set by vm_entry(), cleared by complete_vm_exit().
+// Avoids re-reading VMCS control bits on every phys_read/phys_write.
+register ept_active : bool = false
+
 // =========================================================================
 // A20 gate
 //

@@ -58,6 +58,7 @@ function vmcs_read_field(encoding) = {
 
     // --- 64-bit control fields (continued) ---
     0x00002012 => Some(vmcs.virtual_apic_page_addr),
+    0x0000201A => Some(vmcs.ept_pointer),
 
     // --- 64-bit guest-state fields ---
     0x00002800 => Some(vmcs.guest_vmcs_link_pointer),
@@ -223,6 +224,7 @@ function vmcs_write_field(encoding, value) = {
 
     // --- 64-bit control fields (continued) ---
     0x00002012 => { vmcs.virtual_apic_page_addr = value; true },
+    0x0000201A => { vmcs.ept_pointer = value; true },
 
     // --- 64-bit guest-state fields ---
     0x00002800 => { vmcs.guest_vmcs_link_pointer = value; true },
@@ -515,7 +517,8 @@ function vmcs_serialize(pa) = {
   phys_write(32, base + 672, vmcs.page_fault_error_match);
   phys_write(32, base + 676, vmcs.tpr_threshold);
   phys_write(64, base + 680, vmcs.guest_pat);
-  phys_write(64, base + 688, vmcs.host_pat)
+  phys_write(64, base + 688, vmcs.host_pat);
+  phys_write(64, base + 696, vmcs.ept_pointer)
 }
 
 val vmcs_deserialize : qword -> unit
@@ -664,5 +667,6 @@ function vmcs_deserialize(pa) = {
   vmcs.page_fault_error_match = phys_read(32, base + 672);
   vmcs.tpr_threshold = phys_read(32, base + 676);
   vmcs.guest_pat = phys_read(64, base + 680);
-  vmcs.host_pat = phys_read(64, base + 688)
+  vmcs.host_pat = phys_read(64, base + 688);
+  vmcs.ept_pointer = phys_read(64, base + 696)
 }

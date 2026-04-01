@@ -15,14 +15,131 @@ function a20_mask(addr) =
   if ~(a20_enabled) & system_mode then addr & 0xFFFFFFFFFFEFFFFF
   else addr
 
-// Physical memory access (bypass translation).
+// =========================================================================
+// EPT (Extended Page Tables) Translation — SDM Vol.3C §29.3
+//
+// When in VMX non-root with EPT enabled (secondary proc controls bit 1),
+// guest-physical addresses go through a second translation layer:
+//   Guest Physical Address (GPA) → EPT walk → Host Physical Address (HPA)
+//
+// The EPT page table format mirrors the standard 4-level paging:
+//   EPT PML4 → EPT PDPT → EPT PD → EPT PT
+// Entries use R/W/X permission bits (bits 2:0) instead of P/R-W/U-S.
+// The EPT root pointer is in vmcs.ept_pointer[51:12].
+// =========================================================================
+
+// Check if EPT is active (fast path: just read the cached register).
+// ept_active is declared in regs.sail, set by vm_entry/complete_vm_exit.
+val ept_enabled : unit -> bool
+function ept_enabled() = ept_active
+
+// Build EPT violation exit qualification
+val ept_violation_qual : (PTAccess, bool) -> qword
+function ept_violation_qual(access, present) = {
+  var qual : qword = zeros();
+  if access == PT_Read then qual[0] = 0b1;
+  if access == PT_Write then qual[1] = 0b1;
+  if access == PT_Execute then qual[2] = 0b1;
+  if present then {
+    qual[3] = 0b1;
+    qual[4] = 0b1;
+    qual[5] = 0b1
+  };
+  qual
+}
+
+// Walk the EPT page table hierarchy. Uses __read_mem directly (not phys_read)
+// to avoid recursion since phys_read calls ept_translate.
+// On violation, throws VMExit(VMEXIT_EPT_VIOLATION, qualification).
+val ept_walk : (qword, PTAccess, qword, range(0, 3)) -> qword
+function ept_walk(gpa, access, table_base, level) = {
+  let index : qword = match level {
+    3 => zero_extend((gpa[47..39]) : bits(9)),  // PML4
+    2 => zero_extend((gpa[38..30]) : bits(9)),  // PDPT
+    1 => zero_extend((gpa[29..21]) : bits(9)),  // PD
+    0 => zero_extend((gpa[20..12]) : bits(9)),  // PT
+  };
+  let epte_addr : qword = table_base + (index << 3);
+  let epte : qword = __read_mem(epte_addr, 64);
+
+  // Check R/W/X permissions (bits 2:0). If all zero, entry not present.
+  let r = epte[0];
+  let w = epte[1];
+  let x = epte[2];
+  if (r | w | x) == 0b0 then {
+    // EPT violation: not present
+    let qual : qword = ept_violation_qual(access, false);
+    vmcs.guest_physical_address = gpa;
+    vmcs.exit_instr_length = 0x00000000;
+    throw VMExit(VMEXIT_EPT_VIOLATION, qual)
+  };
+
+  // Check for large page (PS bit = bit 7)
+  let is_leaf : bool = if level == 0 then true
+    else if (level == 1 | level == 2) & epte[7] == 0b1 then true
+    else false;
+
+  if is_leaf then {
+    // Permission check
+    let denied : bool = match access {
+      PT_Read    => r == 0b0,
+      PT_Write   => w == 0b0,
+      PT_Execute => x == 0b0,
+    };
+    if denied then {
+      let qual : qword = ept_violation_qual(access, true);
+      vmcs.guest_physical_address = gpa;
+      vmcs.exit_instr_length = 0x00000000;
+      throw VMExit(VMEXIT_EPT_VIOLATION, qual)
+    };
+
+    // Compute host physical address
+    let ppn : qword = epte & 0x000FFFFFFFFFF000;
+    match level {
+      0 => ppn | (gpa & 0x0000000000000FFF),            // 4KB
+      1 => (ppn & 0x000FFFFFFFE00000) | (gpa & 0x00000000001FFFFF), // 2MB
+      _ => (ppn & 0x000FFFFFC0000000) | (gpa & 0x000000003FFFFFFF), // 1GB
+    }
+  } else if level > 0 then {
+    let next_base : qword = epte & 0x000FFFFFFFFFF000;
+    ept_walk(gpa, access, next_base, level - 1)
+  } else {
+    // Unreachable: level==0 is always a leaf
+    vmcs.guest_physical_address = gpa;
+    throw VMExit(VMEXIT_EPT_VIOLATION, ept_violation_qual(access, false))
+  }
+}
+termination_measure ept_walk(_, _, _, level) = level
+
+// EPT-translate a guest physical address to host physical address.
+// Only active when EPT is enabled; otherwise returns gpa unchanged.
+val ept_translate : (qword, PTAccess) -> qword
+function ept_translate(gpa, access) = {
+  if ept_enabled() then {
+    let ept_root : qword = vmcs.ept_pointer & 0x000FFFFFFFFFF000;
+    ept_walk(gpa, access, ept_root, 3)
+  } else {
+    gpa
+  }
+}
+
+// Physical memory access (bypass virtual address translation).
 // Used by page table walks and by mem_read/mem_write when paging is off.
+// When EPT is active, translates guest-physical to host-physical first.
 // Size parameter 'n is in bits.
 val phys_read : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
-function phys_read(n, addr) = __read_mem(a20_mask(addr), n)
+function phys_read(n, addr) = {
+  let pa = a20_mask(addr);
+  if ept_active then __read_mem(ept_translate(pa, PT_Read), n)
+  else __read_mem(pa, n)
+}
 
 val phys_write : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
-function phys_write(n, addr, data) = __write_mem(a20_mask(addr), n, data)
+function phys_write(n, addr, data) = {
+  let pa = a20_mask(addr);
+  if ept_active then __write_mem(ept_translate(pa, PT_Write), n, data)
+  else __write_mem(pa, n, data)
+}
 
 // Build a #PF error code from access type and fault cause.
 val mk_pf_error : (PTAccess, bool, bool) -> dword

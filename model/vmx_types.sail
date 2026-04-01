@@ -122,6 +122,7 @@ struct VMCS_data = {
   page_fault_error_mask   : dword,   // Page-fault error-code mask
   page_fault_error_match  : dword,   // Page-fault error-code match
   tpr_threshold           : dword,   // TPR threshold
+  ept_pointer             : qword,   // EPT pointer (root of EPT page tables)
   cr0_guest_host_mask     : qword,   // CR0 guest/host mask
   cr0_read_shadow         : qword,   // CR0 read shadow
   cr4_guest_host_mask     : qword,   // CR4 guest/host mask
@@ -269,6 +270,7 @@ function default_vmcs() = struct {
   page_fault_error_mask   = zeros(),
   page_fault_error_match  = zeros(),
   tpr_threshold           = zeros(),
+  ept_pointer             = zeros(),
   cr0_guest_host_mask     = zeros(),
   cr0_read_shadow         = zeros(),
   cr4_guest_host_mask     = zeros(),
