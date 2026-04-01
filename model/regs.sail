@@ -460,6 +460,7 @@ let CR4_OSXMMEXCPT : int = 10  // OS Support for Unmasked SIMD FP Exceptions
 let CR4_LA57       : int = 12  // 5-Level Paging
 let CR4_FSGSBASE   : int = 16  // FSGSBASE Enable
 let CR4_PCIDE      : int = 17  // PCID Enable
+let CR4_VMXE       : int = 13  // VMX Enable
 let CR4_OSXSAVE    : int = 18  // XSAVE and Processor Extended States Enable
 
 // EFER bit positions
@@ -569,7 +570,8 @@ function enable_features_v1() = {
   has_rdseed = false;
   has_crc32 = false;
   has_xsave = false;
-  has_avx512 = false
+  has_avx512 = false;
+  has_vmx = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -584,7 +586,8 @@ function enable_features_v2() = {
   has_xsave = true;
   has_popcnt = true;
   has_crc32 = true;
-  has_pclmulqdq = true
+  has_pclmulqdq = true;
+  has_vmx = true
 }
 
 // x86-64-v3: Haswell+ (AVX2, FMA, BMI1/2, MOVBE, F16C)
@@ -648,6 +651,24 @@ register delivering_exc_class : ExceptionClass
 
 register in_smm : bool = false
 register smbase : dword = 0x00030000
+
+// =========================================================================
+// VMX (VT-x) State — SDM Vol.3C Chapter 24
+//
+// in_vmx_root:     true when in VMX root operation (hypervisor)
+// in_vmx_non_root: true when in VMX non-root operation (guest)
+// vmcs_ptr:        physical address of the current VMCS (None if no current VMCS)
+// vmxon_region_pa: physical address of the VMXON region
+// has_vmx:         CPUID feature flag for VMX support
+// vmcs:            cached VMCS data (serialized to memory by VMCLEAR)
+// =========================================================================
+
+register in_vmx_root     : bool = false
+register in_vmx_non_root : bool = false
+register vmcs_ptr        : option(qword) = None()
+register vmxon_region_pa : qword = zeros()
+register has_vmx         : bool = false
+register vmcs            : VMCS_data = default_vmcs()
 
 // =========================================================================
 // A20 gate

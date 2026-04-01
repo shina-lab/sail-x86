@@ -3,7 +3,8 @@
 // Sail exception type for faults raised during decode/execute.
 // Caught by step() and stored in fault registers.
 union exception = {
-  Fault : (exception_vector, dword),
+  Fault  : (exception_vector, dword),
+  VMExit : (dword, qword),  // (exit_reason, exit_qualification)
 }
 
 // System state — tracks whether the CPU is running, halted, or handling a syscall.

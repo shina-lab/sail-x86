@@ -9,12 +9,14 @@ core {
   files
     core_types.sail,
     extern.sail,
+    vmx_types.sail,
     regs.sail,
     rflags.sail,
     exceptions.sail,
     paging.sail,
     mem.sail,
     interrupts.sail,
+    vmx_vmcs.sail,
 }
 
 decode {
@@ -27,6 +29,7 @@ decode {
     insn_prefixes.sail,
     insn_modrm.sail,
     smm.sail,
+    insn_vmx.sail,
     insn_alu.sail,
     insn_x87.sail,
     insn_sse_fp.sail,

@@ -92,6 +92,7 @@ function cpuid(leaf, subleaf) = {
       var ecx : dword = 0x00000000;
       if has_sse3       then ecx = ecx | 0x00000001;  // bit 0 (SSE3)
       if has_pclmulqdq  then ecx = ecx | 0x00000002;  // bit 1
+      if has_vmx        then ecx = ecx | 0x00000020;  // bit 5 (VMX)
       if has_ssse3      then ecx = ecx | 0x00000200;  // bit 9 (SSSE3)
       if has_fma        then ecx = ecx | 0x00001000;  // bit 12
       if has_cx16       then ecx = ecx | 0x00002000;  // bit 13 (CX16)
@@ -544,6 +545,30 @@ function dispatch_2byte_gpr(op, pfx) = {
           v(RDX) = tsc[63..32];
           v(RCX) = __rdmsr(0xC0000103)[31..0]
         },
+
+        // 0F 01 C1: VMCALL (SDM Vol.3C §31.2.6)
+        // Phase 2: stub that raises #UD for now
+        193 => {
+          vmx_check_preconditions();
+          raise_UD()  // Phase 2 will implement VM exit
+        },
+
+        // 0F 01 C2: VMLAUNCH (SDM Vol.3C §31.2.7)
+        // Phase 2: stub that raises #UD for now
+        194 => {
+          vmx_check_preconditions();
+          raise_UD()  // Phase 2 will implement VM entry
+        },
+
+        // 0F 01 C3: VMRESUME (SDM Vol.3C §31.2.7)
+        // Phase 2: stub that raises #UD for now
+        195 => {
+          vmx_check_preconditions();
+          raise_UD()  // Phase 2 will implement VM entry
+        },
+
+        // 0F 01 C4: VMXOFF (SDM Vol.3C §31.2.2)
+        196 => exec_vmxoff(),
 
         // 0F 01 F8: SWAPGS (requires CPL=0)
         248 => {
@@ -1595,9 +1620,10 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           _ => raise_UD(),
         },
-        // /6 mod=11: RDRAND r16/r32/r64
+        // /6: RDRAND (mod=11) or VMX (mod!=11)
         6 => match dest {
           RM_reg(r) => {
+            // /6 mod=11: RDRAND r16/r32/r64
             if ~(has_rdrand) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdrand64();
@@ -1609,11 +1635,24 @@ function dispatch_2byte_gpr(op, pfx) = {
             AF = 0b0;
             PF = 0b0
           },
-          RM_mem(_) => raise_UD(),
+          RM_mem(m) => {
+            // /6 mem: VMX instructions discriminated by prefix
+            // NP 0F C7 /6 mem → VMPTRLD
+            // 66 0F C7 /6 mem → VMCLEAR
+            // F3 0F C7 /6 mem → VMXON
+            let addr = seg_linear(m, 8);
+            if pfx.has_rep then
+              exec_vmxon(addr)
+            else if pfx.has_opsize then
+              exec_vmclear(addr)
+            else
+              exec_vmptrld(addr)
+          },
         },
-        // /7 mod=11: RDSEED r16/r32/r64
+        // /7: RDSEED (mod=11) or VMPTRST (mod!=11)
         7 => match dest {
           RM_reg(r) => {
+            // /7 mod=11: RDSEED r16/r32/r64
             if ~(has_rdseed) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdseed64();
@@ -1625,7 +1664,10 @@ function dispatch_2byte_gpr(op, pfx) = {
             AF = 0b0;
             PF = 0b0
           },
-          RM_mem(_) => raise_UD(),
+          RM_mem(m) => {
+            // /7 mem: VMPTRST — store current VMCS pointer
+            exec_vmptrst(seg_linear(m, 8))
+          },
         },
         _ => raise_UD(),
       }
@@ -1643,6 +1685,19 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else {
         v(os, reg) = bswap(v(os, reg))
       }
+    },
+
+    // 0F 78: VMREAD r/m64, r64 (SDM Vol.3C §31.2.4)
+    // In 64-bit mode, operand size is always 64 bits.
+    120 => {
+      let (reg, dest) = fetch_modrm(pfx);
+      exec_vmread(pfx, dest, reg.gpr_idx)
+    },
+
+    // 0F 79: VMWRITE r64, r/m64 (SDM Vol.3C §31.2.5)
+    121 => {
+      let (reg, src) = fetch_modrm(pfx);
+      exec_vmwrite(pfx, src, reg.gpr_idx)
     },
 
     _ => raise_UD(),

@@ -34,6 +34,7 @@ function step() = {
           fault_error_code = err2;
           return ()
         },
+        VMExit(_, _) => return (),
       }
     }
   };
@@ -77,6 +78,7 @@ function step() = {
               fault_error_code = err2;
               return ()
             },
+            VMExit(_, _) => return (),
           }
         } else {
           fault_pending = true;
@@ -84,6 +86,13 @@ function step() = {
           fault_error_code = err;
           true
         }
+      },
+      // VMX: VM exit from VMX non-root operation.
+      // Phase 2 will call complete_vm_exit(reason, qual) here.
+      VMExit(reason, qual) => {
+        GPR[RSP] = saved_rsp;
+        write_rflags(saved_rflags);
+        return ()
       },
     };
 
