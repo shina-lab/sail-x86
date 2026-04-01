@@ -74,6 +74,7 @@ static inline void enable_all_features(Model &m) {
   m.zhas_movdir64b = true;
   m.zhas_avx512 = true;
   m.zhas_la57 = true;
+  m.zhas_vmx = true;
 }
 
 } // namespace x86
