@@ -264,8 +264,8 @@ static bool load_bzimage(x86::Model &model, const char *path,
   // Command line at setup_base + 0xE000 (within the same 64K segment)
   u64 cmdline_off = 0xE000;
   u64 cmdline_addr = setup_base + cmdline_off;
-  const char *default_serial_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic";
-  const char *default_vga_cmdline = "console=tty0 noapic nolapic";
+  const char *default_serial_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic tsc=reliable";
+  const char *default_vga_cmdline = "console=tty0 noapic nolapic tsc=reliable";
   const char *default_cmdline = (display_mode == DISPLAY_VGA) ?
                                  default_vga_cmdline : default_serial_cmdline;
   const char *use_cmdline = (cmdline && strlen(cmdline) > 0) ? cmdline : default_cmdline;
