@@ -52,6 +52,8 @@ add_custom_command(
     OUTPUT "${INITRAMFS}"
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mk-initramfs.sh" "${INITRAMFS}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/mk-initramfs.sh"
+            "${CMAKE_CURRENT_SOURCE_DIR}/hello32.c"
+            "${CMAKE_CURRENT_SOURCE_DIR}/kvm-test.c"
     COMMENT "Building initramfs"
 )
 
