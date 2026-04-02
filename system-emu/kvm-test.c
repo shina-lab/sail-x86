@@ -37,18 +37,34 @@
 #define GPA_PD     0x3000
 #define GPA_GDT    0x4000
 #define GPA_CODE   0x10000
+#define GPA_DATA   0x18000
 #define GPA_STACK  0x1F000
 
 // Guest virtual addresses (non-identity-mapped)
-#define GVA_CODE   0x400000
-#define GVA_STACK  0x401000
+// Guest PD[2] maps GVA 0x400000-0x5FFFFF → GPA 0x000000-0x1FFFFF
+#define GVA_BASE   0x400000
+#define GVA_DATA   (GVA_BASE + GPA_DATA)   // 0x418000
+#define GVA_STACK  (GVA_BASE + GPA_STACK)  // 0x41F000
 
 // Guest code (64-bit):
-//   out 0x10, al   -> KVM_EXIT_IO
-//   hlt            -> KVM_EXIT_HLT
+//   mov dword ptr [0x418000], 0xDEADBEEF  -> memory write via guest PTs + EPT
+//   mov eax, dword ptr [0x418000]         -> memory read via guest PTs + EPT
+//   out 0x10, al                          -> KVM_EXIT_IO (AL = 0xEF)
+//   hlt                                   -> KVM_EXIT_HLT
 static const uint8_t guest_code[] = {
-    0xE6, 0x10,  // out 0x10, al
-    0xF4,        // hlt
+    0xC7, 0x04, 0x25,                          // mov dword ptr [imm32], imm32
+    (GVA_DATA >> 0) & 0xFF,                    //   address low
+    (GVA_DATA >> 8) & 0xFF,
+    (GVA_DATA >> 16) & 0xFF,
+    (GVA_DATA >> 24) & 0xFF,                   //   address high
+    0xEF, 0xBE, 0xAD, 0xDE,                    //   value = 0xDEADBEEF
+    0x8B, 0x04, 0x25,                          // mov eax, dword ptr [imm32]
+    (GVA_DATA >> 0) & 0xFF,
+    (GVA_DATA >> 8) & 0xFF,
+    (GVA_DATA >> 16) & 0xFF,
+    (GVA_DATA >> 24) & 0xFF,
+    0xE6, 0x10,                                // out 0x10, al (AL = 0xEF)
+    0xF4,                                      // hlt
 };
 
 static void die(const char *msg) {
@@ -152,9 +168,9 @@ int main(void) {
     if (mem == MAP_FAILED) die("mmap");
     memset(mem, 0, GUEST_MEM_SIZE);
 
-    // Place guest code at GPA 0x10000
-    // The guest PTs map GVA 0x400000 → GPA 0x00000 (2MB page),
-    // so GVA 0x410000 → GPA 0x10000 is where the code lives.
+    // Place guest code at GPA_CODE. The guest PTs map
+    // GVA 0x400000 → GPA 0x00000 (2MB page), so guest fetches
+    // instructions from GVA (GVA_BASE + GPA_CODE) = 0x410000.
     memcpy(mem + GPA_CODE, guest_code, sizeof(guest_code));
 
     struct kvm_userspace_memory_region region = {
@@ -181,16 +197,15 @@ int main(void) {
     ret = ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
     if (ret < 0) die("KVM_SET_SREGS");
 
-    // RIP = GVA 0x410000 (→ GPA 0x10000 via guest page tables)
+    // RIP = GVA_BASE + GPA_CODE = 0x410000 (→ GPA 0x10000 via guest PTs)
     memset(&regs, 0, sizeof(regs));
-    regs.rip = GVA_CODE + GPA_CODE;  // 0x400000 + 0x10000 = 0x410000
+    regs.rip = GVA_BASE + GPA_CODE;
     regs.rsp = GVA_STACK;
     regs.rflags = 0x2;
-    regs.rax = 0x42;
     ret = ioctl(vcpu_fd, KVM_SET_REGS, &regs);
     if (ret < 0) die("KVM_SET_REGS");
 
-    printf("Guest: 64-bit, RIP=0x%llx (GVA, maps to GPA 0x%x via guest PTs)\n",
+    printf("Guest: 64-bit, RIP=0x%llx (GVA→GPA 0x%x)\n",
            (unsigned long long)regs.rip, GPA_CODE);
 
     // Run the guest
@@ -206,17 +221,19 @@ int main(void) {
         exits++;
 
         switch (run->exit_reason) {
-        case KVM_EXIT_IO:
+        case KVM_EXIT_IO: {
+            uint8_t data = *(uint8_t *)((uint8_t *)run + run->io.data_offset);
             printf("Exit #%d: IO port=0x%x dir=%s size=%d data=0x%02x\n",
                    exits, run->io.port,
                    run->io.direction == KVM_EXIT_IO_OUT ? "out" : "in",
-                   run->io.size,
-                   *(uint8_t *)((uint8_t *)run + run->io.data_offset));
-            if (run->io.port != 0x10 || run->io.direction != KVM_EXIT_IO_OUT) {
-                printf("  UNEXPECTED I/O\n");
+                   run->io.size, data);
+            if (run->io.port != 0x10 || run->io.direction != KVM_EXIT_IO_OUT
+                || data != 0xEF) {
+                printf("  FAIL: expected OUT 0x10, 0xEF\n");
                 pass = 0;
             }
             break;
+        }
 
         case KVM_EXIT_HLT:
             printf("Exit #%d: HLT\n", exits);
@@ -252,6 +269,20 @@ int main(void) {
     }
 
 done:
+    // Verify: the guest wrote 0xDEADBEEF to GVA 0x418000, which maps
+    // to GPA 0x18000 via guest page tables. KVM+EPT translated that
+    // to the host mmap region at offset 0x18000.
+    {
+        uint32_t val = *(uint32_t *)(mem + GPA_DATA);
+        printf("Host check: mem[GPA 0x%x] = 0x%08x", GPA_DATA, val);
+        if (val == 0xDEADBEEF) {
+            printf(" (correct)\n");
+        } else {
+            printf(" (FAIL: expected 0xDEADBEEF)\n");
+            pass = 0;
+        }
+    }
+
     close(vcpu_fd);
     close(vm_fd);
     close(kvm_fd);
