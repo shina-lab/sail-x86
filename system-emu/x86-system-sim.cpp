@@ -937,6 +937,7 @@ int main(int argc, char *argv[]) {
 
 
 
+
     // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
     // PIT interrupts briefly leave the range; spin_total accumulates.
     {

@@ -150,6 +150,8 @@ int main(void) {
     uint8_t *mem;
     int ret;
 
+    setbuf(stdout, NULL);  // Unbuffered output for immediate visibility
+
     printf("=== KVM VMX Test ===\n");
 
     kvm_fd = open("/dev/kvm", O_RDWR);
