@@ -153,6 +153,7 @@ u64 Model::z__rdmsr(u64 addr) {
   case 0x580: case 0x581: case 0x582: case 0x583: // IA32_RTIT_ADDR0-1
   case 0x584: case 0x585: case 0x586: case 0x587: // IA32_RTIT_ADDR2-3
     return 0;
+  case 0x1D9: return 0;           // IA32_DEBUGCTL (debug/trace — not supported)
   case 0x1C4: return 0;           // IA32_XFD (Extended Feature Disable — not supported)
   case 0x1C5: return 0;           // IA32_XFD_ERR
   case 0x6A0: case 0x6A2:        // IA32_U_CET, IA32_S_CET (CET — not supported)
