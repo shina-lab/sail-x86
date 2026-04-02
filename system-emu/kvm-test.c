@@ -1,7 +1,10 @@
 // Minimal KVM selftest for the Sail x86 system emulator.
 //
-// Sets up a protected-mode guest (required since we don't support EPT/
-// unrestricted guest). The guest executes OUT + HLT to cause VM exits.
+// Creates a VM via /dev/kvm, sets up a 64-bit long-mode guest with
+// identity-mapped page tables, and runs it. The guest executes
+// OUT (port 0x10) then HLT, exercising the full VMX path:
+//   KVM_RUN → VMLAUNCH → guest OUT → VM exit (I/O) → KVM_RUN →
+//   VMRESUME → guest HLT → VM exit (HLT) → done
 //
 // Build: gcc -static -o kvm-test kvm-test.c
 // Run inside the emulator's Linux: /bin/kvm-test
