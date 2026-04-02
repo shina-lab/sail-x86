@@ -1,10 +1,15 @@
 // Minimal KVM selftest for the Sail x86 system emulator.
 //
-// Creates a VM via /dev/kvm, sets up a 64-bit long-mode guest with
-// identity-mapped page tables, and runs it. The guest executes
-// OUT (port 0x10) then HLT, exercising the full VMX path:
-//   KVM_RUN → VMLAUNCH → guest OUT → VM exit (I/O) → KVM_RUN →
-//   VMRESUME → guest HLT → VM exit (HLT) → done
+// Creates a VM via /dev/kvm with a 64-bit long-mode guest. The guest
+// has its own page tables (CR3 → PML4 → PDPT → PD) that map guest
+// virtual addresses to guest physical addresses. KVM uses EPT to
+// translate guest physical addresses to host physical addresses —
+// this is the standard two-level address translation that real
+// hypervisors use.
+//
+// Guest code at GVA 0x400000 (mapped to GPA 0x10000 via guest PTs):
+//   out 0x10, al   → VM exit (I/O), KVM returns KVM_EXIT_IO
+//   hlt            → VM exit (HLT), KVM returns KVM_EXIT_HLT
 //
 // Build: gcc -static -o kvm-test kvm-test.c
 // Run inside the emulator's Linux: /bin/kvm-test
@@ -19,105 +24,94 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-// Guest physical memory layout (2MB total):
-//   0x00000000 - 0x00000FFF: GDT + IDT (page 0)
-//   0x00001000 - 0x00001FFF: Page tables (PML4)
-//   0x00002000 - 0x00002FFF: Page tables (PDPT)
-//   0x00003000 - 0x00003FFF: Page tables (PD)
-//   0x00010000 - 0x00010FFF: Guest code
-//   0x00080000 - 0x0008FFFF: Guest stack
+// Guest physical memory layout (2MB, backed by host mmap):
+//   GPA 0x00000 - page tables (PML4, PDPT, PD at 0x1000, 0x2000, 0x3000)
+//   GPA 0x04000 - GDT
+//   GPA 0x10000 - guest code (mapped at GVA 0x400000 by guest PTs)
+//   GPA 0x1F000 - guest stack top (mapped at GVA 0x401000)
 #define GUEST_MEM_SIZE  (2 * 1024 * 1024)
-#define GDT_ADDR        0x0000
-#define PML4_ADDR       0x1000
-#define PDPT_ADDR       0x2000
-#define PD_ADDR         0x3000
-#define CODE_ADDR       0x10000
-#define STACK_ADDR      0x80000
 
-// Guest code (64-bit long mode):
-//   out 0x10, al     -> KVM_EXIT_IO
-//   hlt              -> KVM_EXIT_HLT
+// Guest physical addresses
+#define GPA_PML4   0x1000
+#define GPA_PDPT   0x2000
+#define GPA_PD     0x3000
+#define GPA_GDT    0x4000
+#define GPA_CODE   0x10000
+#define GPA_STACK  0x1F000
+
+// Guest virtual addresses (non-identity-mapped)
+#define GVA_CODE   0x400000
+#define GVA_STACK  0x401000
+
+// Guest code (64-bit):
+//   out 0x10, al   -> KVM_EXIT_IO
+//   hlt            -> KVM_EXIT_HLT
 static const uint8_t guest_code[] = {
-    0xE6, 0x10,             // out 0x10, al
-    0xF4,                   // hlt
+    0xE6, 0x10,  // out 0x10, al
+    0xF4,        // hlt
 };
-
-// GDT entries
-struct gdt_entry {
-    uint16_t limit_lo;
-    uint16_t base_lo;
-    uint8_t  base_mid;
-    uint8_t  access;
-    uint8_t  flags_limit_hi;
-    uint8_t  base_hi;
-} __attribute__((packed));
 
 static void die(const char *msg) {
     perror(msg);
     exit(1);
 }
 
-static void setup_long_mode(uint8_t *mem, struct kvm_sregs *sregs) {
-    // --- GDT ---
-    // Entry 0: null
-    // Entry 1 (0x08): 64-bit code segment (L=1, D=0)
-    // Entry 2 (0x10): 64-bit data segment
-    struct gdt_entry *gdt = (struct gdt_entry *)(mem + GDT_ADDR);
-    memset(gdt, 0, 3 * sizeof(*gdt));
-
-    // Code segment: base=0, limit=0xFFFFF, type=0xA (exec/read), S=1, DPL=0, P=1, L=1, G=1
-    gdt[1].limit_lo = 0xFFFF;
-    gdt[1].access = 0x9A;         // P=1, DPL=0, S=1, type=0xA (exec/read)
-    gdt[1].flags_limit_hi = 0xAF; // G=1, L=1, D=0, limit[19:16]=0xF
-
-    // Data segment: base=0, limit=0xFFFFF, type=0x2 (read/write), S=1, DPL=0, P=1, G=1
-    gdt[2].limit_lo = 0xFFFF;
-    gdt[2].access = 0x92;         // P=1, DPL=0, S=1, type=0x2 (read/write)
-    gdt[2].flags_limit_hi = 0xCF; // G=1, D=1, limit[19:16]=0xF
-
-    // --- Page tables (identity map first 2MB) ---
-    uint64_t *pml4 = (uint64_t *)(mem + PML4_ADDR);
-    uint64_t *pdpt = (uint64_t *)(mem + PDPT_ADDR);
-    uint64_t *pd   = (uint64_t *)(mem + PD_ADDR);
+// Set up guest page tables mapping:
+//   GVA 0x400000 (2MB) → GPA 0x00000 (2MB page)
+// This is a non-identity mapping: virtual != physical.
+static void setup_guest_page_tables(uint8_t *mem) {
+    uint64_t *pml4 = (uint64_t *)(mem + GPA_PML4);
+    uint64_t *pdpt = (uint64_t *)(mem + GPA_PDPT);
+    uint64_t *pd   = (uint64_t *)(mem + GPA_PD);
 
     memset(pml4, 0, 0x1000);
     memset(pdpt, 0, 0x1000);
     memset(pd,   0, 0x1000);
 
-    pml4[0] = PDPT_ADDR | 0x03;   // present + writable
-    pdpt[0] = PD_ADDR   | 0x03;
-    pd[0]   = 0x00000000 | 0x83;  // 2MB page, present + writable + PS
+    // PML4[0] → PDPT (covers GVA 0x000000000 - 0x7FFFFFFFFF)
+    pml4[0] = GPA_PDPT | 0x03;  // present + writable
 
-    // --- Set up sregs ---
-    sregs->cr3 = PML4_ADDR;
-    sregs->cr4 = (1UL << 5);   // PAE
-    sregs->cr0 = (1UL << 0) | (1UL << 31) | (1UL << 5); // PE + PG + NE
-    sregs->efer = (1UL << 8) | (1UL << 10); // LME + LMA
+    // PDPT[0] → PD (covers GVA 0x000000000 - 0x03FFFFFFF)
+    pdpt[0] = GPA_PD | 0x03;
 
-    // CS: 64-bit code segment
+    // PD[2] → 2MB page at GPA 0x00000 (covers GVA 0x400000 - 0x5FFFFF)
+    // This is the key non-identity mapping: GVA 0x400000 → GPA 0x00000
+    pd[2] = 0x00000000 | 0x83;  // GPA 0, present + writable + PS (2MB)
+}
+
+// Set up a minimal GDT at GPA_GDT
+static void setup_guest_gdt(uint8_t *mem) {
+    uint64_t *gdt = (uint64_t *)(mem + GPA_GDT);
+    gdt[0] = 0;                   // null descriptor
+    gdt[1] = 0x00AF9A000000FFFFULL; // 64-bit code: L=1, D=0, P=1, S=1, type=0xA
+    gdt[2] = 0x00CF92000000FFFFULL; // 64-bit data: D=1, P=1, S=1, type=0x2
+}
+
+static void setup_sregs(uint8_t *mem, struct kvm_sregs *sregs) {
+    setup_guest_page_tables(mem);
+    setup_guest_gdt(mem);
+
+    sregs->cr3 = GPA_PML4;
+    sregs->cr4 = (1UL << 5);                        // PAE
+    sregs->cr0 = (1UL << 0) | (1UL << 5) | (1UL << 31); // PE + NE + PG
+    sregs->efer = (1UL << 8) | (1UL << 10);         // LME + LMA
+
+    // CS: 64-bit code segment (GDT entry 1, selector 0x08)
     sregs->cs.base = 0;
     sregs->cs.limit = 0xFFFFFFFF;
     sregs->cs.selector = 0x08;
-    sregs->cs.type = 0xA;    // exec/read
+    sregs->cs.type = 0xA;
     sregs->cs.present = 1;
     sregs->cs.dpl = 0;
-    sregs->cs.db = 0;        // D=0 for 64-bit
+    sregs->cs.db = 0;
     sregs->cs.s = 1;
-    sregs->cs.l = 1;         // L=1 for 64-bit
+    sregs->cs.l = 1;
     sregs->cs.g = 1;
 
-    // DS/ES/SS: data segments
+    // Data segments (GDT entry 2, selector 0x10)
     struct kvm_segment data_seg = {
-        .base = 0,
-        .limit = 0xFFFFFFFF,
-        .selector = 0x10,
-        .type = 0x2,     // read/write
-        .present = 1,
-        .dpl = 0,
-        .db = 1,
-        .s = 1,
-        .l = 0,
-        .g = 1,
+        .base = 0, .limit = 0xFFFFFFFF, .selector = 0x10,
+        .type = 0x2, .present = 1, .dpl = 0, .db = 1, .s = 1, .l = 0, .g = 1,
     };
     sregs->ds = data_seg;
     sregs->es = data_seg;
@@ -125,12 +119,9 @@ static void setup_long_mode(uint8_t *mem, struct kvm_sregs *sregs) {
     sregs->fs = data_seg;
     sregs->gs = data_seg;
 
-    // GDT register
-    sregs->gdt.base = GDT_ADDR;
+    sregs->gdt.base = GPA_GDT;
     sregs->gdt.limit = 3 * 8 - 1;
-
-    // IDT (empty, but set up to avoid issues)
-    sregs->idt.base = GDT_ADDR + 0x100;
+    sregs->idt.base = 0;
     sregs->idt.limit = 0;
 }
 
@@ -145,7 +136,6 @@ int main(void) {
 
     printf("=== KVM VMX Test ===\n");
 
-    // 1. Open /dev/kvm
     kvm_fd = open("/dev/kvm", O_RDWR);
     if (kvm_fd < 0) die("open /dev/kvm");
 
@@ -153,21 +143,22 @@ int main(void) {
     if (ret < 0) die("KVM_GET_API_VERSION");
     printf("KVM API version: %d\n", ret);
 
-    // 2. Create VM
     vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, 0);
     if (vm_fd < 0) die("KVM_CREATE_VM");
-    printf("VM created\n");
 
-    // 3. Set up guest memory
+    // Allocate guest physical memory
     mem = mmap(NULL, GUEST_MEM_SIZE, PROT_READ | PROT_WRITE,
                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (mem == MAP_FAILED) die("mmap");
     memset(mem, 0, GUEST_MEM_SIZE);
-    memcpy(mem + CODE_ADDR, guest_code, sizeof(guest_code));
+
+    // Place guest code at GPA 0x10000
+    // The guest PTs map GVA 0x400000 → GPA 0x00000 (2MB page),
+    // so GVA 0x410000 → GPA 0x10000 is where the code lives.
+    memcpy(mem + GPA_CODE, guest_code, sizeof(guest_code));
 
     struct kvm_userspace_memory_region region = {
         .slot = 0,
-        .flags = 0,
         .guest_phys_addr = 0,
         .memory_size = GUEST_MEM_SIZE,
         .userspace_addr = (uint64_t)mem,
@@ -175,7 +166,6 @@ int main(void) {
     ret = ioctl(vm_fd, KVM_SET_USER_MEMORY_REGION, &region);
     if (ret < 0) die("KVM_SET_USER_MEMORY_REGION");
 
-    // 4. Create vCPU
     vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0);
     if (vcpu_fd < 0) die("KVM_CREATE_VCPU");
 
@@ -184,25 +174,26 @@ int main(void) {
     run = mmap(NULL, run_size, PROT_READ | PROT_WRITE, MAP_SHARED, vcpu_fd, 0);
     if (run == MAP_FAILED) die("mmap vcpu");
 
-    // 5. Set up long mode
+    // Set up 64-bit long mode with guest page tables
     ret = ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
     if (ret < 0) die("KVM_GET_SREGS");
-    setup_long_mode(mem, &sregs);
+    setup_sregs(mem, &sregs);
     ret = ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
     if (ret < 0) die("KVM_SET_SREGS");
 
-    // 6. Set up regs
+    // RIP = GVA 0x410000 (→ GPA 0x10000 via guest page tables)
     memset(&regs, 0, sizeof(regs));
-    regs.rip = CODE_ADDR;
-    regs.rsp = STACK_ADDR;
+    regs.rip = GVA_CODE + GPA_CODE;  // 0x400000 + 0x10000 = 0x410000
+    regs.rsp = GVA_STACK;
     regs.rflags = 0x2;
-    regs.rax = 0x42;  // Value that will be OUT'd
+    regs.rax = 0x42;
     ret = ioctl(vcpu_fd, KVM_SET_REGS, &regs);
     if (ret < 0) die("KVM_SET_REGS");
 
-    printf("Guest set up in 64-bit long mode, RIP=0x%x\n", CODE_ADDR);
+    printf("Guest: 64-bit, RIP=0x%llx (GVA, maps to GPA 0x%x via guest PTs)\n",
+           (unsigned long long)regs.rip, GPA_CODE);
 
-    // 7. Run guest
+    // Run the guest
     int exits = 0;
     int pass = 1;
     while (1) {
@@ -244,7 +235,8 @@ int main(void) {
 
         case KVM_EXIT_FAIL_ENTRY:
             printf("Exit #%d: FAIL_ENTRY reason=0x%llx\n",
-                   exits, (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
+                   exits,
+                   (unsigned long long)run->fail_entry.hardware_entry_failure_reason);
             pass = 0;
             goto done;
 
@@ -267,9 +259,8 @@ done:
 
     if (pass) {
         printf("\n=== PASS ===\n");
-        return 0;
     } else {
         printf("\n=== FAIL ===\n");
-        return 1;
     }
+    return !pass;
 }
