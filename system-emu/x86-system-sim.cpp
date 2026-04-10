@@ -890,14 +890,6 @@ int main(int argc, char *argv[]) {
   // Ctrl-a x = quit. Ctrl-a Ctrl-a = send literal Ctrl-a.
   bool ctrl_a_pending = false;
 
-  // Spin loop detector: if RIP stays within a tiny range for too long,
-  // the kernel is stuck (e.g., panic delay_loop alternating 2 addresses).
-  // Disabled in interactive mode where the idle loop is expected.
-  u64 spin_base = 0;
-  u64 spin_count = 0;
-  u64 spin_total = 0;  // cumulative count across re-entries
-  const u64 SPIN_THRESHOLD = interactive ? UINT64_MAX : 500000000;
-
   // Handle SIGTERM/SIGINT gracefully so the VGA dump runs on timeout
   static volatile bool got_signal = false;
   signal(SIGTERM, [](int) { got_signal = true; });
@@ -938,45 +930,11 @@ int main(int argc, char *argv[]) {
 
 
 
-    // Spin loop detection: if RIP stays within 16 bytes for 10M insns, exit.
-    // PIT interrupts briefly leave the range; spin_total accumulates.
-    {
-      u64 rip = model.zRIP;
-      if (rip >= spin_base && rip < spin_base + 16) {
-        spin_count++;
-        spin_total++;
-        if (spin_total >= SPIN_THRESHOLD) {
-          fprintf(stderr, "sail-x86-system: spin loop detected at RIP=0x%lx after %lu insns\n",
-                  rip, insn_count);
-          u64 cs_base = model.zSegCache.data[x86::SEG_CS].zseg_base;
-          u64 linear = cs_base + rip;
-          fprintf(stderr, "  CS.base=0x%lx linear=0x%lx\n", cs_base, linear);
-          fprintf(stderr, "  bytes at linear:");
-          for (int b = 0; b < 16; b++)
-            fprintf(stderr, " %02x", model.phys_mem.read8(linear + b));
-          fprintf(stderr, "\n");
-          fprintf(stderr, "  RAX=0x%lx RCX=0x%lx RDX=0x%lx RBX=0x%lx\n",
-                  (u64)model.zGPR.data[0], (u64)model.zGPR.data[1],
-                  (u64)model.zGPR.data[2], (u64)model.zGPR.data[3]);
-          fprintf(stderr, "  RSI=0x%lx RDI=0x%lx\n",
-                  (u64)model.zGPR.data[6], (u64)model.zGPR.data[7]);
-          model.model_fini();
-          return 1;
-        }
-      } else if (spin_count > 1000 && rip != spin_base) {
-        // Brief excursion (e.g., interrupt handler) — don't reset total
-        spin_count = 0;
-      } else {
-        spin_base = rip;
-        spin_count = 0;
-        spin_total = 0;
-      }
-    }
-
     if (model.zfault_pending) {
       i64 vec = model.zfault_vector;
       u32 err = model.zfault_error_code;
-      fprintf(stderr, "\nsail-x86-system: FATAL fault #%ld (err=0x%x) at RIP=0x%lx after %lu insns\n",
+      curses_cleanup();
+      fprintf(stderr, "sail-x86-system: FATAL fault #%ld (err=0x%x) at RIP=0x%lx after %lu insns\n",
               vec, err, (u64)model.zRIP, insn_count);
       fprintf(stderr, "  RAX=0x%lx RBX=0x%lx RCX=0x%lx RDX=0x%lx\n",
               (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
@@ -1010,6 +968,7 @@ int main(int argc, char *argv[]) {
       if (model.zsystem_mode) {
         // If IF=0, this is a panic halt loop — exit
         if (model.zIF_flag == 0) {
+          curses_cleanup();
           fprintf(stderr, "sail-x86-system: HLT with IF=0 (panic halt) after %lu insns at RIP=0x%lx\n",
                   insn_count, (u64)model.zRIP);
           model.model_fini();
@@ -1075,6 +1034,7 @@ int main(int argc, char *argv[]) {
         insn_count++;
         continue;
       }
+      curses_cleanup();
       fprintf(stderr, "sail-x86-system: HLT after %lu instructions\n", insn_count);
       model.model_fini();
       return 0;
@@ -1167,6 +1127,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  curses_cleanup();
   fprintf(stderr, "sail-x86-system: exited after %lu instructions\n", insn_count);
 
 
