@@ -115,24 +115,29 @@ function load_segment_register(idx, selector) = {
       SegCache[idx].seg_base = zero_extend(selector) << 4
     },
     _ => {
-      // SDM §3.4.4: In all modes (including 64-bit), segment loads read the
-      // GDT/LDT and populate the hidden descriptor cache. For DS/ES/SS in
-      // 64-bit mode, the cached values are ignored during address calculation
-      // (handled by get_seg_base). For FS/GS, the 32-bit base is loaded
-      // (upper bits cleared); WRMSR can then set the full 64-bit base.
-      let ti : bit = selector[2];
-      let index : bits(13) = selector[15..3];
-      let table_base : qword = if ti == 0b1 then {
-        // LDT: TODO — for now treat as GDT
-        GDTR_base
+      // SDM §3.4.2: In 64-bit mode, loading a null selector (index=0, TI=0)
+      // into DS, ES, FS, GS, or SS is permitted without reading the GDT.
+      // The processor stores the null selector and zeroes the descriptor cache.
+      if selector == 0x0000 & (cur_mode == LongMode | cur_mode == CompatibilityMode) then {
+        write_segreg(idx, selector);
+        SegCache[idx] = default_seg_desc_cache()
       } else {
-        GDTR_base
-      };
-      let desc_offset : qword = zero_extend(index @ 0b000);
-      let desc_lo : dword = read_mem(table_base + desc_offset);
-      let desc_hi : dword = read_mem(table_base + desc_offset + 4);
-      write_segreg(idx, selector);
-      SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
+        // SDM §3.4.4: Non-null selector loads read the GDT/LDT
+        // and populate the hidden descriptor cache.
+        let ti : bit = selector[2];
+        let index : bits(13) = selector[15..3];
+        let table_base : qword = if ti == 0b1 then {
+          // LDT: TODO — for now treat as GDT
+          GDTR_base
+        } else {
+          GDTR_base
+        };
+        let desc_offset : qword = zero_extend(index @ 0b000);
+        let desc_lo : dword = read_mem(table_base + desc_offset);
+        let desc_hi : dword = read_mem(table_base + desc_offset + 4);
+        write_segreg(idx, selector);
+        SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
+      }
     },
   }
 }
