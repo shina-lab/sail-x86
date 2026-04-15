@@ -516,6 +516,7 @@ register has_movdir64b : bool
 register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
+register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
 
 // =========================================================================
 // XCR0 / feature check helpers
@@ -659,7 +660,6 @@ register smbase : dword = 0x00030000
 // in_vmx_non_root: true when in VMX non-root operation (guest)
 // vmcs_ptr:        physical address of the current VMCS (None if no current VMCS)
 // vmxon_region_pa: physical address of the VMXON region
-// has_vmx:         CPUID feature flag for VMX support
 // vmcs:            cached VMCS data (serialized to memory by VMCLEAR)
 // =========================================================================
 
@@ -667,7 +667,6 @@ register in_vmx_root     : bool = false
 register in_vmx_non_root : bool = false
 register vmcs_ptr        : option(qword) = None()
 register vmxon_region_pa : qword = zeros()
-register has_vmx         : bool = false
 register vmcs            : VMCS_data = default_vmcs()
 
 // IA32_FEATURE_CONTROL MSR (0x3A)

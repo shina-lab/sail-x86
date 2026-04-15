@@ -245,7 +245,7 @@ function exec_vmptrst(addr) = {
 // =========================================================================
 
 val exec_vmread : (Prefixes, RM, gpr_idx) -> unit
-function exec_vmread(pfx, dest, src_reg) = {
+function exec_vmread(_, dest, src_reg) = {
   vmx_check_preconditions();
 
   // Must have a current VMCS
@@ -277,7 +277,7 @@ function exec_vmread(pfx, dest, src_reg) = {
 // =========================================================================
 
 val exec_vmwrite : (Prefixes, RM, gpr_idx) -> unit
-function exec_vmwrite(pfx, src, reg) = {
+function exec_vmwrite(_, src, reg) = {
   vmx_check_preconditions();
 
   // Must have a current VMCS
