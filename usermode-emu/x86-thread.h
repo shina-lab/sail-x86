@@ -8,9 +8,13 @@
 #include <unordered_map>
 #include <vector>
 
+struct ProcessState;
+
 // Per-thread information stored in the shared process state.
 struct ThreadInfo {
   x86::Model *model;
+  ProcessState *process = nullptr;
+  u64 clear_child_tid = 0;
   pthread_t pthread;
   pid_t tid;
   std::atomic<bool> alive{true};

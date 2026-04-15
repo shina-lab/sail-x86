@@ -1,5 +1,6 @@
 #include "x86-thread.h"
 #include "x86-syscall.h"
+#include <cassert>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -8,6 +9,11 @@
 #include <unistd.h>
 
 std::mutex sail_step_mutex;
+
+template <typename T, size_t N>
+static constexpr size_t array_len(const T (&)[N]) {
+  return N;
+}
 
 // =========================================================================
 // Futex support
@@ -54,14 +60,14 @@ void clone_cpu_state(x86::Model &child, const x86::Model &parent) {
           (u64)parent.zRIP, (u64)parent.zGPR.data[4]);
 
   // GPRs
-  for (size_t i = 0; i < parent.zGPR.len; i++)
+  for (size_t i = 0; i < array_len(parent.zGPR.data); i++)
     child.zGPR.data[i] = parent.zGPR.data[i];
 
   child.zRIP = parent.zRIP;
   fprintf(stderr, "clone_cpu_state: child RIP=0x%lx after copy\n", (u64)child.zRIP);
 
   // Segment registers
-  for (size_t i = 0; i < parent.zSegReg.len; i++)
+  for (size_t i = 0; i < array_len(parent.zSegReg.data); i++)
     child.zSegReg.data[i] = parent.zSegReg.data[i];
 
   // Flags
@@ -114,20 +120,14 @@ void clone_cpu_state(x86::Model &child, const x86::Model &parent) {
   child.zx87_tw = parent.zx87_tw;
 
   // KREG (mask registers)
-  for (size_t i = 0; i < parent.zKREG.len; i++)
+  for (size_t i = 0; i < array_len(parent.zKREG.data); i++)
     child.zKREG.data[i] = parent.zKREG.data[i];
 
-  // ZMM registers (lbits — need mpz copy)
-  for (size_t i = 0; i < parent.zZMM.len; i++) {
-    child.zZMM.data[i].len = parent.zZMM.data[i].len;
-    mpz_set(*child.zZMM.data[i].bits, *parent.zZMM.data[i].bits);
-  }
+  for (size_t i = 0; i < array_len(parent.zZMM.data); i++)
+    COPY(lbits)(&child.zZMM.data[i], parent.zZMM.data[i]);
 
-  // x87 FP stack (lbits)
-  for (size_t i = 0; i < parent.zx87_ST.len; i++) {
-    child.zx87_ST.data[i].len = parent.zx87_ST.data[i].len;
-    mpz_set(*child.zx87_ST.data[i].bits, *parent.zx87_ST.data[i].bits);
-  }
+  for (size_t i = 0; i < array_len(parent.zx87_ST.data); i++)
+    COPY(lbits)(&child.zx87_ST.data[i], parent.zx87_ST.data[i]);
 }
 
 // =========================================================================
@@ -137,13 +137,15 @@ void clone_cpu_state(x86::Model &child, const x86::Model &parent) {
 void *thread_entry(void *arg) {
   ThreadInfo *info = static_cast<ThreadInfo *>(arg);
   x86::Model &model = *info->model;
-  ProcessState *process = model.process;
+  ProcessState *process = info->process;
+  assert(process);
   u64 insn_count = 0;
 
   fprintf(stderr, "thread_entry: RIP=0x%lx RSP=0x%lx RAX=0x%lx\n",
           (u64)model.zRIP, (u64)model.zGPR.data[4], (u64)model.zGPR.data[0]);
 
-  while (!model.should_exit && !process->exiting.load(std::memory_order_relaxed)) {
+  while (!model.should_exit &&
+         !process->exiting.load(std::memory_order_relaxed)) {
     {
       std::lock_guard<std::mutex> lock(sail_step_mutex);
       model.zstep(UNIT);
@@ -166,9 +168,9 @@ void *thread_entry(void *arg) {
   }
 
   // Handle CLONE_CHILD_CLEARTID: write 0 to clear_child_tid and futex_wake it.
-  if (model.clear_child_tid != 0) {
-    *reinterpret_cast<u32 *>(model.clear_child_tid) = 0;
-    process->futex_wake(model.clear_child_tid, 1);
+  if (info->clear_child_tid != 0) {
+    *reinterpret_cast<u32 *>(info->clear_child_tid) = 0;
+    process->futex_wake(info->clear_child_tid, 1);
   }
 
   info->alive.store(false);
