@@ -76,10 +76,10 @@ add_custom_target(linux
 )
 
 # =========================================================================
-# "make freedos" — download + build SeaBIOS, create FreeDOS disk image.
+# "make dos" — download + build SeaBIOS, create FreeDOS disk image.
 # =========================================================================
 
-add_custom_target(freedos
+add_custom_target(dos
     DEPENDS sail-x86-system
     COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/mk-freedos.sh" .
     COMMENT "Building SeaBIOS + FreeDOS disk image"
