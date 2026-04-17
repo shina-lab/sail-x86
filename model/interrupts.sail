@@ -43,9 +43,11 @@ function read_idt_gate(vec) = {
   let vec_offset : qword = to_bits(64, vec * 16);
   let base : qword = IDTR_base + vec_offset;
   // IDT reads go through virtual address translation because the kernel
-  // stores IDTR_base as a virtual address.
-  let lo : qword = read_mem(base);
-  let hi : qword = read_mem(base + 8);
+  // stores IDTR_base as a virtual address.  These are implicit supervisor
+  // accesses (SDM Vol.3A §4.6) — they bypass U/S even though the CPU
+  // may still be at CPL=3 for the first moment of fault delivery.
+  let lo : qword = read_mem_implicit(base);
+  let hi : qword = read_mem_implicit(base + 8);
 
   // Offset = hi[31:0] @ lo[63:48] @ lo[15:0]
   let offset_lo  : word  = lo[15..0];
@@ -79,20 +81,21 @@ function read_idt_gate(vec) = {
 }
 
 // Read RSP0 from the TSS (for privilege-level changes).
+// Implicit supervisor access (SDM Vol.3A §4.6): bypasses U/S regardless of CPL.
 val read_tss_rsp0 : unit -> qword
 function read_tss_rsp0() = {
   // RSP0 is at offset 4 in the 64-bit TSS.
   // TR_base is a linear (virtual) address set by LTR.
-  read_mem(TR_base + 4)
+  read_mem_implicit(TR_base + 4)
 }
 
-// Read IST entry from the TSS.
+// Read IST entry from the TSS.  Same implicit-access rule as RSP0.
 val read_tss_ist : range(0, 7) -> qword
 function read_tss_ist(ist_idx) = {
   // IST1 is at offset 36 (0x24) in the 64-bit TSS, each entry is 8 bytes.
   // TR_base is a linear (virtual) address.
   let offset : qword = to_bits(64, 36 + (ist_idx - 1) * 8);
-  read_mem(TR_base + offset)
+  read_mem_implicit(TR_base + offset)
 }
 
 // Check if an exception vector has an error code.
@@ -122,8 +125,8 @@ val read_idt_gate_32 : exception_vector -> IDTGate
 function read_idt_gate_32(vec) = {
   let vec_offset : qword = to_bits(64, vec * 8);
   let base : qword = IDTR_base + vec_offset;
-  let lo : dword = read_mem(base);
-  let hi : dword = read_mem(base + 4);
+  let lo : dword = read_mem_implicit(base);
+  let hi : dword = read_mem_implicit(base + 4);
 
   // Offset = hi[31:16] @ lo[15:0]
   let offset : dword = hi[31..16] @ lo[15..0];
@@ -146,8 +149,8 @@ function read_idt_gate_32(vec) = {
 // ESP0 is at offset 4, SS0 is at offset 8 (low 16 bits).
 val read_tss_esp0_32 : unit -> (dword, word)
 function read_tss_esp0_32() = {
-  let esp0 : dword = read_mem(TR_base + 4);
-  let ss0  : word  = read_mem(TR_base + 8);
+  let esp0 : dword = read_mem_implicit(TR_base + 4);
+  let ss0  : word  = read_mem_implicit(TR_base + 8);
   (esp0, ss0)
 }
 

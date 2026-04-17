@@ -30,7 +30,12 @@ type ymmword = bits(256)
 type zmmword = bits(512)
 
 // Access type for page table permission checks.
-enum PTAccess = { PT_Read, PT_Write, PT_Execute }
+// PT_Implicit models the "implicit supervisor" accesses the CPU makes
+// when reading descriptor tables (GDT/LDT/IDT/TSS) — per SDM Vol.3A §4.6
+// these bypass the U/S page-protection check regardless of the current
+// CPL, so a CPL=3 `MOV GS, sel` can load a descriptor out of a kernel-
+// mapped GDT without faulting.
+enum PTAccess = { PT_Read, PT_Write, PT_Execute, PT_Implicit }
 
 // Index into the 16 general-purpose registers (0..15).
 type gpr_idx = range(0, 15)

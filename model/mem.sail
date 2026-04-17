@@ -16,6 +16,7 @@
 // Size parameter 'n is in bits.
 val read_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, PTAccess) -> bits('n)
 val read_mem_data : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
+val read_mem_implicit : forall 'n, 'n > 0. (implicit('n), qword) -> bits('n)
 val write_mem_linear : forall 'n, 'n > 0. (implicit('n), qword, bits('n)) -> unit
 val read_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits('n)
 val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
@@ -39,6 +40,13 @@ function read_mem_linear(n, addr, access) = {
 
 // Data-read wrapper: read_mem_linear with PT_Read access.
 function read_mem_data(n, addr) = read_mem_linear(addr, PT_Read)
+
+// Implicit-read wrapper for descriptor-table accesses (GDT/LDT/IDT/TSS).
+// SDM Vol.3A §4.6: these reads the CPU itself performs always execute
+// at supervisor regardless of the current CPL and bypass the U/S page
+// check, so user-mode instructions (e.g. `MOV GS, sel` at CPL=3) can
+// load a descriptor out of a kernel-mapped GDT without a #PF.
+function read_mem_implicit(n, addr) = read_mem_linear(addr, PT_Implicit)
 
 // Write 'n bits to memory at the given virtual address.
 // Same page-crossing logic as mem_read.
@@ -129,8 +137,11 @@ function load_segment_register(idx, selector) = {
         GDTR_base
       };
       let desc_offset : qword = zero_extend(index @ 0b000);
-      let desc_lo : dword = read_mem(table_base + desc_offset);
-      let desc_hi : dword = read_mem(table_base + desc_offset + 4);
+      // Implicit supervisor access: the CPU's own GDT/LDT reads bypass
+      // U/S so a CPL=3 `MOV GS, sel` can load a descriptor out of a
+      // kernel-mapped GDT.
+      let desc_lo : dword = read_mem_implicit(table_base + desc_offset);
+      let desc_hi : dword = read_mem_implicit(table_base + desc_offset + 4);
       write_segreg(idx, selector);
       SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
     },
@@ -170,13 +181,27 @@ function check_seg_limit(seg, offset, access_size) = {
 // Translate a logical (segment, offset) pair to a linear address,
 // performing segment limit checking with the given access size.
 // Also applies the RIP-relative fixup if pending.
+//
+// Linear address width (SDM Vol.1 §3.3.3):
+//   Long mode:        64-bit canonical linear addresses.
+//   Compatibility:    32-bit linear address space — (seg_base + offset)
+//                     is computed mod 2^32.  This matters for FS/GS
+//                     accesses with negative 32-bit displacements:
+//                     glibc's 32-bit TLS code reads %gs:-44 expecting
+//                     the 32-bit wrap (GS.base + 0xFFFFFFD4 =
+//                     GS.base-44 mod 2^32).  Without the truncation the
+//                     64-bit sum overflows past 4GB into unmapped
+//                     territory and every TLS load #PFs.
+//   Real/protected:   32-bit linear — same truncation.
 val seg_linear : (MemRef, int) -> qword
 function seg_linear(m, access_size) = {
   // Apply RIP-relative fixup if pending (only in LongMode, where
   // mod=00 rm=101 means [RIP+disp32])
   let offset = if rip_rel_pending then decode_pos + rip_rel_disp else m.addr;
   check_seg_limit(m.seg, offset, access_size);
-  offset + get_seg_base(m.seg)
+  let linear : qword = offset + get_seg_base(m.seg);
+  if cur_mode == LongMode then linear
+  else zero_extend(linear[31..0])
 }
 
 // Segmented memory read/write via MemRef (n is in bits; seg_linear takes bytes).
@@ -223,8 +248,10 @@ function read_descriptor(selector) = {
   if unsigned(desc_offset) + 7 > unsigned(table_limit) then {
     throw Fault(EXN_GP, zero_extend(selector))
   };
-  let desc_lo : dword = read_mem(table_base + desc_offset);
-  let desc_hi : dword = read_mem(table_base + desc_offset + 4);
+  // Implicit supervisor access (SDM Vol.3A §4.6): descriptor-table reads
+  // bypass U/S regardless of CPL.
+  let desc_lo : dword = read_mem_implicit(table_base + desc_offset);
+  let desc_hi : dword = read_mem_implicit(table_base + desc_offset + 4);
   parse_seg_descriptor(desc_lo, desc_hi)
 }
 

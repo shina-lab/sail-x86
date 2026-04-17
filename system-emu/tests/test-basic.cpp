@@ -1315,6 +1315,308 @@ TEST(protected_mode_iret_same_privilege) {
   model.model_fini();
 }
 
+TEST(ia32e_iretq_to_compat_loads_ss_descriptor) {
+  // Regression: IRETQ (64-bit IRET) from a long-mode kernel back to a
+  // 32-bit compatibility-mode user process must reload the *hidden*
+  // part of SS (the descriptor cache) from the GDT, not just the
+  // visible SS selector. The D/B bit that lives in the descriptor
+  // cache drives stack_addr_size(), which is how POP/PUSH decide
+  // whether to use ESP (32-bit) or SP (16-bit).
+  //
+  // If IRETQ only writes the selector (the bug), SegCache[SS].seg_db
+  // retains whatever stale value it had beforehand. The symptom shown
+  // by `/bin/hello32` on the Linux boot is: the first `pop %esi` in
+  // _start faults at (ESP & 0xFFFF) because stack_addr_size() returns
+  // 16 instead of 32.
+  x86::Model model;
+  init_model(model);  // long mode, CPL 0, RSP = 0x80000
+
+  // Build a GDT at 0x200000:
+  //   selector 0x08 — long-mode kernel code (L=1), for completeness
+  //   selector 0x20|3 = 0x23 — compat-mode user CS (L=0, D=1, DPL=3)
+  //   selector 0x28|3 = 0x2B — 32-bit user SS (D/B=1, DPL=3)
+  u64 gdt_base = 0x200000;
+  model.phys_mem.write32(gdt_base, 0);
+  model.phys_mem.write32(gdt_base + 4, 0);
+  {
+    // Kernel 64-bit code at index 1 (selector 0x08).
+    u32 lo = 0xFFFF | (0u << 16);
+    u32 hi = 0u
+           | (0xBu << 8)    // type = exec/read code, accessed
+           | (1u << 12)     // S = code/data
+           | (0u << 13)     // DPL 0
+           | (1u << 15)     // P
+           | (0xFu << 16)   // limit[19:16]
+           | (1u << 21)     // L = 1 (64-bit)
+           | (1u << 23);    // G
+    model.phys_mem.write32(gdt_base + 8, lo);
+    model.phys_mem.write32(gdt_base + 12, hi);
+  }
+  // Compat-mode user CS at index 4 (selector 0x20), DPL 3, D/B=1.
+  write_gdt_code_desc(model, gdt_base, 4, 0, 0xFFFFF, 3, /*db=*/true, /*g=*/true);
+  // 32-bit user SS at index 5 (selector 0x28), DPL 3, D/B=1.
+  write_gdt_data_desc(model, gdt_base, 5, 0, 0xFFFFF, 3, /*db=*/true, /*g=*/true);
+  model.zGDTR_base = gdt_base;
+  model.zGDTR_limit = 0x2F;  // 6 entries * 8 - 1
+
+  // Deliberately stale SS.B = 0 in the hidden descriptor cache. In
+  // the buggy model this value survives IRETQ; the fix must overwrite
+  // it from the GDT descriptor above (where D/B=1).
+  model.zSegCache.data[x86::SEG_SS].zseg_db = 0;
+
+  // Lay down the IRETQ frame at current RSP: [RIP][CS][RFLAGS][RSP][SS],
+  // 8 bytes each.
+  u64 rsp = model.zGPR.data[4];
+  u64 target_rip = 0x100010;
+  u64 target_rsp = 0x100000;
+  model.phys_mem.write64(rsp + 0x00, target_rip);   // new RIP
+  model.phys_mem.write64(rsp + 0x08, 0x23);         // new CS (sel 0x20, RPL 3)
+  model.phys_mem.write64(rsp + 0x10, 0x00000202);   // new RFLAGS (IF=1, reserved=1)
+  model.phys_mem.write64(rsp + 0x18, target_rsp);   // new RSP
+  model.phys_mem.write64(rsp + 0x20, 0x2B);         // new SS (sel 0x28, RPL 3)
+
+  // Code: IRETQ (REX.W CF = 48 CF).
+  u8 code[] = { 0x48, 0xCF };
+  model.phys_mem.write_bytes(0x100100, code, sizeof(code));
+  model.zRIP = 0x100100;
+
+  // One step executes the IRETQ. We don't care what the target RIP
+  // would run next — only that IRETQ itself reloads SS.DescriptorCache.
+  model.zstep(UNIT);
+
+  // SS descriptor cache must now reflect the GDT entry we built:
+  // D/B = 1, DPL = 3, P = 1.
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_db, 1UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_dpl, 3UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_present, 1UL);
+  // And the mode switch + CPL drop should have happened.
+  ASSERT_EQ((u64)model.zcur_mode, (u64)x86::zCompatibilityMode);
+  ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+
+  model.model_fini();
+}
+
+TEST(ia32e_sysenter_switches_to_long_mode) {
+  // Regression: SYSENTER from compat-mode user into an IA-32e kernel must
+  // switch to 64-bit mode — it loads fixed CS/SS descriptor-cache values
+  // (CS.L=1, CS.D=0, SS.B=1, base=0, limit=4GB) and sets CPL=0, per SDM
+  // Vol.2 SYSENTER pseudocode.
+  //
+  // The buggy handler only wrote the *visible* CS/SS selectors and set
+  // CPL=0, leaving cur_mode at CompatibilityMode and the hidden
+  // descriptor cache still reflecting the user-compat CS/SS. The first
+  // PUSH in the kernel entry stub (e.g. Linux's entry_SYSENTER_compat
+  // "swapgs; push %rax") then ran with stack_addr_size() returning 32
+  // instead of 64, truncating RSP to the low 32 bits and faulting
+  // outside the kernel stack.
+  x86::Model model;
+  init_model(model);  // long mode, CPL 0 — used to stage MSRs only
+
+  // Program the SYSENTER MSRs using WRMSR:
+  //   IA32_SYSENTER_CS  (0x174) = 0x00000010  (kernel code selector)
+  //   IA32_SYSENTER_ESP (0x175) = 0x00200000  (kernel stack pointer)
+  //   IA32_SYSENTER_EIP (0x176) = 0xffffffff81000100 (kernel entry)
+  auto do_wrmsr = [&](u32 msr, u64 val) {
+    // mov ecx, msr ; mov eax, val[31:0] ; mov edx, val[63:32] ; wrmsr ; hlt
+    u8 code[] = {
+      0xB9, (u8)msr, (u8)(msr>>8), (u8)(msr>>16), (u8)(msr>>24),
+      0xB8, (u8)val, (u8)(val>>8), (u8)(val>>16), (u8)(val>>24),
+      0xBA, (u8)(val>>32), (u8)(val>>40), (u8)(val>>48), (u8)(val>>56),
+      0x0F, 0x30,
+      0xF4,
+    };
+    int kind = run_code(model, 0x100000, code, sizeof(code));
+    ASSERT_EQ(kind, RUN_HALTED);
+    // Reset SysRunning so we can run more code below.
+    model.zsystem_state = x86::zSysRunning;
+  };
+  do_wrmsr(0x174, 0x0000000000000010);
+  do_wrmsr(0x175, 0x0000000000200000);
+  do_wrmsr(0x176, 0xffffffff81000100);
+
+  // Transition to compat-mode user: CPL=3, CS.L=0, CS.D=1, SS.B=1.
+  // Place the SYSENTER instruction at a low user-space address.
+  u64 user_rip = 0x00200000;
+  u8 sysenter[] = { 0x0F, 0x34 };
+  model.phys_mem.write_bytes(user_rip, sysenter, sizeof(sysenter));
+
+  // Mark every 2MB PD entry user-accessible (U/S=1, bit 2 = 0x04) so
+  // CPL=3 can fetch from the identity-mapped region.
+  for (u64 j = 0; j < 512; j++) {
+    u64 pte = model.phys_mem.read64(0x3000 + j * 8);
+    if (pte != 0)
+      model.phys_mem.write64(0x3000 + j * 8, pte | 0x04);
+  }
+
+  model.zRIP = user_rip;
+  model.zcur_mode = x86::zCompatibilityMode;
+  model.zcur_cpl = 3;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+  model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+  model.zSegCache.data[x86::SEG_CS].zseg_dpl = 3;
+  model.zSegCache.data[x86::SEG_SS].zseg_db = 1;
+  model.zSegCache.data[x86::SEG_SS].zseg_dpl = 3;
+  // Give the user a distinct RSP so we can see it get replaced.
+  model.zGPR.data[4] = 0x00010000;
+  model.zsystem_state = x86::zSysRunning;
+
+  // Execute SYSENTER.
+  model.zstep(UNIT);
+
+  // Kernel-entry state per SDM:
+  //   CPL = 0, 64-bit mode (cur_mode = LongMode)
+  //   CS: base=0, limit=4GB, type=exec/read code, S=1, DPL=0, P=1,
+  //       L=1, D=0, G=1
+  //   SS: base=0, limit=4GB, type=R/W data, S=1, DPL=0, P=1, B=1, G=1
+  //   RIP = IA32_SYSENTER_EIP, RSP = IA32_SYSENTER_ESP, IF=0
+  ASSERT_EQ((u64)model.zcur_cpl, 0UL);
+  ASSERT_EQ((u64)model.zcur_mode, (u64)x86::zLongMode);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_l, 1UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_db, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_dpl, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_present, 1UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_db, 1UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_dpl, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_present, 1UL);
+  ASSERT_EQ((u64)model.zRIP, 0xffffffff81000100UL);
+  ASSERT_EQ((u64)model.zGPR.data[4], 0x00200000UL);
+
+  model.model_fini();
+}
+
+TEST(mov_gs_at_cpl3_uses_implicit_access) {
+  // Regression: `MOV GS, sel` from CPL=3 performs an *implicit* supervisor
+  // read of the GDT (SDM Vol.3A §4.6).  The U/S page-protection check
+  // must be bypassed even though cur_cpl=3, so a user-mode segment load
+  // can read a GDT entry out of a kernel-mapped (U/S=0) page.
+  //
+  // Without this, glibc's first TLS load after `mov $sel,%gs` in a
+  // 32-bit compat-mode process spins on #PF because the preceding
+  // MOV GS silently failed to update SegCache[GS].seg_base.
+  x86::Model model;
+  init_model(model);  // long mode, CPL 0, flat mapping with PD at 0x3000
+
+  // Clear the U/S bit on every 2MB PD entry so the whole address space
+  // is supervisor-only.  Under the buggy model this blocks MOV GS at
+  // CPL=3; with the implicit-access fix the GDT read still succeeds.
+  for (u64 j = 0; j < 512; j++) {
+    u64 pte = model.phys_mem.read64(0x3000 + j * 8);
+    if (pte != 0)
+      model.phys_mem.write64(0x3000 + j * 8, pte & ~0x04ULL);
+  }
+  // But leave the code page (2MB page containing 0x100000 and GDT at
+  // 0x200000) readable to CPL=3 for the *fetch* itself — fetch is a
+  // normal explicit read and must still go through U/S.  We use two
+  // pages: let 0x100000 (user code) and 0x200000 (GDT-containing page)
+  // stay supervisor-only for the GDT read, but set U=1 on the page
+  // containing the user-code fetch so the instruction can be decoded.
+  // Page 0 (0x000000-0x200000) contains both 0x100000 (code) so set U=1.
+  {
+    u64 pte = model.phys_mem.read64(0x3000 + 0);
+    model.phys_mem.write64(0x3000 + 0, pte | 0x04);
+  }
+  // Page 1 (0x200000-0x400000) contains the GDT at 0x200000 — leave U=0
+  // so the test proves the implicit-access bypass is what lets it load.
+
+  // Build a GDT at 0x200000: index 4 = 32-bit data seg (base=0, limit=4GB,
+  // DPL=3, D/B=1). Selector = 4*8 | RPL=3 = 0x23.
+  u64 gdt_base = 0x200000;
+  model.phys_mem.write64(gdt_base, 0);  // null
+  write_gdt_data_desc(model, gdt_base, 4, /*base=*/0, /*limit=*/0xFFFFF,
+                      /*dpl=*/3, /*db=*/true, /*g=*/true);
+  model.zGDTR_base = gdt_base;
+  model.zGDTR_limit = 0x27;
+
+  // Stage user state: CPL=3, compat mode, GS initially stale.
+  // MOV GS, AX encoding: 8E E8 (reg=5=GS, rm=0=EAX).
+  u64 user_rip = 0x00100000;
+  u8 code[] = { 0x8E, 0xE8, 0xF4 /* HLT */ };
+  model.phys_mem.write_bytes(user_rip, code, sizeof(code));
+
+  model.zRIP = user_rip;
+  model.zGPR.data[0] = 0x23;  // AX = user data selector
+  model.zcur_mode = x86::zCompatibilityMode;
+  model.zcur_cpl = 3;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+  model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+  model.zSegCache.data[x86::SEG_CS].zseg_dpl = 3;
+  // Stale GS state — pre-MOV; must get overwritten by the implicit GDT read.
+  model.zSegCache.data[x86::SEG_GS].zseg_base = 0xdeadbeef;
+  model.zSegCache.data[x86::SEG_GS].zseg_dpl = 0;
+  model.zsystem_state = x86::zSysRunning;
+
+  // Execute MOV GS, AX — must not fault even though the GDT page has U/S=0.
+  model.zstep(UNIT);
+  // Confirm the instruction advanced and populated the descriptor cache.
+  ASSERT_EQ((u64)model.zRIP, (u64)(user_rip + 2));
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_GS].zseg_base, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_GS].zseg_db, 1UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_GS].zseg_dpl, 3UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_GS].zseg_present, 1UL);
+
+  model.model_fini();
+}
+
+TEST(compat_seg_linear_wraps_at_32bit) {
+  // Regression: in compatibility mode the linear address space is 32 bits
+  // (SDM Vol.1 §3.3.3), so segment_base + effective_address must be
+  // computed mod 2^32.  This matters for glibc's 32-bit TLS accesses
+  // pattern `mov %gs:-44, %eax` — encoded as EDX=0xFFFFFFD4 with
+  // GS.base = TCB address.  With 64-bit arithmetic (no truncation) the
+  // linear address overflows past 4GB and every TLS read #PFs.
+  //
+  // The test simulates GS.base = 0x00200000 and EDX = 0xFFFFFFD4
+  // (-44 as int32).  The target linear address must be 0x001FFFD4 —
+  // which the test maps and seeds with a sentinel — not 0x1001FFFD4.
+  x86::Model model;
+  init_model(model);  // long mode, CPL 0, CR3 points to 4KB-page PD
+
+  // Make pages user-accessible so CPL=3 can read them.
+  for (u64 j = 0; j < 512; j++) {
+    u64 pte = model.phys_mem.read64(0x3000 + j * 8);
+    if (pte != 0)
+      model.phys_mem.write64(0x3000 + j * 8, pte | 0x04);
+  }
+
+  // Seed the expected wrap target with a sentinel value.  EDX = -44,
+  // GS.base = 0x00200000 → wrapped linear = 0x001FFFD4.
+  u64 wrap_target = 0x001FFFD4ULL;
+  u32 sentinel = 0xCAFEBABE;
+  model.phys_mem.write32(wrap_target, sentinel);
+
+  // User code: MOV %gs:(%edx), %eax (encoding 65 8B 02) then HLT.
+  u64 user_rip = 0x00100000;
+  u8 code[] = { 0x65, 0x8B, 0x02, 0xF4 };
+  model.phys_mem.write_bytes(user_rip, code, sizeof(code));
+
+  model.zRIP = user_rip;
+  model.zGPR.data[2] = 0xFFFFFFD4ULL;  // EDX = -44 (low 32)
+  model.zGPR.data[0] = 0;              // EAX = 0 (will receive sentinel)
+  model.zcur_mode = x86::zCompatibilityMode;
+  model.zcur_cpl = 3;
+  model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+  model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+  model.zSegCache.data[x86::SEG_CS].zseg_dpl = 3;
+  model.zSegCache.data[x86::SEG_GS].zseg_base = 0x00200000ULL;
+  model.zSegCache.data[x86::SEG_GS].zseg_limit = 0xFFFFFFFF;
+  model.zSegCache.data[x86::SEG_GS].zseg_db = 1;
+  model.zSegCache.data[x86::SEG_GS].zseg_dpl = 3;
+  model.zSegCache.data[x86::SEG_GS].zseg_present = 1;
+  model.zsystem_state = x86::zSysRunning;
+
+  // Run the MOV.  Under the buggy 64-bit-arithmetic model this #PFs
+  // on the 0x1001FFFD4 access (unmapped, beyond 4GB); under the fix
+  // it reads the sentinel from the 32-bit-wrapped address 0x001FFFD4.
+  model.zstep(UNIT);
+
+  ASSERT_EQ((u64)(u32)model.zGPR.data[0], (u64)sentinel);
+  // RIP should have advanced past the 3-byte MOV.
+  ASSERT_EQ((u64)model.zRIP, (u64)(user_rip + 3));
+
+  model.model_fini();
+}
+
 // =========================================================================
 // PUSHA/POPA tests
 // =========================================================================
@@ -1667,6 +1969,10 @@ int main() {
   run_test_real_mode_iret_no_pop_sp_ss();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
+  run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
+  run_test_ia32e_sysenter_switches_to_long_mode();
+  run_test_mov_gs_at_cpl3_uses_implicit_access();
+  run_test_compat_seg_linear_wraps_at_32bit();
 
   printf("\nPUSHA/POPA tests:\n");
   run_test_pushad_popad_32bit();

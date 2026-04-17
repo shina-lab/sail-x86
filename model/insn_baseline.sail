@@ -404,17 +404,17 @@ function dispatch_2byte_gpr(op, pfx) = {
           let src = modrm_rm(modrm, pfx);
           let sel : word = v(src);
           TR = sel;
-          // Load TSS base/limit from GDT descriptor
+          // Load TSS base/limit from GDT descriptor (implicit supervisor read).
           let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
-          let desc_lo : dword = read_mem(desc_addr);
-          let desc_hi : dword = read_mem(desc_addr + 4);
+          let desc_lo : dword = read_mem_implicit(desc_addr);
+          let desc_hi : dword = read_mem_implicit(desc_addr + 4);
           // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
           let base_lo : dword = desc_lo[31..16] @ 0x0000;
           let base_mid : byte = desc_hi[7..0];
           let base_hi : byte = desc_hi[31..24];
           TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
           // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
-          let desc_ext : dword = read_mem(desc_addr + 8);
+          let desc_ext : dword = read_mem_implicit(desc_addr + 8);
           TR_base = zero_extend(desc_ext) @ TR_base[31..0];
           // Limit = desc[51:48] @ desc[15:0] (with granularity)
           let limit_lo : word = desc_lo[15..0];
@@ -436,7 +436,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               // Readable: data segments always readable; code readable if R bit set
@@ -463,7 +463,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               let is_code : bit = desc_hi[11];
@@ -716,7 +716,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
           ZF = 0b0
         } else {
-          let desc_hi : dword = read_mem(desc_addr + 4);
+          let desc_hi : dword = read_mem_implicit(desc_addr + 4);
           if ~(lar_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = 0b0
           } else {
@@ -742,8 +742,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
           ZF = 0b0
         } else {
-          let desc_lo : dword = read_mem(desc_addr);
-          let desc_hi : dword = read_mem(desc_addr + 4);
+          let desc_lo : dword = read_mem_implicit(desc_addr);
+          let desc_hi : dword = read_mem_implicit(desc_addr + 4);
           if ~(lsl_type_valid_64(desc_hi)) | ~(desc_privilege_ok(desc_hi, selector)) then {
             ZF = 0b0
           } else {
@@ -782,9 +782,42 @@ function dispatch_2byte_gpr(op, pfx) = {
         write_rflags(new_rflags);
 
         // CS = STAR[47:32] & 0xFFFC, SS = STAR[47:32] + 8
+        // SDM Vol.2 SYSCALL pseudocode: SYSCALL unconditionally transitions
+        // to 64-bit mode and sets CS/SS descriptor-cache fields to specific
+        // fixed values (the selector is taken from IA32_STAR but the hidden
+        // part is NOT read from the GDT). In particular CS.L=1, CS.D=0 and
+        // SS.B=1 — this is what gets the kernel a real 64-bit stack.
+        // Without this, a 32-bit compat-mode SYSCALL enters the kernel with
+        // stale SegCache values and stack_addr_size() returns 32, so the
+        // very first PUSH on the kernel stack truncates RSP to 32 bits.
         let syscall_cs : word = star[47..32] & 0xFFFC;
         write_segreg(CS, syscall_cs);
+        SegCache[CS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0xB,   // exec/read/accessed
+          seg_s       = 0b1,   // code/data
+          seg_dpl     = 0,
+          seg_present = 0b1,
+          seg_db      = 0b0,   // D = 0
+          seg_l       = 0b1,   // L = 1 (64-bit)
+          seg_g       = 0b1,   // 4KB granularity
+        };
         write_segreg(SS, syscall_cs + 0x0008);
+        SegCache[SS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0x3,   // R/W data/accessed
+          seg_s       = 0b1,
+          seg_dpl     = 0,
+          seg_present = 0b1,
+          seg_db      = 0b1,   // B = 1 (32-bit stack — CPL 0 uses RSP anyway)
+          seg_l       = 0b0,
+          seg_g       = 0b1,
+        };
+
+        // Transition to 64-bit long mode.
+        cur_mode = LongMode;
 
         // CPL = 0
         cur_cpl = 0;
@@ -817,23 +850,40 @@ function dispatch_2byte_gpr(op, pfx) = {
       //   CS.Sel = STAR[63:48] + 16, SS.Sel = STAR[63:48] + 8
       // SYSRET without REX.W (32-bit compat):
       //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
+      // Both forms set the *entire* CS/SS descriptor cache to fixed values
+      // per SDM pseudocode — base=0, limit=4GB, DPL=3, P=1, G=1, etc.
       let star : qword = __rdmsr(0xC0000081);
       let sysret_base : bits(16) = star[63..48];
       write_segreg(CS, if pfx.rex_w then sysret_base + 0x0010 else sysret_base);
-      write_segreg(SS, sysret_base + 0x0008);  // + 8
+      SegCache[CS] = struct {
+        seg_base    = 0x0000000000000000,
+        seg_limit   = 0xFFFFFFFF,
+        seg_type    = 0xB,   // exec/read/accessed
+        seg_s       = 0b1,
+        seg_dpl     = 3,
+        seg_present = 0b1,
+        seg_db      = if pfx.rex_w then 0b0 else 0b1,
+        seg_l       = if pfx.rex_w then 0b1 else 0b0,
+        seg_g       = 0b1,
+      };
+      write_segreg(SS, sysret_base + 0x0008);
+      SegCache[SS] = struct {
+        seg_base    = 0x0000000000000000,
+        seg_limit   = 0xFFFFFFFF,
+        seg_type    = 0x3,   // R/W data/accessed
+        seg_s       = 0b1,
+        seg_dpl     = 3,
+        seg_present = 0b1,
+        seg_db      = 0b1,
+        seg_l       = 0b0,
+        seg_g       = 0b1,
+      };
 
       // Return to ring 3
       cur_cpl = 3;
       // REX.W -> 64-bit mode; without REX.W -> 32-bit compat mode
-      if pfx.rex_w then {
-        cur_mode = LongMode;
-        SegCache[CS].seg_l = 0b1;
-        SegCache[CS].seg_db = 0b0
-      } else {
-        cur_mode = CompatibilityMode;
-        SegCache[CS].seg_l = 0b0;
-        SegCache[CS].seg_db = 0b1
-      };
+      if pfx.rex_w then cur_mode = LongMode
+      else cur_mode = CompatibilityMode;
       next_rip = Some(new_rip)
     },
 
@@ -1027,23 +1077,62 @@ function dispatch_2byte_gpr(op, pfx) = {
     // unsupported counter → unconditional #GP(0).
     51 => raise_GP0(),
 
-    // 0F 34: SYSENTER — Fast System Call (legacy, used in compat mode)
-    // SDM: loads CS/SS/EIP/ESP from MSRs IA32_SYSENTER_CS/ESP/EIP
+    // 0F 34: SYSENTER — Fast System Call
+    // SDM Vol.2 SYSENTER pseudocode: loads CS/SS selectors from
+    // IA32_SYSENTER_CS, forces RPL=0, then populates the hidden CS/SS
+    // descriptor cache with fixed values (base=0, limit=4GB, code/data).
+    // In IA-32e mode SYSENTER switches to 64-bit mode (CS.L=1, CS.D=0);
+    // in legacy protected mode it enters 32-bit code (CS.L=0, CS.D=1).
+    // The original handler only wrote the visible selectors and set CPL=0,
+    // which left cur_mode and the stale user SegCache[CS]/[SS] in place —
+    // so the kernel entry point ran with stack_addr_size() returning 32,
+    // truncating PUSH addresses to the low 32 bits of RSP.
     52 => {
       let sysenter_cs : qword = __rdmsr(0x00000174);
       if sysenter_cs[15..0] == zeros() then raise_GP0();
+      let ia32e : bool = EFER[10] == 0b1;
       write_segreg(CS, sysenter_cs[15..0] & 0xFFFC);
+      SegCache[CS] = struct {
+        seg_base    = 0x0000000000000000,
+        seg_limit   = 0xFFFFFFFF,
+        seg_type    = 0xB,   // exec/read/accessed code
+        seg_s       = 0b1,
+        seg_dpl     = 0,
+        seg_present = 0b1,
+        seg_db      = if ia32e then 0b0 else 0b1,
+        seg_l       = if ia32e then 0b1 else 0b0,
+        seg_g       = 0b1,
+      };
       cur_cpl = 0;
       write_segreg(SS, (sysenter_cs[15..0] + 0x0008) & 0xFFFC);
+      SegCache[SS] = struct {
+        seg_base    = 0x0000000000000000,
+        seg_limit   = 0xFFFFFFFF,
+        seg_type    = 0x3,   // R/W data/accessed
+        seg_s       = 0b1,
+        seg_dpl     = 0,
+        seg_present = 0b1,
+        seg_db      = 0b1,   // B = 1 (32-bit stack); in 64-bit CPL 0 uses RSP
+        seg_l       = 0b0,
+        seg_g       = 0b1,
+      };
+      if ia32e then cur_mode = LongMode
+      else cur_mode = ProtectedMode;
+
       let sysenter_esp : qword = __rdmsr(0x00000175);
       let sysenter_eip : qword = __rdmsr(0x00000176);
-      v(RSP) = sysenter_esp;
+      v(RSP) = if ia32e then sysenter_esp else zero_extend(sysenter_esp[31..0]);
       IF_flag = 0b0;
-      next_rip = Some(sysenter_eip)
+      next_rip = Some(if ia32e then sysenter_eip else zero_extend(sysenter_eip[31..0]))
     },
 
     // 0F 35: SYSEXIT — Fast Return from System Call (companion to SYSENTER)
-    // SDM: requires CPL=0; loads CS/SS from IA32_SYSENTER_CS, RIP from RDX, RSP from RCX
+    // SDM Vol.2 SYSEXIT pseudocode: loads CS/SS selectors from
+    // IA32_SYSENTER_CS and sets the hidden descriptor cache to fixed values.
+    // 64-bit SYSEXIT (REX.W=1) returns to 64-bit user (CS.L=1, CS.D=0);
+    // 32-bit SYSEXIT (REX.W=0) returns to compat-mode user (CS.L=0, CS.D=1).
+    // Without the descriptor-cache / cur_mode updates, the user code runs
+    // with stale kernel-CS metadata (or whatever was last loaded).
     53 => {
       if cur_cpl != 0 then raise_GP0();
       let sysenter_cs : qword = __rdmsr(0x00000174);
@@ -1051,15 +1140,62 @@ function dispatch_2byte_gpr(op, pfx) = {
       if pfx.rex_w then {
         // 64-bit: CS.sel = IA32_SYSENTER_CS + 32, SS.sel = IA32_SYSENTER_CS + 40
         write_segreg(CS, (sysenter_cs[15..0] + 0x0020) | 0x0003);
+        SegCache[CS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0xB,
+          seg_s       = 0b1,
+          seg_dpl     = 3,
+          seg_present = 0b1,
+          seg_db      = 0b0,
+          seg_l       = 0b1,
+          seg_g       = 0b1,
+        };
         write_segreg(SS, (sysenter_cs[15..0] + 0x0028) | 0x0003);
+        SegCache[SS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0x3,
+          seg_s       = 0b1,
+          seg_dpl     = 3,
+          seg_present = 0b1,
+          seg_db      = 0b1,
+          seg_l       = 0b0,
+          seg_g       = 0b1,
+        };
         cur_cpl = 3;
+        cur_mode = LongMode;
         next_rip = Some(v(64, RDX));
         v(RSP) = v(64, RCX)
       } else {
         // 32-bit: CS.sel = IA32_SYSENTER_CS + 16, SS.sel = IA32_SYSENTER_CS + 24
         write_segreg(CS, (sysenter_cs[15..0] + 0x0010) | 0x0003);
+        SegCache[CS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0xB,
+          seg_s       = 0b1,
+          seg_dpl     = 3,
+          seg_present = 0b1,
+          seg_db      = 0b1,   // D = 1 (32-bit compat code)
+          seg_l       = 0b0,
+          seg_g       = 0b1,
+        };
         write_segreg(SS, (sysenter_cs[15..0] + 0x0018) | 0x0003);
+        SegCache[SS] = struct {
+          seg_base    = 0x0000000000000000,
+          seg_limit   = 0xFFFFFFFF,
+          seg_type    = 0x3,
+          seg_s       = 0b1,
+          seg_dpl     = 3,
+          seg_present = 0b1,
+          seg_db      = 0b1,
+          seg_l       = 0b0,
+          seg_g       = 0b1,
+        };
         cur_cpl = 3;
+        if EFER[10] == 0b1 then cur_mode = CompatibilityMode
+        else cur_mode = ProtectedMode;
         next_rip = Some(zero_extend(v(32, RDX)));
         v(RSP) = zero_extend(64, v(32, RCX))
       }

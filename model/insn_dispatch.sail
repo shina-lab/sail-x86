@@ -1537,19 +1537,31 @@ function decode_execute() = {
           next_rip = Some(new_rip);
 
           // Load CS selector and descriptor cache from GDT.
+          // Implicit supervisor access (SDM Vol.3A §4.6).
           let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
-          let desc_lo : dword = read_mem(GDTR_base + sel_offset);
-          let desc_hi : dword = read_mem(GDTR_base + sel_offset + 4);
+          let desc_lo : dword = read_mem_implicit(GDTR_base + sel_offset);
+          let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
           write_segreg(CS, new_cs[15..0]);
           SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
-          cur_mode = if SegCache[CS].seg_l == 0b1 then LongMode
-                     else CompatibilityMode;
+          if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
+          else cur_mode = CompatibilityMode;
 
           cur_cpl = unsigned(new_cs[1..0]);
           write_rflags(new_rflags);
           RF = 0b0;
           v(RSP) = new_rsp;
+          // Load SS selector *and* descriptor cache from the GDT (SDM Vol.2
+          // IRET: on return to outer privilege the hidden part of SS —
+          // including D/B for stack address size — must be reloaded, not
+          // just the visible selector).  Without this, IRETQ from a 64-bit
+          // kernel to a 32-bit compat-mode process leaves SegCache[SS].seg_db
+          // at whatever stale value it held, so user-mode POP/PUSH read from
+          // (ESP & 0xFFFF) instead of ESP.
+          let ss_sel_offset : qword = zero_extend(new_ss[15..3] @ 0b000);
+          let ss_desc_lo : dword = read_mem_implicit(GDTR_base + ss_sel_offset);
+          let ss_desc_hi : dword = read_mem_implicit(GDTR_base + ss_sel_offset + 4);
           write_segreg(SS, new_ss[15..0]);
+          SegCache[SS] = parse_seg_descriptor(ss_desc_lo, ss_desc_hi);
         }
       },
 

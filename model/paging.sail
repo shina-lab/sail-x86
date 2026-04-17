@@ -37,7 +37,8 @@ function ept_enabled() = ept_active
 val ept_violation_qual : (PTAccess, bool) -> qword
 function ept_violation_qual(access, present) = {
   var qual : qword = zeros();
-  if access == PT_Read then qual[0] = 0b1;
+  // Implicit accesses surface as reads at the EPT level.
+  if access == PT_Read | access == PT_Implicit then qual[0] = 0b1;
   if access == PT_Write then qual[1] = 0b1;
   if access == PT_Execute then qual[2] = 0b1;
   if present then {
@@ -80,11 +81,13 @@ function ept_walk(gpa, access, table_base, level) = {
     else false;
 
   if is_leaf then {
-    // Permission check
+    // Permission check.  Implicit (descriptor-table) accesses are reads
+    // at the EPT level — R must be set on the leaf EPTE.
     let denied : bool = match access {
-      PT_Read    => r == 0b0,
-      PT_Write   => w == 0b0,
-      PT_Execute => x == 0b0,
+      PT_Read     => r == 0b0,
+      PT_Write    => w == 0b0,
+      PT_Execute  => x == 0b0,
+      PT_Implicit => r == 0b0,
     };
     if denied then {
       let qual : qword = ept_violation_qual(access, true);
@@ -149,8 +152,9 @@ function mk_pf_error(access, present, reserved) = {
   if present then ec[0] = 0b1;
   // Bit 1: W/R — write access caused the fault
   if access == PT_Write then ec[1] = 0b1;
-  // Bit 2: U/S — user-mode access caused the fault
-  if cur_cpl == 3 then ec[2] = 0b1;
+  // Bit 2: U/S — user-mode access caused the fault.
+  // Implicit (descriptor-table) accesses are supervisor regardless of CPL.
+  if cur_cpl == 3 & access != PT_Implicit then ec[2] = 0b1;
   // Bit 3: RSVD — reserved bit set in PTE
   if reserved then ec[3] = 0b1;
   // Bit 4: I/D — instruction fetch caused the fault
@@ -165,8 +169,13 @@ function check_pte_permissions(pte, access) = {
   let us    = pte[2];  // User/Supervisor bit
   let xd    = pte[63]; // Execute-Disable bit (if EFER.NXE=1)
 
+  // Implicit accesses (GDT/LDT/IDT/TSS reads by the CPU itself) always
+  // execute at supervisor privilege regardless of CPL, and don't cause
+  // an NX fault (they're not instruction fetches).  Writes of this class
+  // (e.g. A/D-bit updates, TSS busy-bit set) still respect WP.
+  if access == PT_Implicit then true
   // User-mode access to supervisor page: always denied
-  if cur_cpl == 3 & us == 0b0 then false
+  else if cur_cpl == 3 & us == 0b0 then false
   // Write to read-only page:
   // - In user mode: always denied
   // - In kernel mode: denied if CR0.WP=1, allowed if WP=0
@@ -299,14 +308,15 @@ function pt_walk_32(linear, access) = {
     throw Fault(EXN_PF, mk_pf_error(access, false, false))
   };
 
-  // Check permissions (R/W, U/S)
+  // Check permissions (R/W, U/S).  Implicit (descriptor-table) accesses
+  // run at supervisor and bypass the U/S check regardless of CPL.
   if access == PT_Write & pde[1] == 0b0 then {
-    if cur_cpl == 3 | CR0[16] == 0b1 then {
+    if (cur_cpl == 3 & access != PT_Implicit) | CR0[16] == 0b1 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     }
   };
-  if cur_cpl == 3 & pde[2] == 0b0 then {
+  if cur_cpl == 3 & access != PT_Implicit & pde[2] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, true, false))
   };
@@ -337,14 +347,14 @@ function pt_walk_32(linear, access) = {
       throw Fault(EXN_PF, mk_pf_error(access, false, false))
     };
 
-    // Check permissions
+    // Check permissions.  Implicit (descriptor-table) accesses bypass U/S.
     if access == PT_Write & pte[1] == 0b0 then {
-      if cur_cpl == 3 | CR0[16] == 0b1 then {
+      if (cur_cpl == 3 & access != PT_Implicit) | CR0[16] == 0b1 then {
         CR2 = linear;
         throw Fault(EXN_PF, mk_pf_error(access, true, false))
       }
     };
-    if cur_cpl == 3 & pte[2] == 0b0 then {
+    if cur_cpl == 3 & access != PT_Implicit & pte[2] == 0b0 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };
