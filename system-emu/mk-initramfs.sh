@@ -42,12 +42,18 @@ cp "$BUSYBOX" "$TMPDIR/bin/busybox"
 chmod 755 "$TMPDIR/bin/busybox"
 
 # Build and include 32-bit test binary
-gcc -m32 -static -O2 -o "$TMPDIR/bin/hello32" "$(dirname "$0")/hello32.c"
+gcc -m32 -static -O2 -fno-stack-protector -U_FORTIFY_SOURCE \
+  -o "$TMPDIR/bin/hello32" "$(dirname "$0")/hello32.c"
 chmod 755 "$TMPDIR/bin/hello32"
 
 # Build and include KVM VMX test binary
-gcc -static -O2 -o "$TMPDIR/bin/kvm-test" "$(dirname "$0")/kvm-test.c"
+gcc -static -O2 -fno-stack-protector -U_FORTIFY_SOURCE \
+  -o "$TMPDIR/bin/kvm-test" "$(dirname "$0")/kvm-test.c"
 chmod 755 "$TMPDIR/bin/kvm-test"
+
+# Patch imported userland ELFs so stack canary loads/checks use a fixed value.
+find "$TMPDIR" -type f -perm -0100 -print0 | \
+  xargs -0 python3 "$(dirname "$0")/patch-initrd-canaries.py" >/dev/null
 
 # Create symlinks for all busybox applets
 for cmd in sh ash cat echo ls mkdir mount umount sleep clear \
@@ -80,6 +86,8 @@ export HOME=/
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 export TERM=vt100
 export PS1='sail# '
+
+echo 0 > /proc/sys/kernel/randomize_va_space 2>/dev/null || true
 
 # Determine console device from kernel command line.
 # "console=tty0" → VGA, "console=ttyS0" → serial.

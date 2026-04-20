@@ -1,0 +1,119 @@
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -91,6 +91,34 @@
+ /* Various types of waiters for crng_init->CRNG_READY transition. */
+ static DECLARE_WAIT_QUEUE_HEAD(crng_init_wait);
+ static struct fasync_struct *fasync;
++/*
++ * SAIL deterministic boot RNG
++ *
++ * For emulator differential debugging we want the boot path to be fully
++ * deterministic. Opt in with the "sail_deterministic_rng" kernel cmdline
++ * parameter; without it this kernel behaves identically to vanilla. When
++ * enabled, all RNG consumers get a fixed byte stream and the CRNG is marked
++ * ready immediately so /dev/urandom and AT_RANDOM do not depend on timing
++ * or entropy collection.
++ */
++static bool sail_deterministic_boot_rng __ro_after_init;
++
++static int __init sail_deterministic_rng_setup(char *str)
++{
++	sail_deterministic_boot_rng = true;
++	return 0;
++}
++early_param("sail_deterministic_rng", sail_deterministic_rng_setup);
++
++static void sail_deterministic_fill(void *buf, size_t len)
++{
++	static const u64 seed = 0x7361696c78663836ULL;
++	u8 *out = buf;
++	size_t i;
++
++	for (i = 0; i < len; ++i)
++		out[i] = (u8)(((seed + (u64)i * 0x9e3779b97f4a7c15ULL) >> ((i & 7) * 8)) & 0xff);
++}
+ static ATOMIC_NOTIFIER_HEAD(random_ready_notifier);
+ 
+ /* Control how we warn userspace. */
+@@ -220,6 +248,16 @@
+ 	.lock = INIT_LOCAL_LOCK(crngs.lock),
+ };
+ 
++static void __init sail_deterministic_crng_early_init(void)
++{
++	size_t i;
++
++	for (i = 0; i < sizeof(base_crng.key); ++i)
++		base_crng.key[i] = (u8)(0xa5 ^ (u8)(i * 29));
++	base_crng.generation = 1;
++	crng_init = CRNG_READY;
++}
++
+ /*
+  * Return the interval until the next reseeding, which is normally
+  * CRNG_RESEED_INTERVAL, but during early boot, it is at an interval
+@@ -390,6 +428,11 @@
+ {
+ 	struct chacha_state chacha_state;
+ 	u8 tmp[CHACHA_BLOCK_SIZE];
++	if (unlikely(sail_deterministic_boot_rng)) {
++		sail_deterministic_fill(buf, len);
++		return;
++	}
++
+ 	size_t first_block_len;
+ 
+ 	if (!len)
+@@ -436,6 +479,26 @@
+ 	struct chacha_state chacha_state;
+ 	u8 block[CHACHA_BLOCK_SIZE];
+ 	size_t ret = 0, copied;
++	if (unlikely(sail_deterministic_boot_rng)) {
++		while (iov_iter_count(iter)) {
++			size_t n = min_t(size_t, sizeof(block), iov_iter_count(iter));
++			sail_deterministic_fill(block, n);
++			copied = copy_to_iter(block, n, iter);
++			ret += copied;
++			if (copied != n)
++				break;
++			if (!iov_iter_count(iter))
++				break;
++			if (ret % PAGE_SIZE == 0) {
++				if (signal_pending(current))
++					break;
++				cond_resched();
++			}
++		}
++		memzero_explicit(block, sizeof(block));
++		return ret;
++	}
++
+ 
+ 	if (unlikely(!iov_iter_count(iter)))
+ 		return 0;
+@@ -859,6 +922,11 @@
+ 	unsigned long entropy[BLAKE2S_BLOCK_SIZE / sizeof(long)];
+ 	size_t i, longs, arch_bits;
+ 
++	if (sail_deterministic_boot_rng) {
++		sail_deterministic_crng_early_init();
++		return;
++	}
++
+ #if defined(LATENT_ENTROPY_PLUGIN)
+ 	static const u8 compiletime_seed[BLAKE2S_BLOCK_SIZE] __initconst __latent_entropy;
+ 	_mix_pool_bytes(compiletime_seed, sizeof(compiletime_seed));
+@@ -900,6 +968,13 @@
+ 	unsigned long entropy = random_get_entropy();
+ 	ktime_t now = ktime_get_real();
+ 
++	if (sail_deterministic_boot_rng) {
++		if (!static_branch_likely(&crng_is_ready))
++			crng_set_ready(NULL);
++		WARN_ON(register_pm_notifier(&pm_notifier));
++		return;
++	}
++
+ 	_mix_pool_bytes(&now, sizeof(now));
+ 	_mix_pool_bytes(&entropy, sizeof(entropy));
+ 	add_latent_entropy();

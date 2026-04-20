@@ -21,6 +21,41 @@ int trace_stderr(const char *s) {
 }
 
 namespace x86 {
+struct DeterministicRandState {
+  bool enabled;
+  uint64_t state;
+};
+
+static DeterministicRandState &deterministic_rand_state() {
+  static DeterministicRandState s = []{
+    const char *env = getenv("SAIL_X86_DETERMINISTIC_RDRAND");
+    if (!env || !*env) return DeterministicRandState{false, 0};
+    char *end = nullptr;
+    unsigned long long seed = strtoull(env, &end, 0);
+    if (!end || *end != '\0') {
+      fprintf(stderr,
+              "sail-x86: ignoring invalid SAIL_X86_DETERMINISTIC_RDRAND=%s, "
+              "using seed 0\n",
+              env);
+      seed = 0;
+    }
+    return DeterministicRandState{true, (uint64_t)seed};
+  }();
+  return s;
+}
+
+static inline bool deterministic_rand_enabled() {
+  return deterministic_rand_state().enabled;
+}
+
+static inline uint64_t deterministic_rand64() {
+  uint64_t &state = deterministic_rand_state().state;
+  uint64_t z = (state += 0x9E3779B97F4A7C15ULL);
+  z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+  z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+  return z ^ (z >> 31);
+}
+
 // Set the host FPU rounding mode based on 2-bit RC field.
 static void set_rounding(int rc) {
   switch (rc) {
@@ -965,7 +1000,13 @@ u64 Model::z__rdtsc(unit) {
 
 struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdrand64(unit) {
   unsigned long long val;
-  int ok = _rdrand64_step(&val);
+  int ok;
+  if (deterministic_rand_enabled()) {
+    val = deterministic_rand64();
+    ok = 1;
+  } else {
+    ok = _rdrand64_step(&val);
+  }
   struct ztuple_z8z5bv64zCz0z5bv1z9 result;
   result.ztup0 = val;
   result.ztup1 = ok ? 1 : 0;
@@ -974,7 +1015,13 @@ struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdrand64(unit) {
 
 struct ztuple_z8z5bv64zCz0z5bv1z9 Model::z__rdseed64(unit) {
   unsigned long long val;
-  int ok = _rdseed64_step(&val);
+  int ok;
+  if (deterministic_rand_enabled()) {
+    val = deterministic_rand64();
+    ok = 1;
+  } else {
+    ok = _rdseed64_step(&val);
+  }
   struct ztuple_z8z5bv64zCz0z5bv1z9 result;
   result.ztup0 = val;
   result.ztup1 = ok ? 1 : 0;

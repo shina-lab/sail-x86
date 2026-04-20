@@ -19,6 +19,7 @@ esac
 
 SRC="${BUILD_DIR}/linux-src"
 TARBALL="${BUILD_DIR}/linux.tar.xz"
+PATCH_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Download kernel source if not present.
 if [ ! -f "$SRC/Makefile" ]; then
@@ -31,6 +32,10 @@ if [ ! -f "$SRC/Makefile" ]; then
   mkdir -p "$SRC"
   tar xf "${TARBALL}" --strip-components=1 -C "$SRC"
   rm -f "${TARBALL}"
+fi
+
+if ! grep -q "SAIL deterministic boot RNG" "$SRC/drivers/char/random.c"; then
+  patch -d "$SRC" -p1 < "$PATCH_DIR/patch-linux-rng.patch"
 fi
 
 # Start from tinyconfig (everything off), then enable what we need.

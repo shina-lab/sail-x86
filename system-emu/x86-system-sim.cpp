@@ -20,6 +20,85 @@
 
 enum DisplayMode { DISPLAY_SERIAL, DISPLAY_VGA };
 
+static u64 parse_env_u64(const char *name, u64 default_value) {
+  const char *s = getenv(name);
+  if (!s || !*s) return default_value;
+  char *end = nullptr;
+  unsigned long long v = strtoull(s, &end, 0);
+  if (!end || *end != '\0') {
+    fprintf(stderr, "sail-x86-system: ignoring invalid %s=%s\n", name, s);
+    return default_value;
+  }
+  return (u64)v;
+}
+
+template <typename Bits>
+static void dump_bits_hex(FILE *out, const Bits &bits, int n_words) {
+  const size_t nbytes = (size_t)n_words * 8;
+  uint8_t bytes[64] = {};
+  if (nbytes > sizeof(bytes)) {
+    fprintf(out, "<bits-too-wide>");
+    return;
+  }
+  x86::bits_to_bytes(bits, bytes, nbytes);
+  for (size_t i = nbytes; i > 0; i--) {
+    fprintf(out, "%02x", bytes[i - 1]);
+  }
+}
+
+static void dump_registers(FILE *out, u64 insn_count, const x86::Model &model) {
+  const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
+                         (model.zcur_mode == x86::zProtectedMode) ? "P" :
+                         (model.zcur_mode == x86::zRealMode) ? "R" : "C";
+  if (model.zcur_mode == x86::zLongMode) {
+    fprintf(out, "[%lu] RIP=%016lx mode=%s\n",
+            insn_count, (u64)model.zRIP, mode_str);
+  } else {
+    fprintf(out, "[%lu] CS:RIP=%04x:%08lx mode=%s\n",
+            insn_count,
+            (u16)model.zSegReg.data[x86::SEG_CS],
+            (u64)model.zRIP,
+            mode_str);
+  }
+
+  fprintf(out, "  RAX=%016lx RBX=%016lx RCX=%016lx RDX=%016lx\n",
+          (u64)model.zGPR.data[0], (u64)model.zGPR.data[3],
+          (u64)model.zGPR.data[1], (u64)model.zGPR.data[2]);
+  fprintf(out, "  RSP=%016lx RBP=%016lx RSI=%016lx RDI=%016lx\n",
+          (u64)model.zGPR.data[4], (u64)model.zGPR.data[5],
+          (u64)model.zGPR.data[6], (u64)model.zGPR.data[7]);
+  fprintf(out, "  R8 =%016lx R9 =%016lx R10=%016lx R11=%016lx\n",
+          (u64)model.zGPR.data[8], (u64)model.zGPR.data[9],
+          (u64)model.zGPR.data[10], (u64)model.zGPR.data[11]);
+  fprintf(out, "  R12=%016lx R13=%016lx R14=%016lx R15=%016lx\n",
+          (u64)model.zGPR.data[12], (u64)model.zGPR.data[13],
+          (u64)model.zGPR.data[14], (u64)model.zGPR.data[15]);
+  fprintf(out, "  K0 =%016lx K1 =%016lx K2 =%016lx K3 =%016lx\n",
+          (u64)model.zKREG.data[0], (u64)model.zKREG.data[1],
+          (u64)model.zKREG.data[2], (u64)model.zKREG.data[3]);
+  fprintf(out, "  K4 =%016lx K5 =%016lx K6 =%016lx K7 =%016lx\n",
+          (u64)model.zKREG.data[4], (u64)model.zKREG.data[5],
+          (u64)model.zKREG.data[6], (u64)model.zKREG.data[7]);
+  fprintf(out, "  YMM16=");
+  dump_bits_hex(out, model.zZMM.data[16], 4);
+  fprintf(out, "\n");
+  fprintf(out, "  CS=%04x DS=%04x ES=%04x SS=%04x FS=%04x GS=%04x\n",
+          (u16)model.zSegReg.data[x86::SEG_CS],
+          (u16)model.zSegReg.data[x86::SEG_DS],
+          (u16)model.zSegReg.data[x86::SEG_ES],
+          (u16)model.zSegReg.data[x86::SEG_SS],
+          (u16)model.zSegReg.data[x86::SEG_FS],
+          (u16)model.zSegReg.data[x86::SEG_GS]);
+  fprintf(out,
+          "  FLAGS CF=%u PF=%u AF=%u ZF=%u SF=%u OF=%u DF=%u IF=%u\n",
+          (unsigned)model.zCF, (unsigned)model.zPF, (unsigned)model.zAF,
+          (unsigned)model.zZF, (unsigned)model.zSF, (unsigned)model.zOF,
+          (unsigned)model.zDF, (unsigned)model.zIF_flag);
+  fprintf(out, "  CR0=%016lx CR2=%016lx CR3=%016lx CR4=%016lx EFER=%016lx\n",
+          (u64)model.zCR0, (u64)model.zCR2, (u64)model.zCR3,
+          (u64)model.zCR4, (u64)model.zEFER);
+}
+
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
   fprintf(stderr, "       %s [options] -b <bios.bin> [-hda <disk.img>]\n", prog);
@@ -33,6 +112,13 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -hda <file>     Hard disk image\n");
   fprintf(stderr, "  -fda <file>     Floppy disk image (drive A:)\n");
   fprintf(stderr, "  -h              Show this help\n");
+  fprintf(stderr, "Env:\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_START          Start instruction count for register dumps\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_END            End instruction count; emulator exits at this count\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_STEP           Dump every N instructions within the trace window\n");
+  fprintf(stderr, "  SAIL_X86_PROBE_INSN           One-shot diagnostic probe at an instruction count\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_PHYS_WRITE     Log phys writes overlapping this address (hex/dec)\n");
+  fprintf(stderr, "  SAIL_X86_DETERMINISTIC_RDRAND Replace RDRAND/RDSEED with splitmix64(seed)\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -264,8 +350,13 @@ static bool load_bzimage(x86::Model &model, const char *path,
   // Command line at setup_base + 0xE000 (within the same 64K segment)
   u64 cmdline_off = 0xE000;
   u64 cmdline_addr = setup_base + cmdline_off;
-  const char *default_serial_cmdline = "earlyprintk=serial,0x3f8 console=ttyS0 noapic nolapic tsc=reliable";
-  const char *default_vga_cmdline = "console=tty0 noapic nolapic tsc=reliable";
+  const char *default_serial_cmdline =
+      "earlyprintk=serial,0x3f8 console=ttyS0 "
+      "noapic nolapic tsc=reliable nokaslr norandmaps "
+      "randomize_kstack_offset=off";
+  const char *default_vga_cmdline =
+      "console=tty0 noapic nolapic tsc=reliable nokaslr norandmaps "
+      "randomize_kstack_offset=off";
   const char *default_cmdline = (display_mode == DISPLAY_VGA) ?
                                  default_vga_cmdline : default_serial_cmdline;
   const char *use_cmdline = (cmdline && strlen(cmdline) > 0) ? cmdline : default_cmdline;
@@ -872,6 +963,30 @@ int main(int argc, char *argv[]) {
   bool poll_stdin = true;  // Always poll stdin for UART RX data
 
   u64 insn_count = 0;
+  const char *trace_start_env = getenv("SAIL_X86_TRACE_START");
+  const char *trace_end_env = getenv("SAIL_X86_TRACE_END");
+  const char *trace_step_env = getenv("SAIL_X86_TRACE_STEP");
+  bool has_trace_start = trace_start_env && *trace_start_env;
+  bool has_trace_end = trace_end_env && *trace_end_env;
+  bool has_trace_step = trace_step_env && *trace_step_env;
+  u64 trace_start = parse_env_u64("SAIL_X86_TRACE_START", 0);
+  u64 trace_end = parse_env_u64("SAIL_X86_TRACE_END", 0);
+  u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
+  bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
+  const char *probe_insn_env = getenv("SAIL_X86_PROBE_INSN");
+  bool has_probe_insn = probe_insn_env && *probe_insn_env;
+  u64 probe_insn = parse_env_u64("SAIL_X86_PROBE_INSN", 0);
+  if (trace_step == 0) {
+    fprintf(stderr, "sail-x86-system: SAIL_X86_TRACE_STEP=0 is invalid; using 1\n");
+    trace_step = 1;
+  }
+  if (trace_window_enabled) {
+    fprintf(stderr,
+            "sail-x86-system: trace window start=%lu end=%s step=%lu\n",
+            trace_start,
+            has_trace_end ? trace_end_env : "none",
+            trace_step);
+  }
 
   // PIT timer: tick every N instructions to generate periodic interrupts.
   // The PIT runs at 1.193182 MHz. With a simulated TSC incrementing by
@@ -895,6 +1010,11 @@ int main(int argc, char *argv[]) {
   signal(SIGTERM, [](int) { got_signal = true; });
 
   while (!model.should_exit && !got_signal) {
+    if (trace_window_enabled && has_trace_end && insn_count >= trace_end) {
+      fprintf(stderr, "sail-x86-system: stopping at trace end %lu instructions\n", insn_count);
+      break;
+    }
+
     // Print progress periodically
     if (curses_active && insn_count % 1000000 == 0) {
       if (model.zcur_mode == x86::zLongMode)
@@ -906,21 +1026,20 @@ int main(int argc, char *argv[]) {
                            (u16)model.zSegReg.data[x86::SEG_CS], (u64)model.zRIP);
     }
 
-    if (debug) {
-      const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
-                             (model.zcur_mode == x86::zProtectedMode) ? "P" :
-                             (model.zcur_mode == x86::zRealMode) ? "R" : "C";
-      if (model.zcur_mode == x86::zLongMode)
-        fprintf(stderr, "[%lu] %016lx RSP=0x%lx mode=%s CR0=0x%lx\n",
-                insn_count, (u64)model.zRIP,
-                (u64)model.zGPR.data[4], mode_str,
-                (u64)model.zCR0);
-      else
-        fprintf(stderr, "[%lu] %04x:%08lx RSP=0x%lx mode=%s CR0=0x%lx\n",
-                insn_count, (u16)model.zSegReg.data[x86::SEG_CS],
-                (u64)model.zRIP,
-                (u64)model.zGPR.data[4], mode_str,
-                (u64)model.zCR0);
+    bool in_trace_window = trace_window_enabled &&
+                           insn_count >= trace_start &&
+                           (!has_trace_end || insn_count <= trace_end);
+    bool trace_sample = in_trace_window && ((insn_count - trace_start) % trace_step == 0);
+    if (debug || trace_sample)
+      dump_registers(stderr, insn_count, model);
+
+    if (has_probe_insn && insn_count == probe_insn) {
+      u64 vaddr = (u64)model.zGPR.data[7];
+      u64 paddr = model.ztranslate_addr(vaddr, x86::zPT_Read);
+      u64 mem64 = model.phys_mem.read64(paddr);
+      fprintf(stderr,
+              "sail-x86-system: probe insn=%lu RIP=%016lx RDI=%016lx -> PA=%016lx MEM64=%016lx\n",
+              insn_count, (u64)model.zRIP, vaddr, paddr, mem64);
     }
 
 

@@ -12,6 +12,32 @@
 #include <x86intrin.h>
 
 namespace x86 {
+struct TracePhysWriteConfig {
+  bool enabled;
+  u64 target;
+};
+
+static const TracePhysWriteConfig &trace_phys_write_config() {
+  static const TracePhysWriteConfig cfg = []{
+    const char *s = getenv("SAIL_X86_TRACE_PHYS_WRITE");
+    if (!s || !*s) return TracePhysWriteConfig{false, 0};
+    return TracePhysWriteConfig{true, (u64)strtoull(s, nullptr, 0)};
+  }();
+  return cfg;
+}
+
+static void maybe_trace_phys_write(Model &m, u64 addr, const u8 *buf, i64 nbytes) {
+  const auto &cfg = trace_phys_write_config();
+  if (!cfg.enabled) return;
+  if (cfg.target < addr || cfg.target >= addr + (u64)nbytes) return;
+  fprintf(stderr,
+          "sail-x86-system: phys-write tsc=%lu addr=%016lx size=%ld target=%016lx bytes=",
+          (u64)m.tsc, addr, (long)nbytes, cfg.target);
+  for (i64 i = 0; i < nbytes; i++)
+    fprintf(stderr, "%02x", buf[i]);
+  fprintf(stderr, "\n");
+}
+
 void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
@@ -33,7 +59,7 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
-
+  maybe_trace_phys_write(*this, addr, buf, nbytes);
   phys_mem.write_bytes(addr, buf, nbytes);
   return UNIT;
 }
@@ -68,6 +94,7 @@ unit Model::z__mem_write_crossing(u64 vaddr, sail_int n, lbits data) {
   bits_to_bytes(data, buf, nbytes);
   for (i64 i = 0; i < nbytes; i++) {
     u64 paddr = ztranslate_addr(vaddr + i, zPT_Write);
+    maybe_trace_phys_write(*this, paddr, &buf[i], 1);
     phys_mem.write_bytes(paddr, &buf[i], 1);
   }
   return UNIT;
