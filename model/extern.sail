@@ -342,29 +342,6 @@ val __f80_from_bcd : fp80 -> fp80
 val __f80_to_bcd : fp80 -> fp80
 
 // =========================================================================
-// AES-NI
-// =========================================================================
-
-val __aesenc : (xmmword, xmmword) -> xmmword
-val __aesdec : (xmmword, xmmword) -> xmmword
-val __aesenclast : (xmmword, xmmword) -> xmmword
-val __aesdeclast : (xmmword, xmmword) -> xmmword
-val __aesimc : xmmword -> xmmword
-val __aeskeygenassist : (xmmword, byte) -> xmmword
-
-// =========================================================================
-// SHA
-// =========================================================================
-
-val __sha1rnds4 : (xmmword, xmmword, byte) -> xmmword
-val __sha1nexte : (xmmword, xmmword) -> xmmword
-val __sha1msg1 : (xmmword, xmmword) -> xmmword
-val __sha1msg2 : (xmmword, xmmword) -> xmmword
-val __sha256rnds2 : (xmmword, xmmword, xmmword) -> xmmword
-val __sha256msg1 : (xmmword, xmmword) -> xmmword
-val __sha256msg2 : (xmmword, xmmword) -> xmmword
-
-// =========================================================================
 // Polymorphic FP wrappers (dispatch by bitvector width)
 // =========================================================================
 

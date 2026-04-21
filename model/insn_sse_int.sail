@@ -936,19 +936,19 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // AES-NI — AESIMC
     219 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = __aesimc(src_xmm) },
+             ZMM[xreg][127..0] = aesimc(src_xmm) },
     // AES-NI — AESENC
     220 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = __aesenc(read_simd(xreg), src_xmm) },
+             ZMM[xreg][127..0] = aesenc(read_simd(xreg), src_xmm) },
     // AES-NI — AESENCLAST
     221 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = __aesenclast(read_simd(xreg), src_xmm) },
+             ZMM[xreg][127..0] = aesenclast(read_simd(xreg), src_xmm) },
     // AES-NI — AESDEC
     222 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = __aesdec(read_simd(xreg), src_xmm) },
+             ZMM[xreg][127..0] = aesdec(read_simd(xreg), src_xmm) },
     // AES-NI — AESDECLAST
     223 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = __aesdeclast(read_simd(xreg), src_xmm) },
+             ZMM[xreg][127..0] = aesdeclast(read_simd(xreg), src_xmm) },
 
     // GFNI — GF2P8MULB (66 0F 38 CF)
     207 => {
@@ -1126,7 +1126,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     223 => {
       if ~(has_aesni) then raise_UD();
       let imm = fetch(1);
-      ZMM[xreg][127..0] = __aeskeygenassist(decode_xmm_src(xsrc), imm)
+      ZMM[xreg][127..0] = aeskeygenassist(decode_xmm_src(xsrc), imm)
     },
 
     // GFNI — GF2P8AFFINEQB (66 0F 3A CE)

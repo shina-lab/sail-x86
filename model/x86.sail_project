@@ -25,6 +25,7 @@ decode {
   files
     operands.sail,
     branchless.sail,
+    crypto.sail,
     insn_simd.sail,
     insn_prefixes.sail,
     insn_modrm.sail,

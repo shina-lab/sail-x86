@@ -238,7 +238,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let dst = modrm_xreg(modrm, pfx);
     let src2 = modrm_xrm(modrm, pfx);
     let src : xmmword = decode_vex_src(128, src2);
-    write_simd(128, dst, __aesimc(src))
+    write_simd(128, dst, aesimc(src))
   },
 
   // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST �� VEX.128.66.0F38.WIG
@@ -252,10 +252,10 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     let state : xmmword = read_simd(pfx.vex_vvvv);
     let roundkey : xmmword = decode_vex_src(128, src);
     write_simd(128, dst, match op {
-      220 => __aesenc(state, roundkey),
-      221 => __aesenclast(state, roundkey),
-      222 => __aesdec(state, roundkey),
-      _   => __aesdeclast(state, roundkey),
+      220 => aesenc(state, roundkey),
+      221 => aesenclast(state, roundkey),
+      222 => aesdec(state, roundkey),
+      _   => aesdeclast(state, roundkey),
     })
   },
 

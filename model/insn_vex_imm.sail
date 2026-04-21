@@ -421,7 +421,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   223 => {
     if ~(has_aesni) | pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
-    write_simd(128, dst, __aeskeygenassist(decode_vex_src(128, src), imm))
+    write_simd(128, dst, aeskeygenassist(decode_vex_src(128, src), imm))
   },
 
   // 0F3A F0: RORX — VEX.LZ.F2.0F3A
