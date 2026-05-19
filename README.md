@@ -102,3 +102,7 @@ cd build && ctest -j$(nproc) --output-on-failure
 - `emu-shared/` — code shared between both emulators
 - `kvm/` — KVM-based differential tests against real hardware
 - `test/` — test programs
+
+## Acknowledgement
+
+This work was supported by JST, CREST Grant Number JPMJCR22M3, Japan.
