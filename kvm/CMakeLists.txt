@@ -205,6 +205,7 @@ set(KVM_CATEGORIES
   "AVX mov"
   "AVX VEX-only"
   "AVX-512 hi16"
+  "Exception #PF"
   "MOVQ store"
   "K-register ops"
   "Vec stores"

@@ -439,4 +439,48 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // because KVM intercepts INVPCID (VM exit) and emulates it without
   // checking reserved bits or canonical addresses. The Sail model does
   // validate these per the SDM.
+
+  // ---- #PF (vector 14): page faults beyond the identity-mapped 2MB ----
+  //
+  // The guest maps only the first 2MB; any access at or above 0x200000
+  // takes a not-present #PF.  These are the suite's first tests that
+  // compare the page-fault path itself — vector, error code (R/W and
+  // I/D bits), and CR2 — rather than avoiding it.  enable_paging gives
+  // the Sail model the same identity mapping the KVM guest always has.
+  cat = "Exception #PF";
+  auto add_pf = [&](const std::string &name, std::vector<u8> code,
+                    ArchState init) {
+    TestCase tc;
+    tc.name = name;
+    tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = init;
+    tc.flags_mask = 0;
+    tc.expect_fault = true;
+    tc.expected_vector = 14;
+    tc.enable_paging = true;
+    tests.push_back(std::move(tc));
+  };
+
+  {
+    ArchState pf = {.rflags = 0x2};
+
+    // Read and write of an unmapped address: error code P=0, W per access
+    pf.rbx = 0x300000;
+    add_pf("pf read [0x300000]", {0x48, 0x8B, 0x03}, pf);   // mov rax,[rbx]
+    add_pf("pf write [0x300000]", {0x48, 0x89, 0x03}, pf);  // mov [rbx],rax
+
+    // First unmapped byte
+    pf.rbx = 0x200000;
+    add_pf("pf read first unmapped byte", {0x48, 0x8B, 0x03}, pf);
+
+    // 8-byte read straddling the mapping boundary: the fault is on the
+    // second page, so CR2 must point into the unmapped page
+    pf.rbx = 0x1FFFFC;
+    add_pf("pf read straddling 2MB boundary", {0x48, 0x8B, 0x03}, pf);
+
+    // Instruction fetch from an unmapped page
+    pf.rbx = 0x400000;
+    add_pf("pf ifetch jmp 0x400000", {0xFF, 0xE3}, pf);     // jmp rbx
+  }
 }

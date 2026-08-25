@@ -328,6 +328,8 @@ struct KvmVm {
     sregs_tmp.ss.db = 1;
     sregs_tmp.ss.s = 1;
     sregs_tmp.ss.g = 1;
+    // Reset CR2 so a #PF in one test is not visible to the next.
+    sregs_tmp.cr2 = 0;
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
@@ -430,6 +432,9 @@ struct KvmVm {
       fi.vector = (int)vec_val;
       fi.error_code = err_val;
       fi.faulting_rip = rip_val;
+      struct kvm_sregs sregs;
+      ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
+      fi.cr2 = sregs.cr2;
       return true;
     }
     return false;
@@ -680,6 +685,33 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   if (tc.cr4_override)
     model.zCR4 = tc.cr4_override;
 
+  // Identity page tables for paging-enabled tests.  The KVM guest always
+  // runs with paging on (long mode requires it) over an identity-mapped
+  // first 2MB; tests that probe translation and #PF enable the same
+  // mapping in the model, so both sides translate — and fault — on the
+  // same addresses.
+  static constexpr u64 SAIL_PML4_ADDR = 0x15000;
+  static constexpr u64 SAIL_PDPT_ADDR = 0x16000;
+  static constexpr u64 SAIL_PD_ADDR   = 0x17000;
+  if (tc.enable_paging) {
+    static bool pt_pages_mapped = false;
+    if (!pt_pages_mapped) {
+      map_guest_page(SAIL_PML4_ADDR, 0x3000);
+      // Back the last page below the 2MB mapping boundary so an access
+      // that straddles into the unmapped region can read its mapped
+      // bytes before faulting on the first unmapped one.
+      map_guest_page(0x1FF000, 0x1000);
+      pt_pages_mapped = true;
+    }
+    memset((void *)SAIL_PML4_ADDR, 0, 0x3000);  // fresh tables (A/D bits)
+    ((u64 *)SAIL_PML4_ADDR)[0] = SAIL_PDPT_ADDR | 0x7;
+    ((u64 *)SAIL_PDPT_ADDR)[0] = SAIL_PD_ADDR | 0x7;
+    ((u64 *)SAIL_PD_ADDR)[0]   = 0x0 | 0x87;  // 2MB page, P+RW+U+PS
+    model.zCR3 = SAIL_PML4_ADDR;
+    model.zCR0 = 0x80000011;  // PG + ET + PE, as in the KVM guest
+    model.zEFER = 0x500;      // LME + LMA: 4-level long-mode walk
+  }
+
   for (int i = 0; i < 1000; i++) {
     model.zstep(UNIT);
     if (model.zfault_pending) {
@@ -690,6 +722,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         fault_out->vector = (int)vec;
         fault_out->error_code = err_code;
         fault_out->faulting_rip = model.zRIP;
+        fault_out->cr2 = model.zCR2;
         model.model_fini();
         return {};
       }
@@ -842,6 +875,11 @@ int main(int argc, char **argv) {
         if (kvm_fault.error_code != sail_fault.error_code) {
           fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
                   kvm_fault.error_code, sail_fault.error_code);
+          ok = false;
+        }
+        if (kvm_fault.cr2 != sail_fault.cr2) {
+          fprintf(stderr, "  MISMATCH CR2: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.cr2, sail_fault.cr2);
           ok = false;
         }
         if (tc.expected_vector >= 0 && kvm_fault.vector != tc.expected_vector) {

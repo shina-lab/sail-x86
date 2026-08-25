@@ -271,6 +271,7 @@ struct FaultInfo {
   int vector = -1;
   u64 error_code = 0;
   u64 faulting_rip = 0;
+  u64 cr2 = 0;  // CR2 after the fault (meaningful for #PF; 0 otherwise)
 };
 
 struct TestCase {
@@ -291,6 +292,9 @@ struct TestCase {
   double approx_rel_tol = 0;      // if nonzero, compare XMM with relative tolerance (for VRCP14, VRSQRT14 etc)
   int approx_elem_bits = 0;       // element size for approximate comparison (32 or 64)
   bool compat_mode = false;       // execute test code in 32-bit compatibility mode
+  bool enable_paging = false;     // give the Sail model the guest's identity
+                                  // paging (the KVM guest always pages); for
+                                  // tests that probe translation and #PF
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
