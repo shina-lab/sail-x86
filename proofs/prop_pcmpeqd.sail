@@ -1,17 +1,12 @@
 // Full-width equivalence proofs for PCMPEQD / VPCMPEQD branchless conversion.
 
-default Order dec
-$include <prelude.sail>
+$include "../model/prelude.sail"
 
-overload operator - = {sub_bits}
-overload zeros = {sail_zeros}
-overload ones = {sail_ones}
-overload zero_extend = {sail_zero_extend}
 
 val cmp_eq32 : (bits(32), bits(32)) -> bits(32)
 function cmp_eq32(a, b) = {
   let xd : bits(33) = (0b0 @ (a ^ b)) - 0b000000000000000000000000000000001;
-  zeros(32) - zero_extend(xd[32..32], 32)
+  zeros(32) - zero_extend(xd[32..32])
 }
 
 // MMX PCMPEQD: 64-bit (2 dword lanes)

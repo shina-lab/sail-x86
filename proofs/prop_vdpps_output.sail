@@ -1,16 +1,5 @@
-default Order dec
+$include "../model/prelude.sail"
 
-$include <prelude.sail>
-
-overload operator - = {sub_bits}
-overload operator + = {add_bits}
-overload operator ^ = {xor_vec}
-overload operator & = {and_vec}
-overload operator | = {or_vec}
-overload zeros = {sail_zeros}
-overload ones = {sail_ones}
-overload ~ = {not_vec}
-overload sign_extend = {sail_sign_extend}
 
 // VDPPS output masking: if imm[i] == bitone then sum else zero
 // → sum & sign_extend(imm[i..i])

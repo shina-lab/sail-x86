@@ -10,6 +10,12 @@
 
 $include "../model/prelude.sail"
 
+// Mirrors model/core_types.sail (this proof corpus textually
+// duplicates what it needs rather than importing model modules).
+type byte  = bits(8)
+type word  = bits(16)
+type dword = bits(32)
+
 // ================================================================
 // cmp_eq: all-ones if a == b, all-zeros otherwise
 // Branchless: (0 @ xor(a,b)) - 1 borrows iff xor==0 iff a==b

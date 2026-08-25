@@ -3,17 +3,13 @@
 // Original: if src1[lane] == src2[lane] then mask = mask | to_bits(8, pow2(i))
 // New:      mask[i] = cmp_eq64(src1[lane], src2[lane])[0]
 
-default Order dec
-$include <prelude.sail>
+$include "../model/prelude.sail"
 
-overload operator - = {sub_bits}
-overload zeros = {sail_zeros}
-overload zero_extend = {sail_zero_extend}
 
 val cmp_eq64 : (bits(64), bits(64)) -> bits(64)
 function cmp_eq64(a, b) = {
-  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1), 65);
-  zeros(64) - zero_extend(xd[64..64], 64)
+  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1));
+  zeros(64) - zero_extend(xd[64..64])
 }
 
 // EVEX VPCMPEQQ 128-bit: 2 qword lanes → 2-bit mask in byte

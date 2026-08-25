@@ -1,47 +1,41 @@
 // Full-width equivalence proofs for EVEX compare-to-mask branchless conversion.
 // Uses fixed indexing instead of loops to avoid Sail SMT encoding issues.
 
-default Order dec
-$include <prelude.sail>
+$include "../model/prelude.sail"
 
-overload operator - = {sub_bits}
-overload zeros = {sail_zeros}
-overload ones = {sail_ones}
-overload zero_extend = {sail_zero_extend}
-overload sign_extend = {sail_sign_extend}
 
 val cmp_eq8 : (bits(8), bits(8)) -> bits(8)
 function cmp_eq8(a, b) = {
   let xd : bits(9) = (0b0 @ (a ^ b)) - 0b000000001;
-  zeros(8) - zero_extend(xd[8..8], 8)
+  zeros(8) - zero_extend(xd[8..8])
 }
 
 val cmp_gt8 : (bits(8), bits(8)) -> bits(8)
 function cmp_gt8(a, b) = {
-  let a9 : bits(9) = sign_extend(a, 9);
-  let b9 : bits(9) = sign_extend(b, 9);
+  let a9 : bits(9) = sign_extend(a);
+  let b9 : bits(9) = sign_extend(b);
   let diff : bits(9) = b9 - a9;
-  zeros(8) - zero_extend(diff[8..8], 8)
+  zeros(8) - zero_extend(diff[8..8])
 }
 
 val cmp_eq16 : (bits(16), bits(16)) -> bits(16)
 function cmp_eq16(a, b) = {
   let xd : bits(17) = (0b0 @ (a ^ b)) - 0b00000000000000001;
-  zeros(16) - zero_extend(xd[16..16], 16)
+  zeros(16) - zero_extend(xd[16..16])
 }
 
 val cmp_gt16 : (bits(16), bits(16)) -> bits(16)
 function cmp_gt16(a, b) = {
-  let a17 : bits(17) = sign_extend(a, 17);
-  let b17 : bits(17) = sign_extend(b, 17);
+  let a17 : bits(17) = sign_extend(a);
+  let b17 : bits(17) = sign_extend(b);
   let diff : bits(17) = b17 - a17;
-  zeros(16) - zero_extend(diff[16..16], 16)
+  zeros(16) - zero_extend(diff[16..16])
 }
 
 val cmp_eq32 : (bits(32), bits(32)) -> bits(32)
 function cmp_eq32(a, b) = {
   let xd : bits(33) = (0b0 @ (a ^ b)) - 0b000000000000000000000000000000001;
-  zeros(32) - zero_extend(xd[32..32], 32)
+  zeros(32) - zero_extend(xd[32..32])
 }
 
 // VPCMPEQB mask 128-bit: 16 byte lanes → 16-bit mask

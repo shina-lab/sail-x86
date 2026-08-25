@@ -1,17 +1,12 @@
 // Full-width equivalence proofs for PCMPEQQ / VPCMPEQQ branchless conversion.
 
-default Order dec
-$include <prelude.sail>
+$include "../model/prelude.sail"
 
-overload operator - = {sub_bits}
-overload zeros = {sail_zeros}
-overload ones = {sail_ones}
-overload zero_extend = {sail_zero_extend}
 
 val cmp_eq64 : (bits(64), bits(64)) -> bits(64)
 function cmp_eq64(a, b) = {
-  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1), 65);
-  zeros(64) - zero_extend(xd[64..64], 64)
+  let xd : bits(65) = (0b0 @ (a ^ b)) - zero_extend(0b1 : bits(1));
+  zeros(64) - zero_extend(xd[64..64])
 }
 
 // SSE PCMPEQQ: 128-bit (2 qword lanes)
