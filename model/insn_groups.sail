@@ -18,6 +18,7 @@ function exec_dec(a) = {
 }
 
 // MUL — Unsigned Multiply
+// SDM: SF, ZF, AF, PF are undefined after MUL.
 val exec_mul : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_mul(os, src) = {
   let product : int = unsigned(v(os, RAX)) * unsigned(src);
@@ -29,7 +30,11 @@ function exec_mul(os, src) = {
     v(RDX) = result[(os * 2 - 1)..os];
   };
   CF = is_nonzero(result[(os * 2 - 1)..os]);
-  OF = CF
+  OF = CF;
+  SF = undefined;
+  ZF = undefined;
+  AF = undefined;
+  PF = undefined
 }
 
 // DIV — Unsigned Divide
@@ -91,6 +96,7 @@ function exec_idiv(os, src) = {
 }
 
 // IMUL — Signed Multiply (one-operand form)
+// SDM: SF, ZF, AF, PF are undefined after IMUL.
 val exec_imul_1 : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), bits('os)) -> unit
 function exec_imul_1(os, src) = {
   let product : int = signed(v(os, RAX)) * signed(src);
@@ -102,7 +108,11 @@ function exec_imul_1(os, src) = {
     v(RDX) = result[(os * 2 - 1)..os];
   };
   CF = is_nonzero(result[(os * 2 - 1)..os] ^ sign_extend(result[os - 1]));
-  OF = CF
+  OF = CF;
+  SF = undefined;
+  ZF = undefined;
+  AF = undefined;
+  PF = undefined
 }
 
 // PUSH imm

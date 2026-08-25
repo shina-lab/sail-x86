@@ -864,6 +864,11 @@ function decode_execute() = {
         let w : bits('os * 2) = to_bits_truncate(product);
         CF = is_nonzero(w['os * 2 - 1 .. 'os] ^ sign_extend(w['os - 1]));
         OF = CF;
+        // SDM: SF, ZF, AF, PF are undefined after IMUL.
+        SF = undefined;
+        ZF = undefined;
+        AF = undefined;
+        PF = undefined;
         v(reg) = result[(os - 1) .. 0]
       },
 
@@ -886,6 +891,11 @@ function decode_execute() = {
         let w : bits('os * 2) = to_bits_truncate(product);
         CF = is_nonzero(w['os * 2 - 1 .. 'os] ^ sign_extend(w['os - 1]));
         OF = CF;
+        // SDM: SF, ZF, AF, PF are undefined after IMUL.
+        SF = undefined;
+        ZF = undefined;
+        AF = undefined;
+        PF = undefined;
         v(reg) = result[(os - 1) .. 0]
       },
 

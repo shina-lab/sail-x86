@@ -1471,6 +1471,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
+    // SDM: SF, ZF, AF, PF are undefined after IMUL.
     175 => {
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
@@ -1481,6 +1482,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let w = to_bits_truncate(os * 2, product);
       CF = is_nonzero(w[os * 2 - 1 .. os] ^ sign_extend(w[os - 1]));
       OF = CF;
+      SF = undefined;
+      ZF = undefined;
+      AF = undefined;
+      PF = undefined;
       v(reg) = to_bits_truncate(os, product)
     },
 
