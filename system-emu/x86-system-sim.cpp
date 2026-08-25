@@ -1094,7 +1094,9 @@ int main(int argc, char *argv[]) {
           return 1;
         }
         // Wait for an interrupt: poll stdin + tick PIT until something fires
-        while (!model.pic_master.has_pending()) {
+        // (or the user quits; leaving through the main loop prints the
+        // instruction count like every other exit).
+        while (!model.pic_master.has_pending() && !model.should_exit) {
           if (poll_stdin) {
             if (curses_active) {
               // In curses mode, use getch() and push scancodes to i8042
@@ -1103,8 +1105,8 @@ int main(int argc, char *argv[]) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
                   if (ch == 'x' || ch == 'X') {
-                    model.model_fini();
-                    return 0;
+                    model.should_exit = true;
+                    break;
                   }
                   if (ch == 0x01) push_key(model.kbd, 0x01);
                   continue;
@@ -1127,8 +1129,8 @@ int main(int argc, char *argv[]) {
                     ctrl_a_pending = false;
                     if (buf[i] == 'x' || buf[i] == 'X') {
                       fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
-                      model.model_fini();
-                      return 0;
+                      model.should_exit = true;
+                      break;
                     }
                     if (buf[i] == 0x01) model.uart.rx_push(0x01);
                     continue;
