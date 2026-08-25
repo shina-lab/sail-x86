@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <format>
 #include <linux/kvm.h>
+#include <memory>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <random>

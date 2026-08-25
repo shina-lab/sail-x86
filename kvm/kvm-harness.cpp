@@ -403,10 +403,18 @@ struct KvmVm {
     return false;
   }
 
-  // Run test expecting a fault. Returns fault info.
-  FaultInfo run_test_fault() {
+  // Set when the guest reached a state KVM cannot cleanly continue from
+  // (triple fault, entry failure).  The caller must re-init the VM before
+  // running the next test.
+  bool poisoned = false;
+
+  // Run test expecting a fault.  Returns fault info; on a divergence that
+  // is not a comparable fault (normal HLT, triple fault, odd exit reason),
+  // appends a description to *err so the caller can count a failure
+  // instead of aborting the whole suite.
+  FaultInfo run_test_fault(std::string *err) {
     if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
-      perror("KVM_RUN");
+      perror("KVM_RUN");  // host API failure, not a divergence
       abort();
     }
 
@@ -414,39 +422,45 @@ struct KvmVm {
     if (run->exit_reason == KVM_EXIT_HLT) {
       if (check_kvm_fault(fi))
         return fi;
-      fprintf(stderr, "KVM: expected fault but got normal HLT\n");
-      abort();
+      *err += "KVM: expected fault but got normal HLT\n";
+      return fi;
     }
     if (run->exit_reason == KVM_EXIT_SHUTDOWN) {
-      fprintf(stderr, "KVM: triple fault (shutdown) — IDT setup problem?\n");
-      abort();
+      *err += "KVM: triple fault (shutdown)\n";
+      poisoned = true;
+      return fi;
     }
-    fprintf(stderr, "KVM: unexpected exit reason %d\n", run->exit_reason);
-    abort();
+    *err += std::format("KVM: unexpected exit reason {}\n", run->exit_reason);
+    poisoned = true;
+    return fi;
   }
 
-  ArchState run_test() {
+  ArchState run_test(std::string *err) {
     if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
-      perror("KVM_RUN");
+      perror("KVM_RUN");  // host API failure, not a divergence
       abort();
     }
 
     if (run->exit_reason != KVM_EXIT_HLT) {
-      fprintf(stderr, "KVM: unexpected exit reason %d\n", run->exit_reason);
+      *err += std::format("KVM: unexpected exit reason {}\n", run->exit_reason);
+      if (run->exit_reason == KVM_EXIT_SHUTDOWN)
+        *err += "  (triple fault)\n";
       if (run->exit_reason == KVM_EXIT_FAIL_ENTRY)
-        fprintf(stderr, "  hardware_entry_failure_reason: 0x%llx\n",
-                run->fail_entry.hardware_entry_failure_reason);
+        *err += std::format("  hardware_entry_failure_reason: {:#x}\n",
+                (u64)run->fail_entry.hardware_entry_failure_reason);
       if (run->exit_reason == KVM_EXIT_INTERNAL_ERROR)
-        fprintf(stderr, "  suberror: %d\n", run->internal.suberror);
-      abort();
+        *err += std::format("  suberror: {}\n", run->internal.suberror);
+      poisoned = true;
+      return {};
     }
 
     // Check for unexpected fault
     FaultInfo fi;
     if (check_kvm_fault(fi)) {
-      fprintf(stderr, "KVM: unexpected fault #%d (error 0x%lx) at RIP=0x%lx\n",
-              fi.vector, fi.error_code, fi.faulting_rip);
-      abort();
+      *err += std::format(
+          "KVM: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
+          fi.vector, fi.error_code, fi.faulting_rip);
+      return {};
     }
 
     struct kvm_regs regs;
@@ -501,7 +515,7 @@ static void map_guest_page(u64 addr, size_t len) {
 }
 
 ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
-                   FaultInfo *fault_out = nullptr) {
+                   FaultInfo *fault_out, std::string *err) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
@@ -638,27 +652,29 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     model.zstep(UNIT);
     if (model.zfault_pending) {
       i64 vec = model.zfault_vector;
-      u32 err = model.zfault_error_code;
+      u32 err_code = model.zfault_error_code;
       if (fault_out) {
         fault_out->faulted = true;
         fault_out->vector = (int)vec;
-        fault_out->error_code = err;
+        fault_out->error_code = err_code;
         fault_out->faulting_rip = model.zRIP;
         model.model_fini();
         return {};
       }
-      fprintf(stderr, "Sail: fault #%ld (error 0x%x) at RIP=0x%lx [%s]\n",
-              vec, err, model.zRIP, tc.name.c_str());
-      fprintf(stderr, "  code bytes:");
+      *err += std::format("Sail: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
+                          vec, err_code, (u64)model.zRIP);
+      *err += "  code bytes:";
       for (size_t j = 0; j < tc.code.size(); j++)
-        fprintf(stderr, " %02x", tc.code[j]);
-      fprintf(stderr, "\n");
-      abort();
+        *err += std::format(" {:02x}", tc.code[j]);
+      *err += "\n";
+      model.model_fini();
+      return {};
     }
     if (model.zsystem_state == x86::zSysHalted) goto done;
   }
-  fprintf(stderr, "Sail: did not reach HLT within 1000 steps\n");
-  abort();
+  *err += "Sail: did not reach HLT within 1000 steps\n";
+  model.model_fini();
+  return {};
 
 done:
   u64 rflags = 0x2;
@@ -744,8 +760,8 @@ std::vector<TestCase> build_tests() {
 int main(int argc, char **argv) {
   const char *filter = argc > 1 ? argv[1] : nullptr;
 
-  KvmVm vm;
-  if (!vm.init()) {
+  auto vm = std::make_unique<KvmVm>();
+  if (!vm->init()) {
     fprintf(stderr, "Failed to initialize KVM VM\n");
     return 1;
   }
@@ -762,15 +778,18 @@ int main(int argc, char **argv) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
     }
-    vm.load_test(tc);
+    vm->load_test(tc);
 
+    std::string harness_err;
     if (tc.expect_fault) {
       // Fault-expecting test: compare exception vector and error code.
-      FaultInfo kvm_fault = vm.run_test_fault();
+      FaultInfo kvm_fault = vm->run_test_fault(&harness_err);
       FaultInfo sail_fault;
-      run_sail(tc, nullptr, 0, &sail_fault);
+      run_sail(tc, nullptr, 0, &sail_fault, &harness_err);
 
-      bool ok = true;
+      bool ok = harness_err.empty();
+      if (!ok)
+        fprintf(stderr, "%s", harness_err.c_str());
       if (!kvm_fault.faulted) {
         fprintf(stderr, "  KVM: expected fault but none occurred\n");
         ok = false;
@@ -808,15 +827,19 @@ int main(int argc, char **argv) {
       }
     } else {
       // Normal test: compare architectural state.
-      ArchState kvm_state = vm.run_test();
+      ArchState kvm_state = vm->run_test(&harness_err);
 
       u8 kvm_data[4096] = {}, sail_data[4096] = {};
       if (tc.compare_data_len > 0)
-        vm.read_data(kvm_data, tc.compare_data_len);
+        vm->read_data(kvm_data, tc.compare_data_len);
 
-      ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len);
+      ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len,
+                                      nullptr, &harness_err);
 
-      bool ok = kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
+      if (!harness_err.empty())
+        fprintf(stderr, "%s", harness_err.c_str());
+      bool ok = harness_err.empty() &&
+                kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
                                   tc.cmp_mxcsr, tc.kreg_mask,
                                   tc.approx_rel_tol, tc.approx_elem_bits);
 
@@ -843,6 +866,16 @@ int main(int argc, char **argv) {
           fprintf(stderr, "\n");
         }
         failed++;
+      }
+    }
+
+    // A triple fault or odd exit can leave the VCPU in a state KVM cannot
+    // continue from; rebuild the VM so later tests start clean.
+    if (vm->poisoned) {
+      vm = std::make_unique<KvmVm>();
+      if (!vm->init()) {
+        fprintf(stderr, "Failed to re-initialize KVM VM after poisoned run\n");
+        return 1;
       }
     }
   }
