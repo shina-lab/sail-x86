@@ -157,8 +157,13 @@ function mk_pf_error(access, present, reserved) = {
   if cur_cpl == 3 & access != PT_Implicit then ec[2] = 0b1;
   // Bit 3: RSVD — reserved bit set in PTE
   if reserved then ec[3] = 0b1;
-  // Bit 4: I/D — instruction fetch caused the fault
-  if access == PT_Execute then ec[4] = 0b1;
+  // Bit 4: I/D — instruction fetch caused the fault.  Hardware sets it
+  // only when the paging mode can express execute permission: CR4.SMEP=1,
+  // or NXE-capable paging (PAE/4-level/5-level, i.e. CR4.PAE=1) with
+  // IA32_EFER.NXE=1 (SDM Vol.3A §4.7).
+  if access == PT_Execute &
+     (CR4[20] == 0b1 | (CR4[5] == 0b1 & EFER[11] == 0b1))
+  then ec[4] = 0b1;
   ec
 }
 
