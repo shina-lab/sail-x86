@@ -807,29 +807,37 @@ function decode_execute() = {
         }
       },
 
-      // 62: EVEX prefix (in 64-bit mode); BOUND (in 16/32-bit mode)
-      // BOUND r16/r32, m16&16/m32&32: #BR if index out of bounds.
-      // In non-64-bit mode, the second byte is a ModR/M — if mod==11b
-      // (register operand), it's #UD (BOUND requires memory).
-      // In 64-bit mode, 0x62 is always EVEX prefix.
+      // 62: EVEX prefix, or BOUND (in 16/32-bit mode).
+      // SDM Vol.2 §2.7.11.2, opcode-independent: in non-64-bit modes the
+      // byte after 62h decodes as EVEX iff its top two bits (EVEX.R̄X̄)
+      // are 11b; any other value makes it BOUND's ModR/M, which is then
+      // necessarily a memory form (mod=11b would have meant EVEX) —
+      // the same peek-and-disambiguate structure as C4/C5 VEX-vs-LES/LDS.
+      // In 64-bit mode, 0x62 is always the EVEX prefix.
       98 => {
         if cur_mode == LongMode then {
           dispatch_evex()
         } else {
-          let modrm = fetch(1);
-          let src = modrm_rm(modrm, pfx);
-          match src {
-            RM_reg(_) => raise_UD(),  // BOUND requires memory operand
-            RM_mem(m) => {
-              let os = opsize(pfx);
-              assert(os <= 32);
-              let reg = modrm_reg(modrm, pfx);
-              let index = signed(v(os, reg));
-              // BOUND reads two consecutive os-bit values (lower, upper bounds)
-              let d = v(os * 2, m);
-              if index < signed(d[os - 1 .. 0]) | signed(d[os * 2 - 1 .. os]) < index then
-                raise_BR();
-            },
+          let byte2 = fetch(1);
+          if byte2[7..6] == 0b11 then {
+            dispatch_evex_with_p0(byte2)
+          } else {
+            // BOUND r16/r32, m16&16/m32&32: #BR if index out of bounds.
+            let modrm = byte2;
+            let src = modrm_rm(modrm, pfx);
+            match src {
+              RM_reg(_) => raise_UD(),  // unreachable: mod=11 is EVEX
+              RM_mem(m) => {
+                let os = opsize(pfx);
+                assert(os <= 32);
+                let reg = modrm_reg(modrm, pfx);
+                let index = signed(v(os, reg));
+                // BOUND reads two consecutive os-bit values (lower, upper bounds)
+                let d = v(os * 2, m);
+                if index < signed(d[os - 1 .. 0]) | signed(d[os * 2 - 1 .. os]) < index then
+                  raise_BR();
+              },
+            }
           }
         }
       },

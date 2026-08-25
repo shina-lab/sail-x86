@@ -1613,4 +1613,81 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       add("compat enter 0,0; leave (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00, 0x66, 0xC9}, s, FL_NONE);
     }
   }
+
+  // =====================================================================
+  // 62h in compatibility mode: EVEX vs. BOUND disambiguation
+  //
+  // SDM Vol.2 §2.7.11.2 (opcode-independent): outside 64-bit mode, 62h
+  // is an EVEX prefix iff the next byte's top two bits (EVEX.R̄X̄) are
+  // 11b; otherwise it is BOUND's ModR/M.  Nothing exercised this before:
+  // the model used to decode 62h as BOUND unconditionally outside 64-bit
+  // mode.  These cases compare both legs against silicon, plus the
+  // legacy-mode EVEX bit rules (B̄/R'̄ and vvvv's top bit ignored).
+  // =====================================================================
+  cat = "Compat EVEX";
+  {
+    auto fill = [](ZmmVal &v, u64 seed) {
+      for (int i = 0; i < 8; i++) v.q[i] = seed * (i + 1);
+    };
+    ArchState s = {};
+    s.rflags = 0x2;
+    fill(s.xmm[1], 0x1111111122223333ULL);
+    fill(s.xmm[2], 0x0F0F5A5AC3C36969ULL);
+
+    // EVEX vpxord xmm0,xmm1,xmm2 — canonical legacy-legal encoding
+    // (62 F1 75 08 EF C2: R̄X̄=11, B̄=1, R'̄=1, v̄v̄v̄v̄=~1, V'̄=1)
+    add_xmm("compat evex vpxord xmm0,xmm1,xmm2",
+            {0x62, 0xF1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x7);
+
+    // EVEX vpaddd zmm0,zmm1,zmm2 — 512-bit in compatibility mode
+    add_xmm("compat evex vpaddd zmm0,zmm1,zmm2",
+            {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, s, 0x7);
+
+    // EVEX.B̄=0: ignored outside 64-bit mode (cannot extend rm), so this
+    // must behave exactly like the B̄=1 encoding above
+    add_xmm("compat evex vpxord (B'=0 ignored)",
+            {0x62, 0xD1, 0x75, 0x08, 0xEF, 0xC2}, s, 0x7);
+
+    // v̄v̄v̄v̄ top bit (P[14]) = 0: ignored outside 64-bit mode, so vvvv
+    // reads as 1 (xmm1), not 9
+    add_xmm("compat evex vpxord (vvvv bit3 ignored)",
+            {0x62, 0xF1, 0x35, 0x08, 0xEF, 0xC2}, s, 0x7);
+
+    // EVEX.V'̄=0 outside 64-bit mode: SDM Vol.2 Table 2-41 says #UD, and
+    // the model follows the SDM.  The AMD Zen 4 development host was
+    // observed to IGNORE V'̄ here instead (encoding 62 F1 75 00 EF C2
+    // executed as VPXORD, no fault) — a vendor divergence on the SDM's
+    // side of the model, so it cannot be asserted differentially on
+    // this host.  Recorded for re-adjudication on Intel silicon.
+
+    // BOUND (mod≠11): in-bounds executes with no architectural effect
+    {
+      ArchState b = {};
+      b.rax = 5;
+      b.rdi = DATA_ADDR;
+      b.rflags = 0x2;
+      std::vector<u8> bounds = {0x00, 0x00, 0x00, 0x00,   // lower = 0
+                                0x0A, 0x00, 0x00, 0x00};  // upper = 10
+      add_mem("compat bound eax,[rdi] in bounds", {0x62, 0x07}, b,
+              FL_ALL, bounds, 8);
+    }
+
+    // BOUND out of bounds raises #BR (vector 5)
+    {
+      TestCase tc;
+      tc.name = "compat bound eax,[rdi] out of bounds (#BR)";
+      tc.category = cat;
+      tc.code = {0x62, 0x07};
+      tc.initial = {};
+      tc.initial.rax = 99;
+      tc.initial.rdi = DATA_ADDR;
+      tc.initial.rflags = 0x2;
+      tc.flags_mask = 0;
+      tc.init_data = {0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00};
+      tc.expect_fault = true;
+      tc.expected_vector = 5;
+      tc.compat_mode = true;
+      tests.push_back(std::move(tc));
+    }
+  }
 }

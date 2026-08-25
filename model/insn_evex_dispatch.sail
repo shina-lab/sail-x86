@@ -13,17 +13,25 @@
 //   vvvvv:      EVEX.V' : EVEX.vvvv           (source 2)
 //   r/m field:  EVEX.X : EVEX.B : modrm.rm    (source, reg only; for mem B extends base)
 
-// Decode EVEX prefix (62h already consumed). Reads 3 payload bytes.
+// Decode EVEX prefix payload when P0 has already been fetched (needed
+// for 62h in non-64-bit modes, where P0 is peeked at to distinguish
+// EVEX from BOUND).  Reads the two remaining payload bytes.
 // Returns (Prefixes, opcode_map) where map is mmm field (1=0F, 2=0F38, 3=0F3A).
-val decode_evex : unit -> (Prefixes, range(0, 7))
-function decode_evex() = {
-  let p0 = fetch(1);
+val decode_evex_with_p0 : byte -> (Prefixes, range(0, 7))
+function decode_evex_with_p0(p0) = {
   let p1 = fetch(1);
   let p2 = fetch(1);
 
   // Reserved field checks (SDM Vol.2 §2.6.1):
   // P0[3] must be 0; P1[2] must be 1. Violation → #UD.
   if p0[3] == 0b1 | p1[2] == 0b0 then raise_UD();
+
+  // Non-64-bit modes cannot address registers 8-31 (SDM Vol.2 §2.7.11,
+  // Tables 2-40/2-41): EVEX.R̄/X̄ are 11b by the BOUND disambiguation,
+  // EVEX.B̄ and EVEX.R'̄ are ignored, the top bit of EVEX.v̄v̄v̄v̄ (P[14])
+  // is ignored, and EVEX.V'̄ = 0 is #UD.
+  let legacy : bool = cur_mode != LongMode;
+  if legacy & p2[3] == 0b0 then raise_UD();
 
   let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
@@ -32,14 +40,15 @@ function decode_evex() = {
     // P0: R̄, X̄, B̄ (inverted), R'̄ (inverted)
     rex_r  = ~(p0[7]),
     rex_x  = ~(p0[6]),
-    rex_b  = ~(p0[5]),
-    evex_rr = ~(p0[4]),
+    rex_b  = if legacy then bitzero else ~(p0[5]),
+    evex_rr = if legacy then bitzero else ~(p0[4]),
     // P1: W, vvvv (inverted), pp
     rex_w  = p1[7] == 0b1,
     vex_w  = p1[7] == 0b1,
     evex_vvvvv = {
       let vprime : range(0, 1) = unsigned(zero_extend(~(p2[3])) : bits(1));
-      let vvvv : range(0, 15) = unsigned(~(p1[6..3]));
+      let vvvv : range(0, 15) =
+        if legacy then unsigned(~(p1[5..3])) else unsigned(~(p1[6..3]));
       vprime * 16 + vvvv
     },
     // pp → mandatory prefix flags
@@ -113,10 +122,13 @@ function dispatch_evex_0f3a(opcode, pfx) = {
   dispatch_evex_imm(op, pfx)
 }
 
-val dispatch_evex : unit -> unit
-function dispatch_evex() = {
+// Dispatch an EVEX-encoded instruction when P0 has already been fetched
+// (needed for 62h in non-64-bit modes, where P0 is peeked at to
+// distinguish EVEX from BOUND).
+val dispatch_evex_with_p0 : byte -> unit
+function dispatch_evex_with_p0(p0) = {
   if ~(avx512_enabled()) then raise_UD();
-  let (pfx, mmm) = decode_evex();
+  let (pfx, mmm) = decode_evex_with_p0(p0);
   let opcode = fetch(1);
   match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
@@ -126,4 +138,10 @@ function dispatch_evex() = {
     6 => dispatch_evex_map6(opcode, pfx),
     _ => raise_UD(),  // mmm=0,4,7 are reserved (#UD)
   }
+}
+
+val dispatch_evex : unit -> unit
+function dispatch_evex() = {
+  let p0 = fetch(1);
+  dispatch_evex_with_p0(p0)
 }
