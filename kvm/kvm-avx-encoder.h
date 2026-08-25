@@ -24,12 +24,16 @@ struct Evex {
   u8 opcode = 0;
 
   // Build the 4-byte EVEX prefix.
+  // The extension bits are stored inverted: R/B carry bit 3 of reg/rm,
+  // R'/V' carry bit 4 of reg/vvvv, and for register operands X carries
+  // bit 4 of rm (memory encoders overwrite rm with the 3-bit base, so X
+  // stays 1 there as required when no SIB index is used).
   void build_prefix(std::vector<u8> &out) const {
-    u8 R  = (reg < 8)   ? 1 : 0;
-    u8 X  = 1;  // default for reg-reg (no SIB)
-    u8 B  = (rm < 8)    ? 1 : 0;
-    u8 Rp = (reg < 16)  ? 1 : 0;
-    u8 Vp = (vvvv < 16) ? 1 : 0;
+    u8 R  = (reg & 8)    ? 0 : 1;
+    u8 X  = (rm & 16)    ? 0 : 1;
+    u8 B  = (rm & 8)     ? 0 : 1;
+    u8 Rp = (reg & 16)   ? 0 : 1;
+    u8 Vp = (vvvv & 16)  ? 0 : 1;
 
     u8 p0 = (R << 7) | (X << 6) | (B << 5) | (Rp << 4) | (mm & 0x7);
     u8 p1 = ((W ? 1 : 0) << 7) | ((~vvvv & 0xF) << 3) | (1 << 2) | (pp & 0x3);

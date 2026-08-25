@@ -318,5 +318,6 @@ void add_avx_conv_tests(std::vector<TestCase> &tests);
 void add_avx_special_tests(std::vector<TestCase> &tests);
 void add_avx_mov_tests(std::vector<TestCase> &tests);
 void add_avx_vex_only_tests(std::vector<TestCase> &tests);
+void add_avx_hi16_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H
