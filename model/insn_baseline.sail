@@ -1628,8 +1628,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
-        // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
-        // PF set from result parity (verified against real hardware).
+        // SDM: only ZF is defined (set if the source is zero); CF, OF,
+        // SF, AF, PF — and, for a zero source, the destination — are
+        // UNDEFINED.  The model deliberately pins the de-facto behavior
+        // observed on the AMD Zen 4 development host (flags cleared, PF
+        // from result parity, destination unchanged on a zero source),
+        // and the differential templates compare that concrete behavior.
+        // This is a recorded deviation from SDM undefinedness.
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         let idx = ctz(src_val);
@@ -1659,8 +1664,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = src_val[os - 1]
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
-        // SDM: CF, OF, SF, AF cleared. ZF set if source is zero.
-        // PF set from result parity (verified against real hardware).
+        // SDM: only ZF is defined (set if the source is zero); CF, OF,
+        // SF, AF, PF — and, for a zero source, the destination — are
+        // UNDEFINED.  The model deliberately pins the de-facto behavior
+        // observed on the AMD Zen 4 development host (flags cleared, PF
+        // from result parity, destination unchanged on a zero source),
+        // and the differential templates compare that concrete behavior.
+        // This is a recorded deviation from SDM undefinedness.
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         // Sentinel bit 0 ensures bsr gets nonzero input; result ignored when zf=1
