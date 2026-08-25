@@ -682,9 +682,9 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 #### 1.25.5 Task/Interrupt
 - [x] SWAPGS (swap GS base) — verified correct
 - [x] SYSCALL, SYSRET (fast system call/return) — verified, RFLAGS mask fix applied
-- [N/A] SYSENTER, SYSEXIT (fast system call/return, legacy) — Linux x86-64 uses SYSCALL/SYSRET exclusively; SYSENTER is 32-bit legacy
+- [x] SYSENTER, SYSEXIT (fast system call/return, legacy) — implemented (insn_baseline.sail 0F 34/0F 35); IA-32e semantics asserted by system_test_basic
 - [x] HLT (halt) — verified correct
-- [N/A] RSM (resume from system management mode) — SMM not modeled
+- [x] RSM (resume from system management mode) — implemented (smm.sail); exercised by the SeaBIOS CALL32_SMM trampoline during the FreeDOS boot
 
 #### 1.25.6 Privilege
 - [x] STI, CLI (interrupt flag) — verified: FA (CLI), FB (STI)
@@ -694,7 +694,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [N/A] RDPID (read processor ID) — delegates to TSC_AUX which is already implemented via RDTSCP
 
 #### 1.25.7 VMX (Virtual Machine Extensions)
-- [N/A] All VMX instructions (VMXON/OFF, VMLAUNCH/RESUME, VMCALL, VMCLEAR/PTRLD/PTRST, VMREAD/WRITE, VMFUNC, INVEPT/INVVPID) — VMX hypervisor extensions not targeted
+- [x] All VMX instructions (VMXON/OFF, VMLAUNCH/RESUME, VMCALL, VMCLEAR/PTRLD/PTRST, VMREAD/WRITE, VMFUNC, INVEPT/INVVPID) — implemented (insn_vmx.sail, vmx.sail, vmx_vmcs.sail); hosts Linux/KVM as a nested hypervisor with EPT
 
 #### 1.25.8 SMX (Safer Mode Extensions)
 - [N/A] SENTER, SEXIT (measured launch) — SMX not targeted
@@ -986,7 +986,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 ### 6.1 Long Mode (64-bit)
 - [x] Enabling: CR0.PG=1, CR4.PAE=1, IA32_EFER.LME=1 — system emulator boots through this sequence; cur_mode tracks 64-bit/32-bit/16-bit
 - [x] 64-bit sub-mode (CS.L=1, CS.D=0) — primary operating mode, fully modeled
-- [N/A] Compatibility sub-mode (CS.L=0; 32-bit code in long mode) — not targeted; system emulator uses 64-bit mode exclusively after boot
+- [x] Compatibility sub-mode (CS.L=0; 32-bit code in long mode) — implemented; runs IA32 userspace (hello32) under the booted kernel and the KVM harness's compat-mode differential tests
 - [x] Default operand/address sizes per mode — verified: d64/f64 rules for PUSH/POP/CALL/RET, 66h/67h overrides
 
 ### 6.2 Protected Mode (Legacy 32-bit)
@@ -995,16 +995,16 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] Gate descriptors (interrupt gates, trap gates) — IDT gate parsing in deliver_exception_inner(); call gates and task gates not modeled
 
 ### 6.3 Real Mode
-- [N/A] Real mode (segment:offset, IVT, no privilege checking) — system emulator starts in protected/long mode; real mode not targeted
+- [x] Real mode (segment:offset, IVT, no privilege checking) — implemented; SeaBIOS executes from the reset vector and FreeDOS runs to an interactive prompt
 
 ### 6.4 Mode Transitions
-- [N/A] Real → Protected (set CR0.PE) — real mode not targeted
+- [x] Real → Protected (set CR0.PE) — implemented; SeaBIOS boots through this transition (and unreal mode relies on the cached descriptors across it)
 - [x] Protected → Long (set CR4.PAE, IA32_EFER.LME, then CR0.PG) — system emulator boots through this sequence
 - [N/A] Long → Protected (clear CR0.PG, then clear IA32_EFER.LME) — not targeted
 - [N/A] Far JMP/CALL to change CS.L (64-bit ↔ compat) — compat mode not targeted
 
 ### 6.5 System Management Mode (SMM)
-- [N/A] RSM instruction and SMRAM save state — SMM not targeted
+- [x] RSM instruction and SMRAM save state — implemented (smm.sail per SDM ch. 34, incl. SMBASE relocation and auto-HALT restart); exercised by the SeaBIOS CALL32_SMM FreeDOS boot
 
 ---
 
