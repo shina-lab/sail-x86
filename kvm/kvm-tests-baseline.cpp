@@ -576,6 +576,64 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("tzcnt rax,rbx lsb", {0xF3, 0x48, 0x0F, 0xBC, 0xC3}, bt, FL_CF_ZF);
 
   // =====================================================================
+  // 12b. BT-family memory operands with far bit offsets
+  //
+  // With a memory operand, BT/BTS/BTR/BTC address an unbounded bit
+  // string: the register bit offset is signed and is NOT masked to the
+  // operand width (SDM Vol.2, BT "Bit(BitBase, BitOffset)").  The B23
+  // boot defect (offsets masked modulo the operand size) evaded the
+  // whole suite because every old memory-operand case used an in-word
+  // offset; these cases reach bytes far from the base in both
+  // directions, and the write forms compare the whole data page so a
+  // wrong effective address on either side is visible.
+  // =====================================================================
+  cat = "Baseline/BT mem far";
+  {
+    std::vector<u8> page(0x1000);
+    for (size_t i = 0; i < page.size(); i++)
+      page[i] = (u8)(0x35 + i * 7);
+    ArchState btm = {};
+    btm.rflags = 0x2;
+    btm.rdi = DATA_ADDR + 0x800;  // mid-page base: room in both directions
+
+    // 64-bit reads: bt [rdi], rax  (48 0F A3 /r, rm=rdi)
+    auto bt64 = [&](const std::string &name, u64 off) {
+      btm.rax = off;
+      add_mem(name, {0x48, 0x0F, 0xA3, 0x07}, btm, FL_CF, page, 0x1000);
+    };
+    bt64("bt [rdi],rax (+5000)", 5000);
+    bt64("bt [rdi],rax (+16381)", 16381);
+    bt64("bt [rdi],rax (-5000)", (u64)-5000);
+    bt64("bt [rdi],rax (-1)", (u64)-1);
+
+    // 64-bit writes: BTS/BTR/BTC must modify the far byte
+    auto btw64 = [&](const std::string &name, u8 op, u64 off) {
+      btm.rax = off;
+      add_mem(name, {0x48, 0x0F, op, 0x07}, btm, FL_CF, page, 0x1000);
+    };
+    btw64("bts [rdi],rax (+5000)", 0xAB, 5000);
+    btw64("btr [rdi],rax (+5001)", 0xB3, 5001);
+    btw64("btc [rdi],rax (+5002)", 0xBB, 5002);
+    btw64("bts [rdi],rax (-5000)", 0xAB, (u64)-5000);
+    btw64("btr [rdi],rax (-5001)", 0xB3, (u64)-5001);
+    btw64("btc [rdi],rax (-5002)", 0xBB, (u64)-5002);
+
+    // 32- and 16-bit operand sizes scale the offset in their own units
+    btm.rax = 9000;
+    add_mem("bt [rdi],eax (+9000)", {0x0F, 0xA3, 0x07}, btm, FL_CF,
+            page, 0x1000);
+    btm.rax = (u64)(u32)-9000;
+    add_mem("bts [rdi],eax (-9000)", {0x0F, 0xAB, 0x07}, btm, FL_CF,
+            page, 0x1000);
+    btm.rax = 15000;
+    add_mem("bt [rdi],ax (+15000)", {0x66, 0x0F, 0xA3, 0x07}, btm, FL_CF,
+            page, 0x1000);
+    btm.rax = (u64)(u16)-2000;
+    add_mem("btc [rdi],ax (-2000)", {0x66, 0x0F, 0xBB, 0x07}, btm, FL_CF,
+            page, 0x1000);
+  }
+
+  // =====================================================================
   // 13. Stack operations — PUSH, POP, CALL+RET
   // =====================================================================
   cat = "Baseline/Stack operations";
