@@ -1,5 +1,12 @@
 # Bugs Found via KVM Differential Testing — SDM Verification Report
 
+> **Historical snapshot.** This document describes the project at the
+> time it was written and is preserved as a record; counts and file
+> names may no longer match the current tree.  The audited inventory
+> is docs/x86-64-completeness-checklist.md; correctness evidence comes
+> from the KVM differential suite and the boot workloads, not from
+> this document.
+
 This report lists all bugs and missing features discovered in the sail-x86
 formal specification through KVM differential testing, and verifies each
 against the [Intel Software Developer's Manual (SDM)](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html).

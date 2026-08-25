@@ -14,13 +14,19 @@ targeting the architecture.
 
 The specification covers the general-purpose, SSE, SSE2, SSE3, SSSE3,
 SSE4.1, SSE4.2, AES-NI, AVX/AVX2, AVX-512/EVEX, and x87 FPU
-instruction sets. Virtualization (VMX) and enclave (SGX) instructions
-are not yet implemented.
+instruction sets, plus the system level: segmentation, paging
+(32-bit/PAE/4-level/5-level with EPT), exceptions and interrupts,
+real and compatibility modes, SMM, and VMX virtualization (Linux/KVM
+runs as a nested hypervisor on the model's VMX).  SGX, AMX, CET, MPX,
+and TSX are out of scope, as is any concurrency or memory-ordering
+model; see docs/x86-64-completeness-checklist.md for the per-unit
+inventory.
 
 The Sail model can be compiled to C++ using the Sail compiler and serves
 as the CPU core in two emulators: a user-mode emulator that runs real
 Linux x86-64 binaries (coreutils, Python, Clang), and a system-level
-emulator that boots the Linux kernel to an interactive shell. The
+emulator that boots Linux to an interactive shell and SeaBIOS+FreeDOS
+to a DOS prompt. The
 emulators provide the scaffolding not covered by the ISA specification
 itself — memory, peripherals, syscall emulation.
 
@@ -60,7 +66,8 @@ Pass `-d` for a debug trace of each instruction.
 
 ## System emulator (Linux boot)
 
-The system emulator loads an uncompressed vmlinux ELF directly and
+The system emulator loads a bzImage through the kernel's own 16-bit
+real-mode setup path and
 boots Linux with an initramfs to an interactive serial console.
 
 To download the Linux kernel source, build it with a minimal
@@ -78,7 +85,7 @@ automatically.
 To run the emulator manually:
 
 ```
-./build/system-emu/sail-x86-system -i initramfs.cpio.gz vmlinux
+./build/system-emu/sail-x86-system -i initramfs.cpio bzImage
 ```
 
 ## Testing

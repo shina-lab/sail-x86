@@ -1,5 +1,12 @@
 # Syscall Emulation Coverage Report
 
+> **Historical snapshot.** This document describes the project at the
+> time it was written and is preserved as a record; counts and file
+> names may no longer match the current tree.  The audited inventory
+> is docs/x86-64-completeness-checklist.md; correctness evidence comes
+> from the KVM differential suite and the boot workloads, not from
+> this document.
+
 **Date:** 2026-03-08
 **Source:** `usermode-emu/x86_syscall.cpp`, `test/syscall_test.c`
 
