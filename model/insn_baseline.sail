@@ -1628,13 +1628,24 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = src_val[0]
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
-        // SDM: only ZF is defined (set if the source is zero); CF, OF,
-        // SF, AF, PF — and, for a zero source, the destination — are
-        // UNDEFINED.  The model deliberately pins the de-facto behavior
-        // observed on the AMD Zen 4 development host (flags cleared, PF
-        // from result parity, destination unchanged on a zero source),
-        // and the differential templates compare that concrete behavior.
-        // This is a recorded deviation from SDM undefinedness.
+        // SDM: ZF is set if the source is zero and cleared otherwise; CF,
+        // OF, SF, AF, PF are undefined, and so is the destination for a
+        // zero source.  The model deliberately fixes the de-facto behavior
+        // instead.  Flags: CF/OF/SF/AF cleared and PF from the result's
+        // parity, as observed on the AMD development host.  Destination:
+        // untouched on a zero source.  That rule is a contract programs
+        // rely on, not a modeling choice: AMD documents it, and Linux's
+        // ffs()/fls() (arch/x86/include/asm/bitops.h) preload -1 into the
+        // destination and depend on it surviving, citing Intel's
+        // architects for the same guarantee.  A model that leaves the
+        // destination undefined (the C++ backend folds it to zero) panics
+        // Linux early in boot.  "Untouched" means the whole 64-bit
+        // register: for a 32-bit operand the AMD host preserves the upper
+        // half too, so the write below is undone rather than repeated at
+        // operand width (which would zero-extend).  The kernel comment
+        // describes Intel as rewriting the old value, which would clear
+        // the upper half; an Intel-host run should settle that corner.
+        // The differential templates compare the fixed behavior.
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         let idx = ctz(src_val);
@@ -1645,7 +1656,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         AF = 0b0;
         ZF = zf;
         PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
-        v(reg) = blend(result[(os - 1) .. 0], v(os, reg), zf)
+        let old : qword = GPR[reg.gpr_idx];
+        v(reg) = result[(os - 1) .. 0];
+        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], old, zf)
       }
     },
 
@@ -1664,13 +1677,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = src_val[os - 1]
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
-        // SDM: only ZF is defined (set if the source is zero); CF, OF,
-        // SF, AF, PF — and, for a zero source, the destination — are
-        // UNDEFINED.  The model deliberately pins the de-facto behavior
-        // observed on the AMD Zen 4 development host (flags cleared, PF
-        // from result parity, destination unchanged on a zero source),
-        // and the differential templates compare that concrete behavior.
-        // This is a recorded deviation from SDM undefinedness.
+        // Same flag and destination rules as BSF above, fixed for the same
+        // reasons (Linux's fls() relies on the destination surviving a
+        // zero source exactly as ffs() does).
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         // Sentinel bit 0 ensures bsr gets nonzero input; result ignored when zf=1
@@ -1682,7 +1691,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         AF = 0b0;
         ZF = zf;
         PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
-        v(reg) = blend(result[(os - 1) .. 0], v(os, reg), zf)
+        let old : qword = GPR[reg.gpr_idx];
+        v(reg) = result[(os - 1) .. 0];
+        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], old, zf)
       }
     },
 
