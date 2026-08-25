@@ -202,7 +202,7 @@ struct ArchState {
     cmp("R13", r13, other.r13);
     cmp("R14", r14, other.r14);
     cmp("R15", r15, other.r15);
-    // Skip RIP: KVM advances past HLT, Sail points at it.
+    cmp("RIP", rip, other.rip);
     cmp("RFLAGS", rflags & flags_mask, other.rflags & flags_mask);
     for (int i = 0; i < 32; i++) {
       if (xmm_mask & (1u << i)) {
