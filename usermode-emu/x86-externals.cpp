@@ -36,14 +36,49 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
   return UNIT;
 }
 
-// Page-crossing read/write — in user mode, paging is disabled so these
-// are identical to the normal read/write (virtual = physical).
+// Page-crossing read/write — translate each byte's virtual address
+// separately, like the system emulator.  With paging disabled (CR0.PG=0,
+// the user-mode emulator's normal state) translate_addr is the identity,
+// so this matches the old direct access; with paging enabled (the KVM
+// harness's #PF tests link this file) a crossing access faults exactly
+// like the non-crossing path instead of bypassing translation.
 void Model::z__mem_read_crossing(lbits *rop, u64 addr, sail_int n, enum zPTAccess access) {
-  z__read_mem(rop, addr, n);
+  i64 nbits = mpz_get_si(n);
+  i64 nbytes = nbits / 8;
+  u8 buf[64];
+  if (nbytes > 64) {
+    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 64\n", nbytes);
+    abort();
+  }
+  for (i64 i = 0; i < nbytes; i++) {
+    u64 paddr = ztranslate_addr(addr + i, access);
+    // On #PF the generated code records the exception and returns a
+    // dummy value; propagate instead of dereferencing it.
+    if (have_exception) {
+      bytes_to_bits(rop, buf, nbytes, nbits);
+      return;
+    }
+    buf[i] = *(u8 *)paddr;
+  }
+  bytes_to_bits(rop, buf, nbytes, nbits);
 }
 
 unit Model::z__mem_write_crossing(u64 addr, sail_int n, lbits data) {
-  return z__write_mem(addr, n, data);
+  i64 nbits = mpz_get_si(n);
+  i64 nbytes = nbits / 8;
+  u8 buf[64];
+  if (nbytes > 64) {
+    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 64\n", nbytes);
+    abort();
+  }
+  bits_to_bytes(data, buf, nbytes);
+  for (i64 i = 0; i < nbytes; i++) {
+    u64 paddr = ztranslate_addr(addr + i, zPT_Write);
+    if (have_exception)
+      return UNIT;  // #PF recorded; do not touch the dummy address
+    *(u8 *)paddr = buf[i];
+  }
+  return UNIT;
 }
 
 // =========================================================================
