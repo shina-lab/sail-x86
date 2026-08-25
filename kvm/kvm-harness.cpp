@@ -300,6 +300,7 @@ struct KvmVm {
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
     memset(guest_mem + DATA_ADDR, 0, 0x1000);
+    memset(guest_mem + STACK_TOP - 0x1000, 0, 0x1000);  // no cross-test residue
     memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
 
     memcpy(guest_mem + CODE_ADDR, tc.code.data(), tc.code.size());
@@ -549,6 +550,10 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   memset((void *)DATA_ADDR, 0, 0x1000);
   if (!tc.init_data.empty())
     memcpy((void *)DATA_ADDR, tc.init_data.data(), tc.init_data.size());
+
+  // Clear the stack page so no state leaks from the previous test
+  // (mirrors the KVM-side reset in load_test).
+  memset((void *)(STACK_TOP - 0x1000), 0, 0x1000);
 
   // GPR order: RAX=0, RCX=1, RDX=2, RBX=3, RSP=4, RBP=5, RSI=6, RDI=7, R8-R15=8-15
   model.zGPR.data[0]  = tc.initial.rax;
