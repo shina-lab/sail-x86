@@ -179,8 +179,8 @@ TEST(divide_error_delivery) {
 
   // Should halt at the handler
   ASSERT_EQ(kind, RUN_HALTED);
-  // RIP stays at the HLT instruction (Halt doesn't advance RIP)
-  ASSERT_EQ((u64)model.zRIP, handler_addr);
+  // The handler is a single HLT; HLT commits the post-HLT RIP.
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);  // halted after the handler HLT
 
   // Verify interrupt frame on stack: SS, RSP, RFLAGS, CS, RIP
   // #DE has no error code
@@ -222,7 +222,7 @@ TEST(gp_fault_delivery_with_error_code) {
 
   int kind = run_code(model, code, sizeof(code));
   ASSERT_EQ(kind, RUN_HALTED);
-  ASSERT_EQ((u64)model.zRIP, handler_addr);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);  // halted after the handler HLT
 
   // #GP has error code. Stack: error_code, RIP, CS, RFLAGS, RSP, SS
   u64 rsp = model.zGPR.data[4];
@@ -396,7 +396,7 @@ TEST(int3_software_interrupt) {
 
   int kind = run_code(model, code, sizeof(code));
   ASSERT_EQ(kind, RUN_HALTED);
-  ASSERT_EQ((u64)model.zRIP, handler_addr);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);  // halted after the handler HLT
 
   // Stack frame: RIP, CS, RFLAGS, RSP, SS (no error code for software interrupt)
   u64 rsp = model.zGPR.data[4];
@@ -432,7 +432,7 @@ TEST(int_n_no_error_code_for_gp_vector) {
 
   int kind = run_code(model, code, sizeof(code));
   ASSERT_EQ(kind, RUN_HALTED);
-  ASSERT_EQ((u64)model.zRIP, handler_addr);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);  // halted after the handler HLT
 
   // Stack frame: RIP, CS, RFLAGS, RSP, SS — NO error code
   // (Unlike a real #GP fault which would push error code)
@@ -601,7 +601,7 @@ TEST(pm32_divide_error_delivery) {
   u8 code[] = { 0xF7, 0xF1, 0xF4 };
   int kind = run_code(model, code, sizeof(code));
   ASSERT_EQ(kind, RUN_HALTED);
-  ASSERT_EQ((u64)model.zRIP, handler_addr);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);  // halted after the handler HLT
 
   // Verify 32-bit interrupt frame: EFLAGS, CS, EIP (no error code for #DE)
   u32 esp = (u32)model.zGPR.data[4];
@@ -748,7 +748,7 @@ TEST(real_mode_ivt_delivery) {
 
   // Should halt at the handler
   ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
-  ASSERT_EQ((u64)model.zRIP, (u64)handler_ip);
+  ASSERT_EQ((u64)model.zRIP, (u64)(handler_ip + 1));  // halted after the handler HLT
   ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], (u64)handler_cs);
 
   // Verify 16-bit interrupt frame on stack: FLAGS, CS, IP

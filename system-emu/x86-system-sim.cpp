@@ -1144,11 +1144,9 @@ int main(int argc, char *argv[]) {
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pic_master.raise_irq(0);
         }
-        // Advance RIP past the HLT instruction (1 byte, opcode 0xF4).
         // On real x86, when an interrupt wakes the CPU from HLT, execution
-        // resumes at the instruction AFTER HLT. Our Sail model sets SysHalted
-        // without advancing RIP, so we must do it here.
-        model.zRIP = model.zRIP + 1;
+        // resumes at the instruction AFTER HLT. The model commits the
+        // post-HLT RIP when it executes HLT, so just leave the halt state.
         model.zsystem_state = x86::zSysRunning;
         insn_count++;
         continue;

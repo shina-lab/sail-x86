@@ -1787,6 +1787,11 @@ function decode_execute() = {
       244 => {
         if cur_cpl != 0 then raise_GP0();
         vmx_exit_if_hlt();
+        // HLT completes before the halt state is entered: execution resumes
+        // at the following instruction (and SMM saves the post-HLT RIP,
+        // SDM Vol.3 §34.10).  step() skips its RIP commit once
+        // system_state != SysRunning, so commit the new RIP here.
+        RIP = decode_pos;
         system_state = SysHalted
       },
 
