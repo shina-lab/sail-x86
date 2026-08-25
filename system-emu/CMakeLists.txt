@@ -101,6 +101,17 @@ target_link_libraries(system_test_exceptions PRIVATE x86_system_model)
 add_dependencies(system_test_exceptions generated_sail_x86_model)
 add_test(NAME system_exceptions COMMAND system_test_exceptions)
 
+# Automated boot smoke test: undriven Linux boot to the console banner,
+# the machine-checkable criterion the timing measurements use.  Skips
+# when the boot images have not been built (make linux).  Excluded from
+# a quick run with: ctest -LE boot
+add_test(NAME boot_linux_banner
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
+set_tests_properties(boot_linux_banner PROPERTIES
+  TIMEOUT 600
+  LABELS "boot"
+  SKIP_RETURN_CODE 127)
+
 add_executable(system_test_a20 tests/test-a20.cpp)
 target_link_libraries(system_test_a20 PRIVATE x86_system_model)
 add_dependencies(system_test_a20 generated_sail_x86_model)
