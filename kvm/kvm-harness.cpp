@@ -317,17 +317,27 @@ struct KvmVm {
       sregs_tmp.cs.l = 1;   // 64-bit
       sregs_tmp.cs.db = 0;
     }
-    // Restore SS to kernel data segment (previous test may have changed it,
-    // e.g. IRET to user mode sets SS.DPL=3 which causes #SS for kernel code).
-    sregs_tmp.ss = {};
-    sregs_tmp.ss.base = 0;
-    sregs_tmp.ss.limit = 0xFFFFFFFF;
-    sregs_tmp.ss.selector = 0x10;
-    sregs_tmp.ss.type = 0x2;
-    sregs_tmp.ss.present = 1;
-    sregs_tmp.ss.db = 1;
-    sregs_tmp.ss.s = 1;
-    sregs_tmp.ss.g = 1;
+    // Restore SS and the data segments to the flat kernel data segment
+    // (a previous test may have changed them: IRET to user mode sets
+    // SS.DPL=3, and segment-load tests leave DS/ES modified — visible to
+    // compat-mode tests, which enforce limits.  The Sail side gets fresh
+    // flat segments every test.)
+    auto reset_data_seg = [](struct kvm_segment &seg) {
+      seg = {};
+      seg.base = 0;
+      seg.limit = 0xFFFFFFFF;
+      seg.selector = 0x10;
+      seg.type = 0x2;
+      seg.present = 1;
+      seg.db = 1;
+      seg.s = 1;
+      seg.g = 1;
+    };
+    reset_data_seg(sregs_tmp.ss);
+    reset_data_seg(sregs_tmp.ds);
+    reset_data_seg(sregs_tmp.es);
+    reset_data_seg(sregs_tmp.fs);
+    reset_data_seg(sregs_tmp.gs);
     // Reset CR2 so a #PF in one test is not visible to the next.
     sregs_tmp.cr2 = 0;
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
