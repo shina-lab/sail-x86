@@ -6,6 +6,38 @@
 #include "kvm-harness.h"
 #include "x86-helpers.h"
 
+#include <cpuid.h>
+#include <sys/utsname.h>
+
+// Print the identity of the hardware oracle.  The differential result is
+// only meaningful relative to the silicon it ran against (vendor behavior
+// may legally diverge where the SDM leaves state undefined), so every log
+// records which CPU and kernel produced it.
+static void print_host_identity() {
+  u32 a, b, c, d;
+  char vendor[13] = {};
+  if (__get_cpuid(0, &a, &b, &c, &d)) {
+    memcpy(vendor + 0, &b, 4);
+    memcpy(vendor + 4, &d, 4);
+    memcpy(vendor + 8, &c, 4);
+  }
+  char brand[49] = {};
+  if (__get_cpuid_max(0x80000000, nullptr) >= 0x80000004) {
+    u32 *p = (u32 *)brand;
+    for (u32 leaf = 0x80000002; leaf <= 0x80000004; leaf++) {
+      __get_cpuid(leaf, &a, &b, &c, &d);
+      *p++ = a; *p++ = b; *p++ = c; *p++ = d;
+    }
+  }
+  for (int i = 47; i >= 0 && (brand[i] == ' ' || brand[i] == '\0'); i--)
+    brand[i] = '\0';  // trim trailing padding
+  struct utsname un = {};
+  uname(&un);
+  fprintf(stderr, "host CPU: %s (%s)\n", brand, vendor);
+  fprintf(stderr, "host kernel: %s %s (%s)\n",
+          un.sysname, un.release, un.machine);
+}
+
 // ---- KVM VM ----
 
 struct KvmVm {
@@ -759,6 +791,8 @@ std::vector<TestCase> build_tests() {
 
 int main(int argc, char **argv) {
   const char *filter = argc > 1 ? argv[1] : nullptr;
+
+  print_host_identity();
 
   auto vm = std::make_unique<KvmVm>();
   if (!vm->init()) {
