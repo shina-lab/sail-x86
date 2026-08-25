@@ -398,8 +398,11 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     cat = "BSF/BSR";
 
     // BSF: 0F BC /r -- scan forward (LSB to MSB)
-    // SDM: ZF set if source is zero. CF, OF, SF, AF cleared.
-    // PF set from source operand parity (low 8 bits).
+    // The SDM defines only ZF (set if the source is zero) and leaves CF,
+    // OF, SF, AF, PF and, for a zero source, the destination undefined.
+    // The model fixes the de-facto behavior (see insn_baseline.sail):
+    // CF/OF/SF/AF cleared, PF from the result's parity, destination
+    // unchanged on a zero source.  These cases compare all of it.
 
     // BSF 32-bit: value=1 -> result=0
     // 0F BC C3: BSF EAX, EBX
@@ -415,6 +418,14 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3},
                       {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
+    // BSF 32-bit: zero source with a nonzero upper half in the destination.
+    // The AMD host leaves the whole 64-bit register untouched (upper half
+    // included) and the model follows.  Linux's ffs() comment describes
+    // Intel as rewriting the old value, which would clear the upper half:
+    // an item for an Intel-host run.
+    tests.push_back({"bsf eax,ebx zero hi32", cat, {0x0F, 0xBC, 0xC3},
+                      {.rax = 0xFFFFFFFFDEADDEAD, .rflags = 0x2}, FL_ALL});
+
     // BSF 64-bit: bit 32 only
     // 48 0F BC C3: BSF RAX, RBX
     tests.push_back({"bsf rax,rbx bit32", cat, {0x48, 0x0F, 0xBC, 0xC3},
@@ -425,7 +436,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
                       {.rbx = 0xDEAD000000000100, .rflags = 0x2 | FL_CF | FL_OF | FL_AF}, FL_ALL});
 
     // BSR: 0F BD /r -- scan reverse (MSB to LSB)
-    // SDM: same flag behavior as BSF.
+    // Same flag and destination rules as BSF.
 
     // BSR 32-bit: value=1 -> result=0
     // 0F BD C3: BSR EAX, EBX
@@ -439,6 +450,10 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // BSR 32-bit: zero -> ZF=1
     tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3},
                       {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
+
+    // BSR 32-bit: zero source, nonzero upper half in the destination
+    tests.push_back({"bsr eax,ebx zero hi32", cat, {0x0F, 0xBD, 0xC3},
+                      {.rax = 0xFFFFFFFFDEADDEAD, .rflags = 0x2}, FL_ALL});
 
     // BSR 64-bit
     tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3},
