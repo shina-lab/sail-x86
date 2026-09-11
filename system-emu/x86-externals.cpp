@@ -460,7 +460,9 @@ static void fxsave_common(Model &m, u64 addr) {
   // MXCSR at offset 0x18
   u32 mxcsr = m.mxcsr_state.mxcsr;
   virt_write32(m, addr + 0x18, mxcsr);
-  virt_write32(m, addr + 0x1C, 0x0002FFFF);
+  // MXCSR_MASK is implementation dependent; the model reports the Intel
+  // value.  Keep in sync with xsave_mxcsr in model/insn_xsave.sail.
+  virt_write32(m, addr + 0x1C, 0x0000FFFF);
 
   // ST0-ST7 at offset 0x20 (16 bytes each, only 10 used)
   for (int i = 0; i < 8; i++) {

@@ -99,10 +99,21 @@ function xsave_x87(base) = {
 // -------------------------------------------------------------------------
 
 // Save just MXCSR and MXCSR_MASK (shared between SSE and AVX)
+//
+// MXCSR_MASK reports which MXCSR bits the processor accepts; the SDM
+// leaves the value implementation dependent (Vol. 1, Ch. 11, "Guidelines
+// for Writing to the MXCSR Register").  Intel processors report
+// 0x0000FFFF (bits 15:0, DAZ included); AMD processors report 0x0002FFFF
+// because bit 17 is their misaligned-SSE mode, gated by the MISALIGNSSE
+// CPUID feature.  This model presents as GenuineIntel and does not
+// advertise MISALIGNSSE, so it reports the Intel value.  The FXSAVE
+// externals in usermode-emu and system-emu write the same constant, and
+// the KVM differential tests treat the field as vendor-specific and do
+// not compare it.
 val xsave_mxcsr : qword -> unit
 function xsave_mxcsr(base) = {
   write_mem(base + 24, __stmxcsr());
-  write_mem(base + 28, 0x0002FFFF) // MXCSR_MASK
+  write_mem(base + 28, 0x0000FFFF) // MXCSR_MASK
 }
 
 val xsave_sse : qword -> unit
