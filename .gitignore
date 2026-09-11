@@ -6,3 +6,5 @@ sail_smt_cache
 *.a
 test/build/
 verify/ir/
+__pycache__/
+Testing/

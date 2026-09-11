@@ -1,0 +1,1996 @@
+#!/usr/bin/env python3
+"""Prove or refute candidate rewrites of hand-written assembly.
+
+Candidates come from docs/libjpeg-linux-optimization-candidates.md.  For
+each one the original and the proposed sequence are assembled with GNU as
+under a `.arch` directive that pins the ISA level of the file the original
+lives in (a proposal that uses a newer instruction fails to assemble and is
+reported as an ISA violation, not as a proof result), turned into Sail test
+functions that execute the bytes through the model, symbolically executed
+with Isla, and compared with Z3.  UNSAT means the two sequences agree on
+every input; SAT means Z3 found a distinguishing input.
+
+Usage:
+    prove_candidates.py [--ir PATH] [--only NAME ...] [--stage tests|ir|traces|z3]
+
+Working files (IR, traces, SMT queries) go under $CANDIDATE_WORK
+(default: /tmp/claude-1000/prove_candidates).  The generated Sail test file
+is written next to this script as candidates_tests.sail.
+"""
+
+import argparse
+import sys as _sys
+_sys.stdout.reconfigure(line_buffering=True)
+import concurrent.futures
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+MODEL_DIR = SCRIPT_DIR.parent / "model"
+ISLA_DIR = Path(os.environ.get("ISLA_DIR", Path.home() / "isla"))
+SAIL_SRC = Path(os.environ.get("SAIL_SRC", Path.home() / "sail-github"))
+ISLA_EXE = ISLA_DIR / "target/release/isla-execute-function"
+ISLA_PLUGIN = ISLA_DIR / "isla-sail/_build/default/sail_plugin_isla.cmxs"
+SAIL_EXE = SAIL_SRC / "_build/default/src/bin/sail.exe"
+ISLA_CONFIG = SCRIPT_DIR / "x86_config_ours.toml"
+WORK = Path(os.environ.get("CANDIDATE_WORK", "/tmp/claude-1000/prove_candidates"))
+TESTS_SAIL = SCRIPT_DIR / "candidates_tests.sail"
+
+sys.path.insert(0, str(SCRIPT_DIR))
+import prove_equiv  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# ISA levels.  Each maps to the GAS directives that make the assembler reject
+# anything newer.  GAS treats .avx as implying SSE4.2 and below.
+# ---------------------------------------------------------------------------
+
+LEVELS = {
+    "x86-64": [".arch generic64"],
+    "sse2":   [".arch generic64"],
+    "ssse3":  [".arch generic64", ".arch .ssse3"],
+    "sse4.1": [".arch generic64", ".arch .ssse3", ".arch .sse4.1"],
+    "avx":    [".arch generic64", ".arch .avx"],
+    "avx2":   [".arch generic64", ".arch .avx2"],
+    "avx512": [".arch generic64", ".arch .avx512f", ".arch .avx512bw",
+               ".arch .avx512dq", ".arch .avx512vl"],
+}
+EXTRAS = {
+    "aes": ".arch .aes",
+    "pclmul": ".arch .pclmul",
+    "bmi2": ".arch .bmi2",
+    "vaes": ".arch .vaes",
+    "vpclmulqdq": ".arch .vpclmulqdq",
+}
+
+GPR_INDEX = {n: i for i, n in enumerate(
+    ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
+     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"])}
+
+
+class IsaViolation(Exception):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Assembly
+# ---------------------------------------------------------------------------
+
+def assemble(body, level, extras=(), syntax="att"):
+    """Assemble under the level's .arch directives; return [(bytes, text)]."""
+    lines = list(LEVELS[level]) + [EXTRAS[e] for e in extras]
+    if syntax == "intel":
+        lines.append(".intel_syntax noprefix")
+    lines.append(".text")
+    for line in body.strip().splitlines():
+        line = line.split(";")[0].split("#")[0].split("//")[0].strip()
+        if line:
+            lines.append("\t" + line)
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "c.s"
+        obj = Path(td) / "c.o"
+        src.write_text("\n".join(lines) + "\n")
+        r = subprocess.run(["as", "--64", "-o", str(obj), str(src)],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            msg = r.stderr.strip()
+            if "not supported on" in msg or "operand size mismatch" in msg:
+                raise IsaViolation(msg)
+            raise RuntimeError(f"assembler failed:\n{msg}")
+        r = subprocess.run(["objdump", "-d", "--insn-width=15", str(obj)],
+                           capture_output=True, text=True, check=True)
+    insns = []
+    for line in r.stdout.splitlines():
+        m = re.match(r"^\s*[0-9a-f]+:\s+((?:[0-9a-f]{2}\s)+)\s*(\S.*)$", line)
+        if m:
+            insns.append((bytes.fromhex(m.group(1).replace(" ", "")),
+                          m.group(2).strip()))
+    return insns
+
+
+def sail_literal(byte_seq):
+    if len(byte_seq) > 15:
+        raise ValueError("instruction longer than 15 bytes")
+    padded = b"\xf4" * (15 - len(byte_seq)) + byte_seq[::-1]
+    return "0x" + padded.hex().upper()
+
+
+# ---------------------------------------------------------------------------
+# Sail test generation
+# ---------------------------------------------------------------------------
+
+HELPERS = """\
+// Generated by prove_candidates.py; do not edit.
+// One pair of test functions per candidate: test_<name>_a (original) and
+// test_<name>_b (proposal).  Each returns the concatenation of the live
+// output registers; Isla records it as "Final result".
+
+val set_xmm : (simd_idx, bits(128)) -> unit
+function set_xmm(i, v) = { ZMM[i] = zero_extend(v) }
+
+val set_ymm : (simd_idx, bits(256)) -> unit
+function set_ymm(i, v) = { ZMM[i] = zero_extend(v) }
+
+// First 32 bytes of the symbolic memory window (byte 0 = bits 7..0).
+val set_mem32 : bits(256) -> unit
+function set_mem32(v) = { mem_window[255..0] = v }
+
+// The architectural RFLAGS image (branch-free: read_rflags assembles bits
+// without conditionals, so symbolic flags do not fork the trace).
+val flag_bits : unit -> bits(64)
+function flag_bits() = read_rflags()
+"""
+
+
+def reg_expr(name):
+    """Sail expression and width for an output register name."""
+    m = re.fullmatch(r"xmm(\d+)", name)
+    if m:
+        return f"ZMM[{m.group(1)}][127..0]", 128
+    m = re.fullmatch(r"ymm(\d+)", name)
+    if m:
+        return f"ZMM[{m.group(1)}][255..0]", 256
+    m = re.fullmatch(r"zmm(\d+)", name)
+    if m:
+        return f"ZMM[{m.group(1)}]", 512
+    if name == "flags":
+        return "flag_bits()", 64
+    if name in GPR_INDEX:
+        return f"GPR[{GPR_INDEX[name]}]", 64
+    raise ValueError(f"unknown register {name}")
+
+
+def setup_stmt(reg, hexval):
+    m = re.fullmatch(r"xmm(\d+)", reg)
+    if m:
+        assert len(hexval) == 32, reg
+        return f"  set_xmm({m.group(1)}, 0x{hexval.upper()});"
+    m = re.fullmatch(r"ymm(\d+)", reg)
+    if m:
+        assert len(hexval) == 64, reg
+        return f"  set_ymm({m.group(1)}, 0x{hexval.upper()});"
+    if reg in GPR_INDEX:
+        assert len(hexval) == 16, reg
+        return f"  GPR[{GPR_INDEX[reg]}] = 0x{hexval.upper()};"
+    if reg == "mem":
+        assert len(hexval) == 64, reg
+        return f"  set_mem32(0x{hexval.upper()});"
+    raise ValueError(reg)
+
+
+def gen_test(func, insns, setup, outputs):
+    exprs, width = [], 0
+    for o in outputs:
+        e, w = reg_expr(o)
+        exprs.append(e)
+        width += w
+    lines = [f"val {func} : unit -> bits({width})",
+             f"function {func}() = {{",
+             "  enable_features_all();",
+             "  system_state = SysRunning;"]
+    for reg, val in setup.items():
+        lines.append(setup_stmt(reg, val))
+    for byte_seq, text in insns:
+        lines.append(f"  setup_and_exec({sail_literal(byte_seq)});  // {text}")
+    lines.append("  " + " @ ".join(exprs))
+    lines.append("}")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Isla IR, traces, Z3
+# ---------------------------------------------------------------------------
+
+def opam_env():
+    env = os.environ.copy()
+    r = subprocess.run(["opam", "env"], capture_output=True, text=True)
+    for line in r.stdout.splitlines():
+        m = re.match(r"(\w+)='([^']*)'", line)
+        if m:
+            env[m.group(1)] = m.group(2)
+    env["SAIL_DIR"] = str(SAIL_SRC)
+    return env
+
+
+def generate_ir(func_names, ir_base):
+    sail_files = []
+    for line in (MODEL_DIR / "x86.sail_project").read_text().splitlines():
+        cleaned = line.strip().rstrip(",").strip()
+        if cleaned.endswith(".sail"):
+            sail_files.append(cleaned)
+    cmd = [str(SAIL_EXE), "--plugin", str(ISLA_PLUGIN), "--isla", "-D", "ISLA",
+           "-splice", str(SCRIPT_DIR / "splice_ours.sail"),
+           "-splice", str(TESTS_SAIL)]
+    for f in func_names:
+        cmd += ["--isla-preserve", f]
+    cmd += ["-o", str(ir_base)] + sail_files
+    t0 = time.time()
+    print(f"=== Compiling model + {len(func_names)} test functions to Isla IR")
+    r = subprocess.run(cmd, cwd=str(MODEL_DIR), env=opam_env(),
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        for line in r.stderr.splitlines():
+            if not line.startswith("Warning") and "suppressed" not in line:
+                print("   ", line)
+        raise RuntimeError("sail failed")
+    ir = Path(str(ir_base) + ".ir")
+    print(f"    {ir} ({ir.stat().st_size:,} bytes, {time.time()-t0:.0f}s)")
+    return ir
+
+
+def run_isla(func, ir, trace_dir):
+    trace = trace_dir / f"{func}.trace"
+    err = trace_dir / f"{func}.err"
+    if trace.exists() and trace.stat().st_mtime > ir.stat().st_mtime:
+        return trace, "cached"
+    t0 = time.time()
+    # No `-s`: Isla's trace simplifier distributes bit extracts over
+    # additions and drops the carry (it turned (a+b+1)>>1 into a>>1 + b>>1
+    # in PAVGB), which made a valid rewrite look refuted.  Unsimplified
+    # traces are larger but are what the model actually computes.
+    with open(trace, "w") as out, open(err, "w") as e:
+        subprocess.run([str(ISLA_EXE), func, "--arch", str(ir),
+                        "--config", str(ISLA_CONFIG),
+                        "--traces", "--simplify-registers",
+                        "--timeout", "1200"],
+                       stdout=out, stderr=e, text=True)
+    return trace, f"{time.time()-t0:.0f}s"
+
+
+def trace_paths(trace):
+    with open(trace) as f:
+        return sum(1 for l in f if "write-reg |Final result|" in l)
+
+
+def reg_mappings(trace):
+    """The symbolic initial value of every register the trace reads before
+    writing: vector registers give a list of element variables, scalar
+    registers a one-element list.  Only reads of declared (input) variables
+    count; a register read back after being written yields a defined
+    variable, which must not be unified between the two traces."""
+    with open(trace) as f:
+        text = f.read()
+    declared = set(re.findall(r"\(declare-const (v\d+) ", text))
+    maps = {}
+    for line in text.splitlines():
+        m = re.search(r"read-reg \|([^|]+)\| nil \(_ vec ([\w ]+)\)", line)
+        if m and m.group(1) not in maps:
+            elems = m.group(2).split()
+            if all(e in declared for e in elems):
+                maps[m.group(1)] = elems
+            continue
+        m = re.search(r"read-reg \|([^|]+)\| nil (v\d+)\)", line)
+        if m and m.group(1) not in maps and m.group(2) in declared:
+            maps[m.group(1)] = [m.group(2)]
+    return maps
+
+
+def build_query(trace_a, trace_b, name):
+    lines_a, result_a, _ = prove_equiv.extract_trace_smt(trace_a)
+    lines_b, result_b, _ = prove_equiv.extract_trace_smt(trace_b)
+    if not result_a or not result_b:
+        raise RuntimeError(f"{name}: missing Final result in trace")
+    rename = prove_equiv.build_input_rename(reg_mappings(trace_a),
+                                            reg_mappings(trace_b))
+    lines_b, result_b = prove_equiv.rename_vars(lines_b, result_b, "b_", rename)
+    q = [f"; {name}: UNSAT = equivalent for all inputs", "(set-logic QF_BV)"]
+    q += [l for l in lines_a if l.startswith("(declare-const ")]
+    q += [l for l in lines_a if l.startswith("(define-const ")]
+    q += lines_b
+    q.append(f"(assert (not (= {result_a} {result_b})))")
+    q.append("(check-sat)")
+    q.append("(get-model)")
+    return "\n".join(prove_equiv.convert_define_const_to_fun(q))
+
+
+ALT_SOLVER_PY = os.environ.get("ALT_SOLVER_PY")   # python with the bitwuzla package
+ALT_SOLVER_SCRIPT = Path(os.environ.get("ALT_SOLVER_SCRIPT", "/nonexistent"))
+
+
+def run_z3(query_text, path, timeout=600):
+    """Z3 first; on a Z3 timeout, Bitwuzla if ALT_SOLVER_PY points at a
+    python that has it (the SHA-256 four-round query takes Bitwuzla 4s and
+    Z3 more than 30 minutes)."""
+    path.write_text(query_text)
+    t0 = time.time()
+    try:
+        r = subprocess.run(["z3", "-T:%d" % timeout, str(path)],
+                           capture_output=True, text=True, timeout=timeout + 30)
+        out = r.stdout.strip()
+    except subprocess.TimeoutExpired:
+        out = "timeout"
+    verdict = out.split("\n", 1)[0] if out else "error"
+    if verdict == "timeout" and ALT_SOLVER_PY and ALT_SOLVER_SCRIPT.exists():
+        nomodel = path.with_suffix(".nomodel.smt2")
+        nomodel.write_text(query_text.replace("(get-model)", ""))
+        try:
+            r = subprocess.run([ALT_SOLVER_PY, str(ALT_SOLVER_SCRIPT), "bitwuzla", str(nomodel)],
+                               capture_output=True, text=True, timeout=timeout + 30)
+            first = r.stdout.strip().split("\n", 1)[0] if r.stdout.strip() else "error"
+            if first in ("sat", "unsat"):
+                verdict, out = first + " (bitwuzla, z3 timeout)", r.stdout.strip()
+        except subprocess.TimeoutExpired:
+            pass
+    return verdict, out, time.time() - t0
+
+
+# ---------------------------------------------------------------------------
+# Candidates
+# ---------------------------------------------------------------------------
+
+def C(name, level, orig, opt, outputs, setup=None, extras=(), syntax="att",
+      outputs_b=None, expect="unsat", site="", note=""):
+    return dict(name=name, level=level, orig=orig, opt=opt, outputs=outputs,
+                outputs_b=outputs_b or outputs, setup=setup or {},
+                extras=extras, syntax=syntax, expect=expect, site=site,
+                note=note)
+
+
+def words(v, n=8):
+    return ("%04x" % (v & 0xffff)) * n
+
+
+def dwords(v, n=4):
+    return ("%08x" % (v & 0xffffffff)) * n
+
+
+ZERO128 = "0" * 32
+
+CANDIDATES = [
+    # ------------------------------------------------------------------
+    # libjpeg-turbo
+    # ------------------------------------------------------------------
+    C("l1_h2v1_upsample", "sse2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jdsample-sse2.asm:122-151",
+      setup={"xmm0": ZERO128, "xmm8": words(3), "xmm9": words(1), "xmm10": words(2)},
+      orig="""
+        movdqa xmm4, xmm1
+        punpcklbw xmm1, xmm0
+        punpckhbw xmm4, xmm0
+        movdqa xmm5, xmm2
+        punpcklbw xmm2, xmm0
+        punpckhbw xmm5, xmm0
+        movdqa xmm6, xmm3
+        punpcklbw xmm3, xmm0
+        punpckhbw xmm6, xmm0
+        pmullw xmm1, xmm8      ; [rel PW_THREE]
+        pmullw xmm4, xmm8
+        paddw xmm2, xmm9       ; [rel PW_ONE]
+        paddw xmm5, xmm9
+        paddw xmm3, xmm10      ; [rel PW_TWO]
+        paddw xmm6, xmm10
+        paddw xmm2, xmm1
+        paddw xmm5, xmm4
+        psrlw xmm2, 2
+        psrlw xmm5, 2
+        paddw xmm3, xmm1
+        paddw xmm6, xmm4
+        psrlw xmm3, 2
+        psrlw xmm6, 2
+        psllw xmm3, 8
+        psllw xmm6, 8
+        por xmm2, xmm3
+        por xmm5, xmm6
+      """,
+      opt="""
+        pavgb xmm2, xmm1
+        movdqa xmm4, xmm1
+        paddb xmm4, xmm2
+        pavgb xmm2, xmm1
+        psubb xmm4, xmm2
+        movdqa xmm5, xmm1
+        paddb xmm5, xmm3
+        pavgb xmm3, xmm1
+        psubb xmm5, xmm3
+        pavgb xmm5, xmm1
+        movdqa xmm6, xmm4
+        punpcklbw xmm4, xmm5
+        punpckhbw xmm6, xmm5
+      """,
+      outputs=["xmm2", "xmm5"], outputs_b=["xmm4", "xmm6"]),
+
+    C("l1_h2v1_upsample_naive_pavgb", "sse2", syntax="intel", expect="sat",
+      site="refutation for l1", setup={"xmm0": ZERO128, "xmm8": words(3), "xmm9": words(1), "xmm10": words(2)},
+      orig="""
+        movdqa xmm4, xmm1
+        punpcklbw xmm1, xmm0
+        punpckhbw xmm4, xmm0
+        movdqa xmm5, xmm2
+        punpcklbw xmm2, xmm0
+        punpckhbw xmm5, xmm0
+        movdqa xmm6, xmm3
+        punpcklbw xmm3, xmm0
+        punpckhbw xmm6, xmm0
+        pmullw xmm1, xmm8
+        pmullw xmm4, xmm8
+        paddw xmm2, xmm9
+        paddw xmm5, xmm9
+        paddw xmm3, xmm10
+        paddw xmm6, xmm10
+        paddw xmm2, xmm1
+        paddw xmm5, xmm4
+        psrlw xmm2, 2
+        psrlw xmm5, 2
+        paddw xmm3, xmm1
+        paddw xmm6, xmm4
+        psrlw xmm3, 2
+        psrlw xmm6, 2
+        psllw xmm3, 8
+        psllw xmm6, 8
+        por xmm2, xmm3
+        por xmm5, xmm6
+      """,
+      opt="""
+        movdqa xmm4, xmm2
+        pavgb xmm4, xmm1
+        pavgb xmm4, xmm1
+        movdqa xmm5, xmm3
+        pavgb xmm5, xmm1
+        pavgb xmm5, xmm1
+        movdqa xmm6, xmm4
+        punpcklbw xmm4, xmm5
+        punpckhbw xmm6, xmm5
+      """,
+      outputs=["xmm2", "xmm5"], outputs_b=["xmm4", "xmm6"]),
+
+    C("l3_jcphuff_reduce0", "sse2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jcphuff-sse2.asm:212-224",
+      setup={"xmm9": ZERO128},
+      orig="""
+        pcmpeqw xmm0, xmm9
+        pcmpeqw xmm1, xmm9
+        pcmpeqw xmm2, xmm9
+        pcmpeqw xmm3, xmm9
+        pcmpeqw xmm4, xmm9
+        pcmpeqw xmm5, xmm9
+        pcmpeqw xmm6, xmm9
+        pcmpeqw xmm7, xmm9
+        packsswb xmm0, xmm1
+        packsswb xmm2, xmm3
+        packsswb xmm4, xmm5
+        packsswb xmm6, xmm7
+      """,
+      opt="""
+        packsswb xmm0, xmm1
+        packsswb xmm2, xmm3
+        packsswb xmm4, xmm5
+        packsswb xmm6, xmm7
+        pcmpeqb xmm0, xmm9
+        pcmpeqb xmm2, xmm9
+        pcmpeqb xmm4, xmm9
+        pcmpeqb xmm6, xmm9
+      """,
+      outputs=["xmm0", "xmm2", "xmm4", "xmm6"]),
+
+    C("l3_jcphuff_reduce0_packuswb", "sse2", syntax="intel", expect="sat",
+      site="refutation for l3", setup={"xmm9": ZERO128},
+      orig="""
+        pcmpeqw xmm0, xmm9
+        pcmpeqw xmm1, xmm9
+        pcmpeqw xmm2, xmm9
+        pcmpeqw xmm3, xmm9
+        pcmpeqw xmm4, xmm9
+        pcmpeqw xmm5, xmm9
+        pcmpeqw xmm6, xmm9
+        pcmpeqw xmm7, xmm9
+        packsswb xmm0, xmm1
+        packsswb xmm2, xmm3
+        packsswb xmm4, xmm5
+        packsswb xmm6, xmm7
+      """,
+      opt="""
+        packuswb xmm0, xmm1
+        packuswb xmm2, xmm3
+        packuswb xmm4, xmm5
+        packuswb xmm6, xmm7
+        pcmpeqb xmm0, xmm9
+        pcmpeqb xmm2, xmm9
+        pcmpeqb xmm4, xmm9
+        pcmpeqb xmm6, xmm9
+      """,
+      outputs=["xmm0", "xmm2", "xmm4", "xmm6"]),
+
+    # ------------------------------------------------------------------
+    # Linux arch/x86/crypto
+    # ------------------------------------------------------------------
+    C("k2_aria_diff_m", "avx",
+      site="linux arch/x86/crypto/aria-aesni-avx-asm_64.S:361-374 (x0..x3=xmm0..3, t0..t3=xmm4..7)",
+      orig="""
+        vpxor %xmm0, %xmm3, %xmm4
+        vpxor %xmm1, %xmm0, %xmm5
+        vpxor %xmm2, %xmm1, %xmm6
+        vpxor %xmm3, %xmm2, %xmm7
+        vpxor %xmm6, %xmm0, %xmm0
+        vpxor %xmm1, %xmm7, %xmm7
+        vpxor %xmm4, %xmm2, %xmm2
+        vpxor %xmm5, %xmm3, %xmm1
+        vmovdqu %xmm7, %xmm3
+      """,
+      opt="""
+        vpxor %xmm3, %xmm0, %xmm4
+        vpxor %xmm2, %xmm1, %xmm5
+        vpxor %xmm4, %xmm1, %xmm1
+        vpxor %xmm4, %xmm2, %xmm2
+        vpxor %xmm5, %xmm0, %xmm0
+        vpxor %xmm5, %xmm3, %xmm3
+      """,
+      outputs=["xmm0", "xmm1", "xmm2", "xmm3"]),
+
+    C("k3_camellia_rol32_1_16", "avx",
+      site="linux arch/x86/crypto/camellia-aesni-avx-asm_64.S:269-290 (v0..v3=xmm0..3, t0..t2=xmm4..6, zero=xmm7)",
+      setup={"xmm7": ZERO128},
+      orig="""
+        vpcmpgtb %xmm0, %xmm7, %xmm4
+        vpaddb %xmm0, %xmm0, %xmm0
+        vpabsb %xmm4, %xmm4
+        vpcmpgtb %xmm1, %xmm7, %xmm5
+        vpaddb %xmm1, %xmm1, %xmm1
+        vpabsb %xmm5, %xmm5
+        vpcmpgtb %xmm2, %xmm7, %xmm6
+        vpaddb %xmm2, %xmm2, %xmm2
+        vpabsb %xmm6, %xmm6
+        vpor %xmm4, %xmm1, %xmm1
+        vpcmpgtb %xmm3, %xmm7, %xmm4
+        vpaddb %xmm3, %xmm3, %xmm3
+        vpabsb %xmm4, %xmm4
+        vpor %xmm5, %xmm2, %xmm2
+        vpor %xmm6, %xmm3, %xmm3
+        vpor %xmm4, %xmm0, %xmm0
+      """,
+      opt="""
+        vpcmpgtb %xmm0, %xmm7, %xmm4
+        vpaddb %xmm0, %xmm0, %xmm0
+        vpcmpgtb %xmm1, %xmm7, %xmm5
+        vpaddb %xmm1, %xmm1, %xmm1
+        vpcmpgtb %xmm2, %xmm7, %xmm6
+        vpaddb %xmm2, %xmm2, %xmm2
+        vpsubb %xmm4, %xmm1, %xmm1
+        vpcmpgtb %xmm3, %xmm7, %xmm4
+        vpaddb %xmm3, %xmm3, %xmm3
+        vpsubb %xmm5, %xmm2, %xmm2
+        vpsubb %xmm6, %xmm3, %xmm3
+        vpsubb %xmm4, %xmm0, %xmm0
+      """,
+      outputs=["xmm0", "xmm1", "xmm2", "xmm3"]),
+
+    C("k12a_serpent_transpose", "sse2",
+      site="linux arch/x86/crypto/serpent-sse2-x86_64-asm_64.S:575-588 (x0..x3=xmm0..3, t0..t2=xmm4..6)",
+      orig="""
+        movdqa %xmm0, %xmm6
+        punpckldq %xmm1, %xmm0
+        punpckhdq %xmm1, %xmm6
+        movdqa %xmm2, %xmm5
+        punpckhdq %xmm3, %xmm2
+        punpckldq %xmm3, %xmm5
+        movdqa %xmm0, %xmm1
+        punpcklqdq %xmm5, %xmm0
+        punpckhqdq %xmm5, %xmm1
+        movdqa %xmm6, %xmm3
+        punpcklqdq %xmm2, %xmm6
+        punpckhqdq %xmm2, %xmm3
+        movdqa %xmm6, %xmm2
+      """,
+      opt="""
+        movdqa %xmm2, %xmm5
+        punpckldq %xmm3, %xmm2
+        punpckhdq %xmm3, %xmm5
+        movdqa %xmm0, %xmm3
+        punpckhdq %xmm1, %xmm3
+        punpckldq %xmm1, %xmm0
+        movdqa %xmm0, %xmm1
+        punpcklqdq %xmm2, %xmm0
+        punpckhqdq %xmm2, %xmm1
+        movdqa %xmm3, %xmm2
+        punpcklqdq %xmm5, %xmm2
+        punpckhqdq %xmm5, %xmm3
+      """,
+      outputs=["xmm0", "xmm1", "xmm2", "xmm3"]),
+
+    C("k12b_aegis_encrypt_block", "sse2",
+      site="linux arch/x86/crypto/aegis128-aesni-asm.S:285-300 (s1..s4=xmm1..4, MSG=xmm5, T0=xmm6, T1=xmm7)",
+      orig="""
+        movdqa %xmm5, %xmm6
+        pxor %xmm1, %xmm6
+        pxor %xmm4, %xmm6
+        movdqa %xmm2, %xmm7
+        pand %xmm3, %xmm7
+        pxor %xmm7, %xmm6
+      """,
+      opt="""
+        movdqa %xmm2, %xmm7
+        pand %xmm3, %xmm7
+        pxor %xmm1, %xmm7
+        pxor %xmm4, %xmm7
+        pxor %xmm5, %xmm7
+      """,
+      outputs=["xmm6", "xmm5"], outputs_b=["xmm7", "xmm5"]),
+
+    C("k12c_gcm_precompute_hx", "sse2",
+      site="linux arch/x86/crypto/aes-gcm-aesni-x86_64.S:525-531 (H_POW1=xmm1, gfpoly_and_internal_carrybit=xmm2)",
+      setup={"xmm2": "c2000000000000010000000000000001"},
+      orig="""
+        movdqa %xmm1, %xmm0
+        pshufd $0xd3, %xmm0, %xmm0
+        psrad $31, %xmm0
+        paddq %xmm1, %xmm1
+        pand %xmm2, %xmm0
+        pxor %xmm0, %xmm1
+      """,
+      opt="""
+        pshufd $0xd3, %xmm1, %xmm0
+        psrad $31, %xmm0
+        paddq %xmm1, %xmm1
+        pand %xmm2, %xmm0
+        pxor %xmm0, %xmm1
+      """,
+      outputs=["xmm1"]),
+
+    C("k1_ghash_clmul_gf128mul_ble", "sse2", extras=("pclmul",),
+      site="linux lib/crypto/x86/ghash-pclmul.S:47-87 (ACC=xmm0, KEY=xmm1, T1..T3=xmm2..4; GSTAR=xmm7 for the proposal)",
+      setup={"xmm7": "c200000000000000c200000000000000"},
+      orig="""
+        movaps %xmm0, %xmm2
+        pshufd $0x4e, %xmm0, %xmm3
+        pshufd $0x4e, %xmm1, %xmm4
+        pxor %xmm0, %xmm3
+        pxor %xmm1, %xmm4
+        pclmulqdq $0x00, %xmm1, %xmm0
+        pclmulqdq $0x11, %xmm1, %xmm2
+        pclmulqdq $0x00, %xmm4, %xmm3
+        pxor %xmm0, %xmm3
+        pxor %xmm2, %xmm3
+        movaps %xmm3, %xmm4
+        pslldq $8, %xmm4
+        psrldq $8, %xmm3
+        pxor %xmm4, %xmm0
+        pxor %xmm3, %xmm2
+        movaps %xmm0, %xmm4
+        psllq $1, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $5, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $57, %xmm4
+        movaps %xmm4, %xmm3
+        pslldq $8, %xmm3
+        psrldq $8, %xmm4
+        pxor %xmm3, %xmm0
+        pxor %xmm4, %xmm2
+        movaps %xmm0, %xmm3
+        psrlq $5, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm0
+      """,
+      opt="""
+        movaps %xmm0, %xmm2
+        movaps %xmm0, %xmm3
+        movaps %xmm0, %xmm4
+        pclmulqdq $0x00, %xmm1, %xmm0
+        pclmulqdq $0x11, %xmm1, %xmm2
+        pclmulqdq $0x10, %xmm1, %xmm3
+        pclmulqdq $0x01, %xmm1, %xmm4
+        pxor %xmm4, %xmm3
+        movaps %xmm3, %xmm4
+        pslldq $8, %xmm4
+        psrldq $8, %xmm3
+        pxor %xmm4, %xmm0
+        pxor %xmm3, %xmm2
+        movaps %xmm0, %xmm3
+        pclmulqdq $0x00, %xmm7, %xmm3
+        pshufd $0x4e, %xmm3, %xmm3
+        pxor %xmm0, %xmm3
+        pxor %xmm3, %xmm2
+        pclmulqdq $0x11, %xmm7, %xmm3
+        pxor %xmm3, %xmm2
+        movaps %xmm2, %xmm0
+      """,
+      outputs=["xmm0"]),
+
+    # ------------------------------------------------------------------
+    # Linux lib/crypto/x86
+    # ------------------------------------------------------------------
+    C("k4_poly1305_times5", "x86-64",
+      site="linux lib/crypto/x86/poly1305-x86_64-cryptogams.pl:213-223 (d3=rdi, h0=r14, h1=rbx, h2=r10)",
+      orig="""
+        mov $-4, %rax
+        adc %r10, %rdi
+        and %rdi, %rax
+        mov %rdi, %r10
+        shr $2, %rdi
+        and $3, %r10
+        add %rdi, %rax
+        add %rax, %r14
+        adc $0, %rbx
+        adc $0, %r10
+      """,
+      opt="""
+        adc %r10, %rdi
+        mov %rdi, %r10
+        and $3, %r10
+        shr $2, %rdi
+        lea (%rdi,%rdi,4), %rax
+        add %rax, %r14
+        adc $0, %rbx
+        adc $0, %r10
+      """,
+      outputs=["r14", "rbx", "r10", "rdi", "rax", "flags"]),
+
+    C("k5_chacha_avx2_rotate12", "avx2",
+      site="linux lib/crypto/x86/chacha-avx2-x86_64.S:77-82",
+      orig="""
+        vpaddd %ymm3, %ymm2, %ymm2
+        vpxor %ymm2, %ymm1, %ymm1
+        vmovdqa %ymm1, %ymm6
+        vpslld $12, %ymm6, %ymm6
+        vpsrld $20, %ymm1, %ymm1
+        vpor %ymm6, %ymm1, %ymm1
+      """,
+      opt="""
+        vpaddd %ymm3, %ymm2, %ymm2
+        vpxor %ymm2, %ymm1, %ymm1
+        vpslld $12, %ymm1, %ymm6
+        vpsrld $20, %ymm1, %ymm1
+        vpor %ymm6, %ymm1, %ymm1
+      """,
+      outputs=["ymm1", "ymm2", "ymm6"]),
+
+    C("k7_sha256_ssse3_sigma0", "ssse3",
+      site="linux lib/crypto/x86/sha256-ssse3-asm.S:171-219 (XTMP1..3=xmm1..3, XTMP4=xmm8)",
+      orig="""
+        movdqa %xmm1, %xmm2
+        movdqa %xmm1, %xmm3
+        pslld $25, %xmm1
+        psrld $7, %xmm2
+        por %xmm2, %xmm1
+        movdqa %xmm3, %xmm2
+        movdqa %xmm3, %xmm8
+        pslld $14, %xmm3
+        psrld $18, %xmm2
+        pxor %xmm3, %xmm1
+        psrld $3, %xmm8
+        pxor %xmm2, %xmm1
+        pxor %xmm8, %xmm1
+      """,
+      opt="""
+        movdqa %xmm1, %xmm2
+        psrld $11, %xmm2
+        pxor %xmm1, %xmm2
+        psrld $4, %xmm2
+        pxor %xmm1, %xmm2
+        psrld $3, %xmm2
+        movdqa %xmm1, %xmm3
+        pslld $11, %xmm3
+        pxor %xmm1, %xmm3
+        pslld $14, %xmm3
+        pxor %xmm3, %xmm2
+      """,
+      outputs=["xmm1"], outputs_b=["xmm2"]),
+
+    C("k7_sha256_ssse3_sigma1", "ssse3",
+      site="linux lib/crypto/x86/sha256-ssse3-asm.S:224-260 (X3=xmm7, XTMP2..3=xmm2..3, XTMP4=xmm8, SHUF_00BA=xmm10)",
+      setup={"xmm10": "FFFFFFFFFFFFFFFF0b0a090803020100"},
+      orig="""
+        pshufd $0xfa, %xmm7, %xmm2
+        movdqa %xmm2, %xmm3
+        movdqa %xmm2, %xmm8
+        psrlq $17, %xmm2
+        psrlq $19, %xmm3
+        psrld $10, %xmm8
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm8
+        pshufb %xmm10, %xmm8
+      """,
+      opt="""
+        pshufd $0xfa, %xmm7, %xmm2
+        movdqa %xmm2, %xmm3
+        psrlq $2, %xmm3
+        pxor %xmm2, %xmm3
+        psrlq $17, %xmm3
+        psrld $10, %xmm2
+        pxor %xmm3, %xmm2
+        pshufb %xmm10, %xmm2
+      """,
+      outputs=["xmm8"], outputs_b=["xmm2"]),
+
+    # ------------------------------------------------------------------
+    # Linux arch/x86/lib
+    # ------------------------------------------------------------------
+    C("g1_csum_fold", "x86-64",
+      site="linux arch/x86/include/asm/checksum_64.h:25-33 (compiled form)",
+      orig="""
+        mov %eax, %edx
+        xor %ax, %ax
+        shl $16, %edx
+        add %edx, %eax
+        adc $0xffff, %eax
+        not %eax
+        shr $16, %eax
+      """,
+      opt="""
+        mov %eax, %edx
+        shr $16, %eax
+        add %dx, %ax
+        adc $0, %eax
+        xor $0xffff, %eax
+      """,
+      outputs=["rax"]),
+
+    C("g1_csum_fold_invert_first", "x86-64", expect="sat",
+      site="refutation for g1",
+      orig="""
+        mov %eax, %edx
+        xor %ax, %ax
+        shl $16, %edx
+        add %edx, %eax
+        adc $0xffff, %eax
+        not %eax
+        shr $16, %eax
+      """,
+      opt="""
+        not %eax
+        mov %eax, %edx
+        shr $16, %eax
+        add %dx, %ax
+        adc $0, %eax
+      """,
+      outputs=["rax"]),
+
+    C("g2_copy_mc_leading_bytes", "x86-64",
+      site="linux arch/x86/lib/copy_mc_64.S:31-35",
+      orig="""
+        movl %esi, %ecx
+        andl $7, %ecx
+        subl $8, %ecx
+        negl %ecx
+        subl %ecx, %edx
+      """,
+      opt="""
+        leal 8(%rsi), %ecx
+        andl $-8, %ecx
+        subl %esi, %ecx
+        subl %ecx, %edx
+      """,
+      outputs=["rcx", "rdx", "flags"]),
+
+    C("g2_copy_mc_leading_bytes_neg_and", "x86-64", expect="sat",
+      site="refutation for g2 (valid only under esi & 7 != 0)",
+      orig="""
+        movl %esi, %ecx
+        andl $7, %ecx
+        subl $8, %ecx
+        negl %ecx
+        subl %ecx, %edx
+      """,
+      opt="""
+        movl %esi, %ecx
+        negl %ecx
+        andl $7, %ecx
+        subl %ecx, %edx
+      """,
+      outputs=["rcx", "rdx"]),
+
+    C("g3_memset_orig_realign", "x86-64",
+      site="linux arch/x86/lib/memset_64.S:113-116",
+      orig="""
+        movq $8, %r8
+        subq %r9, %r8
+        addq %r8, %rdi
+        subq %r8, %rdx
+      """,
+      opt="""
+        leaq -8(%rdx,%r9), %rdx
+        addq $8, %rdi
+        subq %r9, %rdi
+      """,
+      outputs=["rdi", "rdx"]),
+]
+
+# Shared prefixes: the proved sequence starts at the byte data so the 16-bit
+# lanes carry their real range (decision: no external range assumptions).
+
+# jccolext-sse2.asm: RO/GO/BO bytes in the low halves of xmm1/xmm3/xmm5,
+# zero in xmm15; widen, interleave (RO,GO), and form the Cb partial sums
+# exactly as lines 296-346 do.  PW_MF016_MF033 in xmm12.
+L2_PREFIX = """
+        punpcklbw xmm1, xmm15
+        punpcklbw xmm3, xmm15
+        punpcklbw xmm5, xmm15
+        movdqa xmm6, xmm1
+        punpcklwd xmm1, xmm3
+        punpckhwd xmm6, xmm3
+        movdqa xmm7, xmm1
+        movdqa xmm4, xmm6
+        pmaddwd xmm7, xmm12
+        pmaddwd xmm4, xmm12
+"""
+L2_ORIG = """
+        pxor xmm1, xmm1
+        pxor xmm6, xmm6
+        punpcklwd xmm1, xmm5
+        punpckhwd xmm6, xmm5
+        psrld xmm1, 1
+        psrld xmm6, 1
+        movdqa xmm5, xmm13
+        paddd xmm7, xmm1
+        paddd xmm4, xmm6
+        paddd xmm7, xmm5
+        paddd xmm4, xmm5
+        psrld xmm7, 16
+        psrld xmm4, 16
+        packssdw xmm7, xmm4
+"""
+L2_OPT = """
+        paddd xmm7, xmm13
+        paddd xmm4, xmm13
+        psrad xmm7, 15
+        psrad xmm4, 15
+        packssdw xmm7, xmm4
+        paddw xmm7, xmm5
+        psraw xmm7, 1
+"""
+L2_SETUP = {"xmm15": ZERO128, "xmm12": "ab33d4cd" * 4, "xmm13": "00807fff" * 4}
+
+# jdcolext-avx2.asm lines 91-104: Cb bytes in ymm5, Cr bytes in ymm1;
+# split even/odd bytes and subtract 128 (add 0xFF80).  Leaves CbE, CbO,
+# CrE, CrO in ymm2, ymm3, ymm6, ymm7.
+JD_PREFIX = """
+        vpcmpeqw ymm0, ymm0, ymm0
+        vpcmpeqw ymm7, ymm7, ymm7
+        vpsrlw ymm0, ymm0, 8
+        vpsllw ymm7, ymm7, 7
+        vpand ymm4, ymm0, ymm5
+        vpsrlw ymm5, ymm5, 8
+        vpand ymm0, ymm0, ymm1
+        vpsrlw ymm1, ymm1, 8
+        vpaddw ymm2, ymm4, ymm7
+        vpaddw ymm3, ymm5, ymm7
+        vpaddw ymm6, ymm0, ymm7
+        vpaddw ymm7, ymm1, ymm7
+"""
+L5_ORIG = """
+        vpaddw ymm4, ymm2, ymm2
+        vpaddw ymm5, ymm3, ymm3
+        vpaddw ymm0, ymm6, ymm6
+        vpaddw ymm1, ymm7, ymm7
+        vpmulhw ymm4, ymm4, ymm8
+        vpmulhw ymm5, ymm5, ymm8
+        vpmulhw ymm0, ymm0, ymm9
+        vpmulhw ymm1, ymm1, ymm9
+        vpaddw ymm4, ymm4, ymm10
+        vpaddw ymm5, ymm5, ymm10
+        vpsraw ymm4, ymm4, 1
+        vpsraw ymm5, ymm5, 1
+        vpaddw ymm0, ymm0, ymm10
+        vpaddw ymm1, ymm1, ymm10
+        vpsraw ymm0, ymm0, 1
+        vpsraw ymm1, ymm1, 1
+        vpaddw ymm4, ymm4, ymm2
+        vpaddw ymm5, ymm5, ymm3
+        vpaddw ymm4, ymm4, ymm2
+        vpaddw ymm5, ymm5, ymm3
+        vpaddw ymm0, ymm0, ymm6
+        vpaddw ymm1, ymm1, ymm7
+"""
+L5_OPT = """
+        vpaddw ymm4, ymm2, ymm2
+        vpaddw ymm5, ymm3, ymm3
+        vpaddw ymm0, ymm6, ymm6
+        vpaddw ymm1, ymm7, ymm7
+        vpmulhrsw ymm4, ymm4, ymm11
+        vpmulhrsw ymm5, ymm5, ymm11
+        vpmulhrsw ymm0, ymm0, ymm12
+        vpmulhrsw ymm1, ymm1, ymm12
+"""
+L5_SETUP = {"ymm8": words(-14942, 16), "ymm9": words(26345, 16),
+            "ymm10": words(1, 16), "ymm11": words(29033, 16),
+            "ymm12": words(22970, 16)}
+L5_OUT = ["ymm4", "ymm5", "ymm0", "ymm1"]
+
+# jdcolext-avx2.asm 118-119 then 145-170.  2*CrE / 2*CrO are computed by
+# the file before the G path; the proposal keeps them (spare registers).
+L4_PREFIX = JD_PREFIX + """
+        vpaddw ymm0, ymm6, ymm6
+        vpaddw ymm1, ymm7, ymm7
+"""
+L4_ORIG = """
+        vpunpckhwd ymm4, ymm2, ymm6
+        vpunpcklwd ymm2, ymm2, ymm6
+        vpmaddwd ymm2, ymm2, ymm8
+        vpmaddwd ymm4, ymm4, ymm8
+        vpunpckhwd ymm5, ymm3, ymm7
+        vpunpcklwd ymm3, ymm3, ymm7
+        vpmaddwd ymm3, ymm3, ymm8
+        vpmaddwd ymm5, ymm5, ymm8
+        vpaddd ymm2, ymm2, ymm9
+        vpaddd ymm4, ymm4, ymm9
+        vpsrad ymm2, ymm2, 16
+        vpsrad ymm4, ymm4, 16
+        vpaddd ymm3, ymm3, ymm9
+        vpaddd ymm5, ymm5, ymm9
+        vpsrad ymm3, ymm3, 16
+        vpsrad ymm5, ymm5, 16
+        vpackssdw ymm2, ymm2, ymm4
+        vpackssdw ymm3, ymm3, ymm5
+        vpsubw ymm2, ymm2, ymm6
+        vpsubw ymm3, ymm3, ymm7
+"""
+L4_OPT = """
+        vpunpckhwd ymm4, ymm2, ymm0
+        vpunpcklwd ymm2, ymm2, ymm0
+        vpmaddwd ymm2, ymm2, ymm10
+        vpmaddwd ymm4, ymm4, ymm10
+        vpunpckhwd ymm5, ymm3, ymm1
+        vpunpcklwd ymm3, ymm3, ymm1
+        vpmaddwd ymm3, ymm3, ymm10
+        vpmaddwd ymm5, ymm5, ymm10
+        vpaddd ymm2, ymm2, ymm9
+        vpaddd ymm4, ymm4, ymm9
+        vpsrad ymm2, ymm2, 16
+        vpsrad ymm4, ymm4, 16
+        vpaddd ymm3, ymm3, ymm9
+        vpaddd ymm5, ymm5, ymm9
+        vpsrad ymm3, ymm3, 16
+        vpsrad ymm5, ymm5, 16
+        vpackssdw ymm2, ymm2, ymm4
+        vpackssdw ymm3, ymm3, ymm5
+"""
+L4_SETUP = {"ymm8": "492ea7e6" * 8, "ymm9": dwords(32768, 8), "ymm10": "a497a7e6" * 8}
+
+CANDIDATES += [
+    C("l2_jccolext_cb_finish", "sse2", syntax="intel", setup=L2_SETUP,
+      site="libjpeg-turbo simd/x86_64/jccolext-sse2.asm:353-368, proved from the byte widening at 296-346",
+      orig=L2_PREFIX + L2_ORIG, opt=L2_PREFIX + L2_OPT, outputs=["xmm7"]),
+    C("l2_jccolext_cb_finish_unconstrained", "sse2", syntax="intel", setup=L2_SETUP, expect="sat",
+      site="l2 over symbolic 32-bit partial sums and 16-bit B lanes (no byte origin)",
+      orig=L2_ORIG, opt=L2_OPT, outputs=["xmm7"]),
+
+    C("l5_jdcolext_avx2_chroma", "avx2", syntax="intel", setup=L5_SETUP,
+      site="libjpeg-turbo simd/x86_64/jdcolext-avx2.asm:116-140, proved from the byte split at 91-104",
+      orig=JD_PREFIX + L5_ORIG, opt=JD_PREFIX + L5_OPT, outputs=L5_OUT),
+    C("l5_jdcolext_avx2_chroma_29032", "avx2", syntax="intel", expect="sat",
+      setup=dict(L5_SETUP, ymm11=words(29032, 16)),
+      site="refutation for l5: the naive round(1.772 * 16384) constant",
+      orig=JD_PREFIX + L5_ORIG, opt=JD_PREFIX + L5_OPT, outputs=L5_OUT),
+    C("l5_jdcolext_avx2_chroma_unconstrained", "avx2", syntax="intel", setup=L5_SETUP, expect="sat",
+      site="l5 over symbolic 16-bit lanes (no byte origin)",
+      orig=L5_ORIG, opt=L5_OPT, outputs=L5_OUT),
+
+    C("l4_jdcolext_avx2_gpath", "avx2", syntax="intel", setup=L4_SETUP,
+      site="libjpeg-turbo simd/x86_64/jdcolext-avx2.asm:145-170, proved from the byte split at 91-104",
+      orig=L4_PREFIX + L4_ORIG, opt=L4_PREFIX + L4_OPT, outputs=["ymm2", "ymm3"]),
+
+    C("l6_jcsample_avx2_h2v1", "avx2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jcsample-avx2.asm:139-153",
+      setup={"ymm6": words(0x00ff, 16), "ymm7": "00010000" * 8, "ymm8": "01" * 32},
+      orig="""
+        vpsrlw ymm2, ymm0, 8
+        vpand ymm0, ymm0, ymm6
+        vpsrlw ymm3, ymm1, 8
+        vpand ymm1, ymm1, ymm6
+        vpaddw ymm0, ymm0, ymm2
+        vpaddw ymm1, ymm1, ymm3
+        vpaddw ymm0, ymm0, ymm7
+        vpaddw ymm1, ymm1, ymm7
+        vpsrlw ymm0, ymm0, 1
+        vpsrlw ymm1, ymm1, 1
+        vpackuswb ymm0, ymm0, ymm1
+        vpermq ymm0, ymm0, 0xd8
+      """,
+      opt="""
+        vpmaddubsw ymm0, ymm0, ymm8
+        vpmaddubsw ymm1, ymm1, ymm8
+        vpaddw ymm0, ymm0, ymm7
+        vpaddw ymm1, ymm1, ymm7
+        vpsrlw ymm0, ymm0, 1
+        vpsrlw ymm1, ymm1, 1
+        vpackuswb ymm0, ymm0, ymm1
+        vpermq ymm0, ymm0, 0xd8
+      """,
+      outputs=["ymm0"]),
+
+    C("l7_jdsample_avx2_h2v2_vertical", "avx2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jdsample-avx2.asm:295-332 (row0=ymm0, row[-1]=ymm1, row[+1]=ymm2, zero=ymm8; PW_THREE=ymm9, PB_1_3=ymm10)",
+      setup={"ymm8": "0" * 64, "ymm9": words(3, 16), "ymm10": "0301" * 16},
+      orig="""
+        vpunpckhbw ymm4, ymm0, ymm8
+        vpunpcklbw ymm5, ymm0, ymm8
+        vperm2i128 ymm0, ymm5, ymm4, 0x20
+        vperm2i128 ymm4, ymm5, ymm4, 0x31
+        vpunpckhbw ymm5, ymm1, ymm8
+        vpunpcklbw ymm6, ymm1, ymm8
+        vperm2i128 ymm1, ymm6, ymm5, 0x20
+        vperm2i128 ymm5, ymm6, ymm5, 0x31
+        vpunpckhbw ymm6, ymm2, ymm8
+        vpunpcklbw ymm3, ymm2, ymm8
+        vperm2i128 ymm2, ymm3, ymm6, 0x20
+        vperm2i128 ymm6, ymm3, ymm6, 0x31
+        vpmullw ymm0, ymm0, ymm9
+        vpmullw ymm4, ymm4, ymm9
+        vpaddw ymm1, ymm1, ymm0
+        vpaddw ymm5, ymm5, ymm4
+        vpaddw ymm2, ymm2, ymm0
+        vpaddw ymm6, ymm6, ymm4
+      """,
+      opt="""
+        vpunpcklbw ymm5, ymm1, ymm0
+        vpunpckhbw ymm6, ymm1, ymm0
+        vperm2i128 ymm1, ymm5, ymm6, 0x20
+        vperm2i128 ymm5, ymm5, ymm6, 0x31
+        vpunpcklbw ymm3, ymm2, ymm0
+        vpunpckhbw ymm6, ymm2, ymm0
+        vperm2i128 ymm2, ymm3, ymm6, 0x20
+        vperm2i128 ymm6, ymm3, ymm6, 0x31
+        vpmaddubsw ymm1, ymm1, ymm10
+        vpmaddubsw ymm5, ymm5, ymm10
+        vpmaddubsw ymm2, ymm2, ymm10
+        vpmaddubsw ymm6, ymm6, ymm10
+      """,
+      outputs=["ymm1", "ymm5", "ymm2", "ymm6"]),
+
+    # The same rewrite in the 128-bit form used by aes-gcm-aesni-x86_64.S
+    # (USE_AVX=1 build, _ghash_reduce at 354-373, gfpoly via movq so g is
+    # the LOW qword and the first immediate is $0x00).  The 256-bit form
+    # below needs VEX.256 VPCLMULQDQ, which the model does not implement.
+    C("k6_gcm_avx_ghash_reduce_xmm", "avx", extras=("pclmul",),
+      site="linux arch/x86/crypto/aes-gcm-aesni-x86_64.S:354-373 with USE_AVX (lo=xmm0, mi=xmm1, hi=xmm2, gfpoly=xmm3, t0=xmm4)",
+      setup={"xmm3": "0000000000000000c200000000000000"},
+      orig="""
+        vpclmulqdq $0x00, %xmm0, %xmm3, %xmm4
+        vpshufd $0x4e, %xmm0, %xmm0
+        vpxor %xmm0, %xmm1, %xmm1
+        vpxor %xmm4, %xmm1, %xmm1
+        vpclmulqdq $0x00, %xmm1, %xmm3, %xmm4
+        vpshufd $0x4e, %xmm1, %xmm1
+        vpxor %xmm1, %xmm2, %xmm2
+        vpxor %xmm4, %xmm2, %xmm2
+      """,
+      opt="""
+        vpclmulqdq $0x00, %xmm0, %xmm3, %xmm4
+        vpxor %xmm4, %xmm1, %xmm1
+        vpshufd $0x4e, %xmm1, %xmm1
+        vpxor %xmm0, %xmm1, %xmm1
+        vpclmulqdq $0x10, %xmm1, %xmm3, %xmm4
+        vpxor %xmm1, %xmm2, %xmm2
+        vpxor %xmm4, %xmm2, %xmm2
+      """,
+      outputs=["xmm2", "xmm1"]),
+
+    C("k6_gcm_avx2_ghash_reduce", "avx2", extras=("pclmul", "vpclmulqdq"),
+      site="linux arch/x86/crypto/aes-gcm-vaes-avx2.S:187-196 (lo=ymm0, mi=ymm1, hi=ymm2, gfpoly=ymm3, t0=ymm4)",
+      setup={"ymm3": "c2000000000000000000000000000001" * 2},
+      orig="""
+        vpclmulqdq $0x01, %ymm0, %ymm3, %ymm4
+        vpshufd $0x4e, %ymm0, %ymm0
+        vpxor %ymm0, %ymm1, %ymm1
+        vpxor %ymm4, %ymm1, %ymm1
+        vpclmulqdq $0x01, %ymm1, %ymm3, %ymm4
+        vpshufd $0x4e, %ymm1, %ymm1
+        vpxor %ymm1, %ymm2, %ymm2
+        vpxor %ymm4, %ymm2, %ymm2
+      """,
+      opt="""
+        vpclmulqdq $0x01, %ymm0, %ymm3, %ymm4
+        vpxor %ymm4, %ymm1, %ymm1
+        vpshufd $0x4e, %ymm1, %ymm1
+        vpxor %ymm0, %ymm1, %ymm1
+        vpclmulqdq $0x11, %ymm1, %ymm3, %ymm4
+        vpxor %ymm1, %ymm2, %ymm2
+        vpxor %ymm4, %ymm2, %ymm2
+      """,
+      outputs=["ymm2", "ymm1"]),
+
+    C("k8a_sha512_avx2_sigma0_ror8", "avx2",
+      site="linux lib/crypto/x86/sha512-avx2-asm.S:175-179,221-226 (YTMP1=ymm1, YTMP2..3=ymm2..3, YTMP4=ymm8; ROR8Q=ymm5)",
+      setup={"ymm5": "080f0e0d0c0b0a090007060504030201" * 2},
+      orig="""
+        vpsrlq $1, %ymm1, %ymm2
+        vpsllq $63, %ymm1, %ymm3
+        vpor %ymm2, %ymm3, %ymm3
+        vpsrlq $7, %ymm1, %ymm8
+        vpsrlq $8, %ymm1, %ymm2
+        vpsllq $56, %ymm1, %ymm1
+        vpor %ymm2, %ymm1, %ymm1
+        vpxor %ymm8, %ymm3, %ymm3
+        vpxor %ymm1, %ymm3, %ymm1
+      """,
+      opt="""
+        vpsrlq $1, %ymm1, %ymm2
+        vpsllq $63, %ymm1, %ymm3
+        vpor %ymm2, %ymm3, %ymm3
+        vpsrlq $7, %ymm1, %ymm8
+        vpshufb %ymm5, %ymm1, %ymm1
+        vpxor %ymm8, %ymm3, %ymm3
+        vpxor %ymm1, %ymm3, %ymm1
+      """,
+      outputs=["ymm1"]),
+
+    C("k8b_sm3_avx_p1_rol8_relative_mask", "avx", expect="sat",
+      site="refutation: the survey's pshufb mask written with per-dword byte indices (PSHUFB indexes the whole register)",
+      setup={"xmm13": "02010003" * 4},
+      orig="""
+        vpslld $15, %xmm6, %xmm11
+        vpsrld $17, %xmm6, %xmm12
+        vpslld $23, %xmm6, %xmm8
+        vpsrld $9, %xmm6, %xmm9
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm12, %xmm11, %xmm11
+        vpxor %xmm9, %xmm8, %xmm8
+        vpxor %xmm8, %xmm11, %xmm11
+        vpxor %xmm11, %xmm7, %xmm0
+      """,
+      opt="""
+        vpshufb %xmm13, %xmm6, %xmm8
+        vpxor %xmm6, %xmm8, %xmm8
+        vpslld $15, %xmm8, %xmm11
+        vpsrld $17, %xmm8, %xmm8
+        vpxor %xmm11, %xmm8, %xmm8
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm8, %xmm7, %xmm0
+      """,
+      outputs=["xmm0", "xmm7"]),
+    C("k8b_sm3_avx_p1_rol8", "avx",
+      site="linux lib/crypto/x86/sm3-avx-asm_64.S:296-304 (XTMP0=xmm6, XTMP1=xmm7, XTMP2..3=xmm8..9, XTMP5..6=xmm11..12, w0=xmm0; ROL8D=xmm13)",
+      setup={"xmm13": "0e0d0c0f0a09080b0605040702010003"},
+      orig="""
+        vpslld $15, %xmm6, %xmm11
+        vpsrld $17, %xmm6, %xmm12
+        vpslld $23, %xmm6, %xmm8
+        vpsrld $9, %xmm6, %xmm9
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm12, %xmm11, %xmm11
+        vpxor %xmm9, %xmm8, %xmm8
+        vpxor %xmm8, %xmm11, %xmm11
+        vpxor %xmm11, %xmm7, %xmm0
+      """,
+      opt="""
+        vpshufb %xmm13, %xmm6, %xmm8
+        vpxor %xmm6, %xmm8, %xmm8
+        vpslld $15, %xmm8, %xmm11
+        vpsrld $17, %xmm8, %xmm8
+        vpxor %xmm11, %xmm8, %xmm8
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm8, %xmm7, %xmm0
+      """,
+      outputs=["xmm0", "xmm7"]),
+
+    C("k10a_aes_prefix_sum_shufps", "ssse3", extras=("aes",),
+      site="linux lib/crypto/x86/aes-aesni.S:37-44 (a=xmm0, tmp=xmm1), under the precondition tmp == 0",
+      setup={"xmm1": ZERO128},
+      orig="""
+        movdqa %xmm0, %xmm1
+        pslldq $4, %xmm0
+        pxor %xmm1, %xmm0
+        movdqa %xmm0, %xmm1
+        pslldq $8, %xmm0
+        pxor %xmm1, %xmm0
+      """,
+      opt="""
+        shufps $0x10, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+        shufps $0x8c, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+      """,
+      outputs=["xmm0"]),
+    C("k10a_aes_prefix_sum_shufps_unconditional", "ssse3", extras=("aes",), expect="sat",
+      site="refutation: the shufps form without tmp == 0",
+      orig="""
+        movdqa %xmm0, %xmm1
+        pslldq $4, %xmm0
+        pxor %xmm1, %xmm0
+        movdqa %xmm0, %xmm1
+        pslldq $8, %xmm0
+        pxor %xmm1, %xmm0
+      """,
+      opt="""
+        shufps $0x10, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+        shufps $0x8c, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+      """,
+      outputs=["xmm0"]),
+    C("k10b_aes_gen_round_key_keygenassist", "ssse3", extras=("aes",),
+      site="linux lib/crypto/x86/aes-aesni.S:59-61 (b=xmm4, MASK=xmm7, RCON=xmm6 = rcon 0x01 broadcast)",
+      setup={"xmm7": "0c0f0e0d" * 4, "xmm6": dwords(1)},
+      orig="""
+        movdqa %xmm4, %xmm2
+        pshufb %xmm7, %xmm2
+        aesenclast %xmm6, %xmm2
+      """,
+      opt="""
+        aeskeygenassist $1, %xmm4, %xmm2
+        pshufd $0xff, %xmm2, %xmm2
+      """,
+      outputs=["xmm2"]),
+
+    C("xts_next_tweak_vpmuludq", "avx",
+      site="linux arch/x86/crypto/aes-xts-avx-x86_64.S:275-285 (src=xmm0, tmp=xmm1, dst=xmm2, GF_POLY=xmm14); equal count, different instruction class",
+      setup={"xmm14": "00000000000000010000000000000087"},
+      orig="""
+        vpshufd $0x13, %xmm0, %xmm1
+        vpaddq %xmm0, %xmm0, %xmm2
+        vpsrad $31, %xmm1, %xmm1
+        vpand %xmm14, %xmm1, %xmm1
+        vpxor %xmm1, %xmm2, %xmm2
+      """,
+      opt="""
+        vpsrlq $63, %xmm0, %xmm1
+        vpshufd $0x4e, %xmm1, %xmm1
+        vpmuludq %xmm14, %xmm1, %xmm1
+        vpsllq $1, %xmm0, %xmm2
+        vpxor %xmm1, %xmm2, %xmm2
+      """,
+      outputs=["xmm2"]),
+    C("xts_next_tweak_vpmuludq_noswap", "avx", expect="sat",
+      site="refutation: the vpmuludq form without the lane swap",
+      setup={"xmm14": "00000000000000010000000000000087"},
+      orig="""
+        vpshufd $0x13, %xmm0, %xmm1
+        vpaddq %xmm0, %xmm0, %xmm2
+        vpsrad $31, %xmm1, %xmm1
+        vpand %xmm14, %xmm1, %xmm1
+        vpxor %xmm1, %xmm2, %xmm2
+      """,
+      opt="""
+        vpsrlq $63, %xmm0, %xmm1
+        vpmuludq %xmm14, %xmm1, %xmm1
+        vpsllq $1, %xmm0, %xmm2
+        vpxor %xmm1, %xmm2, %xmm2
+      """,
+      outputs=["xmm2"]),
+
+    # K1 split into its two independent halves.  The full routine (k1_ghash_
+    # clmul_gf128mul_ble) is one query with symbolic 64x64 carry-less
+    # products on both sides, which Z3 finds hard.
+    C("k1a_ghash_multiply_karatsuba_vs_schoolbook", "sse2", extras=("pclmul",),
+      site="linux lib/crypto/x86/ghash-pclmul.S:47-61 (ACC=xmm0, KEY=xmm1, T1..T3=xmm2..4): 256-bit product in T1:ACC",
+      orig="""
+        movaps %xmm0, %xmm2
+        pshufd $0x4e, %xmm0, %xmm3
+        pshufd $0x4e, %xmm1, %xmm4
+        pxor %xmm0, %xmm3
+        pxor %xmm1, %xmm4
+        pclmulqdq $0x00, %xmm1, %xmm0
+        pclmulqdq $0x11, %xmm1, %xmm2
+        pclmulqdq $0x00, %xmm4, %xmm3
+        pxor %xmm0, %xmm3
+        pxor %xmm2, %xmm3
+        movaps %xmm3, %xmm4
+        pslldq $8, %xmm4
+        psrldq $8, %xmm3
+        pxor %xmm4, %xmm0
+        pxor %xmm3, %xmm2
+      """,
+      opt="""
+        movaps %xmm0, %xmm2
+        movaps %xmm0, %xmm3
+        movaps %xmm0, %xmm4
+        pclmulqdq $0x00, %xmm1, %xmm0
+        pclmulqdq $0x11, %xmm1, %xmm2
+        pclmulqdq $0x10, %xmm1, %xmm3
+        pclmulqdq $0x01, %xmm1, %xmm4
+        pxor %xmm4, %xmm3
+        movaps %xmm3, %xmm4
+        pslldq $8, %xmm4
+        psrldq $8, %xmm3
+        pxor %xmm4, %xmm0
+        pxor %xmm3, %xmm2
+      """,
+      outputs=["xmm2", "xmm0"]),
+    C("k1b_ghash_reduce_shiftchain_vs_montgomery", "sse2", extras=("pclmul",),
+      site="linux lib/crypto/x86/ghash-pclmul.S:62-87 (P1:P0 in xmm0, P3:P2 in xmm2; GSTAR=xmm7 for the proposal)",
+      setup={"xmm7": "c200000000000000c200000000000000"},
+      orig="""
+        movaps %xmm0, %xmm4
+        psllq $1, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $5, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $57, %xmm4
+        movaps %xmm4, %xmm3
+        pslldq $8, %xmm3
+        psrldq $8, %xmm4
+        pxor %xmm3, %xmm0
+        pxor %xmm4, %xmm2
+        movaps %xmm0, %xmm3
+        psrlq $5, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm0
+      """,
+      opt="""
+        movaps %xmm0, %xmm3
+        pclmulqdq $0x00, %xmm7, %xmm3
+        pshufd $0x4e, %xmm3, %xmm3
+        pxor %xmm0, %xmm3
+        pxor %xmm3, %xmm2
+        pclmulqdq $0x11, %xmm7, %xmm3
+        pxor %xmm3, %xmm2
+        movaps %xmm2, %xmm0
+      """,
+      outputs=["xmm0"]),
+
+    C("g4_csum_partial_shift_mask", "x86-64",
+      site="linux arch/x86/lib/csum-partial_64.c:100-110 (compiled form): the and $0x3f duplicates the hardware count mask",
+      orig="""
+        neg %ecx
+        shl $3, %ecx
+        and $0x3f, %ecx
+        shl %cl, %rax
+        shr %cl, %rax
+      """,
+      opt="""
+        neg %ecx
+        shl $3, %ecx
+        shl %cl, %rax
+        shr %cl, %rax
+      """,
+      outputs=["rax"]),
+]
+
+
+
+# ---------------------------------------------------------------------------
+# Batch 3: candidates that load from memory (the 256-byte symbolic window
+# at 0x7000; see splice_ours.sail).
+# ---------------------------------------------------------------------------
+
+def sha256_do_4rounds(carried_maj):
+    """The DO_4ROUNDS macro of lib/crypto/x86/sha256-avx2-asm.S (lines
+    355-509) expanded for disp = 0, with the message words at
+    (%rsp,%rdi) as in the file.  carried_maj=True replaces the six-instruction
+    Maj by the OpenSSL form Maj = b ^ ((a^b) & (b^c)) that reuses the
+    previous round's (a^b), alternating between y3 and %ebp."""
+    regs = dict(a="%eax", b="%ebx", c="%ecx", d="%r8d", e="%edx",
+                f="%r9d", g="%r10d", h="%r11d")
+    T1, y0, y1, y2, y3, CR = "%r12d", "%r13d", "%r14d", "%r15d", "%esi", "%ebp"
+    out = []
+    if carried_maj:
+        out += [f"mov {regs['b']}, {CR}", f"xor {regs['c']}, {CR}"]
+    old_h = None
+    for r in range(4):
+        a, b, c, d, e, f, g, h = (regs[k] for k in "abcdefgh")
+        carry, new = (CR, y3) if r % 2 == 0 else (y3, CR)
+        maj_prev = (y3 if r % 2 == 0 else CR) if carried_maj else y3
+        L = []
+        if r > 0:
+            L.append(f"add {y2}, {old_h}")
+        L += [f"mov {f}, {y2}", f"rorx $25, {e}, {y0}", f"rorx $11, {e}, {y1}",
+              f"xor {g}, {y2}", f"xor {y1}, {y0}", f"rorx $6, {e}, {y1}",
+              f"and {e}, {y2}"]
+        if r > 0:
+            L.append(f"add {maj_prev}, {old_h}")
+        L += [f"xor {y1}, {y0}", f"rorx $13, {a}, {T1}", f"xor {g}, {y2}",
+              f"rorx $22, {a}, {y1}"]
+        L.append(f"mov {a}, {new}" if carried_maj else f"mov {a}, {y3}")
+        L += [f"xor {T1}, {y1}", f"rorx $2, {a}, {T1}",
+              f"addl {4 * r}(%rsp,%rdi), {h}"]
+        L.append(f"xor {b}, {new}" if carried_maj else f"or {c}, {y3}")
+        L.append(f"xor {T1}, {y1}")
+        if not carried_maj:
+            L.append(f"mov {a}, {T1}")
+        L.append(f"and {new}, {carry}" if carried_maj else f"and {b}, {y3}")
+        if not carried_maj:
+            L.append(f"and {c}, {T1}")
+        L += [f"add {y0}, {y2}", f"add {h}, {d}"]
+        L.append(f"xor {b}, {carry}" if carried_maj else f"or {T1}, {y3}")
+        L += [f"add {y1}, {h}", f"add {y2}, {d}"]
+        out += L
+        old_h = h
+        regs = dict(a=h, b=a, c=b, d=c, e=d, f=e, g=f, h=g)
+    # Round 3's pending adds happen inside the macro (Maj of round 3 is in y3
+    # in both variants).
+    out += [f"add {y2}, {old_h}", f"add {y3}, {old_h}"]
+    return "\n".join(out)
+
+
+SHA_STATE = ["rax", "rbx", "rcx", "rdx", "r8", "r9", "r10", "r11"]
+
+CANDIDATES += [
+    C("k9_sha256_avx2_do_4rounds_carried_maj", "avx2", extras=("bmi2",),
+      site="linux lib/crypto/x86/sha256-avx2-asm.S:355-509 DO_4ROUNDS (a..h = eax ebx ecx r8d edx r9d r10d r11d; W+K words at 0x7000)",
+      setup={"rsp": "0000000000007000", "rdi": "0000000000000000"},
+      orig=sha256_do_4rounds(False), opt=sha256_do_4rounds(True),
+      outputs=SHA_STATE),
+
+    C("k11_camellia_avx2_key_broadcast", "avx2",
+      site="linux arch/x86/crypto/camellia-aesni-avx2-asm_64.S:148-198 roundsm32 (key at (%r9); t0..t7 = ymm0..7, t6 reuse split into ymm8)",
+      setup={"r9": "0000000000007000"},
+      orig="""
+        vpbroadcastq (%r9), %ymm0
+        vpxor %ymm7, %ymm7, %ymm7
+        vpsrldq $1, %ymm0, %ymm1
+        vpsrldq $2, %ymm0, %ymm2
+        vpshufb %ymm7, %ymm1, %ymm1
+        vpsrldq $3, %ymm0, %ymm3
+        vpshufb %ymm7, %ymm2, %ymm2
+        vpsrldq $4, %ymm0, %ymm4
+        vpshufb %ymm7, %ymm3, %ymm3
+        vpsrldq $5, %ymm0, %ymm5
+        vpshufb %ymm7, %ymm4, %ymm4
+        vpsrldq $6, %ymm0, %ymm6
+        vpshufb %ymm7, %ymm5, %ymm5
+        vpshufb %ymm7, %ymm6, %ymm6
+        vpsrldq $7, %ymm0, %ymm8
+        vpshufb %ymm7, %ymm0, %ymm0
+        vpshufb %ymm7, %ymm8, %ymm7
+      """,
+      opt="""
+        vpbroadcastb 0(%r9), %ymm0
+        vpbroadcastb 1(%r9), %ymm1
+        vpbroadcastb 2(%r9), %ymm2
+        vpbroadcastb 3(%r9), %ymm3
+        vpbroadcastb 4(%r9), %ymm4
+        vpbroadcastb 5(%r9), %ymm5
+        vpbroadcastb 6(%r9), %ymm6
+        vpbroadcastb 7(%r9), %ymm7
+      """,
+      outputs=["ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5", "ymm6", "ymm7"]),
+]
+
+
+# ---------------------------------------------------------------------------
+# Batch 5: the exact instances applied to the kernel and libjpeg-turbo trees
+# that differ from the proved ones by register width, register names, or
+# addressing mode.
+# ---------------------------------------------------------------------------
+
+def chacha_rot(shift, x, t, wide="ymm"):
+    """One ChaCha rotate step (add, xor, rotate by `shift`) in the kernel's
+    AVX2 register layout: x = (x1, x2, x3) state registers, t the scratch."""
+    x1, x2, x3 = (f"%{wide}{i}" for i in x)
+    outputs = [f"{wide}{i}" for i in x] + [f"{wide}{t}"]
+    t = f"%{wide}{t}"
+    orig = f"""
+        vpaddd {x3}, {x2}, {x2}
+        vpxor {x2}, {x1}, {x1}
+        vmovdqa {x1}, {t}
+        vpslld ${shift}, {t}, {t}
+        vpsrld ${32 - shift}, {x1}, {x1}
+        vpor {t}, {x1}, {x1}
+    """
+    opt = f"""
+        vpaddd {x3}, {x2}, {x2}
+        vpxor {x2}, {x1}, {x1}
+        vpslld ${shift}, {x1}, {t}
+        vpsrld ${32 - shift}, {x1}, {x1}
+        vpor {t}, {x1}, {x1}
+    """
+    return orig, opt, outputs
+
+
+ARIA_ORIG = """
+        {x} %{r}0, %{r}3, %{r}4
+        {x} %{r}1, %{r}0, %{r}5
+        {x} %{r}2, %{r}1, %{r}6
+        {x} %{r}3, %{r}2, %{r}7
+        {x} %{r}6, %{r}0, %{r}0
+        {x} %{r}1, %{r}7, %{r}7
+        {x} %{r}4, %{r}2, %{r}2
+        {x} %{r}5, %{r}3, %{r}1
+        {m} %{r}7, %{r}3
+"""
+ARIA_OPT = """
+        {x} %{r}3, %{r}0, %{r}4
+        {x} %{r}2, %{r}1, %{r}5
+        {x} %{r}4, %{r}1, %{r}1
+        {x} %{r}4, %{r}2, %{r}2
+        {x} %{r}5, %{r}0, %{r}0
+        {x} %{r}5, %{r}3, %{r}3
+"""
+
+CAMELLIA_ORIG = """
+        vpcmpgtb %{r}0, %{r}7, %{r}4
+        vpaddb %{r}0, %{r}0, %{r}0
+        vpabsb %{r}4, %{r}4
+        vpcmpgtb %{r}1, %{r}7, %{r}5
+        vpaddb %{r}1, %{r}1, %{r}1
+        vpabsb %{r}5, %{r}5
+        vpcmpgtb %{r}2, %{r}7, %{r}6
+        vpaddb %{r}2, %{r}2, %{r}2
+        vpabsb %{r}6, %{r}6
+        vpor %{r}4, %{r}1, %{r}1
+        vpcmpgtb %{r}3, %{r}7, %{r}4
+        vpaddb %{r}3, %{r}3, %{r}3
+        vpabsb %{r}4, %{r}4
+        vpor %{r}5, %{r}2, %{r}2
+        vpor %{r}6, %{r}3, %{r}3
+        vpor %{r}4, %{r}0, %{r}0
+"""
+CAMELLIA_OPT = """
+        vpcmpgtb %{r}0, %{r}7, %{r}4
+        vpaddb %{r}0, %{r}0, %{r}0
+        vpcmpgtb %{r}1, %{r}7, %{r}5
+        vpaddb %{r}1, %{r}1, %{r}1
+        vpcmpgtb %{r}2, %{r}7, %{r}6
+        vpaddb %{r}2, %{r}2, %{r}2
+        vpsubb %{r}4, %{r}1, %{r}1
+        vpcmpgtb %{r}3, %{r}7, %{r}4
+        vpaddb %{r}3, %{r}3, %{r}3
+        vpsubb %{r}5, %{r}2, %{r}2
+        vpsubb %{r}6, %{r}3, %{r}3
+        vpsubb %{r}4, %{r}0, %{r}0
+"""
+
+for _w, _shift, _x, _t in [("ymm", 7, (1, 2, 3), 7), ("ymm", 12, (1, 2, 3), 10),
+                            ("ymm", 7, (1, 2, 3), 10), ("ymm", 12, (5, 6, 7), 10),
+                            ("ymm", 7, (5, 6, 7), 10)]:
+    _o, _p, _out = chacha_rot(_shift, _x, _t, _w)
+    CANDIDATES.append(C(f"k5_chacha_avx2_rot{_shift}_x{_x[0]}_t{_t}", "avx2",
+                        site=f"linux lib/crypto/x86/chacha-avx2-x86_64.S, rotate by {_shift} on ymm{_x[0]} with scratch ymm{_t}",
+                        orig=_o, opt=_p, outputs=_out))
+
+CANDIDATES += [
+    C("k2_aria_diff_m_ymm", "avx2",
+      site="linux arch/x86/crypto/aria-aesni-avx2-asm_64.S:403-416",
+      orig=ARIA_ORIG.format(x="vpxor", m="vmovdqu", r="ymm"),
+      opt=ARIA_OPT.format(x="vpxor", r="ymm"),
+      outputs=["ymm0", "ymm1", "ymm2", "ymm3"]),
+    C("k2_aria_diff_m_zmm", "avx512",
+      site="linux arch/x86/crypto/aria-gfni-avx512-asm_64.S:366-379",
+      orig=ARIA_ORIG.format(x="vpxorq", m="vmovdqu64", r="zmm"),
+      opt=ARIA_OPT.format(x="vpxorq", r="zmm"),
+      outputs=["zmm0", "zmm1", "zmm2", "zmm3"]),
+    C("k3_camellia_rol32_1_32_ymm", "avx2",
+      site="linux arch/x86/crypto/camellia-aesni-avx2-asm_64.S:301-322",
+      setup={"ymm7": "0" * 64},
+      orig=CAMELLIA_ORIG.format(r="ymm"), opt=CAMELLIA_OPT.format(r="ymm"),
+      outputs=["ymm0", "ymm1", "ymm2", "ymm3"]),
+
+    C("k4b_poly1305_times5_site2", "x86-64",
+      site="linux lib/crypto/x86/poly1305-x86_64-cryptogams.pl:664 and 1584 (h2=r10, d1=r8, d2=r9, h0=r14, h1=rbx)",
+      orig="""
+        mov $-4, %r9
+        mov %r10, %r8
+        and %r10, %r9
+        shr $2, %r8
+        and $3, %r10
+        add %r9, %r8
+        add %r8, %r14
+        adc $0, %rbx
+        adc $0, %r10
+      """,
+      opt="""
+        mov %r10, %r8
+        shr $2, %r8
+        and $3, %r10
+        lea (%r8,%r8,4), %r8
+        add %r8, %r14
+        adc $0, %rbx
+        adc $0, %r10
+      """,
+      outputs=["r14", "rbx", "r10", "r8", "flags"]),
+
+    C("k7b_sha256_ssse3_sigma1_low_as_applied", "ssse3",
+      site="linux lib/crypto/x86/sha256-ssse3-asm.S low s1 with XTMP1 as the base register",
+      setup={"xmm10": "FFFFFFFFFFFFFFFF0b0a090803020100"},
+      orig="""
+        pshufd $0xfa, %xmm7, %xmm2
+        movdqa %xmm2, %xmm3
+        movdqa %xmm2, %xmm8
+        psrlq $17, %xmm2
+        psrlq $19, %xmm3
+        psrld $10, %xmm8
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm8
+        pshufb %xmm10, %xmm8
+      """,
+      opt="""
+        pshufd $0xfa, %xmm7, %xmm1
+        movdqa %xmm1, %xmm3
+        psrlq $2, %xmm3
+        pxor %xmm1, %xmm3
+        psrlq $17, %xmm3
+        psrld $10, %xmm1
+        pxor %xmm3, %xmm1
+        pshufb %xmm10, %xmm1
+      """,
+      outputs=["xmm8"], outputs_b=["xmm1"]),
+    C("k7c_sha256_ssse3_sigma1_high", "ssse3",
+      site="linux lib/crypto/x86/sha256-ssse3-asm.S:268-305 (XTMP0=xmm0, X0=xmm4, SHUF_DC00=xmm11)",
+      setup={"xmm11": "0b0a090803020100FFFFFFFFFFFFFFFF"},
+      orig="""
+        pshufd $0x50, %xmm0, %xmm2
+        movdqa %xmm2, %xmm3
+        movdqa %xmm2, %xmm4
+        psrlq $17, %xmm2
+        psrlq $19, %xmm3
+        psrld $10, %xmm4
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm4
+        pshufb %xmm11, %xmm4
+        paddd %xmm0, %xmm4
+      """,
+      opt="""
+        pshufd $0x50, %xmm0, %xmm4
+        movdqa %xmm4, %xmm3
+        psrlq $2, %xmm3
+        pxor %xmm4, %xmm3
+        psrlq $17, %xmm3
+        psrld $10, %xmm4
+        pxor %xmm3, %xmm4
+        pshufb %xmm11, %xmm4
+        paddd %xmm0, %xmm4
+      """,
+      outputs=["xmm4"]),
+
+    C("k8a_sha512_avx2_sigma0_ror8_memmask", "avx2",
+      site="linux lib/crypto/x86/sha512-avx2-asm.S as applied: vpshufb with the mask in memory (rax = 0x7000)",
+      setup={"rax": "0000000000007000", "mem": "080f0e0d0c0b0a090007060504030201" * 2},
+      orig="""
+        vpsrlq $1, %ymm1, %ymm2
+        vpsllq $63, %ymm1, %ymm3
+        vpor %ymm2, %ymm3, %ymm3
+        vpsrlq $7, %ymm1, %ymm8
+        vpsrlq $8, %ymm1, %ymm2
+        vpsllq $56, %ymm1, %ymm1
+        vpor %ymm2, %ymm1, %ymm1
+        vpxor %ymm8, %ymm3, %ymm3
+        vpxor %ymm1, %ymm3, %ymm1
+      """,
+      opt="""
+        vpsrlq $1, %ymm1, %ymm2
+        vpsllq $63, %ymm1, %ymm3
+        vpor %ymm2, %ymm3, %ymm3
+        vpsrlq $7, %ymm1, %ymm8
+        vpshufb (%rax), %ymm1, %ymm1
+        vpxor %ymm8, %ymm3, %ymm3
+        vpxor %ymm1, %ymm3, %ymm1
+      """,
+      outputs=["ymm1"]),
+
+    C("k8b_sm3_avx_p1_rol8_memmask", "avx",
+      site="linux lib/crypto/x86/sm3-avx-asm_64.S as applied: vpshufb with .Lrol8mask as a memory operand (rax = 0x7000)",
+      setup={"rax": "0000000000007000", "mem": "0" * 32 + "0e0d0c0f0a09080b0605040702010003"},
+      orig="""
+        vpslld $15, %xmm6, %xmm11
+        vpsrld $17, %xmm6, %xmm12
+        vpslld $23, %xmm6, %xmm8
+        vpsrld $9, %xmm6, %xmm9
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm12, %xmm11, %xmm11
+        vpxor %xmm9, %xmm8, %xmm8
+        vpxor %xmm8, %xmm11, %xmm11
+        vpxor %xmm11, %xmm7, %xmm0
+      """,
+      opt="""
+        vpshufb (%rax), %xmm6, %xmm8
+        vpxor %xmm6, %xmm8, %xmm8
+        vpslld $15, %xmm8, %xmm11
+        vpsrld $17, %xmm8, %xmm8
+        vpxor %xmm11, %xmm8, %xmm8
+        vpxor %xmm6, %xmm7, %xmm7
+        vpxor %xmm8, %xmm7, %xmm0
+      """,
+      outputs=["xmm0", "xmm7"]),
+
+    C("k1b_ghash_reduce_montgomery_memconst", "sse2", extras=("pclmul",),
+      site="linux lib/crypto/x86/ghash-pclmul.S as applied: .Lgstar as a memory operand (rax = 0x7000)",
+      setup={"rax": "0000000000007000", "mem": "0" * 32 + "c200000000000000c200000000000000"},
+      orig="""
+        movaps %xmm0, %xmm4
+        psllq $1, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $5, %xmm4
+        pxor %xmm0, %xmm4
+        psllq $57, %xmm4
+        movaps %xmm4, %xmm3
+        pslldq $8, %xmm3
+        psrldq $8, %xmm4
+        pxor %xmm3, %xmm0
+        pxor %xmm4, %xmm2
+        movaps %xmm0, %xmm3
+        psrlq $5, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm0, %xmm3
+        psrlq $1, %xmm3
+        pxor %xmm3, %xmm2
+        pxor %xmm2, %xmm0
+      """,
+      opt="""
+        movaps %xmm0, %xmm3
+        pclmulqdq $0x00, (%rax), %xmm3
+        pshufd $0x4e, %xmm3, %xmm3
+        pxor %xmm0, %xmm3
+        pxor %xmm3, %xmm2
+        pclmulqdq $0x11, (%rax), %xmm3
+        pxor %xmm3, %xmm2
+        movaps %xmm2, %xmm0
+      """,
+      outputs=["xmm0"]),
+
+    C("k10a_aes_prefix_sum_shufps_zeroed", "ssse3", extras=("aes",),
+      site="linux lib/crypto/x86/aes-aesni.S as applied: shufps form with its own pxor (unconditional)",
+      orig="""
+        movdqa %xmm0, %xmm1
+        pslldq $4, %xmm0
+        pxor %xmm1, %xmm0
+        movdqa %xmm0, %xmm1
+        pslldq $8, %xmm0
+        pxor %xmm1, %xmm0
+      """,
+      opt="""
+        pxor %xmm1, %xmm1
+        shufps $0x10, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+        shufps $0x8c, %xmm0, %xmm1
+        pxor %xmm1, %xmm0
+      """,
+      outputs=["xmm0"]),
+
+    C("l3b_jchuff_zero_test_pair", "sse2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jchuff-sse2.asm:352-365 group AB (w0=xmm0, w1=xmm1, w4=xmm4 scratch)",
+      orig="""
+        pxor xmm4, xmm4
+        pcmpeqw xmm0, xmm4
+        pxor xmm4, xmm4
+        pcmpeqw xmm1, xmm4
+        packsswb xmm0, xmm1
+      """,
+      opt="""
+        packsswb xmm0, xmm1
+        pxor xmm4, xmm4
+        pcmpeqb xmm0, xmm4
+      """,
+      outputs=["xmm0"]),
+
+    C("l2b_jccolext_cr_finish", "sse2", syntax="intel",
+      site="libjpeg-turbo simd/x86_64/jccolext-sse2.asm:440-455 (Cr: partial sums of (B,G) with PW_MF008_MF041, plus R<<15), proved from the byte widening",
+      setup={"xmm15": ZERO128, "xmm12": "94d1eb2f" * 4, "xmm13": "00807fff" * 4},
+      orig="""
+        punpcklbw xmm1, xmm15
+        punpcklbw xmm3, xmm15
+        punpcklbw xmm5, xmm15
+        movdqa xmm6, xmm5
+        punpcklwd xmm5, xmm3
+        punpckhwd xmm6, xmm3
+        movdqa xmm7, xmm5
+        movdqa xmm4, xmm6
+        pmaddwd xmm7, xmm12
+        pmaddwd xmm4, xmm12
+        movdqa xmm5, xmm1
+      """ + L2_ORIG,
+      opt="""
+        punpcklbw xmm1, xmm15
+        punpcklbw xmm3, xmm15
+        punpcklbw xmm5, xmm15
+        movdqa xmm6, xmm5
+        punpcklwd xmm5, xmm3
+        punpckhwd xmm6, xmm3
+        movdqa xmm7, xmm5
+        movdqa xmm4, xmm6
+        pmaddwd xmm7, xmm12
+        pmaddwd xmm4, xmm12
+        movdqa xmm5, xmm1
+      """ + L2_OPT,
+      outputs=["xmm7"]),
+]
+
+
+# ---------------------------------------------------------------------------
+# Driver
+# ---------------------------------------------------------------------------
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--stage", choices=["tests", "ir", "traces", "z3"], default="z3")
+    ap.add_argument("--ir", default=None, help="reuse an existing IR file")
+    ap.add_argument("--jobs", type=int, default=16)
+    ap.add_argument("--z3-timeout", type=int, default=600)
+    args = ap.parse_args()
+
+    cands = [c for c in CANDIDATES if not args.only or c["name"] in args.only]
+    WORK.mkdir(parents=True, exist_ok=True)
+    trace_dir = WORK / "traces"
+    trace_dir.mkdir(exist_ok=True)
+    smt_dir = WORK / "smt"
+    smt_dir.mkdir(exist_ok=True)
+
+    # 1. assemble and generate Sail tests
+    tests, funcs, results = [HELPERS], [], {}
+    for c in cands:
+        name = c["name"]
+        try:
+            ins_a = assemble(c["orig"], c["level"], c["extras"], c["syntax"])
+            ins_b = assemble(c["opt"], c["level"], c["extras"], c["syntax"])
+        except IsaViolation as e:
+            results[name] = ("ISA violation", str(e).splitlines()[-1])
+            print(f"  {name}: ISA violation: {e}")
+            continue
+        c["n_a"], c["n_b"] = len(ins_a), len(ins_b)
+        fa, fb = f"test_{name}_a", f"test_{name}_b"
+        tests.append(f"// {name}: {c['site']}")
+        tests.append(gen_test(fa, ins_a, c["setup"], c["outputs"]))
+        tests.append(gen_test(fb, ins_b, c["setup"], c["outputs_b"]))
+        funcs += [fa, fb]
+    TESTS_SAIL.write_text("\n\n".join(tests) + "\n")
+    print(f"=== Wrote {TESTS_SAIL} ({len(funcs)} functions)")
+    if args.stage == "tests":
+        return
+
+    # 2. IR
+    ir = Path(args.ir) if args.ir else generate_ir(funcs, WORK / "candidates")
+    if args.stage == "ir":
+        return
+
+    # 3. traces (parallel)
+    print(f"=== Isla traces ({args.jobs} parallel)")
+    traces = {}
+    with concurrent.futures.ThreadPoolExecutor(args.jobs) as ex:
+        futs = {ex.submit(run_isla, f, ir, trace_dir): f for f in funcs}
+        for fut in concurrent.futures.as_completed(futs):
+            f = futs[fut]
+            trace, how = fut.result()
+            n = trace_paths(trace)
+            traces[f] = trace
+            print(f"    {f}: {how}, {n} path(s), {trace.stat().st_size:,} bytes")
+    if args.stage == "traces":
+        return
+
+    # 4. Z3 (parallel: one solver process per candidate)
+    print(f"=== Z3 ({args.jobs} parallel, {args.z3_timeout}s each)")
+
+    def prove(c):
+        name = c["name"]
+        fa, fb = f"test_{name}_a", f"test_{name}_b"
+        if trace_paths(traces[fa]) != 1 or trace_paths(traces[fb]) != 1:
+            return name, ("trace error", f"{trace_paths(traces[fa])}/{trace_paths(traces[fb])} paths")
+        try:
+            q = build_query(str(traces[fa]), str(traces[fb]), name)
+        except Exception as e:  # noqa: BLE001
+            return name, ("query error", str(e))
+        verdict, out, dt = run_z3(q, smt_dir / f"{name}.smt2", args.z3_timeout)
+        (smt_dir / f"{name}.out").write_text(out)
+        return name, (verdict, f"{dt:.1f}s")
+
+    with concurrent.futures.ThreadPoolExecutor(args.jobs) as ex:
+        futs = [ex.submit(prove, c) for c in cands if c["name"] not in results]
+        for fut in concurrent.futures.as_completed(futs):
+            name, res = fut.result()
+            results[name] = res
+            print(f"    {name}: {res[0]} ({res[1]})")
+
+    # 5. summary
+    print()
+    print(f"{'candidate':40s} {'level':7s} {'before':>6s} {'after':>5s}  {'expect':6s}  result")
+    for c in cands:
+        name = c["name"]
+        verdict, info = results.get(name, ("?", ""))
+        ok = "" if verdict == c["expect"] else "  <-- unexpected"
+        na, nb = c.get("n_a", "-"), c.get("n_b", "-")
+        print(f"{name:40s} {c['level']:7s} {na:>6} {nb:>5}  {c['expect']:6s}  {verdict} {info}{ok}")
+
+
+if __name__ == "__main__":
+    main()
