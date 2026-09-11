@@ -1,5 +1,7 @@
 #include "kvm-harness.h"
 
+#include <cpuid.h>
+
 void add_xsave_tests(std::vector<TestCase> &tests) {
   std::string cat;
 
@@ -111,6 +113,38 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       s, FL_NONE});
   }
 
+  // CPUID leaf 0xD, subleaf 0.  EAX (XCR0_SUPPORTED) and ECX (the
+  // standard-format size covering every supported component) are masked
+  // because the hosts support components the model does not: PKRU on
+  // both, AMX on Intel.  EBX, the size for the components enabled in
+  // XCR0, depends on the vendor's component offsets and is compared as
+  // is.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rax = 0xD;
+    s.rcx = 0;
+    tests.push_back({"cpuid leaf 0xD sub 0 (EBX)", cat,
+                      {0x0F, 0xA2,                    // cpuid
+                       0x25, 0xFF, 0x00, 0x00, 0x00,  // and eax, 0xFF
+                       0x31, 0xC9},                   // xor ecx, ecx
+                      s, FL_NONE});
+  }
+
+  // CPUID leaf 0xD, subleaves 5-7: the AVX-512 components.  Their
+  // standard-format offsets differ between Intel (1088/1152/1664) and
+  // AMD (832/896/1408); the model follows the vendor profile the harness
+  // selects from the host, so all four registers are compared.
+  for (u64 sub : {5ull, 6ull, 7ull}) {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rax = 0xD;
+    s.rcx = sub;
+    tests.push_back({std::format("cpuid leaf 0xD sub {}", sub), cat,
+                      {0x0F, 0xA2},
+                      s, FL_NONE});
+  }
+
   // =====================================================================
   // IA32_XSS MSR (0xDA0) — supervisor state components
   // =====================================================================
@@ -183,5 +217,85 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = FL_NONE;
     tc.xcr0_override = xcr0;
     tests.push_back(tc);
+  }
+
+  // =====================================================================
+  // Standard-format XSAVE images — the vendor-specific component layout
+  // =====================================================================
+  // The standard-format offsets of the AVX-512 components come from
+  // CPUID.(0xD,i).EBX and differ between vendors.  The harness selects
+  // the model's vendor profile from the host, so an image can be compared
+  // byte for byte on either vendor, and each layout is thereby checked
+  // against its own silicon.  Component 0 (x87) is left out of the
+  // masks: the harness starts it in its initial configuration, and
+  // whether XSAVE then reports it in XSTATE_BV (XINUSE tracking) is
+  // implementation specific.  Every other component is loaded with
+  // nonzero data, so XINUSE is 1 and XSTATE_BV is determined.
+  cat = "XSAVE image";
+
+  // Standard-format offset of a component on this host.
+  auto host_offset = [](u32 component) {
+    u32 a, b, c, d;
+    __cpuid_count(0xD, component, a, b, c, d);
+    return b;
+  };
+  // End of the Intel layout (Hi16_ZMM at 1664 + 1024); AMD's fits inside.
+  static constexpr size_t STD_IMAGE_SIZE = 2688;
+
+  // Every ZMM register and every k register gets a distinct nonzero value.
+  auto zmm_pattern = [](int i) {
+    ZmmVal v;
+    for (int j = 0; j < 8; j++)
+      v.q[j] = (u64)(i * 8 + j + 1) * 0x0101010101010101ULL;
+    return v;
+  };
+  auto k_pattern = [](int i) { return (u64)0x1111 * (i + 1); };
+
+  // XSAVE [RDI] with EDX:EAX = 0xE6: every component but x87 is written.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.rax = 0xE6;
+    s.rdx = 0;
+    for (int i = 0; i < 32; i++) s.xmm[i] = zmm_pattern(i);
+    for (int i = 0; i < 8; i++) s.kregs[i] = k_pattern(i);
+    std::vector<u8> init(STD_IMAGE_SIZE, 0);
+    tests.push_back({"xsave standard image (mask 0xE6)", cat,
+                      {0x0F, 0xAE, 0x27},             // XSAVE [RDI]
+                      s, FL_NONE, 0, false, init, STD_IMAGE_SIZE});
+  }
+
+  // XRSTOR [RDI] from a standard-format image laid out at the host's
+  // component offsets; every ZMM and k register is compared afterwards.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    s.rax = 0xE6;
+    s.rdx = 0;
+    std::vector<u8> init(STD_IMAGE_SIZE, 0);
+    u32 mxcsr = 0x1F80;
+    memcpy(init.data() + 0x18, &mxcsr, 4);
+    for (int i = 0; i < 16; i++) {
+      ZmmVal v = zmm_pattern(i);
+      memcpy(init.data() + 0xA0 + i * 16, &v.q[0], 16);
+      memcpy(init.data() + host_offset(2) + i * 16, &v.q[2], 16);
+      memcpy(init.data() + host_offset(6) + i * 32, &v.q[4], 32);
+    }
+    for (int i = 0; i < 16; i++) {
+      ZmmVal v = zmm_pattern(16 + i);
+      memcpy(init.data() + host_offset(7) + i * 64, &v.q[0], 64);
+    }
+    for (int i = 0; i < 8; i++) {
+      u64 k = k_pattern(i);
+      memcpy(init.data() + host_offset(5) + i * 8, &k, 8);
+    }
+    u64 xstate_bv = 0xE6;
+    memcpy(init.data() + 512, &xstate_bv, 8);
+    tests.push_back({"xrstor standard image (mask 0xE6)", cat,
+                      {0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
+                      s, FL_NONE, 0xFFFFFFFFu, false, init, 0,
+                      false, -1, 0xFF});
   }
 }

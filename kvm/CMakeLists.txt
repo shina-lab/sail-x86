@@ -209,6 +209,7 @@ set(KVM_CATEGORIES
   "MOVQ store"
   "K-register ops"
   "Vec stores"
+  "XSAVE image"
 )
 
 foreach(cat ${KVM_CATEGORIES})
