@@ -161,53 +161,27 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
 
   // Subleaf 0 tests omitted: EAX/ECX mismatch due to host PKRU support
   // (KVM XCR0_SUPPORTED=0x2E7 includes bit 9, our model doesn't have PKRU).
-  // The dynamic EBX values (0x240, 0x340, 0x980) were verified to match.
+  // The dynamic EBX values (0x240, 0x340, 0x980) were verified to match
+  // on the AMD host; an Intel host enumerates the AVX-512 components at
+  // different offsets (see XsaveLayout in kvm-harness.cpp).
 
-  // CPUID leaf 0xD, subleaf 1: dynamic EBX (compacted size) with XCR0=0x03
-  {
+  // CPUID leaf 0xD, subleaf 1: dynamic EBX (compacted size of the
+  // XCR0-enabled components).  EAX is masked to bits 3:0 (XSAVEOPT,
+  // XSAVEC, XGETBV1, XSAVES) before the comparison: bit 4 (XFD) reflects
+  // the host's AMX support, which the model does not implement.
+  for (u64 xcr0 : {0x03ull, 0x07ull, 0xE7ull}) {
     ArchState s;
     s.rflags = 0x2;
     s.rax = 0xD;
     s.rcx = 1;
     TestCase tc;
-    tc.name = "cpuid 0xD.1 EBX xcr0=0x03";
+    tc.name = std::format("cpuid 0xD.1 EBX xcr0=0x{:02X}", xcr0);
     tc.category = cat;
-    tc.code = {0x0F, 0xA2};
+    tc.code = {0x0F, 0xA2,         // cpuid
+               0x83, 0xE0, 0x0F};  // and eax, 0xF
     tc.initial = s;
     tc.flags_mask = FL_NONE;
-    tc.xcr0_override = 0x03;
-    tests.push_back(tc);
-  }
-
-  // CPUID leaf 0xD, subleaf 1: dynamic EBX with XCR0=0x07
-  {
-    ArchState s;
-    s.rflags = 0x2;
-    s.rax = 0xD;
-    s.rcx = 1;
-    TestCase tc;
-    tc.name = "cpuid 0xD.1 EBX xcr0=0x07";
-    tc.category = cat;
-    tc.code = {0x0F, 0xA2};
-    tc.initial = s;
-    tc.flags_mask = FL_NONE;
-    tc.xcr0_override = 0x07;
-    tests.push_back(tc);
-  }
-
-  // CPUID leaf 0xD, subleaf 1: dynamic EBX with XCR0=0xE7
-  {
-    ArchState s;
-    s.rflags = 0x2;
-    s.rax = 0xD;
-    s.rcx = 1;
-    TestCase tc;
-    tc.name = "cpuid 0xD.1 EBX xcr0=0xE7";
-    tc.category = cat;
-    tc.code = {0x0F, 0xA2};
-    tc.initial = s;
-    tc.flags_mask = FL_NONE;
-    tc.xcr0_override = 0xE7;
+    tc.xcr0_override = xcr0;
     tests.push_back(tc);
   }
 }
