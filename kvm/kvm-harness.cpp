@@ -38,6 +38,33 @@ static void print_host_identity() {
           un.sysname, un.release, un.machine);
 }
 
+// Byte offsets of the extended state components in the standard-format
+// XSAVE area, as enumerated by the host's CPUID leaf 0xD.  KVM_SET_XSAVE
+// and KVM_GET_XSAVE use the host layout, and it is vendor-specific: Intel
+// keeps the MPX slots (components 3 and 4) reserved, so opmask, ZMM_Hi256
+// and Hi16_ZMM start at 1088, 1152 and 1664, whereas AMD packs them right
+// after the AVX component at 832, 896 and 1408.
+struct XsaveLayout {
+  u32 ymm_hi128;  // component 2: YMM0-15 bits 255:128
+  u32 opmask;     // component 5: k0-k7
+  u32 zmm_hi256;  // component 6: ZMM0-15 bits 511:256
+  u32 hi16_zmm;   // component 7: ZMM16-31
+};
+
+static XsaveLayout host_xsave_layout() {
+  auto offset = [](u32 component) {
+    u32 a, b, c, d;
+    __cpuid_count(0xD, component, a, b, c, d);
+    if (a == 0) {
+      fprintf(stderr, "host CPUID.(0xD,%u) reports no XSAVE component: "
+              "the harness needs AVX-512\n", component);
+      exit(1);
+    }
+    return b;
+  };
+  return {offset(2), offset(5), offset(6), offset(7)};
+}
+
 // ---- KVM VM ----
 
 struct KvmVm {
@@ -46,6 +73,7 @@ struct KvmVm {
   int vcpu_fd = -1;
   struct kvm_run *run = nullptr;
   u8 *guest_mem = nullptr;
+  const XsaveLayout xl = host_xsave_layout();
 
   ~KvmVm() {
     if (run) munmap(run, sizeof(kvm_run));
@@ -391,23 +419,23 @@ struct KvmVm {
     // XMM0-XMM15 low 128 bits at offset 0xA0 (16 bytes each)
     for (int i = 0; i < 16; i++)
       memcpy(xs + 0xA0 + i * 16, &tc.initial.xmm[i].q[0], 16);
-    // YMM0-YMM15 upper 128 bits at offset 0x240 (component 2/AVX, 16 bytes each)
+    // The extended components sit at the host's CPUID-enumerated offsets.
     for (int i = 0; i < 16; i++)
-      memcpy(xs + 0x240 + i * 16, &tc.initial.xmm[i].q[2], 16);
-    // Opmask registers (k0-k7) at offset 0x340 (component 5, 8 bytes each)
+      memcpy(xs + xl.ymm_hi128 + i * 16, &tc.initial.xmm[i].q[2], 16);
     for (int i = 0; i < 8; i++)
-      memcpy(xs + 0x340 + i * 8, &tc.initial.kregs[i], 8);
-    // ZMM0-ZMM15 upper 256 bits at offset 0x380 (component 6/ZMM_Hi256, 32 bytes each)
+      memcpy(xs + xl.opmask + i * 8, &tc.initial.kregs[i], 8);
     for (int i = 0; i < 16; i++)
-      memcpy(xs + 0x380 + i * 32, &tc.initial.xmm[i].q[4], 32);
-    // ZMM16-ZMM31 full 512 bits at offset 0x580 (component 7/Hi16_ZMM, 64 bytes each)
+      memcpy(xs + xl.zmm_hi256 + i * 32, &tc.initial.xmm[i].q[4], 32);
     for (int i = 0; i < 16; i++)
-      memcpy(xs + 0x580 + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
+      memcpy(xs + xl.hi16_zmm + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
 
     // XSTATE_BV: mark all AVX-512 components as valid
     u64 xstate_bv = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
     memcpy(xs + 0x200, &xstate_bv, 8);
-    ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave);
+    if (ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave) < 0) {
+      perror("KVM_SET_XSAVE");  // host API failure, not a divergence
+      abort();
+    }
 
     // Apply per-test XCR0 override if requested
     if (tc.xcr0_override) {
@@ -523,24 +551,22 @@ struct KvmVm {
     };
 
     struct kvm_xsave xsave;
-    ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave);
+    if (ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave) < 0) {
+      perror("KVM_GET_XSAVE");  // host API failure, not a divergence
+      abort();
+    }
     u8 *xs = (u8 *)&xsave;
     memcpy(&state.mxcsr, xs + 0x18, 4);
-    // XMM0-15 low 128 bits
     for (int i = 0; i < 16; i++)
       memcpy(&state.xmm[i].q[0], xs + 0xA0 + i * 16, 16);
-    // YMM0-15 upper 128 bits
     for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[i].q[2], xs + 0x240 + i * 16, 16);
-    // Opmask registers (k0-k7)
+      memcpy(&state.xmm[i].q[2], xs + xl.ymm_hi128 + i * 16, 16);
     for (int i = 0; i < 8; i++)
-      memcpy(&state.kregs[i], xs + 0x340 + i * 8, 8);
-    // ZMM0-15 upper 256 bits
+      memcpy(&state.kregs[i], xs + xl.opmask + i * 8, 8);
     for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[i].q[4], xs + 0x380 + i * 32, 32);
-    // ZMM16-31 full 512 bits
+      memcpy(&state.xmm[i].q[4], xs + xl.zmm_hi256 + i * 32, 32);
     for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[16 + i].q[0], xs + 0x580 + i * 64, 64);
+      memcpy(&state.xmm[16 + i].q[0], xs + xl.hi16_zmm + i * 64, 64);
     return state;
   }
 
