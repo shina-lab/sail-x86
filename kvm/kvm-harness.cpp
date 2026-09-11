@@ -65,6 +65,16 @@ static XsaveLayout host_xsave_layout() {
   return {offset(2), offset(5), offset(6), offset(7)};
 }
 
+// The model's vendor profile covers the values the SDM leaves to the
+// implementation (the standard-format XSAVE offsets of the AVX-512
+// components and MXCSR_MASK).  Select the host's, so those values are
+// compared with the silicon rather than masked out of the comparison.
+static x86::zVendor host_vendor() {
+  u32 a, b, c, d;
+  __get_cpuid(0, &a, &b, &c, &d);
+  return b == 0x68747541 ? x86::zVendor_AMD : x86::zVendor_Intel;  // "Auth"
+}
+
 // ---- KVM VM ----
 
 struct KvmVm {
@@ -593,6 +603,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.model_init();
   model.zinitializze_registers(UNIT);
   x86::enable_all_features(model);
+  model.zvendor = host_vendor();
   model.zcur_mode = tc.compat_mode ? x86::zCompatibilityMode : x86::zLongMode;
   model.zcur_cpl = 0;
 

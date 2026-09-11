@@ -147,9 +147,8 @@ static void fxsave_common(Model &m, u64 addr) {
   // MXCSR at offset 0x18
   u32 mxcsr = m.mxcsr_state.mxcsr;
   memcpy((void *)(addr + 0x18), &mxcsr, 4);
-  // MXCSR_MASK is implementation dependent; the model reports the Intel
-  // value.  Keep in sync with xsave_mxcsr in model/insn_xsave.sail.
-  u32 mxcsr_mask = 0x0000FFFF;
+  // MXCSR_MASK follows the model's vendor profile (insn_xsave.sail).
+  u32 mxcsr_mask = (u32)m.zmxcsr_mask(UNIT);
   memcpy((void *)(addr + 0x1C), &mxcsr_mask, 4);
 
   // ST0-ST7 at offset 0x20 (16 bytes each, only 10 used)

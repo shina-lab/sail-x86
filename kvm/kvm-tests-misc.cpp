@@ -558,17 +558,16 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Test: MOVD MM0,EAX (marks tags valid), then EMMS, then
     // FXSAVE [RDI] to capture state. Compare the saved area —
     // the abridged tag word at offset 4 should be 0xFF (all empty).
-    // FXSAVE also stores MXCSR_MASK at bytes 28-31, which the SDM leaves
-    // implementation specific: Intel parts report 0xFFFF, AMD parts
-    // 0x2FFFF (bit 17 is AMD's misaligned-SSE mode).  Zero the field so
-    // the image comparison does not depend on the host vendor.
+    // The image includes MXCSR_MASK (bytes 28-31), which the SDM leaves
+    // implementation specific (0xFFFF on Intel, 0x2FFFF on AMD); the
+    // model follows the vendor profile the harness selects from the host,
+    // so the field is compared like the rest.
     {
       std::vector<u8> init_data(512, 0);
       tests.push_back({"emms clears tags", cat,
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (sets tag valid)
          0x0F, 0x77,              // EMMS (should set all tags empty)
-         0x0F, 0xAE, 0x07,        // FXSAVE [RDI]
-         0xC7, 0x47, 0x1C, 0x00, 0x00, 0x00, 0x00},  // MOV dword [RDI+28], 0
+         0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
         {.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2},
         FL_NONE, 0, false, init_data, 512});
     }

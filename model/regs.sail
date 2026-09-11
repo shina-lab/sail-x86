@@ -518,6 +518,16 @@ register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
 
+// Vendor profile for the values the SDM leaves to the implementation and
+// on which the two vendors differ: the standard-format XSAVE offsets of
+// the AVX-512 components (CPUID.0DH.n:EBX) and MXCSR_MASK.  See
+// xsave_std_offset and mxcsr_mask in insn_xsave.sail.  The CPUID vendor
+// string stays "GenuineIntel" either way.  The KVM differential harness
+// selects the host's vendor so that both profiles are checked against
+// silicon; the emulators keep the Intel default.
+enum Vendor = { Vendor_Intel, Vendor_AMD }
+register vendor : Vendor = Vendor_Intel
+
 // =========================================================================
 // XCR0 / feature check helpers
 // =========================================================================

@@ -16,30 +16,52 @@
 // for components that require it (CPUID.0DH.n:ECX bit 1).
 // -------------------------------------------------------------------------
 
-// Standard format XSAVE area size for a given feature mask.
-// Component offsets and sizes (from our CPUID.0DH.n values):
-//   2 (AVX):       offset=576,  size=256  → end=832
-//   5 (opmask):    offset=832,  size=64   → end=896
-//   6 (ZMM_Hi256): offset=896,  size=512  → end=1408
-//   7 (Hi16_ZMM):  offset=1408, size=1024 → end=2432
-val xsave_area_size_standard : qword -> dword
-function xsave_area_size_standard(mask) = {
-  // Standard format: each component at a fixed offset.
-  // Ascending blend: each higher enabled component overwrites the total size.
-  let s0 : dword = to_bits(32, 576);                              // legacy + header
-  let s1 : dword = blend(s0, to_bits(32, 832), mask[2]);          // AVX
-  let s2 : dword = blend(s1, to_bits(32, 896), mask[5]);          // opmask
-  let s3 : dword = blend(s2, to_bits(32, 1408), mask[6]);         // ZMM_Hi256
-  blend(s3, to_bits(32, 2432), mask[7])                           // Hi16_ZMM
+// Standard-format offset of a state component (CPUID.0DH.n:EBX).  The SDM
+// only requires that software read these from CPUID, and the two vendors
+// lay the AVX-512 components out differently: Intel keeps the MPX slots
+// (components 3 and 4, 64 bytes each at 960 and 1024) reserved even on
+// parts without MPX, so opmask, ZMM_Hi256 and Hi16_ZMM start at 1088,
+// 1152 and 1664; AMD enumerates no MPX components and packs the three
+// right after the AVX component at 832, 896 and 1408.  The AVX component
+// is at 576 on both.  The choice follows the vendor profile register.
+// Sizes are the same on both: 256 (AVX), 64 (opmask), 512 (ZMM_Hi256),
+// 1024 (Hi16_ZMM).
+val xsave_std_offset : int -> range(0, 4095)
+function xsave_std_offset(component) = match component {
+  2 => 576,
+  5 => match vendor { Vendor_Intel => 1088, Vendor_AMD => 832 },
+  6 => match vendor { Vendor_Intel => 1152, Vendor_AMD => 896 },
+  7 => match vendor { Vendor_Intel => 1664, Vendor_AMD => 1408 },
+  _ => 0
 }
 
-// Compacted format XSAVE area size for a given feature mask.
-// Components packed contiguously starting at offset 576, with
-// 64-byte alignment for components 5, 6, 7 (per CPUID.0DH.n:ECX[1]).
-// For our supported components, compacted and standard sizes are identical
-// because there are no gaps (components 3, 4 not supported).
+// Standard format XSAVE area size for a given feature mask: the end of
+// the highest enabled component, or 576 (legacy region + header) if none.
+val xsave_area_size_standard : qword -> dword
+function xsave_area_size_standard(mask) = {
+  // Ascending blend: each higher enabled component overwrites the total
+  // size, which is valid because the offsets increase with the component
+  // number in both vendor layouts.
+  let s0 : dword = to_bits(32, 576);
+  let s1 : dword = blend(s0, to_bits(32, xsave_std_offset(2) + 256), mask[2]);
+  let s2 : dword = blend(s1, to_bits(32, xsave_std_offset(5) + 64), mask[5]);
+  let s3 : dword = blend(s2, to_bits(32, xsave_std_offset(6) + 512), mask[6]);
+  blend(s3, to_bits(32, xsave_std_offset(7) + 1024), mask[7])
+}
+
+// Compacted format XSAVE area size for a given feature mask.  Components
+// 2, 5, 6 and 7 are packed from offset 576 in component order; every
+// size is a multiple of 64, so the 64-byte alignment that components
+// 5-7 require (CPUID.0DH.n:ECX[1]) never adds padding.  Unlike the
+// standard layout this does not depend on the vendor.
 val xsave_area_size_compacted : qword -> dword
-function xsave_area_size_compacted(mask) = xsave_area_size_standard(mask)
+function xsave_area_size_compacted(mask) = {
+  let s0 : dword = to_bits(32, 576);
+  let s1 : dword = s0 + blend(zeros() : dword, to_bits(32, 256), mask[2]);
+  let s2 : dword = s1 + blend(zeros() : dword, to_bits(32, 64), mask[5]);
+  let s3 : dword = s2 + blend(zeros() : dword, to_bits(32, 512), mask[6]);
+  s3 + blend(zeros() : dword, to_bits(32, 1024), mask[7])
+}
 
 // -------------------------------------------------------------------------
 // FTW conversion: full 16-bit tag word <-> abridged 8-bit tag word
@@ -98,22 +120,25 @@ function xsave_x87(base) = {
 // SDM: bytes 24-31 (MXCSR, MXCSR_MASK) and bytes 160-415 (XMM0-XMM15)
 // -------------------------------------------------------------------------
 
-// Save just MXCSR and MXCSR_MASK (shared between SSE and AVX)
-//
 // MXCSR_MASK reports which MXCSR bits the processor accepts; the SDM
 // leaves the value implementation dependent (Vol. 1, Ch. 11, "Guidelines
 // for Writing to the MXCSR Register").  Intel processors report
 // 0x0000FFFF (bits 15:0, DAZ included); AMD processors report 0x0002FFFF
 // because bit 17 is their misaligned-SSE mode, gated by the MISALIGNSSE
-// CPUID feature.  This model presents as GenuineIntel and does not
-// advertise MISALIGNSSE, so it reports the Intel value.  The FXSAVE
-// externals in usermode-emu and system-emu write the same constant, and
-// the KVM differential tests treat the field as vendor-specific and do
-// not compare it.
+// CPUID feature.  The value follows the vendor profile register.  The
+// FXSAVE externals in usermode-emu and system-emu call this too, so the
+// FXSAVE and XSAVE images agree.
+val mxcsr_mask : unit -> dword
+function mxcsr_mask() = match vendor {
+  Vendor_Intel => 0x0000FFFF,
+  Vendor_AMD   => 0x0002FFFF
+}
+
+// Save just MXCSR and MXCSR_MASK (shared between SSE and AVX)
 val xsave_mxcsr : qword -> unit
 function xsave_mxcsr(base) = {
   write_mem(base + 24, __stmxcsr());
-  write_mem(base + 28, 0x0000FFFF) // MXCSR_MASK
+  write_mem(base + 28, mxcsr_mask())
 }
 
 val xsave_sse : qword -> unit
@@ -220,32 +245,32 @@ function xrstor_hi16_zmm_at(addr) = {
 }
 
 // -------------------------------------------------------------------------
-// Standard-offset save/restore wrappers (use base + fixed offset)
+// Standard-offset save/restore wrappers (base + the profile's offset)
 // -------------------------------------------------------------------------
 
 val xsave_avx : qword -> unit
-function xsave_avx(base) = xsave_avx_at(base + 576)
+function xsave_avx(base) = xsave_avx_at(base + xsave_std_offset(2))
 
 val xsave_opmask : qword -> unit
-function xsave_opmask(base) = xsave_opmask_at(base + 832)
+function xsave_opmask(base) = xsave_opmask_at(base + xsave_std_offset(5))
 
 val xsave_zmm_hi256 : qword -> unit
-function xsave_zmm_hi256(base) = xsave_zmm_hi256_at(base + 896)
+function xsave_zmm_hi256(base) = xsave_zmm_hi256_at(base + xsave_std_offset(6))
 
 val xsave_hi16_zmm : qword -> unit
-function xsave_hi16_zmm(base) = xsave_hi16_zmm_at(base + 1408)
+function xsave_hi16_zmm(base) = xsave_hi16_zmm_at(base + xsave_std_offset(7))
 
 val xrstor_avx : qword -> unit
-function xrstor_avx(base) = xrstor_avx_at(base + 576)
+function xrstor_avx(base) = xrstor_avx_at(base + xsave_std_offset(2))
 
 val xrstor_opmask : qword -> unit
-function xrstor_opmask(base) = xrstor_opmask_at(base + 832)
+function xrstor_opmask(base) = xrstor_opmask_at(base + xsave_std_offset(5))
 
 val xrstor_zmm_hi256 : qword -> unit
-function xrstor_zmm_hi256(base) = xrstor_zmm_hi256_at(base + 896)
+function xrstor_zmm_hi256(base) = xrstor_zmm_hi256_at(base + xsave_std_offset(6))
 
 val xrstor_hi16_zmm : qword -> unit
-function xrstor_hi16_zmm(base) = xrstor_hi16_zmm_at(base + 1408)
+function xrstor_hi16_zmm(base) = xrstor_hi16_zmm_at(base + xsave_std_offset(7))
 
 // -------------------------------------------------------------------------
 // Initialize state components to their default values (Section 13.6)

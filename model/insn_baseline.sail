@@ -156,14 +156,13 @@ function cpuid(leaf, subleaf) = {
       // ECX = supported IA32_XSS bits [31:0] (none)
       // EDX = supported IA32_XSS bits [63:32] (none)
       (true, 1) => (0x0000000F, xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
-      // AVX state (component 2): 256 bytes at offset 576
-      (true, 2) => (0x00000100, 0x00000240, 0x00000000, 0x00000000),
-      // Opmask state (component 5): 64 bytes at offset 832
-      (true, 5) => (0x00000040, 0x00000340, 0x00000000, 0x00000000),
-      // ZMM_Hi256 (component 6): 512 bytes at offset 896
-      (true, 6) => (0x00000200, 0x00000380, 0x00000000, 0x00000000),
-      // Hi16_ZMM (component 7): 1024 bytes at offset 1408
-      (true, 7) => (0x00000400, 0x00000580, 0x00000000, 0x00000000),
+      // Components 2 (AVX, 256 bytes), 5 (opmask, 64), 6 (ZMM_Hi256, 512)
+      // and 7 (Hi16_ZMM, 1024).  EBX, the standard-format offset, follows
+      // the vendor profile: see xsave_std_offset in insn_xsave.sail.
+      (true, 2) => (0x00000100, to_bits(32, xsave_std_offset(2)), 0x00000000, 0x00000000),
+      (true, 5) => (0x00000040, to_bits(32, xsave_std_offset(5)), 0x00000000, 0x00000000),
+      (true, 6) => (0x00000200, to_bits(32, xsave_std_offset(6)), 0x00000000, 0x00000000),
+      (true, 7) => (0x00000400, to_bits(32, xsave_std_offset(7)), 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
 
