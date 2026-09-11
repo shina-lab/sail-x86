@@ -419,10 +419,11 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
                       {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
     // BSF 32-bit: zero source with a nonzero upper half in the destination.
-    // The AMD host leaves the whole 64-bit register untouched (upper half
-    // included) and the model follows.  Linux's ffs() comment describes
-    // Intel as rewriting the old value, which would clear the upper half:
-    // an item for an Intel-host run.
+    // Both differential hosts (AMD Zen 4, Intel Emerald Rapids) leave the
+    // whole 64-bit register untouched, upper half included, and the model
+    // follows.  Linux's ffs() comment describes Intel as rewriting the old
+    // value, which would clear the upper half; the Intel run shows it
+    // does not.
     tests.push_back({"bsf eax,ebx zero hi32", cat, {0x0F, 0xBC, 0xC3},
                       {.rax = 0xFFFFFFFFDEADDEAD, .rflags = 0x2}, FL_ALL});
 

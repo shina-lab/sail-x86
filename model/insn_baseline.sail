@@ -1632,20 +1632,21 @@ function dispatch_2byte_gpr(op, pfx) = {
         // OF, SF, AF, PF are undefined, and so is the destination for a
         // zero source.  The model deliberately fixes the de-facto behavior
         // instead.  Flags: CF/OF/SF/AF cleared and PF from the result's
-        // parity, as observed on the AMD development host.  Destination:
-        // untouched on a zero source.  That rule is a contract programs
-        // rely on, not a modeling choice: AMD documents it, and Linux's
-        // ffs()/fls() (arch/x86/include/asm/bitops.h) preload -1 into the
-        // destination and depend on it surviving, citing Intel's
-        // architects for the same guarantee.  A model that leaves the
-        // destination undefined (the C++ backend folds it to zero) panics
-        // Linux early in boot.  "Untouched" means the whole 64-bit
-        // register: for a 32-bit operand the AMD host preserves the upper
-        // half too, so the write below is undone rather than repeated at
-        // operand width (which would zero-extend).  The kernel comment
-        // describes Intel as rewriting the old value, which would clear
-        // the upper half; an Intel-host run should settle that corner.
-        // The differential templates compare the fixed behavior.
+        // parity, as observed on both differential hosts (AMD Zen 4 and
+        // Intel Emerald Rapids).  Destination: untouched on a zero
+        // source.  That rule is a contract programs rely on, not a
+        // modeling choice: AMD documents it, and Linux's ffs()/fls()
+        // (arch/x86/include/asm/bitops.h) preload -1 into the destination
+        // and depend on it surviving, citing Intel's architects for the
+        // same guarantee.  A model that leaves the destination undefined
+        // (the C++ backend folds it to zero) panics Linux early in boot.
+        // "Untouched" means the whole 64-bit register: for a 32-bit
+        // operand both hosts preserve the upper half too, so the write
+        // below is undone rather than repeated at operand width (which
+        // would zero-extend).  The kernel comment describes Intel as
+        // rewriting the old value, which would clear the upper half; the
+        // Emerald Rapids run shows that it does not.  The differential
+        // templates compare the fixed behavior.
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         let idx = ctz(src_val);
