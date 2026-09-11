@@ -10,16 +10,31 @@ val isla_read_mem = impure "platform_read_mem"
 val isla_write_mem = impure "platform_write_mem"
   : forall 'n, 'n > 0. (bits(2), int(64), bits(64), int('n), bits(8 * 'n)) -> bool
 
-function phys_read(addr, n) = isla_read_mem(0b00, 64, addr, n)
-function phys_write(addr, n, data) = {
-  let _ = isla_write_mem(0b00, 64, addr, n, data);
-  ()
+// Data memory is a single 256-byte window at 0x7000 held in the symbolic
+// register mem_window (declared in regs.sail next to insn_buf), so a load
+// at a concrete address inside the window is a shared symbolic input (the
+// two traces of an equivalence proof are unified on it by name) and a
+// store is visible to later loads.  Any access outside the window, or at a
+// symbolic address, aborts the trace: a proof that depends on such memory
+// fails rather than passing vacuously.
+// (Size parameter 'n is in bits, matching paging.sail.)
+function phys_read(n, addr) = {
+  let off = unsigned(addr - 0x0000000000007000);
+  assert(off < 256 & 8 * off + n <= 2048, "load outside the symbolic memory window");
+  mem_window[(8 * off + n - 1) .. (8 * off)]
+}
+
+function phys_write(n, addr, data) = {
+  let off = unsigned(addr - 0x0000000000007000);
+  assert(off < 256 & 8 * off + n <= 2048, "store outside the symbolic memory window");
+  mem_window[(8 * off + n - 1) .. (8 * off)] = data
 }
 
 function translate_addr(linear, access) = linear
 function __check_pending_irq() = negate(1)
-function __mem_read_crossing(addr, n, access) = phys_read(addr, n)
-function __mem_write_crossing(addr, n, data) = phys_write(addr, n, data)
+function __check_pending_smi() = false
+function __mem_read_crossing(addr, n, access) = undefined
+function __mem_write_crossing(addr, n, data) = ()
 
 // Override fetch to read from insn_buf register.
 // Uses byte index from low 4 bits of decode_pos (base is page-aligned).
@@ -94,19 +109,6 @@ function isla_test_shl_r64_imm8(reg, imm) = {
     0xF4 @ 0xF4 @ 0xF4 @
     imm @ modrm @ 0xC1 @ rex;
   setup_and_exec(bytes)
-}
-
-// 32-bit variants
-val compare_add32 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_add32(a, b) = {
-  let (result, _) = alu_compute(ALU_ADD, a, b, OS32);
-  (result, CF, PF, AF, ZF, SF, OF)
-}
-
-val compare_sub32 : (bits(64), bits(64)) -> (bits(64), bit, bit, bit, bit, bit, bit)
-function compare_sub32(a, b) = {
-  let (result, _) = alu_compute(ALU_SUB, a, b, OS32);
-  (result, CF, PF, AF, ZF, SF, OF)
 }
 
 function main() = {

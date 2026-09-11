@@ -397,6 +397,12 @@ register insn_buf : bits(120) = zeros()
 // Output register for ISLA equivalence proofs.
 register Final_result : bits(128) = zeros()
 
+// Symbolic data-memory window for ISLA equivalence proofs: 256 bytes at
+// 0x7000.  The splice file routes phys_read/phys_write here so that a
+// load at a concrete address is a shared symbolic input.  Unused by the
+// emulator.
+register mem_window : bits(2048)
+
 // RIP-relative fixup state: when modrm_rm sees mod=00 rm=101 (RIP+disp32),
 // it saves decode_pos after consuming the displacement bytes. If the
 // instruction has trailing bytes (imm8, imm32), decode_pos will advance

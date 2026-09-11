@@ -247,11 +247,24 @@ def infer_width(sexp, known):
 
     # Width-preserving ops
     if head in ('bvor', 'bvand', 'bvxor', 'bvsub', 'bvadd', 'bvmul',
-                'bvshl', 'bvlshr', 'bvashr', 'bvnot'):
+                'bvshl', 'bvlshr', 'bvashr', 'bvnot', 'bvneg',
+                'bvudiv', 'bvurem', 'bvsdiv', 'bvsrem', 'bvsmod',
+                'bvnand', 'bvnor', 'bvxnor'):
         for arg in sexp[1:]:
             w = infer_width(arg, known)
             if w:
                 return w
+
+    if head == 'bvcomp':
+        return 1
+
+    # (_ repeat n), (_ rotate_left n), (_ rotate_right n)
+    if isinstance(head, list) and len(head) == 3 and head[0] == '_':
+        inner_w = infer_width(sexp[1], known) if len(sexp) > 1 else None
+        if head[1] == 'repeat' and inner_w:
+            return int(head[2]) * inner_w
+        if head[1] in ('rotate_left', 'rotate_right'):
+            return inner_w
 
     # concat — sum of widths
     if head == 'concat' and len(sexp) >= 3:
