@@ -1,0 +1,876 @@
+diff --git a/arch/x86/crypto/aegis128-aesni-asm.S b/arch/x86/crypto/aegis128-aesni-asm.S
+index 7294dc0ee7ba..9affcba007fe 100644
+--- a/arch/x86/crypto/aegis128-aesni-asm.S
++++ b/arch/x86/crypto/aegis128-aesni-asm.S
+@@ -284,13 +284,12 @@ SYM_FUNC_END(aegis128_aesni_ad)
+ 
+ .macro encrypt_block s0 s1 s2 s3 s4 i
+ 	movdqu (\i * 0x10)(SRC), MSG
+-	movdqa MSG, T0
+-	pxor \s1, T0
+-	pxor \s4, T0
+ 	movdqa \s2, T1
+ 	pand \s3, T1
+-	pxor T1, T0
+-	movdqu T0, (\i * 0x10)(DST)
++	pxor \s1, T1
++	pxor \s4, T1
++	pxor MSG, T1
++	movdqu T1, (\i * 0x10)(DST)
+ 
+ 	aegis128_update
+ 	pxor MSG, \s4
+@@ -394,15 +393,14 @@ SYM_FUNC_START(aegis128_aesni_enc_tail)
+ 	mov LEN, %r9d
+ 	load_partial
+ 
+-	movdqa MSG, T0
+-	pxor STATE1, T0
+-	pxor STATE4, T0
+ 	movdqa STATE2, T1
+ 	pand STATE3, T1
+-	pxor T1, T0
++	pxor STATE1, T1
++	pxor STATE4, T1
++	pxor MSG, T1
+ 
+ 	mov %r9d, LEN
+-	store_partial T0
++	store_partial T1
+ 
+ 	aegis128_update
+ 	pxor MSG, STATE4
+diff --git a/arch/x86/crypto/aes-gcm-aesni-x86_64.S b/arch/x86/crypto/aes-gcm-aesni-x86_64.S
+index 6b2abb76827e..0aa18a2326f9 100644
+--- a/arch/x86/crypto/aes-gcm-aesni-x86_64.S
++++ b/arch/x86/crypto/aes-gcm-aesni-x86_64.S
+@@ -522,8 +522,7 @@
+ 	// from the GCM spec) or equivalently x^1 (using the alternative,
+ 	// natural interpretation of polynomial coefficients).
+ 	pshufb		.Lbswap_mask(%rip), H_POW1
+-	movdqa		H_POW1, %xmm0
+-	pshufd		$0xd3, %xmm0, %xmm0
++	pshufd		$0xd3, H_POW1, %xmm0
+ 	psrad		$31, %xmm0
+ 	paddq		H_POW1, H_POW1
+ 	pand		.Lgfpoly_and_internal_carrybit(%rip), %xmm0
+diff --git a/arch/x86/crypto/aria-aesni-avx-asm_64.S b/arch/x86/crypto/aria-aesni-avx-asm_64.S
+index 932fb17308e7..582ca8a2262d 100644
+--- a/arch/x86/crypto/aria-aesni-avx-asm_64.S
++++ b/arch/x86/crypto/aria-aesni-avx-asm_64.S
+@@ -360,18 +360,13 @@
+ 
+ #define aria_diff_m(x0, x1, x2, x3,			\
+ 		    t0, t1, t2, t3)			\
+-	/* T = rotr32(X, 8); */				\
+-	/* X ^= T */					\
+-	vpxor x0, x3, t0;				\
+-	vpxor x1, x0, t1;				\
+-	vpxor x2, x1, t2;				\
+-	vpxor x3, x2, t3;				\
+-	/* X = T ^ rotr(X, 16); */			\
+-	vpxor t2, x0, x0;				\
+-	vpxor x1, t3, t3;				\
++	/* each output is the XOR of the other three inputs */	\
++	vpxor x3, x0, t0;				\
++	vpxor x2, x1, t1;				\
++	vpxor t0, x1, x1;				\
+ 	vpxor t0, x2, x2;				\
+-	vpxor t1, x3, x1;				\
+-	vmovdqu t3, x3;
++	vpxor t1, x0, x0;				\
++	vpxor t1, x3, x3;
+ 
+ #define aria_diff_word(x0, x1, x2, x3,			\
+ 		       x4, x5, x6, x7,			\
+diff --git a/arch/x86/crypto/aria-aesni-avx2-asm_64.S b/arch/x86/crypto/aria-aesni-avx2-asm_64.S
+index fda8cb8a99a8..6fb24b11d9b1 100644
+--- a/arch/x86/crypto/aria-aesni-avx2-asm_64.S
++++ b/arch/x86/crypto/aria-aesni-avx2-asm_64.S
+@@ -402,18 +402,13 @@
+ 
+ #define aria_diff_m(x0, x1, x2, x3,			\
+ 		    t0, t1, t2, t3)			\
+-	/* T = rotr32(X, 8); */				\
+-	/* X ^= T */					\
+-	vpxor x0, x3, t0;				\
+-	vpxor x1, x0, t1;				\
+-	vpxor x2, x1, t2;				\
+-	vpxor x3, x2, t3;				\
+-	/* X = T ^ rotr(X, 16); */			\
+-	vpxor t2, x0, x0;				\
+-	vpxor x1, t3, t3;				\
++	/* each output is the XOR of the other three inputs */	\
++	vpxor x3, x0, t0;				\
++	vpxor x2, x1, t1;				\
++	vpxor t0, x1, x1;				\
+ 	vpxor t0, x2, x2;				\
+-	vpxor t1, x3, x1;				\
+-	vmovdqu t3, x3;
++	vpxor t1, x0, x0;				\
++	vpxor t1, x3, x3;
+ 
+ #define aria_diff_word(x0, x1, x2, x3,			\
+ 		       x4, x5, x6, x7,			\
+diff --git a/arch/x86/crypto/aria-gfni-avx512-asm_64.S b/arch/x86/crypto/aria-gfni-avx512-asm_64.S
+index ca83eb126e06..3bb6018cc32c 100644
+--- a/arch/x86/crypto/aria-gfni-avx512-asm_64.S
++++ b/arch/x86/crypto/aria-gfni-avx512-asm_64.S
+@@ -365,18 +365,13 @@
+ 
+ #define aria_diff_m(x0, x1, x2, x3,			\
+ 		    t0, t1, t2, t3)			\
+-	/* T = rotr32(X, 8); */				\
+-	/* X ^= T */					\
+-	vpxorq x0, x3, t0;				\
+-	vpxorq x1, x0, t1;				\
+-	vpxorq x2, x1, t2;				\
+-	vpxorq x3, x2, t3;				\
+-	/* X = T ^ rotr(X, 16); */			\
+-	vpxorq t2, x0, x0;				\
+-	vpxorq x1, t3, t3;				\
++	/* each output is the XOR of the other three inputs */	\
++	vpxorq x3, x0, t0;				\
++	vpxorq x2, x1, t1;				\
++	vpxorq t0, x1, x1;				\
+ 	vpxorq t0, x2, x2;				\
+-	vpxorq t1, x3, x1;				\
+-	vmovdqu64 t3, x3;
++	vpxorq t1, x0, x0;				\
++	vpxorq t1, x3, x3;
+ 
+ #define aria_diff_word(x0, x1, x2, x3,			\
+ 		       x4, x5, x6, x7,			\
+diff --git a/arch/x86/crypto/camellia-aesni-avx-asm_64.S b/arch/x86/crypto/camellia-aesni-avx-asm_64.S
+index 1dfef28c1266..f615cf496c6f 100644
+--- a/arch/x86/crypto/camellia-aesni-avx-asm_64.S
++++ b/arch/x86/crypto/camellia-aesni-avx-asm_64.S
+@@ -266,28 +266,29 @@ SYM_FUNC_END(roundsm16_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
+  * OUT:
+  *  v0..3: (IN <<< 1)
+  */
++/*
++ * The compare masks are 0xff (-1) where the carry bit is set; after the
++ * doubling the low bit of every byte is clear, so subtracting the mask
++ * adds the carry directly and the vpabsb/vpor pairs are not needed.
++ */
+ #define rol32_1_16(v0, v1, v2, v3, t0, t1, t2, zero) \
+ 	vpcmpgtb v0, zero, t0; \
+ 	vpaddb v0, v0, v0; \
+-	vpabsb t0, t0; \
+ 	\
+ 	vpcmpgtb v1, zero, t1; \
+ 	vpaddb v1, v1, v1; \
+-	vpabsb t1, t1; \
+ 	\
+ 	vpcmpgtb v2, zero, t2; \
+ 	vpaddb v2, v2, v2; \
+-	vpabsb t2, t2; \
+ 	\
+-	vpor t0, v1, v1; \
++	vpsubb t0, v1, v1; \
+ 	\
+ 	vpcmpgtb v3, zero, t0; \
+ 	vpaddb v3, v3, v3; \
+-	vpabsb t0, t0; \
+ 	\
+-	vpor t1, v2, v2; \
+-	vpor t2, v3, v3; \
+-	vpor t0, v0, v0;
++	vpsubb t1, v2, v2; \
++	vpsubb t2, v3, v3; \
++	vpsubb t0, v0, v0;
+ 
+ /*
+  * IN:
+diff --git a/arch/x86/crypto/camellia-aesni-avx2-asm_64.S b/arch/x86/crypto/camellia-aesni-avx2-asm_64.S
+index b1c9b9450555..05d2bcd2b360 100644
+--- a/arch/x86/crypto/camellia-aesni-avx2-asm_64.S
++++ b/arch/x86/crypto/camellia-aesni-avx2-asm_64.S
+@@ -145,17 +145,19 @@
+ 	filter_8bit(x2, t2, t3, t7, t6); \
+ 	filter_8bit(x5, t2, t3, t7, t6); \
+ 	\
+-	vpbroadcastq key, t0; /* higher 64-bit duplicate ignored */ \
+-	\
+ 	/* postfilter sbox 2 */ \
+ 	filter_8bit(x1, t4, t5, t7, t2); \
+ 	filter_8bit(x4, t4, t5, t7, t2); \
+-	vpxor t7, t7, t7; \
+ 	\
+-	vpsrldq $1, t0, t1; \
+-	vpsrldq $2, t0, t2; \
+-	vpshufb t7, t1, t1; \
+-	vpsrldq $3, t0, t3; \
++	/* broadcast the eight key bytes (key is the round key pointer) */ \
++	vpbroadcastb 0(key), t0; \
++	vpbroadcastb 1(key), t1; \
++	vpbroadcastb 2(key), t2; \
++	vpbroadcastb 3(key), t3; \
++	vpbroadcastb 4(key), t4; \
++	vpbroadcastb 5(key), t5; \
++	vpbroadcastb 6(key), t6; \
++	vpbroadcastb 7(key), t7; \
+ 	\
+ 	/* P-function */ \
+ 	vpxor x5, x0, x0; \
+@@ -163,21 +165,11 @@
+ 	vpxor x7, x2, x2; \
+ 	vpxor x4, x3, x3; \
+ 	\
+-	vpshufb t7, t2, t2; \
+-	vpsrldq $4, t0, t4; \
+-	vpshufb t7, t3, t3; \
+-	vpsrldq $5, t0, t5; \
+-	vpshufb t7, t4, t4; \
+-	\
+ 	vpxor x2, x4, x4; \
+ 	vpxor x3, x5, x5; \
+ 	vpxor x0, x6, x6; \
+ 	vpxor x1, x7, x7; \
+ 	\
+-	vpsrldq $6, t0, t6; \
+-	vpshufb t7, t5, t5; \
+-	vpshufb t7, t6, t6; \
+-	\
+ 	vpxor x7, x0, x0; \
+ 	vpxor x4, x1, x1; \
+ 	vpxor x5, x2, x2; \
+@@ -193,10 +185,6 @@
+ 	vpxor t6, x1, x1; \
+ 	vpxor 5 * 32(mem_cd), x1, x1; \
+ 	\
+-	vpsrldq $7, t0, t6; \
+-	vpshufb t7, t0, t0; \
+-	vpshufb t7, t6, t7; \
+-	\
+ 	vpxor t7, x0, x0; \
+ 	vpxor 4 * 32(mem_cd), x0, x0; \
+ 	\
+@@ -225,14 +213,14 @@
+ SYM_FUNC_START_LOCAL(roundsm32_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_cd)
+ 	roundsm32(%ymm0, %ymm1, %ymm2, %ymm3, %ymm4, %ymm5, %ymm6, %ymm7,
+ 		  %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14, %ymm15,
+-		  %rcx, (%r9));
++		  %rcx, %r9);
+ 	RET;
+ SYM_FUNC_END(roundsm32_x0_x1_x2_x3_x4_x5_x6_x7_y0_y1_y2_y3_y4_y5_y6_y7_cd)
+ 
+ SYM_FUNC_START_LOCAL(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
+ 	roundsm32(%ymm4, %ymm5, %ymm6, %ymm7, %ymm0, %ymm1, %ymm2, %ymm3,
+ 		  %ymm12, %ymm13, %ymm14, %ymm15, %ymm8, %ymm9, %ymm10, %ymm11,
+-		  %rax, (%r9));
++		  %rax, %r9);
+ 	RET;
+ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
+ 
+@@ -298,28 +286,29 @@ SYM_FUNC_END(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
+  * OUT:
+  *  v0..3: (IN <<< 1)
+  */
++/*
++ * The compare masks are 0xff (-1) where the carry bit is set; after the
++ * doubling the low bit of every byte is clear, so subtracting the mask
++ * adds the carry directly and the vpabsb/vpor pairs are not needed.
++ */
+ #define rol32_1_32(v0, v1, v2, v3, t0, t1, t2, zero) \
+ 	vpcmpgtb v0, zero, t0; \
+ 	vpaddb v0, v0, v0; \
+-	vpabsb t0, t0; \
+ 	\
+ 	vpcmpgtb v1, zero, t1; \
+ 	vpaddb v1, v1, v1; \
+-	vpabsb t1, t1; \
+ 	\
+ 	vpcmpgtb v2, zero, t2; \
+ 	vpaddb v2, v2, v2; \
+-	vpabsb t2, t2; \
+ 	\
+-	vpor t0, v1, v1; \
++	vpsubb t0, v1, v1; \
+ 	\
+ 	vpcmpgtb v3, zero, t0; \
+ 	vpaddb v3, v3, v3; \
+-	vpabsb t0, t0; \
+ 	\
+-	vpor t1, v2, v2; \
+-	vpor t2, v3, v3; \
+-	vpor t0, v0, v0;
++	vpsubb t1, v2, v2; \
++	vpsubb t2, v3, v3; \
++	vpsubb t0, v0, v0;
+ 
+ /*
+  * IN:
+diff --git a/arch/x86/crypto/serpent-sse2-x86_64-asm_64.S b/arch/x86/crypto/serpent-sse2-x86_64-asm_64.S
+index e0998a011d1d..ad704bdbf685 100644
+--- a/arch/x86/crypto/serpent-sse2-x86_64-asm_64.S
++++ b/arch/x86/crypto/serpent-sse2-x86_64-asm_64.S
+@@ -573,19 +573,18 @@
+ 	SBOX ## _2(x0 ## 2, x1 ## 2, x2 ## 2, x3 ## 2, x4 ## 2); \
+ 
+ #define transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
+-	movdqa x0,		t2; \
+-	punpckldq x1,		x0; \
+-	punpckhdq x1,		t2; \
+ 	movdqa x2,		t1; \
+-	punpckhdq x3,		x2; \
+-	punpckldq x3,		t1; \
++	punpckldq x3,		x2; \
++	punpckhdq x3,		t1; \
++	movdqa x0,		x3; \
++	punpckhdq x1,		x3; \
++	punpckldq x1,		x0; \
+ 	movdqa x0,		x1; \
+-	punpcklqdq t1,		x0; \
+-	punpckhqdq t1,		x1; \
+-	movdqa t2,		x3; \
+-	punpcklqdq x2,		t2; \
+-	punpckhqdq x2,		x3; \
+-	movdqa t2,		x2;
++	punpcklqdq x2,		x0; \
++	punpckhqdq x2,		x1; \
++	movdqa x3,		x2; \
++	punpcklqdq t1,		x2; \
++	punpckhqdq t1,		x3;
+ 
+ #define read_blocks(in, x0, x1, x2, x3, t0, t1, t2) \
+ 	movdqu (0*4*4)(in),	x0; \
+diff --git a/arch/x86/include/asm/checksum_64.h b/arch/x86/include/asm/checksum_64.h
+index da0182a2a4ce..80a58fc2b832 100644
+--- a/arch/x86/include/asm/checksum_64.h
++++ b/arch/x86/include/asm/checksum_64.h
+@@ -24,12 +24,18 @@
+  */
+ static inline __sum16 csum_fold(__wsum sum)
+ {
+-	asm("  addl %1,%0\n"
+-	    "  adcl $0xffff,%0"
++	/*
++	 * A 16-bit add of the two halves gives the end-around carry in CF;
++	 * the sum is at most 0xffff after the adc, so the xor is the
++	 * complement of the low half with the upper half still zero.
++	 */
++	asm("  addw %w1,%w0\n"
++	    "  adcl $0,%0\n"
++	    "  xorl $0xffff,%0"
+ 	    : "=r" (sum)
+-	    : "r" ((__force u32)sum << 16),
+-	      "0" ((__force u32)sum & 0xffff0000));
+-	return (__force __sum16)(~(__force u32)sum >> 16);
++	    : "r" ((__force u32)sum),
++	      "0" ((__force u32)sum >> 16));
++	return (__force __sum16)sum;
+ }
+ 
+ /*
+diff --git a/arch/x86/lib/copy_mc_64.S b/arch/x86/lib/copy_mc_64.S
+index c859a8a09860..1b41b5bbe7d3 100644
+--- a/arch/x86/lib/copy_mc_64.S
++++ b/arch/x86/lib/copy_mc_64.S
+@@ -28,10 +28,9 @@ SYM_FUNC_START(copy_mc_fragile)
+ 	jz .L_8byte_aligned
+ 
+ 	/* Copy one byte at a time until source is 8-byte aligned */
+-	movl %esi, %ecx
+-	andl $7, %ecx
+-	subl $8, %ecx
+-	negl %ecx
++	leal 8(%rsi), %ecx
++	andl $-8, %ecx
++	subl %esi, %ecx
+ 	subl %ecx, %edx
+ .L_read_leading_bytes:
+ 	movb (%rsi), %al
+diff --git a/arch/x86/lib/memset_64.S b/arch/x86/lib/memset_64.S
+index fb5a03cf5ab7..fcd83acd4ff2 100644
+--- a/arch/x86/lib/memset_64.S
++++ b/arch/x86/lib/memset_64.S
+@@ -110,10 +110,9 @@ SYM_FUNC_START_LOCAL(memset_orig)
+ 	cmpq $7,%rdx
+ 	jbe	.Lhandle_7
+ 	movq %rax,(%rdi)	/* unaligned store */
+-	movq $8,%r8
+-	subq %r9,%r8
+-	addq %r8,%rdi
+-	subq %r8,%rdx
++	leaq -8(%rdx,%r9),%rdx
++	addq $8,%rdi
++	subq %r9,%rdi
+ 	jmp .Lafter_bad_alignment
+ .Lfinal:
+ SYM_FUNC_END(memset_orig)
+diff --git a/lib/crypto/x86/chacha-avx2-x86_64.S b/lib/crypto/x86/chacha-avx2-x86_64.S
+index f3d8fc018249..a8137affbb8a 100644
+--- a/lib/crypto/x86/chacha-avx2-x86_64.S
++++ b/lib/crypto/x86/chacha-avx2-x86_64.S
+@@ -76,8 +76,7 @@ SYM_FUNC_START(chacha_2block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm6
+-	vpslld		$12,%ymm6,%ymm6
++	vpslld		$12,%ymm1,%ymm6
+ 	vpsrld		$20,%ymm1,%ymm1
+ 	vpor		%ymm6,%ymm1,%ymm1
+ 
+@@ -89,8 +88,7 @@ SYM_FUNC_START(chacha_2block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm7
+-	vpslld		$7,%ymm7,%ymm7
++	vpslld		$7,%ymm1,%ymm7
+ 	vpsrld		$25,%ymm1,%ymm1
+ 	vpor		%ymm7,%ymm1,%ymm1
+ 
+@@ -109,8 +107,7 @@ SYM_FUNC_START(chacha_2block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm6
+-	vpslld		$12,%ymm6,%ymm6
++	vpslld		$12,%ymm1,%ymm6
+ 	vpsrld		$20,%ymm1,%ymm1
+ 	vpor		%ymm6,%ymm1,%ymm1
+ 
+@@ -122,8 +119,7 @@ SYM_FUNC_START(chacha_2block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm7
+-	vpslld		$7,%ymm7,%ymm7
++	vpslld		$7,%ymm1,%ymm7
+ 	vpsrld		$25,%ymm1,%ymm1
+ 	vpor		%ymm7,%ymm1,%ymm1
+ 
+@@ -281,15 +277,13 @@ SYM_FUNC_START(chacha_4block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm10
+-	vpslld		$12,%ymm10,%ymm10
++	vpslld		$12,%ymm1,%ymm10
+ 	vpsrld		$20,%ymm1,%ymm1
+ 	vpor		%ymm10,%ymm1,%ymm1
+ 
+ 	vpaddd		%ymm7,%ymm6,%ymm6
+ 	vpxor		%ymm6,%ymm5,%ymm5
+-	vmovdqa		%ymm5,%ymm10
+-	vpslld		$12,%ymm10,%ymm10
++	vpslld		$12,%ymm5,%ymm10
+ 	vpsrld		$20,%ymm5,%ymm5
+ 	vpor		%ymm10,%ymm5,%ymm5
+ 
+@@ -305,15 +299,13 @@ SYM_FUNC_START(chacha_4block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm10
+-	vpslld		$7,%ymm10,%ymm10
++	vpslld		$7,%ymm1,%ymm10
+ 	vpsrld		$25,%ymm1,%ymm1
+ 	vpor		%ymm10,%ymm1,%ymm1
+ 
+ 	vpaddd		%ymm7,%ymm6,%ymm6
+ 	vpxor		%ymm6,%ymm5,%ymm5
+-	vmovdqa		%ymm5,%ymm10
+-	vpslld		$7,%ymm10,%ymm10
++	vpslld		$7,%ymm5,%ymm10
+ 	vpsrld		$25,%ymm5,%ymm5
+ 	vpor		%ymm10,%ymm5,%ymm5
+ 
+@@ -339,15 +331,13 @@ SYM_FUNC_START(chacha_4block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 12)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm10
+-	vpslld		$12,%ymm10,%ymm10
++	vpslld		$12,%ymm1,%ymm10
+ 	vpsrld		$20,%ymm1,%ymm1
+ 	vpor		%ymm10,%ymm1,%ymm1
+ 
+ 	vpaddd		%ymm7,%ymm6,%ymm6
+ 	vpxor		%ymm6,%ymm5,%ymm5
+-	vmovdqa		%ymm5,%ymm10
+-	vpslld		$12,%ymm10,%ymm10
++	vpslld		$12,%ymm5,%ymm10
+ 	vpsrld		$20,%ymm5,%ymm5
+ 	vpor		%ymm10,%ymm5,%ymm5
+ 
+@@ -363,15 +353,13 @@ SYM_FUNC_START(chacha_4block_xor_avx2)
+ 	# x2 += x3, x1 = rotl32(x1 ^ x2, 7)
+ 	vpaddd		%ymm3,%ymm2,%ymm2
+ 	vpxor		%ymm2,%ymm1,%ymm1
+-	vmovdqa		%ymm1,%ymm10
+-	vpslld		$7,%ymm10,%ymm10
++	vpslld		$7,%ymm1,%ymm10
+ 	vpsrld		$25,%ymm1,%ymm1
+ 	vpor		%ymm10,%ymm1,%ymm1
+ 
+ 	vpaddd		%ymm7,%ymm6,%ymm6
+ 	vpxor		%ymm6,%ymm5,%ymm5
+-	vmovdqa		%ymm5,%ymm10
+-	vpslld		$7,%ymm10,%ymm10
++	vpslld		$7,%ymm5,%ymm10
+ 	vpsrld		$25,%ymm5,%ymm5
+ 	vpor		%ymm10,%ymm5,%ymm5
+ 
+diff --git a/lib/crypto/x86/ghash-pclmul.S b/lib/crypto/x86/ghash-pclmul.S
+index 6ffb5aea6063..1660b52027cc 100644
+--- a/lib/crypto/x86/ghash-pclmul.S
++++ b/lib/crypto/x86/ghash-pclmul.S
+@@ -21,6 +21,13 @@
+ .Lbswap_mask:
+ 	.octa 0x000102030405060708090a0b0c0d0e0f
+ 
++# x^63 + x^62 + x^57 in both halves: multiplying a qword by it with
++# pclmulqdq yields the two shift-and-xor phases of the reduction at once.
++.section	.rodata.cst16.gstar, "aM", @progbits, 16
++.align 16
++.Lgstar:
++	.octa 0xc200000000000000c200000000000000
++
+ #define ACC	%xmm0
+ #define KEY	%xmm1
+ #define T1	%xmm2
+@@ -45,16 +52,14 @@
+  */
+ SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
+ 	movaps ACC, T1
+-	pshufd $0b01001110, ACC, T2
+-	pshufd $0b01001110, KEY, T3
+-	pxor ACC, T2
+-	pxor KEY, T3
++	movaps ACC, T2
++	movaps ACC, T3
+ 
+ 	pclmulqdq $0x00, KEY, ACC	# ACC = a0 * b0
+ 	pclmulqdq $0x11, KEY, T1	# T1 = a1 * b1
+-	pclmulqdq $0x00, T3, T2		# T2 = (a1 + a0) * (b1 + b0)
+-	pxor ACC, T2
+-	pxor T1, T2			# T2 = a0 * b1 + a1 * b0
++	pclmulqdq $0x10, KEY, T2	# T2 = a0 * b1
++	pclmulqdq $0x01, KEY, T3	# T3 = a1 * b0
++	pxor T3, T2			# T2 = a0 * b1 + a1 * b0
+ 
+ 	movaps T2, T3
+ 	pslldq $8, T3
+@@ -63,28 +68,15 @@ SYM_FUNC_START_LOCAL(__clmul_gf128mul_ble)
+ 	pxor T2, T1			# <T1:ACC> is result of
+ 					# carry-less multiplication
+ 
+-	# first phase of the reduction
+-	movaps ACC, T3
+-	psllq $1, T3
+-	pxor ACC, T3
+-	psllq $5, T3
+-	pxor ACC, T3
+-	psllq $57, T3
+-	movaps T3, T2
+-	pslldq $8, T2
+-	psrldq $8, T3
+-	pxor T2, ACC
+-	pxor T3, T1
+-
+-	# second phase of the reduction
++	# reduction, as two carry-less multiplications by .Lgstar
+ 	movaps ACC, T2
+-	psrlq $5, T2
++	pclmulqdq $0x00, .Lgstar(%rip), T2
++	pshufd $0b01001110, T2, T2
+ 	pxor ACC, T2
+-	psrlq $1, T2
+-	pxor ACC, T2
+-	psrlq $1, T2
+ 	pxor T2, T1
+-	pxor T1, ACC
++	pclmulqdq $0x11, .Lgstar(%rip), T2
++	pxor T2, T1
++	movaps T1, ACC
+ 	RET
+ SYM_FUNC_END(__clmul_gf128mul_ble)
+ 
+diff --git a/lib/crypto/x86/poly1305-x86_64-cryptogams.pl b/lib/crypto/x86/poly1305-x86_64-cryptogams.pl
+index 409ec6955733..9e77a49253aa 100644
+--- a/lib/crypto/x86/poly1305-x86_64-cryptogams.pl
++++ b/lib/crypto/x86/poly1305-x86_64-cryptogams.pl
+@@ -210,14 +210,12 @@ $code.=<<___;
+ 
+ 	imulq	$r0,$h2			# h2*r0
+ 	add	$d2,$h1
+-	mov	\$-4,%rax		# mask value
+ 	adc	$h2,$d3
+ 
+-	and	$d3,%rax		# last reduction step
+-	mov	$d3,$h2
+-	shr	\$2,$d3
++	mov	$d3,$h2			# last reduction step
+ 	and	\$3,$h2
+-	add	$d3,%rax
++	shr	\$2,$d3
++	lea	($d3,$d3,4),%rax	# *5
+ 	add	%rax,$h0
+ 	adc	\$0,$h1
+ 	adc	\$0,$h2
+@@ -663,12 +661,10 @@ $code.=<<___;
+ 	add	$d1,$h1
+ 	adc	\$0,$h2			# can be partially reduced...
+ 
+-	mov	\$-4,$d2		# ... so reduce
+-	mov	$h2,$d1
+-	and	$h2,$d2
++	mov	$h2,$d1			# ... so reduce
+ 	shr	\$2,$d1
+ 	and	\$3,$h2
+-	add	$d2,$d1			# =*5
++	lea	($d1,$d1,4),$d1		# =*5
+ 	add	$d1,$h0
+ 	adc	\$0,$h1
+ 	adc	\$0,$h2
+@@ -1585,12 +1581,10 @@ $code.=<<___;
+ 	add	$d1,$h1
+ 	adc	\$0,$h2			# can be partially reduced...
+ 
+-	mov	\$-4,$d2		# ... so reduce
+-	mov	$h2,$d1
+-	and	$h2,$d2
++	mov	$h2,$d1			# ... so reduce
+ 	shr	\$2,$d1
+ 	and	\$3,$h2
+-	add	$d2,$d1			# =*5
++	lea	($d1,$d1,4),$d1		# =*5
+ 	add	$d1,$h0
+ 	adc	\$0,$h1
+ 	adc	\$0,$h2
+diff --git a/lib/crypto/x86/sha256-ssse3-asm.S b/lib/crypto/x86/sha256-ssse3-asm.S
+index 383b8eec7ebe..40c7e537c377 100644
+--- a/lib/crypto/x86/sha256-ssse3-asm.S
++++ b/lib/crypto/x86/sha256-ssse3-asm.S
+@@ -172,117 +172,114 @@ a = TMP_
+ 	ror     $2, y1                  # y1 = S0 = (a>>2) ^ (a>>13) ^ (a>>22)
+ 	add     y0, y2                  # y2 = S1 + CH
+ 	add     _XFER(%rsp) , y2        # y2 = k + w + S1 + CH
+-	movdqa  XTMP1, XTMP3            # XTMP3 = W[-15]
++	psrld   $11, XTMP2              #
+ 	mov     a, y0                   # y0 = a
+ 	add     y2, h                   # h = h + S1 + CH + k + w
+ 	mov     a, y2                   # y2 = a
+-	pslld   $(32-7), XTMP1          #
++	pxor    XTMP1, XTMP2            # XTMP2 = W[-15] ^ W[-15] >> 11
+ 	or      c, y0                   # y0 = a|c
+ 	add     h, d                    # d = d + h + S1 + CH + k + w
+ 	and     c, y2                   # y2 = a&c
+-	psrld   $7, XTMP2               #
++	psrld   $4, XTMP2               #
+ 	and     b, y0                   # y0 = (a|c)&b
+ 	add     y1, h                   # h = h + S1 + CH + k + w + S0
+-	por     XTMP2, XTMP1            # XTMP1 = W[-15] ror 7
++	pxor    XTMP1, XTMP2            # XTMP2 = W[-15] ^ W[-15] >> 4 ^ W[-15] >> 15
+ 	or      y2, y0                  # y0 = MAJ = (a|c)&b)|(a&c)
+ 	add     y0, h                   # h = h + S1 + CH + k + w + S0 + MAJ
+ 					#
+ 	ROTATE_ARGS                     #
+-	movdqa  XTMP3, XTMP2            # XTMP2 = W[-15]
++	psrld   $3, XTMP2               # XTMP2 = W[-15] >> 3 ^ W[-15] >> 7 ^ W[-15] >> 18
+ 	mov     e, y0                   # y0 = e
+ 	mov     a, y1                   # y1 = a
+-	movdqa  XTMP3, XTMP4            # XTMP4 = W[-15]
++	movdqa  XTMP1, XTMP3            # XTMP3 = W[-15]
+ 	ror     $(25-11), y0            # y0 = e >> (25-11)
+ 	xor     e, y0                   # y0 = e ^ (e >> (25-11))
+ 	mov     f, y2                   # y2 = f
+ 	ror     $(22-13), y1            # y1 = a >> (22-13)
+-	pslld   $(32-18), XTMP3         #
++	pslld   $11, XTMP3              #
+ 	xor     a, y1                   # y1 = a ^ (a >> (22-13)
+ 	ror     $(11-6), y0             # y0 = (e >> (11-6)) ^ (e >> (25-6))
+ 	xor     g, y2                   # y2 = f^g
+-	psrld   $18, XTMP2              #
++	pxor    XTMP1, XTMP3            # XTMP3 = W[-15] ^ W[-15] << 11
+ 	ror     $(13-2), y1             # y1 = (a >> (13-2)) ^ (a >> (22-2))
+ 	xor     e, y0                   # y0 = e ^ (e >> (11-6)) ^ (e >> (25-6))
+ 	and     e, y2                   # y2 = (f^g)&e
+ 	ror     $6, y0                  # y0 = S1 = (e>>6) & (e>>11) ^ (e>>25)
+-	pxor    XTMP3, XTMP1
++	pslld   $14, XTMP3              # XTMP3 = W[-15] << 14 ^ W[-15] << 25
+ 	xor     a, y1                   # y1 = a ^ (a >> (13-2)) ^ (a >> (22-2))
+ 	xor     g, y2                   # y2 = CH = ((f^g)&e)^g
+-	psrld   $3, XTMP4               # XTMP4 = W[-15] >> 3
+ 	add     y0, y2                  # y2 = S1 + CH
+ 	add     (1*4 + _XFER)(%rsp), y2 # y2 = k + w + S1 + CH
+ 	ror     $2, y1                  # y1 = S0 = (a>>2) ^ (a>>13) ^ (a>>22)
+-	pxor    XTMP2, XTMP1            # XTMP1 = W[-15] ror 7 ^ W[-15] ror 18
++	pxor    XTMP3, XTMP2            # XTMP2 = s0
+ 	mov     a, y0                   # y0 = a
+ 	add     y2, h                   # h = h + S1 + CH + k + w
+ 	mov     a, y2                   # y2 = a
+-	pxor    XTMP4, XTMP1            # XTMP1 = s0
+ 	or      c, y0                   # y0 = a|c
+ 	add     h, d                    # d = d + h + S1 + CH + k + w
+ 	and     c, y2                   # y2 = a&c
+ 	## compute low s1
+-	pshufd  $0b11111010, X3, XTMP2   # XTMP2 = W[-2] {BBAA}
++	pshufd  $0b11111010, X3, XTMP1   # XTMP1 = W[-2] {BBAA}
+ 	and     b, y0			# y0 = (a|c)&b
+ 	add     y1, h                   # h = h + S1 + CH + k + w + S0
+-	paddd   XTMP1, XTMP0            # XTMP0 = W[-16] + W[-7] + s0
++	paddd   XTMP2, XTMP0            # XTMP0 = W[-16] + W[-7] + s0
+ 	or      y2, y0                  # y0 = MAJ = (a|c)&b)|(a&c)
+ 	add     y0, h                   # h = h + S1 + CH + k + w + S0 + MAJ
+ 
+ 	ROTATE_ARGS
+-	movdqa  XTMP2, XTMP3            # XTMP3 = W[-2] {BBAA}
++	movdqa  XTMP1, XTMP3            # XTMP3 = W[-2] {BBAA}
+ 	mov     e, y0                   # y0 = e
+ 	mov     a, y1                   # y1 = a
+ 	ror     $(25-11), y0            # y0 = e >> (25-11)
+-	movdqa  XTMP2, XTMP4            # XTMP4 = W[-2] {BBAA}
++	psrlq   $2, XTMP3               # XTMP3 = W[-2] ror 2 {xBxA}
+ 	xor     e, y0                   # y0 = e ^ (e >> (25-11))
+ 	ror     $(22-13), y1            # y1 = a >> (22-13)
+ 	mov     f, y2                   # y2 = f
+ 	xor     a, y1                   # y1 = a ^ (a >> (22-13)
+ 	ror     $(11-6), y0             # y0 = (e >> (11-6)) ^ (e >> (25-6))
+-	psrlq   $17, XTMP2              # XTMP2 = W[-2] ror 17 {xBxA}
++	pxor    XTMP1, XTMP3            # XTMP3 = W[-2] ^ W[-2] ror 2 {xBxA}
+ 	xor     g, y2                   # y2 = f^g
+-	psrlq   $19, XTMP3              # XTMP3 = W[-2] ror 19 {xBxA}
++	psrlq   $17, XTMP3              # XTMP3 = W[-2] ror 17 ^ W[-2] ror 19 {xBxA}
+ 	xor     e, y0                   # y0 = e ^ (e >> (11-6)) ^ (e >> (25-6))
+ 	and     e, y2                   # y2 = (f^g)&e
+-	psrld   $10, XTMP4              # XTMP4 = W[-2] >> 10 {BBAA}
++	psrld   $10, XTMP1              # XTMP1 = W[-2] >> 10 {BBAA}
+ 	ror     $(13-2), y1             # y1 = (a >> (13-2)) ^ (a >> (22-2))
+ 	xor     a, y1                   # y1 = a ^ (a >> (13-2)) ^ (a >> (22-2))
+ 	xor     g, y2                   # y2 = CH = ((f^g)&e)^g
+ 	ror     $6, y0                  # y0 = S1 = (e>>6) & (e>>11) ^ (e>>25)
+-	pxor    XTMP3, XTMP2
++	pxor    XTMP3, XTMP1            # XTMP1 = s1 {xBxA}
+ 	add     y0, y2                  # y2 = S1 + CH
+ 	ror     $2, y1                  # y1 = S0 = (a>>2) ^ (a>>13) ^ (a>>22)
+ 	add     (2*4 + _XFER)(%rsp), y2 # y2 = k + w + S1 + CH
+-	pxor    XTMP2, XTMP4            # XTMP4 = s1 {xBxA}
++	pshufb  SHUF_00BA, XTMP1        # XTMP1 = s1 {00BA}
+ 	mov     a, y0                   # y0 = a
+ 	add     y2, h                   # h = h + S1 + CH + k + w
+ 	mov     a, y2                   # y2 = a
+-	pshufb  SHUF_00BA, XTMP4        # XTMP4 = s1 {00BA}
+ 	or      c, y0                   # y0 = a|c
+ 	add     h, d                    # d = d + h + S1 + CH + k + w
+ 	and     c, y2                   # y2 = a&c
+-	paddd   XTMP4, XTMP0            # XTMP0 = {..., ..., W[1], W[0]}
++	paddd   XTMP1, XTMP0            # XTMP0 = {..., ..., W[1], W[0]}
+ 	and     b, y0                   # y0 = (a|c)&b
+ 	add     y1, h                   # h = h + S1 + CH + k + w + S0
+ 	## compute high s1
+-	pshufd  $0b01010000, XTMP0, XTMP2 # XTMP2 = W[-2] {BBAA}
++	pshufd  $0b01010000, XTMP0, X0  # X0 = W[-2] {DDCC}
+ 	or      y2, y0                  # y0 = MAJ = (a|c)&b)|(a&c)
+ 	add     y0, h                   # h = h + S1 + CH + k + w + S0 + MAJ
+ 					#
+ 	ROTATE_ARGS                     #
+-	movdqa  XTMP2, XTMP3            # XTMP3 = W[-2] {DDCC}
++	movdqa  X0, XTMP3               # XTMP3 = W[-2] {DDCC}
+ 	mov     e, y0                   # y0 = e
+ 	ror     $(25-11), y0            # y0 = e >> (25-11)
+ 	mov     a, y1                   # y1 = a
+-	movdqa  XTMP2, X0               # X0    = W[-2] {DDCC}
++	psrlq   $2, XTMP3               # XTMP3 = W[-2] ror 2 {xDxC}
+ 	ror     $(22-13), y1            # y1 = a >> (22-13)
+ 	xor     e, y0                   # y0 = e ^ (e >> (25-11))
+ 	mov     f, y2                   # y2 = f
+ 	ror     $(11-6), y0             # y0 = (e >> (11-6)) ^ (e >> (25-6))
+-	psrlq   $17, XTMP2              # XTMP2 = W[-2] ror 17 {xDxC}
++	pxor    X0, XTMP3               # XTMP3 = W[-2] ^ W[-2] ror 2 {xDxC}
+ 	xor     a, y1                   # y1 = a ^ (a >> (22-13)
+ 	xor     g, y2                   # y2 = f^g
+-	psrlq   $19, XTMP3              # XTMP3 = W[-2] ror 19 {xDxC}
++	psrlq   $17, XTMP3              # XTMP3 = W[-2] ror 17 ^ W[-2] ror 19 {xDxC}
+ 	xor     e, y0                   # y0 = e ^ (e >> (11-6)) ^ (e >> (25
+ 	and     e, y2                   # y2 = (f^g)&e
+ 	ror     $(13-2), y1             # y1 = (a >> (13-2)) ^ (a >> (22-2))
+@@ -290,15 +287,14 @@ a = TMP_
+ 	xor     a, y1                   # y1 = a ^ (a >> (13-2)) ^ (a >> (22
+ 	ror     $6, y0                  # y0 = S1 = (e>>6) & (e>>11) ^ (e>>2
+ 	xor     g, y2                   # y2 = CH = ((f^g)&e)^g
+-	pxor    XTMP3, XTMP2            #
++	pxor    XTMP3, X0               # X0 = s1 {xDxC}
+ 	ror     $2, y1                  # y1 = S0 = (a>>2) ^ (a>>13) ^ (a>>2
+ 	add     y0, y2                  # y2 = S1 + CH
+ 	add     (3*4 + _XFER)(%rsp), y2 # y2 = k + w + S1 + CH
+-	pxor    XTMP2, X0               # X0 = s1 {xDxC}
++	pshufb  SHUF_DC00, X0           # X0 = s1 {DC00}
+ 	mov     a, y0                   # y0 = a
+ 	add     y2, h                   # h = h + S1 + CH + k + w
+ 	mov     a, y2                   # y2 = a
+-	pshufb  SHUF_DC00, X0           # X0 = s1 {DC00}
+ 	or      c, y0                   # y0 = a|c
+ 	add     h, d                    # d = d + h + S1 + CH + k + w
+ 	and     c, y2                   # y2 = a&c
+diff --git a/lib/crypto/x86/sha512-avx2-asm.S b/lib/crypto/x86/sha512-avx2-asm.S
+index 22bdbfd899d0..b3654126dda3 100644
+--- a/lib/crypto/x86/sha512-avx2-asm.S
++++ b/lib/crypto/x86/sha512-avx2-asm.S
+@@ -217,10 +217,8 @@ frame_size = frame_CTX + CTX_SIZE
+ 
+ ################################### RND N + 1 #########################################
+ 
+-	# Calculate w[t-15] ror 8
+-	vpsrlq		$8, YTMP1, YTMP2
+-	vpsllq		$(64-8), YTMP1, YTMP1
+-	vpor		YTMP2, YTMP1, YTMP1		# YTMP1 = W[-15] ror 8
++	# Calculate w[t-15] ror 8 (a byte rotate within each qword)
++	vpshufb		ROR8Q_MASK(%rip), YTMP1, YTMP1	# YTMP1 = W[-15] ror 8
+ 	# XOR the three components
+ 	vpxor		YTMP4, YTMP3, YTMP3		# YTMP3 = W[-15] ror 1 ^ W[-15] >> 7
+ 	vpxor		YTMP1, YTMP3, YTMP1		# YTMP1 = s0
+@@ -746,3 +744,10 @@ PSHUFFLE_BYTE_FLIP_MASK:
+ MASK_YMM_LO:
+ 	.octa 0x00000000000000000000000000000000
+ 	.octa 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
++
++.section	.rodata.cst32.ROR8Q_MASK, "aM", @progbits, 32
++.align 32
++# Mask for rotating each qword right by 8 bits with vpshufb.
++ROR8Q_MASK:
++	.octa 0x080f0e0d0c0b0a090007060504030201
++	.octa 0x080f0e0d0c0b0a090007060504030201
+diff --git a/lib/crypto/x86/sm3-avx-asm_64.S b/lib/crypto/x86/sm3-avx-asm_64.S
+index a1925b136010..07bd95d3226a 100644
+--- a/lib/crypto/x86/sm3-avx-asm_64.S
++++ b/lib/crypto/x86/sm3-avx-asm_64.S
+@@ -293,15 +293,14 @@
+ 	vpxor w4, XTMP1, XTMP1;				\
+ 	/* w[i - 6] == XMM4 */				\
+ 	/* P1(XTMP0) ^ XTMP1 => XMM0 */			\
+-	vpslld $15, XTMP0, XTMP5;			\
+-	vpsrld $(32-15), XTMP0, XTMP6;			\
+-	vpslld $23, XTMP0, XTMP2;			\
+-	vpsrld $(32-23), XTMP0, XTMP3;			\
++	/* rol(X, 15) ^ rol(X, 23) == rol(X ^ rol(X, 8), 15) */	\
++	vpshufb .Lrol8mask(%rip), XTMP0, XTMP2;		\
++	vpxor XTMP0, XTMP2, XTMP2;			\
++	vpslld $15, XTMP2, XTMP5;			\
++	vpsrld $(32-15), XTMP2, XTMP2;			\
++	vpxor XTMP5, XTMP2, XTMP2;			\
+ 	vpxor XTMP0, XTMP1, XTMP1;			\
+-	vpxor XTMP6, XTMP5, XTMP5;			\
+-	vpxor XTMP3, XTMP2, XTMP2;			\
+-	vpxor XTMP2, XTMP5, XTMP5;			\
+-	vpxor XTMP5, XTMP1, w0;
++	vpxor XTMP2, XTMP1, w0;
+ 
+ #define SCHED_W_2(round, w0, w1, w2, w3, w4, w5)	\
+ 	/* W1 in XMM12 */				\
+@@ -319,6 +318,10 @@
+ .Lbe32mask:
+ 	.long 0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f
+ 
++/* vpshufb mask rotating each dword left by 8 bits */
++.Lrol8mask:
++	.long 0x02010003, 0x06050407, 0x0a09080b, 0x0e0d0c0f
++
+ .text
+ 
+ /*

@@ -1,0 +1,62 @@
+# Final run of verify/prove_candidates.py (2026-09-10, one Isla IR, Z3 4.8.12 with 600 s timeout, Bitwuzla fallback).
+# 'unexpected' on k9 is only the driver comparing the fallback's verdict string; the verdict is unsat.
+candidate                                level   before after  expect  result
+l1_h2v1_upsample                         sse2        27    13  unsat   unsat 34.2s
+l1_h2v1_upsample_naive_pavgb             sse2        27     9  sat     sat 16.8s
+l3_jcphuff_reduce0                       sse2        12     8  unsat   unsat 1.3s
+l3_jcphuff_reduce0_packuswb              sse2        12     8  sat     sat 55.6s
+k2_aria_diff_m                           avx          9     6  unsat   unsat 0.3s
+k3_camellia_rol32_1_16                   avx         16    12  unsat   unsat 0.5s
+k12a_serpent_transpose                   sse2        13    12  unsat   unsat 0.3s
+k12b_aegis_encrypt_block                 sse2         6     5  unsat   unsat 0.1s
+k12c_gcm_precompute_hx                   sse2         6     5  unsat   unsat 0.3s
+k1_ghash_clmul_gf128mul_ble              sse2        34    21  unsat   timeout 1230.3s  <-- unexpected
+k4_poly1305_times5                       x86-64      10     8  unsat   unsat 0.7s
+k5_chacha_avx2_rotate12                  avx2         6     5  unsat   unsat 0.2s
+k7_sha256_ssse3_sigma0                   ssse3       13    11  unsat   unsat 0.2s
+k7_sha256_ssse3_sigma1                   ssse3        9     8  unsat   unsat 0.2s
+g1_csum_fold                             x86-64       7     5  unsat   unsat 0.3s
+g1_csum_fold_invert_first                x86-64       7     5  sat     sat 2.4s
+g2_copy_mc_leading_bytes                 x86-64       5     4  unsat   unsat 0.3s
+g2_copy_mc_leading_bytes_neg_and         x86-64       5     4  sat     sat 0.2s
+g3_memset_orig_realign                   x86-64       4     3  unsat   unsat 0.1s
+l2_jccolext_cb_finish                    sse2        24    17  unsat   unsat 11.1s
+l2_jccolext_cb_finish_unconstrained      sse2        14     7  sat     sat 7.1s
+l5_jdcolext_avx2_chroma                  avx2        34    20  unsat   unsat 114.4s
+l5_jdcolext_avx2_chroma_29032            avx2        34    20  sat     sat 355.2s
+l5_jdcolext_avx2_chroma_unconstrained    avx2        22     8  sat     sat 54.5s
+l4_jdcolext_avx2_gpath                   avx2        34    32  unsat   unsat 317.2s
+l6_jcsample_avx2_h2v1                    avx2        12     8  unsat   unsat 0.8s
+l7_jdsample_avx2_h2v2_vertical           avx2        18    12  unsat   unsat 0.8s
+k6_gcm_avx_ghash_reduce_xmm              avx          8     7  unsat   unsat 0.6s
+k6_gcm_avx2_ghash_reduce                 avx2         8     7  unsat   query error k6_gcm_avx2_ghash_reduce: missing Final result in trace  <-- unexpected
+k8a_sha512_avx2_sigma0_ror8              avx2         9     7  unsat   unsat 0.3s
+k8b_sm3_avx_p1_rol8_relative_mask        avx          9     7  sat     sat 4.0s
+k8b_sm3_avx_p1_rol8                      avx          9     7  unsat   unsat 0.7s
+k10a_aes_prefix_sum_shufps               ssse3        6     4  unsat   unsat 0.3s
+k10a_aes_prefix_sum_shufps_unconditional ssse3        6     4  sat     sat 0.6s
+k10b_aes_gen_round_key_keygenassist      ssse3        3     2  unsat   unsat 5.7s
+xts_next_tweak_vpmuludq                  avx          5     5  unsat   unsat 0.5s
+xts_next_tweak_vpmuludq_noswap           avx          5     4  sat     sat 1.0s
+k1a_ghash_multiply_karatsuba_vs_schoolbook sse2        15    13  unsat   timeout 1230.3s  <-- unexpected
+k1b_ghash_reduce_shiftchain_vs_montgomery sse2        19     8  unsat   unsat 0.3s
+g4_csum_partial_shift_mask               x86-64       5     4  unsat   unsat 0.7s
+k9_sha256_avx2_do_4rounds_carried_maj    avx2       108   102  unsat   unsat (bitwuzla, z3 timeout) 603.5s  <-- unexpected
+k11_camellia_avx2_key_broadcast          avx2        17     8  unsat   unsat 0.4s
+k5_chacha_avx2_rot7_x1_t7                avx2         6     5  unsat   unsat 0.4s
+k5_chacha_avx2_rot12_x1_t10              avx2         6     5  unsat   unsat 0.2s
+k5_chacha_avx2_rot7_x1_t10               avx2         6     5  unsat   unsat 0.8s
+k5_chacha_avx2_rot12_x5_t10              avx2         6     5  unsat   unsat 0.8s
+k5_chacha_avx2_rot7_x5_t10               avx2         6     5  unsat   unsat 0.3s
+k2_aria_diff_m_ymm                       avx2         9     6  unsat   unsat 0.2s
+k2_aria_diff_m_zmm                       avx512       9     6  unsat   unsat 0.4s
+k3_camellia_rol32_1_32_ymm               avx2        16    12  unsat   unsat 0.9s
+k4b_poly1305_times5_site2                x86-64       9     7  unsat   unsat 0.3s
+k7b_sha256_ssse3_sigma1_low_as_applied   ssse3        9     8  unsat   unsat 0.2s
+k7c_sha256_ssse3_sigma1_high             ssse3       10     9  unsat   unsat 0.5s
+k8a_sha512_avx2_sigma0_ror8_memmask      avx2         9     7  unsat   unsat 0.3s
+k8b_sm3_avx_p1_rol8_memmask              avx          9     7  unsat   unsat 0.6s
+k1b_ghash_reduce_montgomery_memconst     sse2        19     8  unsat   unsat 0.4s
+k10a_aes_prefix_sum_shufps_zeroed        ssse3        6     5  unsat   unsat 0.3s
+l3b_jchuff_zero_test_pair                sse2         5     3  unsat   unsat 0.7s
+l2b_jccolext_cr_finish                   sse2        25    18  unsat   unsat 8.9s
