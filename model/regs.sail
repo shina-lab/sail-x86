@@ -438,6 +438,18 @@ register DR3  : qword = 0x0000000000000000  // Linear breakpoint address 3
 register DR6  : qword = 0x00000000FFFF0FF0  // Debug status
 register DR7  : qword = 0x0000000000000400  // Debug control
 
+// Single-step bookkeeping, maintained by step() and deliver_exception
+// (SDM Vol.3B §20.3.1.4, Vol.3A §7.8.3):
+//   event_delivered — an exception or interrupt went through the IDT during
+//                     the current instruction (INT n, INT3, INTO, INT1, a
+//                     fault); such an instruction gets no single-step trap.
+//   ss_shadow       — 2 right after MOV SS/POP SS, 1 through the following
+//                     instruction, 0 otherwise: suppresses the trap after the
+//                     SS load and holds external interrupts until after the
+//                     next instruction.
+register event_delivered : bool = false
+register ss_shadow : range(0, 2) = 0
+
 // CR0 bit positions
 let CR0_PE : int = 0    // Protection Enable
 let CR0_MP : int = 1    // Monitor Coprocessor

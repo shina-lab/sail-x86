@@ -397,6 +397,12 @@ function deliver_exception_inner(vec, err_code, software_int) = {
 // Triple fault throws Fault(EXN_MC, 0) as an unrecoverable signal.
 val deliver_exception : (exception_vector, dword, bool) -> unit
 function deliver_exception(vec, err_code, software_int) = {
+  // Single-step bookkeeping (fetch_execute.sail): an event delivered during
+  // an instruction means no single-step trap after it, and delivery ends
+  // the MOV SS/POP SS shadow (SDM Vol.3A §7.8.3).
+  event_delivered = true;
+  ss_shadow = 0;
+
   // VMX exception bitmap check (SDM §25.2):
   // If in VMX non-root and the exception vector's bit is set in the
   // exception bitmap, cause a VM exit instead of delivering through IDT.

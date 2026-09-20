@@ -145,6 +145,48 @@ void add_exception_tests(std::vector<TestCase> &tests) {
       add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {.rflags = 0x2}, 1);
   }
 
+  // Single-step (RFLAGS.TF = 0x100): TF is sampled before each instruction
+  // and the trap is taken after it, with the next RIP pushed and DR6.BS set
+  // (SDM Vol.3B §20.3.1.4).  Both RIP and DR6 are compared with the host.
+  add_fault("single-step nop", {0x90, 0xF4}, {.rflags = 0x102}, 1);
+  add_fault("single-step jmp (RIP = target)",
+            {0xEB, 0x02, 0x90, 0x90, 0xF4}, {.rflags = 0x102}, 1);
+  // MOV SS suppresses its own trap; the following NOP is trapped (§7.8.3).
+  add_fault("single-step mov ss; nop (trap after the nop)",
+            {0x8E, 0xD0, 0x90, 0xF4}, {.rax = 0x10, .rflags = 0x102}, 1);
+  // The instruction that sets TF is not trapped: PUSH 0x102; POPFQ; NOP; NOP.
+  add_fault("single-step popf setting TF (trap after the next nop)",
+            {0x68, 0x02, 0x01, 0x00, 0x00, 0x9D, 0x90, 0x90, 0xF4}, {.rflags = 0x2}, 1);
+  // INT3 and INT1 clear TF as part of delivery: no single-step trap follows.
+  add_fault("single-step int3 (vector 3, no #DB)", {0xCC, 0xF4}, {.rflags = 0x102}, 3);
+  add_fault("single-step int1 (one #DB, DR6.BS clear)", {0xF1, 0xF4}, {.rflags = 0x102}, 1);
+  // A faulting instruction gets no trap.
+  add_fault("single-step ud2 (fault, no #DB)", {0x0F, 0x0B}, {.rflags = 0x102}, 6);
+  add_fault("single-step mov dr7", {0x0F, 0x23, 0xF8, 0x90, 0xF4},
+            {.rax = 0x400, .rflags = 0x102}, 1);
+  // Probes whose outcome the SDM leaves to the reader; the host decides.
+  add_fault("single-step sti; nop (STI shadow and the trap)",
+            {0xFB, 0x90, 0xF4}, {.rflags = 0x102}, -1);
+  {
+    ArchState s = {.rflags = 0x102};
+    s.dr6 = 0xFFFF0FF3;  // B0/B1 preset: cleared by the trap?
+    add_fault("single-step with DR6.B0/B1 preset", {0x90, 0xF4}, s, -1);
+  }
+  {
+    // POPFQ that clears TF while TF was set at its start: trap after it?
+    TestCase tc;
+    tc.name = "single-step popf clearing TF";
+    tc.category = cat;
+    tc.code = {0x9D, 0x90, 0xF4};
+    tc.initial = {.rsp = DATA_ADDR + 64, .rflags = 0x102};
+    tc.flags_mask = 0;
+    tc.expect_fault = true;
+    tc.expected_vector = -1;
+    tc.init_data.assign(72, 0);
+    tc.init_data[64] = 0x02;  // RFLAGS image with TF clear
+    tests.push_back(std::move(tc));
+  }
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

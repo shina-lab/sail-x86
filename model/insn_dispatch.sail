@@ -629,8 +629,8 @@ function decode_execute() = {
       },
 
       // 17: POP SS — Pop stack into SS (SDM Vol.2B POP)
-      // Invalid in 64-bit mode. Loading SS inhibits interrupts until after
-      // the next instruction (SDM Vol.3A §7.8.3). Not modeled here.
+      // Invalid in 64-bit mode. Loading SS inhibits interrupts and the
+      // single-step trap until after the next instruction (SDM Vol.3A §7.8.3).
       23 => {
         if cur_mode == LongMode then raise_UD();
         let os = opsize(pfx);
@@ -638,7 +638,8 @@ function decode_execute() = {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(SS, x)
+        load_segment_register(SS, x);
+        ss_shadow = 2
       },
 
       // 1E: PUSH DS — Push DS selector onto stack (SDM Vol.2B PUSH)
@@ -1065,7 +1066,10 @@ function decode_execute() = {
         assert(reg_field <= 5);
         let seg : segreg_idx = reg_field;
         if seg == CS then raise_UD();
-        load_segment_register(seg, v(src))
+        load_segment_register(seg, v(src));
+        // Loading SS starts the one-instruction shadow that holds interrupts
+        // and the single-step trap (SDM Vol.3A §7.8.3); LSS does not.
+        if seg == SS then ss_shadow = 2
       },
 
       // 8F /0: POP r/m (default64)

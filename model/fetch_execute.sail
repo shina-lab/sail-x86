@@ -4,11 +4,39 @@
 // Fetches and decodes one instruction from RIP, executes it,
 // and advances RIP past the instruction bytes.
 
+// Deliver the single-step trap at the end of an instruction (SDM Vol.3B
+// §20.3.1.4).  DR6 reports BS; the processor clears B0-B3 on a debug
+// exception and never clears the other bits (§20.2.3).  RIP has already
+// been advanced, so the return address the delivery pushes is the next
+// instruction, as for any trap; without an IDT the trap is reported like a
+// fault, with that RIP.
+val raise_single_step : unit -> unit
+function raise_single_step() = {
+  DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | 0x0000000000004000;
+  if system_mode then {
+    try {
+      deliver_exception(EXN_DB, 0x00000000, false)
+    } catch {
+      Fault(vec2, err2) => {
+        fault_pending = true;
+        fault_vector = vec2;
+        fault_error_code = err2
+      },
+      VMExit(reason, qual) => complete_vm_exit(reason, qual),
+    }
+  } else {
+    fault_pending = true;
+    fault_vector = EXN_DB;
+    fault_error_code = 0x00000000
+  }
+}
+
 // Decode and execute one instruction.
 // Sets fault_pending/fault_vector/fault_error_code on exception.
 val step : unit -> unit
 function step() = {
   fault_pending = false;
+  event_delivered = false;
 
   // Check for pending SMI before anything else.
   // SDM §34.2: "The SMI takes precedence over [...] debug exceptions
@@ -19,8 +47,9 @@ function step() = {
   };
 
   // Check for pending external interrupts before fetching.
-  // Only deliver if IF=1 (interrupts enabled) and in system mode.
-  if system_mode & IF_flag == 0b1 then {
+  // Only deliver if IF=1 (interrupts enabled) and in system mode, and not
+  // in the instruction following MOV SS/POP SS (SDM Vol.3A §7.8.3).
+  if system_mode & IF_flag == 0b1 & ss_shadow == 0 then {
     let irq_vec = __check_pending_irq();
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;
@@ -69,6 +98,10 @@ function step() = {
   let saved_rsp = GPR[RSP];
   let saved_rflags = read_rflags();
 
+  // TF is sampled before the instruction: the instruction that sets TF
+  // (POPF, IRET) is not trapped, the one that clears it still is.
+  let tf_at_start : bool = TF == 0b1;
+
   let faulted : bool =
     try {
       // Decode and execute one instruction
@@ -113,7 +146,18 @@ function step() = {
   // Control-flow instructions set next_rip to the branch target;
   // otherwise we fall through to the next instruction.
   if ~(faulted) & system_state == SysRunning then
-    RIP = match next_rip { Some(t) => t, None() => decode_pos }
+    RIP = match next_rip { Some(t) => t, None() => decode_pos };
+
+  // Single-step trap (SDM Vol.3B §20.3.1.4): after an instruction that ran
+  // with TF set, unless the instruction delivered an event through the IDT
+  // (INT n, INT3, INTO and INT1 clear TF as part of delivery), faulted, or
+  // loaded SS (the trap following MOV SS/POP SS is suppressed, §7.8.3).
+  if ~(faulted) & system_state == SysRunning & tf_at_start
+     & ~(event_delivered) & ss_shadow != 2 then
+    raise_single_step();
+
+  // The SS-load shadow lasts through the following instruction.
+  ss_shadow = match ss_shadow { 2 => 1, _ => 0 }
 }
 
 // Run instructions until a fault, halt, or step count reached.
