@@ -117,6 +117,13 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vaesenc zmm {k1} (no opmask → #UD)",
             {0x62, 0xF2, 0x75, 0x49, 0xDC, 0xC2}, {.rflags = 0x2}, 6);
 
+  // VLDMXCSR/VSTMXCSR are VEX.LZ with vvvv reserved: VEX.L = 1 and
+  // vvvv != 1111b are #UD (SDM LDMXCSR/STMXCSR pages).
+  add_fault("vldmxcsr [rdi] with VEX.L=1 (#UD)", {0xC5, 0xFC, 0xAE, 0x17},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+  add_fault("vstmxcsr [rdi] with vvvv=1110b (#UD)", {0xC5, 0xF0, 0xAE, 0x1F},
+            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

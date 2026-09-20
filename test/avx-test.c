@@ -704,6 +704,31 @@ static void test_avx_vnni(void) {
   }
 }
 
+// =========================================================================
+// VLDMXCSR / VSTMXCSR
+// =========================================================================
+
+// Save MXCSR, load round-toward-zero with all exceptions masked, check the
+// stored copy and a rounding-sensitive add (1 + 0.75 ulp rounds up under
+// round-to-nearest but truncates under RZ), then restore.
+static void test_vldmxcsr_vstmxcsr(void) {
+  u32 saved, back;
+  const u32 rz = 0x7F80;
+  __asm__ volatile("vstmxcsr %0" : "=m"(saved));
+  __asm__ volatile("vldmxcsr %0" : : "m"(rz));
+  __asm__ volatile("vstmxcsr %0" : "=m"(back));
+  check(back == rz, "vldmxcsr/vstmxcsr round trip (RZ, exceptions masked)");
+  v4sf a = {1.0f, 1.0f, 1.0f, 1.0f};
+  v4sf b = {0x1.8p-24f, 0x1.8p-24f, 0x1.8p-24f, 0x1.8p-24f};
+  v4sf r;
+  BARRIER(a); BARRIER(b);
+  __asm__ volatile("vaddps %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 1.0f, "vaddps truncates after vldmxcsr RZ");
+  __asm__ volatile("vldmxcsr %0" : : "m"(saved));
+  __asm__ volatile("vaddps %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] > 1.0f, "vaddps rounds up again after restoring MXCSR");
+}
+
 static void test_vaes_256(void) {
   v4di s = {0x0123456789ABCDEFLL, (long long)0xFEDCBA9876543210ULL,
             0x0F0E0D0C0B0A0908LL, 0x0706050403020100LL};
@@ -786,6 +811,9 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
 
   // AVX-VNNI
   test_avx_vnni();
+
+  // MXCSR
+  test_vldmxcsr_vstmxcsr();
 
   // Summary
   print("\n");

@@ -344,6 +344,16 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     u8 mxcsr[] = {0x80, 0x1F, 0x00, 0x00};
     add_mem("ldmxcsr [rdi]", {0x0F, 0xAE, 0x17}, s, FL_ALL,
             {mxcsr, mxcsr + 4}, 0);
+
+    // VSTMXCSR/VLDMXCSR [RDI]: VEX.LZ.0F AE /3, /2 (C5 F8 = 2-byte VEX,
+    // vvvv=1111b, L=0, no prefix).  The load sets RZ rounding with all
+    // exceptions masked and MXCSR itself is compared.
+    add_mem("vstmxcsr [rdi]", {0xC5, 0xF8, 0xAE, 0x1F}, s, FL_ALL, {}, 4);
+    {
+      u8 rz[] = {0x80, 0x7F, 0x00, 0x00};
+      TestCase tc = {"vldmxcsr [rdi] (RZ)", cat, {0xC5, 0xF8, 0xAE, 0x17}, s, FL_ALL, 0, true, {rz, rz + 4}, 0};
+      tests.push_back(std::move(tc));
+    }
   }
 
   // =====================================================================

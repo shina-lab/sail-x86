@@ -18,6 +18,19 @@ function dispatch_vex_0f(opcode, pfx) = {
         | (196 <= op & op <= 197) | (208 <= op & op <= 254)
       => dispatch_vex_0f_int(op, pfx),
 
+    // 0F AE /2, /3: VLDMXCSR/VSTMXCSR m32 — VEX.LZ.0F.WIG with vvvv = 1111b.
+    // The other Group 15 members have no VEX form, and a register operand
+    // or VEX.L = 1 is #UD.  The MXCSR reserved-bit #GP is in __ldmxcsr.
+    174 => {
+      if pfx.vex_l | pfx.vex_vvvv != 0 | get_mandatory_prefix(pfx) != MP_NONE then raise_UD();
+      let (reg_field, dest) = fetch_modrm_raw(pfx);
+      match (reg_field, dest) {
+        (2, RM_mem(_)) => __ldmxcsr(rm_mem(dest)),
+        (3, RM_mem(_)) => rm_mem(dest) = __stmxcsr(),
+        _ => raise_UD(),
+      }
+    },
+
     _ => raise_UD(),
   }
 }
