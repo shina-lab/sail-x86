@@ -2026,6 +2026,31 @@ void test_vpclmulqdq_512(void) {
   check(((unsigned long long*)&dst)[0] == 0x123456789ABCDEF0ULL, "vpclmulqdq zmm clmul(1,x)=x");
 }
 
+// VAES: each 128-bit lane is one AES round on its own state and round key,
+// so the zmm result must equal the xmm round on every lane.
+void test_vaesenc_512(void) {
+  typedef unsigned long long v8du __attribute__((vector_size(64)));
+  typedef unsigned long long v2du __attribute__((vector_size(16)));
+  v8du s, k, r;
+  for (int i = 0; i < 8; i++) {
+    ((unsigned long long*)&s)[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
+    ((unsigned long long*)&k)[i] = 0x1111111111111111ULL * (i + 1);
+  }
+  BARRIER(s); BARRIER(k);
+  __asm__ volatile("vaesenc %2, %1, %0" : "=v"(r) : "v"(s), "v"(k));
+  int ok = 1;
+  for (int lane = 0; lane < 4; lane++) {
+    v2du s1 = {((unsigned long long*)&s)[2 * lane], ((unsigned long long*)&s)[2 * lane + 1]};
+    v2du k1 = {((unsigned long long*)&k)[2 * lane], ((unsigned long long*)&k)[2 * lane + 1]};
+    v2du r1;
+    BARRIER(s1); BARRIER(k1);
+    __asm__ volatile("vaesenc %2, %1, %0" : "=v"(r1) : "v"(s1), "v"(k1));
+    ok &= r1[0] == ((unsigned long long*)&r)[2 * lane] &&
+          r1[1] == ((unsigned long long*)&r)[2 * lane + 1];
+  }
+  check(ok, "vaesenc zmm = four xmm rounds");
+}
+
 void test_vpshldd_512(void) {
   typedef unsigned int v16su __attribute__((vector_size(64)));
   v16su a, b, dst;
@@ -2309,6 +2334,7 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
   test_vpgatherdd_512();
   test_vpscatterdd_512();
   test_vpclmulqdq_512();
+  test_vaesenc_512();
   test_vpshldd_512();
   test_gf2p8mulb_512();
   test_vexp2ps_512();

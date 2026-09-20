@@ -241,22 +241,18 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     write_simd(128, dst, aesimc(src))
   },
 
-  // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST �� VEX.128.66.0F38.WIG
+  // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST — VEX.66.0F38.WIG.
+  // The VEX.128 form comes with AES + AVX, the VEX.256 form with the VAES
+  // extension (CPUID.07H:ECX[9]); each 128-bit lane is one round on its
+  // own state and round key.
   op if 220 <= op & op <= 223 => {
-    if ~(has_aesni) then raise_UD();
-    if mp != MP_66 then raise_UD();
-    if pfx.vex_l then raise_UD();
+    let supported = if pfx.vex_l then has_vaes else has_aesni;
+    if ~(supported) | mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
-    let state : xmmword = read_simd(pfx.vex_vvvv);
-    let roundkey : xmmword = decode_vex_src(128, src);
-    write_simd(128, dst, match op {
-      220 => aesenc(state, roundkey),
-      221 => aesenclast(state, roundkey),
-      222 => aesdec(state, roundkey),
-      _   => aesdeclast(state, roundkey),
-    })
+    let vl = vex_vl(pfx);
+    write_simd(vl, dst, avx_aes_round(aes_round_of_opcode(op), read_simd(vl, pfx.vex_vvvv), decode_vex_src(vl, src)))
   },
 
   // 0F38 F5: BZHI (NP) / PDEP (F2) / PEXT (F3) — multiplexed by mandatory prefix

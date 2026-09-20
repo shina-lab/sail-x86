@@ -494,6 +494,41 @@ function avx_gf2p8affineinvqb(src1, src2, imm8) = {
 }
 
 // =========================================================================
+// AES rounds on every 128-bit lane (VEX.256 and EVEX forms, VAES)
+// =========================================================================
+
+enum AesRound = { AES_Enc, AES_EncLast, AES_Dec, AES_DecLast }
+
+// The four rounds occupy opcodes 0F38 DC-DF in every encoding.
+val aes_round_of_opcode : range(0, 255) -> AesRound
+function aes_round_of_opcode(op) = match op {
+  220 => AES_Enc,
+  221 => AES_EncLast,
+  222 => AES_Dec,
+  _   => AES_DecLast,
+}
+
+val aes_round : (AesRound, xmmword, xmmword) -> xmmword
+function aes_round(op, state, key) = match op {
+  AES_Enc     => aesenc(state, key),
+  AES_EncLast => aesenclast(state, key),
+  AES_Dec     => aesdec(state, key),
+  AES_DecLast => aesdeclast(state, key),
+}
+
+// One round per 128-bit lane, each lane with its own state and round key.
+val avx_aes_round : forall 'vl, 'vl in {128, 256, 512}.
+  (AesRound, bits('vl), bits('vl)) -> bits('vl)
+function avx_aes_round(op, state, key) = {
+  var r : bits('vl) = zeros();
+  foreach (lane from 0 to ('vl / 128 - 1)) {
+    let lo = lane * 128;
+    r[(lo + 127)..lo] = aes_round(op, velem(128, state, lane), velem(128, key, lane));
+  };
+  r
+}
+
+// =========================================================================
 // Cross-lane permute (1-source and 2-source)
 // =========================================================================
 

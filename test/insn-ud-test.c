@@ -111,6 +111,31 @@ void _main(void) {
         goto no_ud;
     }
 
+    // VAESENC xmm0, xmm1, xmm2  (VEX.128.66.0F38 DC: C4 E2 71 DC C2) — AES + AVX
+    if (streq(insn, "vaesenc-xmm")) {
+        __asm__ volatile(".byte 0xc4, 0xe2, 0x71, 0xdc, 0xc2");
+        goto no_ud;
+    }
+
+    // VAESENC ymm0, ymm1, ymm2  (VEX.256.66.0F38 DC: C4 E2 75 DC C2)
+    // VAES extension (CPUID.7.0:ECX[9])
+    if (streq(insn, "vaesenc-ymm")) {
+        __asm__ volatile(".byte 0xc4, 0xe2, 0x75, 0xdc, 0xc2");
+        goto no_ud;
+    }
+
+    // VAESENC zmm0, zmm1, zmm2  (EVEX.512.66.0F38 DC: 62 F2 75 48 DC C2)
+    if (streq(insn, "vaesenc-zmm")) {
+        __asm__ volatile(".byte 0x62, 0xf2, 0x75, 0x48, 0xdc, 0xc2");
+        goto no_ud;
+    }
+
+    // Same with EVEX.aaa = 001b: no opmask, so #UD
+    if (streq(insn, "vaesenc-zmm-k1")) {
+        __asm__ volatile(".byte 0x62, 0xf2, 0x75, 0x49, 0xdc, 0xc2");
+        goto no_ud;
+    }
+
     print("Unknown instruction: ");
     print(insn);
     print("\n");

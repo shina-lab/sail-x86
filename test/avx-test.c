@@ -625,6 +625,37 @@ static void test_vpclmulqdq_256(void) {
         "vpclmulqdq ymm imm=0x01 (src1 hi * src2 lo per lane)");
 }
 
+// =========================================================================
+// VAES
+// =========================================================================
+
+// VEX.256 form (VAES extension): each 128-bit lane is one AES round on its
+// own state and round key, so the ymm result must equal the two xmm rounds
+// (AES + AVX, tested elsewhere) on the halves.
+#define VAES_LANE_CHECK(INSN)                                               \
+  do {                                                                      \
+    v4di r; v2di r0, r1;                                                    \
+    __asm__ volatile(INSN " %2, %1, %0" : "=x"(r) : "x"(s), "x"(k));        \
+    __asm__ volatile(INSN " %2, %1, %0" : "=x"(r0) : "x"(s0), "x"(k0));     \
+    __asm__ volatile(INSN " %2, %1, %0" : "=x"(r1) : "x"(s1), "x"(k1));     \
+    check(r[0] == r0[0] && r[1] == r0[1] && r[2] == r1[0] && r[3] == r1[1], \
+          INSN " ymm = two xmm rounds");                                    \
+  } while (0)
+
+static void test_vaes_256(void) {
+  v4di s = {0x0123456789ABCDEFLL, (long long)0xFEDCBA9876543210ULL,
+            0x0F0E0D0C0B0A0908LL, 0x0706050403020100LL};
+  v4di k = {0x1111111111111111LL, 0x2222222222222222LL,
+            0x3333333333333333LL, 0x4444444444444444LL};
+  v2di s0 = {s[0], s[1]}, s1 = {s[2], s[3]};
+  v2di k0 = {k[0], k[1]}, k1 = {k[2], k[3]};
+  BARRIER(s); BARRIER(k); BARRIER(s0); BARRIER(s1); BARRIER(k0); BARRIER(k1);
+  VAES_LANE_CHECK("vaesenc");
+  VAES_LANE_CHECK("vaesenclast");
+  VAES_LANE_CHECK("vaesdec");
+  VAES_LANE_CHECK("vaesdeclast");
+}
+
 void __attribute__((force_align_arg_pointer)) _start(void) {
   // FP arithmetic 128-bit
   test_vaddps_128();
@@ -687,6 +718,9 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
   // VPCLMULQDQ
   test_vpclmulqdq_128();
   test_vpclmulqdq_256();
+
+  // VAES
+  test_vaes_256();
 
   // Summary
   print("\n");

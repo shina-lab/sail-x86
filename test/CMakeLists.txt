@@ -219,6 +219,14 @@ add_test(NAME ok-v4-vpclmulqdq-ymm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINA
 add_test(NAME ok-v4-vpclmulqdq-zmm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-zmm)
 add_test(NAME ud-v4-vpclmulqdq-zmm-k1 COMMAND sh -c "${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-zmm-k1 2>/dev/null; test $? -eq 134")
 
+# Test: VAES gating, same shape: VEX.128 with AES + AVX (v3), VEX.256 and EVEX
+# with the VAES extension (v4), no opmask on the EVEX form.
+add_test(NAME ok-v3-vaesenc-xmm    COMMAND ${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-xmm)
+add_test(NAME ud-v3-vaesenc-ymm    COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-ymm 2>/dev/null; test $? -eq 134")
+add_test(NAME ok-v4-vaesenc-ymm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-ymm)
+add_test(NAME ok-v4-vaesenc-zmm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-zmm)
+add_test(NAME ud-v4-vaesenc-zmm-k1 COMMAND sh -c "${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-zmm-k1 2>/dev/null; test $? -eq 134")
+
 # Test: Legacy SSE instructions
 add_test(NAME sse-fp-test    COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test)
 add_test(NAME sse-cvt-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test)

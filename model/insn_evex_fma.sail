@@ -455,6 +455,20 @@ function dispatch_evex_fma(op, pfx) = {
     }
   },
 
+  // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST (66) [VAES]
+  // One AES round per 128-bit lane.  The instructions have no opmask
+  // operand, so EVEX.aaa must be 000b and hence EVEX.z must be 0 (SDM
+  // Vol.2A Table 2-42); the result is written unmasked.
+  op if 220 <= op & op <= 223 => {
+    if mp != MP_66 | ~(has_vaes) then raise_UD();
+    if pfx.evex_aaa != 0 | pfx.evex_z == bitone then raise_UD();
+    let modrm = fetch(1);
+    let dst = evex_reg_idx(modrm, pfx);
+    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let vl = evex_vl(pfx);
+    write_simd(vl, dst, avx_aes_round(aes_round_of_opcode(op), read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
+  },
+
   _ => raise_UD(),
   }
 }

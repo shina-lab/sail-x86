@@ -86,6 +86,7 @@ static void cpuid_leaf(unsigned leaf, unsigned subleaf,
 #define L7_SHA        29
 
 // CPUID leaf 7, ECX bit positions
+#define L7C_VAES        9
 #define L7C_VPCLMULQDQ 10
 #define L7_AVX512BW   30
 #define L7_AVX512VL   31
@@ -180,6 +181,7 @@ void _main(void) {
     check(HAS(ebx, L7_AVX512VL) == v4, "leaf7 EBX: AVX-512VL");
     check(HAS(ebx, L7_RDSEED)   == v4, "leaf7 EBX: RDSEED");
     check(HAS(ebx, L7_SHA)      == v4, "leaf7 EBX: SHA");
+    check(HAS(ecx, L7C_VAES)       == v4, "leaf7 ECX: VAES");
     check(HAS(ecx, L7C_VPCLMULQDQ) == v4, "leaf7 ECX: VPCLMULQDQ");
 
     sys_exit(fail_count);

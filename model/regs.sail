@@ -511,6 +511,7 @@ register has_fma       : bool
 register has_aesni     : bool
 register has_pclmulqdq : bool
 register has_vpclmulqdq : bool // CPUID.07H:ECX[10] — VEX.256 and EVEX VPCLMULQDQ
+register has_vaes      : bool  // CPUID.07H:ECX[9] — VEX.256 and EVEX VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST
 register has_f16c      : bool
 register has_movbe     : bool
 register has_adx       : bool
@@ -581,6 +582,7 @@ function enable_features_v1() = {
   has_aesni = false;
   has_pclmulqdq = false;
   has_vpclmulqdq = false;
+  has_vaes = false;
   has_f16c = false;
   has_movbe = false;
   has_adx = false;
@@ -636,7 +638,8 @@ function enable_features_v4() = {
   has_avx512 = true;
   has_rdseed = true;
   has_sha = true;
-  has_vpclmulqdq = true
+  has_vpclmulqdq = true;
+  has_vaes = true
 }
 
 // All features (current default behavior, matches XCR0=0xE7)

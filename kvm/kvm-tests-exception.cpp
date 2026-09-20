@@ -112,6 +112,11 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vpclmulqdq zmm {k1} (no opmask → #UD)",
             {0x62, 0xF3, 0x75, 0x49, 0x44, 0xC2, 0x00}, {.rflags = 0x2}, 6);
 
+  // VAESENC zmm0, zmm1, zmm2 with EVEX.aaa = 001b: same rule (VAES has no
+  // opmask operand), same #UD on hosts without VAES.
+  add_fault("vaesenc zmm {k1} (no opmask → #UD)",
+            {0x62, 0xF2, 0x75, 0x49, 0xDC, 0xC2}, {.rflags = 0x2}, 6);
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

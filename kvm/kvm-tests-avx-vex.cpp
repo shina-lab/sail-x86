@@ -468,6 +468,26 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     v.opcode = 0xDF;
     tests.push_back({"VAESDECLAST xmm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
     add_vok("VAESDECLAST xmm,[rdi] misaligned", v.encode_rm_mem());
+
+    // VEX.256 needs the VAES extension (CPUID.7.0:ECX[9]); each 128-bit
+    // lane is one round on its own state and round key.
+    u32 eax7, ebx7, ecx7, edx7;
+    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
+    if (ecx7 & (1u << 9)) {
+      s.xmm[1].q[2] = 0x8000000000000001; s.xmm[1].q[3] = 0x00FF00FF00FF00FF;
+      s.xmm[2].q[2] = 0x1F1E1D1C1B1A1918; s.xmm[2].q[3] = 0x1716151413121110;
+      v.L = true;
+      v.opcode = 0xDC;
+      tests.push_back({"VAESENC ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+      add_vok("VAESENC ymm,[rdi] misaligned", v.encode_rm_mem());
+      v.opcode = 0xDD;
+      tests.push_back({"VAESENCLAST ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+      v.opcode = 0xDE;
+      tests.push_back({"VAESDEC ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+      v.opcode = 0xDF;
+      tests.push_back({"VAESDECLAST ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x3, false});
+      add_vok("VAESDECLAST ymm,[rdi] misaligned", v.encode_rm_mem());
+    }
   }
 
   // VAESIMC: VEX.66.0F38.WIG DB /r

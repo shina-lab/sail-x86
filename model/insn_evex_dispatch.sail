@@ -91,11 +91,12 @@ val dispatch_evex_0f38 : (byte, Prefixes) -> unit
 function dispatch_evex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   match op {
-    // FMA, FP math, gather/scatter, GFNI
+    // FMA, FP math, gather/scatter, GFNI, VAES
     op if (44 <= op & op <= 45) | (66 <= op & op <= 67) | (76 <= op & op <= 79)
         | (144 <= op & op <= 147) | (150 <= op & op <= 163)
         | (166 <= op & op <= 175) | (180 <= op & op <= 191)
         | (198 <= op & op <= 200) | (202 <= op & op <= 205) | op == 207
+        | (220 <= op & op <= 223)
       => dispatch_evex_fma(op, pfx),
 
     // Broadcast, permute, shuffle, compress/expand

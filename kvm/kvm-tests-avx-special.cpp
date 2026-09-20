@@ -129,27 +129,30 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // AES-NI (VEX and EVEX)
-  // VAESENC:     EVEX.66.0F38.WIG DC /r
-  // VAESENCLAST: EVEX.66.0F38.WIG DD /r
-  // VAESDEC:     EVEX.66.0F38.WIG DE /r
-  // VAESDECLAST: EVEX.66.0F38.WIG DF /r
+  // VAES: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST
+  // EVEX.66.0F38.WIG DC/DD/DE/DF /r (VAES + AVX512VL/F)
+  // One AES round per 128-bit lane; no opmask, so only unmasked forms.
+  // Only run where the host has VAES (CPUID.7.0:ECX[9]).
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
-    s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
-    s.xmm[2] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
-
-    // TODO: EVEX-encoded AES not yet implemented in Sail model
-    // struct { const char *name; u8 opcode; } aes[] = {
-    //   {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
-    //   {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
-    // };
-    // for (const auto &a : aes) {
-    //   Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
-    //   e.reg = 0; e.vvvv = 1; e.rm = 2;
-    //   add_evex_rr_tests(tests, cat, a.name, e, s, 0x7, 0);
-    // }
+    u32 eax7, ebx7, ecx7, edx7;
+    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
+    if (ecx7 & (1u << 9)) {
+      ArchState s = {}; s.rflags = 0x2;
+      for (int i = 0; i < 8; i++) {
+        s.xmm[1].q[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
+        s.xmm[2].q[i] = 0x0F0E0D0C0B0A0908ULL + 0x1010101010101010ULL * i;
+      }
+      struct { const char *name; u8 opcode; } aes[] = {
+        {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
+        {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
+      };
+      for (const auto &a : aes) {
+        Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
+        e.reg = 0; e.vvvv = 1; e.rm = 2;
+        add_evex_rr_tests(tests, cat, a.name, e, s, 0x7, 0);
+      }
+    }
   }
 
   // =====================================================================
