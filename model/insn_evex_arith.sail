@@ -649,6 +649,23 @@ function dispatch_evex_arith(op, pfx) = {
       write_simd(vl, dst, apply_writemask(evex_wmask(pfx, vl / 8), evex_src(src), src1))
   },
 
+  // 0F38 68: VP2INTERSECTD (F2,W0) / VP2INTERSECTQ (F2,W1) [VP2INTERSECT]
+  // Writes the even/odd mask-register pair whose base is ModRM.reg with its
+  // low bit cleared (SDM: "k1+1").  There is no opmask operand, so EVEX.aaa
+  // must be 000b and EVEX.z must be 0; the r/m source may be broadcast.
+  104 => {
+    if mp != MP_F2 then raise_UD();
+    if pfx.evex_aaa != 0 | pfx.evex_z == bitone then raise_UD();
+    let modrm = fetch(1);
+    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let eb = evex_elem(pfx);
+    let vl = evex_vl(pfx);
+    let base : range(0, 6) = 2 * (unsigned(modrm[5..3]) / 2);
+    let (m1, m2) = vp2intersect(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb));
+    write_kreg(base, m1);
+    write_kreg(base + 1, m2)
+  },
+
   _ => raise_UD(),
   }
 }

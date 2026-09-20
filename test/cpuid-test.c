@@ -92,6 +92,7 @@ static void cpuid_leaf(unsigned leaf, unsigned subleaf,
 #define L71_AVX512BF16  5
 
 // CPUID leaf 7, EDX bit positions
+#define L7D_AVX512VP2INTERSECT 8
 #define L7D_AVX512FP16 23
 
 // CPUID leaf 7, ECX bit positions
@@ -205,6 +206,7 @@ void _main(void) {
     check(HAS(ecx, L7C_GFNI)       == v4, "leaf7 ECX: GFNI");
     check(HAS(ecx, L7C_VAES)       == v4, "leaf7 ECX: VAES");
     check(HAS(ecx, L7C_VPCLMULQDQ) == v4, "leaf7 ECX: VPCLMULQDQ");
+    check(HAS(edx, L7D_AVX512VP2INTERSECT) == v4, "leaf7 EDX: AVX512_VP2INTERSECT");
     check(HAS(edx, L7D_AVX512FP16) == v4, "leaf7 EDX: AVX512_FP16");
 
     // ---------------------------------------------------------------

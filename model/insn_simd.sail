@@ -494,6 +494,28 @@ function avx_gf2p8affineinvqb(src1, src2, imm8) = {
 }
 
 // =========================================================================
+// VP2INTERSECTD/Q: intersection of two element sets as position masks
+// =========================================================================
+
+// Bit i of the first mask is set when src1 element i occurs anywhere in
+// src2; bit j of the second when src2 element j occurs anywhere in src1.
+val vp2intersect : forall 'vl 'eb, 'vl in {128, 256, 512} & 'eb in {32, 64}.
+  (int('eb), bits('vl), bits('vl)) -> (qword, qword)
+function vp2intersect(eb, src1, src2) = {
+  var m1 : qword = zeros();
+  var m2 : qword = zeros();
+  foreach (i from 0 to ('vl / 'eb - 1)) {
+    foreach (j from 0 to ('vl / 'eb - 1)) {
+      if velem('eb, src1, i) == velem('eb, src2, j) then {
+        m1[i] = bitone;
+        m2[j] = bitone
+      }
+    }
+  };
+  (m1, m2)
+}
+
+// =========================================================================
 // AES rounds on every 128-bit lane (VEX.256 and EVEX forms, VAES)
 // =========================================================================
 

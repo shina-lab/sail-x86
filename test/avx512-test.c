@@ -2072,6 +2072,40 @@ void test_vfmadd213ph_512(void) {
   check(ok, "vfmadd213ph zmm = vfmadd132ph with operands permuted");
 }
 
+// AVX512_VP2INTERSECT: VP2INTERSECTD writes the mask pair k(base), k(base+1)
+// with base = the encoded register with its low bit cleared: bit i of the
+// first when src1[i] occurs in src2, bit j of the second when src2[j] occurs
+// in src1.  Checked against a C reference; the destination is encoded as k3,
+// so the pair must still land in k2/k3.
+void test_vp2intersectd_512(void) {
+  v16si a, b;
+  for (int i = 0; i < 16; i++) { a[i] = (i * 5) % 11; b[i] = (i * 3 + 1) % 9; }
+  unsigned ref1 = 0, ref2 = 0;
+  for (int i = 0; i < 16; i++)
+    for (int j = 0; j < 16; j++)
+      if (a[i] == b[j]) { ref1 |= 1u << i; ref2 |= 1u << j; }
+  BARRIER(a); BARRIER(b);
+  unsigned m1, m2;
+  __asm__ volatile("vp2intersectd %3, %2, %%k3\n\t"
+                   "kmovw %%k2, %0\n\t"
+                   "kmovw %%k3, %1"
+                   : "=r"(m1), "=r"(m2) : "v"(a), "v"(b) : "k2", "k3");
+  check(m1 == ref1 && m2 == ref2, "vp2intersectd zmm -> k2/k3 pair (encoded as k3)");
+}
+
+void test_vp2intersectq_256(void) {
+  typedef long long v4di_ __attribute__((vector_size(32)));
+  v4di_ a = {7, 3, 9, 3}, b = {3, 1, 7, 7};
+  // a in b: 7 (i=0), 3 (i=1,3) -> 1011b; b in a: 3 (j=0), 7 (j=2,3) -> 1101b
+  BARRIER(a); BARRIER(b);
+  unsigned m1, m2;
+  __asm__ volatile("vp2intersectq %3, %2, %%k4\n\t"
+                   "kmovw %%k4, %0\n\t"
+                   "kmovw %%k5, %1"
+                   : "=r"(m1), "=r"(m2) : "v"(a), "v"(b) : "k4", "k5");
+  check(m1 == 0xB && m2 == 0xD, "vp2intersectq ymm -> k4/k5 pair");
+}
+
 void test_vpshldd_512(void) {
   typedef unsigned int v16su __attribute__((vector_size(64)));
   v16su a, b, dst;
@@ -2357,6 +2391,8 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
   test_vpclmulqdq_512();
   test_vaesenc_512();
   test_vfmadd213ph_512();
+  test_vp2intersectd_512();
+  test_vp2intersectq_256();
   test_vpshldd_512();
   test_gf2p8mulb_512();
   test_vexp2ps_512();

@@ -106,10 +106,11 @@ function dispatch_evex_0f38(opcode, pfx) = {
         | (136 <= op & op <= 139) | op == 141 | op == 143
       => dispatch_evex_perm(op, pfx),
 
-    // SIMD integer: arith, shifts, narrowing, VNNI, bit-manip
+    // SIMD integer: arith, shifts, narrowing, VNNI, bit-manip, VP2INTERSECT
     op if op == 4 | op == 11 | (16 <= op & op <= 21) | (28 <= op & op <= 41)
         | op == 43 | (48 <= op & op <= 53) | (55 <= op & op <= 57)
         | (59 <= op & op <= 64) | (68 <= op & op <= 71) | (80 <= op & op <= 85)
+        | op == 104
         | op == 102 | (112 <= op & op <= 115) | op == 131 | op == 196
       => dispatch_evex_arith(op, pfx),
 

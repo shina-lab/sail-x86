@@ -690,4 +690,32 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       }
     }
   }
+
+  // =====================================================================
+  // VP2INTERSECTD/Q: EVEX.F2.0F38.W0/W1 68 /r -> even/odd mask-register pair
+  // Only where the host has AVX512_VP2INTERSECT (CPUID.7.0:EDX[8]); neither
+  // current oracle host does, so these wait for one that does.
+  // =====================================================================
+  {
+    u32 eax7, ebx7, ecx7, edx7;
+    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
+    if (edx7 & (1u << 8)) {
+      ArchState s = {}; s.rflags = 0x2;
+      for (int i = 0; i < 16; i++) {
+        ((u32 *)s.xmm[1].q)[i] = (i * 5) % 11;
+        ((u32 *)s.xmm[2].q)[i] = (i * 3 + 1) % 9;
+      }
+      const char *vl[] = {"xmm", "ymm", "zmm"};
+      for (int w = 0; w <= 1; w++) {
+        for (int ll = 0; ll <= 2; ll++) {
+          Evex e; e.mm = 2; e.pp = 3; e.W = w; e.opcode = 0x68;
+          e.reg = 3; e.vvvv = 1; e.rm = 2; e.LL = ll;  // k3 encodes the k2/k3 pair
+          TestCase tc = {std::string(w ? "VP2INTERSECTQ " : "VP2INTERSECTD ") + vl[ll] + " -> k2/k3",
+                         cat, e.encode_rr(), s, FL_NONE, 0x0, false};
+          tc.kreg_mask = (1 << 2) | (1 << 3);
+          tests.push_back(std::move(tc));
+        }
+      }
+    }
+  }
 }

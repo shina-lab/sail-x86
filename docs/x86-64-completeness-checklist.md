@@ -578,7 +578,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] VPLZCNTD/Q (per-element leading zero count, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 44 + 2 KVM tests
 - [x] VPCONFLICTD/Q (conflict detection, AVX-512CD) — verified: insn_evex_arith.sail, 0F38 C4 + 3 KVM tests
 - [x] VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS (VNNI dot product) — verified: all 4 variants in insn_evex_arith.sail + 5 KVM tests
-- [N/A] VP2INTERSECTD/Q (AVX-512VP2INTERSECT) — rare extension (Tiger Lake only), not targeted
+- [x] VP2INTERSECTD/Q (AVX-512VP2INTERSECT) — insn_evex_arith.sail, 0F38 68; checked against a C reference in avx512-test (no hardware oracle: only Tiger Lake and Zen 5 have it)
 - [N/A] VP4DPWSSD, VP4DPWSSDS (4-iteration dot product, AVX-512_4VNNIW) — Xeon Phi only, not targeted
 - [N/A] V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS (AVX-512_4FMAPS) — Xeon Phi only, not targeted
 - [x] VPSHLDW/D/Q, VPSHLDVW/D/Q (concatenate and shift left, AVX-512VBMI2) — verified and fixed: immediate in insn_evex_imm.sail + 4 KVM tests; variable in insn_evex_arith.sail + 2 KVM tests (operand order bug fixed)
