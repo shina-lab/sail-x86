@@ -132,18 +132,17 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // ---- #DB (vector 1): Debug exception ----
   cat = "Exception #DB";
 
+  u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
+  __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
+  const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
+
   // INT1/ICEBP (F1) is a trap: the pushed RIP is past the instruction and
   // DR6 is not modified.  Both hosts' silicon pushes the next RIP (measured
   // natively through the RIP a SIGTRAP handler sees), but KVM on AMD (SVM)
   // delivers this #DB to the guest with the INT1's own RIP, so the plain
   // case is a hypervisor artifact there and runs on Intel hosts only.
-  {
-    u32 a, b, c, d;
-    __get_cpuid(0, &a, &b, &c, &d);
-    bool amd_host = (b == 0x68747541);  // "Auth" of AuthenticAMD
-    if (!amd_host)
-      add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {.rflags = 0x2}, 1);
-  }
+  if (!amd_host)
+    add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {.rflags = 0x2}, 1);
 
   // Single-step (RFLAGS.TF = 0x100): TF is sampled before each instruction
   // and the trap is taken after it, with the next RIP pushed and DR6.BS set
@@ -185,6 +184,72 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.init_data.assign(72, 0);
     tc.init_data[64] = 0x02;  // RFLAGS image with TF clear
     tests.push_back(std::move(tc));
+  }
+
+  // Instruction breakpoints (DR7 R/Wn = 00, LENn = 00): a fault before the
+  // instruction whose first byte is at DRn, so the pushed RIP is that
+  // instruction, DR6 reports Bn, and the pushed RF stays 0 (SDM Vol.3B
+  // §20.3.1.1).  A case that must not fault is a normal state comparison.
+  auto bp_state = [](int n, u64 addr, u64 dr7_bits) {
+    ArchState s = {.rflags = 0x2};
+    s.dr[n] = addr;
+    s.dr7 = dr7_bits;
+    return s;
+  };
+  auto add_no_fault = [&](const std::string &name, std::vector<u8> code, ArchState init) {
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, 0, false});
+  };
+  add_fault("insn bp DR0 (L0) on the second instruction",
+            {0x90, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 1, 0x1), 1);
+  add_fault("insn bp DR3 (G3) on the third instruction",
+            {0x90, 0x90, 0x90, 0xF4}, bp_state(3, CODE_ADDR + 2, 0x80), 1);
+  add_fault("insn bp on the first instruction",
+            {0x90, 0xF4}, bp_state(0, CODE_ADDR, 0x1), 1);
+  add_no_fault("insn bp address set but DR7 disabled",
+               {0x90, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 1, 0x0));
+  // The address must be the instruction's first byte, prefixes included:
+  // "66 90" at +1 matches at its prefix, not at its opcode byte.
+  add_fault("insn bp on a prefix byte (66 90)",
+            {0x90, 0x66, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 1, 0x1), 1);
+  add_no_fault("insn bp on the opcode byte after a prefix (no match)",
+               {0x90, 0x66, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 2, 0x1));
+  // The instruction after MOV SS is exempt on Intel, as if RF were set
+  // (§7.8.3); AMD Zen 4 takes the breakpoint (both measured natively with
+  // a ptrace-armed DR0), and the model follows its vendor profile.  The
+  // instruction after that is not exempt anywhere.
+  {
+    ArchState s = bp_state(0, CODE_ADDR + 2, 0x1); s.rax = 0x10;
+    if (amd_host)
+      add_fault("insn bp on the instruction after mov ss (AMD: taken)",
+                {0x8E, 0xD0, 0x90, 0xF4}, s, 1);
+    else
+      add_no_fault("insn bp on the instruction after mov ss (Intel: suppressed)",
+                   {0x8E, 0xD0, 0x90, 0xF4}, s);
+    s.dr[0] = CODE_ADDR + 3;
+    add_fault("insn bp two instructions after mov ss",
+              {0x8E, 0xD0, 0x90, 0xF4}, s, 1);
+  }
+  // IRETQ transfers RF from its frame: with RF = 1 in the image the
+  // breakpoint on the return target is skipped once; with RF = 0 it fires.
+  // Frame: push SS(0x10), RSP, RFLAGS(rbx), CS(0x08), RIP(rax); target at +9.
+  {
+    std::vector<u8> code = {0x6A, 0x10, 0x54, 0x53, 0x6A, 0x08, 0x50, 0x48, 0xCF, 0x90, 0xF4};
+    ArchState s = bp_state(0, CODE_ADDR + 9, 0x1);
+    s.rax = CODE_ADDR + 9;
+    s.rbx = 0x10002;  // RF set
+    add_no_fault("insn bp skipped by IRETQ with RF in the frame", code, s);
+    s.rbx = 0x2;
+    add_fault("insn bp taken after IRETQ without RF", code, s, 1);
+  }
+  // A matching but disabled DR1 next to enabled DR0: neither vendor reports
+  // B1.  A single-step trap taken before a breakpointed instruction: Intel
+  // reports B0 together with BS, AMD reports BS alone; the model follows
+  // its vendor profile.
+  {
+    ArchState s = bp_state(0, CODE_ADDR + 1, 0x1); s.dr[1] = CODE_ADDR + 1;
+    add_fault("insn bp with a matching disabled DR1 alongside", {0x90, 0x90, 0xF4}, s, -1);
+    ArchState t = bp_state(0, CODE_ADDR + 1, 0x1); t.rflags = 0x102;
+    add_fault("single-step trap before a breakpointed instruction", {0x90, 0x90, 0xF4}, t, -1);
   }
 
   // ---- #GP (vector 13): General protection fault ----

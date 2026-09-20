@@ -276,11 +276,16 @@ struct FaultInfo {
   u64 faulting_rip = 0;  // RIP the CPU pushed: the instruction for a fault, the next one for a trap
   u64 cr2 = 0;  // CR2 after the fault (meaningful for #PF; 0 otherwise)
   u64 dr6 = 0;  // DR6 after the fault (meaningful for #DB; compared under DR6_CMP_MASK)
+  u64 rflags_image = 0;  // RFLAGS as pushed for the handler (compared under RFLAGS_IMAGE_MASK)
 };
 
 // DR6 bits compared between KVM and the model: B0-B3, BD, BS, BT.  Bit 11
 // (BLD) and bit 16 (RTM) are vendor- and hypervisor-dependent constants.
 static constexpr u64 DR6_CMP_MASK = 0xE00F;
+
+// Pushed-RFLAGS bits compared: CF PF AF ZF SF TF IF DF OF and RF (bit 16),
+// whose value in the image encodes the fault/trap distinction.
+static constexpr u64 RFLAGS_IMAGE_MASK = 0x10FD5;
 
 struct TestCase {
   std::string name;

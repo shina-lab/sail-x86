@@ -37,6 +37,15 @@ function classify_exception(vec) =
   else
     EC_Benign
 
+// Fault-class exceptions (SDM Vol.3A Table 7-1).  The RFLAGS image pushed
+// for these carries RF = 1 so the instruction restarts past any instruction
+// breakpoint (Vol.3B §20.3.1.1).  #DB is left out: its instruction-
+// breakpoint fault pushes the current RF, like a trap.
+val is_fault_class : exception_vector -> bool
+function is_fault_class(vec) =
+  vec == 0 | vec == 5 | vec == 6 | vec == 7 | vec == 10 | vec == 11 | vec == 12
+  | vec == 13 | vec == 14 | vec == 16 | vec == 17 | vec == 19 | vec == 20 | vec == 21
+
 // Read and parse a 16-byte IDT gate descriptor.
 val read_idt_gate : exception_vector -> IDTGate
 function read_idt_gate(vec) = {
@@ -402,6 +411,12 @@ function deliver_exception(vec, err_code, software_int) = {
   // the MOV SS/POP SS shadow (SDM Vol.3A §7.8.3).
   event_delivered = true;
   ss_shadow = 0;
+
+  // RF in the pushed RFLAGS image (SDM Vol.3B §20.3.1.1): 1 for a fault-
+  // class exception, otherwise the current value (traps, software and
+  // external interrupts, instruction-breakpoint #DB).  RF itself is cleared
+  // again once the frame is pushed.
+  if ~(software_int) & is_fault_class(vec) then RF = 0b1;
 
   // VMX exception bitmap check (SDM §25.2):
   // If in VMX non-root and the exception vector's bit is set in the

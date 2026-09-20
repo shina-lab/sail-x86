@@ -1550,11 +1550,14 @@ function decode_execute() = {
           // In real mode, CPL is always 0 (no privilege levels).
           // In protected mode, set CPL from the return CS selector RPL.
           if cur_mode != RealMode then cur_cpl = return_rpl;
-          // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all.
+          // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all,
+          // RF included (SDM IRET: "EFLAGS(RF, AC, ID) := tempEFLAGS"), which
+          // is how a debug handler resumes past an instruction breakpoint.
+          let img : qword = zero_extend(new_flags);
           if os == 16
-            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | zero_extend(new_flags))
-            else write_rflags(zero_extend(new_flags));
-          RF = 0b0
+            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | img)
+            else write_rflags(img);
+          RF = img[16]
         } else {
           let new_rip    = pop(os);
           let new_cs     = pop(os);
@@ -1575,7 +1578,7 @@ function decode_execute() = {
 
           cur_cpl = unsigned(new_cs[1..0]);
           write_rflags(new_rflags);
-          RF = 0b0;
+          RF = new_rflags[16];  // IRETQ transfers RF from the image (SDM IRET)
           v(RSP) = new_rsp;
           // Load SS selector *and* descriptor cache from the GDT (SDM Vol.2
           // IRET: on return to outer privilege the hidden part of SS —

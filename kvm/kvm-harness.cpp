@@ -217,10 +217,14 @@ struct KvmVm {
         0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+8], rax
           (u8)(FAULT_INFO_ADDR + 8), (u8)((FAULT_INFO_ADDR + 8) >> 8),
           (u8)((FAULT_INFO_ADDR + 8) >> 16), (u8)((FAULT_INFO_ADDR + 8) >> 24),
-        0x48, 0x8B, 0x04, 0x24,                                   // mov rax, [rsp]
+        0x48, 0x8B, 0x04, 0x24,                                   // mov rax, [rsp]  (pushed RIP)
         0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+16], rax
           (u8)(FAULT_INFO_ADDR + 16), (u8)((FAULT_INFO_ADDR + 16) >> 8),
           (u8)((FAULT_INFO_ADDR + 16) >> 16), (u8)((FAULT_INFO_ADDR + 16) >> 24),
+        0x48, 0x8B, 0x44, 0x24, 0x10,                             // mov rax, [rsp+16]  (pushed RFLAGS)
+        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+24], rax
+          (u8)(FAULT_INFO_ADDR + 24), (u8)((FAULT_INFO_ADDR + 24) >> 8),
+          (u8)((FAULT_INFO_ADDR + 24) >> 16), (u8)((FAULT_INFO_ADDR + 24) >> 24),
         0xF4,                                                     // hlt
       };
       memcpy(guest_mem + COMMON_HANDLER, common, sizeof(common));
@@ -492,6 +496,7 @@ struct KvmVm {
       struct kvm_debugregs dbg = {};
       ioctl(vcpu_fd, KVM_GET_DEBUGREGS, &dbg);
       fi.dr6 = dbg.dr6;
+      memcpy(&fi.rflags_image, guest_mem + FAULT_INFO_ADDR + 24, 8);
       return true;
     }
     return false;
@@ -789,6 +794,20 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         fault_out->faulting_rip = model.zRIP;
         fault_out->cr2 = model.zCR2;
         fault_out->dr6 = model.zDR6;
+        // The RFLAGS the model would have pushed: its flags at the fault,
+        // with RF as deliver_exception establishes it for the image.
+        u64 img = 0x2;
+        img |= (u64)model.zCF << 0;
+        img |= (u64)model.zPF << 2;
+        img |= (u64)model.zAF << 4;
+        img |= (u64)model.zZF << 6;
+        img |= (u64)model.zSF << 7;
+        img |= (u64)model.zTF << 8;
+        img |= (u64)model.zIF_flag << 9;
+        img |= (u64)model.zDF << 10;
+        img |= (u64)model.zOF << 11;
+        img |= (u64)model.zRF << 16;
+        fault_out->rflags_image = img;
         model.model_fini();
         return {};
       }
@@ -951,6 +970,11 @@ int main(int argc, char **argv) {
         if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK) {
           fprintf(stderr, "  MISMATCH DR6: kvm=0x%lx sail=0x%lx\n",
                   kvm_fault.dr6, sail_fault.dr6);
+          ok = false;
+        }
+        if ((kvm_fault.rflags_image ^ sail_fault.rflags_image) & RFLAGS_IMAGE_MASK) {
+          fprintf(stderr, "  MISMATCH pushed RFLAGS: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.rflags_image, sail_fault.rflags_image);
           ok = false;
         }
         if (kvm_fault.cr2 != sail_fault.cr2) {

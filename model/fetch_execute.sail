@@ -4,15 +4,15 @@
 // Fetches and decodes one instruction from RIP, executes it,
 // and advances RIP past the instruction bytes.
 
-// Deliver the single-step trap at the end of an instruction (SDM Vol.3B
-// §20.3.1.4).  DR6 reports BS; the processor clears B0-B3 on a debug
-// exception and never clears the other bits (§20.2.3).  RIP has already
-// been advanced, so the return address the delivery pushes is the next
-// instruction, as for any trap; without an IDT the trap is reported like a
-// fault, with that RIP.
-val raise_single_step : unit -> unit
-function raise_single_step() = {
-  DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | 0x0000000000004000;
+// Raise #DB reporting the given DR6 status bits: the processor clears B0-B3
+// and sets what it reports, never clearing the rest (SDM Vol.3B §20.2.3).
+// With an IDT the exception is delivered with RIP as the return address:
+// already advanced past the instruction for a trap (single step), still at
+// the instruction for a fault (instruction breakpoint).  Without an IDT it
+// is reported like any fault, with that RIP.
+val raise_debug_exception : qword -> unit
+function raise_debug_exception(status) = {
+  DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | status;
   if system_mode then {
     try {
       deliver_exception(EXN_DB, 0x00000000, false)
@@ -29,6 +29,22 @@ function raise_single_step() = {
     fault_vector = EXN_DB;
     fault_error_code = 0x00000000
   }
+}
+
+// Instruction breakpoints matching a linear address (SDM Vol.3B §20.2.5):
+// DRn enabled by Ln or Gn, R/Wn = 00 (execute) with LENn = 00 (any other
+// length is undefined for instruction breakpoints), and DRn equal to the
+// address of the instruction's first byte, prefixes included.
+val insn_breakpoint_hits : qword -> bits(4)
+function insn_breakpoint_hits(lin) = {
+  var hits : bits(4) = 0x0;
+  foreach (n from 0 to 3) {
+    let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
+    let rw_len : bits(4) = DR7[(19 + 4 * n) .. (16 + 4 * n)];
+    let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
+    if enabled & rw_len == 0x0 & dr == lin then hits[n] = bitone
+  };
+  hits
 }
 
 // Decode and execute one instruction.
@@ -82,6 +98,22 @@ function step() = {
     }
   };
 
+  // Instruction breakpoint (SDM Vol.3B §20.3.1.1): the highest-priority
+  // debug exception, a fault before the instruction.  The check is skipped
+  // when RF is set (IRET restoring a handler's frame) and, on Intel, for
+  // the instruction after MOV SS/POP SS (§7.8.3, "as if RF were 1"); AMD
+  // Zen 4 takes that breakpoint (measured natively with a ptrace-armed DR0
+  // on both hosts).  RF is then cleared, so it protects exactly one
+  // instruction.
+  if RF == 0b0 & ~(vendor == Vendor_Intel & ss_shadow == 1) then {
+    let hits = insn_breakpoint_hits(RIP + get_seg_base(CS));
+    if hits != 0x0 then {
+      raise_debug_exception(zero_extend(hits));
+      return ()
+    }
+  };
+  RF = 0b0;
+
   // Set decode position to current RIP
   decode_pos = RIP;
   insn_start = RIP;
@@ -128,6 +160,8 @@ function step() = {
             VMExit(_, _) => return (),
           }
         } else {
+          // RF as the pushed RFLAGS image would carry it (see deliver_exception)
+          if is_fault_class(vec) then RF = 0b1;
           fault_pending = true;
           fault_vector = vec;
           fault_error_code = err;
@@ -152,9 +186,16 @@ function step() = {
   // with TF set, unless the instruction delivered an event through the IDT
   // (INT n, INT3, INTO and INT1 clear TF as part of delivery), faulted, or
   // loaded SS (the trap following MOV SS/POP SS is suppressed, §7.8.3).
+  // DR6 reports BS; Intel also reports Bn for an instruction breakpoint that
+  // matches the instruction the trap is taken before ("when BS is set, any of
+  // the other debug status bits also may be set", §20.2.3; observed on
+  // Emerald Rapids, not on Zen 4).
   if ~(faulted) & system_state == SysRunning & tf_at_start
-     & ~(event_delivered) & ss_shadow != 2 then
-    raise_single_step();
+     & ~(event_delivered) & ss_shadow != 2 then {
+    let pending : bits(4) =
+      if vendor == Vendor_Intel then insn_breakpoint_hits(RIP + get_seg_base(CS)) else 0x0;
+    raise_debug_exception(0x0000000000004000 | zero_extend(pending))
+  };
 
   // The SS-load shadow lasts through the following instruction.
   ss_shadow = match ss_shadow { 2 => 1, _ => 0 }
