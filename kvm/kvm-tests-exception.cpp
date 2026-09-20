@@ -124,6 +124,10 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vstmxcsr [rdi] with vvvv=1110b (#UD)", {0xC5, 0xF0, 0xAE, 0x1F},
             {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
 
+  // VBROADCASTF32X2 has only 256- and 512-bit forms: EVEX.128 (L'L=00) is #UD.
+  add_fault("vbroadcastf32x2 xmm (no 128-bit form → #UD)",
+            {0x62, 0xF2, 0x7D, 0x08, 0x19, 0xC1}, {.rflags = 0x2}, 6);
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

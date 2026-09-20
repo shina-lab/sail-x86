@@ -2093,6 +2093,33 @@ void test_vp2intersectd_512(void) {
   check(m1 == ref1 && m2 == ref2, "vp2intersectd zmm -> k2/k3 pair (encoded as k3)");
 }
 
+// AVX512DQ: VBROADCASTI32X2/VBROADCASTF32X2 broadcast the low dword pair of
+// xmm/m64 to every 64-bit lane; the writemask has one bit per dword.
+void test_vbroadcast32x2(void) {
+  typedef unsigned int v16su __attribute__((vector_size(64)));
+  typedef unsigned int v8su __attribute__((vector_size(32)));
+  typedef unsigned int v4su __attribute__((vector_size(16)));
+  v4su src = {0x11111111, 0x22222222, 0x33333333, 0x44444444};
+  v16su z; v8su y; v4su x;
+  BARRIER(src);
+  __asm__ volatile("vbroadcasti32x2 %1, %0" : "=v"(z) : "v"(src));
+  __asm__ volatile("vbroadcastf32x2 %1, %0" : "=v"(y) : "v"(src));
+  __asm__ volatile("vbroadcasti32x2 %1, %0" : "=v"(x) : "v"(src));
+  int ok = 1;
+  for (int i = 0; i < 16; i++) ok &= z[i] == ((i & 1) ? 0x22222222 : 0x11111111);
+  for (int i = 0; i < 8; i++)  ok &= y[i] == ((i & 1) ? 0x22222222 : 0x11111111);
+  for (int i = 0; i < 4; i++)  ok &= x[i] == ((i & 1) ? 0x22222222 : 0x11111111);
+  check(ok, "vbroadcasti32x2/f32x2 zmm/ymm/xmm (dword pair)");
+  // Zeroing mask 0xAAAA: only the odd dwords are written.
+  __asm__ volatile("movl $0xAAAA, %%eax\n\t"
+                   "kmovw %%eax, %%k1\n\t"
+                   "vbroadcasti32x2 %1, %0 %{%%k1%}%{z%}"
+                   : "=v"(z) : "v"(src) : "eax", "k1");
+  ok = 1;
+  for (int i = 0; i < 16; i++) ok &= z[i] == ((i & 1) ? 0x22222222 : 0);
+  check(ok, "vbroadcasti32x2 zmm {k1}{z} masks per dword");
+}
+
 void test_vp2intersectq_256(void) {
   typedef long long v4di_ __attribute__((vector_size(32)));
   v4di_ a = {7, 3, 9, 3}, b = {3, 1, 7, 7};
@@ -2390,6 +2417,9 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
   test_vpscatterdd_512();
   test_vpclmulqdq_512();
   test_vaesenc_512();
+  test_vbroadcast32x2();
+  // The next three need FP16 (Intel only) and VP2INTERSECT (neither host)
+  // when run natively; keep them after everything a host can check.
   test_vfmadd213ph_512();
   test_vp2intersectd_512();
   test_vp2intersectq_256();

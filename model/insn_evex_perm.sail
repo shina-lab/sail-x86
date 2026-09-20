@@ -65,16 +65,26 @@ function dispatch_evex_perm(op, pfx) = {
   let mp = get_mandatory_prefix(pfx);
 
   match op {
-  // 0F38 18: VBROADCASTSS (66,W0) / 0F38 19: VBROADCASTSD (66,W1)
-  // 0F38 58: VPBROADCASTD (66,W0) / 0F38 59: VPBROADCASTQ (66,W1) — from XMM/mem
+  // 0F38 18: VBROADCASTSS (66,W0) / 0F38 19: VBROADCASTSD (66,W1) / VBROADCASTF32X2 (66,W0) [DQ]
+  // 0F38 58: VPBROADCASTD (66,W0) / 0F38 59: VPBROADCASTQ (66,W1) / VBROADCASTI32X2 (66,W0) [DQ]
+  // — from XMM/mem.  The X2 forms broadcast the low 64 bits (a dword pair)
+  // of xmm/m64 to every 64-bit lane and mask at dword granularity;
+  // VBROADCASTF32X2 has no 128-bit form.
   op if op == 24 | op == 25 | op == 88 | op == 89 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let eb = evex_elem(pfx);
-    let src = modrm_xrm_evex(modrm, pfx, eb / 8);
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / eb), broadcast(vl, decode_scalar_src(eb, src)))
+    let x2 : bool = (op == 25 | op == 89) & ~(pfx.rex_w);
+    if x2 then {
+      if op == 25 & vl == 128 then raise_UD();
+      let src = modrm_xrm_evex(modrm, pfx, 8);
+      evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, decode_scalar_src(64, src)))
+    } else {
+      let eb = evex_elem(pfx);
+      let src = modrm_xrm_evex(modrm, pfx, eb / 8);
+      evex_write(dst, evex_wmask(pfx, vl / eb), broadcast(vl, decode_scalar_src(eb, src)))
+    }
   },
 
   // 0F38 7B: VPBROADCASTW (66,W0) [BW] — from GPR

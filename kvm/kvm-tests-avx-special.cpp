@@ -692,6 +692,28 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // VBROADCASTI32X2: EVEX.66.0F38.W0 59 /r (xmm/ymm/zmm) and
+  // VBROADCASTF32X2: EVEX.66.0F38.W0 19 /r (ymm/zmm only) [AVX512DQ]
+  // Broadcast the low dword pair of xmm/m64; writemask per dword.
+  // =====================================================================
+  {
+    ArchState s = {}; s.rflags = 0x2;
+    s.xmm[1] = xmm_from_u64(0x2222222211111111, 0x4444444433333333);
+    Evex e; e.mm = 2; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
+    e.opcode = 0x59;
+    add_evex_rr_tests(tests, cat, "VBROADCASTI32X2", e, s, 0x3, 0xAAAA);
+    e.opcode = 0x19;
+    const char *vl[] = {"xmm", "ymm", "zmm"};
+    for (int ll = 1; ll <= 2; ll++) {
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VBROADCASTF32X2 ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      e.aaa = 1; e.z = true;
+      tests.push_back({std::string("VBROADCASTF32X2 ") + vl[ll] + " {k1}{z}", cat,
+                       concat(set_kmask(0x5555), e.encode_rr()), s, FL_NONE, 0x3, false});
+    }
+  }
+
+  // =====================================================================
   // VP2INTERSECTD/Q: EVEX.F2.0F38.W0/W1 68 /r -> even/odd mask-register pair
   // Only where the host has AVX512_VP2INTERSECT (CPUID.7.0:EDX[8]); neither
   // current oracle host does, so these wait for one that does.
