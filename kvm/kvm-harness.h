@@ -152,8 +152,8 @@ struct ArchState {
   u32 mxcsr = 0x1F80;   // default MXCSR
   u64 kregs[8] = {};     // AVX-512 opmask registers k0-k7
   u64 dr[4] = {};        // DR0-DR3 breakpoint addresses (initial state only)
-  u64 dr6 = 0xFFFF0FF0;  // DR6 at reset (initial state only)
-  u64 dr7 = 0x400;       // DR7 at reset (initial state only)
+  u64 dr6 = 0xFFFF0FF0;  // DR6: reset value as initial state; compared after the run
+  u64 dr7 = 0x400;       // DR7: reset value as initial state; compared after the run
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -264,6 +264,13 @@ struct ArchState {
         }
       }
     }
+    // Debug registers: DR6 under its status bits (B0-B3, BD, BS, BT; the
+    // same mask as DR6_CMP_MASK below), DR7 in full.
+    if ((dr6 ^ other.dr6) & 0xE00Full) {
+      fprintf(stderr, "  MISMATCH DR6: kvm=%016lx sail=%016lx\n", dr6, other.dr6);
+      ok = false;
+    }
+    cmp("DR7", dr7, other.dr7);
     return ok;
   }
 };
@@ -276,6 +283,7 @@ struct FaultInfo {
   u64 faulting_rip = 0;  // RIP the CPU pushed: the instruction for a fault, the next one for a trap
   u64 cr2 = 0;  // CR2 after the fault (meaningful for #PF; 0 otherwise)
   u64 dr6 = 0;  // DR6 after the fault (meaningful for #DB; compared under DR6_CMP_MASK)
+  u64 dr7 = 0;  // DR7 after the fault (general detect clears GD)
   u64 rflags_image = 0;  // RFLAGS as pushed for the handler (compared under RFLAGS_IMAGE_MASK)
 };
 
@@ -308,6 +316,9 @@ struct TestCase {
   bool enable_paging = false;     // give the Sail model the guest's identity
                                   // paging (the KVM guest always pages); for
                                   // tests that probe translation and #PF
+  u64 rflags_image_ignore = 0;    // pushed-RFLAGS bits not compared for this
+                                  // test (a hypervisor artifact, with the
+                                  // reason at the test)
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)

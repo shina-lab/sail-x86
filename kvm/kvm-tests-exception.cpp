@@ -324,6 +324,46 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     add_fault("single-step of rep stosb (trap after the first iteration, RF=1)", {0xF3, 0xAA, 0x90, 0xF4}, t, -1);
   }
 
+  // General detect (DR7.GD, §20.3.1.3): any MOV DR raises #DB before the
+  // access, a fault with DR6.BD, and the processor clears GD on the way to
+  // the handler (DR7 is compared).  The SDM's rule (§20.3.1.1) puts RF = 1
+  // in the pushed image of this fault, but under KVM every MOV DR is a VM
+  // exit that leaves the guest's RF at 0 (Vol.3C §30.3.3) and the #DB is
+  // then injected, so both hosts show RF = 0 here; the bit is not compared.
+  {
+    auto add_gd = [&](const std::string &name, std::vector<u8> code, ArchState init) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = 0;
+      tc.expect_fault = true;
+      tc.expected_vector = 1;
+      tc.rflags_image_ignore = 0x10000;  // RF
+      tests.push_back(std::move(tc));
+    };
+    ArchState s = {.rflags = 0x2}; s.dr7 = 0x2400;
+    add_gd("general detect: mov rax,dr0 with DR7.GD", {0x0F, 0x21, 0xC0, 0xF4}, s);
+    s.rax = 0x400;
+    add_gd("general detect: mov dr7,rax with DR7.GD", {0x0F, 0x23, 0xF8, 0xF4}, s);
+  }
+  // MOV to DR6/DR7 in 64-bit mode: a 1 in bits 63:32 is #GP(0) (§20.2.6);
+  // otherwise the reserved bits read back as fixed values (compared in the
+  // final state).
+  {
+    ArchState s = {.rflags = 0x2};
+    s.rax = 0x100000400ull;
+    add_fault("mov dr7,rax with bit 32 set (#GP)", {0x0F, 0x23, 0xF8, 0xF4}, s, 13);
+    add_fault("mov dr6,rax with bit 32 set (#GP)", {0x0F, 0x23, 0xF0, 0xF4}, s, 13);
+    s.rax = 0x1400;  // bits 10 and 12: bit 10 reads as 1 regardless, bit 12 is dropped
+    add_no_fault("mov dr7,rax with reserved bits 10 and 12 (reads back 0x400)", {0x0F, 0x23, 0xF8, 0xF4}, s);
+    s.rax = 0xFFFFFFFF;  // low 32 all ones: the status bits are set, the rest fixed
+    add_no_fault("mov dr6,rax with all low bits set", {0x0F, 0x23, 0xF0, 0xF4}, s);
+    s.rax = 0;
+    add_no_fault("mov dr6,rax with zero (reserved ones stay)", {0x0F, 0x23, 0xF0, 0xF4}, s);
+  }
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

@@ -5,6 +5,20 @@
 
 // Check LOCK prefix validity: requires memory destination on a lockable instruction.
 // LOCK with register operand or on CMP (which doesn't write) raises #UD.
+// DR7.GD (SDM Vol.3B §20.2.4, §20.3.1.3): any MOV DR while GD is set raises
+// #DB before the access, a fault with DR6.BD set and RF = 1 in the pushed
+// image; the processor clears GD on the way to the handler so that the
+// handler itself can use the debug registers.
+val general_detect_check : unit -> unit
+function general_detect_check() = {
+  if DR7[13] == bitone then {
+    DR7[13] = bitzero;
+    DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | 0x0000000000002000;
+    RF = 0b1;
+    throw Fault(EXN_DB, 0x00000000)
+  }
+}
+
 val check_lock_rm : (Prefixes, RM, bool) -> unit
 function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
@@ -991,13 +1005,16 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F 21: MOV reg, DRn — Read debug register (requires CPL=0)
-    // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
+    // SDM MOV DR: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7;
+    // CPL > 0 → #GP(0); DR7.GD → #DB before the access (§20.3.1.3).
+    // Outside 64-bit mode the read returns the low 32 bits (§20.2.6).
     33 => {
-      if cur_cpl != 0 then raise_GP0();
-      vmx_exit_if_dr_access();
       let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
+      if cur_cpl != 0 then raise_GP0();
+      general_detect_check();
+      vmx_exit_if_dr_access();
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
       let dr_val : qword = match dr_idx {
         0 => DR0,
@@ -1009,28 +1026,36 @@ function dispatch_2byte_gpr(op, pfx) = {
         6 => DR6,
         7 => DR7,
       };
-      v(rm_idx) = dr_val
+      if cur_mode == LongMode then v(rm_idx) = dr_val
+      else v(32, rm_idx) = dr_val[31..0]
     },
 
     // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
-    // SDM: CR4.DE=1 and DR4/DR5 → #UD; otherwise DR4/5 alias DR6/7.
+    // Same checks as the read.  In 64-bit mode a 1 in bits 63:32 of the
+    // value for DR6 or DR7 is #GP(0) (§20.2.6); outside it the upper 32
+    // bits are filled with zeros.  DR6 keeps only its status bits (B0-B3,
+    // BD, BS, BT) over fixed reserved bits; DR7 keeps its enable and
+    // condition fields, bit 10 reads as 1 and the other reserved bits as 0.
     35 => {
-      if cur_cpl != 0 then raise_GP0();
-      vmx_exit_if_dr_access();
       let modrm = fetch(1);
       let dr_idx : range(0, 7) = unsigned(modrm[5..3]);
       if (dr_idx == 4 | dr_idx == 5) & CR4[3] == 0b1 then raise_UD();
+      if cur_cpl != 0 then raise_GP0();
+      general_detect_check();
+      vmx_exit_if_dr_access();
       let rm_idx : gpr_idx = unsigned(pfx.rex_b @ modrm[2..0]);
-      let dr_val : qword = v(rm_idx);
+      let dr_val : qword = if cur_mode == LongMode then v(rm_idx) else zero_extend(v(32, rm_idx));
+      let status_reg : bool = dr_idx >= 4;
+      if status_reg & dr_val[63..32] != zeros() then raise_GP0();
       match dr_idx {
         0 => DR0 = dr_val,
         1 => DR1 = dr_val,
         2 => DR2 = dr_val,
         3 => DR3 = dr_val,
-        4 => DR6 = dr_val,  // alias when CR4.DE=0
-        5 => DR7 = dr_val,  // alias when CR4.DE=0
-        6 => DR6 = dr_val,
-        7 => DR7 = dr_val,
+        4 => DR6 = (dr_val & 0x000000000000E00F) | 0x00000000FFFF0FF0,  // alias when CR4.DE=0
+        5 => DR7 = (dr_val & 0x00000000FFFF2BFF) | 0x0000000000000400,  // alias when CR4.DE=0
+        6 => DR6 = (dr_val & 0x000000000000E00F) | 0x00000000FFFF0FF0,
+        7 => DR7 = (dr_val & 0x00000000FFFF2BFF) | 0x0000000000000400,
       }
     },
 

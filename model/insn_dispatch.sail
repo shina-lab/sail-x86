@@ -14,6 +14,7 @@ function exec_xchg_reg_reg(a, b, os) = {
 // IN — Input from Port
 val exec_in : (word, operand_size) -> unit
 function exec_in(port, os) = {
+  note_io_access(port, if os == 64 then 4 else os / 8);
   match os {
     8  => v(RAX) = __port_in8(port),
     16 => v(RAX) = __port_in16(port),
@@ -25,6 +26,7 @@ function exec_in(port, os) = {
 // OUT — Output to Port
 val exec_out : (word, operand_size) -> unit
 function exec_out(port, os) = {
+  note_io_access(port, if os == 64 then 4 else os / 8);
   match os {
     8  => __port_out8(port, v(RAX)),
     16 => __port_out16(port, v(RAX)),
@@ -141,6 +143,7 @@ function exec_ins(os_in, asz) = {
   let off : qword = zero_extend(v(asz, RDI));
   // INS destination is always ES:DI (not overridable).
   let dst : MemRef = struct { seg = ES, addr = off };
+  note_io_access(port, os / 8);
   match os {
     8  => v(dst) = __port_in8(port),
     16 => v(dst) = __port_in16(port),
@@ -163,6 +166,7 @@ function exec_outs(os_in, asz, pfx) = {
     None()  => DS,
   };
   let src : MemRef = struct { seg = src_seg, addr = off };
+  note_io_access(port, os / 8);
   match os {
     8  => __port_out8(port,  v(src)),
     16 => __port_out16(port, v(src)),

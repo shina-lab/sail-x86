@@ -496,6 +496,7 @@ struct KvmVm {
       struct kvm_debugregs dbg = {};
       ioctl(vcpu_fd, KVM_GET_DEBUGREGS, &dbg);
       fi.dr6 = dbg.dr6;
+      fi.dr7 = dbg.dr7;
       memcpy(&fi.rflags_image, guest_mem + FAULT_INFO_ADDR + 24, 8);
       return true;
     }
@@ -587,6 +588,12 @@ struct KvmVm {
       memcpy(&state.xmm[i].q[2], xs + xl.ymm_hi128 + i * 16, 16);
     for (int i = 0; i < 8; i++)
       memcpy(&state.kregs[i], xs + xl.opmask + i * 8, 8);
+    {
+      struct kvm_debugregs dbg = {};
+      ioctl(vcpu_fd, KVM_GET_DEBUGREGS, &dbg);
+      state.dr6 = dbg.dr6;
+      state.dr7 = dbg.dr7;
+    }
     for (int i = 0; i < 16; i++)
       memcpy(&state.xmm[i].q[4], xs + xl.zmm_hi256 + i * 32, 32);
     for (int i = 0; i < 16; i++)
@@ -794,6 +801,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         fault_out->faulting_rip = model.zRIP;
         fault_out->cr2 = model.zCR2;
         fault_out->dr6 = model.zDR6;
+        fault_out->dr7 = model.zDR7;
         // The RFLAGS the model would have pushed: its flags at the fault,
         // with RF as deliver_exception establishes it for the image.
         u64 img = 0x2;
@@ -868,6 +876,8 @@ done:
   }
   for (int i = 0; i < 8; i++)
     state.kregs[i] = model.zKREG.data[i];
+  state.dr6 = model.zDR6;
+  state.dr7 = model.zDR7;
 
   model.model_fini();
   return state;
@@ -972,9 +982,15 @@ int main(int argc, char **argv) {
                   kvm_fault.dr6, sail_fault.dr6);
           ok = false;
         }
-        if ((kvm_fault.rflags_image ^ sail_fault.rflags_image) & RFLAGS_IMAGE_MASK) {
+        if ((kvm_fault.rflags_image ^ sail_fault.rflags_image) & RFLAGS_IMAGE_MASK
+            & ~tc.rflags_image_ignore) {
           fprintf(stderr, "  MISMATCH pushed RFLAGS: kvm=0x%lx sail=0x%lx\n",
                   kvm_fault.rflags_image, sail_fault.rflags_image);
+          ok = false;
+        }
+        if (kvm_fault.dr7 != sail_fault.dr7) {
+          fprintf(stderr, "  MISMATCH DR7: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.dr7, sail_fault.dr7);
           ok = false;
         }
         if (kvm_fault.cr2 != sail_fault.cr2) {

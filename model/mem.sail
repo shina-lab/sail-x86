@@ -47,6 +47,28 @@ function note_data_access(lin, nbytes, is_write) = {
   }
 }
 
+// I/O breakpoints (SDM Vol.3B §20.2.4, §20.2.5): with CR4.DE set, R/Wn = 10
+// makes DRn an I/O breakpoint; the port address is zero-extended and
+// compared with the LENn-byte range at DRn like a data breakpoint.  Hits
+// join pending_dbp.  Without CR4.DE the encoding is undefined and ignored.
+val note_io_access : (word, int) -> unit
+function note_io_access(port, nbytes) = {
+  if CR4[3] == bitone then {
+    foreach (n from 0 to 3) {
+      let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
+      let rw : bits(2) = DR7[(17 + 4 * n) .. (16 + 4 * n)];
+      let len : range(1, 8) = match DR7[(19 + 4 * n) .. (18 + 4 * n)] {
+        0b00 => 1, 0b01 => 2, 0b10 => 8, _ => 4
+      };
+      let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
+      let base : int = unsigned(dr & ~(to_bits(64, len - 1)));
+      let p : int = unsigned(port);
+      if enabled & rw == 0b10 & p < base + len & base < p + nbytes then
+        pending_dbp[n] = bitone
+    }
+  }
+}
+
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
