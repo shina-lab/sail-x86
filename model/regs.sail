@@ -450,6 +450,18 @@ register DR7  : qword = 0x0000000000000400  // Debug control
 register event_delivered : bool = false
 register ss_shadow : range(0, 2) = 0
 
+// Data-breakpoint bookkeeping (SDM Vol.3B §20.3.1.2), maintained by the
+// memory interface, exec_rep and step():
+//   pending_dbp — Bn of the data breakpoints hit by the current
+//                 instruction's accesses; reported as a trap after it,
+//                 kept across a MOV SS/POP SS and delivered after the
+//                 following instruction, lost on a fault.
+//   rep_trap_rf — a repeated string instruction stopped after an
+//                 iteration that is not its last (data breakpoint or single
+//                 step): the trap's RFLAGS image carries RF = 1 (§20.3.1.1).
+register pending_dbp : bits(4) = 0x0
+register rep_trap_rf : bool = false
+
 // CR0 bit positions
 let CR0_PE : int = 0    // Protection Enable
 let CR0_MP : int = 1    // Monitor Coprocessor

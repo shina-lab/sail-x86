@@ -53,6 +53,10 @@ val step : unit -> unit
 function step() = {
   fault_pending = false;
   event_delivered = false;
+  rep_trap_rf = false;
+  // Data breakpoints hit by a MOV SS/POP SS are delivered after the
+  // following instruction (SDM Vol.3B §20.3.1.2), so they survive one step.
+  if ss_shadow != 1 then pending_dbp = 0x0;
 
   // Check for pending SMI before anything else.
   // SDM §34.2: "The SMI takes precedence over [...] debug exceptions
@@ -182,19 +186,32 @@ function step() = {
   if ~(faulted) & system_state == SysRunning then
     RIP = match next_rip { Some(t) => t, None() => decode_pos };
 
-  // Single-step trap (SDM Vol.3B §20.3.1.4): after an instruction that ran
-  // with TF set, unless the instruction delivered an event through the IDT
-  // (INT n, INT3, INTO and INT1 clear TF as part of delivery), faulted, or
-  // loaded SS (the trap following MOV SS/POP SS is suppressed, §7.8.3).
-  // DR6 reports BS; Intel also reports Bn for an instruction breakpoint that
-  // matches the instruction the trap is taken before ("when BS is set, any of
-  // the other debug status bits also may be set", §20.2.3; observed on
-  // Emerald Rapids, not on Zen 4).
-  if ~(faulted) & system_state == SysRunning & tf_at_start
-     & ~(event_delivered) & ss_shadow != 2 then {
-    let pending : bits(4) =
-      if vendor == Vendor_Intel then insn_breakpoint_hits(RIP + get_seg_base(CS)) else 0x0;
-    raise_debug_exception(0x0000000000004000 | zero_extend(pending))
+  // Debug traps after the instruction, reported together in DR6:
+  //   BS — single step (SDM Vol.3B §20.3.1.4): TF was set at the start,
+  //        unless the instruction delivered an event through the IDT
+  //        (INT n, INT3, INTO and INT1 clear TF as part of delivery);
+  //   Bn — data breakpoints hit by the instruction's accesses (§20.3.1.2),
+  //        which INT n does not discard;
+  //   and on Intel the Bn of an instruction breakpoint matching the
+  //   instruction a single-step trap is taken before ("when BS is set, any
+  //   of the other debug status bits also may be set", §20.2.3; observed on
+  //   Emerald Rapids, not on Zen 4).
+  // A fault loses them (the early return above), and after MOV SS/POP SS
+  // the single-step trap is suppressed and the data breakpoints wait for
+  // the following instruction (§7.8.3, §20.3.1.2).
+  if ~(faulted) & system_state == SysRunning & ss_shadow != 2 then {
+    let bs : qword = if tf_at_start & ~(event_delivered) then 0x0000000000004000 else zeros();
+    let code_hits : bits(4) =
+      if vendor == Vendor_Intel & bs != zeros() then insn_breakpoint_hits(RIP + get_seg_base(CS)) else 0x0;
+    let status : qword = bs | zero_extend(pending_dbp) | zero_extend(code_hits);
+    if status != zeros() then {
+      // A trap after a non-final iteration of a repeated string instruction
+      // pushes RF = 1 (§20.3.1.1) on Intel; AMD Zen 4 pushes RF = 0 there
+      // (observed with the pushed image compared under KVM, where SVM
+      // delivers the #DB natively).
+      if rep_trap_rf & vendor == Vendor_Intel then RF = 0b1;
+      raise_debug_exception(status)
+    }
   };
 
   // The SS-load shadow lasts through the following instruction.

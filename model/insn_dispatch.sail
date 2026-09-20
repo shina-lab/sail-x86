@@ -262,7 +262,16 @@ function exec_rep(prefix, op, os, asz, pfx) = {
     };
     v(RCX) = v(asz, RCX) - 1;
     if prefix == REP_repe  & ZF == 0b0 then return ();
-    if prefix == REP_repne & ZF == 0b1 then return ()
+    if prefix == REP_repne & ZF == 0b1 then return ();
+    // A data breakpoint hit by this iteration, or single-step, is reported
+    // after the iteration: the instruction resumes for the remaining count
+    // (RIP back at its first byte) and the trap's image carries RF = 1
+    // (SDM Vol.3B §20.3.1.1, §20.3.1.2).
+    if (pending_dbp != 0x0 | TF == 0b1) & v(asz, RCX) != zeros() then {
+      next_rip = Some(insn_start);
+      rep_trap_rf = true;
+      return ()
+    }
   }
 }
 

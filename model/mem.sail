@@ -24,11 +24,35 @@ val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
 overload read_mem = {read_mem_data, read_mem_ref}
 overload write_mem = {write_mem_linear, write_mem_ref}
 
+// Data breakpoints (SDM Vol.3B §20.2.5, §20.3.1.2): an access hits DRn
+// when the breakpoint is enabled by Ln or Gn, R/Wn is 01 (writes) or 11
+// (reads and writes), and any byte of the access lies in the LENn-byte
+// range at DRn, whose low address bits LENn masks (1, 2, 8 and 4 bytes for
+// 00, 01, 10 and 11).  Instruction fetches and the processor's own
+// descriptor-table reads do not count.  Hits accumulate in pending_dbp for
+// the trap that step() raises after the instruction.
+val note_data_access : (qword, int, bool) -> unit
+function note_data_access(lin, nbytes, is_write) = {
+  foreach (n from 0 to 3) {
+    let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
+    let rw : bits(2) = DR7[(17 + 4 * n) .. (16 + 4 * n)];
+    let len : range(1, 8) = match DR7[(19 + 4 * n) .. (18 + 4 * n)] {
+      0b00 => 1, 0b01 => 2, 0b10 => 8, _ => 4
+    };
+    let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
+    let base : int = unsigned(dr & ~(to_bits(64, len - 1)));
+    let applies : bool = (rw == 0b01 & is_write) | rw == 0b11;
+    if enabled & applies & unsigned(lin) < base + len & base < unsigned(lin) + nbytes then
+      pending_dbp[n] = bitone
+  }
+}
+
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
 // separately to handle non-contiguous physical pages.
 function read_mem_linear(n, addr, access) = {
+  if access == PT_Read then note_data_access(addr, n / 8, false);
   let page_offset = unsigned(addr & 0x0000000000000FFF);
   if page_offset + n / 8 <= 4096 then {
     let paddr = translate_addr(addr, access);
@@ -51,6 +75,7 @@ function read_mem_implicit(n, addr) = read_mem_linear(addr, PT_Implicit)
 // Write 'n bits to memory at the given virtual address.
 // Same page-crossing logic as mem_read.
 function write_mem_linear(n, addr, data) = {
+  note_data_access(addr, n / 8, true);
   let page_offset = unsigned(addr & 0x0000000000000FFF);
   if page_offset + n / 8 <= 4096 then {
     let paddr = translate_addr(addr, PT_Write);

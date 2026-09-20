@@ -252,6 +252,78 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     add_fault("single-step trap before a breakpointed instruction", {0x90, 0x90, 0xF4}, t, -1);
   }
 
+  // Data breakpoints (SDM Vol.3B §20.2.5, §20.3.1.2): R/Wn = 01 for writes,
+  // 11 for reads and writes; LENn = 00/01/11/10 for 1/2/4/8 bytes with the
+  // low address bits masked.  A trap after the instruction whose access
+  // touches any byte of the range, the pushed RIP past the instruction and
+  // DR6 reporting Bn.  rdi = DATA_ADDR throughout.
+  auto dbp = [&](int n, u64 addr, unsigned rw, unsigned len) {
+    ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+    s.dr[n] = addr;
+    s.dr7 = (1ull << (2 * n)) | ((u64)rw << (16 + 4 * n)) | ((u64)len << (18 + 4 * n));
+    return s;
+  };
+  add_fault("data bp write LEN=1 hit by mov [rdi],al", {0x88, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 1, 0), 1);
+  add_fault("data bp R/W LEN=1 hit by mov al,[rdi]", {0x8A, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 3, 0), 1);
+  add_no_fault("data bp write-only not hit by a read", {0x8A, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 1, 0));
+  add_no_fault("data bp LEN=1 at +1 not hit by a byte write at +0", {0x88, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 1, 1, 0));
+  add_fault("data bp LEN=1 at +3 hit by a dword write at +0", {0x89, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 3, 1, 0), 1);
+  add_no_fault("data bp LEN=1 at +3 not hit by a word write at +0", {0x66, 0x89, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 3, 1, 0));
+  add_fault("data bp LEN=4 at +4 hit by a byte write at +7", {0x88, 0x47, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 4, 1, 3), 1);
+  add_no_fault("data bp LEN=4 at +4 not hit by a byte write at +8", {0x88, 0x47, 0x08, 0x90, 0xF4}, dbp(0, DATA_ADDR + 4, 1, 3));
+  add_fault("data bp LEN=4 at unaligned +6 masks to +4: hit by a write at +4", {0x88, 0x47, 0x04, 0x90, 0xF4}, dbp(0, DATA_ADDR + 6, 1, 3), 1);
+  add_fault("data bp LEN=8 at +8 hit by a byte write at +15", {0x88, 0x47, 0x0F, 0x90, 0xF4}, dbp(0, DATA_ADDR + 8, 1, 2), 1);
+  add_no_fault("data bp LEN=8 at +8 not hit by a byte write at +16", {0x88, 0x47, 0x10, 0x90, 0xF4}, dbp(0, DATA_ADDR + 8, 1, 2));
+  {
+    ArchState s = dbp(0, DATA_ADDR, 1, 0);
+    s.dr[1] = DATA_ADDR + 1; s.dr7 |= (1ull << 2) | (1ull << 20);
+    add_fault("data bp DR0 and DR1 hit by one word write (B0 and B1)", {0x66, 0x89, 0x07, 0x90, 0xF4}, s, 1);
+  }
+  add_fault("data bp LEN=8 on the stack slot hit by push rax", {0x50, 0x90, 0xF4}, dbp(0, STACK_TOP - 8, 1, 2), 1);
+  {
+    ArchState s = dbp(0, DATA_ADDR, 1, 0); s.rflags = 0x102;
+    add_fault("data bp with single-step: BS and B0 together", {0x88, 0x07, 0x90, 0xF4}, s, 1);
+  }
+  {
+    // A faulting instruction loses its data breakpoint: divb [rdi] with
+    // [rdi] = 0 reads the divisor (a hit) and then raises #DE; DR6 stays.
+    TestCase tc;
+    tc.name = "data bp lost when the instruction faults (divb [rdi] by zero)";
+    tc.category = cat;
+    tc.code = {0xF6, 0x37};
+    tc.initial = dbp(0, DATA_ADDR, 3, 0);
+    tc.initial.rax = 1;
+    tc.flags_mask = 0;
+    tc.expect_fault = true;
+    tc.expected_vector = 0;
+    tc.init_data.assign(16, 0);
+    tests.push_back(std::move(tc));
+  }
+  {
+    // MOV SS from memory hitting a read breakpoint: the trap is delivered
+    // after the following instruction (§20.3.1.2).
+    TestCase tc;
+    tc.name = "data bp on mov ss,[rdi] delivered after the next instruction";
+    tc.category = cat;
+    tc.code = {0x8E, 0x17, 0x90, 0xF4};
+    tc.initial = dbp(0, DATA_ADDR, 3, 0);
+    tc.flags_mask = 0;
+    tc.expect_fault = true;
+    tc.expected_vector = 1;
+    tc.init_data = {0x10, 0x00};  // SS selector
+    tests.push_back(std::move(tc));
+  }
+  // Repeated string instructions: the trap follows the iteration that hit
+  // (or each iteration under TF), RIP back at the instruction with RF = 1
+  // in the image (§20.3.1.1), unless the processor batches iterations
+  // (fast strings, §20.3.1.2): probes.
+  {
+    ArchState s = dbp(0, DATA_ADDR + 2, 1, 0); s.rcx = 4; s.rax = 0x41;
+    add_fault("data bp inside rep stosb (trap after the hitting iteration)", {0xF3, 0xAA, 0x90, 0xF4}, s, -1);
+    ArchState t = {.rcx = 3, .rdi = DATA_ADDR, .rflags = 0x102};
+    add_fault("single-step of rep stosb (trap after the first iteration, RF=1)", {0xF3, 0xAA, 0x90, 0xF4}, t, -1);
+  }
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 
