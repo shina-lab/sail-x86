@@ -958,8 +958,11 @@ function dispatch_evex_map6(opcode, pfx) = {
 
   match op {
 
-    // MAP6 0x98-9F: VFMADD/FMSUB/FNMADD/FNMSUB 132 PH
+    // MAP6 0x98: VFMADD132PH (66, W=0)
     152 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_packed(PT_FMAdd, FMA_132, pfx) },
+
+    // MAP6 0xA8: VFMADD213PH (66, W=0)
+    168 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_packed(PT_FMAdd, FMA_213, pfx) },
 
     // MAP6 0xB8: VFMADD231PH (66, W=0)
     184 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_packed(PT_FMAdd, FMA_231, pfx) },

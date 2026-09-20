@@ -2051,6 +2051,27 @@ void test_vaesenc_512(void) {
   check(ok, "vaesenc zmm = four xmm rounds");
 }
 
+// AVX512-FP16: VFMADD213PH computes src2*dst + src3 and VFMADD132PH
+// dst*src3 + src2, so with the operands permuted the two must agree bit
+// for bit (one rounding each).  Lane 0 is 1.0*2.0 + 0.5 = 2.5 = 0x4100.
+void test_vfmadd213ph_512(void) {
+  typedef unsigned short v32hu __attribute__((vector_size(64)));
+  v32hu a, b, c, r213, r132;
+  for (int i = 0; i < 32; i++) {
+    a[i] = 0x3C00 + (i << 4);  // 1.0 + i/64
+    b[i] = 0x4000 + (i << 5);  // 2.0 + i/32
+    c[i] = 0x3800 + (i << 3);  // 0.5 + i/128
+  }
+  BARRIER(a); BARRIER(b); BARRIER(c);
+  r213 = a;
+  __asm__ volatile("vfmadd213ph %2, %1, %0" : "+v"(r213) : "v"(b), "v"(c));
+  r132 = a;
+  __asm__ volatile("vfmadd132ph %2, %1, %0" : "+v"(r132) : "v"(c), "v"(b));
+  int ok = r213[0] == 0x4100;
+  for (int i = 0; i < 32; i++) ok &= r213[i] == r132[i];
+  check(ok, "vfmadd213ph zmm = vfmadd132ph with operands permuted");
+}
+
 void test_vpshldd_512(void) {
   typedef unsigned int v16su __attribute__((vector_size(64)));
   v16su a, b, dst;
@@ -2335,6 +2356,7 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
   test_vpscatterdd_512();
   test_vpclmulqdq_512();
   test_vaesenc_512();
+  test_vfmadd213ph_512();
   test_vpshldd_512();
   test_gf2p8mulb_512();
   test_vexp2ps_512();
