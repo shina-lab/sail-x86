@@ -128,23 +128,32 @@ function cpuid(leaf, subleaf) = {
         if has_bmi1       then ebx = ebx | 0x00000008;  // bit 3
         if XCR0[2] == 0b1 then ebx = ebx | 0x00000020;  // AVX2 (bit 5)
         if has_bmi2       then ebx = ebx | 0x00000100;  // bit 8
-        if has_avx512     then ebx = ebx | 0xD0030000;  // F(16)+DQ(17)+CD(28)+BW(30)+VL(31)
+        // AVX-512: has_avx512 covers the F/CD/BW/DQ/VL base and every
+        // sub-extension the model implements in full (IFMA, VBMI, VBMI2,
+        // VNNI, BITALG, VPOPCNTDQ, FP16, and BF16 in sub-leaf 1), so all
+        // are advertised together.  VP2INTERSECT is not implemented and
+        // not advertised.
+        if has_avx512     then ebx = ebx | 0xD0230000;  // F(16)+DQ(17)+IFMA(21)+CD(28)+BW(30)+VL(31)
         if has_rdseed     then ebx = ebx | 0x00040000;  // bit 18
         if has_adx        then ebx = ebx | 0x00080000;  // bit 19
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
+        if has_avx512     then ecx = ecx | 0x00005842;  // VBMI(1)+VBMI2(6)+VNNI(11)+BITALG(12)+VPOPCNTDQ(14)
         if has_gfni       then ecx = ecx | 0x00000100;  // bit 8 (GFNI)
         if has_vaes       then ecx = ecx | 0x00000200;  // bit 9 (VAES)
         if has_vpclmulqdq then ecx = ecx | 0x00000400;  // bit 10 (VPCLMULQDQ)
         if has_la57       then ecx = ecx | 0x00010000;  // bit 16 (LA57)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
+        var edx : dword = 0x00000000;
+        if has_avx512     then edx = edx | 0x00800000;  // bit 23 (AVX512_FP16)
         // EAX: maximum sub-leaf; sub-leaf 1 exists once something is in it
-        let max_sub : dword = if has_avx_vnni then 0x00000001 else 0x00000000;
-        (max_sub, ebx, ecx, 0x00000000)
+        let max_sub : dword = if has_avx_vnni | has_avx512 then 0x00000001 else 0x00000000;
+        (max_sub, ebx, ecx, edx)
       } else if sub_val == 1 then {
         var eax : dword = 0x00000000;
         if has_avx_vnni   then eax = eax | 0x00000010;  // bit 4 (AVX-VNNI)
+        if has_avx512     then eax = eax | 0x00000020;  // bit 5 (AVX512_BF16)
         (eax, 0x00000000, 0x00000000, 0x00000000)
       } else {
         (0x00000000, 0x00000000, 0x00000000, 0x00000000)

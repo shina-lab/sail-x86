@@ -633,7 +633,9 @@ function enable_features_v3() = {
   has_adx = true
 }
 
-// x86-64-v4: Skylake-X+ (AVX-512F/BW/CD/DQ/VL)
+// x86-64-v4 and everything above it that the model implements: AVX-512
+// (F/CD/BW/DQ/VL and the sub-extensions advertised in cpuid), SHA, RDSEED,
+// GFNI, VAES, VPCLMULQDQ, AVX-VNNI
 val enable_features_v4 : unit -> unit
 function enable_features_v4() = {
   enable_features_v3();

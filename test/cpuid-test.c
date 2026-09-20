@@ -85,10 +85,21 @@ static void cpuid_leaf(unsigned leaf, unsigned subleaf,
 #define L7_AVX512CD   28
 #define L7_SHA        29
 
+#define L7_AVX512IFMA 21
+
 // CPUID leaf 7 sub-leaf 1, EAX bit positions
 #define L71_AVX_VNNI    4
+#define L71_AVX512BF16  5
+
+// CPUID leaf 7, EDX bit positions
+#define L7D_AVX512FP16 23
 
 // CPUID leaf 7, ECX bit positions
+#define L7C_AVX512VBMI       1
+#define L7C_AVX512VBMI2      6
+#define L7C_AVX512VNNI      11
+#define L7C_AVX512BITALG    12
+#define L7C_AVX512VPOPCNTDQ 14
 #define L7C_GFNI        8
 #define L7C_VAES        9
 #define L7C_VPCLMULQDQ 10
@@ -185,9 +196,16 @@ void _main(void) {
     check(HAS(ebx, L7_AVX512VL) == v4, "leaf7 EBX: AVX-512VL");
     check(HAS(ebx, L7_RDSEED)   == v4, "leaf7 EBX: RDSEED");
     check(HAS(ebx, L7_SHA)      == v4, "leaf7 EBX: SHA");
+    check(HAS(ebx, L7_AVX512IFMA) == v4, "leaf7 EBX: AVX512_IFMA");
+    check(HAS(ecx, L7C_AVX512VBMI)      == v4, "leaf7 ECX: AVX512_VBMI");
+    check(HAS(ecx, L7C_AVX512VBMI2)     == v4, "leaf7 ECX: AVX512_VBMI2");
+    check(HAS(ecx, L7C_AVX512VNNI)      == v4, "leaf7 ECX: AVX512_VNNI");
+    check(HAS(ecx, L7C_AVX512BITALG)    == v4, "leaf7 ECX: AVX512_BITALG");
+    check(HAS(ecx, L7C_AVX512VPOPCNTDQ) == v4, "leaf7 ECX: AVX512_VPOPCNTDQ");
     check(HAS(ecx, L7C_GFNI)       == v4, "leaf7 ECX: GFNI");
     check(HAS(ecx, L7C_VAES)       == v4, "leaf7 ECX: VAES");
     check(HAS(ecx, L7C_VPCLMULQDQ) == v4, "leaf7 ECX: VPCLMULQDQ");
+    check(HAS(edx, L7D_AVX512FP16) == v4, "leaf7 EDX: AVX512_FP16");
 
     // ---------------------------------------------------------------
     // CPUID leaf 7 sub-leaf 1: AVX-VNNI (v4); sub-leaf 0 EAX is the
@@ -196,6 +214,7 @@ void _main(void) {
     check((eax >= 1) == v4, "leaf7 EAX: max sub-leaf >= 1");
     cpuid_leaf(7, 1, &eax, &ebx, &ecx, &edx);
     check(HAS(eax, L71_AVX_VNNI) == v4, "leaf7.1 EAX: AVX-VNNI");
+    check(HAS(eax, L71_AVX512BF16) == v4, "leaf7.1 EAX: AVX512_BF16");
 
     sys_exit(fail_count);
 }
