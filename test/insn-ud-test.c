@@ -148,6 +148,12 @@ void _main(void) {
         goto no_ud;
     }
 
+    // AVX-VNNI: VPDPBUSD ymm0, ymm1, ymm2  (VEX.256.66.0F38.W0 50: C4 E2 75 50 C2)
+    if (streq(insn, "vpdpbusd-ymm")) {
+        __asm__ volatile(".byte 0xc4, 0xe2, 0x75, 0x50, 0xc2");
+        goto no_ud;
+    }
+
     print("Unknown instruction: ");
     print(insn);
     print("\n");

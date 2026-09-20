@@ -241,6 +241,23 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     write_simd(128, dst, aesimc(src))
   },
 
+  // 0F38 50-53: VPDPBUSD/VPDPBUSDS/VPDPWSSD/VPDPWSSDS — VEX.128/256.66.0F38.W0,
+  // AVX-VNNI (CPUID.(07H,1):EAX[4]).  Each dword of the destination
+  // accumulates the dot product of the four unsigned bytes (50/51) or two
+  // signed words (52/53) of vvvv with the signed bytes/words of r/m; the
+  // odd opcodes saturate.  Same element operation as the EVEX forms.
+  op if 80 <= op & op <= 83 => {
+    if ~(has_avx_vnni) | mp != MP_66 | pfx.vex_w then raise_UD();
+    let modrm = fetch(1);
+    let dst = modrm_xreg(modrm, pfx);
+    let src = modrm_xrm(modrm, pfx);
+    let vl = vex_vl(pfx);
+    let pt : PackedTernaryOp = match op {
+      80 => PT_DPBusd, 81 => PT_DPBusds, 82 => PT_DPWssd, _ => PT_DPWssds,
+    };
+    write_simd(vl, dst, packed_ternop(pt, 32, read_simd(vl, dst), read_simd(vl, pfx.vex_vvvv), decode_vex_src(vl, src)))
+  },
+
   // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST — VEX.66.0F38.WIG.
   // The VEX.128 form comes with AES + AVX, the VEX.256 form with the VAES
   // extension (CPUID.07H:ECX[9]); each 128-bit lane is one round on its

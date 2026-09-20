@@ -37,10 +37,11 @@ function dispatch_vex_0f38(opcode, pfx) = {
 
   match op {
     // SSSE3, SSE4, broadcast, BMI, variable shifts, gather, test, maskmov,
-    // permute, VGF2P8MULB
+    // permute, AVX-VNNI, VGF2P8MULB, AES
     op if (0 <= op & op <= 15) | op == 19 | (22 <= op & op <= 26)
         | (28 <= op & op <= 30) | (32 <= op & op <= 37) | (40 <= op & op <= 65)
-        | (69 <= op & op <= 71) | (88 <= op & op <= 90) | (120 <= op & op <= 121)
+        | (69 <= op & op <= 71) | (80 <= op & op <= 83) | (88 <= op & op <= 90)
+        | (120 <= op & op <= 121)
         | op == 140 | op == 142 | (144 <= op & op <= 147) | op == 207
         | (219 <= op & op <= 223) | (242 <= op & op <= 243) | (245 <= op & op <= 247)
       => dispatch_vex_0f38_arith(op, pfx),

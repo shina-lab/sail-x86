@@ -727,6 +727,35 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
       tc.init_data = data; tests.push_back(std::move(tc)); }
   }
 
+  // AVX-VNNI: VEX.66.0F38.W0 50-53 /r (VPDPBUSD/VPDPBUSDS/VPDPWSSD/VPDPWSSDS)
+  // Only run where the host has it (CPUID.(7,1):EAX[4]).  Odd accumulator
+  // dwords start near saturation so the "s" forms differ from the wrapping
+  // ones; byte and word lanes mix signs.
+  {
+    u32 eax71, ebx71, ecx71, edx71;
+    __cpuid_count(7, 1, eax71, ebx71, ecx71, edx71);
+    if (eax71 & (1u << 4)) {
+      ArchState s = {}; s.rflags = 0x2;
+      for (int i = 0; i < 8; i++) {
+        ((u32 *)s.xmm[0].q)[i] = (i & 1) ? 0x7FFFFF00u : 1000u * i;
+        ((u32 *)s.xmm[1].q)[i] = 0xFF7F0102u + 0x01010101u * i;
+        ((u32 *)s.xmm[2].q)[i] = 0x7F80FE01u - 0x01010101u * i;
+      }
+      struct { const char *name; u8 opcode; } vnni[] = {
+        {"VPDPBUSD", 0x50}, {"VPDPBUSDS", 0x51}, {"VPDPWSSD", 0x52}, {"VPDPWSSDS", 0x53},
+      };
+      for (const auto &t : vnni) {
+        Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = t.opcode;
+        v.reg = 0; v.vvvv = 1; v.rm = 2;
+        v.L = false;
+        tests.push_back({std::string(t.name) + " xmm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x7, false});
+        v.L = true;
+        tests.push_back({std::string(t.name) + " ymm (VEX)", cat, v.encode_rr(), s, FL_NONE, 0x7, false});
+        add_vok(std::string(t.name) + " ymm,[rdi] misaligned", v.encode_rm_mem());
+      }
+    }
+  }
+
   // VPCLMULQDQ VEX: VEX.66.0F3A.WIG 44 /r ib
   {
     ArchState s = {}; s.rflags = 0x2;

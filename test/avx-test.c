@@ -642,6 +642,68 @@ static void test_vpclmulqdq_256(void) {
           INSN " ymm = two xmm rounds");                                    \
   } while (0)
 
+// =========================================================================
+// AVX-VNNI (VEX-encoded VPDPBUSD/VPDPBUSDS/VPDPWSSD/VPDPWSSDS)
+// =========================================================================
+
+// Reference from the SDM pseudocode: dst.dword[i] += the four u8*s8 products
+// (busd) or the two s16*s16 products (wssd), with signed saturation for the
+// "s" forms.
+static int vnni_ref(int op, int acc, u32 a, u32 b) {
+  long long sum = acc;
+  if (op < 2) {
+    for (int j = 0; j < 4; j++)
+      sum += (long long)((a >> (8 * j)) & 0xFF) * (signed char)((b >> (8 * j)) & 0xFF);
+  } else {
+    for (int j = 0; j < 2; j++)
+      sum += (long long)(short)((a >> (16 * j)) & 0xFFFF) * (short)((b >> (16 * j)) & 0xFFFF);
+  }
+  if (op & 1) {
+    if (sum > 0x7FFFFFFFLL) sum = 0x7FFFFFFFLL;
+    if (sum < -0x80000000LL) sum = -0x80000000LL;
+  }
+  return (int)sum;
+}
+
+#define VNNI_CHECK(OP, INSN, T, N)                                            \
+  do {                                                                        \
+    T r = acc;                                                                \
+    __asm__ volatile("%{vex%} " INSN " %2, %1, %0" : "+x"(r) : "x"(a), "x"(b)); \
+    int ok = 1;                                                               \
+    for (int i = 0; i < N; i++)                                               \
+      ok &= r[i] == vnni_ref(OP, acc[i], (u32)a[i], (u32)b[i]);               \
+    check(ok, INSN " " #T " (VEX, vs SDM reference)");                        \
+  } while (0)
+
+static void test_avx_vnni(void) {
+  // Odd dwords start near saturation so the "s" forms differ from the
+  // wrapping ones; byte and word lanes mix signs.
+  v8si acc, a, b;
+  for (int i = 0; i < 8; i++) {
+    acc[i] = (i & 1) ? 0x7FFFFF00 : 1000 * i;
+    a[i] = (int)(0xFF7F0102u + 0x01010101u * i);
+    b[i] = (int)(0x7F80FE01u - 0x01010101u * i);
+  }
+  BARRIER(acc); BARRIER(a); BARRIER(b);
+  VNNI_CHECK(0, "vpdpbusd",  v8si, 8);
+  VNNI_CHECK(1, "vpdpbusds", v8si, 8);
+  VNNI_CHECK(2, "vpdpwssd",  v8si, 8);
+  VNNI_CHECK(3, "vpdpwssds", v8si, 8);
+  {
+    v4si acc4 = {acc[0], acc[1], acc[2], acc[3]};
+    v4si a4 = {a[0], a[1], a[2], a[3]}, b4 = {b[0], b[1], b[2], b[3]};
+    BARRIER(acc4); BARRIER(a4); BARRIER(b4);
+#define acc acc4
+#define a a4
+#define b b4
+    VNNI_CHECK(0, "vpdpbusd",  v4si, 4);
+    VNNI_CHECK(3, "vpdpwssds", v4si, 4);
+#undef acc
+#undef a
+#undef b
+  }
+}
+
 static void test_vaes_256(void) {
   v4di s = {0x0123456789ABCDEFLL, (long long)0xFEDCBA9876543210ULL,
             0x0F0E0D0C0B0A0908LL, 0x0706050403020100LL};
@@ -721,6 +783,9 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
 
   // VAES
   test_vaes_256();
+
+  // AVX-VNNI
+  test_avx_vnni();
 
   // Summary
   print("\n");

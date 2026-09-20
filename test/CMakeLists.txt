@@ -234,6 +234,10 @@ add_test(NAME ok-v4-gf2p8mulb          COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BIN
 add_test(NAME ud-v3-vgf2p8affineqb-ymm COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vgf2p8affineqb-ymm 2>/dev/null; test $? -eq 134")
 add_test(NAME ok-v4-vgf2p8affineqb-ymm COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vgf2p8affineqb-ymm)
 
+# Test: AVX-VNNI gating (the VEX-encoded VPDPBUSD family comes with v4).
+add_test(NAME ud-v3-vpdpbusd-ymm COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpdpbusd-ymm 2>/dev/null; test $? -eq 134")
+add_test(NAME ok-v4-vpdpbusd-ymm COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpdpbusd-ymm)
+
 # Test: Legacy SSE instructions
 add_test(NAME sse-fp-test    COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test)
 add_test(NAME sse-cvt-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test)

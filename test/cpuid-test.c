@@ -85,6 +85,9 @@ static void cpuid_leaf(unsigned leaf, unsigned subleaf,
 #define L7_AVX512CD   28
 #define L7_SHA        29
 
+// CPUID leaf 7 sub-leaf 1, EAX bit positions
+#define L71_AVX_VNNI    4
+
 // CPUID leaf 7, ECX bit positions
 #define L7C_GFNI        8
 #define L7C_VAES        9
@@ -185,6 +188,14 @@ void _main(void) {
     check(HAS(ecx, L7C_GFNI)       == v4, "leaf7 ECX: GFNI");
     check(HAS(ecx, L7C_VAES)       == v4, "leaf7 ECX: VAES");
     check(HAS(ecx, L7C_VPCLMULQDQ) == v4, "leaf7 ECX: VPCLMULQDQ");
+
+    // ---------------------------------------------------------------
+    // CPUID leaf 7 sub-leaf 1: AVX-VNNI (v4); sub-leaf 0 EAX is the
+    // maximum sub-leaf, so it must be at least 1 once anything is there.
+    // ---------------------------------------------------------------
+    check((eax >= 1) == v4, "leaf7 EAX: max sub-leaf >= 1");
+    cpuid_leaf(7, 1, &eax, &ebx, &ecx, &edx);
+    check(HAS(eax, L71_AVX_VNNI) == v4, "leaf7.1 EAX: AVX-VNNI");
 
     sys_exit(fail_count);
 }

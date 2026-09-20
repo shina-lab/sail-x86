@@ -139,7 +139,13 @@ function cpuid(leaf, subleaf) = {
         if has_la57       then ecx = ecx | 0x00010000;  // bit 16 (LA57)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
-        (0x00000000, ebx, ecx, 0x00000000)
+        // EAX: maximum sub-leaf; sub-leaf 1 exists once something is in it
+        let max_sub : dword = if has_avx_vnni then 0x00000001 else 0x00000000;
+        (max_sub, ebx, ecx, 0x00000000)
+      } else if sub_val == 1 then {
+        var eax : dword = 0x00000000;
+        if has_avx_vnni   then eax = eax | 0x00000010;  // bit 4 (AVX-VNNI)
+        (eax, 0x00000000, 0x00000000, 0x00000000)
       } else {
         (0x00000000, 0x00000000, 0x00000000, 0x00000000)
       }
