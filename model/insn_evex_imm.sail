@@ -1444,7 +1444,7 @@ function dispatch_evex_imm(op, pfx) = {
 
   // 0F3A CE: VGF2P8AFFINEQB (66,W1) [GFNI]
   206 => {
-    if mp != MP_66 | ~(pfx.rex_w) then raise_UD();
+    if mp != MP_66 | ~(pfx.rex_w) | ~(has_gfni) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
@@ -1456,7 +1456,7 @@ function dispatch_evex_imm(op, pfx) = {
 
   // 0F3A CF: VGF2P8AFFINEINVQB (66,W1) [GFNI]
   207 => {
-    if mp != MP_66 | ~(pfx.rex_w) then raise_UD();
+    if mp != MP_66 | ~(pfx.rex_w) | ~(has_gfni) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));

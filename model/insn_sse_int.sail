@@ -960,6 +960,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
 
     // GFNI — GF2P8MULB (66 0F 38 CF)
     207 => {
+      if ~(has_gfni) then raise_UD();
       ZMM[xreg][127..0] = avx_gf2p8mulb(read_simd(xreg), src_xmm)
     },
 
@@ -1136,6 +1137,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // GFNI — GF2P8AFFINEQB (66 0F 3A CE)
     206 => {
+      if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
       ZMM[xreg][127..0] = avx_gf2p8affineqb(read_simd(xreg), src_xmm, imm)
@@ -1143,6 +1145,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // GFNI — GF2P8AFFINEINVQB (66 0F 3A CF)
     207 => {
+      if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
       ZMM[xreg][127..0] = avx_gf2p8affineinvqb(read_simd(xreg), src_xmm, imm)

@@ -994,10 +994,10 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     }
   },
 
-  // VGF2P8MULB: VEX.128/256.66.0F38.W0 CF /r
+  // VGF2P8MULB: VEX.128/256.66.0F38.W0 CF /r — GFNI + AVX
   207 => {
     let mp = get_mandatory_prefix(pfx);
-    if mp != MP_66 then raise_UD();
+    if mp != MP_66 | ~(has_gfni) then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);

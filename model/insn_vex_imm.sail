@@ -407,8 +407,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     PF = 0b0
   },
 
-  // 0F3A CE/CF: VGF2P8AFFINEQB / VGF2P8AFFINEINVQB
+  // 0F3A CE/CF: VGF2P8AFFINEQB / VGF2P8AFFINEINVQB — VEX.128/256 with GFNI + AVX
   op if op == 206 | op == 207 => {
+    if ~(has_gfni) then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     let vl = vex_vl(pfx);
     let a = read_simd(vl, pfx.vex_vvvv);

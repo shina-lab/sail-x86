@@ -136,6 +136,18 @@ void _main(void) {
         goto no_ud;
     }
 
+    // GFNI: GF2P8MULB xmm0, xmm1  (66 0F 38 CF C1)
+    if (streq(insn, "gf2p8mulb")) {
+        __asm__ volatile(".byte 0x66, 0x0f, 0x38, 0xcf, 0xc1");
+        goto no_ud;
+    }
+
+    // GFNI: VGF2P8AFFINEQB ymm0, ymm1, ymm2, 0  (VEX.256.66.0F3A.W1 CE: C4 E3 F5 CE C2 00)
+    if (streq(insn, "vgf2p8affineqb-ymm")) {
+        __asm__ volatile(".byte 0xc4, 0xe3, 0xf5, 0xce, 0xc2, 0x00");
+        goto no_ud;
+    }
+
     print("Unknown instruction: ");
     print(insn);
     print("\n");

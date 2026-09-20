@@ -227,6 +227,13 @@ add_test(NAME ok-v4-vaesenc-ymm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_
 add_test(NAME ok-v4-vaesenc-zmm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-zmm)
 add_test(NAME ud-v4-vaesenc-zmm-k1 COMMAND sh -c "${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vaesenc-zmm-k1 2>/dev/null; test $? -eq 134")
 
+# Test: GFNI gating.  All three instructions, in every encoding, come with the
+# GFNI flag (v4); below it the legacy and VEX forms are #UD.
+add_test(NAME ud-v3-gf2p8mulb          COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test gf2p8mulb 2>/dev/null; test $? -eq 134")
+add_test(NAME ok-v4-gf2p8mulb          COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test gf2p8mulb)
+add_test(NAME ud-v3-vgf2p8affineqb-ymm COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vgf2p8affineqb-ymm 2>/dev/null; test $? -eq 134")
+add_test(NAME ok-v4-vgf2p8affineqb-ymm COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vgf2p8affineqb-ymm)
+
 # Test: Legacy SSE instructions
 add_test(NAME sse-fp-test    COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test)
 add_test(NAME sse-cvt-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test)
