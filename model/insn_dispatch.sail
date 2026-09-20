@@ -1474,12 +1474,15 @@ function decode_execute() = {
 
       // CC: INT 3 — trap (saved RIP points past the INT3 byte)
       // SDM: software interrupt, no error code pushed, gate DPL check applies.
+      // Without an IDT (user mode) the fault is reported with RIP already
+      // past the instruction, as the pushed return address would be.
       204 => {
         if system_mode then {
           sw_return_rip = Some(decode_pos);
           deliver_exception(3, 0x00000000, true);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
+          RIP = decode_pos;
           __software_interrupt(0x03)
         }
       },
@@ -1493,6 +1496,7 @@ function decode_execute() = {
           deliver_exception(unsigned(imm), 0x00000000, true);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
+          RIP = decode_pos;
           __software_interrupt(imm)
         }
       },
@@ -1507,6 +1511,7 @@ function decode_execute() = {
             deliver_exception(EXN_OF, 0x00000000, true);
             next_rip = Some(RIP)
           } else {
+            RIP = decode_pos;
             __software_interrupt(0x04)
           }
         }
@@ -1797,9 +1802,19 @@ function decode_execute() = {
         exec_out(port, os)
       },
 
-      // F1: INT1 / ICEBP — Generate #DB (vector 1) without setting DR6 bits.
-      // SDM: delivers interrupt/exception to vector 1.
-      241 => throw Fault(EXN_DB, 0x00000000),
+      // F1: INT1 / ICEBP — #DB (vector 1) as a trap: the saved RIP points
+      // past the instruction, DR6 is not modified, no error code, and unlike
+      // INT n the gate's DPL is not checked (SDM Vol.2A INT n/INTO/INT3/INT1).
+      241 => {
+        if system_mode then {
+          sw_return_rip = Some(decode_pos);
+          deliver_exception(EXN_DB, 0x00000000, false);
+          next_rip = Some(RIP)
+        } else {
+          RIP = decode_pos;
+          __software_interrupt(0x01)
+        }
+      },
 
       // F4: HLT — SDM: #GP(0) if CPL > 0
       244 => {

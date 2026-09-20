@@ -1,4 +1,5 @@
 #include "kvm-harness.h"
+#include <cpuid.h>
 
 void add_exception_tests(std::vector<TestCase> &tests) {
   std::string cat;
@@ -127,6 +128,22 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // VBROADCASTF32X2 has only 256- and 512-bit forms: EVEX.128 (L'L=00) is #UD.
   add_fault("vbroadcastf32x2 xmm (no 128-bit form → #UD)",
             {0x62, 0xF2, 0x7D, 0x08, 0x19, 0xC1}, {.rflags = 0x2}, 6);
+
+  // ---- #DB (vector 1): Debug exception ----
+  cat = "Exception #DB";
+
+  // INT1/ICEBP (F1) is a trap: the pushed RIP is past the instruction and
+  // DR6 is not modified.  Both hosts' silicon pushes the next RIP (measured
+  // natively through the RIP a SIGTRAP handler sees), but KVM on AMD (SVM)
+  // delivers this #DB to the guest with the INT1's own RIP, so the plain
+  // case is a hypervisor artifact there and runs on Intel hosts only.
+  {
+    u32 a, b, c, d;
+    __get_cpuid(0, &a, &b, &c, &d);
+    bool amd_host = (b == 0x68747541);  // "Auth" of AuthenticAMD
+    if (!amd_host)
+      add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {.rflags = 0x2}, 1);
+  }
 
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";

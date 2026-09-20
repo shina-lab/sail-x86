@@ -151,6 +151,9 @@ struct ArchState {
   ZmmVal xmm[32] = {};  // full 512-bit ZMM registers (named xmm for backward compat)
   u32 mxcsr = 0x1F80;   // default MXCSR
   u64 kregs[8] = {};     // AVX-512 opmask registers k0-k7
+  u64 dr[4] = {};        // DR0-DR3 breakpoint addresses (initial state only)
+  u64 dr6 = 0xFFFF0FF0;  // DR6 at reset (initial state only)
+  u64 dr7 = 0x400;       // DR7 at reset (initial state only)
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -270,9 +273,14 @@ struct FaultInfo {
   bool faulted = false;
   int vector = -1;
   u64 error_code = 0;
-  u64 faulting_rip = 0;
+  u64 faulting_rip = 0;  // RIP the CPU pushed: the instruction for a fault, the next one for a trap
   u64 cr2 = 0;  // CR2 after the fault (meaningful for #PF; 0 otherwise)
+  u64 dr6 = 0;  // DR6 after the fault (meaningful for #DB; compared under DR6_CMP_MASK)
 };
+
+// DR6 bits compared between KVM and the model: B0-B3, BD, BS, BT.  Bit 11
+// (BLD) and bit 16 (RTM) are vendor- and hypervisor-dependent constants.
+static constexpr u64 DR6_CMP_MASK = 0xE00F;
 
 struct TestCase {
   std::string name;

@@ -413,6 +413,12 @@ struct KvmVm {
 
     ioctl(vcpu_fd, KVM_SET_REGS, &regs);
 
+    struct kvm_debugregs dbg = {};
+    for (int i = 0; i < 4; i++) dbg.db[i] = tc.initial.dr[i];
+    dbg.dr6 = tc.initial.dr6;
+    dbg.dr7 = tc.initial.dr7;
+    ioctl(vcpu_fd, KVM_SET_DEBUGREGS, &dbg);
+
     // Set XMM registers, MXCSR, and x87 state via XSAVE.
     struct kvm_xsave xsave;
     memset(&xsave, 0, sizeof(xsave));
@@ -483,6 +489,9 @@ struct KvmVm {
       struct kvm_sregs sregs;
       ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
       fi.cr2 = sregs.cr2;
+      struct kvm_debugregs dbg = {};
+      ioctl(vcpu_fd, KVM_GET_DEBUGREGS, &dbg);
+      fi.dr6 = dbg.dr6;
       return true;
     }
     return false;
@@ -678,8 +687,17 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zAF = (flags >> 4) & 1;
   model.zZF = (flags >> 6) & 1;
   model.zSF = (flags >> 7) & 1;
+  model.zTF = (flags >> 8) & 1;
   model.zDF = (flags >> 10) & 1;
   model.zOF = (flags >> 11) & 1;
+
+  // Debug registers, as the KVM guest gets them through KVM_SET_DEBUGREGS
+  model.zDR0 = tc.initial.dr[0];
+  model.zDR1 = tc.initial.dr[1];
+  model.zDR2 = tc.initial.dr[2];
+  model.zDR3 = tc.initial.dr[3];
+  model.zDR6 = tc.initial.dr6;
+  model.zDR7 = tc.initial.dr7;
 
   // Initialize GDTR and write GDT entries to match KVM guest
   // Use 0x14000 for Sail-side GDT (0x3000 is too low for mmap)
@@ -770,6 +788,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         fault_out->error_code = err_code;
         fault_out->faulting_rip = model.zRIP;
         fault_out->cr2 = model.zCR2;
+        fault_out->dr6 = model.zDR6;
         model.model_fini();
         return {};
       }
@@ -922,6 +941,16 @@ int main(int argc, char **argv) {
         if (kvm_fault.error_code != sail_fault.error_code) {
           fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
                   kvm_fault.error_code, sail_fault.error_code);
+          ok = false;
+        }
+        if (kvm_fault.faulting_rip != sail_fault.faulting_rip) {
+          fprintf(stderr, "  MISMATCH RIP: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.faulting_rip, sail_fault.faulting_rip);
+          ok = false;
+        }
+        if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK) {
+          fprintf(stderr, "  MISMATCH DR6: kvm=0x%lx sail=0x%lx\n",
+                  kvm_fault.dr6, sail_fault.dr6);
           ok = false;
         }
         if (kvm_fault.cr2 != sail_fault.cr2) {

@@ -165,6 +165,7 @@ set(KVM_CATEGORIES
   "Exception #DE"
   "Exception #UD"
   "Exception #GP"
+  "Exception #DB"
   "x87 mem"
   "LOCK mem"
   "Indirect JMP"
