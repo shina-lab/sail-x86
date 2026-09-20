@@ -1,4 +1,5 @@
 #include "kvm-avx-encoder.h"
+#include <cpuid.h>
 
 void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   std::string cat = "AVX VEX-only";
@@ -717,6 +718,21 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPCLMULQDQ xmm imm=0x00", cat, v.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
     tests.push_back({"VPCLMULQDQ xmm imm=0x11", cat, v.encode_rr_imm(0x11), s, FL_NONE, 0x3, false});
     { auto c = v.encode_rm_mem(); c.push_back(0x00); add_vok("VPCLMULQDQ xmm,[rdi] misaligned", c); }
+
+    // VEX.256 needs the VPCLMULQDQ extension (CPUID.7.0:ECX[10]); both
+    // 128-bit lanes use the same quadword selectors.
+    u32 eax7, ebx7, ecx7, edx7;
+    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
+    if (ecx7 & (1u << 10)) {
+      s.xmm[1].q[2] = 0x8000000000000001; s.xmm[1].q[3] = 0x0000000000000003;
+      s.xmm[2].q[2] = 0x0123456789ABCDEF; s.xmm[2].q[3] = 0xFFFFFFFFFFFFFFFF;
+      v.L = true;
+      tests.push_back({"VPCLMULQDQ ymm imm=0x00", cat, v.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+      tests.push_back({"VPCLMULQDQ ymm imm=0x01", cat, v.encode_rr_imm(0x01), s, FL_NONE, 0x3, false});
+      tests.push_back({"VPCLMULQDQ ymm imm=0x10", cat, v.encode_rr_imm(0x10), s, FL_NONE, 0x3, false});
+      tests.push_back({"VPCLMULQDQ ymm imm=0x11", cat, v.encode_rr_imm(0x11), s, FL_NONE, 0x3, false});
+      { auto c = v.encode_rm_mem(); c.push_back(0x00); add_vok("VPCLMULQDQ ymm,[rdi] misaligned", c); }
+    }
   }
 
   // VMASKMOVPS load: VEX.66.0F38 2C /r

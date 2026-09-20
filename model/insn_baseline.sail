@@ -133,6 +133,7 @@ function cpuid(leaf, subleaf) = {
         if has_adx        then ebx = ebx | 0x00080000;  // bit 19
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
+        if has_vpclmulqdq then ecx = ecx | 0x00000400;  // bit 10 (VPCLMULQDQ)
         if has_la57       then ecx = ecx | 0x00010000;  // bit 16 (LA57)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28

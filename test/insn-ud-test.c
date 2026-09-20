@@ -85,6 +85,32 @@ void _main(void) {
         goto no_ud;
     }
 
+    // VPCLMULQDQ xmm0, xmm1, xmm2, 0  (VEX.128.66.0F3A 44: C4 E3 71 44 C2 00)
+    // PCLMULQDQ + AVX
+    if (streq(insn, "vpclmulqdq-xmm")) {
+        __asm__ volatile(".byte 0xc4, 0xe3, 0x71, 0x44, 0xc2, 0x00");
+        goto no_ud;
+    }
+
+    // VPCLMULQDQ ymm0, ymm1, ymm2, 0  (VEX.256.66.0F3A 44: C4 E3 75 44 C2 00)
+    // VPCLMULQDQ extension (CPUID.7.0:ECX[10])
+    if (streq(insn, "vpclmulqdq-ymm")) {
+        __asm__ volatile(".byte 0xc4, 0xe3, 0x75, 0x44, 0xc2, 0x00");
+        goto no_ud;
+    }
+
+    // VPCLMULQDQ zmm0, zmm1, zmm2, 0  (EVEX.512.66.0F3A 44: 62 F3 75 48 44 C2 00)
+    if (streq(insn, "vpclmulqdq-zmm")) {
+        __asm__ volatile(".byte 0x62, 0xf3, 0x75, 0x48, 0x44, 0xc2, 0x00");
+        goto no_ud;
+    }
+
+    // Same with EVEX.aaa = 001b: the instruction has no opmask, so #UD
+    if (streq(insn, "vpclmulqdq-zmm-k1")) {
+        __asm__ volatile(".byte 0x62, 0xf3, 0x75, 0x49, 0x44, 0xc2, 0x00");
+        goto no_ud;
+    }
+
     print("Unknown instruction: ");
     print(insn);
     print("\n");

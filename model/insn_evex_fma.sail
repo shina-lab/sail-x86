@@ -42,7 +42,7 @@ function exec_scatter(vl, iw, ew, src, vsib, k_idx) = {
   write_kreg(k_idx, zeros())
 }
 
-/* ---- VPCLMULQDQ: carry-less multiply per 128-bit lane ---- */
+/* ---- VPMADD52LUQ / VPMADD52HUQ: 52-bit multiply-add ---- */
 
 // VPMADD52LUQ (shift=0) extracts low 52 bits of 52×52 product;
 // VPMADD52HUQ (shift=52) extracts high 52 bits.

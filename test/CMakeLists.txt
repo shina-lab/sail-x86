@@ -210,6 +210,15 @@ add_test(NAME ok-v2-blendvps COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/i
 add_test(NAME ok-v2-pblendw  COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test pblendw)
 add_test(NAME ok-v2-popcnt   COMMAND ${SIM} -cpu 2 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test popcnt)
 
+# Test: VPCLMULQDQ gating.  The VEX.128 form comes with PCLMULQDQ + AVX (v3),
+# the VEX.256 and EVEX forms with the VPCLMULQDQ extension (v4); the EVEX form
+# has no opmask, so EVEX.aaa != 0 is #UD even on v4.
+add_test(NAME ok-v3-vpclmulqdq-xmm    COMMAND ${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-xmm)
+add_test(NAME ud-v3-vpclmulqdq-ymm    COMMAND sh -c "${SIM} -cpu 3 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-ymm 2>/dev/null; test $? -eq 134")
+add_test(NAME ok-v4-vpclmulqdq-ymm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-ymm)
+add_test(NAME ok-v4-vpclmulqdq-zmm    COMMAND ${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-zmm)
+add_test(NAME ud-v4-vpclmulqdq-zmm-k1 COMMAND sh -c "${SIM} -cpu 4 ${CMAKE_CURRENT_BINARY_DIR}/insn-ud-test vpclmulqdq-zmm-k1 2>/dev/null; test $? -eq 134")
+
 # Test: Legacy SSE instructions
 add_test(NAME sse-fp-test    COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-fp-test)
 add_test(NAME sse-cvt-test   COMMAND ${SIM} ${CMAKE_CURRENT_BINARY_DIR}/sse-cvt-test)

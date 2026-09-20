@@ -401,14 +401,7 @@ function avx_vrange(eb, src1, src2, imm) = {
   r
 }
 
-/* ---- VPBROADCASTMB2Q / VPBROADCASTMW2D: broadcast mask to vector ---- */
-
-val avx_vpclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
-function avx_vpclmulqdq_lane(src1, src2, imm8) = {
-  let sel_a : qword = blend(src1[63..0], src1[127..64], imm8[0]);
-  let sel_b : qword = blend(src2[63..0], src2[127..64], imm8[4]);
-  pclmulqdq(sel_a, sel_b)
-}
+/* ---- VPCLMULQDQ: carry-less multiply per 128-bit lane ---- */
 
 val avx_vpclmulqdq : forall 'vl, 'vl in {128, 256, 512}.
   (bits('vl), bits('vl), byte) -> bits('vl)
@@ -416,7 +409,7 @@ function avx_vpclmulqdq(src1, src2, imm8) = {
   var r : bits('vl) = zeros();
   foreach (lane from 0 to ('vl / 128 - 1)) {
     let lo = lane * 128;
-    r[(lo + 127)..lo] = avx_vpclmulqdq_lane(velem(128, src1, lane), velem(128, src2, lane), imm8);
+    r[(lo + 127)..lo] = pclmulqdq_lane(velem(128, src1, lane), velem(128, src2, lane), imm8);
   };
   r
 }
@@ -1235,15 +1228,18 @@ function dispatch_evex_imm(op, pfx) = {
   },
 
   // 0F3A 44: VPCLMULQDQ (66) — carry-less multiply per 128-bit lane [VPCLMULQDQ]
+  // The instruction has no opmask operand, so EVEX.aaa must be 000b and
+  // hence EVEX.z must be 0 (SDM Vol.2A Table 2-42); the result is written
+  // unmasked with the upper bits of the register zeroed.
   68 => {
-    if mp != MP_66 then raise_UD();
+    if mp != MP_66 | ~(has_vpclmulqdq) then raise_UD();
+    if pfx.evex_aaa != 0 | pfx.evex_z == bitone then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
-    let src1_idx = pfx.evex_vvvvv;
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 64), avx_vpclmulqdq(read_simd(vl, src1_idx), evex_src(vl, src), imm))
+    write_simd(vl, dst, avx_vpclmulqdq(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src), imm))
   },
 
   // 0F3A 50: VRANGEPS (66, W=0) / VRANGEPD (66, W=1) — range restriction packed [DQ]

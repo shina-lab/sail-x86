@@ -123,11 +123,7 @@ function vex_lane_bin_imm_elem(op, a, b, imm) = match op {
   VLBI_Dpps    => avx_dpps_128(a, b, imm),
   VLBI_Dppd    => avx_dppd_128(a, b, imm),
   VLBI_BlendW  => avx_blend_imm(16, a, b, imm),
-  VLBI_Pclmulqdq => {
-    let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
-    let sel_b : qword = blend(b[63..0], b[127..64], imm[4]);
-    pclmulqdq(sel_a, sel_b)
-  },
+  VLBI_Pclmulqdq => pclmulqdq_lane(a, b, imm),
 }
 
 val vex_lane_bin_imm_op : forall 'vl, 'vl in {128, 256}.
@@ -371,8 +367,13 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
-  // 0F3A 44: VPCLMULQDQ — VEX.128 only
-  68 => { if ~(has_pclmulqdq) | pfx.vex_l then raise_UD(); vex_exec_lane_bin_imm(VLBI_Pclmulqdq, pfx) },
+  // 0F3A 44: VPCLMULQDQ — the VEX.128 form comes with PCLMULQDQ + AVX,
+  // the VEX.256 form with the VPCLMULQDQ extension (CPUID.07H:ECX[10])
+  68 => {
+    let supported = if pfx.vex_l then has_vpclmulqdq else has_pclmulqdq;
+    if ~(supported) then raise_UD();
+    vex_exec_lane_bin_imm(VLBI_Pclmulqdq, pfx)
+  },
 
   // 0F3A 4A/4B/4C: VBLENDVPS/VPD/VB — variable blend, is4 (mask in imm8[7:4])
   op if 74 <= op & op <= 76 => {

@@ -585,6 +585,46 @@ static void test_vcvtps2ph_rounding(void) {
   check(nh_trunc == 0xBC00, "vcvtps2ph neg truncate (imm=3)");
 }
 
+// =========================================================================
+// VPCLMULQDQ
+// =========================================================================
+
+// VEX.128 form (PCLMULQDQ + AVX).  Operand order: dst, src1 (vvvv), src2.
+// imm8[0] picks the quadword of src1, imm8[4] that of src2.
+static void test_vpclmulqdq_128(void) {
+  v2di a = {3, 7};
+  v2di b = {5, 11};
+  v2di r;
+  BARRIER(a); BARRIER(b);
+  __asm__ volatile("vpclmulqdq $0x00, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 15 && r[1] == 0, "vpclmulqdq xmm imm=0x00 (3*5 in GF(2))");
+  __asm__ volatile("vpclmulqdq $0x11, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 49 && r[1] == 0, "vpclmulqdq xmm imm=0x11 (7*11 in GF(2))");
+}
+
+// VEX.256 form (VPCLMULQDQ extension): the two 128-bit lanes are multiplied
+// independently with the same quadword selectors.
+static void test_vpclmulqdq_256(void) {
+  v4di a = {3, 7, (long long)0x8000000000000000ULL, 1};
+  v4di b = {5, 11, 3, 0x0123456789ABCDEFLL};
+  v4di r;
+  BARRIER(a); BARRIER(b);
+  __asm__ volatile("vpclmulqdq $0x00, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 15 && r[1] == 0 &&
+        r[2] == (long long)0x8000000000000000ULL && r[3] == 1,
+        "vpclmulqdq ymm imm=0x00 (lo*lo per lane)");
+  __asm__ volatile("vpclmulqdq $0x11, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 49 && r[1] == 0 && r[2] == 0x0123456789ABCDEFLL && r[3] == 0,
+        "vpclmulqdq ymm imm=0x11 (hi*hi per lane)");
+  __asm__ volatile("vpclmulqdq $0x10, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 29 && r[1] == 0 &&
+        r[2] == (long long)0x8000000000000000ULL && r[3] == 0x0091A2B3C4D5E6F7LL,
+        "vpclmulqdq ymm imm=0x10 (src1 lo * src2 hi per lane)");
+  __asm__ volatile("vpclmulqdq $0x01, %2, %1, %0" : "=x"(r) : "x"(a), "x"(b));
+  check(r[0] == 27 && r[1] == 0 && r[2] == 3 && r[3] == 0,
+        "vpclmulqdq ymm imm=0x01 (src1 hi * src2 lo per lane)");
+}
+
 void __attribute__((force_align_arg_pointer)) _start(void) {
   // FP arithmetic 128-bit
   test_vaddps_128();
@@ -643,6 +683,10 @@ void __attribute__((force_align_arg_pointer)) _start(void) {
 
   // F16C
   test_vcvtps2ph_rounding();
+
+  // VPCLMULQDQ
+  test_vpclmulqdq_128();
+  test_vpclmulqdq_256();
 
   // Summary
   print("\n");

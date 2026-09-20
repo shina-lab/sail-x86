@@ -106,6 +106,12 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("lock nop (non-lockable → #UD)", {0xF0, 0x90},
             {.rflags = 0x2}, 6);
 
+  // VPCLMULQDQ zmm0, zmm1, zmm2, 0 with EVEX.aaa = 001b: the instruction
+  // has no opmask operand, so a mask register is #UD (SDM Vol.2A Table 2-42).
+  // Hosts without VPCLMULQDQ #UD on the missing feature instead.
+  add_fault("vpclmulqdq zmm {k1} (no opmask → #UD)",
+            {0x62, 0xF3, 0x75, 0x49, 0x44, 0xC2, 0x00}, {.rflags = 0x2}, 6);
+
   // ---- #GP (vector 13): General protection fault ----
   cat = "Exception #GP";
 

@@ -1157,7 +1157,7 @@ CANDIDATES += [
     # The same rewrite in the 128-bit form used by aes-gcm-aesni-x86_64.S
     # (USE_AVX=1 build, _ghash_reduce at 354-373, gfpoly via movq so g is
     # the LOW qword and the first immediate is $0x00).  The 256-bit form
-    # below needs VEX.256 VPCLMULQDQ, which the model does not implement.
+    # below needs VEX.256 VPCLMULQDQ (the VPCLMULQDQ extension).
     C("k6_gcm_avx_ghash_reduce_xmm", "avx", extras=("pclmul",),
       site="linux arch/x86/crypto/aes-gcm-aesni-x86_64.S:354-373 with USE_AVX (lo=xmm0, mi=xmm1, hi=xmm2, gfpoly=xmm3, t0=xmm4)",
       setup={"xmm3": "0000000000000000c200000000000000"},

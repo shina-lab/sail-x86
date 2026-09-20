@@ -105,6 +105,14 @@ function pclmulqdq(x, y) = {
   result
 }
 
+// One 128-bit lane of (V)PCLMULQDQ in every encoding: imm8[0] selects the
+// quadword of the first source and imm8[4] that of the second (Table 4-13);
+// the other immediate bits are ignored.
+val pclmulqdq_lane : (xmmword, xmmword, byte) -> xmmword
+function pclmulqdq_lane(src1, src2, imm8) =
+  pclmulqdq(blend(src1[63..0], src1[127..64], imm8[0]),
+            blend(src2[63..0], src2[127..64], imm8[4]))
+
 // =========================================================================
 // MASKMOVDQU — Store Selected Bytes (SDM Vol.2B §4-1)
 //
@@ -1059,10 +1067,7 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       if ~(has_pclmulqdq) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       let imm = fetch(1);
-      let a : xmmword = read_simd(xreg);
-      let sel_a : qword = blend(a[63..0], a[127..64], imm[0]);
-      let sel_b : qword = blend(src_xmm[63..0], src_xmm[127..64], imm[4]);
-      ZMM[xreg][127..0] = pclmulqdq(sel_a, sel_b)
+      ZMM[xreg][127..0] = pclmulqdq_lane(read_simd(xreg), src_xmm, imm)
     },
 
     // SSE4.2 — PCMPESTRM (no alignment requirement — SDM exception class 4)
