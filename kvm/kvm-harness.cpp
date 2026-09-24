@@ -653,6 +653,12 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     model.zSegCache.data[x86::SEG_CS].zseg_db = 0;
     model.zSegCache.data[x86::SEG_CS].zseg_l = 1;
   }
+  // Visible selectors as KVM loads them: CS 0x08 (0x48 in compatibility
+  // mode), every other segment the flat data segment 0x10.  Instructions
+  // that read a selector (MOV r/m,Sreg; PUSH seg) compare against these.
+  for (int i = 0; i < 6; i++)
+    model.zSegReg.data[i] = 0x10;
+  model.zSegReg.data[x86::SEG_CS] = tc.compat_mode ? 0x48 : 0x08;
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
   // Ensure guest pages are mapped (idempotent after first call).
@@ -910,6 +916,7 @@ std::vector<TestCase> build_tests() {
     add_avx_mov_tests(tests);
     add_avx_vex_only_tests(tests);
     add_avx_hi16_tests(tests);
+    add_system_tests(tests);
     // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
     // without it every case would report #UD from KVM.
     {

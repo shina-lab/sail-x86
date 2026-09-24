@@ -257,7 +257,7 @@ struct ArchState {
     flags_mask |= ~FL_ARITH;
     if (approx_rel_tol > 0) {
       assert(approx_reg < 32);
-      assert(approx_elem_bits == 32 || approx_elem_bits == 64);
+      assert(approx_elem_bits == 16 || approx_elem_bits == 32 || approx_elem_bits == 64);
       assert(approx_result_bits > 0 && approx_result_bits <= 512);
       assert(approx_result_bits % approx_elem_bits == 0);
     }
@@ -299,7 +299,12 @@ struct ArchState {
           if (memcmp(a_bytes + offset, b_bytes + offset, approx_elem_bits / 8) == 0)
             continue;
           double a_val, b_val;
-          if (approx_elem_bits == 32) {
+          if (approx_elem_bits == 16) {
+            _Float16 a_h, b_h;
+            memcpy(&a_h, (u8 *)xmm[i].q + e * 2, 2);
+            memcpy(&b_h, (u8 *)other.xmm[i].q + e * 2, 2);
+            a_val = (float)a_h; b_val = (float)b_h;
+          } else if (approx_elem_bits == 32) {
             u32 a_u, b_u;
             memcpy(&a_u, (u8 *)xmm[i].q + e * 4, 4);
             memcpy(&b_u, (u8 *)other.xmm[i].q + e * 4, 4);
@@ -480,5 +485,6 @@ void add_avx_mov_tests(std::vector<TestCase> &tests);
 void add_avx_vex_only_tests(std::vector<TestCase> &tests);
 void add_avx_hi16_tests(std::vector<TestCase> &tests);
 void add_avx_fp16_tests(std::vector<TestCase> &tests);
+void add_system_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

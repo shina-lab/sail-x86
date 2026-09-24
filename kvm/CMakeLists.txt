@@ -26,6 +26,7 @@ add_executable(kvm_harness
   kvm-tests-avx-vex.cpp
   kvm-tests-avx-hi16.cpp
   kvm-tests-avx-fp16.cpp
+  kvm-tests-system.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)

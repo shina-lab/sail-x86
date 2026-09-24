@@ -100,6 +100,27 @@ struct Evex {
     tmp.b = true;
     return tmp.encode_rm_mem_imm(imm);
   }
+
+  // VSIB operand [rdi + index*scale] for gathers, scatters, and gather
+  // prefetches.  EVEX.X and EVEX.V' extend the index register (bits 3 and
+  // 4); vvvv is not an operand and is encoded as 1111b; aaa is the mask.
+  std::vector<u8> encode_vsib(int index, int scale) const {
+    std::vector<u8> v;
+    u8 R  = (reg & 8)    ? 0 : 1;
+    u8 X  = (index & 8)  ? 0 : 1;
+    u8 B  = 1;  // base rdi
+    u8 Rp = (reg & 16)   ? 0 : 1;
+    u8 Vp = (index & 16) ? 0 : 1;
+    v.push_back(0x62);
+    v.push_back((R << 7) | (X << 6) | (B << 5) | (Rp << 4) | (mm & 0x7));
+    v.push_back(((W ? 1 : 0) << 7) | (0xF << 3) | (1 << 2) | (pp & 0x3));
+    v.push_back(((z ? 1 : 0) << 7) | ((LL & 0x3) << 5) | ((this->b ? 1 : 0) << 4) | (Vp << 3) | (aaa & 0x7));
+    v.push_back(opcode);
+    v.push_back(0x00 | ((reg & 7) << 3) | 4);  // mod=00, rm=100: SIB follows
+    int ss = scale == 8 ? 3 : scale == 4 ? 2 : scale == 2 ? 1 : 0;
+    v.push_back((ss << 6) | ((index & 7) << 3) | 7);  // base rdi
+    return v;
+  }
 };
 
 // =========================================================================
@@ -165,6 +186,22 @@ struct Vex {
   std::vector<u8> encode_rm_mem_imm(u8 imm) const {
     auto v = encode_rm_mem();
     v.push_back(imm);
+    return v;
+  }
+
+  // VSIB operand [rdi + index*scale] for the VEX gathers: VEX.X extends the
+  // index register, and vvvv names the mask register.
+  std::vector<u8> encode_vsib(int index, int scale) const {
+    std::vector<u8> v;
+    u8 R = (reg < 8) ? 1 : 0;
+    u8 X = (index < 8) ? 1 : 0;
+    v.push_back(0xC4);
+    v.push_back((R << 7) | (X << 6) | (1 << 5) | (mm & 0x1F));  // B=1 (rdi)
+    v.push_back(((W ? 1 : 0) << 7) | ((~vvvv & 0xF) << 3) | ((L ? 1 : 0) << 2) | (pp & 0x3));
+    v.push_back(opcode);
+    v.push_back(0x00 | ((reg & 7) << 3) | 4);  // mod=00, rm=100: SIB follows
+    int ss = scale == 8 ? 3 : scale == 4 ? 2 : scale == 2 ? 1 : 0;
+    v.push_back((ss << 6) | ((index & 7) << 3) | 7);  // base rdi
     return v;
   }
 };
