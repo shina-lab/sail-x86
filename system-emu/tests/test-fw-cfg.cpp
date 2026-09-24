@@ -10,6 +10,18 @@ int main() {
   pci.write_addr(0x80000900); assert(pci.read_data() == 0x70108086);
   pci.write_addr(0x80000B00); assert(pci.read_data() == 0x71138086);
   pci.write_addr(0x80000940); assert(pci.read_data() == 0x80008000);
+  // PIIX4 PM has no standard BARs or option ROM.
+  for (unsigned reg = 0x10; reg <= 0x30; reg += 4) {
+    pci.write_addr(0x80000B00 | reg);
+    pci.write_data(0xFFFFFFFF);
+    assert(pci.read_data() == 0);
+  }
+  pci.vga_rom_size = 39424;
+  pci.write_addr(0x80001030);
+  pci.write_data(0xFFFFF800); assert(pci.read_data() == 0xFFFF0000);
+  pci.write_data(0xFFFFFFFF); assert(pci.read_data() == 0xFFFF0001);
+  pci.write_data(0xFEBF8001);
+  assert(pci.read_data() == 0xFEBF0001 && pci.vga_rom_bar_addr == 0xFEBF0000);
   ACPIPM pm;
   assert(pm.timer(1000000000) == 3579545);
   assert(pm.timer(10000000000) == (35795450 & 0xFFFFFF));

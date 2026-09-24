@@ -1020,7 +1020,7 @@ public:
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
       memcpy(&cfg[reg], &val, 4);
-    } else if (cfg == dev1f3) {
+    } else if (cfg == dev1f3 && (reg == 4 || reg >= 0x40)) {
       // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev2 && reg >= 0x10 && reg < 0x28) {
@@ -1031,21 +1031,14 @@ public:
       }
       memcpy(&cfg[reg], &bar, 4);
     } else if (cfg == dev2 && reg == 0x30) {
-      // VGA ROM BAR: handle sizing and address writes.
-      // When software writes 0xFFFFFFFF, return size mask.
-      // Round ROM size up to power of 2 for PCI BAR alignment.
-      if (val == 0xFFFFFFFF || val == 0xFFFFFFFE) {
-        u32 rom_sz = vga_rom_size ? vga_rom_size : 0x800;
-        u32 aligned = 1;
-        while (aligned < rom_sz) aligned <<= 1;
-        u32 mask = ~(aligned - 1) | 1;  // bit 0 = enable
-        memcpy(&cfg[reg], &mask, 4);
-      } else {
-        memcpy(&cfg[reg], &val, 4);
-        // Track the new BAR address (the emulator's main code needs to
-        // call phys_mem.set_vga_rom_bar() with this value)
-        vga_rom_bar_addr = val & ~(u32)1;  // mask off enable bit
-      }
+      // Address bits below the ROM size are hardwired zero, including when
+      // SeaBIOS probes with FFFFF800 rather than FFFFFFFF.
+      u32 aligned = 0x800;
+      while (aligned < vga_rom_size) aligned <<= 1;
+      u32 bar = val & (~(aligned - 1) | 1);
+      memcpy(&cfg[reg], &bar, 4);
+      if ((val & 0xFFFFF800) != 0xFFFFF800)
+        vga_rom_bar_addr = bar & ~1u;
     } else if (cfg == dev2) {
       // VGA: allow other config writes (command, etc.)
       memcpy(&cfg[reg], &val, 4);
