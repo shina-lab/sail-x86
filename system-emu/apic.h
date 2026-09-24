@@ -156,6 +156,12 @@ public:
   LocalAPIC *lapic = nullptr;
   IOAPIC() { redir.fill(1ULL << 16); }
   bool maps(u64 addr) const { return (addr >> 12) == (BASE >> 12); }
+  // INTIN0 carries the cascaded 8259 output on the PC chipset. ExtINT
+  // obtains its vector with a PIC INTA cycle and does not enter APIC ISR.
+  bool accepts_pic() const {
+    return lapic && (redir[0] & 0x10700) == 0x700 &&
+           lapic->destination(redir[0] >> 56, redir[0] & 0x800);
+  }
   u32 read(u32 offset) const {
     if (offset == 0) return select;
     if (offset != 0x10) return 0;

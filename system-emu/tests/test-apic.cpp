@@ -19,6 +19,11 @@ int main() {
   assert(m.read32(LAPIC + 0xF0) == 0xFF);
   assert(m.read32(LAPIC + 0x350) == 0x10000);
   m.write32(LAPIC + 0xF0, 0x1FF);
+  assert(!p.pic_connected());
+  route(p, 0, 0x700);
+  assert(p.pic_connected());
+  route(p, 0, 0x10700);
+  assert(!p.pic_connected());
 
   // Self IPI, task priority, ISR priority, nested interrupts and EOI.
   u32 ipi = 0x40051;

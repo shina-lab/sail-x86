@@ -159,7 +159,7 @@ public:
     return value;
   }
   bool pic_connected() const {
-    return lapic.enabled() ? lapic.accepts_pic() : !imcr_apic;
+    return lapic.enabled() ? (lapic.accepts_pic() || ioapic.accepts_pic()) : !imcr_apic;
   }
   bool interrupt_pending() {
     latch_ide_irqs();
