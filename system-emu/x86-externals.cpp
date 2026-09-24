@@ -520,12 +520,12 @@ static void fxrstor_common(Model &m, u64 addr) {
     bytes_to_bits(&m.zx87_ST.data[i], bytes, 10, 80);
   }
 
-  // XMM0-XMM15 at offset 0xA0
+  // XMM0-XMM15 at offset 0xA0: the low 128 bits of each register; bits
+  // 511:128 are not accessed (SDM Vol.1 §14.8).
   for (int i = 0; i < 16; i++) {
     u8 bytes[16];
     virt_read_bytes(m, addr + 0xA0 + i * 16, bytes, 16);
-    RECREATE(lbits)(&m.zZMM.data[i]);
-    bytes_to_bits(&m.zZMM.data[i], bytes, 16, 128);
+    set_zmm_low128(m.zZMM.data[i], bytes);
   }
 }
 

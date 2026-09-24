@@ -228,6 +228,7 @@ set(KVM_CATEGORIES
   FSGSBASE
   LEA
   XLAT
+  FXRSTOR
 )
 
 foreach(cat ${KVM_CATEGORIES})

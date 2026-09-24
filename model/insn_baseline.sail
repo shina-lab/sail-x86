@@ -1392,17 +1392,29 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(_) => raise_UD(),
         }
       } else match reg_field {
-        // FXSAVE m512byte
+        // FXSAVE m512byte (SDM Vol.2A FXSAVE): #GP(0) unless the operand
+        // is aligned on a 16-byte boundary.
         0 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxsave64(seg_linear(m, 512)),
-          (RM_mem(m), false) => __fxsave(seg_linear(m, 512)),
+          (RM_mem(m), w) => {
+            check_alignment(m, 16);
+            if w then __fxsave64(seg_linear(m, 512)) else __fxsave(seg_linear(m, 512))
+          },
           _ => raise_UD(),
         },
 
-        // FXRSTOR m512byte
+        // FXRSTOR m512byte (SDM Vol.2A FXRSTOR): #GP(0) unless the operand
+        // is 16-byte aligned, and "for an attempt to set reserved bits in
+        // MXCSR" (those clear in MXCSR_MASK); otherwise the image is loaded.
+        // As a non-VEX instruction on XMM state it does not access bits
+        // 511:128 of the registers (Vol.1 §14.8).
         1 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxrstor64(seg_linear(m, 512)),
-          (RM_mem(m), false) => __fxrstor(seg_linear(m, 512)),
+          (RM_mem(m), w) => {
+            check_alignment(m, 16);
+            let addr : qword = seg_linear(m, 512);
+            let mxcsr : dword = read_mem(addr + 24);
+            if (mxcsr & ~(mxcsr_mask())) != zeros() then raise_GP0();
+            if w then __fxrstor64(addr) else __fxrstor(addr)
+          },
           _ => raise_UD(),
         },
 
