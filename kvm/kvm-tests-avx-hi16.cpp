@@ -21,8 +21,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     }
   };
 
-  // One shared initial state: distinctive patterns in every high register,
-  // plus a few low registers for cross-half cases.
+  // Shared operand pool. Each test selects just the registers it reads.
   ArchState s = {.rflags = 0x2};
   for (int i = 16; i < 32; i++)
     fill_qwords(s.xmm[i], 0x0101010101010101ULL * (i - 15),
@@ -37,16 +36,18 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
                     int reg, int vvvv, int rm, u64 kval = 0, bool z = false) {
     Evex e;
     e.mm = 1; e.pp = pp; e.W = W; e.opcode = opcode; e.LL = LL;
-    e.reg = reg; e.vvvv = vvvv; e.rm = rm;
+    e.reg = reg; e.vvvv = vvvv < 0 ? 0 : vvvv; e.rm = rm;
     if (kval) { e.aaa = 1; e.z = z; }
     TestCase tc;
     tc.name = name;
     tc.category = cat;
     tc.code = kval ? concat(set_kmask((u32)kval), e.encode_rr())
                    : e.encode_rr();
-    tc.initial = s;
+    u32 inputs = (1U << rm) | (vvvv < 0 ? 0 : 1U << vvvv);
+    if (kval && !z) inputs |= 1U << reg;
+    tc.initial = with_vector_inputs(s, inputs);
     tc.flags_mask = FL_ALL;
-    tc.xmm_mask = (1u << reg) | (1u << vvvv) | (1u << rm);
+    tc.xmm_mask = ~0U;
     tc.kreg_mask = kval ? 0x2 : 0;
     tests.push_back(std::move(tc));
   };
@@ -59,8 +60,8 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
   // Cross-half: low destination from high sources and vice versa.
   add_rr("vpaddq zmm5,zmm16,zmm31", 1, true, 0xD4, 2, 5, 16, 31);
   add_rr("vpaddq zmm19,zmm2,zmm3", 1, true, 0xD4, 2, 19, 2, 3);
-  add_rr("vmovdqa64 zmm19,zmm4", 1, true, 0x6F, 2, 19, 0, 4);
-  add_rr("vmovdqa64 zmm6,zmm28", 1, true, 0x6F, 2, 6, 0, 28);
+  add_rr("vmovdqa64 zmm19,zmm4", 1, true, 0x6F, 2, 19, -1, 4);
+  add_rr("vmovdqa64 zmm6,zmm28", 1, true, 0x6F, 2, 6, -1, 28);
 
   // Masking with a high destination (merge and zero forms).
   add_rr("vpaddd zmm20{k1},zmm21,zmm22", 1, false, 0xFE, 2, 20, 21, 22,
@@ -85,7 +86,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     tc.name = "vmovdqu64 [rdi],zmm27";
     tc.category = cat;
     tc.code = e.encode_mr_mem();
-    tc.initial = s;
+    tc.initial = with_vector_inputs(s, 1U << 27);
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = FL_ALL;
     tc.xmm_mask = 1u << 27;
@@ -100,7 +101,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     tc.name = "vmovdqu64 zmm23,[rdi]";
     tc.category = cat;
     tc.code = e.encode_rm_mem();
-    tc.initial = s;
+    tc.initial = with_vector_inputs(s, 0);
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = FL_ALL;
     tc.xmm_mask = 1u << 23;

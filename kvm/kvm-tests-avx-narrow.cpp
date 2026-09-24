@@ -57,7 +57,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
       ev.rm = 0;    // dst = zmm0
 
       // reg-reg: test all VLs with writemask
-      add_evex_rr_tests(tests, cat, entries[e].name, ev, s, 0x3, kmask);
+      add_evex_rr_tests(tests, cat, entries[e].name, ev, s, 0x2, kmask);
     }
   };
 
@@ -135,7 +135,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
         kmask = 0xAAAA;  // BD,WQ: 16 dwords/qwords max
       else if (w.opcode == 0x25 || w.opcode == 0x35) kmask = 0x55;  // DQ: 8 qwords max
 
-      add_evex_rr_tests(tests, cat, w.name, e, s, 0x3, kmask);
+      add_evex_rr_tests(tests, cat, w.name, e, s, 0x2, kmask);
     }
   }
 
@@ -155,9 +155,9 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
 
     e.opcode = 0x63;
-    add_evex_rr_tests(tests, cat, "VPACKSSWB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VPACKSSWB", e, s, 0x6, 0xAAAAAAAA);
     e.opcode = 0x67;
-    add_evex_rr_tests(tests, cat, "VPACKUSWB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VPACKUSWB", e, s, 0x6, 0xAAAAAAAA);
   }
   {
     // VPACKSSDW: dword → word
@@ -168,7 +168,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
     e.opcode = 0x6B;
-    add_evex_rr_tests(tests, cat, "VPACKSSDW", e, s, 0x7, 0x55555555);
+    add_evex_rr_tests(tests, cat, "VPACKSSDW", e, s, 0x6, 0x55555555);
   }
   {
     // VPACKUSDW: 66 0F38 2B, W0
@@ -179,7 +179,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
     e.opcode = 0x2B;
-    add_evex_rr_tests(tests, cat, "VPACKUSDW", e, s, 0x7, 0x55555555);
+    add_evex_rr_tests(tests, cat, "VPACKUSDW", e, s, 0x6, 0x55555555);
   }
 
   // =====================================================================
@@ -209,7 +209,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
     for (const auto &u : unpck) {
       Evex e; e.mm = 1; e.pp = 1; e.W = u.W; e.opcode = u.opcode;
       e.reg = 0; e.vvvv = 1; e.rm = 2;
-      add_evex_rr_tests(tests, cat, u.name, e, s, 0x7, u.kmask);
+      add_evex_rr_tests(tests, cat, u.name, e, s, 0x6, u.kmask);
     }
   }
 }

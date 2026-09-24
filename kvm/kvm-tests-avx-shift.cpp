@@ -27,13 +27,14 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     Evex e;
     e.mm = 1; e.pp = pp; e.W = W; e.opcode = opcode;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, name, e, s, 0x7, kmask);
+    add_evex_rr_tests(tests, cat, name, e, s, 0x6, kmask);
   };
 
   // Shift by immediate: opcode /digit with imm8
   // These use modrm.reg as opcode extension, rm as source
   auto add_shift_imm = [&](const char *name, bool W, u8 opcode, int reg_ext,
                              ArchState s, u32 kmask, u8 imm) {
+    s = with_vector_inputs(s, 0x2);
     Evex e;
     e.mm = 1; e.pp = 1; e.W = W; e.opcode = opcode;
     e.reg = reg_ext;  // opcode extension in reg field
@@ -69,11 +70,11 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     Evex e;
     e.mm = mm; e.pp = 1; e.W = W; e.opcode = opcode;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, name, e, s, 0x7, kmask);
+    add_evex_rr_tests(tests, cat, name, e, s, 0x6, kmask);
 
     ArchState sm = s;
     sm.rdi = DATA_ADDR;
-    add_evex_rm_tests(tests, cat, name, e, sm, 0x3, zmm_to_data(s.xmm[2]), kmask);
+    add_evex_rm_tests(tests, cat, name, e, sm, 0x2, zmm_to_data(s.xmm[2]), kmask);
   };
 
   std::vector<u8> adata(64, 0x42);
@@ -81,6 +82,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial.xmm[1] = xmm_from_u64(0, 0); // input; the count comes from memory
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };

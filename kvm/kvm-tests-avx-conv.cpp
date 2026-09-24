@@ -21,11 +21,11 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     Evex e; e.mm = 1; e.W = false; e.opcode = 0x5B; e.reg = 0; e.vvvv = 0; e.rm = 1;
 
     e.pp = 1; // 66
-    add_evex_rr_tests(tests, cat, "VCVTPS2DQ", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTPS2DQ", e, s, 0x2, 0xAAAA);
     e.pp = 2; // F3
-    add_evex_rr_tests(tests, cat, "VCVTTPS2DQ", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTTPS2DQ", e, s, 0x2, 0xAAAA);
     e.pp = 0; // NP
-    add_evex_rr_tests(tests, cat, "VCVTDQ2PS", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTDQ2PS", e, s, 0x2, 0xAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -35,9 +35,9 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 0; e.opcode = 0x79;
-    add_evex_rr_tests(tests, cat, "VCVTPS2UDQ", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTPS2UDQ", e, s, 0x2, 0xAAAA);
     e.pp = 0; e.opcode = 0x78;
-    add_evex_rr_tests(tests, cat, "VCVTTPS2UDQ", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTTPS2UDQ", e, s, 0x2, 0xAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -45,7 +45,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.pp = 3; e.W = false; e.opcode = 0x7A;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VCVTUDQ2PS", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VCVTUDQ2PS", e, s, 0x2, 0xAAAA);
   }
 
   // =====================================================================
@@ -63,7 +63,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 2; e.opcode = 0xE6;
-    add_evex_rr_tests(tests, cat, "VCVTQQ2PD", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTQQ2PD", e, s, 0x2, 0x55);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -72,9 +72,9 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 1; e.opcode = 0x7B;
-    add_evex_rr_tests(tests, cat, "VCVTPD2QQ", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTPD2QQ", e, s, 0x2, 0x55);
     e.pp = 1; e.opcode = 0x7A;
-    add_evex_rr_tests(tests, cat, "VCVTTPD2QQ", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTTPD2QQ", e, s, 0x2, 0x55);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -82,7 +82,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 2; e.opcode = 0x7A;
-    add_evex_rr_tests(tests, cat, "VCVTUQQ2PD", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTUQQ2PD", e, s, 0x2, 0x55);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -91,9 +91,9 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 1; e.opcode = 0x79;
-    add_evex_rr_tests(tests, cat, "VCVTPD2UQQ", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTPD2UQQ", e, s, 0x2, 0x55);
     e.pp = 1; e.opcode = 0x78;
-    add_evex_rr_tests(tests, cat, "VCVTTPD2UQQ", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VCVTTPD2UQQ", e, s, 0x2, 0x55);
   }
 
   // =====================================================================

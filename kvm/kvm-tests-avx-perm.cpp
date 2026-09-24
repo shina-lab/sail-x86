@@ -3,7 +3,8 @@
 // Helper: add reg-reg tests starting from a specific VL
 static void add_evex_rr_tests_vl(
     std::vector<TestCase> &tests, const std::string &cat, const char *mnemonic,
-    Evex base, ArchState init, u32 xmm_cmp, u32 kmask_val, int min_ll) {
+    Evex base, ArchState init, u32 xmm_inputs, u32 kmask_val, int min_ll) {
+  init = with_vector_inputs(init, xmm_inputs);
   const char *vl_name[] = {"xmm", "ymm", "zmm"};
   const int vl_bits[] = {128, 256, 512};
   for (int ll = min_ll; ll <= 2; ll++) {
@@ -11,14 +12,15 @@ static void add_evex_rr_tests_vl(
     base.LL = ll;
     base.aaa = 0; base.z = false;
     tests.push_back({std::string(mnemonic) + " " + suffix,
-                     cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false});
+                     cat, base.encode_rr(), init, FL_ALL, ~0U, false});
     if (kmask_val) {
       base.aaa = 1; base.z = true;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}{z}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, ~0U, false});
       base.aaa = 1; base.z = false;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()),
+                       with_merge_input(init, xmm_inputs, base.reg), FL_ALL, ~0U, false});
     }
   }
 }
@@ -27,10 +29,13 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
   std::string cat = "AVX perm";
 
   std::vector<u8> adata(64, 0x42);
-  auto add_vok = [&](const std::string &name, std::vector<u8> code) {
+  auto add_vok = [&](const std::string &name, std::vector<u8> code,
+                         std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    for (unsigned reg : vector_inputs)
+      tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
@@ -87,10 +92,10 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (15 - i) % 16);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x36;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests_vl(tests, cat, "VPERMD", e, s, 0x7, 0xAAAA, 1);
+    add_evex_rr_tests_vl(tests, cat, "VPERMD", e, s, 0x6, 0xAAAA, 1);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x36;
       v.reg = 0; v.vvvv = 1; v.L = true;
-      add_vok("VPERMD ymm,[rdi] misaligned", v.encode_rm_mem()); }
+      add_vok("VPERMD ymm,[rdi] misaligned", v.encode_rm_mem(), {1}); }
   }
 
   // VPERMQ: VL256/512 only
@@ -100,7 +105,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (7 - i) % 8;
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x36;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests_vl(tests, cat, "VPERMQ", e, s, 0x7, 0x55, 1);
+    add_evex_rr_tests_vl(tests, cat, "VPERMQ", e, s, 0x6, 0x55, 1);
     // VEX VPERMQ imm: VEX.256.66.0F3A.W1 00 /r ib
     { Vex v; v.mm = 3; v.pp = 1; v.W = true; v.opcode = 0x00;
       v.reg = 0; v.vvvv = 0; v.L = true;
@@ -115,10 +120,10 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, (3 - (i % 4)));
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x0C;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPERMILPS", e, s, 0x7, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VPERMILPS", e, s, 0x6, 0xAAAA);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x0C;
       v.reg = 0; v.vvvv = 1; v.L = false;
-      add_vok("VPERMILPS xmm,[rdi] (reg) misaligned", v.encode_rm_mem()); }
+      add_vok("VPERMILPS xmm,[rdi] (reg) misaligned", v.encode_rm_mem(), {1}); }
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -126,10 +131,10 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = (1 - (i % 2));
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x0D;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPERMILPD", e, s, 0x7, 0x55);
+    add_evex_rr_tests(tests, cat, "VPERMILPD", e, s, 0x6, 0x55);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x0D;
       v.reg = 0; v.vvvv = 1; v.L = false;
-      add_vok("VPERMILPD xmm,[rdi] (reg) misaligned", v.encode_rm_mem()); }
+      add_vok("VPERMILPD xmm,[rdi] (reg) misaligned", v.encode_rm_mem(), {1}); }
   }
 
   // VPALIGNR (all VLs)
@@ -148,7 +153,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     { Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x0F;
       v.reg = 0; v.vvvv = 1; v.L = false;
       auto c = v.encode_rm_mem(); c.push_back(4);
-      add_vok("VPALIGNR xmm,[rdi] misaligned", c); }
+      add_vok("VPALIGNR xmm,[rdi] misaligned", c, {1}); }
   }
 
   // VALIGND/Q (all VLs)
@@ -192,7 +197,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (const auto &b : bcasts) {
       Evex e; e.mm = 2; e.pp = 1; e.W = b.W; e.opcode = b.opcode;
       e.reg = 0; e.vvvv = 0; e.rm = 1;
-      add_evex_rr_tests(tests, cat, b.name, e, s, 0x3, b.kmask);
+      add_evex_rr_tests(tests, cat, b.name, e, s, 0x2, b.kmask);
     }
     // VEX broadcast from memory — no alignment
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x58;
@@ -215,7 +220,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     float f = 3.14f; memcpy(&s.xmm[1].q[0], &f, 4);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x18;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VBROADCASTSS", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VBROADCASTSS", e, s, 0x2, 0xAAAA);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x18;
       v.reg = 0; v.vvvv = 0; v.L = false;
       add_vok("VBROADCASTSS xmm,[rdi] misaligned", v.encode_rm_mem()); }
@@ -227,7 +232,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     double d = 2.718; memcpy(&s.xmm[1].q[0], &d, 8);
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x19;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests_vl(tests, cat, "VBROADCASTSD", e, s, 0x3, 0x55, 1);
+    add_evex_rr_tests_vl(tests, cat, "VBROADCASTSD", e, s, 0x2, 0x55, 1);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x19;
       v.reg = 0; v.vvvv = 0; v.L = true;
       add_vok("VBROADCASTSD ymm,[rdi] misaligned", v.encode_rm_mem()); }
@@ -247,11 +252,11 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x1000 * (i + 1) + i;
     Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 3; e.W = true; e.opcode = 0x12;
-    add_evex_rr_tests(tests, cat, "VMOVDDUP", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VMOVDDUP", e, s, 0x2, 0x55);
     e.pp = 2; e.W = false; e.opcode = 0x16;
-    add_evex_rr_tests(tests, cat, "VMOVSHDUP", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VMOVSHDUP", e, s, 0x2, 0xAAAA);
     e.pp = 2; e.W = false; e.opcode = 0x12;
-    add_evex_rr_tests(tests, cat, "VMOVSLDUP", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VMOVSLDUP", e, s, 0x2, 0xAAAA);
   }
 
   // VSHUFPS/PD (all VLs)
@@ -289,7 +294,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, (31 - i));
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x8D;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPERMW", e, s, 0x7, 0x55555555);
+    add_evex_rr_tests(tests, cat, "VPERMW", e, s, 0x6, 0x55555555);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -297,7 +302,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = (63 - i);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x8D;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPERMB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VPERMB", e, s, 0x6, 0xAAAAAAAA);
   }
 
   // VPERMPS: EVEX.66.0F38.W0 16 /r (VL256/512 only)
@@ -307,10 +312,10 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (15 - i) % 16);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x16;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests_vl(tests, cat, "VPERMPS", e, s, 0x7, 0xAAAA, 1);
+    add_evex_rr_tests_vl(tests, cat, "VPERMPS", e, s, 0x6, 0xAAAA, 1);
     { Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x16;
       v.reg = 0; v.vvvv = 1; v.L = true;
-      add_vok("VPERMPS ymm,[rdi] misaligned", v.encode_rm_mem()); }
+      add_vok("VPERMPS ymm,[rdi] misaligned", v.encode_rm_mem(), {1}); }
   }
 
   // VPERMPD: EVEX.66.0F38.W1 16 /r (VL256/512 only)
@@ -320,7 +325,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (7 - i) % 8;
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x16;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests_vl(tests, cat, "VPERMPD", e, s, 0x7, 0x55, 1);
+    add_evex_rr_tests_vl(tests, cat, "VPERMPD", e, s, 0x6, 0x55, 1);
     // VEX VPERMPD imm: VEX.256.66.0F3A.W1 01 /r ib
     { Vex v; v.mm = 3; v.pp = 1; v.W = true; v.opcode = 0x01;
       v.reg = 0; v.vvvv = 0; v.L = true;

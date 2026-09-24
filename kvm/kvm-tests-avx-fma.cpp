@@ -66,6 +66,9 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    // Every memory form here reads the old destination and VEX.vvvv.
+    tc.initial.xmm[0] = xmm_from_u64(0, 0);
+    tc.initial.xmm[1] = xmm_from_u64(0, 0);
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
@@ -115,6 +118,7 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
   ArchState sss;
   sss.rflags = 0x2;
   float ss0 = 1.5f, ss1 = 2.5f, ss2 = 100.0f;
+  sss.xmm[0].q[0] = 0;
   memcpy(&sss.xmm[0].q[0], &ss0, 4);
   sss.xmm[0].q[1] = 0xDEADDEADDEADDEAD;  // upper sentinel
   memcpy(&sss.xmm[1].q[0], &ss1, 4);

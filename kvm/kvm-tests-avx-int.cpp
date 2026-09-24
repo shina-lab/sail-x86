@@ -31,24 +31,27 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
 
   // Generic binary int test: reg-reg + reg-mem + writemask
   auto add_int_binary = [&](const char *name, int mm, int pp, bool W, u8 opcode,
-                             ArchState s, u32 kmask, u32 xmm_cmp = 0x7) {
+                             ArchState s, u32 kmask, u32 xmm_inputs = 0x6) {
     Evex e;
     e.mm = mm; e.pp = pp; e.W = W; e.opcode = opcode;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, name, e, s, xmm_cmp, kmask);
+    add_evex_rr_tests(tests, cat, name, e, s, xmm_inputs, kmask);
 
     // reg-mem
     ArchState sm = s;
     sm.rdi = DATA_ADDR;
-    add_evex_rm_tests(tests, cat, name, e, sm, 0x3, zmm_to_data(s.xmm[2]), kmask);
+    add_evex_rm_tests(tests, cat, name, e, sm, 0x2, zmm_to_data(s.xmm[2]), kmask);
   };
 
   // VEX misaligned memory helpers (VEX computational → align=no)
   std::vector<u8> adata(64, 0x42);
-  auto add_vok = [&](const std::string &name, std::vector<u8> code) {
+  auto add_vok = [&](const std::string &name, std::vector<u8> code,
+                         std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    for (unsigned reg : vector_inputs)
+      tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
@@ -82,9 +85,9 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDB", 1, 1, false, 0xFC, s, 0xAAAAAAAA);
-      add_vok("VPADDB xmm,[rdi] misaligned", vex_bin(1, 0xFC, false));
+      add_vok("VPADDB xmm,[rdi] misaligned", vex_bin(1, 0xFC, false), {1});
       add_int_binary("VPSUBB", 1, 1, false, 0xF8, s, 0xAAAAAAAA);
-      add_vok("VPSUBB xmm,[rdi] misaligned", vex_bin(1, 0xF8, false));
+      add_vok("VPSUBB xmm,[rdi] misaligned", vex_bin(1, 0xF8, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -93,9 +96,9 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDW", 1, 1, false, 0xFD, s, 0x55555555);
-      add_vok("VPADDW xmm,[rdi] misaligned", vex_bin(1, 0xFD, false));
+      add_vok("VPADDW xmm,[rdi] misaligned", vex_bin(1, 0xFD, false), {1});
       add_int_binary("VPSUBW", 1, 1, false, 0xF9, s, 0x55555555);
-      add_vok("VPSUBW xmm,[rdi] misaligned", vex_bin(1, 0xF9, false));
+      add_vok("VPSUBW xmm,[rdi] misaligned", vex_bin(1, 0xF9, false), {1});
     }
 
     // --- VPADD/VPSUB dword/qword ---
@@ -108,9 +111,9 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDD", 1, 1, false, 0xFE, s, 0xAAAA);
-      add_vok("VPADDD xmm,[rdi] misaligned", vex_bin(1, 0xFE, false));
+      add_vok("VPADDD xmm,[rdi] misaligned", vex_bin(1, 0xFE, false), {1});
       add_int_binary("VPSUBD", 1, 1, false, 0xFA, s, 0xAAAA);
-      add_vok("VPSUBD xmm,[rdi] misaligned", vex_bin(1, 0xFA, false));
+      add_vok("VPSUBD xmm,[rdi] misaligned", vex_bin(1, 0xFA, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -119,9 +122,9 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDQ", 1, 1, true, 0xD4, s, 0x55);
-      add_vok("VPADDQ xmm,[rdi] misaligned", vex_bin(1, 0xD4, false));
+      add_vok("VPADDQ xmm,[rdi] misaligned", vex_bin(1, 0xD4, false), {1});
       add_int_binary("VPSUBQ", 1, 1, true, 0xFB, s, 0x55);
-      add_vok("VPSUBQ xmm,[rdi] misaligned", vex_bin(1, 0xFB, false));
+      add_vok("VPSUBQ xmm,[rdi] misaligned", vex_bin(1, 0xFB, false), {1});
     }
 
     // --- Saturating add/sub ---
@@ -137,13 +140,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDSB",  1, 1, false, 0xEC, s, 0xAAAAAAAA);
-      add_vok("VPADDSB xmm,[rdi] misaligned", vex_bin(1, 0xEC, false));
+      add_vok("VPADDSB xmm,[rdi] misaligned", vex_bin(1, 0xEC, false), {1});
       add_int_binary("VPSUBSB",  1, 1, false, 0xE8, s, 0xAAAAAAAA);
-      add_vok("VPSUBSB xmm,[rdi] misaligned", vex_bin(1, 0xE8, false));
+      add_vok("VPSUBSB xmm,[rdi] misaligned", vex_bin(1, 0xE8, false), {1});
       add_int_binary("VPADDUSB", 1, 1, false, 0xDC, s, 0xAAAAAAAA);
-      add_vok("VPADDUSB xmm,[rdi] misaligned", vex_bin(1, 0xDC, false));
+      add_vok("VPADDUSB xmm,[rdi] misaligned", vex_bin(1, 0xDC, false), {1});
       add_int_binary("VPSUBUSB", 1, 1, false, 0xD8, s, 0xAAAAAAAA);
-      add_vok("VPSUBUSB xmm,[rdi] misaligned", vex_bin(1, 0xD8, false));
+      add_vok("VPSUBUSB xmm,[rdi] misaligned", vex_bin(1, 0xD8, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -152,13 +155,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDSW",  1, 1, false, 0xED, s, 0x55555555);
-      add_vok("VPADDSW xmm,[rdi] misaligned", vex_bin(1, 0xED, false));
+      add_vok("VPADDSW xmm,[rdi] misaligned", vex_bin(1, 0xED, false), {1});
       add_int_binary("VPSUBSW",  1, 1, false, 0xE9, s, 0x55555555);
-      add_vok("VPSUBSW xmm,[rdi] misaligned", vex_bin(1, 0xE9, false));
+      add_vok("VPSUBSW xmm,[rdi] misaligned", vex_bin(1, 0xE9, false), {1});
       add_int_binary("VPADDUSW", 1, 1, false, 0xDD, s, 0x55555555);
-      add_vok("VPADDUSW xmm,[rdi] misaligned", vex_bin(1, 0xDD, false));
+      add_vok("VPADDUSW xmm,[rdi] misaligned", vex_bin(1, 0xDD, false), {1});
       add_int_binary("VPSUBUSW", 1, 1, false, 0xD9, s, 0x55555555);
-      add_vok("VPSUBUSW xmm,[rdi] misaligned", vex_bin(1, 0xD9, false));
+      add_vok("VPSUBUSW xmm,[rdi] misaligned", vex_bin(1, 0xD9, false), {1});
     }
 
     // --- Average ---
@@ -170,7 +173,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPAVGB", 1, 1, false, 0xE0, s, 0xAAAAAAAA);
-      add_vok("VPAVGB xmm,[rdi] misaligned", vex_bin(1, 0xE0, false));
+      add_vok("VPAVGB xmm,[rdi] misaligned", vex_bin(1, 0xE0, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -179,7 +182,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPAVGW", 1, 1, false, 0xE3, s, 0x55555555);
-      add_vok("VPAVGW xmm,[rdi] misaligned", vex_bin(1, 0xE3, false));
+      add_vok("VPAVGW xmm,[rdi] misaligned", vex_bin(1, 0xE3, false), {1});
     }
 
     // --- Multiply ---
@@ -198,13 +201,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMULLW",   1, 1, false, 0xD5, s, 0x55555555);
-      add_vok("VPMULLW xmm,[rdi] misaligned", vex_bin(1, 0xD5, false));
+      add_vok("VPMULLW xmm,[rdi] misaligned", vex_bin(1, 0xD5, false), {1});
       add_int_binary("VPMULHW",   1, 1, false, 0xE5, s, 0x55555555);
-      add_vok("VPMULHW xmm,[rdi] misaligned", vex_bin(1, 0xE5, false));
+      add_vok("VPMULHW xmm,[rdi] misaligned", vex_bin(1, 0xE5, false), {1});
       add_int_binary("VPMULHUW",  1, 1, false, 0xE4, s, 0x55555555);
-      add_vok("VPMULHUW xmm,[rdi] misaligned", vex_bin(1, 0xE4, false));
+      add_vok("VPMULHUW xmm,[rdi] misaligned", vex_bin(1, 0xE4, false), {1});
       add_int_binary("VPMULHRSW", 2, 1, false, 0x0B, s, 0x55555555);  // 0F38 map
-      add_vok("VPMULHRSW xmm,[rdi] misaligned", vex38_bin(1, 0x0B, false));
+      add_vok("VPMULHRSW xmm,[rdi] misaligned", vex38_bin(1, 0x0B, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -213,7 +216,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMULLD",  2, 1, false, 0x40, s, 0xAAAA);       // 0F38 map
-      add_vok("VPMULLD xmm,[rdi] misaligned", vex38_bin(1, 0x40, false));
+      add_vok("VPMULLD xmm,[rdi] misaligned", vex38_bin(1, 0x40, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -223,9 +226,9 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
 
       add_int_binary("VPMULLQ",  2, 1, true, 0x40, s, 0x55);          // 0F38 W1
       add_int_binary("VPMULUDQ", 1, 1, true, 0xF4, s, 0x55);
-      add_vok("VPMULUDQ xmm,[rdi] misaligned", vex_bin(1, 0xF4, false));
+      add_vok("VPMULUDQ xmm,[rdi] misaligned", vex_bin(1, 0xF4, false), {1});
       add_int_binary("VPMULDQ",  2, 1, true, 0x28, s, 0x55);          // 0F38 W1
-      add_vok("VPMULDQ xmm,[rdi] misaligned", vex38_bin(1, 0x28, false));
+      add_vok("VPMULDQ xmm,[rdi] misaligned", vex38_bin(1, 0x28, false), {1});
     }
 
     // --- MADD ---
@@ -238,7 +241,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMADDWD", 1, 1, false, 0xF5, s, 0xAAAA);
-      add_vok("VPMADDWD xmm,[rdi] misaligned", vex_bin(1, 0xF5, false));
+      add_vok("VPMADDWD xmm,[rdi] misaligned", vex_bin(1, 0xF5, false), {1});
     }
     {
       ArchState s; s.rflags = 0x2;
@@ -247,7 +250,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMADDUBSW", 2, 1, false, 0x04, s, 0x55555555); // 0F38 map
-      add_vok("VPMADDUBSW xmm,[rdi] misaligned", vex38_bin(1, 0x04, false));
+      add_vok("VPMADDUBSW xmm,[rdi] misaligned", vex38_bin(1, 0x04, false), {1});
     }
 
     // --- VPSADBW: 66 0F F6, WIG ---
@@ -258,7 +261,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPSADBW", 1, 1, false, 0xF6, s, 0);  // no writemask for BW
-      add_vok("VPSADBW xmm,[rdi] misaligned", vex_bin(1, 0xF6, false));
+      add_vok("VPSADBW xmm,[rdi] misaligned", vex_bin(1, 0xF6, false), {1});
     }
   }
 
@@ -276,13 +279,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     add_int_binary("VPANDD",  1, 1, false, 0xDB, sd, 0xAAAA);
-    add_vok("VPAND xmm,[rdi] misaligned", vex_bin(1, 0xDB, false));
+    add_vok("VPAND xmm,[rdi] misaligned", vex_bin(1, 0xDB, false), {1});
     add_int_binary("VPORD",   1, 1, false, 0xEB, sd, 0xAAAA);
-    add_vok("VPOR xmm,[rdi] misaligned", vex_bin(1, 0xEB, false));
+    add_vok("VPOR xmm,[rdi] misaligned", vex_bin(1, 0xEB, false), {1});
     add_int_binary("VPXORD",  1, 1, false, 0xEF, sd, 0xAAAA);
-    add_vok("VPXOR xmm,[rdi] misaligned", vex_bin(1, 0xEF, false));
+    add_vok("VPXOR xmm,[rdi] misaligned", vex_bin(1, 0xEF, false), {1});
     add_int_binary("VPANDND", 1, 1, false, 0xDF, sd, 0xAAAA);
-    add_vok("VPANDN xmm,[rdi] misaligned", vex_bin(1, 0xDF, false));
+    add_vok("VPANDN xmm,[rdi] misaligned", vex_bin(1, 0xDF, false), {1});
 
     ArchState sq; sq.rflags = 0x2;
     fill_qwords(sq.xmm[1], 0xFF00FF00FF00FF00ULL, 1);
@@ -308,13 +311,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMINSB", 2, 1, false, 0x38, s, 0xAAAAAAAA);
-      add_vok("VPMINSB xmm,[rdi] misaligned", vex38_bin(1, 0x38, false));
+      add_vok("VPMINSB xmm,[rdi] misaligned", vex38_bin(1, 0x38, false), {1});
       add_int_binary("VPMAXSB", 2, 1, false, 0x3C, s, 0xAAAAAAAA);
-      add_vok("VPMAXSB xmm,[rdi] misaligned", vex38_bin(1, 0x3C, false));
+      add_vok("VPMAXSB xmm,[rdi] misaligned", vex38_bin(1, 0x3C, false), {1});
       add_int_binary("VPMINUB", 1, 1, false, 0xDA, s, 0xAAAAAAAA);
-      add_vok("VPMINUB xmm,[rdi] misaligned", vex_bin(1, 0xDA, false));
+      add_vok("VPMINUB xmm,[rdi] misaligned", vex_bin(1, 0xDA, false), {1});
       add_int_binary("VPMAXUB", 1, 1, false, 0xDE, s, 0xAAAAAAAA);
-      add_vok("VPMAXUB xmm,[rdi] misaligned", vex_bin(1, 0xDE, false));
+      add_vok("VPMAXUB xmm,[rdi] misaligned", vex_bin(1, 0xDE, false), {1});
     }
 
     // VPMINSW: 66 0F EA, WIG   VPMINUW: 66 0F38 3A, WIG
@@ -326,13 +329,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMINSW", 1, 1, false, 0xEA, s, 0x55555555);
-      add_vok("VPMINSW xmm,[rdi] misaligned", vex_bin(1, 0xEA, false));
+      add_vok("VPMINSW xmm,[rdi] misaligned", vex_bin(1, 0xEA, false), {1});
       add_int_binary("VPMAXSW", 1, 1, false, 0xEE, s, 0x55555555);
-      add_vok("VPMAXSW xmm,[rdi] misaligned", vex_bin(1, 0xEE, false));
+      add_vok("VPMAXSW xmm,[rdi] misaligned", vex_bin(1, 0xEE, false), {1});
       add_int_binary("VPMINUW", 2, 1, false, 0x3A, s, 0x55555555);
-      add_vok("VPMINUW xmm,[rdi] misaligned", vex38_bin(1, 0x3A, false));
+      add_vok("VPMINUW xmm,[rdi] misaligned", vex38_bin(1, 0x3A, false), {1});
       add_int_binary("VPMAXUW", 2, 1, false, 0x3E, s, 0x55555555);
-      add_vok("VPMAXUW xmm,[rdi] misaligned", vex38_bin(1, 0x3E, false));
+      add_vok("VPMAXUW xmm,[rdi] misaligned", vex38_bin(1, 0x3E, false), {1});
     }
 
     // VPMINSD: 66 0F38 39, W0   VPMINUD: 66 0F38 3B, W0
@@ -344,13 +347,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPMINSD", 2, 1, false, 0x39, s, 0xAAAA);
-      add_vok("VPMINSD xmm,[rdi] misaligned", vex38_bin(1, 0x39, false));
+      add_vok("VPMINSD xmm,[rdi] misaligned", vex38_bin(1, 0x39, false), {1});
       add_int_binary("VPMAXSD", 2, 1, false, 0x3D, s, 0xAAAA);
-      add_vok("VPMAXSD xmm,[rdi] misaligned", vex38_bin(1, 0x3D, false));
+      add_vok("VPMAXSD xmm,[rdi] misaligned", vex38_bin(1, 0x3D, false), {1});
       add_int_binary("VPMINUD", 2, 1, false, 0x3B, s, 0xAAAA);
-      add_vok("VPMINUD xmm,[rdi] misaligned", vex38_bin(1, 0x3B, false));
+      add_vok("VPMINUD xmm,[rdi] misaligned", vex38_bin(1, 0x3B, false), {1});
       add_int_binary("VPMAXUD", 2, 1, false, 0x3F, s, 0xAAAA);
-      add_vok("VPMAXUD xmm,[rdi] misaligned", vex38_bin(1, 0x3F, false));
+      add_vok("VPMAXUD xmm,[rdi] misaligned", vex38_bin(1, 0x3F, false), {1});
     }
 
     // VPMINSQ: 66 0F38 39, W1   VPMINUQ: 66 0F38 3B, W1
@@ -381,7 +384,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       Evex e;
       e.mm = mm; e.pp = pp; e.W = W; e.opcode = opcode;
       e.reg = 0; e.vvvv = 0; e.rm = 1;  // unary: no vvvv source
-      add_evex_rr_tests(tests, cat, name, e, s, 0x3, kmask);
+      add_evex_rr_tests(tests, cat, name, e, s, 0x2, kmask);
     };
 
     {

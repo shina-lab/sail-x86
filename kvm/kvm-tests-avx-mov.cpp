@@ -17,10 +17,13 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
-  auto add_vok = [&](const std::string &name, std::vector<u8> code) {
+  auto add_vok = [&](const std::string &name, std::vector<u8> code,
+                         std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    for (unsigned reg : vector_inputs)
+      tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
@@ -63,7 +66,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     for (const auto &m : moves) {
       Evex e; e.mm = 1; e.pp = m.pp; e.W = m.W; e.opcode = m.opcode;
       e.reg = 0; e.vvvv = 0; e.rm = 1;
-      add_evex_rr_tests(tests, cat, m.name, e, s, 0x3, m.W ? 0x55 : 0xAAAA);
+      add_evex_rr_tests(tests, cat, m.name, e, s, 0x2, m.W ? 0x55 : 0xAAAA);
     }
 
     // VEX misaligned memory tests for packed FP moves
@@ -133,7 +136,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     for (const auto &m : imoves) {
       Evex e; e.mm = 1; e.pp = m.pp; e.W = m.W; e.opcode = 0x6F;
       e.reg = 0; e.vvvv = 0; e.rm = 1;
-      add_evex_rr_tests(tests, cat, m.name, e, s, 0x3, m.kmask);
+      add_evex_rr_tests(tests, cat, m.name, e, s, 0x2, m.kmask);
     }
     // VEX VMOVDQA load: VEX.66.0F 6F — aligned
     add_vfault("VMOVDQA xmm,[rdi] misaligned", vex_ld(1, 0x6F, false));
@@ -175,11 +178,11 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     // VMOVD eax, xmm1: EVEX.66.0F.W0 7E /r (reg=xmm1, rm=eax)
     s.xmm[1] = xmm_from_u64(0x12345678ABCDEF01, 0);
     e.W = false; e.opcode = 0x7E; e.reg = 1; e.rm = 0;
-    tests.push_back({"VMOVD eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
+    tests.push_back({"VMOVD eax,xmm1", cat, e.encode_rr(), with_gpr_inputs(s, {}), FL_ALL, 0, false});
 
     // VMOVQ rax, xmm1
     e.W = true;
-    tests.push_back({"VMOVQ rax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
+    tests.push_back({"VMOVQ rax,xmm1", cat, e.encode_rr(), with_gpr_inputs(s, {}), FL_ALL, 0, false});
     // VEX VMOVD/VMOVQ memory — no alignment required
     add_vok("VMOVD xmm,[rdi] misaligned", vex_ld(1, 0x6E, false));
     add_vok("VMOVQ xmm,[rdi] (W1) misaligned", vex_ld(1, 0x6E, false)); // W set below
@@ -203,12 +206,12 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
         v.reg = 0; v.vvvv = 1; v.L = false;
         return v.encode_rm_mem();
       };
-      add_vok("VMOVLPS xmm,[rdi] misaligned", vex_vvvv(0, 0x12));
-      add_vok("VMOVLPD xmm,[rdi] misaligned", vex_vvvv(1, 0x12));
+      add_vok("VMOVLPS xmm,[rdi] misaligned", vex_vvvv(0, 0x12), {1});
+      add_vok("VMOVLPD xmm,[rdi] misaligned", vex_vvvv(1, 0x12), {1});
       add_vok_st("VMOVLPS [rdi],xmm misaligned", vex_ld(0, 0x13, false));
       add_vok_st("VMOVLPD [rdi],xmm misaligned", vex_ld(1, 0x13, false));
-      add_vok("VMOVHPS xmm,[rdi] misaligned", vex_vvvv(0, 0x16));
-      add_vok("VMOVHPD xmm,[rdi] misaligned", vex_vvvv(1, 0x16));
+      add_vok("VMOVHPS xmm,[rdi] misaligned", vex_vvvv(0, 0x16), {1});
+      add_vok("VMOVHPD xmm,[rdi] misaligned", vex_vvvv(1, 0x16), {1});
       add_vok_st("VMOVHPS [rdi],xmm misaligned", vex_ld(0, 0x17, false));
       add_vok_st("VMOVHPD [rdi],xmm misaligned", vex_ld(1, 0x17, false));
     }
@@ -299,7 +302,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     { Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x22;
       v.reg = 0; v.vvvv = 1; v.L = false;
       auto c = v.encode_rm_mem(); c.push_back(0);
-      add_vok("VPINSRD xmm,[rdi],0 misaligned", std::move(c)); }
+      add_vok("VPINSRD xmm,[rdi],0 misaligned", std::move(c), {1}); }
 
     // VPINSRQ xmm0, xmm1, rax, 1
     e.W = true;
@@ -308,7 +311,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     { Vex v; v.mm = 3; v.pp = 1; v.W = true; v.opcode = 0x22;
       v.reg = 0; v.vvvv = 1; v.L = false;
       auto c = v.encode_rm_mem(); c.push_back(0);
-      add_vok("VPINSRQ xmm,[rdi],0 misaligned", std::move(c)); }
+      add_vok("VPINSRQ xmm,[rdi],0 misaligned", std::move(c), {1}); }
 
     // VPINSRB xmm0, xmm1, eax, 7
     e.opcode = 0x20; e.W = false;

@@ -10,6 +10,8 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
 
   // Helper: scalar test with no mask + zeroing mask + merging mask
   auto add_scalar = [&](const char *name, Evex e, ArchState s) {
+    ArchState merge = s;
+    s = with_vector_inputs(s, 0x6);
     e.LL = 0;
     // No mask
     e.aaa = 0; e.z = false;
@@ -25,7 +27,7 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     // Merging mask (k1, bit 0 = 0 — element preserved from dst)
     e.aaa = 1; e.z = false;
     tests.push_back({std::string(name) + " xmm {k1} mask=0", cat,
-                     concat(set_kmask(0), e.encode_rr()), s, FL_ALL, 0x7, false});
+                     concat(set_kmask(0), e.encode_rr()), merge, FL_ALL, 0x7, false});
   };
 
   // Helper: scalar compare (sets RFLAGS, no vector result)
@@ -40,12 +42,12 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
     // dst (xmm0): sentinel in upper, scalar in low
     float dst_val = 99.0f;
+    s.xmm[0].q[0] = 0xDEADBEEF00000000ULL;
     memcpy(&s.xmm[0].q[0], &dst_val, 4);
-    s.xmm[0].q[0] |= 0xDEADBEEF00000000ULL;
     s.xmm[0].q[1] = 0xDEADDEAD11111111;
     // src1 (xmm1/vvvv): upper lanes preserved in dst
+    s.xmm[1].q[0] = 0xAAAAAAAA00000000ULL;
     memcpy(&s.xmm[1].q[0], &a, 4);
-    s.xmm[1].q[0] |= 0xAAAAAAAA00000000ULL;
     s.xmm[1].q[1] = 0xBBBBBBBBCCCCCCCC;
     // src2 (xmm2/rm)
     memcpy(&s.xmm[2].q[0], &b, 4);

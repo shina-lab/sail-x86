@@ -125,7 +125,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 3; e.W = false; e.opcode = 0x72;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VCVTNE2PS2BF16", e, s, 0x7, 0x55555555);
+    add_evex_rr_tests(tests, cat, "VCVTNE2PS2BF16", e, s, 0x6, 0x55555555);
   }
 
   // =====================================================================
@@ -150,7 +150,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       for (const auto &a : aes) {
         Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
         e.reg = 0; e.vvvv = 1; e.rm = 2;
-        add_evex_rr_tests(tests, cat, a.name, e, s, 0x7, 0);
+        add_evex_rr_tests(tests, cat, a.name, e, s, 0x6, 0);
       }
     }
   }
@@ -168,7 +168,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0xC4;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VPCONFLICTD", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VPCONFLICTD", e, s, 0x2, 0xAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -177,7 +177,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0xC4;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VPCONFLICTQ", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VPCONFLICTQ", e, s, 0x2, 0x55);
   }
 
   // =====================================================================
@@ -211,7 +211,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0xCF;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VGF2P8MULB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VGF2P8MULB", e, s, 0x6, 0xAAAAAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -247,7 +247,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x83;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPMULTISHIFTQB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VPMULTISHIFTQB", e, s, 0x6, 0xAAAAAAAA);
   }
 
   // =====================================================================
@@ -355,7 +355,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     for (const auto &c : compress) {
       Evex e; e.mm = 2; e.pp = 1; e.W = c.W; e.opcode = c.opcode;
       e.reg = 1; e.vvvv = 0; e.rm = 0;  // src=reg(xmm1), dst=rm(xmm0)
-      add_evex_rr_tests(tests, cat, c.name, e, s, 0x3, c.kmask);
+      add_evex_rr_tests(tests, cat, c.name, e, s, 0x2, c.kmask);
     }
   }
 
@@ -383,7 +383,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     for (const auto &x : expand) {
       Evex e; e.mm = 2; e.pp = 1; e.W = x.W; e.opcode = x.opcode;
       e.reg = 0; e.vvvv = 0; e.rm = 1;
-      add_evex_rr_tests(tests, cat, x.name, e, s, 0x3, x.kmask);
+      add_evex_rr_tests(tests, cat, x.name, e, s, 0x2, x.kmask);
     }
   }
 
@@ -457,7 +457,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x42;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VGETEXPPS", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VGETEXPPS", e, s, 0x2, 0xAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -466,7 +466,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x42;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
-    add_evex_rr_tests(tests, cat, "VGETEXPPD", e, s, 0x3, 0x55);
+    add_evex_rr_tests(tests, cat, "VGETEXPPD", e, s, 0x2, 0x55);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -479,7 +479,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x2C;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VSCALEFPS", e, s, 0x7, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VSCALEFPS", e, s, 0x6, 0xAAAA);
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -490,7 +490,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x2C;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VSCALEFPD", e, s, 0x7, 0x55);
+    add_evex_rr_tests(tests, cat, "VSCALEFPD", e, s, 0x6, 0x55);
   }
 
   // =====================================================================
@@ -509,9 +509,9 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.W = false; e.opcode = 0x4C;
-    add_evex_rr_tests(tests, cat, "VRCP14PS", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VRCP14PS", e, s, 0x2, 0xAAAA);
     e.W = false; e.opcode = 0x4E;
-    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PS", e, s, 0x3, 32);
+    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PS", e, s, 0x2, 32);
   }
   // VRCP14PD/VRSQRT14PD need f64 source data
   {
@@ -521,9 +521,9 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.W = true; e.opcode = 0x4C;
-    add_evex_rr_approx_tests(tests, cat, "VRCP14PD", e, s, 0x3, 64);
+    add_evex_rr_approx_tests(tests, cat, "VRCP14PD", e, s, 0x2, 64);
     e.W = true; e.opcode = 0x4E;
-    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PD", e, s, 0x3, 64);
+    add_evex_rr_approx_tests(tests, cat, "VRSQRT14PD", e, s, 0x2, 64);
   }
 
   // VRNDSCALEPS: EVEX.66.0F3A.W0 08 /r ib
@@ -701,7 +701,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     s.xmm[1] = xmm_from_u64(0x2222222211111111, 0x4444444433333333);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.opcode = 0x59;
-    add_evex_rr_tests(tests, cat, "VBROADCASTI32X2", e, s, 0x3, 0xAAAA);
+    add_evex_rr_tests(tests, cat, "VBROADCASTI32X2", e, s, 0x2, 0xAAAA);
     e.opcode = 0x19;
     const char *vl[] = {"xmm", "ymm", "zmm"};
     for (int ll = 1; ll <= 2; ll++) {

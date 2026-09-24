@@ -191,6 +191,16 @@ static inline std::vector<u8> concat(std::vector<u8> a, const std::vector<u8> &c
 // Test generation helpers
 // =========================================================================
 
+// A merging destination is an input only in the merging variant. Accumulator
+// instructions already list it in inputs, so retain their explicit value.
+static inline ArchState with_merge_input(ArchState values, u32 inputs,
+                                        int merge_dst) {
+  if (merge_dst >= 0 && !(inputs & (1U << merge_dst)))
+    for (u64 &word : values.xmm[merge_dst].q)
+      word = 0xDEADDEADDEADDEADULL;
+  return values;
+}
+
 // Add tests for a reg-reg EVEX instruction at all three VLs
 // with no mask, zeroing mask, and merging mask.
 static inline void add_evex_rr_tests(
@@ -199,9 +209,11 @@ static inline void add_evex_rr_tests(
     const char *mnemonic,
     Evex base,
     ArchState init,
-    u32 xmm_cmp,
-    u32 kmask_val = 0
+    u32 xmm_inputs,
+    u32 kmask_val = 0,
+    int merge_dst = 0
 ) {
+  init = with_vector_inputs(init, xmm_inputs);
   const char *vl_name[] = {"xmm", "ymm", "zmm"};
   const int vl_bits[] = {128, 256, 512};
 
@@ -212,18 +224,19 @@ static inline void add_evex_rr_tests(
     // No mask
     base.aaa = 0; base.z = false;
     tests.push_back({std::string(mnemonic) + " " + suffix,
-                     cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false});
+                     cat, base.encode_rr(), init, FL_ALL, ~0U, false});
 
     if (kmask_val) {
       // Zeroing mask
       base.aaa = 1; base.z = true;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}{z}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, ~0U, false});
 
       // Merging mask
       base.aaa = 1; base.z = false;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()),
+                       with_merge_input(init, xmm_inputs, merge_dst), FL_ALL, ~0U, false});
     }
   }
 }
@@ -236,16 +249,17 @@ static inline void add_evex_rr_approx_tests(
     const char *mnemonic,
     Evex base,
     ArchState init,
-    u32 xmm_cmp,
+    u32 xmm_inputs,
     int elem_bits,  // 32 or 64
     double rel_tol = 6.2e-5  // 2^-14 ≈ 6.1e-5, use slightly larger
 ) {
+  init = with_vector_inputs(init, xmm_inputs);
   const char *vl_name[] = {"xmm", "ymm", "zmm"};
   const int vl_bits[] = {128, 256, 512};
   for (int ll = 0; ll <= 2; ll++) {
     std::string suffix = std::string(vl_name[ll]) + " (VL" + std::to_string(vl_bits[ll]) + ")";
     base.LL = ll; base.aaa = 0; base.z = false;
-    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false};
+    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rr(), init, FL_ALL, ~0U, false};
     tc.approx_rel_tol = rel_tol;
     tc.approx_elem_bits = elem_bits;
     tc.approx_result_bits = vl_bits[ll];
@@ -262,10 +276,11 @@ static inline void add_evex_rm_tests(
     const char *mnemonic,
     Evex base,
     ArchState init,
-    u32 xmm_cmp,
+    u32 xmm_inputs,
     std::vector<u8> init_data,
     u32 kmask_val = 0
 ) {
+  init = with_vector_inputs(init, xmm_inputs);
   const char *vl_name[] = {"xmm", "ymm", "zmm"};
   const int vl_bits[] = {128, 256, 512};
 
@@ -276,7 +291,7 @@ static inline void add_evex_rm_tests(
     // No mask
     base.aaa = 0; base.z = false;
     {
-      TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_mem(), init, FL_ALL, xmm_cmp, false};
+      TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_mem(), init, FL_ALL, ~0U, false};
       tc.init_data = init_data;
       tests.push_back(std::move(tc));
     }
@@ -285,7 +300,7 @@ static inline void add_evex_rm_tests(
       base.aaa = 1; base.z = true;
       {
         TestCase tc = {std::string(mnemonic) + " " + suffix + " {k1}{z}", cat,
-                       concat(set_kmask(kmask_val), base.encode_rm_mem()), init, FL_ALL, xmm_cmp, false};
+                       concat(set_kmask(kmask_val), base.encode_rm_mem()), init, FL_ALL, ~0U, false};
         tc.init_data = init_data;
         tests.push_back(std::move(tc));
       }
@@ -300,9 +315,10 @@ static inline void add_evex_bcast_tests(
     const char *mnemonic,
     Evex base,
     ArchState init,
-    u32 xmm_cmp,
+    u32 xmm_inputs,
     std::vector<u8> init_data
 ) {
+  init = with_vector_inputs(init, xmm_inputs);
   const char *vl_name[] = {"xmm", "ymm", "zmm"};
   const int vl_bits[] = {128, 256, 512};
 
@@ -310,7 +326,7 @@ static inline void add_evex_bcast_tests(
     std::string suffix = std::string(vl_name[ll]) + " {1toN} (VL" + std::to_string(vl_bits[ll]) + ")";
     base.LL = ll;
     base.aaa = 0; base.z = false;
-    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_bcast(), init, FL_ALL, xmm_cmp, false};
+    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_bcast(), init, FL_ALL, ~0U, false};
     tc.init_data = init_data;
     tests.push_back(std::move(tc));
   }

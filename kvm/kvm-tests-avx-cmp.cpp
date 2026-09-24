@@ -272,7 +272,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     for (auto &b : blends) {
       Evex e; e.mm = 2; e.pp = 1; e.W = b.W; e.opcode = b.opcode;
       e.reg = 0; e.vvvv = 1; e.rm = 2;
-      add_evex_rr_tests(tests, cat, b.name, e, s, 0x7, b.kmask);
+      add_evex_rr_tests(tests, cat, b.name, e, s, 0x6, b.kmask, -1);
     }
   }
   {
@@ -283,9 +283,9 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x66;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
-    add_evex_rr_tests(tests, cat, "VPBLENDMB", e, s, 0x7, 0xAAAAAAAA);
+    add_evex_rr_tests(tests, cat, "VPBLENDMB", e, s, 0x6, 0xAAAAAAAA, -1);
 
     e.W = true;
-    add_evex_rr_tests(tests, cat, "VPBLENDMW", e, s, 0x7, 0x55555555);
+    add_evex_rr_tests(tests, cat, "VPBLENDMW", e, s, 0x6, 0x55555555, -1);
   }
 }
