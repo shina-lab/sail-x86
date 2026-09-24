@@ -2,6 +2,7 @@
 #define KVM_HARNESS_H
 
 #include "sail_x86_model.h"
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -152,29 +153,48 @@ inline ZmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
   return v;
 }
 
+// Changed only while constructing test cases. Explicit initializers (including
+// zero) override this background; execution uses the resulting concrete state.
+inline u64 initial_register_fill = 0;
+
+inline std::array<ZmmVal, 32> initial_zmm_values() {
+  std::array<ZmmVal, 32> values;
+  for (auto &reg : values)
+    for (u64 &word : reg.q)
+      word = initial_register_fill;
+  return values;
+}
+
+inline std::array<u64, 8> initial_kreg_values() {
+  std::array<u64, 8> values;
+  values.fill(initial_register_fill);
+  return values;
+}
+
 // Architectural state we compare between KVM and Sail.
 struct ArchState {
-  u64 rax = 0;
-  u64 rbx = 0;
-  u64 rcx = 0;
-  u64 rdx = 0;
-  u64 rsi = 0;
-  u64 rdi = 0;
-  u64 rbp = 0;
+  u64 rax = initial_register_fill;
+  u64 rbx = initial_register_fill;
+  u64 rcx = initial_register_fill;
+  u64 rdx = initial_register_fill;
+  u64 rsi = initial_register_fill;
+  u64 rdi = initial_register_fill;
+  u64 rbp = initial_register_fill;
+  // RSP=0 selects STACK_TOP in the runners, so keep this sentinel unchanged.
   u64 rsp = 0;
-  u64 r8 = 0;
-  u64 r9 = 0;
-  u64 r10 = 0;
-  u64 r11 = 0;
-  u64 r12 = 0;
-  u64 r13 = 0;
-  u64 r14 = 0;
-  u64 r15 = 0;
+  u64 r8 = initial_register_fill;
+  u64 r9 = initial_register_fill;
+  u64 r10 = initial_register_fill;
+  u64 r11 = initial_register_fill;
+  u64 r12 = initial_register_fill;
+  u64 r13 = initial_register_fill;
+  u64 r14 = initial_register_fill;
+  u64 r15 = initial_register_fill;
   u64 rip = 0;
   u64 rflags = 0;
-  ZmmVal xmm[32] = {};  // full 512-bit ZMM registers (named xmm for backward compat)
+  std::array<ZmmVal, 32> xmm = initial_zmm_values(); // full 512-bit ZMM registers
   u32 mxcsr = 0x1F80;   // default MXCSR
-  u64 kregs[8] = {};     // AVX-512 opmask registers k0-k7
+  std::array<u64, 8> kregs = initial_kreg_values(); // AVX-512 opmask registers k0-k7
   u64 dr[4] = {};        // DR0-DR3 breakpoint addresses (initial state only)
   u64 dr6 = 0xFFFF0FF0;  // DR6: reset value as initial state; compared after the run
   u64 dr7 = 0x400;       // DR7: reset value as initial state; compared after the run
@@ -317,6 +337,44 @@ struct ArchState {
     return ok;
   }
 };
+
+// Select the inputs of one instruction form from a shared operand pool.
+// Control state (including the valid stack pointer) is kept separately.
+inline ArchState with_gpr_inputs(ArchState values,
+                                std::initializer_list<u64 ArchState::*> inputs) {
+  ArchState background;
+  for (auto reg : {&ArchState::rax, &ArchState::rbx, &ArchState::rcx,
+                  &ArchState::rdx, &ArchState::rsi, &ArchState::rdi,
+                  &ArchState::rbp, &ArchState::r8, &ArchState::r9,
+                  &ArchState::r10, &ArchState::r11, &ArchState::r12,
+                  &ArchState::r13, &ArchState::r14, &ArchState::r15}) {
+    bool input = false;
+    for (auto selected : inputs) input |= selected == reg;
+    if (!input) values.*reg = background.*reg;
+  }
+  return values;
+}
+
+inline ArchState with_vector_inputs(ArchState values, u32 inputs) {
+  auto vectors = values.xmm;
+  values.xmm = ArchState{}.xmm;
+  for (unsigned i = 0; i < 32; i++)
+    if (inputs & (1U << i)) values.xmm[i] = vectors[i];
+  return values;
+}
+
+// XSAVE reads every enabled vector/opmask component named by EDX:EAX,
+// even registers not named in its encoding. Initialize precisely those bits.
+inline ArchState with_xsave_vector_inputs(ArchState values, u64 mask) {
+  for (unsigned reg = 0; reg < 32; reg++) {
+    for (unsigned q = 0; q < 8; q++) {
+      unsigned component = reg >= 16 ? 7 : q < 2 ? 1 : q < 4 ? 2 : 6;
+      if (mask & (1ULL << component)) values.xmm[reg].q[q] = 0;
+    }
+  }
+  if (mask & (1ULL << 5)) values.kregs.fill(0);
+  return values;
+}
 
 // Fault information captured from exception handlers.
 struct FaultInfo {

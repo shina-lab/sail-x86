@@ -10,6 +10,44 @@ static void expect(bool result, const char *name) {
 
 int main() {
   expect(TestCase{}.flags_mask == FL_ALL, "default flag comparison");
+  for (u64 fill : {u64(0), ~u64(0)}) {
+    initial_register_fill = fill;
+    ArchState background;
+    ArchState inputs = {.rax = 0, .rbx = 42};
+    inputs.xmm[1] = xmm_from_u64(0, 42);
+    inputs.kregs[1] = 0;
+    expect(inputs.rax == 0 && inputs.rbx == 42, "explicit GPR inputs survive fill");
+    expect(inputs.rcx == fill && inputs.r15 == fill, "default GPR inputs use fill");
+    expect(inputs.rsp == 0 && inputs.rflags == 0, "stack and control state stay fixed");
+    for (int reg = 0; reg < 32; reg++)
+      for (int q = 0; q < 8; q++)
+        expect(background.xmm[reg].q[q] == fill, "every default SIMD bit uses fill");
+    for (u64 reg : background.kregs)
+      expect(reg == fill, "every default mask bit uses fill");
+    expect(inputs.xmm[1].q[0] == 0 && inputs.xmm[1].q[1] == 42 &&
+           inputs.xmm[1].q[7] == 0 && inputs.kregs[1] == 0,
+           "explicit vector and mask inputs survive fill");
+
+    ArchState pool = inputs;
+    pool.rbx = 123;
+    pool.xmm[2] = xmm_from_u64(123, 456);
+    ArchState selected = with_vector_inputs(
+        with_gpr_inputs(pool, {&ArchState::rax}), 1U << 1);
+    expect(selected.rax == 0 && selected.rbx == fill,
+           "only declared general-purpose inputs override the background");
+    expect(selected.xmm[1] == inputs.xmm[1] &&
+           selected.xmm[2] == background.xmm[2],
+           "memory forms do not inherit an unused vector operand");
+
+    // A missing write of zero is invisible in the zero run and must fail in
+    // the ones run, even when the register was not explicitly initialized.
+    ArchState correct = background;
+    correct.rax = 0;
+    correct.xmm[31] = {};
+    correct.kregs[7] = 0;
+    expect(correct.compare(background) == (fill == 0), "detect omitted zero writes");
+  }
+  initial_register_fill = 0;
   for (const auto &v : {xmm_from_u64(1, 2), xmm_from_u32(1, 2, 3, 4),
                         xmm_from_f32(1, 2, 3, 4), xmm_from_f64(1, 2)})
     for (int q = 2; q < 8; q++)
