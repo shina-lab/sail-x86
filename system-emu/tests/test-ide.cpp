@@ -247,6 +247,46 @@ TEST(atapi_inquiry_capacity_and_read) {
   ASSERT_EQ((t[16] << 24) | (t[17] << 16) | (t[18] << 8) | t[19], 100);
 }
 
+TEST(atapi_inter_block_busy_and_interrupt) {
+  Image iso(2048 * 100);
+  IDEChannel c(BASE, CTRL);
+  u64 clock = 0;
+  c.set_clock(&clock);
+  assert(c.open_cdrom(iso.path.c_str()));
+  const u8 read10[12] = {0x28, 0, 0, 0, 0, 5, 0, 0, 3, 0};
+  send_packet(c, 2048, read10);
+  for (unsigned block = 0; block < 3; ++block) {
+    ASSERT_EQ(status(c) & 0x88, 8);
+    ASSERT_EQ(c.irq_asserted, true);
+    c.read(BASE + 7);
+    c.write_bus_master(2, 4);
+    auto data = read_block(c, 1024);
+    for (unsigned i = 0; i < data.size(); ++i)
+      ASSERT_EQ(data[i], Image::pattern((5 + block) * 2048 + i));
+    if (block == 2) break;
+    ASSERT_EQ(status(c) & 0x88, 0x80); // visible BSY, DRQ released
+    ASSERT_EQ(c.irq_asserted, false);
+    clock += 999999;
+    c.tick();
+    ASSERT_EQ(status(c) & 0x88, 0x80);
+    ++clock;
+    c.tick(); // next phase progresses even without guest status polling
+    ASSERT_EQ(c.irq_asserted, true);
+    ASSERT_EQ(c.read_bus_master(2) & 4, 4);
+  }
+  ASSERT_EQ(status(c), 0x40);
+  ASSERT_EQ(c.read(BASE + 2), 3); // command-completion phase
+  // Reset during the inter-block delay cancels the pending phase.
+  send_packet(c, 2048, read10);
+  read_block(c, 1024);
+  c.write(CTRL, 4);
+  c.write(CTRL, 0);
+  clock += 1000000;
+  c.tick();
+  ASSERT_EQ(status(c), 0x40);
+  ASSERT_EQ(c.irq_asserted, false);
+}
+
 TEST(ata_disk_read_write) {
   Image disk(512 * 64);
   IDEChannel c(0x1F0, 0x3F6);
@@ -355,6 +395,7 @@ int main() {
   run_test_atapi_signature_and_identify();
   run_test_pci_bus_master_pio_interrupt_latch();
   run_test_atapi_inquiry_capacity_and_read();
+  run_test_atapi_inter_block_busy_and_interrupt();
   run_test_ata_disk_read_write();
   run_test_master_slave_independent_transfers();
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

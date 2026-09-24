@@ -1365,6 +1365,14 @@ public:
   bool open_cdrom(const char *path) { return open_image(path, CDROM, 2048, O_RDONLY); }
   bool is_open() const { return fd >= 0; }
   Kind kind() const { return dev; }
+  u64 *clock = nullptr; // 1 GHz virtual clock; absent in untimed device fixtures
+
+  void tick() {
+    if (next_block_pending && clock && *clock >= next_block_at) {
+      next_block_pending = false;
+      begin_in_block();
+    }
+  }
 
   bool handles(u16 port) const {
     return (base <= port && port <= base + 7) || port == ctrl;
@@ -1372,6 +1380,7 @@ public:
   bool is_data_port(u16 port) const { return port == base; }
 
   u8 read(u16 port) {
+    tick();
     if (dev == NONE || slave_selected()) return 0x00;
     if (port == ctrl) return status;  // alternate status: no IRQ clear
     switch (port - base) {
@@ -1412,13 +1421,25 @@ public:
 
   // 16-bit data port read (also used for the halves of a 32-bit read)
   u16 read16() {
+    tick();
+    if (status & 0x80) return 0x0000;
     if (xfer != XFER_IN || dev == NONE || slave_selected()) return 0x0000;
     u16 v = buf[buf_pos];
     if (buf_pos + 1 < block_end) v |= (u16)buf[buf_pos + 1] << 8;
     buf_pos = std::min(buf_pos + 2, block_end);
     if (buf_pos >= block_end) {
       if (buf_pos < buf.size()) {
-        begin_in_block();
+        if (packet && clock) {
+          // A completed ATAPI data phase releases DRQ while the device
+          // prepares the next block. Making the next DRQ visible in this
+          // same data-port access hides that transition from polling hosts.
+          status = 0x80; // BSY, DRQ clear
+          irq_asserted = false;
+          next_block_pending = true;
+          next_block_at = *clock + 1000000; // 1 ms of device service time
+        } else {
+          begin_in_block();
+        }
       } else {
         xfer = XFER_NONE;
         status = 0x40;  // DRDY
@@ -1494,6 +1515,8 @@ private:
   size_t buf_pos = 0;     // next byte to move
   size_t block_end = 0;   // end of the current DRQ block
   size_t block_limit = 512;
+  bool next_block_pending = false;
+  u64 next_block_at = 0;
   u32 current_lba = 0;    // next sector of a data-out transfer
 
   // ATAPI state
@@ -1539,6 +1562,7 @@ private:
     xfer = XFER_NONE;
     buf.clear();
     buf_pos = block_end = 0;
+    next_block_pending = false;
     cdb_pos = 0;
     irq_pending = false;
     irq_asserted = false;
@@ -1549,6 +1573,7 @@ private:
   }
 
   void abort_command() {
+    next_block_pending = false;
     xfer = XFER_NONE;
     status = 0x41;  // DRDY | ERR
     error = 0x04;   // ABRT
@@ -1591,6 +1616,7 @@ private:
   }
 
   void execute(u8 cmd) {
+    next_block_pending = false;
     if (ide_trace)
       fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d\n",
               base == 0x1F0 ? 0 : 1, cmd, features, sector_count, lba_high, lba_mid, lba_low,
@@ -1911,6 +1937,8 @@ public:
   Kind kind() const { return master.kind(); }
   bool handles(u16 port) const { return master.handles(port); }
   bool is_data_port(u16 port) const { return master.is_data_port(port); }
+  void set_clock(u64 *clock) { master.clock = slave.clock = clock; }
+  void tick() { master.tick(); slave.tick(); sync_irq(); }
   u8 read(u16 port) {
     u8 value = selected().read(port);
     if (port == base + 7) irq_pending = false;

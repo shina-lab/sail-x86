@@ -93,6 +93,8 @@ public:
     phys_mem.vga = &vga;
     lapic.clock = &tsc;
     cmos.clock = &tsc;
+    ide0.set_clock(&tsc);
+    ide1.set_clock(&tsc);
     ioapic.lapic = &lapic;
     lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };
   }
@@ -194,6 +196,7 @@ public:
   // as libata does after every PIO block.
   void latch_ide_irqs() {
     auto latch = [this](IDEChannel &ide, unsigned irq) {
+      ide.tick();
       if (ide.irq_pending) {
         ide.irq_pending = false;
         set_irq(irq, false);
