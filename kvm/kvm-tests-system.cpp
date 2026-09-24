@@ -225,6 +225,52 @@ void add_system_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // LTR r/m16 (0F 00 /3) and STR (0F 00 /1)
+  // =====================================================================
+  cat = "System LTR";
+  {
+    // The GDT's TSS descriptor (selector 0x18) is an available 64-bit TSS
+    // in memory although TR already holds it as busy, so a first LTR
+    // succeeds and marks it busy; STR to memory reads the selector back.
+    // The checks of the SDM's Operation section, in order: a null selector
+    // #GP(0); an LDT selector or one beyond the GDT limit #GP(selector);
+    // a descriptor that is not an available TSS #GP(selector).
+    auto ltr = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                   std::vector<u8> data, size_t cmp_len) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = FL_ALL;
+      tc.init_data = std::move(data);
+      tc.compare_data_len = cmp_len;
+      tests.push_back(std::move(tc));
+    };
+    const std::vector<u8> ltr_ax = {0x0F, 0x00, 0xD8};   // ltr ax
+    const std::vector<u8> str_mem = {0x0F, 0x00, 0x0F};  // str word [rdi]
+    auto then_str = [&](std::vector<u8> code) {
+      code.insert(code.end(), str_mem.begin(), str_mem.end());
+      return code;
+    };
+    const std::vector<u8> zero2(2, 0);
+    ltr("ltr ax (0x18, available TSS); str [rdi]", then_str(ltr_ax), {.rax = 0x18, .rdi = DATA_ADDR}, zero2, 2);
+    ltr("ltr ax (0x1B, RPL kept); str [rdi]", then_str(ltr_ax), {.rax = 0x1B, .rdi = DATA_ADDR}, zero2, 2);
+    // ltr word [rdi]; str word [rdi+8]
+    ltr("ltr word [rdi] (0x18); str [rdi+8]", {0x0F, 0x00, 0x1F, 0x0F, 0x00, 0x4F, 0x08},
+        {.rdi = DATA_ADDR}, {0x18, 0x00, 0, 0, 0, 0, 0, 0, 0, 0}, 10);
+    add_fault("ltr ax twice (busy TSS → #GP(0x18))", {0x0F, 0x00, 0xD8, 0x0F, 0x00, 0xD8}, {.rax = 0x18}, 13);
+    add_fault("ltr ax (null selector → #GP(0))", ltr_ax, {.rax = 0}, 13);
+    add_fault("ltr ax (0x3, null with RPL → #GP(0))", ltr_ax, {.rax = 0x3}, 13);
+    add_fault("ltr ax (0x1C, LDT selector → #GP(0x1C))", ltr_ax, {.rax = 0x1C}, 13);
+    add_fault("ltr ax (0x100, beyond the GDT limit → #GP(0x100))", ltr_ax, {.rax = 0x100}, 13);
+    add_fault("ltr ax (0x8000, far beyond the GDT → #GP(0x8000))", ltr_ax, {.rax = 0x8000}, 13);
+    add_fault("ltr ax (0x10, data segment → #GP(0x10))", ltr_ax, {.rax = 0x10}, 13);
+    add_fault("ltr ax (0x08, code segment → #GP(0x08))", ltr_ax, {.rax = 0x08}, 13);
+    add_fault("ltr ax (0x28, gate descriptor → #GP(0x28))", ltr_ax, {.rax = 0x28}, 13);
+  }
+
+  // =====================================================================
   // SYSCALL/SYSRET/SYSENTER/SYSEXIT with their MSRs
   // =====================================================================
   cat = "System fast call";

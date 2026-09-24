@@ -437,31 +437,55 @@ function dispatch_2byte_gpr(op, pfx) = {
           LDTR = sel
         },
 
-        // 0F 00 /3: LTR r/m16 — Load Task Register (requires CPL=0)
+        // 0F 00 /3: LTR r/m16 — Load Task Register (SDM Vol.2A LTR)
         3 => {
+          // Not recognized in real-address mode; CPL must be 0.
+          if cur_mode == RealMode then raise_UD();
           if cur_cpl != 0 then raise_GP0();
           let src = modrm_rm(modrm, pfx);
           let sel : word = v(src);
-          TR = sel;
-          // Load TSS base/limit from GDT descriptor (implicit supervisor read).
-          let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
+          // Operation: a null selector is #GP(0); an LDT selector or an
+          // index beyond the GDT limit is #GP(selector), before the
+          // descriptor is read.  In 64-bit mode the TSS descriptor is
+          // 16 bytes.
+          if (sel & 0xFFFC) == zeros() then raise_GP0();
+          let err : dword = selector_error_code(sel);
+          if sel[2] == 0b1 then raise_GP(err);
+          let desc_off : qword = zero_extend(sel & 0xFFF8);
+          let desc_size : int = if cur_mode == LongMode then 16 else 8;
+          if unsigned(desc_off) + desc_size - 1 > unsigned(GDTR_limit) then raise_GP(err);
+          // Implicit supervisor reads of the descriptor.
+          let desc_addr : qword = GDTR_base + desc_off;
           let desc_lo : dword = read_mem_implicit(desc_addr);
           let desc_hi : dword = read_mem_implicit(desc_addr + 4);
-          // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
-          let base_lo : dword = desc_lo[31..16] @ 0x0000;
-          let base_mid : byte = desc_hi[7..0];
-          let base_hi : byte = desc_hi[31..24];
-          TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
-          // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
-          let desc_ext : dword = read_mem_implicit(desc_addr + 8);
-          TR_base = zero_extend(desc_ext) @ TR_base[31..0];
+          // An available TSS is a system descriptor (S = 0) of type 1001B
+          // (32/64-bit) or, in protected mode only, 0001B (16-bit); a
+          // busy TSS or any other descriptor is #GP(selector), and a
+          // descriptor that is not present is #NP(selector).
+          let typ : bits(4) = desc_hi[11..8];
+          let available_tss : bool =
+            desc_hi[12] == 0b0 & (typ == 0x9 | (typ == 0x1 & cur_mode == ProtectedMode));
+          if ~(available_tss) then raise_GP(err);
+          if desc_hi[15] == 0b0 then throw Fault(EXN_NP, err);
+          // Base = desc[63:56] @ desc[39:32] @ desc[31:16], extended by the
+          // upper 8 bytes in 64-bit mode, whose type field must be zero.
+          var base : qword = zero_extend(desc_hi[31..24] @ desc_hi[7..0] @ desc_lo[31..16]);
+          if cur_mode == LongMode then {
+            let ext_lo : dword = read_mem_implicit(desc_addr + 8);
+            let ext_hi : dword = read_mem_implicit(desc_addr + 12);
+            if ext_hi[12..8] != 0b00000 then raise_GP(err);
+            base = ext_lo @ base[31..0]
+          };
           // Limit = desc[51:48] @ desc[15:0] (with granularity)
-          let limit_lo : word = desc_lo[15..0];
-          let limit_hi : bits(4) = desc_hi[19..16];
-          let g : bit = desc_hi[23];
-          TR_limit = if g == 0b1
-            then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
-            else zero_extend(limit_hi @ limit_lo)
+          let raw_limit : bits(20) = desc_hi[19..16] @ desc_lo[15..0];
+          let limit : dword = if desc_hi[23] == 0b1 then zero_extend(raw_limit) @ 0xFFF
+                              else zero_extend(raw_limit);
+          // TSSsegmentDescriptor(busy) := 1: type bit 1 of the descriptor in
+          // memory, then the task register itself.
+          write_mem_linear(desc_addr + 4, desc_hi | 0x00000200);
+          TR = sel;
+          TR_base = base;
+          TR_limit = limit
         },
 
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
