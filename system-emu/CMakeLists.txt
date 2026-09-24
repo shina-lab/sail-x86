@@ -151,3 +151,8 @@ add_executable(system_test_vga tests/test-vga.cpp x86-phys-mem.cpp)
 target_include_directories(system_test_vga PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_vga COMMAND system_test_vga)
+
+add_executable(system_test_apic_cpu tests/test-apic-cpu.cpp)
+target_link_libraries(system_test_apic_cpu PRIVATE x86_system_model)
+add_dependencies(system_test_apic_cpu generated_sail_x86_model)
+add_test(NAME system_apic_cpu COMMAND system_test_apic_cpu)

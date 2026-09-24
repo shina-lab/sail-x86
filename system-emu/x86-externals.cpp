@@ -230,7 +230,7 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0x22) return imcr_index;
   if (p == 0x23 && imcr_index == 0x70) return imcr_apic;
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
-  if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
+  if (p == 0x61)             return pit.read_port_b();
   if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
   if (p == 0xB2)             return pm.apmc;
   if (p == 0xB3)             return apmc_status; // APM Status
