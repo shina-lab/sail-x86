@@ -431,3 +431,23 @@ Press Ctrl-a x to exit the emulator.
 
 sail# 
 ```
+
+### haiku-02
+
+**Reached the graphical Haiku boot logo at 1024x768x32 and 64-bit kernel code.**
+The PCI ROM fix makes the framebuffer visible. The boot icons remain gray;
+no desktop or COM1 output yet. Stopped to retry with the RTC device.
+
+![Haiku boot logo](os-boot/haiku-boot-logo.png)
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-02 --timeout 1900 -- build/system-emu/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1007.848 s**. Instructions: **177,550,506**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
