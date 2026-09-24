@@ -6,6 +6,33 @@ The machine has one CPU, xAPIC, a 24-input I/O APIC, SeaBIOS MP/ACPI tables,
 a PIIX4 PM timer, two primary IDE disks, an ATAPI CD-ROM, Bochs VBE and
 planar VGA. It has no HPET or additional CPUs.
 
+## Final status
+
+| OS | Farthest observed progress | Remaining blocker |
+|---|---|---|
+| xv6 | Serial `$` shell; filesystem on IDE slave | None for the requested boot |
+| Linux i386 | Serial `sail#` shell | None for the requested boot |
+| Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
+| Haiku | VBE 1024x768 boot logo, three icons lit | No desktop or COM1 output within the budget |
+| ReactOS | FreeLoader setup hive and kernel initialization | Aborted on 108-byte x87 save; C++ memory limit fixed and regression-tested, full retry still needed |
+| FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
+| Windows 3.1 | Express Setup and first-stage file copy | Invalid Opcode when starting graphical setup; no Windows PNG |
+| Windows 95 | Setup from FreeDOS hard disk | ScanDisk R6002; no graphical screen or Windows PNG |
+
+The APIC/IOAPIC, IDE slave, MP/ACPI firmware, VBE/PNG and planar VGA work
+is committed separately, along with the boot fixes. The only Sail model
+changes are the SDM-cited CR8/APIC alias and real-mode IRET NT handling,
+each with an instruction regression in its own commit. The final C++ x87
+memory-capacity fix passes aligned and noncontiguous-page save/restore tests.
+All 14 system/device tests pass after that fix; the basic suite contains
+62 test cases. BIOS graphics fixtures separately validate modes 12h, 13h
+and VBE 101h. Those test patterns are not Windows screenshots.
+
+Cumulative measured boot-attempt wall time: xv6 6.21 min, Linux 51.91 min,
+Haiku 57.79 min, ReactOS 52.83 min, FreeBSD 4.69 min, Windows 3.1 58.38 min,
+and Windows 95 58.38 min. Attempts ran concurrently. Each attempt below
+records its exact command and last serial output, including silent consoles.
+
 ## Reproduction and measurement
 
 Build the emulator and firmware from the repository root:
@@ -39,16 +66,21 @@ to a serial console without restarting the emulator.
 ## Device validation
 
 ```sh
-cmake --build build -j128 --target system_test_apic system_test_ide \
-  system_test_fw_cfg system_test_vbe system_test_vga
-ctest --test-dir build -R 'system_(apic|ide|fw_cfg|vbe|vga|png)$' --output-on-failure
+cmake --build build -j128 --target system_test_basic system_test_paging \
+  system_test_exceptions system_test_a20 system_test_vmx system_test_ide \
+  system_test_apic system_test_fw_cfg system_test_vbe system_test_vga \
+  system_test_apic_cpu system_test_keyboard system_test_rtc
+ctest --test-dir build -R '^system_' --output-on-failure
 ```
 
-All six device/PNG tests pass. Coverage includes APIC priorities, self-IPIs,
+All 14 system/device/PNG tests pass. Coverage includes APIC priorities, self-IPIs,
 timer modes/divisors, edge/level routing and EOI; independent IDE master/slave
 transfers; fw_cfg topology; PM timer/ACPI mode; PCI BAR remapping; framebuffer
 formats/banking/offsets; PNG CRC and decompression; VGA latches/write modes,
-chain-4 and palettes; SMRAM and option-ROM shadow separation.
+chain-4 and palettes; SMRAM and option-ROM shadow separation; keyboard
+output-port/A20 commands; RTC periodic, update and alarm interrupts; and
+CPU interrupt dispatch and CR8/APIC aliasing; real-mode IRET with NT set;
+and 108-byte x87 saves/restores across noncontiguous pages.
 
 ## Prepared images
 
@@ -451,3 +483,212 @@ Last serial output:
 ```text
 (no serial output)
 ```
+
+### win31-rtc-04
+
+Retried FreeDOS with the preloaded Microsoft HIMEM driver and the new RTC device. It remained in real-mode BIOS interrupt stubs during driver initialization, before Windows Setup. The later IRET regression exposed a real-mode NT handling error.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-rtc-04 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **900.466 s**. Instructions: **161,686,646**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-rtc-03
+
+Retried the original bootable Windows 95 CD with RTC interrupts. MS-DOS still requested the command interpreter (`Type the name of the Command Interpreter ... A>`), although COMMAND.COM is present on its boot image. No graphical screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-rtc-03 --timeout 600 --send '60:\n' --send '120:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **600.504 s**. Instructions: **104,834,774**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-freedos-04
+
+Retried Windows 95 from a FreeDOS hard disk containing HIMEM.SYS and the complete WIN95 directory copied from the CD. AUTOEXEC invokes SETUP. It stalled in BIOS interrupt stubs during HIMEM initialization, before SETUP; no graphical screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-freedos-04 --timeout 900 --send '90:\n' --send '150:\n' --send '210:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-freedos.img -boot c
+```
+
+Wall time: **900.401 s**. Instructions: **167,204,216**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### linux-direct-apic-03
+
+**Reached the serial `sail#` shell using the new default command line.**
+Direct bzImage boot also works after removing `noapic nolapic` from both
+default command lines. The BIOS/ISO run above separately verifies ACPI
+tables and I/O APIC routing.
+
+```sh
+system-emu/run-boot.py --name linux-direct-apic-03 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 20 -m 64 -i /home/ruiu/os-images/linux-i386/initramfs-i386.cpio build/bzImage
+```
+
+Wall time: **749.601 s**. Instructions: **80,070,604**.
+
+Last serial output:
+
+```text
+Freeing initrd memory: 1740K
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+serial8250: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+i8042: PNP: No PS/2 controller found.
+i8042: Probing ports directly.
+serio: i8042 KBD port at 0x60,0x64 irq 1
+intel_pstate: CPU model not supported
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+microcode: Current revision: 0x00000000
+IPI shorthand broadcast: enabled
+sched_clock: Marking stable (2936289150, 7823600)->(2945838300, -1725550)
+Freeing unused kernel image (initmem) memory: 736K
+Write protecting the kernel read-only data: 8192k
+Freeing unused kernel image (text/rodata gap) memory: 1404K
+Freeing unused kernel image (rodata/data gap) memory: 1292K
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# \x1b[6n
+```
+
+### freebsd-final-05
+
+Retested with the final RTC and real-mode IRET fixes. BTX still fails before the loader prompt and executes zero-filled memory with `SS=ffff`, `ESP=fffe757f`. Stopped at the configured trace limit. This remains an unsupported boot path; the model has no complete virtual-8086 IRET/interrupt support.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=6000000 SAIL_X86_TRACE_END=8000000 SAIL_X86_TRACE_STEP=100000 system-emu/run-boot.py --name freebsd-final-05 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **38.244 s**. Instructions: **8,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-iret-05
+
+Retried the original CD after the real-mode NT/IRET fix. It still requests the command interpreter at `A>` instead of starting Setup. Stopped manually to try the installer from the prepared FreeDOS disk.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-iret-05 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **151.548 s**. Instructions: **29,880,425**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### haiku-rtc-03
+
+Reached the 1024x768x32 Haiku logo with **three boot icons lit**, farther than the pre-RTC run. COM1 remained silent and no desktop appeared. The 1100-second supervisor was temporarily suspended to allow up to 1400 seconds; it resumed when the other final run ended and collected this result.
+
+![Haiku boot progress with RTC](os-boot/haiku-rtc-progress.png)
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-rtc-03 --timeout 1100 -- build/system-emu/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1324.351 s**. Instructions: **181,639,311**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### reactos-rtc-03
+
+With RTC interrupts, advanced farther into kernel initialization and spent substantial time scanning the HAL PCI name database. The host then aborted with **`z__write_mem: nbytes=108 > 64`** while the guest saved x87 state. There was no text setup welcome screen. Commit `430779d` fixes all four system memory helpers and adds an aligned/noncontiguous-page FNSAVE/FRSTOR regression; that test passes. A full boot with this last fix has not been repeated, since reaching the failure already consumed most of this OS budget. The supervisor was temporarily suspended to permit up to 2300 seconds, then resumed to collect the abort. The instruction count below is the **last captured sample, a lower bound**, because SIGABRT bypassed the final counter print.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-rtc-03 --timeout 1700 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **1960.637 s**. Instructions: **380,279,608**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+### win95-iret-freedos-06
+
+The IRET fix allows HIMEM and FreeDOS startup to complete, and **Windows 95 Setup starts**. Its ScanDisk stage reports **`run-time error R6002 - floating-point support not loaded`**, then asks to quit Setup. The supplied `SETUP.TXT` documents `setup /is`; this command was sent at the keyboard after an attempt to exit Setup, but the last visible screen remained the error and no graphical screen appeared. This is a failed graphics boot, not a completed Windows installation. The 500-second supervisor was temporarily suspended to permit 631 seconds, keeping cumulative Windows 95 boot time below about one hour.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-iret-freedos-06 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' --send '240:\n' --send '300:\n' --send '360:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-freedos.img -boot c
+```
+
+Wall time: **634.899 s**. Instructions: **113,627,584**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional keyboard input, seconds from emulator launch:
+
+- 271.610 s: `<Enter>` — Continue the Windows 95 Setup system check.
+- 319.010 s: `<Enter>` — Exit Setup after ScanDisk R6002; SETUP.TXT documents retrying with /IS.
+- 344.210 s: `setup /is<Enter>` — Retry with the ScanDisk bypass documented in the supplied SETUP.TXT.
+
+### win31-iret-05
+
+The SDM-backed real-mode IRET fix unblocks HIMEM. Windows 3.1 Setup reaches the Express Setup choice, copies the first-stage files, then reports **Invalid Opcode** while starting Windows for graphical setup. At the returned `C:\WINDOWS>` prompt, `win /s` reports **Bad command or filename**; this installation has not produced a runnable WIN.COM. No graphical Windows screen or Windows PNG was obtained. The 500-second supervisor was temporarily suspended to allow 988 seconds, keeping cumulative Windows 3.1 boot time below about one hour.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-iret-05 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **991.583 s**. Instructions: **160,730,983**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 0000
+C:\WINDOWS>win /s
+Bad command or filename - "win".
+```
+
+Additional keyboard input, seconds from emulator launch:
+
+- 226.940 s: `<Enter>`.
+- 861.680 s: `win /s<Enter>`.
