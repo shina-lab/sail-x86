@@ -910,6 +910,16 @@ std::vector<TestCase> build_tests() {
     add_avx_mov_tests(tests);
     add_avx_vex_only_tests(tests);
     add_avx_hi16_tests(tests);
+    // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
+    // without it every case would report #UD from KVM.
+    {
+      u32 a, b, c, d;
+      __cpuid_count(7, 0, a, b, c, d);
+      if (d & (1u << 23))
+        add_avx_fp16_tests(tests);
+      else if (fill == 0)
+        fprintf(stderr, "AVX-512 FP16 templates skipped: host lacks the extension\n");
+    }
     for (size_t i = first; i < tests.size(); i++)
       tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
   }
