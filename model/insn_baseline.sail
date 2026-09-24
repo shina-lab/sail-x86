@@ -1630,8 +1630,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       let src : byte = v(reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
+      // SDM Vol.2A CMPXCHG, Operation: equal loads DEST from SRC and leaves
+      // the accumulator alone; only the unequal case writes the accumulator.
       v(dest) = blend(dest_val, src, ZF);
-      v(RAX) = blend(dest_val, acc, ZF)
+      if ZF == 0b0 then v(RAX) = dest_val
     },
 
     // 0F B1: CMPXCHG r/m, r
@@ -1644,8 +1646,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let src = v(os, reg);
       let cmp_result = acc - dest_val;
       update_flags_sub(cmp_result, acc, dest_val);
+      // As for the byte form: the accumulator is written only when unequal.
       v(os, dest) = blend(dest_val, src, ZF);
-      v(RAX) = blend(dest_val, acc, ZF)
+      if ZF == 0b0 then v(RAX) = dest_val
     },
 
     // 0F B6: MOVZX r, r/m8

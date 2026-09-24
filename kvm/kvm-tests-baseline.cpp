@@ -2297,6 +2297,16 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     low_byte(a.rax, 0x42);
     low_byte(a.rcx, 0x77);
     add_fault("lock cmpxchg bl,cl (register) #UD", {0xF0, 0x0F, 0xB0, 0xCB}, a, 6);
+    // The accumulator as the destination always compares equal, so the
+    // destination takes the source and the accumulator is not rewritten
+    // with its old value (SDM Vol.2A CMPXCHG, Operation).
+    add("cmpxchg al,cl (accumulator is the destination)", {0x0F, 0xB0, 0xC8}, a);
+    ArchState w;
+    w.rax = 0x0000000000000042;
+    w.rcx = 0x0000000077777777;
+    add("cmpxchg eax,ecx (accumulator is the destination)", {0x0F, 0xB1, 0xC8}, w);
+    add("cmpxchg rax,rcx (accumulator is the destination)", {0x48, 0x0F, 0xB1, 0xC8}, w);
+    add("cmpxchg ax,cx (accumulator is the destination)", {0x66, 0x0F, 0xB1, 0xC8}, w);
   }
 
   // =====================================================================
