@@ -909,7 +909,10 @@ int main(int argc, char *argv[]) {
     // The init code installs the INT 10h handler and initializes BDA.
     {
       size_t vga_size;
-      u8 *vga = read_file("vgabios.bin", &vga_size);
+      std::string vga_path = bios_path;
+      auto slash = vga_path.find_last_of('/');
+      vga_path = (slash == std::string::npos ? "" : vga_path.substr(0, slash + 1)) + "vgabios.bin";
+      u8 *vga = read_file(vga_path.c_str(), &vga_size);
       if (vga) {
         // Fix ROM checksum: sum of all bytes must be 0 (mod 256).
         u8 sum = 0;
