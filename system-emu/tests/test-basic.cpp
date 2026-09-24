@@ -1230,6 +1230,85 @@ TEST(legacy_call_gate_same_privilege_and_faults) {
   }
 }
 
+TEST(legacy_retf_code_validation) {
+  // A Win16 loader returns to a not-present segment to demand-load it.
+  // Check the whole return target, both operand widths and fault atomicity.
+  for (bool wide : {false, true}) for (unsigned variant = 0; variant < 7; ++variant) {
+    x86::Model model;
+    init_call_gate(model, false, false, 0, 3);
+    const unsigned slot = wide ? 4 : 2;
+    const u8 ret[] = {0x66, 0xcb};
+    model.phys_mem.write_bytes(0x10100, ret + !wide, wide ? 2 : 1);
+    const u16 cs = variant == 2 ? 0 : variant == 3 ? 0x43 : 0x13;
+    if (wide) {
+      model.phys_mem.write32(0x30800, 0x300);
+      model.phys_mem.write32(0x30804, cs);
+    } else {
+      model.phys_mem.write16(0x30800, 0x300);
+      model.phys_mem.write16(0x30802, cs);
+    }
+    if (variant == 1) model.phys_mem.write8(0x1015, 0x7b); // NP
+    if (variant == 4) model.phys_mem.write8(0x1015, 0xf3); // Data
+    if (variant == 5) model.phys_mem.write8(0x1015, 0x9b); // DPL0
+    if (variant == 6) model.phys_mem.write16(0x1010, 0x2ff); // Limit
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zRIP, 0x300UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x13UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL + 2 * slot);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 11UL : 13UL);
+      ASSERT_EQ((u64)model.zfault_error_code,
+          variant == 2 || variant == 6 ? 0UL : variant == 3 ? 0x40UL : 0x10UL);
+      ASSERT_EQ((u64)model.zRIP, 0x100UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0xbUL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+    }
+    model.model_fini();
+  }
+}
+
+TEST(legacy_retf_outer_parameters_and_faults) {
+  for (bool wide : {false, true}) for (unsigned variant = 0; variant < 3; ++variant) {
+    x86::Model model;
+    init_call_gate(model, wide, wide, 2, wide ? 1 : 0);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    const unsigned slot = wide ? 4 : 2;
+    const u8 ret[] = {0x66, 0xca, (u8)(2 * slot), 0};
+    model.phys_mem.write_bytes(0x20300, ret + !wide, wide ? 4 : 3);
+    model.zload_segment_register(x86::SEG_DS, wide ? 0x21 : 0x20);
+    model.zload_segment_register(x86::SEG_ES, 0x1b);
+    if (variant == 1) model.phys_mem.write8(0x101d, 0x73); // Outer SS not present
+    if (variant == 2) model.phys_mem.write8(0x101d, 0xd3); // Outer SS DPL2
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zRIP, 0x105UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL + 2 * slot);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0xbUL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+      ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0x30000UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_DS], 0UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_ES], 0x1bUL);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 12UL : 13UL);
+      ASSERT_EQ((u64)model.zfault_error_code, 0x18UL);
+      ASSERT_EQ((u64)model.zRIP, 0x300UL);
+      ASSERT_EQ((u64)model.zcur_cpl, wide ? 1UL : 0UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x900UL - 6 * slot);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], wide ? 0x21UL : 0x20UL);
+    }
+    model.model_fini();
+  }
+}
+
 TEST(ldt_cached_descriptor_lookup) {
   x86::Model model;
   init_model_16(model);
@@ -2314,6 +2393,8 @@ int main() {
   printf("\nProtected mode far transfer tests:\n");
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
+  run_test_legacy_retf_code_validation();
+  run_test_legacy_retf_outer_parameters_and_faults();
   run_test_ldt_cached_descriptor_lookup();
   run_test_lldt_descriptor_validation();
   run_test_protected_mode_far_jmp_ea();

@@ -507,6 +507,64 @@ function is_lockable_1byte(op) = {
   }
 }
 
+// Legacy protected-mode RETF. SDM Vol.2B RET, Protected Mode and
+// RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.4-571--4-575. In particular,
+// a not-present return CS must fault before its descriptor is installed.
+val exec_legacy_retf : ({16, 32}, option(word)) -> unit
+function exec_legacy_retf(os, maybe_imm) = {
+  let sas = stack_addr_size();
+  let old_sp : qword = zero_extend(v(sas, RSP));
+  let adjustment : word = match maybe_imm { Some(i) => i, None() => 0x0000 };
+  check_seg_limit(SS, old_sp, 2 * (os / 8));
+  let (ip, cs) = pop_far_pointer(os);
+  if cs[15..2] == zeros() then raise_GP0();
+  let code = read_descriptor(cs);
+  let rpl : cpl_t = unsigned(cs[1..0]);
+  let err = selector_error_code(cs);
+  if code.seg_s == 0b0 | code.seg_type[3] == 0b0 | rpl < cur_cpl then
+    throw Fault(EXN_GP, err);
+  if (code.seg_type[2] == 0b1 & code.seg_dpl > rpl) |
+     (code.seg_type[2] == 0b0 & code.seg_dpl != rpl) then
+    throw Fault(EXN_GP, err);
+  if code.seg_present == 0b0 then throw Fault(EXN_NP, err);
+
+  if rpl > cur_cpl then {
+    check_seg_limit(SS, old_sp, 4 * (os / 8) + unsigned(adjustment));
+    v(sas, RSP) = v(sas, RSP) + zero_extend(adjustment);
+    let (sp, ss) = pop_far_pointer(os);
+    if ss[15..2] == zeros() then raise_GP0();
+    let stack = read_descriptor(ss);
+    let ss_err = selector_error_code(ss);
+    if unsigned(ss[1..0]) != rpl | stack.seg_dpl != rpl |
+       stack.seg_s == 0b0 | stack.seg_type[3] == 0b1 |
+       stack.seg_type[1] == 0b0 then throw Fault(EXN_GP, ss_err);
+    if stack.seg_present == 0b0 then throw Fault(EXN_SS, ss_err);
+    if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
+    // All faulting checks precede architectural segment/CPL changes.
+    write_segreg(SS, ss);
+    SegCache[SS] = stack;
+    v(RSP) = sp;
+    cur_cpl = rpl;
+    foreach (seg from 0 to 5) {
+      if seg != CS & seg != SS then {
+        let desc = SegCache[seg];
+        if read_segreg(seg)[15..2] == zeros() |
+           (desc.seg_dpl < rpl &
+            (desc.seg_type[3] == 0b0 | desc.seg_type[2] == 0b0)) then
+          write_segreg(seg, 0x0000)
+      }
+    };
+    let new_sas = stack_addr_size();
+    v(new_sas, RSP) = v(new_sas, RSP) + zero_extend(adjustment)
+  } else {
+    if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
+    v(sas, RSP) = v(sas, RSP) + zero_extend(adjustment)
+  };
+  write_segreg(CS, cs);
+  SegCache[CS] = code;
+  next_rip = Some(ip)
+}
+
 // RETF — Far return (opcodes CA, CB).
 // In 64-bit mode, default operand size is 32; REX.W makes it 64.
 // Same-privilege: pop RIP, CS.
@@ -514,6 +572,10 @@ function is_lockable_1byte(op) = {
 // SDM Vol.2 RET — IA-32e Mode Operation.
 val exec_retf : (Prefixes, option(word)) -> unit
 function exec_retf(pfx, maybe_imm) = {
+  if cur_mode == ProtectedMode & EFER[10] == 0b0 then {
+    exec_legacy_retf(if opsize(pfx) == 32 then 32 else 16, maybe_imm);
+    return ()
+  };
   // Operand size: in 64-bit mode, default is 32, REX.W → 64, 66h → 16.
   // In non-64-bit mode, determined by CS.D and 66h prefix.
   let os : {16, 32, 64} = if cur_mode == LongMode then {
