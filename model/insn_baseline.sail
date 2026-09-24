@@ -161,6 +161,7 @@ function cpuid(leaf, subleaf) = {
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
         if has_avx512     then ecx = ecx | 0x00005842;  // VBMI(1)+VBMI2(6)+VNNI(11)+BITALG(12)+VPOPCNTDQ(14)
+        if has_waitpkg    then ecx = ecx | 0x00000020;  // bit 5 (WAITPKG)
         if has_gfni       then ecx = ecx | 0x00000100;  // bit 8 (GFNI)
         if has_vaes       then ecx = ecx | 0x00000200;  // bit 9 (VAES)
         if has_vpclmulqdq then ecx = ecx | 0x00000400;  // bit 10 (VPCLMULQDQ)
@@ -427,6 +428,57 @@ function bt_adjust(os, rm, bit_idx) = {
       (RM_mem(struct { seg = m.seg, addr = new_addr }), bit_num)
     },
   }
+}
+
+// TPAUSE r32, <edx>, <eax> (66 0F AE /6, mod = 11) and UMWAIT r32, <edx>,
+// <eax> (F2 0F AE /6, mod = 11) — SDM Vol.2B; CPUID.07H.00H:ECX.WAITPKG[5].
+// The processor rests in the C0.1 or C0.2 state that bit 0 of the register
+// selects until the TSC reaches EDX:EAX or, first, the limit the OS set in
+// IA32_UMWAIT_CONTROL[31:2] (TSC quanta; 0 for no limit), and sets CF when
+// the OS limit ended the wait; UMWAIT also wakes on a store to the UMONITOR
+// range and does not rest at all when no monitor is armed.  The model does
+// not idle: a wait ends at its deadline, which the SDM allows (other
+// implementation-dependent events may end it earlier), so CF is 1 exactly
+// when the instruction would rest and the OS limit is the earlier deadline.
+// AF, PF, SF, ZF and OF are cleared.
+val exec_tpause_umwait : (GPRRef, bool) -> unit
+function exec_tpause_umwait(r, is_umwait) = {
+  if ~(has_waitpkg) then raise_UD();
+  let ctl : dword = v(32, r);
+  if ctl[31..1] != zeros() then raise_GP0();
+  if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
+  let limit : qword = zero_extend(__rdmsr(0x000000E1)[31..2] @ 0b00);
+  let tsc : qword = __rdtsc();
+  let instr_deadline : qword = v(32, RDX) @ v(32, RAX);
+  let rests : bool = ~(is_umwait) | umonitor_armed;
+  let using_os_deadline : bool = limit != zeros() & (tsc + limit) <_u instr_deadline;
+  CF = bool_to_bit(rests & using_os_deadline);
+  OF = 0b0;
+  SF = 0b0;
+  ZF = 0b0;
+  AF = 0b0;
+  PF = 0b0;
+  if is_umwait then umonitor_armed = false
+}
+
+// UMONITOR r16/r32/r64 (F3 0F AE /6, mod = 11): arm the monitor on the
+// linear address of the effective address in the register, whose width is
+// the address size; DS unless overridden.  The SDM gives the instruction
+// "the permission checking and faults associated with a byte load"
+// (#GP(0) or #SS(0) for a non-canonical address, #PF), so the model reads
+// a byte there; the monitored range itself is not tracked.  (A Xeon
+// Platinum 8562Y+ under KVM raises none of these faults; see the paper's
+// evidence for the observation.  The model follows the manual.)
+val exec_umonitor : (GPRRef, Prefixes) -> unit
+function exec_umonitor(r, pfx) = {
+  if ~(has_waitpkg) then raise_UD();
+  let ea : qword = match get_address_size(pfx) {
+    16 => zero_extend(v(16, r)),
+    32 => zero_extend(v(32, r)),
+    64 => v(64, r),
+  };
+  let _ : byte = read_mem(struct { seg = resolve_seg(pfx, DS), addr = ea });
+  umonitor_armed = true
 }
 
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
@@ -1182,6 +1234,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         // IA32_XSS (0xDA0): supervisor state components for XSAVES/XRSTORS.
         // No supervisor components supported, so only 0 is valid.
         if msr_val != zeros() then raise_GP0()
+      } else if ecx == 0x000000E1 then {
+        // IA32_UMWAIT_CONTROL (0xE1, SDM Vol.2B TPAUSE/UMWAIT): the OS
+        // limit on a wait in bits 31:2 and the C0.2 disable in bit 0; bit
+        // 1 and bits 63:32 are reserved.  Exists with WAITPKG.
+        if ~(has_waitpkg) then raise_GP0();
+        if msr_val[63..32] != zeros() | msr_val[1] == bitone then raise_GP0();
+        __wrmsr(ecx, msr_val)
       } else if ecx >=_u 0x00000480 & ecx <=_u 0x00000491 then {
         // VMX capability MSRs are read-only — #GP(0) on write
         raise_GP0()
@@ -1368,6 +1427,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         0xC0000080 => EFER,
         0x0000003A => ia32_feature_control,
         0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
+        // IA32_UMWAIT_CONTROL exists with WAITPKG; the value written, 0 at reset
+        0x000000E1 => { if ~(has_waitpkg) then raise_GP0(); __rdmsr(ecx) },
         0xC0000100 => SegCache[FS].seg_base,
         0xC0000101 => SegCache[GS].seg_base,
         0xC0000102 => KERNEL_GS_BASE,
@@ -1507,11 +1568,9 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
         },
 
-        // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (NP, reg).
-        // With mod=11 the prefixed forms are TPAUSE (66), UMONITOR (F3)
-        // and UMWAIT (F2), available "when CPUID.07H.00H:ECX.WAITPKG[5] is
-        // enumerated as 1" (SDM Vol.2B), which the model does not
-        // implement: #UD, not MFENCE.
+        // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (NP, reg), and
+        // with mod=11 the WAITPKG instructions TPAUSE (66), UMONITOR (F3)
+        // and UMWAIT (F2) (SDM Vol.2B; CPUID.07H.00H:ECX.WAITPKG[5]).
         6 => match dest {
           RM_mem(m) => {
             if pfx.has_opsize then {
@@ -1522,8 +1581,15 @@ function dispatch_2byte_gpr(op, pfx) = {
               exec_xsaveopt(seg_linear(m, 576), mask)
             }
           },
-          RM_reg(_) => {
-            if pfx.has_opsize | pfx.has_rep | pfx.has_repne then raise_UD()
+          RM_reg(r) => match get_mandatory_prefix(pfx) {
+            // MFENCE
+            MP_NONE => (),
+            // TPAUSE r32, <edx>, <eax>
+            MP_66   => exec_tpause_umwait(r, false),
+            // UMWAIT r32, <edx>, <eax>
+            MP_F2   => exec_tpause_umwait(r, true),
+            // UMONITOR r16/r32/r64
+            MP_F3   => exec_umonitor(r, pfx),
           },
         },
 

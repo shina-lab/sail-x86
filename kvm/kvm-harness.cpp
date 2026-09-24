@@ -828,6 +828,13 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     model.zhas_amx_bf16 = false;
     model.zXCR0_SUPPORTED &= ~(3ULL << 17);
   }
+  // WAITPKG (CPUID.(7,0):ECX[5]) likewise: without it the guest's 66/F2/F3
+  // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.
+  {
+    u32 a, b, c, d;
+    __cpuid_count(7, 0, a, b, c, d);
+    model.zhas_waitpkg = (c & (1u << 5)) != 0;
+  }
   // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
   // components); a test's override, below, may add the AMX components.
   model.zXCR0 = 0xE7;
@@ -1176,6 +1183,7 @@ static const Template TEMPLATES[] = {
   {"kvm-tests-avx-hi16.cpp", add_avx_hi16_tests},
   {"kvm-tests-system.cpp", add_system_tests},
   {"kvm-tests-hints.cpp", add_hint_tests},
+  {"kvm-tests-waitpkg.cpp", add_waitpkg_tests},
   // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
   // without it every case would report #UD from KVM.  Kept last so the
   // suite order is the same on hosts with and without it.

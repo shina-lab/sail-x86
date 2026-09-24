@@ -591,6 +591,12 @@ register has_amx_int8  : bool  // CPUID.07H:EDX[25] — TDPBSSD/TDPBSUD/TDPBUSD/
 register has_amx_bf16  : bool  // CPUID.07H:EDX[22] — TDPBF16PS
 register has_prefetchw : bool  // CPUID.80000001H:ECX[8] — PREFETCHW (0F 0D /1; a NOP either way)
 register has_cldemote  : bool  // CPUID.07H:ECX[25] — CLDEMOTE (0F 1C /0; a NOP either way)
+register has_waitpkg   : bool  // CPUID.07H:ECX[5] — TPAUSE, UMONITOR, UMWAIT and IA32_UMWAIT_CONTROL
+
+// The user-level monitor of UMONITOR/UMWAIT (SDM Vol.2B): armed by
+// UMONITOR, consumed by UMWAIT.  Stores to the monitored range are not
+// tracked; UMWAIT is taken to run to its deadline, which the SDM allows.
+register umonitor_armed : bool = false
 
 // =========================================================================
 // Intel AMX tile state (SDM Vol.1 Chapter 19)
@@ -684,7 +690,8 @@ function enable_features_v1() = {
   has_amx_int8 = false;
   has_amx_bf16 = false;
   has_prefetchw = false;
-  has_cldemote = false
+  has_cldemote = false;
+  has_waitpkg = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -750,7 +757,8 @@ function enable_features_all() = {
   has_amx_tile = true;
   has_amx_int8 = true;
   has_amx_bf16 = true;
-  has_cldemote = true
+  has_cldemote = true;
+  has_waitpkg = true
 }
 
 // =========================================================================

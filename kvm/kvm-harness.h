@@ -528,6 +528,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests);
 void add_avx_fp16_tests(std::vector<TestCase> &tests);
 void add_system_tests(std::vector<TestCase> &tests);
 void add_hint_tests(std::vector<TestCase> &tests);
+void add_waitpkg_tests(std::vector<TestCase> &tests);
 void add_amx_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H
