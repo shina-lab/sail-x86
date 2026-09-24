@@ -1991,4 +1991,363 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02},
                       {.rbp = STACK_TOP - 64}, FL_ALL});
   }
+
+  // The remaining templates cover one-byte and two-byte GPR opcodes that the
+  // suite had never decoded.  A byte register input replaces only the low
+  // byte (or AH's byte) of its register; the rest keeps the background.
+  auto add_fault = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                       int vec) {
+    TestCase tc;
+    tc.name = name;
+    tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = init;
+    tc.expect_fault = true;
+    tc.expected_vector = vec;
+    tests.push_back(std::move(tc));
+  };
+  auto low_byte = [](u64 &reg, u8 val) { reg = (reg & ~0xFFULL) | val; };
+  auto high_byte = [](u64 &reg, u8 val) { reg = (reg & ~0xFF00ULL) | (u64(val) << 8); };
+  std::vector<u8> cc8(8, 0xCC);
+
+  // =====================================================================
+  // 80 /digit: Group 1 ALU r/m8, imm8 (81/83 were covered; 80 was not)
+  // =====================================================================
+  cat = "Baseline/ALU r/m8,imm8";
+  {
+    struct Op { const char *name; u8 digit; u64 mask; bool reads_cf; };
+    static const Op ops[] = {
+      {"add", 0, FL_ALL, false},   {"or",  1, FL_NO_AF, false},
+      {"adc", 2, FL_ALL, true},    {"sbb", 3, FL_ALL, true},
+      {"and", 4, FL_NO_AF, false}, {"sub", 5, FL_ALL, false},
+      {"xor", 6, FL_NO_AF, false}, {"cmp", 7, FL_ALL, false},
+    };
+    static const u8 vals[] = {0x00, 0x01, 0x7F, 0x80, 0xFF, 0x55};
+    static const u8 imms[] = {0x01, 0x7F, 0x80, 0xFF};
+    for (const Op &op : ops) {
+      for (u8 a : vals) {
+        for (u8 imm : imms) {
+          for (int cf = 0; cf <= (op.reads_cf ? 1 : 0); cf++) {
+            std::string sfx = op.reads_cf ? std::format(" CF={}", cf) : "";
+            u64 flags = op.reads_cf ? initial_flags(FL_CF, cf ? FL_CF : 0) : initial_flags();
+            // BL (no REX)
+            ArchState s;
+            low_byte(s.rbx, a);
+            s.rflags = flags;
+            add(std::format("{} bl,{:#04x} bl={:#04x}{}", op.name, imm, a, sfx),
+                {0x80, u8(0xC3 | (op.digit << 3)), imm}, s, op.mask);
+          }
+        }
+        // AH (rm=4 without REX), SIL (rm=6 with REX), R8B (REX.B), and memory
+        u64 cf0 = op.reads_cf ? initial_flags(FL_CF, 0) : initial_flags();
+        u64 cf1 = op.reads_cf ? initial_flags(FL_CF, FL_CF) : initial_flags();
+        ArchState h;
+        high_byte(h.rax, a);
+        h.rflags = cf0;
+        add(std::format("{} ah,0x0f ah={:#04x}", op.name, a),
+            {0x80, u8(0xC4 | (op.digit << 3)), 0x0F}, h, op.mask);
+        ArchState r;
+        low_byte(r.rsi, a);
+        r.rflags = cf1;
+        add(std::format("{} sil,0x81 sil={:#04x}", op.name, a),
+            {0x40, 0x80, u8(0xC6 | (op.digit << 3)), 0x81}, r, op.mask);
+        ArchState x;
+        low_byte(x.r8, a);
+        x.rflags = cf0;
+        add(std::format("{} r8b,0xff r8b={:#04x}", op.name, a),
+            {0x41, 0x80, u8(0xC0 | (op.digit << 3)), 0xFF}, x, op.mask);
+        ArchState m;
+        m.rdi = DATA_ADDR;
+        m.rflags = cf1;
+        std::vector<u8> data = cc8;
+        data[0] = a;
+        add_mem(std::format("{} byte [rdi],0x7f [rdi]={:#04x}", op.name, a),
+                {0x80, u8(0x07 | (op.digit << 3)), 0x7F}, m, op.mask, data, 8);
+      }
+    }
+  }
+
+  // =====================================================================
+  // 8C: MOV r/m16, Sreg.  A 32- or 64-bit register destination is
+  // zero-extended (SDM MOV: "the two high-order bytes are filled with
+  // zeros" on current processors; REX.W zero-extends to 64); a memory
+  // destination is always 16 bits.  The guest runs with CS=0x08 and the flat
+  // data segment 0x10 in every other segment register.
+  // =====================================================================
+  cat = "Baseline/MOV r/m,Sreg";
+  {
+    static const char *segs[] = {"es", "cs", "ss", "ds", "fs", "gs"};
+    for (int sr = 0; sr < 6; sr++) {
+      u8 rr = u8(0xC0 | (sr << 3));  // destination rax/eax/ax
+      add(std::format("mov eax,{}", segs[sr]), {0x8C, rr}, ArchState{});
+      add(std::format("mov rax,{} (REX.W)", segs[sr]), {0x48, 0x8C, rr}, ArchState{});
+      add(std::format("mov ax,{} (66h)", segs[sr]), {0x66, 0x8C, rr}, ArchState{});
+      add(std::format("mov r9d,{} (REX.B)", segs[sr]), {0x41, 0x8C, u8(0xC1 | (sr << 3))}, ArchState{});
+      ArchState m;
+      m.rdi = DATA_ADDR;
+      add_mem(std::format("mov [rdi],{}", segs[sr]), {0x8C, u8(0x07 | (sr << 3))}, m, FL_ALL, cc8, 8);
+      add_mem(std::format("mov [rdi],{} (REX.W: still 16 bits)", segs[sr]),
+              {0x48, 0x8C, u8(0x07 | (sr << 3))}, m, FL_ALL, cc8, 8);
+    }
+    // reg field 6 and 7 name no segment register
+    add_fault("mov eax,sreg6 (8C /6) #UD", {0x8C, 0xF0}, ArchState{}, 6);
+    add_fault("mov eax,sreg7 (8C /7) #UD", {0x8C, 0xF8}, ArchState{}, 6);
+  }
+
+  // =====================================================================
+  // 9B: FWAIT — no pending x87 exception, so no visible effect
+  // =====================================================================
+  cat = "Baseline/FWAIT";
+  {
+    add("fwait", {0x9B}, ArchState{});
+    ArchState s;
+    s.rdi = DATA_ADDR;
+    // FLD1; FWAIT; FSTP m64 [rdi]
+    add_mem("fld1; fwait; fstp [rdi]", {0xD9, 0xE8, 0x9B, 0xDD, 0x1F}, s, FL_ALL, cc8, 8);
+  }
+
+  // =====================================================================
+  // A0-A3: MOV with a direct memory offset (moffs).  In 64-bit mode the
+  // offset is 8 bytes; the 67h prefix shortens it to 4.  A segment override
+  // applies its base (zero here).
+  // =====================================================================
+  cat = "Baseline/MOV moffs";
+  {
+    auto code = [](std::vector<u8> pre, u64 addr, int bytes) {
+      for (int i = 0; i < bytes; i++) pre.push_back(u8(addr >> (8 * i)));
+      return pre;
+    };
+    std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0xEF, 0xCD, 0xAB, 0x90};
+    // Loads: AL/AX merge into RAX, EAX and RAX replace it; RAX itself is
+    // therefore an input only through the background.
+    add_mem("mov al,[moffs64]", code({0xA0}, DATA_ADDR, 8), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov eax,[moffs64]", code({0xA1}, DATA_ADDR, 8), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov rax,[moffs64] (REX.W)", code({0x48, 0xA1}, DATA_ADDR, 8), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov ax,[moffs64] (66h)", code({0x66, 0xA1}, DATA_ADDR, 8), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov al,[moffs32] (67h)", code({0x67, 0xA0}, DATA_ADDR, 4), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov eax,[moffs32] (67h)", code({0x67, 0xA1}, DATA_ADDR, 4), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov rax,[moffs32] (67h REX.W)", code({0x67, 0x48, 0xA1}, DATA_ADDR, 4), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov al,fs:[moffs64]", code({0x64, 0xA0}, DATA_ADDR, 8), ArchState{}, FL_ALL, data, 0);
+    add_mem("mov eax,[moffs64+4]", code({0xA1}, DATA_ADDR + 4, 8), ArchState{}, FL_ALL, data, 0);
+    // Stores
+    ArchState s;
+    s.rax = 0x0123456789ABCDEF;
+    add_mem("mov [moffs64],al", code({0xA2}, DATA_ADDR, 8), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs64],eax", code({0xA3}, DATA_ADDR, 8), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs64],rax (REX.W)", code({0x48, 0xA3}, DATA_ADDR, 8), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs64],ax (66h)", code({0x66, 0xA3}, DATA_ADDR, 8), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs32],al (67h)", code({0x67, 0xA2}, DATA_ADDR, 4), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs32],eax (67h)", code({0x67, 0xA3}, DATA_ADDR, 4), s, FL_ALL, cc8, 8);
+    add_mem("mov [moffs32],rax (67h REX.W)", code({0x67, 0x48, 0xA3}, DATA_ADDR, 4), s, FL_ALL, cc8, 8);
+    add_mem("mov gs:[moffs64+2],ax", code({0x65, 0x66, 0xA3}, DATA_ADDR + 2, 8), s, FL_ALL, cc8, 8);
+  }
+
+  // =====================================================================
+  // A8/A9: TEST AL,imm8 and TEST rAX,imm (AF undefined)
+  // =====================================================================
+  cat = "Baseline/TEST imm";
+  {
+    static const u8 vals8[] = {0x00, 0x0F, 0x80, 0xFF, 0x55};
+    static const u8 imms8[] = {0x00, 0x0F, 0x80, 0xFF, 0xAA};
+    for (u8 a : vals8) {
+      for (u8 imm : imms8) {
+        ArchState s;
+        low_byte(s.rax, a);
+        add(std::format("test al,{:#04x} al={:#04x}", imm, a), {0xA8, imm}, s, FL_NO_AF);
+      }
+    }
+    static const u64 vals[] = {0, 0x80000000, 0xFFFFFFFF, 0x0123456789ABCDEF, 0x8000000000000000, 0xFFFFFFFF00000000};
+    for (u64 a : vals) {
+      ArchState s;
+      s.rax = a;
+      add(std::format("test eax,0x80000000 rax={:#x}", a), {0xA9, 0x00, 0x00, 0x00, 0x80}, s, FL_NO_AF);
+      add(std::format("test eax,0x0000ffff rax={:#x}", a), {0xA9, 0xFF, 0xFF, 0x00, 0x00}, s, FL_NO_AF);
+      add(std::format("test ax,0x8000 rax={:#x}", a), {0x66, 0xA9, 0x00, 0x80}, s, FL_NO_AF);
+      add(std::format("test ax,0x00ff rax={:#x}", a), {0x66, 0xA9, 0xFF, 0x00}, s, FL_NO_AF);
+      // imm32 sign-extended to 64 bits
+      add(std::format("test rax,0xffffffff80000000 rax={:#x}", a), {0x48, 0xA9, 0x00, 0x00, 0x00, 0x80}, s, FL_NO_AF);
+      add(std::format("test rax,0x7fffffff rax={:#x}", a), {0x48, 0xA9, 0xFF, 0xFF, 0xFF, 0x7F}, s, FL_NO_AF);
+    }
+  }
+
+  // =====================================================================
+  // C2 iw: RET imm16 — pop the return address, then add imm16 to RSP
+  // =====================================================================
+  cat = "Baseline/RET imm16";
+  {
+    // call +2 (to the RET); jmp +3 (over the RET, to the HLT); ret 8
+    add("call; ret 8", {0xE8, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x03, 0xC2, 0x08, 0x00}, ArchState{});
+    // push the address of the appended HLT (CODE_ADDR + 8), then ret imm16
+    for (u16 imm : {u16(0), u16(8), u16(16), u16(0x1000), u16(0xFFF8)}) {
+      add(std::format("push hlt; ret {:#x}", imm),
+          {0x68, 0x08, 0x00, 0x01, 0x00, 0xC2, u8(imm), u8(imm >> 8)}, ArchState{});
+    }
+  }
+
+  // =====================================================================
+  // C6 /0 ib: MOV r/m8, imm8
+  // =====================================================================
+  cat = "Baseline/MOV r/m8,imm8";
+  {
+    add("mov bl,0x5a", {0xC6, 0xC3, 0x5A}, ArchState{});
+    add("mov ah,0xa5", {0xC6, 0xC4, 0xA5}, ArchState{});
+    add("mov sil,0x80 (REX)", {0x40, 0xC6, 0xC6, 0x80}, ArchState{});
+    add("mov r8b,0x7f (REX.B)", {0x41, 0xC6, 0xC0, 0x7F}, ArchState{});
+    add("mov r15b,0x00 (REX.B)", {0x41, 0xC6, 0xC7, 0x00}, ArchState{});
+    ArchState m;
+    m.rdi = DATA_ADDR;
+    add_mem("mov byte [rdi],0x5a", {0xC6, 0x07, 0x5A}, m, FL_ALL, cc8, 8);
+    add_mem("mov byte [rdi+3],0xff", {0xC6, 0x47, 0x03, 0xFF}, m, FL_ALL, cc8, 8);
+    add_fault("mov r/m8,imm8 with /1 (C6 /1) #UD", {0xC6, 0xC8, 0x00}, ArchState{}, 6);
+    add_fault("mov r/m8,imm8 with /4 memory (C6 /4) #UD", {0xC6, 0x27, 0x00}, m, 6);
+  }
+
+  // =====================================================================
+  // D0 /digit: Group 2 shift/rotate r/m8 by 1.  /6 is the SAL alias of SHL.
+  // =====================================================================
+  cat = "Baseline/Shift r/m8 by 1";
+  {
+    static const char *names[] = {"rol", "ror", "rcl", "rcr", "shl", "shr", "sal(/6)", "sar"};
+    static const u8 vals[] = {0x00, 0x01, 0x7F, 0x80, 0xFF, 0x55, 0xC3};
+    for (int d = 0; d < 8; d++) {
+      bool reads_cf = d == 2 || d == 3;
+      u64 mask = shift_flags_mask(d, 8, 1);
+      for (u8 a : vals) {
+        for (int cf = 0; cf <= (reads_cf ? 1 : 0); cf++) {
+          std::string sfx = reads_cf ? std::format(" CF={}", cf) : "";
+          u64 flags = reads_cf ? initial_flags(FL_CF, cf ? FL_CF : 0) : initial_flags();
+          ArchState s;
+          low_byte(s.rbx, a);
+          s.rflags = flags;
+          add(std::format("{} bl,1 bl={:#04x}{}", names[d], a, sfx),
+              {0xD0, u8(0xC3 | (d << 3))}, s, mask);
+          ArchState m;
+          m.rdi = DATA_ADDR;
+          m.rflags = flags;
+          std::vector<u8> data = cc8;
+          data[0] = a;
+          add_mem(std::format("{} byte [rdi],1 [rdi]={:#04x}{}", names[d], a, sfx),
+                  {0xD0, u8(0x07 | (d << 3))}, m, mask, data, 8);
+        }
+      }
+      ArchState h;
+      high_byte(h.rcx, 0x81);
+      h.rflags = initial_flags(FL_CF, FL_CF);
+      add(std::format("{} ch,1 ch=0x81 CF=1", names[d]), {0xD0, u8(0xC5 | (d << 3))}, h, mask);
+      ArchState r;
+      low_byte(r.r10, 0x81);
+      r.rflags = initial_flags(FL_CF, 0);
+      add(std::format("{} r10b,1 r10b=0x81 CF=0", names[d]), {0x41, 0xD0, u8(0xC2 | (d << 3))}, r, mask);
+    }
+  }
+
+  // =====================================================================
+  // E3 cb: JRCXZ, and JECXZ with the 67h address-size prefix.  The fall
+  // through path increments AL so a wrong decision is visible.
+  // =====================================================================
+  cat = "Baseline/JRCXZ";
+  {
+    static const u64 counts[] = {0, 1, 0x100000000ULL, 0xFFFFFFFF00000000ULL, 0xFFFFFFFFFFFFFFFFULL};
+    for (u64 c : counts) {
+      ArchState s;
+      s.rcx = c;
+      low_byte(s.rax, 0x7F);
+      add(std::format("jrcxz +2; inc al rcx={:#x}", c), {0xE3, 0x02, 0xFE, 0xC0}, s);
+      add(std::format("jecxz +2 (67h); inc al rcx={:#x}", c), {0x67, 0xE3, 0x02, 0xFE, 0xC0}, s);
+    }
+  }
+
+  // =====================================================================
+  // 0F B0: CMPXCHG r/m8, r8 (the wider forms were covered)
+  // =====================================================================
+  cat = "Baseline/CMPXCHG r/m8";
+  {
+    for (bool equal : {true, false}) {
+      const char *sfx = equal ? "equal" : "unequal";
+      u8 dest = equal ? 0x42 : 0x99;
+      // cmpxchg bl,cl: AL compared with BL, CL is the replacement
+      ArchState s;
+      low_byte(s.rax, 0x42);
+      low_byte(s.rbx, dest);
+      low_byte(s.rcx, 0x77);
+      add(std::format("cmpxchg bl,cl {}", sfx), {0x0F, 0xB0, 0xCB}, s);
+      // cmpxchg ch,dh (high-byte registers)
+      ArchState h;
+      low_byte(h.rax, 0x42);
+      high_byte(h.rcx, dest);
+      high_byte(h.rdx, 0x77);
+      add(std::format("cmpxchg ch,dh {}", sfx), {0x0F, 0xB0, 0xF5}, h);
+      // cmpxchg r8b,r9b
+      ArchState r;
+      low_byte(r.rax, 0x42);
+      low_byte(r.r8, dest);
+      low_byte(r.r9, 0x77);
+      add(std::format("cmpxchg r8b,r9b {}", sfx), {0x45, 0x0F, 0xB0, 0xC8}, r);
+      // cmpxchg [rdi],cl and its LOCK form
+      ArchState m;
+      low_byte(m.rax, 0x42);
+      low_byte(m.rcx, 0x77);
+      m.rdi = DATA_ADDR;
+      std::vector<u8> data = cc8;
+      data[0] = dest;
+      add_mem(std::format("cmpxchg byte [rdi],cl {}", sfx), {0x0F, 0xB0, 0x0F}, m, FL_ALL, data, 8);
+      add_mem(std::format("lock cmpxchg byte [rdi],cl {}", sfx), {0xF0, 0x0F, 0xB0, 0x0F}, m, FL_ALL, data, 8);
+    }
+    ArchState a;
+    low_byte(a.rax, 0x42);
+    low_byte(a.rcx, 0x77);
+    add_fault("lock cmpxchg bl,cl (register) #UD", {0xF0, 0x0F, 0xB0, 0xCB}, a, 6);
+  }
+
+  // =====================================================================
+  // 0F C0: XADD r/m8, r8
+  // =====================================================================
+  cat = "Baseline/XADD r/m8";
+  {
+    static const u8 pairs[][2] = {{0x01, 0x02}, {0x7F, 0x01}, {0xFF, 0x01}, {0x80, 0x80}, {0x00, 0x00}, {0x55, 0xAA}};
+    for (auto &p : pairs) {
+      ArchState s;
+      low_byte(s.rbx, p[0]);
+      low_byte(s.rcx, p[1]);
+      add(std::format("xadd bl,cl bl={:#04x} cl={:#04x}", p[0], p[1]), {0x0F, 0xC0, 0xCB}, s);
+      ArchState h;
+      high_byte(h.rcx, p[0]);
+      high_byte(h.rdx, p[1]);
+      add(std::format("xadd ch,dh ch={:#04x} dh={:#04x}", p[0], p[1]), {0x0F, 0xC0, 0xF5}, h);
+      ArchState r;
+      low_byte(r.r8, p[0]);
+      low_byte(r.r9, p[1]);
+      add(std::format("xadd r8b,r9b r8b={:#04x} r9b={:#04x}", p[0], p[1]), {0x45, 0x0F, 0xC0, 0xC8}, r);
+      ArchState m;
+      low_byte(m.rcx, p[1]);
+      m.rdi = DATA_ADDR;
+      std::vector<u8> data = cc8;
+      data[0] = p[0];
+      add_mem(std::format("xadd byte [rdi],cl [rdi]={:#04x} cl={:#04x}", p[0], p[1]), {0x0F, 0xC0, 0x0F}, m, FL_ALL, data, 8);
+      add_mem(std::format("lock xadd byte [rdi],cl [rdi]={:#04x} cl={:#04x}", p[0], p[1]), {0xF0, 0x0F, 0xC0, 0x0F}, m, FL_ALL, data, 8);
+    }
+    // same register for both operands: DEST := DEST + DEST wins over SRC := DEST
+    ArchState a;
+    low_byte(a.rax, 0x81);
+    add("xadd al,al al=0x81", {0x0F, 0xC0, 0xC0}, a);
+    add_fault("lock xadd bl,cl (register) #UD", {0xF0, 0x0F, 0xC0, 0xCB}, a, 6);
+  }
+
+  // =====================================================================
+  // Opcodes that are invalid in 64-bit mode (their compatibility-mode
+  // behavior is in kvm-tests-compat.cpp)
+  // =====================================================================
+  cat = "Baseline/Invalid in 64-bit mode";
+  {
+    struct { const char *name; std::vector<u8> code; } ud[] = {
+      {"push es", {0x06}}, {"pop es", {0x07}}, {"push cs", {0x0E}},
+      {"push ss", {0x16}}, {"pop ss", {0x17}}, {"push ds", {0x1E}}, {"pop ds", {0x1F}},
+      {"pusha", {0x60}}, {"popa", {0x61}},
+      {"call far ptr16:32", {0x9A, 0x07, 0x00, 0x01, 0x00, 0x48, 0x00}},
+      {"into", {0xCE}}, {"salc", {0xD6}},
+      {"jmp far ptr16:32", {0xEA, 0x07, 0x00, 0x01, 0x00, 0x48, 0x00}},
+    };
+    for (auto &u : ud)
+      add_fault(std::format("{} #UD in 64-bit mode", u.name), u.code, ArchState{}, 6);
+  }
 }
