@@ -149,8 +149,11 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
   // Base register uses EVEX.B extension (same as normal SIB)
   let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
 
-  // Index is a vector register: {EVEX.V', EVEX.X, SIB.index[2:0]} = 5-bit simd_idx
-  let vidx : simd_idx = unsigned(pfx.evex_rr @ pfx.rex_x @ sib[5..3]);
+  // Index is a vector register: VIDX = {EVEX.V', EVEX.X, sib.index} (SDM
+  // Vol.2A Table 1-33).  V' is folded into bit 4 of evex_vvvvv; R' extends
+  // modrm.reg, not the index.
+  let v_prime : bits(1) = if pfx.evex_vvvvv >= 16 then 0b1 else 0b0;
+  let vidx : simd_idx = unsigned(v_prime @ pfx.rex_x @ sib[5..3]);
 
   let base_val : qword =
     if sib[2..0] == 0b101 & modbits == 0 then {

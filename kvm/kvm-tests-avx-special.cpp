@@ -906,19 +906,21 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
           }
         }
       }
-      // An index register above 7 (zmm9) exercises EVEX.X.  Index registers
-      // above 15 are left out: the model's VSIB decoder takes bit 4 of the
-      // index from EVEX.R' rather than EVEX.V' (SDM Table 1-33), and the
-      // resulting wild address is not survivable in this harness.
-      {
+      // Index registers above 7 exercise EVEX.X (zmm9) and EVEX.V' (zmm17,
+      // zmm25): VIDX = {EVEX.V', EVEX.X, sib.index} (SDM Table 1-33).  The
+      // source zmm1 and the low index registers hold other data so a
+      // misdecoded index would scatter different values or fault.
+      for (int idx : {9, 17, 25}) {
         Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0xA0; e.reg = 1; e.LL = 2; e.aaa = 1;
         ArchState s = scatter_state(false);
-        s.xmm[9] = s.xmm[2];
-        s = with_vector_inputs(s, 0x2 | (1u << 9));
+        s.xmm[idx] = s.xmm[2];
+        for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0x0000000200000001ULL;
+        s.xmm[idx & 15] = s.xmm[2];
+        s = with_vector_inputs(s, 0x2 | (1u << idx) | (1u << (idx & 15)));
         s.kregs[1] = ~0ULL;
         TestCase tc; tc.category = cat;
-        tc.name = "VPSCATTERDD [rdi+zmm9*4]{k1},zmm1";
-        tc.code = e.encode_vsib(9, 4);
+        tc.name = std::format("VPSCATTERDD [rdi+zmm{}*4]{{k1}},zmm1", idx);
+        tc.code = e.encode_vsib(idx, 4);
         tc.initial = s;
         tc.init_data = std::vector<u8>(4096, 0xCC); tc.compare_data_len = 4096;
         tests.push_back(std::move(tc));
