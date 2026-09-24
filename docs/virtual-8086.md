@@ -46,5 +46,14 @@ additionally compares with hardware and skips when `/dev/kvm` is absent.
 The host may run a 64-bit kernel: the guest uses legacy protected mode,
 with IA32_EFER.LMA clear. Virtual-8086 mode is unavailable in IA-32e mode.
 
+Validation on 2026-09-25: all 368 differential cases passed on an AMD
+Ryzen Threadripper 7980X and an Intel Xeon Platinum 8562Y+. These include
+16/32-bit monitor stacks, expand-down stacks and a zero initial SP.
+The separate SMM/RSM, VM-entry/exit and STI interrupt-ordering tests pass.
+A full build succeeded, and `ctest -j128 -LE boot` passed 257 of 259 tests.
+The two failures, `system_basic` (the `push_ds_pop_es_32bit` case) and
+`x87-test` (22.0 / 7.0), also reproduce in a clean build of the baseline
+commit `464391f`, before the virtual-8086 changes.
+
 References: Intel SDM Vol.3B, Chapter 23 (8086 Emulation), and Vol.2,
 IRET, INT, PUSHF, POPF, CLI, STI, IN, OUT, INS and OUTS.

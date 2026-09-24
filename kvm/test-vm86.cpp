@@ -45,6 +45,10 @@ struct Test {
   u8 gate_type = 0xe;
   u8 gate_dpl = 3;
   u32 kernel_stack_base = 0;
+  u32 kernel_stack_limit = 0xfffff;
+  u8 kernel_stack_access = 0x93;
+  u8 kernel_stack_flags = 0xc;
+  u32 kernel_sp = KERNEL_SP;
   std::vector<std::pair<u32, Bytes>> patches;
 };
 
@@ -71,9 +75,10 @@ static Bytes image(const Test &t, u32 fill) {
   if (t.supervisor_data) store<u32>(mem, PT + 0x50 * 4, 0x50000 | 3);
   if (t.supervisor_ivt) store<u32>(mem, PT, 3);
   store<u64>(mem, GDT + 8, descriptor(0, 0xfffff, 0x9b, 0xc));
-  store<u64>(mem, GDT + 16, descriptor(t.kernel_stack_base, 0xfffff, 0x93, 0xc));
+  store<u64>(mem, GDT + 16, descriptor(t.kernel_stack_base, t.kernel_stack_limit,
+                                      t.kernel_stack_access, t.kernel_stack_flags));
   store<u64>(mem, GDT + 24, descriptor(TSS, TSS_LIMIT, 0x8b, 0));
-  store<u32>(mem, TSS + 4, KERNEL_SP);
+  store<u32>(mem, TSS + 4, t.kernel_sp);
   store<u16>(mem, TSS + 8, 0x10);
   store<u16>(mem, TSS + 102, IO_MAP);
   std::fill(mem.begin() + TSS + IO_MAP - 32, mem.begin() + TSS + TSS_LIMIT + 1, 0xff);
@@ -115,6 +120,13 @@ struct Result {
   std::array<u16, 6> seg;
   Bytes mem;
 };
+
+static u32 monitor_stack_addr(const Test &t, const Result &r) {
+  u32 sp = (t.kernel_stack_flags & 4) ? r.gpr[4] : r.gpr[4] & 0xffff;
+  u32 addr = t.kernel_stack_base + sp;
+  assert(addr + 40 <= MEM_SIZE);
+  return addr;
+}
 
 static Result run_model(const Test &t, const Bytes &mem, u32 fill) {
   x86::Model m;
@@ -420,6 +432,21 @@ static std::vector<Test> tests() {
   }
   Test tf{"VME POPF rejects TF", {0x68,2,1,0x9d}};
   tf.cr4 = 1; tf.flags = VM_FLAG | 2; tf.vector = 13; ts.push_back(tf);
+  for (bool db : {false, true}) {
+    Test down{"expand-down monitor stack " + std::to_string(db ? 32 : 16), {0x90}};
+    down.kernel_stack_limit = 0x9000;
+    down.kernel_stack_access = 0x97;
+    down.kernel_stack_flags = db ? 4 : 0;
+    ts.push_back(down);
+  }
+  for (bool down : {false, true}) {
+    Test wrap{"16-bit monitor stack at zero" + std::string(down ? " expand-down" : ""), {0x90}};
+    wrap.kernel_stack_limit = down ? 0x9000 : 0xffff;
+    wrap.kernel_stack_access = down ? 0x97 : 0x93;
+    wrap.kernel_stack_flags = 0;
+    wrap.kernel_sp = 0;
+    ts.push_back(wrap);
+  }
   return ts;
 }
 
@@ -435,13 +462,13 @@ int main(int argc, char **argv) {
       bool error = t.vector == 12 || t.vector == 13 || t.vector == 14;
       if (t.gate_type & 8) {
         u32 saved_flags;
-        memcpy(&saved_flags, m.mem.data() + t.kernel_stack_base + m.gpr[4] +
+        memcpy(&saved_flags, m.mem.data() + monitor_stack_addr(t, m) +
                (error ? 12 : 8), 4);
         ok &= (saved_flags & VM_FLAG) != 0;
       }
       if (error) {
         u32 saved = 0;
-        memcpy(&saved, m.mem.data() + t.kernel_stack_base + m.gpr[4],
+        memcpy(&saved, m.mem.data() + monitor_stack_addr(t, m),
                (t.gate_type & 8) ? 4 : 2);
         ok &= saved == t.error;
       }
@@ -467,8 +494,8 @@ int main(int argc, char **argv) {
               fprintf(stderr, "  gpr[%d]=%x/%x\n", i, m.gpr[i], hw.gpr[i]);
           for (int i = 0; i < 10; i++) {
             u32 a, b;
-            memcpy(&a, m.mem.data() + t.kernel_stack_base + m.gpr[4] + i * 4, 4);
-            memcpy(&b, hw.mem.data() + t.kernel_stack_base + hw.gpr[4] + i * 4, 4);
+            memcpy(&a, m.mem.data() + monitor_stack_addr(t, m) + i * 4, 4);
+            memcpy(&b, hw.mem.data() + monitor_stack_addr(t, hw) + i * 4, 4);
             fprintf(stderr, "  frame[%d]=%x/%x\n", i, a, b);
           }
         }

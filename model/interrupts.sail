@@ -211,11 +211,19 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   let frame_bytes = (if is_32bit then 4 else 2) * (if with_error then 10 else 9);
   let sp : dword = if stack_desc.seg_db == bitone then esp0 else zero_extend(esp0[15..0]);
   let bottom = sp - frame_bytes;
-  if unsigned(sp) < frame_bytes | unsigned(sp) - 1 > unsigned(stack_desc.seg_limit) then
+  // An empty stack may use SP=0 to denote the top of its address range.
+  // Expand-down segments accept offsets above, rather than below, limit.
+  let top : int = if sp == zeros() then
+                    (if stack_desc.seg_db == bitone then 4294967296 else 65536)
+                  else unsigned(sp);
+  let outside_limit : bool = if stack_desc.seg_type[2] == bitone then
+                               top - frame_bytes <= unsigned(stack_desc.seg_limit)
+                             else top - 1 > unsigned(stack_desc.seg_limit);
+  if top < frame_bytes | outside_limit then
     throw Fault(EXN_SS, ss_err);
   let flags = read_rflags();
   let old_sp : dword = v(RSP);
-  var addr : qword = stack_desc.seg_base + zero_extend(sp);
+  var addr : qword = stack_desc.seg_base + top;
 
   // The new stack is an implicit supervisor access, even though the
   // interrupted virtual-8086 program was running at CPL 3.
@@ -249,7 +257,9 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   SegCache[SS] = stack_desc;
   write_segreg(CS, gate.gate_sel & 0xFFFC);
   write_segreg(SS, ss0);
-  v(RSP) = if stack_desc.seg_db == bitone then bottom else esp0[31..16] @ bottom[15..0];
+  // A 16-bit monitor stack replaces SP only, preserving the interrupted
+  // ESP's high half (confirmed on AMD and Intel).
+  v(RSP) = if stack_desc.seg_db == bitone then bottom else old_sp[31..16] @ bottom[15..0];
   foreach (j from 0 to 3) {
     let i : segreg_idx = match j { 0 => ES, 1 => DS, 2 => FS, _ => GS };
     write_segreg(i, 0x0000);
