@@ -119,3 +119,279 @@ sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap star
 init: starting sh
 $
 ```
+
+### linux-apic-01
+
+Reached the 64-bit kernel, MADT discovery, symmetric I/O APIC routing (timer pin 2), ACPI interpreter, PCI enumeration and initramfs unpacking. The 900-second bound expired before a shell. This used the pre-RTC-fix emulator.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name linux-apic-01 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom build/os-boot/linux-apic.iso -boot d
+```
+
+Wall time: **900.844 s**. Instructions: **153,048,662**.
+
+Last serial output:
+
+```text
+pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+vgaarb: loaded
+clocksource: Switched to clocksource tsc-early
+ACPI: Failed to create genetlink family for ACPI event
+pnp: PnP ACPI init
+pnp: PnP ACPI: found 4 devices
+clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7 window]
+pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+pci_bus 0000:00: resource 7 [mem 0x80000000-0xfebfffff window]
+pci 0000:00:01.0: PIIX3: Enabling Passive Release
+pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+PCI: CLS 0 bytes, default 64
+Unpacking initramfs...
+RAPL PMU: API unit is 2^-32 Joules, 0 fixed counters, 10737418240 ms ovfl timer
+```
+
+### linux-i386-01
+
+**Reached the serial `sail#` shell.** This is the supplied 32-bit kernel and initramfs, with an explicit command line omitting APIC-disabling flags. The supplied kernel itself is uniprocessor without APIC support; the separate 64-bit test exercises APICs.
+
+```sh
+system-emu/run-boot.py --name linux-i386-01 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 4 -a 'console=ttyS0 earlyprintk=serial,ttyS0 tsc=reliable nokaslr norandmaps rdinit=/init' -i /home/ruiu/os-images/linux-i386/initramfs-i386.cpio /home/ruiu/os-images/linux-i386/bzImage-i386
+```
+
+Wall time: **328.832 s**. Instructions: **55,971,204**.
+
+Last serial output:
+
+```text
+microcode: Current revision: 0x00000000
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+sched_clock: Marking stable (10453434250, 29533000)->(10485958500, -2991250)
+Freeing unused kernel image (initmem) memory: 196K
+Write protecting kernel text and read-only data: 1632k
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail#
+```
+
+### freebsd-01
+
+Reached CD Loader 1.2 and **Starting the BTX loader**, then ceased making boot progress. No loader prompt or serial console appeared, so the scheduled `set console=comconsole` and `boot -s` did not take effect. The final CPU ran through zero-filled memory in protected mode. Stopped manually for diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name freebsd-01 --timeout 900 --send 45:3 --send '75:set console=comconsole\n' --send '90:\x01sboot -s\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **163.759 s**. Instructions: **22,728,435**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-02
+
+Diagnostic trace: bounded at 5,000,000 instructions, still in SeaBIOS. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=5000000 SAIL_X86_TRACE_STEP=100000 system-emu/run-boot.py --name freebsd-trace-02 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **13.608 s**. Instructions: **5,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-03
+
+Diagnostic trace: BTX starts around 6,100,000 instructions, then execution escapes to zero-filled memory. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=5000000 SAIL_X86_TRACE_END=8000000 SAIL_X86_TRACE_STEP=10000 system-emu/run-boot.py --name freebsd-trace-03 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **39.032 s**. Instructions: **8,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-04
+
+Diagnostic trace: BTX exception formatting returns at instruction 6,114,173 from CS:EIP `0008:000094cf` with SS=`ffff`, ESP=`fffe757b`; RET transfers to `0080bd32`, then executes zero bytes. The model has no virtual-8086 return path in its IRETD implementation, which BTX requires. No model workaround was added.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=6110000 SAIL_X86_TRACE_END=6120000 SAIL_X86_TRACE_STEP=1 system-emu/run-boot.py --name freebsd-trace-04 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **27.026 s**. Instructions: **6,120,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### haiku-01
+
+Reached **64-bit kernel code** and selected **VBE 1024x768x32** (mode 144h). The captured image was black: duplicate VGA ROM initialization advertised E0000000 while BAR0 was FD000000. This is fixed by commit `6f5546d`. COM1 remained silent. The supervisor was paused at 818.4 seconds while the guest continued decompressing, then resumed to collect this result; effective duration was 1135 seconds, within the OS budget.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-01 --timeout 900 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1134.972 s**. Instructions: **175,736,527**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### reactos-01
+
+The supplied ISO defaults to **Live (Debug)**, despite its bootcd filename. Reached ReactOS kernel CPU-feature reporting and a VGA request to connect a debugger on COM1. Only RTC IRQ 8 was unmasked in the final state; the static CMOS device supplied no periodic interrupts. Stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-01 --timeout 900 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/reactos-bootcd-0.4.17-dev-915-g3f5fd48-x86-gcc-lin-dbg.iso -boot d
+```
+
+Wall time: **308.531 s**. Instructions: **67,301,977**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+(ntoskrnl/kd64/kdinit.c:94) -----------------------------------------------------
+(ntoskrnl/kd64/kdinit.c:95) ReactOS 0.4.17-x86-dev (Build 20260924-0.4.17-dev-915-g3f5fd48) (Commit 3f5fd48b637f96ce589886dc1548b8e9ffb42448)
+(ntoskrnl/kd64/kdinit.c:96) 1 System Processor [256 MB Memory]
+(ntoskrnl/kd64/kdinit.c:100) Command Line: DEBUG DEBUGPORT=COM1 BAUDRATE=115200 SOS FASTDETECT MININT
+(ntoskrnl/kd64/kdinit.c:103) ARC Paths: multi(0)disk(0)cdrom(96) \ multi(0)disk(0)cdrom(96) \reactos\
+(ntoskrnl/ke/i386/cpu.c:356) Supported CPU features: KF_RDTSC KF_CR4 KF_CMOV KF_GLOBAL_PAGE KF_LARGE_PAGE KF_MTRR KF_CMPXCHG8B KF_MMX KF_WORKING_PTE KF_PAT KF_FXSR KF_FAST_SYSCALL KF_XMMI KF_XMMI64 KF_NX_BIT X86_FEATURE_PAE X86_FEATURE_APIC
+(ntoskrnl/ke/i386/cpu.c:652) Prefetch Cache: 64 bytes	L2 Cache: 0 bytes	L2 Cache Line: 64 bytes	L2 Cache Associativity: 0
+```
+
+### reactos-setup-02
+
+Local ISO selects **ReactOS Setup (Text Mode)** with `/NODEBUG /NOGUIBOOT /SIFOPTIONSOVERRIDE`. Loaded the setup system hive and entered kernel code; timed out with only RTC IRQ 8 unmasked. The subsequent RTC device fix targets this calibration wait. No setup selection screen yet.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-setup-02 --timeout 900 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **900.483 s**. Instructions: **219,066,326**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+### win31-01
+
+FreeDOS booted from the hard disk and Windows Setup displayed **Installing XMS memory manager...**. No graphical screen. Stopped manually after diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-01 --timeout 900 --send '90:\n' --send '150:\n' --send '210:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -hda build/os-boot/win31.img -cdrom /home/ruiu/os-images/win31.iso -boot c
+```
+
+Wall time: **656.856 s**. Instructions: **121,442,750**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win31-02
+
+Retried with 32 MB and 8042 output-port/A20 support. Reached the same **Installing XMS memory manager...** text screen; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-02 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 32 -kbd -b build/bios.bin -hda build/os-boot/win31.img -cdrom /home/ruiu/os-images/win31.iso -boot c
+```
+
+Wall time: **557.434 s**. Instructions: **104,596,510**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win31-himem-03
+
+Preloaded the supplied Windows 95 floppy HIMEM.SYS through FreeDOS FDCONFIG.SYS, using 16 MB. Stalled during DOS driver initialization before Setup. This run predates the RTC interrupt fix; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-himem-03 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **396.488 s**. Instructions: **73,434,957**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-01
+
+The original CD booted its MS-DOS startup image and printed **Starting Windows 95...**, then requested the command interpreter at `A>`. No graphical screen. Also supplied `a:\command.com` through the keyboard at runtime; it did not advance. Stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-01 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **657.643 s**. Instructions: **115,028,097**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-floppy-02
+
+Retried the CD boot image as a physical floppy with the original CD attached and 64 MB RAM. Again reached **Type the name of the Command Interpreter ... A>**; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-floppy-02 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/win95-boot.img -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot a
+```
+
+Wall time: **558.044 s**. Instructions: **100,950,710**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+## BIOS graphics integration
+
+```sh
+python3 system-emu/tests/boot-graphics.py
+```
+
+All three BIOS-driven fixtures pass pixel/row checks after the duplicate-ROM
+fix: mode 12h at 640x480 (eight test colors), mode 13h at 320x200 (two
+colors), and VBE 101h at 640x480 (four colors). PNGs are
+`build/os-boot/bios-mode12.png`, `bios-mode13.png`, and `bios-mode101.png`.
+These are diagnostic test patterns, not OS screenshots. The fixtures print
+`GRAPHICS READY` and deliberately halt with IF clear to trigger capture.
+Their simulator exit status 1 is expected; validation checks the marker
+and the actual PNG pixels.
