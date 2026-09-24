@@ -252,4 +252,118 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0; e.aaa = 0; e.z = false;
     tests.push_back({"VRANGESD xmm", cat, e.encode_rr_imm(0), sd, FL_ALL, 0x7, false});
   }
+
+  // =====================================================================
+  // VRCP14SS/SD (EVEX.66.0F38.W0/W1 4D), VRSQRT14SS/SD (4F): the result is
+  // an approximation with relative error below 2^-14, so only the low
+  // element gets a tolerance; the upper elements are copied from the first
+  // source and must match exactly.
+  // VFIXUPIMMSS/SD (EVEX.66.0F3A.W0/W1 55): scalar fixup with the response
+  // table in the low element of the second source.
+  // =====================================================================
+  {
+    auto add_approx = [&](const std::string &name, Evex e, ArchState s, int bits) {
+      ArchState merge = s;
+      s = with_vector_inputs(s, 0x6);
+      e.LL = 0;
+      auto push = [&](const std::string &n, ArchState st) {
+        TestCase tc = {n, cat, e.encode_rr(), st, FL_ALL, 0x7, false};
+        tc.approx_rel_tol = 6.2e-5; tc.approx_elem_bits = bits;
+        tc.approx_result_bits = bits; tc.approx_reg = 0;
+        tests.push_back(std::move(tc));
+      };
+      e.aaa = 0; e.z = false; push(name + " xmm", s);
+      e.aaa = 1; e.z = true;
+      { ArchState k = s; k.kregs[1] = 1; push(name + " xmm {k1}{z} mask=1", k); }
+      { ArchState k = s; k.kregs[1] = 0; push(name + " xmm {k1}{z} mask=0", k); }
+      e.aaa = 1; e.z = false;
+      { ArchState k = merge; k.kregs[1] = 0; push(name + " xmm {k1} mask=0", k); }
+    };
+    for (float b : {3.0f, 0.0625f, 1e10f, 7.5f, 1.0f}) {
+      Evex e; e.mm = 2; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
+      e.opcode = 0x4D; add_approx(std::format("VRCP14SS ({})", b), e, make_ss_state(2.0f, b), 32);
+      e.opcode = 0x4F; add_approx(std::format("VRSQRT14SS ({})", b), e, make_ss_state(2.0f, b), 32);
+    }
+    for (double b : {3.0, 0.0625, 1e10, 7.5, 1.0}) {
+      Evex e; e.mm = 2; e.pp = 1; e.W = true; e.reg = 0; e.vvvv = 1; e.rm = 2;
+      e.opcode = 0x4D; add_approx(std::format("VRCP14SD ({})", b), e, make_sd_state(2.0, b), 64);
+      e.opcode = 0x4F; add_approx(std::format("VRSQRT14SD ({})", b), e, make_sd_state(2.0, b), 64);
+    }
+    // memory source
+    {
+      float b = 3.0f; double bd = 3.0;
+      Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.LL = 0; e.aaa = 0;
+      for (u8 op : {0x4D, 0x4F}) {
+        e.opcode = op;
+        e.W = false;
+        { ArchState s = with_vector_inputs(make_ss_state(2.0f, 0.0f), 0x2); s.rdi = DATA_ADDR;
+          std::vector<u8> mem(64, 0xCC); memcpy(mem.data(), &b, 4);
+          TestCase tc = {std::format("{} xmm0,xmm1,[rdi]", op == 0x4D ? "VRCP14SS" : "VRSQRT14SS"),
+                         cat, e.encode_rm_mem(), s, FL_ALL, 0x7, false};
+          tc.init_data = mem; tc.approx_rel_tol = 6.2e-5; tc.approx_elem_bits = 32;
+          tc.approx_result_bits = 32; tc.approx_reg = 0;
+          tests.push_back(std::move(tc)); }
+        e.W = true;
+        { ArchState s = with_vector_inputs(make_sd_state(2.0, 0.0), 0x2); s.rdi = DATA_ADDR;
+          std::vector<u8> mem(64, 0xCC); memcpy(mem.data(), &bd, 8);
+          TestCase tc = {std::format("{} xmm0,xmm1,[rdi]", op == 0x4D ? "VRCP14SD" : "VRSQRT14SD"),
+                         cat, e.encode_rm_mem(), s, FL_ALL, 0x7, false};
+          tc.init_data = mem; tc.approx_rel_tol = 6.2e-5; tc.approx_elem_bits = 64;
+          tc.approx_result_bits = 64; tc.approx_reg = 0;
+          tests.push_back(std::move(tc)); }
+      }
+    }
+
+    // VFIXUPIMMSS/SD.  Token order QNAN, SNAN, ZERO, POS_ONE, NEG_INF,
+    // POS_INF, NEG_VALUE, POS_VALUE; the tables map them to responses F..8
+    // and 7..3,1,0,2.  Response 2, QNaN(tsrc), is used only for NaN tokens:
+    // the SDM does not define QNaN() of a non-NaN input.
+    {
+      u32 v32[] = {0x7FC00001, 0x7F800001, 0x00000000, 0x3F800000, 0xFF800000, 0x7F800000, 0xC0600000, 0x40100000, 0x80000000, 0x00000001};
+      u64 v64[] = {0x7FF8000000000001ULL, 0x7FF0000000000001ULL, 0, 0x3FF0000000000000ULL, 0xFFF0000000000000ULL,
+                   0x7FF0000000000000ULL, 0xC00C000000000000ULL, 0x4002000000000000ULL, 0x8000000000000000ULL, 1};
+      for (u32 table : {0xFEDCBA98u, 0x76543102u}) {
+        for (int vi = 0; vi < 10; vi++) {
+          {
+            ArchState s = make_ss_state(0.0f, 0.0f);
+            s.xmm[1].set<u32>(0, v32[vi]);
+            s.xmm[2].set<u32>(0, table);
+            Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x55; e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0;
+            std::string name = std::format("VFIXUPIMMSS table={:#x} value#{}", table, vi);
+            e.aaa = 0; e.z = false;
+            tests.push_back({name, cat, e.encode_rr_imm(0), with_vector_inputs(s, 0x7), FL_ALL, 0x7, false});
+            ArchState k = with_vector_inputs(s, 0x7); k.kregs[1] = 0;
+            e.aaa = 1; e.z = true;
+            tests.push_back({name + " {k1}{z} mask=0", cat, e.encode_rr_imm(0), k, FL_ALL, 0x7, false});
+          }
+          {
+            ArchState s = make_sd_state(0.0, 0.0);
+            s.xmm[1].q[0] = v64[vi];
+            s.xmm[2].q[0] = table;
+            Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x55; e.reg = 0; e.vvvv = 1; e.rm = 2; e.LL = 0;
+            std::string name = std::format("VFIXUPIMMSD table={:#x} value#{}", table, vi);
+            e.aaa = 0; e.z = false;
+            tests.push_back({name, cat, e.encode_rr_imm(0), with_vector_inputs(s, 0x7), FL_ALL, 0x7, false});
+            ArchState k = with_vector_inputs(s, 0x7); k.kregs[1] = 0;
+            e.aaa = 1; e.z = false;
+            tests.push_back({name + " {k1} mask=0", cat, e.encode_rr_imm(0), k, FL_ALL, 0x7, false});
+          }
+        }
+      }
+      // table from memory
+      {
+        u32 table = 0xFEDCBA98u;
+        std::vector<u8> mem(64, 0xCC); memcpy(mem.data(), &table, 4); memcpy(mem.data() + 8, &table, 4);
+        ArchState s = make_ss_state(0.0f, 0.0f); s.xmm[1].set<u32>(0, 0xFF800000); s.rdi = DATA_ADDR;
+        Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x55; e.reg = 0; e.vvvv = 1; e.LL = 0; e.aaa = 0;
+        TestCase tc = {"VFIXUPIMMSS xmm0,xmm1,[rdi],0", cat, e.encode_rm_mem_imm(0), with_vector_inputs(s, 0x3), FL_ALL, 0x7, false};
+        tc.init_data = mem; tests.push_back(std::move(tc));
+        ArchState d = make_sd_state(0.0, 0.0); d.xmm[1].q[0] = 0xFFF0000000000000ULL; d.rdi = DATA_ADDR;
+        e.W = true;
+        std::vector<u8> mem64(64, 0xCC); u64 t64 = table; memcpy(mem64.data(), &t64, 8);
+        TestCase td = {"VFIXUPIMMSD xmm0,xmm1,[rdi],0", cat, e.encode_rm_mem_imm(0), with_vector_inputs(d, 0x3), FL_ALL, 0x7, false};
+        td.init_data = mem64; tests.push_back(std::move(td));
+      }
+    }
+  }
 }

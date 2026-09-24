@@ -288,4 +288,41 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     e.W = true;
     add_evex_rr_tests(tests, cat, "VPBLENDMW", e, s, 0x6, 0x55555555, -1);
   }
+
+  // =====================================================================
+  // VPCMPUB/VPCMPUW k1 {k2}, v, v/m, imm8: EVEX.66.0F3A.W0/W1 3E
+  // Unsigned compares into a mask.  Predicates 0 EQ, 1 LT, 2 LE, 4 NEQ,
+  // 5 NLT, 6 NLE (3 and 7 are FALSE and TRUE).  Values straddle 0x80 so a
+  // signed compare would give a different mask.
+  // =====================================================================
+  {
+    ArchState s;
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = (u8)(i * 17);
+    for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = (u8)(0x80 + i * 13);
+    s.kregs[2] = 0xF0F0F0F0A5A5A5A5ULL;
+    const char *vl_name[] = {"xmm", "ymm", "zmm"};
+    for (int w = 0; w <= 1; w++) {
+      Evex e; e.mm = 3; e.pp = 1; e.W = w; e.opcode = 0x3E; e.reg = 1; e.vvvv = 1; e.rm = 2;
+      const char *mn = w ? "VPCMPUW" : "VPCMPUB";
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        for (u8 pred : {0, 1, 2, 3, 4, 5, 6, 7}) {
+          e.aaa = 0;
+          tests.push_back({std::format("{} k1,{}1,{}2,{}", mn, vl_name[ll], vl_name[ll], pred), cat,
+                           e.encode_rr_imm(pred), with_vector_inputs(s, 0x6), FL_ALL, 0, false});
+        }
+        e.aaa = 2;
+        tests.push_back({std::format("{} k1{{k2}},{}1,{}2,1", mn, vl_name[ll], vl_name[ll]), cat,
+                         e.encode_rr_imm(1), with_vector_inputs(s, 0x6), FL_ALL, 0, false});
+        e.aaa = 0;
+        TestCase tc; tc.category = cat;
+        tc.name = std::format("{} k1,{}1,[rdi],2", mn, vl_name[ll]);
+        tc.code = e.encode_rm_mem_imm(2);
+        tc.initial = with_vector_inputs(s, 0x2); tc.initial.rdi = DATA_ADDR;
+        tc.init_data.resize(64);
+        for (int i = 0; i < 64; i++) tc.init_data[i] = (u8)(0x70 + i * 11);
+        tests.push_back(std::move(tc));
+      }
+    }
+  }
 }

@@ -740,4 +740,218 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       }
     }
   }
+
+  // =====================================================================
+  // VFIXUPIMMPS/PD v {k}{z}, v, v/m/bcst, imm8    EVEX.66.0F3A.W0/W1 54
+  // VFPCLASSSS/SD k {k}, xmm/m32/m64, imm8         EVEX.66.0F3A.W0/W1 67
+  // Scatters (EVEX.66.0F38 A0-A3) and gathers (90-93) with VSIB addressing
+  // =====================================================================
+  {
+    const char *vl_name[] = {"xmm", "ymm", "zmm"};
+
+    // VFIXUPIMM: the destination is also an input (response 0 keeps it), the
+    // first source supplies the values to classify, and the second source is
+    // the response table with one nibble per token type.  The lanes of src1
+    // cover all eight token types; the table maps each type to a different
+    // response, and a second table exercises the remaining responses.
+    {
+      ArchState s;
+      float f32[16] = {0};
+      double f64[8];
+      u32 fq, fs;
+      fq = 0x7FC00001; memcpy(&f32[0], &fq, 4);          // QNaN
+      fs = 0x7F800001; memcpy(&f32[1], &fs, 4);          // SNaN
+      f32[2] = 0.0f; f32[3] = 1.0f; f32[4] = -INFINITY; f32[5] = INFINITY;
+      f32[6] = -3.5f; f32[7] = 2.25f; f32[8] = -0.0f; f32[9] = 100.0f;
+      u32 fd = 0x00000001; memcpy(&f32[10], &fd, 4);     // denormal
+      f32[11] = -1.0f; f32[12] = 1.0f; f32[13] = -1e30f; f32[14] = 0.5f; f32[15] = -0.0f;
+      u64 dq = 0x7FF8000000000001ULL, ds = 0x7FF0000000000001ULL, dd = 1;
+      memcpy(&f64[0], &dq, 8); memcpy(&f64[1], &ds, 8);
+      f64[2] = 0.0; f64[3] = 1.0; f64[4] = -INFINITY; f64[5] = INFINITY; f64[6] = -3.5; f64[7] = 2.25;
+      (void)dd;
+      // token order: QNAN, SNAN, ZERO, POS_ONE, NEG_INF, POS_INF, NEG_VALUE, POS_VALUE
+      // Response 2, QNaN(tsrc), is used only for NaN tokens: the SDM does
+      // not define QNaN() of a non-NaN input.
+      const u32 table_a = 0xFEDCBA98u;  // responses F..8 for tokens 7..0
+      const u32 table_b = 0x76543102u;  // responses 7..3 for tokens 7..3, then 1, 0, 2
+      const u32 table_c = 0x61D3C0A4u;  // a mixed table
+
+      for (int w = 0; w <= 1; w++) {
+        ArchState in = s;
+        if (w) {
+          memcpy(in.xmm[1].q, f64, 64);
+          for (int i = 0; i < 8; i++) in.xmm[0].q[i] = 0x4000000000000000ULL + i;  // dst input: 2.0 + i ulp
+        } else {
+          memcpy(in.xmm[1].q, f32, 64);
+          for (int i = 0; i < 16; i++) in.xmm[0].set<u32>(i, 0x40000000u + i);
+        }
+        Evex e; e.mm = 3; e.pp = 1; e.W = w; e.opcode = 0x54; e.reg = 0; e.vvvv = 1; e.rm = 2;
+        for (u32 table : {table_a, table_b, table_c}) {
+          ArchState t = in;
+          if (w) for (int i = 0; i < 8; i++) t.xmm[2].q[i] = table;
+          else for (int i = 0; i < 16; i++) t.xmm[2].set<u32>(i, table);
+          t = with_vector_inputs(t, 0x7);
+          for (int ll = 0; ll <= 2; ll++) {
+            e.LL = ll;
+            std::string name = std::format("{} {} table={:#x}", w ? "VFIXUPIMMPD" : "VFIXUPIMMPS", vl_name[ll], table);
+            e.aaa = 0; e.z = false;
+            tests.push_back({name, cat, e.encode_rr_imm(0), t, FL_ALL, 0, false});
+            // imm8 bits only select which exceptions to signal; with all
+            // SIMD exceptions masked they change MXCSR flags at most.
+            tests.push_back({name + " imm=0xff", cat, e.encode_rr_imm(0xFF), t, FL_ALL, 0, false});
+            ArchState km = t; km.kregs[1] = w ? 0x5A : 0xA5A5;
+            e.aaa = 1; e.z = true;
+            tests.push_back({name + " {k1}{z}", cat, e.encode_rr_imm(0), km, FL_ALL, 0, false});
+            e.aaa = 1; e.z = false;
+            tests.push_back({name + " {k1}", cat, e.encode_rr_imm(0), km, FL_ALL, 0, false});
+          }
+        }
+        // table from memory, and broadcast from memory
+        {
+          std::vector<u8> mem(64);
+          for (int i = 0; i < 64; i += 4) memcpy(&mem[i], &table_c, 4);
+          ArchState t = with_vector_inputs(in, 0x3); t.rdi = DATA_ADDR;
+          for (int ll = 0; ll <= 2; ll++) {
+            e.LL = ll; e.aaa = 0; e.z = false;
+            TestCase tc; tc.category = cat; tc.initial = t; tc.init_data = mem;
+            tc.name = std::format("{} {} [rdi]", w ? "VFIXUPIMMPD" : "VFIXUPIMMPS", vl_name[ll]);
+            tc.code = e.encode_rm_mem_imm(0);
+            tests.push_back(std::move(tc));
+            TestCase tb; tb.category = cat; tb.initial = t; tb.init_data = mem;
+            tb.name = std::format("{} {} [rdi]{{1toN}}", w ? "VFIXUPIMMPD" : "VFIXUPIMMPS", vl_name[ll]);
+            tb.code = e.encode_rm_bcast_imm(0);
+            tests.push_back(std::move(tb));
+          }
+        }
+      }
+    }
+
+    // VFPCLASSSS/SD: imm8 bit 0 qNaN, 1 +0, 2 -0, 3 +inf, 4 -inf, 5 denormal,
+    // 6 finite negative, 7 sNaN.  Result bit 0 of k1, under the k2 mask.
+    {
+      u32 v32[] = {0x7FC00000, 0x7F800001, 0x00000000, 0x80000000, 0x7F800000, 0xFF800000,
+                   0x00400000, 0x80000003, 0xC0200000, 0x40400000};
+      u64 v64[] = {0x7FF8000000000000ULL, 0x7FF0000000000001ULL, 0, 0x8000000000000000ULL,
+                   0x7FF0000000000000ULL, 0xFFF0000000000000ULL, 0x0008000000000000ULL,
+                   0x8000000000000003ULL, 0xC004000000000000ULL, 0x4008000000000000ULL};
+      const u8 imms[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x66, 0xFF};
+      for (int w = 0; w <= 1; w++) {
+        Evex e; e.mm = 3; e.pp = 1; e.W = w; e.opcode = 0x67; e.reg = 1; e.vvvv = 0; e.rm = 1; e.LL = 0;
+        for (int vi = 0; vi < 10; vi++) {
+          ArchState s;
+          s.xmm[1].q[1] = 0xDEADDEADDEADDEADULL;  // upper qword must be ignored
+          if (w) s.xmm[1].q[0] = v64[vi];
+          else { s.xmm[1].q[0] = 0xDEADDEAD00000000ULL; s.xmm[1].set<u32>(0, v32[vi]); }
+          for (u8 imm : imms) {
+            std::string name = std::format("{} k1,xmm1,{:#x} value#{}", w ? "VFPCLASSSD" : "VFPCLASSSS", imm, vi);
+            e.aaa = 0;
+            tests.push_back({name, cat, e.encode_rr_imm(imm), with_vector_inputs(s, 0x2), FL_ALL, 0, false});
+            if (imm == 0xFF) {
+              ArchState km = with_vector_inputs(s, 0x2); km.kregs[2] = 0xFE;  // bit 0 clear: result masked to 0
+              e.aaa = 2;
+              tests.push_back({name + " {k2}", cat, e.encode_rr_imm(imm), km, FL_ALL, 0, false});
+            }
+          }
+        }
+        // memory operand
+        e.aaa = 0;
+        for (int vi : {0, 5, 6}) {
+          std::vector<u8> mem(64, 0xCC);
+          if (w) memcpy(mem.data(), &v64[vi], 8); else memcpy(mem.data(), &v32[vi], 4);
+          TestCase tc; tc.category = cat;
+          tc.name = std::format("{} k1,[rdi],0xff value#{}", w ? "VFPCLASSSD" : "VFPCLASSSS", vi);
+          tc.code = e.encode_rm_mem_imm(0xFF);
+          tc.initial = {.rdi = DATA_ADDR}; tc.init_data = mem;
+          tests.push_back(std::move(tc));
+        }
+      }
+    }
+
+    // Scatters and gathers.  The index vector (zmm2) holds signed element
+    // offsets; the base is the middle of the data page so negative indices
+    // are exercised; one index is duplicated so the LSB-to-MSB write order
+    // of the SDM shows.  The mask (k1) is required and is cleared by the
+    // instruction; a partial mask leaves the unselected elements alone.
+    {
+      auto scatter_state = [&](bool qidx) {
+        ArchState s;
+        s.rdi = DATA_ADDR + 0x800;
+        for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1) + 0x0F0E0D0C0B0A0908ULL;
+        int32_t idx32[16] = {0, 3, -5, 8, 12, -20, 7, 3, 30, -33, 40, 45, -50, 55, 60, -63};
+        int64_t idx64[8] = {0, 3, -5, 8, 12, -20, 7, 3};
+        if (qidx) memcpy(s.xmm[2].q, idx64, 64); else memcpy(s.xmm[2].q, idx32, 64);
+        return s;
+      };
+      struct { const char *name; u8 op; bool W; bool qidx; int scale; } sc[] = {
+        {"VPSCATTERDD", 0xA0, false, false, 4}, {"VPSCATTERDQ", 0xA0, true, false, 8},
+        {"VPSCATTERQD", 0xA1, false, true, 4},  {"VPSCATTERQQ", 0xA1, true, true, 8},
+        {"VSCATTERDPS", 0xA2, false, false, 4}, {"VSCATTERDPD", 0xA2, true, false, 8},
+        {"VSCATTERQPS", 0xA3, false, true, 4},  {"VSCATTERQPD", 0xA3, true, true, 8},
+        {"VPSCATTERDD scale 1", 0xA0, false, false, 1}, {"VPSCATTERQQ scale 2", 0xA1, true, true, 2},
+      };
+      for (auto &c : sc) {
+        Evex e; e.mm = 2; e.pp = 1; e.W = c.W; e.opcode = c.op; e.reg = 1;
+        for (int ll = 0; ll <= 2; ll++) {
+          e.LL = ll;
+          for (u64 mask : {~0ULL, 0x5AULL, 0x3ULL}) {
+            ArchState s = with_vector_inputs(scatter_state(c.qidx), 0x6);
+            s.kregs[1] = mask;
+            e.aaa = 1;
+            TestCase tc; tc.category = cat;
+            tc.name = std::format("{} [rdi+{}*{}]{{k1}},{}1 mask={:#x}", c.name, vl_name[ll], c.scale, vl_name[ll], mask & 0xFFFF);
+            tc.code = e.encode_vsib(2, c.scale);
+            tc.initial = s;
+            tc.init_data = std::vector<u8>(4096, 0xCC); tc.compare_data_len = 4096;
+            tests.push_back(std::move(tc));
+          }
+        }
+      }
+      // An index register above 7 (zmm9) exercises EVEX.X.  Index registers
+      // above 15 are left out: the model's VSIB decoder takes bit 4 of the
+      // index from EVEX.R' rather than EVEX.V' (SDM Table 1-33), and the
+      // resulting wild address is not survivable in this harness.
+      {
+        Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0xA0; e.reg = 1; e.LL = 2; e.aaa = 1;
+        ArchState s = scatter_state(false);
+        s.xmm[9] = s.xmm[2];
+        s = with_vector_inputs(s, 0x2 | (1u << 9));
+        s.kregs[1] = ~0ULL;
+        TestCase tc; tc.category = cat;
+        tc.name = "VPSCATTERDD [rdi+zmm9*4]{k1},zmm1";
+        tc.code = e.encode_vsib(9, 4);
+        tc.initial = s;
+        tc.init_data = std::vector<u8>(4096, 0xCC); tc.compare_data_len = 4096;
+        tests.push_back(std::move(tc));
+      }
+
+      // Gathers read the same layout back; masked-off elements keep the
+      // destination's value, so the destination is an input.
+      std::vector<u8> gmem(4096);
+      for (int i = 0; i < 4096; i++) gmem[i] = (u8)(i * 7 + 3);
+      struct { const char *name; u8 op; bool W; bool qidx; int scale; } ga[] = {
+        {"VPGATHERDD", 0x90, false, false, 4}, {"VPGATHERDQ", 0x90, true, false, 8},
+        {"VPGATHERQD", 0x91, false, true, 4},  {"VPGATHERQQ", 0x91, true, true, 8},
+        {"VGATHERDPS", 0x92, false, false, 4}, {"VGATHERDPD", 0x92, true, false, 8},
+        {"VGATHERQPS", 0x93, false, true, 4},  {"VGATHERQPD", 0x93, true, true, 8},
+      };
+      for (auto &g : ga) {
+        Evex e; e.mm = 2; e.pp = 1; e.W = g.W; e.opcode = g.op; e.reg = 0;
+        for (int ll = 0; ll <= 2; ll++) {
+          e.LL = ll;
+          for (u64 mask : {~0ULL, 0xA5ULL}) {
+            ArchState s = scatter_state(g.qidx);
+            for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
+            s = with_vector_inputs(s, 0x5);
+            s.kregs[1] = mask;
+            e.aaa = 1;
+            TestCase tc; tc.category = cat;
+            tc.name = std::format("{} {}0{{k1}},[rdi+{}*{}] mask={:#x}", g.name, vl_name[ll], vl_name[ll], g.scale, mask & 0xFFFF);
+            tc.code = e.encode_vsib(2, g.scale);
+            tc.initial = s; tc.init_data = gmem;
+            tests.push_back(std::move(tc));
+          }
+        }
+      }
+    }
+  }
 }
