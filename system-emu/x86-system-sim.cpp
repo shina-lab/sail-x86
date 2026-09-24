@@ -114,6 +114,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
   fprintf(stderr, "  -hdb <file>     Hard disk image (primary IDE slave)\n");
   fprintf(stderr, "  Ctrl-a s / Ctrl-a k           Route subsequent stdin to serial / keyboard\n");
+  fprintf(stderr, "  Ctrl-a u/d/l/r, Ctrl-a 1..0   Keyboard arrows and F1..F10\n");
   fprintf(stderr, "  -kbd            Route stdin to the PS/2 keyboard (headless BIOS interaction)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
   fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
@@ -568,6 +569,26 @@ static bool needs_shift(int ch) {
 // Push scancodes for a character into the keyboard controller.
 // Generates make+break for the key, with Shift/Ctrl if needed.
 static void push_key(KeyboardController &kbd, int ch) {
+  u8 special = 0;
+  bool extended = false;
+  if (ch >= KEY_F(1) && ch <= KEY_F(10)) special = 0x3B + ch - KEY_F(1);
+  else if (ch == KEY_F(11) || ch == KEY_F(12)) special = 0x57 + ch - KEY_F(11);
+  else {
+    switch (ch) {
+    case KEY_UP: special = 0x48; break;
+    case KEY_DOWN: special = 0x50; break;
+    case KEY_LEFT: special = 0x4B; break;
+    case KEY_RIGHT: special = 0x4D; break;
+    }
+    extended = special != 0;
+  }
+  if (special) {
+    if (extended) kbd.push_scancode(0xE0);
+    kbd.push_scancode(special);
+    if (extended) kbd.push_scancode(0xE0);
+    kbd.push_scancode(special | 0x80);
+    return;
+  }
   // Handle ncurses special keys (KEY_xxx constants >= 256)
   if (ch == KEY_ENTER) ch = '\r';
   else if (ch == KEY_BACKSPACE) ch = 0x08;
@@ -1025,6 +1046,17 @@ int main(int argc, char *argv[]) {
     if (keyboard_input) push_key(model.kbd, ch == '\r' || ch == '\n' ? '\n' : ch);
     else model.uart.rx_push(ch);
   };
+  auto input_special = [&](int ch) {
+    int key = 0;
+    if (ch >= '1' && ch <= '9') key = KEY_F(ch - '0');
+    else if (ch == '0') key = KEY_F(10);
+    else if (ch == 'u') key = KEY_UP;
+    else if (ch == 'd') key = KEY_DOWN;
+    else if (ch == 'l') key = KEY_LEFT;
+    else if (ch == 'r') key = KEY_RIGHT;
+    if (key) push_key(model.kbd, key);
+    return key != 0;
+  };
 
   u64 insn_count = 0;
   const char *trace_start_env = getenv("SAIL_X86_TRACE_START");
@@ -1271,6 +1303,7 @@ int main(int argc, char *argv[]) {
               while ((ch = getch()) != ERR) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
+                  if (input_special(ch)) continue;
                   if (ch == 'x' || ch == 'X') {
                     model.should_exit = true;
                     break;
@@ -1294,6 +1327,7 @@ int main(int argc, char *argv[]) {
                 for (ssize_t i = 0; n > 0 && i < n; i++) {
                   if (ctrl_a_pending) {
                     ctrl_a_pending = false;
+                    if (input_special(buf[i])) continue;
                     if (buf[i] == 's') { keyboard_input = false; continue; }
                     if (buf[i] == 'k') { keyboard_input = true; continue; }
                     if (buf[i] == 'x' || buf[i] == 'X') {
@@ -1339,6 +1373,7 @@ int main(int argc, char *argv[]) {
         while ((ch = getch()) != ERR) {
           if (ctrl_a_pending) {
             ctrl_a_pending = false;
+            if (input_special(ch)) continue;
             if (ch == 'x' || ch == 'X') {
               model.should_exit = true;
               break;
@@ -1359,6 +1394,7 @@ int main(int argc, char *argv[]) {
         for (ssize_t i = 0; n > 0 && i < n; i++) {
           if (ctrl_a_pending) {
             ctrl_a_pending = false;
+            if (input_special(buf[i])) continue;
             if (buf[i] == 's') { keyboard_input = false; continue; }
             if (buf[i] == 'k') { keyboard_input = true; continue; }
             if (buf[i] == 'x' || buf[i] == 'X') {
