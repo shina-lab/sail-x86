@@ -135,6 +135,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
   fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS_STEPS  Trace this many steps after that address, then stop\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1073,6 +1074,7 @@ int main(int argc, char *argv[]) {
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
   bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
   u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
+  u64 trace_address_steps = parse_env_u64("SAIL_X86_TRACE_ADDRESS_STEPS", 0);
   bool trace_address_seen = false;
   struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
   TraceLocation recent[64] = {};
@@ -1236,6 +1238,14 @@ int main(int argc, char *argv[]) {
                 trace_address, insn_count);
         dump_recent();
         dump_state();
+        if (trace_address_steps) {
+          // Address-triggered windows remain useful when keyboard timing
+          // changes the instruction count before the code of interest.
+          trace_window_enabled = has_trace_end = true;
+          trace_start = insn_count;
+          trace_end = insn_count + std::min(trace_address_steps, UINT64_MAX - insn_count);
+          trace_step = 1;
+        }
       }
     }
     model.zstep(UNIT);
