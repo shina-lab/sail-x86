@@ -79,10 +79,13 @@ function note_io_access(port, nbytes) = {
 val check_crossing_pages : (qword, int, PTAccess) -> unit
 function check_crossing_pages(addr, nbytes, access) = {
   let _ = translate_addr(addr, access);
-  var offset : int = 4096 - unsigned(addr[11..0]);
-  while offset < nbytes do {
-    let _ = translate_addr(addr + to_bits(64, offset), access);
-    offset = offset + 4096
+  // Walk the following page starts while they lie inside the access.
+  // (Bitvector arithmetic: the official type checker cannot bound an
+  // integer offset converted with to_bits here.)
+  var page : qword = (addr & 0xFFFFFFFFFFFFF000) + 0x0000000000001000;
+  while unsigned(page - addr) < nbytes do {
+    let _ = translate_addr(page, access);
+    page = page + 0x0000000000001000
   }
 }
 
