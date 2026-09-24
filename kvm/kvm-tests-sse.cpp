@@ -1999,4 +1999,44 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       }
     }
   }
+
+  // =====================================================================
+  // 0F 50: MOVMSKPS / MOVMSKPD — sign bits to a GPR, zero-extended to 64
+  // bits whatever the operand size (REX.W is accepted and ignored).
+  // =====================================================================
+  cat = "SSE";
+  {
+    ArchState s;
+    s.xmm[1] = xmm_from_f32(-1.0f, 2.0f, -3.0f, 4.0f);   // signs 0101b
+    s.xmm[2] = xmm_from_f64(1.0, -2.0);                  // signs 10b
+    s.xmm[3] = xmm_from_u64(0x8000000080000000, 0x8000000080000000);  // all set
+    auto add_gpr = [&](const std::string &name, std::vector<u8> code, u32 inputs) {
+      tests.push_back({name, cat, std::move(code), with_vector_inputs(s, inputs), FL_ALL, 0, false});
+    };
+    add_gpr("movmskps eax,xmm1", {0x0F, 0x50, 0xC1}, 0x2);
+    add_gpr("movmskps rax,xmm1 (REX.W)", {0x48, 0x0F, 0x50, 0xC1}, 0x2);
+    add_gpr("movmskps r8d,xmm1", {0x44, 0x0F, 0x50, 0xC1}, 0x2);
+    add_gpr("movmskps eax,xmm3 all signs", {0x0F, 0x50, 0xC3}, 0x8);
+    add_gpr("movmskpd eax,xmm2", {0x66, 0x0F, 0x50, 0xC2}, 0x4);
+    add_gpr("movmskpd rax,xmm2 (REX.W)", {0x66, 0x48, 0x0F, 0x50, 0xC2}, 0x4);
+    add_gpr("movmskpd eax,xmm3 all signs", {0x66, 0x0F, 0x50, 0xC3}, 0x8);
+  }
+
+  // =====================================================================
+  // 66 0F 38 28: PMULDQ — signed dwords 0 and 2 to qword products.  The
+  // misalignment case above faults before reaching the instruction.
+  // =====================================================================
+  cat = "SSE4.1";
+  {
+    ArchState s;
+    s.xmm[0] = xmm_from_u32(0xFFFFFFFE, 0x11111111, 0x7FFFFFFF, 0x22222222);  // -2, ., INT_MAX, .
+    s.xmm[1] = xmm_from_u32(0x00000003, 0x33333333, 0x80000000, 0x44444444);  // 3, ., INT_MIN, .
+    add_xmm("pmuldq xmm0,xmm1", {0x66, 0x0F, 0x38, 0x28, 0xC1}, s, 0x3);
+    ArchState m = with_vector_inputs(s, 0x1);
+    m.rdi = DATA_ADDR;
+    std::vector<u8> data(16);
+    memcpy(data.data(), s.xmm[1].q, 16);
+    tests.push_back({"pmuldq xmm0,[rdi]", cat, {0x66, 0x0F, 0x38, 0x28, 0x07}, m,
+                     FL_ALL, 0x1, false, data});
+  }
 }

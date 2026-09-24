@@ -1008,4 +1008,79 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
       }, s, FL_ALL, 0, false, std::vector<u8>(8, 0), 8});
     }
   }
+
+  // =====================================================================
+  // Shift by the count in an MMX register or m64: 0F D1/D2 PSRLW/PSRLD,
+  // 0F E1/E2 PSRAW/PSRAD, 0F F2/F3 PSLLD/PSLLQ.  The count is the whole
+  // 64-bit source; a count of the element width or more shifts every bit
+  // out (sign fill for PSRA).  The immediate forms are tested above.
+  // =====================================================================
+  cat = "MMX shift";
+  {
+    struct Shift { const char *name; u8 opcode; u64 value; };
+    static const Shift shifts[] = {
+      {"psrlw", 0xD1, 0x8000FFF000100020},
+      {"psrld", 0xD2, 0x80000000FFF00000},
+      {"psraw", 0xE1, 0x8000FFF000100020},
+      {"psrad", 0xE2, 0x80000000FFF00000},
+      {"pslld", 0xF2, 0x8000000100000002},
+      {"psllq", 0xF3, 0x8000000100000002},
+    };
+    // Counts of 2^32 and more are left out: packed_uniform_shift shifts a
+    // GMP bitvector by the whole count, which aborts the model process.
+    static const u64 counts[] = {0, 3, 15, 16, 17, 31, 32, 33, 63, 64, 65, 255, 65536};
+    for (const Shift &sh : shifts) {
+      for (u64 c : counts) {
+        ArchState s;
+        s.rax = sh.value;
+        s.rbx = c;
+        tests.push_back({std::format("{} mm0,mm1 count={:#x}", sh.name, c), cat, {
+          0x48, 0x0F, 0x6E, 0xC0,        // MOVQ mm0, rax
+          0x48, 0x0F, 0x6E, 0xCB,        // MOVQ mm1, rbx
+          0x0F, sh.opcode, 0xC1,         // op mm0, mm1
+          0x48, 0x0F, 0x7E, 0xC0,        // MOVQ rax, mm0
+          0x0F, 0x77,                    // EMMS
+        }, s});
+      }
+      // Count from memory: op mm0, [rdi]
+      ArchState s;
+      s.rax = sh.value;
+      s.rdi = DATA_ADDR;
+      std::vector<u8> data(8);
+      u64 c = 5;
+      memcpy(data.data(), &c, 8);
+      tests.push_back({std::format("{} mm0,[rdi]", sh.name), cat, {
+        0x48, 0x0F, 0x6E, 0xC0,        // MOVQ mm0, rax
+        0x0F, sh.opcode, 0x07,         // op mm0, [rdi]
+        0x48, 0x0F, 0x7E, 0xC0,        // MOVQ rax, mm0
+        0x0F, 0x77,
+      }, s, FL_ALL, 0, false, data});
+    }
+  }
+
+  // =====================================================================
+  // 0F F7: MASKMOVQ mm, mm — byte store to [RDI] under the mask's sign bits.
+  // =====================================================================
+  cat = "MMX mem";
+  {
+    struct Mask { const char *name; u64 mask; u64 rdi_offset; };
+    static const Mask masks[] = {
+      {"partial", 0x8000800080008000ULL, 0},
+      {"full", 0x8080808080808080ULL, 0},
+      {"none", 0x7F7F7F7F7F7F7F7FULL, 0},
+      {"misaligned", 0x80FF807F80008000ULL, 3},
+    };
+    for (const Mask &m : masks) {
+      ArchState s;
+      s.rax = 0x1122334455667788;
+      s.rbx = m.mask;
+      s.rdi = DATA_ADDR + m.rdi_offset;
+      tests.push_back({std::string("maskmovq mm0,mm1 ") + m.name, cat, {
+        0x48, 0x0F, 0x6E, 0xC0,        // MOVQ mm0, rax
+        0x48, 0x0F, 0x6E, 0xCB,        // MOVQ mm1, rbx
+        0x0F, 0xF7, 0xC1,              // MASKMOVQ mm0, mm1
+        0x0F, 0x77,
+      }, s, FL_ALL, 0, false, std::vector<u8>(16, 0xCC), 16});
+    }
+  }
 }
