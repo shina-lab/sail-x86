@@ -365,10 +365,10 @@ static bool load_bzimage(x86::Model &model, const char *path,
   u64 cmdline_addr = setup_base + cmdline_off;
   const char *default_serial_cmdline =
       "earlyprintk=serial,0x3f8 console=ttyS0 "
-      "noapic nolapic tsc=reliable nokaslr norandmaps "
+      "tsc=reliable nokaslr norandmaps "
       "randomize_kstack_offset=off";
   const char *default_vga_cmdline =
-      "console=tty0 noapic nolapic tsc=reliable nokaslr norandmaps "
+      "console=tty0 tsc=reliable nokaslr norandmaps "
       "randomize_kstack_offset=off";
   const char *default_cmdline = (display_mode == DISPLAY_VGA) ?
                                  default_vga_cmdline : default_serial_cmdline;
