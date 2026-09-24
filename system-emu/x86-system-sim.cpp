@@ -132,6 +132,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "Signals:\n");
   fprintf(stderr, "  SIGUSR2                       Save graphics to framebuffer.png (SAIL_X86_FRAMEBUFFER overrides)\n");
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1036,6 +1037,10 @@ int main(int argc, char *argv[]) {
   u64 trace_end = parse_env_u64("SAIL_X86_TRACE_END", 0);
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
+  bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
+  struct TraceLocation { u64 count, ip, base; u16 cs; };
+  TraceLocation recent[64] = {};
+  unsigned recent_count = 0, recent_next = 0;
   const char *probe_insn_env = getenv("SAIL_X86_PROBE_INSN");
   bool has_probe_insn = probe_insn_env && *probe_insn_env;
   u64 probe_insn = parse_env_u64("SAIL_X86_PROBE_INSN", 0);
@@ -1166,8 +1171,35 @@ int main(int argc, char *argv[]) {
               insn_count, (u64)model.zRIP, vaddr, paddr, mem64);
     }
 
-
+    bool was_real = model.zcur_mode == x86::zRealMode;
+    u64 previous_ip = model.zRIP;
+    u16 previous_cs = model.zSegReg.data[x86::SEG_CS];
+    if (trace_real_ud) {
+      recent[recent_next] = {insn_count, previous_ip,
+                            model.zSegCache.data[x86::SEG_CS].zseg_base, previous_cs};
+      recent_next = (recent_next + 1) % 64;
+      recent_count = std::min(recent_count + 1, 64u);
+    }
     model.zstep(UNIT);
+    if (trace_real_ud && was_real && model.zcur_mode == x86::zRealMode &&
+        model.zRIP == model.phys_mem.read16(model.zIDTR_base + 6 * 4) &&
+        model.zSegReg.data[x86::SEG_CS] == model.phys_mem.read16(model.zIDTR_base + 6 * 4 + 2)) {
+      u64 stack = model.zSegCache.data[x86::SEG_SS].zseg_base + (model.zGPR.data[4] & 0xFFFF);
+      // A fault saves its own IP; INT 6 and calls save the following IP.
+      // IVT handlers can be shared, so this identifies the target, not
+      // necessarily the delivered vector until the guest installs #UD.
+      if (model.phys_mem.read16(stack) == previous_ip && model.phys_mem.read16(stack + 2) == previous_cs) {
+        fprintf(stderr, "sail-x86-system: real-mode IVT[6] entry from %04x:%04lx at instruction %lu; recent locations (current memory bytes):\n",
+                previous_cs, previous_ip, insn_count);
+        for (unsigned i = 0; i < recent_count; ++i) {
+          const auto &r = recent[(recent_next + 64 - recent_count + i) % 64];
+          fprintf(stderr, "  [%lu] %04x:%08lx:", r.count, r.cs, r.ip);
+          for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.base + r.ip + b));
+          fputc('\n', stderr);
+        }
+        dump_state();
+      }
+    }
     tsc_frac += 1000;  // 1 GHz TSC: 1000 cycles per instruction at 1 MIPS
     model.tsc += tsc_frac / ips;
     tsc_frac %= ips;
