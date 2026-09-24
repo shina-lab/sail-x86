@@ -113,6 +113,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
   fprintf(stderr, "  -hdb <file>     Hard disk image (primary IDE slave)\n");
+  fprintf(stderr, "  Ctrl-a s / Ctrl-a k           Route subsequent stdin to serial / keyboard\n");
   fprintf(stderr, "  -kbd            Route stdin to the PS/2 keyboard (headless BIOS interaction)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
   fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
@@ -1246,6 +1247,8 @@ int main(int argc, char *argv[]) {
                 for (ssize_t i = 0; n > 0 && i < n; i++) {
                   if (ctrl_a_pending) {
                     ctrl_a_pending = false;
+                    if (buf[i] == 's') { keyboard_input = false; continue; }
+                    if (buf[i] == 'k') { keyboard_input = true; continue; }
                     if (buf[i] == 'x' || buf[i] == 'X') {
                       fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
                       model.should_exit = true;
@@ -1309,6 +1312,8 @@ int main(int argc, char *argv[]) {
         for (ssize_t i = 0; n > 0 && i < n; i++) {
           if (ctrl_a_pending) {
             ctrl_a_pending = false;
+            if (buf[i] == 's') { keyboard_input = false; continue; }
+            if (buf[i] == 'k') { keyboard_input = true; continue; }
             if (buf[i] == 'x' || buf[i] == 'X') {
               fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
               model.should_exit = true;
