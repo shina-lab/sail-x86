@@ -10,6 +10,16 @@ int main() {
   x86::enable_all_features(m);
   assert(m.phys_mem.init(0x100000));
   m.zsystem_mode = false; // explicit IRQ acknowledgements, no guest IDT
+  m.z__port_out8(0xB2, 0xF1);
+  assert(!m.smi_pending && (m.pm.control & 1));
+  m.z__port_out32(0xCF8, 0x80000B58);
+  m.z__port_out32(0xCFC, 1u << 25);
+  m.z__port_out8(0xB2, 0xB5);
+  assert(!m.smi_pending);
+  m.z__port_out8(0xB028, 1);
+  m.z__port_out8(0xB2, 0xB5);
+  assert(m.smi_pending && m.z__port_in8(0xB2) == 0xB5);
+  m.smi_pending = false;
   m.zcur_mode = x86::zProtectedMode;
   m.zcur_cpl = 0;
   m.zCR0 = 0x11;

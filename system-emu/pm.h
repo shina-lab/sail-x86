@@ -7,6 +7,7 @@ class ACPIPM {
 public:
   u16 control = 0, enable = 0;
   u8 apmc = 0;
+  u8 global_control = 0;
   void apm_write(u8 value) {
     apmc = value;
     // PIIX4's QEMU-compatible ACPI mode commands from the built-in FADT.
@@ -18,12 +19,14 @@ public:
             (ns % 1000000000) * 3579545 / 1000000000) & 0xFFFFFF;
   }
   u8 read(unsigned offset, u64 ns) const {
+    if (offset == 0x28) return global_control;
     if (offset == 2 || offset == 3) return enable >> ((offset - 2) * 8);
     if (offset == 4 || offset == 5) return control >> ((offset - 4) * 8);
     if (offset >= 8 && offset < 12) return timer(ns) >> ((offset - 8) * 8);
     return 0;
   }
   bool write(unsigned offset, u8 val) {
+    if (offset == 0x28) global_control = val;
     if (offset == 2 || offset == 3) set_byte(enable, offset - 2, val);
     if (offset == 4 || offset == 5) set_byte(control, offset - 4, val);
     return (control & 0x3C00) == 0x2000; // SeaBIOS S5: SLP_TYP=0, SLP_EN=1

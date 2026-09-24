@@ -321,7 +321,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
   } else if (p == 0xB2) {
     // APM Control: trigger SMI
     pm.apm_write(v);
-    smi_pending = true;
+    if (pci.apmc_smi_enabled() && (pm.global_control & 1)) smi_pending = true;
   } else if (p == 0xB3) {
     // APM Status: store value
     apmc_status = v;
