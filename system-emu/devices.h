@@ -1070,12 +1070,16 @@ public:
     memset(dev1, 0, sizeof(dev1));
     dev1[0x00] = 0x86; dev1[0x01] = 0x80;  // Vendor: Intel (0x8086)
     dev1[0x02] = 0x10; dev1[0x03] = 0x70;  // Device: PIIX3 IDE (0x7010)
-    dev1[0x04] = 0x01;                      // Command: I/O space enabled
+    dev1[0x04] = 0x00;                      // BM I/O decoding disabled until configured
     dev1[0x08] = 0x00;                      // Revision
-    dev1[0x09] = 0x80;                      // Prog IF: ISA-compat (legacy ports)
+    dev1[0x09] = 0x80;                      // Bus-master interface, legacy task-file ports
     dev1[0x0A] = 0x01;                      // Subclass: IDE
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
+    // 16-byte bus-master I/O BAR. Like QEMU's PIIX, expose a 32-bit PCI
+    // I/O BAR so SeaBIOS's PCI allocator can size it. Addresses above
+    // the x86 I/O space do not decode. Even PIO drivers reset this block.
+    dev1[0x20] = 0x01;
     // IDETIM (0x40-0x43): IDE decode enable for both channels.  A BIOS
     // sets these; Linux's ata_piix skips a channel whose bit is clear
     // without a word.
@@ -1115,6 +1119,9 @@ public:
     // PIIX_DEVACTB at offset 0x58: APMC_EN bit not set initially
     dev1f3[0x58] = 0x00; dev1f3[0x59] = 0x00;
     dev1f3[0x5A] = 0x00; dev1f3[0x5B] = 0x00;
+    // SeaBIOS's PIIX4 DSDT reads CAEN (0x67 bit 3) to expose COM1.
+    // Match QEMU's platform configuration: COM1 exists, COM2 does not.
+    dev1f3[0x67] = 0x08;
     // PM I/O base at offset 0x40 (PMBA): we use 0xB000
     dev1f3[0x40] = 0x01; dev1f3[0x41] = 0xB0;  // 0xB001 (bit 0 = I/O space)
   }
@@ -1125,6 +1132,15 @@ public:
     return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
   }
   bool vga_memory_enabled() const { return dev2[4] & 2; }
+  u32 ide_busmaster_base() const {
+    u32 bar;
+    memcpy(&bar, &dev1[0x20], 4);
+    return bar & ~0xFu;
+  }
+  bool ide_busmaster_handles(u16 port) const {
+    return (dev1[4] & 1) && port >= ide_busmaster_base() &&
+           u32(port) - ide_busmaster_base() < 16;
+  }
   bool smram_open() const { return (dev0[0x72] & 0x48) == 0x48; }
   bool apmc_smi_enabled() const { return dev1f3[0x5B] & 2; }
 
@@ -1162,6 +1178,9 @@ public:
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1isa && reg >= 0x40) {
       memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1 && reg == 0x20) {
+      u32 bar = (val & ~0xFu) | 1;
+      memcpy(&cfg[reg], &bar, 4);
     } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1f3 && (reg == 4 || reg >= 0x40)) {
@@ -1963,6 +1982,27 @@ public:
   }
   u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
   void write16(u16 value) { selected().write16(value); sync_irq(); }
+  // PIIX3 datasheet §§2.7.1–2.7.3. These registers are also used for
+  // reset and interrupt acknowledgement with PIO-only devices. Our drives
+  // do not advertise or issue DMA requests; no PRD transfers occur yet.
+  u8 read_busmaster(unsigned reg) const {
+    if (reg == 0) return bm_command;
+    if (reg == 2) return bm_status;
+    if (reg >= 4 && reg < 8) return bm_prd >> ((reg - 4) * 8);
+    return 0;
+  }
+  void write_busmaster(unsigned reg, u8 value) {
+    if (reg == 0) {
+      bm_command = value & 0x09;
+      bm_status = (bm_status & ~1) | (bm_command & 1);
+    } else if (reg == 2) {
+      // Capability bits are software-controlled; IRQ/error bits are W1C.
+      bm_status = (bm_status & ~(value & 0x06) & ~0x60) | (value & 0x60);
+    } else if (reg >= 4 && reg < 8) {
+      unsigned shift = (reg - 4) * 8;
+      bm_prd = ((bm_prd & ~(0xFFu << shift)) | (u32(value) << shift)) & ~3u;
+    }
+  }
   bool irq_pending = false, irq_asserted = false;
   void set_clock(const u64 *clock) { master.clock = slave.clock = clock; }
   void dump(FILE *out) const {
@@ -1974,8 +2014,13 @@ private:
   IDEDevice master, slave;
   u16 base;
   bool select_slave = false;
+  u8 bm_command = 0, bm_status = 0;
+  u32 bm_prd = 0;
   IDEDevice &selected() { return select_slave ? slave : master; }
   void sync_irq() {
+    // Latch each new INTRQ assertion, including PIO. W1C while the line
+    // remains high must not set the bit again without another assertion.
+    if (master.irq_pending || slave.irq_pending) bm_status |= 4;
     irq_pending |= master.irq_pending || slave.irq_pending;
     master.irq_pending = slave.irq_pending = false;
     irq_asserted = master.irq_asserted || slave.irq_asserted;

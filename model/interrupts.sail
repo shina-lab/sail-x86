@@ -339,7 +339,10 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
 
   // Update stack pointer and SS
   v(RSP) = new_esp[31..0];
-  if privilege_change then write_segreg(SS, new_ss);
+  // SDM Vol.3A §§3.4.3, 7.12.1: a stack switch loads the hidden
+  // descriptor state as well as the selector. Retaining the old base
+  // makes the handler read its frame through the interrupted stack.
+  if privilege_change then load_segment_register(SS, new_ss);
 
   // Load CS with full descriptor cache update (sets CS.D/CS.L for handler)
   load_segment_register(CS, gate.gate_sel);

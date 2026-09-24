@@ -1,0 +1,9 @@
+Enter full pathname of shell or RETURN for /bin/sh: 
+resizewin: timeout reading from terminal
+root@:/ # uname -a; id; mount; echo FREEBSD_SINGLE_USER_OK
+FreeBSD  14.5-RELEASE FreeBSD 14.5-RELEASE releng/14.5-n274872-4099b5c82880 GENERIC amd64
+uid=0(root) gid=0(wheel) groups=0(wheel)
+/dev/iso9660/14_5_RELEASE_AMD64_CD on / (cd9660, local, read-only)
+devfs on /dev (devfs)
+FREEBSD_SINGLE_USER_OK
+root@:/ #

@@ -2067,6 +2067,65 @@ TEST(push_seg_ud_in_64bit) {
 
 // =========================================================================
 
+TEST(sse_shuffle_rip_relative_immediate) {
+  for (bool packed_double : {true, false}) {
+    x86::Model model;
+    init_model(model);
+    const u64 initial[8] = {0x1111222233334444, 0x5555666677778888,
+                           2, 3, 4, 5, 6, 7};
+    lbits value;
+    CREATE(lbits)(&value);
+    x86::bytes_to_bits(&value, reinterpret_cast<const u8 *>(initial), 64, 512);
+    COPY(lbits)(&model.zZMM.data[0], value);
+    KILL(lbits)(&value);
+    model.phys_mem.write64(0x100040, 0xAAAABBBBCCCCDDDD);
+    model.phys_mem.write64(0x100048, 0xEEEEFFFF00001111);
+    // The RIP base includes imm8. Omitting it makes the aligned operand
+    // appear misaligned and raises #GP, as in FreeBSD init's allocator.
+    const u8 pd[] = {0x66, 0x0F, 0xC6, 0x05, 0x37, 0, 0, 0, 0x02, 0xF4};
+    const u8 ps[] = {0x0F, 0xC6, 0x05, 0xB8, 0xFF, 0xFF, 0xFF, 0x6C, 0xF4};
+    int result = packed_double ? run_code(model, 0x100000, pd, sizeof(pd)) :
+                                 run_code(model, 0x100080, ps, sizeof(ps));
+    ASSERT_EQ(result, RUN_HALTED);
+    u64 actual[8];
+    x86::bits_to_bytes(model.zZMM.data[0], reinterpret_cast<u8 *>(actual), 64);
+    ASSERT_EQ(actual[0], packed_double ? 0x1111222233334444UL : 0x5555666633334444UL);
+    ASSERT_EQ(actual[1], packed_double ? 0xEEEEFFFF00001111UL : 0xAAAABBBB00001111UL);
+    for (unsigned i = 2; i < 8; ++i) ASSERT_EQ(actual[i], initial[i]);
+    model.model_fini();
+  }
+}
+
+TEST(ide_busmaster_pci_io) {
+  x86::Model model;
+  init_model(model);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xFFFFFFFF);
+  ASSERT_EQ(model.z__port_in32(0xCFC), 0xFFFFFFF1UL);
+  model.z__port_out32(0xCFC, 0xC001);
+  ASSERT_EQ(model.z__port_in8(0xC000), 0xFFUL); // PCI I/O decode disabled
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 5);
+  ASSERT_EQ(model.z__port_in16(0xC000), 0UL);
+  // Both channels, through the real port dispatcher at all access widths.
+  model.z__port_out32(0xC004, 0x1234567B);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0x12345678UL);
+  ASSERT_EQ(model.z__port_in32(0xC00C), 0UL);
+  model.z__port_out16(0xC008, 0xFF09);
+  ASSERT_EQ(model.z__port_in16(0xC008), 9UL);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 1UL);
+  model.z__port_out8(0xC008, 0);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 0UL);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xD001);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0xFFFFFFFFUL);
+  ASSERT_EQ(model.z__port_in32(0xD004), 0x12345678UL);
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 4);
+  ASSERT_EQ(model.z__port_in8(0xD000), 0xFFUL);
+  model.model_fini();
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -2080,6 +2139,8 @@ int main() {
   run_test_jmp_forward_hlt();
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
+  run_test_ide_busmaster_pci_io();
+  run_test_sse_shuffle_rip_relative_immediate();
 
   printf("\nPrivileged instruction tests:\n");
   run_test_mov_cr0_read_write();

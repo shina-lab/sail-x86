@@ -535,8 +535,10 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
-      let src_xmm : xmmword = decode_xmm_src(src);
       let imm = fetch(1);
+      // SDM Vol.2A §2.2.1.6: RIP-relative addresses use the next
+      // instruction's RIP, including this trailing immediate byte.
+      let src_xmm : xmmword = decode_xmm_src(src);
       match mp {
         MP_NONE => {
           let d : xmmword = read_simd(xreg);

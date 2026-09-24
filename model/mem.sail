@@ -69,6 +69,23 @@ function note_io_access(port, nbytes) = {
   }
 }
 
+// Validate every page before a crossing access enters the external byte-copy
+// helper. Keep faulting translations in Sail: an external callback into
+// translate_addr cannot propagate a Sail exception through every backend's
+// foreign-call ABI. In particular, an instruction fetch must not consume
+// bytes from a failed translation. SDM Vol.3A §§7.5–7.6 and Interrupt 14:
+// #PF preserves the faulting instruction for restart; CR2 identifies its
+// failing linear address. Checking all pages also avoids partial MOV stores.
+val check_crossing_pages : (qword, int, PTAccess) -> unit
+function check_crossing_pages(addr, nbytes, access) = {
+  let _ = translate_addr(addr, access);
+  var offset : int = 4096 - unsigned(addr[11..0]);
+  while offset < nbytes do {
+    let _ = translate_addr(addr + to_bits(64, offset), access);
+    offset = offset + 4096
+  }
+}
+
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
@@ -80,6 +97,7 @@ function read_mem_linear(n, addr, access) = {
     let paddr = translate_addr(addr, access);
     phys_read(n, paddr)
   } else {
+    check_crossing_pages(addr, n / 8, access);
     __mem_read_crossing(addr, n, access)
   }
 }
@@ -103,6 +121,7 @@ function write_mem_linear(n, addr, data) = {
     let paddr = translate_addr(addr, PT_Write);
     phys_write(n, paddr, data)
   } else {
+    check_crossing_pages(addr, n / 8, PT_Write);
     __mem_write_crossing(addr, n, data)
   }
 }

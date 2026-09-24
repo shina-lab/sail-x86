@@ -318,12 +318,52 @@ TEST(master_slave_independent_transfers) {
   ASSERT_EQ(data[0], Image::pattern(3 * 512));
 }
 
+TEST(busmaster_pio_interrupt_status) {
+  Image iso(2048 * 4);
+  IDEChannel c(BASE, CTRL), other(0x1F0, 0x3F6);
+  assert(c.open_cdrom(iso.path.c_str()));
+  ASSERT_EQ(c.read_busmaster(0), 0);
+  ASSERT_EQ(c.read_busmaster(2), 0);
+  c.write_busmaster(0, 0xFF);
+  ASSERT_EQ(c.read_busmaster(0), 9); // reserved bits read zero
+  ASSERT_EQ(c.read_busmaster(2), 1); // started, waiting for a DMA request
+  c.write_busmaster(0, 0);
+  ASSERT_EQ(c.read_busmaster(2), 0);
+  for (unsigned i = 4; i < 8; ++i) c.write_busmaster(i, 0xFF);
+  ASSERT_EQ(c.read_busmaster(4), 0xFC); // PRD pointer is dword aligned
+  ASSERT_EQ(c.read_busmaster(7), 0xFF);
+  c.write_busmaster(1, 0xFF);
+  ASSERT_EQ(c.read_busmaster(1), 0);
+
+  c.write(BASE + 6, 0xA0);
+  c.write(BASE + 7, 0xA1); // PIO IDENTIFY PACKET raises INTRQ
+  ASSERT_EQ(c.read_busmaster(2), 4);
+  ASSERT_EQ(other.read_busmaster(2), 0); // independent channels
+  ASSERT_EQ(c.irq_asserted, true);
+  c.write_busmaster(2, 0x64); // W1C IRQ; preserve software DMA capability bits
+  ASSERT_EQ(c.read_busmaster(2), 0x60);
+  ASSERT_EQ(c.irq_asserted, true); // does not acknowledge the drive
+  c.read(CTRL); // still asserted, no new edge
+  ASSERT_EQ(c.read_busmaster(2), 0x60);
+  auto id = read_block(c, 256);
+  ASSERT_EQ(id[99] & 1, 0); // IDENTIFY word 49 bit 8 still advertises no DMA
+  c.read(BASE + 7);
+  ASSERT_EQ(c.irq_asserted, false);
+  c.write(BASE + 7, 0xA1);
+  ASSERT_EQ(c.read_busmaster(2), 0x64);
+  c.read(BASE + 7); // acknowledging drive IRQ does not clear BMISTA
+  ASSERT_EQ(c.read_busmaster(2), 0x64);
+  c.write_busmaster(2, 0x06); // FreeBSD's reset/ack sequence
+  ASSERT_EQ(c.read_busmaster(2), 0);
+}
+
 int main() {
   printf("IDE channel tests:\n");
   run_test_atapi_signature_and_identify();
   run_test_atapi_inquiry_capacity_and_read();
   run_test_ata_disk_read_write();
   run_test_master_slave_independent_transfers();
+  run_test_busmaster_pio_interrupt_status();
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;
 }
