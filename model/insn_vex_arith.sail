@@ -714,6 +714,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
+        // Two qword indices fill only the low two dwords; the VEX.128
+        // pseudocode ends with DEST[MAXVL-1:64] := 0.
+        result[127 .. 64] = zeros();
         write_simd(128, dst, result);
         write_simd(128, mask_idx, zeros())
       }
@@ -850,6 +853,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
             result[(i * 32 + 31) .. (i * 32)] = read_mem(32, addr)
           }
         };
+        // Two qword indices fill only the low two dwords; the VEX.128
+        // pseudocode ends with DEST[MAXVL-1:64] := 0.
+        result[127 .. 64] = zeros();
         write_simd(128, dst, result);
         write_simd(128, mask_idx, zeros())
       }
