@@ -1,23 +1,30 @@
 # Operating-system boots: worktree B
 
 Worktree `/home/ruiu/sail-x86-os2`, branch `os-boot-b`, starting at
-`365a211`. Work began 2026-09-24 21:51 UTC (September 25 in Japan).
+`365a211`. Work ran 2026-09-24 21:51–23:47 UTC (September 25 in Japan),
+about 1 hour 56 minutes of wall time.
 All runs use the fast `build/llvm/sail-x86-system`, rebuilt with
 `system-emu/build-llvm.sh` after emulator/model changes. Builds use at most
 64 processes. Original media and the other worktree are read only.
 No KVM harness, ReactOS, Windows 3.1, FreeBSD or virtual-8086 work is included.
 
-## Status (investigation in progress)
+## Final status
 
 | OS | Farthest progress | Current blocker |
 |---|---|---|
-| Windows 95 | **Graphical Windows 95 Setup Wizard** | Installation being driven onward |
-| Haiku R1 beta 5 x86-64 | **All seven icons and user-space debugger** after 30 minutes | `net_server` execution fault; later `package_daemon` heap assertion |
+| Windows 95 | **Certificate of Authenticity page in graphical Setup** | Needs an OEM product number; no number was supplied during this run |
+| Haiku R1 beta 5 x86-64 | **All seven icons and user-space debugger** after 30 minutes | `net_server` bad-pointer fault; no desktop |
+| xv6 | `$` shell after the final model fix | None observed in boot regression |
+| Linux amd64 | `sail#`, ACPI/APIC enabled, after the final model fix | None observed in boot regression |
+| Linux i386 | `sail#` after the interrupt fixes | None observed in boot regression |
 
 These are actual guest captures, not graphics test patterns:
 [ScanDisk after XLAT fix](os-boot/b-win95-xlat-setup.png),
-[Windows graphical Setup](os-boot/b-win95-graphical-welcome.png), and
-[Haiku from IDE disk](os-boot/b-haiku-hdd-serial.png).
+[Windows product-number page](os-boot/b-win95-certificate.png), and
+[Haiku final CD debugger screen](os-boot/b-haiku-phase-serial.png).
+Windows [COM1 output](os-boot/b-win95-partition.serial) is empty.
+Haiku's [final serial log](os-boot/b-haiku-phase-serial.serial) records
+initialization and the user-space fault.
 
 ## Windows 95 R6002 diagnosis
 
@@ -122,7 +129,7 @@ C++ system tests and PNG validation pass afterward (72 basic cases).
 With this change, `b-win95-retf` reaches the license agreement. After
 acceptance, [Setup reports SU-0013](os-boot/b-win95-retf.png): it requires an
 MS-DOS boot partition. COM1 remains silent. A separate local copy,
-`win95-msdos.img`, is now being prepared using the Microsoft DOS boot image
+`win95-msdos.img`, was prepared using the Microsoft DOS boot image
 from the supplied media. It successfully boots COMMAND.COM, unlike the
 pre-fix attempts. `SYS C:` reports `System transferred`; no original image
 or other worktree file is changed. The first run reports a CAB extraction
@@ -139,9 +146,19 @@ MBR sets both CHS addresses to `fe ff ff` even though the disk presents only
 CHS range. On a separate local copy, the start CHS is corrected to
 cylinder 2/head 0/sector 33 (LBA 2048), the end is saturated to
 1023/15/63, and the partition is marked FAT16 LBA (type 0e). QEMU then
-reaches the actual Setup Wizard. The same corrected image also reaches the **Windows 95 Setup Wizard**
-in Sail as `b-win95-partition`. These are disk-metadata corrections, not
+reaches the actual Setup Wizard. The same corrected image also reaches
+the **Windows 95 Setup Wizard** in Sail as `b-win95-partition`. These are disk-metadata corrections, not
 changes to the CPU model.
+
+The Sail run accepts `C:\WINDOWS`, finishes preparing the destination, and
+selects the Compact installation option. It reaches the **Certificate of
+Authenticity** page requesting an OEM product number. No number was
+supplied, so installation stops there. The farthest
+[screen](os-boot/b-win95-certificate.png) and empty
+[COM1 file](os-boot/b-win95-partition.serial) are preserved. The writable
+continuation image is `build/os-boot/win95-b-final.img`. The run is stopped
+manually after **1312.071 seconds / 6,428,669,417 instructions**; no further
+Setup progress is possible without the product-number input.
 
 ## Haiku PCI IDE diagnosis
 
@@ -216,10 +233,15 @@ fault retains the process page tables (`CR3=0x3b8dd000`) and its kernel
 interrupt frame. The instruction is `mov edx,[rsi]`, RSI is the
 noncanonical `0x1f0f2e666691001e`, and R15 is that value minus `0x20`.
 The PLT/GOT entry for `BPathMonitor::StartWatching` points to its correct
-mapped implementation. This is consistent with a bad pointer in the path monitor's handler
-lookup, after the kernel has initialized devices and scheduling. Its origin
-has not been traced to a specific instruction, so no speculative Sail
-change is made for it.
+mapped implementation. This is consistent with a bad pointer in the path
+monitor's handler lookup, after the kernel has initialized devices and
+scheduling. Its origin has not been traced to a specific instruction, so no speculative Sail
+change is made for it. The preserved local fault snapshot is
+`build/os-boot/b-haiku-net-gp.ram`; the kernel interrupt frame has RIP at
+physical `0x3b8ebfd8`. The return address at guest RSP `0x7ffe020c61a0` is
+`0x1adeb8fa0b7`, immediately after the messenger-comparison call in
+`BPathMonitor::StartWatching`. This narrows a future instruction trace to
+the initialization and watcher lookup preceding that call.
 
 A **QEMU 11.0.2 TCG control**, using the same local Haiku media and rebuilt
 BIOS/VGA ROM with one CPU and no NIC, reaches the graphical Haiku welcome
@@ -279,6 +301,26 @@ qemu-system-x86_64 -accel tcg -machine pc -smp 1 -L /usr/share/qemu \
   empty. QEMU screenshots are obtained through monitor `screendump` and
   converted losslessly from PPM to PNG.
 
+## Validation after the final model change
+
+All 14 C++ system test binaries and the separate PNG validator pass using
+the LLVM model, including **72 basic cases** and **17 exception cases**.
+The relevant build/test logs are under `build/os-boot/b-retf-tests.log`,
+`b-system-*.log`, and `b-build-*.log` in this worktree.
+
+| Regression boot | Result | Wall time | Instructions |
+|---|---|---:|---:|
+| xv6 after interrupt fixes | `$` shell | 9.939 s | 19,938,591 |
+| Linux amd64 after interrupt fixes | `sail#`, ACPI/APIC enabled | 50.559 s | 240,817,378 |
+| Linux i386 after interrupt fixes | `sail#` | 17.226 s | 55,984,966 |
+| xv6 after RETF fix | `$` shell | 9.939 s | 19,586,253 |
+| Linux amd64 after RETF fix | `sail#`, ACPI/APIC enabled | 51.748 s | 240,487,456 |
+
+Serial logs are retained alongside the OS screenshots. The command for
+each regression appears in the measured attempt list below. No model or
+device behavior was changed after these checks; the later work repairs
+only copied disk metadata and records boot results.
+
 ## Image preparation and reproduction
 
 `win95-freedos.img` is copied from the other worktree into `build/os-boot`
@@ -288,6 +330,22 @@ copy whose AUTOEXEC runs `C:\WIN95\SCANDISK /TEXT /ALL`; an initial probe
 used unsupported `/CHECKONLY` and exited without testing the failing path.
 `win95-setup-is.img` is a separate copy whose AUTOEXEC runs `SETUP /IS`.
 HIMEM.SYS remains loaded by FDCONFIG.SYS.
+
+The final Windows image is a local copy of the Microsoft-DOS-converted
+disk, with `CONFIG.SYS` loading `HIMEM.SYS /TESTMEM:OFF`, `FILES=60`, and
+`BUFFERS=20`; AUTOEXEC runs `C:\WIN95\SETUP /IS`. Its first MBR partition
+entry is repaired at byte offsets 447–453 as follows (LBA start and length
+are unchanged):
+
+```python
+with open("build/os-boot/win95-b-final.img", "r+b") as image:
+    image.seek(447)
+    image.write(bytes([0, 33, 2, 0x0e, 15, 255, 255]))
+```
+
+Apply disk edits only while the image is closed by the emulator. Manual
+keyboard sequences are paced at 0.1 seconds per byte to avoid overflowing
+the emulated controller FIFO.
 
 `haiku-b.iso` is copied from
 `/home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso`. At byte `0xa600388`,
@@ -1218,3 +1276,28 @@ Additional manual inputs:
 * 2026-09-24 23:03:06 UTC: `\x1b`
 * 2026-09-24 23:03:16 UTC: `\x01d\x01d\x01d\x01d\x01d\n`
 * 2026-09-24 23:29:09 UTC: `quit\n`
+
+### b-win95-partition
+
+Corrected local Microsoft DOS/FAT16-LBA disk boots graphical Setup. Accepts the license and C:\WINDOWS, prepares the directory, selects Compact, then reaches the Certificate of Authenticity page. No OEM product number was supplied; stopped manually on that page near the end of the work budget. COM1 is silent. The farthest PNG is retained as b-win95-certificate.png.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name b-win95-partition --timeout 1500 --send '45:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-b-final.img -boot c
+```
+
+Wall: **1312.071 s**. Instructions: **6,428,669,417**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional manual inputs:
+
+* 2026-09-24 23:28:23 UTC: `\t\n`
+* 2026-09-24 23:29:41 UTC: `\n`
+* 2026-09-24 23:30:16 UTC: `\n`
+* 2026-09-24 23:31:03 UTC: `\t`
+* 2026-09-24 23:32:33 UTC: `\x01d\x01d\n`
+* 2026-09-24 23:33:18 UTC: `\t`
