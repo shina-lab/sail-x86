@@ -2119,7 +2119,8 @@ u64 Model::z__f16_scalef(u64 a, u64 b) {
   memcpy(&ha, &ua, 2); memcpy(&hb, &ub, 2);
   float fa = (float)ha, fb = (float)hb;
   SYNC_MXCSR_RC();
-  float fr = fa * exp2f(truncf(fb));
+  // SDM VSCALEFPH: DEST := SRC1 * POW(2, Floor(SRC2)).
+  float fr = fa * exp2f(floorf(fb));
   _Float16 hr = f16_ftz((_Float16)fr, mxcsr_state.mxcsr);
   u16 r; memcpy(&r, &hr, 2); return r;
 }

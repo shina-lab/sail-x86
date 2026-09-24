@@ -460,6 +460,23 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK scalef
+  // VSCALEFPH EVEX.66.MAP6.W0 2C (binary): src1 * 2^floor(src2), with a
+  // negative non-integer scale among the inputs.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    static const float v1[] = {1.5f, 8.0f, 0.25f, 1000.0f, -2.0f, 0.001f, 3.0f, 65504.0f};
+    static const float v2[] = {1.0f, 2.0f, -1.0f, 0.5f, 3.0f, -2.5f, 0.0f, 4.0f};
+    set_ph(s.xmm[1], v1, 8);
+    set_ph(s.xmm[2], v2, 8);
+    sentinel(s.xmm[0]);
+    Evex e; e.mm = 6; e.pp = 1; e.W = false;
+    e.opcode = 0x2C; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_evex_rr_tests(tests, cat, "VSCALEFPH", e, s, 0x6, 0xAAAA);
+  }
+  // @@END
 
   // Map 3 (0F3A) FP16 forms with an immediate, EVEX.NP.MAP3.W0, share
   // these inputs (with NaN, zero, -0 and the largest finite value).
