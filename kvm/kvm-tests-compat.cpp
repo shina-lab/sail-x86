@@ -1850,6 +1850,39 @@ void add_compat_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // ARPL r/m16, r16 (63 /r): outside 64-bit mode opcode 63 is ARPL, not
+  // MOVSXD.  ZF := DEST.RPL < SRC.RPL, and if so DEST.RPL := SRC.RPL; the
+  // other flags and the upper bits of a register destination are kept.
+  // =====================================================================
+  cat = "Compat ARPL";
+  {
+    struct { u32 dest, src; } cases[] = {
+      {0x0010, 0x0013}, {0x0013, 0x0010}, {0x0011, 0x0011}, {0x0012, 0x0013},
+      {0x0011, 0x0010}, {0xFFFC, 0x0002}, {0x12340000, 0x00000003}, {0x0000FFFF, 0xFFFF0000},
+    };
+    for (auto &c : cases) {
+      // ARPL ax,cx: 63 C8 (mod=11, reg=cx, rm=ax)
+      ArchState s;
+      s.rax = c.dest;
+      s.rcx = c.src;
+      add(std::format("compat arpl ax,cx ({:#x}, {:#x})", c.dest, c.src), {0x63, 0xC8}, s);
+      // ARPL [ebx],cx: 63 0B, the destination in memory
+      ArchState m;
+      m.rbx = DATA_ADDR;
+      m.rcx = c.src;
+      std::vector<u8> data(4, 0);
+      memcpy(data.data(), &c.dest, 2);
+      add_mem(std::format("compat arpl [ebx],cx ({:#x}, {:#x})", c.dest & 0xFFFF, c.src),
+              {0x63, 0x0B}, m, FL_ALL, data, 4);
+    }
+    // The operands are 16 bits whatever the operand-size prefix says
+    ArchState p;
+    p.rax = 0x12340001;
+    p.rcx = 0x00000003;
+    add("compat arpl ax,cx (66h)", {0x66, 0x63, 0xC8}, p);
+  }
+
+  // =====================================================================
   // INTO (CE) and SALC (D6)
   // =====================================================================
   cat = "Compat INTO/SALC";
