@@ -16,7 +16,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = init;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 6;  // #UD
     tc.xcr0_override = xcr0;
@@ -80,7 +80,8 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.init_data.assign(32, 0x41);
     // Compare first 32 bytes: 24 zeros + 8 unchanged (0x41)
     tc.compare_data_len = 32;
-    tc.flags_mask = 0;
+    // BZHI leaves AF and PF undefined; the following instructions preserve flags.
+    tc.flags_mask = FL_ALL & ~(FL_AF | FL_PF);
     tests.push_back(std::move(tc));
   }
 
@@ -104,7 +105,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
     tc.init_data.assign(16, 0x42);
     tc.compare_data_len = 16;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tests.push_back(std::move(tc));
   }
 
@@ -128,7 +129,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
     tc.init_data.assign(16, 0x42);
     tc.compare_data_len = 16;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tests.push_back(std::move(tc));
   }
 
@@ -154,7 +155,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
     tc.init_data.assign(8, 0x42);
     tc.compare_data_len = 8;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tests.push_back(std::move(tc));
   }
 }

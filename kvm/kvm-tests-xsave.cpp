@@ -32,7 +32,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x66, 0x0F, 0xEF, 0xC0,        // PXOR XMM0, XMM0
                        0x66, 0x0F, 0xEF, 0xD2,        // PXOR XMM2, XMM2
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
-                      s, FL_NONE, 0x5, false,          // compare XMM0, XMM2
+                      s, FL_ALL, 0x5, false,          // compare XMM0, XMM2
                       init, 0});
   }
 
@@ -55,7 +55,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x66, 0x0F, 0xEF, 0xC0,        // PXOR XMM0, XMM0
                        0x66, 0x45, 0x0F, 0xEF, 0xFF,  // PXOR XMM15, XMM15
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
-                      s, FL_NONE, (1u << 0) | (1u << 15), false,
+                      s, FL_ALL, (1u << 0) | (1u << 15), false,
                       init, 0,
                       false, -1,
                       (1u << 0) | (1u << 7)});  // compare k0, k7
@@ -73,7 +73,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.rcx = 0;
     tests.push_back({"xgetbv ecx=0", cat,
                       {0x0F, 0x01, 0xD0},
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // XGETBV ECX=1: KVM intercepts XGETBV and doesn't support ECX=1 for guests,
@@ -91,7 +91,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = {0x0F, 0x01, 0xD0};
     tc.initial = s;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 13;  // #GP
     tests.push_back(tc);
@@ -110,7 +110,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.rcx = 2;
     tests.push_back({"cpuid leaf 0xD sub 2", cat,
                       {0x0F, 0xA2},
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // CPUID leaf 0xD, subleaf 0.  EAX (XCR0_SUPPORTED) and ECX (the
@@ -128,7 +128,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       {0x0F, 0xA2,                    // cpuid
                        0x25, 0xFF, 0x00, 0x00, 0x00,  // and eax, 0xFF
                        0x31, 0xC9},                   // xor ecx, ecx
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // CPUID leaf 0xD, subleaves 5-7: the AVX-512 components.  Their
@@ -142,7 +142,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.rcx = sub;
     tests.push_back({std::format("cpuid leaf 0xD sub {}", sub), cat,
                       {0x0F, 0xA2},
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // =====================================================================
@@ -158,7 +158,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     // 0F 32 = RDMSR
     tests.push_back({"rdmsr IA32_XSS", cat,
                       {0x0F, 0x32},
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // WRMSR IA32_XSS with 0: should succeed (no-op)
@@ -171,7 +171,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     // 0F 30 = WRMSR
     tests.push_back({"wrmsr IA32_XSS zero", cat,
                       {0x0F, 0x30},
-                      s, FL_NONE});
+                      s, FL_ALL});
   }
 
   // WRMSR IA32_XSS with nonzero: should #GP (no bits supported)
@@ -187,7 +187,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = {0x0F, 0x30};
     tc.initial = s;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 13;  // #GP
     tests.push_back(tc);
@@ -214,7 +214,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tc.code = {0x0F, 0xA2,         // cpuid
                0x83, 0xE0, 0x0F};  // and eax, 0xF
     tc.initial = s;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.xcr0_override = xcr0;
     tests.push_back(tc);
   }
@@ -263,7 +263,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     std::vector<u8> init(STD_IMAGE_SIZE, 0);
     tests.push_back({"xsave standard image (mask 0xE6)", cat,
                       {0x0F, 0xAE, 0x27},             // XSAVE [RDI]
-                      s, FL_NONE, 0, false, init, STD_IMAGE_SIZE});
+                      s, FL_ALL, 0, false, init, STD_IMAGE_SIZE});
   }
 
   // XRSTOR [RDI] from a standard-format image laid out at the host's
@@ -295,7 +295,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     memcpy(init.data() + 512, &xstate_bv, 8);
     tests.push_back({"xrstor standard image (mask 0xE6)", cat,
                       {0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
-                      s, FL_NONE, 0xFFFFFFFFu, false, init, 0,
+                      s, FL_ALL, 0xFFFFFFFFu, false, init, 0,
                       false, -1, 0xFF});
   }
 }

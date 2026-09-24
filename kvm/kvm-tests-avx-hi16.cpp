@@ -45,7 +45,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     tc.code = kval ? concat(set_kmask((u32)kval), e.encode_rr())
                    : e.encode_rr();
     tc.initial = s;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.xmm_mask = (1u << reg) | (1u << vvvv) | (1u << rm);
     tc.kreg_mask = kval ? 0x2 : 0;
     tests.push_back(std::move(tc));
@@ -87,7 +87,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     tc.code = e.encode_mr_mem();
     tc.initial = s;
     tc.initial.rdi = DATA_ADDR;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.xmm_mask = 1u << 27;
     tc.compare_data_len = 64;
     tests.push_back(std::move(tc));
@@ -102,7 +102,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
     tc.code = e.encode_rm_mem();
     tc.initial = s;
     tc.initial.rdi = DATA_ADDR;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.xmm_mask = 1u << 23;
     std::vector<u8> data(64);
     for (int i = 0; i < 64; i++) data[i] = (u8)(0xC0 + i);

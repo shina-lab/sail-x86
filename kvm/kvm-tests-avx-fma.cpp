@@ -148,10 +148,10 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.reg = 0; e.vvvv = 1; e.rm = 2;
         // Scalar: only test VL128 (LIG), no mask and with mask
         e.LL = 0; e.aaa = 0; e.z = false;
-        tests.push_back({name + " xmm", cat, e.encode_rr(), sss, FL_NONE, 0x7, false});
+        tests.push_back({name + " xmm", cat, e.encode_rr(), sss, FL_ALL, 0x7, false});
         e.aaa = 1; e.z = true;
         tests.push_back({name + " xmm {k1}{z}", cat,
-                         concat(set_kmask(1), e.encode_rr()), sss, FL_NONE, 0x7, false});
+                         concat(set_kmask(1), e.encode_rr()), sss, FL_ALL, 0x7, false});
         Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = opc;
         v.reg = 0; v.vvvv = 1; v.L = false;
         add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());
@@ -164,10 +164,10 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
         e.mm = 2; e.pp = 1; e.W = true; e.opcode = opc;
         e.reg = 0; e.vvvv = 1; e.rm = 2;
         e.LL = 0; e.aaa = 0; e.z = false;
-        tests.push_back({name + " xmm", cat, e.encode_rr(), ssd, FL_NONE, 0x7, false});
+        tests.push_back({name + " xmm", cat, e.encode_rr(), ssd, FL_ALL, 0x7, false});
         e.aaa = 1; e.z = true;
         tests.push_back({name + " xmm {k1}{z}", cat,
-                         concat(set_kmask(1), e.encode_rr()), ssd, FL_NONE, 0x7, false});
+                         concat(set_kmask(1), e.encode_rr()), ssd, FL_ALL, 0x7, false});
         Vex v; v.mm = 2; v.pp = 1; v.W = true; v.opcode = opc;
         v.reg = 0; v.vvvv = 1; v.L = false;
         add_vok(name + " xmm,[rdi] misaligned", v.encode_rm_mem());

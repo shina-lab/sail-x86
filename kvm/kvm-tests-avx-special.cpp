@@ -24,17 +24,17 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VPTERNLOGD ") + vl[ll] + " OR",
-                       cat, e.encode_rr_imm(0xFE), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0xFE), s, FL_ALL, 0x7, false});
       // imm8 = 0x80: A & B & C
       tests.push_back({std::string("VPTERNLOGD ") + vl[ll] + " AND",
-                       cat, e.encode_rr_imm(0x80), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x80), s, FL_ALL, 0x7, false});
       // imm8 = 0x96: A ^ B ^ C
       tests.push_back({std::string("VPTERNLOGD ") + vl[ll] + " XOR3",
-                       cat, e.encode_rr_imm(0x96), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x96), s, FL_ALL, 0x7, false});
       // With mask
       e.aaa = 1; e.z = true;
       tests.push_back({std::string("VPTERNLOGD ") + vl[ll] + " OR {k1}{z}",
-                       cat, concat(set_kmask(0xAAAA), e.encode_rr_imm(0xFE)), s, FL_NONE, 0x7, false});
+                       cat, concat(set_kmask(0xAAAA), e.encode_rr_imm(0xFE)), s, FL_ALL, 0x7, false});
     }
   }
   {
@@ -49,7 +49,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VPTERNLOGQ ") + vl[ll] + " XOR3",
-                       cat, e.encode_rr_imm(0x96), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x96), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -111,7 +111,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTNEPS2BF16 ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -225,14 +225,14 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VGF2P8AFFINEQB ") + vl[ll],
-                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x7, false});
     }
     e.opcode = 0xCF;
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VGF2P8AFFINEINVQB ") + vl[ll],
-                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -265,7 +265,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VDBPSADBW ") + vl[ll],
-                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -297,7 +297,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
         const char *vl[] = {"xmm", "ymm", "zmm"};
         e.LL = ll; e.aaa = 0; e.z = false;
         tests.push_back({std::string(ss.name) + " " + vl[ll],
-                         cat, e.encode_rr_imm(4), s, FL_NONE, 0x7, false});
+                         cat, e.encode_rr_imm(4), s, FL_ALL, 0x7, false});
       }
     }
   }
@@ -411,11 +411,11 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       // imm=0: EQ
       auto code = e.encode_rr_imm(0);
       code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-      tests.push_back({std::string("VCMPPS EQ ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      tests.push_back({std::string("VCMPPS EQ ") + vl[ll], cat, code, s, FL_ALL, 0, false});
       // imm=1: LT
       code = e.encode_rr_imm(1);
       code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-      tests.push_back({std::string("VCMPPS LT ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      tests.push_back({std::string("VCMPPS LT ") + vl[ll], cat, code, s, FL_ALL, 0, false});
     }
   }
   {
@@ -434,10 +434,10 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       e.LL = ll; e.aaa = 0; e.z = false;
       auto code = e.encode_rr_imm(0);
       code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-      tests.push_back({std::string("VCMPPD EQ ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      tests.push_back({std::string("VCMPPD EQ ") + vl[ll], cat, code, s, FL_ALL, 0, false});
       code = e.encode_rr_imm(1);
       code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-      tests.push_back({std::string("VCMPPD LT ") + vl[ll], cat, code, s, FL_NONE, 0, false});
+      tests.push_back({std::string("VCMPPD LT ") + vl[ll], cat, code, s, FL_ALL, 0, false});
     }
   }
 
@@ -540,7 +540,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VRNDSCALEPS ") + vl[ll],
-                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -554,7 +554,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VRNDSCALEPD ") + vl[ll],
-                       cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -572,7 +572,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VREDUCEPS ") + vl[ll],
-                       cat, e.encode_rr_imm(0x08), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x08), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -586,7 +586,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VREDUCEPD ") + vl[ll],
-                       cat, e.encode_rr_imm(0x08), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x08), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -607,7 +607,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VRANGEPS ") + vl[ll],
-                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0), s, FL_ALL, 0x7, false});
     }
   }
   {
@@ -623,7 +623,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VRANGEPD ") + vl[ll],
-                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -641,7 +641,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VGETMANTPS ") + vl[ll],
-                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -655,7 +655,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VGETMANTPD ") + vl[ll],
-                       cat, e.encode_rr_imm(0), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -680,13 +680,13 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
       for (int ll = 0; ll <= 2; ll++) {
         e.LL = ll; e.aaa = 0; e.z = false;
         tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x00",
-                         cat, e.encode_rr_imm(0x00), s, FL_NONE, 0x7, false});
+                         cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x7, false});
         tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x01",
-                         cat, e.encode_rr_imm(0x01), s, FL_NONE, 0x7, false});
+                         cat, e.encode_rr_imm(0x01), s, FL_ALL, 0x7, false});
         tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x10",
-                         cat, e.encode_rr_imm(0x10), s, FL_NONE, 0x7, false});
+                         cat, e.encode_rr_imm(0x10), s, FL_ALL, 0x7, false});
         tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x11",
-                         cat, e.encode_rr_imm(0x11), s, FL_NONE, 0x7, false});
+                         cat, e.encode_rr_imm(0x11), s, FL_ALL, 0x7, false});
       }
     }
   }
@@ -706,10 +706,10 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     const char *vl[] = {"xmm", "ymm", "zmm"};
     for (int ll = 1; ll <= 2; ll++) {
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VBROADCASTF32X2 ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VBROADCASTF32X2 ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
       e.aaa = 1; e.z = true;
       tests.push_back({std::string("VBROADCASTF32X2 ") + vl[ll] + " {k1}{z}", cat,
-                       concat(set_kmask(0x5555), e.encode_rr()), s, FL_NONE, 0x3, false});
+                       concat(set_kmask(0x5555), e.encode_rr()), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -733,7 +733,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
           Evex e; e.mm = 2; e.pp = 3; e.W = w; e.opcode = 0x68;
           e.reg = 3; e.vvvv = 1; e.rm = 2; e.LL = ll;  // k3 encodes the k2/k3 pair
           TestCase tc = {std::string(w ? "VP2INTERSECTQ " : "VP2INTERSECTD ") + vl[ll] + " -> k2/k3",
-                         cat, e.encode_rr(), s, FL_NONE, 0x0, false};
+                         cat, e.encode_rr(), s, FL_ALL, 0x0, false};
           tc.kreg_mask = (1 << 2) | (1 << 3);
           tests.push_back(std::move(tc));
         }

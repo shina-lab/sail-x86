@@ -115,7 +115,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTPD2PS ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -132,7 +132,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTPS2PD ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -154,14 +154,14 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTPD2DQ ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
     e.pp = 1; e.opcode = 0xE6; // 66
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTTPD2DQ ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -175,14 +175,14 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTPD2UDQ ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
     e.pp = 0; e.opcode = 0x78;
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTTPD2UDQ ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -204,7 +204,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VCVTQQ2PS ") + vl[ll],
-                       cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -224,7 +224,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.pp = 3; e.W = true; e.opcode = 0x5A;
     e.reg = 0; e.vvvv = 0; e.rm = 1; e.LL = 0; e.aaa = 0; e.z = false;
-    tests.push_back({"VCVTSD2SS xmm", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTSD2SS xmm", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -235,7 +235,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     Evex e; e.mm = 1; e.pp = 2; e.W = false; e.opcode = 0x5A;
     e.reg = 0; e.vvvv = 0; e.rm = 1; e.LL = 0; e.aaa = 0; e.z = false;
-    tests.push_back({"VCVTSS2SD xmm", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTSS2SD xmm", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
   }
 
   // =====================================================================
@@ -263,16 +263,16 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     // VCVTSI2SS xmm0, xmm1, eax
     e.pp = 2; e.W = false; e.opcode = 0x2A;
-    tests.push_back({"VCVTSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     // VCVTSI2SD xmm0, xmm1, eax
     e.pp = 3; e.W = false; e.opcode = 0x2A;
-    tests.push_back({"VCVTSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     // VCVTUSI2SS xmm0, xmm1, eax
     e.pp = 2; e.W = false; e.opcode = 0x7B;
-    tests.push_back({"VCVTUSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTUSI2SS xmm,xmm,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     // VCVTUSI2SD xmm0, xmm1, eax
     e.pp = 3; e.W = false; e.opcode = 0x7B;
-    tests.push_back({"VCVTUSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VCVTUSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -282,16 +282,16 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     // VCVTSS2SI eax, xmm1
     e.pp = 2; e.W = false; e.opcode = 0x2D;
-    tests.push_back({"VCVTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTTSS2SI eax, xmm1
     e.opcode = 0x2C;
-    tests.push_back({"VCVTTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTTSS2SI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTSS2USI eax, xmm1
     e.opcode = 0x79;
-    tests.push_back({"VCVTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTTSS2USI eax, xmm1
     e.opcode = 0x78;
-    tests.push_back({"VCVTTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
   }
   {
     ArchState s = {}; s.rflags = 0x2;
@@ -301,16 +301,16 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     // VCVTSD2SI eax, xmm1
     e.pp = 3; e.W = false; e.opcode = 0x2D;
-    tests.push_back({"VCVTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTTSD2SI eax, xmm1
     e.opcode = 0x2C;
-    tests.push_back({"VCVTTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTTSD2SI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTSD2USI eax, xmm1
     e.opcode = 0x79;
-    tests.push_back({"VCVTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VCVTTSD2USI eax, xmm1
     e.opcode = 0x78;
-    tests.push_back({"VCVTTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VCVTTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
   }
 
   // =====================================================================
@@ -332,7 +332,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -345,7 +345,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTUDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTUDQ2PD ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   {
@@ -359,13 +359,13 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
     e.opcode = 0x7A;
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTTPS2QQ ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   // VCVTPS2UQQ/VCVTTPS2UQQ (unsigned)
@@ -380,13 +380,13 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
     e.opcode = 0x78;
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTTPS2UQQ ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
   // VCVTUQQ2PS: narrowing u64→f32
@@ -398,7 +398,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
-      tests.push_back({std::string("VCVTUQQ2PS ") + vl[ll], cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+      tests.push_back({std::string("VCVTUQQ2PS ") + vl[ll], cat, e.encode_rr(), s, FL_ALL, 0x3, false});
     }
   }
 
@@ -421,10 +421,10 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     auto code = e.encode_rr_imm(0);  // EQ
     code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-    tests.push_back({"VCMPSS EQ", cat, code, s, FL_NONE, 0, false});
+    tests.push_back({"VCMPSS EQ", cat, code, s, FL_ALL, 0, false});
     code = e.encode_rr_imm(1);  // LT
     code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-    tests.push_back({"VCMPSS LT", cat, code, s, FL_NONE, 0, false});
+    tests.push_back({"VCMPSS LT", cat, code, s, FL_ALL, 0, false});
   }
   {
     static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
@@ -440,9 +440,9 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
     auto code = e.encode_rr_imm(0);
     code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-    tests.push_back({"VCMPSD EQ", cat, code, s, FL_NONE, 0, false});
+    tests.push_back({"VCMPSD EQ", cat, code, s, FL_ALL, 0, false});
     code = e.encode_rr_imm(1);
     code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-    tests.push_back({"VCMPSD LT", cat, code, s, FL_NONE, 0, false});
+    tests.push_back({"VCMPSD LT", cat, code, s, FL_ALL, 0, false});
   }
 }

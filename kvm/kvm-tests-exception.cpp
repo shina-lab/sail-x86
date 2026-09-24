@@ -11,7 +11,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = init;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = vec;
     tests.push_back(std::move(tc));
@@ -178,7 +178,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = {0x9D, 0x90, 0xF4};
     tc.initial = {.rsp = DATA_ADDR + 64, .rflags = 0x102};
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = -1;
     tc.init_data.assign(72, 0);
@@ -293,7 +293,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.code = {0xF6, 0x37};
     tc.initial = dbp(0, DATA_ADDR, 3, 0);
     tc.initial.rax = 1;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 0;
     tc.init_data.assign(16, 0);
@@ -307,7 +307,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = {0x8E, 0x17, 0x90, 0xF4};
     tc.initial = dbp(0, DATA_ADDR, 3, 0);
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 1;
     tc.init_data = {0x10, 0x00};  // SS selector
@@ -337,7 +337,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = std::move(code);
       tc.initial = init;
-      tc.flags_mask = 0;
+      tc.flags_mask = FL_ALL;
       tc.expect_fault = true;
       tc.expected_vector = 1;
       tc.rflags_image_ignore = 0x10000;  // RF
@@ -713,7 +713,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = init;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 14;
     tc.enable_paging = true;

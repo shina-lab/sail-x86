@@ -71,39 +71,39 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     // TEST EAX, EBX: 85 D8
     add("compat test eax,ebx", {0x85, 0xD8}, s);
     // MOV EAX, imm32: B8 78 56 34 12
-    add("compat mov eax,imm32", {0xB8, 0x78, 0x56, 0x34, 0x12}, s, FL_NONE);
+    add("compat mov eax,imm32", {0xB8, 0x78, 0x56, 0x34, 0x12}, s, FL_ALL);
     // MOV AX, imm16 (66h): 66 B8 34 12
-    add("compat mov ax,imm16 (66h)", {0x66, 0xB8, 0x34, 0x12}, s, FL_NONE);
+    add("compat mov ax,imm16 (66h)", {0x66, 0xB8, 0x34, 0x12}, s, FL_ALL);
     // XOR EAX, EAX: 31 C0
     add("compat xor eax,eax", {0x31, 0xC0}, s);
     // IMUL EAX, EBX, imm8: 6B C3 05
     add("compat imul eax,ebx,imm8", {0x6B, 0xC3, 0x05}, s, FL_CF_OF);
     // NOT EAX: F7 D0
-    add("compat not eax", {0xF7, 0xD0}, s, FL_NONE);
+    add("compat not eax", {0xF7, 0xD0}, s, FL_ALL);
     // NEG ECX: F7 D9
     add("compat neg ecx", {0xF7, 0xD9}, s);
     // MOVZX EAX, BL: 0F B6 C3
-    add("compat movzx eax,bl", {0x0F, 0xB6, 0xC3}, s, FL_NONE);
+    add("compat movzx eax,bl", {0x0F, 0xB6, 0xC3}, s, FL_ALL);
     // MOVSX EAX, BX: 0F BF C3
-    add("compat movsx eax,bx", {0x0F, 0xBF, 0xC3}, s, FL_NONE);
+    add("compat movsx eax,bx", {0x0F, 0xBF, 0xC3}, s, FL_ALL);
     // BSWAP EAX: 0F C8
     {
       ArchState bs = {};
       bs.rax = 0x12345678;
       bs.rflags = 0x2;
-      add("compat bswap eax", {0x0F, 0xC8}, bs, FL_NONE);
+      add("compat bswap eax", {0x0F, 0xC8}, bs, FL_ALL);
     }
     // CDQ: 99 (sign-extend EAX -> EDX:EAX)
     {
       ArchState cdq = {};
       cdq.rax = 0x80000001;
       cdq.rflags = 0x2;
-      add("compat cdq (negative)", {0x99}, cdq, FL_NONE);
+      add("compat cdq (negative)", {0x99}, cdq, FL_ALL);
 
       ArchState cdq_pos = {};
       cdq_pos.rax = 0x7FFFFFFF;
       cdq_pos.rflags = 0x2;
-      add("compat cdq (positive)", {0x99}, cdq_pos, FL_NONE);
+      add("compat cdq (positive)", {0x99}, cdq_pos, FL_ALL);
     }
     // LEA EAX, [EBX+ECX*4]: 8D 04 8B
     {
@@ -111,7 +111,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       lea.rbx = 0x1000;
       lea.rcx = 0x10;
       lea.rflags = 0x2;
-      add("compat lea eax,[ebx+ecx*4]", {0x8D, 0x04, 0x8B}, lea, FL_NONE);
+      add("compat lea eax,[ebx+ecx*4]", {0x8D, 0x04, 0x8B}, lea, FL_ALL);
     }
     // OR EAX, EBX: 09 D8
     add("compat or eax,ebx", {0x09, 0xD8}, s);
@@ -139,7 +139,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(8, 0);
       u32 val = 0xDEADBEEF;
       memcpy(data.data(), &val, 4);
-      add_mem("compat mov eax,[ebx]", {0x8B, 0x03}, s, FL_NONE, data, 0);
+      add_mem("compat mov eax,[ebx]", {0x8B, 0x03}, s, FL_ALL, data, 0);
     }
     // MOV EAX, [EBX+ECX*4]: 8B 04 8B (SIB)
     {
@@ -150,7 +150,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(16, 0);
       u32 val = 0xCAFEBABE;
       memcpy(data.data() + 8, &val, 4);  // at offset 8 = ecx*4
-      add_mem("compat mov eax,[ebx+ecx*4]", {0x8B, 0x04, 0x8B}, s, FL_NONE, data, 0);
+      add_mem("compat mov eax,[ebx+ecx*4]", {0x8B, 0x04, 0x8B}, s, FL_ALL, data, 0);
     }
     // MOV EAX, [EBP+8]: 8B 45 08
     {
@@ -160,7 +160,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(16, 0);
       u32 val = 0x11223344;
       memcpy(data.data() + 8, &val, 4);
-      add_mem("compat mov eax,[ebp+8]", {0x8B, 0x45, 0x08}, s, FL_NONE, data, 0);
+      add_mem("compat mov eax,[ebp+8]", {0x8B, 0x45, 0x08}, s, FL_ALL, data, 0);
     }
     // MOV EAX, [ESP+4]: 8B 44 24 04 (SIB with ESP base)
     {
@@ -170,7 +170,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(16, 0);
       u32 val = 0x55667788;
       memcpy(data.data() + 4, &val, 4);
-      add_mem("compat mov eax,[esp+4]", {0x8B, 0x44, 0x24, 0x04}, s, FL_NONE, data, 0);
+      add_mem("compat mov eax,[esp+4]", {0x8B, 0x44, 0x24, 0x04}, s, FL_ALL, data, 0);
     }
     // MOV EAX, [disp32]: 8B 05 00 10 01 00  (mod=00, rm=5 = [disp32], NOT [RIP+disp32])
     {
@@ -184,7 +184,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
               {0x8B, 0x05,
                (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
                (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24)},
-              s, FL_NONE, data, 0);
+              s, FL_ALL, data, 0);
     }
     // MOV [EBX], EAX: 89 03 (store via 32-bit addr)
     {
@@ -192,7 +192,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0xFEEDFACE;
       s.rbx = DATA_ADDR;
       s.rflags = 0x2;
-      add_mem("compat mov [ebx],eax", {0x89, 0x03}, s, FL_NONE, {}, 4);
+      add_mem("compat mov [ebx],eax", {0x89, 0x03}, s, FL_ALL, {}, 4);
     }
     // MOV [EBX+ECX*8+4], EDX: 89 54 CB 04
     {
@@ -202,7 +202,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rdx = 0x99887766;
       s.rflags = 0x2;
       // Store at DATA_ADDR + 1*8 + 4 = DATA_ADDR + 12
-      add_mem("compat mov [ebx+ecx*8+4],edx", {0x89, 0x54, 0xCB, 0x04}, s, FL_NONE, {}, 16);
+      add_mem("compat mov [ebx+ecx*8+4],edx", {0x89, 0x54, 0xCB, 0x04}, s, FL_ALL, {}, 16);
     }
     // MOV EAX, [EBX+disp32]: 8B 83 00 01 00 00
     {
@@ -213,7 +213,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       u32 val = 0x44332211;
       memcpy(data.data() + 0x100, &val, 4);
       add_mem("compat mov eax,[ebx+disp32]", {0x8B, 0x83, 0x00, 0x01, 0x00, 0x00},
-              s, FL_NONE, data, 0);
+              s, FL_ALL, data, 0);
     }
   }
 
@@ -232,7 +232,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
         {0x8D, 0x05,
          (u8)(DATA_ADDR), (u8)(DATA_ADDR >> 8),
          (u8)(DATA_ADDR >> 16), (u8)(DATA_ADDR >> 24)},
-        s, FL_NONE);
+        s, FL_ALL);
   }
 
   // =====================================================================
@@ -246,52 +246,52 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rax = 0x12345678;
       s.rflags = 0x2;
-      add("compat push eax", {0x50}, s, FL_NONE);
+      add("compat push eax", {0x50}, s, FL_ALL);
     }
     // PUSH EAX + POP EBX: ESP unchanged, EBX = original EAX
     {
       ArchState s = {};
       s.rax = 0xAABBCCDD;
       s.rflags = 0x2;
-      add("compat push eax; pop ebx", {0x50, 0x5B}, s, FL_NONE);
+      add("compat push eax; pop ebx", {0x50, 0x5B}, s, FL_ALL);
     }
     // PUSH imm32: 68 78 56 34 12
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push imm32", {0x68, 0x78, 0x56, 0x34, 0x12}, s, FL_NONE);
+      add("compat push imm32", {0x68, 0x78, 0x56, 0x34, 0x12}, s, FL_ALL);
     }
     // PUSH imm32 + POP EAX: EAX gets the pushed immediate
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push imm32; pop eax", {0x68, 0x78, 0x56, 0x34, 0x12, 0x58}, s, FL_NONE);
+      add("compat push imm32; pop eax", {0x68, 0x78, 0x56, 0x34, 0x12, 0x58}, s, FL_ALL);
     }
     // PUSH imm8 (sign-extended): 6A 42
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push imm8; pop eax", {0x6A, 0x42, 0x58}, s, FL_NONE);
+      add("compat push imm8; pop eax", {0x6A, 0x42, 0x58}, s, FL_ALL);
     }
     // PUSH imm8 negative (sign-extended): 6A FE -> pushes 0xFFFFFFFE
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push imm8 neg; pop eax", {0x6A, 0xFE, 0x58}, s, FL_NONE);
+      add("compat push imm8 neg; pop eax", {0x6A, 0xFE, 0x58}, s, FL_ALL);
     }
     // PUSH AX (66h prefix): 16-bit push, ESP -= 2
     {
       ArchState s = {};
       s.rax = 0x12345678;
       s.rflags = 0x2;
-      add("compat push ax (66h)", {0x66, 0x50}, s, FL_NONE);
+      add("compat push ax (66h)", {0x66, 0x50}, s, FL_ALL);
     }
     // PUSH AX + POP AX (66h): round-trip 16-bit
     {
       ArchState s = {};
       s.rax = 0xAABBCCDD;
       s.rflags = 0x2;
-      add("compat push ax; pop bx (66h)", {0x66, 0x50, 0x66, 0x5B}, s, FL_NONE);
+      add("compat push ax; pop bx (66h)", {0x66, 0x50, 0x66, 0x5B}, s, FL_ALL);
     }
     // PUSHFD (9C) + POPFD (9D): push/pop EFLAGS
     {
@@ -308,7 +308,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       u32 val = 0xDEAD1234;
       memcpy(data.data(), &val, 4);
       // PUSH [EBX] then POP EAX to verify value
-      add_mem("compat push [ebx]; pop eax", {0xFF, 0x33, 0x58}, s, FL_NONE, data, 0);
+      add_mem("compat push [ebx]; pop eax", {0xFF, 0x33, 0x58}, s, FL_ALL, data, 0);
     }
   }
 
@@ -323,44 +323,44 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat call rel32; ret", {0xE8, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x01, 0xC3}, s, FL_NONE);
+      add("compat call rel32; ret", {0xE8, 0x02, 0x00, 0x00, 0x00, 0xEB, 0x01, 0xC3}, s, FL_ALL);
     }
     // JMP rel8: EB 02 CC CC -> jumps over 2 INT3 bytes
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat jmp rel8", {0xEB, 0x00}, s, FL_NONE);  // JMP +0 = next insn
+      add("compat jmp rel8", {0xEB, 0x00}, s, FL_ALL);  // JMP +0 = next insn
     }
     // JMP rel32: E9 00 00 00 00 -> jumps to next instruction
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat jmp rel32", {0xE9, 0x00, 0x00, 0x00, 0x00}, s, FL_NONE);
+      add("compat jmp rel32", {0xE9, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL);
     }
     // JZ taken (ZF=1): 74 00 -> jump to next insn
     {
       ArchState s = {};
       s.rflags = 0x2 | FL_ZF;
-      add("compat jz taken", {0x74, 0x00}, s, FL_NONE);
+      add("compat jz taken", {0x74, 0x00}, s, FL_ALL);
     }
     // JZ not taken (ZF=0): 74 00
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat jz not taken", {0x74, 0x00}, s, FL_NONE);
+      add("compat jz not taken", {0x74, 0x00}, s, FL_ALL);
     }
     // JNZ taken (ZF=0): 75 00
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat jnz taken", {0x75, 0x00}, s, FL_NONE);
+      add("compat jnz taken", {0x75, 0x00}, s, FL_ALL);
     }
     // LOOP: E2 FE with ECX=1 -> ECX becomes 0, loop not taken
     {
       ArchState s = {};
       s.rcx = 1;
       s.rflags = 0x2;
-      add("compat loop ecx=1", {0xE2, 0xFE}, s, FL_NONE);
+      add("compat loop ecx=1", {0xE2, 0xFE}, s, FL_ALL);
     }
     // LOOP with ECX=2: ECX becomes 1, loop taken (infinite loop unless we break)
     // Skip this test — would loop forever.
@@ -377,7 +377,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = CODE_ADDR + 4;
       s.rflags = 0x2;
       // FF D0: CALL EAX; EB 01: JMP +1 (skip RET); C3: RET
-      add("compat call eax; ret", {0xFF, 0xD0, 0xEB, 0x01, 0xC3}, s, FL_NONE);
+      add("compat call eax; ret", {0xFF, 0xD0, 0xEB, 0x01, 0xC3}, s, FL_ALL);
     }
     // JMP EAX (indirect): FF E0 (mod=11, reg=100 (/4=JMP), rm=000 (EAX))
     {
@@ -385,7 +385,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       // EAX points to the HLT which the harness appends at CODE_ADDR + 2
       s.rax = CODE_ADDR + 2;
       s.rflags = 0x2;
-      add("compat jmp eax", {0xFF, 0xE0}, s, FL_NONE);
+      add("compat jmp eax", {0xFF, 0xE0}, s, FL_ALL);
     }
   }
 
@@ -396,7 +396,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
   // --- INC/DEC Single-Byte ---
   {
     // INC/DEC set OF, SF, ZF, AF, PF but NOT CF
-    u64 inc_mask = FL_ALL & ~FL_CF;
+    u64 inc_mask = FL_ALL;
 
     ArchState s = {};
     s.rax = 0x00000041;
@@ -561,17 +561,17 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     // SHL EAX, 1: D1 E0 (AF undefined for shifts)
     add("compat shl eax,1", {0xD1, 0xE0}, s, FL_NO_AF);
     // SHR EAX, CL: D3 E8
-    add("compat shr eax,cl", {0xD3, 0xE8}, s, FL_NO_AF);
+    add("compat shr eax,cl", {0xD3, 0xE8}, s, FL_NO_AF_OF);
     // SAR EAX, imm8=3: C1 F8 03
-    add("compat sar eax,3", {0xC1, 0xF8, 0x03}, s, FL_NO_AF);
+    add("compat sar eax,3", {0xC1, 0xF8, 0x03}, s, FL_NO_AF_OF);
     // ROL EAX, 1: D1 C0
-    add("compat rol eax,1", {0xD1, 0xC0}, s, FL_CF_OF);
+    add("compat rol eax,1", {0xD1, 0xC0}, s, FL_ALL);
     // ROR EAX, CL: D3 C8
-    add("compat ror eax,cl", {0xD3, 0xC8}, s, FL_CF);
+    add("compat ror eax,cl", {0xD3, 0xC8}, s, FL_ALL & ~FL_OF);
     // SHLD EAX, EBX, imm8=4: 0F A4 D8 04 (AF, OF undefined for count > 1)
     add("compat shld eax,ebx,4", {0x0F, 0xA4, 0xD8, 0x04}, s, FL_NO_AF_OF);
     // SHRD EAX, EBX, CL: 0F AD D8
-    add("compat shrd eax,ebx,cl", {0x0F, 0xAD, 0xD8}, s, FL_NO_AF);
+    add("compat shrd eax,ebx,cl", {0x0F, 0xAD, 0xD8}, s, FL_NO_AF_OF);
   }
 
   // =====================================================================
@@ -585,9 +585,9 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
 
     // BT EAX, imm8=5: 0F BA E0 05
-    add("compat bt eax,5", {0x0F, 0xBA, 0xE0, 0x05}, s, FL_CF);
+    add("compat bt eax,5", {0x0F, 0xBA, 0xE0, 0x05}, s, FL_CF_ZF);
     // BTS EAX, EBX: 0F AB D8
-    add("compat bts eax,ebx", {0x0F, 0xAB, 0xD8}, s, FL_CF);
+    add("compat bts eax,ebx", {0x0F, 0xAB, 0xD8}, s, FL_CF_ZF);
     // BSF EAX, EBX: 0F BC C3
     {
       ArchState bs = {};
@@ -624,7 +624,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rcx = 8;           // count
       s.rdi = DATA_ADDR;   // destination
       s.rflags = 0x2;      // DF=0 -> forward
-      add_mem("compat rep stosb", {0xF3, 0xAA}, s, FL_NONE, {}, 8);
+      add_mem("compat rep stosb", {0xF3, 0xAA}, s, FL_ALL, {}, 8);
     }
     // REP MOVSB: copy ECX bytes from ESI to EDI
     {
@@ -635,7 +635,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       std::vector<u8> data(32, 0);
       data[0] = 0x11; data[1] = 0x22; data[2] = 0x33; data[3] = 0x44;
-      add_mem("compat rep movsb", {0xF3, 0xA4}, s, FL_NONE, data, 20);
+      add_mem("compat rep movsb", {0xF3, 0xA4}, s, FL_ALL, data, 20);
     }
     // CMPSB: compare byte at ESI with byte at EDI
     {
@@ -724,7 +724,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0x11111111;
       s.rbx = 0x22222222;
       s.rflags = 0x2 | FL_ZF;
-      add("compat cmovz eax,ebx (taken)", {0x0F, 0x44, 0xC3}, s, FL_NONE);
+      add("compat cmovz eax,ebx (taken)", {0x0F, 0x44, 0xC3}, s, FL_ALL);
     }
     // CMOVZ EAX, EBX: 0F 44 C3 (ZF=0 -> no move)
     {
@@ -732,21 +732,21 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0x11111111;
       s.rbx = 0x22222222;
       s.rflags = 0x2;
-      add("compat cmovz eax,ebx (not taken)", {0x0F, 0x44, 0xC3}, s, FL_NONE);
+      add("compat cmovz eax,ebx (not taken)", {0x0F, 0x44, 0xC3}, s, FL_ALL);
     }
     // SETZ AL: 0F 94 C0 (ZF=1 -> AL=1)
     {
       ArchState s = {};
       s.rax = 0xDEADBEEF;
       s.rflags = 0x2 | FL_ZF;
-      add("compat setz al (ZF=1)", {0x0F, 0x94, 0xC0}, s, FL_NONE);
+      add("compat setz al (ZF=1)", {0x0F, 0x94, 0xC0}, s, FL_ALL);
     }
     // SETZ AL: ZF=0 -> AL=0
     {
       ArchState s = {};
       s.rax = 0xDEADBEEF;
       s.rflags = 0x2;
-      add("compat setz al (ZF=0)", {0x0F, 0x94, 0xC0}, s, FL_NONE);
+      add("compat setz al (ZF=0)", {0x0F, 0x94, 0xC0}, s, FL_ALL);
     }
   }
 
@@ -761,7 +761,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0x11111111;
       s.rbx = 0x22222222;
       s.rflags = 0x2;
-      add("compat xchg eax,ebx", {0x93}, s, FL_NONE);
+      add("compat xchg eax,ebx", {0x93}, s, FL_ALL);
     }
     // XADD [mem], EAX: 0F C1 03 (mod=00, rm=EBX)
     {
@@ -831,7 +831,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x66, 0x0F, 0x58, 0x00};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0x1;
       tc.init_data = data;
       tc.compat_mode = true;
@@ -843,7 +843,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = DATA_ADDR;
       s.rflags = 0x2;
       s.xmm[0] = xmm_from_f32(1.5f, 2.5f, 3.5f, 4.5f);
-      add_mem("compat movaps [eax],xmm0", {0x0F, 0x29, 0x00}, s, FL_NONE, {}, 16);
+      add_mem("compat movaps [eax],xmm0", {0x0F, 0x29, 0x00}, s, FL_ALL, {}, 16);
     }
   }
 
@@ -859,7 +859,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0xDEADBEEF00000000ULL;
       s.rflags = 0x2;
       // MOV EAX, 1: B8 01 00 00 00
-      add("compat mov eax,1 (upper cleared)", {0xB8, 0x01, 0x00, 0x00, 0x00}, s, FL_NONE);
+      add("compat mov eax,1 (upper cleared)", {0xB8, 0x01, 0x00, 0x00, 0x00}, s, FL_ALL);
     }
     // ADD EAX, 0 with upper RAX set
     {
@@ -881,7 +881,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rax = 0xDEADBEEF00000001ULL;
       s.rflags = 0x2;
-      add("compat inc eax (upper cleared)", {0x40}, s, FL_ALL & ~FL_CF);
+      add("compat inc eax (upper cleared)", {0x40}, s, FL_ALL);
     }
     // MOV to 16-bit: should NOT clear upper bits
     {
@@ -890,7 +890,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rbx = 0x5678;
       s.rflags = 0x2;
       // MOV AX, BX: 66 89 D8 (mov r/m16, r16 with ModRM D8 = mod=11, reg=BX, rm=AX)
-      add("compat mov ax,bx (upper preserved)", {0x66, 0x89, 0xD8}, s, FL_NONE);
+      add("compat mov ax,bx (upper preserved)", {0x66, 0x89, 0xD8}, s, FL_ALL);
     }
     // MOV to 8-bit: should NOT clear upper bits
     {
@@ -899,7 +899,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rbx = 0x78;
       s.rflags = 0x2;
       // MOV AL, BL: 88 D8
-      add("compat mov al,bl (upper preserved)", {0x88, 0xD8}, s, FL_NONE);
+      add("compat mov al,bl (upper preserved)", {0x88, 0xD8}, s, FL_ALL);
     }
   }
 
@@ -916,7 +916,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rsp = STACK_TOP;  // Clean ESP, upper bits 0
       s.rflags = 0x2;
       // PUSH EAX + POP EBX round-trip
-      add("compat push/pop with clean rsp", {0x50, 0x5B}, s, FL_NONE);
+      add("compat push/pop with clean rsp", {0x50, 0x5B}, s, FL_ALL);
     }
   }
 
@@ -929,13 +929,13 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push fs; pop fs", {0x0F, 0xA0, 0x0F, 0xA1}, s, FL_NONE);
+      add("compat push fs; pop fs", {0x0F, 0xA0, 0x0F, 0xA1}, s, FL_ALL);
     }
     // PUSH GS (0F A8) + POP GS (0F A9)
     {
       ArchState s = {};
       s.rflags = 0x2;
-      add("compat push gs; pop gs", {0x0F, 0xA8, 0x0F, 0xA9}, s, FL_NONE);
+      add("compat push gs; pop gs", {0x0F, 0xA8, 0x0F, 0xA9}, s, FL_ALL);
     }
   }
 
@@ -1016,7 +1016,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.initial = {};
     tc.initial.rax = 0x41;
     tc.initial.rflags = 0x2;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;  // starts in 64-bit mode
     tests.push_back(std::move(tc));
@@ -1054,7 +1054,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.initial = {};
     tc.initial.rax = 0x41;
     tc.initial.rflags = 0x2;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;
     tests.push_back(std::move(tc));
@@ -1099,7 +1099,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.code = code;
     tc.initial = {};
     tc.initial.rflags = 0x2;
-    tc.flags_mask = FL_NONE;
+    tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;
     tests.push_back(std::move(tc));
@@ -1116,7 +1116,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
     // LEA EAX, [EBP+ECX*4+0x10] = 8D 44 8D 10
     add("compat lea eax,[ebp+ecx*4+0x10]",
-        {0x8D, 0x44, 0x8D, 0x10}, s, FL_NONE);
+        {0x8D, 0x44, 0x8D, 0x10}, s, FL_ALL);
   }
 
   // --- Memory load/store in compat mode ---
@@ -1128,7 +1128,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     std::vector<u8> data(8, 0);
     u32 magic = 0xDEADBEEF;
     memcpy(data.data(), &magic, 4);
-    add_mem("compat mov eax,[edi]", {0x8B, 0x07}, s, FL_NONE, data, 0);
+    add_mem("compat mov eax,[edi]", {0x8B, 0x07}, s, FL_ALL, data, 0);
   }
 
   // --- 32-bit push/pop in compat mode ---
@@ -1137,7 +1137,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rax = 0x12345678;
     s.rflags = 0x2;
     // PUSH EAX; POP EBX  (50 5B)
-    add("compat push eax; pop ebx", {0x50, 0x5B}, s, FL_NONE);
+    add("compat push eax; pop ebx", {0x50, 0x5B}, s, FL_ALL);
   }
 
   // --- IRET CPL 0 -> CPL 3 (user mode) with 64-bit CS ---
@@ -1180,7 +1180,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.code = code;
     tc.initial = {};
     tc.initial.rflags = 0x2;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.expect_fault = true;
     tc.expected_vector = 6;  // #UD from ud2, NOT #PF from GDT read
@@ -1380,7 +1380,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       tc.code = {0xD4, 0x00};
       tc.initial = {};
       tc.initial.rflags = 0x2;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.compat_mode = true;
       tc.expect_fault = true;
       tc.expected_vector = 0;  // #DE = vector 0
@@ -1452,7 +1452,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
            (u8)(ret_eip>>16), (u8)(ret_eip>>24),
          0xCB,                                    // retf
          0xF4},                                   // HLT
-        s, FL_NONE);
+        s, FL_ALL);
   }
 
   // Compat RETF imm16=0x08 (CA 08 00) — 32-bit opsize, skip 8 extra bytes
@@ -1477,7 +1477,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
            (u8)(ret_eip>>16), (u8)(ret_eip>>24),
          0xCA, 0x08, 0x00,                        // retf 0x0008
          0xF4},                                   // HLT
-        s, FL_NONE);
+        s, FL_ALL);
   }
 
   // Compat RETF imm16=0 (CA 00 00) — should behave like plain RETF
@@ -1499,7 +1499,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
            (u8)(ret_eip>>16), (u8)(ret_eip>>24),
          0xCA, 0x00, 0x00,                        // retf 0x0000
          0xF4},                                   // HLT
-        s, FL_NONE);
+        s, FL_ALL);
   }
 
   // =====================================================================
@@ -1514,7 +1514,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0xDEADBEEF;
       s.rflags = 0x2;
-      add("compat enter 0,0", {0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+      add("compat enter 0,0", {0xC8, 0x00, 0x00, 0x00}, s, FL_ALL);
     }
 
     // ENTER 16, 0: push EBP, set EBP=ESP, sub ESP,16
@@ -1522,7 +1522,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0xDEADBEEF;
       s.rflags = 0x2;
-      add("compat enter 16,0", {0xC8, 0x10, 0x00, 0x00}, s, FL_NONE);
+      add("compat enter 16,0", {0xC8, 0x10, 0x00, 0x00}, s, FL_ALL);
     }
 
     // ENTER 0, 1: nesting level 1
@@ -1530,7 +1530,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = STACK_TOP - 64;
       s.rflags = 0x2;
-      add("compat enter 0,1", {0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+      add("compat enter 0,1", {0xC8, 0x00, 0x00, 0x01}, s, FL_ALL);
     }
 
     // ENTER 8, 2: nesting level 2
@@ -1538,7 +1538,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = STACK_TOP - 64;
       s.rflags = 0x2;
-      add("compat enter 8,2", {0xC8, 0x08, 0x00, 0x02}, s, FL_NONE);
+      add("compat enter 8,2", {0xC8, 0x08, 0x00, 0x02}, s, FL_ALL);
     }
 
     // ENTER with large allocation: ENTER 256, 0
@@ -1546,7 +1546,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0x11223344;
       s.rflags = 0x2;
-      add("compat enter 256,0", {0xC8, 0x00, 0x01, 0x00}, s, FL_NONE);
+      add("compat enter 256,0", {0xC8, 0x00, 0x01, 0x00}, s, FL_ALL);
     }
 
     // 66h ENTER 0, 0: 16-bit operand size in compat mode
@@ -1554,7 +1554,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0xAABBCCDD;
       s.rflags = 0x2;
-      add("compat enter 0,0 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00}, s, FL_NONE);
+      add("compat enter 0,0 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00}, s, FL_ALL);
     }
 
     // 66h ENTER 8, 0: 16-bit push + allocation
@@ -1562,7 +1562,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0xAABBCCDD;
       s.rflags = 0x2;
-      add("compat enter 8,0 (66h)", {0x66, 0xC8, 0x08, 0x00, 0x00}, s, FL_NONE);
+      add("compat enter 8,0 (66h)", {0x66, 0xC8, 0x08, 0x00, 0x00}, s, FL_ALL);
     }
 
     // 66h ENTER 0, 1: 16-bit with nesting level 1
@@ -1570,7 +1570,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = STACK_TOP - 64;
       s.rflags = 0x2;
-      add("compat enter 0,1 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x01}, s, FL_NONE);
+      add("compat enter 0,1 (66h)", {0x66, 0xC8, 0x00, 0x00, 0x01}, s, FL_ALL);
     }
   }
 
@@ -1584,7 +1584,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(16, 0);
       u32 saved_ebp = 0x12345678;
       memcpy(data.data(), &saved_ebp, 4);
-      add_mem("compat leave", {0xC9}, s, FL_NONE, std::move(data), 0);
+      add_mem("compat leave", {0xC9}, s, FL_ALL, std::move(data), 0);
     }
 
     // 66h LEAVE: 16-bit operand size, POP BP (16-bit)
@@ -1594,7 +1594,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       std::vector<u8> data(16, 0);
       data[0] = 0x78; data[1] = 0x56;
-      add_mem("compat leave (66h)", {0x66, 0xC9}, s, FL_NONE, std::move(data), 0);
+      add_mem("compat leave (66h)", {0x66, 0xC9}, s, FL_ALL, std::move(data), 0);
     }
 
     // ENTER/LEAVE round-trip (32-bit)
@@ -1602,7 +1602,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = 0xDEADBEEF;
       s.rflags = 0x2;
-      add("compat enter 0,0; leave", {0xC8, 0x00, 0x00, 0x00, 0xC9}, s, FL_NONE);
+      add("compat enter 0,0; leave", {0xC8, 0x00, 0x00, 0x00, 0xC9}, s, FL_ALL);
     }
 
     // ENTER/LEAVE round-trip (16-bit)
@@ -1610,7 +1610,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rbp = STACK_TOP - 128;
       s.rflags = 0x2;
-      add("compat enter 0,0; leave (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00, 0x66, 0xC9}, s, FL_NONE);
+      add("compat enter 0,0; leave (66h)", {0x66, 0xC8, 0x00, 0x00, 0x00, 0x66, 0xC9}, s, FL_ALL);
     }
   }
 
@@ -1682,7 +1682,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       tc.initial.rax = 99;
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rflags = 0x2;
-      tc.flags_mask = 0;
+      tc.flags_mask = FL_ALL;
       tc.init_data = {0x00, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00};
       tc.expect_fault = true;
       tc.expected_vector = 5;

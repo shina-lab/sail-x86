@@ -30,6 +30,11 @@ target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
 add_dependencies(kvm_harness generated_sail_x86_model)
 
+add_executable(kvm_state_compare test-state-compare.cpp)
+target_link_libraries(kvm_state_compare PRIVATE x86_model)
+add_dependencies(kvm_state_compare generated_sail_x86_model)
+add_test(NAME kvm_state_compare COMMAND kvm_state_compare)
+
 # Each test runs a category filter. Use ctest -j to run in parallel.
 set(KVM_CATEGORIES
   Baseline

@@ -1431,9 +1431,9 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 100;
         s.rcx = 200;
         // ADCX eax, ecx (CF=0 in, result=300, CF=0 out)
-        tests.push_back({"adcx eax no carry", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adcx eax no carry", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
         // ADOX eax, ecx (OF=0 in, result=300, OF=0 out)
-        tests.push_back({"adox eax no carry", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adox eax no carry", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 2: carry-in = 1 for ADCX (set CF)
@@ -1443,7 +1443,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 100;
         s.rcx = 200;
         // ADCX eax, ecx (CF=1 in, result=301, CF=0 out)
-        tests.push_back({"adcx eax CF=1 in", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adcx eax CF=1 in", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 3: carry-in = 1 for ADOX (set OF)
@@ -1453,7 +1453,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 100;
         s.rcx = 200;
         // ADOX eax, ecx (OF=1 in, result=301, OF=0 out)
-        tests.push_back({"adox eax OF=1 in", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adox eax OF=1 in", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 4: 32-bit overflow (produces carry-out)
@@ -1463,9 +1463,9 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 0xFFFFFFFF;
         s.rcx = 1;
         // ADCX eax, ecx: 0xFFFFFFFF + 1 + 0 = 0x100000000 → eax=0, CF=1
-        tests.push_back({"adcx eax overflow", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adcx eax overflow", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
         // ADOX eax, ecx: same math but OF=1 out
-        tests.push_back({"adox eax overflow", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adox eax overflow", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 5: 32-bit overflow with carry-in = 1
@@ -1475,9 +1475,9 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 0xFFFFFFFF;
         s.rcx = 0xFFFFFFFF;
         // ADCX eax, ecx: 0xFFFFFFFF + 0xFFFFFFFF + 1(CF) = 0x1FFFFFFFF → eax=0xFFFFFFFF, CF=1
-        tests.push_back({"adcx eax max+max+1", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
+        tests.push_back({"adcx eax max+max+1", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
         // ADOX eax, ecx: same but uses OF
-        tests.push_back({"adox eax max+max+1", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adox eax max+max+1", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 6: 64-bit ADCX/ADOX (REX.W)
@@ -1489,8 +1489,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 0xFFFFFFFFFFFFFFFF;
         s.rcx = 1;
         // 64-bit overflow
-        tests.push_back({"adcx rax overflow", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
-        tests.push_back({"adox rax overflow", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adcx rax overflow", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
+        tests.push_back({"adox rax overflow", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 7: ADCX preserves OF, ADOX preserves CF
@@ -1501,9 +1501,9 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 100;
         s.rcx = 200;
         // ADCX: CF=1 in → 100+200+1=301, CF=0 out; OF should stay 1
-        tests.push_back({"adcx preserves OF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_OF, 0x0, false});
+        tests.push_back({"adcx preserves OF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
         // ADOX: OF=1 in → 100+200+1=301, OF=0 out; CF should stay 1
-        tests.push_back({"adox preserves CF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_OF, 0x0, false});
+        tests.push_back({"adox preserves CF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 8: ADCX/ADOX preserve SF, ZF, PF (set them before, check after)
@@ -1512,8 +1512,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rflags = 0x2 | FL_SF | FL_ZF | FL_PF;  // SF=1, ZF=1, PF=1
         s.rax = 100;
         s.rcx = 200;
-        tests.push_back({"adcx preserves SZPF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF | FL_SF | FL_ZF | FL_PF, 0x0, false});
-        tests.push_back({"adox preserves SZPF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF | FL_SF | FL_ZF | FL_PF, 0x0, false});
+        tests.push_back({"adcx preserves SZPF", cat, {0x66, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
+        tests.push_back({"adox preserves SZPF", cat, {0xF3, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // Test 9: chain ADCX then ADOX (both in one sequence)
@@ -1530,7 +1530,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         tests.push_back({"adcx+adox chain", cat,
           {0x66, 0x0F, 0x38, 0xF6, 0xC1,   // ADCX eax, ecx
            0xF3, 0x0F, 0x38, 0xF6, 0xDA},  // ADOX ebx, edx
-          s, FL_CF | FL_OF, 0x0, false});
+          s, FL_ALL, 0x0, false});
       }
 
       // Test 10: 64-bit no overflow
@@ -1539,8 +1539,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rflags = 0x2;
         s.rax = 0x123456789ABCDEF0;
         s.rcx = 0x0000000000000001;
-        tests.push_back({"adcx rax simple", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_CF, 0x0, false});
-        tests.push_back({"adox rax simple", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_OF, 0x0, false});
+        tests.push_back({"adcx rax simple", cat, {0x66, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
+        tests.push_back({"adox rax simple", cat, {0xF3, 0x48, 0x0F, 0x38, 0xF6, 0xC1}, s, FL_ALL, 0x0, false});
       }
     }
 
@@ -1584,7 +1584,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         const u32 F32_HALF = 0x3F000000;  // 0.5f
         s.xmm[0] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
         s.xmm[1] = xmm_raw(F32_HALF, F32_HALF, F32_HALF, F32_HALF);
-        tests.push_back({"mulps FTZ flush", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"mulps FTZ flush", cat, {0x0F, 0x59, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // SUBPS with FTZ: two close normals → denormal result → flushed
@@ -1597,7 +1597,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         const u32 F32_SMALL_PLUS1 = F32_SMALL + 1;  // next representable after smallest normal
         s.xmm[0] = xmm_raw(F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1);
         s.xmm[1] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
-        tests.push_back({"subps FTZ flush", cat, {0x0F, 0x5C, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"subps FTZ flush", cat, {0x0F, 0x5C, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // Without FTZ, same operation should produce a denormal
@@ -1608,7 +1608,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         const u32 F32_SMALL_PLUS1 = F32_SMALL + 1;
         s.xmm[0] = xmm_raw(F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1, F32_SMALL_PLUS1);
         s.xmm[1] = xmm_raw(F32_SMALL, F32_SMALL, F32_SMALL, F32_SMALL);
-        tests.push_back({"subps no FTZ denorm", cat, {0x0F, 0x5C, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"subps no FTZ denorm", cat, {0x0F, 0x5C, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // --- DAZ mode: denormal inputs treated as zero ---
@@ -1621,7 +1621,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
         s.xmm[1] = xmm_raw(F32_ONE, F32_ONE, F32_ONE, F32_TWO);
-        tests.push_back({"addps DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"addps DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // Without DAZ, denormal + 1.0 → 1.0 + tiny (slightly more than 1.0)
@@ -1631,7 +1631,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT;  // DAZ=0
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
         s.xmm[1] = xmm_raw(F32_ONE, F32_ONE, F32_ONE, F32_TWO);
-        tests.push_back({"addps no DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"addps no DAZ denorm+1", cat, {0x0F, 0x58, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // MULPS with DAZ: denormal * 2.0 → should produce 0 (denormal treated as 0)
@@ -1641,7 +1641,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MAX);
         s.xmm[1] = xmm_raw(F32_TWO, F32_TWO, F32_TWO, F32_TWO);
-        tests.push_back({"mulps DAZ denorm*2", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"mulps DAZ denorm*2", cat, {0x0F, 0x59, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // MINPS with DAZ: denormal vs 0 → both treated as 0
@@ -1652,7 +1652,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_ZERO, F32_NEG_DENORM, F32_DENORM_MAX);
         s.xmm[1] = xmm_raw(F32_ZERO, F32_DENORM_MIN, F32_ZERO, F32_NEG_ZERO);
-        tests.push_back({"minps DAZ denorm vs 0", cat, {0x0F, 0x5D, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"minps DAZ denorm vs 0", cat, {0x0F, 0x5D, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // MAXPS with DAZ
@@ -1662,7 +1662,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_DENORM_MIN);
         s.xmm[1] = xmm_raw(F32_ZERO, F32_ZERO, F32_ZERO, F32_ONE);
-        tests.push_back({"maxps DAZ denorm vs 0", cat, {0x0F, 0x5F, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"maxps DAZ denorm vs 0", cat, {0x0F, 0x5F, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // CMPPS with DAZ: denormal == 0? (both treated as zero → true)
@@ -1673,7 +1673,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ZERO);
         s.xmm[1] = xmm_raw(F32_ZERO, F32_ZERO, F32_ZERO, F32_DENORM_MIN);
-        tests.push_back({"cmpps DAZ eq denorm==0", cat, {0x0F, 0xC2, 0xC1, 0x00}, s, FL_NONE, 0x3, true});
+        tests.push_back({"cmpps DAZ eq denorm==0", cat, {0x0F, 0xC2, 0xC1, 0x00}, s, FL_ALL, 0x3, true});
       }
 
       // SQRTPS with DAZ: sqrt(denormal) → sqrt(0) = 0
@@ -1683,7 +1683,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_ZERO, F32_ONE);
-        tests.push_back({"sqrtps DAZ denorm", cat, {0x0F, 0x51, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"sqrtps DAZ denorm", cat, {0x0F, 0x51, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // CVTPS2DQ with DAZ: denormal → treated as 0 → converts to integer 0
@@ -1693,7 +1693,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rflags = 0x2;
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[1] = xmm_raw(F32_DENORM_MIN, F32_DENORM_MAX, F32_NEG_DENORM, F32_ONE);
-        tests.push_back({"cvtps2dq DAZ denorm", cat, {0x66, 0x0F, 0x5B, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"cvtps2dq DAZ denorm", cat, {0x66, 0x0F, 0x5B, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // DAZ + FTZ combined
@@ -1706,7 +1706,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.xmm[1] = xmm_raw(F32_TWO, F32_HALF, F32_ONE, F32_HALF);
         // lane 0: denorm(→0)*2=0, lane 1: smallest_normal*0.5=denorm→flush to 0
         // lane 2: denorm(→0)*1=0, lane 3: 1.0*0.5=0.5 (normal, no flush)
-        tests.push_back({"mulps DAZ+FTZ", cat, {0x0F, 0x59, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"mulps DAZ+FTZ", cat, {0x0F, 0x59, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // UCOMISS with DAZ: denormal vs 0 → equal (both treated as 0)
@@ -1717,7 +1717,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.mxcsr = MXCSR_DEFAULT | MXCSR_DAZ;
         s.xmm[0] = xmm_raw(F32_DENORM_MAX, 0, 0, 0);
         s.xmm[1] = xmm_raw(F32_ZERO, 0, 0, 0);
-        tests.push_back({"ucomiss DAZ denorm==0", cat, {0x0F, 0x2E, 0xC1}, s, FL_CF | FL_ZF | FL_PF, 0x0, true});
+        tests.push_back({"ucomiss DAZ denorm==0", cat, {0x0F, 0x2E, 0xC1}, s, FL_ALL, 0x0, true});
       }
 
       // DIVPS with FTZ: very small / very large → denormal → flush to 0
@@ -1729,7 +1729,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.xmm[0] = xmm_raw(F32_SMALL, F32_SMALL, F32_ONE, F32_ONE);
         const u32 F32_LARGE = 0x7E800000;  // 8.507059e37 (large normal)
         s.xmm[1] = xmm_raw(F32_LARGE, F32_LARGE, F32_ONE, F32_TWO);
-        tests.push_back({"divps FTZ flush", cat, {0x0F, 0x5E, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"divps FTZ flush", cat, {0x0F, 0x5E, 0xC1}, s, FL_ALL, 0x3, true});
       }
 
       // f64 denormals with DAZ
@@ -1742,7 +1742,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         const u64 F64_ONE    = 0x3FF0000000000000;   // 1.0
         s.xmm[0] = xmm_from_u64(F64_DENORM, F64_DENORM);
         s.xmm[1] = xmm_from_u64(F64_ONE, F64_ONE);
-        tests.push_back({"addpd DAZ denorm+1", cat, {0x66, 0x0F, 0x58, 0xC1}, s, FL_NONE, 0x3, true});
+        tests.push_back({"addpd DAZ denorm+1", cat, {0x66, 0x0F, 0x58, 0xC1}, s, FL_ALL, 0x3, true});
       }
     }
 
@@ -1787,7 +1787,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 0xDEAD0000BEEFAAAA;
         s.rcx = 0x00000000000000FF;
         // MOVZX AX, CL: AX=0x00FF, upper bits of RAX preserved
-        tests.push_back({"movzx ax,cl 16b", cat, {0x66, 0x0F, 0xB6, 0xC1}, s, FL_NONE, 0x0, false});
+        tests.push_back({"movzx ax,cl 16b", cat, {0x66, 0x0F, 0xB6, 0xC1}, s, FL_ALL, 0x0, false});
       }
 
       // 16-bit SHL: 66 D1 E0 = SHL AX, 1
@@ -1825,9 +1825,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rflags = 0x2;
         s.rax = 0xDEAD0000BEEF1234;  // AX=0x1234
         s.rcx = 0x1234567800005678;  // CX=0x5678
-        tests.push_back({"xchg ax,cx 16b", cat, {0x66, 0x91}, s, FL_NONE, 0x0, false});
+        tests.push_back({"xchg ax,cx 16b", cat, {0x66, 0x91}, s, FL_ALL, 0x0, false});
       }
     }
   }
 }
-

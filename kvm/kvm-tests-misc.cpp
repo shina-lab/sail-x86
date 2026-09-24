@@ -579,7 +579,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
          0x0F, 0x77,              // EMMS (should set all tags empty)
          0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
         {.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2},
-        FL_NONE, 0, false, init_data, 512});
+        FL_ALL, 0, false, init_data, 512});
     }
   }
 
@@ -686,7 +686,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add("rdfsbase64 round-trip",
           {0xF3, 0x48, 0x0F, 0xAE, 0xD3,   // WRFSBASE RBX
            0xF3, 0x48, 0x0F, 0xAE, 0xC0},   // RDFSBASE RAX
-          s, FL_NONE);
+          s, FL_ALL);
     }
 
     // WRFSBASE EBX; RDFSBASE EAX — 32-bit round-trip (zero-extends)
@@ -699,7 +699,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add("rdfsbase32 round-trip",
           {0xF3, 0x0F, 0xAE, 0xD3,   // WRFSBASE EBX
            0xF3, 0x0F, 0xAE, 0xC0},   // RDFSBASE EAX
-          s, FL_NONE);
+          s, FL_ALL);
     }
 
     // WRGSBASE RBX; RDGSBASE RAX — 64-bit GS round-trip
@@ -712,7 +712,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add("rdgsbase64 round-trip",
           {0xF3, 0x48, 0x0F, 0xAE, 0xDB,   // WRGSBASE RBX
            0xF3, 0x48, 0x0F, 0xAE, 0xC8},   // RDGSBASE RAX
-          s, FL_NONE);
+          s, FL_ALL);
     }
 
     // WRGSBASE EBX; RDGSBASE EAX — 32-bit GS round-trip
@@ -723,7 +723,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add("rdgsbase32 round-trip",
           {0xF3, 0x0F, 0xAE, 0xDB,   // WRGSBASE EBX
            0xF3, 0x0F, 0xAE, 0xC8},   // RDGSBASE EAX
-          s, FL_NONE);
+          s, FL_ALL);
     }
   }
 
@@ -756,7 +756,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = std::move(code);
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0x3;
       tc.cmp_mxcsr = true;
       tc.init_data = std::vector<u8>(576, 0);
@@ -782,7 +782,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = std::move(code);
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = (1 << 0) | (1 << 5);
       tc.cmp_mxcsr = true;
       tc.init_data = std::vector<u8>(576, 0);
@@ -818,7 +818,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0xAE, 0x2F};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0x1;
       tc.cmp_mxcsr = true;
       tc.init_data = std::move(init_data);
@@ -839,7 +839,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0xAE, 0x2F};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0x1;  // XMM0 should become zero
       tc.init_data = std::move(init_data);
       tests.push_back(std::move(tc));
@@ -867,7 +867,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0xAE, 0x2F};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0x1;  // XMM0 should become zero
       tc.init_data = std::move(init_data);
       tests.push_back(std::move(tc));
@@ -894,7 +894,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = std::move(code);
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = (1 << 8) | (1 << 15);
       tc.init_data = std::vector<u8>(576, 0);
       tests.push_back(std::move(tc));
@@ -966,7 +966,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x000000FF;  // source bits
       s.rdx = 0x55555555;  // mask: every other bit
       tests.push_back({"pdep eax,ecx,edx", cat,
-                       {0xC4, 0xE2, 0x73, 0xF5, 0xC2}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x73, 0xF5, 0xC2}, s, FL_ALL});
     }
     // PDEP 64-bit
     {
@@ -976,7 +976,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rdx = 0x5555555555555555;
       // W=1: byte2 = 0b1_1110_0_11 = 0xF3
       tests.push_back({"pdep rax,rcx,rdx 64", cat,
-                       {0xC4, 0xE2, 0xF3, 0xF5, 0xC2}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xF3, 0xF5, 0xC2}, s, FL_ALL});
     }
 
     // PEXT eax, ecx, edx — parallel bit extract
@@ -988,7 +988,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0xAAAAAAAA;  // source
       s.rdx = 0x55555555;  // mask: every other bit
       tests.push_back({"pext eax,ecx,edx", cat,
-                       {0xC4, 0xE2, 0x72, 0xF5, 0xC2}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x72, 0xF5, 0xC2}, s, FL_ALL});
     }
     // PEXT 64-bit
     {
@@ -998,7 +998,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rdx = 0x5555555555555555;
       // W=1: byte2 = 0b1_1110_0_10 = 0xF2
       tests.push_back({"pext rax,rcx,rdx 64", cat,
-                       {0xC4, 0xE2, 0xF2, 0xF5, 0xC2}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xF2, 0xF5, 0xC2}, s, FL_ALL});
     }
 
     // MULX ebx, eax, ecx — unsigned multiply EDX * ECX → EBX:EAX
@@ -1013,7 +1013,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rdx = 100;
       s.rcx = 200;
       tests.push_back({"mulx ebx,eax,ecx 100*200", cat,
-                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_ALL});
     }
     // MULX with large values to produce high part
     {
@@ -1022,7 +1022,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rdx = 0xFFFFFFFF;
       s.rcx = 0xFFFFFFFF;
       tests.push_back({"mulx ebx,eax,ecx max32", cat,
-                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x7B, 0xF6, 0xD9}, s, FL_ALL});
     }
     // MULX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
@@ -1031,7 +1031,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rdx = 0x100000000;
       s.rcx = 0x100000000;
       tests.push_back({"mulx rbx,rax,rcx 64", cat,
-                       {0xC4, 0xE2, 0xFB, 0xF6, 0xD9}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xFB, 0xF6, 0xD9}, s, FL_ALL});
     }
 
     // SARX eax, ecx, edx — arithmetic shift right without flags
@@ -1044,7 +1044,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x80000000;  // negative when treated as signed 32-bit
       s.rdx = 4;
       tests.push_back({"sarx eax,ecx,edx", cat,
-                       {0xC4, 0xE2, 0x6A, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x6A, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // SHLX eax, ecx, edx — logical shift left without flags
@@ -1056,7 +1056,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x12345678;
       s.rdx = 8;
       tests.push_back({"shlx eax,ecx,edx", cat,
-                       {0xC4, 0xE2, 0x69, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x69, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // SHRX eax, ecx, edx — logical shift right without flags
@@ -1068,7 +1068,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x12345678;
       s.rdx = 8;
       tests.push_back({"shrx eax,ecx,edx", cat,
-                       {0xC4, 0xE2, 0x6B, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0x6B, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // SARX 64-bit: W=1, byte2 = 0b1_1101_0_10 = 0xEA
@@ -1078,7 +1078,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x8000000000000000;
       s.rdx = 16;
       tests.push_back({"sarx rax,rcx,rdx 64", cat,
-                       {0xC4, 0xE2, 0xEA, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xEA, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // SHLX 64-bit: W=1, byte2 = 0b1_1101_0_01 = 0xE9
@@ -1088,7 +1088,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x0000000000000001;
       s.rdx = 63;
       tests.push_back({"shlx rax,rcx,rdx 64", cat,
-                       {0xC4, 0xE2, 0xE9, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xE9, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // SHRX 64-bit: W=1, byte2 = 0b1_1101_0_11 = 0xEB
@@ -1098,7 +1098,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rcx = 0x8000000000000000;
       s.rdx = 32;
       tests.push_back({"shrx rax,rcx,rdx 64", cat,
-                       {0xC4, 0xE2, 0xEB, 0xF7, 0xC1}, s, FL_NONE});
+                       {0xC4, 0xE2, 0xEB, 0xF7, 0xC1}, s, FL_ALL});
     }
 
     // RORX eax, ecx, 4 — rotate right without flags
@@ -1110,7 +1110,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       s.rcx = 0x12345678;
       tests.push_back({"rorx eax,ecx,4", cat,
-                       {0xC4, 0xE3, 0x7B, 0xF0, 0xC1, 0x04}, s, FL_NONE});
+                       {0xC4, 0xE3, 0x7B, 0xF0, 0xC1, 0x04}, s, FL_ALL});
     }
     // RORX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
@@ -1118,7 +1118,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       s.rcx = 0x123456789ABCDEF0;
       tests.push_back({"rorx rax,rcx,8 64", cat,
-                       {0xC4, 0xE3, 0xFB, 0xF0, 0xC1, 0x08}, s, FL_NONE});
+                       {0xC4, 0xE3, 0xFB, 0xF0, 0xC1, 0x08}, s, FL_ALL});
     }
   }
   // =====================================================================
@@ -1135,7 +1135,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.rax = CODE_ADDR + 2;  // target = after JMP
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1148,7 +1148,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.rax = CODE_ADDR + 4;  // skip the INT3 bytes
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1165,7 +1165,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       u64 target = CODE_ADDR + 4;
       tc.init_data.resize(8);
       memcpy(tc.init_data.data(), &target, 8);
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1180,7 +1180,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.rax = CODE_ADDR + 2;  // target = right after CALL (then HLT)
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1196,7 +1196,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       u64 target2 = CODE_ADDR + 4;
       tc.init_data.resize(8);
       memcpy(tc.init_data.data(), &target2, 8);
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1215,7 +1215,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.rax = CODE_ADDR + 6;  // point to the RET
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
   }
@@ -1227,7 +1227,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   {
     auto add_xmm = [&](const char *name, std::vector<u8> code, ArchState init,
                         u32 xmm_cmp = 0x1) {
-      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
     ArchState s;
@@ -1321,7 +1321,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       u64 val = 0xDEADBEEFCAFEBABEULL;
       tc.init_data.resize(8);
       memcpy(tc.init_data.data(), &val, 8);
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1337,7 +1337,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0x123456789ABCDEF0ULL;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.compare_data_len = 8;
       tests.push_back(std::move(tc));
     }
@@ -1354,7 +1354,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.rax = 0;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1368,7 +1368,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0x58};        // pop rax
       tc.initial = {};
       tc.initial.rflags = 0x2;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1382,7 +1382,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0x58};                            // pop rax
       tc.initial = {};
       tc.initial.rflags = 0x2;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
   }
@@ -1547,7 +1547,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 3;  // set bit 3
       tc.init_data = {0x00, 0x00, 0x00, 0x00};  // bit 3 was 0
-      tc.flags_mask = FL_CF;
+      tc.flags_mask = FL_CF_ZF;
       tc.compare_data_len = 4;
       tests.push_back(std::move(tc));
     }
@@ -1564,7 +1564,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 7;  // reset bit 7
       tc.init_data = {0xFF, 0x00, 0x00, 0x00};  // bit 7 was 1
-      tc.flags_mask = FL_CF;
+      tc.flags_mask = FL_CF_ZF;
       tc.compare_data_len = 4;
       tests.push_back(std::move(tc));
     }
@@ -1581,7 +1581,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0;  // toggle bit 0
       tc.init_data = {0x01, 0x00, 0x00, 0x00};  // bit 0 was 1 → 0
-      tc.flags_mask = FL_CF;
+      tc.flags_mask = FL_CF_ZF;
       tc.compare_data_len = 4;
       tests.push_back(std::move(tc));
     }
@@ -1694,7 +1694,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xAAAA;
       tc.initial.kregs[2] = 0x5555;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1709,7 +1709,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x0FF0;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1724,7 +1724,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xAAAA;
       tc.initial.kregs[2] = 0x5555;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1739,7 +1739,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xFFFF;
       tc.initial.kregs[2] = 0x00FF;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1755,7 +1755,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x0FF0;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1771,7 +1771,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x00FF;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1786,7 +1786,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xAAAA;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1805,7 +1805,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.rax = 0xAB;
       tc.initial.rdx = 0xCD;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1822,7 +1822,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.init_data = {0x34, 0x12};  // 0x1234 in little-endian
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
 
@@ -1837,7 +1837,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.kregs[1] = 0xBEEF;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.compare_data_len = 2;
       tests.push_back(std::move(tc));
     }
@@ -1855,7 +1855,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial = {};
       tc.initial.rflags = 0x2;
       tc.initial.kregs[2] = 0x00000000FFFF0000;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.kreg_mask = (1 << 2);
       tests.push_back(std::move(tc));
     }
@@ -1870,7 +1870,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.initial.rflags = 0x2;
       tc.initial.rax = 0xDEADDEADDEADDEAD;
       tc.initial.kregs[2] = 0x12345678;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
   }
@@ -1893,7 +1893,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0x29, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -1906,7 +1906,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0x11, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -1919,7 +1919,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF3, 0x0F, 0x7F, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -1932,7 +1932,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x66, 0x0F, 0x7F, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -1945,7 +1945,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0x13, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 8;
       tests.push_back(std::move(tc));
@@ -1958,7 +1958,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0x0F, 0x17, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 8;
       tests.push_back(std::move(tc));
@@ -1971,7 +1971,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF3, 0x0F, 0x11, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 4;
       tests.push_back(std::move(tc));
@@ -1984,7 +1984,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF2, 0x0F, 0x11, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 8;
       tests.push_back(std::move(tc));
@@ -1997,7 +1997,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xC5, 0xF8, 0x29, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -2010,7 +2010,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xC5, 0xFA, 0x7F, 0x07};
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
@@ -2025,7 +2025,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
                  0xC5, 0xFC, 0x29, 0x07};               // vmovaps [rdi], ymm0
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 32;
       tests.push_back(std::move(tc));
@@ -2039,7 +2039,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC4, 0xE3, 0x7D, 0x18, 0xC1, 0x01,  // vinsertf128 ymm0,ymm0,xmm1,1
                  0xC5, 0xFE, 0x7F, 0x07};               // vmovdqu [rdi], ymm0
       tc.initial = s;
-      tc.flags_mask = FL_NONE;
+      tc.flags_mask = FL_ALL;
       tc.xmm_mask = 0;
       tc.compare_data_len = 32;
       tests.push_back(std::move(tc));

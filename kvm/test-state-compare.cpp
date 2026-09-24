@@ -1,0 +1,81 @@
+#include "kvm-harness.h"
+#include <limits>
+
+static void expect(bool result, const char *name) {
+  if (!result) {
+    fprintf(stderr, "State comparison regression failed: %s\n", name);
+    exit(1);
+  }
+}
+
+int main() {
+  expect(TestCase{}.flags_mask == FL_ALL, "default flag comparison");
+  for (const auto &v : {xmm_from_u64(1, 2), xmm_from_u32(1, 2, 3, 4),
+                        xmm_from_f32(1, 2, 3, 4), xmm_from_f64(1, 2)})
+    for (int q = 2; q < 8; q++)
+      expect(v.q[q] == 0, "initialized upper SIMD bits");
+
+  ArchState original;
+  original.rflags = 0x2 | FL_ALL;
+  expect(original.compare(original), "identical states");
+
+  // An instruction's nominal outputs must not restrict the comparison.
+  for (int reg = 0; reg < 32; reg++) {
+    for (int q : {0, 7}) {
+      ArchState changed = original;
+      changed.xmm[reg].q[q] ^= 1;
+      expect(!original.compare(changed), "unrelated or upper SIMD bits");
+    }
+  }
+  for (int reg = 0; reg < 8; reg++) {
+    ArchState changed = original;
+    changed.kregs[reg] ^= 1ULL << 63;
+    expect(!original.compare(changed), "unrelated mask register");
+  }
+  for (int bit : {0, 2, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 21}) {
+    ArchState changed = original;
+    changed.rflags ^= 1ULL << bit;
+    expect(!original.compare(changed), "changed or preserved RFLAGS bit");
+  }
+  ArchState changed = original;
+  changed.rflags ^= FL_ARITH;
+  expect(original.compare(changed, FL_NONE), "undefined arithmetic flags");
+  changed.rflags ^= FL_DF;
+  expect(!original.compare(changed, FL_NONE), "DIV still preserves DF");
+
+  // A scalar approximate result may differ within tolerance. Everything
+  // outside that result, including copied lanes and other registers, is exact.
+  original.xmm[0] = xmm_from_f32(1, 2, 3, 4);
+  changed = original;
+  changed.xmm[0] = xmm_from_f32(1.0001f, 2, 3, 4);
+  auto approximate = [&](const ArchState &other) {
+    return original.compare(other, FL_ALL, false, 1e-3, 32, 32, 0);
+  };
+  expect(approximate(changed), "approximate result within tolerance");
+  changed.xmm[0].q[0] ^= 1ULL << 32;
+  expect(!approximate(changed), "copied scalar lane must match exactly");
+  changed = original;
+  changed.xmm[0].q[7] = 1;
+  expect(!approximate(changed), "upper bits outside approximate result");
+  changed = original;
+  changed.xmm[31].q[0] = 1;
+  expect(!approximate(changed), "unrelated register during approximate test");
+  changed = original;
+  changed.xmm[0] = xmm_from_f32(std::numeric_limits<float>::quiet_NaN(), 2, 3, 4);
+  expect(!approximate(changed), "NaN must not hide a mismatch");
+  original.xmm[0] = xmm_from_f32(0.0f, 2, 3, 4);
+  changed = original;
+  changed.xmm[0] = xmm_from_f32(-0.0f, 2, 3, 4);
+  expect(!approximate(changed), "signed zero must match");
+
+  expect(shift_flags_mask(4, 8, 0) == FL_ALL, "zero shift preserves all flags");
+  expect(shift_flags_mask(4, 32, 32) == FL_ALL, "masked zero shift count");
+  expect(shift_flags_mask(4, 8, 1) == FL_NO_AF, "one-bit shift defines OF");
+  expect(shift_flags_mask(4, 8, 8) == (FL_NO_AF_OF & ~FL_CF), "large SHL leaves CF undefined");
+  expect(shift_flags_mask(7, 8, 8) == FL_NO_AF_OF, "large SAR defines CF");
+  expect(shift_flags_mask(0, 8, 1) == FL_ALL, "one-bit rotate preserves other flags");
+  expect(shift_flags_mask(0, 8, 8) == (FL_ALL & ~FL_OF), "full rotate has nonzero masked count");
+  expect(shift_flags_mask(2, 8, 9) == FL_ALL, "zero effective rotate-through-carry count");
+  expect(shift_flags_mask(2, 8, 10) == (FL_ALL & ~FL_OF), "OF uses masked count, not effective count");
+  puts("State comparison regressions passed");
+}

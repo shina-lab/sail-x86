@@ -17,7 +17,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 13;
     tc.init_data = align_data;
@@ -31,7 +31,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.xmm_mask = 0x1;
     tc.init_data = align_data;
     tests.push_back(std::move(tc));
@@ -46,7 +46,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = init;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 13;
     tc.init_data = align_data;
@@ -63,7 +63,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = init;
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.init_data = align_data;
     tc.compare_data_len = cmp_len;
     tests.push_back(std::move(tc));
@@ -76,7 +76,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.category = cat;
     tc.code = std::move(code);
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
-    tc.flags_mask = 0;
+    tc.flags_mask = FL_ALL;
     tc.init_data = align_data;
     tests.push_back(std::move(tc));
   };
@@ -708,8 +708,9 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.name = "rsqrtss xmm0,[rdi] misaligned"; tc.category = cat;
     tc.code = {0xF3, 0x0F, 0x52, 0x07};
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
-    tc.flags_mask = 0; tc.xmm_mask = 0x1; tc.init_data = align_data;
+    tc.flags_mask = FL_ALL; tc.xmm_mask = 0x1; tc.init_data = align_data;
     tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
+    tc.approx_result_bits = 32;
     tests.push_back(std::move(tc));
   }
   add_misalign_fault("rcpps xmm0,[rdi] misaligned", {0x0F, 0x53, 0x07});
@@ -718,8 +719,9 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.name = "rcpss xmm0,[rdi] misaligned"; tc.category = cat;
     tc.code = {0xF3, 0x0F, 0x53, 0x07};
     tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
-    tc.flags_mask = 0; tc.xmm_mask = 0x1; tc.init_data = align_data;
+    tc.flags_mask = FL_ALL; tc.xmm_mask = 0x1; tc.init_data = align_data;
     tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
+    tc.approx_result_bits = 32;
     tests.push_back(std::move(tc));
   }
 
@@ -1338,7 +1340,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data = {0xAA, 0xBB, 0xCC, 0xDD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       tests.push_back({"insertps xmm,m32 count_s=3", cat,
         {0x66, 0x0F, 0x3A, 0x21, 0x07, 0xC0},
-        s, FL_NONE, 0x1, false, data, 0});
+        s, FL_ALL, 0x1, false, data, 0});
     }
 
     // INSERTPS XMM0, [RDI], 0x10: count_s=0, count_d=1, zmask=0
@@ -1349,7 +1351,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data = {0xEE, 0xFF, 0x00, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       tests.push_back({"insertps xmm,m32 dst=1", cat,
         {0x66, 0x0F, 0x3A, 0x21, 0x07, 0x10},
-        s, FL_NONE, 0x1, false, data, 0});
+        s, FL_ALL, 0x1, false, data, 0});
     }
   }
 
@@ -1367,7 +1369,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
       tests.push_back({"vmovlpd xmm0,xmm1,[rdi]", cat,
-        {0xC5, 0xF1, 0x12, 0x07}, s, FL_NONE, 0x1, false, data, 0});
+        {0xC5, 0xF1, 0x12, 0x07}, s, FL_ALL, 0x1, false, data, 0});
     }
 
     // VMOVSLDUP xmm0, xmm1: VEX.128.F3.0F.WIG 12 /r
@@ -1377,7 +1379,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       tests.push_back({"vmovsldup xmm0,xmm1", cat,
-        {0xC5, 0xFA, 0x12, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xFA, 0x12, 0xC1}, s, FL_ALL, 0x1});
     }
     add_misalign_fault("movsldup xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x12, 0x07});
 
@@ -1388,7 +1390,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
       tests.push_back({"vmovddup xmm0,xmm1", cat,
-        {0xC5, 0xFB, 0x12, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xFB, 0x12, 0xC1}, s, FL_ALL, 0x1});
     }
     add_misalign_ok("movddup xmm0,[rdi] misaligned", {0xF2, 0x0F, 0x12, 0x07});
 
@@ -1400,7 +1402,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
       tests.push_back({"vmovhpd xmm0,xmm1,[rdi]", cat,
-        {0xC5, 0xF1, 0x16, 0x07}, s, FL_NONE, 0x1, false, data, 0});
+        {0xC5, 0xF1, 0x16, 0x07}, s, FL_ALL, 0x1, false, data, 0});
     }
 
     // VMOVSHDUP xmm0, xmm1: VEX.128.F3.0F.WIG 16 /r
@@ -1410,7 +1412,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       tests.push_back({"vmovshdup xmm0,xmm1", cat,
-        {0xC5, 0xFA, 0x16, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xFA, 0x16, 0xC1}, s, FL_ALL, 0x1});
     }
     add_misalign_fault("movshdup xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x16, 0x07});
     add_misalign_ok("lddqu xmm0,[rdi] misaligned", {0xF2, 0x0F, 0xF0, 0x07});
@@ -1433,7 +1435,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 3})
          0x0F, 0x2A, 0xC0,        // CVTPI2PS XMM0, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE, 0x1});
+        s, FL_ALL, 0x1});
       // XMM0 low 64 = {f32(0), f32(3)}, high 64 = preserved (0xBBBB...)
     }
 
@@ -1444,7 +1446,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 5})
          0x66, 0x0F, 0x2A, 0xC0,  // CVTPI2PD XMM0, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE, 0x1});
+        s, FL_ALL, 0x1});
     }
 
     // CVTPS2PI: NP 0F 2D /r — convert 2 floats from low XMM to 2 dwords in MM
@@ -1456,7 +1458,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x2D, 0xC0,        // CVTPS2PI MM0, XMM0
          0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE});
+        s, FL_ALL});
       // EAX should be 3 (low dword of MM0)
     }
 
@@ -1468,7 +1470,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x2C, 0xC0,        // CVTTPS2PI MM0, XMM0
          0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE});
+        s, FL_ALL});
       // EAX should be 3 (trunc(pi))
     }
 
@@ -1480,7 +1482,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x66, 0x0F, 0x2D, 0xC0,  // CVTPD2PI MM0, XMM0
          0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE});
+        s, FL_ALL});
       // EAX should be 3 (low dword of MM0 = round(3.0))
     }
 
@@ -1492,7 +1494,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x66, 0x0F, 0x2C, 0xC0,  // CVTTPD2PI MM0, XMM0
          0x0F, 0x7E, 0xC0,        // MOVD EAX, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE});
+        s, FL_ALL});
       // EAX should be 3 (trunc(pi))
     }
   }
@@ -1511,7 +1513,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       s.xmm[1] = xmm_from_u32(0x3FCCCCCD, 0x40200000, 0x406CCCCD, 0x409CCCCD);
       // C4 E3 79 1D C8 03: VEX.128.66.0F3A W=0 vvvv=1111, 1D, modrm=C8(reg=xmm1,rm=xmm0), imm=03
       tests.push_back({"vcvtps2ph xmm0,xmm1,trunc", cat,
-        {0xC4, 0xE3, 0x79, 0x1D, 0xC8, 0x03}, s, FL_NONE, 0x1});
+        {0xC4, 0xE3, 0x79, 0x1D, 0xC8, 0x03}, s, FL_ALL, 0x1});
     }
     // VCVTPH2PS: VEX.128.66.0F38 13 — no alignment
     // C4 E2 79 13 07: 3-byte VEX, mm=2(0F38), pp=01(66), reg=0, [rdi]
@@ -1533,7 +1535,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
       s.xmm[0] = xmm_from_u32(0x11112222, 0x33334444, 0x55556666, 0x77778888);
       tests.push_back({"pextrw [rdi],xmm0,2", cat,
-        {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x02}, s, FL_NONE, 0, false, {}, 2});
+        {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x02}, s, FL_ALL, 0, false, {}, 2});
     }
   }
 
@@ -1552,7 +1554,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (loads low 32 bits)
          0xF3, 0x0F, 0xD6, 0xC0,  // MOVQ2DQ XMM0, MM0
          0x0F, 0x77},             // EMMS
-        s, FL_NONE, 0x1});
+        s, FL_ALL, 0x1});
     }
   }
 
@@ -1568,7 +1570,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
       tests.push_back({"vcvtdq2ps xmm0,xmm1", cat,
-        {0xC5, 0xF8, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xF8, 0x5B, 0xC1}, s, FL_ALL, 0x1});
     }
 
     // VCVTPS2DQ xmm0, xmm1: VEX.128.66.0F.WIG 5B /r
@@ -1577,7 +1579,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u32(0x3F800000, 0x40000000, 0x40400000, 0x40800000); // 1,2,3,4
       tests.push_back({"vcvtps2dq xmm0,xmm1", cat,
-        {0xC5, 0xF9, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xF9, 0x5B, 0xC1}, s, FL_ALL, 0x1});
     }
 
     // VCVTTPS2DQ xmm0, xmm1: VEX.128.F3.0F.WIG 5B /r
@@ -1586,7 +1588,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       ArchState s = {.rflags = 0x2};
       s.xmm[1] = xmm_from_u32(0x40490FDB, 0x40C90FDB, 0x41200000, 0xC1200000); // pi,2pi,10,-10
       tests.push_back({"vcvttps2dq xmm0,xmm1", cat,
-        {0xC5, 0xFA, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xFA, 0x5B, 0xC1}, s, FL_ALL, 0x1});
     }
 
     // VCVTDQ2PS ymm0, ymm1: VEX.256.NP.0F.WIG 5B /r
@@ -1597,7 +1599,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       // Need to set ymm1 upper half too — but test harness only sets xmm
       // Just test that the instruction doesn't fault
       tests.push_back({"vcvtdq2ps ymm0,ymm1 256", cat,
-        {0xC5, 0xFC, 0x5B, 0xC1}, s, FL_NONE, 0x1});
+        {0xC5, 0xFC, 0x5B, 0xC1}, s, FL_ALL, 0x1});
     }
   }
 
@@ -1609,7 +1611,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
                         u32 xmm_cmp) {
-      tests.push_back({name, cat, std::move(code), init, FL_NONE, xmm_cmp, false});
+      tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
     };
 
     // VCMPPS XMM0, XMM1, XMM2, imm8: VEX.128.0F.WIG C2 /r ib
@@ -1686,7 +1688,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVAPS XMM0, [RDI+32]: legacy SSE aligned 128-bit load
     // Code: VMOVDQU YMM0,[RDI]      = C5 FE 6F 07
@@ -1698,7 +1700,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0x0F, 0x28, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVDQU XMM0, [RDI+32]: legacy SSE integer 128-bit load (F3 0F 6F)
     // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
@@ -1709,7 +1711,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0xF3, 0x0F, 0x6F, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVSS XMM0, [RDI+32]: legacy SSE scalar float load (F3 0F 10)
     // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
@@ -1720,7 +1722,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0xF3, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVSD XMM0, [RDI+32]: legacy SSE scalar double load (F2 0F 10)
     // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
@@ -1731,7 +1733,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0xF2, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVUPD XMM0, [RDI+32]: legacy SSE 128-bit double load (66 0F 10)
     // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
@@ -1742,7 +1744,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0x66, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
 
     // MOVDDUP XMM0, [RDI+32]: legacy SSE double duplicate (F2 0F 12)
     // Code: VMOVDQU YMM0,[RDI]       = C5 FE 6F 07
@@ -1753,7 +1755,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
        0xF2, 0x0F, 0x12, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
       {.rdi = DATA_ADDR, .rflags = 0x2},
-      FL_NONE, 0x3, false, data, 0});
+      FL_ALL, 0x3, false, data, 0});
   }
 
   // =====================================================================
@@ -2053,17 +2055,17 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       // Pre-fill data area with 0xCC pattern
       std::vector<u8> data(16, 0xCC);
       tests.push_back({"maskmovdqu partial",
-        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_ALL, 0x0, false, data, 16});
 
       // All mask bits set — full write
       s.xmm[1] = xmm_from_u64(0x8080808080808080, 0x8080808080808080);
       tests.push_back({"maskmovdqu full",
-        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_ALL, 0x0, false, data, 16});
 
       // No mask bits set — no write at all
       s.xmm[1] = xmm_from_u64(0x0000000000000000, 0x0000000000000000);
       tests.push_back({"maskmovdqu none",
-        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_NONE, 0x0, false, data, 16});
+        cat, {0x66, 0x0F, 0xF7, 0xC1}, s, FL_ALL, 0x0, false, data, 16});
 
       // MASKMOVDQU misaligned — no alignment required (DS:RDI)
       {
@@ -2073,9 +2075,8 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         ms.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
         ms.xmm[1] = xmm_from_u64(0x8080808080808080, 0x8080808080808080);
         tests.push_back({"maskmovdqu misaligned",
-          cat, {0x66, 0x0F, 0xF7, 0xC1}, ms, FL_NONE, 0x0, false, align_data, 16});
+          cat, {0x66, 0x0F, 0xF7, 0xC1}, ms, FL_ALL, 0x0, false, align_data, 16});
       }
     }
   }
 }
-

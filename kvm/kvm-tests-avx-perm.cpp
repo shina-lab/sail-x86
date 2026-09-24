@@ -11,14 +11,14 @@ static void add_evex_rr_tests_vl(
     base.LL = ll;
     base.aaa = 0; base.z = false;
     tests.push_back({std::string(mnemonic) + " " + suffix,
-                     cat, base.encode_rr(), init, FL_NONE, xmm_cmp, false});
+                     cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false});
     if (kmask_val) {
       base.aaa = 1; base.z = true;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}{z}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_NONE, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
       base.aaa = 1; base.z = false;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_NONE, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
     }
   }
 }
@@ -45,7 +45,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VPSHUFD ") + vl[ll],
-                       cat, e.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
     }
     // VEX VPSHUFD misaligned — no alignment
     { Vex v; v.mm = 1; v.pp = 1; v.W = false; v.opcode = 0x70;
@@ -64,10 +64,10 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       e.reg = 0; e.vvvv = 0; e.rm = 1; e.LL = ll; e.aaa = 0; e.z = false;
       e.pp = 2;
       tests.push_back({std::string("VPSHUFHW ") + vl[ll],
-                       cat, e.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
       e.pp = 3;
       tests.push_back({std::string("VPSHUFLW ") + vl[ll],
-                       cat, e.encode_rr_imm(0x1B), s, FL_NONE, 0x3, false});
+                       cat, e.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
     }
     // VEX VPSHUFHW/VPSHUFLW misaligned
     { Vex v; v.mm = 1; v.pp = 2; v.W = false; v.opcode = 0x70;
@@ -143,7 +143,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VPALIGNR ") + vl[ll],
-                       cat, e.encode_rr_imm(4), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(4), s, FL_ALL, 0x7, false});
     }
     { Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x0F;
       v.reg = 0; v.vvvv = 1; v.L = false;
@@ -162,7 +162,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VALIGND ") + vl[ll],
-                       cat, e.encode_rr_imm(2), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(2), s, FL_ALL, 0x7, false});
     }
   }
   {
@@ -175,7 +175,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VALIGNQ ") + vl[ll],
-                       cat, e.encode_rr_imm(1), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(1), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -265,7 +265,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VSHUFPS ") + vl[ll],
-                       cat, e.encode_rr_imm(0x1B), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x1B), s, FL_ALL, 0x7, false});
     }
   }
   {
@@ -278,7 +278,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
       e.LL = ll; e.aaa = 0; e.z = false;
       tests.push_back({std::string("VSHUFPD ") + vl[ll],
-                       cat, e.encode_rr_imm(0x05), s, FL_NONE, 0x7, false});
+                       cat, e.encode_rr_imm(0x05), s, FL_ALL, 0x7, false});
     }
   }
 

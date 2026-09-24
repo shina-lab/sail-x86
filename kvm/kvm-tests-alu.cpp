@@ -128,10 +128,10 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
   cat = "ALU reg,reg";
   struct AluOp { const char *name; u8 base; u64 mask; };
   AluOp alu_ops[] = {
-    {"add", 0x00, FL_ALL}, {"or",  0x08, FL_ALL},
+    {"add", 0x00, FL_ALL}, {"or",  0x08, FL_NO_AF},
     {"adc", 0x10, FL_ALL}, {"sbb", 0x18, FL_ALL},
-    {"and", 0x20, FL_ALL}, {"sub", 0x28, FL_ALL},
-    {"xor", 0x30, FL_ALL}, {"cmp", 0x38, FL_ALL},
+    {"and", 0x20, FL_NO_AF}, {"sub", 0x28, FL_ALL},
+    {"xor", 0x30, FL_NO_AF}, {"cmp", 0x38, FL_ALL},
   };
 
   for (int si = 0; si < 4; si++) {
@@ -175,7 +175,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
         ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
         name = std::format("S test{} {},{}", sz_sfx[si], i, j);
         add(name, encode_alu_rr(0x84, sizes[si], 0, 3),
-            init, FL_ALL);
+            init, FL_NO_AF);
       }
     }
   }
@@ -183,17 +183,17 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
   // ================================================================
   // 2. Shifts by CL — 7 ops × 4 sizes × NSHIFTS × NVALS
   //    Tests shift/rotate with boundary counts and values.
-  //    Flag masks are conservative (AF and OF may be undefined).
+  //    Check every defined flag, including preserved flags at zero count.
   // ================================================================
-  struct ShiftOp { const char *name; int digit; u64 mask; bool needs_cf; };
+  struct ShiftOp { const char *name; int digit; bool needs_cf; };
   ShiftOp shift_ops[] = {
-    {"shl", 4, FL_NO_AF_OF, false},
-    {"shr", 5, FL_NO_AF_OF, false},
-    {"sar", 7, FL_NO_AF_OF, false},
-    {"rol", 0, FL_CF, false},
-    {"ror", 1, FL_CF, false},
-    {"rcl", 2, FL_CF, true},
-    {"rcr", 3, FL_CF, true},
+    {"shl", 4, false},
+    {"shr", 5, false},
+    {"sar", 7, false},
+    {"rol", 0, false},
+    {"ror", 1, false},
+    {"rcl", 2, true},
+    {"rcr", 3, true},
   };
 
   for (auto &op : shift_ops) {
@@ -204,7 +204,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
           ArchState init = {.rax = VALS[vi], .rcx = SHIFT_COUNTS[ci], .rflags = 0x2};
           name = std::format("S {}{} c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
           add(name, encode_shift_cl(op.digit, sizes[si], 0),
-              init, op.mask);
+              init, shift_flags_mask(op.digit, sizes[si], SHIFT_COUNTS[ci]));
         }
       }
     }
@@ -218,7 +218,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
             ArchState init = {.rax = VALS[vi], .rcx = SHIFT_COUNTS[ci], .rflags = 0x3};  // CF=1
             name = std::format("S {}{} cf c{} {}", op.name, sz_sfx[si], (int)SHIFT_COUNTS[ci], vi);
             add(name, encode_shift_cl(op.digit, sizes[si], 0),
-                init, op.mask);
+                init, shift_flags_mask(op.digit, sizes[si], SHIFT_COUNTS[ci]));
           }
         }
       }
@@ -273,7 +273,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
 
   // ================================================================
   // 5. DIV/IDIV (64-bit) — NVALS × NVALS (skip div-by-zero / overflow)
-  //    RDX:RAX / RBX -> RAX=quot, RDX=rem. All flags undefined.
+  //    RDX:RAX / RBX -> RAX=quot, RDX=rem. Arithmetic flags undefined.
   // ================================================================
   cat = "DIV";
   for (int i = 0; i < NVALS; i++) {

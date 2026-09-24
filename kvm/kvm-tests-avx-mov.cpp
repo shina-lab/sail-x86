@@ -166,20 +166,20 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.opcode = 0x6E;
     e.reg = 0; e.vvvv = 0; e.rm = 0;
     e.LL = 0; e.aaa = 0; e.z = false;
-    tests.push_back({"VMOVD xmm0,eax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VMOVD xmm0,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
 
     // VMOVQ xmm0, rax: EVEX.66.0F.W1 6E
     e.W = true;
-    tests.push_back({"VMOVQ xmm0,rax", cat, e.encode_rr(), s, FL_NONE, 0x3, false});
+    tests.push_back({"VMOVQ xmm0,rax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
 
     // VMOVD eax, xmm1: EVEX.66.0F.W0 7E /r (reg=xmm1, rm=eax)
     s.xmm[1] = xmm_from_u64(0x12345678ABCDEF01, 0);
     e.W = false; e.opcode = 0x7E; e.reg = 1; e.rm = 0;
-    tests.push_back({"VMOVD eax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VMOVD eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
 
     // VMOVQ rax, xmm1
     e.W = true;
-    tests.push_back({"VMOVQ rax,xmm1", cat, e.encode_rr(), s, FL_NONE, 0, false});
+    tests.push_back({"VMOVQ rax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
     // VEX VMOVD/VMOVQ memory — no alignment required
     add_vok("VMOVD xmm,[rdi] misaligned", vex_ld(1, 0x6E, false));
     add_vok("VMOVQ xmm,[rdi] (W1) misaligned", vex_ld(1, 0x6E, false)); // W set below
@@ -257,11 +257,11 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x14;
     e.reg = 1; e.vvvv = 0; e.rm = 0;  // reg=src(xmm1), rm=dst(eax)
     e.LL = 0; e.aaa = 0; e.z = false;
-    tests.push_back({"VPEXTRB eax,xmm1,5", cat, e.encode_rr_imm(5), s, FL_NONE, 0, false});
+    tests.push_back({"VPEXTRB eax,xmm1,5", cat, e.encode_rr_imm(5), s, FL_ALL, 0, false});
 
     // VPEXTRD eax, xmm1, 2
     e.opcode = 0x16; e.W = false;
-    tests.push_back({"VPEXTRD eax,xmm1,2", cat, e.encode_rr_imm(2), s, FL_NONE, 0, false});
+    tests.push_back({"VPEXTRD eax,xmm1,2", cat, e.encode_rr_imm(2), s, FL_ALL, 0, false});
     // VEX VPEXTRD store to memory — no alignment
     { Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x16;
       v.reg = 0; v.vvvv = 0; v.L = false;
@@ -270,7 +270,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
 
     // VPEXTRQ rax, xmm1, 1
     e.W = true;
-    tests.push_back({"VPEXTRQ rax,xmm1,1", cat, e.encode_rr_imm(1), s, FL_NONE, 0, false});
+    tests.push_back({"VPEXTRQ rax,xmm1,1", cat, e.encode_rr_imm(1), s, FL_ALL, 0, false});
     // VEX VPEXTRQ store to memory — no alignment
     { Vex v; v.mm = 3; v.pp = 1; v.W = true; v.opcode = 0x16;
       v.reg = 0; v.vvvv = 0; v.L = false;
@@ -294,7 +294,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x22;
     e.reg = 0; e.vvvv = 1; e.rm = 0;  // rm=eax(GPR)
     e.LL = 0; e.aaa = 0; e.z = false;
-    tests.push_back({"VPINSRD xmm0,xmm1,eax,2", cat, e.encode_rr_imm(2), s, FL_NONE, 0x3, false});
+    tests.push_back({"VPINSRD xmm0,xmm1,eax,2", cat, e.encode_rr_imm(2), s, FL_ALL, 0x3, false});
     // VEX VPINSRD from memory — no alignment
     { Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x22;
       v.reg = 0; v.vvvv = 1; v.L = false;
@@ -303,7 +303,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
 
     // VPINSRQ xmm0, xmm1, rax, 1
     e.W = true;
-    tests.push_back({"VPINSRQ xmm0,xmm1,rax,1", cat, e.encode_rr_imm(1), s, FL_NONE, 0x3, false});
+    tests.push_back({"VPINSRQ xmm0,xmm1,rax,1", cat, e.encode_rr_imm(1), s, FL_ALL, 0x3, false});
     // VEX VPINSRQ from memory — no alignment
     { Vex v; v.mm = 3; v.pp = 1; v.W = true; v.opcode = 0x22;
       v.reg = 0; v.vvvv = 1; v.L = false;
@@ -312,12 +312,12 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
 
     // VPINSRB xmm0, xmm1, eax, 7
     e.opcode = 0x20; e.W = false;
-    tests.push_back({"VPINSRB xmm0,xmm1,eax,7", cat, e.encode_rr_imm(7), s, FL_NONE, 0x3, false});
+    tests.push_back({"VPINSRB xmm0,xmm1,eax,7", cat, e.encode_rr_imm(7), s, FL_ALL, 0x3, false});
 
     // VPINSRW xmm0, xmm1, eax, 3: EVEX.66.0F.WIG C4 /r ib
     Evex ew; ew.mm = 1; ew.pp = 1; ew.W = false; ew.opcode = 0xC4;
     ew.reg = 0; ew.vvvv = 1; ew.rm = 0;
     ew.LL = 0; ew.aaa = 0; ew.z = false;
-    tests.push_back({"VPINSRW xmm0,xmm1,eax,3", cat, ew.encode_rr_imm(3), s, FL_NONE, 0x3, false});
+    tests.push_back({"VPINSRW xmm0,xmm1,eax,3", cat, ew.encode_rr_imm(3), s, FL_ALL, 0x3, false});
   }
 }

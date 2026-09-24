@@ -2,6 +2,8 @@
 #define KVM_HARNESS_H
 
 #include "sail_x86_model.h"
+#include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -71,13 +73,30 @@ static constexpr u64 FL_ZF = 0x040;
 static constexpr u64 FL_SF = 0x080;
 static constexpr u64 FL_DF = 0x400;
 static constexpr u64 FL_OF = 0x800;
-static constexpr u64 FL_ALL = FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF | FL_DF | FL_OF;
+static constexpr u64 FL_ARITH = FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF | FL_OF;
+static constexpr u64 FL_ALL = FL_ARITH | FL_DF;
 static constexpr u64 FL_NO_AF = FL_ALL & ~FL_AF;
 static constexpr u64 FL_NO_AF_OF = FL_ALL & ~(FL_AF | FL_OF);
 static constexpr u64 FL_CF_OF = FL_CF | FL_OF;
 static constexpr u64 FL_ZF_ONLY = FL_ZF;
 static constexpr u64 FL_CF_ZF = FL_CF | FL_ZF;
 static constexpr u64 FL_NONE = 0;
+
+// The arithmetic flags defined by a shift/rotate depend on the input count.
+// Other flags, including those an instruction preserves, are always checked.
+inline u64 shift_flags_mask(int digit, int width, unsigned count) {
+  count &= width == 64 ? 63 : 31;
+  if (digit == 2 || digit == 3) {
+    if (width < 32 && count % (width + 1) == 0) return FL_ALL;
+  }
+  if (count == 0) return FL_ALL;
+  u64 mask = count == 1 ? FL_ALL : FL_ALL & ~FL_OF;
+  if (digit >= 4) {
+    mask &= ~FL_AF;
+    if (digit != 7 && count >= unsigned(width)) mask &= ~FL_CF;
+  }
+  return mask;
+}
 
 // 512-bit ZMM value stored as eight 64-bit quadwords (little-endian).
 // Union provides .lo/.hi aliases for backward compatibility with XMM-only tests.
@@ -96,7 +115,7 @@ struct ZmmVal {
 using XmmVal = ZmmVal;  // backward compat
 
 inline ZmmVal xmm_from_f32(float a, float b, float c, float d) {
-  ZmmVal v;
+  ZmmVal v = {};
   u32 parts[4];
   memcpy(&parts[0], &a, 4);
   memcpy(&parts[1], &b, 4);
@@ -108,21 +127,21 @@ inline ZmmVal xmm_from_f32(float a, float b, float c, float d) {
 }
 
 inline ZmmVal xmm_from_f64(double a, double b) {
-  ZmmVal v;
+  ZmmVal v = {};
   memcpy(&v.lo, &a, 8);
   memcpy(&v.hi, &b, 8);
   return v;
 }
 
 inline ZmmVal xmm_from_u64(u64 lo, u64 hi) {
-  ZmmVal v;
+  ZmmVal v = {};
   v.lo = lo;
   v.hi = hi;
   return v;
 }
 
 inline ZmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
-  ZmmVal v;
+  ZmmVal v = {};
   v.lo = (u64)a | ((u64)b << 32);
   v.hi = (u64)c | ((u64)d << 32);
   return v;
@@ -180,9 +199,19 @@ struct ArchState {
     }
   }
 
-  bool compare(const ArchState &other, u64 flags_mask, u32 xmm_mask,
-               bool cmp_mxcsr, u8 kreg_mask = 0,
-               double approx_rel_tol = 0, int approx_elem_bits = 0) const {
+  bool compare(const ArchState &other, u64 flags_mask = FL_ALL,
+               bool cmp_mxcsr = false, double approx_rel_tol = 0,
+               int approx_elem_bits = 0, int approx_result_bits = 0,
+               unsigned approx_reg = 0) const {
+    // A test may exclude undefined arithmetic flags, but cannot hide changes
+    // to the rest of RFLAGS (DF, IF, TF, IOPL, etc.).
+    flags_mask |= ~FL_ARITH;
+    if (approx_rel_tol > 0) {
+      assert(approx_reg < 32);
+      assert(approx_elem_bits == 32 || approx_elem_bits == 64);
+      assert(approx_result_bits > 0 && approx_result_bits <= 512);
+      assert(approx_result_bits % approx_elem_bits == 0);
+    }
     bool ok = true;
     auto cmp = [&](const std::string &name, u64 a, u64 b) {
       if (a != b) {
@@ -209,42 +238,53 @@ struct ArchState {
     cmp("RIP", rip, other.rip);
     cmp("RFLAGS", rflags & flags_mask, other.rflags & flags_mask);
     for (int i = 0; i < 32; i++) {
-      if (xmm_mask & (1u << i)) {
-        bool zmm_ok = true;
-        if (approx_rel_tol > 0 && approx_elem_bits > 0) {
-          // Tolerance-based comparison for approximate instructions
-          int n_elems = 512 / approx_elem_bits;
-          for (int e = 0; e < n_elems; e++) {
-            double a_val, b_val;
-            if (approx_elem_bits == 32) {
-              u32 a_u, b_u;
-              memcpy(&a_u, (u8 *)xmm[i].q + e * 4, 4);
-              memcpy(&b_u, (u8 *)other.xmm[i].q + e * 4, 4);
-              float a_f, b_f;
-              memcpy(&a_f, &a_u, 4); memcpy(&b_f, &b_u, 4);
-              a_val = a_f; b_val = b_f;
-            } else {
-              memcpy(&a_val, (u8 *)xmm[i].q + e * 8, 8);
-              memcpy(&b_val, (u8 *)other.xmm[i].q + e * 8, 8);
-            }
-            if (a_val == 0 && b_val == 0) continue;
-            double ref = (a_val != 0) ? a_val : b_val;
-            double rel_err = (ref != 0) ? fabs(a_val - b_val) / fabs(ref) : fabs(a_val - b_val);
-            if (rel_err > approx_rel_tol) { zmm_ok = false; break; }
+      bool zmm_ok = true;
+      if (approx_rel_tol > 0 && unsigned(i) == approx_reg) {
+        // Only computed elements get a tolerance. Copied elements, upper
+        // bits, and all other registers must match exactly.
+        int n_elems = approx_result_bits / approx_elem_bits;
+        const u8 *a_bytes = reinterpret_cast<const u8 *>(xmm[i].q);
+        const u8 *b_bytes = reinterpret_cast<const u8 *>(other.xmm[i].q);
+        for (int e = 0; e < n_elems; e++) {
+          int offset = e * (approx_elem_bits / 8);
+          if (memcmp(a_bytes + offset, b_bytes + offset, approx_elem_bits / 8) == 0)
+            continue;
+          double a_val, b_val;
+          if (approx_elem_bits == 32) {
+            u32 a_u, b_u;
+            memcpy(&a_u, (u8 *)xmm[i].q + e * 4, 4);
+            memcpy(&b_u, (u8 *)other.xmm[i].q + e * 4, 4);
+            float a_f, b_f;
+            memcpy(&a_f, &a_u, 4); memcpy(&b_f, &b_u, 4);
+            a_val = a_f; b_val = b_f;
+          } else {
+            memcpy(&a_val, (u8 *)xmm[i].q + e * 8, 8);
+            memcpy(&b_val, (u8 *)other.xmm[i].q + e * 8, 8);
           }
-        } else {
-          zmm_ok = (xmm[i] == other.xmm[i]);
+          // Relative error does not justify changing signed zero, infinity,
+          // or a NaN. In particular, NaN must not make a mismatch pass.
+          if (!std::isfinite(a_val) || !std::isfinite(b_val) || a_val == 0 || b_val == 0) {
+            zmm_ok = false;
+            break;
+          }
+          double rel_err = fabs(a_val - b_val) / fabs(a_val);
+          if (rel_err > approx_rel_tol) { zmm_ok = false; break; }
         }
-        if (!zmm_ok) {
-          fprintf(stderr, "  MISMATCH ZMM%d: kvm=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n"
-                  "                 sail=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n",
-                  i,
-                  xmm[i].q[7], xmm[i].q[6], xmm[i].q[5], xmm[i].q[4],
-                  xmm[i].q[3], xmm[i].q[2], xmm[i].q[1], xmm[i].q[0],
-                  other.xmm[i].q[7], other.xmm[i].q[6], other.xmm[i].q[5], other.xmm[i].q[4],
-                  other.xmm[i].q[3], other.xmm[i].q[2], other.xmm[i].q[1], other.xmm[i].q[0]);
-          ok = false;
-        }
+        int exact_offset = approx_result_bits / 8;
+        if (memcmp(a_bytes + exact_offset, b_bytes + exact_offset, 64 - exact_offset) != 0)
+          zmm_ok = false;
+      } else {
+        zmm_ok = (xmm[i] == other.xmm[i]);
+      }
+      if (!zmm_ok) {
+        fprintf(stderr, "  MISMATCH ZMM%d: kvm=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n"
+                "                 sail=%016lx%016lx%016lx%016lx%016lx%016lx%016lx%016lx\n",
+                i,
+                xmm[i].q[7], xmm[i].q[6], xmm[i].q[5], xmm[i].q[4],
+                xmm[i].q[3], xmm[i].q[2], xmm[i].q[1], xmm[i].q[0],
+                other.xmm[i].q[7], other.xmm[i].q[6], other.xmm[i].q[5], other.xmm[i].q[4],
+                other.xmm[i].q[3], other.xmm[i].q[2], other.xmm[i].q[1], other.xmm[i].q[0]);
+        ok = false;
       }
     }
     if (cmp_mxcsr) {
@@ -256,12 +296,10 @@ struct ArchState {
       }
     }
     for (int i = 0; i < 8; i++) {
-      if (kreg_mask & (1u << i)) {
-        if (kregs[i] != other.kregs[i]) {
-          fprintf(stderr, "  MISMATCH K%d: kvm=%016lx sail=%016lx\n",
-                  i, kregs[i], other.kregs[i]);
-          ok = false;
-        }
+      if (kregs[i] != other.kregs[i]) {
+        fprintf(stderr, "  MISMATCH K%d: kvm=%016lx sail=%016lx\n",
+                i, kregs[i], other.kregs[i]);
+        ok = false;
       }
     }
     // Debug registers: DR6 under its status bits (B0-B3, BD, BS, BT; the
@@ -300,17 +338,17 @@ struct TestCase {
   std::string category;
   std::vector<u8> code;
   ArchState initial;
-  u64 flags_mask;
-  u32 xmm_mask = 0;               // bitmask of XMM registers to compare
+  u64 flags_mask = FL_ALL;       // defined arithmetic flags; other RFLAGS bits always compared
+  u32 xmm_mask = 0;              // legacy positional field; all ZMM registers are compared
   bool cmp_mxcsr = false;
   std::vector<u8> init_data;       // placed at DATA_ADDR
   size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
   bool expect_fault = false;       // test expects an exception, not normal HLT
   int expected_vector = -1;        // expected exception vector (-1 = any)
-  u8 kreg_mask = 0;               // bitmask of k-registers to compare (k0-k7)
+  u8 kreg_mask = 0;              // legacy positional field; all k-registers are compared
   u64 xcr0_override = 0;          // if nonzero, override XCR0 for this test
   u64 cr4_override = 0;           // if nonzero, override CR4 for this test
-  double approx_rel_tol = 0;      // if nonzero, compare XMM with relative tolerance (for VRCP14, VRSQRT14 etc)
+  double approx_rel_tol = 0;      // tolerance for computed results of reciprocal/rsqrt instructions
   int approx_elem_bits = 0;       // element size for approximate comparison (32 or 64)
   bool compat_mode = false;       // execute test code in 32-bit compatibility mode
   bool enable_paging = false;     // give the Sail model the guest's identity
@@ -319,6 +357,8 @@ struct TestCase {
   u64 rflags_image_ignore = 0;    // pushed-RFLAGS bits not compared for this
                                   // test (a hypervisor artifact, with the
                                   // reason at the test)
+  int approx_result_bits = 0;    // low computed bits; remaining bits must match exactly
+  unsigned approx_reg = 0;       // only this destination register gets a tolerance
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)

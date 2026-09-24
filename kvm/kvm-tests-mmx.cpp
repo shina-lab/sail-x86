@@ -24,7 +24,7 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
   //               48 0F 7E C0 = MOVQ rax, mm0
 
   auto add = [&](const char *name, std::vector<u8> code, ArchState init) {
-    tests.push_back({name, cat, std::move(code), init, FL_NONE, 0, false});
+    tests.push_back({name, cat, std::move(code), init, FL_ALL, 0, false});
   };
 
   // =====================================================================
@@ -973,7 +973,7 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
         0x0F, 0x6F, 0x07,              // MOVQ mm0, [rdi]
         0x48, 0x0F, 0x7E, 0xC0,        // MOVQ rax, mm0
         0x0F, 0x77,
-      }, s, FL_NONE, 0, false, data});
+      }, s, FL_ALL, 0, false, data});
     }
 
     // MOVQ [mem], mm0 (0F 7F /r with mem)
@@ -989,7 +989,7 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
         0x48, 0x0F, 0x6E, 0xC0,        // MOVQ mm0, rax
         0x0F, 0x7F, 0x07,              // MOVQ [rdi], mm0
         0x0F, 0x77,
-      }, s, FL_NONE, 0, false, std::vector<u8>(8, 0), 8});
+      }, s, FL_ALL, 0, false, std::vector<u8>(8, 0), 8});
     }
 
     // MOVNTQ [mem], mm0 (0F E7 /r)
@@ -1005,7 +1005,7 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
         0x48, 0x0F, 0x6E, 0xC0,        // MOVQ mm0, rax
         0x0F, 0xE7, 0x07,              // MOVNTQ [rdi], mm0
         0x0F, 0x77,
-      }, s, FL_NONE, 0, false, std::vector<u8>(8, 0), 8});
+      }, s, FL_ALL, 0, false, std::vector<u8>(8, 0), 8});
     }
   }
 }

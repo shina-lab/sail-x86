@@ -49,7 +49,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
       e.aaa = 0; e.z = false;
       tests.push_back({
         std::string(name) + " " + vl_name[ll] + " imm=" + std::to_string(imm),
-        cat, e.encode_rr_imm(imm), s, FL_NONE, 0x3, false
+        cat, e.encode_rr_imm(imm), s, FL_ALL, 0x3, false
       });
 
       // Zeroing mask
@@ -57,7 +57,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
         e.aaa = 1; e.z = true;
         tests.push_back({
           std::string(name) + " " + vl_name[ll] + " imm=" + std::to_string(imm) + " {k1}{z}",
-          cat, concat(set_kmask(kmask), e.encode_rr_imm(imm)), s, FL_NONE, 0x3, false
+          cat, concat(set_kmask(kmask), e.encode_rr_imm(imm)), s, FL_ALL, 0x3, false
         });
       }
     }

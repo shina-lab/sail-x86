@@ -212,18 +212,18 @@ static inline void add_evex_rr_tests(
     // No mask
     base.aaa = 0; base.z = false;
     tests.push_back({std::string(mnemonic) + " " + suffix,
-                     cat, base.encode_rr(), init, FL_NONE, xmm_cmp, false});
+                     cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false});
 
     if (kmask_val) {
       // Zeroing mask
       base.aaa = 1; base.z = true;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}{z}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_NONE, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
 
       // Merging mask
       base.aaa = 1; base.z = false;
       tests.push_back({std::string(mnemonic) + " " + suffix + " {k1}",
-                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_NONE, xmm_cmp, false});
+                       cat, concat(set_kmask(kmask_val), base.encode_rr()), init, FL_ALL, xmm_cmp, false});
     }
   }
 }
@@ -245,9 +245,11 @@ static inline void add_evex_rr_approx_tests(
   for (int ll = 0; ll <= 2; ll++) {
     std::string suffix = std::string(vl_name[ll]) + " (VL" + std::to_string(vl_bits[ll]) + ")";
     base.LL = ll; base.aaa = 0; base.z = false;
-    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rr(), init, FL_NONE, xmm_cmp, false};
+    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rr(), init, FL_ALL, xmm_cmp, false};
     tc.approx_rel_tol = rel_tol;
     tc.approx_elem_bits = elem_bits;
+    tc.approx_result_bits = vl_bits[ll];
+    tc.approx_reg = base.reg;
     tests.push_back(std::move(tc));
   }
 }
@@ -274,7 +276,7 @@ static inline void add_evex_rm_tests(
     // No mask
     base.aaa = 0; base.z = false;
     {
-      TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_mem(), init, FL_NONE, xmm_cmp, false};
+      TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_mem(), init, FL_ALL, xmm_cmp, false};
       tc.init_data = init_data;
       tests.push_back(std::move(tc));
     }
@@ -283,7 +285,7 @@ static inline void add_evex_rm_tests(
       base.aaa = 1; base.z = true;
       {
         TestCase tc = {std::string(mnemonic) + " " + suffix + " {k1}{z}", cat,
-                       concat(set_kmask(kmask_val), base.encode_rm_mem()), init, FL_NONE, xmm_cmp, false};
+                       concat(set_kmask(kmask_val), base.encode_rm_mem()), init, FL_ALL, xmm_cmp, false};
         tc.init_data = init_data;
         tests.push_back(std::move(tc));
       }
@@ -308,7 +310,7 @@ static inline void add_evex_bcast_tests(
     std::string suffix = std::string(vl_name[ll]) + " {1toN} (VL" + std::to_string(vl_bits[ll]) + ")";
     base.LL = ll;
     base.aaa = 0; base.z = false;
-    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_bcast(), init, FL_NONE, xmm_cmp, false};
+    TestCase tc = {std::string(mnemonic) + " " + suffix, cat, base.encode_rm_bcast(), init, FL_ALL, xmm_cmp, false};
     tc.init_data = init_data;
     tests.push_back(std::move(tc));
   }

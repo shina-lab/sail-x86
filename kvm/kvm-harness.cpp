@@ -693,15 +693,8 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zGPR.data[15] = tc.initial.r15;
   model.zRIP = CODE_ADDR;
 
-  u64 flags = tc.initial.rflags;
-  model.zCF = (flags >> 0) & 1;
-  model.zPF = (flags >> 2) & 1;
-  model.zAF = (flags >> 4) & 1;
-  model.zZF = (flags >> 6) & 1;
-  model.zSF = (flags >> 7) & 1;
-  model.zTF = (flags >> 8) & 1;
-  model.zDF = (flags >> 10) & 1;
-  model.zOF = (flags >> 11) & 1;
+  model.zwrite_rflags(tc.initial.rflags);
+  model.zRF = (tc.initial.rflags >> 16) & 1;  // write_rflags deliberately preserves RF
 
   // Debug registers, as the KVM guest gets them through KVM_SET_DEBUGREGS
   model.zDR0 = tc.initial.dr[0];
@@ -835,14 +828,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   return {};
 
 done:
-  u64 rflags = 0x2;
-  rflags |= model.zCF << 0;
-  rflags |= model.zPF << 2;
-  rflags |= model.zAF << 4;
-  rflags |= model.zZF << 6;
-  rflags |= model.zSF << 7;
-  rflags |= model.zDF << 10;
-  rflags |= model.zOF << 11;
+  u64 rflags = model.zread_rflags(UNIT);
 
   if (data_len > 0)
     memcpy(data_out, (void *)DATA_ADDR, data_len);
@@ -1028,9 +1014,9 @@ int main(int argc, char **argv) {
       if (!harness_err.empty())
         fprintf(stderr, "%s", harness_err.c_str());
       bool ok = harness_err.empty() &&
-                kvm_state.compare(sail_state, tc.flags_mask, tc.xmm_mask,
-                                  tc.cmp_mxcsr, tc.kreg_mask,
-                                  tc.approx_rel_tol, tc.approx_elem_bits);
+                kvm_state.compare(sail_state, tc.flags_mask, tc.cmp_mxcsr,
+                                  tc.approx_rel_tol, tc.approx_elem_bits,
+                                  tc.approx_result_bits, tc.approx_reg);
 
       if (tc.compare_data_len > 0 &&
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {

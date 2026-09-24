@@ -474,37 +474,37 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // BSWAP EAX: 0F C8
     // 32-bit BSWAP: 12345678 -> 78563412, zero-extended to 64-bit
     tests.push_back({"bswap eax", cat, {0x0F, 0xC8},
-                      {.rax = 0xDEADDEAD12345678, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEAD12345678, .rflags = 0x2}, FL_ALL});
 
     // BSWAP RAX: 48 0F C8
     tests.push_back({"bswap rax", cat, {0x48, 0x0F, 0xC8},
-                      {.rax = 0x0102030405060708, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0x0102030405060708, .rflags = 0x2}, FL_ALL});
 
     // BSWAP with extended register R8: 49 0F C8 (REX.W+B, 0F C8+0=R8)
     tests.push_back({"bswap r8", cat, {0x49, 0x0F, 0xC8},
-                      {.r8 = 0xAABBCCDDEEFF0011, .rflags = 0x2}, FL_NONE});
+                      {.r8 = 0xAABBCCDDEEFF0011, .rflags = 0x2}, FL_ALL});
 
     // BSWAP R15D: 41 0F CF (REX.B, 0F C8+7)
     // 32-bit swap AABBCCDD -> DDCCBBAA, zero-extended
     tests.push_back({"bswap r15d", cat, {0x41, 0x0F, 0xCF},
-                      {.r15 = 0xDEADDEADAABBCCDD, .rflags = 0x2}, FL_NONE});
+                      {.r15 = 0xDEADDEADAABBCCDD, .rflags = 0x2}, FL_ALL});
 
     // BSWAP EAX where value is 0 -> stays 0
     tests.push_back({"bswap eax zero", cat, {0x0F, 0xC8},
-                      {.rax = 0xDEADDEAD00000000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEAD00000000, .rflags = 0x2}, FL_ALL});
 
     // BSWAP with value 0x01000000 -> 0x00000001
     tests.push_back({"bswap eax endian", cat, {0x0F, 0xC8},
-                      {.rax = 0x01000000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0x01000000, .rflags = 0x2}, FL_ALL});
 
     // BSWAP AX (16-bit, 66h prefix): 66 0F C8
     // SDM says "result is undefined" but real hardware zeroes the low 16 bits.
     tests.push_back({"bswap ax (r16 undefined)", cat, {0x66, 0x0F, 0xC8},
-                      {.rax = 0x0123456789ABCDEF, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0x0123456789ABCDEF, .rflags = 0x2}, FL_ALL});
 
     // BSWAP R8W (16-bit, 66 REX.B): 66 41 0F C8
     tests.push_back({"bswap r8w (r16 undefined)", cat, {0x66, 0x41, 0x0F, 0xC8},
-                      {.r8 = 0xFEDCBA9876543210, .rflags = 0x2}, FL_NONE});
+                      {.r8 = 0xFEDCBA9876543210, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -516,32 +516,32 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // XCHG EAX, EBX: 93 (opcode 90+3)
     // 32-bit: swaps and zero-extends both
     tests.push_back({"xchg eax,ebx", cat, {0x93},
-                      {.rax = 0xDEAD000011111111, .rbx = 0xBEEF000022222222, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEAD000011111111, .rbx = 0xBEEF000022222222, .rflags = 0x2}, FL_ALL});
 
     // XCHG RAX, RBX: 48 93 (REX.W + 90+3)
     tests.push_back({"xchg rax,rbx", cat, {0x48, 0x93},
-                      {.rax = 0x1111111111111111, .rbx = 0x2222222222222222, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0x1111111111111111, .rbx = 0x2222222222222222, .rflags = 0x2}, FL_ALL});
 
     // XCHG AX, BX: 66 93
     // 16-bit: only swaps low 16 bits
     tests.push_back({"xchg ax,bx", cat, {0x66, 0x93},
-                      {.rax = 0xDEAD0000BEEF1111, .rbx = 0x1234567800002222, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEAD0000BEEF1111, .rbx = 0x1234567800002222, .rflags = 0x2}, FL_ALL});
 
     // XCHG R8D, EAX: 41 90 (REX.B extends opcode register)
     tests.push_back({"xchg r8d,eax", cat, {0x41, 0x90},
-                      {.rax = 0xDEAD000011111111, .r8 = 0xBEEF000022222222, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEAD000011111111, .r8 = 0xBEEF000022222222, .rflags = 0x2}, FL_ALL});
 
     // XCHG RAX, R8: 49 90 (REX.W+B)
     tests.push_back({"xchg rax,r8", cat, {0x49, 0x90},
-                      {.rax = 0xAAAAAAAAAAAAAAAA, .r8 = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xAAAAAAAAAAAAAAAA, .r8 = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_ALL});
 
     // XCHG r/m form: 87 C3 = XCHG EBX, EAX (ModRM)
     tests.push_back({"xchg ebx,eax modrm", cat, {0x87, 0xC3},
-                      {.rax = 0x11111111, .rbx = 0x22222222, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0x11111111, .rbx = 0x22222222, .rflags = 0x2}, FL_ALL});
 
     // XCHG r/m8: 86 D8 = XCHG AL, BL
     tests.push_back({"xchg al,bl", cat, {0x86, 0xD8},
-                      {.rax = 0xDEAD0000BEEF00AA, .rbx = 0x1234567800000055, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEAD0000BEEF00AA, .rbx = 0x1234567800000055, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -553,44 +553,44 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // MOVSX EAX, BL: 0F BE C3 (sign-extend byte to dword)
     // BL=0x80 -> EAX=0xFFFFFF80, zero-extended to 64-bit
     tests.push_back({"movsx eax,bl neg", cat, {0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000000080, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000000080, .rflags = 0x2}, FL_ALL});
 
     // MOVSX EAX, BL: BL=0x7F -> EAX=0x0000007F
     tests.push_back({"movsx eax,bl pos", cat, {0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000000000007F, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000000000007F, .rflags = 0x2}, FL_ALL});
 
     // MOVSX RAX, BL: 48 0F BE C3 (sign-extend byte to qword)
     // -1 signed byte
     tests.push_back({"movsx rax,bl neg", cat, {0x48, 0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x00000000000000FF, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x00000000000000FF, .rflags = 0x2}, FL_ALL});
 
     // MOVSX EAX, BX: 0F BF C3 (sign-extend word to dword)
     // -32768 signed word
     tests.push_back({"movsx eax,bx neg", cat, {0x0F, 0xBF, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
 
     // MOVSX RAX, BX: 48 0F BF C3 (sign-extend word to qword)
     tests.push_back({"movsx rax,bx neg", cat, {0x48, 0x0F, 0xBF, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD RAX, EBX: 48 63 C3 (sign-extend dword to qword)
     // -2147483648 signed dword
     tests.push_back({"movsxd rax,ebx neg", cat, {0x48, 0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD RAX, EBX: positive value
     tests.push_back({"movsxd rax,ebx pos", cat, {0x48, 0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000007FFFFFFF, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000007FFFFFFF, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD without REX.W (63 C3): acts as MOV EBX, EBX (no sign extend)
     tests.push_back({"movsxd eax,ebx no-rex.w", cat, {0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
 
     // MOVSX with R8-R15: 41 0F BE C0 = MOVSX EAX, R8B
     // -2 signed byte
     // Actually: 41 0F BE C0: REX.B, MOVSX EAX, r/m8 where rm=0+B=R8B
     tests.push_back({"movsx eax,r8b neg", cat, {0x41, 0x0F, 0xBE, 0xC0},
-                      {.rax = 0xDEADDEADDEADDEAD, .r8 = 0x00000000000000FE, .rflags = 0x2}, FL_NONE});
+                      {.rax = 0xDEADDEADDEADDEAD, .r8 = 0x00000000000000FE, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -602,49 +602,49 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // BT r64, r64: 48 0F A3 D8 = BT RAX, RBX (test bit RBX in RAX)
     // Sets CF = bit at position (RBX mod 64)
     tests.push_back({"bt rax,rbx bit0 set", cat, {0x48, 0x0F, 0xA3, 0xD8},
-                      {.rax = 0x0000000000000001, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x0000000000000001, .rflags = 0x2}, FL_CF_ZF});
 
     // test bit 1 (not set)
     tests.push_back({"bt rax,rbx bit1 clear", cat, {0x48, 0x0F, 0xA3, 0xD8},
-                      {.rax = 0x0000000000000001, .rbx = 1, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x0000000000000001, .rbx = 1, .rflags = 0x2}, FL_CF_ZF});
 
     // BT r32, r32: 0F A3 D8 = BT EAX, EBX (bit index mod 32)
     tests.push_back({"bt eax,ebx bit31 set", cat, {0x0F, 0xA3, 0xD8},
-                      {.rax = 0x80000000, .rbx = 31, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x80000000, .rbx = 31, .rflags = 0x2}, FL_CF_ZF});
 
     // BTS r64, r64: 48 0F AB D8 = BTS RAX, RBX (set bit)
     tests.push_back({"bts rax,rbx bit5", cat, {0x48, 0x0F, 0xAB, 0xD8},
-                      {.rbx = 5, .rflags = 0x2}, FL_CF});
+                      {.rbx = 5, .rflags = 0x2}, FL_CF_ZF});
 
     // BTR r64, r64: 48 0F B3 D8 = BTR RAX, RBX (reset bit)
     tests.push_back({"btr rax,rbx bit63", cat, {0x48, 0x0F, 0xB3, 0xD8},
-                      {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 63, .rflags = 0x2}, FL_CF});
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 63, .rflags = 0x2}, FL_CF_ZF});
 
     // BTC r64, r64: 48 0F BB D8 = BTC RAX, RBX (complement bit)
     tests.push_back({"btc rax,rbx bit10", cat, {0x48, 0x0F, 0xBB, 0xD8},
-                      {.rbx = 10, .rflags = 0x2}, FL_CF});
+                      {.rbx = 10, .rflags = 0x2}, FL_CF_ZF});
 
     // BT r/m, imm8 (Group 8): 0F BA /4 ib
     // 48 0F BA E0 3F: BT RAX, 63
     tests.push_back({"bt rax,63 imm", cat, {0x48, 0x0F, 0xBA, 0xE0, 0x3F},
-                      {.rax = 0x8000000000000000, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x8000000000000000, .rflags = 0x2}, FL_CF_ZF});
 
     // BTS r/m, imm8: 48 0F BA E8 00 = BTS RAX, 0
     tests.push_back({"bts rax,0 imm", cat, {0x48, 0x0F, 0xBA, 0xE8, 0x00},
-                      {.rflags = 0x2}, FL_CF});
+                      {.rflags = 0x2}, FL_CF_ZF});
 
     // BTR r/m, imm8: 48 0F BA F0 1F = BTR RAX, 31
     tests.push_back({"btr rax,31 imm", cat, {0x48, 0x0F, 0xBA, 0xF0, 0x1F},
-                      {.rax = 0xFFFFFFFFFFFFFFFF, .rflags = 0x2}, FL_CF});
+                      {.rax = 0xFFFFFFFFFFFFFFFF, .rflags = 0x2}, FL_CF_ZF});
 
     // BTC r/m, imm8: 0F BA F8 07 = BTC EAX, 7
     tests.push_back({"btc eax,7 imm", cat, {0x0F, 0xBA, 0xF8, 0x07},
-                      {.rax = 0x80, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x80, .rflags = 0x2}, FL_CF_ZF});
 
     // BT with bit index >= operand size (wraps via mod): BT EAX, EBX where EBX=32
     // Should test bit 32 mod 32 = bit 0
     tests.push_back({"bt eax,ebx wrap32", cat, {0x0F, 0xA3, 0xD8},
-                      {.rax = 0x00000001, .rbx = 32, .rflags = 0x2}, FL_CF});
+                      {.rax = 0x00000001, .rbx = 32, .rflags = 0x2}, FL_CF_ZF});
   }
 
   // =====================================================================
@@ -659,7 +659,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0, 0, 0, 0};
       tests.push_back({"movbe eax,[rdi]", cat, {0x0F, 0x38, 0xF0, 0x07},
                         {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
-                        FL_NONE, 0, false, data, 0});
+                        FL_ALL, 0, false, data, 0});
     }
 
     // MOVBE RAX, [RDI]: 48 0F 38 F0 07 (load 64-bit, byte-swap)
@@ -667,7 +667,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
       tests.push_back({"movbe rax,[rdi]", cat, {0x48, 0x0F, 0x38, 0xF0, 0x07},
                         {.rdi = DATA_ADDR, .rflags = 0x2},
-                        FL_NONE, 0, false, data, 0});
+                        FL_ALL, 0, false, data, 0});
     }
 
     // MOVBE AX, [RDI]: 66 0F 38 F0 07 (load 16-bit, byte-swap)
@@ -675,24 +675,24 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data = {0xAB, 0xCD, 0, 0, 0, 0, 0, 0};
       tests.push_back({"movbe ax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF0, 0x07},
                         {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
-                        FL_NONE, 0, false, data, 0});
+                        FL_ALL, 0, false, data, 0});
     }
 
     // MOVBE [RDI], EAX: 0F 38 F1 07 (store 32-bit, byte-swap)
     // Should store 04 03 02 01
     tests.push_back({"movbe [rdi],eax", cat, {0x0F, 0x38, 0xF1, 0x07},
                       {.rax = 0x01020304, .rdi = DATA_ADDR, .rflags = 0x2},
-                      FL_NONE, 0, false, {}, 4});
+                      FL_ALL, 0, false, {}, 4});
 
     // MOVBE [RDI], RAX: 48 0F 38 F1 07 (store 64-bit, byte-swap)
     tests.push_back({"movbe [rdi],rax", cat, {0x48, 0x0F, 0x38, 0xF1, 0x07},
                       {.rax = 0x0102030405060708, .rdi = DATA_ADDR, .rflags = 0x2},
-                      FL_NONE, 0, false, {}, 8});
+                      FL_ALL, 0, false, {}, 8});
 
     // MOVBE [RDI], AX: 66 0F 38 F1 07 (store 16-bit, byte-swap)
     tests.push_back({"movbe [rdi],ax", cat, {0x66, 0x0F, 0x38, 0xF1, 0x07},
                       {.rax = 0xDEADDEAD0000ABCD, .rdi = DATA_ADDR, .rflags = 0x2},
-                      FL_NONE, 0, false, {}, 2});
+                      FL_ALL, 0, false, {}, 2});
   }
 
 }

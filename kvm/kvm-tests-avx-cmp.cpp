@@ -18,7 +18,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     // No writemask on the compare itself (result goes to k0)
     e.aaa = 0; e.z = false;
     auto code = concat(e.encode_rr(), kmovq_k0_rax);
-    tests.push_back({std::string(name) + " " + suffix, cat, code, s, FL_NONE, 0, false});
+    tests.push_back({std::string(name) + " " + suffix, cat, code, s, FL_ALL, 0, false});
   };
 
   // =====================================================================
@@ -110,7 +110,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
       e.aaa = 0; e.z = false;
       auto code = e.encode_rr_imm(imm);
       code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
-      tests.push_back({std::string(name) + " " + suffix, cat, code, s, FL_NONE, 0, false});
+      tests.push_back({std::string(name) + " " + suffix, cat, code, s, FL_ALL, 0, false});
     }
   };
 
