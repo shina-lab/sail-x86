@@ -105,6 +105,8 @@ static void usage(const char *prog) {
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -d              Enable debug trace\n");
   fprintf(stderr, "  -m <MB>         RAM size in MB (default 256)\n");
+  fprintf(stderr, "  -ips <N>        Virtual CPU speed, million instructions per emulated second\n");
+  fprintf(stderr, "                  (default 1; a kernel with HZ=1000 needs 20 or more)\n");
   fprintf(stderr, "  -a <args>       Kernel command line\n");
   fprintf(stderr, "  -i <file>       Initramfs image\n");
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
@@ -795,6 +797,7 @@ static void render_vga_text(x86::Model &model) {
 int main(int argc, char *argv[]) {
   bool debug = false;
   u64 ram_mb = 256;
+  u64 ips = 1;  // virtual CPU speed, million instructions per emulated second
   const char *cmdline = nullptr;
   const char *initrd_path = nullptr;
   const char *bzimage_path = nullptr;
@@ -812,6 +815,10 @@ int main(int argc, char *argv[]) {
       first_arg++;
     } else if (strcmp(argv[first_arg], "-m") == 0 && first_arg + 1 < argc) {
       ram_mb = atoi(argv[first_arg + 1]);
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-ips") == 0 && first_arg + 1 < argc) {
+      ips = atoi(argv[first_arg + 1]);
+      if (ips == 0) { fprintf(stderr, "-ips needs a positive number\n"); return 1; }
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-a") == 0 && first_arg + 1 < argc) {
       cmdline = argv[first_arg + 1];
@@ -1017,13 +1024,16 @@ int main(int argc, char *argv[]) {
             trace_step);
   }
 
-  // PIT timer: tick every N instructions to generate periodic interrupts.
-  // The PIT runs at 1.193182 MHz. With a simulated TSC incrementing by
-  // 1000 per instruction (~1GHz virtual CPU), 1193 PIT cycles per 1000
-  // instructions matches the real PIT/CPU ratio, so SeaBIOS's timer
-  // calibration produces consistent results (~1GHz).
-  const u64 PIT_TICK_INTERVAL = 1000;   // Tick PIT every 1K instructions
-  const u64 PIT_CYCLES_PER_TICK = 1193; // ~1ms worth of PIT cycles
+  // Virtual time.  The PIT (1.193182 MHz) advances 1193 cycles, one
+  // millisecond, every 1000*ips instructions, and the TSC counts a 1 GHz
+  // clock over the same instructions, so the guest sees a consistent
+  // ips-MIPS CPU whatever the host speed and its timer calibrations agree.
+  // 1 MIPS is the historical default.  A kernel with HZ=1000 then gets
+  // 1000 instructions per tick, less than its tick handler costs, and never
+  // leaves the timer interrupt; -ips 20 or more for such a kernel.
+  const u64 PIT_TICK_INTERVAL = 1000 * ips;
+  const u64 PIT_CYCLES_PER_TICK = 1193;
+  u64 tsc_frac = 0;
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
   // VGA refresh: render framebuffer every 50K instructions (~20 fps at 1M ips)
@@ -1087,7 +1097,9 @@ int main(int argc, char *argv[]) {
 
 
     model.zstep(UNIT);
-    model.tsc += 1000;  // ~1GHz virtual CPU
+    tsc_frac += 1000;  // 1 GHz TSC: 1000 cycles per instruction at 1 MIPS
+    model.tsc += tsc_frac / ips;
+    tsc_frac %= ips;
 
 
 
