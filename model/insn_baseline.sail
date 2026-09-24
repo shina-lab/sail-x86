@@ -1666,7 +1666,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
         CF = is_zero(src_val);
-        ZF = src_val[0]
+        ZF = src_val[0];
+        OF = undefined;
+        SF = undefined;
+        AF = undefined;
+        PF = undefined
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
         // SDM: ZF is set if the source is zero and cleared otherwise; CF,
@@ -1716,7 +1720,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         let result : qword = to_bits_truncate(count);
         v(reg) = result[(os - 1) .. 0];
         CF = is_zero(src_val);
-        ZF = src_val[os - 1]
+        ZF = src_val[os - 1];
+        OF = undefined;
+        SF = undefined;
+        AF = undefined;
+        PF = undefined
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
         // Same flag and destination rules as BSF above, fixed for the same

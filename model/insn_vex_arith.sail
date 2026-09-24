@@ -204,7 +204,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     SF = result[os - 1];
     ZF = is_zero(result);
     OF = 0b0;
-    CF = 0b0
+    CF = 0b0;
+    AF = undefined;
+    PF = undefined
   },
 
   // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg
@@ -225,7 +227,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     SF = result[os - 1];
     ZF = if reg_field == 2 then 0b0 else is_zero(result);
     CF = cf;
-    OF = 0b0
+    OF = 0b0;
+    AF = undefined;
+    PF = undefined
   },
 
   // 0F38 DB: VAESIMC — VEX.128.66.0F38.WIG DB
@@ -293,7 +297,9 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         v(dst) = result;
         SF = result[os - 1];
         ZF = is_zero(result);
-        OF = 0b0
+        OF = 0b0;
+        AF = undefined;
+        PF = undefined
       },
       MP_F2 => {
         // PDEP: VEX.NDS.LZ.F2.0F38.W0/W1 F5
@@ -366,7 +372,10 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         v(dst) = result;
         ZF = is_zero(result);
         OF = 0b0;
-        CF = 0b0
+        CF = 0b0;
+        SF = undefined;
+        AF = undefined;
+        PF = undefined
       },
       MP_F3 => {
         // SARX: VEX.NDS.LZ.F3.0F38.W0/W1 F7 — arithmetic right shift, no flags
