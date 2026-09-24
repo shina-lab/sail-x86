@@ -498,13 +498,16 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
                       {.rax = 0x01000000, .rflags = 0x2}, FL_ALL});
 
     // BSWAP AX (16-bit, 66h prefix): 66 0F C8
-    // SDM says "result is undefined" but real hardware zeroes the low 16 bits.
+    // The result is undefined. Clear it before comparison, keeping all
+    // unrelated register bits and flags observable.
     tests.push_back({"bswap ax (r16 undefined)", cat, {0x66, 0x0F, 0xC8},
                       {.rax = 0x0123456789ABCDEF, .rflags = 0x2}, FL_ALL});
+    tests.back().code.insert(tests.back().code.end(), {0x66, 0xB8, 0, 0}); // mov ax,0
 
     // BSWAP R8W (16-bit, 66 REX.B): 66 41 0F C8
     tests.push_back({"bswap r8w (r16 undefined)", cat, {0x66, 0x41, 0x0F, 0xC8},
                       {.r8 = 0xFEDCBA9876543210, .rflags = 0x2}, FL_ALL});
+    tests.back().code.insert(tests.back().code.end(), {0x66, 0x41, 0xB8, 0, 0}); // mov r8w,0
   }
 
   // =====================================================================

@@ -1968,9 +1968,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       let reg = unsigned(pfx.rex_b @ to_bits(3, reg_field));
       let os = opsize(pfx);
       if os == 16 then {
-        // SDM says "result is undefined" for 16-bit operand, but real
-        // hardware zeroes the low 16 bits.
-        v(reg) = zeros() : word
+        // SDM: the result is undefined for a 16-bit operand.
+        v(reg) = undefined : word
       } else {
         v(os, reg) = bswap(v(os, reg))
       }
