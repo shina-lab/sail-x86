@@ -1197,8 +1197,38 @@ TEST(real_to_protected_mode_transition) {
 }
 
 // =========================================================================
-// IRET tests
+// Legacy state and interrupt returns
 // =========================================================================
+
+TEST(x87_save_restore_large_memory_operand) {
+  for (u64 save_addr : {0x8000UL, 0x8FE0UL}) {
+    x86::Model model;
+    init_model(model);
+    // Replace the first 2MB mapping with 4KB pages. The page following
+    // the save area's first page is deliberately noncontiguous.
+    model.phys_mem.write64(0x3000, 0x4000 | 3);
+    for (u64 i = 0; i < 512; ++i)
+      model.phys_mem.write64(0x4000 + i * 8, (i << 12) | 3);
+    model.phys_mem.write64(0x4000 + 9 * 8, 0x19000 | 3);
+    model.phys_mem.write64(0x9000, 0xA5A5A5A5A5A5A5A5UL);
+    model.zGPR.data[0] = save_addr;
+    model.zGPR.data[3] = 0x20000;
+    const u8 code[] = {
+      0xDB, 0xE3, // FNINIT
+      0xD9, 0xE8, // FLD1
+      0xDD, 0x30, // FNSAVE [RAX]: write 108 bytes, then initialize x87
+      0xDD, 0x20, // FRSTOR [RAX]: read the same complete state
+      0xDD, 0x1B, // FSTP qword [RBX]
+      0xF4,
+    };
+    ASSERT_EQ(run_code(model, 0x5000, code, sizeof(code)), RUN_HALTED);
+    ASSERT_EQ(model.phys_mem.read16(save_addr), 0x037Fu);
+    ASSERT_EQ(model.phys_mem.read16(save_addr + 4), 0x3800u); // saved TOP=7
+    ASSERT_EQ(model.phys_mem.read64(0x20000), 0x3FF0000000000000UL); // 1.0
+    ASSERT_EQ(model.phys_mem.read64(0x9000), 0xA5A5A5A5A5A5A5A5UL);
+    model.model_fini();
+  }
+}
 
 TEST(real_mode_iret_no_pop_sp_ss) {
   // In real mode, IRET pops only IP, CS, FLAGS (3 words).
@@ -2004,6 +2034,7 @@ int main() {
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();
+  run_test_x87_save_restore_large_memory_operand();
   run_test_real_mode_iret_with_nt();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();

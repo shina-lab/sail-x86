@@ -41,9 +41,10 @@ static void maybe_trace_phys_write(Model &m, u64 addr, const u8 *buf, i64 nbytes
 void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__read_mem: nbytes=%ld > 64\n", nbytes);
+  // Legacy x87 save areas occupy up to 108 bytes, larger than a ZMM.
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__read_mem: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   phys_mem.read_bytes(addr, buf, nbytes);
@@ -53,9 +54,9 @@ void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
 unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__write_mem: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__write_mem: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
@@ -70,9 +71,9 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n, enum zPTAccess access) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   for (i64 i = 0; i < nbytes; i++) {
@@ -86,9 +87,9 @@ void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n, enum zPTAcce
 unit Model::z__mem_write_crossing(u64 vaddr, sail_int n, lbits data) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
