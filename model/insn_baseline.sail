@@ -166,6 +166,7 @@ function cpuid(leaf, subleaf) = {
         if has_vpclmulqdq then ecx = ecx | 0x00000400;  // bit 10 (VPCLMULQDQ)
         if has_la57       then ecx = ecx | 0x00010000;  // bit 16 (LA57)
         if has_rdpid      then ecx = ecx | 0x00400000;  // bit 22 (RDPID)
+        if has_cldemote   then ecx = ecx | 0x02000000;  // bit 25 (CLDEMOTE)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
         var edx : dword = 0x00000000;
@@ -244,9 +245,10 @@ function cpuid(leaf, subleaf) = {
 
     // Leaf 0x80000001: Extended feature bits
     2147483649 => {
-      // ECX: LAHF(0), conditionally LZCNT(5)
+      // ECX: LAHF(0), conditionally LZCNT(5) and PREFETCHW(8)
       var ecx : dword = 0x00000001;  // LAHF
-      if has_lzcnt then ecx = ecx | 0x00000020;  // bit 5
+      if has_lzcnt     then ecx = ecx | 0x00000020;  // bit 5
+      if has_prefetchw then ecx = ecx | 0x00000100;  // bit 8
       // EDX: SYSCALL(11), NX(20), LM(29)
       let edx : dword = 0x20100800;
       (0x00000000, 0x00000000, ecx, edx)
@@ -1188,7 +1190,19 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
 
-    // 0F 18-1E: Prefetch hints / multi-byte NOPs
+    // 0F 0D: PREFETCHW m8 (/1; SDM Vol.2B) and the reserved NOPs of the
+    // opcode's other forms.  Every 0F 0D encoding is decoded with a ModR/M
+    // byte and behaves as NOP (SDM Vol.3B, "Reserved NOP"): the hint moves
+    // no architectural state and takes no memory fault.  AMD, whose APM
+    // defines the opcode as PREFETCH/PREFETCHW with a memory operand,
+    // raises #UD for the register form (observed on Zen 4 under KVM).
+    13 => {
+      let modrm = fetch(1);
+      if modrm[7..6] == 0b11 & vendor == Vendor_AMD then raise_UD();
+      let _ = modrm_rm(modrm, pfx)
+    },
+
+    // 0F 18-1E: PREFETCHh, CLDEMOTE (0F 1C /0) and the reserved NOPs.
     // These all consume ModR/M and do nothing.
     op if 24 <= op & op <= 30 => {
       let modrm = fetch(1);

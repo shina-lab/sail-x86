@@ -28,6 +28,7 @@ add_executable(kvm_harness
   kvm-tests-avx-hi16.cpp
   kvm-tests-avx-fp16.cpp
   kvm-tests-system.cpp
+  kvm-tests-hints.cpp
   kvm-tests-amx.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
@@ -231,6 +232,9 @@ set(KVM_CATEGORIES
   XLAT
   "MMX SSSE3"
   FXRSTOR
+  PREFETCHW
+  CLDEMOTE
+  SERIALIZE
   "AMX config"
   "AMX tile load/store"
   "AMX INT8"

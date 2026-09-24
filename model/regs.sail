@@ -589,6 +589,8 @@ register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
 register has_amx_tile  : bool  // CPUID.07H:EDX[24] — AMX tile architecture (LDTILECFG, TILELOADD, ...)
 register has_amx_int8  : bool  // CPUID.07H:EDX[25] — TDPBSSD/TDPBSUD/TDPBUSD/TDPBUUD
 register has_amx_bf16  : bool  // CPUID.07H:EDX[22] — TDPBF16PS
+register has_prefetchw : bool  // CPUID.80000001H:ECX[8] — PREFETCHW (0F 0D /1; a NOP either way)
+register has_cldemote  : bool  // CPUID.07H:ECX[25] — CLDEMOTE (0F 1C /0; a NOP either way)
 
 // =========================================================================
 // Intel AMX tile state (SDM Vol.1 Chapter 19)
@@ -680,7 +682,9 @@ function enable_features_v1() = {
   has_vmx = false;
   has_amx_tile = false;
   has_amx_int8 = false;
-  has_amx_bf16 = false
+  has_amx_bf16 = false;
+  has_prefetchw = false;
+  has_cldemote = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -714,7 +718,8 @@ function enable_features_v3() = {
   has_movbe = true;
   has_rdrand = true;
   has_aesni = true;
-  has_adx = true
+  has_adx = true;
+  has_prefetchw = true  // Broadwell and later
 }
 
 // x86-64-v4 and everything above it that the model implements: AVX-512
@@ -744,7 +749,8 @@ function enable_features_all() = {
   XCR0 = XCR0 | 0x0000000000060000;
   has_amx_tile = true;
   has_amx_int8 = true;
-  has_amx_bf16 = true
+  has_amx_bf16 = true;
+  has_cldemote = true
 }
 
 // =========================================================================
