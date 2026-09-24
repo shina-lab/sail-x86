@@ -83,6 +83,7 @@ struct KvmVm {
   int vcpu_fd = -1;
   struct kvm_run *run = nullptr;
   u8 *guest_mem = nullptr;
+  u8 initial_gdt[12 * 8] = {};
   const XsaveLayout xl = host_xsave_layout();
 
   ~KvmVm() {
@@ -272,6 +273,7 @@ struct KvmVm {
     gdt[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48): type=0xA, S=1, D=1, L=0
     gdt[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53): type=0xA, S=1, DPL=3, L=1
     gdt[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B): type=0x2, S=1, DPL=3
+    memcpy(initial_gdt, gdt, sizeof(initial_gdt));
 
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
@@ -339,6 +341,11 @@ struct KvmVm {
   }
 
   void load_test(const TestCase &tc) {
+    // Segment loads can set descriptor Accessed bits in guest memory. Restore
+    // the complete table so later LAR tests see the same image as fresh Sail
+    // executions, regardless of preceding faults, far returns, or mode switches.
+    memcpy(guest_mem + GDT_ADDR, initial_gdt, sizeof(initial_gdt));
+
     // Restore default XCR0 and CR4 (may have been overridden by previous test)
     struct kvm_xcrs xcrs_default = {};
     xcrs_default.nr_xcrs = 1;
