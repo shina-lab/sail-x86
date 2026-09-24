@@ -480,8 +480,10 @@ public:
         continue;
 
       for (u64 i = 0; i < cycles; i++) {
-        if (c.count > 0) c.count--;
-        if (c.count == 0) {
+        // Mode 0 (one-shot) past its terminal count: the output stays high
+        // and the count stays 0 until reprogrammed; no new edge, no new IRQ.
+        if (c.count == 0) break;
+        if (--c.count == 0) {
           c.output = true;
           if (ch == 0) irq = true;
           // Mode 2 (rate generator) or Mode 3 (square wave): auto-reload
@@ -490,7 +492,6 @@ public:
             c.count = c.reload;
             if (c.count == 0) c.count = 65536;
           }
-          // Mode 0 (one-shot): output stays high, count stays 0
         }
       }
     }
