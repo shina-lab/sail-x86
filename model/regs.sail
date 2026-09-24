@@ -616,6 +616,33 @@ register tilecfg_colsb     : vector(8, word)
 register tilecfg_rows      : vector(8, byte)
 register TMM               : vector(128, zmmword)
 
+// Extended feature disable (SDM Vol.1 §13.14; CPUID.0DH.01H:EAX[4]):
+// IA32_XFD (1C4H) disables the state components whose bits it and XCR0
+// both have, and IA32_XFD_ERR (1C5H) names the components an instruction
+// faulted on (#NM).  Only bit 18 (TILEDATA) can be set, as on the first
+// processors with AMX (CPUID.0DH.12H:ECX[2]); both reset to zero.
+register IA32_XFD     : qword = zeros()
+register IA32_XFD_ERR : qword = zeros()
+
+// zero_all_tile_data of the SDM.
+val amx_zero_all_tiles : unit -> unit
+function amx_zero_all_tiles() = {
+  foreach (i from 0 to 127) {
+    TMM[i] = zeros()
+  }
+}
+
+// TILECFG in its INIT state: palette 0, TILES_CONFIGURED = 0.
+val amx_init_tilecfg : unit -> unit
+function amx_init_tilecfg() = {
+  tilecfg_palette = 0x00;
+  tilecfg_start_row = 0x00;
+  foreach (n from 0 to 7) {
+    tilecfg_colsb[n] = 0x0000;
+    tilecfg_rows[n] = 0x00
+  }
+}
+
 // Vendor profile for the values the SDM leaves to the implementation and
 // on which the two vendors differ: the standard-format XSAVE offsets of
 // the AVX-512 components (CPUID.0DH.n:EBX) and MXCSR_MASK.  See

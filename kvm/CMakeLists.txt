@@ -242,6 +242,7 @@ set(KVM_CATEGORIES
   "AMX INT8"
   "AMX BF16"
   "AMX faults"
+  "AMX XFD"
 )
 
 foreach(cat ${KVM_CATEGORIES})

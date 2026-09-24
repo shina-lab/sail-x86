@@ -197,11 +197,13 @@ function cpuid(leaf, subleaf) = {
                     xsave_area_size_standard(XCR0),
                     xsave_area_size_standard(XCR0_SUPPORTED),
                     0x00000000),
-      // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
+      // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3),
+      //      XFD(4) with AMX (SDM Vol.1 §13.14)
       // EBX = compacted size for currently enabled components (dynamic)
       // ECX = supported IA32_XSS bits [31:0] (none)
       // EDX = supported IA32_XSS bits [63:32] (none)
-      (true, 1) => (0x0000000F, xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
+      (true, 1) => (if has_amx_tile then 0x0000001F else 0x0000000F,
+                    xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
       // Components 2 (AVX, 256 bytes), 5 (opmask, 64), 6 (ZMM_Hi256, 512)
       // and 7 (Hi16_ZMM, 1024).  EBX, the standard-format offset, follows
       // the vendor profile: see xsave_std_offset in insn_xsave.sail.
@@ -210,10 +212,12 @@ function cpuid(leaf, subleaf) = {
       (true, 6) => (0x00000200, to_bits(32, xsave_std_offset(6)), 0x00000000, 0x00000000),
       (true, 7) => (0x00000400, to_bits(32, xsave_std_offset(7)), 0x00000000, 0x00000000),
       // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192 bytes)
-      // of Intel AMX; ECX[1]: 64-byte aligned in the compacted format.
+      // of Intel AMX; ECX[1]: 64-byte aligned in the compacted format;
+      // ECX[2]: IA32_XFD can disable the component (TILEDATA only, as on
+      // the first processors with AMX).
       (true, 17) => if has_amx_tile then (0x00000040, to_bits(32, xsave_std_offset(17)), 0x00000002, 0x00000000)
                     else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
-      (true, 18) => if has_amx_tile then (0x00002000, to_bits(32, xsave_std_offset(18)), 0x00000002, 0x00000000)
+      (true, 18) => if has_amx_tile then (0x00002000, to_bits(32, xsave_std_offset(18)), 0x00000006, 0x00000000)
                     else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
@@ -1241,6 +1245,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         if ~(has_waitpkg) then raise_GP0();
         if msr_val[63..32] != zeros() | msr_val[1] == bitone then raise_GP0();
         __wrmsr(ecx, msr_val)
+      } else if ecx == 0x000001C4 | ecx == 0x000001C5 then {
+        // IA32_XFD (1C4H) and IA32_XFD_ERR (1C5H), SDM Vol.1 §13.14: exist
+        // with XFD (CPUID.0DH.01H:EAX[4], here with AMX); a bit can be set
+        // only for a component with CPUID.0DH.i:ECX[2], i.e. bit 18.
+        if ~(has_amx_tile) then raise_GP0();
+        if (msr_val & ~(0x0000000000040000 : qword)) != zeros() then raise_GP0();
+        if ecx == 0x000001C4 then IA32_XFD = msr_val else IA32_XFD_ERR = msr_val
       } else if ecx >=_u 0x00000480 & ecx <=_u 0x00000491 then {
         // VMX capability MSRs are read-only — #GP(0) on write
         raise_GP0()
@@ -1429,6 +1440,9 @@ function dispatch_2byte_gpr(op, pfx) = {
         0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
         // IA32_UMWAIT_CONTROL exists with WAITPKG; the value written, 0 at reset
         0x000000E1 => { if ~(has_waitpkg) then raise_GP0(); __rdmsr(ecx) },
+        // IA32_XFD and IA32_XFD_ERR exist with XFD (here with AMX)
+        0x000001C4 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD },
+        0x000001C5 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD_ERR },
         0xC0000100 => SegCache[FS].seg_base,
         0xC0000101 => SegCache[GS].seg_base,
         0xC0000102 => KERNEL_GS_BASE,

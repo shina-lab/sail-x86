@@ -455,6 +455,7 @@ struct FaultInfo {
   u64 dr6 = 0;  // DR6 after the fault (meaningful for #DB; compared under DR6_CMP_MASK)
   u64 dr7 = 0;  // DR7 after the fault (general detect clears GD)
   u64 rflags_image = 0;  // RFLAGS as pushed for the handler (compared under RFLAGS_IMAGE_MASK)
+  u64 xfd_err = 0;  // IA32_XFD_ERR after the fault (loaded by an XFD #NM; compared on hosts with AMX)
 };
 
 // DR6 bits compared between KVM and the model: B0-B3, BD, BS, BT.  Bit 11
