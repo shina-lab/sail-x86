@@ -511,9 +511,13 @@ function dispatch_evex_map5(opcode, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, 2);
       match src {
         XRM_mem(m) => {
-          // VMOVSH load: 2-operand, load 16-bit, zero-extend to 128-bit
+          // VMOVSH load: 2-operand, load 16-bit under the writemask (k[0]
+          // clear leaves the low element or zeroes it), upper bits zero
           let src : word = v(m);
-          write_simd(128, dst, zero_extend(src))
+          let old : word = read_simd(128, dst)[15..0];
+          let merge : word = blend(old, zeros(), pfx.evex_z);
+          let lo : word = blend(merge, src, evex_kmask64(pfx)[0]);
+          write_simd(128, dst, zero_extend(lo))
         },
         XRM_reg(xi) => {
           // VMOVSH reg-reg: 3-operand (src1=vvvvv upper bits, src2=src low 16 bits)
@@ -532,8 +536,9 @@ function dispatch_evex_map5(opcode, pfx) = {
       let dest = modrm_xrm_evex(modrm, pfx, 2);
       match dest {
         XRM_mem(m) => {
-          // VMOVSH store: write low 16 bits of src to memory
-          v(m) = read_simd(128, src)[15..0]
+          // VMOVSH store: write low 16 bits of src to memory when k[0] is set
+          if evex_kmask64(pfx)[0] == bitone then
+            v(m) = read_simd(128, src)[15..0]
         },
         XRM_reg(xi) => {
           // VMOVSH reg-reg store: 3-operand (src1=vvvvv upper bits, src2=reg low 16)

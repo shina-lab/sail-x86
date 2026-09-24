@@ -211,6 +211,59 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK vmovsh
+  // VMOVSH: EVEX.LIG.F3.MAP5.W0 10 (load / reg-reg), 11 (store), with the
+  // writemask on the low element.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    sentinel(s.xmm[0]);
+    for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x1111222233334444ULL + i;
+    uint16_t h = h16(-1.25f);
+    memcpy(&s.xmm[2].q[0], &h, 2);
+    s.xmm[2].q[0] |= 0x5555666677770000ULL;
+    std::vector<u8> mem = half_bytes(2.75f);
+    for (int i = 2; i < 64; i++) mem[i] = u8(0x80 + i);
+
+    Evex e; e.mm = 5; e.pp = 2; e.W = false; e.LL = 0;
+    // VMOVSH xmm0, [rdi]: low half from memory, rest zero.
+    e.opcode = 0x10; e.reg = 0; e.vvvv = 0; e.rm = 7;
+    {
+      TestCase tc = {"VMOVSH xmm, [mem]", cat, e.encode_rm_mem(), s, FL_ALL, 0x7, false};
+      tc.init_data = mem;
+      tests.push_back(std::move(tc));
+      e.aaa = 1; e.z = true;
+      TestCase tz = {"VMOVSH xmm, [mem] {k1}{z} mask=0", cat,
+                     concat(set_kmask(0), e.encode_rm_mem()), s, FL_ALL, 0x7, false};
+      tz.init_data = mem;
+      tests.push_back(std::move(tz));
+      e.aaa = 0; e.z = false;
+    }
+    // VMOVSH xmm0, xmm1, xmm2: dst = xmm1[127:16] : xmm2[15:0].
+    e.opcode = 0x10; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    tests.push_back({"VMOVSH xmm, xmm, xmm", cat, e.encode_rr(), s, FL_ALL, 0x7, false});
+    e.aaa = 1; e.z = false;
+    tests.push_back({"VMOVSH xmm, xmm, xmm {k1} mask=0", cat,
+                     concat(set_kmask(0), e.encode_rr()), s, FL_ALL, 0x7, false});
+    e.aaa = 0;
+    // VMOVSH [rdi], xmm2, and the masked store with k1[0] = 0 (no write).
+    e.opcode = 0x11; e.reg = 2; e.vvvv = 0;
+    {
+      TestCase tc = {"VMOVSH [mem], xmm", cat, e.encode_mr_mem(), s, FL_ALL, 0x7, false};
+      tc.init_data = std::vector<u8>(64, 0);
+      tc.compare_data_len = 64;
+      tests.push_back(std::move(tc));
+      e.aaa = 1;
+      TestCase tm = {"VMOVSH [mem], xmm {k1} mask=0", cat,
+                     concat(set_kmask(0), e.encode_mr_mem()), s, FL_ALL, 0x7, false};
+      tm.init_data = std::vector<u8>(64, 0x5A);
+      tm.compare_data_len = 64;
+      tests.push_back(std::move(tm));
+      e.aaa = 0;
+    }
+  }
+  // @@END
 
   // @@BLOCK conv_pass
   // Conversions from FP16 to wider formats: VCVTPH2PSX (66.MAP6.W0 13),
