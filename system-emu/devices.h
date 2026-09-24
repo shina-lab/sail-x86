@@ -687,23 +687,27 @@ public:
       //   bit 2 = system flag (POST passed)
       //   bit 3 = command/data (0 = data written to 0x60)
       u8 status = 0x14;  // system flag (bit 2) + keyboard unlocked (bit 4)
-      if (!out_buf.empty() || !scancode_buf.empty())
+      if (has_data())
         status |= 0x01;  // output buffer full
       return status;
     }
     if (port == 0x60) {
       // Serve PS/2 command responses first, then actual scancodes.
       if (!out_buf.empty()) {
-        u8 val = out_buf.front();
+        output_latch = out_buf.front();
         out_buf.pop();
-        return val;
+        return output_latch;
       }
-      if (!scancode_buf.empty()) {
-        u8 val = scancode_buf.front();
+      if (!scancode_buf.empty() && scancode_delay == 0) {
+        output_latch = scancode_buf.front();
         scancode_buf.pop();
-        return val;
+        // A keyboard serial transfer takes time. Do not deliver the next
+        // queued byte during the same interrupt handler's immediate reread.
+        scancode_delay = 2;
       }
-      return 0x00;
+      // UPI-41A/41AH/42/42AH manual, "Reading the DBBOUT Register":
+      // a read clears OBF; the data register retains its contents.
+      return output_latch;
     }
     return 0xFF;
   }
@@ -820,11 +824,17 @@ public:
     scancode_buf.push(sc);
   }
 
+  // Called once per millisecond of virtual time, including during HLT.
+  // Two ticks give at least one full millisecond between received bytes.
+  void tick() {
+    if (scancode_delay) --scancode_delay;
+  }
+
   // Returns true if the output buffer has data (for IRQ 1).
   // Real i8042 raises IRQ 1 whenever the output buffer is full,
   // whether it's a scancode or a command response.
   bool has_data() const {
-    return !out_buf.empty() || !scancode_buf.empty();
+    return !out_buf.empty() || (!scancode_buf.empty() && scancode_delay == 0);
   }
 
   size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
@@ -834,6 +844,8 @@ public:
 private:
   std::queue<u8> out_buf;      // PS/2 command responses (ACKs, IDs, etc.)
   std::queue<u8> scancode_buf; // actual key scancodes from host
+  u8 output_latch = 0;
+  unsigned scancode_delay = 0;
   u8 last_cmd = 0;          // last command written to port 0x64
   u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
   u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on

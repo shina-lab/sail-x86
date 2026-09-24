@@ -1379,6 +1379,8 @@ int main(int argc, char *argv[]) {
               model.set_irq(4, model.uart.has_irq());
           }
           model.tsc += TSC_PER_PIT_TICK;
+          model.kbd.tick();
+          model.set_irq(1, model.kbd.has_data());
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pulse_irq(0);
         }
@@ -1447,6 +1449,7 @@ int main(int argc, char *argv[]) {
 
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
+      model.kbd.tick();
       if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
         model.pulse_irq(0);
       }
