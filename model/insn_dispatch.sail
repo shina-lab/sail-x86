@@ -1712,7 +1712,14 @@ function decode_execute() = {
       215 => {
         let al : qword = zero_extend(v(8, RAX));
         let addr : qword = zero_extend(v(get_address_size(pfx), RBX)) + al;
-        v(RAX) = read_mem(8, addr)
+        // SDM Vol.2D XLAT/XLATB: the table is in DS unless overridden.
+        // Use the ordinary segmented access, including its limit checks.
+        let seg : segreg_idx = match pfx.seg_override {
+          Some(s) => s,
+          None()  => DS,
+        };
+        let src : MemRef = struct { seg = seg, addr = addr };
+        v(RAX) = v(8, src)
       },
 
       // D8-DF: x87 FPU

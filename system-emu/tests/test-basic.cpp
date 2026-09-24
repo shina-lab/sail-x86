@@ -1242,6 +1242,57 @@ TEST(lmsw_enters_protected_mode) {
   }
 }
 
+TEST(xlat_segmented_table_lookup) {
+  // SDM Vol.2D XLAT/XLATB: use DS by default, honor a segment override,
+  // index with unsigned AL, write only AL and preserve flags.
+  for (unsigned mode : {16u, 32u, 64u}) {
+    for (bool override_fs : {false, true}) {
+      x86::Model model;
+      if (mode == 16) init_model_16(model);
+      else if (mode == 32) init_model_32(model);
+      else init_model(model);
+      model.zSegReg.data[x86::SEG_DS] = mode == 16 ? 0x2000 : 0x10;
+      model.zSegReg.data[x86::SEG_FS] = mode == 16 ? 0x3000 : 0x18;
+      model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+      model.zSegCache.data[x86::SEG_FS].zseg_base = 0x30000;
+      model.zGPR.data[0] = 0x1122334455667780UL;
+      model.zGPR.data[3] = 0x400;
+      model.zCF = 1; model.zPF = 0; model.zAF = 1;
+      model.zZF = 0; model.zSF = 1; model.zOF = 1;
+      u64 flags = model.zread_rflags(UNIT);
+      model.phys_mem.write8(0x480, 0x37);   // Unsegmented lookup is distinct.
+      model.phys_mem.write8(0x20480, 0xA5);
+      model.phys_mem.write8(0x30480, 0xB6);
+      const u8 code[] = {0x64, 0xD7, 0xF4}; // FS override; or just XLAT; HLT
+      ASSERT_EQ(run_code(model, 0x5000, code + !override_fs,
+                         sizeof(code) - !override_fs), RUN_HALTED);
+      u64 byte = override_fs ? 0xB6 : mode == 64 ? 0x37 : 0xA5;
+      ASSERT_EQ((u64)model.zGPR.data[0], 0x1122334455667700UL | byte);
+      ASSERT_EQ((u64)model.zGPR.data[3], 0x400UL);
+      ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(xlat_segment_limit_fault) {
+  for (bool override_ss : {false, true}) {
+    x86::Model model;
+    init_model_32(model);
+    auto seg = override_ss ? x86::SEG_SS : x86::SEG_DS;
+    model.zSegReg.data[seg] = 0x10;
+    model.zSegCache.data[seg].zseg_limit = 0x47F;
+    model.zGPR.data[0] = 0x80;
+    model.zGPR.data[3] = 0x400;
+    const u8 code[] = {0x36, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !override_ss,
+                       sizeof(code) - !override_ss), RUN_FAULTED);
+    ASSERT_EQ((u64)model.zfault_vector, override_ss ? 12UL : 13UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0x80UL);
+    model.model_fini();
+  }
+}
+
 // =========================================================================
 // Legacy state and interrupt returns
 // =========================================================================
@@ -2078,6 +2129,8 @@ int main() {
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
   run_test_lmsw_enters_protected_mode();
+  run_test_xlat_segmented_table_lookup();
+  run_test_xlat_segment_limit_fault();
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();
