@@ -105,6 +105,11 @@ struct ZmmVal {
     u64 q[8];
     struct { u64 lo, hi; };  // aliases for q[0], q[1]
   };
+  // memcpy permits element-sized writes without aliasing the u64 storage.
+  template <typename T> void set(unsigned index, T value) {
+    assert((index + 1) * sizeof(T) <= sizeof(q));
+    memcpy(reinterpret_cast<u8 *>(q) + index * sizeof(T), &value, sizeof(T));
+  }
   bool operator==(const ZmmVal &o) const { return memcmp(q, o.q, 64) == 0; }
   bool operator!=(const ZmmVal &o) const { return !(*this == o); }
   bool is_zero() const {

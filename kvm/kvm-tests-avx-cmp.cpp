@@ -50,8 +50,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   {
     // Word comparison
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = i * 100;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = (i % 3 == 0) ? i * 100 : i * 100 + 1;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, i * 100);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, (i % 3 == 0) ? i * 100 : i * 100 + 1);
 
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
     e.opcode = 0x75;
@@ -63,8 +63,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   {
     // DWord comparison
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i * 1000;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = (i % 2 == 0) ? i * 1000 : i * 1000 - 1;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 1000);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, (i % 2 == 0) ? i * 1000 : i * 1000 - 1);
 
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
     e.opcode = 0x76;
@@ -117,8 +117,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   {
     // VPCMPD with various predicates
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[1].q)[i] = i * 100 - 500;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[2].q)[i] = 300;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, i * 100 - 500);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 300);
 
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x1F;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -145,8 +145,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   {
     // VPCMPUD (unsigned)
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i * 100;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 500;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 100);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 500);
 
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x1E;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -171,8 +171,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   {
     // VPCMPW
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((int16_t *)s.xmm[1].q)[i] = -16 + i;
-    for (int i = 0; i < 32; i++) ((int16_t *)s.xmm[2].q)[i] = 0;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -16 + i);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<int16_t>(i, 0);
 
     Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x3F;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -202,8 +202,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = (i % 2 == 0) ? 0xFFFFFFFF : 0;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0xFFFFFFFF;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (i % 2 == 0) ? 0xFFFFFFFF : 0);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xFFFFFFFF);
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x27;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -238,8 +238,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   }
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = (i % 3 == 0) ? 0xFFFF : 0;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = 0xFFFF;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, (i % 3 == 0) ? 0xFFFF : 0);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 0xFFFF);
 
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x26;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -258,8 +258,8 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0xAAAAAAAA;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0x55555555;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0x55555555);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     struct { const char *name; u8 opcode; bool W; u32 kmask; } blends[] = {

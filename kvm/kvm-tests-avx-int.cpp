@@ -10,12 +10,12 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
 
   // Helper: fill ZMM with word pattern
   auto fill_words = [](ZmmVal &v, u16 start, u16 step) {
-    for (int i = 0; i < 32; i++) ((u16 *)v.q)[i] = start + i * step;
+    for (int i = 0; i < 32; i++) v.set<u16>(i, start + i * step);
   };
 
   // Helper: fill ZMM with dword pattern
   auto fill_dwords = [](ZmmVal &v, u32 start, u32 step) {
-    for (int i = 0; i < 16; i++) ((u32 *)v.q)[i] = start + i * step;
+    for (int i = 0; i < 16; i++) v.set<u32>(i, start + i * step);
   };
 
   // Helper: fill ZMM with qword pattern
@@ -147,8 +147,8 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     }
     {
       ArchState s; s.rflags = 0x2;
-      for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 32000 + i * 100;
-      for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = 1000 + i * 50;
+      for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 32000 + i * 100);
+      for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 1000 + i * 50);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
       add_int_binary("VPADDSW",  1, 1, false, 0xED, s, 0x55555555);
@@ -394,14 +394,14 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     }
     {
       ArchState s; s.rflags = 0x2;
-      for (int i = 0; i < 32; i++) ((int16_t *)s.xmm[1].q)[i] = -16000 + i * 1000;
+      for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -16000 + i * 1000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPABSW", 2, 1, false, 0x1D, s, 0x55555555);
       add_vok("VPABSW xmm,[rdi] misaligned", vex38_un(1, 0x1D, false));
     }
     {
       ArchState s; s.rflags = 0x2;
-      for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[1].q)[i] = -8000 + i * 1000;
+      for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -8000 + i * 1000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPABSD", 2, 1, false, 0x1E, s, 0xAAAA);
       add_vok("VPABSD xmm,[rdi] misaligned", vex38_un(1, 0x1E, false));

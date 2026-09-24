@@ -12,9 +12,9 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[0].q)[i] = 0xFF00FF00;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0x0F0F0F0F;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[2].q)[i] = 0x33333333;
+    for (int i = 0; i < 16; i++) s.xmm[0].set<u32>(i, 0xFF00FF00);
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x0F0F0F0F);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0x33333333);
 
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x25;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -62,7 +62,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {}; s.rflags = 0x2;
     // dst (accumulator)
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[0].q)[i] = 100;
+    for (int i = 0; i < 16; i++) s.xmm[0].set<u32>(i, 100);
     // src1 (unsigned bytes for BUSD, signed words for WSSD)
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 2;
     // src2 (signed bytes for BUSD, signed words for WSSD)
@@ -87,12 +87,12 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[0].q)[i] = 0;  // accumulator
+    for (int i = 0; i < 16; i++) s.xmm[0].set<u32>(i, 0);  // accumulator
     float ones = 1.0f;
     u32 ones_u; memcpy(&ones_u, &ones, 4);
     // BF16 value 1.0 = 0x3F80 (upper 16 bits of float 1.0)
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 0x3F80;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = 0x3F80;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x3F80);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 0x3F80);
 
     Evex e; e.mm = 2; e.pp = 2; e.W = false; e.opcode = 0x52;
     e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -281,8 +281,8 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 0x1234;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = 0x5678;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x1234);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 0x5678);
 
     Evex e; e.mm = 3; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
 
@@ -314,9 +314,9 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[0].q)[i] = 0x1234;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 0x5678;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[2].q)[i] = 4;
+    for (int i = 0; i < 32; i++) s.xmm[0].set<u16>(i, 0x1234);
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x5678);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 4);
 
     Evex e; e.mm = 2; e.pp = 1; e.reg = 0; e.vvvv = 1; e.rm = 2;
 
@@ -342,7 +342,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x100 * (i + 1));
 
     struct { const char *name; u8 opcode; bool W; u32 kmask; } compress[] = {
       {"VCOMPRESSPS",  0x8A, false, 0xAAAA},
@@ -370,7 +370,7 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x100 * (i + 1));
 
     struct { const char *name; u8 opcode; bool W; u32 kmask; } expand[] = {
       {"VEXPANDPS",  0x88, false, 0xAAAA},
@@ -724,8 +724,8 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
     if (edx7 & (1u << 8)) {
       ArchState s = {}; s.rflags = 0x2;
       for (int i = 0; i < 16; i++) {
-        ((u32 *)s.xmm[1].q)[i] = (i * 5) % 11;
-        ((u32 *)s.xmm[2].q)[i] = (i * 3 + 1) % 9;
+        s.xmm[1].set<u32>(i, (i * 5) % 11);
+        s.xmm[2].set<u32>(i, (i * 3 + 1) % 9);
       }
       const char *vl[] = {"xmm", "ymm", "zmm"};
       for (int w = 0; w <= 1; w++) {

@@ -64,14 +64,14 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   // Word→Byte sources: mix values to exercise saturation
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = i * 17;  // 0..527
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, i * 17);  // 0..527
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(wb_entries, 3, s, 0xAAAAAAAA);
   }
   // DWord→Byte
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i * 37;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 37);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(db_entries, 3, s, 0xAAAA);
   }
@@ -85,7 +85,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   // DWord→Word
   {
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i * 5000;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 5000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(dw_entries, 3, s, 0xAAAA);
   }
@@ -148,8 +148,8 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   {
     // VPACKSSWB / VPACKUSWB: word → byte
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((int16_t *)s.xmm[1].q)[i] = -200 + i * 15;
-    for (int i = 0; i < 32; i++) ((int16_t *)s.xmm[2].q)[i] = 50 + i * 10;
+    for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -200 + i * 15);
+    for (int i = 0; i < 32; i++) s.xmm[2].set<int16_t>(i, 50 + i * 10);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -162,8 +162,8 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   {
     // VPACKSSDW: dword → word
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[1].q)[i] = -50000 + i * 8000;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[2].q)[i] = 10000 + i * 5000;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -50000 + i * 8000);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 10000 + i * 5000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
@@ -173,8 +173,8 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   {
     // VPACKUSDW: 66 0F38 2B, W0
     ArchState s; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[1].q)[i] = -1000 + i * 5000;
-    for (int i = 0; i < 16; i++) ((int32_t *)s.xmm[2].q)[i] = 60000 + i * 1000;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -1000 + i * 5000);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 60000 + i * 1000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;

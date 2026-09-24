@@ -10,7 +10,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   };
 
   auto fill_dwords = [](ZmmVal &v, u32 start, u32 step) {
-    for (int i = 0; i < 16; i++) ((u32 *)v.q)[i] = start + i * step;
+    for (int i = 0; i < 16; i++) v.set<u32>(i, start + i * step);
   };
 
   auto fill_qwords = [](ZmmVal &v, u64 start, u64 step) {
@@ -18,7 +18,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   };
 
   auto fill_words = [](ZmmVal &v, u16 start, u16 step) {
-    for (int i = 0; i < 32; i++) ((u16 *)v.q)[i] = start + i * step;
+    for (int i = 0; i < 32; i++) v.set<u16>(i, start + i * step);
   };
 
   // Binary shift by xmm count: dst = vvvv shift rm (count in low 64 bits of rm)
@@ -183,7 +183,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     ArchState sw; sw.rflags = 0x2;
     fill_words(sw.xmm[1], 0x8001, 0x100);
     // Per-element shift counts: 0,1,2,3,4,...
-    for (int i = 0; i < 32; i++) ((u16 *)sw.xmm[2].q)[i] = i % 16;
+    for (int i = 0; i < 32; i++) sw.xmm[2].set<u16>(i, i % 16);
     for (int i = 0; i < 8; i++) sw.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     add_var_shift("VPSLLVW", 2, true, 0x12, sw, 0x55555555);
@@ -193,7 +193,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   {
     ArchState sd; sd.rflags = 0x2;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
-    for (int i = 0; i < 16; i++) ((u32 *)sd.xmm[2].q)[i] = i % 32;
+    for (int i = 0; i < 16; i++) sd.xmm[2].set<u32>(i, i % 32);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     add_var_shift("VPSLLVD", 2, false, 0x47, sd, 0xAAAA);
@@ -245,7 +245,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   {
     ArchState sd; sd.rflags = 0x2;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
-    for (int i = 0; i < 16; i++) ((u32 *)sd.xmm[2].q)[i] = (i * 3) % 32;
+    for (int i = 0; i < 16; i++) sd.xmm[2].set<u32>(i, (i * 3) % 32);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
     add_var_shift("VPROLVD", 2, false, 0x15, sd, 0xAAAA);

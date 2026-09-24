@@ -102,8 +102,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VBLENDPD: VEX.66.0F3A.WIG 0D /r ib
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[1].q)[i] = 0xAAAAAAAA;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[2].q)[i] = 0x55555555;
+    for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
+    for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
     v.opcode = 0x0C; v.L = false;
@@ -293,8 +293,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VTESTPS: VEX.66.0F38.W0 0E /r    VTESTPD: VEX.66.0F38.W0 0F /r
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[1].q)[i] = 0x80000000;  // all negative
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[2].q)[i] = 0x80000000;
+    for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0x80000000);  // all negative
+    for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x80000000);
 
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 0; v.rm = 2;
     v.opcode = 0x0E; v.L = false;
@@ -328,8 +328,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPBLENDD: VEX.66.0F3A.W0 02 /r ib
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[1].q)[i] = 0xAAAAAAAA;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[2].q)[i] = 0x55555555;
+    for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
+    for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x02;
     v.reg = 0; v.vvvv = 1; v.rm = 2;
@@ -344,8 +344,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPBLENDW: VEX.66.0F3A.WIG 0E /r ib
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u16 *)s.xmm[1].q)[i] = 0xAAAA;
-    for (int i = 0; i < 16; i++) ((u16 *)s.xmm[2].q)[i] = 0x5555;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u16>(i, 0xAAAA);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<u16>(i, 0x5555);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x0E;
     v.reg = 0; v.vvvv = 1; v.rm = 2;
@@ -515,8 +515,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VEX SSSE3: VPHADDD/W/SW, VPHSUBD/W/SW, VPSIGNB/D/W
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 8; i++) ((int32_t *)s.xmm[1].q)[i] = i * 100 - 300;
-    for (int i = 0; i < 8; i++) ((int32_t *)s.xmm[2].q)[i] = i * 50 + 100;
+    for (int i = 0; i < 8; i++) s.xmm[1].set<int32_t>(i, i * 100 - 300);
+    for (int i = 0; i < 8; i++) s.xmm[2].set<int32_t>(i, i * 50 + 100);
 
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
 
@@ -538,8 +538,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((int16_t *)s.xmm[1].q)[i] = i * 100 - 700;
-    for (int i = 0; i < 16; i++) ((int16_t *)s.xmm[2].q)[i] = i * 50 + 100;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<int16_t>(i, i * 100 - 700);
+    for (int i = 0; i < 16; i++) s.xmm[2].set<int16_t>(i, i * 50 + 100);
 
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2;
 
@@ -692,7 +692,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPSHUFLW VEX: VEX.F2.0F.WIG 70 /r ib
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 32; i++) ((u16 *)s.xmm[1].q)[i] = 0x100 * (i + 1);
+    for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x100 * (i + 1));
 
     Vex v; v.mm = 1; v.W = false; v.opcode = 0x70;
     v.reg = 0; v.vvvv = 0; v.rm = 1;
@@ -741,9 +741,9 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     if (eax71 & (1u << 4)) {
       ArchState s = {}; s.rflags = 0x2;
       for (int i = 0; i < 8; i++) {
-        ((u32 *)s.xmm[0].q)[i] = (i & 1) ? 0x7FFFFF00u : 1000u * i;
-        ((u32 *)s.xmm[1].q)[i] = 0xFF7F0102u + 0x01010101u * i;
-        ((u32 *)s.xmm[2].q)[i] = 0x7F80FE01u - 0x01010101u * i;
+        s.xmm[0].set<u32>(i, (i & 1) ? 0x7FFFFF00u : 1000u * i);
+        s.xmm[1].set<u32>(i, 0xFF7F0102u + 0x01010101u * i);
+        s.xmm[2].set<u32>(i, 0x7F80FE01u - 0x01010101u * i);
       }
       struct { const char *name; u8 opcode; } vnni[] = {
         {"VPDPBUSD", 0x50}, {"VPDPBUSDS", 0x51}, {"VPDPWSSD", 0x52}, {"VPDPWSSDS", 0x53},
@@ -793,7 +793,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     ArchState s = {}; s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     // mask in xmm1: high bit of each dword selects
-    for (int i = 0; i < 4; i++) ((u32 *)s.xmm[1].q)[i] = (i % 2) ? 0x80000000 : 0;
+    for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
     std::vector<u8> data(16); for (int i = 0; i < 16; i++) data[i] = 0x10 + i;
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x2C;
     v.reg = 0; v.vvvv = 1; v.L = false;
@@ -818,7 +818,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     ArchState s = {}; s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
-    for (int i = 0; i < 4; i++) ((u32 *)s.xmm[1].q)[i] = (i % 2) ? 0x80000000 : 0;
+    for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x2E;
     v.reg = 0; v.vvvv = 1; v.L = false;
     tests.push_back({"VMASKMOVPS xmm (st)", cat, v.encode_rm_mem(), s, FL_ALL, 0, false, std::vector<u8>(16, 0xCC), 16});
@@ -841,7 +841,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {}; s.rflags = 0x2;
     s.rdi = DATA_ADDR;
-    for (int i = 0; i < 4; i++) ((u32 *)s.xmm[1].q)[i] = (i % 2) ? 0x80000000 : 0;
+    for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
     std::vector<u8> data(16); for (int i = 0; i < 16; i++) data[i] = 0x30 + i;
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x8C;
     v.reg = 0; v.vvvv = 1; v.L = false;
@@ -854,7 +854,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     ArchState s = {}; s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
-    for (int i = 0; i < 4; i++) ((u32 *)s.xmm[1].q)[i] = (i % 2) ? 0x80000000 : 0;
+    for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0x8E;
     v.reg = 0; v.vvvv = 1; v.L = false;
     tests.push_back({"VPMASKMOVD xmm (st)", cat, v.encode_rm_mem(), s, FL_ALL, 0, false, std::vector<u8>(16, 0xCC), 16});
@@ -891,10 +891,10 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // 4-operand variable blend: imm8[7:4] = mask register index
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[1].q)[i] = 0xAAAAAAAA;
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[2].q)[i] = 0x55555555;
+    for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
+    for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
     // xmm3 mask: sign bit set for even dwords
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[3].q)[i] = (i % 2 == 0) ? 0x80000000 : 0;
+    for (int i = 0; i < 8; i++) s.xmm[3].set<u32>(i, (i % 2 == 0) ? 0x80000000 : 0);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x4A;
     v.reg = 0; v.vvvv = 1; v.rm = 2;
@@ -907,7 +907,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VBLENDVPS ymm,[rdi] misaligned", c); }
 
     // All mask bits set
-    for (int i = 0; i < 8; i++) ((u32 *)s.xmm[3].q)[i] = 0x80000000;
+    for (int i = 0; i < 8; i++) s.xmm[3].set<u32>(i, 0x80000000);
     v.L = false;
     tests.push_back({"VBLENDVPS xmm all-b", cat, v.encode_rr_imm(0x30), s, FL_ALL, 0x7, false});
     v.L = true;

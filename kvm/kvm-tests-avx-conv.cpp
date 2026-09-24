@@ -41,7 +41,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   }
   {
     ArchState s = {}; s.rflags = 0x2;
-    for (int i = 0; i < 16; i++) ((u32 *)s.xmm[1].q)[i] = i * 1000 + 42;
+    for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 1000 + 42);
 
     Evex e; e.mm = 1; e.pp = 3; e.W = false; e.opcode = 0x7A;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
