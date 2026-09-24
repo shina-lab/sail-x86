@@ -112,6 +112,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
   fprintf(stderr, "  -hdb <file>     Hard disk image (primary IDE slave)\n");
+  fprintf(stderr, "  -kbd            Route stdin to the PS/2 keyboard (headless BIOS interaction)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
   fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
   fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
@@ -797,6 +798,7 @@ static void render_vga_text(x86::Model &model) {
 
 int main(int argc, char *argv[]) {
   bool debug = false;
+  bool keyboard_input = false;
   u64 ram_mb = 256;
   u64 ips = 1;  // virtual CPU speed, million instructions per emulated second
   const char *cmdline = nullptr;
@@ -814,6 +816,9 @@ int main(int argc, char *argv[]) {
   while (first_arg < argc && argv[first_arg][0] == '-') {
     if (strcmp(argv[first_arg], "-d") == 0) {
       debug = true;
+      first_arg++;
+    } else if (strcmp(argv[first_arg], "-kbd") == 0) {
+      keyboard_input = true;
       first_arg++;
     } else if (strcmp(argv[first_arg], "-m") == 0 && first_arg + 1 < argc) {
       ram_mb = atoi(argv[first_arg + 1]);
@@ -1013,6 +1018,10 @@ int main(int argc, char *argv[]) {
     }
   }
   bool poll_stdin = true;  // Always poll stdin for UART RX data
+  auto input_byte = [&](u8 ch) {
+    if (keyboard_input) push_key(model.kbd, ch == '\r' || ch == '\n' ? '\n' : ch);
+    else model.uart.rx_push(ch);
+  };
 
   u64 insn_count = 0;
   const char *trace_start_env = getenv("SAIL_X86_TRACE_START");
@@ -1078,6 +1087,21 @@ int main(int argc, char *argv[]) {
             model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
             model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
             model.zsystem_state == x86::zSysHalted ? "halted" : "running");
+    fprintf(stderr, "  VGA text screen:\n");
+    unsigned start = model.vga.start_addr() * 2;
+    for (unsigned y = 0; y < 25; ++y) {
+      for (unsigned x = 0; x < 80; ++x) {
+        u8 ch = model.phys_mem.read8(0xB8000 + ((start + 2 * (y * 80 + x)) & 0x7FFF));
+        fputc(ch >= 32 && ch < 127 ? ch : ' ', stderr);
+      }
+      fputc('\n', stderr);
+    }
+    if (const char *path = getenv("SAIL_X86_DUMP_RAM")) {
+      if (FILE *f = fopen(path, "wb")) {
+        fwrite(model.phys_mem.ram_ptr(), 1, model.phys_mem.ram_size(), f);
+        fclose(f);
+      }
+    }
   };
 
   while (!model.should_exit && !got_signal) {
@@ -1124,6 +1148,7 @@ int main(int argc, char *argv[]) {
 
 
     if (model.zfault_pending) {
+      dump_state();
       i64 vec = model.zfault_vector;
       u32 err = model.zfault_error_code;
       curses_cleanup();
@@ -1161,6 +1186,7 @@ int main(int argc, char *argv[]) {
       if (model.zsystem_mode) {
         // If IF=0, this is a panic halt loop — exit
         if (model.zIF_flag == 0) {
+          dump_state();
           curses_cleanup();
           fprintf(stderr, "sail-x86-system: HLT with IF=0 (panic halt) after %lu insns at RIP=0x%lx\n",
                   insn_count, (u64)model.zRIP);
@@ -1207,11 +1233,11 @@ int main(int argc, char *argv[]) {
                       model.should_exit = true;
                       break;
                     }
-                    if (buf[i] == 0x01) model.uart.rx_push(0x01);
+                    if (buf[i] == 0x01) input_byte(0x01);
                     continue;
                   }
                   if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
-                  model.uart.rx_push(buf[i]);
+                  input_byte(buf[i]);
                 }
               }
             }
@@ -1271,12 +1297,12 @@ int main(int argc, char *argv[]) {
               break;
             }
             if (buf[i] == 0x01) { // Ctrl-a Ctrl-a = literal Ctrl-a
-              model.uart.rx_push(0x01);
+              input_byte(0x01);
             }
             continue;
           }
           if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
-          model.uart.rx_push(buf[i]);
+          input_byte(buf[i]);
         }
       }
     }
