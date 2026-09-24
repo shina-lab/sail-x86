@@ -98,12 +98,13 @@ function cpuid(leaf, subleaf) = {
   let sub_val : range(0, 4294967295) = unsigned(subleaf);
 
   match leaf_val {
-    // Leaf 0: Vendor string + max basic leaf.
+    // Leaf 0: Vendor string + max basic leaf (1EH with AMX, whose leaves
+    // 1DH and 1EH are valid only when MAX_LEAF reaches them).
     // We report "GenuineIntel" because system libraries (e.g. glibc)
     // select code paths based on the vendor string. Presenting as a
     // genuine Intel CPU ensures the same feature negotiation that would
     // happen on real hardware.
-    0 => (0x00000016, 0x756E6547, 0x6C65746E, 0x49656E69),
+    0 => (if has_amx_tile then 0x0000001E else 0x00000016, 0x756E6547, 0x6C65746E, 0x49656E69),
 
     // Leaf 1: Family/Model/Stepping, feature bits
     1 => {
@@ -169,6 +170,9 @@ function cpuid(leaf, subleaf) = {
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
         var edx : dword = 0x00000000;
         if has_avx512     then edx = edx | 0x00800100;  // bit 8 (AVX512_VP2INTERSECT) + bit 23 (AVX512_FP16)
+        if has_amx_bf16   then edx = edx | 0x00400000;  // bit 22 (AMX-BF16)
+        if has_amx_tile   then edx = edx | 0x01000000;  // bit 24 (AMX-TILE)
+        if has_amx_int8   then edx = edx | 0x02000000;  // bit 25 (AMX-INT8)
         // EAX: maximum sub-leaf; sub-leaf 1 exists once something is in it
         let max_sub : dword = if has_avx_vnni | has_avx512 then 0x00000001 else 0x00000000;
         (max_sub, ebx, ecx, edx)
@@ -203,8 +207,28 @@ function cpuid(leaf, subleaf) = {
       (true, 5) => (0x00000040, to_bits(32, xsave_std_offset(5)), 0x00000000, 0x00000000),
       (true, 6) => (0x00000200, to_bits(32, xsave_std_offset(6)), 0x00000000, 0x00000000),
       (true, 7) => (0x00000400, to_bits(32, xsave_std_offset(7)), 0x00000000, 0x00000000),
+      // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192 bytes)
+      // of Intel AMX; ECX[1]: 64-byte aligned in the compacted format.
+      (true, 17) => if has_amx_tile then (0x00000040, to_bits(32, xsave_std_offset(17)), 0x00000002, 0x00000000)
+                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+      (true, 18) => if has_amx_tile then (0x00002000, to_bits(32, xsave_std_offset(18)), 0x00000002, 0x00000000)
+                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
+
+    // Leaf 0x1D: AMX tile information (SDM Table 21-65, 21-66).  Sub-leaf 0
+    // gives the highest palette, 1; sub-leaf 1 describes palette 1: 8192
+    // bytes of tiles, 1024 per tile, 64 per row, 8 tile names, 16 rows.
+    29 => match (has_amx_tile, sub_val) {
+      (true, 0) => (0x00000001, 0x00000000, 0x00000000, 0x00000000),
+      (true, 1) => (0x04002000, 0x00080040, 0x00000010, 0x00000000),
+      _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+    },
+
+    // Leaf 0x1E: TMUL information (SDM Table 21-67): tmul_maxk = 16 rows,
+    // tmul_maxn = 64 column bytes.
+    30 => if has_amx_tile & sub_val == 0 then (0x00000000, 0x00004010, 0x00000000, 0x00000000)
+          else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
 
     // Leaf 0x15: Time Stamp Counter / Core Crystal Clock
     // EAX = denominator, EBX = numerator, ECX = crystal frequency (Hz)

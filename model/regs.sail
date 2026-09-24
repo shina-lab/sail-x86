@@ -586,6 +586,27 @@ register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:E
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
+register has_amx_tile  : bool  // CPUID.07H:EDX[24] — AMX tile architecture (LDTILECFG, TILELOADD, ...)
+register has_amx_int8  : bool  // CPUID.07H:EDX[25] — TDPBSSD/TDPBSUD/TDPBUSD/TDPBUUD
+register has_amx_bf16  : bool  // CPUID.07H:EDX[22] — TDPBF16PS
+
+// =========================================================================
+// Intel AMX tile state (SDM Vol.1 Chapter 19)
+//
+// Palette 1, the only non-INIT palette, has eight tiles of at most 16 rows
+// by 64 bytes (CPUID.1DH.01H).  TILECFG holds the palette, the restart row
+// of an interrupted tile load or store, and each tile's shape; a tile whose
+// rows and colsb are both zero is not valid.  TMM holds the rows, tile t
+// row r at index 16 * t + r.  TILES_CONFIGURED of the SDM is
+// tilecfg_palette != 0.  XSAVE manages TILECFG as component 17 and the
+// 8 KB of tile data as component 18.
+// =========================================================================
+
+register tilecfg_palette   : byte = 0x00
+register tilecfg_start_row : byte = 0x00
+register tilecfg_colsb     : vector(8, word)
+register tilecfg_rows      : vector(8, byte)
+register TMM               : vector(128, zmmword)
 
 // Vendor profile for the values the SDM leaves to the implementation and
 // on which the two vendors differ: the standard-format XSAVE offsets of
@@ -656,7 +677,10 @@ function enable_features_v1() = {
   has_crc32 = false;
   has_xsave = false;
   has_avx512 = false;
-  has_vmx = false
+  has_vmx = false;
+  has_amx_tile = false;
+  has_amx_int8 = false;
+  has_amx_bf16 = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -711,10 +735,16 @@ function enable_features_v4() = {
   has_avx_vnni = true
 }
 
-// All features (current default behavior, matches XCR0=0xE7)
+// Everything the model implements: x86-64-v4 plus Intel AMX (AMX-TILE,
+// AMX-INT8, AMX-BF16), whose tile state XCR0 bits 17 and 18 enable.
 val enable_features_all : unit -> unit
 function enable_features_all() = {
-  enable_features_v4()
+  enable_features_v4();
+  XCR0_SUPPORTED = XCR0_SUPPORTED | 0x0000000000060000;  // + TILECFG + TILEDATA
+  XCR0 = XCR0 | 0x0000000000060000;
+  has_amx_tile = true;
+  has_amx_int8 = true;
+  has_amx_bf16 = true
 }
 
 // =========================================================================
