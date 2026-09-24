@@ -515,7 +515,40 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK rndscale
+  // VRNDSCALEPH (08) with the four rounding modes and a scale of 2^2.
+  {
+    ArchState s = map3_state();
+    struct R { const char *name; u8 imm; } rnd[] = {
+      {"nearest", 0x00}, {"down", 0x01}, {"up", 0x02}, {"trunc", 0x03}, {"nearest/4", 0x20},
+    };
+    for (auto &r : rnd) {
+      Evex e; e.mm = 3; e.pp = 0; e.W = false; e.opcode = 0x08;
+      e.reg = 0; e.vvvv = 0; e.rm = 1;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        tests.push_back({std::string("VRNDSCALEPH ") + r.name + " " + vl_name[ll], cat,
+                         e.encode_rr_imm(r.imm), s, FL_ALL, 0, false});
+      }
+    }
+  }
+  // @@END
 
+  // @@BLOCK reduce
+  // VREDUCEPH (56) imm 0 (fraction) and 0x10 (fraction at scale 2).
+  {
+    ArchState s = map3_state();
+    for (u8 imm : {u8(0x00), u8(0x10)}) {
+      Evex e; e.mm = 3; e.pp = 0; e.W = false; e.opcode = 0x56;
+      e.reg = 0; e.vvvv = 0; e.rm = 1;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        tests.push_back({std::string("VREDUCEPH imm=") + std::to_string(imm) + " " + vl_name[ll], cat,
+                         e.encode_rr_imm(imm), s, FL_ALL, 0, false});
+      }
+    }
+  }
+  // @@END
 
   // @@BLOCK getmant
   // VGETMANTPH (26) imm 0 (interval [1,2)) and 1 ([1/2,2)); the inputs

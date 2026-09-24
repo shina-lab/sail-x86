@@ -2158,26 +2158,32 @@ u64 Model::z__f16_rsqrt(u64 a) {
   u16 r; memcpy(&r, &hr, 2); return r;
 }
 
-u64 Model::z__f16_rndscale(u64 a, u64 imm) {
-  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
-  float fa = (float)ha;
-  int rc = (int)((imm >> 2) & 3);
-  int m = (int)(imm & 0xF);
+// VRNDSCALEPH imm8 (SDM Vol. 2C, round_fp16_to_integer): imm8[7:4] is the
+// scale m, imm8[2] selects MXCSR.RC (1) or imm8[1:0] (0) as the rounding
+// direction; the result is round(2^m * src) / 2^m.
+static inline float f16_round_scaled(float fa, u64 imm, u32 mxcsr) {
+  int m = (int)((imm >> 4) & 0xF);
   float scale = exp2f((float)m);
   int saved = fegetround();
-  // imm[3:2] = rounding mode (0=RNE,1=DN,2=UP,3=TZ), imm[4]=use-imm-rc
   if (imm & 0x04) {
-    switch (rc) {
+    set_rounding((mxcsr >> 13) & 3);
+  } else {
+    switch ((int)(imm & 3)) {
     case 0: fesetround(FE_TONEAREST); break;
     case 1: fesetround(FE_DOWNWARD); break;
     case 2: fesetround(FE_UPWARD); break;
     case 3: fesetround(FE_TOWARDZERO); break;
     }
-  } else {
-    SYNC_MXCSR_RC();
   }
   float fr = nearbyintf(fa * scale) / scale;
   fesetround(saved);
+  return fr;
+}
+
+u64 Model::z__f16_rndscale(u64 a, u64 imm) {
+  _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
+  float fa = (float)ha;
+  float fr = f16_round_scaled(fa, imm, mxcsr_state.mxcsr);
   _Float16 hr = (_Float16)fr;
   u16 r; memcpy(&r, &hr, 2); return r;
 }
@@ -2226,13 +2232,13 @@ u64 Model::z__f16_getmant(u64 a, u64 imm) {
   return (u16)((dst_sign << 15) | ((unsigned)dst_exp << 10) | frac);
 }
 
+// VREDUCEPH (SDM Vol. 2C): m := imm8[7:4], rc := imm8[1:0], rc_source :=
+// imm8[2]; DEST := src - round(2^m * src) / 2^m, the same imm8 layout as
+// VRNDSCALEPH.
 u64 Model::z__f16_reduce(u64 a, u64 imm) {
   _Float16 ha; u16 ua = (u16)a; memcpy(&ha, &ua, 2);
   float fa = (float)ha;
-  int m = (int)(imm & 0xF);
-  float scale = exp2f((float)m);
-  SYNC_MXCSR_RC();
-  float rounded = nearbyintf(fa * scale) / scale;
+  float rounded = f16_round_scaled(fa, imm, mxcsr_state.mxcsr);
   float fr = fa - rounded;
   _Float16 hr = (_Float16)fr;
   u16 r; memcpy(&r, &hr, 2); return r;
