@@ -316,6 +316,46 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   // @@END
 
 
+  // @@BLOCK conv_narrow
+  // Conversions to FP16 whose result is narrower than the source vector:
+  // FP32 -> FP16 (VCVTPS2PHX 66.MAP5.W0 1D), FP64 -> FP16 (VCVTPD2PH
+  // 66.MAP5.W1 5A), int32 -> FP16 (VCVTDQ2PH NP.MAP5.W0 5B).  The merging
+  // variants check that the bits above the result are zeroed.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    float f[16] = {1.5f, -2.7f, 3.0f, 100.9f, -0.5f, 255.1f, 0.0f, -1.0f,
+                   70000.0f, 1e-8f, 0.1f, 65519.0f, 65520.0f, 3.14159f, -1e30f, 2.0f};
+    memcpy(s.xmm[1].q, f, 64);
+    sentinel(s.xmm[0]);
+    Evex e; e.mm = 5; e.pp = 1; e.W = false; e.opcode = 0x1D;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    add_evex_rr_tests(tests, cat, "VCVTPS2PHX", e, s, 0x2, 0xAAAA);
+  }
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    double d[8] = {1.5, -2.7, 3.0, 100.9, -0.5, 255.1, 1e-9, 70000.0};
+    memcpy(s.xmm[1].q, d, 64);
+    sentinel(s.xmm[0]);
+    Evex e; e.mm = 5; e.pp = 1; e.W = true; e.opcode = 0x5A;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    add_evex_rr_tests(tests, cat, "VCVTPD2PH", e, s, 0x2, 0xAAAA);
+  }
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    int32_t d[16] = {0, 1, -1, 7, -1000, 2048, 2049, 65504, 70000, -70000, 100000, 12345, 3, -3, 4096, 4097};
+    memcpy(s.xmm[1].q, d, 64);
+    sentinel(s.xmm[0]);
+    Evex e; e.mm = 5; e.pp = 0; e.W = false; e.opcode = 0x5B;
+    e.reg = 0; e.vvvv = 0; e.rm = 1;
+    add_evex_rr_tests(tests, cat, "VCVTDQ2PH", e, s, 0x2, 0xAAAA);
+  }
+  // @@END
 
   // @@BLOCK cvtsh2ss
   // VCVTSH2SS NP.MAP6.W0 13: dst = src1[127:32] : f32(src2 half), under
