@@ -1039,7 +1039,54 @@ done:
   return state;
 }
 
-std::vector<TestCase> build_tests() {
+// The templates, in suite order.  Each is a kvm-tests-*.cpp file; the name
+// identifies the file a case came from in the KVM_LIST output.
+struct Template {
+  const char *file;
+  void (*add)(std::vector<TestCase> &);
+};
+static const Template TEMPLATES[] = {
+  {"kvm-tests-baseline.cpp", add_baseline_tests},
+  {"kvm-tests-sse.cpp", add_sse_tests},
+  {"kvm-tests-misc.cpp", add_misc_instruction_tests},
+  {"kvm-tests-x87-avx.cpp", add_x87_avx_tests},
+  {"kvm-tests-fp-edge.cpp", add_fp_edge_tests},
+  {"kvm-tests-encoding.cpp", add_encoding_tests},
+  {"kvm-tests-alu.cpp", add_systematic_tests},
+  {"kvm-tests-exception.cpp", add_exception_tests},
+  {"kvm-tests-mmx.cpp", add_mmx_tests},
+  {"kvm-tests-features.cpp", add_feature_tests},
+  {"kvm-tests-compat.cpp", add_compat_tests},
+  {"kvm-tests-xsave.cpp", add_xsave_tests},
+  {"kvm-tests-avx-fp.cpp", add_avx_fp_tests},
+  {"kvm-tests-avx-int.cpp", add_avx_int_tests},
+  {"kvm-tests-avx-shift.cpp", add_avx_shift_tests},
+  {"kvm-tests-avx-fma.cpp", add_avx_fma_tests},
+  {"kvm-tests-avx-scalar.cpp", add_avx_scalar_tests},
+  {"kvm-tests-avx-narrow.cpp", add_avx_narrow_tests},
+  {"kvm-tests-avx-cmp.cpp", add_avx_cmp_tests},
+  {"kvm-tests-avx-perm.cpp", add_avx_perm_tests},
+  {"kvm-tests-avx-conv.cpp", add_avx_conv_tests},
+  {"kvm-tests-avx-special.cpp", add_avx_special_tests},
+  {"kvm-tests-avx-mov.cpp", add_avx_mov_tests},
+  {"kvm-tests-avx-vex.cpp", add_avx_vex_only_tests},
+  {"kvm-tests-avx-hi16.cpp", add_avx_hi16_tests},
+  {"kvm-tests-system.cpp", add_system_tests},
+  // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
+  // without it every case would report #UD from KVM.  Kept last so the
+  // suite order is the same on hosts with and without it.
+  {"kvm-tests-avx-fp16.cpp", add_avx_fp16_tests},
+};
+
+static bool host_has_avx512_fp16() {
+  u32 a, b, c, d;
+  __cpuid_count(7, 0, a, b, c, d);
+  return d & (1u << 23);
+}
+
+// Constructs the suite.  If `origins` is given, it receives, per case, the
+// template file the case came from.
+std::vector<TestCase> build_tests(std::vector<const char *> *origins = nullptr) {
   std::vector<TestCase> tests;
 
   // Rebuild the inputs rather than replacing zero-valued fields afterward:
@@ -1047,42 +1094,14 @@ std::vector<TestCase> build_tests() {
   for (u64 fill : {u64(0), ~u64(0)}) {
     initial_register_fill = fill;
     size_t first = tests.size();
-    add_baseline_tests(tests);
-    add_sse_tests(tests);
-    add_misc_instruction_tests(tests);
-    add_x87_avx_tests(tests);
-    add_fp_edge_tests(tests);
-    add_encoding_tests(tests);
-    add_systematic_tests(tests);
-    add_exception_tests(tests);
-
-    add_mmx_tests(tests);
-    add_feature_tests(tests);
-    add_compat_tests(tests);
-    add_xsave_tests(tests);
-    add_avx_fp_tests(tests);
-    add_avx_int_tests(tests);
-    add_avx_shift_tests(tests);
-    add_avx_fma_tests(tests);
-    add_avx_scalar_tests(tests);
-    add_avx_narrow_tests(tests);
-    add_avx_cmp_tests(tests);
-    add_avx_perm_tests(tests);
-    add_avx_conv_tests(tests);
-    add_avx_special_tests(tests);
-    add_avx_mov_tests(tests);
-    add_avx_vex_only_tests(tests);
-    add_avx_hi16_tests(tests);
-    add_system_tests(tests);
-    // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
-    // without it every case would report #UD from KVM.
-    {
-      u32 a, b, c, d;
-      __cpuid_count(7, 0, a, b, c, d);
-      if (d & (1u << 23))
-        add_avx_fp16_tests(tests);
-      else if (fill == 0)
-        fprintf(stderr, "AVX-512 FP16 templates skipped: host lacks the extension\n");
+    for (const Template &t : TEMPLATES) {
+      if (t.add == add_avx_fp16_tests && !host_has_avx512_fp16()) {
+        if (fill == 0)
+          fprintf(stderr, "AVX-512 FP16 templates skipped: host lacks the extension\n");
+        continue;
+      }
+      t.add(tests);
+      if (origins) origins->resize(tests.size(), t.file);
     }
     for (size_t i = first; i < tests.size(); i++)
       tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
@@ -1092,12 +1111,68 @@ std::vector<TestCase> build_tests() {
   return tests;
 }
 
+// KVM_LIST=<path>: write one tab-separated line per constructed case and
+// exit without creating a VM or running the model.  The set of cases is the
+// one this host would run: templates consult CPUID while constructing, so
+// a case a host cannot run (AVX-512 FP16, VAES, AVX-VNNI, ...) is never
+// constructed rather than skipped later.  The header comments record the
+// host so a listing can be told apart from one made elsewhere.
+static int list_tests(const char *path) {
+  std::vector<const char *> origins;
+  auto tests = build_tests(&origins);
+  FILE *out = strcmp(path, "-") == 0 ? stdout : fopen(path, "w");
+  if (!out) {
+    fprintf(stderr, "KVM_LIST: cannot open %s: %s\n", path, strerror(errno));
+    return 1;
+  }
+  u32 a, b, c, d;
+  char vendor[13] = {};
+  __get_cpuid(0, &a, &b, &c, &d);
+  memcpy(vendor + 0, &b, 4);
+  memcpy(vendor + 4, &d, 4);
+  memcpy(vendor + 8, &c, 4);
+  fprintf(out, "# kvm_harness case listing: %zu cases (%zu per register fill)\n",
+          tests.size(), tests.size() / 2);
+  fprintf(out, "# host vendor: %s; AVX-512 FP16 templates: %s\n", vendor,
+          host_has_avx512_fp16() ? "included" : "absent (host lacks the extension)");
+  fprintf(out, "template\tfill\tcategory\tname\tcode\tcompat_mode\texpect_fault\t"
+               "expected_vector\tinit_data_len\tcompare_data_len\tenable_paging\t"
+               "system_mode\tflags_mask\tcmp_mxcsr\tapprox\tmsrs\txcr0_override\t"
+               "cr4_override\n");
+  for (size_t i = 0; i < tests.size(); i++) {
+    const TestCase &tc = tests[i];
+    // The fill is the suffix build_tests appended; print it as its own
+    // column and strip it from the name.
+    std::string name = tc.name;
+    const char *fill = "zero";
+    if (size_t p = name.rfind(" [initial fill="); p != std::string::npos) {
+      if (name.compare(p, std::string::npos, " [initial fill=ones]") == 0) fill = "ones";
+      name.erase(p);
+    }
+    for (char &ch : name)
+      if (ch == '\t' || ch == '\n') ch = ' ';
+    fprintf(out, "%s\t%s\t%s\t%s\t", origins[i], fill, tc.category.c_str(), name.c_str());
+    for (u8 byte : tc.code) fprintf(out, "%02x", byte);
+    fprintf(out, "\t%d\t%d\t%d\t%zu\t%zu\t%d\t%d\t%#lx\t%d\t%d\t%zu\t%#lx\t%#lx\n",
+            tc.compat_mode, tc.expect_fault, tc.expected_vector, tc.init_data.size(),
+            tc.compare_data_len, tc.enable_paging, tc.system_mode, tc.flags_mask,
+            tc.cmp_mxcsr, tc.approx_rel_tol != 0 || tc.approx_result_bits != 0,
+            tc.msrs.size(), tc.xcr0_override, tc.cr4_override);
+  }
+  if (out != stdout) fclose(out);
+  fprintf(stderr, "listed %zu cases to %s\n", tests.size(), path);
+  return 0;
+}
+
 
 
 int main(int argc, char **argv) {
   const char *filter = argc > 1 ? argv[1] : nullptr;
 
   print_host_identity();
+
+  if (const char *path = getenv("KVM_LIST"))
+    return list_tests(path);
 
   auto vm = std::make_unique<KvmVm>();
   if (!vm->init()) {
