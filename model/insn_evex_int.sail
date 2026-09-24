@@ -237,18 +237,33 @@ function dispatch_evex_int(op, pfx) = {
   // 0F 76: VPCMPEQD → kmask (66, EVEX, W0) — supports m32bcst
   118 => { if mp != MP_66 then raise_UD(); evex_exec_cmp_mask_bcast(CMP_EQ, 32, pfx) },
 
-  // 0F 7E: VMOVD (66, W=0) / VMOVQ (66, W=1) — store from XMM to GPR/mem
+  // 0F 7E: VMOVD (66, W=0) / VMOVQ (66, W=1) — store from XMM to GPR/mem;
+  //        VMOVQ xmm1, xmm2/m64 (F3, W1) — load the low quadword
   126 => {
-    if mp != MP_66 then raise_UD();
-    let modrm = fetch(1);
-    let src = evex_reg_idx(modrm, pfx);
-    let dest = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    let src_xmm : xmmword = read_simd(src);
-    match (dest, pfx.rex_w) {
-      (RM_reg(r), true) => v(r) = src_xmm[63..0],
-      (RM_mem(m), true)   => v(m) = src_xmm[63..0],
-      (RM_reg(r), false) => v(r) = src_xmm[31..0],
-      (RM_mem(m), false)  => v(m) = src_xmm[31..0],
+    if mp == MP_F3 then {
+      // EVEX.128.F3.0F.W1 7E /r (SDM Vol.2B MOVQ): DEST[63:0] := SRC[63:0],
+      // DEST[MAXVL-1:64] := 0.  Tuple1 Scalar; no opmask operand, so
+      // EVEX.aaa must be 0 (Table 2-42), and EVEX.vvvv must be 1111b.
+      if ~(pfx.rex_w) | pfx.evex_aaa != 0 | pfx.evex_vvvvv != 0 then raise_UD();
+      let modrm = fetch(1);
+      let dst = evex_reg_idx(modrm, pfx);
+      let q : qword = match modrm_xrm_evex(modrm, pfx, 8) {
+        XRM_reg(xi) => read_simd(128, xi)[63..0],
+        XRM_mem(m)  => v(m),
+      };
+      ZMM[dst] = zero_extend(q)
+    } else {
+      if mp != MP_66 then raise_UD();
+      let modrm = fetch(1);
+      let src = evex_reg_idx(modrm, pfx);
+      let dest = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+      let src_xmm : xmmword = read_simd(src);
+      match (dest, pfx.rex_w) {
+        (RM_reg(r), true) => v(r) = src_xmm[63..0],
+        (RM_mem(m), true)   => v(m) = src_xmm[63..0],
+        (RM_reg(r), false) => v(r) = src_xmm[31..0],
+        (RM_mem(m), false)  => v(m) = src_xmm[31..0],
+      }
     }
   },
 

@@ -199,6 +199,32 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
       add_vok_st("VMOVQ [rdi],xmm (66.W1) misaligned", v.encode_rm_mem());
     }
     add_vok_st("VMOVQ [rdi],xmm (D6) misaligned", vex_ld(1, 0xD6, false));
+    // VMOVQ xmm1, xmm2/m64, EVEX.128.F3.0F.W1 7E /r (SDM MOVQ): the low
+    // quadword is copied and bits MAXVL-1:64 zeroed (the all-ones
+    // background of the second run shows the zeroing).  Without an
+    // opmask operand EVEX.aaa must be 0, and EVEX.vvvv 1111b: #UD.
+    {
+      ArchState q = {};
+      q.xmm[1] = xmm_from_u64(0x0F1E2D3C4B5A6978ULL, 0x8796A5B4C3D2E1F0ULL);
+      Evex e; e.mm = 1; e.pp = 2; e.W = true; e.opcode = 0x7E;
+      e.reg = 0; e.vvvv = 0; e.rm = 1; e.LL = 0; e.aaa = 0; e.z = false;
+      tests.push_back({"VMOVQ xmm0,xmm1 (EVEX F3 7E)", cat, e.encode_rr(), q, FL_ALL, 0x3, false});
+      ArchState h = {};
+      h.xmm[21] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+      e.reg = 18; e.rm = 21;
+      tests.push_back({"VMOVQ xmm18,xmm21 (EVEX F3 7E)", cat, e.encode_rr(), h, FL_ALL, 0, false});
+      e.reg = 3; e.rm = 0;
+      add_vok("VMOVQ xmm3,[rdi] (EVEX F3 7E) misaligned", e.encode_rm_mem());
+      auto ud = [&](const std::string &name, std::vector<u8> code) {
+        TestCase tc; tc.name = name; tc.category = cat; tc.code = std::move(code);
+        tc.expect_fault = true; tc.expected_vector = 6;
+        tests.push_back(std::move(tc));
+      };
+      e.reg = 0; e.rm = 1; e.aaa = 1;
+      ud("VMOVQ xmm0,xmm1 {k1} (EVEX F3 7E, no opmask operand → #UD)", e.encode_rr());
+      e.aaa = 0; e.vvvv = 5;
+      ud("VMOVQ xmm0,xmm1 (EVEX F3 7E, vvvv != 1111b → #UD)", e.encode_rr());
+    }
     // VEX VMOVLPS/LPD/HPS/HPD — no alignment
     {
       auto vex_vvvv = [](int pp, u8 op) {
