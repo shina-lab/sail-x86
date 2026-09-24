@@ -130,10 +130,10 @@ function cpuid(leaf, subleaf) = {
       if has_f16c       then ecx = ecx | 0x20000000;  // bit 29
       if has_rdrand     then ecx = ecx | 0x40000000;  // bit 30
 
-      // EDX: baseline features (FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8,
+      // EDX: baseline features (FPU, VME, DE, PSE, TSC, MSR, PAE, MCE, CX8,
       //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
       //       MMX, FXSR, SSE, SSE2)
-      let edx : dword = 0x078BFBFD;
+      let edx : dword = 0x078BFBFF;
       (eax, ebx, ecx, edx)
     },
 
@@ -487,6 +487,9 @@ function exec_umonitor(r, pfx) = {
 
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
+  // Descriptor-query/task-register instructions are not recognized in
+  // virtual-8086 mode (SDM Vol.2 SLDT/STR/LLDT/LTR/VERR/VERW/LAR/LSL).
+  if cur_mode == Virtual8086Mode & (op == 0 | op == 2 | op == 3) then raise_UD();
   match op {
     // 0F 00: Group 6 (SLDT, STR, LLDT, LTR, VERR, VERW)
     0 => {

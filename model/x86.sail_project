@@ -16,6 +16,7 @@ core {
     paging.sail,
     mem.sail,
     interrupts.sail,
+    vm86.sail,
     vmx_vmcs.sail,
 }
 

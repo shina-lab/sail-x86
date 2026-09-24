@@ -15,12 +15,14 @@ register TF : bit  // Trap Flag
 register IOPL : bits(2)  // I/O Privilege Level
 register NT : bit  // Nested Task
 register RF : bit  // Resume Flag
+register VIF : bit = 0b0 // Virtual Interrupt Flag
+register VIP : bit = 0b0 // Virtual Interrupt Pending
 register ID : bit  // ID Flag (CPUID available if toggleable)
 register AC_flag : bit // Alignment Check flag
 
 // Pack individual flags into a 64-bit RFLAGS value.
 // Bits: 0=CF, 1=1(reserved), 2=PF, 4=AF, 6=ZF, 7=SF, 8=TF, 9=IF, 10=DF,
-//       11=OF, 13:12=IOPL, 14=NT, 16=RF, 17=VM, 18=AC, 21=ID
+//       11=OF, 13:12=IOPL, 14=NT, 16=RF, 17=VM, 18=AC, 19=VIF, 20=VIP, 21=ID
 val read_rflags : unit -> qword
 function read_rflags() = {
   var r : qword = zeros();
@@ -37,14 +39,17 @@ function read_rflags() = {
   r[13..12] = IOPL;
   r[14] = NT;
   r[16] = RF;
+  r[17] = if cur_mode == Virtual8086Mode then bitone else bitzero;
   r[18] = AC_flag;
+  r[19] = VIF;
+  r[20] = VIP;
   r[21] = ID;
   r
 }
 
 // Write all individual flags from a packed RFLAGS value.
 // This sets CF, PF, AF, ZF, SF, TF, IF, DF, OF, IOPL, NT, AC, ID.
-// RF and VM are NOT set (they have special handling).
+// RF, VM, VIF and VIP are NOT set (they have special handling).
 val write_rflags : qword -> unit
 function write_rflags(v) = {
   CF      = v[0];

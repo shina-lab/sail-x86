@@ -905,6 +905,82 @@ TEST(msr_bitmap) {
 
 // =========================================================================
 
+static void setup_vm86_guest(x86::Model &model) {
+  static const u8 cpuid[] = {0x0f, 0xa2};
+  setup_guest_vmcs(model, cpuid, sizeof(cpuid));
+  auto &v = model.zvmcs;
+  v.zguest_cr0 = 0x21; // PE, NE; unrestricted guest without paging
+  v.zguest_cr4 = 0x2000;
+  v.zguest_efer = 0;
+  v.zentry_controls = 0;
+  v.zprimary_proc_controls = 1U << 31;
+  v.zsecondary_proc_controls = 1U << 7;
+  v.zguest_rip = 0x100;
+  v.zguest_rsp = 0x8000;
+  v.zguest_rflags = 2 | (1U << 17) | (1U << 19) | (1U << 20);
+  v.zguest_cs_selector = 0x2000;
+  v.zguest_cs_base = 0x20000;
+  v.zguest_cs_limit = 0xffff;
+  v.zguest_cs_access = 0xf3;
+  v.zguest_ss_selector = v.zguest_ds_selector = v.zguest_es_selector = 0;
+  v.zguest_fs_selector = v.zguest_gs_selector = 0;
+  v.zguest_ss_base = v.zguest_ds_base = v.zguest_es_base = 0;
+  v.zguest_fs_base = v.zguest_gs_base = 0;
+  v.zguest_ss_limit = v.zguest_ds_limit = v.zguest_es_limit = 0xffff;
+  v.zguest_fs_limit = v.zguest_gs_limit = 0xffff;
+  v.zguest_ss_access = v.zguest_ds_access = v.zguest_es_access = 0xf3;
+  v.zguest_fs_access = v.zguest_gs_access = 0xf3;
+  model.phys_mem.write_bytes(0x20100, cpuid, sizeof(cpuid));
+}
+
+TEST(vm86_guest_entry_and_exit) {
+  x86::Model model;
+  init_vmx_model(model);
+  setup_vm86_guest(model);
+  const u64 flags = model.zvmcs.zguest_rflags;
+  static const u8 launch[] = {0x0f, 0x01, 0xc2};
+  model.phys_mem.write_bytes(CODE_ADDR, launch, sizeof(launch));
+  model.zRIP = CODE_ADDR;
+  model.zsystem_state = x86::zSysRunning;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ(model.zin_vmx_non_root, true);
+  ASSERT_EQ(model.zcur_mode, x86::zVirtual8086Mode);
+  ASSERT_EQ(model.zcur_cpl, 3L);
+  ASSERT_EQ((u64)model.zRIP, 0x100UL);
+  ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+
+  model.zstep(UNIT); // CPUID exits to the 64-bit host.
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ(model.zin_vmx_non_root, false);
+  ASSERT_EQ(model.zcur_mode, x86::zLongMode);
+  ASSERT_EQ(model.zcur_cpl, 0L);
+  ASSERT_EQ((u64)model.zvmcs.zexit_reason, 0xaUL);
+  ASSERT_EQ((u64)model.zvmcs.zguest_rflags, flags);
+  ASSERT_EQ((u64)model.zvmcs.zguest_cs_access, 0xf3UL);
+  ASSERT_EQ((u64)model.zread_rflags(UNIT), 2UL);
+  ASSERT_EQ((u64)model.zRIP, CODE_ADDR + 3);
+  model.model_fini();
+}
+
+TEST(vm86_guest_segment_checks) {
+  x86::Model model;
+  init_vmx_model(model);
+  setup_vm86_guest(model);
+  ASSERT_EQ(model.zcheck_vmentry_guest_state(UNIT), true);
+  model.zvmcs.zguest_cs_base = 0;
+  ASSERT_EQ(model.zcheck_vmentry_guest_state(UNIT), false);
+  model.zvmcs.zguest_cs_base = 0x20000;
+  model.zvmcs.zguest_ss_limit = 0xffffffff;
+  ASSERT_EQ(model.zcheck_vmentry_guest_state(UNIT), false);
+  model.zvmcs.zguest_ss_limit = 0xffff;
+  model.zvmcs.zguest_ds_access = 0x40f3; // 32-bit default is invalid.
+  ASSERT_EQ(model.zcheck_vmentry_guest_state(UNIT), false);
+  model.zvmcs.zguest_ds_access = 0xf3;
+  ASSERT_EQ(model.zcheck_vmentry_guest_state(UNIT), true);
+  model.model_fini();
+}
+
 int main() {
   printf("VMX tests:\n");
   run_test_vmxon_basic();
@@ -921,6 +997,8 @@ int main() {
   run_test_io_exit();
   run_test_vmresume();
   run_test_msr_bitmap();
+  run_test_vm86_guest_entry_and_exit();
+  run_test_vm86_guest_segment_checks();
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed > 0 ? 1 : 0;
 }

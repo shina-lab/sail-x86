@@ -83,6 +83,8 @@ void clone_cpu_state(x86::Model &child, const x86::Model &parent) {
   child.zIOPL = parent.zIOPL;
   child.zNT = parent.zNT;
   child.zRF = parent.zRF;
+  child.zVIF = parent.zVIF;
+  child.zVIP = parent.zVIP;
   child.zID = parent.zID;
   child.zAC_flag = parent.zAC_flag;
 

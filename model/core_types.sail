@@ -12,6 +12,7 @@ type address_size = {16, 32, 64}
 enum ProcessorMode = {
   RealMode,
   ProtectedMode,
+  Virtual8086Mode,
   CompatibilityMode,
   LongMode,
 }
@@ -126,4 +127,3 @@ let EXN_MF  : exception_vector = 16  // x87 FPU Error
 let EXN_AC  : exception_vector = 17  // Alignment Check
 let EXN_MC  : exception_vector = 18  // Machine Check
 let EXN_XM  : exception_vector = 19  // SIMD Floating-Point
- 

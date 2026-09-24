@@ -50,6 +50,7 @@ static void dump_bits_hex(FILE *out, const Bits &bits, int n_words) {
 static void dump_registers(FILE *out, u64 insn_count, const x86::Model &model) {
   const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                          (model.zcur_mode == x86::zProtectedMode) ? "P" :
+                         (model.zcur_mode == x86::zVirtual8086Mode) ? "V" :
                          (model.zcur_mode == x86::zRealMode) ? "R" : "C";
   if (model.zcur_mode == x86::zLongMode) {
     fprintf(out, "[%lu] RIP=%016lx mode=%s\n",
