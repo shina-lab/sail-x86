@@ -164,6 +164,10 @@ function dispatch_evex_int(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let mp = get_mandatory_prefix(pfx);
     let vl = evex_vl(pfx);
+    // SDM MOVDQA,VMOVDQA32/64: a memory operand must be aligned on a 16
+    // (EVEX.128)/32 (EVEX.256)/64 (EVEX.512) byte boundary or #GP is
+    // generated; the F3/F2 forms are VMOVDQU* and have no such rule.
+    match (mp, src) { (MP_66, XRM_mem(m)) => check_alignment(m, vl / 8), _ => () };
     let s = evex_src(vl, src);
     // Element size depends on prefix: F2→byte/word, others→dword/qword
     match mp {
@@ -193,6 +197,8 @@ function dispatch_evex_int(op, pfx) = {
           if pfx.has_repne then (if pfx.rex_w then 2 else 1)
           else (if pfx.rex_w then 8 else 4);
         let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
+        // SDM MOVDQA,VMOVDQA32/64 (66 prefix): #GP unless aligned to the operand size
+        if get_mandatory_prefix(pfx) == MP_66 then check_alignment(m, nbytes);
         evex_masked_mem_store(m, ZMM[src], mask, nbytes, elem_size)
       },
     }
@@ -250,12 +256,14 @@ function dispatch_evex_int(op, pfx) = {
   218 => { if mp != MP_66 then raise_UD(); evex_exec_binop(PB_MinU, 8, pfx) },
 
   // 0F E7: VMOVNTDQ (66, EVEX) — non-temporal store (we just do a regular store)
+  // SDM MOVNTDQ: the operand must be aligned on a 16-byte (128-bit), 32-byte
+  // (256-bit) or 64-byte (512-bit) boundary, otherwise #GP.
   231 => {
     if mp != MP_66 then raise_UD();
     let (src, dest) = fetch_modrm_evex(pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     match dest {
-      XRM_mem(m) => write_mem(seg_linear(m, 64), read_simd(vl, src)),
+      XRM_mem(m) => { check_alignment(m, vl / 8); write_mem(seg_linear(m, 64), read_simd(vl, src)) },
       _ => raise_UD(),
     }
   },

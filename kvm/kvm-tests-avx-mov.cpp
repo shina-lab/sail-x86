@@ -323,4 +323,174 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     ew.LL = 0; ew.aaa = 0; ew.z = false;
     tests.push_back({"VPINSRW xmm0,xmm1,eax,3", cat, ew.encode_rr_imm(3), s, FL_ALL, 0x3, false});
   }
+
+  // =====================================================================
+  // EVEX stores and extracts:
+  //   VMOVLPS/VMOVLPD m64, xmm   EVEX.LLIG.0F.W0 13 / EVEX.LLIG.66.0F.W1 13
+  //   VMOVHPS/VMOVHPD m64, xmm   EVEX.LLIG.0F.W0 17 / EVEX.LLIG.66.0F.W1 17
+  //   VMOVNTPS/VMOVNTPD m, v     EVEX.0F.W0 2B / EVEX.66.0F.W1 2B (aligned)
+  //   VMOVNTDQ m, v              EVEX.66.0F.W0 E7 (aligned)
+  //   VMOVQ xmm/m64, xmm         EVEX.128.66.0F.W1 D6
+  //   VMOVNTDQA v, m             EVEX.66.0F38.W0 2A (aligned load)
+  //   VPEXTRW r32, xmm, imm8     EVEX.128.66.0F.WIG C5
+  //   VPEXTRW r32/m16, xmm, imm8 EVEX.128.66.0F3A.WIG 15
+  //   VEXTRACTPS r32/m32, xmm, imm8  EVEX.128.66.0F3A.WIG 17
+  // A store compares a 128-byte window, so a store of the wrong width shows
+  // up whether it is too short or too long.
+  // =====================================================================
+  {
+    ArchState src = {.rdi = DATA_ADDR};
+    for (int i = 0; i < 64; i++) ((u8 *)src.xmm[1].q)[i] = 0x40 + i;
+    ArchState reg_only = with_vector_inputs(src, 0x2);
+    reg_only.rdi = initial_register_fill;
+    std::vector<u8> fill(128, 0xCC);
+
+    auto add_store = [&](const std::string &name, std::vector<u8> code) {
+      TestCase tc; tc.name = name; tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = with_vector_inputs(src, 0x2);
+      tc.init_data = fill; tc.compare_data_len = 128;
+      tests.push_back(std::move(tc));
+    };
+    auto add_store_fault = [&](const std::string &name, std::vector<u8> code) {
+      TestCase tc; tc.name = name; tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = with_vector_inputs(src, 0x2);
+      tc.initial.rdi = DATA_ADDR + 1;
+      tc.expect_fault = true; tc.expected_vector = 13;
+      tc.init_data = fill;
+      tests.push_back(std::move(tc));
+    };
+    const char *vl_name[] = {"xmm", "ymm", "zmm"};
+
+    auto add_ud = [&](const std::string &name, std::vector<u8> code) {
+      TestCase tc; tc.name = name; tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = with_vector_inputs(src, 0x2);
+      tc.expect_fault = true; tc.expected_vector = 6;
+      tc.init_data = fill;
+      tests.push_back(std::move(tc));
+    };
+
+    // VMOVLPS / VMOVLPD / VMOVHPS / VMOVHPD stores are EVEX.128 only; the
+    // SDM (MOVLPS, MOVHPS) makes EVEX.L'L = 1 #UD.
+    for (int hi = 0; hi <= 1; hi++) {
+      Evex e; e.mm = 1; e.opcode = hi ? 0x17 : 0x13; e.reg = 1;
+      std::string ps = hi ? "VMOVHPS" : "VMOVLPS", pd = hi ? "VMOVHPD" : "VMOVLPD";
+      e.pp = 0; e.W = false;
+      e.LL = 0; add_store(ps + " [rdi],xmm1", e.encode_mr_mem());
+      e.LL = 1; add_ud(ps + " [rdi],xmm1 with L'L=1 #UD", e.encode_mr_mem());
+      e.pp = 1; e.W = true;
+      e.LL = 0; add_store(pd + " [rdi],xmm1", e.encode_mr_mem());
+      e.LL = 1; add_ud(pd + " [rdi],xmm1 with L'L=1 #UD", e.encode_mr_mem());
+    }
+
+    // The EVEX aligned moves share the alignment rule of the non-temporal
+    // stores: VMOVAPS/VMOVAPD (28/29) and VMOVDQA32/64 (66 0F 6F/7F).
+    {
+      struct { const char *name; int pp; bool W; u8 load, store; } al[] = {
+        {"VMOVAPS", 0, false, 0x28, 0x29},
+        {"VMOVAPD", 1, true,  0x28, 0x29},
+        {"VMOVDQA32", 1, false, 0x6F, 0x7F},
+        {"VMOVDQA64", 1, true,  0x6F, 0x7F},
+      };
+      for (auto &a : al) {
+        for (int ll = 0; ll <= 2; ll++) {
+          Evex e; e.mm = 1; e.pp = a.pp; e.W = a.W; e.LL = ll;
+          e.opcode = a.store; e.reg = 1;
+          add_store_fault(std::format("EVEX {} [rdi+1],{}1 misaligned", a.name, vl_name[ll]), e.encode_mr_mem());
+          e.opcode = a.load; e.reg = 0;
+          TestCase f; f.category = cat;
+          f.name = std::format("EVEX {} {}0,[rdi+1] misaligned", a.name, vl_name[ll]);
+          f.code = e.encode_rm_mem();
+          f.initial = {.rdi = DATA_ADDR + 1};
+          f.expect_fault = true; f.expected_vector = 13;
+          f.init_data = fill;
+          tests.push_back(std::move(f));
+        }
+      }
+    }
+
+    // Non-temporal stores at every vector length, plus the alignment #GP.
+    struct { const char *name; int mm; int pp; bool W; u8 opcode; } nt[] = {
+      {"VMOVNTPS", 1, 0, false, 0x2B},
+      {"VMOVNTPD", 1, 1, true,  0x2B},
+      {"VMOVNTDQ", 1, 1, false, 0xE7},
+    };
+    for (auto &n : nt) {
+      Evex e; e.mm = n.mm; e.pp = n.pp; e.W = n.W; e.opcode = n.opcode; e.reg = 1;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        add_store(std::string(n.name) + " [rdi]," + vl_name[ll] + "1", e.encode_mr_mem());
+        add_store_fault(std::string(n.name) + " [rdi+1]," + vl_name[ll] + "1 misaligned", e.encode_mr_mem());
+      }
+    }
+
+    // VMOVQ xmm/m64, xmm: register form zero-extends into xmm0.
+    {
+      Evex e; e.mm = 1; e.pp = 1; e.W = true; e.opcode = 0xD6; e.reg = 1; e.rm = 0; e.LL = 0;
+      tests.push_back({"VMOVQ xmm0,xmm1 (D6)", cat, e.encode_rr(), reg_only, FL_ALL, 0, false});
+      add_store("VMOVQ [rdi],xmm1 (D6)", e.encode_mr_mem());
+    }
+
+    // VMOVNTDQA load from an aligned address; misaligned is #GP(0).
+    {
+      std::vector<u8> data(64);
+      for (int i = 0; i < 64; i++) data[i] = 0x80 + i;
+      Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x2A; e.reg = 0;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        TestCase tc; tc.category = cat;
+        tc.name = std::string("VMOVNTDQA ") + vl_name[ll] + "0,[rdi]";
+        tc.code = e.encode_rm_mem();
+        tc.initial = {.rdi = DATA_ADDR};
+        tc.init_data = data;
+        tests.push_back(std::move(tc));
+        TestCase f; f.category = cat;
+        f.name = std::string("VMOVNTDQA ") + vl_name[ll] + "0,[rdi+1] misaligned";
+        f.code = e.encode_rm_mem();
+        f.initial = {.rdi = DATA_ADDR + 1};
+        f.expect_fault = true; f.expected_vector = 13;
+        f.init_data = data;
+        tests.push_back(std::move(f));
+      }
+    }
+
+    // VPEXTRW r32, xmm1, imm8 (0F C5): only imm8[2:0] selects the word.
+    {
+      Evex e; e.mm = 1; e.pp = 1; e.W = false; e.opcode = 0xC5; e.rm = 1; e.LL = 0;
+      for (int gpr : {0, 9}) {
+        e.reg = gpr;
+        for (u8 imm : {0, 3, 7, 9}) {
+          tests.push_back({std::format("VPEXTRW {},xmm1,{} (C5)", gpr ? "r9d" : "eax", imm),
+                           cat, e.encode_rr_imm(imm), reg_only, FL_ALL, 0, false});
+        }
+      }
+    }
+
+    // VPEXTRW r32/m16, xmm1, imm8 (0F3A 15) and VEXTRACTPS r32/m32, xmm1, imm8.
+    {
+      Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x15; e.reg = 1; e.LL = 0;
+      for (int gpr : {0, 9}) {
+        e.rm = gpr;
+        for (u8 imm : {1, 6, 8}) {
+          tests.push_back({std::format("VPEXTRW {},xmm1,{} (3A 15)", gpr ? "r9d" : "eax", imm),
+                           cat, e.encode_rr_imm(imm), reg_only, FL_ALL, 0, false});
+        }
+      }
+      for (u8 imm : {0, 5})
+        add_store(std::format("VPEXTRW [rdi],xmm1,{}", imm), e.encode_rm_mem_imm(imm));
+
+      e.opcode = 0x17;
+      for (int gpr : {0, 9}) {
+        e.rm = gpr;
+        for (u8 imm : {0, 2, 3, 5}) {
+          tests.push_back({std::format("VEXTRACTPS {},xmm1,{}", gpr ? "r9d" : "eax", imm),
+                           cat, e.encode_rr_imm(imm), reg_only, FL_ALL, 0, false});
+        }
+      }
+      for (u8 imm : {1, 3})
+        add_store(std::format("VEXTRACTPS [rdi],xmm1,{}", imm), e.encode_rm_mem_imm(imm));
+    }
+  }
 }

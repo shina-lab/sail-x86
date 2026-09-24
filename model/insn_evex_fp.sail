@@ -566,10 +566,14 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 28: VMOVAPS/VMOVAPD (EVEX load)
+  // SDM MOVAPS/MOVAPD: a memory operand must be aligned on a 16 (EVEX.128),
+  // 32 (EVEX.256) or 64 (EVEX.512) byte boundary or #GP is generated.
   40 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src2 = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+    let vl = evex_vl(pfx);
+    match src2 { XRM_mem(m) => check_alignment(m, vl / 8), _ => () };
     match pfx.evex_ll {
       0 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 2), evex_src(128, src2))
              else evex_write(dst, evex_wmask(pfx, 4), evex_src(128, src2)),
@@ -602,6 +606,7 @@ function dispatch_evex_fp(op, pfx) = {
       XRM_mem(m) => {
         let elem : {4, 8} = if mp == MP_66 then 8 else 4;
         let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
+        check_alignment(m, nbytes);  // SDM MOVAPS/MOVAPD: #GP unless aligned to the operand size
         evex_masked_mem_store(m, ZMM[src], evex_kmask64(pfx), nbytes, elem)
       },
     }
@@ -635,12 +640,15 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 2B: VMOVNTPS (NP) / VMOVNTPD (66) — non-temporal store
+  // SDM MOVNTPS/MOVNTPD: the operand must be aligned on a 16-byte (128-bit),
+  // 32-byte (256-bit) or 64-byte (EVEX.512) boundary, otherwise #GP.
   43 => {
     let (src, dest) = fetch_modrm_evex(pfx, evex_full_disp_n(pfx));
     match dest {
       XRM_reg(_) => raise_UD(),
       XRM_mem(m) => {
         let vl = evex_vl(pfx);
+        check_alignment(m, vl / 8);
         write_mem(seg_linear(m, 64), read_simd(vl, src))
       },
     }

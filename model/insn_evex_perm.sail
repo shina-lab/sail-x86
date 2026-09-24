@@ -305,9 +305,11 @@ function dispatch_evex_perm(op, pfx) = {
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
       match src {
         XRM_reg(_) => raise_UD(),
-        XRM_mem(_) => {
+        XRM_mem(m) => {
           let eb = evex_elem(pfx);
           let vl = evex_vl(pfx);
+          // SDM MOVNTDQA: the 128/256/512-bit addresses must be 16/32/64-byte aligned or #GP
+          check_alignment(m, vl / 8);
           evex_write(dst, evex_wmask(pfx, vl / eb), evex_src(vl, src))
         },
       }
