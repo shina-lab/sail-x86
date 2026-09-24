@@ -129,9 +129,11 @@ function stack_addr_size() =
 // Without wrapping, SP=2 minus 4 would produce linear address SS.base-2,
 // which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
 val push : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n), bits('n)) -> unit
+val check_seg_limit : (segreg_idx, qword, int) -> unit
 function push(n, v) = {
   let sas = stack_addr_size();
   let new_sp = v(sas, RSP) - n / 8;
+  if cur_mode == Virtual8086Mode then check_seg_limit(SS, zero_extend(new_sp), n / 8);
   write_mem(get_seg_base(SS) + zero_extend(new_sp), v);
   v(RSP) = new_sp
 }
@@ -142,6 +144,7 @@ val pop : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n)) -> bits('n)
 function pop(n) = {
   let sas = stack_addr_size();
   let sp = v(sas, RSP);
+  if cur_mode == Virtual8086Mode then check_seg_limit(SS, zero_extend(sp), n / 8);
   let x : bits('n) = read_mem(get_seg_base(SS) + zero_extend(sp));
   v(RSP) = sp + n / 8;
   x
@@ -160,11 +163,22 @@ function pop(n) = {
 //    a 'hidden' part... in real-address mode, only the base is updated.")
 // In protected/compat mode: read 8-byte descriptor from GDT/LDT.
 // In long mode: just store the selector (FS/GS base set via MSR).
+// Virtual-8086 segment loads ignore descriptor tables, including selectors
+// whose low bits look like an RPL or TI. All six caches describe writable
+// 64-KByte segments at selector * 16 with DPL 3 (SDM Vol.3B §23.2).
+val load_vm86_segment : (segreg_idx, word) -> unit
+function load_vm86_segment(idx, selector) = {
+  write_segreg(idx, selector);
+  SegCache[idx] = {default_seg_desc_cache() with
+    seg_base = zero_extend(selector) << 4, seg_dpl = 3}
+}
+
 val load_segment_register : (segreg_idx, word) -> unit
 function load_segment_register(idx, selector) = {
   // Do memory reads (GDT lookup) before writing the segment register,
   // so that a fault during the GDT read leaves the segment unchanged.
   match cur_mode {
+    Virtual8086Mode => load_vm86_segment(idx, selector),
     RealMode => {
       write_segreg(idx, selector);
       SegCache[idx].seg_base = zero_extend(selector) << 4
@@ -210,7 +224,6 @@ function selector_error_code(selector) = zero_extend(selector & 0xFFFC)
 // Only checks in non-long mode; 64-bit mode disables limit checking for
 // CS/DS/ES/SS (SDM Vol.3A §6.3.1).
 // For expand-up segments: offset + size - 1 <= effective_limit.
-val check_seg_limit : (segreg_idx, qword, int) -> unit
 function check_seg_limit(seg, offset, access_size) = {
   if cur_mode != LongMode then {
     let limit : dword = SegCache[seg].seg_limit;
@@ -336,7 +349,7 @@ function read_descriptor(selector) = {
 // far transfers have their own checks.
 val load_data_segment_register : (segreg_idx, word) -> unit
 function load_data_segment_register(idx, selector) = {
-  if cur_mode == RealMode then load_segment_register(idx, selector)
+  if cur_mode == RealMode | cur_mode == Virtual8086Mode then load_segment_register(idx, selector)
   else {
     let rpl : range(0, 3) = unsigned(selector[1..0]);
     let null_selector : bool = selector[15..2] == zeros();
@@ -455,7 +468,8 @@ function finish_far_transfer(desc, selector, offset, os) = {
 // Execute far JMP: load CS:RIP from selector:offset.
 val exec_far_jmp : (word, qword, {16, 32, 64}) -> unit
 function exec_far_jmp(selector, offset, os) = match cur_mode {
-  RealMode => {
+  m if m == RealMode | m == Virtual8086Mode => {
+    if cur_mode == Virtual8086Mode & os == 32 & unsigned(offset[31..0]) > 65535 then raise_GP0();
     load_segment_register(CS, selector);
     next_rip = Some(match os {
       16 => zero_extend(offset[15..0]),
@@ -470,7 +484,8 @@ function exec_far_jmp(selector, offset, os) = match cur_mode {
 // a fault does not modify the stack.
 val exec_far_call : (word, qword, {16, 32, 64}) -> unit
 function exec_far_call(selector, offset, os) = match cur_mode {
-  RealMode => {
+  m if m == RealMode | m == Virtual8086Mode => {
+    if cur_mode == Virtual8086Mode & os == 32 & unsigned(offset[31..0]) > 65535 then raise_GP0();
     match os {
       16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
       _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),

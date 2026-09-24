@@ -487,6 +487,9 @@ function exec_umonitor(r, pfx) = {
 
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
+  // Descriptor-query/task-register instructions are not recognized in
+  // virtual-8086 mode (SDM Vol.2 SLDT/STR/LLDT/LTR/VERR/VERW/LAR/LSL).
+  if cur_mode == Virtual8086Mode & (op == 0 | op == 2 | op == 3) then raise_UD();
   match op {
     // 0F 00: Group 6 (SLDT, STR, LLDT, LTR, VERR, VERW)
     0 => {

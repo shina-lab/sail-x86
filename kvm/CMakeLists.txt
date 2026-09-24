@@ -41,6 +41,14 @@ target_link_libraries(kvm_state_compare PRIVATE x86_model)
 add_dependencies(kvm_state_compare generated_sail_x86_model)
 add_test(NAME kvm_state_compare COMMAND kvm_state_compare)
 
+add_executable(kvm_vm86 test-vm86.cpp)
+target_link_libraries(kvm_vm86 PRIVATE x86_system_model)
+target_compile_options(kvm_vm86 PRIVATE -Wno-missing-field-initializers)
+add_dependencies(kvm_vm86 generated_sail_x86_model)
+add_test(NAME system_vm86 COMMAND kvm_vm86 --model-only)
+add_test(NAME kvm_vm86 COMMAND kvm_vm86)
+set_tests_properties(kvm_vm86 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
 # Each test runs a category filter. Use ctest -j to run in parallel.
 set(KVM_CATEGORIES
   Baseline

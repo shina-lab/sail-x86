@@ -140,6 +140,7 @@ function fetch(n) = {
   if unsigned(decode_pos) - unsigned(insn_start) + n > 15 then {
     throw(Fault(EXN_GP, 0x00000000))
   };
+  if cur_mode == Virtual8086Mode then check_seg_limit(CS, decode_pos, n);
   let addr = decode_pos + get_seg_base(CS);
   let result : bits(8 * 'n) = read_mem_linear(addr, PT_Execute);
   decode_pos = decode_pos + n;

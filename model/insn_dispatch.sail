@@ -14,6 +14,7 @@ function exec_xchg_reg_reg(a, b, os) = {
 // IN — Input from Port
 val exec_in : (word, operand_size) -> unit
 function exec_in(port, os) = {
+  check_io_permission(port, if os == 64 then 4 else os / 8);
   note_io_access(port, if os == 64 then 4 else os / 8);
   match os {
     8  => v(RAX) = __port_in8(port),
@@ -26,6 +27,7 @@ function exec_in(port, os) = {
 // OUT — Output to Port
 val exec_out : (word, operand_size) -> unit
 function exec_out(port, os) = {
+  check_io_permission(port, if os == 64 then 4 else os / 8);
   note_io_access(port, if os == 64 then 4 else os / 8);
   match os {
     8  => __port_out8(port, v(RAX)),
@@ -140,6 +142,7 @@ function exec_ins(os_in, asz) = {
   // SDM: INS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = v(RDX);
+  check_io_permission(port, os / 8);
   let off : qword = zero_extend(v(asz, RDI));
   // INS destination is always ES:DI (not overridable).
   let dst : MemRef = struct { seg = ES, addr = off };
@@ -160,6 +163,7 @@ function exec_outs(os_in, asz, pfx) = {
   // SDM: OUTS only supports 8/16/32-bit I/O; REX.W is ignored.
   let os : {8, 16, 32} = if os_in == 64 then 32 else os_in;
   let port : word = v(RDX);
+  check_io_permission(port, os / 8);
   let off : qword = zero_extend(v(asz, RSI));
   let src_seg : segreg_idx = match pfx.seg_override {
     Some(s) => s,
@@ -529,21 +533,23 @@ function exec_retf(pfx, maybe_imm) = {
 
   // In protected/long mode, null CS selector is invalid.
   // In real mode, CS=0x0000 is a valid segment (linear address 0).
-  if cur_mode != RealMode & new_cs == 0x0000 then {
+  let protected_return = cur_mode != RealMode & cur_mode != Virtual8086Mode;
+  if cur_mode == Virtual8086Mode & unsigned(new_rip) > 65535 then raise_GP0();
+  if protected_return & new_cs == 0x0000 then {
     throw Fault(EXN_GP, 0x00000000)
   };
 
   let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
   // RPL must not be less than current CPL (not applicable in real mode)
-  if cur_mode != RealMode & return_rpl < cur_cpl then {
+  if protected_return & return_rpl < cur_cpl then {
     throw Fault(EXN_GP, selector_error_code(new_cs))
   };
 
   // In real mode, far return simply pops IP and CS — no privilege checks,
   // no SS/RSP pop (SDM Vol.2B RET, "Real-address mode or virtual-8086 mode").
   // In protected/long mode, check RPL for inter-privilege return.
-  if cur_mode != RealMode & return_rpl > cur_cpl then {
+  if protected_return & return_rpl > cur_cpl then {
     // Outer-privilege return (SDM Vol.2B RET — IA-32e Mode):
     // First release callee's parameters (RSP += imm16), then pop outer RSP/SS.
     match maybe_imm {
@@ -569,7 +575,7 @@ function exec_retf(pfx, maybe_imm) = {
     else cur_mode = CompatibilityMode
   };
   // In real mode, CPL is always 0 (no privilege levels).
-  if cur_mode != RealMode then cur_cpl = return_rpl;
+  if protected_return then cur_cpl = return_rpl;
 
   // Set RIP to return address
   next_rip = Some(new_rip)
@@ -878,7 +884,7 @@ function decode_execute() = {
             let os = opsize(pfx);
             v(reg) = v(os, src)
           }
-        } else if cur_mode == RealMode then {
+        } else if cur_mode == RealMode | cur_mode == Virtual8086Mode then {
           raise_UD()
         } else {
           // IF DEST[RPL] < SRC[RPL] THEN ZF := 1; DEST[RPL] := SRC[RPL]
@@ -1197,6 +1203,7 @@ function decode_execute() = {
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.
       156 => {
         let os = opsize_default64(pfx);
+        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
         let flags = read_rflags() & 0x0000000000FCFFFF;
         exec_push_imm(flags[(os - 1) .. 0])
       },
@@ -1208,6 +1215,7 @@ function decode_execute() = {
       // but AC/ID are above bit 15 and are NOT modified).
       157 => {
         let os = opsize_default64(pfx);
+        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
         var v : qword = zero_extend(pop(os));
         let cpl2 = to_bits(2, cur_cpl);
         v[13..12] = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
@@ -1235,7 +1243,7 @@ function decode_execute() = {
       // A0: MOV AL, moffs8
       160 => {
         let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
-        let addr = apply_segment(moffs, pfx, DS);
+        let addr : MemRef = struct { seg = resolve_seg(pfx, DS), addr = moffs };
         v(RAX) = read_mem(8, addr);
       },
 
@@ -1243,14 +1251,14 @@ function decode_execute() = {
       161 => {
         let os = opsize(pfx);
         let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
-        let addr = apply_segment(moffs, pfx, DS);
+        let addr : MemRef = struct { seg = resolve_seg(pfx, DS), addr = moffs };
         v(RAX) = read_mem(os, addr)
       },
 
       // A2: MOV moffs8, AL
       162 => {
         let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
-        let addr = apply_segment(moffs, pfx, DS);
+        let addr : MemRef = struct { seg = resolve_seg(pfx, DS), addr = moffs };
         write_mem(addr, v(8, RAX))
       },
 
@@ -1258,7 +1266,7 @@ function decode_execute() = {
       163 => {
         let os = opsize(pfx);
         let moffs : qword = zero_extend(fetch(get_address_size(pfx) / 8));
-        let addr = apply_segment(moffs, pfx, DS);
+        let addr : MemRef = struct { seg = resolve_seg(pfx, DS), addr = moffs };
         write_mem(addr, v(os, RAX))
       },
 
@@ -1537,6 +1545,7 @@ function decode_execute() = {
       // SDM: software interrupt, no error code pushed, gate DPL check applies.
       205 => {
         let imm = fetch(1);
+        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
         if system_mode then {
           sw_return_rip = Some(decode_pos);
           deliver_exception(unsigned(imm), 0x00000000, EV_SoftwareInt);
@@ -1571,13 +1580,22 @@ function decode_execute() = {
       // Protected mode outer-privilege: also pop ESP, SS.
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
-        if NT == 0b1 then raise_GP0();
         let os = opsize(pfx);
+        if cur_mode == Virtual8086Mode then {
+          assert(os == 16 | os == 32);
+          iret_in_vm86(os);
+          return ()
+        };
+        if NT == 0b1 & cur_mode != RealMode then raise_GP0();
         if os == 16 | os == 32 then {
           // IRET/IRETD (16/32-bit operand size)
           let new_ip    = pop(os);
           let new_cs    = pop(os);
           let new_flags = pop(os);
+          if os == 32 & cur_cpl == 0 & cur_mode != RealMode & zero_extend(64, new_flags)[17] == bitone then {
+            iret_to_vm86(zero_extend(new_ip), new_cs[15..0], zero_extend(new_flags));
+            return ()
+          };
           let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
           next_rip = Some(zero_extend(new_ip));
@@ -1915,10 +1933,16 @@ function decode_execute() = {
       249 => CF = 0b1,
 
       // FA: CLI
-      250 => IF_flag = 0b0,
+      250 => {
+        if cur_mode != RealMode & cur_cpl > unsigned(IOPL) then raise_GP0();
+        IF_flag = bitzero
+      },
 
       // FB: STI
-      251 => IF_flag = 0b1,
+      251 => {
+        if cur_mode != RealMode & cur_cpl > unsigned(IOPL) then raise_GP0();
+        IF_flag = bitone
+      },
 
       // FC: CLD
       252 => DF = 0b0,
