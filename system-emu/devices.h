@@ -1049,6 +1049,7 @@ public:
     dev1[0x0A] = 0x01;                      // Subclass: IDE
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
+    dev1[0x20] = 0x01;                      // BMIBA: 16-byte I/O BAR, unassigned
     // IDETIM (0x40-0x43): IDE decode enable for both channels.  A BIOS
     // sets these; Linux's ata_piix skips a channel whose bit is clear
     // without a word.
@@ -1135,6 +1136,11 @@ public:
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1isa && reg >= 0x40) {
       memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1 && reg == 0x20) {
+      // Intel 82371SB datasheet section 2.3.9: only bits 15:4 are
+      // writable; bit 0 identifies I/O space. Firmware sizes/assigns it.
+      u32 bar = (val & 0xFFF0) | 1;
+      memcpy(&cfg[reg], &bar, 4);
     } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1f3 && (reg == 4 || reg >= 0x40)) {
@@ -1188,6 +1194,13 @@ private:
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
+  u16 ide_bus_master_base() const {
+    return (u16)(dev1[0x20] | (dev1[0x21] << 8)) & 0xFFF0;
+  }
+  bool ide_bus_master_handles(u16 port) const {
+    u16 base = ide_bus_master_base();
+    return (dev1[4] & 1) && base != 0 && port >= base && port - base < 16;
+  }
   u32 vga_lfb_addr = 0xE0000000;
   u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
   u32 vga_rom_size = 0;               // Actual VGA ROM size (for BAR sizing)
@@ -1912,13 +1925,39 @@ public:
   }
   u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
   void write16(u16 value) { selected().write16(value); sync_irq(); }
+  // Intel 82371SB sections 2.7.1-2.7.3. The interrupt latch is used by
+  // PCI IDE drivers even for PIO commands. Attached devices advertise
+  // PIO only, so there are no device DMA requests/PRD transfers yet.
+  u8 read_bus_master(unsigned offset) const {
+    if (offset == 0) return bm_command;
+    if (offset == 2) return bm_status;
+    if (offset >= 4 && offset < 8) return bm_prdt >> ((offset - 4) * 8);
+    return 0;
+  }
+  void write_bus_master(unsigned offset, u8 value) {
+    if (offset == 0) {
+      bm_command = value & 9;
+      bm_status = (bm_status & ~1u) | (value & 1);
+    } else if (offset == 2) {
+      // Capability bits are software-owned; error/interrupt are W1C.
+      bm_status = (bm_status & 7 & ~(value & 6)) | (value & 0x60);
+    } else if (offset >= 4 && offset < 8) {
+      unsigned shift = (offset - 4) * 8;
+      bm_prdt = ((bm_prdt & ~(0xFFu << shift)) | ((u32)value << shift)) & ~3u;
+    }
+  }
   bool irq_pending = false, irq_asserted = false;
 private:
   IDEDevice master, slave;
   u16 base;
   bool select_slave = false;
+  u8 bm_command = 0, bm_status = 0;
+  u32 bm_prdt = 0;
   IDEDevice &selected() { return select_slave ? slave : master; }
   void sync_irq() {
+    // W1C while INTRQ remains high must not relatch the same assertion.
+    if ((master.irq_asserted || slave.irq_asserted) && !irq_asserted)
+      bm_status |= 4;
     irq_pending |= master.irq_pending || slave.irq_pending;
     master.irq_pending = slave.irq_pending = false;
     irq_asserted = master.irq_asserted || slave.irq_asserted;

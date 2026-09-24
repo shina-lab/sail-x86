@@ -240,6 +240,10 @@ u64 Model::z__port_in8(u64 port) {
   if (floppy.handles(p))     return floppy.read(p);
   if (ide0.handles(p))       { u8 v = ide0.read(p); latch_ide_irqs(); return v; }
   if (ide1.handles(p))       { u8 v = ide1.read(p); latch_ide_irqs(); return v; }
+  if (pci.ide_bus_master_handles(p)) {
+    unsigned offset = p - pci.ide_bus_master_base();
+    return (offset < 8 ? ide0 : ide1).read_bus_master(offset & 7);
+  }
   if (p == 0x22) return imcr_index;
   if (p == 0x23 && imcr_index == 0x70) return imcr_apic;
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
@@ -306,6 +310,10 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (floppy.handles(p))     { floppy.write(p, v); floppy.do_dma_transfer(dma, phys_mem); }
   else if (ide0.handles(p))       { ide0.write(p, v); latch_ide_irqs(); }
   else if (ide1.handles(p))       { ide1.write(p, v); latch_ide_irqs(); }
+  else if (pci.ide_bus_master_handles(p)) {
+    unsigned offset = p - pci.ide_bus_master_base();
+    (offset < 8 ? ide0 : ide1).write_bus_master(offset & 7, v);
+  }
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (p == 0x22)             imcr_index = v;

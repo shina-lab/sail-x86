@@ -127,6 +127,38 @@ TEST(atapi_signature_and_identify) {
   read_block(c, 256);
 }
 
+TEST(pci_bus_master_pio_interrupt_latch) {
+  Image iso(2048 * 100);
+  IDEChannel c(BASE, CTRL), other(0x1F0, 0x3F6);
+  assert(c.open_cdrom(iso.path.c_str()));
+  ASSERT_EQ(c.read_bus_master(2), 0);
+  c.write(BASE + 6, 0xA0);
+  c.write(BASE + 7, 0xA1); // IDENTIFY PACKET DEVICE, PIO interrupt
+  ASSERT_EQ(c.irq_asserted, true);
+  ASSERT_EQ(c.read_bus_master(2), 4);
+  ASSERT_EQ(other.read_bus_master(2), 0);
+  c.write_bus_master(2, 0x64); // clear interrupt, set capability bits
+  ASSERT_EQ(c.read_bus_master(2), 0x60);
+  c.read(CTRL); // same high interrupt line must not relatch it
+  ASSERT_EQ(c.read_bus_master(2), 0x60);
+  c.read(BASE + 7); // deassert INTRQ
+  read_block(c, 256);
+  c.write(BASE + 7, 0xA1);
+  ASSERT_EQ(c.read_bus_master(2), 0x64);
+  c.read(BASE + 7); // ATA acknowledgement does not clear BMISTA
+  ASSERT_EQ(c.read_bus_master(2), 0x64);
+  c.write_bus_master(2, 0xFF);
+  ASSERT_EQ(c.read_bus_master(2), 0x60); // reserved bits remain zero
+  for (unsigned i = 4; i < 8; ++i) c.write_bus_master(i, 0xFF);
+  ASSERT_EQ(c.read_bus_master(4), 0xFC); // dword-aligned PRDT
+  ASSERT_EQ(c.read_bus_master(7), 0xFF);
+  c.write_bus_master(0, 0xFF);
+  ASSERT_EQ(c.read_bus_master(0), 9);
+  ASSERT_EQ(c.read_bus_master(2), 0x61);
+  c.write_bus_master(0, 8); // stop a controller awaiting a DMA request
+  ASSERT_EQ(c.read_bus_master(2), 0x60);
+}
+
 TEST(atapi_inquiry_capacity_and_read) {
   Image iso(2048 * 100);
   IDEChannel c(BASE, CTRL);
@@ -321,6 +353,7 @@ TEST(master_slave_independent_transfers) {
 int main() {
   printf("IDE channel tests:\n");
   run_test_atapi_signature_and_identify();
+  run_test_pci_bus_master_pio_interrupt_latch();
   run_test_atapi_inquiry_capacity_and_read();
   run_test_ata_disk_read_write();
   run_test_master_slave_independent_transfers();

@@ -10,6 +10,21 @@ int main() {
   pci.write_addr(0x80000900); assert(pci.read_data() == 0x70108086);
   pci.write_addr(0x80000B00); assert(pci.read_data() == 0x71138086);
   pci.write_addr(0x80000940); assert(pci.read_data() == 0x80008000);
+  // PIIX IDE BMIBA is a 16-byte I/O BAR with a 16-bit base.
+  pci.write_addr(0x80000920); assert(pci.read_data() == 1);
+  assert(!pci.ide_bus_master_handles(0));
+  pci.write_data(0xFFFFFFFF); assert(pci.read_data() == 0xFFF1);
+  pci.write_data(0x1234C12F); assert(pci.read_data() == 0xC121);
+  assert(pci.ide_bus_master_base() == 0xC120);
+  assert(pci.ide_bus_master_handles(0xC120));
+  assert(pci.ide_bus_master_handles(0xC12F));
+  assert(!pci.ide_bus_master_handles(0xC130));
+  pci.write_addr(0x80000904); pci.write_data(4); // I/O decode disabled
+  assert(!pci.ide_bus_master_handles(0xC120));
+  pci.write_data(5);
+  pci.write_addr(0x80000920); pci.write_data(0xD001);
+  assert(!pci.ide_bus_master_handles(0xC120));
+  assert(pci.ide_bus_master_handles(0xD00F));
   // PIIX4 PM has no standard BARs or option ROM.
   for (unsigned reg = 0x10; reg <= 0x30; reg += 4) {
     pci.write_addr(0x80000B00 | reg);
