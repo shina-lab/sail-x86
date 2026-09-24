@@ -872,32 +872,41 @@ done:
 std::vector<TestCase> build_tests() {
   std::vector<TestCase> tests;
 
-  add_baseline_tests(tests);
-  add_sse_tests(tests);
-  add_misc_instruction_tests(tests);
-  add_x87_avx_tests(tests);
-  add_fp_edge_tests(tests);
-  add_encoding_tests(tests);
-  add_systematic_tests(tests);
-  add_exception_tests(tests);
+  // Rebuild the inputs rather than replacing zero-valued fields afterward:
+  // a test may deliberately supply zero as an operand or an exception trigger.
+  for (u64 fill : {u64(0), ~u64(0)}) {
+    initial_register_fill = fill;
+    size_t first = tests.size();
+    add_baseline_tests(tests);
+    add_sse_tests(tests);
+    add_misc_instruction_tests(tests);
+    add_x87_avx_tests(tests);
+    add_fp_edge_tests(tests);
+    add_encoding_tests(tests);
+    add_systematic_tests(tests);
+    add_exception_tests(tests);
 
-  add_mmx_tests(tests);
-  add_feature_tests(tests);
-  add_compat_tests(tests);
-  add_xsave_tests(tests);
-  add_avx_fp_tests(tests);
-  add_avx_int_tests(tests);
-  add_avx_shift_tests(tests);
-  add_avx_fma_tests(tests);
-  add_avx_scalar_tests(tests);
-  add_avx_narrow_tests(tests);
-  add_avx_cmp_tests(tests);
-  add_avx_perm_tests(tests);
-  add_avx_conv_tests(tests);
-  add_avx_special_tests(tests);
-  add_avx_mov_tests(tests);
-  add_avx_vex_only_tests(tests);
-  add_avx_hi16_tests(tests);
+    add_mmx_tests(tests);
+    add_feature_tests(tests);
+    add_compat_tests(tests);
+    add_xsave_tests(tests);
+    add_avx_fp_tests(tests);
+    add_avx_int_tests(tests);
+    add_avx_shift_tests(tests);
+    add_avx_fma_tests(tests);
+    add_avx_scalar_tests(tests);
+    add_avx_narrow_tests(tests);
+    add_avx_cmp_tests(tests);
+    add_avx_perm_tests(tests);
+    add_avx_conv_tests(tests);
+    add_avx_special_tests(tests);
+    add_avx_mov_tests(tests);
+    add_avx_vex_only_tests(tests);
+    add_avx_hi16_tests(tests);
+    for (size_t i = first; i < tests.size(); i++)
+      tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
+  }
+  initial_register_fill = 0;
 
   return tests;
 }
