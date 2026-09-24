@@ -4,6 +4,12 @@
 #include <cstdio>
 
 int main() {
+  PCIConfigSpace pci;
+  pci.write_addr(0x80000800); assert(pci.read_data() == 0x70008086);
+  pci.write_addr(0x8000080C); assert(pci.read_data() & 0x00800000); // multifunction
+  pci.write_addr(0x80000900); assert(pci.read_data() == 0x70108086);
+  pci.write_addr(0x80000B00); assert(pci.read_data() == 0x71138086);
+  pci.write_addr(0x80000940); assert(pci.read_data() == 0x80008000);
   ACPIPM pm;
   assert(pm.timer(1000000000) == 3579545);
   assert(pm.timer(10000000000) == (35795450 & 0xFFFFFF));

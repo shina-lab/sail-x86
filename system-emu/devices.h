@@ -910,7 +910,17 @@ public:
     for (int i = 0x59; i <= 0x5F; i++)
       dev0[i] = 0x33;  // R/W enabled for all regions
 
-    // Device 0:1.0 — PIIX3 IDE Controller (ISA-compatible mode)
+    // Device 0:1.0 — PIIX3 ISA bridge; the multifunction bit is essential
+    // for firmware to discover IDE at function 1 and ACPI PM at function 3.
+    memset(dev1isa, 0, sizeof(dev1isa));
+    dev1isa[0] = 0x86; dev1isa[1] = 0x80;
+    dev1isa[2] = 0x00; dev1isa[3] = 0x70;
+    dev1isa[4] = 7;
+    dev1isa[0x0A] = 1; dev1isa[0x0B] = 6;
+    dev1isa[0x0E] = 0x80;
+    for (int i = 0x60; i <= 0x63; ++i) dev1isa[i] = 0x80; // PIRQ disabled
+
+    // Device 0:1.1 — PIIX3 IDE Controller (ISA-compatible mode)
     // SeaBIOS scans PCI for CLASS_STORAGE_IDE devices. This makes it
     // find our ISA ATA controller at the standard ports 0x1F0/0x3F6.
     memset(dev1, 0, sizeof(dev1));
@@ -1005,6 +1015,10 @@ public:
     } else if (cfg == dev0 && reg == 0x70) {
       // I440FX_SMRAM register (0x72) and neighboring regs
       memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1isa && reg >= 0x40) {
+      memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
+      memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1f3) {
       // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
       memcpy(&cfg[reg], &val, 4);
@@ -1041,14 +1055,16 @@ public:
 private:
   const u8 *get_config(int dev, int func) const {
     if (dev == 0 && func == 0) return dev0;
-    if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 0) return dev1isa;
+    if (dev == 1 && func == 1) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
     if (dev == 2 && func == 0) return dev2;
     return nullptr;
   }
   u8 *get_config_mut(int dev, int func) {
     if (dev == 0 && func == 0) return dev0;
-    if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 0) return dev1isa;
+    if (dev == 1 && func == 1) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
     if (dev == 2 && func == 0) return dev2;
     return nullptr;
@@ -1056,7 +1072,8 @@ private:
 
   u32 addr = 0;
   u8 dev0[256];    // 0:0.0 — i440FX host bridge
-  u8 dev1[256];    // 0:1.0 — PIIX3 IDE controller
+  u8 dev1isa[256]; // 0:1.0 — PIIX3 ISA bridge
+  u8 dev1[256];    // 0:1.1 — PIIX3 IDE controller
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
