@@ -1382,6 +1382,11 @@ public:
   u8 read(u16 port) {
     tick();
     if (dev == NONE || slave_selected()) return 0x00;
+    if (trace_phase_status && (port == ctrl || port == base + 7)) {
+      fprintf(stderr, "ide%d: first status after ATAPI phase: %lu ns, status=%02x\n",
+              base == 0x1F0 ? 0 : 1, *clock - completed_block_at, status);
+      trace_phase_status = false;
+    }
     if (port == ctrl) return status;  // alternate status: no IRQ clear
     switch (port - base) {
     case 0: return 0x00;          // data port is 16-bit; see read16
@@ -1436,6 +1441,8 @@ public:
           status = 0x80; // BSY, DRQ clear
           irq_asserted = false;
           next_block_pending = true;
+          completed_block_at = *clock;
+          trace_phase_status = ide_trace;
           next_block_at = *clock + 1000000; // 1 ms of device service time
         } else {
           begin_in_block();
@@ -1516,6 +1523,8 @@ private:
   size_t block_end = 0;   // end of the current DRQ block
   size_t block_limit = 512;
   bool next_block_pending = false;
+  bool trace_phase_status = false;
+  u64 completed_block_at = 0;
   u64 next_block_at = 0;
   u32 current_lba = 0;    // next sector of a data-out transfer
 
