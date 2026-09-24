@@ -17,30 +17,35 @@ planar VGA. It has no HPET or additional CPUs.
 | ReactOS | Text setup: partitioned, formatted and checked FAT32; file copy reached 11% (`eventvwr.exe`) | Persistent kernel idle wait; no reported model fault; no first boot |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
-| Windows 95 | Setup from FreeDOS hard disk | ScanDisk R6002; no graphical screen or Windows PNG |
+| Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
 
 The APIC/IOAPIC, IDE slave, MP/ACPI firmware, VBE/PNG and planar VGA work
-is committed separately, along with the boot fixes. The only Sail model
-changes are the SDM-cited CR8/APIC alias and real-mode IRET NT handling,
-each with an instruction regression in its own commit. The final C++ x87
+is committed separately, along with the boot fixes. The boot-related Sail
+corrections cover the CR8/APIC alias, real-mode IRET NT handling, LMSW's
+protected-mode transition, and XLAT's segment selection. Each has an
+SDM citation and an instruction regression in the same commit. The C++ x87
 memory-capacity fix passes aligned and noncontiguous-page save/restore tests.
-All 14 system/device tests pass after that fix; the basic suite contains
-62 test cases. BIOS graphics fixtures separately validate modes 12h, 13h
-and VBE 101h. Those test patterns are not Windows screenshots.
+All **15 official-build system tests** pass; the basic suite contains
+**65 cases**, also passing with sail-llvm. BIOS graphics fixtures separately
+validate modes 12h, 13h and VBE 101h. Those test patterns are not Windows screenshots.
 
-Cumulative measured boot-attempt wall time: xv6 6.21 min, Linux 51.91 min,
+Original-session measured boot-attempt wall time: xv6 6.21 min, Linux 51.91 min,
 Haiku 57.79 min, ReactOS 52.83 min, FreeBSD 4.69 min, Windows 3.1 58.38 min,
-and Windows 95 58.38 min. Attempts ran concurrently. Each attempt below
+and Windows 95 58.38 min. These totals predate the continuation sections.
+Attempts ran concurrently. Each attempt below
 records its exact command and last serial output, including silent consoles.
 
 ## Reproduction and measurement
 
-Build the emulator and firmware from the repository root:
+Build the emulator and firmware from the repository root. All attempts in
+the sail-llvm continuation use `build/llvm/sail-x86-system`; rerun the LLVM
+build script after any model or emulator-source change:
 
 ```sh
 cmake -B build
-cmake --build build -j128 --target sail-x86-system
+cmake --build build -j64
 system-emu/mk-freedos.sh build
+system-emu/build-llvm.sh
 ```
 
 SeaBIOS 1.16.3 uses `CONFIG_MPTABLE=y`, `CONFIG_ACPI=y`,
@@ -778,6 +783,8 @@ The full build succeeded and **all 15 system tests passed** (0.47 s).
 FreeBSD, virtual-8086 model work and the KVM harness are outside this
 continuation's scope. Writable disks remain under `build/os-boot`.
 
+This continuation records **15 OS attempts**, all with sail-llvm: ReactOS **20.01 min**, Windows 3.1 **8.51 min**, Haiku **2.10 min**, and Windows 95 **19.53 min** of measured attempt wall time. Haiku was given an 1800-second limit but stopped after its terminal boot-volume panic.
+
 ### win31-llvm-ud-06
 
 Reproduced the Express Setup / first-stage copy failure. FreeDOS printed Invalid Opcode at 0078:0B3E, but the original matching-frame IVT[6] diagnostic did not capture the error. Stopped for a broader handler trace. No serial output.
@@ -1289,6 +1296,601 @@ Additional keyboard input:
     "text": "\u0001x",
     "reason": "Stop at the kernel debugger after the boot-device discovery panic",
     "command": "python3 build/os-boot/send-input.py haiku-llvm-04 '\\x01x' 'Stop at the kernel debugger after the boot-device discovery panic'"
+  }
+]
+```
+
+### win95-llvm-r6002-07
+
+Reproduced ScanDisk runtime error R6002 after accepting the Setup system check. Saved the decompressed runtime in the RAM dump for instruction-level diagnosis. No model fault and no serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-r6002-07 --timeout 240 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-r6002.img -boot c
+```
+
+Wall time: **129.659 s**. Instructions: **656,924,672**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-r6002-07 guest display](os-boot/win95-llvm-r6002-07.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 656924672 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 45.25,
+    "text": "\n",
+    "reason": "Run the Windows 95 Setup system check and ScanDisk",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-r6002-07 '\\n' 'Run the Windows 95 Setup system check and ScanDisk'"
+  },
+  {
+    "at_seconds": 129.59,
+    "text": "\u0001x",
+    "reason": "Stop after reproducing R6002 and saving the decompressed ScanDisk image",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-r6002-07 '\\x01x' 'Stop after reproducing R6002 and saving the decompressed ScanDisk image'"
+  }
+]
+```
+
+### win95-llvm-detect-08
+
+Reproduced R6002. The initial physical-address probe selected an immediate operand byte, so it did not fire; corrected it to the detection-result instruction in the next run.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x52484 python3 system-emu/run-boot.py --name win95-llvm-detect-08 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-detect.img -boot c
+```
+
+Wall time: **26.210 s**. Instructions: **138,305,536**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-detect-08 guest display](os-boot/win95-llvm-detect-08.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 138305536 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 26.1,
+    "text": "\u0001x",
+    "reason": "Correct the probe from an immediate operand byte to the FPU detection result instruction",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-detect-08 '\\x01x' 'Correct the probe from an immediate operand byte to the FPU detection result instruction'"
+  }
+]
+```
+
+### win95-llvm-detect-result-09
+
+The probe at 5235:013F (linear 0005248F) proves x87 presence detection succeeds. FNSTCW produces the expected masked control word 033F; FNSTSW produces zero for the tested bits, AX becomes 1, and byte DS:0004 is set to 1. R6002 therefore occurs after successful FPU detection. DS is 56DD and the saved status buffer at DS:0058 is zero.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x5248f python3 system-emu/run-boot.py --name win95-llvm-detect-result-09 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-detect-result.img -boot c
+```
+
+Wall time: **97.235 s**. Instructions: **519,498,752**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-detect-result-09 guest display](os-boot/win95-llvm-detect-result-09.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 519498752 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 97.12,
+    "text": "\u0001x",
+    "reason": "Stop after confirming that x87 detection returns present",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-detect-result-09 '\\x01x' 'Stop after confirming that x87 detection returns present'"
+  }
+]
+```
+
+### win95-llvm-error-call-10
+
+R6002 comes from the printf formatting path, not an x87 fault. At 4DCD:1EDF, CALL FAR [22D2] invokes the unlinked long-double formatting stub 4DCD:1772, which selects runtime error 2. The current format is an ordinary DBLSPACE.000 filename, and the parser has misclassified its character 0. Its two XLAT table lookups use DS=59A6, BX=225C; the model incorrectly read unsegmented low memory. This leads to the SDM-backed XLAT fix below.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x4f6df python3 system-emu/run-boot.py --name win95-llvm-error-call-10 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-error-call.img -boot c
+```
+
+Wall time: **140.257 s**. Instructions: **747,755,520**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-error-call-10 guest display](os-boot/win95-llvm-error-call-10.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 747755520 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 140.14,
+    "text": "\u0001x",
+    "reason": "Stop after tracing R6002 to printf format parsing and its XLAT table lookup",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-error-call-10 '\\x01x' 'Stop after tracing R6002 to printf format parsing and its XLAT table lookup'"
+  }
+]
+```
+
+The supplied SDM revision 090, Vol.2D **XLAT/XLATB**, pp.6-37–6-38,
+specifies DS-based table lookup, a possible segment override, an unsigned
+AL index, unchanged flags and segment-limit exceptions. Both new XLAT
+regressions fail before the fix: the lookup reads the poison byte at the
+unsegmented address, and an out-of-limit access does not fault. They cover
+real/protected/long modes, FS override, AL/flags preservation, and DS/SS
+limit faults. No x87 behavior needed changing for this diagnosis.
+
+Microsoft's [R6002 documentation](https://learn.microsoft.com/en-us/cpp/error-messages/tool-errors/c-runtime-error-r6002?view=msvc-170)
+describes a missing runtime floating-point formatting library; the guest
+trace identifies why ScanDisk incorrectly enters that path here.
+
+### win95-llvm-xlat-11
+
+After the XLAT fix, ScanDisk starts checking the disk and reports a KERNEL.SYS file-size inconsistency. R6002 is gone. The repair dialog does not accept new keys: ScanDisk hooks INT09 at 56B7:001A, reads port 60h, then chains to the BIOS, which rereads port 60h. The emulator consumes the next queued byte on that reread, losing the make code; this is a keyboard-controller platform issue. No CPU fault or serial output occurs.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-xlat-11 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-xlat.img -boot c
+```
+
+Wall time: **401.050 s**. Instructions: **1,901,122,560**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-xlat-11 guest display](os-boot/win95-llvm-xlat-11.png)
+
+Last VGA text:
+
+```text
+Microsoft ScanDisk
+
+                                 Problem Found
+     S
+         The size of the C:\KERNEL.SYS file is being misreported. Some
+         programs might be unable to find the entire file, or there
+         might be invalid data toward the end of the file.
+
+         Choose Fix It to have ScanDisk correct the size information
+         for the C:\KERNEL.SYS file.
+
+
+                   Fix It     < Don't Fix It >   < More Info >
+
+
+
+
+
+     < Pause >   < More Info >   < Exit >
+
+
+     C:\
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 1901122560 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 254.13,
+    "text": "\n",
+    "reason": "Accept ScanDisk file-size repair on disposable image",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\n' 'Accept ScanDisk file-size repair on disposable image'"
+  },
+  {
+    "at_seconds": 284.88,
+    "text": "f",
+    "reason": "Select ScanDisk Fix It with its keyboard accelerator",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 f 'Select ScanDisk Fix It with its keyboard accelerator'"
+  },
+  {
+    "at_seconds": 326.6,
+    "text": "\t\n",
+    "reason": "Try the next ScanDisk choice after Enter leaves the dialog unchanged",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\t\\n' 'Try the next ScanDisk choice after Enter leaves the dialog unchanged'"
+  },
+  {
+    "at_seconds": 400.88,
+    "text": "\u0001x",
+    "reason": "Stop at ScanDisk repair dialog after identifying its INT09 port-60 reread",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\x01x' 'Stop at ScanDisk repair dialog after identifying its INT09 port-60 reread'"
+  }
+]
+```
+
+The keyboard follow-up follows Intel's [UPI-41A/41AH/42/42AH manual](https://www.ceibo.com/eng/datasheets/Intel-8041-Manual.pdf),
+chapter 5, “Reading the DBBOUT Register” (p.56): reading transfers the output
+register and clears OBF. The emulator now retains that value and spaces
+queued scancode bytes by at least one millisecond of virtual time. Device
+and APIC regressions cover a chained handler rereading the make code, an
+empty OBF between bytes, and the subsequent release-byte interrupt. This
+is an emulator change; it does not change the Sail model.
+
+Validation after XLAT: `system-emu/build-llvm.sh`, the 65-case LLVM basic
+suite, an official rebuild of the model-dependent system targets, and
+`ctest --test-dir build -R '^system_' --output-on-failure` all pass
+(15 official tests). Logs: `build/os-boot/llvm-xlat-basic-tests.log` and
+`build/os-boot/official-xlat-tests.log`. After the keyboard change, the
+LLVM emulator was rebuilt again, `cmake --build build -j64` completed,
+and all 15 official system tests passed again in 0.48 s; logs are
+`build/os-boot/llvm-keyboard-build.log` and
+`build/os-boot/official-keyboard-tests.log`.
+
+### win95-llvm-keyboard-12
+
+The keyboard fix allows Fix It and Skip Undo to work. ScanDisk repairs KERNEL.SYS and COMMAND.COM, then reports the same issue for HIMEM.SYS. An offline FAT-chain check shows the original files already occupy the correct number of 8192-byte clusters; ScanDisk pads their sizes to full clusters. The cause of these subsequent size reports is unclassified. Preserve this changed copy and use a fresh copy with the documented SETUP /IS switch to test the next setup stage. No R6002 or CPU fault occurs.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-keyboard-12 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-keyboard.img -boot c
+```
+
+Wall time: **139.900 s**. Instructions: **674,433,024**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-keyboard-12 guest display](os-boot/win95-llvm-keyboard-12.png)
+
+Last VGA text:
+
+```text
+Microsoft ScanDisk
+
+                                 Problem Found
+     S
+         The size of the C:\HIMEM.SYS file is being misreported. Some
+         programs might be unable to find the entire file, or there
+         might be invalid data toward the end of the file.
+
+         Choose Fix It to have ScanDisk correct the size information
+         for the C:\HIMEM.SYS file.
+
+
+                   Fix It     < Don't Fix It >   < More Info >
+
+
+
+
+
+     < Pause >   < More Info >   < Exit >
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 674433024 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 48.54,
+    "text": "\n",
+    "reason": "Accept ScanDisk file-size repair after keyboard-controller fix",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\n' 'Accept ScanDisk file-size repair after keyboard-controller fix'"
+  },
+  {
+    "at_seconds": 68.24,
+    "text": "\t\n",
+    "reason": "Skip the optional Undo floppy because this hard disk is already a disposable copy",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\t\\n' 'Skip the optional Undo floppy because this hard disk is already a disposable copy'"
+  },
+  {
+    "at_seconds": 103.72,
+    "text": "\n",
+    "reason": "Accept ScanDisk COMMAND.COM file-size repair on the copied disk",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\n' 'Accept ScanDisk COMMAND.COM file-size repair on the copied disk'"
+  },
+  {
+    "at_seconds": 139.85,
+    "text": "\u0001x",
+    "reason": "Stop after confirming keyboard repairs work; preserve pristine disk for a documented SETUP /IS attempt",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\x01x' 'Stop after confirming keyboard repairs work; preserve pristine disk for a documented SETUP /IS attempt'"
+  }
+]
+```
+
+The next attempt starts from a fresh copy, so the ScanDisk size changes
+are not carried forward. Its AUTOEXEC.BAT differs only by adding `/IS`
+to SETUP, the switch documented by the supplied SETUP.TXT for skipping
+ScanDisk. Disk preparation:
+
+```sh
+cp --reflink=auto build/os-boot/win95-freedos.img build/os-boot/win95-llvm-setup-is.img
+mcopy -o -i build/os-boot/win95-llvm-setup-is.img@@1048576 build/os-boot/win95-setup-is-autoexec.bat ::AUTOEXEC.BAT
+```
+
+`build/os-boot/win95-setup-is-autoexec.bat` contains, with DOS CRLF endings:
+
+```bat
+@ECHO OFF
+PATH=C:\;C:\WIN95
+CD \WIN95
+SETUP /IS
+```
+
+### win95-llvm-setup-is-13
+
+With the documented /IS switch on a pristine copy, Setup copies its startup files and enters protected-mode DOSX. It then loops in its protected-mode error formatter (sampled at 0053:1B53 and 0053:1B71), without reaching a graphical screen. RAM contains the DOSX GDT at 00317C00, code base 00317D20 and IDT at 00317400. A separate first-#GP probe follows to identify the faulting transfer.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-setup-is-13 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-setup-is.img -boot c
+```
+
+Wall time: **170.462 s**. Instructions: **1,086,993,408**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-setup-is-13 guest display](os-boot/win95-llvm-setup-is-13.png)
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+FreeDOS kernel 2043 (build 2043 OEM:0xfd) [compiled May 13 2021]
+Kernel compatibility 7.10 - WATCOMC - FAT32 support
+
+(C) Copyright 1995-2012 Pasquale J. Villani and The FreeDOS Project.
+All Rights Reserved. This is free software and comes with ABSOLUTELY NO
+WARRANTY; you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation;
+either version 2, or (at your option) any later version.
+ - InitDiskWARNING: using suspect partition Pri:1 FS 06: with calculated values
+   2-0-33 instead of 1023-254-63
+WARNING: Partition ID does not suggest LBA - part Pri:1 FS 06.
+Please run FDISK to correct this - using LBA to access partition.
+ start    2-0-33, end 1040-4-4
+C: HD1, Pri[ 1], CHS=    2-0-33, start=     1 MB, size=   511 MB
+
+FreeCom version 0.85a - WATCOMC - XMS_Swap [Jul 10 2021 19:28:06]
+Please wait while Setup initializes.
+
+Copying files needed for Windows Setup...
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 1086993408 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 170.27,
+    "text": "\u0001x",
+    "reason": "Stop at protected-mode DOSX exception loop; probe its first general-protection handler next",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-setup-is-13 '\\x01x' 'Stop at protected-mode DOSX exception loop; probe its first general-protection handler next'"
+  }
+]
+```
+
+### win95-llvm-setup-gp-14
+
+Confirmed: the first #GP is at 005B:0B79, CALL FAR 00CB:0000 (9A 00 00 CB 00), at instruction 108,914,738. The next instruction capture is its IDT vector-13 handler at 0070:1157. GDT[00C8] at 00317CC8 is 0000E40000780C63, the same present DPL-3 16-bit call gate found in Windows 3.1, targeting 0078:0C63. The remaining blocker before graphics is the unsupported call-gate path in the Sail far-call implementation. No virtual-8086 work was attempted. The probe RAM is preserved separately as win95-llvm-setup-gp-14-probe.ram.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x318e77 python3 system-emu/run-boot.py --name win95-llvm-setup-gp-14 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-setup-gp.img -boot c
+```
+
+Wall time: **67.278 s**. Instructions: **366,179,328**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-setup-gp-14 guest display](os-boot/win95-llvm-setup-gp-14.png)
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+FreeDOS kernel 2043 (build 2043 OEM:0xfd) [compiled May 13 2021]
+Kernel compatibility 7.10 - WATCOMC - FAT32 support
+
+(C) Copyright 1995-2012 Pasquale J. Villani and The FreeDOS Project.
+All Rights Reserved. This is free software and comes with ABSOLUTELY NO
+WARRANTY; you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation;
+either version 2, or (at your option) any later version.
+ - InitDiskWARNING: using suspect partition Pri:1 FS 06: with calculated values
+   2-0-33 instead of 1023-254-63
+WARNING: Partition ID does not suggest LBA - part Pri:1 FS 06.
+Please run FDISK to correct this - using LBA to access partition.
+ start    2-0-33, end 1040-4-4
+C: HD1, Pri[ 1], CHS=    2-0-33, start=     1 MB, size=   511 MB
+
+FreeCom version 0.85a - WATCOMC - XMS_Swap [Jul 10 2021 19:28:06]
+Please wait while Setup initializes.
+
+Copying files needed for Windows Setup...
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 366179328 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 67.13,
+    "text": "\u0001x",
+    "reason": "Stop after confirming the first GP is the same unsupported 16-bit call gate as Windows 3.1",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-setup-gp-14 '\\x01x' 'Stop after confirming the first GP is the same unsupported 16-bit call gate as Windows 3.1'"
   }
 ]
 ```
