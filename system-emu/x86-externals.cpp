@@ -41,9 +41,10 @@ static void maybe_trace_phys_write(Model &m, u64 addr, const u8 *buf, i64 nbytes
 void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__read_mem: nbytes=%ld > 64\n", nbytes);
+  // Legacy x87 save areas occupy up to 108 bytes, larger than a ZMM.
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__read_mem: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   phys_mem.read_bytes(addr, buf, nbytes);
@@ -53,9 +54,9 @@ void Model::z__read_mem(lbits *rop, u64 addr, sail_int n) {
 unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__write_mem: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__write_mem: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
@@ -70,9 +71,9 @@ unit Model::z__write_mem(u64 addr, sail_int n, lbits data) {
 void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n, enum zPTAccess access) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__mem_read_crossing: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   for (i64 i = 0; i < nbytes; i++) {
@@ -86,9 +87,9 @@ void Model::z__mem_read_crossing(lbits *rop, u64 vaddr, sail_int n, enum zPTAcce
 unit Model::z__mem_write_crossing(u64 vaddr, sail_int n, lbits data) {
   i64 nbits = mpz_get_si(n);
   i64 nbytes = nbits / 8;
-  u8 buf[64];
-  if (nbytes > 64) {
-    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 64\n", nbytes);
+  u8 buf[128];
+  if (nbytes > 128) {
+    fprintf(stderr, "z__mem_write_crossing: nbytes=%ld > 128\n", nbytes);
     abort();
   }
   bits_to_bytes(data, buf, nbytes);
@@ -151,15 +152,23 @@ unit Model::z__tlb_flush(unit) {
 
 static std::unordered_map<u32, u64> msr_store;
 
+u64 Model::z__read_cr8(unit) {
+  return (lapic.base_msr & 0x800) ? lapic.read(0x80) >> 4 : zCR8;
+}
+unit Model::z__write_cr8(u64 value) {
+  if (lapic.base_msr & 0x800) lapic.write(0x80, value << 4);
+  return UNIT;
+}
+
 u64 Model::z__rdmsr(u64 addr) {
   u32 msr = (u32)addr;
+  if (msr == 0x1B) return lapic.base_msr;
   auto it = msr_store.find(msr);
   if (it != msr_store.end())
     return it->second;
 
   // Default values for common MSRs
   switch (msr) {
-  case 0x1B:   return 0xFEE00900;  // IA32_APIC_BASE (APIC enabled, BSP)
   case 0x10:   return tsc;         // IA32_TSC
   case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
   case 0x1A0:  return 1;           // IA32_MISC_ENABLE (bit 0 = FAST_STRING)
@@ -203,6 +212,10 @@ u64 Model::z__rdmsr(u64 addr) {
 
 unit Model::z__wrmsr(u64 addr, u64 val) {
   u32 msr = (u32)addr;
+  if (msr == 0x1B) {
+    lapic.base_msr = (val & 0xFFFFFF800ULL) | 0x100; // xAPIC, BSP
+    return UNIT;
+  }
   msr_store[msr] = val;
   return UNIT;
 }
@@ -213,23 +226,31 @@ unit Model::z__wrmsr(u64 addr, u64 val) {
 
 u64 Model::z__port_in8(u64 port) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) return vbe.read(p) & 0xFF;
   if (uart.handles(p))       return uart.read(p);
   if (pic_master.handles(p)) return pic_master.read(p);
   if (pic_slave.handles(p))  return pic_slave.read(p);
   if (pit.handles(p))        return pit.read(p);
-  if (kbd.handles(p))        return kbd.read(p);
-  if (cmos.handles(p))       return cmos.read(p);
+  if (kbd.handles(p))        return read_keyboard(p);
+  if (cmos.handles(p)) {
+    u8 value = cmos.read(p);
+    set_irq(8, cmos.has_irq());
+    return value;
+  }
   if (floppy.handles(p))     return floppy.read(p);
-  if (ide0.handles(p))       return ide0.read(p);
-  if (ide1.handles(p))       return ide1.read(p);
+  if (ide0.handles(p))       { u8 v = ide0.read(p); latch_ide_irqs(); return v; }
+  if (ide1.handles(p))       { u8 v = ide1.read(p); latch_ide_irqs(); return v; }
+  if (p == 0x22) return imcr_index;
+  if (p == 0x23 && imcr_index == 0x70) return imcr_apic;
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
-  if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
+  if (p == 0x61)             return pit.read_port_b();
   if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
-  if (p == 0xB2)             return 0x00; // APM Control (write triggers SMI)
+  if (p == 0xB2)             return pm.apmc;
   if (p == 0xB3)             return apmc_status; // APM Status
   if (p == 0x402)            return bios_debug ? 0xE9 : 0xFF; // QEMU debug console readback
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
-  if (0xB000 <= p && p < 0xB040) return 0x00;
+  if (pci.pm_base() <= p && p < pci.pm_base() + 0x40)
+    return pm.read(p - pci.pm_base(), tsc);
   if (vga.handles(p))        return vga.read(p);
   // DMA controller (0x00-0x0F)
   if (dma.handles(p))        return dma.read(p);
@@ -247,6 +268,7 @@ u64 Model::z__port_in8(u64 port) {
 
 u64 Model::z__port_in16(u64 port) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) return vbe.read(p);
   // IDE data ports must be read as atomic 16-bit words
   if (ide0.is_data_port(p)) { u16 v = ide0.read16(); latch_ide_irqs(); return v; }
   if (ide1.is_data_port(p)) { u16 v = ide1.read16(); latch_ide_irqs(); return v; }
@@ -274,7 +296,8 @@ u64 Model::z__port_in32(u64 port) {
 unit Model::z__port_out8(u64 port, u64 val) {
   u16 p = (u16)port;
   u8 v = (u8)val;
-  if (uart.handles(p))            uart.write(p, v);
+  if (vbe.handles(p))            vbe.write(p, v);
+  else if (uart.handles(p))       uart.write(p, v);
   else if (pic_master.handles(p)) pic_master.write(p, v);
   else if (pic_slave.handles(p))  pic_slave.write(p, v);
   else if (pit.handles(p))        pit.write(p, v);
@@ -285,6 +308,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (ide1.handles(p))       { ide1.write(p, v); latch_ide_irqs(); }
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
+  else if (p == 0x22)             imcr_index = v;
+  else if (p == 0x23 && imcr_index == 0x70) imcr_apic = v & 1;
   else if (vga.handles(p))        vga.write(p, v);
   else if (dma.handles(p))        dma.write(p, v);
   else if (dma.handles_page(p))   dma.write_page(p, v);
@@ -302,18 +327,19 @@ unit Model::z__port_out8(u64 port, u64 val) {
     d = (d & ~(0xFF << shift)) | ((u32)v << shift);
     pci.write_data(d);
     // If VGA ROM BAR was updated, sync the physical memory mapping
-    phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
+    sync_vga_bars();
   } else if (p == 0x92) {
     // System Control Port A: bit 1 = A20 gate
     za20_enabled = (v & 0x02) != 0;
   } else if (p == 0xB2) {
     // APM Control: trigger SMI
-    smi_pending = true;
+    pm.apm_write(v);
+    if (pci.apmc_smi_enabled() && (pm.global_control & 1)) smi_pending = true;
   } else if (p == 0xB3) {
     // APM Status: store value
     apmc_status = v;
-  } else if (0xB000 <= p && p < 0xB040) {
-    // PIIX4 ACPI PM I/O: absorb writes
+  } else if (pci.pm_base() <= p && p < pci.pm_base() + 0x40) {
+    if (pm.write(p - pci.pm_base(), v)) should_exit = true;
   }
   else if (p == 0x402) {
     // QEMU debug console: SeaBIOS dprintf output, shown with SAIL_X86_BIOS_DEBUG
@@ -325,6 +351,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
 
 unit Model::z__port_out16(u64 port, u64 val) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) { vbe.write(p, val); return UNIT; }
   // IDE data ports must be written as atomic 16-bit words
   if (ide0.is_data_port(p)) { ide0.write16((u16)val); latch_ide_irqs(); return UNIT; }
   if (ide1.is_data_port(p)) { ide1.write16((u16)val); latch_ide_irqs(); return UNIT; }
@@ -340,7 +367,7 @@ unit Model::z__port_out32(u64 port, u64 val) {
   // PCI config address register: atomic 32-bit write
   if (p == 0xCF8) { pci.write_addr((u32)val); return UNIT; }
   // PCI config data register: atomic 32-bit write
-  if (p == 0xCFC) { pci.write_data((u32)val); return UNIT; }
+  if (p == 0xCFC) { pci.write_data((u32)val); sync_vga_bars(); return UNIT; }
   // 32-bit IDE data port access (outsl) moves two words
   if (ide0.is_data_port(p)) { ide0.write16((u16)val); ide0.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }
   if (ide1.is_data_port(p)) { ide1.write16((u16)val); ide1.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }
@@ -357,6 +384,9 @@ unit Model::z__port_out32(u64 port, u64 val) {
 bool Model::z__check_pending_smi(unit) {
   bool pending = smi_pending;
   smi_pending = false;
+  // Assert the chipset's SMM memory view before Sail writes the save state.
+  // This check is skipped while in SMM; the first check after RSM closes it.
+  phys_mem.smram_active = pending;
   return pending;
 }
 
@@ -366,22 +396,27 @@ bool Model::z__check_pending_smi(unit) {
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
 
+  set_irq(8, cmos.has_irq());
+
   // Raise floppy IRQ 6 on master PIC (edge-triggered: one-shot)
   if (floppy.irq_pending) {
     floppy.irq_pending = false;
-    pic_master.raise_irq(6);
+    pulse_irq(6);
   }
 
   // IDE interrupts are latched at the port access that raised them; this
   // catches one raised any other way (reset).
   latch_ide_irqs();
 
+  int apic_vector = lapic.acknowledge();
+  if (apic_vector >= 0) { mpz_set_si(*rop, apic_vector); return; }
+
   // Cascade: if slave has pending interrupts, raise IRQ 2 on master
   if (pic_slave.has_pending())
     pic_master.raise_irq(2);
 
   // Check master PIC for pending, unmasked interrupts
-  if (pic_master.has_pending()) {
+  if (pic_connected() && pic_master.has_pending()) {
     int vec = pic_master.acknowledge();
     if (vec >= 0) {
       // If this is the cascade IRQ (master IRQ 2), acknowledge slave instead

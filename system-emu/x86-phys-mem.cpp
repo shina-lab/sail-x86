@@ -3,10 +3,66 @@
 #include <sys/mman.h>
 #include <cstdlib>
 
+bool PhysicalMemory::video_read(u64 addr, void *buf, u64 len) const {
+  if ((smram_open || smram_active) && addr >= 0xA0000 && addr < 0xC0000) return false;
+  if (!(vbe && vbe->maps(addr)) && vga && vga->maps(addr)) {
+    auto *out = static_cast<u8 *>(buf);
+    for (u64 i = 0; i < len; ++i) out[i] = vga->read_mem(addr + i);
+    return true;
+  }
+  if (!vbe || !vbe->maps(addr)) return false;
+  auto *out = static_cast<u8 *>(buf);
+  for (u64 i = 0; i < len; ++i) out[i] = vbe->maps(addr + i) ? vbe->read_mem(addr + i) : 0xFF;
+  return true;
+}
+
+bool PhysicalMemory::video_write(u64 addr, const void *buf, u64 len) {
+  if ((smram_open || smram_active) && addr >= 0xA0000 && addr < 0xC0000) return false;
+  if (!(vbe && vbe->maps(addr)) && vga && vga->maps(addr)) {
+    const auto *in = static_cast<const u8 *>(buf);
+    for (u64 i = 0; i < len; ++i) vga->write_mem(addr + i, in[i]);
+    return true;
+  }
+  if (!vbe || !vbe->maps(addr)) return false;
+  const auto *in = static_cast<const u8 *>(buf);
+  for (u64 i = 0; i < len; ++i) if (vbe->maps(addr + i)) vbe->write_mem(addr + i, in[i]);
+  return true;
+}
+
+bool PhysicalMemory::apic_read(u64 addr, void *buf, u64 len) const {
+  bool local = lapic && lapic->maps(addr);
+  if (!local && !(ioapic && ioapic->maps(addr))) return false;
+  auto *out = static_cast<u8 *>(buf);
+  for (u64 i = 0; i < len;) {
+    u32 offset = (addr + i) & 0xFFC;
+    u32 value = local ? lapic->read(offset) : ioapic->read(offset);
+    do {
+      out[i] = value >> (((addr + i) & 3) * 8);
+      ++i;
+    } while (i < len && ((addr + i) & 3));
+  }
+  return true;
+}
+
+bool PhysicalMemory::apic_write(u64 addr, const void *buf, u64 len) {
+  bool local = lapic && lapic->maps(addr);
+  if (!local && !(ioapic && ioapic->maps(addr))) return false;
+  // xAPIC registers require aligned, dword accesses. Do not turn a dword
+  // EOI/ICR write into four separate device operations.
+  if (!(addr & 3) && len == 4) {
+    u32 value;
+    memcpy(&value, buf, 4);
+    if (local) lapic->write(addr & 0xFFF, value);
+    else ioapic->write(addr & 0xFFF, value);
+  }
+  return true;
+}
+
 PhysicalMemory::~PhysicalMemory() {
   if (ram)
     munmap(ram, size);
   free(rom_data);
+  delete[] vga_rom_data;
 }
 
 bool PhysicalMemory::init(u64 sz) {
@@ -55,15 +111,12 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
     out = rom_data[paddr - high_base];
     return true;
   }
-  // VGA ROM: serve at legacy C0000 and at PCI ROM BAR address.
+  // VGA ROM: the PCI expansion-ROM BAR remains read-only. The C0000
+  // shadow is RAM: SeaVGABIOS updates variables there after relocation.
   // The BAR address may change when SeaBIOS remaps PCI resources.
   if (vga_rom_data) {
     if (paddr >= vga_rom_bar && paddr < vga_rom_bar + vga_rom_size) {
       out = vga_rom_data[paddr - vga_rom_bar];
-      return true;
-    }
-    if (paddr >= 0xC0000 && paddr < 0xC0000 + vga_rom_size) {
-      out = vga_rom_data[paddr - 0xC0000];
       return true;
     }
   }
@@ -71,10 +124,13 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
 }
 
 void PhysicalMemory::load_vga_rom(const u8 *data, size_t len, u64 bar_addr) {
+  delete[] vga_rom_data;
   vga_rom_data = new u8[len];
   memcpy(vga_rom_data, data, len);
   vga_rom_size = len;
   vga_rom_bar = bar_addr;
+  if (size > 0xC0000)
+    memcpy(ram + 0xC0000, data, std::min<u64>(len, size - 0xC0000));
 }
 
 bool PhysicalMemory::in_rom(u64 paddr) const {
@@ -88,6 +144,10 @@ bool PhysicalMemory::in_rom(u64 paddr) const {
 }
 
 u8 PhysicalMemory::read8(u64 paddr) const {
+  u8 video;
+  if (video_read(paddr, &video, 1)) return video;
+  u8 mmio;
+  if (apic_read(paddr, &mmio, 1)) return mmio;
   u8 rom_byte;
   if (rom_read(paddr, rom_byte)) return rom_byte;
   if (paddr < size) {
@@ -112,6 +172,10 @@ u8 PhysicalMemory::read8(u64 paddr) const {
 }
 
 u16 PhysicalMemory::read16(u64 paddr) const {
+  u16 video;
+  if (video_read(paddr, &video, 2)) return video;
+  u16 mmio;
+  if (apic_read(paddr, &mmio, 2)) return mmio;
   // For ROM regions, read byte-by-byte
   if (rom_data && in_rom(paddr))
     return read8(paddr) | ((u16)read8(paddr + 1) << 8);
@@ -124,6 +188,10 @@ u16 PhysicalMemory::read16(u64 paddr) const {
 }
 
 u32 PhysicalMemory::read32(u64 paddr) const {
+  u32 video;
+  if (video_read(paddr, &video, 4)) return video;
+  u32 mmio;
+  if (apic_read(paddr, &mmio, 4)) return mmio;
   if (rom_data && in_rom(paddr))
     return read8(paddr) | ((u32)read8(paddr+1) << 8) |
            ((u32)read8(paddr+2) << 16) | ((u32)read8(paddr+3) << 24);
@@ -136,6 +204,10 @@ u32 PhysicalMemory::read32(u64 paddr) const {
 }
 
 u64 PhysicalMemory::read64(u64 paddr) const {
+  u64 video;
+  if (video_read(paddr, &video, 8)) return video;
+  u64 mmio;
+  if (apic_read(paddr, &mmio, 8)) return mmio;
   if (rom_data && in_rom(paddr))
     return (u64)read32(paddr) | ((u64)read32(paddr + 4) << 32);
   if (paddr + 7 < size) {
@@ -147,12 +219,16 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 }
 
 void PhysicalMemory::write8(u64 paddr, u8 val) {
+  if (video_write(paddr, &val, 1)) return;
+  if (apic_write(paddr, &val, 1)) return;
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
   if (paddr < size)
     ram[paddr] = val;
 }
 
 void PhysicalMemory::write16(u64 paddr, u16 val) {
+  if (video_write(paddr, &val, 2)) return;
+  if (apic_write(paddr, &val, 2)) return;
   if (in_rom(paddr)) return;
   if (paddr + 1 < size) {
     memcpy(ram + paddr, &val, 2);
@@ -160,18 +236,31 @@ void PhysicalMemory::write16(u64 paddr, u16 val) {
 }
 
 void PhysicalMemory::write32(u64 paddr, u32 val) {
+  if (video_write(paddr, &val, 4)) return;
+  if (apic_write(paddr, &val, 4)) return;
   if (in_rom(paddr)) return;
   if (paddr + 3 < size)
     memcpy(ram + paddr, &val, 4);
 }
 
 void PhysicalMemory::write64(u64 paddr, u64 val) {
+  if (video_write(paddr, &val, 8)) return;
+  if (apic_write(paddr, &val, 8)) return;
   if (in_rom(paddr)) return;
   if (paddr + 7 < size)
     memcpy(ram + paddr, &val, 8);
 }
 
 void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
+  if (video_read(paddr, buf, len)) return;
+  if (apic_read(paddr, buf, len)) return;
+  // BIOS presence does not make ordinary RAM a ROM access. Keep bulk
+  // loads fast while preserving IVT byte handling and device/ROM priority.
+  if (paddr >= 0x400 && paddr < size && len <= size - paddr &&
+      !in_rom(paddr) && (!len || !in_rom(paddr + len - 1))) {
+    memcpy(buf, ram + paddr, len);
+    return;
+  }
   // If ROM is active, read byte-by-byte for regions that may overlap ROM
   if (rom_data) {
     u8 *dst = static_cast<u8 *>(buf);
@@ -180,12 +269,14 @@ void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
     return;
   }
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
-  memcpy(buf, ram + paddr, avail);
+  if (avail) memcpy(buf, ram + paddr, avail);
   memset(static_cast<u8 *>(buf) + avail, 0xFF, len - avail);
 }
 
 void PhysicalMemory::write_bytes(u64 paddr, const void *buf, u64 len) {
+  if (video_write(paddr, buf, len)) return;
+  if (apic_write(paddr, buf, len)) return;
   if (rom_data && in_rom(paddr)) return;
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
-  memcpy(ram + paddr, buf, avail);
+  if (avail) memcpy(ram + paddr, buf, avail);
 }

@@ -183,19 +183,142 @@ public:
   u8 dac_rgb_pos = 0;  // 0, 1, 2 for R, G, B
   u8 dac_palette[256][3] = {};
 
+  // Four 64 KB VGA planes. Reads load all four latches; writes use the
+  // sequencer map mask and graphics-controller data path (including the
+  // latch-only mode used for accelerated planar copies).
+  std::vector<u8> planes = std::vector<u8>(4 * 65536);
+  u8 latch[4] = {};
+
+  bool maps(u64 addr) const {
+    unsigned map = (gc_regs[6] >> 2) & 3;
+    // Keep the existing text RAM view at B0000/B8000. Font uploads and all
+    // graphics memory accesses at A0000 go through the VGA data path.
+    if (!graphics() && addr >= 0xB0000) return false;
+    return addr >= 0xA0000 && addr < (map == 0 ? 0xC0000 : 0xB0000) && map < 2;
+  }
+  u8 read_mem(u64 addr) {
+    unsigned offset = (addr - 0xA0000) & 0xFFFF, plane = gc_regs[4] & 3;
+    if (seq_regs[4] & 8) { plane = offset & 3; offset >>= 2; }
+    else if (!(seq_regs[4] & 4) && (gc_regs[5] & 0x10)) {
+      plane = (plane & 2) | (offset & 1); offset >>= 1;
+    }
+    for (unsigned p = 0; p < 4; ++p) latch[p] = planes[p * 65536 + offset];
+    if (!(gc_regs[5] & 8)) return latch[plane];
+    u8 result = 0xFF;
+    for (unsigned p = 0; p < 4; ++p)
+      if (gc_regs[7] & (1 << p)) result &= ~(latch[p] ^ ((gc_regs[2] & (1 << p)) ? 0xFF : 0));
+    return result;
+  }
+  void write_mem(u64 addr, u8 value) {
+    unsigned offset = (addr - 0xA0000) & 0xFFFF;
+    unsigned mask = seq_regs[2] & 15;
+    if (seq_regs[4] & 8) { mask &= 1 << (offset & 3); offset >>= 2; }
+    else if (!(seq_regs[4] & 4) && (gc_regs[5] & 0x10)) {
+      mask &= (offset & 1) ? 0xA : 5; offset >>= 1;
+    }
+    unsigned mode = gc_regs[5] & 3;
+    unsigned rotation = gc_regs[3] & 7;
+    u8 rotated = (value >> rotation) | (value << ((8 - rotation) & 7));
+    for (unsigned p = 0; p < 4; ++p) {
+      if (!(mask & (1 << p))) continue;
+      u8 result = rotated, bitmask = gc_regs[8];
+      if (mode == 1) { planes[p * 65536 + offset] = latch[p]; continue; }
+      if (mode == 0 && (gc_regs[1] & (1 << p))) result = gc_regs[0] & (1 << p) ? 255 : 0;
+      if (mode == 2) result = value & (1 << p) ? 255 : 0;
+      if (mode == 3) {
+        result = gc_regs[0] & (1 << p) ? 255 : 0;
+        bitmask &= rotated;
+      }
+      switch ((gc_regs[3] >> 3) & 3) {
+      case 1: result &= latch[p]; break;
+      case 2: result |= latch[p]; break;
+      case 3: result ^= latch[p]; break;
+      }
+      planes[p * 65536 + offset] = (result & bitmask) | (latch[p] & ~bitmask);
+    }
+  }
+  bool graphics() const { return gc_regs[6] & 1; }
+  unsigned text_cols() const { return unsigned(crtc_regs[1]) + 1; }
+  unsigned text_rows() const { return std::max(1u, std::min(100u, pixel_height())); }
+  unsigned text_width() const { return text_cols() * ((seq_regs[1] & 1) ? 8 : 9); }
+  unsigned text_height() const { return text_rows() * ((crtc_regs[9] & 31) + 1); }
+  // Snapshot the CRTC text window (including 80x50 installer screens), with
+  // the guest's uploaded plane-2 font and attribute/DAC colors. Blink is
+  // captured in its visible phase, including the hardware cursor.
+  std::vector<u8> text_rgb(const u8 *memory) const {
+    unsigned cw = text_width() / text_cols(), ch = text_height() / text_rows();
+    unsigned w = text_width(), h = text_height();
+    std::vector<u8> image(size_t(w) * h * 3);
+    unsigned cursor = (unsigned(crtc_regs[0x0E]) << 8) | crtc_regs[0x0F];
+    for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x) {
+      unsigned cell = (start_addr() + (y / ch) * crtc_regs[0x13] * 2 + x / cw) & 0x3FFF;
+      u8 code = memory[cell * 2], attr = memory[cell * 2 + 1];
+      unsigned map = (attr & 8) ? ((seq_regs[3] >> 2) & 3) | ((seq_regs[3] >> 3) & 4)
+                                : (seq_regs[3] & 3) | ((seq_regs[3] >> 2) & 4);
+      unsigned font = (map & 3) * 0x4000 + (map >> 2) * 0x2000;
+      u8 glyph = planes[2 * 65536 + font + code * 32 + y % ch];
+      bool ink = x % cw < 8 ? (glyph & (0x80 >> (x % cw)))
+                           : ((attr_regs[0x10] & 4) && code >= 0xC0 && code <= 0xDF && (glyph & 1));
+      if (!(crtc_regs[0x0A] & 0x20) && cell == cursor &&
+          y % ch >= (crtc_regs[0x0A] & 31) && y % ch <= (crtc_regs[0x0B] & 31)) ink = true;
+      unsigned color = ink ? attr & 15 : (attr >> 4) & ((attr_regs[0x10] & 8) ? 7 : 15);
+      color = attr_regs[color] & 63;
+      if (attr_regs[0x10] & 0x80) color = (color & 15) | ((attr_regs[0x14] & 3) << 4);
+      color |= (attr_regs[0x14] & 12) << 4;
+      for (unsigned c = 0; c < 3; ++c)
+        image[(size_t(y) * w + x) * 3 + c] = (dac_palette[color & dac_mask][c] & 63) * 255 / 63;
+    }
+    return image;
+  }
+  unsigned pixel_width() const {
+    return std::min(2560u, unsigned(crtc_regs[1] + 1) * ((gc_regs[5] & 0x40) ? 4 : 8));
+  }
+  unsigned pixel_height() const {
+    unsigned lines = crtc_regs[0x12] | ((crtc_regs[7] & 2) << 7) | ((crtc_regs[7] & 0x40) << 3);
+    unsigned repeat = (crtc_regs[9] & 31) + 1;
+    if (crtc_regs[9] & 0x80) repeat *= 2;
+    return std::min(1600u, (lines + 1) / repeat);
+  }
+  std::vector<u8> graphics_rgb() const {
+    if (!graphics()) return {};
+    unsigned w = pixel_width(), h = pixel_height();
+    std::vector<u8> image(size_t(w) * h * 3);
+    for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x) {
+      unsigned offset = (start_addr() + y * crtc_regs[0x13] * 2 +
+                         ((gc_regs[5] & 0x40) ? x / 4 : x / 8)) & 0xFFFF;
+      unsigned color = 0;
+      if (gc_regs[5] & 0x40) color = planes[(x & 3) * 65536 + offset];
+      else {
+        for (unsigned p = 0; p < 4; ++p)
+          color |= ((planes[p * 65536 + offset] >> (7 - (x & 7))) & 1) << p;
+        color = attr_regs[color & attr_regs[0x12] & 15] & 63;
+        if (attr_regs[0x10] & 0x80) color = (color & 15) | ((attr_regs[0x14] & 3) << 4);
+        color |= (attr_regs[0x14] & 12) << 4;
+      }
+      for (unsigned c = 0; c < 3; ++c)
+        image[(size_t(y) * w + x) * 3 + c] = (dac_palette[color & dac_mask][c] & 63) * 255 / 63;
+    }
+    return image;
+  }
+
   // Retrace counter (for Input Status Register 1)
   u8 isr1_counter = 0;
 
   VGAText() {
     // 80x25 color text CRTC defaults (16-pixel font, matching SeaVGABIOS)
     crtc_regs[0x01] = 79;    // Horizontal display end (80 cols)
+    crtc_regs[0x07] = 2;     // Vertical display end bit 8
     crtc_regs[0x09] = 0x0F;  // Max scan line = 15 (16-pixel font)
+    crtc_regs[0x12] = 0x8F;  // Vertical display end = 399
+    crtc_regs[0x13] = 40;    // 80 character words per row
     crtc_regs[0x0A] = 13;    // Cursor start scan line
     crtc_regs[0x0B] = 14;    // Cursor end scan line
     // Sequencer defaults for text mode
     seq_regs[1] = 0x00;  // Clocking mode
     seq_regs[2] = 0x03;  // Map mask (planes 0,1)
     seq_regs[4] = 0x02;  // Memory mode (text, odd/even)
+    gc_regs[6] = 0x0E;  // B8000 text aperture
+    gc_regs[8] = 0xFF;
   }
 
   u8 read(u16 port) {
@@ -217,9 +340,9 @@ public:
     case 0x3CC: return misc_output;
     case 0x3CE: return gc_index;
     case 0x3CF: return gc_regs[gc_index & 0x0F];
-    case 0x3D4: return crtc_index;
-    case 0x3D5: return crtc_regs[crtc_index];
-    case 0x3DA:
+    case 0x3B4: case 0x3D4: return crtc_index;
+    case 0x3B5: case 0x3D5: return crtc_regs[crtc_index];
+    case 0x3BA: case 0x3DA:
       attr_flip_flop = false;  // reading ISR1 resets attribute flip-flop
       isr1_counter++;
       // Bit 0: display enable (1 during retrace), Bit 3: vertical retrace
@@ -249,8 +372,8 @@ public:
       break;
     case 0x3CE: gc_index = val; break;
     case 0x3CF: gc_regs[gc_index & 0x0F] = val; break;
-    case 0x3D4: crtc_index = val; break;
-    case 0x3D5: crtc_regs[crtc_index] = val; break;
+    case 0x3B4: case 0x3D4: crtc_index = val; break;
+    case 0x3B5: case 0x3D5: crtc_regs[crtc_index] = val; break;
     case 0x3DA: /* Feature Control (write) — ignore */ break;
     default: break;
     }
@@ -258,6 +381,7 @@ public:
 
   bool handles(u16 port) const {
     return (port >= 0x3C0 && port <= 0x3CF) ||
+           port == 0x3B4 || port == 0x3B5 || port == 0x3BA ||
            port == 0x3D4 || port == 0x3D5 || port == 0x3DA;
   }
 
@@ -524,6 +648,14 @@ public:
     }
   }
 
+  void dump(FILE *out) const {
+    for (unsigned i = 0; i < 3; ++i) {
+      const auto &c = channels[i];
+      fprintf(out, "  PIT%u mode=%u count=%u reload=%u gate=%u output=%u\n",
+              i, c.mode, c.count, c.reload, c.gate, c.output);
+    }
+  }
+
 private:
   struct Channel {
     u32 count = 0;
@@ -563,23 +695,27 @@ public:
       //   bit 2 = system flag (POST passed)
       //   bit 3 = command/data (0 = data written to 0x60)
       u8 status = 0x14;  // system flag (bit 2) + keyboard unlocked (bit 4)
-      if (!out_buf.empty() || !scancode_buf.empty())
+      if (has_data())
         status |= 0x01;  // output buffer full
       return status;
     }
     if (port == 0x60) {
       // Serve PS/2 command responses first, then actual scancodes.
       if (!out_buf.empty()) {
-        u8 val = out_buf.front();
+        output_latch = out_buf.front();
         out_buf.pop();
-        return val;
+        return output_latch;
       }
-      if (!scancode_buf.empty()) {
-        u8 val = scancode_buf.front();
+      if (!scancode_buf.empty() && scancode_delay == 0) {
+        output_latch = scancode_buf.front();
         scancode_buf.pop();
-        return val;
+        // A keyboard serial transfer takes time. Do not deliver the next
+        // queued byte during the same interrupt handler's immediate reread.
+        scancode_delay = 2;
       }
-      return 0x00;
+      // UPI-41A/41AH/42/42AH manual, "Reading the DBBOUT Register":
+      // a read clears OBF; the data register retains its contents.
+      return output_latch;
     }
     return 0xFF;
   }
@@ -615,11 +751,20 @@ public:
       case 0xAE:  // Enable first PS/2 port
         kbd_enabled = true;
         break;
+      case 0xD0:  // Read output port (reset deasserted, current A20 gate)
+        out_buf.push(1 | ((a20_gate && *a20_gate) ? 2 : 0));
+        break;
       case 0xD1:  // Write output port (next byte to 0x60)
         last_cmd = 0xD1;
         break;
       case 0xFE:  // Pulse CPU reset line (system reboot)
         reboot_requested = true;
+        break;
+      case 0xDD:  // Disable A20
+        if (a20_gate) *a20_gate = false;
+        break;
+      case 0xDF:  // Enable A20
+        if (a20_gate) *a20_gate = true;
         break;
       default:
         last_cmd = val;
@@ -687,11 +832,17 @@ public:
     scancode_buf.push(sc);
   }
 
+  // Called once per millisecond of virtual time, including during HLT.
+  // Two ticks give at least one full millisecond between received bytes.
+  void tick() {
+    if (scancode_delay) --scancode_delay;
+  }
+
   // Returns true if the output buffer has data (for IRQ 1).
   // Real i8042 raises IRQ 1 whenever the output buffer is full,
   // whether it's a scancode or a command response.
   bool has_data() const {
-    return !out_buf.empty() || !scancode_buf.empty();
+    return !out_buf.empty() || (!scancode_buf.empty() && scancode_delay == 0);
   }
 
   size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
@@ -701,6 +852,8 @@ public:
 private:
   std::queue<u8> out_buf;      // PS/2 command responses (ACKs, IDs, etc.)
   std::queue<u8> scancode_buf; // actual key scancodes from host
+  u8 output_latch = 0;
+  unsigned scancode_delay = 0;
   u8 last_cmd = 0;          // last command written to port 0x64
   u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
   u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on
@@ -710,11 +863,12 @@ private:
 // =========================================================================
 // CMOS/RTC — Real-Time Clock (ports 0x70-0x71)
 //
-// Linux reads RTC during boot. Return reasonable defaults.
+// MC146818-compatible clock, driven by the platform's virtual nanoseconds.
 // =========================================================================
 
 class CMOS {
 public:
+  const u64 *clock = nullptr;
   CMOS() {
     memset(regs, 0, sizeof(regs));
     // RTC time defaults
@@ -778,16 +932,34 @@ public:
   }
 
   u8 read(u16 port) {
-    if (port == 0x71)
-      return regs[index & 0x7F];
+    update();
+    if (port == 0x71) {
+      u8 value = regs[index];
+      if (index == 0x0A && running() && !(regs[0x0B] & 0x80) &&
+          now() % 1000000000 >= 999755859) value |= 0x80; // UIP
+      if (index == 0x0C) regs[index] = 0; // reading C acknowledges the IRQ
+      return value;
+    }
     return 0xFF;
   }
 
   void write(u16 port, u8 val) {
+    update();
     if (port == 0x70)
       index = val & 0x7F;  // Bit 7 is NMI mask
-    else if (port == 0x71)
-      regs[index & 0x7F] = val;
+    else if (port == 0x71 && index != 0x0C && index != 0x0D) {
+      regs[index] = index == 0x0A ? val & 0x7F : val;
+      update_irq();
+    }
+  }
+
+  bool has_irq() { update(); return regs[0x0C] & 0x80; }
+
+  // Inspect without acknowledging status C or changing the selected register.
+  void dump(FILE *out) const {
+    fprintf(out, "  RTC index=%02x A=%02x B=%02x C=%02x D=%02x time=%02x:%02x:%02x ticks=%lu second=%lu\n",
+            index, regs[10], regs[11], regs[12], regs[13], regs[4], regs[2], regs[0],
+            last_ticks, last_second);
   }
 
   bool handles(u16 port) const {
@@ -797,6 +969,64 @@ public:
 private:
   u8 index = 0;
   u8 regs[128];
+  u64 last_ticks = 0, last_second = 0;
+  u64 now() const { return clock ? *clock : 0; }
+  bool running() const { return (regs[0x0A] & 0x70) == 0x20; }
+  unsigned number(u8 x) const { return (regs[0x0B] & 4) ? x : (x >> 4) * 10 + (x & 15); }
+  u8 encode(unsigned x) const { return (regs[0x0B] & 4) ? x : (x / 10) * 16 + x % 10; }
+  void update_irq() {
+    regs[0x0C] &= 0x7F;
+    if (regs[0x0C] & regs[0x0B] & 0x70) regs[0x0C] |= 0x80;
+  }
+  void second() {
+    unsigned sec = number(regs[0]), min = number(regs[2]);
+    unsigned hour = number(regs[4] & 0x7F);
+    bool h24 = regs[0x0B] & 2;
+    if (!h24) hour = hour % 12 + ((regs[4] & 0x80) ? 12 : 0);
+    if (++sec >= 60) {
+      sec = 0;
+      if (++min >= 60) {
+        min = 0;
+        if (++hour >= 24) {
+          hour = 0;
+          regs[6] = encode(number(regs[6]) % 7 + 1);
+          unsigned day = number(regs[7]), month = number(regs[8]);
+          unsigned year = number(regs[9]) + 100 * number(regs[0x32]);
+          static const u8 days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+          unsigned limit = days[(month >= 1 && month <= 12) ? month - 1 : 0];
+          if (month == 2 && year % 4 == 0 && (year % 100 || year % 400 == 0)) ++limit;
+          if (++day > limit) {
+            day = 1;
+            if (++month > 12) { month = 1; ++year; }
+          }
+          regs[7] = encode(day); regs[8] = encode(month);
+          regs[9] = encode(year % 100); regs[0x32] = encode(year / 100);
+        }
+      }
+    }
+    regs[0] = encode(sec); regs[2] = encode(min);
+    regs[4] = h24 ? encode(hour) : encode(hour % 12 ? hour % 12 : 12) | (hour >= 12 ? 0x80 : 0);
+    regs[0x0C] |= 0x10; // update-ended flag
+    bool alarm = true;
+    for (unsigned i : {0u, 2u, 4u})
+      alarm &= (regs[i + 1] & 0xC0) == 0xC0 || regs[i + 1] == regs[i];
+    if (alarm) regs[0x0C] |= 0x20;
+  }
+  void update() {
+    u64 ns = now(), sec = ns / 1000000000;
+    u64 ticks = sec * 32768 + (ns % 1000000000) * 32768 / 1000000000;
+    if (running()) {
+      unsigned rate = regs[0x0A] & 15;
+      if (rate) {
+        unsigned shift = rate <= 2 ? rate + 6 : rate - 1;
+        if ((ticks >> shift) != (last_ticks >> shift)) regs[0x0C] |= 0x40;
+      }
+      if (!(regs[0x0B] & 0x80) && sec >= last_second)
+        for (u64 s = last_second; s < sec; ++s) second();
+    }
+    last_ticks = ticks; last_second = sec;
+    update_irq();
+  }
 };
 
 // =========================================================================
@@ -824,7 +1054,17 @@ public:
     for (int i = 0x59; i <= 0x5F; i++)
       dev0[i] = 0x33;  // R/W enabled for all regions
 
-    // Device 0:1.0 — PIIX3 IDE Controller (ISA-compatible mode)
+    // Device 0:1.0 — PIIX3 ISA bridge; the multifunction bit is essential
+    // for firmware to discover IDE at function 1 and ACPI PM at function 3.
+    memset(dev1isa, 0, sizeof(dev1isa));
+    dev1isa[0] = 0x86; dev1isa[1] = 0x80;
+    dev1isa[2] = 0x00; dev1isa[3] = 0x70;
+    dev1isa[4] = 7;
+    dev1isa[0x0A] = 1; dev1isa[0x0B] = 6;
+    dev1isa[0x0E] = 0x80;
+    for (int i = 0x60; i <= 0x63; ++i) dev1isa[i] = 0x80; // PIRQ disabled
+
+    // Device 0:1.1 — PIIX3 IDE Controller (ISA-compatible mode)
     // SeaBIOS scans PCI for CLASS_STORAGE_IDE devices. This makes it
     // find our ISA ATA controller at the standard ports 0x1F0/0x3F6.
     memset(dev1, 0, sizeof(dev1));
@@ -853,7 +1093,8 @@ public:
     dev2[0x0A] = 0x00;                      // Subclass: VGA compatible
     dev2[0x0B] = 0x03;                      // Class: display controller
     dev2[0x0E] = 0x00;                      // Header type 0
-    // No BAR0 — VGA framebuffer is at legacy ISA address 0xB8000.
+    // BAR0: 16 MB prefetchable Bochs VBE linear framebuffer.
+    dev2[0x10] = 0x08; dev2[0x13] = 0xE0;
     // ROM BAR (0x30): point to 0xFEB00000 (in PCI memory space above RAM).
     // The emulator stores a copy of vgabios.bin there so SeaBIOS can read it
     // independently from the shadow RAM at C0000 (which SeaBIOS clears first).
@@ -880,6 +1121,12 @@ public:
 
   void write_addr(u32 val) { addr = val; }
   u32 read_addr() const { return addr; }
+  u16 pm_base() const {
+    return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
+  }
+  bool vga_memory_enabled() const { return dev2[4] & 2; }
+  bool smram_open() const { return (dev0[0x72] & 0x48) == 0x48; }
+  bool apmc_smi_enabled() const { return dev1f3[0x5B] & 2; }
 
   u32 read_data() const {
     if (!(addr & 0x80000000)) return 0xFFFFFFFF;  // Enable bit not set
@@ -913,25 +1160,29 @@ public:
     } else if (cfg == dev0 && reg == 0x70) {
       // I440FX_SMRAM register (0x72) and neighboring regs
       memcpy(&cfg[reg], &val, 4);
-    } else if (cfg == dev1f3) {
+    } else if (cfg == dev1isa && reg >= 0x40) {
+      memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
+      memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev1f3 && (reg == 4 || reg >= 0x40)) {
       // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
       memcpy(&cfg[reg], &val, 4);
-    } else if (cfg == dev2 && reg == 0x30) {
-      // VGA ROM BAR: handle sizing and address writes.
-      // When software writes 0xFFFFFFFF, return size mask.
-      // Round ROM size up to power of 2 for PCI BAR alignment.
-      if (val == 0xFFFFFFFF || val == 0xFFFFFFFE) {
-        u32 rom_sz = vga_rom_size ? vga_rom_size : 0x800;
-        u32 aligned = 1;
-        while (aligned < rom_sz) aligned <<= 1;
-        u32 mask = ~(aligned - 1) | 1;  // bit 0 = enable
-        memcpy(&cfg[reg], &mask, 4);
-      } else {
-        memcpy(&cfg[reg], &val, 4);
-        // Track the new BAR address (the emulator's main code needs to
-        // call phys_mem.set_vga_rom_bar() with this value)
-        vga_rom_bar_addr = val & ~(u32)1;  // mask off enable bit
+    } else if (cfg == dev2 && reg >= 0x10 && reg < 0x28) {
+      u32 bar = 0;
+      if (reg == 0x10) {
+        bar = (val & 0xFF000000) | 8;
+        if (val != 0xFFFFFFFF) vga_lfb_addr = val & 0xFF000000;
       }
+      memcpy(&cfg[reg], &bar, 4);
+    } else if (cfg == dev2 && reg == 0x30) {
+      // Address bits below the ROM size are hardwired zero, including when
+      // SeaBIOS probes with FFFFF800 rather than FFFFFFFF.
+      u32 aligned = 0x800;
+      while (aligned < vga_rom_size) aligned <<= 1;
+      u32 bar = val & (~(aligned - 1) | 1);
+      memcpy(&cfg[reg], &bar, 4);
+      if ((val & 0xFFFFF800) != 0xFFFFF800)
+        vga_rom_bar_addr = bar & ~1u;
     } else if (cfg == dev2) {
       // VGA: allow other config writes (command, etc.)
       memcpy(&cfg[reg], &val, 4);
@@ -942,14 +1193,16 @@ public:
 private:
   const u8 *get_config(int dev, int func) const {
     if (dev == 0 && func == 0) return dev0;
-    if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 0) return dev1isa;
+    if (dev == 1 && func == 1) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
     if (dev == 2 && func == 0) return dev2;
     return nullptr;
   }
   u8 *get_config_mut(int dev, int func) {
     if (dev == 0 && func == 0) return dev0;
-    if (dev == 1 && func == 0) return dev1;
+    if (dev == 1 && func == 0) return dev1isa;
+    if (dev == 1 && func == 1) return dev1;
     if (dev == 1 && func == 3) return dev1f3;
     if (dev == 2 && func == 0) return dev2;
     return nullptr;
@@ -957,10 +1210,12 @@ private:
 
   u32 addr = 0;
   u8 dev0[256];    // 0:0.0 — i440FX host bridge
-  u8 dev1[256];    // 0:1.0 — PIIX3 IDE controller
+  u8 dev1isa[256]; // 0:1.0 — PIIX3 ISA bridge
+  u8 dev1[256];    // 0:1.1 — PIIX3 IDE controller
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
+  u32 vga_lfb_addr = 0xE0000000;
   u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
   u32 vga_rom_size = 0;               // Actual VGA ROM size (for BAR sizing)
 };
@@ -975,26 +1230,26 @@ public:
 
 class FwCfg {
 public:
+  FwCfg() { rebuild_directory(); }
+
   void set_vga_rom(const u8 *data, size_t len) {
     vga_rom.assign(data, data + len);
-    // Rebuild file directory with one entry for "vgaroms/vgabios.bin"
-    // Format: u32 count (BE), then per file: u32 size (BE), u16 select (BE), u16 reserved, char name[56]
+    rebuild_directory();
+  }
+
+  void rebuild_directory() {
     memset(filedir_buf, 0, sizeof(filedir_buf));
-    // count = 1 (big-endian)
-    filedir_buf[0] = 0; filedir_buf[1] = 0; filedir_buf[2] = 0; filedir_buf[3] = 1;
-    // File entry at offset 4:
-    u8 *f = filedir_buf + 4;
-    // size (big-endian)
-    u32 sz = (u32)len;
-    f[0] = (sz >> 24) & 0xFF; f[1] = (sz >> 16) & 0xFF;
-    f[2] = (sz >> 8) & 0xFF;  f[3] = sz & 0xFF;
-    // select = 0x21 (big-endian) — first user file selector
-    f[4] = 0x00; f[5] = 0x21;
-    // reserved
-    f[6] = 0; f[7] = 0;
-    // name
-    strncpy((char *)f + 8, "vgaroms/vgabios.bin", 56);
-    filedir_len = 4 + 64;  // 4 bytes header + 64 bytes per file entry
+    unsigned count = vga_rom.empty() ? 1 : 2;
+    filedir_buf[3] = count;
+    auto entry = [&](unsigned i, u32 sz, u16 selector, const char *name) {
+      u8 *f = filedir_buf + 4 + i * 64;
+      f[0] = sz >> 24; f[1] = sz >> 16; f[2] = sz >> 8; f[3] = sz;
+      f[4] = selector >> 8; f[5] = selector;
+      strncpy((char *)f + 8, name, 55);
+    };
+    entry(0, 1, 0x22, "etc/irq0-override");
+    if (!vga_rom.empty()) entry(1, vga_rom.size(), 0x21, "vgaroms/vgabios.bin");
+    filedir_len = 4 + count * 64;
   }
 
   void set_ram_size(u64 bytes) {
@@ -1035,6 +1290,10 @@ public:
       data = id_buf;
       len = 4;
       break;
+    case 0x05:  // QEMU_CFG_NB_CPUS: one BSP, no APs
+    case 0x0F:  // QEMU_CFG_MAX_CPUS
+    case 0x22:  // etc/irq0-override: ISA IRQ0 is wired to IOAPIC input 2
+      return offset++ == 0 ? 1 : 0;
     case 0x19:  // QEMU_CFG_FILE_DIR
       data = filedir_buf;
       len = filedir_len;
@@ -1074,7 +1333,7 @@ private:
   u32 e820_len = 0;
 
   // File directory buffer (header + file entries)
-  u8 filedir_buf[128] = {};
+  u8 filedir_buf[132] = {};
   u32 filedir_len = 4;  // default: just u32 count=0
 
   // VGA ROM file data (loaded via set_vga_rom)
@@ -1082,12 +1341,11 @@ private:
 };
 
 // =========================================================================
-// IDE channel — one PIO master device: an ATA hard disk or an ATAPI CD-ROM
+// IDE devices — PIO ATA hard disk or ATAPI CD-ROM
 //
 // The primary channel is at 0x1F0-0x1F7/0x3F6 (IRQ 14), the secondary at
-// 0x170-0x177/0x376 (IRQ 15).  Only the master device of a channel exists;
-// while the slave is selected every register reads as zero, so drive probes
-// skip it.  An empty channel reads as zero too.
+// 0x170-0x177/0x376 (IRQ 15). Each channel can have a master and a slave.
+// An absent device reads as zero so drive probes skip it.
 //
 // Hard disk: READ/WRITE SECTORS, IDENTIFY DEVICE, INITIALIZE DEVICE
 // PARAMETERS, SET FEATURES, FLUSH CACHE.  CD-ROM: IDENTIFY PACKET DEVICE,
@@ -1108,12 +1366,13 @@ private:
 // its outcome to stderr.
 inline bool ide_trace = getenv("SAIL_X86_IDE_TRACE") != nullptr;
 
-class IDEChannel {
+class IDEDevice {
 public:
   enum Kind { NONE, DISK, CDROM };
+  const u64 *clock = nullptr;
 
-  IDEChannel(u16 base, u16 ctrl) : base(base), ctrl(ctrl) {}
-  ~IDEChannel() {
+  IDEDevice(u16 base, u16 ctrl, bool slave) : base(base), ctrl(ctrl), slave(slave) {}
+  ~IDEDevice() {
     if (fd >= 0) close(fd);
   }
 
@@ -1139,7 +1398,10 @@ public:
     case 5: return lba_high;      // ATAPI: byte count high
     case 6: return drive_head;
     case 7:                       // status: clears the interrupt
+      if (ide_trace && irq_asserted)
+        fprintf(stderr, "ide%d.%d: status ack %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, status, now());
       irq_pending = false;
+      irq_asserted = false;
       return status;
     }
     return 0x00;
@@ -1147,7 +1409,10 @@ public:
 
   void write(u16 port, u8 val) {
     if (port == ctrl) {
+      if (ide_trace && dev != NONE)
+        fprintf(stderr, "ide%d.%d: control %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, val, now());
       nien = (val & 0x02) != 0;
+      if (nien) irq_asserted = false;
       if (val & 0x04) reset_device();  // SRST
       return;
     }
@@ -1220,6 +1485,18 @@ public:
   // Set when the device asserts INTRQ; the platform delivers it to the PIC
   // once (edge) and clears it.
   bool irq_pending = false;
+  bool irq_asserted = false;
+
+  void dump(FILE *out) const {
+    static const char *phases[] = {"idle", "data-in", "data-out", "packet"};
+    fprintf(out, "  IDE %03x.%u kind=%u cmd=%02x at=%lu ns status=%02x error=%02x features=%02x count=%02x lba=%02x%02x%02x dh=%02x nIEN=%u IRQ=%u pending=%u\n",
+            base, slave, dev, last_command, command_time, status, error, features,
+            sector_count, lba_high, lba_mid, lba_low, drive_head, nien, irq_asserted, irq_pending);
+    fprintf(out, "    phase=%s buffer=%zu/%zu block_end=%zu limit=%zu write_lba=%u packet=%u cdb_pos=%d CDB=",
+            phases[xfer], buf_pos, buf.size(), block_end, block_limit, current_lba, packet, cdb_pos);
+    for (u8 byte : cdb) fprintf(out, "%02x ", byte);
+    fputc('\n', out);
+  }
 
 private:
   enum Xfer { XFER_NONE, XFER_IN, XFER_OUT, XFER_CDB };
@@ -1239,6 +1516,8 @@ private:
   u8 lba_high = 0;
   u8 drive_head = 0;
   u8 status = 0;
+  u8 last_command = 0;
+  u64 command_time = 0;
   bool nien = false;
 
   // Transfer state
@@ -1256,7 +1535,9 @@ private:
   bool medium_locked = false;
   bool packet = false;  // the current transfer belongs to a PACKET command
 
-  bool slave_selected() const { return (drive_head & 0x10) != 0; }
+  bool slave;
+  u64 now() const { return clock ? *clock : 0; }
+  bool slave_selected() const { return ((drive_head & 0x10) != 0) != slave; }
 
   bool open_image(const char *path, Kind k, u32 ssize, int flags) {
     fd = ::open(path, flags);
@@ -1274,7 +1555,10 @@ private:
   u64 total_sectors() const { return (image_size + sector_size - 1) / sector_size; }
 
   void raise_irq() {
-    if (!nien) irq_pending = true;
+    if (ide_trace)
+      fprintf(stderr, "ide%d.%d: IRQ status=%02x reason=%02x nIEN=%u pos=%zu/%zu at %lu ns\n",
+              base == 0x1F0 ? 0 : 1, slave, status, sector_count, nien, buf_pos, buf.size(), now());
+    if (!nien) irq_pending = irq_asserted = true;
   }
 
   // Leave the signature that tells the host what kind of device this is:
@@ -1293,6 +1577,7 @@ private:
     buf_pos = block_end = 0;
     cdb_pos = 0;
     irq_pending = false;
+    irq_asserted = false;
     error = 0x01;  // diagnostics passed
     status = dev == NONE ? 0x00 : 0x40;
     set_signature();
@@ -1342,10 +1627,12 @@ private:
   }
 
   void execute(u8 cmd) {
+    last_command = cmd;
+    command_time = now();
     if (ide_trace)
-      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d\n",
+      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d at %lu ns\n",
               base == 0x1F0 ? 0 : 1, cmd, features, sector_count, lba_high, lba_mid, lba_low,
-              drive_head, nien);
+              drive_head, nien, now());
     error = 0;
     packet = false;
     switch (cmd) {
@@ -1648,6 +1935,53 @@ private:
     }
   }
 };
+// A channel shares task-file writes and device control between both devices;
+// only the selected device executes commands or drives the data/status bus.
+class IDEChannel {
+public:
+  using Kind = IDEDevice::Kind;
+  static constexpr Kind NONE = IDEDevice::NONE, DISK = IDEDevice::DISK, CDROM = IDEDevice::CDROM;
+  IDEChannel(u16 base, u16 ctrl) : master(base, ctrl, false), slave(base, ctrl, true), base(base) {}
+  bool open_disk(const char *path) { return master.open_disk(path); }
+  bool open_slave_disk(const char *path) { return slave.open_disk(path); }
+  bool open_cdrom(const char *path) { return master.open_cdrom(path); }
+  bool is_open() const { return master.is_open() || slave.is_open(); }
+  Kind kind() const { return master.kind(); }
+  bool handles(u16 port) const { return master.handles(port); }
+  bool is_data_port(u16 port) const { return master.is_data_port(port); }
+  u8 read(u16 port) {
+    u8 value = selected().read(port);
+    if (port == base + 7) irq_pending = false;
+    sync_irq();
+    return value;
+  }
+  void write(u16 port, u8 value) {
+    if (port == base + 6) select_slave = value & 0x10;
+    master.write(port, value);
+    slave.write(port, value);
+    sync_irq();
+  }
+  u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
+  void write16(u16 value) { selected().write16(value); sync_irq(); }
+  bool irq_pending = false, irq_asserted = false;
+  void set_clock(const u64 *clock) { master.clock = slave.clock = clock; }
+  void dump(FILE *out) const {
+    fprintf(out, "  IDE channel %03x selected=%u IRQ=%u pending=%u\n", base, select_slave, irq_asserted, irq_pending);
+    master.dump(out);
+    slave.dump(out);
+  }
+private:
+  IDEDevice master, slave;
+  u16 base;
+  bool select_slave = false;
+  IDEDevice &selected() { return select_slave ? slave : master; }
+  void sync_irq() {
+    irq_pending |= master.irq_pending || slave.irq_pending;
+    master.irq_pending = slave.irq_pending = false;
+    irq_asserted = master.irq_asserted || slave.irq_asserted;
+  }
+};
+
 // =========================================================================
 // 8237 DMA Controller — ISA DMA (channels 0-3)
 //

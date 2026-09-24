@@ -57,6 +57,12 @@ static void init_model(x86::Model &model) {
   model.zIDTR_base = 0;
   model.zIDTR_limit = 0x3FF;
   model.zsmbase = SMBASE_DEFAULT;
+
+  // This platform gates APMC SMIs through both PIIX4 enables. Firmware
+  // normally programs these before using port B2; the test has no BIOS.
+  model.z__port_out32(0xCF8, 0x80000B58);
+  model.z__port_out32(0xCFC, 0x02000000);  // DEVACTB.APMC_EN
+  model.z__port_out8(model.pci.pm_base() + 0x28, 1);  // GLBCTL.SMI_EN
 }
 
 enum RunResult { RUN_OK = 0, RUN_HALTED = 1, RUN_FAULTED = 2 };

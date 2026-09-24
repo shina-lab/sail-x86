@@ -2,6 +2,9 @@
 
 #include "../emu-shared/integers.h"
 #include "devices.h"
+#include "apic.h"
+#include "pm.h"
+#include "framebuffer.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -51,16 +54,27 @@ public:
 
   bool in_ram(u64 paddr) const { return paddr < size; }
 
+  LocalAPIC *lapic = nullptr;
+  IOAPIC *ioapic = nullptr;
+  BochsVBE *vbe = nullptr;
+  VGAText *vga = nullptr;
+  bool smram_open = false, smram_active = false;
+
   // ROM intercept: check if paddr falls in a ROM region, return byte if so.
   bool rom_read(u64 paddr, u8 &out) const;
   bool in_rom(u64 paddr) const;
 
   // Load a VGA BIOS ROM. Stored separately so SeaBIOS can read it even
-  // after clearing C0000. Served at both C0000 and the PCI ROM BAR address.
+  // after clearing C0000. C0000 is writable shadow RAM; the PCI ROM BAR
+  // serves the immutable image independently.
   void load_vga_rom(const u8 *data, size_t len, u64 bar_addr);
   void set_vga_rom_bar(u64 addr) { vga_rom_bar = addr; }
 
 private:
+  bool video_read(u64 addr, void *buf, u64 len) const;
+  bool video_write(u64 addr, const void *buf, u64 len);
+  bool apic_read(u64 addr, void *buf, u64 len) const;
+  bool apic_write(u64 addr, const void *buf, u64 len);
   u8 *ram = nullptr;
   u64 size = 0;
   u8 *rom_data = nullptr;
@@ -72,6 +86,18 @@ private:
 
 class X86PlatformBase {
 public:
+  X86PlatformBase() {
+    phys_mem.lapic = &lapic;
+    phys_mem.ioapic = &ioapic;
+    phys_mem.vbe = &vbe;
+    phys_mem.vga = &vga;
+    lapic.clock = &tsc;
+    cmos.clock = &tsc;
+    ide0.set_clock(&tsc);
+    ide1.set_clock(&tsc);
+    ioapic.lapic = &lapic;
+    lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };
+  }
   MXCSRState mxcsr_state;
 
   bool should_exit = false;
@@ -98,6 +124,52 @@ public:
   FloppyController floppy;
   FwCfg fw_cfg;
   PCIConfigSpace pci;
+  LocalAPIC lapic;
+  IOAPIC ioapic;
+  ACPIPM pm;
+  BochsVBE vbe;
+
+  void sync_vga_bars() {
+    phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
+    vbe.lfb_base = pci.vga_lfb_addr;
+    vbe.memory_enabled = pci.vga_memory_enabled();
+    phys_mem.smram_open = pci.smram_open();
+  }
+  u8 imcr_index = 0;
+  bool imcr_apic = false;
+  bool irq_lines[16] = {};
+
+  void set_irq(unsigned irq, bool asserted) {
+    if (irq >= 16) return;
+    if (asserted && !irq_lines[irq]) {
+      if (irq < 8) pic_master.raise_irq(irq);
+      else pic_slave.raise_irq(irq - 8);
+    }
+    irq_lines[irq] = asserted;
+    // The PC/AT timer is wired to IOAPIC INTIN2 (MP/ACPI ISA IRQ0 override).
+    ioapic.set_irq(irq == 0 ? 2 : irq, asserted);
+  }
+  void pulse_irq(unsigned irq) {
+    set_irq(irq, false);
+    set_irq(irq, true);
+    set_irq(irq, false);
+  }
+  u8 read_keyboard(u16 port) {
+    u8 value = kbd.read(port);
+    // Each byte in the controller output buffer has its own IRQ edge.
+    // Lower the line when the host consumes a byte, even if more are queued.
+    if (port == 0x60) set_irq(1, false);
+    return value;
+  }
+  bool pic_connected() const {
+    return lapic.enabled() ? (lapic.accepts_pic() || ioapic.accepts_pic()) : !imcr_apic;
+  }
+  bool interrupt_pending() {
+    set_irq(8, cmos.has_irq());
+    latch_ide_irqs();
+    if (pic_slave.has_pending()) pic_master.raise_irq(2);
+    return lapic.pending() >= 0 || (pic_connected() && pic_master.has_pending());
+  }
 
   // Simulated TSC: incremented each instruction step.
   // Used instead of host RDTSC so timer calibration matches PIT timing.
@@ -123,8 +195,16 @@ public:
   // the status register (deasserting INTRQ) inside its interrupt handler,
   // as libata does after every PIO block.
   void latch_ide_irqs() {
-    if (ide0.irq_pending) { ide0.irq_pending = false; pic_slave.raise_irq(6); }  // IRQ 14
-    if (ide1.irq_pending) { ide1.irq_pending = false; pic_slave.raise_irq(7); }  // IRQ 15
+    auto latch = [this](IDEChannel &ide, unsigned irq) {
+      if (ide.irq_pending) {
+        ide.irq_pending = false;
+        set_irq(irq, false);
+        set_irq(irq, true);
+      }
+      set_irq(irq, ide.irq_asserted);
+    };
+    latch(ide0, 14);
+    latch(ide1, 15);
   }
 
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].

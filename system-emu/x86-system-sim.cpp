@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -111,6 +112,10 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -i <file>       Initramfs image\n");
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
+  fprintf(stderr, "  -hdb <file>     Hard disk image (primary IDE slave)\n");
+  fprintf(stderr, "  Ctrl-a s / Ctrl-a k           Route subsequent stdin to serial / keyboard\n");
+  fprintf(stderr, "  Ctrl-a u/d/l/r, Ctrl-a 1..0   Keyboard arrows and F1..F10\n");
+  fprintf(stderr, "  -kbd            Route stdin to the PS/2 keyboard (headless BIOS interaction)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
   fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
   fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
@@ -126,7 +131,10 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_DETERMINISTIC_RDRAND Replace RDRAND/RDSEED with splitmix64(seed)\n");
   fprintf(stderr, "  SAIL_X86_BIOS_DEBUG           Echo the firmware debug port (0x402) to stderr\n");
   fprintf(stderr, "Signals:\n");
+  fprintf(stderr, "  SIGUSR2                       Save graphics to framebuffer.png (SAIL_X86_FRAMEBUFFER overrides)\n");
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -360,10 +368,10 @@ static bool load_bzimage(x86::Model &model, const char *path,
   u64 cmdline_addr = setup_base + cmdline_off;
   const char *default_serial_cmdline =
       "earlyprintk=serial,0x3f8 console=ttyS0 "
-      "noapic nolapic tsc=reliable nokaslr norandmaps "
+      "tsc=reliable nokaslr norandmaps "
       "randomize_kstack_offset=off";
   const char *default_vga_cmdline =
-      "console=tty0 noapic nolapic tsc=reliable nokaslr norandmaps "
+      "console=tty0 tsc=reliable nokaslr norandmaps "
       "randomize_kstack_offset=off";
   const char *default_cmdline = (display_mode == DISPLAY_VGA) ?
                                  default_vga_cmdline : default_serial_cmdline;
@@ -562,6 +570,26 @@ static bool needs_shift(int ch) {
 // Push scancodes for a character into the keyboard controller.
 // Generates make+break for the key, with Shift/Ctrl if needed.
 static void push_key(KeyboardController &kbd, int ch) {
+  u8 special = 0;
+  bool extended = false;
+  if (ch >= KEY_F(1) && ch <= KEY_F(10)) special = 0x3B + ch - KEY_F(1);
+  else if (ch == KEY_F(11) || ch == KEY_F(12)) special = 0x57 + ch - KEY_F(11);
+  else {
+    switch (ch) {
+    case KEY_UP: special = 0x48; break;
+    case KEY_DOWN: special = 0x50; break;
+    case KEY_LEFT: special = 0x4B; break;
+    case KEY_RIGHT: special = 0x4D; break;
+    }
+    extended = special != 0;
+  }
+  if (special) {
+    if (extended) kbd.push_scancode(0xE0);
+    kbd.push_scancode(special);
+    if (extended) kbd.push_scancode(0xE0);
+    kbd.push_scancode(special | 0x80);
+    return;
+  }
   // Handle ncurses special keys (KEY_xxx constants >= 256)
   if (ch == KEY_ENTER) ch = '\r';
   else if (ch == KEY_BACKSPACE) ch = 0x08;
@@ -796,6 +824,7 @@ static void render_vga_text(x86::Model &model) {
 
 int main(int argc, char *argv[]) {
   bool debug = false;
+  bool keyboard_input = false;
   u64 ram_mb = 256;
   u64 ips = 1;  // virtual CPU speed, million instructions per emulated second
   const char *cmdline = nullptr;
@@ -804,6 +833,7 @@ int main(int argc, char *argv[]) {
   DisplayMode display_mode = DISPLAY_SERIAL;
   const char *bios_path = nullptr;
   const char *hda_path = nullptr;
+  const char *hdb_path = nullptr;
   const char *fda_path = nullptr;
   const char *cdrom_path = nullptr;
   const char *boot_order = nullptr;
@@ -812,6 +842,9 @@ int main(int argc, char *argv[]) {
   while (first_arg < argc && argv[first_arg][0] == '-') {
     if (strcmp(argv[first_arg], "-d") == 0) {
       debug = true;
+      first_arg++;
+    } else if (strcmp(argv[first_arg], "-kbd") == 0) {
+      keyboard_input = true;
       first_arg++;
     } else if (strcmp(argv[first_arg], "-m") == 0 && first_arg + 1 < argc) {
       ram_mb = atoi(argv[first_arg + 1]);
@@ -834,6 +867,9 @@ int main(int argc, char *argv[]) {
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-hda") == 0 && first_arg + 1 < argc) {
       hda_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-hdb") == 0 && first_arg + 1 < argc) {
+      hdb_path = argv[first_arg + 1];
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-fda") == 0 && first_arg + 1 < argc) {
       fda_path = argv[first_arg + 1];
@@ -904,16 +940,18 @@ int main(int argc, char *argv[]) {
     // The init code installs the INT 10h handler and initializes BDA.
     {
       size_t vga_size;
-      u8 *vga = read_file("vgabios.bin", &vga_size);
+      std::string vga_path = bios_path;
+      auto slash = vga_path.find_last_of('/');
+      vga_path = (slash == std::string::npos ? "" : vga_path.substr(0, slash + 1)) + "vgabios.bin";
+      u8 *vga = read_file(vga_path.c_str(), &vga_size);
       if (vga) {
         // Fix ROM checksum: sum of all bytes must be 0 (mod 256).
         u8 sum = 0;
         for (size_t i = 0; i < vga_size; i++) sum += vga[i];
         vga[vga_size - 1] -= sum;
-        // Provide the ROM via fw_cfg as "vgaroms/vgabios.bin" so SeaBIOS
-        // can load it during option ROM scanning. Also store at C0000 and
-        // PCI ROM BAR for legacy access.
-        model.fw_cfg.set_vga_rom(vga, vga_size);
+        // Expose this PCI device's ROM once. A second copy under fw_cfg's
+        // vgaroms/ is initialized without a PCI BDF and overwrites the VBE
+        // framebuffer address with the default E0000000 instead of BAR0.
         model.phys_mem.load_vga_rom(vga, vga_size, 0xFEB00000ULL);
         model.pci.vga_rom_size = (u32)vga_size;
         fprintf(stderr, "sail-x86-system: VGA BIOS loaded (%zu bytes, checksum OK)\n", vga_size);
@@ -935,6 +973,14 @@ int main(int argc, char *argv[]) {
         return 1;
       }
       fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
+    }
+
+    if (hdb_path) {
+      if (!model.ide0.open_slave_disk(hdb_path)) {
+        fprintf(stderr, "Failed to open disk image: %s\n", hdb_path);
+        return 1;
+      }
+      fprintf(stderr, "sail-x86-system: HDB=%s\n", hdb_path);
     }
 
     if (cdrom_path) {
@@ -997,6 +1043,21 @@ int main(int argc, char *argv[]) {
     }
   }
   bool poll_stdin = true;  // Always poll stdin for UART RX data
+  auto input_byte = [&](u8 ch) {
+    if (keyboard_input) push_key(model.kbd, ch == '\r' || ch == '\n' ? '\n' : ch);
+    else model.uart.rx_push(ch);
+  };
+  auto input_special = [&](int ch) {
+    int key = 0;
+    if (ch >= '1' && ch <= '9') key = KEY_F(ch - '0');
+    else if (ch == '0') key = KEY_F(10);
+    else if (ch == 'u') key = KEY_UP;
+    else if (ch == 'd') key = KEY_DOWN;
+    else if (ch == 'l') key = KEY_LEFT;
+    else if (ch == 'r') key = KEY_RIGHT;
+    if (key) push_key(model.kbd, key);
+    return key != 0;
+  };
 
   u64 insn_count = 0;
   const char *trace_start_env = getenv("SAIL_X86_TRACE_START");
@@ -1009,6 +1070,13 @@ int main(int argc, char *argv[]) {
   u64 trace_end = parse_env_u64("SAIL_X86_TRACE_END", 0);
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
+  bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
+  bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
+  u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
+  bool trace_address_seen = false;
+  struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
+  TraceLocation recent[64] = {};
+  unsigned recent_count = 0, recent_next = 0;
   const char *probe_insn_env = getenv("SAIL_X86_PROBE_INSN");
   bool has_probe_insn = probe_insn_env && *probe_insn_env;
   u64 probe_insn = parse_env_u64("SAIL_X86_PROBE_INSN", 0);
@@ -1057,18 +1125,79 @@ int main(int argc, char *argv[]) {
   // continues: a look inside a run that has gone quiet on the console.
   static volatile bool dump_requested = false;
   signal(SIGUSR1, [](int) { dump_requested = true; });
+  static volatile sig_atomic_t framebuffer_requested = 0;
+  signal(SIGUSR2, [](int) { framebuffer_requested = 1; });
+  auto dump_framebuffer = [&]() {
+    framebuffer_requested = 0;
+    const char *path = getenv("SAIL_X86_FRAMEBUFFER");
+    if (!path) path = "framebuffer.png";
+    bool text = !model.vbe.enabled() && !model.vga.graphics();
+    unsigned width = model.vbe.enabled() ? model.vbe.width() :
+                     text ? model.vga.text_width() : model.vga.pixel_width();
+    unsigned height = model.vbe.enabled() ? model.vbe.height() :
+                      text ? model.vga.text_height() : model.vga.pixel_height();
+    auto rgb = model.vbe.enabled() ? model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask) :
+               text ? model.vga.text_rgb(model.phys_mem.ram_ptr() + ((model.vga.misc_output & 1) ? 0xB8000 : 0xB0000)) :
+               model.vga.graphics_rgb();
+    if (write_png(path, width, height, rgb))
+      fprintf(stderr, "sail-x86-system: framebuffer %ux%ux%u saved to %s\n",
+              width, height, model.vbe.enabled() ? model.vbe.depth() : ((model.vga.gc_regs[5] & 0x40) ? 8 : 4), path);
+  };
   auto dump_state = [&]() {
     dump_requested = false;
+    dump_framebuffer();
     dump_registers(stderr, insn_count, model);
+    fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
+            model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
+            model.lapic.read(0x320), model.lapic.read(0x390), model.lapic.pending());
+    fprintf(stderr, "    initial=%u divide=%x LINT0=%08x LINT1=%08x clock=%lu ns\n",
+            model.lapic.read(0x380), model.lapic.read(0x3E0), model.lapic.read(0x350), model.lapic.read(0x360), model.tsc);
+    for (unsigned group = 0; group < 8; ++group)
+      fprintf(stderr, "    vectors %3u-%3u IRR=%08x ISR=%08x TMR=%08x\n", group * 32, group * 32 + 31,
+              model.lapic.read(0x200 + group * 16), model.lapic.read(0x100 + group * 16), model.lapic.read(0x180 + group * 16));
     fprintf(stderr, "  PIC master IRR=%02x IMR=%02x ISR=%02x  slave IRR=%02x IMR=%02x ISR=%02x  %s\n",
             model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
             model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
             model.zsystem_state == x86::zSysHalted ? "halted" : "running");
+    model.ioapic.dump(stderr);
+    model.pit.dump(stderr);
+    model.cmos.dump(stderr);
+    model.ide0.dump(stderr);
+    model.ide1.dump(stderr);
+    fprintf(stderr, "  VGA text screen:\n");
+    unsigned start = model.vga.start_addr() * 2;
+    for (unsigned y = 0; y < model.vga.text_rows(); ++y) {
+      for (unsigned x = 0; x < model.vga.text_cols(); ++x) {
+        u8 ch = model.phys_mem.read8(((model.vga.misc_output & 1) ? 0xB8000 : 0xB0000) +
+                    ((start + y * model.vga.crtc_regs[0x13] * 4 + x * 2) & 0x7FFF));
+        fputc(ch >= 32 && ch < 127 ? ch : ' ', stderr);
+      }
+      fputc('\n', stderr);
+    }
+    if (const char *path = getenv("SAIL_X86_DUMP_RAM")) {
+      if (FILE *f = fopen(path, "wb")) {
+        fwrite(model.phys_mem.ram_ptr(), 1, model.phys_mem.ram_size(), f);
+        fclose(f);
+      }
+    }
+  };
+
+  auto dump_recent = [&]() {
+    for (unsigned i = 0; i < recent_count; ++i) {
+      const auto &r = recent[(recent_next + 64 - recent_count + i) % 64];
+      fprintf(stderr, "  [%lu] %04x:%08lx:", r.count, r.cs, r.ip);
+      if (r.physical)
+        for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.address + b));
+      else fprintf(stderr, " <paged code; bytes omitted>");
+      fputc('\n', stderr);
+    }
   };
 
   while (!model.should_exit && !got_signal) {
     if (dump_requested) dump_state();
+    if (framebuffer_requested) dump_framebuffer();
     if (trace_window_enabled && has_trace_end && insn_count >= trace_end) {
+      dump_state();
       fprintf(stderr, "sail-x86-system: stopping at trace end %lu instructions\n", insn_count);
       break;
     }
@@ -1100,8 +1229,55 @@ int main(int argc, char *argv[]) {
               insn_count, (u64)model.zRIP, vaddr, paddr, mem64);
     }
 
-
+    bool was_real = model.zcur_mode == x86::zRealMode;
+    u64 previous_ip = model.zRIP;
+    u16 previous_cs = model.zSegReg.data[x86::SEG_CS];
+    if (trace_real_ud || trace_address_enabled) {
+      u64 address = model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip;
+      if (!model.za20_enabled) address &= ~0x100000ULL;
+      recent[recent_next] = {insn_count, previous_ip,
+                            address, previous_cs, !(model.zCR0 & (1ULL << 31))};
+      recent_next = (recent_next + 1) % 64;
+      recent_count = std::min(recent_count + 1, 64u);
+      if (trace_address_enabled && !trace_address_seen &&
+          model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip == trace_address) {
+        trace_address_seen = true;
+        fprintf(stderr, "sail-x86-system: trace address 0x%lx at instruction %lu; recent locations:\n",
+                trace_address, insn_count);
+        dump_recent();
+        dump_state();
+      }
+    }
     model.zstep(UNIT);
+    if (trace_real_ud && model.zcur_mode == x86::zRealMode &&
+        (model.zRIP || model.zSegReg.data[x86::SEG_CS]) &&
+        model.zRIP == model.phys_mem.read16(model.zIDTR_base + 6 * 4) &&
+        model.zSegReg.data[x86::SEG_CS] == model.phys_mem.read16(model.zIDTR_base + 6 * 4 + 2)) {
+      u64 stack = model.zSegCache.data[x86::SEG_SS].zseg_base + (model.zGPR.data[4] & 0xFFFF);
+      // Also retain software interrupts, chained handlers and mode transitions:
+      // requiring a matching fault frame hides precisely those useful cases.
+      // IVT entries can share a handler, so do not infer the delivered vector.
+      bool fault_frame = was_real && model.phys_mem.read16(stack) == previous_ip &&
+                         model.phys_mem.read16(stack + 2) == previous_cs;
+      u32 handler = model.phys_mem.read32(model.zIDTR_base + 6 * 4);
+      bool shared = false;
+      for (unsigned v = 0; v < 256; ++v)
+        if (v != 6 && model.phys_mem.read32(model.zIDTR_base + v * 4) == handler)
+          shared = true;
+      // Firmware shares one IRET stub among many vectors. Do not dump RAM on
+      // each timer tick, while still retaining matching fault frames there.
+      if ((fault_frame || !shared) &&
+          (model.zRIP != previous_ip || model.zSegReg.data[x86::SEG_CS] != previous_cs || !was_real)) {
+        fprintf(stderr, "sail-x86-system: real-mode IVT[6] entry from %04x:%04lx at instruction %lu; recent locations (current physical bytes when paging was disabled):\n",
+                previous_cs, previous_ip, insn_count);
+        fprintf(stderr, "  previous mode=%s, stack frame=%04x:%04x flags=%04x\n",
+                was_real ? "real" : "protected/long",
+                model.phys_mem.read16(stack + 2), model.phys_mem.read16(stack),
+                model.phys_mem.read16(stack + 4));
+        dump_recent();
+        dump_state();
+      }
+    }
     tsc_frac += 1000;  // 1 GHz TSC: 1000 cycles per instruction at 1 MIPS
     model.tsc += tsc_frac / ips;
     tsc_frac %= ips;
@@ -1110,6 +1286,7 @@ int main(int argc, char *argv[]) {
 
 
     if (model.zfault_pending) {
+      dump_state();
       i64 vec = model.zfault_vector;
       u32 err = model.zfault_error_code;
       curses_cleanup();
@@ -1147,6 +1324,7 @@ int main(int argc, char *argv[]) {
       if (model.zsystem_mode) {
         // If IF=0, this is a panic halt loop — exit
         if (model.zIF_flag == 0) {
+          dump_state();
           curses_cleanup();
           fprintf(stderr, "sail-x86-system: HLT with IF=0 (panic halt) after %lu insns at RIP=0x%lx\n",
                   insn_count, (u64)model.zRIP);
@@ -1157,8 +1335,9 @@ int main(int argc, char *argv[]) {
         // One PIT tick (1 ms of guest time) per millisecond of wall time.
         // (or the user quits; leaving through the main loop prints the
         // instruction count like every other exit).
-        while (!model.pic_master.has_pending() && !model.should_exit) {
+        while (!model.interrupt_pending() && !model.should_exit && !got_signal) {
           if (dump_requested) dump_state();
+          if (framebuffer_requested) dump_framebuffer();
           if (poll_stdin) {
             if (curses_active) {
               // In curses mode, use getch() and push scancodes to i8042
@@ -1166,6 +1345,7 @@ int main(int argc, char *argv[]) {
               while ((ch = getch()) != ERR) {
                 if (ctrl_a_pending) {
                   ctrl_a_pending = false;
+                  if (input_special(ch)) continue;
                   if (ch == 'x' || ch == 'X') {
                     model.should_exit = true;
                     break;
@@ -1177,7 +1357,7 @@ int main(int argc, char *argv[]) {
                 push_key(model.kbd, ch);
               }
               if (model.kbd.has_data())
-                model.pic_master.raise_irq(1);
+                model.set_irq(1, model.kbd.has_data());
               // Render VGA while waiting
               render_vga_text(model);
               napms(1);
@@ -1189,25 +1369,30 @@ int main(int argc, char *argv[]) {
                 for (ssize_t i = 0; n > 0 && i < n; i++) {
                   if (ctrl_a_pending) {
                     ctrl_a_pending = false;
+                    if (input_special(buf[i])) continue;
+                    if (buf[i] == 's') { keyboard_input = false; continue; }
+                    if (buf[i] == 'k') { keyboard_input = true; continue; }
                     if (buf[i] == 'x' || buf[i] == 'X') {
                       fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
                       model.should_exit = true;
                       break;
                     }
-                    if (buf[i] == 0x01) model.uart.rx_push(0x01);
+                    if (buf[i] == 0x01) input_byte(0x01);
                     continue;
                   }
                   if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
-                  model.uart.rx_push(buf[i]);
+                  input_byte(buf[i]);
                 }
               }
             }
             if (model.uart.has_irq())
-              model.pic_master.raise_irq(4);
+              model.set_irq(4, model.uart.has_irq());
           }
           model.tsc += TSC_PER_PIT_TICK;
+          model.kbd.tick();
+          model.set_irq(1, model.kbd.has_data());
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
-            model.pic_master.raise_irq(0);
+            model.pulse_irq(0);
         }
         // On real x86, when an interrupt wakes the CPU from HLT, execution
         // resumes at the instruction AFTER HLT. The model commits the
@@ -1232,6 +1417,7 @@ int main(int argc, char *argv[]) {
         while ((ch = getch()) != ERR) {
           if (ctrl_a_pending) {
             ctrl_a_pending = false;
+            if (input_special(ch)) continue;
             if (ch == 'x' || ch == 'X') {
               model.should_exit = true;
               break;
@@ -1243,7 +1429,7 @@ int main(int argc, char *argv[]) {
           push_key(model.kbd, ch);
         }
         if (model.kbd.has_data())
-          model.pic_master.raise_irq(1);
+          model.set_irq(1, model.kbd.has_data());
       } else {
         u8 buf[64];
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
@@ -1252,26 +1438,30 @@ int main(int argc, char *argv[]) {
         for (ssize_t i = 0; n > 0 && i < n; i++) {
           if (ctrl_a_pending) {
             ctrl_a_pending = false;
+            if (input_special(buf[i])) continue;
+            if (buf[i] == 's') { keyboard_input = false; continue; }
+            if (buf[i] == 'k') { keyboard_input = true; continue; }
             if (buf[i] == 'x' || buf[i] == 'X') {
               fprintf(stderr, "\nsail-x86-system: Ctrl-a x — exiting\n");
               model.should_exit = true;
               break;
             }
             if (buf[i] == 0x01) { // Ctrl-a Ctrl-a = literal Ctrl-a
-              model.uart.rx_push(0x01);
+              input_byte(0x01);
             }
             continue;
           }
           if (buf[i] == 0x01) { ctrl_a_pending = true; continue; }
-          model.uart.rx_push(buf[i]);
+          input_byte(buf[i]);
         }
       }
     }
 
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
+      model.kbd.tick();
       if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
-        model.pic_master.raise_irq(0);
+        model.pulse_irq(0);
       }
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;
     }
@@ -1280,13 +1470,10 @@ int main(int argc, char *argv[]) {
     model.floppy.tick();
 
     // UART interrupt (IRQ 4): RDA or THRE
-    if (model.uart.has_irq()) {
-      model.pic_master.raise_irq(4);
-    }
+    model.set_irq(4, model.uart.has_irq());
 
     // Keyboard interrupt (IRQ 1): scancode available
-    if (model.kbd.has_data())
-      model.pic_master.raise_irq(1);
+    model.set_irq(1, model.kbd.has_data());
 
     // System reboot: keyboard 0xFE, PCI 0xCF9, or JMP FFFF:0000 (reset vector)
     if ((u16)model.zSegReg.data[x86::SEG_CS] == 0xFFFF && (u64)model.zRIP == 0x0000)

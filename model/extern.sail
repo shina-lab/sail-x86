@@ -31,6 +31,10 @@ val __rdseed64 : unit -> (qword, bit)
 val __rdmsr : dword -> qword
 val __wrmsr : (dword, qword) -> unit
 
+// SDM Vol.3A 13.8.6.1: CR8 aliases the enabled local APIC's TPR[7:4].
+val __read_cr8 : unit -> bits(4)
+val __write_cr8 : bits(4) -> unit
+
 val __syscall : (qword, qword) -> unit
 val __fxsave : qword -> unit
 val __fxsave64 : qword -> unit

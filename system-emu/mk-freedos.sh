@@ -26,7 +26,7 @@ mkdir -p "$WORK"
 SEABIOS_SRC="$WORK/seabios-${SEABIOS_VER}"
 BIOS_BIN="$BUILD_DIR/bios.bin"
 
-if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ] || [ ! -d "$SEABIOS_SRC" ]; then
+if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ] || [ ! -d "$SEABIOS_SRC" ] || [ "$0" -nt "$BIOS_BIN" ]; then
   echo "=== Building SeaBIOS ${SEABIOS_VER} ==="
 
   if [ ! -d "$SEABIOS_SRC" ]; then
@@ -71,10 +71,13 @@ CONFIG_CDROM_BOOT=y
 CONFIG_CDROM_EMU=y
 CONFIG_DEBUG_LEVEL=1
 CONFIG_SMBIOS=n
-CONFIG_MPTABLE=n
+CONFIG_MPTABLE=y
 CONFIG_PIRTABLE=n
-CONFIG_ACPI=n
+CONFIG_ACPI=y
+CONFIG_ACPI_DSDT=y
 CONFIG_ACPI_PARSE=n
+CONFIG_USE_SMM=n
+CONFIG_CALL32_SMM=n
 CONFIG_ROM_SIZE=128
 CONFIG_MOUSE=n
 CONFIG_PNPBIOS=n
@@ -90,13 +93,15 @@ CONFIG_ENTRY_EXTRASTACK=y
 CONFIG_PS2PORT=y
 CONFIG_CALL32_SMM=y
 CONFIG_THREADS=n
-CONFIG_VGA_STANDARD_VGA=y
-CONFIG_VGA_VBE=n
-CONFIG_VGA_PCI=n
+CONFIG_VGA_STANDARD_VGA=n
+CONFIG_VGA_BOCHS=y
+CONFIG_VGA_BOCHS_STDVGA=y
+CONFIG_VGA_VBE=y
+CONFIG_VGA_PCI=y
 EOF
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
-  make -C "$SEABIOS_SRC" -j"$(nproc)" PYTHON=python3
+  make -C "$SEABIOS_SRC" -j128 PYTHON=python3
   cp "$SEABIOS_SRC/out/bios.bin" "$BIOS_BIN"
   cp "$SEABIOS_SRC/out/vgabios.bin" "$BUILD_DIR/vgabios.bin"
   echo "SeaBIOS built: $BIOS_BIN ($(stat -c%s "$BIOS_BIN") bytes)"
@@ -167,7 +172,7 @@ if [ ! -f "$FREEDOS_IMG" ]; then
 
   # Extract files from floppy and copy to HDD partition
   echo "Copying FreeDOS files..."
-  TMPDIR_FD=$(mktemp -d)
+  TMPDIR_FD=$(mktemp -d "$WORK/extract.XXXXXX")
   # Extract all files from floppy image
   mcopy -i "$FLOPPY_IMG" -s -p -m -n ::/ "$TMPDIR_FD/" 2>/dev/null || true
 

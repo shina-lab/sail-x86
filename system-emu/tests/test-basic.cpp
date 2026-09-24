@@ -1196,9 +1196,136 @@ TEST(real_to_protected_mode_transition) {
   model.model_fini();
 }
 
+TEST(lmsw_enters_protected_mode) {
+  // SDM Vol.2A LMSW and Vol.3A 12.9.1: setting PE enters protected mode;
+  // the following far jump loads CS from the GDT, retaining other caches.
+  for (bool memory_operand : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 = 0x10030; // Preserve WP, NE and ET across both LMSW writes.
+    model.zGDTR_base = 0x800;
+    model.zGDTR_limit = 15;
+    model.phys_mem.write64(0x808, 0x00009B040000FFFFUL); // 16-bit CS at 0x40000
+    model.phys_mem.write16(0x9000, 0x000F);
+    const u8 reg_code[] = {
+      0xB8, 0x0F, 0x00,             // mov ax, 0x000f
+      0x0F, 0x01, 0xF0,             // lmsw ax
+      0xEA, 0x34, 0x12, 0x08, 0x00, // jmp 0008:1234
+    };
+    const u8 mem_code[] = {
+      0xB8, 0x0F, 0x00,
+      0x0F, 0x01, 0x36, 0x00, 0x90, // lmsw word [0x9000]
+      0xEA, 0x34, 0x12, 0x08, 0x00,
+    };
+    const u8 target[] = {
+      0x31, 0xC0,                   // xor ax, ax
+      0x0F, 0x01, 0xF0,             // lmsw ax: PE is sticky; MP/EM/TS clear
+      0xB8, 0xEF, 0xBE,             // mov ax, 0xbeef
+      0xF4,
+    };
+    model.phys_mem.write_bytes(0x41234, target, sizeof(target));
+    ASSERT_EQ(run_code(model, 0x1000, memory_operand ? mem_code : reg_code,
+                       memory_operand ? sizeof(mem_code) : sizeof(reg_code), 2), RUN_OK);
+    ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
+    ASSERT_EQ((u64)model.zCR0, 0x1003FUL);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+    model.zstep(UNIT); // Far JMP must use the descriptor, not selector << 4.
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x40000UL);
+    ASSERT_EQ((u64)model.zRIP, 0x1234UL);
+    for (unsigned i = 0; i < 4; ++i) model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
+    ASSERT_EQ((u64)model.zCR0, 0x10031UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0xBEEFUL);
+    model.model_fini();
+  }
+}
+
+TEST(xlat_segmented_table_lookup) {
+  // SDM Vol.2D XLAT/XLATB: use DS by default, honor a segment override,
+  // index with unsigned AL, write only AL and preserve flags.
+  for (unsigned mode : {16u, 32u, 64u}) {
+    for (bool override_fs : {false, true}) {
+      x86::Model model;
+      if (mode == 16) init_model_16(model);
+      else if (mode == 32) init_model_32(model);
+      else init_model(model);
+      model.zSegReg.data[x86::SEG_DS] = mode == 16 ? 0x2000 : 0x10;
+      model.zSegReg.data[x86::SEG_FS] = mode == 16 ? 0x3000 : 0x18;
+      model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+      model.zSegCache.data[x86::SEG_FS].zseg_base = 0x30000;
+      model.zGPR.data[0] = 0x1122334455667780UL;
+      model.zGPR.data[3] = 0x400;
+      model.zCF = 1; model.zPF = 0; model.zAF = 1;
+      model.zZF = 0; model.zSF = 1; model.zOF = 1;
+      u64 flags = model.zread_rflags(UNIT);
+      model.phys_mem.write8(0x480, 0x37);   // Unsegmented lookup is distinct.
+      model.phys_mem.write8(0x20480, 0xA5);
+      model.phys_mem.write8(0x30480, 0xB6);
+      const u8 code[] = {0x64, 0xD7, 0xF4}; // FS override; or just XLAT; HLT
+      ASSERT_EQ(run_code(model, 0x5000, code + !override_fs,
+                         sizeof(code) - !override_fs), RUN_HALTED);
+      u64 byte = override_fs ? 0xB6 : mode == 64 ? 0x37 : 0xA5;
+      ASSERT_EQ((u64)model.zGPR.data[0], 0x1122334455667700UL | byte);
+      ASSERT_EQ((u64)model.zGPR.data[3], 0x400UL);
+      ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(xlat_segment_limit_fault) {
+  for (bool override_ss : {false, true}) {
+    x86::Model model;
+    init_model_32(model);
+    auto seg = override_ss ? x86::SEG_SS : x86::SEG_DS;
+    model.zSegReg.data[seg] = 0x10;
+    model.zSegCache.data[seg].zseg_limit = 0x47F;
+    model.zGPR.data[0] = 0x80;
+    model.zGPR.data[3] = 0x400;
+    const u8 code[] = {0x36, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !override_ss,
+                       sizeof(code) - !override_ss), RUN_FAULTED);
+    ASSERT_EQ((u64)model.zfault_vector, override_ss ? 12UL : 13UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0x80UL);
+    model.model_fini();
+  }
+}
+
 // =========================================================================
-// IRET tests
+// Legacy state and interrupt returns
 // =========================================================================
+
+TEST(x87_save_restore_large_memory_operand) {
+  for (u64 save_addr : {0x8000UL, 0x8FE0UL}) {
+    x86::Model model;
+    init_model(model);
+    // Replace the first 2MB mapping with 4KB pages. The page following
+    // the save area's first page is deliberately noncontiguous.
+    model.phys_mem.write64(0x3000, 0x4000 | 3);
+    for (u64 i = 0; i < 512; ++i)
+      model.phys_mem.write64(0x4000 + i * 8, (i << 12) | 3);
+    model.phys_mem.write64(0x4000 + 9 * 8, 0x19000 | 3);
+    model.phys_mem.write64(0x9000, 0xA5A5A5A5A5A5A5A5UL);
+    model.zGPR.data[0] = save_addr;
+    model.zGPR.data[3] = 0x20000;
+    const u8 code[] = {
+      0xDB, 0xE3, // FNINIT
+      0xD9, 0xE8, // FLD1
+      0xDD, 0x30, // FNSAVE [RAX]: write 108 bytes, then initialize x87
+      0xDD, 0x20, // FRSTOR [RAX]: read the same complete state
+      0xDD, 0x1B, // FSTP qword [RBX]
+      0xF4,
+    };
+    ASSERT_EQ(run_code(model, 0x5000, code, sizeof(code)), RUN_HALTED);
+    ASSERT_EQ(model.phys_mem.read16(save_addr), 0x037Fu);
+    ASSERT_EQ(model.phys_mem.read16(save_addr + 4), 0x3800u); // saved TOP=7
+    ASSERT_EQ(model.phys_mem.read64(0x20000), 0x3FF0000000000000UL); // 1.0
+    ASSERT_EQ(model.phys_mem.read64(0x9000), 0xA5A5A5A5A5A5A5A5UL);
+    model.model_fini();
+  }
+}
 
 TEST(real_mode_iret_no_pop_sp_ss) {
   // In real mode, IRET pops only IP, CS, FLAGS (3 words).
@@ -1237,6 +1364,38 @@ TEST(real_mode_iret_no_pop_sp_ss) {
   ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x0000UL);
 
   model.model_fini();
+}
+
+TEST(real_mode_iret_with_nt) {
+  // SDM Vol. 2A, IRET Operation: real-address-mode return precedes
+  // the protected-mode NT/task-return test. Check both operand sizes
+  // and both values of NT in the flags image being restored.
+  for (unsigned width : {2u, 4u}) {
+    for (unsigned restored_nt : {0u, 1u}) {
+      x86::Model model;
+      init_model_16(model);
+      model.zNT = 1;
+      model.zGPR.data[4] = 0x8000;
+      u32 flags = 0x3002 | (restored_nt << 14);
+      if (width == 2) {
+        model.phys_mem.write16(0x8000, 0x1100);
+        model.phys_mem.write16(0x8002, 0);
+        model.phys_mem.write16(0x8004, flags);
+      } else {
+        model.phys_mem.write32(0x8000, 0x1100);
+        model.phys_mem.write32(0x8004, 0);
+        model.phys_mem.write32(0x8008, flags);
+      }
+      model.phys_mem.write8(0x1100, 0xF4); // HLT at the return address
+      const u8 code[] = {0x66, 0xCF};
+      int kind = run_code(model, 0x1000, code + (width == 2), width == 2 ? 1 : 2);
+      ASSERT_EQ(kind, RUN_HALTED);
+      ASSERT_EQ(model.zGPR.data[4], 0x8000 + 3 * width);
+      ASSERT_EQ(model.zNT, restored_nt);
+      ASSERT_EQ(model.zSegReg.data[x86::SEG_CS], 0u);
+      model.model_fini();
+    }
+  }
 }
 
 TEST(real_mode_int_iret_preserves_regs) {
@@ -1810,6 +1969,11 @@ TEST(push_ds_pop_es_32bit) {
 
   model.zSegReg.data[x86::SEG_DS] = 0x0010;  // DS = 0x10 (data selector)
   model.zSegReg.data[x86::SEG_ES] = 0x0000;  // ES = 0 initially
+  // POP ES validates the descriptor even when the selector was already
+  // loaded in DS. Give it a present, writable, flat data segment.
+  model.zGDTR_base = 0x90000;
+  model.zGDTR_limit = 23;
+  model.phys_mem.write64(0x90010, 0x00CF92000000FFFFULL);
 
   u64 orig_esp = model.zGPR.data[4];
 
@@ -1964,9 +2128,14 @@ int main() {
 
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
+  run_test_lmsw_enters_protected_mode();
+  run_test_xlat_segmented_table_lookup();
+  run_test_xlat_segment_limit_fault();
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();
+  run_test_x87_save_restore_large_memory_operand();
+  run_test_real_mode_iret_with_nt();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();

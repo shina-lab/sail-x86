@@ -837,7 +837,11 @@ function dispatch_2byte_gpr(op, pfx) = {
               var new_cr0 = CR0;
               new_cr0[3..1] = msw[3..1];
               new_cr0[0] = msw[0] | CR0[0];
-              CR0 = new_cr0
+              CR0 = new_cr0;
+              // SDM Vol.2A LMSW: setting PE enters protected mode. Retain
+              // segment caches until reloaded (Vol.3A 12.9.1, step 9).
+              if cur_mode == RealMode & new_cr0[0] == 0b1 then
+                cur_mode = ProtectedMode
             },
 
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
@@ -1086,7 +1090,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           2 => CR2,
           3 => CR3,
           4 => CR4,
-          8 => zero_extend(CR8),
+          8 => zero_extend(__read_cr8()),
           _ => raise_UD(),
         },
       };
@@ -1150,7 +1154,8 @@ function dispatch_2byte_gpr(op, pfx) = {
           // SDM Vol.2B MOV to CR: #GP(0) on setting a reserved bit in CR8;
           // only the TPR field, bits 3:0, is defined (Vol.3A §2.5).
           if cr_val[63..4] != zeros() then raise_GP0();
-          CR8 = cr_val[3..0]
+          CR8 = cr_val[3..0];
+          __write_cr8(CR8)
         },
         _ => raise_UD(),
       };

@@ -38,9 +38,9 @@ target_include_directories(sail-x86-system PRIVATE ${NCURSESW_INCLUDE_DIRS})
 target_link_libraries(sail-x86-system PRIVATE x86_system_model ${NCURSESW_LIBRARIES})
 add_dependencies(sail-x86-system generated_sail_x86_model)
 
-# =========================================================================
+# ==================================================================
 # "make linux" — download + build kernel, build initramfs, print boot command.
-# =========================================================================
+# ==================================================================
 #
 # Requires: curl, busybox-static, fakeroot, standard build tools.
 # Downloads Linux kernel source automatically if not already present.
@@ -75,9 +75,9 @@ add_custom_target(linux
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 
-# =========================================================================
+# ==================================================================
 # "make dos" — download + build SeaBIOS, create FreeDOS disk image.
-# =========================================================================
+# ==================================================================
 
 add_custom_target(dos
     DEPENDS sail-x86-system
@@ -142,6 +142,44 @@ add_executable(system_test_ide tests/test-ide.cpp)
 target_include_directories(system_test_ide PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_ide COMMAND system_test_ide)
+
+add_executable(system_test_apic tests/test-apic.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_apic PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_apic COMMAND system_test_apic)
+
+add_executable(system_test_fw_cfg tests/test-fw-cfg.cpp)
+target_include_directories(system_test_fw_cfg PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_fw_cfg COMMAND system_test_fw_cfg)
+
+add_executable(system_test_vbe tests/test-vbe.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_vbe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_vbe COMMAND system_test_vbe)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME system_png COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test-png.py $<TARGET_FILE:system_test_vbe>)
+
+add_executable(system_test_vga tests/test-vga.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_vga PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_vga COMMAND system_test_vga)
+
+add_executable(system_test_apic_cpu tests/test-apic-cpu.cpp)
+target_link_libraries(system_test_apic_cpu PRIVATE x86_system_model)
+add_dependencies(system_test_apic_cpu generated_sail_x86_model)
+add_test(NAME system_apic_cpu COMMAND system_test_apic_cpu)
+
+add_executable(system_test_keyboard tests/test-keyboard.cpp)
+target_include_directories(system_test_keyboard PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_keyboard COMMAND system_test_keyboard)
+
+add_executable(system_test_rtc tests/test-rtc.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_rtc PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_rtc COMMAND system_test_rtc)
 
 add_executable(system_test_smm tests/test-smm.cpp)
 target_link_libraries(system_test_smm PRIVATE x86_system_model)

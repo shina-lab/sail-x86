@@ -1,0 +1,1896 @@
+# Operating-system boot results
+
+Worktree: `sail-x86-os`. All disk images used for writes are copies under
+`build/os-boot`; original media under `/home/ruiu/os-images` are read only.
+The machine has one CPU, xAPIC, a 24-input I/O APIC, SeaBIOS MP/ACPI tables,
+a PIIX4 PM timer, two primary IDE disks, an ATAPI CD-ROM, Bochs VBE and
+planar VGA. It has no HPET or additional CPUs.
+
+## Final status
+
+| OS | Farthest observed progress | Remaining blocker |
+|---|---|---|
+| xv6 | Serial `$` shell; filesystem on IDE slave | None for the requested boot |
+| Linux i386 | Serial `sail#` shell | None for the requested boot |
+| Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
+| Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
+| ReactOS | Text setup: partitioned, formatted and checked FAT32; file copy reached 11% (`eventvwr.exe`) | Persistent kernel idle wait; no reported model fault; no first boot |
+| FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
+| Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
+| Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
+
+The APIC/IOAPIC, IDE slave, MP/ACPI firmware, VBE/PNG and planar VGA work
+is committed separately, along with the boot fixes. The boot-related Sail
+corrections cover the CR8/APIC alias, real-mode IRET NT handling, LMSW's
+protected-mode transition, and XLAT's segment selection. Each has an
+SDM citation and an instruction regression in the same commit. The C++ x87
+memory-capacity fix passes aligned and noncontiguous-page save/restore tests.
+All **15 official-build system tests** pass; the basic suite contains
+**65 cases**, also passing with sail-llvm. BIOS graphics fixtures separately
+validate modes 12h, 13h and VBE 101h. Those test patterns are not Windows screenshots.
+
+Original-session measured boot-attempt wall time: xv6 6.21 min, Linux 51.91 min,
+Haiku 57.79 min, ReactOS 52.83 min, FreeBSD 4.69 min, Windows 3.1 58.38 min,
+and Windows 95 58.38 min. These totals predate the continuation sections.
+Attempts ran concurrently. Each attempt below
+records its exact command and last serial output, including silent consoles.
+
+## Reproduction and measurement
+
+Build the emulator and firmware from the repository root. All attempts in
+the sail-llvm continuation use `build/llvm/sail-x86-system`; rerun the LLVM
+build script after any model or emulator-source change:
+
+```sh
+cmake -B build
+cmake --build build -j64
+system-emu/mk-freedos.sh build
+system-emu/build-llvm.sh
+```
+
+SeaBIOS 1.16.3 uses `CONFIG_MPTABLE=y`, `CONFIG_ACPI=y`,
+`CONFIG_ACPI_DSDT=y`; SeaVGABIOS uses `CONFIG_VGA_BOCHS=y`,
+`CONFIG_VGA_BOCHS_STDVGA=y`, `CONFIG_VGA_VBE=y`, `CONFIG_VGA_PCI=y`.
+PCI functions are ISA at 00:01.0, IDE at 00:01.1 and PM at 00:01.3.
+The supplied SDM revision 090 numbers its APIC chapter **13** (chapter 12
+in older editions). The CR8/APIC alias follows SDM Vol.3A sections 13.8.6–13.8.6.1 and has a guest-instruction regression.
+
+`system-emu/run-boot.py` records the exact emulator/runner commands,
+monotonic wall time, exit status, serial output and final instruction count
+in `build/os-boot/NAME.{json,serial,stderr}`. The count is the emulator's
+step count, including interrupt entries; HLT clock advancement does not add
+instructions. Wall time includes diagnostic capture at termination.
+`SIGUSR1` dumps CPU/APIC/PIC and VGA text, and optionally guest RAM.
+`SIGUSR2` writes `framebuffer.png`; `SAIL_X86_FRAMEBUFFER` selects a path.
+The runner saves graphical captures as `build/os-boot/NAME.png`.
+
+`-kbd` routes stdin to the emulated keyboard. `Ctrl-a s` switches input to
+COM1 and `Ctrl-a k` switches it back. This permits a BIOS loader to switch
+to a serial console without restarting the emulator.
+
+## Device validation
+
+```sh
+cmake --build build -j128 --target system_test_basic system_test_paging \
+  system_test_exceptions system_test_a20 system_test_vmx system_test_ide \
+  system_test_apic system_test_fw_cfg system_test_vbe system_test_vga \
+  system_test_apic_cpu system_test_keyboard system_test_rtc
+ctest --test-dir build -R '^system_' --output-on-failure
+```
+
+All 14 system/device/PNG tests pass. Coverage includes APIC priorities, self-IPIs,
+timer modes/divisors, edge/level routing and EOI; independent IDE master/slave
+transfers; fw_cfg topology; PM timer/ACPI mode; PCI BAR remapping; framebuffer
+formats/banking/offsets; PNG CRC and decompression; VGA latches/write modes,
+chain-4 and palettes; SMRAM and option-ROM shadow separation; keyboard
+output-port/A20 commands; RTC periodic, update and alarm interrupts; and
+CPU interrupt dispatch and CR8/APIC aliasing; real-mode IRET with NT set;
+and 108-byte x87 saves/restores across noncontiguous pages.
+
+## Prepared images
+
+The xv6 boot and filesystem images are copied to `build/os-boot/xv6.img`
+and `build/os-boot/xv6-fs.img` before attaching them as writable disks.
+
+The Linux APIC test kernel is built from Linux 6.19.6 using
+`system-emu/mk-linux.sh`'s tiny configuration plus `CONFIG_SMP=y`,
+`CONFIG_ACPI=y`, `CONFIG_PCI=y`, `CONFIG_X86_LOCAL_APIC=y` and
+`CONFIG_X86_IO_APIC=y`, with 128 build jobs. It retains that script's existing
+deterministic boot RNG patch. The test packages the 32-bit initramfs supplied in
+`/home/ruiu/os-images/linux-i386`; the kernel enables IA32 emulation.
+A small test ISO uses ISOLINUX/ldlinux.c32 extracted from the supplied Alpine
+ISO and the new kernel, so Linux can discover the firmware APIC tables.
+Its kernel command line is:
+
+```text
+console=ttyS0,115200 earlyprintk=serial,ttyS0,115200 tsc=reliable nokaslr norandmaps loglevel=7 rdinit=/init
+```
+
+Windows 3.1 setup files were extracted from `win31.iso` with xorriso and
+copied with mtools into `C:\WIN31` on `build/os-boot/win31.img`, a copy of
+`build/freedos.img` (FAT16 partition offset 1048576). AUTOEXEC.BAT changes
+to that directory and runs SETUP. Windows 95 has a separate 512 MB disk
+with one FAT16 partition, starting at sector 2048; its supplied CD boots an
+MS-DOS floppy image which loads HIMEM/CD-ROM support and starts OEMSETUP.
+
+## Boot attempts
+
+SeaBIOS uses `CONFIG_USE_SMM=n` and `CONFIG_CALL32_SMM=n`: its QEMU SMM
+trampoline expects a different save-state layout. The emulator implements
+FADT ACPI enable/disable commands in its PM device. This preserves the
+firmware's MP/ACPI tables without changing the Intel SMM model to match QEMU.
+
+
+### xv6-01
+
+Stopped during SeaBIOS SMM relocation before disk boot. Last firmware debug output: `WARNING - internal error detected at handle_smi:87!`. Stopped manually after collecting CPU state.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name xv6-01 --timeout 300 --expect '\$ ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -hda build/os-boot/xv6.img -hdb build/os-boot/xv6-fs.img
+```
+
+Wall time: **109.418 s**. Instructions: **37,869,036**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### xv6-02
+
+**Reached the serial `$` shell.** The kernel enabled its local APIC periodic timer and I/O APIC, and mounted the filesystem from the primary IDE slave.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name xv6-02 --timeout 300 --expect '\$ ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -hda build/os-boot/xv6.img -hdb build/os-boot/xv6-fs.img
+```
+
+Wall time: **263.322 s**. Instructions: **20,156,878**.
+
+Last serial output:
+
+```text
+xv6...
+cpu0: starting 0
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$
+```
+
+### linux-apic-01
+
+Reached the 64-bit kernel, MADT discovery, symmetric I/O APIC routing (timer pin 2), ACPI interpreter, PCI enumeration and initramfs unpacking. The 900-second bound expired before a shell. This used the pre-RTC-fix emulator.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name linux-apic-01 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom build/os-boot/linux-apic.iso -boot d
+```
+
+Wall time: **900.844 s**. Instructions: **153,048,662**.
+
+Last serial output:
+
+```text
+pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+vgaarb: loaded
+clocksource: Switched to clocksource tsc-early
+ACPI: Failed to create genetlink family for ACPI event
+pnp: PnP ACPI init
+pnp: PnP ACPI: found 4 devices
+clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7 window]
+pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+pci_bus 0000:00: resource 7 [mem 0x80000000-0xfebfffff window]
+pci 0000:00:01.0: PIIX3: Enabling Passive Release
+pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+PCI: CLS 0 bytes, default 64
+Unpacking initramfs...
+RAPL PMU: API unit is 2^-32 Joules, 0 fixed counters, 10737418240 ms ovfl timer
+```
+
+### linux-i386-01
+
+**Reached the serial `sail#` shell.** This is the supplied 32-bit kernel and initramfs, with an explicit command line omitting APIC-disabling flags. The supplied kernel itself is uniprocessor without APIC support; the separate 64-bit test exercises APICs.
+
+```sh
+system-emu/run-boot.py --name linux-i386-01 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 4 -a 'console=ttyS0 earlyprintk=serial,ttyS0 tsc=reliable nokaslr norandmaps rdinit=/init' -i /home/ruiu/os-images/linux-i386/initramfs-i386.cpio /home/ruiu/os-images/linux-i386/bzImage-i386
+```
+
+Wall time: **328.832 s**. Instructions: **55,971,204**.
+
+Last serial output:
+
+```text
+microcode: Current revision: 0x00000000
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+sched_clock: Marking stable (10453434250, 29533000)->(10485958500, -2991250)
+Freeing unused kernel image (initmem) memory: 196K
+Write protecting kernel text and read-only data: 1632k
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail#
+```
+
+### freebsd-01
+
+Reached CD Loader 1.2 and **Starting the BTX loader**, then ceased making boot progress. No loader prompt or serial console appeared, so the scheduled `set console=comconsole` and `boot -s` did not take effect. The final CPU ran through zero-filled memory in protected mode. Stopped manually for diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name freebsd-01 --timeout 900 --send 45:3 --send '75:set console=comconsole\n' --send '90:\x01sboot -s\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **163.759 s**. Instructions: **22,728,435**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-02
+
+Diagnostic trace: bounded at 5,000,000 instructions, still in SeaBIOS. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=5000000 SAIL_X86_TRACE_STEP=100000 system-emu/run-boot.py --name freebsd-trace-02 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **13.608 s**. Instructions: **5,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-03
+
+Diagnostic trace: BTX starts around 6,100,000 instructions, then execution escapes to zero-filled memory. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=5000000 SAIL_X86_TRACE_END=8000000 SAIL_X86_TRACE_STEP=10000 system-emu/run-boot.py --name freebsd-trace-03 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **39.032 s**. Instructions: **8,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### freebsd-trace-04
+
+Diagnostic trace: BTX exception formatting returns at instruction 6,114,173 from CS:EIP `0008:000094cf` with SS=`ffff`, ESP=`fffe757b`; RET transfers to `0080bd32`, then executes zero bytes. The model has no virtual-8086 return path in its IRETD implementation, which BTX requires. No model workaround was added.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=6110000 SAIL_X86_TRACE_END=6120000 SAIL_X86_TRACE_STEP=1 system-emu/run-boot.py --name freebsd-trace-04 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **27.026 s**. Instructions: **6,120,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### haiku-01
+
+Reached **64-bit kernel code** and selected **VBE 1024x768x32** (mode 144h). The captured image was black: duplicate VGA ROM initialization advertised E0000000 while BAR0 was FD000000. This is fixed by commit `6f5546d`. COM1 remained silent. The supervisor was paused at 818.4 seconds while the guest continued decompressing, then resumed to collect this result; effective duration was 1135 seconds, within the OS budget.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-01 --timeout 900 -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1134.972 s**. Instructions: **175,736,527**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### reactos-01
+
+The supplied ISO defaults to **Live (Debug)**, despite its bootcd filename. Reached ReactOS kernel CPU-feature reporting and a VGA request to connect a debugger on COM1. Only RTC IRQ 8 was unmasked in the final state; the static CMOS device supplied no periodic interrupts. Stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-01 --timeout 900 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/reactos-bootcd-0.4.17-dev-915-g3f5fd48-x86-gcc-lin-dbg.iso -boot d
+```
+
+Wall time: **308.531 s**. Instructions: **67,301,977**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+(ntoskrnl/kd64/kdinit.c:94) -----------------------------------------------------
+(ntoskrnl/kd64/kdinit.c:95) ReactOS 0.4.17-x86-dev (Build 20260924-0.4.17-dev-915-g3f5fd48) (Commit 3f5fd48b637f96ce589886dc1548b8e9ffb42448)
+(ntoskrnl/kd64/kdinit.c:96) 1 System Processor [256 MB Memory]
+(ntoskrnl/kd64/kdinit.c:100) Command Line: DEBUG DEBUGPORT=COM1 BAUDRATE=115200 SOS FASTDETECT MININT
+(ntoskrnl/kd64/kdinit.c:103) ARC Paths: multi(0)disk(0)cdrom(96) \ multi(0)disk(0)cdrom(96) \reactos\
+(ntoskrnl/ke/i386/cpu.c:356) Supported CPU features: KF_RDTSC KF_CR4 KF_CMOV KF_GLOBAL_PAGE KF_LARGE_PAGE KF_MTRR KF_CMPXCHG8B KF_MMX KF_WORKING_PTE KF_PAT KF_FXSR KF_FAST_SYSCALL KF_XMMI KF_XMMI64 KF_NX_BIT X86_FEATURE_PAE X86_FEATURE_APIC
+(ntoskrnl/ke/i386/cpu.c:652) Prefetch Cache: 64 bytes	L2 Cache: 0 bytes	L2 Cache Line: 64 bytes	L2 Cache Associativity: 0
+```
+
+### reactos-setup-02
+
+Local ISO selects **ReactOS Setup (Text Mode)** with `/NODEBUG /NOGUIBOOT /SIFOPTIONSOVERRIDE`. Loaded the setup system hive and entered kernel code; timed out with only RTC IRQ 8 unmasked. The subsequent RTC device fix targets this calibration wait. No setup selection screen yet.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-setup-02 --timeout 900 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **900.483 s**. Instructions: **219,066,326**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+### win31-01
+
+FreeDOS booted from the hard disk and Windows Setup displayed **Installing XMS memory manager...**. No graphical screen. Stopped manually after diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-01 --timeout 900 --send '90:\n' --send '150:\n' --send '210:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -hda build/os-boot/win31.img -cdrom /home/ruiu/os-images/win31.iso -boot c
+```
+
+Wall time: **656.856 s**. Instructions: **121,442,750**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win31-02
+
+Retried with 32 MB and 8042 output-port/A20 support. Reached the same **Installing XMS memory manager...** text screen; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-02 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 32 -kbd -b build/bios.bin -hda build/os-boot/win31.img -cdrom /home/ruiu/os-images/win31.iso -boot c
+```
+
+Wall time: **557.434 s**. Instructions: **104,596,510**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win31-himem-03
+
+Preloaded the supplied Windows 95 floppy HIMEM.SYS through FreeDOS FDCONFIG.SYS, using 16 MB. Stalled during DOS driver initialization before Setup. This run predates the RTC interrupt fix; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-himem-03 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **396.488 s**. Instructions: **73,434,957**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-01
+
+The original CD booted its MS-DOS startup image and printed **Starting Windows 95...**, then requested the command interpreter at `A>`. No graphical screen. Also supplied `a:\command.com` through the keyboard at runtime; it did not advance. Stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-01 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **657.643 s**. Instructions: **115,028,097**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-floppy-02
+
+Retried the CD boot image as a physical floppy with the original CD attached and 64 MB RAM. Again reached **Type the name of the Command Interpreter ... A>**; stopped manually.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-floppy-02 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/win95-boot.img -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot a
+```
+
+Wall time: **558.044 s**. Instructions: **100,950,710**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+## BIOS graphics integration
+
+```sh
+python3 system-emu/tests/boot-graphics.py
+```
+
+All three BIOS-driven fixtures pass pixel/row checks after the duplicate-ROM
+fix: mode 12h at 640x480 (eight test colors), mode 13h at 320x200 (two
+colors), and VBE 101h at 640x480 (four colors). PNGs are
+`build/os-boot/bios-mode12.png`, `bios-mode13.png`, and `bios-mode101.png`.
+These are diagnostic test patterns, not OS screenshots. The fixtures print
+`GRAPHICS READY` and deliberately halt with IF clear to trigger capture.
+Their simulator exit status 1 is expected; validation checks the marker
+and the actual PNG pixels.
+
+### linux-apic-02
+
+**Reached the serial `sail#` shell with local APIC, I/O APIC and ACPI enabled.**
+Linux enumerates IOAPIC GSI 0–23, routes the timer through pin 2, reports
+`APIC: Switch to symmetric I/O mode setup`, and uses ACPI IRQ routing.
+The command line contains neither `noapic` nor `nolapic`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name linux-apic-02 --timeout 1800 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 20 -m 64 -b build/bios.bin -cdrom build/os-boot/linux-apic.iso -boot d
+```
+
+Wall time: **1135.057 s**. Instructions: **175,907,340**.
+
+Last serial output:
+
+```text
+microcode: Current revision: 0x00000000
+IPI shorthand broadcast: enabled
+sched_clock: Marking stable (16160969400, 10641050)->(6478759450, 9692851000)
+Freeing unused kernel image (initmem) memory: 736K
+Write protecting the kernel read-only data: 8192k
+Freeing unused kernel image (text/rodata gap) memory: 1404K
+Freeing unused kernel image (rodata/data gap) memory: 1292K
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# 
+```
+
+### haiku-02
+
+**Reached the graphical Haiku boot logo at 1024x768x32 and 64-bit kernel code.**
+The PCI ROM fix makes the framebuffer visible. The boot icons remain gray;
+no desktop or COM1 output yet. Stopped to retry with the RTC device.
+
+![Haiku boot logo](os-boot/haiku-boot-logo.png)
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-02 --timeout 1900 -- build/system-emu/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1007.848 s**. Instructions: **177,550,506**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win31-rtc-04
+
+Retried FreeDOS with the preloaded Microsoft HIMEM driver and the new RTC device. It remained in real-mode BIOS interrupt stubs during driver initialization, before Windows Setup. The later IRET regression exposed a real-mode NT handling error.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-rtc-04 --timeout 900 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **900.466 s**. Instructions: **161,686,646**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-rtc-03
+
+Retried the original bootable Windows 95 CD with RTC interrupts. MS-DOS still requested the command interpreter (`Type the name of the Command Interpreter ... A>`), although COMMAND.COM is present on its boot image. No graphical screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-rtc-03 --timeout 600 --send '60:\n' --send '120:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **600.504 s**. Instructions: **104,834,774**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-freedos-04
+
+Retried Windows 95 from a FreeDOS hard disk containing HIMEM.SYS and the complete WIN95 directory copied from the CD. AUTOEXEC invokes SETUP. It stalled in BIOS interrupt stubs during HIMEM initialization, before SETUP; no graphical screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-freedos-04 --timeout 900 --send '90:\n' --send '150:\n' --send '210:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-freedos.img -boot c
+```
+
+Wall time: **900.401 s**. Instructions: **167,204,216**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### linux-direct-apic-03
+
+**Reached the serial `sail#` shell using the new default command line.**
+Direct bzImage boot also works after removing `noapic nolapic` from both
+default command lines. The BIOS/ISO run above separately verifies ACPI
+tables and I/O APIC routing.
+
+```sh
+system-emu/run-boot.py --name linux-direct-apic-03 --timeout 900 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 20 -m 64 -i /home/ruiu/os-images/linux-i386/initramfs-i386.cpio build/bzImage
+```
+
+Wall time: **749.601 s**. Instructions: **80,070,604**.
+
+Last serial output:
+
+```text
+Freeing initrd memory: 1740K
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+serial8250: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+i8042: PNP: No PS/2 controller found.
+i8042: Probing ports directly.
+serio: i8042 KBD port at 0x60,0x64 irq 1
+intel_pstate: CPU model not supported
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+microcode: Current revision: 0x00000000
+IPI shorthand broadcast: enabled
+sched_clock: Marking stable (2936289150, 7823600)->(2945838300, -1725550)
+Freeing unused kernel image (initmem) memory: 736K
+Write protecting the kernel read-only data: 8192k
+Freeing unused kernel image (text/rodata gap) memory: 1404K
+Freeing unused kernel image (rodata/data gap) memory: 1292K
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# \x1b[6n
+```
+
+### freebsd-final-05
+
+Retested with the final RTC and real-mode IRET fixes. BTX still fails before the loader prompt and executes zero-filled memory with `SS=ffff`, `ESP=fffe757f`. Stopped at the configured trace limit. This remains an unsupported boot path; the model has no complete virtual-8086 IRET/interrupt support.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=6000000 SAIL_X86_TRACE_END=8000000 SAIL_X86_TRACE_STEP=100000 system-emu/run-boot.py --name freebsd-final-05 --timeout 180 -- build/system-emu/sail-x86-system -ips 4 -kbd -b build/bios.bin -cdrom /home/ruiu/os-images/FreeBSD-14.5-RELEASE-amd64-disc1.iso -boot d
+```
+
+Wall time: **38.244 s**. Instructions: **8,000,000**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### win95-iret-05
+
+Retried the original CD after the real-mode NT/IRET fix. It still requests the command interpreter at `A>` instead of starting Setup. Stopped manually to try the installer from the prepared FreeDOS disk.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-iret-05 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95.img -cdrom /home/ruiu/os-images/win95.iso -boot d
+```
+
+Wall time: **151.548 s**. Instructions: **29,880,425**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### haiku-rtc-03
+
+Reached the 1024x768x32 Haiku logo with **three boot icons lit**, farther than the pre-RTC run. COM1 remained silent and no desktop appeared. The 1100-second supervisor was temporarily suspended to allow up to 1400 seconds; it resumed when the other final run ended and collected this result.
+
+![Haiku boot progress with RTC](os-boot/haiku-rtc-progress.png)
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name haiku-rtc-03 --timeout 1100 -- build/system-emu/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **1324.351 s**. Instructions: **181,639,311**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### reactos-rtc-03
+
+With RTC interrupts, advanced farther into kernel initialization and spent substantial time scanning the HAL PCI name database. The host then aborted with **`z__write_mem: nbytes=108 > 64`** while the guest saved x87 state. There was no text setup welcome screen. Commit `430779d` fixes all four system memory helpers and adds an aligned/noncontiguous-page FNSAVE/FRSTOR regression; that test passes. A full boot with this last fix has not been repeated, since reaching the failure already consumed most of this OS budget. The supervisor was temporarily suspended to permit up to 2300 seconds, then resumed to collect the abort. The instruction count below is the **last captured sample, a lower bound**, because SIGABRT bypassed the final counter print.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name reactos-rtc-03 --timeout 1700 --send '30:\n' -- build/system-emu/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **1960.637 s**. Instructions: **380,279,608**.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+### win95-iret-freedos-06
+
+The IRET fix allows HIMEM and FreeDOS startup to complete, and **Windows 95 Setup starts**. Its ScanDisk stage reports **`run-time error R6002 - floating-point support not loaded`**, then asks to quit Setup. The supplied `SETUP.TXT` documents `setup /is`; this command was sent at the keyboard after an attempt to exit Setup, but the last visible screen remained the error and no graphical screen appeared. This is a failed graphics boot, not a completed Windows installation. The 500-second supervisor was temporarily suspended to permit 631 seconds, keeping cumulative Windows 95 boot time below about one hour.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win95-iret-freedos-06 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' --send '240:\n' --send '300:\n' --send '360:\n' -- build/system-emu/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-freedos.img -boot c
+```
+
+Wall time: **634.899 s**. Instructions: **113,627,584**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional keyboard input, seconds from emulator launch:
+
+- 271.610 s: `<Enter>` — Continue the Windows 95 Setup system check.
+- 319.010 s: `<Enter>` — Exit Setup after ScanDisk R6002; SETUP.TXT documents retrying with /IS.
+- 344.210 s: `setup /is<Enter>` — Retry with the ScanDisk bypass documented in the supplied SETUP.TXT.
+
+### win31-iret-05
+
+The SDM-backed real-mode IRET fix unblocks HIMEM. Windows 3.1 Setup reaches the Express Setup choice, copies the first-stage files, then reports **Invalid Opcode** while starting Windows for graphical setup. At the returned `C:\WINDOWS>` prompt, `win /s` reports **Bad command or filename**; this installation has not produced a runnable WIN.COM. No graphical Windows screen or Windows PNG was obtained. The 500-second supervisor was temporarily suspended to allow 988 seconds, keeping cumulative Windows 3.1 boot time below about one hour.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name win31-iret-05 --timeout 500 --send '60:\n' --send '120:\n' --send '180:\n' -- build/system-emu/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-himem.img -boot c
+```
+
+Wall time: **991.583 s**. Instructions: **160,730,983**.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 0000
+C:\WINDOWS>win /s
+Bad command or filename - "win".
+```
+
+Additional keyboard input, seconds from emulator launch:
+
+- 226.940 s: `<Enter>`.
+- 861.680 s: `win /s<Enter>`.
+
+## Continuation after merging main (2026-09-25)
+
+Merge commit: **`5ce777c101fd3135f6f8e626297782c086a56253`**, parents
+`e00dcb8` and `978f44f`. Resolved the three expected conflicts preserving
+both branches' devices and tests. The imported SMM test fixture now enables
+PIIX4 APMC_EN and SMI_EN before requesting an SMI; platform gating remains
+intact. No additional Sail model change was needed to resolve the merge.
+
+```sh
+git merge main
+TMPDIR="$PWD/build/tmp" cmake -B build
+TMPDIR="$PWD/build/tmp" cmake --build build -j128
+TMPDIR="$PWD/build/tmp" ctest --test-dir build -R '^system_' --output-on-failure
+TMPDIR="$PWD/build/tmp" BOOT_SMOKE_EMU_ARGS='-ips 20 -m 64' \
+  ctest --test-dir build -j2 -R '^boot_linux(_i386)?_banner$' -V
+```
+
+All **15 system tests** pass. Both Linux smoke tests reach the full
+`Sail x86-64 Emulator - Linux Console` banner: amd64 **530.92 s**, i386
+**260.44 s**. The i386 CTest uses its configured `-ips 4` override. The
+initramfs was copied from `/home/ruiu/os-images/linux-i386/initramfs-i386.cpio`
+to `build/initramfs.cpio` and `build/initramfs-i386.cpio`; its kernel was
+copied to `build/bzImage-i386`. The amd64 kernel is the prior session's
+APIC-enabled `build/bzImage`. Logs are under `build/os-boot/merge-*.log`.
+
+Commit `93c0794` adds PNG captures of VGA **text** screens using the guest's
+uploaded font and palette; these are actual emulated text displays, not
+Windows graphical screens. Its glyph/color/page-wrap regression passes.
+Trace-bound stops now also save CPU, RAM and PNG state. All new attempts
+below use writable disk copies or newly created disks inside this worktree.
+
+### merge-xv6
+
+Reached the serial `$` shell after the merge, with the filesystem on the IDE slave.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name merge-xv6 --timeout 600 --expect '\$ ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -hda build/os-boot/xv6.img -hdb build/os-boot/xv6-fs.img
+```
+
+Wall time: **239.148 s**. Instructions: **18,999,416**. Stop: `expected output`; exit status `0`.
+
+Last serial output:
+
+```text
+xv6...
+cpu0: starting 0
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$
+```
+
+PNG: unavailable (this run used the pre-text-capture binary and never selected graphics).
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+cpu0: starting 0
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap star
+t 58
+init: starting sh
+$
+```
+
+## sail-llvm continuation (2026-09-25)
+
+All boot attempts in this continuation use **`build/llvm/sail-x86-system`**,
+built by `system-emu/build-llvm.sh` with sail-llvm. Rebuild that binary after
+any model or emulator-source change. The earlier sections used the official
+Sail compiler unless stated otherwise. The supplied `xv6-llvm-smoke.json`
+records the serial shell in **9.938 s / 20,071,554 instructions**.
+
+Before continuing, the official build was checked after the runtime-neutral
+`set_zmm_low128` rewrite and the 50-row text-display fix:
+
+```sh
+cmake --build build -j64
+ctest --test-dir build -R '^system_' --output-on-failure
+```
+
+The full build succeeded and **all 15 system tests passed** (0.47 s).
+FreeBSD, virtual-8086 model work and the KVM harness are outside this
+continuation's scope. Writable disks remain under `build/os-boot`.
+
+This continuation records **15 OS attempts**, all with sail-llvm: ReactOS **20.01 min**, Windows 3.1 **8.51 min**, Haiku **2.10 min**, and Windows 95 **19.53 min** of measured attempt wall time. Haiku was given an 1800-second limit but stopped after its terminal boot-volume panic.
+
+### win31-llvm-ud-06
+
+Reproduced the Express Setup / first-stage copy failure. FreeDOS printed Invalid Opcode at 0078:0B3E, but the original matching-frame IVT[6] diagnostic did not capture the error. Stopped for a broader handler trace. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-ud-06 --timeout 900 -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-ud.img -boot c
+```
+
+Wall time: **174.473 s**. Instructions: **667,676,672**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-ud-06 guest display](os-boot/win31-llvm-ud-06.png)
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 00
+00
+C:\WINDOWS>
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 36.64,
+    "text": "\n",
+    "reason": "Start Windows 3.1 Setup",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\n' 'Start Windows 3.1 Setup'"
+  },
+  {
+    "at_seconds": 43.11,
+    "text": "\n",
+    "reason": "Use Express Setup",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\n' 'Use Express Setup'"
+  },
+  {
+    "at_seconds": 174.45,
+    "text": "\u0001x",
+    "reason": "Stop after reproducing Invalid Opcode without a matching fault-frame trace",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\x01x' 'Stop after reproducing Invalid Opcode without a matching fault-frame trace'"
+  }
+]
+```
+
+### win31-llvm-handler-07
+
+The broader IVT[6] entry trace still did not capture the Windows error, although it recorded firmware entries into a shared IRET stub. The live IVT[6] points to a FreeDOS trampoline; the next run watches its resident handler directly. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-handler-07 --timeout 240 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-handler.img -boot c
+```
+
+Wall time: **86.632 s**. Instructions: **335,098,880**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-handler-07 guest display](os-boot/win31-llvm-handler-07.png)
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 00
+00
+C:\WINDOWS>
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 86.59,
+    "text": "\u0001x",
+    "reason": "Stop after confirming the error bypasses the live IVT[6] entry",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-handler-07 '\\x01x' 'Stop after confirming the error bypasses the live IVT[6] entry'"
+  }
+]
+```
+
+### win31-llvm-resident-08
+
+The resident-handler address probe identifies LMSW AX (0F 01 F0) at 31D4:0ADF, then a far jump to 0078:0B0E. CR0.PE becomes 1 but cur_mode remains real. The jump therefore uses 0078<<4, executes low-memory data, and faults on FF FF at 0078:0B3E. The SDM-backed LMSW regression below reproduces the missing mode transition.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 SAIL_X86_TRACE_ADDRESS=0x117d2 python3 system-emu/run-boot.py --name win31-llvm-resident-08 --timeout 180 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-resident.img -boot c
+```
+
+Wall time: **53.021 s**. Instructions: **160,870,400**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-resident-08 guest display](os-boot/win31-llvm-resident-08.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 52.88,
+    "text": "\u0001x",
+    "reason": "Stop after capturing entry to the resident Invalid Opcode handler",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-resident-08 '\\x01x' 'Stop after capturing entry to the resident Invalid Opcode handler'"
+  }
+]
+```
+
+The saved GDTR operand is limit `011F`, base `00117C00`. Descriptor `0078`
+has base `00031D40`, so the correct target is `0003284E`, beginning
+`B8 68 00 8E D0` (`MOV AX,0068; MOV SS,AX`). The observed incorrect target
+is `0000128E`. The fault occurs after Windows has loaded a protected-mode
+IDT, explaining why a real-mode handler probe using the current IDTR did
+not match. A linear probe at the resident FreeDOS handler (`000117D2`)
+retains the full transition history.
+
+The supplied SDM revision 090, Vol.2A **LMSW**, pp.3-560–3-561, explicitly
+specifies entering protected mode when PE is set and forbids clearing PE
+with LMSW. Vol.3A **12.9.1**, step 9, specifies retaining the segment
+contents until reloaded. The new `lmsw_enters_protected_mode` instruction
+regression failed before the fix (`cur_mode=RealMode`, expected protected).
+It exercises register and memory operands, CR0 preservation, PE stickiness
+and a nonzero GDT code-segment base after the far jump.
+
+### reactos-llvm-install-06
+
+Created the 1023 MiB FAT32 partition, completed quick format and the disk check, selected MBR/VBR bootloader installation and the default ReactOS directory, and started file copy. The farthest screen is 11%, Copying file: eventvwr.exe. It stayed there with repeated samples in the kernel idle loop (80946BA3) until the 20-minute bound expired. No host abort or model fault was reported. File copy did not complete, so there was no installed-system first boot; the partial disk is retained for diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name reactos-llvm-install-06 --timeout 1200 --send '2:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-llvm-install.img -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **1200.519 s**. Instructions: **1,963,057,414**. Stop: `timeout`; exit status `0`.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/disk/partition.c:216) fixme: DiskGetPartitionEntry() unimplemented for RAW
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+![reactos-llvm-install-06 guest display](os-boot/reactos-llvm-install-06.png)
+
+Last VGA text:
+
+```text
+ReactOS 0.4.17-x86-dev Setup
+
+
+
+
+
+
+
+
+          Please wait while ReactOS Setup copies files to your ReactOS
+                              installation folder.
+                   This may take several minutes to complete.
+
+
+
+
+
+
+
+
+
+          Setup is copying files...
+
+                                       11 %
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 1  %                  35 %                  54 %
+
+
+
+             Kernel Pool           Kernel Cache          Free Memory
+
+
+
+
+   Copying file: eventvwr.exe
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 114.41,
+    "text": "\n",
+    "reason": "Accept default English language",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept default English language'"
+  },
+  {
+    "at_seconds": 133.01,
+    "text": "\n",
+    "reason": "Continue from Welcome",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Continue from Welcome'"
+  },
+  {
+    "at_seconds": 142.67,
+    "text": "\n",
+    "reason": "Continue past version status",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Continue past version status'"
+  },
+  {
+    "at_seconds": 152.22,
+    "text": "\n",
+    "reason": "Accept detected ACPI, VESA and keyboard settings",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept detected ACPI, VESA and keyboard settings'"
+  },
+  {
+    "at_seconds": 161.78,
+    "text": "\n",
+    "reason": "Install on the blank 1 GiB worktree disk",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Install on the blank 1 GiB worktree disk'"
+  },
+  {
+    "at_seconds": 172.89,
+    "text": "\n",
+    "reason": "Select FAT quick format",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Select FAT quick format'"
+  },
+  {
+    "at_seconds": 182.75,
+    "text": "\n",
+    "reason": "Confirm formatting the new worktree partition",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Confirm formatting the new worktree partition'"
+  },
+  {
+    "at_seconds": 210.87,
+    "text": "\n",
+    "reason": "Install bootloader in MBR and VBR of worktree disk",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Install bootloader in MBR and VBR of worktree disk'"
+  },
+  {
+    "at_seconds": 224.56,
+    "text": "\n",
+    "reason": "Accept the default ReactOS directory and start file copy",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept the default ReactOS directory and start file copy'"
+  }
+]
+```
+
+### win31-llvm-lmsw-09
+
+With the LMSW mode-transition fix, setup passes the former Invalid Opcode and enters protected-mode DOSX startup. It then repeats a general-protection exception while formatting the DPMI fault report (Fault: 000D); it has not reached a graphical Windows screen. The next attempt probes the installed #GP gate.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-lmsw-09 --timeout 300 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-lmsw.img -boot c
+```
+
+Wall time: **138.057 s**. Instructions: **764,797,952**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-lmsw-09 guest display](os-boot/win31-llvm-lmsw-09.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 764797952 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 137.91,
+    "text": "\u0001x",
+    "reason": "Stop after LMSW fix advances to a repeated protected-mode DPMI general-protection exception",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-lmsw-09 '\\x01x' 'Stop after LMSW fix advances to a repeated protected-mode DPMI general-protection exception'"
+  }
+]
+```
+
+After the LMSW fix, **all 15 official-build system tests pass** (0.47 s)
+and **all 63 basic tests pass with sail-llvm**. The complete logs are
+`build/os-boot/official-lmsw-tests.log` and `llvm-basic-tests.log`.
+
+### win31-llvm-gp-10
+
+The first post-LMSW #GP is at 005B:0B79, CALL FAR 00CB:0000 (9A 00 00 CB 00). GDT[00C8] is 0000E40000780C63: a present DPL-3 16-bit call gate, zero parameter words, target 0078:0C63. model/mem.sail explicitly supports code-segment far transfers only, not call gates. This is the remaining model feature gap; no virtual-8086 work was attempted. Setup remains on Please wait while Setup loads Windows, with no graphical Windows screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x118e77 python3 system-emu/run-boot.py --name win31-llvm-gp-10 --timeout 180 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-gp.img -boot c
+```
+
+Wall time: **58.230 s**. Instructions: **226,430,976**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-gp-10 guest display](os-boot/win31-llvm-gp-10.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 226430976 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 58.09,
+    "text": "\u0001x",
+    "reason": "Stop after capturing the first protected-mode general-protection handler entry",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-gp-10 '\\x01x' 'Stop after capturing the first protected-mode general-protection handler entry'"
+  }
+]
+```
+
+### haiku-llvm-04
+
+Reached COM1 output and the graphical kernel debugger. Haiku panics: did not find any boot partitions. Its syslog reports PCI-ATA: Controller detection failed! bus master base not configured, followed by KDiskDeviceManager::InitialDeviceScan() returning No such file or directory. The emulator exposes PIIX3 IDE PIO but no bus-master IDE BAR/registers; this is a platform gap, not a reported Sail fault. The run had a 30-minute upper bound and was stopped once this terminal kernel panic was captured. No desktop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name haiku-llvm-04 --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **125.846 s**. Instructions: **538,458,112**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+KMessage: buffer: 0xffffffff821c18f8 (size/capacity: 315/315), flags: 0xa
+  field: "booted from image" (BOOL): true
+  field: "partition offset"  (LLNG): 0 (0x0)
+  field: "boot method"       (LONG): 1 (0x1)
+  field: "boot drive number" (LLNG): 0 (0x0)
+  field: "disk identifier"   (RAWT): data at 0xffffffff821c19e4, 79 bytes
+get_boot_partitions(): boot method type: 1
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+intel: pm_std_ops(0x1)
+intel: pm_std_ops(0x2)
+PCI-ATA: Controller detection failed! bus master base not configured
+KDiskDeviceManager::InitialDeviceScan() returned error: No such file or directory
+kdebug>
+```
+
+![haiku-llvm-04 guest display](os-boot/haiku-llvm-04.png)
+
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 124.87,
+    "text": "\u0001x",
+    "reason": "Stop at the kernel debugger after the boot-device discovery panic",
+    "command": "python3 build/os-boot/send-input.py haiku-llvm-04 '\\x01x' 'Stop at the kernel debugger after the boot-device discovery panic'"
+  }
+]
+```
+
+### win95-llvm-r6002-07
+
+Reproduced ScanDisk runtime error R6002 after accepting the Setup system check. Saved the decompressed runtime in the RAM dump for instruction-level diagnosis. No model fault and no serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-r6002-07 --timeout 240 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-r6002.img -boot c
+```
+
+Wall time: **129.659 s**. Instructions: **656,924,672**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-r6002-07 guest display](os-boot/win95-llvm-r6002-07.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 656924672 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 45.25,
+    "text": "\n",
+    "reason": "Run the Windows 95 Setup system check and ScanDisk",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-r6002-07 '\\n' 'Run the Windows 95 Setup system check and ScanDisk'"
+  },
+  {
+    "at_seconds": 129.59,
+    "text": "\u0001x",
+    "reason": "Stop after reproducing R6002 and saving the decompressed ScanDisk image",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-r6002-07 '\\x01x' 'Stop after reproducing R6002 and saving the decompressed ScanDisk image'"
+  }
+]
+```
+
+### win95-llvm-detect-08
+
+Reproduced R6002. The initial physical-address probe selected an immediate operand byte, so it did not fire; corrected it to the detection-result instruction in the next run.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x52484 python3 system-emu/run-boot.py --name win95-llvm-detect-08 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-detect.img -boot c
+```
+
+Wall time: **26.210 s**. Instructions: **138,305,536**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-detect-08 guest display](os-boot/win95-llvm-detect-08.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 138305536 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 26.1,
+    "text": "\u0001x",
+    "reason": "Correct the probe from an immediate operand byte to the FPU detection result instruction",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-detect-08 '\\x01x' 'Correct the probe from an immediate operand byte to the FPU detection result instruction'"
+  }
+]
+```
+
+### win95-llvm-detect-result-09
+
+The probe at 5235:013F (linear 0005248F) proves x87 presence detection succeeds. FNSTCW produces the expected masked control word 033F; FNSTSW produces zero for the tested bits, AX becomes 1, and byte DS:0004 is set to 1. R6002 therefore occurs after successful FPU detection. DS is 56DD and the saved status buffer at DS:0058 is zero.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x5248f python3 system-emu/run-boot.py --name win95-llvm-detect-result-09 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-detect-result.img -boot c
+```
+
+Wall time: **97.235 s**. Instructions: **519,498,752**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-detect-result-09 guest display](os-boot/win95-llvm-detect-result-09.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 519498752 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 97.12,
+    "text": "\u0001x",
+    "reason": "Stop after confirming that x87 detection returns present",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-detect-result-09 '\\x01x' 'Stop after confirming that x87 detection returns present'"
+  }
+]
+```
+
+### win95-llvm-error-call-10
+
+R6002 comes from the printf formatting path, not an x87 fault. At 4DCD:1EDF, CALL FAR [22D2] invokes the unlinked long-double formatting stub 4DCD:1772, which selects runtime error 2. The current format is an ordinary DBLSPACE.000 filename, and the parser has misclassified its character 0. Its two XLAT table lookups use DS=59A6, BX=225C; the model incorrectly read unsegmented low memory. This leads to the SDM-backed XLAT fix below.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x4f6df python3 system-emu/run-boot.py --name win95-llvm-error-call-10 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-error-call.img -boot c
+```
+
+Wall time: **140.257 s**. Instructions: **747,755,520**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-error-call-10 guest display](os-boot/win95-llvm-error-call-10.png)
+
+Last VGA text:
+
+```text
+run-time error R6002
+- floating-point support not loaded
+Setup found errors on your hard disk.
+You must repair these errors before continuing with Setup.
+For more information, see SETUP.TXT on Setup Disk 1 or the Windows CD-ROM.
+Press any key to quit Setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 747755520 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 140.14,
+    "text": "\u0001x",
+    "reason": "Stop after tracing R6002 to printf format parsing and its XLAT table lookup",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-error-call-10 '\\x01x' 'Stop after tracing R6002 to printf format parsing and its XLAT table lookup'"
+  }
+]
+```
+
+The supplied SDM revision 090, Vol.2D **XLAT/XLATB**, pp.6-37–6-38,
+specifies DS-based table lookup, a possible segment override, an unsigned
+AL index, unchanged flags and segment-limit exceptions. Both new XLAT
+regressions fail before the fix: the lookup reads the poison byte at the
+unsegmented address, and an out-of-limit access does not fault. They cover
+real/protected/long modes, FS override, AL/flags preservation, and DS/SS
+limit faults. No x87 behavior needed changing for this diagnosis.
+
+Microsoft's [R6002 documentation](https://learn.microsoft.com/en-us/cpp/error-messages/tool-errors/c-runtime-error-r6002?view=msvc-170)
+describes a missing runtime floating-point formatting library; the guest
+trace identifies why ScanDisk incorrectly enters that path here.
+
+### win95-llvm-xlat-11
+
+After the XLAT fix, ScanDisk starts checking the disk and reports a KERNEL.SYS file-size inconsistency. R6002 is gone. The repair dialog does not accept new keys: ScanDisk hooks INT09 at 56B7:001A, reads port 60h, then chains to the BIOS, which rereads port 60h. The emulator consumes the next queued byte on that reread, losing the make code; this is a keyboard-controller platform issue. No CPU fault or serial output occurs.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-xlat-11 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-xlat.img -boot c
+```
+
+Wall time: **401.050 s**. Instructions: **1,901,122,560**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-xlat-11 guest display](os-boot/win95-llvm-xlat-11.png)
+
+Last VGA text:
+
+```text
+Microsoft ScanDisk
+
+                                 Problem Found
+     S
+         The size of the C:\KERNEL.SYS file is being misreported. Some
+         programs might be unable to find the entire file, or there
+         might be invalid data toward the end of the file.
+
+         Choose Fix It to have ScanDisk correct the size information
+         for the C:\KERNEL.SYS file.
+
+
+                   Fix It     < Don't Fix It >   < More Info >
+
+
+
+
+
+     < Pause >   < More Info >   < Exit >
+
+
+     C:\
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 1901122560 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 254.13,
+    "text": "\n",
+    "reason": "Accept ScanDisk file-size repair on disposable image",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\n' 'Accept ScanDisk file-size repair on disposable image'"
+  },
+  {
+    "at_seconds": 284.88,
+    "text": "f",
+    "reason": "Select ScanDisk Fix It with its keyboard accelerator",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 f 'Select ScanDisk Fix It with its keyboard accelerator'"
+  },
+  {
+    "at_seconds": 326.6,
+    "text": "\t\n",
+    "reason": "Try the next ScanDisk choice after Enter leaves the dialog unchanged",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\t\\n' 'Try the next ScanDisk choice after Enter leaves the dialog unchanged'"
+  },
+  {
+    "at_seconds": 400.88,
+    "text": "\u0001x",
+    "reason": "Stop at ScanDisk repair dialog after identifying its INT09 port-60 reread",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-xlat-11 '\\x01x' 'Stop at ScanDisk repair dialog after identifying its INT09 port-60 reread'"
+  }
+]
+```
+
+The keyboard follow-up follows Intel's [UPI-41A/41AH/42/42AH manual](https://www.ceibo.com/eng/datasheets/Intel-8041-Manual.pdf),
+chapter 5, “Reading the DBBOUT Register” (p.56): reading transfers the output
+register and clears OBF. The emulator now retains that value and spaces
+queued scancode bytes by at least one millisecond of virtual time. Device
+and APIC regressions cover a chained handler rereading the make code, an
+empty OBF between bytes, and the subsequent release-byte interrupt. This
+is an emulator change; it does not change the Sail model.
+
+Validation after XLAT: `system-emu/build-llvm.sh`, the 65-case LLVM basic
+suite, an official rebuild of the model-dependent system targets, and
+`ctest --test-dir build -R '^system_' --output-on-failure` all pass
+(15 official tests). Logs: `build/os-boot/llvm-xlat-basic-tests.log` and
+`build/os-boot/official-xlat-tests.log`. After the keyboard change, the
+LLVM emulator was rebuilt again, `cmake --build build -j64` completed,
+and all 15 official system tests passed again in 0.48 s; logs are
+`build/os-boot/llvm-keyboard-build.log` and
+`build/os-boot/official-keyboard-tests.log`.
+
+### win95-llvm-keyboard-12
+
+The keyboard fix allows Fix It and Skip Undo to work. ScanDisk repairs KERNEL.SYS and COMMAND.COM, then reports the same issue for HIMEM.SYS. An offline FAT-chain check shows the original files already occupy the correct number of 8192-byte clusters; ScanDisk pads their sizes to full clusters. The cause of these subsequent size reports is unclassified. Preserve this changed copy and use a fresh copy with the documented SETUP /IS switch to test the next setup stage. No R6002 or CPU fault occurs.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-keyboard-12 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-keyboard.img -boot c
+```
+
+Wall time: **139.900 s**. Instructions: **674,433,024**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-keyboard-12 guest display](os-boot/win95-llvm-keyboard-12.png)
+
+Last VGA text:
+
+```text
+Microsoft ScanDisk
+
+                                 Problem Found
+     S
+         The size of the C:\HIMEM.SYS file is being misreported. Some
+         programs might be unable to find the entire file, or there
+         might be invalid data toward the end of the file.
+
+         Choose Fix It to have ScanDisk correct the size information
+         for the C:\HIMEM.SYS file.
+
+
+                   Fix It     < Don't Fix It >   < More Info >
+
+
+
+
+
+     < Pause >   < More Info >   < Exit >
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 674433024 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 48.54,
+    "text": "\n",
+    "reason": "Accept ScanDisk file-size repair after keyboard-controller fix",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\n' 'Accept ScanDisk file-size repair after keyboard-controller fix'"
+  },
+  {
+    "at_seconds": 68.24,
+    "text": "\t\n",
+    "reason": "Skip the optional Undo floppy because this hard disk is already a disposable copy",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\t\\n' 'Skip the optional Undo floppy because this hard disk is already a disposable copy'"
+  },
+  {
+    "at_seconds": 103.72,
+    "text": "\n",
+    "reason": "Accept ScanDisk COMMAND.COM file-size repair on the copied disk",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\n' 'Accept ScanDisk COMMAND.COM file-size repair on the copied disk'"
+  },
+  {
+    "at_seconds": 139.85,
+    "text": "\u0001x",
+    "reason": "Stop after confirming keyboard repairs work; preserve pristine disk for a documented SETUP /IS attempt",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-keyboard-12 '\\x01x' 'Stop after confirming keyboard repairs work; preserve pristine disk for a documented SETUP /IS attempt'"
+  }
+]
+```
+
+The next attempt starts from a fresh copy, so the ScanDisk size changes
+are not carried forward. Its AUTOEXEC.BAT differs only by adding `/IS`
+to SETUP, the switch documented by the supplied SETUP.TXT for skipping
+ScanDisk. Disk preparation:
+
+```sh
+cp --reflink=auto build/os-boot/win95-freedos.img build/os-boot/win95-llvm-setup-is.img
+mcopy -o -i build/os-boot/win95-llvm-setup-is.img@@1048576 build/os-boot/win95-setup-is-autoexec.bat ::AUTOEXEC.BAT
+```
+
+`build/os-boot/win95-setup-is-autoexec.bat` contains, with DOS CRLF endings:
+
+```bat
+@ECHO OFF
+PATH=C:\;C:\WIN95
+CD \WIN95
+SETUP /IS
+```
+
+### win95-llvm-setup-is-13
+
+With the documented /IS switch on a pristine copy, Setup copies its startup files and enters protected-mode DOSX. It then loops in its protected-mode error formatter (sampled at 0053:1B53 and 0053:1B71), without reaching a graphical screen. RAM contains the DOSX GDT at 00317C00, code base 00317D20 and IDT at 00317400. A separate first-#GP probe follows to identify the faulting transfer.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win95-llvm-setup-is-13 --timeout 900 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-setup-is.img -boot c
+```
+
+Wall time: **170.462 s**. Instructions: **1,086,993,408**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-setup-is-13 guest display](os-boot/win95-llvm-setup-is-13.png)
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+FreeDOS kernel 2043 (build 2043 OEM:0xfd) [compiled May 13 2021]
+Kernel compatibility 7.10 - WATCOMC - FAT32 support
+
+(C) Copyright 1995-2012 Pasquale J. Villani and The FreeDOS Project.
+All Rights Reserved. This is free software and comes with ABSOLUTELY NO
+WARRANTY; you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation;
+either version 2, or (at your option) any later version.
+ - InitDiskWARNING: using suspect partition Pri:1 FS 06: with calculated values
+   2-0-33 instead of 1023-254-63
+WARNING: Partition ID does not suggest LBA - part Pri:1 FS 06.
+Please run FDISK to correct this - using LBA to access partition.
+ start    2-0-33, end 1040-4-4
+C: HD1, Pri[ 1], CHS=    2-0-33, start=     1 MB, size=   511 MB
+
+FreeCom version 0.85a - WATCOMC - XMS_Swap [Jul 10 2021 19:28:06]
+Please wait while Setup initializes.
+
+Copying files needed for Windows Setup...
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 1086993408 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 170.27,
+    "text": "\u0001x",
+    "reason": "Stop at protected-mode DOSX exception loop; probe its first general-protection handler next",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-setup-is-13 '\\x01x' 'Stop at protected-mode DOSX exception loop; probe its first general-protection handler next'"
+  }
+]
+```
+
+### win95-llvm-setup-gp-14
+
+Confirmed: the first #GP is at 005B:0B79, CALL FAR 00CB:0000 (9A 00 00 CB 00), at instruction 108,914,738. The next instruction capture is its IDT vector-13 handler at 0070:1157. GDT[00C8] at 00317CC8 is 0000E40000780C63, the same present DPL-3 16-bit call gate found in Windows 3.1, targeting 0078:0C63. The remaining blocker before graphics is the unsupported call-gate path in the Sail far-call implementation. No virtual-8086 work was attempted. The probe RAM is preserved separately as win95-llvm-setup-gp-14-probe.ram.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x318e77 python3 system-emu/run-boot.py --name win95-llvm-setup-gp-14 --timeout 180 --send '20:\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-llvm-setup-gp.img -boot c
+```
+
+Wall time: **67.278 s**. Instructions: **366,179,328**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win95-llvm-setup-gp-14 guest display](os-boot/win95-llvm-setup-gp-14.png)
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+FreeDOS kernel 2043 (build 2043 OEM:0xfd) [compiled May 13 2021]
+Kernel compatibility 7.10 - WATCOMC - FAT32 support
+
+(C) Copyright 1995-2012 Pasquale J. Villani and The FreeDOS Project.
+All Rights Reserved. This is free software and comes with ABSOLUTELY NO
+WARRANTY; you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation;
+either version 2, or (at your option) any later version.
+ - InitDiskWARNING: using suspect partition Pri:1 FS 06: with calculated values
+   2-0-33 instead of 1023-254-63
+WARNING: Partition ID does not suggest LBA - part Pri:1 FS 06.
+Please run FDISK to correct this - using LBA to access partition.
+ start    2-0-33, end 1040-4-4
+C: HD1, Pri[ 1], CHS=    2-0-33, start=     1 MB, size=   511 MB
+
+FreeCom version 0.85a - WATCOMC - XMS_Swap [Jul 10 2021 19:28:06]
+Please wait while Setup initializes.
+
+Copying files needed for Windows Setup...
+
+
+
+
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 366179328 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 67.13,
+    "text": "\u0001x",
+    "reason": "Stop after confirming the first GP is the same unsupported 16-bit call gate as Windows 3.1",
+    "command": "python3 build/os-boot/send-input.py win95-llvm-setup-gp-14 '\\x01x' 'Stop after confirming the first GP is the same unsupported 16-bit call gate as Windows 3.1'"
+  }
+]
+```
