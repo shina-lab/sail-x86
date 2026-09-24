@@ -1080,12 +1080,11 @@ private:
 };
 
 // =========================================================================
-// IDE channel — one PIO master device: an ATA hard disk or an ATAPI CD-ROM
+// IDE devices — PIO ATA hard disk or ATAPI CD-ROM
 //
 // The primary channel is at 0x1F0-0x1F7/0x3F6 (IRQ 14), the secondary at
-// 0x170-0x177/0x376 (IRQ 15).  Only the master device of a channel exists;
-// while the slave is selected every register reads as zero, so drive probes
-// skip it.  An empty channel reads as zero too.
+// 0x170-0x177/0x376 (IRQ 15). Each channel can have a master and a slave.
+// An absent device reads as zero so drive probes skip it.
 //
 // Hard disk: READ/WRITE SECTORS, IDENTIFY DEVICE, INITIALIZE DEVICE
 // PARAMETERS, SET FEATURES, FLUSH CACHE.  CD-ROM: IDENTIFY PACKET DEVICE,
@@ -1102,12 +1101,12 @@ private:
 // clears the interrupt.
 // =========================================================================
 
-class IDEChannel {
+class IDEDevice {
 public:
   enum Kind { NONE, DISK, CDROM };
 
-  IDEChannel(u16 base, u16 ctrl) : base(base), ctrl(ctrl) {}
-  ~IDEChannel() {
+  IDEDevice(u16 base, u16 ctrl, bool slave) : base(base), ctrl(ctrl), slave(slave) {}
+  ~IDEDevice() {
     if (fd >= 0) close(fd);
   }
 
@@ -1253,7 +1252,8 @@ private:
   bool medium_locked = false;
   bool packet = false;  // the current transfer belongs to a PACKET command
 
-  bool slave_selected() const { return (drive_head & 0x10) != 0; }
+  bool slave;
+  bool slave_selected() const { return ((drive_head & 0x10) != 0) != slave; }
 
   bool open_image(const char *path, Kind k, u32 ssize, int flags) {
     fd = ::open(path, flags);
@@ -1635,6 +1635,47 @@ private:
     }
   }
 };
+// A channel shares task-file writes and device control between both devices;
+// only the selected device executes commands or drives the data/status bus.
+class IDEChannel {
+public:
+  using Kind = IDEDevice::Kind;
+  static constexpr Kind NONE = IDEDevice::NONE, DISK = IDEDevice::DISK, CDROM = IDEDevice::CDROM;
+  IDEChannel(u16 base, u16 ctrl) : master(base, ctrl, false), slave(base, ctrl, true), base(base) {}
+  bool open_disk(const char *path) { return master.open_disk(path); }
+  bool open_slave_disk(const char *path) { return slave.open_disk(path); }
+  bool open_cdrom(const char *path) { return master.open_cdrom(path); }
+  bool is_open() const { return master.is_open() || slave.is_open(); }
+  Kind kind() const { return master.kind(); }
+  bool handles(u16 port) const { return master.handles(port); }
+  bool is_data_port(u16 port) const { return master.is_data_port(port); }
+  u8 read(u16 port) {
+    u8 value = selected().read(port);
+    if (port == base + 7) irq_pending = false;
+    sync_irq();
+    return value;
+  }
+  void write(u16 port, u8 value) {
+    if (port == base + 6) select_slave = value & 0x10;
+    master.write(port, value);
+    slave.write(port, value);
+    sync_irq();
+  }
+  u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
+  void write16(u16 value) { selected().write16(value); sync_irq(); }
+  bool irq_pending = false, irq_asserted = false;
+private:
+  IDEDevice master, slave;
+  u16 base;
+  bool select_slave = false;
+  IDEDevice &selected() { return select_slave ? slave : master; }
+  void sync_irq() {
+    irq_pending |= master.irq_pending || slave.irq_pending;
+    master.irq_pending = slave.irq_pending = false;
+    irq_asserted = master.irq_asserted || slave.irq_asserted;
+  }
+};
+
 // =========================================================================
 // 8237 DMA Controller — ISA DMA (channels 0-3)
 //

@@ -111,6 +111,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -i <file>       Initramfs image\n");
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
+  fprintf(stderr, "  -hdb <file>     Hard disk image (primary IDE slave)\n");
   fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
   fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
   fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
@@ -804,6 +805,7 @@ int main(int argc, char *argv[]) {
   DisplayMode display_mode = DISPLAY_SERIAL;
   const char *bios_path = nullptr;
   const char *hda_path = nullptr;
+  const char *hdb_path = nullptr;
   const char *fda_path = nullptr;
   const char *cdrom_path = nullptr;
   const char *boot_order = nullptr;
@@ -834,6 +836,9 @@ int main(int argc, char *argv[]) {
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-hda") == 0 && first_arg + 1 < argc) {
       hda_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-hdb") == 0 && first_arg + 1 < argc) {
+      hdb_path = argv[first_arg + 1];
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-fda") == 0 && first_arg + 1 < argc) {
       fda_path = argv[first_arg + 1];
@@ -935,6 +940,14 @@ int main(int argc, char *argv[]) {
         return 1;
       }
       fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
+    }
+
+    if (hdb_path) {
+      if (!model.ide0.open_slave_disk(hdb_path)) {
+        fprintf(stderr, "Failed to open disk image: %s\n", hdb_path);
+        return 1;
+      }
+      fprintf(stderr, "sail-x86-system: HDB=%s\n", hdb_path);
     }
 
     if (cdrom_path) {

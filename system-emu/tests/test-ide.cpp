@@ -38,7 +38,7 @@ static int tests_failed = 0;
 struct Image {
   std::string path;
   Image(size_t size) {
-    char tmpl[] = "/tmp/sail-ide-XXXXXX";
+    char tmpl[] = "./sail-ide-XXXXXX";
     int fd = mkstemp(tmpl);
     assert(fd >= 0);
     path = tmpl;
@@ -277,11 +277,53 @@ TEST(ata_disk_read_write) {
   ASSERT_EQ(st() & 0x01, 0x01);
 }
 
+TEST(master_slave_independent_transfers) {
+  Image master(512 * 64), slave(512 * 128);
+  IDEChannel c(0x1F0, 0x3F6);
+  assert(c.open_disk(master.path.c_str()));
+  assert(c.open_slave_disk(slave.path.c_str()));
+  c.write(0x3F6, 4);
+  c.write(0x3F6, 0);
+  // BIOS probes both identities; writes to the task file before drive select
+  // must also reach the slave (the sequence used by xv6's idestart).
+  for (int drive = 0; drive < 2; ++drive) {
+    c.write(0x1F6, 0xE0 | (drive << 4));
+    c.write(0x1F7, 0xEC);
+    auto id = read_block(c, 256);
+    ASSERT_EQ(id[120], drive ? 128 : 64);
+    c.read(0x1F7);
+  }
+  c.write(0x1F6, 0xE0);
+  c.write(0x1F2, 1);
+  c.write(0x1F3, 3);
+  c.write(0x1F4, 0);
+  c.write(0x1F5, 0);
+  c.write(0x1F6, 0xF0);
+  c.write(0x1F7, 0x30);
+  for (int i = 0; i < 256; ++i) c.write16(0xA500 | i);
+  ASSERT_EQ(c.irq_asserted, true);
+  c.read(0x1F7);
+  ASSERT_EQ(c.irq_asserted, false);
+  c.write(0x1F2, 1);
+  c.write(0x1F3, 3);
+  c.write(0x1F7, 0x20);
+  auto data = read_block(c, 256);
+  ASSERT_EQ(data[0] | (data[1] << 8), 0xA500);
+  c.read(0x1F7);
+  c.write(0x1F6, 0xE0);
+  c.write(0x1F2, 1);
+  c.write(0x1F3, 3);
+  c.write(0x1F7, 0x20);
+  data = read_block(c, 256);
+  ASSERT_EQ(data[0], Image::pattern(3 * 512));
+}
+
 int main() {
   printf("IDE channel tests:\n");
   run_test_atapi_signature_and_identify();
   run_test_atapi_inquiry_capacity_and_read();
   run_test_ata_disk_read_write();
+  run_test_master_slave_independent_transfers();
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;
 }
