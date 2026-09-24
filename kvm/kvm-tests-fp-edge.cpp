@@ -4,8 +4,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   std::string cat;
 
   auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
-                      u32 xmm_cmp) {
-    tests.push_back({name, cat, std::move(code), init, FL_ALL, xmm_cmp, false});
+                      u32 xmm_cmp, u64 flags_mask = FL_ALL) {
+    tests.push_back({name, cat, std::move(code), init, flags_mask, xmm_cmp, false});
   };
 
   // =====================================================================
@@ -1261,23 +1261,23 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       s.rcx = 0;
       // LZCNT eax, ecx: F3 0F BD C1
-      add_xmm("lzcnt 0", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt 0", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 1;
-      add_xmm("lzcnt 1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt 1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 0x80000000;
-      add_xmm("lzcnt msb", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt msb", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 0xFFFFFFFF;
-      add_xmm("lzcnt -1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt -1", {0xF3, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
 
       // LZCNT rax, rcx (64-bit): F3 48 0F BD C1
       s.rcx = 0;
-      add_xmm("lzcnt64 0", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt64 0", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 1;
-      add_xmm("lzcnt64 1", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0);
+      add_xmm("lzcnt64 1", {0xF3, 0x48, 0x0F, 0xBD, 0xC1}, s, 0x0, FL_CF_ZF);
     }
 
     // TZCNT with edge values
@@ -1286,20 +1286,20 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       s.rflags = 0x2;
       s.rcx = 0;
       // TZCNT eax, ecx: F3 0F BC C1
-      add_xmm("tzcnt 0", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+      add_xmm("tzcnt 0", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 0x80000000;
-      add_xmm("tzcnt msb", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+      add_xmm("tzcnt msb", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 1;
-      add_xmm("tzcnt 1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+      add_xmm("tzcnt 1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0, FL_CF_ZF);
 
       s.rcx = 0xFFFFFFFF;
-      add_xmm("tzcnt -1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0);
+      add_xmm("tzcnt -1", {0xF3, 0x0F, 0xBC, 0xC1}, s, 0x0, FL_CF_ZF);
 
       // TZCNT rax, rcx (64-bit): F3 48 0F BC C1
       s.rcx = 0x8000000000000000;
-      add_xmm("tzcnt64 msb", {0xF3, 0x48, 0x0F, 0xBC, 0xC1}, s, 0x0);
+      add_xmm("tzcnt64 msb", {0xF3, 0x48, 0x0F, 0xBC, 0xC1}, s, 0x0, FL_CF_ZF);
     }
 
     // PCLMULQDQ — carry-less multiplication
