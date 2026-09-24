@@ -481,4 +481,21 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK complex_scalar
+  // Scalar complex FP16: VFMADDCSH F3.MAP6.W0 57, VFCMADDCSH F2.MAP6.W0 57.
+  // The 32-bit pair is under the writemask.
+  {
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    gen_ph(s.xmm[0], [](int i) { return 0.5f * float(i % 4); });
+    gen_ph(s.xmm[1], [](int i) { return float(i % 8 + 1); });
+    gen_ph(s.xmm[2], [](int i) { return float((i * 3) % 5) - 2.0f; });
+    s.xmm[1].q[1] = 0xBBBBBBBBCCCCCCCCULL;
+    Evex e; e.mm = 6; e.W = false; e.opcode = 0x57;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.pp = 2; add_scalar(tests, cat, "VFMADDCSH", e, s, 0x7);
+    e.pp = 3; add_scalar(tests, cat, "VFCMADDCSH", e, s, 0x7);
+  }
+  // @@END
 }

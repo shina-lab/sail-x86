@@ -1223,7 +1223,9 @@ function dispatch_evex_map6(opcode, pfx) = {
         (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
         (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
-      write_simd(128, dst, src1[127..32] @ r_im @ r_re)
+      // The 32-bit complex element is under the writemask; DEST[127:32]
+      // comes from src1.
+      evex_write_scalar(dst, src1[127..32] @ r_im @ r_re, pfx, 32)
     },
 
     // MAP6 0xD6: VFCMULCPH (F2, W=0) / VFMULCPH (F3, W=0) — complex multiply
@@ -1272,7 +1274,9 @@ function dispatch_evex_map6(opcode, pfx) = {
         (fp_fmadd(s1_im, s2_im, tmp_re), fp_fnmadd(s1_re, s2_im, tmp_im))
       else
         (fp_fnmadd(s1_im, s2_im, tmp_re), fp_fmadd(s1_re, s2_im, tmp_im));
-      write_simd(128, dst, src1[127..32] @ r_im @ r_re)
+      // The 32-bit complex element is under the writemask; DEST[127:32]
+      // comes from src1.
+      evex_write_scalar(dst, src1[127..32] @ r_im @ r_re, pfx, 32)
     },
 
     _ => raise_UD(),
