@@ -737,22 +737,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F D5: PMULLW (66 prefix)
     213 => sse_exec_binop(op, PB_MulLow, 16, pfx),
 
-    // 0F D6: MOVQ xmm1/m64, xmm2 (66 prefix)
-    214 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then {
-        dispatch_mmx(op, pfx)
-      } else {
-        let modrm = fetch(1);
-        let src_xmm = modrm_xreg(modrm, pfx);
-        let dest = modrm_xrm(modrm, pfx);
-        let x : qword = read_simd(128, src_xmm)[63..0];
-        match dest {
-          XRM_reg(xi) => ZMM[xi][127..0] = zero_extend(x),
-          XRM_mem(m) => write_mem(m, x),
-        }
-      }
-    },
+    // 0F D6 (MOVQ store, MOVQ2DQ, MOVDQ2Q) is routed to dispatch_2byte_sse_fp.
 
     // 0F D8-D9: PSUBUSB/W (66 prefix)
     216 => sse_exec_binop(op, PB_SatSubU,  8, pfx),
