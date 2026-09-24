@@ -162,6 +162,20 @@ static constexpr u32 FAST_CALL_MSRS[] = {
 namespace x86 {
 void x86_externals_reset_msrs();
 void x86_externals_set_msr(u64 msr, u64 value);
+// Port I/O: the value an IN returns for a port, and the log of the model's
+// accesses in the packed form the externals define (direction, size, port,
+// value), compared with the guest's KVM_EXIT_IO sequence.
+u32 x86_externals_port_in_value(u16 port, unsigned size);
+void x86_externals_reset_port_io();
+const std::vector<u64> &x86_externals_port_io();
+}
+
+static void print_port_io(const char *label, const std::vector<u64> &log) {
+  fprintf(stderr, "    %s:", label);
+  for (u64 e : log)
+    fprintf(stderr, " %s%u(%#x)=%#x", (e >> 63) ? "out" : "in", unsigned((e >> 48) & 0xFF),
+            unsigned((e >> 32) & 0xFFFF), unsigned(e & 0xFFFFFFFF));
+  fprintf(stderr, "\n");
 }
 
 // ---- KVM VM ----
@@ -452,6 +466,7 @@ struct KvmVm {
     memset(guest_mem + DATA_ADDR, 0, 0x1000);
     memset(guest_mem + STACK_TOP - 0x1000, 0, 0x1000);  // no cross-test residue
     memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
+    io_log.clear();
 
     memcpy(guest_mem + CODE_ADDR, tc.code.data(), tc.code.size());
     guest_mem[CODE_ADDR + tc.code.size()] = 0xF4;  // HLT
@@ -572,16 +587,39 @@ struct KvmVm {
   // running the next test.
   bool poisoned = false;
 
+  // The guest's port accesses in the run, in the externals' packed form.
+  std::vector<u64> io_log;
+
   // KVM_RUN, resuming across the exits that carry no guest-visible event:
   // without an in-kernel APIC, a CR8 write that lowers the TPR is reported
-  // to user space (KVM_EXIT_SET_TPR) and the guest simply continues.
+  // to user space (KVM_EXIT_SET_TPR) and the guest simply continues.  Port
+  // I/O reaches user space as well: OUT data is logged, IN data is the
+  // same function of the port that the model's externals return.
   void run_vcpu() {
-    do {
+    for (;;) {
       if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
         perror("KVM_RUN");  // host API failure, not a divergence
         abort();
       }
-    } while (run->exit_reason == KVM_EXIT_SET_TPR);
+      if (run->exit_reason == KVM_EXIT_SET_TPR) continue;
+      if (run->exit_reason == KVM_EXIT_IO) {
+        bool out = run->io.direction == KVM_EXIT_IO_OUT;
+        u8 *data = (u8 *)run + run->io.data_offset;
+        for (u32 i = 0; i < run->io.count; i++, data += run->io.size) {
+          u32 value = 0;
+          if (out) {
+            memcpy(&value, data, run->io.size);
+          } else {
+            value = x86::x86_externals_port_in_value(run->io.port, run->io.size);
+            memcpy(data, &value, run->io.size);
+          }
+          io_log.push_back((u64(out) << 63) | (u64(run->io.size) << 48) |
+                           (u64(run->io.port) << 32) | value);
+        }
+        continue;
+      }
+      break;
+    }
   }
 
   // Run test expecting a fault.  Returns fault info; on a divergence that
@@ -817,6 +855,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // MSR store, which is empty otherwise.
   model.zEFER = 0x500;
   x86::x86_externals_reset_msrs();
+  x86::x86_externals_reset_port_io();
   for (auto [msr, value] : tc.msrs) {
     if (msr == MSR_IA32_EFER) model.zEFER = value;
     else x86::x86_externals_set_msr(msr, value);
@@ -1193,6 +1232,9 @@ int main(int argc, char **argv) {
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
         ok = false;
       }
+      const std::vector<u64> &sail_io = x86::x86_externals_port_io();
+      bool io_ok = vm->io_log == sail_io;
+      ok = ok && io_ok;
 
       if (ok) {
         passed++;
@@ -1200,6 +1242,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
         kvm_state.print("KVM");
         sail_state.print("Sail");
+        if (!io_ok) {
+          fprintf(stderr, "  PORT I/O MISMATCH:\n");
+          print_port_io("KVM ", vm->io_log);
+          print_port_io("Sail", sail_io);
+        }
         if (tc.compare_data_len > 0 &&
             memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
           fprintf(stderr, "  DATA MISMATCH (%zu bytes):\n", tc.compare_data_len);

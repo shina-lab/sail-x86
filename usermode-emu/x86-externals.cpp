@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cfenv>
 #include <unordered_map>
+#include <vector>
 #include <immintrin.h>
 #include <x86intrin.h>
 
@@ -113,15 +114,43 @@ unit Model::z__wrmsr(u64 msr, u64 value) {
 bool Model::z__check_pending_smi(unit) { return false; }
 
 // =========================================================================
-// I/O ports (stub — user mode doesn't have port access)
+// I/O ports: user mode has no devices.  The KVM harness compares the
+// sequence of port accesses with the guest's, so every access is logged
+// (direction in bit 63, size in bits 55:48, port in bits 47:32, value in
+// bits 31:0), and IN returns a value derived from the port, which the
+// harness also supplies to the guest.
 // =========================================================================
 
-u64 Model::z__port_in8(u64) { return 0xFF; }
-u64 Model::z__port_in16(u64) { return 0xFFFF; }
-u64 Model::z__port_in32(u64) { return 0xFFFFFFFF; }
-unit Model::z__port_out8(u64, u64) { return UNIT; }
-unit Model::z__port_out16(u64, u64) { return UNIT; }
-unit Model::z__port_out32(u64, u64) { return UNIT; }
+static std::vector<u64> port_io_log;
+
+u32 x86_externals_port_in_value(u16 port, unsigned size) {
+  u32 value = 0xA5000000u ^ (u32(port) * 0x01010101u);
+  return size == 4 ? value : value & ((1u << (8 * size)) - 1);
+}
+static void log_port_io(bool out, unsigned size, u64 port, u64 value) {
+  port_io_log.push_back((u64(out) << 63) | (u64(size) << 48) | ((port & 0xFFFF) << 32) | (value & 0xFFFFFFFF));
+}
+void x86_externals_reset_port_io() { port_io_log.clear(); }
+const std::vector<u64> &x86_externals_port_io() { return port_io_log; }
+
+u64 Model::z__port_in8(u64 port) {
+  u32 v = x86_externals_port_in_value(port, 1);
+  log_port_io(false, 1, port, v);
+  return v;
+}
+u64 Model::z__port_in16(u64 port) {
+  u32 v = x86_externals_port_in_value(port, 2);
+  log_port_io(false, 2, port, v);
+  return v;
+}
+u64 Model::z__port_in32(u64 port) {
+  u32 v = x86_externals_port_in_value(port, 4);
+  log_port_io(false, 4, port, v);
+  return v;
+}
+unit Model::z__port_out8(u64 port, u64 value) { log_port_io(true, 1, port, value & 0xFF); return UNIT; }
+unit Model::z__port_out16(u64 port, u64 value) { log_port_io(true, 2, port, value & 0xFFFF); return UNIT; }
+unit Model::z__port_out32(u64 port, u64 value) { log_port_io(true, 4, port, value); return UNIT; }
 
 // External interrupt check — not used in user mode
 void Model::z__check_pending_irq(sail_int *rop, unit) { mpz_set_si(*rop, -1); }

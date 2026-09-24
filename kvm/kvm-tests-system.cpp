@@ -309,4 +309,79 @@ void add_system_tests(std::vector<TestCase> &tests) {
         sys("sysexitq with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
     }
   }
+
+  // =====================================================================
+  // IN, OUT, INS, OUTS (E4-E7, EC-EF, 6C-6F)
+  // =====================================================================
+  cat = "System I/O";
+  {
+    // Every port access leaves the guest (KVM_EXIT_IO) and the model
+    // (__port_in/__port_out externals); the harness compares the two
+    // sequences of (direction, size, port, value), supplying the same
+    // port-derived value to an IN on both sides.
+    auto io = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                  std::vector<u8> data = {}, size_t cmp_len = 0) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = FL_ALL;
+      tc.init_data = std::move(data);
+      tc.compare_data_len = cmp_len;
+      tests.push_back(std::move(tc));
+    };
+    const u64 PORT = 0x3F8;
+    // IN: AL and AX merge into RAX, EAX zero-extends.
+    io("in al,0x60", {0xE4, 0x60}, {});
+    io("in ax,0x60", {0x66, 0xE5, 0x60}, {});
+    io("in eax,0x60", {0xE5, 0x60}, {});
+    io("in al,dx", {0xEC}, {.rdx = PORT});
+    io("in ax,dx", {0x66, 0xED}, {.rdx = PORT});
+    io("in eax,dx", {0xED}, {.rdx = PORT});
+    io("in eax,dx (REX.W ignored)", {0x48, 0xED}, {.rdx = PORT});
+    // OUT: the logged value is the low 8, 16 or 32 bits of RAX.
+    ArchState o = {.rax = 0x1122334455667788};
+    io("out 0x60,al", {0xE6, 0x60}, o);
+    io("out 0x60,ax", {0x66, 0xE7, 0x60}, o);
+    io("out 0x60,eax", {0xE7, 0x60}, o);
+    o.rdx = PORT;
+    io("out dx,al", {0xEE}, o);
+    io("out dx,ax", {0x66, 0xEF}, o);
+    io("out dx,eax", {0xEF}, o);
+    io("out dx,al; in al,dx; out 0x61,al", {0xEE, 0xEC, 0xE6, 0x61}, o);
+
+    // INS: ES:[RDI] gets the value, RDI moves by the size in DF's direction.
+    std::vector<u8> zeros(16, 0);
+    ArchState ins = {.rdx = PORT, .rdi = DATA_ADDR};
+    io("insb", {0x6C}, ins, zeros, 16);
+    io("insw", {0x66, 0x6D}, ins, zeros, 16);
+    io("insd", {0x6D}, ins, zeros, 16);
+    io("insd (REX.W ignored)", {0x48, 0x6D}, ins, zeros, 16);
+    ArchState ins_down = {.rdx = PORT, .rdi = DATA_ADDR + 8, .rflags = initial_flags() | FL_DF};
+    io("insd with DF set", {0x6D}, ins_down, zeros, 16);
+    ArchState ins32 = {.rdx = PORT, .rdi = DATA_ADDR};
+    io("insb with a 32-bit address size", {0x67, 0x6C}, ins32, zeros, 16);
+    ArchState rep = {.rcx = 3, .rdx = PORT, .rdi = DATA_ADDR};
+    io("rep insb (RCX=3)", {0xF3, 0x6C}, rep, zeros, 16);
+    io("rep insw (RCX=3)", {0xF3, 0x66, 0x6D}, rep, zeros, 16);
+    io("rep insd (RCX=3)", {0xF3, 0x6D}, rep, zeros, 16);
+    ArchState rep0 = {.rcx = 0, .rdx = PORT, .rdi = DATA_ADDR};
+    io("rep insb (RCX=0: nothing)", {0xF3, 0x6C}, rep0, zeros, 16);
+
+    // OUTS: DS:[RSI] is written to the port, RSI moves.
+    std::vector<u8> src = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+                           0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00};
+    ArchState outs = {.rdx = PORT, .rsi = DATA_ADDR};
+    io("outsb", {0x6E}, outs, src);
+    io("outsw", {0x66, 0x6F}, outs, src);
+    io("outsd", {0x6F}, outs, src);
+    ArchState outs_down = {.rdx = PORT, .rsi = DATA_ADDR + 8, .rflags = initial_flags() | FL_DF};
+    io("outsw with DF set", {0x66, 0x6F}, outs_down, src);
+    ArchState reps = {.rcx = 3, .rdx = PORT, .rsi = DATA_ADDR};
+    io("rep outsb (RCX=3)", {0xF3, 0x6E}, reps, src);
+    io("rep outsw (RCX=3)", {0xF3, 0x66, 0x6F}, reps, src);
+    io("rep outsd (RCX=3)", {0xF3, 0x6F}, reps, src);
+    io("outsb with a segment override (FS)", {0x64, 0x6E}, outs, src);
+  }
 }
