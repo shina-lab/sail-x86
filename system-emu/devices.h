@@ -3,6 +3,7 @@
 #include "integers.h"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 #include <queue>
@@ -1102,6 +1103,10 @@ private:
 // clears the interrupt.
 // =========================================================================
 
+// SAIL_X86_IDE_TRACE in the environment logs every command and packet with
+// its outcome to stderr.
+inline bool ide_trace = getenv("SAIL_X86_IDE_TRACE") != nullptr;
+
 class IDEChannel {
 public:
   enum Kind { NONE, DISK, CDROM };
@@ -1316,6 +1321,7 @@ private:
 
   void begin_in_block() {
     size_t n = std::min(buf.size() - buf_pos, block_limit);
+    if (ide_trace) fprintf(stderr, "ide%d: data-in block %zu of %zu bytes\n", base == 0x1F0 ? 0 : 1, n, buf.size());
     block_end = buf_pos + n;
     if (packet) {
       lba_mid = n & 0xFF;
@@ -1335,6 +1341,10 @@ private:
   }
 
   void execute(u8 cmd) {
+    if (ide_trace)
+      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d\n",
+              base == 0x1F0 ? 0 : 1, cmd, features, sector_count, lba_high, lba_mid, lba_low,
+              drive_head, nien);
     error = 0;
     packet = false;
     switch (cmd) {
@@ -1497,6 +1507,7 @@ private:
   }
 
   void check_condition(u8 key, u8 a, u8 q) {
+    if (ide_trace) fprintf(stderr, "ide%d: check condition %x/%02x/%02x\n", base == 0x1F0 ? 0 : 1, key, a, q);
     sense_key = key; asc = a; ascq = q;
     xfer = XFER_NONE;
     status = 0x41;        // DRDY | ERR
@@ -1515,6 +1526,11 @@ private:
 
   void execute_packet() {
     const u8 *c = cdb;
+    if (ide_trace) {
+      fprintf(stderr, "ide%d: packet", base == 0x1F0 ? 0 : 1);
+      for (int i = 0; i < 12; i++) fprintf(stderr, " %02x", c[i]);
+      fprintf(stderr, " limit=%zu\n", block_limit);
+    }
     switch (c[0]) {
     case 0x00:  // TEST UNIT READY
     case 0x1B:  // START STOP UNIT
