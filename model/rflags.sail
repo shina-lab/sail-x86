@@ -62,6 +62,21 @@ function write_rflags(v) = {
   ID      = v[21];
 }
 
+// MOV to/from CRn and DRn: Intel leaves the arithmetic flags undefined
+// (SDM Vol.2B, MOV entries); AMD specifies no flags affected (APM Vol.3).
+// Call only after the access succeeds, so faults retain the original flags.
+val finish_system_register_move : unit -> unit
+function finish_system_register_move() = {
+  if vendor == Vendor_Intel then {
+    CF = undefined;
+    PF = undefined;
+    AF = undefined;
+    ZF = undefined;
+    SF = undefined;
+    OF = undefined
+  }
+}
+
 // Compute the parity of the low 8 bits of a value.
 // PF is set if the number of set bits in the low byte is even.
 val compute_PF : byte -> bit

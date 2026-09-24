@@ -960,7 +960,8 @@ function dispatch_2byte_gpr(op, pfx) = {
           _ => raise_UD(),
         },
       };
-      v(rm_idx) = cr_val
+      v(rm_idx) = cr_val;
+      finish_system_register_move()
     },
 
     // 0F 22: MOV CRn, reg — Write control register (requires CPL=0)
@@ -1001,7 +1002,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
         8 => CR8 = cr_val[3..0],
         _ => raise_UD(),
-      }
+      };
+      finish_system_register_move()
     },
 
     // 0F 21: MOV reg, DRn — Read debug register (requires CPL=0)
@@ -1027,7 +1029,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         7 => DR7,
       };
       if cur_mode == LongMode then v(rm_idx) = dr_val
-      else v(32, rm_idx) = dr_val[31..0]
+      else v(32, rm_idx) = dr_val[31..0];
+      finish_system_register_move()
     },
 
     // 0F 23: MOV DRn, reg — Write debug register (requires CPL=0)
@@ -1056,7 +1059,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         5 => DR7 = (dr_val & 0x00000000FFFF2BFF) | 0x0000000000000400,  // alias when CR4.DE=0
         6 => DR6 = (dr_val & 0x000000000000E00F) | 0x00000000FFFF0FF0,
         7 => DR7 = (dr_val & 0x00000000FFFF2BFF) | 0x0000000000000400,
-      }
+      };
+      finish_system_register_move()
     },
 
     // 0F 30: WRMSR — Write MSR (requires CPL=0)
