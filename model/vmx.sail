@@ -340,6 +340,9 @@ function vm_entry(is_launch) = {
 
   // LDTR and TR
   LDTR = vmcs.guest_ldtr_selector;
+  LDTR_base = vmcs.guest_ldtr_base;
+  LDTR_limit = vmcs.guest_ldtr_limit;
+  LDTR_valid = vmcs.guest_ldtr_access[16] == 0b0;
   TR = vmcs.guest_tr_selector;
   TR_base = vmcs.guest_tr_base;
   TR_limit = vmcs.guest_tr_limit;
@@ -495,6 +498,9 @@ function complete_vm_exit(reason, qual) = {
   vmcs.guest_tr_limit = TR_limit;
   vmcs.guest_tr_access[3..0] = TR_type;
   vmcs.guest_ldtr_selector = LDTR;
+  vmcs.guest_ldtr_base = LDTR_base;
+  vmcs.guest_ldtr_limit = LDTR_limit;
+  vmcs.guest_ldtr_access[16] = if LDTR_valid then 0b0 else 0b1;
 
   // Save activity state
   vmcs.guest_activity_state = if system_state == SysHalted
@@ -543,6 +549,8 @@ function complete_vm_exit(reason, qual) = {
   write_segreg(FS, vmcs.host_fs_selector);
   write_segreg(GS, vmcs.host_gs_selector);
   TR = vmcs.host_tr_selector;
+  LDTR = 0x0000;
+  LDTR_valid = false;
 
   // Host segment bases
   SegCache[FS].seg_base = vmcs.host_fs_base;

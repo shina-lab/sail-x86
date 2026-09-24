@@ -354,6 +354,9 @@ register GDTR_limit : word
 register IDTR_base  : qword
 register IDTR_limit : word
 register LDTR       : word   // LDT selector
+register LDTR_base : qword
+register LDTR_limit : dword
+register LDTR_valid : bool = false
 register TR         : word   // Task register selector
 
 // TSS base and limit (loaded from GDT when LTR executes)

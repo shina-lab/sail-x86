@@ -1230,6 +1230,87 @@ TEST(legacy_call_gate_same_privilege_and_faults) {
   }
 }
 
+TEST(ldt_cached_descriptor_lookup) {
+  x86::Model model;
+  init_model_16(model);
+  model.zcur_mode = x86::zProtectedMode;
+  model.zCR0 |= 1;
+  model.zGDTR_base = 0x1000;
+  model.zGDTR_limit = 0x17;
+  // GDT selector 10h describes LDT at 5000h, length 16 bytes.
+  model.phys_mem.write64(0x1010, 0x000082005000000fULL);
+  write_gdt_data_desc(model, 0x5000, 1, 0x30000, 0x4567, 0, false, false);
+  model.zGPR.data[0] = 0x10;
+  const u8 lldt[] = {0x0f, 0, 0xd0};
+  model.phys_mem.write_bytes(0x200, lldt, sizeof(lldt));
+  model.zRIP = 0x200;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zLDTR, 0x10UL);
+  // Changing the GDT entry cannot change the LDTR's hidden cached base.
+  model.phys_mem.write64(0x1010, 0);
+  model.zGPR.data[0] = 0x0c; // LDT entry 1, RPL0
+  const u8 lookups[] = {
+    0x8e, 0xc0,       // mov es,ax
+    0x0f, 0x02, 0xd8, // lar bx,ax
+    0x0f, 0x03, 0xc8, // lsl cx,ax
+    0x0f, 0x00, 0xe0, // verr ax
+    0x0f, 0x00, 0xe8, // verw ax
+  };
+  model.phys_mem.write_bytes(0x300, lookups, sizeof(lookups));
+  model.zRIP = 0x300;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_ES].zseg_base, 0x30000UL);
+  for (unsigned i = 0; i < 4; ++i) {
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zZF, 1UL);
+  }
+  ASSERT_EQ((u64)model.zGPR.data[3], 0x9300UL);
+  ASSERT_EQ((u64)model.zGPR.data[1], 0x4567UL);
+  // LLDT NULL invalidates future LDT references, but not loaded ES.
+  model.zGPR.data[0] = 0;
+  model.zRIP = 0x200;
+  model.zstep(UNIT);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_ES].zseg_base, 0x30000UL);
+  model.zGPR.data[0] = 0xc;
+  model.zRIP = 0x302;
+  model.zstep(UNIT); // LAR reports ZF=0 instead of raising an exception.
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zZF, 0UL);
+  model.zRIP = 0x300;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, true);
+  ASSERT_EQ((u64)model.zfault_vector, 13UL);
+  ASSERT_EQ((u64)model.zfault_error_code, 0xcUL);
+  model.model_fini();
+}
+
+TEST(lldt_descriptor_validation) {
+  for (unsigned variant = 0; variant < 5; ++variant) {
+    x86::Model model;
+    init_model_16(model);
+    model.zcur_mode = x86::zProtectedMode;
+    model.zCR0 |= 1;
+    model.zGDTR_base = 0x1000;
+    model.zGDTR_limit = variant == 0 ? 0x16 : 0x17;
+    model.phys_mem.write64(0x1010, 0x000082005000000fULL);
+    if (variant == 1) model.phys_mem.write8(0x1015, 0x92); // data segment
+    if (variant == 2) model.phys_mem.write8(0x1015, 2); // absent LDT
+    if (variant == 4) model.zcur_mode = x86::zRealMode;
+    model.zGPR.data[0] = variant == 3 ? 0x14 : 0x10;
+    const u8 lldt[] = {0x0f, 0, 0xd0};
+    model.phys_mem.write_bytes(0x200, lldt, sizeof(lldt));
+    model.zRIP = 0x200;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, variant == 2 ? 11UL : variant == 4 ? 6UL : 13UL);
+    ASSERT_EQ((u64)model.zLDTR, 0UL);
+    model.model_fini();
+  }
+}
+
 TEST(protected_mode_far_jmp_ea) {
   // Far JMP (EA) in protected mode:
   // Set up GDT with a flat 32-bit code segment at selector 0x08.
@@ -2233,6 +2314,8 @@ int main() {
   printf("\nProtected mode far transfer tests:\n");
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
+  run_test_ldt_cached_descriptor_lookup();
+  run_test_lldt_descriptor_validation();
   run_test_protected_mode_far_jmp_ea();
   run_test_protected_mode_far_jmp_ff5();
 

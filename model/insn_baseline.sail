@@ -513,10 +513,33 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 00 /2: LLDT r/m16 — Load LDT Register (requires CPL=0)
         2 => {
+          if cur_mode == RealMode then raise_UD();
           if cur_cpl != 0 then raise_GP0();
           let src = modrm_rm(modrm, pfx);
           let sel : word = v(src);
-          LDTR = sel
+          if sel[15..2] == zeros() then {
+            LDTR = sel;
+            LDTR_valid = false
+          } else {
+            let err = selector_error_code(sel);
+            let off : qword = zero_extend(sel & 0xFFF8);
+            let size : int = if EFER[10] == 0b1 then 16 else 8;
+            if sel[2] == 0b1 | unsigned(off) + size - 1 > unsigned(GDTR_limit) then raise_GP(err);
+            let lo : dword = read_mem_implicit(GDTR_base + off);
+            let hi : dword = read_mem_implicit(GDTR_base + off + 4);
+            let desc = parse_seg_descriptor(lo, hi);
+            if desc.seg_s == 0b1 | desc.seg_type != 0x2 then raise_GP(err);
+            if desc.seg_present == 0b0 then throw Fault(EXN_NP, err);
+            var base = desc.seg_base;
+            if EFER[10] == 0b1 then {
+              let upper : dword = read_mem_implicit(GDTR_base + off + 8);
+              base = upper @ base[31..0]
+            };
+            LDTR = sel;
+            LDTR_base = base;
+            LDTR_limit = desc.seg_limit;
+            LDTR_valid = true
+          }
         },
 
         // 0F 00 /3: LTR r/m16 — Load Task Register (SDM Vol.2A LTR)
@@ -578,11 +601,11 @@ function dispatch_2byte_gpr(op, pfx) = {
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
-            let sel_offset : qword = zero_extend(selector & 0xFFF8);
-            if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+            let desc_addr = descriptor_address(selector);
+            if ~descriptor_in_bounds(selector) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = read_mem_implicit(desc_addr + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               // Readable: data segments always readable; code readable if R bit set
@@ -605,11 +628,11 @@ function dispatch_2byte_gpr(op, pfx) = {
           if (selector & 0xFFFC) == zeros() then {
             ZF = 0b0
           } else {
-            let sel_offset : qword = zero_extend(selector & 0xFFF8);
-            if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+            let desc_addr = descriptor_address(selector);
+            if ~descriptor_in_bounds(selector) then {
               ZF = 0b0
             } else {
-              let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
+              let desc_hi : dword = read_mem_implicit(desc_addr + 4);
               let present : bit = desc_hi[15];
               let s_bit : bit = desc_hi[12];
               let is_code : bit = desc_hi[11];
@@ -871,9 +894,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
-        let sel_offset : qword = zero_extend(selector & 0xFFF8);
-        let desc_addr : qword = GDTR_base + sel_offset;
-        if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+        let desc_addr = descriptor_address(selector);
+        if ~descriptor_in_bounds(selector) then {
           ZF = 0b0
         } else {
           let desc_hi : dword = read_mem_implicit(desc_addr + 4);
@@ -897,9 +919,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       if (selector & 0xFFFC) == zeros() then {
         ZF = 0b0
       } else {
-        let sel_offset : qword = zero_extend(selector & 0xFFF8);
-        let desc_addr : qword = GDTR_base + sel_offset;
-        if unsigned(sel_offset) + 7 > unsigned(GDTR_limit) then {
+        let desc_addr = descriptor_address(selector);
+        if ~descriptor_in_bounds(selector) then {
           ZF = 0b0
         } else {
           let desc_lo : dword = read_mem_implicit(desc_addr);
