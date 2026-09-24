@@ -357,6 +357,19 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK fma_scalar
+  // Scalar FMA: VFMADD213SH 66.MAP6.W0 A9, VFNMADD213SH AD, VFMSUB231SH BB.
+  // DEST[127:16] must stay as it was (not src1's).
+  {
+    ArchState s = make_sh_state(3.0f, 8.0f);
+    uint16_t h = h16(1.5f);
+    memcpy(&s.xmm[0].q[0], &h, 2);
+    Evex e; e.mm = 6; e.pp = 1; e.W = false; e.reg = 0; e.vvvv = 1; e.rm = 2;
+    e.opcode = 0xA9; add_scalar(tests, cat, "VFMADD213SH", e, s, 0x7);
+    e.opcode = 0xAD; add_scalar(tests, cat, "VFNMADD213SH", e, s, 0x7);
+    e.opcode = 0xBB; add_scalar(tests, cat, "VFMSUB231SH", e, s, 0x7);
+  }
+  // @@END
 
   // @@BLOCK getexp
   // VGETEXPPH EVEX.66.MAP6.W0 42 (unary).

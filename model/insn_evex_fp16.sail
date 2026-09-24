@@ -933,7 +933,9 @@ function evex_exec_fma16_scalar(op, order, pfx) = {
     FMA_213 => packed_ternary_elem(op, src1[15..0], d, r),
     FMA_231 => packed_ternary_elem(op, src1[15..0], r, d),
   };
-  evex_write_scalar(dst, src1[127..16] @ result, pfx, 16)
+  // Scalar FMA keeps DEST[127:16] (unlike the two-source scalar ops,
+  // which take the upper bits from src1).
+  evex_write_scalar(dst, read_simd(128, dst)[127..16] @ result, pfx, 16)
 }
 
 // EVEX FP16 packed FMA helper: decode, apply packed ternary op with {er}
