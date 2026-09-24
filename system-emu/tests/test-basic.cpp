@@ -1254,6 +1254,47 @@ TEST(real_to_protected_mode_transition) {
   model.model_fini();
 }
 
+TEST(lmsw_enters_protected_mode) {
+  // SDM Vol.2A LMSW: setting PE enters protected mode. The following
+  // far jump must use the descriptor base, not selector << 4.
+  for (bool memory_source : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    write_gdt_code_desc(model, 0x5000, 1, 0x10000, 0xFFFF, 0, false, false);
+    model.zGDTR_base = 0x5000;
+    model.zGDTR_limit = 15;
+    model.phys_mem.write16(0x4000, 0xFFF1);
+    model.zGPR.data[0] = 0xFFF1;
+    const u8 reg_code[] = {0x0F, 0x01, 0xF0, 0xEA, 0x00, 0x30, 0x08, 0x00};
+    const u8 mem_code[] = {0x66, 0x0F, 0x01, 0x36, 0x00, 0x40,
+                          0xEA, 0x00, 0x30, 0x08, 0x00};
+    const u8 target[] = {0xB8, 0xEF, 0xBE, 0xF4};
+    model.phys_mem.write_bytes(0x13000, target, sizeof(target));
+    model.phys_mem.write8(0x3080, 0xF4); // old, incorrect real-mode target
+    ASSERT_EQ(run_code(model, 0x2000,
+                       memory_source ? mem_code : reg_code,
+                       memory_source ? sizeof(mem_code) : sizeof(reg_code)), RUN_HALTED);
+    ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
+    ASSERT_EQ(model.zCR0, 0x31u); // high source bits leave CR0 unchanged
+    ASSERT_EQ(model.zSegCache.data[x86::SEG_CS].zseg_base, 0x10000u);
+    ASSERT_EQ(model.zGPR.data[0], 0xBEEFu);
+    model.model_fini();
+  }
+}
+
+TEST(lmsw_preserves_pe_and_long_mode) {
+  x86::Model model;
+  init_model(model);
+  u64 original_cr0 = model.zCR0;
+  // A zero PE source cannot leave protected/IA-32e mode; MP/EM/TS load.
+  model.zGPR.data[0] = 0x000E;
+  const u8 code[] = {0x0F, 0x01, 0xF0, 0xF4};
+  ASSERT_EQ(run_code(model, 0x5000, code, sizeof(code)), RUN_HALTED);
+  ASSERT_EQ(model.zCR0, original_cr0 | 0xEu);
+  ASSERT_EQ(model.zcur_mode, x86::zLongMode);
+  model.model_fini();
+}
+
 // =========================================================================
 // Legacy state and interrupt returns
 // =========================================================================
@@ -2091,6 +2132,8 @@ int main() {
 
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
+  run_test_lmsw_enters_protected_mode();
+  run_test_lmsw_preserves_pe_and_long_mode();
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();

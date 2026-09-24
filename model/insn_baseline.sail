@@ -837,7 +837,11 @@ function dispatch_2byte_gpr(op, pfx) = {
               var new_cr0 = CR0;
               new_cr0[3..1] = msw[3..1];
               new_cr0[0] = msw[0] | CR0[0];
-              CR0 = new_cr0
+              CR0 = new_cr0;
+              // SDM Vol.2A, LMSW: setting PE switches the processor
+              // to protected mode. Existing IA-32e modes are unchanged.
+              if cur_mode == RealMode & new_cr0[0] == 0b1 then
+                cur_mode = ProtectedMode
             },
 
             // 0F 01 /7: INVLPG m — Invalidate TLB Entry (memory only, requires CPL=0)
