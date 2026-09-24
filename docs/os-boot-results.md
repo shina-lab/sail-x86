@@ -13,7 +13,7 @@ planar VGA. It has no HPET or additional CPUs.
 | xv6 | Serial `$` shell; filesystem on IDE slave | None for the requested boot |
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
-| Haiku | VBE 1024x768 boot logo, three icons lit | No desktop or COM1 output within the budget |
+| Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
 | ReactOS | Text setup: partitioned, formatted and checked FAT32; file copy reached 11% (`eventvwr.exe`) | Persistent kernel idle wait; no reported model fault; no first boot |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
@@ -1244,6 +1244,51 @@ Additional keyboard input:
     "text": "\u0001x",
     "reason": "Stop after capturing the first protected-mode general-protection handler entry",
     "command": "python3 build/os-boot/send-input.py win31-llvm-gp-10 '\\x01x' 'Stop after capturing the first protected-mode general-protection handler entry'"
+  }
+]
+```
+
+### haiku-llvm-04
+
+Reached COM1 output and the graphical kernel debugger. Haiku panics: did not find any boot partitions. Its syslog reports PCI-ATA: Controller detection failed! bus master base not configured, followed by KDiskDeviceManager::InitialDeviceScan() returning No such file or directory. The emulator exposes PIIX3 IDE PIO but no bus-master IDE BAR/registers; this is a platform gap, not a reported Sail fault. The run had a 30-minute upper bound and was stopped once this terminal kernel panic was captured. No desktop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name haiku-llvm-04 --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 1024 -b build/bios.bin -cdrom /home/ruiu/os-images/haiku-r1beta5-x86_64-anyboot.iso -boot d
+```
+
+Wall time: **125.846 s**. Instructions: **538,458,112**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+KMessage: buffer: 0xffffffff821c18f8 (size/capacity: 315/315), flags: 0xa
+  field: "booted from image" (BOOL): true
+  field: "partition offset"  (LLNG): 0 (0x0)
+  field: "boot method"       (LONG): 1 (0x1)
+  field: "boot drive number" (LLNG): 0 (0x0)
+  field: "disk identifier"   (RAWT): data at 0xffffffff821c19e4, 79 bytes
+get_boot_partitions(): boot method type: 1
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+intel: pm_std_ops(0x1)
+intel: pm_std_ops(0x2)
+PCI-ATA: Controller detection failed! bus master base not configured
+KDiskDeviceManager::InitialDeviceScan() returned error: No such file or directory
+kdebug>
+```
+
+![haiku-llvm-04 guest display](os-boot/haiku-llvm-04.png)
+
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 124.87,
+    "text": "\u0001x",
+    "reason": "Stop at the kernel debugger after the boot-device discovery panic",
+    "command": "python3 build/os-boot/send-input.py haiku-llvm-04 '\\x01x' 'Stop at the kernel debugger after the boot-device discovery panic'"
   }
 ]
 ```
