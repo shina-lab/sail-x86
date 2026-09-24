@@ -7,6 +7,7 @@
 #include "x86-helpers.h"
 
 #include <cpuid.h>
+#include <sys/syscall.h>
 #include <sys/utsname.h>
 
 // Print the identity of the hardware oracle.  The differential result is
@@ -49,7 +50,19 @@ struct XsaveLayout {
   u32 opmask;     // component 5: k0-k7
   u32 zmm_hi256;  // component 6: ZMM0-15 bits 511:256
   u32 hi16_zmm;   // component 7: ZMM16-31
+  u32 tilecfg;    // component 17: AMX TILECFG (0 when the host has no AMX)
+  u32 tiledata;   // component 18: AMX TILEDATA, 8 tiles of 1024 bytes
 };
+
+// Intel AMX on the host: CPUID.(7,0):EDX[24] (AMX-TILE).  The AMX
+// templates are constructed only where it is present, and the model's
+// AMX support is enabled to match, so the CPUID and XSAVE enumeration of
+// the two sides agree on either host.
+static bool host_has_amx() {
+  u32 a, b, c, d;
+  __cpuid_count(7, 0, a, b, c, d);
+  return d & (1u << 24);
+}
 
 static XsaveLayout host_xsave_layout() {
   auto offset = [](u32 component) {
@@ -62,7 +75,18 @@ static XsaveLayout host_xsave_layout() {
     }
     return b;
   };
-  return {offset(2), offset(5), offset(6), offset(7)};
+  XsaveLayout xl = {offset(2), offset(5), offset(6), offset(7), 0, 0};
+  if (host_has_amx()) {
+    xl.tilecfg = offset(17);
+    xl.tiledata = offset(18);
+  }
+  return xl;
+}
+
+// Whether a test enables the AMX tile components (XCR0 bits 17 and 18);
+// its tile state is then compared as well.
+static bool test_has_amx(const TestCase &tc) {
+  return (tc.xcr0_override & (3ULL << 17)) == (3ULL << 17);
 }
 
 // The model's vendor profile covers the values the SDM leaves to the
@@ -188,6 +212,13 @@ struct KvmVm {
   u8 *guest_mem = nullptr;
   u8 initial_gdt[12 * 8] = {};
   const XsaveLayout xl = host_xsave_layout();
+  // The XSAVE image exchanged with KVM: struct kvm_xsave (4096 bytes)
+  // unless the guest's area is larger, which KVM_CAP_XSAVE2 reports and
+  // KVM_GET_XSAVE2 reads (a guest with AMX has 11008 bytes).
+  size_t xsave_size = sizeof(struct kvm_xsave);
+  bool have_xsave2 = false;
+  // The tile state after the last run of a test that enables AMX.
+  AmxState amx;
 
   ~KvmVm() {
     if (run) munmap(run, sizeof(kvm_run));
@@ -208,6 +239,19 @@ struct KvmVm {
     if (api_ver != 12) {
       fprintf(stderr, "KVM API version %d (expected 12)\n", api_ver);
       return false;
+    }
+
+    // Linux grants a guest the AMX tile data component only to a process
+    // that asked for it before creating the VM (ARCH_REQ_XCOMP_GUEST_PERM
+    // for XFEATURE_XTILEDATA = 18); without it KVM_SET_XCRS rejects XCR0
+    // bits 17 and 18 and KVM_GET_SUPPORTED_CPUID omits the AMX bits.
+    if (host_has_amx() && syscall(SYS_arch_prctl, 0x1025 /* ARCH_REQ_XCOMP_GUEST_PERM */, 18) < 0)
+      fprintf(stderr, "ARCH_REQ_XCOMP_GUEST_PERM(XTILEDATA): %s; AMX tests will fail\n",
+              strerror(errno));
+    int xsave2 = ioctl(kvm_fd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE2);
+    if (xsave2 > 0) {
+      have_xsave2 = true;
+      if ((size_t)xsave2 > xsave_size) xsave_size = xsave2;
     }
 
     vm_fd = ioctl(kvm_fd, KVM_CREATE_VM, 0UL);
@@ -502,10 +546,11 @@ struct KvmVm {
     dbg.dr7 = tc.initial.dr7;
     ioctl(vcpu_fd, KVM_SET_DEBUGREGS, &dbg);
 
-    // Set XMM registers, MXCSR, and x87 state via XSAVE.
-    struct kvm_xsave xsave;
-    memset(&xsave, 0, sizeof(xsave));
-    u8 *xs = (u8 *)&xsave;
+    // Set XMM registers, MXCSR, and x87 state via XSAVE.  Components
+    // absent from XSTATE_BV (here the AMX tiles, 17 and 18) return to
+    // their initial configuration, so no tile state survives a test.
+    std::vector<u8> xsave_buf(xsave_size, 0);
+    u8 *xs = xsave_buf.data();
     // x87 state: FCW=0x037F (default), FSW=0, FTW=0xFF (all empty)
     u16 fcw = 0x037F;
     memcpy(xs + 0, &fcw, 2);     // FCW
@@ -531,7 +576,7 @@ struct KvmVm {
     // XSTATE_BV: mark all AVX-512 components as valid
     u64 xstate_bv = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
     memcpy(xs + 0x200, &xstate_bv, 8);
-    if (ioctl(vcpu_fd, KVM_SET_XSAVE, &xsave) < 0) {
+    if (ioctl(vcpu_fd, KVM_SET_XSAVE, xs) < 0) {
       perror("KVM_SET_XSAVE");  // host API failure, not a divergence
       abort();
     }
@@ -683,12 +728,8 @@ struct KvmVm {
       .rflags = regs.rflags,
     };
 
-    struct kvm_xsave xsave;
-    if (ioctl(vcpu_fd, KVM_GET_XSAVE, &xsave) < 0) {
-      perror("KVM_GET_XSAVE");  // host API failure, not a divergence
-      abort();
-    }
-    u8 *xs = (u8 *)&xsave;
+    std::vector<u8> xsave_buf = get_xsave();
+    u8 *xs = xsave_buf.data();
     memcpy(&state.mxcsr, xs + 0x18, 4);
     for (int i = 0; i < 16; i++)
       memcpy(&state.xmm[i].q[0], xs + 0xA0 + i * 16, 16);
@@ -709,6 +750,31 @@ struct KvmVm {
     return state;
   }
 
+  // The guest's XSAVE image, through KVM_GET_XSAVE2 where the kernel has
+  // it (needed for an image larger than struct kvm_xsave).
+  std::vector<u8> get_xsave() {
+    std::vector<u8> buf(xsave_size, 0);
+    if (ioctl(vcpu_fd, have_xsave2 ? KVM_GET_XSAVE2 : KVM_GET_XSAVE, buf.data()) < 0) {
+      perror(have_xsave2 ? "KVM_GET_XSAVE2" : "KVM_GET_XSAVE");  // host API failure, not a divergence
+      abort();
+    }
+    return buf;
+  }
+
+  // The guest's AMX state from its XSAVE image: a component whose
+  // XSTATE_BV bit is clear is in its initial configuration, all zeros.
+  AmxState read_amx() {
+    AmxState s;
+    std::vector<u8> buf = get_xsave();
+    u64 xstate_bv;
+    memcpy(&xstate_bv, buf.data() + 0x200, 8);
+    if ((xstate_bv & (1ULL << 17)) && xl.tilecfg)
+      memcpy(s.tilecfg, buf.data() + xl.tilecfg, 64);
+    if ((xstate_bv & (1ULL << 18)) && xl.tiledata)
+      memcpy(s.tiles, buf.data() + xl.tiledata, sizeof(s.tiles));
+    return s;
+  }
+
   // Read data area for memory comparison
   void read_data(u8 *buf, size_t len) {
     memcpy(buf, guest_mem + DATA_ADDR, len);
@@ -726,13 +792,44 @@ static void map_guest_page(u64 addr, size_t len) {
   }
 }
 
+// The model's tile state in the layout of AmxState: TILECFG as its
+// LDTILECFG image, tile t row r at tiles[t][r].
+static AmxState sail_amx_state(x86::Model &model) {
+  AmxState s;
+  if (model.ztilecfg_palette != 0) {
+    s.tilecfg[0] = model.ztilecfg_palette;
+    s.tilecfg[1] = model.ztilecfg_start_row;
+    for (int n = 0; n < 8; n++) {
+      u16 colsb = model.ztilecfg_colsb.data[n];
+      memcpy(s.tilecfg + 16 + 2 * n, &colsb, 2);
+      s.tilecfg[48 + n] = model.ztilecfg_rows.data[n];
+    }
+  }
+  for (int t = 0; t < 8; t++)
+    for (int r = 0; r < 16; r++)
+      zmm_to_bytes(model.zTMM.data[16 * t + r], s.tiles[t][r]);
+  return s;
+}
+
 ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
-                   FaultInfo *fault_out, std::string *err) {
+                   FaultInfo *fault_out, std::string *err, AmxState *amx_out = nullptr) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
   x86::enable_all_features(model);
   model.zvendor = host_vendor();
+  // Intel AMX as the host has it: the model's profile enables it, the
+  // guest of a host without it has neither the CPUID bits nor XCR0 bits
+  // 17 and 18 (XSETBV of those bits is #GP there).
+  if (!host_has_amx()) {
+    model.zhas_amx_tile = false;
+    model.zhas_amx_int8 = false;
+    model.zhas_amx_bf16 = false;
+    model.zXCR0_SUPPORTED &= ~(3ULL << 17);
+  }
+  // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
+  // components); a test's override, below, may add the AMX components.
+  model.zXCR0 = 0xE7;
   model.zcur_mode = tc.compat_mode ? x86::zCompatibilityMode : x86::zLongMode;
   model.zcur_cpl = 0;
 
@@ -954,6 +1051,9 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         img |= (u64)model.zOF << 11;
         img |= (u64)model.zRF << 16;
         fault_out->rflags_image = img;
+        // A tile load or store that faults on a row keeps the rows done
+        // and records the row in TILECFG.start_row.
+        if (amx_out) *amx_out = sail_amx_state(model);
         model.model_fini();
         return {};
       }
@@ -1034,6 +1134,7 @@ done:
     state.kregs[i] = model.zKREG.data[i];
   state.dr6 = model.zDR6;
   state.dr7 = model.zDR7;
+  if (amx_out) *amx_out = sail_amx_state(model);
 
   model.model_fini();
   return state;
@@ -1077,6 +1178,9 @@ static const Template TEMPLATES[] = {
   // without it every case would report #UD from KVM.  Kept last so the
   // suite order is the same on hosts with and without it.
   {"kvm-tests-avx-fp16.cpp", add_avx_fp16_tests},
+  // Intel AMX likewise (CPUID.(7,0):EDX[24]); the template constructs
+  // nothing on a host without it.
+  {"kvm-tests-amx.cpp", add_amx_tests},
 };
 
 static bool host_has_avx512_fp16() {
@@ -1213,6 +1317,11 @@ int main(int argc, char **argv) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
     }
+    // KVM_VERBOSE: name each case before it runs, to locate a case that
+    // kills the process (the model reads guest memory through the host
+    // address space).
+    if (getenv("KVM_VERBOSE"))
+      fprintf(stderr, "  case: %s\n", tc.name.c_str());
     vm->load_test(tc);
 
     std::string harness_err;
@@ -1220,11 +1329,15 @@ int main(int argc, char **argv) {
       // Fault-expecting test: compare exception vector and error code.
       FaultInfo kvm_fault = vm->run_test_fault(&harness_err);
       FaultInfo sail_fault;
-      run_sail(tc, nullptr, 0, &sail_fault, &harness_err);
+      AmxState sail_amx;
+      run_sail(tc, nullptr, 0, &sail_fault, &harness_err, test_has_amx(tc) ? &sail_amx : nullptr);
 
       bool ok = harness_err.empty();
       if (!ok)
         fprintf(stderr, "%s", harness_err.c_str());
+      // The tile state a faulting tile load or store leaves behind.
+      if (test_has_amx(tc) && kvm_fault.faulted && !vm->read_amx().compare(sail_amx))
+        ok = false;
       if (!kvm_fault.faulted) {
         fprintf(stderr, "  KVM: expected fault but none occurred\n");
         ok = false;
@@ -1294,8 +1407,10 @@ int main(int argc, char **argv) {
       if (tc.compare_data_len > 0)
         vm->read_data(kvm_data, tc.compare_data_len);
 
+      AmxState sail_amx;
       ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len,
-                                      nullptr, &harness_err);
+                                      nullptr, &harness_err,
+                                      test_has_amx(tc) ? &sail_amx : nullptr);
 
       if (!harness_err.empty())
         fprintf(stderr, "%s", harness_err.c_str());
@@ -1303,6 +1418,8 @@ int main(int argc, char **argv) {
                 kvm_state.compare(sail_state, tc.flags_mask, tc.cmp_mxcsr,
                                   tc.approx_rel_tol, tc.approx_elem_bits,
                                   tc.approx_result_bits, tc.approx_reg);
+      if (ok && test_has_amx(tc) && !vm->read_amx().compare(sail_amx))
+        ok = false;
 
       if (tc.compare_data_len > 0 &&
           memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {

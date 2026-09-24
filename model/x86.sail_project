@@ -48,6 +48,7 @@ decode {
     insn_vex_int.sail,
     insn_vex_fma.sail,
     insn_vex_arith.sail,
+    insn_amx.sail,
     insn_vex_dispatch.sail,
     insn_evex.sail,
     insn_evex_fp.sail,

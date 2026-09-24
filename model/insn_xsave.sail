@@ -25,13 +25,19 @@
 // right after the AVX component at 832, 896 and 1408.  The AVX component
 // is at 576 on both.  The choice follows the vendor profile register.
 // Sizes are the same on both: 256 (AVX), 64 (opmask), 512 (ZMM_Hi256),
-// 1024 (Hi16_ZMM).
-val xsave_std_offset : int -> range(0, 4095)
+// 1024 (Hi16_ZMM).  The Intel AMX components 17 (TILECFG, 64 bytes) and
+// 18 (TILEDATA, 8192 bytes) follow the PKRU slot (component 9, 2688) at
+// 2752 and 2816 (CPUID.0DH.11H/12H:EBX on Sapphire Rapids and Emerald
+// Rapids); no AMD part implements AMX, so the AMD profile uses the same
+// values.
+val xsave_std_offset : int -> range(0, 16383)
 function xsave_std_offset(component) = match component {
   2 => 576,
   5 => match vendor { Vendor_Intel => 1088, Vendor_AMD => 832 },
   6 => match vendor { Vendor_Intel => 1152, Vendor_AMD => 896 },
   7 => match vendor { Vendor_Intel => 1664, Vendor_AMD => 1408 },
+  17 => 2752,
+  18 => 2816,
   _ => 0
 }
 
@@ -46,21 +52,25 @@ function xsave_area_size_standard(mask) = {
   let s1 : dword = blend(s0, to_bits(32, xsave_std_offset(2) + 256), mask[2]);
   let s2 : dword = blend(s1, to_bits(32, xsave_std_offset(5) + 64), mask[5]);
   let s3 : dword = blend(s2, to_bits(32, xsave_std_offset(6) + 512), mask[6]);
-  blend(s3, to_bits(32, xsave_std_offset(7) + 1024), mask[7])
+  let s4 : dword = blend(s3, to_bits(32, xsave_std_offset(7) + 1024), mask[7]);
+  let s5 : dword = blend(s4, to_bits(32, xsave_std_offset(17) + 64), mask[17]);
+  blend(s5, to_bits(32, xsave_std_offset(18) + 8192), mask[18])
 }
 
 // Compacted format XSAVE area size for a given feature mask.  Components
-// 2, 5, 6 and 7 are packed from offset 576 in component order; every
-// size is a multiple of 64, so the 64-byte alignment that components
-// 5-7 require (CPUID.0DH.n:ECX[1]) never adds padding.  Unlike the
-// standard layout this does not depend on the vendor.
+// 2, 5, 6, 7, 17 and 18 are packed from offset 576 in component order;
+// every size is a multiple of 64, so the 64-byte alignment that
+// components 5-7, 17 and 18 require (CPUID.0DH.n:ECX[1]) never adds
+// padding.  Unlike the standard layout this does not depend on the vendor.
 val xsave_area_size_compacted : qword -> dword
 function xsave_area_size_compacted(mask) = {
   let s0 : dword = to_bits(32, 576);
   let s1 : dword = s0 + blend(zeros() : dword, to_bits(32, 256), mask[2]);
   let s2 : dword = s1 + blend(zeros() : dword, to_bits(32, 64), mask[5]);
   let s3 : dword = s2 + blend(zeros() : dword, to_bits(32, 512), mask[6]);
-  s3 + blend(zeros() : dword, to_bits(32, 1024), mask[7])
+  let s4 : dword = s3 + blend(zeros() : dword, to_bits(32, 1024), mask[7]);
+  let s5 : dword = s4 + blend(zeros() : dword, to_bits(32, 64), mask[17]);
+  s5 + blend(zeros() : dword, to_bits(32, 8192), mask[18])
 }
 
 // -------------------------------------------------------------------------

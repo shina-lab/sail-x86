@@ -43,12 +43,21 @@ val dispatch_vex_0f38 : (byte, Prefixes) -> unit
 function dispatch_vex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
-  // BMI1/BMI2 GPR instructions (opcodes F2-F7) do not require AVX.
-  // All other VEX 0F38 instructions use SIMD and require avx_enabled().
+  // BMI1/BMI2 GPR instructions (opcodes F2-F7) do not require AVX, and
+  // the Intel AMX instructions (49, 4B, 5C, 5E) need CR4.OSXSAVE and
+  // XCR0[18:17] rather than XCR0.AVX (SDM Vol.2 Table 1-67; checked in
+  // dispatch_amx).  All other VEX 0F38 instructions use SIMD and require
+  // avx_enabled().
   let is_bmi = (242 <= op & op <= 247);
-  if ~(is_bmi) & ~(avx_enabled()) then raise_UD();
+  let is_amx = op == 73 | op == 75 | op == 92 | op == 94;
+  if ~(is_bmi) & ~(is_amx) & ~(avx_enabled()) then raise_UD();
 
   match op {
+    // Intel AMX: LDTILECFG/STTILECFG/TILERELEASE/TILEZERO (49),
+    // TILELOADD/TILELOADDT1/TILESTORED (4B), TDPBF16PS (5C),
+    // TDPBSSD/TDPBSUD/TDPBUSD/TDPBUUD (5E)
+    op if is_amx => dispatch_amx(op, pfx),
+
     // SSSE3, SSE4, broadcast, BMI, variable shifts, gather, test, maskmov,
     // permute, AVX-VNNI, VGF2P8MULB, AES
     op if (0 <= op & op <= 15) | op == 19 | (22 <= op & op <= 26)
