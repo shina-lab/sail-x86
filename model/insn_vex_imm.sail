@@ -397,7 +397,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let lb = if op >= 98 then pcmp_implicit_len(b, ub) else pcmp_clamp_len(v(RDX), ub + 1);
     let (int_res2, cf, zf, sf, of) = pcmpxstrx_core(a, la, b, lb, imm);
     if op % 2 == 0
-      then ZMM[0][127..0] = pcmp_expand_mask(int_res2, ub, imm[6])
+      then write_simd(128, 0, pcmp_expand_mask(int_res2, ub, imm[6]))
       else v(RCX) = to_bits(32, pcmp_bit_index(int_res2, ub, imm[6]));
     CF = cf;
     ZF = zf;
