@@ -926,10 +926,9 @@ int main(int argc, char *argv[]) {
         u8 sum = 0;
         for (size_t i = 0; i < vga_size; i++) sum += vga[i];
         vga[vga_size - 1] -= sum;
-        // Provide the ROM via fw_cfg as "vgaroms/vgabios.bin" so SeaBIOS
-        // can load it during option ROM scanning. Also store at C0000 and
-        // PCI ROM BAR for legacy access.
-        model.fw_cfg.set_vga_rom(vga, vga_size);
+        // Expose this PCI device's ROM once. A second copy under fw_cfg's
+        // vgaroms/ is initialized without a PCI BDF and overwrites the VBE
+        // framebuffer address with the default E0000000 instead of BAR0.
         model.phys_mem.load_vga_rom(vga, vga_size, 0xFEB00000ULL);
         model.pci.vga_rom_size = (u32)vga_size;
         fprintf(stderr, "sail-x86-system: VGA BIOS loaded (%zu bytes, checksum OK)\n", vga_size);
