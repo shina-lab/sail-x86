@@ -122,6 +122,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_PROBE_INSN           One-shot diagnostic probe at an instruction count\n");
   fprintf(stderr, "  SAIL_X86_TRACE_PHYS_WRITE     Log phys writes overlapping this address (hex/dec)\n");
   fprintf(stderr, "  SAIL_X86_DETERMINISTIC_RDRAND Replace RDRAND/RDSEED with splitmix64(seed)\n");
+  fprintf(stderr, "  SAIL_X86_BIOS_DEBUG           Echo the firmware debug port (0x402) to stderr\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -863,6 +864,7 @@ int main(int argc, char *argv[]) {
 
   // Set CMOS memory size registers
   model.cmos.set_ram_size(ram_size);
+  model.bios_debug = getenv("SAIL_X86_BIOS_DEBUG") != nullptr;
 
   if (bios_path) {
     // BIOS boot path: load ROM, start at reset vector

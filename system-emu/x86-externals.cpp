@@ -227,6 +227,7 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
   if (p == 0xB2)             return 0x00; // APM Control (write triggers SMI)
   if (p == 0xB3)             return apmc_status; // APM Status
+  if (p == 0x402)            return bios_debug ? 0xE9 : 0xFF; // QEMU debug console readback
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
   if (0xB000 <= p && p < 0xB040) return 0x00;
   if (vga.handles(p))        return vga.read(p);
@@ -314,14 +315,19 @@ unit Model::z__port_out8(u64 port, u64 val) {
   } else if (0xB000 <= p && p < 0xB040) {
     // PIIX4 ACPI PM I/O: absorb writes
   }
-  // Port 0x402, DMA, POST code: silently absorb
+  else if (p == 0x402) {
+    // QEMU debug console: SeaBIOS dprintf output, shown with SAIL_X86_BIOS_DEBUG
+    if (bios_debug) fputc(v, stderr);
+  }
+  // Port 0x80 POST code, high DMA: silently absorb
   return UNIT;
 }
 
 unit Model::z__port_out16(u64 port, u64 val) {
   u16 p = (u16)port;
-  // ATA data port must be written as an atomic 16-bit word
-  if (p == 0x1F0) { ata.write16(p, (u16)val); return UNIT; }
+  // IDE data ports must be written as atomic 16-bit words
+  if (ide0.is_data_port(p)) { ide0.write16((u16)val); return UNIT; }
+  if (ide1.is_data_port(p)) { ide1.write16((u16)val); return UNIT; }
   // fw_cfg selector is a 16-bit register
   if (p == 0x510) { fw_cfg.write(p, (u16)val); return UNIT; }
   z__port_out8(port, val & 0xFF);

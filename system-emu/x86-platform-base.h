@@ -114,6 +114,9 @@ public:
   // Reboot pending (set by port 0xCF9 write or keyboard 0xFE)
   bool reboot_pending = false;
 
+  // Echo the firmware debug console (port 0x402) to stderr
+  bool bios_debug = false;
+
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].
   // Each entry caches a 4KB page translation.
   static constexpr int TLB_SIZE = 1024;
