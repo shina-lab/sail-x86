@@ -1,0 +1,241 @@
+Original 11% stall: build/os-boot/reactos-llvm-install-06.ram
+Non-PAE page tables at CR3=035ac000; symbols from the matching ntoskrnl.exe .rossym.
+Kernel stack traces follow the saved EBP chain (KernelStack+12).
+
+Process b02d7448 pid=4 name=b'System\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' cr3=35ac000
+ Thread b02d6020 tid=8 state=5 waitreason=8 sp=af516c4c wb=b02d60c8
+  wait object 8063c11c MmZeroingPageEvent+0 (:0) type 0 signal 0
+    0xaf516ca4 804aaa8a KeWaitForMultipleObjects+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaf516d04 805023d9 MmZeroPageThread+43 (ntoskrnl/mm/ARM3/zeropage.c:55)
+    0xaf516d54 80434354 Phase1Initialization+0 (ntoskrnl/ex/init.c:2065)
+    0xaf516d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf516dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf516ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d5970 tid=c state=5 waitreason=15 sp=af3dec54 wb=b02d5a18
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3decac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3ded14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3ded64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3dedc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3deddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d56e8 tid=10 state=5 waitreason=15 sp=af3dac54 wb=b02d5790
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3dacac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3dad14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3dad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3dadc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3daddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4020 tid=14 state=5 waitreason=15 sp=af3d6c54 wb=b02d40c8
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3d6cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3d6d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3d6d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3d6dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3d6ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4d98 tid=18 state=5 waitreason=15 sp=af3d2c54 wb=b02d4e40
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3d2cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3d2d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3d2d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3d2dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3d2ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4b10 tid=1c state=5 waitreason=15 sp=af3cec54 wb=b02d4bb8
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3cecac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3ced14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3ced64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3cedc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3ceddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4888 tid=20 state=5 waitreason=15 sp=af3cac54 wb=b02d4930
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3cacac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3cad14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3cad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3cadc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3caddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4600 tid=24 state=5 waitreason=15 sp=af3c6c54 wb=b02d46a8
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3c6cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3c6d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3c6d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3c6dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3c6ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d4378 tid=28 state=5 waitreason=15 sp=af3c2c54 wb=b02d4420
+  wait object 8062af00 ExWorkerQueue+0 (:0) type 4 signal 0
+    0xaf3c2cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3c2d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3c2d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3c2dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3c2ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3020 tid=2c state=5 waitreason=15 sp=af3bec54 wb=b02d30c8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3becac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3bed14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3bed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3bedc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3beddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3d98 tid=30 state=5 waitreason=15 sp=af3bac54 wb=b02d3e40
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3bacac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3bad14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3bad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3badc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3baddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3b10 tid=34 state=5 waitreason=15 sp=af3b6c54 wb=b02d3bb8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3b6cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3b6d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3b6d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3b6dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3b6ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3888 tid=38 state=5 waitreason=15 sp=af3b2c54 wb=b02d3930
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3b2cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3b2d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3b2d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3b2dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3b2ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3600 tid=3c state=5 waitreason=15 sp=af3aec54 wb=b02d36a8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3aecac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3aed14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3aed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3aedc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3aeddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d3378 tid=40 state=5 waitreason=15 sp=af3aac54 wb=b02d3420
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3aacac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3aad14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3aad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3aadc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3aaddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2020 tid=44 state=5 waitreason=15 sp=af3a6c54 wb=b02d20c8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3a6cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3a6d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3a6d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3a6dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3a6ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2d98 tid=48 state=5 waitreason=15 sp=af3a2c54 wb=b02d2e40
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf3a2cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf3a2d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf3a2d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf3a2dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf3a2ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2b10 tid=4c state=5 waitreason=15 sp=af39ec54 wb=b02d2bb8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf39ecac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf39ed14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf39ed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf39edc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf39eddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2888 tid=50 state=5 waitreason=15 sp=af39ac54 wb=b02d2930
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf39acac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf39ad14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf39ad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf39adc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf39addc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2600 tid=54 state=5 waitreason=15 sp=af396c54 wb=b02d26a8
+  wait object 8062af3c ExWorkerQueue+3c (:0) type 4 signal 0
+    0xaf396cac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf396d14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf396d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf396dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf396ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d2378 tid=58 state=5 waitreason=0 sp=af392bbc wb=b02d2420
+  wait object af392cd4 unresolved module/object type 0 signal 0
+    0xaf392c14 804a9ee3 KeWaitForSingleObject+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaf392c7c af7941f2 unresolved module/object
+    0xaf392cf4 8047b6c1 IopWorkItemCallback+d (ntoskrnl/io/iomgr/iowork.c:24)
+    0xaf392d14 8044429d ExpWorkerThreadEntryPoint+9 (ntoskrnl/ex/work.c:157)
+    0xaf392d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf392dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf392ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d1020 tid=5c state=5 waitreason=15 sp=af38ec54 wb=b02d10c8
+  wait object 8062af78 ExWorkerQueue+78 (:0) type 4 signal 0
+    0xaf38ecac 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf38ed14 8044426f ExpWorkerThreadEntryPoint+16 (ntoskrnl/ex/work.c:137)
+    0xaf38ed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf38edc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf38eddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d1d98 tid=60 state=5 waitreason=0 sp=af38ac3c wb=b02d1e40
+  wait object af38ad2c unresolved module/object type 8 signal 0
+    0xaf38ac94 804aaa8a KeWaitForMultipleObjects+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaf38acf4 80444ca9 ExpWorkerThreadBalanceManager+40 (ntoskrnl/ex/work.c:453)
+    0xaf38ad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf38adc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf38addc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02d0460 tid=64 state=5 waitreason=0 sp=af386c5c wb=b02d0508
+  wait object 8063c198 MiMemoryConsumers+58 (:0) type 1 signal 0
+    0xaf386cb4 804aaa8a KeWaitForMultipleObjects+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaf386d14 805027cd MiBalancerThread+43 (ntoskrnl/mm/balance.c:365)
+    0xaf386d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf386dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf386ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02cd020 tid=68 state=5 waitreason=0 sp=af382c14 wb=af382cfc
+  wait object af382d14 unresolved module/object type 9 signal 0
+    0xaf382c6c 804aaa8a KeWaitForMultipleObjects+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaf382ccc 8049b076 KeBalanceSetManager+3c (ntoskrnl/ke/balmgr.c:162)
+    0xaf382d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf382dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf382ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02ccd98 tid=6c state=5 waitreason=15 sp=af37ec74 wb=b02cce40
+  wait object 8062b140 FsRtlWorkerQueues+0 (:0) type 4 signal 0
+    0xaf37eccc 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf37ed34 80455a01 FsRtlWorkerThread+18 (ntoskrnl/fsrtl/stackovf.c:124)
+    0xaf37ed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf37edc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf37eddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b0310020 tid=70 state=5 waitreason=15 sp=af37ac74 wb=b03100c8
+  wait object 8062b168 FsRtlWorkerQueues+28 (:0) type 4 signal 0
+    0xaf37accc 804a324d KeRemoveQueue+0 (ntoskrnl/ke/queue.c:404)
+    0xaf37ad34 80455a01 FsRtlWorkerThread+18 (ntoskrnl/fsrtl/stackovf.c:124)
+    0xaf37ad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaf37adc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaf37addc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b030c020 tid=78 state=5 waitreason=0 sp=afce0c5c wb=b030c0c8
+  wait object b02f88ec unresolved module/object type 0 signal 0
+    0xafce0cb4 804a9ee3 KeWaitForSingleObject+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xafce0d1c aff30814 unresolved module/object
+    0xafce0d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xafce0dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xafce0ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b030b638 tid=7c state=5 waitreason=0 sp=aff2ac5c wb=b030b6e0
+  wait object b030be3c unresolved module/object type 0 signal 0
+    0xaff2acb4 804a9ee3 KeWaitForSingleObject+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaff2ad1c aff30814 unresolved module/object
+    0xaff2ad64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaff2adc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaff2addc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b0304ac8 tid=84 state=5 waitreason=6 sp=afcd2850 wb=b0304b70
+  wait object b02e4938 unresolved module/object type 0 signal 0
+    0xafcd28a8 804a9ee3 KeWaitForSingleObject+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xafcd2910 8052c572 NtWaitForSingleObject+2b (ntoskrnl/ob/obwait.c:427)
+    0xafcd29b8 80403ffe KiSystemCallTrampoline+19 (:0)
+    0xafcd29d4 8056f3f2 KiSystemServiceHandler+e (ntoskrnl/ke/i386/traphdlr.c:1840)
+    0xafcd2a14 80403db4 KiSystemService+67 (:0)
+    0xafcd2a1c 80402605 ZwWaitForSingleObject+11 (:0)
+    0xafcd2c14 80557777 SepRmCommandServerThread+0 (ntoskrnl/se/srm.c:1357)
+    0xafcd2d64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xafcd2dc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xafcd2ddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+ Thread b02b2020 tid=98 state=5 waitreason=4 sp=affaec8c wb=b02b2110
+  wait object b02b2098 unresolved module/object type 8 signal 0
+    0xaffaece4 804a984d KeDelayExecutionThread+7 (sdk/include/vcruntime/mingw32/intrin_x86.h:996)
+    0xaffaed34 aff11398 unresolved module/object
+    0xaffaed64 8054625b PspSystemThreadStartup+9 (ntoskrnl/ps/thread.c:156)
+    0xaffaedc4 8056ab52 KiThreadStartup+10 (ntoskrnl/ke/i386/thrdini.c:78)
+    0xaffaeddc 8054622e PspSystemThreadStartup+0 (ntoskrnl/ps/thread.c:141)
+CcTotalDirtyPages 0x806281f4 00000000 00002fd9 00000000 b025b3d0 08db0004 01000004 000008dd 00000006
+CcLazyWritePages 0x806281bc 0000004b 00000000 00000000 0000066d 00000000 00000505 00000000 00000000
+CcLazyWriteIos 0x806281b8 00000022 0000004b 00000000 00000000 0000066d 00000000 00000505 00000000
+CcNumberActiveWorkerThreads 0x806280d0 00000000 00000000 806280d8 806280d8 b02d7220 b02d62a0 806280e8 806280e8
+CcQueueThrottle 0x806280d4 00000000 806280d8 806280d8 b02d7220 b02d62a0 806280e8 806280e8 806280f0
+CcDirtyPageThreshold 0x806281f8 00002fd9 00000000 b025b3d0 08db0004 01000004 000008dd 00000006 000008dd
+MmAvailablePages 0x8063c1ec 00004528 b0000000 00000000 00000000 00000000 00000001 00000000 00000000
+MmThrottleTop 0x8063bac4 000001c2 a697d100 ffffffff 00006c0f 0000001f 00000000 00000000 0000630d
+KeTickCount 0x80637564 0001043b 00000000 00000000 ff1453c0 ffffffff 2c33dfc0 01da3caa 00000000
+KiTickOffset 0x80637d88 000249c0 00000000 00000000 00000000 00000000 00000000 00001100 00000000
+LazyWriter 0x80628160 80628160 80628160 00000113 ffdffa40 ffdffa40 80406633 00000000 7c0b5880

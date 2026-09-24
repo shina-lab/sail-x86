@@ -1,0 +1,141 @@
+ReactOS 0.4.17 pre-fix STI/SYSEXIT event (reactos-sti-event-09)
+
+sail-x86-system: event at 0008:80403f2e before instruction 433472023; FS=003b base=000000007ffde000
+  [433471960] 0008:8056bfc4: <paged code; bytes omitted>
+  [433471961] 0008:8056bfc6: <paged code; bytes omitted>
+  [433471962] 0008:8056bfc7: <paged code; bytes omitted>
+  [433471963] 0008:8056bfc8: <paged code; bytes omitted>
+  [433471964] 0008:8056bfc9: <paged code; bytes omitted>
+  [433471965] 0008:8056bfcc: <paged code; bytes omitted>
+  [433471966] 0008:8056bfce: <paged code; bytes omitted>
+  [433471967] 0008:8056bfd0: <paged code; bytes omitted>
+  [433471968] 0008:8056bfd4: <paged code; bytes omitted>
+  [433471969] 0008:8056bfda: <paged code; bytes omitted>
+  [433471970] 0008:8056bfe1: <paged code; bytes omitted>
+  [433471971] 0008:8056bfe7: <paged code; bytes omitted>
+  [433471972] 0008:8056bfea: <paged code; bytes omitted>
+  [433471973] 0008:8056bfeb: <paged code; bytes omitted>
+  [433471974] 0008:8056bfef: <paged code; bytes omitted>
+  [433471975] 0008:8056bff1: <paged code; bytes omitted>
+  [433471976] 0008:8056bff5: <paged code; bytes omitted>
+  [433471977] 0008:8056bff7: <paged code; bytes omitted>
+  [433471978] 0008:8056bffd: <paged code; bytes omitted>
+  [433471979] 0008:8056c001: <paged code; bytes omitted>
+  [433471980] 0008:8056c005: <paged code; bytes omitted>
+  [433471981] 0008:8056c04f: <paged code; bytes omitted>
+  [433471982] 0008:8056c052: <paged code; bytes omitted>
+  [433471983] 0008:8056c057: <paged code; bytes omitted>
+  [433471984] 0008:8056c05e: <paged code; bytes omitted>
+  [433471985] 0008:8056c064: <paged code; bytes omitted>
+  [433471986] 0008:8056c06b: <paged code; bytes omitted>
+  [433471987] 0008:8056c06d: <paged code; bytes omitted>
+  [433471988] 0008:8056c074: <paged code; bytes omitted>
+  [433471989] 0008:8056c075: <paged code; bytes omitted>
+  [433471990] 0008:8056c076: <paged code; bytes omitted>
+  [433471991] 0008:8056c079: <paged code; bytes omitted>
+  [433471992] 0008:8056c07f: <paged code; bytes omitted>
+  [433471993] 0008:8056c086: <paged code; bytes omitted>
+  [433471994] 0008:8056c08c: <paged code; bytes omitted>
+  [433471995] 0008:8056c08e: <paged code; bytes omitted>
+  [433471996] 0008:8056c091: <paged code; bytes omitted>
+  [433471997] 0008:8056c097: <paged code; bytes omitted>
+  [433471998] 0008:8056c09e: <paged code; bytes omitted>
+  [433471999] 0008:8056c0a4: <paged code; bytes omitted>
+  [433472000] 0008:8056c0a8: <paged code; bytes omitted>
+  [433472001] 0008:8056c0ae: <paged code; bytes omitted>
+  [433472002] 0008:8056c0b5: <paged code; bytes omitted>
+  [433472003] 0008:8056c0b8: <paged code; bytes omitted>
+  [433472004] 0008:8056c0bd: <paged code; bytes omitted>
+  [433472005] 0008:8056c0c3: <paged code; bytes omitted>
+  [433472006] 0008:8056c0c7: <paged code; bytes omitted>
+  [433472007] 0008:8056c0cd: <paged code; bytes omitted>
+  [433472008] 0008:8056c0d1: <paged code; bytes omitted>
+  [433472009] 0008:8056c48e: <paged code; bytes omitted>
+  [433472010] 0008:8056c490: <paged code; bytes omitted>
+  [433472011] 0008:80403f09: <paged code; bytes omitted>
+  [433472012] 0008:80403f0c: <paged code; bytes omitted>
+  [433472013] 0008:80403f0f: <paged code; bytes omitted>
+  [433472014] 0008:80403f12: <paged code; bytes omitted>
+  [433472015] 0008:80403f15: <paged code; bytes omitted>
+  [433472016] 0008:80403f18: <paged code; bytes omitted>
+  [433472017] 0008:80403f1b: <paged code; bytes omitted>
+  [433472018] 0008:80403f1f: <paged code; bytes omitted>
+  [433472019] 0008:80403f23: <paged code; bytes omitted>
+  [433472020] 0008:80403f28: <paged code; bytes omitted>
+  [433472021] 0008:80403f2c: <paged code; bytes omitted>
+  [433472022] 0008:80403f2d: <paged code; bytes omitted>
+  [433472023] 0008:80403f2e: <paged code; bytes omitted>
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/reactos-sti-event-09.png
+[433472023] CS:RIP=0008:80946ebf mode=P
+  RAX=0000000000000000 RBX=0000000000000001 RCX=000000000031f7a4 RDX=000000007c92f54a
+  RSP=00000000afccedcc RBP=000000000031f83c RSI=0000000000000000 RDI=000000000000022a
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0008 DS=0023 ES=0023 SS=0010 FS=003b GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=0
+  CR0=000000008001003b CR2=0000000061544709 CR3=0000000002781000 CR4=0000000000000618 EFER=0000000000000000
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=121911933212 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=f8 ISR=01  slave IRR=00 IMR=3e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=17380 reload=17892 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=09 A=2d B=02 C=50 D=80 time=12:02:01 ticks=3994810 second=121
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=95353059287 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=121565495804 ns status=40 error=00 features=00 count=03 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=65534 write_lba=0 packet=1 cdb_pos=12 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+
+IRQ frame at SS:ESP=0010:afccedcc (CR3=02781000):
+  EIP=80403f2e CS=00000008 EFLAGS=00000206
+
+Kernel disassembly:
+  80403f28: mov fs, word [esp-0x20]
+  80403f2c: popfd
+  80403f2d: sti
+  80403f2e: sysexit
+
+Serial termination report:
+(ntoskrnl/ke/i386/exp.c:1032) Kill SMSS.EXE, ExceptionCode: c0000005, ExceptionAddress: 7C94995B, BaseAddress: 00400000, P0: 0, P1: ffdff018

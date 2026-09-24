@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | Text setup: partitioned, formatted and checked FAT32; file copy reached 11% (`eventvwr.exe`) | Persistent kernel idle wait; no reported model fault; no first boot |
+| ReactOS | STI interrupt-inhibition bug fixed; text setup file copy reached 65% (`wdmaud.drv`), with serial half-copy checkpoint | Active copy stopped at task budget; separate LLVM cross-page fault-propagation bug corrupts cabinet lengths; no first boot |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -22,7 +22,7 @@ planar VGA. It has no HPET or additional CPUs.
 The APIC/IOAPIC, IDE slave, MP/ACPI firmware, VBE/PNG and planar VGA work
 is committed separately, along with the boot fixes. The boot-related Sail
 corrections cover the CR8/APIC alias, real-mode IRET NT handling, LMSW's
-protected-mode transition, and XLAT's segment selection. Each has an
+protected-mode transition, XLAT's segment selection, and STI's interrupt inhibition. Each has an
 SDM citation and an instruction regression in the same commit. The C++ x87
 memory-capacity fix passes aligned and noncontiguous-page save/restore tests.
 All **15 official-build system tests** pass; the basic suite contains
@@ -1893,4 +1893,377 @@ Additional keyboard input:
     "command": "python3 build/os-boot/send-input.py win95-llvm-setup-gp-14 '\\x01x' 'Stop after confirming the first GP is the same unsupported 16-bit call gate as Windows 3.1'"
   }
 ]
+```
+
+## ReactOS copy-stall diagnosis and continuation (2026-09-25)
+
+This continuation uses `build/llvm/sail-x86-system` exclusively for ReactOS.
+The LLVM emulator was rebuilt after every model/emulator change. No KVM
+harness, other OS, or other worktree was modified.
+Seven attempts total 155.00 minutes of measured attempt time, running
+concurrently within approximately 90 minutes of session wall time.
+
+The apparent 11% I/O wait was **setup process termination after an incorrectly
+timed clock interrupt**. The original `reactos-llvm-install-06.ram` contains
+only PID 4 (`System`) in `PsActiveProcessHead` at `8063DA00`. Its worker
+threads are waiting on their ordinary queues/events, and `CcTotalDirtyPages`
+is zero. There is no surviving setup process to advance the screen.
+The [process and thread dump](os-boot/reactos-process-waits.txt) preserves
+the wait objects and saved kernel stacks from the original 11% RAM capture:
+`ExWorkerQueue`, `FsRtlWorkerQueues`, the zero-page event, balancing timers,
+and background service waits.
+
+New SIGUSR1 dumps include the complete local APIC IRR/ISR/TMR banks,
+I/O APIC redirection entries, both PICs, PIT counters, RTC registers, and
+IDE/ATAPI task files and transfer positions. The [idle-state capture](os-boot/reactos-idle-state.txt)
+shows both storage channels idle, DRQ clear, and no pending or asserted
+storage interrupt. ATAPI `TEST UNIT READY` continues once per virtual second;
+each completion is acknowledged. No DMA command is pending. The PIT is
+running in mode 2 with reload 17892 (about 66.69 Hz); RTC periodic interrupts
+are disabled, and the local APIC timer is masked. This is the selected PIC
+HAL's normal timer configuration. PIC master IRR `10` is the masked UART
+IRQ; ISR is clear. I/O APIC entries are masked, with PIC delivery through
+local APIC LINT0 ExtINT.
+
+Enabling the supplied Setup Debug boot entry exposes `Kill SMSS.EXE` with
+an access violation at NTDLL's `mov edx,fs:[0]` or `mov edx,fs:[18h]`.
+The failing linear address is `FFDFF000` or `FFDFF018`, the kernel PCR rather
+than the user TEB. The failure point varies with interrupt timing: additional
+tracing/debug output can move it earlier than file copy.
+
+The [event capture](os-boot/reactos-sti-event.txt) proves the cause. At instruction
+433,472,023, immediately after `STI` at `80403F2D`, IRQ0 enters
+`HalpClockInterrupt` (`80946EBF`) **before** `SYSEXIT` at `80403F2E`.
+The saved frame is EIP=`80403F2E`, CS=`0008`, EFLAGS=`0206`; FS is still
+`003B`, base `7FFDE000` at entry. ReactOS treats the interrupted context as
+a kernel return and leaves the kernel FS base for the subsequent user return.
+The next user FS access faults and setup is killed, leaving a stale screen.
+
+Commit `beba923` adds the device diagnostics. Commit `43db67f` fixes STI's
+interrupt inhibition according to the supplied SDM revision 090, Vol.2B
+**STI**, p.4-673, and Vol.3A **7.8.1**, p.7-7: an STI starting with IF=0
+inhibits maskable interrupts until the next instruction completes or another
+event is delivered. A separate shadow preserves debug exceptions and does
+not extend inhibition when IF was already set. It includes seven instruction
+regressions: real/protected/long mode IRQ delivery, IF already set, repeated
+STI, STI/CLI, exception delivery, single-step, and STI/SYSEXIT with a pending
+IRQ returning to CPL3 before interrupt entry. Five new cases fail on the old
+model; all 23 exception cases pass with LLVM after the fix. The complete
+official rebuild and all 15 system CTest tests also pass (0.53 s).
+
+```sh
+system-emu/build-llvm.sh
+cmake --build build -j64
+ctest --test-dir build -R '^system_' --output-on-failure
+```
+
+Logs: `build/os-boot/reactos-sti-before-tests.log`,
+`reactos-sti-llvm-tests.log`, and `reactos-sti-official-tests.log`.
+`SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e` captures the first event delivered
+at that instruction, including 64 recent instruction addresses. The fixed
+run retains this probe to check that the illegal interrupt boundary is gone.
+
+Debug ISO preparation changes only the FreeLoader default to the supplied
+`Setup_Debug` entry (COM1, 115200 baud); the setup binaries are unchanged:
+
+```sh
+sed 's/^DefaultOS=Setup$/DefaultOS=Setup_Debug/' \
+  build/os-boot/reactos-setup-freeldr.ini > build/os-boot/reactos-debug-freeldr.ini
+xorriso -indev build/os-boot/reactos-setup.iso \
+  -outdev build/os-boot/reactos-debug.iso -boot_image any replay \
+  -map build/os-boot/reactos-debug-freeldr.ini /freeldr.ini
+```
+
+Each new install starts with a separate sparse 1 GiB disk in this worktree.
+Original install media and the old partial disk are preserved.
+
+### reactos-stall-trace-07
+
+Reproduced the persistent idle state, this time after formatting and at the install-directory screen. Only the System process remains. Storage transfers completed and the CD-ROM continues to answer periodic TEST UNIT READY commands. Stopped after collecting SIGUSR1 state.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name reactos-stall-trace-07 --timeout 1100 --send '2:\n' --send '100:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '180:\n' --send '200:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-trace-disk.img -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **544.793 s**. Instructions: **709,597,657**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 344.7,
+    "text": "\n",
+    "reason": "Accept ReactOS directory and begin file copy for the traced reproduction",
+    "command": "python3 build/os-boot/send-input.py reactos-stall-trace-07 '\\n' 'Accept ReactOS directory and begin file copy for the traced reproduction'"
+  },
+  {
+    "at_seconds": 544.74,
+    "text": "\u0001x",
+    "reason": "Stop traced idle state: transfers completed and only System process remains",
+    "command": "python3 build/os-boot/send-input.py reactos-stall-trace-07 '\\x01x' 'Stop traced idle state: transfers completed and only System process remains'"
+  }
+]
+```
+
+### reactos-debug-trace-08
+
+The serial-debug run exposes the setup process death while entering formatting: access violation C0000005 at 7C97C5D7 (`_SEH3$_RegisterFrame`, `mov edx,fs:[0]`), accessing FFDFF000. Stopped after capturing the idle state.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name reactos-debug-trace-08 --timeout 1100 --send '2:\n' --send '105:\n' --send '115:\n' --send '125:\n' --send '135:\n' --send '145:\n' --send '155:\n' --send '165:\n' --send '185:\n' --send '205:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-debug-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **343.734 s**. Instructions: **566,302,186**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(ntoskrnl/ke/i386/exp.c:1032) Kill SMSS.EXE, ExceptionCode: c0000005, ExceptionAddress: 7C97C5D7, BaseAddress: 00400000, P0: 0, P1: ffdff000
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 343.56,
+    "text": "\u0001x",
+    "reason": "Stop after serial debug identifies the setup process access violation",
+    "command": "python3 build/os-boot/send-input.py reactos-debug-trace-08 '\\x01x' 'Stop after serial debug identifies the setup process access violation'"
+  }
+]
+```
+
+### reactos-sti-event-09
+
+Captured IRQ0 between STI and SYSEXIT at instruction 433,472,023, followed by setup termination at 7C94995B (`RtlLeaveCriticalSection`, `mov edx,fs:[18h]`), accessing FFDFF018. The event-time RAM is preserved as `build/os-boot/reactos-sti-event-09-probe.ram`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e python3 system-emu/run-boot.py --name reactos-sti-event-09 --timeout 600 --send '2:\n' --send '100:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '180:\n' --send '200:\n' --send '220:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-event-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **148.661 s**. Instructions: **447,495,835**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(ntoskrnl/ke/i386/exp.c:1032) Kill SMSS.EXE, ExceptionCode: c0000005, ExceptionAddress: 7C94995B, BaseAddress: 00400000, P0: 0, P1: ffdff018
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 148.5,
+    "text": "\u0001x",
+    "reason": "Stop after capturing IRQ between STI and SYSEXIT and the ensuing user FS access violation",
+    "command": "python3 build/os-boot/send-input.py reactos-sti-event-09 '\\x01x' 'Stop after capturing IRQ between STI and SYSEXIT and the ensuing user FS access violation'"
+  }
+]
+```
+
+### reactos-sti-fixed-install-10
+
+With the STI correction, the fresh install reaches **65%, `wdmaud.drv`** and reports `CHECKPOINT:HALF_COPIED`. It is still copying when stopped at the task budget, with no setup-process termination and no interrupt recorded at the forbidden STI/SYSEXIT boundary. File copy has **not completed**, so there is **no installed-disk first boot** in this continuation. The source-file errors below remain unresolved.
+
+[Farthest screen](os-boot/reactos-sti-file-copy.png) · [Full serial log](os-boot/reactos-sti-fixed-install-10.serial.txt).
+
+The partial disk is `build/os-boot/reactos-sti-fixed-disk.img`. The original 11% disk remains untouched. The supervisor's original 1800-second bound was extended by suspending only that supervisor at 995.61 seconds, while the emulator continued. It was resumed after emulator exit; the reported wall time includes the extension. The outer deadline was 2026-09-24 23:50 UTC, within this task's approximately 90-minute wall budget.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e python3 system-emu/run-boot.py --name reactos-sti-fixed-install-10 --timeout 1800 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sti-fixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **4,232.125 s**. Instructions: **12,078,856,192**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(base/setup/usetup/usetup.c:3241) CHECKPOINT:HALF_COPIED
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 4231.24,
+    "text": "\u0001x",
+    "reason": "Stop active file copy at the task budget after saving the final CPU/device state, RAM and PNG",
+    "command": "python3 build/os-boot/send-input.py reactos-sti-fixed-install-10 '\\x01x' 'Stop active file copy at the task budget after saving the final CPU/device state, RAM and PNG'"
+  }
+]
+```
+
+### reactos-sti-normal-install-11
+
+Comparison with the original `/NODEBUG` setup configuration and a separate fresh disk. With the STI fix it reaches **31%, `quartz.dll`**, past the old 11% termination. Stopped after confirming continued copy. No event was recorded at the forbidden STI/SYSEXIT boundary. This partial disk is `build/os-boot/reactos-sti-normal-disk.img`; it is not a completed installation.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e python3 system-emu/run-boot.py --name reactos-sti-normal-install-11 --timeout 1800 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sti-normal-disk.img -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **2,066.246 s**. Instructions: **5,687,174,144**. Stop: `exit`; exit status `0`.
+
+The original 1800-second supervisor limit was extended while copy was active: its supervisor was suspended at 491.07 seconds, with the emulator continuing, and resumed after emulator exit. The measured wall time includes the extension.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 2065.36,
+    "text": "\u0001x",
+    "reason": "Stop the comparison after confirming the original NODEBUG setup advances past 11% with the STI fix",
+    "command": "python3 build/os-boot/send-input.py reactos-sti-normal-install-11 '\\x01x' 'Stop the comparison after confirming the original NODEBUG setup advances past 11% with the STI fix'"
+  }
+]
+```
+
+### reactos-cab-probe-install-12
+
+With the fixed model, traced the negative `inflate` return path at `0040116D`. Setup again skips `explorer.exe` with `C0000001`, but the probe never triggers. Thus this attempt does not identify a failing `inflate` return. Its last sampled screen is 19%, `wkssvc.dll`, before the subsequent explorer error. Stopped to preserve the trace; disk: `build/os-boot/reactos-cab-probe-disk.img`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_ADDRESS=0x40116d python3 system-emu/run-boot.py --name reactos-cab-probe-install-12 --timeout 1800 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-cab-probe-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **1,017.028 s**. Instructions: **2,763,585,536**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\Device\Harddisk0\Partition1\ReactOS\explorer.exe' (error 0xc0000001), skipping it...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 221.98,
+    "text": "\n",
+    "reason": "Accept the default ReactOS directory and start the cabinet error probe copy",
+    "command": "python3 build/os-boot/send-input.py reactos-cab-probe-install-12 '\\n' 'Accept the default ReactOS directory and start the cabinet error probe copy'"
+  },
+  {
+    "at_seconds": 1016.89,
+    "text": "\u0001x",
+    "reason": "Stop after explorer.exe fails without entering the inflate error branch; preserve this separate extraction issue for diagnosis",
+    "command": "python3 build/os-boot/send-input.py reactos-cab-probe-install-12 '\\x01x' 'Stop after explorer.exe fails without entering the inflate error branch; preserve this separate extraction issue for diagnosis'"
+  }
+]
+```
+
+### reactos-cab-return-install-13
+
+Broader extraction probe at `004024F8`, the caller's branch for every nonzero cabinet codec result, including header and initialization failures. The error branch was captured; its interpretation is recorded below. [Full serial log](os-boot/reactos-cab-return-install-13.serial.txt). Disk: `build/os-boot/reactos-cab-return-disk.img`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-cab-return-install-13 --timeout 1200 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '230:\n' --send '240:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-cab-return-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **947.531 s**. Instructions: **2,579,483,648**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\Device\Harddisk0\Partition1\ReactOS\system32\kdvbox.dll' (error 0xc0000034), skipping it...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 947.38,
+    "text": "\u0001x",
+    "reason": "Stop after capturing the cabinet decompressor error and its exact RAM state",
+    "command": "python3 build/os-boot/send-input.py reactos-cab-return-install-13 '\\x01x' 'Stop after capturing the cabinet decompressor error and its exact RAM state'"
+  }
+]
+```
+
+### Subsequent cabinet extraction errors
+
+The debug continuation reports `kdvbox.dll` missing from the source
+(`C0000034`) and skips `explorer.exe` and `console.dll` with `C0000001`.
+These are subsequent copy errors; setup continues after them. The primary
+run later prints `CHECKPOINT:HALF_COPIED`.
+
+Read-only analysis of snapshots of both fresh install disks finds an identical
+partial `explorer.exe`: its size is correctly 1,875,968 bytes, but only the
+first 258,005 bytes match the source and the remainder is zero. That boundary
+is the start of MSZIP block 813 in `reactos.cab` (file offset 26,382,379 plus
+258,005 bytes, at uncompressed folder offset 26,640,384). The guest file SHA256
+is `c401e08d66e17e62c195e1f4628e84b38dc11836209187c295e0e78206b02e76`;
+the source is `0d2720fd93a865a7c398a20ca410b3656162a0695ddd586df19142d68b31f74a`.
+`console.dll` is also partial: 217,348 correct bytes of 275,968, with the
+remainder zero. Its boundary is MSZIP block 1198, at uncompressed folder
+offset 39,256,064.
+
+Host `7z t` validates all 990 cabinet files. A host reproduction of the
+`MSZipCodecUncompress` / `CabinetExtractFile` call sequence using zlib 1.3
+also extracts all 990 without error. An isolated LLVM Sail run of the exact
+setup executable's `inflateInit2_` and `inflate` functions decodes blocks
+811, 812, and 813 to the same bytes as host zlib, including with the large
+output-buffer lengths used by setup. This isolated test supplies allocation
+and memcpy/memset stubs and does not exercise guest paging or interrupts.
+A repeat with allocation bytes filled with `A5` also passes for block 813.
+These isolation checks alone did not establish the cause of the installation errors.
+
+Diagnostic programs and their data are retained under `build/os-boot/`:
+`check-reactos-cab.c`, `check-reactos-inflate.cpp`,
+`reactos-host-cab-check.log`, `reactos-cab-block-*.deflate`, and
+`reactos-block-*-large-sail.out`. The cabinet SHA256 is
+`7c214ba2bddd19eb14f97b738b142ef09e4a8eea5e7fc220f837ac2477480426`.
+
+The matching ReactOS source used to interpret the setup and kernel stacks
+is revision `3f5fd48b637f96ce589886dc1548b8e9ffb42448`, particularly
+[`base/setup/usetup/spapisup/cabinet.c`](https://github.com/reactos/reactos/blob/3f5fd48b637f96ce589886dc1548b8e9ffb42448/base/setup/usetup/spapisup/cabinet.c).
+
+The [final codec-error capture](os-boot/reactos-cab-error.txt) identifies a
+second problem, still **unfixed** at the budget limit. The caller gives MSZIP
+the next CFDATA header instead of its `CK` payload because the previous block
+was treated as 21,320 bytes (`5348`) instead of 10,056 (`2748`). Its 16-bit
+compressed-size field crosses a 4 KiB page boundary at `011B3FFF`. Both
+bytes in the eventual guest mapping match the ISO (`48 27`); the incorrect
+high byte `53` matches physical address zero. The leftover count is `2C00`,
+so the caller fails to advance past the next eight-byte CFDATA header and
+returns `CS_BADSTREAM` at the magic check. This is not an `inflate` error.
+
+The [minimal LLVM diagnostic](os-boot/reactos-crossing-probe.cpp) reproduces
+the underlying failure independently of ReactOS: `MOVZX EAX,word [EDI]` with
+the second page absent should fault and retain EAX, but instead reaches HLT
+with EAX=`5348`, CR2=`44000`, `fault_pending=0`, and `have_exception=1`. The
+C++ page-crossing helper continues after the nested translation raises a
+Sail exception; the LLVM call path does not deliver that exception to the
+instruction. This diagnostic is deliberately outside the passing system
+test suite and exits nonzero to expose the unresolved bug. No speculative
+model or compiler change was made for it. The existing STI fix and its
+regressions remain independent of this second issue.
+
+```sh
+clang++ -std=c++20 -O2 -march=native \
+  -Ibuild/llvm -I/home/ruiu/sail-llvm/runtime/sail_llvm_rt/include \
+  -Isystem-emu -Iemu-shared docs/os-boot/reactos-crossing-probe.cpp \
+  system-emu/x86-externals.cpp system-emu/x86-phys-mem.cpp \
+  emu-shared/x86-externals-common.cpp build/llvm/sail_x86_model.o \
+  /home/ruiu/sail-llvm/build/runtime/sail_llvm_rt/libsail_llvm_rt.a \
+  -o build/os-boot/check-reactos-crossing
+build/os-boot/check-reactos-crossing
 ```

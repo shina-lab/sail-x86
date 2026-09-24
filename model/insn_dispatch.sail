@@ -1952,6 +1952,9 @@ function decode_execute() = {
       250 => exec_interrupt_flag(false),
 
       // FB: STI
+      // SDM Vol.2B STI: inhibit only when IF was clear (a second STI with
+      // IF already set does not extend the inhibition); exec_interrupt_flag
+      // sets the shadow and handles VIF under VME/PVI.
       251 => exec_interrupt_flag(true),
 
       // FC: CLD
