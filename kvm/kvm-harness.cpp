@@ -480,17 +480,23 @@ struct KvmVm {
       if (msr == MSR_IA32_EFER) sregs_tmp.efer = value;
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
 
-    // The fast-call MSRs: zero unless the test loads them.
+    // The fast-call MSRs: zero unless the test loads them.  With AMX the
+    // guest has IA32_XFD and IA32_XFD_ERR (1C4H, 1C5H), which a test that
+    // faults on XFD leaves set; they are zeroed as well.
     {
       struct {
         struct kvm_msrs hdr;
-        struct kvm_msr_entry entries[sizeof(FAST_CALL_MSRS) / sizeof(u32)];
+        struct kvm_msr_entry entries[sizeof(FAST_CALL_MSRS) / sizeof(u32) + 2];
       } msrs = {};
       msrs.hdr.nmsrs = sizeof(FAST_CALL_MSRS) / sizeof(u32);
       for (u32 i = 0; i < msrs.hdr.nmsrs; i++) {
         msrs.entries[i].index = FAST_CALL_MSRS[i];
         for (auto [msr, value] : tc.msrs)
           if (msr == FAST_CALL_MSRS[i]) msrs.entries[i].data = value;
+      }
+      if (host_has_amx()) {
+        msrs.entries[msrs.hdr.nmsrs++].index = 0x1C4;
+        msrs.entries[msrs.hdr.nmsrs++].index = 0x1C5;
       }
       for (auto [msr, value] : tc.msrs) {
         bool known = msr == MSR_IA32_EFER;
@@ -762,6 +768,21 @@ struct KvmVm {
     return buf;
   }
 
+  // One guest MSR through KVM_GET_MSRS.
+  u64 read_msr(u32 index) {
+    struct {
+      struct kvm_msrs hdr;
+      struct kvm_msr_entry entry;
+    } msrs = {};
+    msrs.hdr.nmsrs = 1;
+    msrs.entry.index = index;
+    if (ioctl(vcpu_fd, KVM_GET_MSRS, &msrs) != 1) {
+      perror("KVM_GET_MSRS");  // host API failure, not a divergence
+      abort();
+    }
+    return msrs.entry.data;
+  }
+
   // The guest's AMX state from its XSAVE image: a component whose
   // XSTATE_BV bit is clear is in its initial configuration, all zeros.
   AmxState read_amx() {
@@ -827,6 +848,13 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     model.zhas_amx_int8 = false;
     model.zhas_amx_bf16 = false;
     model.zXCR0_SUPPORTED &= ~(3ULL << 17);
+  }
+  // WAITPKG (CPUID.(7,0):ECX[5]) likewise: without it the guest's 66/F2/F3
+  // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.
+  {
+    u32 a, b, c, d;
+    __cpuid_count(7, 0, a, b, c, d);
+    model.zhas_waitpkg = (c & (1u << 5)) != 0;
   }
   // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
   // components); a test's override, below, may add the AMX components.
@@ -1052,6 +1080,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         img |= (u64)model.zOF << 11;
         img |= (u64)model.zRF << 16;
         fault_out->rflags_image = img;
+        fault_out->xfd_err = model.zIA32_XFD_ERR;
         // A tile load or store that faults on a row keeps the rows done
         // and records the row in TILECFG.start_row.
         if (amx_out) *amx_out = sail_amx_state(model);
@@ -1175,6 +1204,8 @@ static const Template TEMPLATES[] = {
   {"kvm-tests-avx-vex.cpp", add_avx_vex_only_tests},
   {"kvm-tests-avx-hi16.cpp", add_avx_hi16_tests},
   {"kvm-tests-system.cpp", add_system_tests},
+  {"kvm-tests-hints.cpp", add_hint_tests},
+  {"kvm-tests-waitpkg.cpp", add_waitpkg_tests},
   // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
   // without it every case would report #UD from KVM.  Kept last so the
   // suite order is the same on hosts with and without it.
@@ -1336,9 +1367,18 @@ int main(int argc, char **argv) {
       bool ok = harness_err.empty();
       if (!ok)
         fprintf(stderr, "%s", harness_err.c_str());
-      // The tile state a faulting tile load or store leaves behind.
+      // The tile state a faulting tile load or store leaves behind, and
+      // IA32_XFD_ERR, which an XFD #NM loads (SDM Vol.1 §13.14).
       if (test_has_amx(tc) && kvm_fault.faulted && !vm->read_amx().compare(sail_amx))
         ok = false;
+      if (host_has_amx() && kvm_fault.faulted && sail_fault.faulted) {
+        u64 kvm_xfd_err = vm->read_msr(0x1C5);
+        if (kvm_xfd_err != sail_fault.xfd_err) {
+          fprintf(stderr, "  MISMATCH IA32_XFD_ERR: kvm=0x%lx sail=0x%lx\n",
+                  kvm_xfd_err, sail_fault.xfd_err);
+          ok = false;
+        }
+      }
       if (!kvm_fault.faulted) {
         fprintf(stderr, "  KVM: expected fault but none occurred\n");
         ok = false;

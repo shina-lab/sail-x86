@@ -813,6 +813,35 @@ void add_exception_tests(std::vector<TestCase> &tests) {
              0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x0F, 0x1F, 0x00},
             {}, 13);
 
+  // Non-canonical linear addresses in 64-bit mode (SDM Vol.1 §3.3.7.1):
+  // #GP(0) through DS and the other data segments, #SS(0) through SS.  The
+  // first address past the canonical low half and the last one before the
+  // high half, in the middle, and with the fault on a store.
+  add_fault("mov rax,[rdi] non-canonical 0x0000800000000000 → #GP(0)",
+            {0x48, 0x8B, 0x07}, {.rdi = 0x0000800000000000ULL}, 13);
+  add_fault("mov rax,[rdi] non-canonical 0xFFFF7FFFFFFFFFFF → #GP(0)",
+            {0x48, 0x8B, 0x07}, {.rdi = 0xFFFF7FFFFFFFFFFFULL}, 13);
+  add_fault("mov [rdi],rax non-canonical 0x0001000000000000 → #GP(0)",
+            {0x48, 0x89, 0x07}, {.rdi = 0x0001000000000000ULL}, 13);
+  add_fault("mov rax,[rbp] non-canonical (SS default) → #SS(0)",
+            {0x48, 0x8B, 0x45, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
+  add_fault("mov rax,fs:[rdi] non-canonical → #GP(0)",
+            {0x64, 0x48, 0x8B, 0x07}, {.rdi = 0x0000800000000000ULL}, 13);
+  // The last canonical address of the low half is reachable (a #PF from
+  // the unmapped page, not #GP).
+  {
+    TestCase tc;
+    tc.name = "mov rax,[rdi] canonical 0x00007FFFFFFFFFF8 → #PF";
+    tc.category = cat;
+    tc.code = {0x48, 0x8B, 0x07};
+    tc.initial = {.rdi = 0x00007FFFFFFFFFF8ULL};
+    tc.flags_mask = FL_ALL;
+    tc.expect_fault = true;
+    tc.expected_vector = 14;
+    tc.enable_paging = true;
+    tests.push_back(std::move(tc));
+  }
+
   // 15x F3 + 90 = 16 bytes → #GP(0)
   add_fault("16-byte insn (15x F3 + NOP) → #GP",
             {0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3, 0xF3,

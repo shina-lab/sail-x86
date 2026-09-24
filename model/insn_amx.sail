@@ -54,24 +54,13 @@ function amx_colsb(t) = {
   colsb
 }
 
-// zero_all_tile_data of the SDM.
-val amx_zero_all_tiles : unit -> unit
-function amx_zero_all_tiles() = {
-  foreach (i from 0 to 127) {
-    TMM[i] = zeros()
-  }
-}
-
-// TILECFG in its INIT state: palette 0, TILES_CONFIGURED = 0.
-val amx_init_tilecfg : unit -> unit
-function amx_init_tilecfg() = {
-  tilecfg_palette = 0x00;
-  tilecfg_start_row = 0x00;
-  foreach (n from 0 to 7) {
-    tilecfg_colsb[n] = 0x0000;
-    tilecfg_rows[n] = 0x00
-  }
-}
+// The #NM of AMX-E3, E4 and E5 (SDM Vol.2 Table 1-67; Vol.1 §13.14): an
+// instruction that accesses TILEDATA while XFD disables it.  LDTILECFG,
+// STTILECFG and TILERELEASE are exempt (they initialize or do not use it).
+// amx_zero_all_tiles and amx_init_tilecfg are in regs.sail, shared with
+// XSAVE/XRSTOR.
+val amx_check_xfd : unit -> unit
+function amx_check_xfd() = if xfd_enabled(18) then raise_xfd_nm(18)
 
 // write_row_and_zero of the SDM for a full row: the bytes beyond the tile's
 // colsb are zero in every row an AMX instruction writes.
@@ -153,6 +142,7 @@ val exec_tilezero : range(0, 7) -> unit
 function exec_tilezero(t) = {
   if tilecfg_palette == 0x00 then raise_UD();
   if ~(amx_tile_valid(t)) then raise_UD();
+  amx_check_xfd();
   foreach (r from 0 to 15) {
     TMM[16 * t + r] = zeros()
   };
@@ -209,6 +199,7 @@ function amx_check_load_store(t) = {
   if colsb % 4 != 0 then raise_UD();
   let start = unsigned(tilecfg_start_row);
   if start >= rows then raise_UD();
+  amx_check_xfd();
   assert(1 <= rows & 4 <= colsb & start <= 15);
   (start, rows, colsb / 4)
 }
@@ -274,6 +265,7 @@ function amx_check_tmul(dst, src1, src2) = {
   if src1_colsb / 4 != amx_rows(src2) then raise_UD();
   // tmul_maxn and tmul_maxk hold for every palette-1 shape (colsb <= 64,
   // rows <= 16), so the four limit checks of the class cannot fail here.
+  amx_check_xfd();
   let m_rows = amx_rows(dst);
   assert(1 <= m_rows & 4 <= src1_colsb & 4 <= dst_colsb);
   (m_rows, src1_colsb / 4, dst_colsb / 4)

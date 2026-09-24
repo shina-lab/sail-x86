@@ -247,6 +247,86 @@ function xrstor_zmm_hi256_at(addr) = {
   }
 }
 
+// -------------------------------------------------------------------------
+// Extended feature disable (SDM Vol.1 §13.14): XFD is enabled for state
+// component i when XCR0[i] = IA32_XFD[i] = 1.  An instruction that would
+// access the component then raises #NM after loading IA32_XFD_ERR with the
+// component's bit.  XSAVE* save the component as if it were in its initial
+// configuration (XSTATE_BV[i] = 0; XSAVE writes the initial state, the
+// compacted forms nothing); XRSTOR* raise #NM only when XSTATE_BV[i] = 1.
+// -------------------------------------------------------------------------
+
+val xfd_enabled : range(0, 63) -> bool
+function xfd_enabled(i) = XCR0[i] == bitone & IA32_XFD[i] == bitone
+
+val raise_xfd_nm : forall ('a : Type). range(0, 63) -> 'a
+function raise_xfd_nm(i) = {
+  IA32_XFD_ERR = IA32_XFD & (zero_extend(0b1) << i);
+  throw Fault(EXN_NM, 0x00000000)
+}
+
+// -------------------------------------------------------------------------
+// Intel AMX components (SDM Vol.1 §13.5.14): 17 is TILECFG in its LDTILECFG
+// image (palette, start_row, colsb[8] at 16, rows[8] at 48; 64 bytes), 18
+// is TILEDATA, the eight tiles in order, 16 rows of 64 bytes each, all
+// 8 KB whatever TILECFG says.
+// -------------------------------------------------------------------------
+
+val xsave_tilecfg_at : qword -> unit
+function xsave_tilecfg_at(addr) = {
+  var buf : bits(512) = zeros();
+  buf[7..0] = tilecfg_palette;
+  buf[15..8] = tilecfg_start_row;
+  foreach (n from 0 to 7) {
+    buf[(16 * n + 143) .. (16 * n + 128)] = tilecfg_colsb[n];
+    buf[(8 * n + 391) .. (8 * n + 384)] = tilecfg_rows[n]
+  };
+  write_mem(addr, buf)
+}
+
+// TILEDATA, or its initial configuration (zeros) under XFD.
+val xsave_tiledata_at : qword -> unit
+function xsave_tiledata_at(addr) = {
+  foreach (i from 0 to 127) {
+    write_mem(addr + 64 * i, if xfd_enabled(18) then (zeros() : zmmword) else TMM[i])
+  }
+}
+
+// XRSTOR of TILECFG: an image LDTILECFG would reject (#GP) initializes the
+// register instead (TILES_CONFIGURED = 0), and TILEDATA is left alone.
+val xrstor_tilecfg_at : qword -> unit
+function xrstor_tilecfg_at(addr) = {
+  let buf : bits(512) = read_mem(addr);
+  let palette : byte = buf[7..0];
+  var error : bool = palette >_u 0x01;
+  if palette != 0x00 then {
+    if buf[127..16] != zeros() | buf[383..256] != zeros() | buf[511..448] != zeros() then error = true;
+    foreach (n from 0 to 7) {
+      let colsb : word = velem(16, buf, 8 + n);
+      let rows : byte = velem(8, buf, 48 + n);
+      if colsb >_u 0x0040 | rows >_u 0x10 then error = true;
+      if (rows == 0x00) != (colsb == 0x0000) then error = true
+    }
+  };
+  if error | palette == 0x00 then {
+    amx_init_tilecfg()
+  } else {
+    tilecfg_palette = palette;
+    tilecfg_start_row = buf[15..8];
+    foreach (n from 0 to 7) {
+      tilecfg_colsb[n] = velem(16, buf, 8 + n);
+      tilecfg_rows[n] = velem(8, buf, 48 + n)
+    }
+  }
+}
+
+val xrstor_tiledata_at : qword -> unit
+function xrstor_tiledata_at(addr) = {
+  foreach (i from 0 to 127) {
+    TMM[i] = read_mem(addr + 64 * i)
+  }
+}
+
 val xrstor_hi16_zmm_at : qword -> unit
 function xrstor_hi16_zmm_at(addr) = {
   foreach (i from 0 to 15) {
@@ -352,12 +432,16 @@ function exec_xsave(base, mask) = {
   if rfbm[5] == bitone then xsave_opmask(base);
   if rfbm[6] == bitone then xsave_zmm_hi256(base);
   if rfbm[7] == bitone then xsave_hi16_zmm(base);
+  if rfbm[17] == bitone then xsave_tilecfg_at(base + xsave_std_offset(17));
+  if rfbm[18] == bitone then xsave_tiledata_at(base + xsave_std_offset(18));
 
   // Update XSAVE header
   // Read old XSTATE_BV, merge with RFBM
   let old_bv : qword = read_mem(base + 512);
-  // XINUSE = XCR0 (no init optimization)
-  let xstate_bv : qword = (old_bv & ~(rfbm)) | (XCR0 & rfbm);
+  // XINUSE = XCR0 (no init optimization), except that a component XFD
+  // disables is saved as if in its initial configuration (§13.14)
+  let xinuse : qword = XCR0 & ~(IA32_XFD);
+  let xstate_bv : qword = (old_bv & ~(rfbm)) | (xinuse & rfbm);
   write_mem(base + 512, xstate_bv);
   // XCOMP_BV = 0 (standard format)
   write_mem(base + 520, zeros() : qword);
@@ -430,9 +514,25 @@ function exec_xsavec(base, mask) = {
     offset = offset + 1024
   };
 
+  // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192), both
+  // 64-byte aligned.  A component XFD disables keeps its place in the
+  // layout (XCOMP_BV is unaffected, §13.14) but is not written.
+  if rfbm[17] == bitone then {
+    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
+    xsave_tilecfg_at(offset);
+    offset = offset + 64
+  };
+
+  if rfbm[18] == bitone then {
+    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
+    if ~(xfd_enabled(18)) then xsave_tiledata_at(offset);
+    offset = offset + 8192
+  };
+
   // Write XSAVE header
-  // XSTATE_BV = XINUSE & RFBM = RFBM (since XINUSE = XCR0, RFBM <= XCR0)
-  write_mem(base + 512, rfbm);
+  // XSTATE_BV = XINUSE & RFBM = RFBM (since XINUSE = XCR0, RFBM <= XCR0),
+  // less the components XFD disables (saved as in their initial state)
+  write_mem(base + 512, rfbm & ~(IA32_XFD));
   // XCOMP_BV = RFBM | bit 63
   write_mem(base + 520, rfbm | 0x8000000000000000)
 }
@@ -473,7 +573,13 @@ function xrstor_standard(base, rfbm, xstate_bv) = {
   if to_init[6] == bitone then xinit_zmm_hi256();
 
   if to_restore[7] == bitone then xrstor_hi16_zmm(base);
-  if to_init[7] == bitone then xinit_hi16_zmm()
+  if to_init[7] == bitone then xinit_hi16_zmm();
+
+  if to_restore[17] == bitone then xrstor_tilecfg_at(base + xsave_std_offset(17));
+  if to_init[17] == bitone then amx_init_tilecfg();
+
+  if to_restore[18] == bitone then xrstor_tiledata_at(base + xsave_std_offset(18));
+  if to_init[18] == bitone then amx_zero_all_tiles()
 }
 
 // Compacted form XRSTOR
@@ -535,11 +641,42 @@ function xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv) = {
     if rfbm[7] == bitone then {
       if xstate_bv[7] == bitone then xrstor_hi16_zmm_at(offset)
       else xinit_hi16_zmm()
-    }
+    };
+    offset = offset + 1024
   } else {
     if rfbm[7] == bitone then xinit_hi16_zmm()
+  };
+
+  // Component 17 (TILECFG)
+  if xcomp_bv[17] == bitone then {
+    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
+    if rfbm[17] == bitone then {
+      if xstate_bv[17] == bitone then xrstor_tilecfg_at(offset)
+      else amx_init_tilecfg()
+    };
+    offset = offset + 64
+  } else {
+    if rfbm[17] == bitone then amx_init_tilecfg()
+  };
+
+  // Component 18 (TILEDATA)
+  if xcomp_bv[18] == bitone then {
+    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
+    if rfbm[18] == bitone then {
+      if xstate_bv[18] == bitone then xrstor_tiledata_at(offset)
+      else amx_zero_all_tiles()
+    }
+  } else {
+    if rfbm[18] == bitone then amx_zero_all_tiles()
   }
 }
+
+// XFD (§13.14): restoring a component the MSR disables is #NM when the
+// image has it (XSTATE_BV[i] = 1); an image without it initializes the
+// component instead.  Checked before any component is loaded.
+val xrstor_check_xfd : (qword, qword) -> unit
+function xrstor_check_xfd(rfbm, xstate_bv) =
+  if rfbm[18] == bitone & xstate_bv[18] == bitone & xfd_enabled(18) then raise_xfd_nm(18)
 
 // =========================================================================
 // XRSTOR — Restore extended state (SDM Section 13.8)
@@ -565,11 +702,13 @@ function exec_xrstor(base, mask) = {
     foreach (i from 0 to 5) {
       if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
     };
+    xrstor_check_xfd(rfbm, xstate_bv);
     xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
   } else {
     // Standard form (Section 13.8.1)
     if (xstate_bv & ~(XCR0)) != zeros() then raise_GP0();
     if xcomp_bv != zeros() then raise_GP0();
+    xrstor_check_xfd(rfbm, xstate_bv);
     xrstor_standard(base, rfbm, xstate_bv)
   }
 }
@@ -595,5 +734,6 @@ function exec_xrstors(base, mask) = {
   foreach (i from 0 to 5) {
     if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
   };
+  xrstor_check_xfd(rfbm, xstate_bv);
   xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
 }
