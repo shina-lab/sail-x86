@@ -648,6 +648,14 @@ public:
     }
   }
 
+  void dump(FILE *out) const {
+    for (unsigned i = 0; i < 3; ++i) {
+      const auto &c = channels[i];
+      fprintf(out, "  PIT%u mode=%u count=%u reload=%u gate=%u output=%u\n",
+              i, c.mode, c.count, c.reload, c.gate, c.output);
+    }
+  }
+
 private:
   struct Channel {
     u32 count = 0;
@@ -946,6 +954,13 @@ public:
   }
 
   bool has_irq() { update(); return regs[0x0C] & 0x80; }
+
+  // Inspect without acknowledging status C or changing the selected register.
+  void dump(FILE *out) const {
+    fprintf(out, "  RTC index=%02x A=%02x B=%02x C=%02x D=%02x time=%02x:%02x:%02x ticks=%lu second=%lu\n",
+            index, regs[10], regs[11], regs[12], regs[13], regs[4], regs[2], regs[0],
+            last_ticks, last_second);
+  }
 
   bool handles(u16 port) const {
     return port == 0x70 || port == 0x71;
@@ -1354,6 +1369,7 @@ inline bool ide_trace = getenv("SAIL_X86_IDE_TRACE") != nullptr;
 class IDEDevice {
 public:
   enum Kind { NONE, DISK, CDROM };
+  const u64 *clock = nullptr;
 
   IDEDevice(u16 base, u16 ctrl, bool slave) : base(base), ctrl(ctrl), slave(slave) {}
   ~IDEDevice() {
@@ -1382,6 +1398,8 @@ public:
     case 5: return lba_high;      // ATAPI: byte count high
     case 6: return drive_head;
     case 7:                       // status: clears the interrupt
+      if (ide_trace && irq_asserted)
+        fprintf(stderr, "ide%d.%d: status ack %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, status, now());
       irq_pending = false;
       irq_asserted = false;
       return status;
@@ -1391,6 +1409,8 @@ public:
 
   void write(u16 port, u8 val) {
     if (port == ctrl) {
+      if (ide_trace && dev != NONE)
+        fprintf(stderr, "ide%d.%d: control %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, val, now());
       nien = (val & 0x02) != 0;
       if (nien) irq_asserted = false;
       if (val & 0x04) reset_device();  // SRST
@@ -1467,6 +1487,17 @@ public:
   bool irq_pending = false;
   bool irq_asserted = false;
 
+  void dump(FILE *out) const {
+    static const char *phases[] = {"idle", "data-in", "data-out", "packet"};
+    fprintf(out, "  IDE %03x.%u kind=%u cmd=%02x at=%lu ns status=%02x error=%02x features=%02x count=%02x lba=%02x%02x%02x dh=%02x nIEN=%u IRQ=%u pending=%u\n",
+            base, slave, dev, last_command, command_time, status, error, features,
+            sector_count, lba_high, lba_mid, lba_low, drive_head, nien, irq_asserted, irq_pending);
+    fprintf(out, "    phase=%s buffer=%zu/%zu block_end=%zu limit=%zu write_lba=%u packet=%u cdb_pos=%d CDB=",
+            phases[xfer], buf_pos, buf.size(), block_end, block_limit, current_lba, packet, cdb_pos);
+    for (u8 byte : cdb) fprintf(out, "%02x ", byte);
+    fputc('\n', out);
+  }
+
 private:
   enum Xfer { XFER_NONE, XFER_IN, XFER_OUT, XFER_CDB };
 
@@ -1485,6 +1516,8 @@ private:
   u8 lba_high = 0;
   u8 drive_head = 0;
   u8 status = 0;
+  u8 last_command = 0;
+  u64 command_time = 0;
   bool nien = false;
 
   // Transfer state
@@ -1503,6 +1536,7 @@ private:
   bool packet = false;  // the current transfer belongs to a PACKET command
 
   bool slave;
+  u64 now() const { return clock ? *clock : 0; }
   bool slave_selected() const { return ((drive_head & 0x10) != 0) != slave; }
 
   bool open_image(const char *path, Kind k, u32 ssize, int flags) {
@@ -1521,6 +1555,9 @@ private:
   u64 total_sectors() const { return (image_size + sector_size - 1) / sector_size; }
 
   void raise_irq() {
+    if (ide_trace)
+      fprintf(stderr, "ide%d.%d: IRQ status=%02x reason=%02x nIEN=%u pos=%zu/%zu at %lu ns\n",
+              base == 0x1F0 ? 0 : 1, slave, status, sector_count, nien, buf_pos, buf.size(), now());
     if (!nien) irq_pending = irq_asserted = true;
   }
 
@@ -1590,10 +1627,12 @@ private:
   }
 
   void execute(u8 cmd) {
+    last_command = cmd;
+    command_time = now();
     if (ide_trace)
-      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d\n",
+      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d at %lu ns\n",
               base == 0x1F0 ? 0 : 1, cmd, features, sector_count, lba_high, lba_mid, lba_low,
-              drive_head, nien);
+              drive_head, nien, now());
     error = 0;
     packet = false;
     switch (cmd) {
@@ -1925,6 +1964,12 @@ public:
   u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
   void write16(u16 value) { selected().write16(value); sync_irq(); }
   bool irq_pending = false, irq_asserted = false;
+  void set_clock(const u64 *clock) { master.clock = slave.clock = clock; }
+  void dump(FILE *out) const {
+    fprintf(out, "  IDE channel %03x selected=%u IRQ=%u pending=%u\n", base, select_slave, irq_asserted, irq_pending);
+    master.dump(out);
+    slave.dump(out);
+  }
 private:
   IDEDevice master, slave;
   u16 base;

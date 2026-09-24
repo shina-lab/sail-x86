@@ -1150,10 +1150,20 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
             model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
             model.lapic.read(0x320), model.lapic.read(0x390), model.lapic.pending());
+    fprintf(stderr, "    initial=%u divide=%x LINT0=%08x LINT1=%08x clock=%lu ns\n",
+            model.lapic.read(0x380), model.lapic.read(0x3E0), model.lapic.read(0x350), model.lapic.read(0x360), model.tsc);
+    for (unsigned group = 0; group < 8; ++group)
+      fprintf(stderr, "    vectors %3u-%3u IRR=%08x ISR=%08x TMR=%08x\n", group * 32, group * 32 + 31,
+              model.lapic.read(0x200 + group * 16), model.lapic.read(0x100 + group * 16), model.lapic.read(0x180 + group * 16));
     fprintf(stderr, "  PIC master IRR=%02x IMR=%02x ISR=%02x  slave IRR=%02x IMR=%02x ISR=%02x  %s\n",
             model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
             model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
             model.zsystem_state == x86::zSysHalted ? "halted" : "running");
+    model.ioapic.dump(stderr);
+    model.pit.dump(stderr);
+    model.cmos.dump(stderr);
+    model.ide0.dump(stderr);
+    model.ide1.dump(stderr);
     fprintf(stderr, "  VGA text screen:\n");
     unsigned start = model.vga.start_addr() * 2;
     for (unsigned y = 0; y < model.vga.text_rows(); ++y) {
