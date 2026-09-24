@@ -2,6 +2,7 @@
 
 #include "../emu-shared/integers.h"
 #include "devices.h"
+#include "apic.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -51,6 +52,9 @@ public:
 
   bool in_ram(u64 paddr) const { return paddr < size; }
 
+  LocalAPIC *lapic = nullptr;
+  IOAPIC *ioapic = nullptr;
+
   // ROM intercept: check if paddr falls in a ROM region, return byte if so.
   bool rom_read(u64 paddr, u8 &out) const;
   bool in_rom(u64 paddr) const;
@@ -61,6 +65,8 @@ public:
   void set_vga_rom_bar(u64 addr) { vga_rom_bar = addr; }
 
 private:
+  bool apic_read(u64 addr, void *buf, u64 len) const;
+  bool apic_write(u64 addr, const void *buf, u64 len);
   u8 *ram = nullptr;
   u64 size = 0;
   u8 *rom_data = nullptr;
@@ -72,6 +78,13 @@ private:
 
 class X86PlatformBase {
 public:
+  X86PlatformBase() {
+    phys_mem.lapic = &lapic;
+    phys_mem.ioapic = &ioapic;
+    lapic.clock = &tsc;
+    ioapic.lapic = &lapic;
+    lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };
+  }
   MXCSRState mxcsr_state;
 
   bool should_exit = false;
@@ -98,6 +111,35 @@ public:
   FloppyController floppy;
   FwCfg fw_cfg;
   PCIConfigSpace pci;
+  LocalAPIC lapic;
+  IOAPIC ioapic;
+  u8 imcr_index = 0;
+  bool imcr_apic = false;
+  bool irq_lines[16] = {};
+
+  void set_irq(unsigned irq, bool asserted) {
+    if (irq >= 16) return;
+    if (asserted && !irq_lines[irq]) {
+      if (irq < 8) pic_master.raise_irq(irq);
+      else pic_slave.raise_irq(irq - 8);
+    }
+    irq_lines[irq] = asserted;
+    // The PC/AT timer is wired to IOAPIC INTIN2 (MP/ACPI ISA IRQ0 override).
+    ioapic.set_irq(irq == 0 ? 2 : irq, asserted);
+  }
+  void pulse_irq(unsigned irq) {
+    set_irq(irq, false);
+    set_irq(irq, true);
+    set_irq(irq, false);
+  }
+  bool pic_connected() const {
+    return lapic.enabled() ? lapic.accepts_pic() : !imcr_apic;
+  }
+  bool interrupt_pending() {
+    latch_ide_irqs();
+    if (pic_slave.has_pending()) pic_master.raise_irq(2);
+    return lapic.pending() >= 0 || (pic_connected() && pic_master.has_pending());
+  }
 
   // Simulated TSC: incremented each instruction step.
   // Used instead of host RDTSC so timer calibration matches PIT timing.
@@ -123,8 +165,16 @@ public:
   // the status register (deasserting INTRQ) inside its interrupt handler,
   // as libata does after every PIO block.
   void latch_ide_irqs() {
-    if (ide0.irq_pending) { ide0.irq_pending = false; pic_slave.raise_irq(6); }  // IRQ 14
-    if (ide1.irq_pending) { ide1.irq_pending = false; pic_slave.raise_irq(7); }  // IRQ 15
+    auto latch = [this](IDEChannel &ide, unsigned irq) {
+      if (ide.irq_pending) {
+        ide.irq_pending = false;
+        set_irq(irq, false);
+        set_irq(irq, true);
+      }
+      set_irq(irq, ide.irq_asserted);
+    };
+    latch(ide0, 14);
+    latch(ide1, 15);
   }
 
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].

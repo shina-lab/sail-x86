@@ -153,13 +153,13 @@ static std::unordered_map<u32, u64> msr_store;
 
 u64 Model::z__rdmsr(u64 addr) {
   u32 msr = (u32)addr;
+  if (msr == 0x1B) return lapic.base_msr;
   auto it = msr_store.find(msr);
   if (it != msr_store.end())
     return it->second;
 
   // Default values for common MSRs
   switch (msr) {
-  case 0x1B:   return 0xFEE00900;  // IA32_APIC_BASE (APIC enabled, BSP)
   case 0x10:   return tsc;         // IA32_TSC
   case 0x277:  return 0x0007040600070406ULL; // IA32_PAT (default)
   case 0x1A0:  return 1;           // IA32_MISC_ENABLE (bit 0 = FAST_STRING)
@@ -203,6 +203,10 @@ u64 Model::z__rdmsr(u64 addr) {
 
 unit Model::z__wrmsr(u64 addr, u64 val) {
   u32 msr = (u32)addr;
+  if (msr == 0x1B) {
+    lapic.base_msr = (val & 0xFFFFFF800ULL) | 0x100; // xAPIC, BSP
+    return UNIT;
+  }
   msr_store[msr] = val;
   return UNIT;
 }
@@ -220,8 +224,10 @@ u64 Model::z__port_in8(u64 port) {
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
   if (floppy.handles(p))     return floppy.read(p);
-  if (ide0.handles(p))       return ide0.read(p);
-  if (ide1.handles(p))       return ide1.read(p);
+  if (ide0.handles(p))       { u8 v = ide0.read(p); latch_ide_irqs(); return v; }
+  if (ide1.handles(p))       { u8 v = ide1.read(p); latch_ide_irqs(); return v; }
+  if (p == 0x22) return imcr_index;
+  if (p == 0x23 && imcr_index == 0x70) return imcr_apic;
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
@@ -285,6 +291,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (ide1.handles(p))       { ide1.write(p, v); latch_ide_irqs(); }
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
+  else if (p == 0x22)             imcr_index = v;
+  else if (p == 0x23 && imcr_index == 0x70) imcr_apic = v & 1;
   else if (vga.handles(p))        vga.write(p, v);
   else if (dma.handles(p))        dma.write(p, v);
   else if (dma.handles_page(p))   dma.write_page(p, v);
@@ -369,19 +377,22 @@ void Model::z__check_pending_irq(sail_int *rop, unit) {
   // Raise floppy IRQ 6 on master PIC (edge-triggered: one-shot)
   if (floppy.irq_pending) {
     floppy.irq_pending = false;
-    pic_master.raise_irq(6);
+    pulse_irq(6);
   }
 
   // IDE interrupts are latched at the port access that raised them; this
   // catches one raised any other way (reset).
   latch_ide_irqs();
 
+  int apic_vector = lapic.acknowledge();
+  if (apic_vector >= 0) { mpz_set_si(*rop, apic_vector); return; }
+
   // Cascade: if slave has pending interrupts, raise IRQ 2 on master
   if (pic_slave.has_pending())
     pic_master.raise_irq(2);
 
   // Check master PIC for pending, unmasked interrupts
-  if (pic_master.has_pending()) {
+  if (pic_connected() && pic_master.has_pending()) {
     int vec = pic_master.acknowledge();
     if (vec >= 0) {
       // If this is the cascade IRQ (master IRQ 2), acknowledge slave instead

@@ -3,6 +3,35 @@
 #include <sys/mman.h>
 #include <cstdlib>
 
+bool PhysicalMemory::apic_read(u64 addr, void *buf, u64 len) const {
+  bool local = lapic && lapic->maps(addr);
+  if (!local && !(ioapic && ioapic->maps(addr))) return false;
+  auto *out = static_cast<u8 *>(buf);
+  for (u64 i = 0; i < len;) {
+    u32 offset = (addr + i) & 0xFFC;
+    u32 value = local ? lapic->read(offset) : ioapic->read(offset);
+    do {
+      out[i] = value >> (((addr + i) & 3) * 8);
+      ++i;
+    } while (i < len && ((addr + i) & 3));
+  }
+  return true;
+}
+
+bool PhysicalMemory::apic_write(u64 addr, const void *buf, u64 len) {
+  bool local = lapic && lapic->maps(addr);
+  if (!local && !(ioapic && ioapic->maps(addr))) return false;
+  // xAPIC registers require aligned, dword accesses. Do not turn a dword
+  // EOI/ICR write into four separate device operations.
+  if (!(addr & 3) && len == 4) {
+    u32 value;
+    memcpy(&value, buf, 4);
+    if (local) lapic->write(addr & 0xFFF, value);
+    else ioapic->write(addr & 0xFFF, value);
+  }
+  return true;
+}
+
 PhysicalMemory::~PhysicalMemory() {
   if (ram)
     munmap(ram, size);
@@ -88,6 +117,8 @@ bool PhysicalMemory::in_rom(u64 paddr) const {
 }
 
 u8 PhysicalMemory::read8(u64 paddr) const {
+  u8 mmio;
+  if (apic_read(paddr, &mmio, 1)) return mmio;
   u8 rom_byte;
   if (rom_read(paddr, rom_byte)) return rom_byte;
   if (paddr < size) {
@@ -112,6 +143,8 @@ u8 PhysicalMemory::read8(u64 paddr) const {
 }
 
 u16 PhysicalMemory::read16(u64 paddr) const {
+  u16 mmio;
+  if (apic_read(paddr, &mmio, 2)) return mmio;
   // For ROM regions, read byte-by-byte
   if (rom_data && in_rom(paddr))
     return read8(paddr) | ((u16)read8(paddr + 1) << 8);
@@ -124,6 +157,8 @@ u16 PhysicalMemory::read16(u64 paddr) const {
 }
 
 u32 PhysicalMemory::read32(u64 paddr) const {
+  u32 mmio;
+  if (apic_read(paddr, &mmio, 4)) return mmio;
   if (rom_data && in_rom(paddr))
     return read8(paddr) | ((u32)read8(paddr+1) << 8) |
            ((u32)read8(paddr+2) << 16) | ((u32)read8(paddr+3) << 24);
@@ -136,6 +171,8 @@ u32 PhysicalMemory::read32(u64 paddr) const {
 }
 
 u64 PhysicalMemory::read64(u64 paddr) const {
+  u64 mmio;
+  if (apic_read(paddr, &mmio, 8)) return mmio;
   if (rom_data && in_rom(paddr))
     return (u64)read32(paddr) | ((u64)read32(paddr + 4) << 32);
   if (paddr + 7 < size) {
@@ -147,12 +184,14 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 }
 
 void PhysicalMemory::write8(u64 paddr, u8 val) {
+  if (apic_write(paddr, &val, 1)) return;
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
   if (paddr < size)
     ram[paddr] = val;
 }
 
 void PhysicalMemory::write16(u64 paddr, u16 val) {
+  if (apic_write(paddr, &val, 2)) return;
   if (in_rom(paddr)) return;
   if (paddr + 1 < size) {
     memcpy(ram + paddr, &val, 2);
@@ -160,18 +199,21 @@ void PhysicalMemory::write16(u64 paddr, u16 val) {
 }
 
 void PhysicalMemory::write32(u64 paddr, u32 val) {
+  if (apic_write(paddr, &val, 4)) return;
   if (in_rom(paddr)) return;
   if (paddr + 3 < size)
     memcpy(ram + paddr, &val, 4);
 }
 
 void PhysicalMemory::write64(u64 paddr, u64 val) {
+  if (apic_write(paddr, &val, 8)) return;
   if (in_rom(paddr)) return;
   if (paddr + 7 < size)
     memcpy(ram + paddr, &val, 8);
 }
 
 void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
+  if (apic_read(paddr, buf, len)) return;
   // If ROM is active, read byte-by-byte for regions that may overlap ROM
   if (rom_data) {
     u8 *dst = static_cast<u8 *>(buf);
@@ -185,6 +227,7 @@ void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
 }
 
 void PhysicalMemory::write_bytes(u64 paddr, const void *buf, u64 len) {
+  if (apic_write(paddr, buf, len)) return;
   if (rom_data && in_rom(paddr)) return;
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
   memcpy(ram + paddr, buf, avail);

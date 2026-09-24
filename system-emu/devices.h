@@ -1134,6 +1134,7 @@ public:
     case 6: return drive_head;
     case 7:                       // status: clears the interrupt
       irq_pending = false;
+      irq_asserted = false;
       return status;
     }
     return 0x00;
@@ -1142,6 +1143,7 @@ public:
   void write(u16 port, u8 val) {
     if (port == ctrl) {
       nien = (val & 0x02) != 0;
+      if (nien) irq_asserted = false;
       if (val & 0x04) reset_device();  // SRST
       return;
     }
@@ -1214,6 +1216,7 @@ public:
   // Set when the device asserts INTRQ; the platform delivers it to the PIC
   // once (edge) and clears it.
   bool irq_pending = false;
+  bool irq_asserted = false;
 
 private:
   enum Xfer { XFER_NONE, XFER_IN, XFER_OUT, XFER_CDB };
@@ -1268,7 +1271,7 @@ private:
   u64 total_sectors() const { return (image_size + sector_size - 1) / sector_size; }
 
   void raise_irq() {
-    if (!nien) irq_pending = true;
+    if (!nien) irq_pending = irq_asserted = true;
   }
 
   // Leave the signature that tells the host what kind of device this is:
@@ -1287,6 +1290,7 @@ private:
     buf_pos = block_end = 0;
     cdb_pos = 0;
     irq_pending = false;
+    irq_asserted = false;
     error = 0x01;  // diagnostics passed
     status = dev == NONE ? 0x00 : 0x40;
     set_signature();

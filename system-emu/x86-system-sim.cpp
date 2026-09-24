@@ -1055,6 +1055,9 @@ int main(int argc, char *argv[]) {
   auto dump_state = [&]() {
     dump_requested = false;
     dump_registers(stderr, insn_count, model);
+    fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
+            model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
+            model.lapic.read(0x320), model.lapic.read(0x390), model.lapic.pending());
     fprintf(stderr, "  PIC master IRR=%02x IMR=%02x ISR=%02x  slave IRR=%02x IMR=%02x ISR=%02x  %s\n",
             model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
             model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
@@ -1151,7 +1154,7 @@ int main(int argc, char *argv[]) {
         // Wait for an interrupt: poll stdin + tick PIT until something fires
         // (or the user quits; leaving through the main loop prints the
         // instruction count like every other exit).
-        while (!model.pic_master.has_pending() && !model.should_exit) {
+        while (!model.interrupt_pending() && !model.should_exit && !got_signal) {
           if (dump_requested) dump_state();
           if (poll_stdin) {
             if (curses_active) {
@@ -1171,7 +1174,7 @@ int main(int argc, char *argv[]) {
                 push_key(model.kbd, ch);
               }
               if (model.kbd.has_data())
-                model.pic_master.raise_irq(1);
+                model.set_irq(1, model.kbd.has_data());
               // Render VGA while waiting
               render_vga_text(model);
               napms(10);
@@ -1197,10 +1200,11 @@ int main(int argc, char *argv[]) {
               }
             }
             if (model.uart.has_irq())
-              model.pic_master.raise_irq(4);
+              model.set_irq(4, model.uart.has_irq());
           }
+          model.tsc += 1000000; // advance all clocks by one virtual millisecond in HLT
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
-            model.pic_master.raise_irq(0);
+            model.pulse_irq(0);
         }
         // On real x86, when an interrupt wakes the CPU from HLT, execution
         // resumes at the instruction AFTER HLT. The model commits the
@@ -1236,7 +1240,7 @@ int main(int argc, char *argv[]) {
           push_key(model.kbd, ch);
         }
         if (model.kbd.has_data())
-          model.pic_master.raise_irq(1);
+          model.set_irq(1, model.kbd.has_data());
       } else {
         u8 buf[64];
         ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
@@ -1264,7 +1268,7 @@ int main(int argc, char *argv[]) {
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
       if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
-        model.pic_master.raise_irq(0);
+        model.pulse_irq(0);
       }
       next_pit_tick = insn_count + PIT_TICK_INTERVAL;
     }
@@ -1273,13 +1277,10 @@ int main(int argc, char *argv[]) {
     model.floppy.tick();
 
     // UART interrupt (IRQ 4): RDA or THRE
-    if (model.uart.has_irq()) {
-      model.pic_master.raise_irq(4);
-    }
+    model.set_irq(4, model.uart.has_irq());
 
     // Keyboard interrupt (IRQ 1): scancode available
-    if (model.kbd.has_data())
-      model.pic_master.raise_irq(1);
+    model.set_irq(1, model.kbd.has_data());
 
     // System reboot: keyboard 0xFE, PCI 0xCF9, or JMP FFFF:0000 (reset vector)
     if ((u16)model.zSegReg.data[x86::SEG_CS] == 0xFFFF && (u64)model.zRIP == 0x0000)
