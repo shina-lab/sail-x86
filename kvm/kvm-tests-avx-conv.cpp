@@ -452,11 +452,30 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // imm8[2] = 0 selects the rounding mode in imm8[1:0], 1 uses MXCSR.RC.
   // The source is ModRM:reg, the destination ModRM:r/m; the values need
   // rounding, and round across the largest finite value, so the mode
-  // matters.  Inputs whose result is tiny (below the smallest FP16
-  // denormal) or whose magnitude exceeds 65536 are left out; the model's
-  // fp32_to_fp16 (branchless.sail) does not yet round those per mode.
+  // matters.
   // =====================================================================
   {
+    // Tiny results and overflows follow the rounding direction (SDM
+    // VCVTPS2PH: tiny results become denormals, FTZ is ignored; Vol.1
+    // §4.8.4): below 2^-25 the result is 0 or the smallest denormal, at
+    // exactly 2^-25 it is a tie, above 65520 it is infinity or 65504.
+    ArchState edge;
+    float evals[16] = {0x1p-24f, 0x1p-25f, 0x1.8p-25f, 1.0e-8f, -1.0e-9f, -0x1p-25f, 1.17549435e-38f, 1.0e-40f,
+                       70000.0f, -70000.0f, 65536.0f, 3.4028235e38f, -3.4028235e38f, 1.0e30f, 0.0f, -0.0f};
+    memcpy(edge.xmm[1].q, evals, 64);
+    for (int i = 0; i < 8; i++) edge.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
+    {
+      Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x1D; e.reg = 1; e.vvvv = 0; e.rm = 0; e.LL = 2;
+      for (u8 imm : {0x00, 0x01, 0x02, 0x03})
+        tests.push_back({std::format("VCVTPS2PH ymm0,zmm1,{:#x} tiny and overflow", imm), cat,
+                         e.encode_rr_imm(imm), with_vector_inputs(edge, 0x2), FL_ALL, 0, false});
+      for (u32 rc : {0x2000u, 0x4000u, 0x6000u}) {
+        ArchState m = with_vector_inputs(edge, 0x2); m.mxcsr = 0x1F80 | rc;
+        tests.push_back({std::format("VCVTPS2PH ymm0,zmm1,0x4 tiny and overflow MXCSR.RC={}", rc >> 13), cat,
+                         e.encode_rr_imm(0x04), m, FL_ALL, 0, false});
+      }
+    }
+
     ArchState s;
     float vals[16] = {1.0f, 1.00048828125f, 65504.0f, 65520.0f, 65519.0f, -0.0f, NAN, INFINITY,
                       0.1f, -2.5f, 3.0517578125e-05f, 6.103515625e-05f, -65519.0f, 1234.5678f, 3.0e-5f, -2.0e-5f};

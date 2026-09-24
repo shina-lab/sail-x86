@@ -321,8 +321,14 @@ function fp32_to_fp16(f, rc) = {
   let frac23 : bits(23) = f[22..0];
   let is_inf_nan : bit = is_eq(exp8, 0xFF);
   let is_overflow : bit = is_gt_u(exp8, 0x8E) & ~(is_inf_nan);
-  let is_underflow : bit = is_lt_u(exp8, 0x67);
-  let is_denorm_out : bit = is_lt_u(exp8, 0x71) & ~(is_underflow);
+  // Tiny results are converted to denormals with the selected rounding
+  // (SDM VCVTPS2PH: "Underflow results (i.e., tiny results) are converted
+  // to denormals. MXCSR.FTZ is ignored."; Vol.1 §4.8.4).  Values below
+  // 2^-25, half the smallest half-precision denormal, including zero and
+  // single-precision denormals, are handled through the sticky bit alone.
+  let input_zero : bit = is_zero(exp8) & ~(is_nonzero(frac23));
+  let is_tiny : bit = is_lt_u(exp8, 0x66) & ~(input_zero);
+  let is_denorm_out : bit = is_lt_u(exp8, 0x71) & is_ge_u(exp8, 0x66);
   let norm_top15 : bits(15) = (exp8 - 0x70)[4..0] @ frac23[22..13];
   let norm_round : bit = frac23[12];
   let norm_sticky : bit = is_nonzero(frac23[11..0]);
@@ -331,9 +337,10 @@ function fp32_to_fp16(f, rc) = {
   let denorm_top15 : bits(15) = 0b00000 @ shifted[35..26];
   let denorm_round : bit = shifted[25];
   let denorm_sticky : bit = is_nonzero(shifted[24..0]);
-  let top15 : bits(15) = blend(norm_top15, denorm_top15, is_denorm_out);
-  let round_bit : bit = (norm_round & ~(is_denorm_out)) | (denorm_round & is_denorm_out);
-  let sticky_bit : bit = (norm_sticky & ~(is_denorm_out)) | (denorm_sticky & is_denorm_out);
+  let below : bit = is_tiny | input_zero;
+  let top15 : bits(15) = blend(blend(norm_top15, denorm_top15, is_denorm_out), zeros(), below);
+  let round_bit : bit = ((norm_round & ~(is_denorm_out)) | (denorm_round & is_denorm_out)) & ~(below);
+  let sticky_bit : bit = ((norm_sticky & ~(is_denorm_out)) | (denorm_sticky & is_denorm_out) | is_tiny) & ~(input_zero);
   let rs : bit = round_bit | sticky_bit;
   let rne_up : bit = round_bit & (sticky_bit | top15[0]);
   let down_up : bit = sign[0] & rs;
@@ -342,9 +349,12 @@ function fp32_to_fp16(f, rc) = {
   let hi : bit = (up_up & ~(rc[0]));
   let round_up : bit = (lo & ~(rc[1])) | (hi & rc[1]);
   let result15 : bits(15) = top15 + zero_extend(round_up);
-  let body : bits(15) = result15;
-  let body : bits(15) = blend(body, zeros(), is_underflow);
-  let body : bits(15) = blend(body, 0b11111 @ zeros(10), is_overflow);
+  // An overflow rounds to infinity, or to the largest finite value when the
+  // rounding direction excludes infinity: toward zero, or toward the side
+  // opposite the result's sign (Vol.1 §4.8.4, Table 4-9).
+  let saturate : bit = is_eq(rc, 0b11) | (is_eq(rc, 0b01) & ~(sign[0])) | (is_eq(rc, 0b10) & sign[0]);
+  let overflow15 : bits(15) = blend(0b11111 @ zeros(10), 0b11110 @ ones(10), saturate);
+  let body : bits(15) = blend(result15, overflow15, is_overflow);
   let body : bits(15) = blend(body, 0b11111 @ frac23[22..13], is_inf_nan);
   sign @ body
 }
