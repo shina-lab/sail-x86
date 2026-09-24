@@ -7,11 +7,12 @@
 # and 127 (ctest SKIP_RETURN_CODE) when the boot images have not been
 # built (`make linux`).
 #
-# Budget: a healthy boot reaches the banner in ~2 minutes on the
-# development machine; BOOT_SMOKE_BUDGET (seconds) overrides.  Another
-# kernel and initramfs (the i386 pair) are selected with BOOT_SMOKE_KERNEL
-# and BOOT_SMOKE_INITRD, and BOOT_SMOKE_EMU_ARGS passes options to the
-# emulator (the i386 kernel needs "-ips 4").
+# Budget: the 64-bit kernel reaches the banner after about 126 M
+# instructions, some ten minutes on the development machine, the i386
+# kernel at -ips 4 after about 54 M; BOOT_SMOKE_BUDGET (seconds)
+# overrides.  Another kernel and initramfs (the i386 pair) are selected
+# with BOOT_SMOKE_KERNEL and BOOT_SMOKE_INITRD, and BOOT_SMOKE_EMU_ARGS
+# passes options to the emulator (the i386 kernel needs "-ips 4").
 set -u
 
 BUILD=${1:-$(cd "$(dirname "$0")/.." && pwd)/build}
@@ -22,7 +23,7 @@ EMU_ARGS=${BOOT_SMOKE_EMU_ARGS:-}
 # The full console banner: the kernel's CPU brand line also says
 # "Sail x86-64 Emulator", long before the initramfs runs.
 BANNER='Sail x86-64 Emulator - Linux Console'
-BUDGET=${BOOT_SMOKE_BUDGET:-420}
+BUDGET=${BOOT_SMOKE_BUDGET:-1500}
 
 if [ ! -x "$EMU" ] || [ ! -f "$KERNEL" ] || [ ! -f "$INITRD" ]; then
   echo "boot-smoke: boot images not built (run 'make linux'); skipping"

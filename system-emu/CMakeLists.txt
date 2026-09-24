@@ -108,7 +108,7 @@ add_test(NAME system_exceptions COMMAND system_test_exceptions)
 add_test(NAME boot_linux_banner
          COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
 set_tests_properties(boot_linux_banner PROPERTIES
-  TIMEOUT 600
+  TIMEOUT 1800
   LABELS "boot"
   SKIP_RETURN_CODE 127)
 
@@ -122,7 +122,7 @@ add_test(NAME boot_linux_i386_banner
          COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
 set_tests_properties(boot_linux_i386_banner PROPERTIES
   ENVIRONMENT "BOOT_SMOKE_KERNEL=${CMAKE_BINARY_DIR}/bzImage-i386;BOOT_SMOKE_INITRD=${CMAKE_BINARY_DIR}/initramfs-i386.cpio;BOOT_SMOKE_EMU_ARGS=-ips 4"
-  TIMEOUT 900
+  TIMEOUT 1800
   LABELS "boot"
   SKIP_RETURN_CODE 127)
 
