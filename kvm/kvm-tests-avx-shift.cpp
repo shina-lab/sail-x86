@@ -132,6 +132,20 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
       v.opcode = 0xD3; add_vok("VPSRLQ xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
 
+  // Register counts use all 64 bits. Large counts must sign-fill without
+  // constructing an intermediate bitvector as large as the count itself.
+  for (u64 count : {0ULL, 15ULL, 16ULL, 31ULL, 32ULL, 63ULL, 64ULL,
+                    1ULL << 32, ~0ULL}) {
+    ArchState s = {.rflags = 0x2};
+    for (u64 &word : s.xmm[1].q)
+      word = 0x800180017FFE7FFEULL;
+    s.xmm[2] = xmm_from_u64(count, 0);
+    std::string suffix = " count=" + std::to_string(count);
+    add_shift_reg(("VPSRAW" + suffix).c_str(), 1, false, 0xE1, s, 0);
+    add_shift_reg(("VPSRAD" + suffix).c_str(), 1, false, 0xE2, s, 0);
+    add_shift_reg(("VPSRAQ" + suffix).c_str(), 1, true, 0xE2, s, 0);
+  }
+
   // ---- Shift by immediate ----
   // VPSLLW imm: 66 0F 71 /6 ib    VPSRLW imm: 66 0F 71 /2 ib    VPSRAW imm: 66 0F 71 /4 ib
   // VPSLLD imm: 66 0F 72 /6 ib    VPSRLD imm: 66 0F 72 /2 ib    VPSRAD imm: 66 0F 72 /4 ib

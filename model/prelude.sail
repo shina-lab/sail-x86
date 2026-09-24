@@ -97,11 +97,17 @@ val "shiftr" : forall 'm 'n, 'n >= 0. (bits('m), int('n)) -> bits('m)
 overload operator >> = {shift_bits_right, shiftr}
 overload operator << = {shift_bits_left, shiftl}
 
-// Arithmetic right shift: sign-extend, shift, truncate.
-// Unlike sail_arith_shiftright, this handles shift >= width correctly.
+// Arithmetic right shift without allocating a vector of width n + shift.
+// Complement negative values before a logical shift, then complement back.
+// This also sign-fills when the count is greater than or equal to the width.
 val operator >>> : forall 'n 'm, 'n >= 1 & 'm >= 0. (bits('n), int('m)) -> bits('n)
-function operator >>>(value, shift) =
-  sign_extend('n + shift, value)[('n - 1 + shift) .. shift]
+function operator >>>(value, shift) = {
+  let sign : bits('n) = sign_extend(value[('n - 1)..('n - 1)]);
+  // The SMT backend sizes shift counts to the shifted vector. Widen by a
+  // fixed amount so a full 64-bit x86 count is not truncated for small lanes.
+  let shifted : bits('n + 64) = zero_extend('n + 64, value ^ sign) >> shift;
+  shifted[('n - 1)..0] ^ sign
+}
 
 mapping bool_bit : bool <-> bit = {
   true  <-> 0b1,
