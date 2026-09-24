@@ -11,6 +11,9 @@ int main() {
   assert(pm.read(4, 0) == 1); // SCI_EN survives the BIOS SMI handler
   pm.write(5, 0x20);
   assert(pm.write(4, 1)); // S5 power-off
+  pm.apm_write(0xF0); assert(!(pm.control & 1));
+  pm.apm_write(0xF1); assert(pm.control & 1);
+  pm.apm_write(0xB5); assert(pm.apmc == 0xB5); // SeaBIOS CALL32 SMM command
   FwCfg fw;
   fw.write(0x510, 5);
   assert(fw.read(0x511) == 1 && fw.read(0x511) == 0);

@@ -6,6 +6,13 @@
 class ACPIPM {
 public:
   u16 control = 0, enable = 0;
+  u8 apmc = 0;
+  void apm_write(u8 value) {
+    apmc = value;
+    // PIIX4's QEMU-compatible ACPI mode commands from the built-in FADT.
+    if (value == 0xF1) control |= 1;
+    if (value == 0xF0) control &= ~1;
+  }
   u32 timer(u64 ns) const {
     return ((ns / 1000000000) * 3579545 +
             (ns % 1000000000) * 3579545 / 1000000000) & 0xFFFFFF;
