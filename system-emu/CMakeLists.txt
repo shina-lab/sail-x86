@@ -138,3 +138,11 @@ add_executable(system_test_fw_cfg tests/test-fw-cfg.cpp)
 target_include_directories(system_test_fw_cfg PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_fw_cfg COMMAND system_test_fw_cfg)
+
+add_executable(system_test_vbe tests/test-vbe.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_vbe PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_vbe COMMAND system_test_vbe)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME system_png COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test-png.py $<TARGET_FILE:system_test_vbe>)

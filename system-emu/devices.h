@@ -851,7 +851,8 @@ public:
     dev2[0x0A] = 0x00;                      // Subclass: VGA compatible
     dev2[0x0B] = 0x03;                      // Class: display controller
     dev2[0x0E] = 0x00;                      // Header type 0
-    // No BAR0 — VGA framebuffer is at legacy ISA address 0xB8000.
+    // BAR0: 16 MB prefetchable Bochs VBE linear framebuffer.
+    dev2[0x10] = 0x08; dev2[0x13] = 0xE0;
     // ROM BAR (0x30): point to 0xFEB00000 (in PCI memory space above RAM).
     // The emulator stores a copy of vgabios.bin there so SeaBIOS can read it
     // independently from the shadow RAM at C0000 (which SeaBIOS clears first).
@@ -881,6 +882,7 @@ public:
   u16 pm_base() const {
     return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
   }
+  bool vga_memory_enabled() const { return dev2[4] & 2; }
 
   u32 read_data() const {
     if (!(addr & 0x80000000)) return 0xFFFFFFFF;  // Enable bit not set
@@ -917,6 +919,13 @@ public:
     } else if (cfg == dev1f3) {
       // PIIX4 ACPI: allow writes to DEVACTB (0x58), PMBA (0x40), etc.
       memcpy(&cfg[reg], &val, 4);
+    } else if (cfg == dev2 && reg >= 0x10 && reg < 0x28) {
+      u32 bar = 0;
+      if (reg == 0x10) {
+        bar = (val & 0xFF000000) | 8;
+        if (val != 0xFFFFFFFF) vga_lfb_addr = val & 0xFF000000;
+      }
+      memcpy(&cfg[reg], &bar, 4);
     } else if (cfg == dev2 && reg == 0x30) {
       // VGA ROM BAR: handle sizing and address writes.
       // When software writes 0xFFFFFFFF, return size mask.
@@ -962,6 +971,7 @@ private:
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
+  u32 vga_lfb_addr = 0xE0000000;
   u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
   u32 vga_rom_size = 0;               // Actual VGA ROM size (for BAR sizing)
 };

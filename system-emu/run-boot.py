@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bound a boot attempt and retain its command, serial log, state and timing.
+r"""Bound a boot attempt and retain its command, serial log, state and timing.
 
 Example: run-boot.py --name xv6 --timeout 300 --expect '\$ ' -- COMMAND ...
 --send SECONDS:TEXT writes escaped text (e.g. 20:boot\\n) to the guest.
@@ -33,6 +33,7 @@ sends = sorted((float(s.split(':', 1)[0]), s.split(':', 1)[1]) for s in args.sen
 start = time.monotonic()
 reason = 'exit'
 env = os.environ.copy()
+env['SAIL_X86_FRAMEBUFFER'] = str(stem.with_suffix('.png'))
 env['SAIL_X86_DUMP_RAM'] = str(stem.with_suffix('.ram'))
 with stem.with_suffix('.serial').open('wb') as serial, stem.with_suffix('.stderr').open('wb') as err:
     proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=serial, stderr=err, env=env)

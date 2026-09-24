@@ -3,6 +3,20 @@
 #include <sys/mman.h>
 #include <cstdlib>
 
+bool PhysicalMemory::video_read(u64 addr, void *buf, u64 len) const {
+  if (!vbe || !vbe->maps(addr)) return false;
+  auto *out = static_cast<u8 *>(buf);
+  for (u64 i = 0; i < len; ++i) out[i] = vbe->maps(addr + i) ? vbe->read_mem(addr + i) : 0xFF;
+  return true;
+}
+
+bool PhysicalMemory::video_write(u64 addr, const void *buf, u64 len) {
+  if (!vbe || !vbe->maps(addr)) return false;
+  const auto *in = static_cast<const u8 *>(buf);
+  for (u64 i = 0; i < len; ++i) if (vbe->maps(addr + i)) vbe->write_mem(addr + i, in[i]);
+  return true;
+}
+
 bool PhysicalMemory::apic_read(u64 addr, void *buf, u64 len) const {
   bool local = lapic && lapic->maps(addr);
   if (!local && !(ioapic && ioapic->maps(addr))) return false;
@@ -36,6 +50,7 @@ PhysicalMemory::~PhysicalMemory() {
   if (ram)
     munmap(ram, size);
   free(rom_data);
+  delete[] vga_rom_data;
 }
 
 bool PhysicalMemory::init(u64 sz) {
@@ -100,6 +115,7 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
 }
 
 void PhysicalMemory::load_vga_rom(const u8 *data, size_t len, u64 bar_addr) {
+  delete[] vga_rom_data;
   vga_rom_data = new u8[len];
   memcpy(vga_rom_data, data, len);
   vga_rom_size = len;
@@ -117,6 +133,8 @@ bool PhysicalMemory::in_rom(u64 paddr) const {
 }
 
 u8 PhysicalMemory::read8(u64 paddr) const {
+  u8 video;
+  if (video_read(paddr, &video, 1)) return video;
   u8 mmio;
   if (apic_read(paddr, &mmio, 1)) return mmio;
   u8 rom_byte;
@@ -143,6 +161,8 @@ u8 PhysicalMemory::read8(u64 paddr) const {
 }
 
 u16 PhysicalMemory::read16(u64 paddr) const {
+  u16 video;
+  if (video_read(paddr, &video, 2)) return video;
   u16 mmio;
   if (apic_read(paddr, &mmio, 2)) return mmio;
   // For ROM regions, read byte-by-byte
@@ -157,6 +177,8 @@ u16 PhysicalMemory::read16(u64 paddr) const {
 }
 
 u32 PhysicalMemory::read32(u64 paddr) const {
+  u32 video;
+  if (video_read(paddr, &video, 4)) return video;
   u32 mmio;
   if (apic_read(paddr, &mmio, 4)) return mmio;
   if (rom_data && in_rom(paddr))
@@ -171,6 +193,8 @@ u32 PhysicalMemory::read32(u64 paddr) const {
 }
 
 u64 PhysicalMemory::read64(u64 paddr) const {
+  u64 video;
+  if (video_read(paddr, &video, 8)) return video;
   u64 mmio;
   if (apic_read(paddr, &mmio, 8)) return mmio;
   if (rom_data && in_rom(paddr))
@@ -184,6 +208,7 @@ u64 PhysicalMemory::read64(u64 paddr) const {
 }
 
 void PhysicalMemory::write8(u64 paddr, u8 val) {
+  if (video_write(paddr, &val, 1)) return;
   if (apic_write(paddr, &val, 1)) return;
   if (in_rom(paddr)) return;  // Silently drop writes to ROM
   if (paddr < size)
@@ -191,6 +216,7 @@ void PhysicalMemory::write8(u64 paddr, u8 val) {
 }
 
 void PhysicalMemory::write16(u64 paddr, u16 val) {
+  if (video_write(paddr, &val, 2)) return;
   if (apic_write(paddr, &val, 2)) return;
   if (in_rom(paddr)) return;
   if (paddr + 1 < size) {
@@ -199,6 +225,7 @@ void PhysicalMemory::write16(u64 paddr, u16 val) {
 }
 
 void PhysicalMemory::write32(u64 paddr, u32 val) {
+  if (video_write(paddr, &val, 4)) return;
   if (apic_write(paddr, &val, 4)) return;
   if (in_rom(paddr)) return;
   if (paddr + 3 < size)
@@ -206,6 +233,7 @@ void PhysicalMemory::write32(u64 paddr, u32 val) {
 }
 
 void PhysicalMemory::write64(u64 paddr, u64 val) {
+  if (video_write(paddr, &val, 8)) return;
   if (apic_write(paddr, &val, 8)) return;
   if (in_rom(paddr)) return;
   if (paddr + 7 < size)
@@ -213,6 +241,7 @@ void PhysicalMemory::write64(u64 paddr, u64 val) {
 }
 
 void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
+  if (video_read(paddr, buf, len)) return;
   if (apic_read(paddr, buf, len)) return;
   // If ROM is active, read byte-by-byte for regions that may overlap ROM
   if (rom_data) {
@@ -227,6 +256,7 @@ void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
 }
 
 void PhysicalMemory::write_bytes(u64 paddr, const void *buf, u64 len) {
+  if (video_write(paddr, buf, len)) return;
   if (apic_write(paddr, buf, len)) return;
   if (rom_data && in_rom(paddr)) return;
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;

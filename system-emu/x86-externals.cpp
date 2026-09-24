@@ -217,6 +217,7 @@ unit Model::z__wrmsr(u64 addr, u64 val) {
 
 u64 Model::z__port_in8(u64 port) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) return vbe.read(p) & 0xFF;
   if (uart.handles(p))       return uart.read(p);
   if (pic_master.handles(p)) return pic_master.read(p);
   if (pic_slave.handles(p))  return pic_slave.read(p);
@@ -254,6 +255,7 @@ u64 Model::z__port_in8(u64 port) {
 
 u64 Model::z__port_in16(u64 port) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) return vbe.read(p);
   // IDE data ports must be read as atomic 16-bit words
   if (ide0.is_data_port(p)) { u16 v = ide0.read16(); latch_ide_irqs(); return v; }
   if (ide1.is_data_port(p)) { u16 v = ide1.read16(); latch_ide_irqs(); return v; }
@@ -281,7 +283,8 @@ u64 Model::z__port_in32(u64 port) {
 unit Model::z__port_out8(u64 port, u64 val) {
   u16 p = (u16)port;
   u8 v = (u8)val;
-  if (uart.handles(p))            uart.write(p, v);
+  if (vbe.handles(p))            vbe.write(p, v);
+  else if (uart.handles(p))       uart.write(p, v);
   else if (pic_master.handles(p)) pic_master.write(p, v);
   else if (pic_slave.handles(p))  pic_slave.write(p, v);
   else if (pit.handles(p))        pit.write(p, v);
@@ -311,7 +314,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
     d = (d & ~(0xFF << shift)) | ((u32)v << shift);
     pci.write_data(d);
     // If VGA ROM BAR was updated, sync the physical memory mapping
-    phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
+    sync_vga_bars();
   } else if (p == 0x92) {
     // System Control Port A: bit 1 = A20 gate
     za20_enabled = (v & 0x02) != 0;
@@ -334,6 +337,7 @@ unit Model::z__port_out8(u64 port, u64 val) {
 
 unit Model::z__port_out16(u64 port, u64 val) {
   u16 p = (u16)port;
+  if (vbe.handles(p)) { vbe.write(p, val); return UNIT; }
   // IDE data ports must be written as atomic 16-bit words
   if (ide0.is_data_port(p)) { ide0.write16((u16)val); latch_ide_irqs(); return UNIT; }
   if (ide1.is_data_port(p)) { ide1.write16((u16)val); latch_ide_irqs(); return UNIT; }
@@ -349,7 +353,7 @@ unit Model::z__port_out32(u64 port, u64 val) {
   // PCI config address register: atomic 32-bit write
   if (p == 0xCF8) { pci.write_addr((u32)val); return UNIT; }
   // PCI config data register: atomic 32-bit write
-  if (p == 0xCFC) { pci.write_data((u32)val); return UNIT; }
+  if (p == 0xCFC) { pci.write_data((u32)val); sync_vga_bars(); return UNIT; }
   // 32-bit IDE data port access (outsl) moves two words
   if (ide0.is_data_port(p)) { ide0.write16((u16)val); ide0.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }
   if (ide1.is_data_port(p)) { ide1.write16((u16)val); ide1.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }

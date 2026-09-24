@@ -4,6 +4,7 @@
 #include "devices.h"
 #include "apic.h"
 #include "pm.h"
+#include "framebuffer.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -55,6 +56,7 @@ public:
 
   LocalAPIC *lapic = nullptr;
   IOAPIC *ioapic = nullptr;
+  BochsVBE *vbe = nullptr;
 
   // ROM intercept: check if paddr falls in a ROM region, return byte if so.
   bool rom_read(u64 paddr, u8 &out) const;
@@ -66,6 +68,8 @@ public:
   void set_vga_rom_bar(u64 addr) { vga_rom_bar = addr; }
 
 private:
+  bool video_read(u64 addr, void *buf, u64 len) const;
+  bool video_write(u64 addr, const void *buf, u64 len);
   bool apic_read(u64 addr, void *buf, u64 len) const;
   bool apic_write(u64 addr, const void *buf, u64 len);
   u8 *ram = nullptr;
@@ -82,6 +86,7 @@ public:
   X86PlatformBase() {
     phys_mem.lapic = &lapic;
     phys_mem.ioapic = &ioapic;
+    phys_mem.vbe = &vbe;
     lapic.clock = &tsc;
     ioapic.lapic = &lapic;
     lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };
@@ -115,6 +120,13 @@ public:
   LocalAPIC lapic;
   IOAPIC ioapic;
   ACPIPM pm;
+  BochsVBE vbe;
+
+  void sync_vga_bars() {
+    phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
+    vbe.lfb_base = pci.vga_lfb_addr;
+    vbe.memory_enabled = pci.vga_memory_enabled();
+  }
   u8 imcr_index = 0;
   bool imcr_apic = false;
   bool irq_lines[16] = {};

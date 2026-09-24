@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -128,6 +129,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_DETERMINISTIC_RDRAND Replace RDRAND/RDSEED with splitmix64(seed)\n");
   fprintf(stderr, "  SAIL_X86_BIOS_DEBUG           Echo the firmware debug port (0x402) to stderr\n");
   fprintf(stderr, "Signals:\n");
+  fprintf(stderr, "  SIGUSR2                       Save graphics to framebuffer.png (SAIL_X86_FRAMEBUFFER overrides)\n");
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
 }
 
@@ -1077,8 +1079,20 @@ int main(int argc, char *argv[]) {
   // continues: a look inside a run that has gone quiet on the console.
   static volatile bool dump_requested = false;
   signal(SIGUSR1, [](int) { dump_requested = true; });
+  static volatile sig_atomic_t framebuffer_requested = 0;
+  signal(SIGUSR2, [](int) { framebuffer_requested = 1; });
+  auto dump_framebuffer = [&]() {
+    framebuffer_requested = 0;
+    const char *path = getenv("SAIL_X86_FRAMEBUFFER");
+    if (!path) path = "framebuffer.png";
+    if (write_png(path, model.vbe.width(), model.vbe.height(),
+                  model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask)))
+      fprintf(stderr, "sail-x86-system: framebuffer %ux%ux%u saved to %s\n",
+              model.vbe.width(), model.vbe.height(), model.vbe.depth(), path);
+  };
   auto dump_state = [&]() {
     dump_requested = false;
+    dump_framebuffer();
     dump_registers(stderr, insn_count, model);
     fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
             model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
@@ -1106,6 +1120,7 @@ int main(int argc, char *argv[]) {
 
   while (!model.should_exit && !got_signal) {
     if (dump_requested) dump_state();
+    if (framebuffer_requested) dump_framebuffer();
     if (trace_window_enabled && has_trace_end && insn_count >= trace_end) {
       fprintf(stderr, "sail-x86-system: stopping at trace end %lu instructions\n", insn_count);
       break;
@@ -1198,6 +1213,7 @@ int main(int argc, char *argv[]) {
         // instruction count like every other exit).
         while (!model.interrupt_pending() && !model.should_exit && !got_signal) {
           if (dump_requested) dump_state();
+    if (framebuffer_requested) dump_framebuffer();
           if (poll_stdin) {
             if (curses_active) {
               // In curses mode, use getch() and push scancodes to i8042
