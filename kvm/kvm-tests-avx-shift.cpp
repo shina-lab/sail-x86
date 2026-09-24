@@ -235,6 +235,64 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
       v.opcode = 0x45; add_vok("VPSRLVQ xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
 
+  // ---- Variable shifts with counts at and above the element width ----
+  // SDM VPSLLV*/VPSRLV*: a count "greater than 15 (for word), 31 (for
+  // doublewords), or 63 (for a quadword)" writes 0; VPSRAV*: every bit is
+  // the sign bit.  The counts include the widest lane values, which the
+  // model once shifted by literally.
+  {
+    ArchState sw;
+    fill_words(sw.xmm[1], 0x8001, 0x100);
+    static const u16 counts_w[] = {15, 16, 17, 0x7FFF, 0x8000, 0xFFFF, 0, 1};
+    for (int i = 0; i < 32; i++) sw.xmm[2].set<u16>(i, counts_w[i % 8]);
+    for (int i = 0; i < 8; i++) sw.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
+
+    add_var_shift("VPSLLVW count>=16", 2, true, 0x12, sw, 0x55555555);
+    add_var_shift("VPSRLVW count>=16", 2, true, 0x10, sw, 0x55555555);
+    add_var_shift("VPSRAVW count>=16", 2, true, 0x11, sw, 0x55555555);
+  }
+  {
+    ArchState sd;
+    fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
+    static const u32 counts_d[] = {31, 32, 33, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0, 1};
+    for (int i = 0; i < 16; i++) sd.xmm[2].set<u32>(i, counts_d[i % 8]);
+    for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
+
+    add_var_shift("VPSLLVD count>=32", 2, false, 0x47, sd, 0xAAAA);
+    add_var_shift("VPSRLVD count>=32", 2, false, 0x45, sd, 0xAAAA);
+    add_var_shift("VPSRAVD count>=32", 2, false, 0x46, sd, 0xAAAA);
+    // The VEX forms with the same counts
+    for (int L = 0; L <= 1; L++) {
+      Vex v; v.mm = 2; v.pp = 1; v.W = false; v.reg = 0; v.vvvv = 1; v.rm = 2; v.L = L;
+      for (auto [name, op] : {std::pair{"VPSLLVD", 0x47}, std::pair{"VPSRLVD", 0x45},
+                              std::pair{"VPSRAVD", 0x46}}) {
+        v.opcode = op;
+        tests.push_back({std::format("VEX {} {} count>=32", name, L ? "ymm" : "xmm"), cat,
+                         v.encode_rr(), with_vector_inputs(sd, 0x6), FL_ALL, 0x1, false});
+      }
+    }
+  }
+  {
+    ArchState sq;
+    fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
+    static const u64 counts_q[] = {63, 64, 65, 0x7FFFFFFFFFFFFFFFULL,
+                                   0x8000000000000000ULL, ~0ULL, 0, 1};
+    for (int i = 0; i < 8; i++) sq.xmm[2].q[i] = counts_q[i];
+    for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
+
+    add_var_shift("VPSLLVQ count>=64", 2, true, 0x47, sq, 0x55);
+    add_var_shift("VPSRLVQ count>=64", 2, true, 0x45, sq, 0x55);
+    add_var_shift("VPSRAVQ count>=64", 2, true, 0x46, sq, 0x55);
+    for (int L = 0; L <= 1; L++) {
+      Vex v; v.mm = 2; v.pp = 1; v.W = true; v.reg = 0; v.vvvv = 1; v.rm = 2; v.L = L;
+      for (auto [name, op] : {std::pair{"VPSLLVQ", 0x47}, std::pair{"VPSRLVQ", 0x45}}) {
+        v.opcode = op;
+        tests.push_back({std::format("VEX {} {} count>=64", name, L ? "ymm" : "xmm"), cat,
+                         v.encode_rr(), with_vector_inputs(sq, 0x6), FL_ALL, 0x1, false});
+      }
+    }
+  }
+
   // ---- Rotate by immediate (AVX-512 VBMI2) ----
   // VPROLD: 66 0F 72 /1 ib, W0    VPROLQ: 66 0F 72 /1 ib, W1
   // VPRORD: 66 0F 72 /0 ib, W0    VPRORQ: 66 0F 72 /0 ib, W1

@@ -128,9 +128,14 @@ function packed_elem_op(op, a, b) = match op {
   PB_MinS     => { assert('eb <= 64); min_s(a, b) },
   PB_MaxS     => { assert('eb <= 64); max_s(a, b) },
   PB_Avg      => { assert('eb <= 64); avg(a, b) },
-  PB_Srl      => a >> b,
-  PB_Sra      => a >>> unsigned(b),
-  PB_Sll      => a << b,
+  // Per-element shift counts (VPSRLV*, VPSRAV*, VPSLLV*; SDM Vol.2C): a
+  // count of at least the element width leaves 0, or for the arithmetic
+  // shift every bit equal to the sign bit.  Shifting by the raw lane value
+  // would build an intermediate as wide as the count.
+  PB_Srl      => if unsigned(b) >= 'eb then zeros() else a >> unsigned(b),
+  PB_Sra      => if unsigned(b) >= 'eb then (if a['eb - 1] == bitone then ones() else zeros())
+                 else a >>> unsigned(b),
+  PB_Sll      => if unsigned(b) >= 'eb then zeros() else a << unsigned(b),
   PB_MulLow   => to_bits_truncate(signed(a) * signed(b)),
   PB_MulHighS => get_slice_int('eb, signed(a) * signed(b), 'eb),
   PB_MulHighU => get_slice_int('eb, unsigned(a) * unsigned(b), 'eb),
