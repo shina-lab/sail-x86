@@ -483,6 +483,9 @@ register DR7  : qword = 0x0000000000000400  // Debug control
 //                     next instruction.
 register event_delivered : bool = false
 register ss_shadow : range(0, 2) = 0
+// STI delays maskable interrupts through the following instruction, but
+// unlike MOV SS it does not suppress debug traps.
+register sti_shadow : range(0, 2) = 0
 
 // Data-breakpoint bookkeeping (SDM Vol.3B §20.3.1.2), maintained by the
 // memory interface, exec_rep and step():
@@ -851,4 +854,3 @@ register ept_active : bool = false
 // =========================================================================
 
 register a20_enabled : bool = false
-

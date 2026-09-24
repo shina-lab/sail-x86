@@ -69,7 +69,7 @@ function step() = {
   // Check for pending external interrupts before fetching.
   // Only deliver if IF=1 (interrupts enabled) and in system mode, and not
   // in the instruction following MOV SS/POP SS (SDM Vol.3A §7.8.3).
-  if system_mode & IF_flag == 0b1 & ss_shadow == 0 then {
+  if system_mode & IF_flag == 0b1 & ss_shadow == 0 & sti_shadow == 0 then {
     let irq_vec = __check_pending_irq();
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;
@@ -140,6 +140,10 @@ function step() = {
 
   let faulted : bool =
     try {
+      // VME faults before the instruction when a virtual interrupt is
+      // both enabled and pending (SDM Vol.3B §23.3.2), even at IOPL 3.
+      if cur_mode == Virtual8086Mode & CR4[0] == bitone &
+         VIF == bitone & VIP == bitone then raise_GP0();
       // Decode and execute one instruction
       decode_execute();
       false
@@ -147,6 +151,8 @@ function step() = {
       Fault(vec, err) => {
         GPR[RSP] = saved_rsp;
         write_rflags(saved_rflags);
+        VIF = saved_rflags[19];
+        VIP = saved_rflags[20];
         if system_mode then {
           // In system mode, deliver faults through the IDT.
           try {
@@ -222,7 +228,8 @@ function step() = {
   };
 
   // The SS-load shadow lasts through the following instruction.
-  ss_shadow = match ss_shadow { 2 => 1, _ => 0 }
+  ss_shadow = match ss_shadow { 2 => 1, _ => 0 };
+  sti_shadow = match sti_shadow { 2 => 1, _ => 0 }
 }
 
 // Run instructions until a fault, halt, or step count reached.

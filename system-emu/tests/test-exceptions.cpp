@@ -821,6 +821,22 @@ TEST(pm32_external_interrupt_vector8_no_error_code) {
   model.model_fini();
 }
 
+TEST(sti_delays_pending_interrupt_one_instruction) {
+  x86::Model model;
+  init_model_32(model);
+  program_pic_base8(model);
+  const u64 handler = 0x200000;
+  model.phys_mem.write8(handler, 0xf4);
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 8, handler, 8, 0xe, 0, true);
+  model.zIF_flag = 0;
+  model.pic_master.raise_irq(0);
+  const u8 code[] = {0xfb, 0xb8,0x78,0x56,0x34,0x12, 0xf4};
+  ASSERT_EQ(run_code(model, code, sizeof(code)), RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+  ASSERT_EQ(model.phys_mem.read32(model.zGPR.data[4]), CODE_ADDR + 6);
+  model.model_fini();
+}
+
 TEST(external_interrupt_vector8_no_error_code) {
   // The same interrupt through a 64-bit gate: SS, RSP, RFLAGS, CS, RIP and
   // no error code.
@@ -876,6 +892,7 @@ int main() {
 
   // External interrupts at exception vectors
   run_test_pm32_external_interrupt_vector8_no_error_code();
+  run_test_sti_delays_pending_interrupt_one_instruction();
   run_test_external_interrupt_vector8_no_error_code();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

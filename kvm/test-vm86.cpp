@@ -41,6 +41,7 @@ struct Test {
   u32 error = 0;
   bool supervisor_data = false;
   bool allow_io = false;
+  bool supervisor_ivt = false;
   u8 gate_type = 0xe;
   u8 gate_dpl = 3;
   u32 kernel_stack_base = 0;
@@ -68,6 +69,7 @@ static Bytes image(const Test &t, u32 fill) {
   for (unsigned i = 1; i < 16; i++)
     store<u32>(mem, PT + i * 4, i * 4096 | 3);
   if (t.supervisor_data) store<u32>(mem, PT + 0x50 * 4, 0x50000 | 3);
+  if (t.supervisor_ivt) store<u32>(mem, PT, 3);
   store<u64>(mem, GDT + 8, descriptor(0, 0xfffff, 0x9b, 0xc));
   store<u64>(mem, GDT + 16, descriptor(t.kernel_stack_base, 0xfffff, 0x93, 0xc));
   store<u64>(mem, GDT + 24, descriptor(TSS, TSS_LIMIT, 0x8b, 0));
@@ -84,7 +86,16 @@ static Bytes image(const Test &t, u32 fill) {
                (u64(addr >> 16) << 48));
     mem[addr] = 0xf4;
   }
-  mem[ENTRY] = 0xcf; // IRETD in the initial 32-bit code segment
+  // Touch the monitor tables before entering VM86. An EPT fault during
+  // INT delivery can make KVM reinject the interrupt, whose VM-entry
+  // semantics differ from executing INT with insufficient IOPL.
+  Bytes entry = {0x50}; // preserve EAX
+  for (u32 addr : {0U, GDT, IDT, TSS, TSS + 4096, TSS + 8192}) {
+    entry.push_back(0xa1); // mov eax, [addr]
+    for (unsigned i = 0; i < 4; i++) entry.push_back(addr >> (i * 8));
+  }
+  entry.insert(entry.end(), {0x58, 0xcf}); // pop eax; IRETD
+  std::copy(entry.begin(), entry.end(), mem.begin() + ENTRY);
   const u32 frame[] = {t.ip, t.cs, t.flags | (fill & ARITH), t.sp,
                        VM_STACK >> 4, 0x4000, 0x5000, 0x6000, 0x7000};
   memcpy(mem.data() + ENTRY_SP, frame, sizeof(frame));
@@ -193,6 +204,11 @@ public:
     checked(ioctl(vm, KVM_SET_USER_MEMORY_REGION, &region), "set memory");
     cpu = ioctl(vm, KVM_CREATE_VCPU, 0);
     checked(cpu, "create VCPU");
+    Bytes cpuid_bytes(sizeof(kvm_cpuid2) + 256 * sizeof(kvm_cpuid_entry2));
+    auto *cpuid = reinterpret_cast<kvm_cpuid2 *>(cpuid_bytes.data());
+    cpuid->nent = 256;
+    checked(ioctl(kvm, KVM_GET_SUPPORTED_CPUID, cpuid), "get CPUID");
+    checked(ioctl(cpu, KVM_SET_CPUID2, cpuid), "set CPUID");
     run_size = ioctl(kvm, KVM_GET_VCPU_MMAP_SIZE, 0);
     checked(run_size, "get run size");
     run = static_cast<kvm_run *>(mmap(nullptr, run_size, PROT_READ | PROT_WRITE,
@@ -346,6 +362,58 @@ static std::vector<Test> tests() {
   gate16.code = {0xf4}; gate16.vector = 13; ts.push_back(gate16);
   Test into{"INTO at IOPL 0", {0xb8,0xff,0x7f, 0x40, 0xce}};
   into.flags = VM_FLAG | 2; into.vector = 4; ts.push_back(into);
+
+  for (u32 iopl : {0U, 3U}) {
+    for (unsigned state = 0; state < 4; state++) {
+      bool vif = state & 1, vip = state & 2;
+      for (auto [name, code] : std::vector<std::pair<std::string, Bytes>>{
+          {"CLI", {0xfa}}, {"STI", {0xfb}},
+          {"PUSHF", {0x9c,0x58}}, {"PUSHFD", {0x66,0x9c,0x66,0x58}},
+          {"POPF IF=0", {0x68,2,0,0x9d}},
+          {"POPF IF=1", {0x68,2,2,0x9d}},
+          {"POPFD", {0x66,0x68,2,0,0,0,0x66,0x9d}},
+          {"IRET", {0x68,2,0,0x68,0,0x20,0x68,0,4,0xcf}},
+          {"IRET IF=1", {0x68,2,2,0x68,0,0x20,0x68,0,4,0xcf}},
+          {"IRET TF=1", {0x68,2,1,0x68,0,0x20,0x68,0,4,0xcf}},
+          {"IRETD", {0x66,0x68,2,0,0,0,0x66,0x68,0,0x20,0,0,
+                      0x66,0x68,0,4,0,0,0x66,0xcf}}}) {
+        if (iopl == 3 && name == "IRET TF=1") continue;
+        Test t{"VME " + name + " IOPL=" + std::to_string(iopl) +
+               " VIF=" + std::to_string(vif) + " VIP=" + std::to_string(vip), code};
+        t.cr4 = 1;
+        t.flags = VM_FLAG | 2 | (iopl << 12) | (vif ? VIF_FLAG : 0) |
+                  (vip ? VIP_FLAG : 0);
+        if ((vif && vip) ||
+            (iopl == 0 && (name == "PUSHFD" || name == "POPFD" || name == "IRETD" ||
+                           name == "IRET TF=1" ||
+                           (vip && (name == "STI" || name == "POPF IF=1" ||
+                                    name == "IRET IF=1")))))
+          t.vector = 13;
+        t.patches.push_back({VM_CODE + 0x400, {0xcc}});
+        ts.push_back(t);
+      }
+      for (bool redirect : {false, true}) {
+        Test t{"VME INT IOPL=" + std::to_string(iopl) +
+               " state=" + std::to_string(state) + (redirect ? " redirected" : " monitored"),
+               {0xcd,0x21}};
+        t.flags = VM_FLAG | 2 | (iopl << 12) | (vif ? VIF_FLAG : 0) |
+                  (vip ? VIP_FLAG : 0);
+        t.cr4 = 1;
+        if (redirect) {
+          t.supervisor_ivt = true;
+          t.patches.push_back({TSS + IO_MAP - 32 + 0x21 / 8, {0xfd}});
+          t.patches.push_back({0x21 * 4, {0,4,0,0x20}});
+          t.patches.push_back({VM_CODE + 0x400, {0xcf}});
+        } else {
+          t.vector = iopl == 3 ? 0x21 : 13;
+        }
+        if (vif && vip) t.vector = 13;
+        ts.push_back(t);
+      }
+    }
+  }
+  Test tf{"VME POPF rejects TF", {0x68,2,1,0x9d}};
+  tf.cr4 = 1; tf.flags = VM_FLAG | 2; tf.vector = 13; ts.push_back(tf);
   return ts;
 }
 

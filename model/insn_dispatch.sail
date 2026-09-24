@@ -1203,8 +1203,12 @@ function decode_execute() = {
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.
       156 => {
         let os = opsize_default64(pfx);
-        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
-        let flags = read_rflags() & 0x0000000000FCFFFF;
+        var flags = read_rflags() & 0x0000000000FCFFFF;
+        if cur_mode == Virtual8086Mode & IOPL != 0b11 then {
+          if CR4[0] == bitzero | os != 16 then raise_GP0();
+          flags[9] = VIF;
+          flags[13..12] = 0b11
+        };
         exec_push_imm(flags[(os - 1) .. 0])
       },
 
@@ -1215,8 +1219,13 @@ function decode_execute() = {
       // but AC/ID are above bit 15 and are NOT modified).
       157 => {
         let os = opsize_default64(pfx);
-        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
+        let virtualize = cur_mode == Virtual8086Mode & IOPL != 0b11;
+        if virtualize & (CR4[0] == bitzero | os != 16) then raise_GP0();
         var v : qword = zero_extend(pop(os));
+        if virtualize then {
+          if v[8] == bitone | (VIP == bitone & v[9] == bitone) then raise_GP0();
+          VIF = v[9]
+        };
         let cpl2 = to_bits(2, cur_cpl);
         v[13..12] = blend(IOPL, v[13..12], is_eq(cpl2, 0b00));
         v[9] = blend(IF_flag, v[9], is_le_u(cpl2, v[13..12]));
@@ -1545,7 +1554,7 @@ function decode_execute() = {
       // SDM: software interrupt, no error code pushed, gate DPL check applies.
       205 => {
         let imm = fetch(1);
-        if cur_mode == Virtual8086Mode & IOPL != 0b11 then raise_GP0();
+        if redirect_vm86_interrupt(unsigned(imm), decode_pos) then return ();
         if system_mode then {
           sw_return_rip = Some(decode_pos);
           deliver_exception(unsigned(imm), 0x00000000, EV_SoftwareInt);
@@ -1933,16 +1942,10 @@ function decode_execute() = {
       249 => CF = 0b1,
 
       // FA: CLI
-      250 => {
-        if cur_mode != RealMode & cur_cpl > unsigned(IOPL) then raise_GP0();
-        IF_flag = bitzero
-      },
+      250 => exec_interrupt_flag(false),
 
       // FB: STI
-      251 => {
-        if cur_mode != RealMode & cur_cpl > unsigned(IOPL) then raise_GP0();
-        IF_flag = bitone
-      },
+      251 => exec_interrupt_flag(true),
 
       // FC: CLD
       252 => DF = 0b0,

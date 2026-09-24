@@ -130,10 +130,10 @@ function cpuid(leaf, subleaf) = {
       if has_f16c       then ecx = ecx | 0x20000000;  // bit 29
       if has_rdrand     then ecx = ecx | 0x40000000;  // bit 30
 
-      // EDX: baseline features (FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8,
+      // EDX: baseline features (FPU, VME, DE, PSE, TSC, MSR, PAE, MCE, CX8,
       //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
       //       MMX, FXSR, SSE, SSE2)
-      let edx : dword = 0x078BFBFD;
+      let edx : dword = 0x078BFBFF;
       (eax, ebx, ecx, edx)
     },
 

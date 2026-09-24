@@ -17,6 +17,16 @@ IN, OUT, INS and OUTS consult the TSS I/O permission bitmap even at
 IOPL 3. Privileged instructions fault at CPL 3; ARPL and the descriptor
 query/task-register instructions are invalid in virtual-8086 mode.
 
+CR4.VME enables virtual interrupt handling. At IOPL below 3, CLI/STI
+operate on VIF, and 16-bit PUSHF/POPF/IRET translate between VIF and the
+stack image's IF. STI, POPF and IRET check VIP; POPF and IRET also reject
+setting TF. 32-bit PUSHFD/POPFD/IRETD still trap at insufficient IOPL.
+An enabled pending virtual interrupt (VIF=VIP=1) faults before execution.
+INT imm8
+can use the TSS interrupt-redirection bitmap to call a handler through
+the virtual IVT at linear address zero, without leaving virtual-8086
+mode. INT3 and INTO continue through the protected-mode IDT.
+
 `kvm_vm86` runs short programs through the same IRETD entry on the Sail
 system model and a KVM virtual CPU. Each run starts with independent
 memory and a fresh VM. It compares general-purpose registers, EFLAGS,

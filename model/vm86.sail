@@ -29,15 +29,22 @@ function iret_to_vm86(ip, cs, flags) = {
   next_rip = Some(zero_extend(ip[15..0]))
 }
 
-// IRET within virtual-8086 mode cannot leave it or change IOPL/VIF/VIP.
-// Unlike POPF, IRET still traps at IOPL < 3 with CR4.VME set (Vol.2 IRET).
+// IRET within virtual-8086 mode cannot leave it or change IOPL/VIP.
+// With VME, a 16-bit IRET virtualizes IF like POPF. This behavior is
+// missing from Vol.2's IRET pseudocode, but occurs on both AMD and Intel.
 val iret_in_vm86 : forall 'os, 'os in {16, 32}. int('os) -> unit
 function iret_in_vm86(os) = {
-  if IOPL != 0b11 then raise_GP0();
+  let virtualize = IOPL != 0b11;
+  if virtualize & (CR4[0] == bitzero | os != 16) then raise_GP0();
   let ip : qword = zero_extend(pop(os));
   let cs : word = pop(os)[15..0];
   var flags : qword = zero_extend(pop(os));
   if unsigned(ip) > 65535 then raise_GP0();
+  if virtualize then {
+    if flags[8] == bitone | (VIP == bitone & flags[9] == bitone) then raise_GP0();
+    VIF = flags[9];
+    flags[9] = IF_flag
+  };
   flags[13..12] = IOPL;
   if os == 16 then {
     flags[18] = AC_flag;
@@ -59,8 +66,61 @@ function check_io_permission(port, nbytes) = {
     let map_base : word = read_mem_implicit(TR_base + 102);
     let offset = unsigned(map_base) + unsigned(port[15..3]);
     if offset + 1 > unsigned(TR_limit) then raise_GP0();
-    let permissions : word = read_mem_implicit(TR_base + to_bits(64, offset));
+    let permissions : word = read_mem_implicit(TR_base + offset);
     let mask : word = (0x0001 << nbytes) - 1;
     if ((permissions >> unsigned(port[2..0])) & mask) != zeros() then raise_GP0()
   }
+}
+
+// CLI/STI at insufficient IOPL can operate on VIF instead of IF. VME
+// applies in virtual-8086 mode, PVI at CPL 3 in the other protected modes.
+val exec_interrupt_flag : bool -> unit
+function exec_interrupt_flag(enable) = {
+  if cur_mode == RealMode | cur_cpl <= unsigned(IOPL) then {
+    if enable & IF_flag == bitzero then sti_shadow = 2;
+    IF_flag = if enable then bitone else bitzero
+  } else {
+    let virtualize = cur_cpl == 3 &
+      (if cur_mode == Virtual8086Mode then CR4[0] == bitone else CR4[1] == bitone);
+    if ~(virtualize) | (enable & VIP == bitone) then raise_GP0();
+    VIF = if enable then bitone else bitzero
+  }
+}
+
+// Return true if INT imm8 was redirected through the virtual-8086 IVT.
+// The redirection bitmap occupies the 32 bytes before the TSS I/O map.
+// INT3, INTO and INT1 never use it (SDM Vol.3B §23.3.3).
+val redirect_vm86_interrupt : (exception_vector, qword) -> bool
+function redirect_vm86_interrupt(vec, return_ip) = {
+  if cur_mode != Virtual8086Mode then return false;
+  if CR4[0] == bitone then {
+    if unsigned(TR_limit) < 103 then raise_GP0();
+    let map_base : word = read_mem_implicit(TR_base + 102);
+    let base : range(0, 65535) = unsigned(map_base);
+    if base < 32 then raise_GP0();
+    let vec_bits : byte = to_bits(8, vec);
+    let offset = base - 32 + unsigned(vec_bits[7..3]);
+    if offset > unsigned(TR_limit) then raise_GP0();
+    let entry : byte = read_mem_implicit(TR_base + offset);
+    if entry[unsigned(vec_bits[2..0])] == bitzero then {
+      // The virtual IVT is at linear address zero, not IDTR.base, and
+      // its implicit reads use supervisor privilege (Vol.3A §4.6).
+      let target : dword = read_mem_implicit(to_bits(64, vec * 4));
+      let bottom : word = v(16, RSP) - 6;
+      check_seg_limit(SS, zero_extend(bottom), 6);
+      var flags : word = read_rflags()[15..0];
+      if IOPL != 0b11 then { flags[9] = VIF; flags[13..12] = 0b11 };
+      push(flags);
+      push(read_segreg(CS));
+      push(return_ip[15..0]);
+      if IOPL == 0b11 then IF_flag = bitzero else VIF = bitzero;
+      TF = bitzero;
+      load_vm86_segment(CS, target[31..16]);
+      next_rip = Some(zero_extend(target[15..0]));
+      event_delivered = true;
+      return true
+    }
+  };
+  if IOPL != 0b11 then raise_GP0();
+  false
 }
