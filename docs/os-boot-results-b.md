@@ -11,13 +11,13 @@ No KVM harness, ReactOS, Windows 3.1, FreeBSD or virtual-8086 work is included.
 
 | OS | Farthest progress | Current blocker |
 |---|---|---|
-| Windows 95 | ScanDisk repair screen; `SETUP /IS` copies files and enters protected mode | MS-DOS extender fault-handling loop, under investigation |
-| Haiku R1 beta 5 x86-64 | Four boot icons lit; kernel reads boot CD through PCI IDE | Long run in progress; no normal COM1 output yet |
+| Windows 95 | **Graphical Windows 95 Setup welcome screen** | Installation being driven onward |
+| Haiku R1 beta 5 x86-64 | **All seven boot icons from IDE disk**, kernel serial log, BFS mounted | Still loading programs; CD run also progressing |
 
 These are actual guest captures, not graphics test patterns:
 [ScanDisk after XLAT fix](os-boot/b-win95-xlat-setup.png),
-[Windows Setup after LMSW fix](os-boot/b-win95-lmsw.png), and
-[Haiku after IDE fix](os-boot/b-haiku-pio.png).
+[Windows graphical Setup](os-boot/b-win95-graphical-welcome.png), and
+[Haiku from IDE disk](os-boot/b-haiku-hdd-serial.png).
 
 ## Windows 95 R6002 diagnosis
 
@@ -69,6 +69,42 @@ base, ignored high source bits, sticky PE, and unchanged long mode.
 The new protected-mode regression fails before the fix. All 14 C++ system
 tests and the separate PNG test pass after it (66 basic cases).
 
+Three further protected-mode defects prevented graphical Setup:
+
+* `2e614d3` implements legacy call gates. At `005b:0b79`, Setup calls a
+  valid DPL3 16-bit gate targeting ring 0. Previously every system
+  descriptor was rejected as a far-call target. The implementation reads
+  the correct 16/32-bit TSS stack fields, uses the gate width for the frame,
+  copies parameters, preserves segmented addressing, and validates gate,
+  target and stack access. SDM Vol.2A CALL pp.3-130–3-133 and Vol.3A
+  sections 10.2.4 and 10.6 specify the behavior. Tests cover both gate/TSS
+  widths, ring 0/ring 1, same-level transfers and faults.
+* `d015446` implements cached LDT state and selector TI handling. Setup
+  creates selector `02ac` in its LDT, then loads ES. The old model looks up
+  that index in the GDT and raises a spurious #GP. LLDT now validates and
+  caches the LDT descriptor; segment loads, far transfers and descriptor
+  queries use it. SDM Vol.2A LLDT pp.3-558–3-559 and Vol.3A sections 3.4.2
+  and 3.5.1 specify this. Regressions check cached state, LAR/LSL/VERR/VERW,
+  invalidation and LLDT faults.
+* `ddc0aa8` fixes protected-mode interrupt frames. Setup's INT 21h points
+  to a DPL3 handler; the model unconditionally switched to CPL0 and wrote
+  a flat stack frame. The handler then failed on POP SS. The target code
+  descriptor now chooses CPL, same-level interrupts retain SS, and inward
+  transfers use the selected TSS stack and cached SS base. SDM Vol.3A
+  section 7.12.1 and Vol.2A INT pp.3-472 onward specify this. Regressions
+  cover both gate widths, mixed TSS widths, same/inward transfers, frame
+  layout, IF, software interrupts without error codes and IRET round trips.
+
+All 14 C++ system tests and PNG validation pass after these changes
+(70 basic cases and 17 exception cases). The diagnostic-only commit
+`09ea619` adds CPL, descriptor tables and segment caches to state dumps.
+No virtual-8086 behavior was added or modified.
+
+`b-win95-interrupt-stack` reaches a real 640x480 planar VGA Windows 95
+Setup welcome dialog. [The PNG](os-boot/b-win95-graphical-welcome.png)
+was captured at 273,538,881 instructions. COM1 is silent; the corresponding
+[serial artifact](os-boot/b-win95-interrupt-stack.serial) is empty.
+
 ## Haiku PCI IDE diagnosis
 
 The first serial investigation enters Haiku's kernel debugger and reads
@@ -100,10 +136,35 @@ sizing/relocation/I/O enable, IRQ latching and clearing, channel isolation,
 and register masks. A BIOS-level assembly fixture enumerates the BAR and
 prints `IDE PCI BAR READY`; it passes on the fast binary.
 
-After this fix, Haiku reaches four icons and issues repeated successful
-ATAPI READ(10) requests. The previous three-icon/no-boot-partition failure
-is resolved. Kernel output and the final boot outcome are still being
-investigated.
+After this fix, Haiku reaches four icons and issues ATAPI READ(10)
+requests. The full `b-haiku-pio` run lasts **1800.829 seconds** and executes
+**1,393,832,701 instructions**. It is still loading from CD when the bound
+expires. The previous three-icon/no-boot-partition failure is resolved.
+
+The boot loader menu enables normal serial logging in `b-haiku-menu-serial`.
+Space enters the menu; select Debug options, press **Enter** on Enable
+serial debug output (Space does not toggle it), Escape back to the main
+menu, then choose Continue booting. The kernel log shows BFS mounted and
+packages being loaded, but reports `device still expects data transfer`
+after each ATAPI block. Haiku's
+[PIO transfer code](https://github.com/haiku/haiku/blob/r1beta5/src/add-ons/kernel/bus_managers/ata/ATAChannel.cpp)
+waits up to one second for DRQ to clear at a phase boundary. The emulator
+previously presented the next DRQ immediately in the last data-port read,
+so the driver repeatedly paid that entire timeout.
+
+`6d58284` adds a one-millisecond virtual busy interval between ATAPI data
+phases. DRQ clears while BSY is set, then the device asserts the next
+interrupt independently of status polling. Reset/new commands cancel the
+pending phase. A timed regression verifies all block payloads, transitions,
+interrupt/status latches and cancellation. All six IDE cases pass. This is
+an emulator device-timing change, not a Sail instruction change.
+
+As an independent check, `haiku-b-hdd.img` is a writable local copy of the
+same anyboot media, attached as IDE master rather than CD-ROM. With serial
+debugging enabled through the menu, it mounts BFS, loads packages, starts
+user processes and reaches all seven boot icons. Its
+[serial log](os-boot/b-haiku-hdd-serial.serial) and
+[screen](os-boot/b-haiku-hdd-serial.png) are retained while the run continues.
 
 ## Image preparation and reproduction
 
@@ -508,3 +569,103 @@ Last serial output:
 Additional manual inputs:
 
 * 2026-09-24 22:19:12 UTC: `\x01d\x01d\n`
+
+### b-win95-segments
+
+Captures relocated extender code and GDT/IDT bases with the expanded CPU dump.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=125000000 SAIL_X86_TRACE_STEP=1000000 system-emu/run-boot.py --name b-win95-segments --timeout 90 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-setup-is.img -boot c
+```
+
+Wall: **27.666 s**. Instructions: **125,000,000**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### b-win95-gp-entry
+
+First GP follows a valid call through a 16-bit gate at 005b:0b79. The fault handler then receives an incorrect stack because the model assumes a 32-bit TSS.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=115000000 SAIL_X86_TRACE_STEP=1000000 SAIL_X86_TRACE_ADDRESS=0x318e77 system-emu/run-boot.py --name b-win95-gp-entry --timeout 90 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-setup-is.img -boot c
+```
+
+Wall: **22.811 s**. Instructions: **115,000,000**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### b-win95-callgate
+
+The call gate succeeds. A later MOV ES,AX using LDT selector 02ac faults because the model looks in the GDT. Guest exits with Unknown stack in fault dispatcher.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=250000000 SAIL_X86_TRACE_STEP=5000000 SAIL_X86_TRACE_ADDRESS=0x318e77 system-emu/run-boot.py --name b-win95-callgate --timeout 180 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-setup-is.img -boot c
+```
+
+Wall: **53.819 s**. Instructions: **250,000,000**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### b-haiku-pio
+
+Full 30-minute run with the IDE BAR fix: four boot icons, continuing CD reads, no COM1 output. The later serial-enabled run explains the repeated per-block delays.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name b-haiku-pio --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 1024 -kbd -b build/bios.bin -cdrom build/os-boot/haiku-b.iso -boot d
+```
+
+Wall: **1800.829 s**. Instructions: **1,393,832,701**. Runner result: `timeout`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### b-win95-ldt
+
+LDT selectors now work. INT 21h incorrectly changes CPL3 to CPL0, and the DPL3 handler faults on POP SS.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=350000000 SAIL_X86_TRACE_STEP=5000000 SAIL_X86_TRACE_ADDRESS=0x318e77 system-emu/run-boot.py --name b-win95-ldt --timeout 180 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-setup-is.img -boot c
+```
+
+Wall: **75.632 s**. Instructions: **350,000,000**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+### b-win95-interrupt-stack
+
+Reaches the graphical Windows 95 Setup welcome screen. Captured at 273,538,881 instructions; Enter continues Setup before the trace-end bound.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_START=0 SAIL_X86_TRACE_END=400000000 SAIL_X86_TRACE_STEP=10000000 SAIL_X86_TRACE_ADDRESS=0x318e77 system-emu/run-boot.py --name b-win95-interrupt-stack --timeout 180 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-setup-is.img -boot c
+```
+
+Wall: **85.445 s**. Instructions: **400,000,000**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional manual inputs:
+
+* 2026-09-24 22:41:09 UTC: `\n`
