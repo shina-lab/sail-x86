@@ -14,14 +14,14 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   };
 
   // The common background supplies preserved GPR, vector, and mask state.
-  // Here vary the flags as well, initializing only each instruction's inputs.
+  // Also vary control flags, initializing only each instruction's inputs.
   cat = "Baseline/State preservation";
   for (bool set_flags : {false, true}) {
-    ArchState flags = {.rflags = 0x2};
+    ArchState flags = {};
     if (set_flags)
-      flags.rflags |= FL_ALL | (1ULL << 9) | (3ULL << 12) | (1ULL << 14)
+      flags.rflags |= FL_DF | (1ULL << 9) | (3ULL << 12) | (1ULL << 14)
                              | (1ULL << 18) | (1ULL << 21); // IF, IOPL, NT, AC, ID
-    std::string suffix = set_flags ? " flags set" : " flags clear";
+    std::string suffix = set_flags ? " control flags set" : " control flags clear";
     add("nop preserves state" + suffix, {0x90}, flags);
     ArchState simd = flags;
     simd.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
@@ -42,7 +42,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState alu = {};
   alu.rax = 0x0000000000000037;  // 55
   alu.rbx = 0x000000000000001E;  // 30
-  alu.rflags = 0x2;
+  alu.rflags = initial_flags();
 
   // op RAX, RBX (64-bit): REX.W=48, opcode, ModRM=D8 (mod=11,reg=rbx,rm=rax)
   add("add rax,rbx",  {0x48, 0x01, 0xD8}, alu);
@@ -54,13 +54,14 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
 
   // ADC/SBB need CF set to exercise the carry-in path
   ArchState alu_cf = alu;
-  alu_cf.rflags = 0x3;  // CF=1
+  alu_cf.rflags = initial_flags(FL_CF, FL_CF);  // CF=1
   add("adc rax,rbx cf=1",  {0x48, 0x11, 0xD8}, alu_cf);
   add("sbb rax,rbx cf=1",  {0x48, 0x19, 0xD8}, alu_cf);
 
   // ADC/SBB with CF=0
-  add("adc rax,rbx cf=0",  {0x48, 0x11, 0xD8}, alu);
-  add("sbb rax,rbx cf=0",  {0x48, 0x19, 0xD8}, alu);
+  alu_cf.rflags = initial_flags(FL_CF, 0);
+  add("adc rax,rbx cf=0",  {0x48, 0x11, 0xD8}, alu_cf);
+  add("sbb rax,rbx cf=0",  {0x48, 0x19, 0xD8}, alu_cf);
 
   // =====================================================================
   // 2. ALU operand sizes — exercises all 4 OperandSize branches
@@ -71,7 +72,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState sz = {};
   sz.rax = 0xFFFFFFFF00000005;
   sz.rbx = 0xFFFFFFFF00000003;
-  sz.rflags = 0x2;
+  sz.rflags = initial_flags();
 
   // ADD EAX, EBX (32-bit, no REX.W): zeroes upper 32 bits
   add("add eax,ebx (32)",  {0x01, 0xD8}, sz);
@@ -97,7 +98,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   cat = "Baseline/ALU reg,imm";
   ArchState imm = {};
   imm.rax = 100;
-  imm.rflags = 0x2;
+  imm.rflags = initial_flags();
 
   // ADD RAX, imm8:  48 83 C0 imm8 (ModRM=C0: /0=ADD, rm=rax)
   add("add rax,imm8",   {0x48, 0x83, 0xC0, 0x2A}, imm);  // +42
@@ -111,7 +112,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("cmp rax,imm8",   {0x48, 0x83, 0xF8, 0x64}, imm);  // cmp 100
   // ADC RAX, imm8 with CF=1:
   ArchState imm_cf = imm;
-  imm_cf.rflags = 0x3;
+  imm_cf.rflags = initial_flags(FL_CF, FL_CF);
   add("adc rax,imm8 cf=1", {0x48, 0x83, 0xD0, 0x05}, imm_cf);  // +5+CF
   // SBB RAX, imm8 with CF=1:
   add("sbb rax,imm8 cf=1", {0x48, 0x83, 0xD8, 0x05}, imm_cf);  // -5-CF
@@ -127,7 +128,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/ALU corner cases";
   ArchState ov = {};
-  ov.rflags = 0x2;
 
   // Signed overflow: MAX + 1
   ov.rax = 0x7FFFFFFFFFFFFFFF;
@@ -175,7 +175,8 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState sh = {};
   sh.rax = 0x123456789ABCDEF0;
   sh.rcx = 7;
-  sh.rflags = 0x3;  // CF=1 (matters for RCL/RCR)
+  ArchState sh_carry = sh;
+  sh_carry.rflags = initial_flags(FL_CF, FL_CF);
 
   // --- By CL (count=7 > 1): AF undefined, OF undefined ---
   // REX.W D3 /op: shift RAX by CL
@@ -184,8 +185,8 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("sar rax,cl",  {0x48, 0xD3, 0xF8}, sh, FL_NO_AF_OF);  // /7
   add("rol rax,cl",  {0x48, 0xD3, 0xC0}, sh, FL_ALL & ~FL_OF);         // /0, only OF undefined
   add("ror rax,cl",  {0x48, 0xD3, 0xC8}, sh, FL_ALL & ~FL_OF);         // /1
-  add("rcl rax,cl",  {0x48, 0xD3, 0xD0}, sh, FL_ALL & ~FL_OF);         // /2
-  add("rcr rax,cl",  {0x48, 0xD3, 0xD8}, sh, FL_ALL & ~FL_OF);         // /3
+  add("rcl rax,cl",  {0x48, 0xD3, 0xD0}, sh_carry, FL_ALL & ~FL_OF);         // /2
+  add("rcr rax,cl",  {0x48, 0xD3, 0xD8}, sh_carry, FL_ALL & ~FL_OF);         // /3
 
   // --- By 1: OF is defined ---
   // REX.W D1 /op
@@ -194,8 +195,8 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   add("sar rax,1",  {0x48, 0xD1, 0xF8}, with_gpr_inputs(sh, {&ArchState::rax}), FL_NO_AF);
   add("rol rax,1",  {0x48, 0xD1, 0xC0}, with_gpr_inputs(sh, {&ArchState::rax}), FL_ALL);
   add("ror rax,1",  {0x48, 0xD1, 0xC8}, with_gpr_inputs(sh, {&ArchState::rax}), FL_ALL);
-  add("rcl rax,1",  {0x48, 0xD1, 0xD0}, with_gpr_inputs(sh, {&ArchState::rax}), FL_ALL);
-  add("rcr rax,1",  {0x48, 0xD1, 0xD8}, with_gpr_inputs(sh, {&ArchState::rax}), FL_ALL);
+  add("rcl rax,1",  {0x48, 0xD1, 0xD0}, with_gpr_inputs(sh_carry, {&ArchState::rax}), FL_ALL);
+  add("rcr rax,1",  {0x48, 0xD1, 0xD8}, with_gpr_inputs(sh_carry, {&ArchState::rax}), FL_ALL);
 
   // --- By imm8: SHL RAX, 4
   add("shl rax,imm4", {0x48, 0xC1, 0xE0, 0x04}, with_gpr_inputs(sh, {&ArchState::rax}), FL_NO_AF_OF);
@@ -210,7 +211,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState sh32 = {};
   sh32.rax = 0xFFFFFFFF80000001;
   sh32.rcx = 1;
-  sh32.rflags = 0x2;
+  sh32.rflags = initial_flags();
   // SHL EAX, CL (32-bit, no REX.W): should zero-extend upper 32 bits
   add("shl eax,cl (32)", {0xD3, 0xE0}, sh32, FL_NO_AF);
   // SHR EAX, CL (32-bit)
@@ -222,7 +223,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState sh8 = {};
   sh8.rax = 0xFF;
   sh8.rcx = 4;
-  sh8.rflags = 0x2;
+  sh8.rflags = initial_flags();
   add("shl al,cl (8)", {0xD2, 0xE0}, sh8, FL_NO_AF_OF);
   add("shr al,cl (8)", {0xD2, 0xE8}, sh8, FL_NO_AF_OF);
 
@@ -233,7 +234,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/Multiply";
   ArchState mul = {};
-  mul.rflags = 0x2;
 
   // MUL RBX (64-bit): RAX * RBX -> RDX:RAX
   // F7 /4, rm=3(rbx)
@@ -283,7 +283,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/Divide";
   ArchState dv = {};
-  dv.rflags = 0x2;
 
   // DIV RBX (64-bit): RDX:RAX / RBX -> RAX=quot, RDX=rem
   dv.rax = 100;
@@ -327,7 +326,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/INC/DEC/NEG/NOT";
   ArchState un = {};
-  un.rflags = 0x3;  // CF=1 (INC/DEC should preserve CF)
 
   un.rax = 42;
   add("inc rax", {0x48, 0xFF, 0xC0}, un);  // FF /0
@@ -388,31 +386,31 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
 
   for (int cc = 0; cc < 16; cc++) {
     ccbuf = std::format("set{} al (cf=1)", cc_names[cc]);
-    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_gpr_inputs(ccA, {}), FL_ALL);
+    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_flag_inputs(with_gpr_inputs(ccA, {}), condition_flags_mask(cc)), FL_ALL);
   }
 
   // Test SETcc with state B (ZF=1)
   for (int cc : {4, 5, 6, 7}) {  // E, NE, BE, A — all involve ZF
     ccbuf = std::format("set{} al (zf=1)", cc_names[cc]);
-    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_gpr_inputs(ccB, {}), FL_ALL);
+    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_flag_inputs(with_gpr_inputs(ccB, {}), condition_flags_mask(cc)), FL_ALL);
   }
 
   // Test SETcc with state D (SF=1, OF=1 — GE should be true since SF==OF)
   for (int cc : {12, 13, 14, 15}) {  // L, GE, LE, G
     ccbuf = std::format("set{} al (sf=of=1)", cc_names[cc]);
-    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_gpr_inputs(ccD, {}), FL_ALL);
+    add(ccbuf, {0x0F, (u8)(0x90 + cc), 0xC0}, with_flag_inputs(with_gpr_inputs(ccD, {}), condition_flags_mask(cc)), FL_ALL);
   }
 
   // CMOVcc RAX, RBX (64-bit): 48 0F 4x C3 (ModRM=C3: reg=rax, rm=rbx)
   // Test taken (condition true) and not-taken
-  add("cmove rax,rbx (taken)",     {0x48, 0x0F, 0x44, 0xC3}, ccB, FL_ALL);  // ZF=1 → taken
-  add("cmove rax,rbx (not taken)", {0x48, 0x0F, 0x44, 0xC3}, ccA, FL_ALL);  // ZF=0 → not taken
-  add("cmovb rax,rbx (taken)",     {0x48, 0x0F, 0x42, 0xC3}, ccA, FL_ALL);  // CF=1 → taken
-  add("cmovb rax,rbx (not taken)", {0x48, 0x0F, 0x42, 0xC3}, ccB, FL_ALL);  // CF=0 → not taken
-  add("cmovl rax,rbx (taken)",     {0x48, 0x0F, 0x4C, 0xC3}, ccC, FL_ALL);  // SF!=OF → taken
-  add("cmovl rax,rbx (not taken)", {0x48, 0x0F, 0x4C, 0xC3}, ccD, FL_ALL);  // SF==OF → not taken
-  add("cmovg rax,rbx (taken)",     {0x48, 0x0F, 0x4F, 0xC3}, ccA, FL_ALL);  // ZF=0 & SF==OF → taken
-  add("cmovg rax,rbx (not taken)", {0x48, 0x0F, 0x4F, 0xC3}, ccB, FL_ALL);  // ZF=1 → not taken
+  add("cmove rax,rbx (taken)",     {0x48, 0x0F, 0x44, 0xC3}, with_flag_inputs(ccB, condition_flags_mask(0x44 & 0xF)), FL_ALL);  // ZF=1 → taken
+  add("cmove rax,rbx (not taken)", {0x48, 0x0F, 0x44, 0xC3}, with_flag_inputs(ccA, condition_flags_mask(0x44 & 0xF)), FL_ALL);  // ZF=0 → not taken
+  add("cmovb rax,rbx (taken)",     {0x48, 0x0F, 0x42, 0xC3}, with_flag_inputs(ccA, condition_flags_mask(0x42 & 0xF)), FL_ALL);  // CF=1 → taken
+  add("cmovb rax,rbx (not taken)", {0x48, 0x0F, 0x42, 0xC3}, with_flag_inputs(ccB, condition_flags_mask(0x42 & 0xF)), FL_ALL);  // CF=0 → not taken
+  add("cmovl rax,rbx (taken)",     {0x48, 0x0F, 0x4C, 0xC3}, with_flag_inputs(ccC, condition_flags_mask(0x4C & 0xF)), FL_ALL);  // SF!=OF → taken
+  add("cmovl rax,rbx (not taken)", {0x48, 0x0F, 0x4C, 0xC3}, with_flag_inputs(ccD, condition_flags_mask(0x4C & 0xF)), FL_ALL);  // SF==OF → not taken
+  add("cmovg rax,rbx (taken)",     {0x48, 0x0F, 0x4F, 0xC3}, with_flag_inputs(ccA, condition_flags_mask(0x4F & 0xF)), FL_ALL);  // ZF=0 & SF==OF → taken
+  add("cmovg rax,rbx (not taken)", {0x48, 0x0F, 0x4F, 0xC3}, with_flag_inputs(ccB, condition_flags_mask(0x4F & 0xF)), FL_ALL);  // ZF=1 → not taken
 
   // =====================================================================
   // 10. Branch — Jcc (tests decode_pos + offset calculation)
@@ -429,19 +427,20 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // If ZF=0: execute INC RAX, RAX becomes 1.
   ArchState br = {};
   br.rax = 0;
-  br.rflags = 0x2 | FL_ZF;  // ZF=1
+  br.rflags = initial_flags(FL_ZF, FL_ZF);  // ZF=1
   add("je taken (skip inc)",     {0x74, 0x03, 0x48, 0xFF, 0xC0}, br, FL_ALL);
 
-  br.rflags = 0x2;  // ZF=0
+  br.rflags = initial_flags(FL_ZF, 0);  // ZF=0
   add("je not taken (exec inc)", {0x74, 0x03, 0x48, 0xFF, 0xC0}, br, FL_ALL);
 
   // JL rel8: 7C xx
-  br.rflags = 0x2 | FL_SF;  // SF=1, OF=0 → SF!=OF → L is true
+  br.rflags = initial_flags(FL_SF | FL_OF, FL_SF);  // SF=1, OF=0 → SF!=OF → L is true
   add("jl taken",     {0x7C, 0x03, 0x48, 0xFF, 0xC0}, br, FL_ALL);
-  br.rflags = 0x2;  // SF=0, OF=0 → SF==OF → L is false
+  br.rflags = initial_flags(FL_SF | FL_OF, 0);  // SF=0, OF=0 → SF==OF → L is false
   add("jl not taken", {0x7C, 0x03, 0x48, 0xFF, 0xC0}, br, FL_ALL);
 
   // JMP rel8: EB xx (unconditional short jump)
+  br.rflags = initial_flags();
   add("jmp rel8",     {0xEB, 0x03, 0x48, 0xFF, 0xC0}, br, FL_ALL);
 
   // =====================================================================
@@ -449,7 +448,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/Data movement";
   ArchState mv = {};
-  mv.rflags = 0x2;
 
   // MOVSX RAX, BL: sign-extend byte to 64
   mv.rbx = 0xFF;  // -1 as byte
@@ -529,7 +527,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/Bit operations";
   ArchState bt = {};
-  bt.rflags = 0x2;
 
   // BT RAX, RBX: test bit RBX of RAX. CF = selected bit.
   // 0F A3 /r (ModRM: reg=rbx=3, rm=rax=0 = D8)
@@ -617,7 +614,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     for (size_t i = 0; i < page.size(); i++)
       page[i] = (u8)(0x35 + i * 7);
     ArchState btm = {};
-    btm.rflags = 0x2;
     btm.rdi = DATA_ADDR + 0x800;  // mid-page base: room in both directions
 
     // 64-bit reads: bt [rdi], rax  (48 0F A3 /r, rm=rdi)
@@ -665,7 +661,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // PUSH RBX (53) + POP RAX (58): RAX should get RBX's value
   ArchState stk = {};
   stk.rbx = 0xDEADBEEFCAFEBABE;
-  stk.rflags = 0x2;
+  stk.rflags = initial_flags();
   add("push rbx; pop rax", {0x53, 0x58}, stk, FL_ALL);
 
   // PUSH imm8 (6A imm8) + POP RAX: test sign-extension
@@ -708,7 +704,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   lea.rbx = 100;
   lea.rcx = 7;
   lea.rsi = 0x1000;
-  lea.rflags = 0x2;
+  lea.rflags = initial_flags();
 
   // LEA RAX, [RBX + RCX*2]: 48 8D 04 4B
   add("lea [rbx+rcx*2]", {0x48, 0x8D, 0x04, 0x4B},
@@ -737,7 +733,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState mem = {};
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0xEF, 0xCD, 0xAB, 0x90};
     add_mem("mov rax,[rdi]", {0x48, 0x8B, 0x07}, mem, FL_ALL, data, 0);
   }
@@ -747,7 +743,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rax = 0xFFFFFFFFFFFFFFFF;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0, 0, 0, 0};
     add_mem("mov eax,[rdi] (32)", {0x8B, 0x07},
         with_gpr_inputs(mem, {&ArchState::rdi}), FL_ALL, data, 0);
@@ -758,7 +754,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rax = 0x123456789ABCDEF0;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     add_mem("mov [rdi],rax", {0x48, 0x89, 0x07}, mem, FL_ALL, {}, 8);
   }
 
@@ -767,7 +763,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rax = 100;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     u8 val[] = {42, 0, 0, 0, 0, 0, 0, 0};
     add_mem("add rax,[rdi]", {0x48, 0x03, 0x07}, mem, FL_ALL,
             {val, val + 8}, 0);
@@ -778,7 +774,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rax = 100;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     u8 val[] = {42, 0, 0, 0, 0, 0, 0, 0};
     add_mem("add [rdi],rax", {0x48, 0x01, 0x07}, mem, FL_ALL,
             {val, val + 8}, 8);
@@ -789,7 +785,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rax = 42;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     u8 val[] = {42, 0, 0, 0, 0, 0, 0, 0};
     add_mem("cmp rax,[rdi] equal", {0x48, 0x3B, 0x07}, mem, FL_ALL,
             {val, val + 8}, 0);
@@ -800,7 +796,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rbx = 0xCAFEBABE;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     add_mem("mov [rdi+8],rbx", {0x48, 0x89, 0x5F, 0x08}, mem, FL_ALL, {}, 16);
   }
 
@@ -809,7 +805,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     ArchState mem = {};
     mem.rcx = 4;
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     u8 val[] = {0xFF, 0, 0, 0, 0, 0, 0, 0};
     add_mem("shl [rdi],cl", {0x48, 0xD3, 0x27}, mem, FL_NO_AF_OF,
             {val, val + 8}, 8);
@@ -819,7 +815,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState mem = {};
     mem.rdi = DATA_ADDR;
-    mem.rflags = 0x2;
+    mem.rflags = initial_flags();
     u8 val[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
     add_mem("inc [rdi]", {0x48, 0xFF, 0x07}, mem, FL_ALL, {val, val + 8}, 8);
   }
@@ -832,7 +828,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ds.rax = 0x123456789ABCDEF0;
   ds.rbx = 0xFEDCBA9876543210;
   ds.rcx = 8;
-  ds.rflags = 0x2;
+  ds.rflags = initial_flags();
 
   // SHLD RAX, RBX, CL: 48 0F A5 D8 (reg=rbx, rm=rax)
   add("shld rax,rbx,cl", {0x48, 0x0F, 0xA5, 0xD8}, ds, FL_NO_AF_OF);
@@ -857,7 +853,6 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "Baseline/MOV reg,imm";
   ArchState mi = {};
-  mi.rflags = 0x2;
 
   // MOV RAX, imm64: 48 B8 imm64 (REX.W + B8+rd)
   add("mov rax,imm64", {0x48, 0xB8, 0x01, 0x02, 0x03, 0x04,
@@ -878,7 +873,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   ArchState xa = {};
   xa.rax = 10;
   xa.rbx = 20;
-  xa.rflags = 0x2;
+  xa.rflags = initial_flags();
   // XADD RAX, RBX: 48 0F C1 D8 (reg=rbx, rm=rax)
   // RAX := RAX + RBX, RBX := old RAX
   add("xadd rax,rbx", {0x48, 0x0F, 0xC1, 0xD8}, xa);
@@ -896,7 +891,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   cx.rax = 42;
   cx.rbx = 42;
   cx.rcx = 99;
-  cx.rflags = 0x2;
+  cx.rflags = initial_flags();
   add("cmpxchg equal", {0x48, 0x0F, 0xB1, 0xCB}, cx);
 
   // Case 2: not equal
@@ -917,7 +912,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   chain.rbx = 2;
   chain.rcx = 0;
   chain.rdx = 0;
-  chain.rflags = 0x2;
+  chain.rflags = initial_flags();
   add("add+adc chain", {0x48, 0x01, 0xD8,   // ADD RAX, RBX
                          0x48, 0x11, 0xCA}, chain);  // ADC RDX, RCX
 
@@ -926,7 +921,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   cmpseq.rax = 10;
   cmpseq.rbx = 20;
   cmpseq.rcx = 99;
-  cmpseq.rflags = 0x2;
+  cmpseq.rflags = initial_flags();
   // CMP RAX, RBX; CMOVL RAX, RCX (if RAX < RBX, RAX := RCX)
   add("cmp+cmovl taken", {0x48, 0x39, 0xD8,               // CMP RAX, RBX
                            0x48, 0x0F, 0x4C, 0xC1}, cmpseq, FL_ALL);  // CMOVL RAX, RCX
@@ -940,7 +935,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   shift_or.rax = 0xFF;
   shift_or.rbx = 0x01;
   shift_or.rcx = 8;
-  shift_or.rflags = 0x2;
+  shift_or.rflags = initial_flags();
   // SHL RAX, CL; OR RAX, RBX → RAX = 0xFF01 (if CL=8)
   add("shl+or construct", {0x48, 0xD3, 0xE0,        // SHL RAX, CL
                             0x48, 0x09, 0xD8}, shift_or, FL_ALL);
@@ -954,7 +949,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   rex.r9  = 0x2222222222222222;
   rex.r12 = 0x3333333333333333;
   rex.r15 = 0x4444444444444444;
-  rex.rflags = 0x2;
+  rex.rflags = initial_flags();
 
   // ADD R8, R9: 4D 01 C8 (REX.W+R+B=4D, 01, ModRM=C8: reg=r9=1, rm=r8=0)
   add("add r8,r9", {0x4D, 0x01, 0xC8}, with_gpr_inputs(rex, {&ArchState::r8, &ArchState::r9}));
@@ -972,91 +967,91 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
 
   // CLC: F8
   ArchState fl = {};
-  fl.rflags = 0x2 | FL_CF;
+  fl.rflags = initial_flags();
   add("clc", {0xF8}, fl, FL_ALL);
 
   // STC: F9
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags();
   add("stc", {0xF9}, fl, FL_ALL);
 
   // CMC (complement CF): F5
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags(FL_CF, 0);
   add("cmc cf=0", {0xF5}, fl, FL_ALL);
-  fl.rflags = 0x2 | FL_CF;
+  fl.rflags = initial_flags(FL_CF, FL_CF);
   add("cmc cf=1", {0xF5}, fl, FL_ALL);
 
   // CLD: FC
-  fl.rflags = 0x2 | FL_DF;
+  fl.rflags = initial_flags() | FL_DF;
   add("cld", {0xFC}, fl, FL_ALL);
 
   // STD: FD
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags();
   add("std", {0xFD}, fl, FL_ALL);
 
   // LAHF: load AH from flags (9F). AH = SF:ZF:0:AF:0:PF:1:CF
   // Test all individual flags to catch bit-ordering bugs
-  fl.rflags = 0x2 | FL_CF | FL_ZF | FL_SF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_CF | FL_ZF | FL_SF);
   fl.rax = 0;
   add("lahf all", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with only CF set — distinguishes CF (bit 0) from SF (bit 7)
-  fl.rflags = 0x2 | FL_CF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_CF);
   fl.rax = 0;
   add("lahf cf", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with only SF set
-  fl.rflags = 0x2 | FL_SF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_SF);
   fl.rax = 0;
   add("lahf sf", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with only PF set — distinguishes PF (bit 2) from ZF (bit 6)
-  fl.rflags = 0x2 | FL_PF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_PF);
   fl.rax = 0;
   add("lahf pf", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with only ZF set
-  fl.rflags = 0x2 | FL_ZF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_ZF);
   fl.rax = 0;
   add("lahf zf", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with only AF set
-  fl.rflags = 0x2 | FL_AF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_AF);
   fl.rax = 0;
   add("lahf af", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with no flags set (reserved bit 1 should be 1 in AH)
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, 0);
   fl.rax = 0;
   add("lahf none", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // LAHF with all status flags set
-  fl.rflags = 0x2 | FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF);
   fl.rax = 0xDEADBEEF00000000;  // non-zero rax to verify only AH changes
   add("lahf all2", {0x9F}, with_gpr_inputs(fl, {}), FL_ALL);
 
   // SAHF: store AH into flags (9E). Test with various AH values.
   // AH = 0xD5 = 1101_0101 → SF=1 ZF=1 AF=1 PF=1 CF=1
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags();
   fl.rax = 0x000000000000D500;
   add("sahf d5", {0x9E}, fl, FL_ALL);
 
   // AH = 0x00 → SF=0 ZF=0 AF=0 PF=0 CF=0
-  fl.rflags = 0x2 | FL_CF | FL_SF | FL_ZF | FL_PF | FL_AF;
+  fl.rflags = initial_flags();
   fl.rax = 0x0000000000000000;
   add("sahf 00", {0x9E}, fl, FL_ALL);
 
   // AH = 0x01 → only CF=1
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags();
   fl.rax = 0x0000000000000100;
   add("sahf 01", {0x9E}, fl, FL_ALL);
 
   // AH = 0x80 → only SF=1
-  fl.rflags = 0x2;
+  fl.rflags = initial_flags();
   fl.rax = 0x0000000000008000;
   add("sahf 80", {0x9E}, fl, FL_ALL);
 
   // LAHF then SAHF round-trip: LAHF (9F) then SAHF (9E) — flags preserved
-  fl.rflags = 0x2 | FL_CF | FL_PF | FL_SF;
+  fl.rflags = initial_flags(FL_ARITH & ~FL_OF, FL_CF | FL_PF | FL_SF);
   fl.rax = 0;
   add("lahf+sahf", {0x9F, 0x9E}, with_gpr_inputs(fl, {}), FL_ALL);
 
@@ -1151,7 +1146,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rcx = 2;
-    s.rflags = 0x2 | FL_ZF;  // ZF=1
+    s.rflags = initial_flags(FL_ZF, FL_ZF);  // ZF=1
     add("loope rcx=2 zf=1", {0xE1, 0x00}, s, FL_ALL);
     // expect RCX = 1
   }
@@ -1160,7 +1155,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rcx = 2;
-    s.rflags = 0x2;  // ZF=0
+    s.rflags = initial_flags(FL_ZF, 0);  // ZF=0
     add("loope rcx=2 zf=0", {0xE1, 0x00}, s, FL_ALL);
     // expect RCX = 1 (decremented regardless of branch)
   }
@@ -1169,7 +1164,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rcx = 2;
-    s.rflags = 0x2;  // ZF=0
+    s.rflags = initial_flags(FL_ZF, 0);  // ZF=0
     add("loopne rcx=2 zf=0", {0xE0, 0x00}, s, FL_ALL);
     // expect RCX = 1
   }
@@ -1178,7 +1173,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rcx = 2;
-    s.rflags = 0x2 | FL_ZF;  // ZF=1
+    s.rflags = initial_flags(FL_ZF, FL_ZF);  // ZF=1
     add("loopne rcx=2 zf=1", {0xE0, 0x00}, s, FL_ALL);
     // expect RCX = 1
   }
@@ -1356,17 +1351,17 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // PUSH FS; POP FS — round-trip, RSP should return to original
     // 0F A0 = PUSH FS, 0F A1 = POP FS
     tests.push_back({"push fs; pop fs", cat, {0x0F, 0xA0, 0x0F, 0xA1},
-                      {.rflags = 0x2}, FL_ALL});
+                      {}, FL_ALL});
 
     // PUSH GS; POP GS — round-trip
     // 0F A8 = PUSH GS, 0F A9 = POP GS
     tests.push_back({"push gs; pop gs", cat, {0x0F, 0xA8, 0x0F, 0xA9},
-                      {.rflags = 0x2}, FL_ALL});
+                      {}, FL_ALL});
 
     // PUSH FS; PUSH GS; POP GS; POP FS — verify both round-trip
     tests.push_back({"push fs; push gs; pop gs; pop fs", cat,
                       {0x0F, 0xA0, 0x0F, 0xA8, 0x0F, 0xA9, 0x0F, 0xA1},
-                      {.rflags = 0x2}, FL_ALL});
+                      {}, FL_ALL});
   }
 
   // =====================================================================
@@ -1379,31 +1374,31 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data(64, 0);
       tests.push_back({"clflush [rdi]", cat, {0x0F, 0xAE, 0x3F},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
     // ENDBR64: F3 0F 1E FA — NOP in our model
     tests.push_back({"endbr64", cat, {0xF3, 0x0F, 0x1E, 0xFA},
-                      {.rflags = 0x2}, FL_ALL});
+                      {}, FL_ALL});
 
     // CLFLUSHOPT [RDI]: 66 0F AE 3F — NOP for architectural state
     {
       std::vector<u8> data(64, 0);
       tests.push_back({"clflushopt [rdi]", cat, {0x66, 0x0F, 0xAE, 0x3F},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
     // ENDBR32: F3 0F 1E FB — NOP
     tests.push_back({"endbr32", cat, {0xF3, 0x0F, 0x1E, 0xFB},
-                      {.rflags = 0x2}, FL_ALL});
+                      {}, FL_ALL});
 
     // CLDEMOTE [RDI]: NP 0F 1C 07 (/0 mem) — hint, NOP
     {
       std::vector<u8> data(64, 0);
       tests.push_back({"cldemote [rdi]", cat, {0x0F, 0x1C, 0x07},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1411,7 +1406,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data(64, 0);
       tests.push_back({"clwb [rdi]", cat, {0x66, 0x0F, 0xAE, 0x37},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
   }
@@ -1425,57 +1420,57 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // LAR EAX, EBX: 0F 02 C3 — load access rights for CS selector (0x08)
     // Should set ZF=1 and load access rights into EAX
     tests.push_back({"lar eax,bx (cs=0x08)", cat, {0x0F, 0x02, 0xC3},
-                      {.rbx = 0x08, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x08}, FL_ALL});
 
     // LAR with null selector (0x0000) should set ZF=0
     tests.push_back({"lar eax,bx (null)", cat, {0x0F, 0x02, 0xC3},
-                      {.rbx = 0, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0}, FL_ALL});
 
     // LSL EAX, EBX: 0F 03 C3 — load segment limit for CS selector
     tests.push_back({"lsl eax,bx (cs=0x08)", cat, {0x0F, 0x03, 0xC3},
-                      {.rbx = 0x08, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x08}, FL_ALL});
 
     // LAR with 64-bit TSS descriptor (type=9, S=0) — valid for LAR in IA-32e
     tests.push_back({"lar eax,bx (tss=0x18)", cat, {0x0F, 0x02, 0xC3},
-                      {.rbx = 0x18, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x18}, FL_ALL});
 
     // LAR with interrupt gate type (type=0xE, S=0) — INVALID for LAR in IA-32e
     tests.push_back({"lar eax,bx (igate=0x28)", cat, {0x0F, 0x02, 0xC3},
-                      {.rbx = 0x28, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x28}, FL_ALL});
 
     // LAR with RPL=3 on DPL=0 non-conforming code — RPL > DPL → ZF=0
     tests.push_back({"lar eax,bx (rpl=3)", cat, {0x0F, 0x02, 0xC3},
-                      {.rbx = 0x0B, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0B}, FL_ALL});
 
     // LSL with 64-bit TSS descriptor (type=9, S=0) — valid for LSL in IA-32e
     tests.push_back({"lsl eax,bx (tss=0x18)", cat, {0x0F, 0x03, 0xC3},
-                      {.rbx = 0x18, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x18}, FL_ALL});
 
     // LSL with interrupt gate type (type=0xE, S=0) — INVALID for LSL in IA-32e
     tests.push_back({"lsl eax,bx (igate=0x28)", cat, {0x0F, 0x03, 0xC3},
-                      {.rbx = 0x28, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x28}, FL_ALL});
 
     // VERR with execute-only code (type=8, S=1, no R bit) — ZF=0
     // VERR BX: 0F 00 /4 → 0F 00 E3 (mod=11, reg=4, rm=BX)
     tests.push_back({"verr bx (exec-only=0x40)", cat, {0x0F, 0x00, 0xE3},
-                      {.rbx = 0x40, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x40}, FL_ALL});
 
     // VERR with readable code (type=0xA, S=1, R bit set) — ZF=1
     tests.push_back({"verr bx (code=0x08)", cat, {0x0F, 0x00, 0xE3},
-                      {.rbx = 0x08, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x08}, FL_ALL});
 
     // VERW with read-only data (type=0, S=1, no W bit) — ZF=0
     // VERW BX: 0F 00 /5 → 0F 00 EB (mod=11, reg=5, rm=BX)
     tests.push_back({"verw bx (ro-data=0x38)", cat, {0x0F, 0x00, 0xEB},
-                      {.rbx = 0x38, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x38}, FL_ALL});
 
     // VERW with writable data (type=2, S=1, W bit set) — ZF=1
     tests.push_back({"verw bx (rw-data=0x10)", cat, {0x0F, 0x00, 0xEB},
-                      {.rbx = 0x10, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x10}, FL_ALL});
 
     // VERR with RPL=3 on DPL=0 code — RPL > DPL → ZF=0
     tests.push_back({"verr bx (rpl=3)", cat, {0x0F, 0x00, 0xE3},
-                      {.rbx = 0x0B, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0B}, FL_ALL});
   }
 
   // =====================================================================
@@ -1490,7 +1485,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       std::vector<u8> desc(16, 0);
       tests.push_back({"invpcid type=2 (all-ctx)", cat,
                         {0x66, 0x0F, 0x38, 0x82, 0x07},
-                        {.rax = 2, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rax = 2, .rdi = DATA_ADDR},
                         FL_ALL, 0, false, desc, 0});
     }
 
@@ -1501,7 +1496,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       desc[8] = 0x00; desc[9] = 0x10;
       tests.push_back({"invpcid type=0 (addr)", cat,
                         {0x66, 0x0F, 0x38, 0x82, 0x07},
-                        {.rax = 0, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rax = 0, .rdi = DATA_ADDR},
                         FL_ALL, 0, false, desc, 0});
     }
   }
@@ -1518,7 +1513,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0x00, 0x00, 0, 0};
       tests.push_back({"lfs eax,[rdi]", cat, {0x0F, 0xB4, 0x07},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1526,7 +1521,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0xEF, 0xBE, 0xAD, 0xDE, 0x00, 0x00, 0, 0};
       tests.push_back({"lgs eax,[rdi]", cat, {0x0F, 0xB5, 0x07},
-                        {.rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
   }
@@ -1619,7 +1614,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf (64-bit opsize, REX.W)", cat,
                       {0x6A, 0x08,                         // push 0x08
                        0x48, 0x8D, 0x05, 0x03, 0x00, 0x00, 0x00,  // lea rax, [rip+3]
@@ -1643,7 +1638,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     u32 ret_eip = CODE_ADDR + 20;
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf (32-bit opsize)", cat,
                       {0x48, 0x83, 0xEC, 0x08,             // sub rsp, 8
                        0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
@@ -1676,7 +1671,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf imm16=0x08 (64-bit opsize, REX.W)", cat,
                       {0x48, 0x83, 0xEC, 0x08,             // sub rsp, 8 (padding)
                        0x6A, 0x08,                         // push 0x08 (CS)
@@ -1705,7 +1700,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     u32 ret_eip = CODE_ADDR + 22;
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf imm16=0x10 (32-bit opsize)", cat,
                       {0x48, 0x83, 0xEC, 0x18,             // sub rsp, 0x18
                        0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
@@ -1723,7 +1718,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf imm16=0 (64-bit opsize, REX.W)", cat,
                       {0x6A, 0x08,                          // push 0x08 (CS)
                        0x48, 0x8D, 0x05, 0x05, 0x00, 0x00, 0x00,  // lea rax,[rip+5]
@@ -1746,7 +1741,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     u32 ret_eip = CODE_ADDR + 22;
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf imm16=0x08 (32-bit opsize)", cat,
                       {0x48, 0x83, 0xEC, 0x10,             // sub rsp, 0x10
                        0xC7, 0x44, 0x24, 0x04,             // mov dword [rsp+4], 0x08
@@ -1765,7 +1760,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = {};
     s.rsp = STACK_TOP;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     tests.push_back({"retf preserves gprs", cat,
                       {0x6A, 0x08,                         // push 0x08 (CS)
                        0x48, 0x8D, 0x05, 0x03, 0x00, 0x00, 0x00,  // lea rax,[rip+3]
@@ -1855,7 +1850,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 8; i++)
         data[i] = 0x10 + i;
       tests.push_back({"rep movsb fwd 8", cat, {0xF3, 0xA4},
-                        {.rcx = 8, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        {.rcx = 8, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256},
                         FL_ALL, 0, false, data, 512});
     }
 
@@ -1868,7 +1863,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       data[3] = 0xDD;
       tests.push_back({"rep movsb bwd 4", cat, {0xF3, 0xA4},
                         {.rcx = 4, .rsi = DATA_ADDR + 3, .rdi = DATA_ADDR + 256 + 3,
-                         .rflags = 0x2 | FL_DF},
+                         .rflags = initial_flags() | FL_DF},
                         FL_ALL, 0, false, data, 512});
     }
 
@@ -1877,7 +1872,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       std::vector<u8> data(512, 0);
       data[0] = 0xFF;  // should not be copied
       tests.push_back({"rep movsb zero", cat, {0xF3, 0xA4},
-                        {.rcx = 0, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        {.rcx = 0, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256},
                         FL_ALL, 0, false, data, 512});
     }
 
@@ -1887,30 +1882,30 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       for (int i = 0; i < 16; i++)
         data[i] = 0x10 + i;
       tests.push_back({"rep movsq fwd 2", cat, {0xF3, 0x48, 0xA5},
-                        {.rcx = 2, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        {.rcx = 2, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256},
                         FL_ALL, 0, false, data, 512});
     }
 
     // REP STOSB: F3 AA -- fill RCX bytes at [RDI] with AL
     tests.push_back({"rep stosb 8", cat, {0xF3, 0xAA},
-                      {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR},
                       FL_ALL, 0, false, {}, 8});
 
     // REP STOSD: F3 AB -- fill with EAX
     tests.push_back({"rep stosd 2", cat, {0xF3, 0xAB},
-                      {.rax = 0xDEADBEEF, .rcx = 2, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rax = 0xDEADBEEF, .rcx = 2, .rdi = DATA_ADDR},
                       FL_ALL, 0, false, {}, 8});
 
     // REP STOSQ: F3 48 AB
     tests.push_back({"rep stosq 1", cat, {0xF3, 0x48, 0xAB},
-                      {.rax = 0x0102030405060708, .rcx = 1, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rax = 0x0102030405060708, .rcx = 1, .rdi = DATA_ADDR},
                       FL_ALL, 0, false, {}, 8});
 
     // LODSB: AC -- load byte from [RSI] into AL
     {
       std::vector<u8> data = {0x42};
       tests.push_back({"lodsb", cat, {0xAC},
-                        {.rsi = DATA_ADDR, .rflags = 0x2},
+                        {.rsi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1918,7 +1913,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
       tests.push_back({"lodsq", cat, {0x48, 0xAD},
-                        {.rsi = DATA_ADDR, .rflags = 0x2},
+                        {.rsi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1935,7 +1930,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       data[258] = 0x33;
       data[259] = 0x44;
       tests.push_back({"repe cmpsb equal", cat, {0xF3, 0xA6},
-                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1951,7 +1946,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
       data[258] = 0xFF;
       data[259] = 0x44;
       tests.push_back({"repe cmpsb diff@2", cat, {0xF3, 0xA6},
-                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256, .rflags = 0x2},
+                        {.rcx = 4, .rsi = DATA_ADDR, .rdi = DATA_ADDR + 256},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1959,7 +1954,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x00, 0x01, 0x02, 0x42, 0x04, 0x05, 0x06, 0x07};
       tests.push_back({"repne scasb found", cat, {0xF2, 0xAE},
-                        {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rax = 0x42, .rcx = 8, .rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -1967,7 +1962,7 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x00, 0x01, 0x02, 0x03};
       tests.push_back({"repne scasb notfound", cat, {0xF2, 0xAE},
-                        {.rax = 0xFF, .rcx = 4, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rax = 0xFF, .rcx = 4, .rdi = DATA_ADDR},
                         FL_ALL, 0, false, data, 0});
     }
   }
@@ -1981,19 +1976,19 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // ENTER 0, 0: just push RBP and set RBP=RSP (like push rbp; mov rbp,rsp)
     // C8 00 00 00
     tests.push_back({"enter 0,0", cat, {0xC8, 0x00, 0x00, 0x00},
-                      {.rbp = 0xAAAAAAAAAAAAAAAA, .rflags = 0x2}, FL_ALL});
+                      {.rbp = 0xAAAAAAAAAAAAAAAA}, FL_ALL});
 
     // ENTER 16, 0: allocate 16 bytes of local space
     tests.push_back({"enter 16,0", cat, {0xC8, 0x10, 0x00, 0x00},
-                      {.rbp = 0xBBBBBBBBBBBBBBBB, .rflags = 0x2}, FL_ALL});
+                      {.rbp = 0xBBBBBBBBBBBBBBBB}, FL_ALL});
 
     // ENTER 0, 1: nesting level 1 -- pushes old RBP, then pushes frame_temp
     // RBP must point to valid stack memory since nesting copies prior frames
     tests.push_back({"enter 0,1", cat, {0xC8, 0x00, 0x00, 0x01},
-                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_ALL});
+                      {.rbp = STACK_TOP - 64}, FL_ALL});
 
     // ENTER 8, 2: nesting level 2 -- pushes old RBP, copies 1 prior frame ptr, pushes frame_temp
     tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02},
-                      {.rbp = STACK_TOP - 64, .rflags = 0x2}, FL_ALL});
+                      {.rbp = STACK_TOP - 64}, FL_ALL});
   }
 }

@@ -27,21 +27,21 @@ void add_feature_tests(std::vector<TestCase> &tests) {
   cat = "Feature gating";
 
   // --- AVX disabled (XCR0=0x03: x87+SSE only, no AVX) ---
-  add_ud("VADDPS with AVX disabled", {0xC5, 0xF0, 0x58, 0xC2}, {.rflags = 0x2}, 0x03);
-  add_ud("VPXOR with AVX disabled", {0xC5, 0xF1, 0xEF, 0xC2}, {.rflags = 0x2}, 0x03);
-  add_ud("VMOVDQA with AVX disabled", {0xC5, 0xF9, 0x6F, 0xC1}, {.rflags = 0x2}, 0x03);
+  add_ud("VADDPS with AVX disabled", {0xC5, 0xF0, 0x58, 0xC2}, {}, 0x03);
+  add_ud("VPXOR with AVX disabled", {0xC5, 0xF1, 0xEF, 0xC2}, {}, 0x03);
+  add_ud("VMOVDQA with AVX disabled", {0xC5, 0xF9, 0x6F, 0xC1}, {}, 0x03);
 
   // --- AVX-512 disabled (XCR0=0x07: x87+SSE+AVX, no opmask/ZMM) ---
   // VPADDD zmm0, zmm1, zmm2  (62 F1 75 48 FE C2)
   add_ud("VPADDD zmm with AVX-512 disabled",
-         {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, {.rflags = 0x2}, 0x07);
+         {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, {}, 0x07);
   // VPXORD zmm0, zmm1, zmm2  (62 F1 75 48 EF C2)
   add_ud("VPXORD zmm with AVX-512 disabled",
-         {0x62, 0xF1, 0x75, 0x48, 0xEF, 0xC2}, {.rflags = 0x2}, 0x07);
+         {0x62, 0xF1, 0x75, 0x48, 0xEF, 0xC2}, {}, 0x07);
 
   // --- CR4.OSXSAVE disabled (0x10620 = 0x50620 without bit 18) ---
   add_ud("VADDPS with OSXSAVE disabled", {0xC5, 0xF0, 0x58, 0xC2},
-         {.rflags = 0x2}, 0xE7, 0x10620);
+         {}, 0xE7, 0x10620);
 
   // --- GPR instructions unaffected by AVX being disabled ---
   {
@@ -49,7 +49,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
     tc.name = "ADD eax,ebx with AVX disabled";
     tc.category = cat;
     tc.code = {0x01, 0xD8};
-    tc.initial = {.rax = 10, .rbx = 20, .rflags = 0x2};
+    tc.initial = {.rax = 10, .rbx = 20};
     tc.flags_mask = FL_ALL;
     tc.xcr0_override = 0x03;
     tests.push_back(std::move(tc));
@@ -75,7 +75,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
       0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
       0x62, 0xe1, 0x7f, 0x29, 0x7f, 0x07,    // vmovdqu8 %ymm16,(%rdi){%k1}
     };
-    tc.initial = {.rdx = 24, .rsi = 0, .rdi = DATA_ADDR, .rflags = 0x2};
+    tc.initial = {.rdx = 24, .rsi = 0, .rdi = DATA_ADDR};
     // Init data: 32 bytes of 0x41
     tc.init_data.assign(32, 0x41);
     // Compare first 32 bytes: 24 zeros + 8 unchanged (0x41)
@@ -102,7 +102,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
       0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
       0x62, 0xf1, 0x7c, 0x09, 0x11, 0x07,    // vmovups %xmm0,(%rdi){%k1}
     };
-    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR};
     tc.init_data.assign(16, 0x42);
     tc.compare_data_len = 16;
     tc.flags_mask = FL_ALL;
@@ -126,7 +126,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
       0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
       0x62, 0xf1, 0x7c, 0x09, 0x29, 0x07,    // vmovaps %xmm0,(%rdi){%k1}
     };
-    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR};
     tc.init_data.assign(16, 0x42);
     tc.compare_data_len = 16;
     tc.flags_mask = FL_ALL;
@@ -152,7 +152,7 @@ void add_feature_tests(std::vector<TestCase> &tests) {
       0xc5, 0xfb, 0x92, 0xc9,                // kmovd %ecx,%k1
       0x62, 0xf2, 0x7e, 0x09, 0x31, 0x07,    // vpmovdb %xmm0,(%rdi){%k1}
     };
-    tc.initial = {.rdi = DATA_ADDR, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR};
     tc.init_data.assign(8, 0x42);
     tc.compare_data_len = 8;
     tc.flags_mask = FL_ALL;

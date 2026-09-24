@@ -26,7 +26,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
 
@@ -37,7 +36,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // PCMPISTRI — implicit-length string compare
   {
     ArchState s;
-    s.rflags = 0x2;
     // "Hello\0\0..." in xmm0
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
     // "Hello\0\0..." in xmm1
@@ -57,7 +55,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // PCMPISTRM — implicit-length string compare, result in XMM0
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
     s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
 
@@ -68,7 +65,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // PCMPESTRI — explicit-length string compare (length in EAX/EDX)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 5;  // length of string in xmm0
     s.rdx = 5;  // length of string in xmm1
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -82,7 +78,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // PCMPESTRM — explicit-length, result in XMM0
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 5;
     s.rdx = 5;
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -95,7 +90,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // CRC32
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0;         // initial CRC
     s.rcx = 0x12345678;
 
@@ -114,7 +108,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
 
@@ -146,28 +139,28 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
 
     // SETcc AL: 0F 9x C0 (mod=11, rm=rax)
-    add("seto al",   {0x0F, 0x90, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // OF=0 → 0
-    add("setno al",  {0x0F, 0x91, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !OF → 1
-    add("setb al",   {0x0F, 0x92, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // CF=0 → 0
-    add("setnb al",  {0x0F, 0x93, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !CF → 1
-    add("sete al",   {0x0F, 0x94, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // ZF=1 → 1
-    add("setne al",  {0x0F, 0x95, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !ZF → 0
-    add("setbe al",  {0x0F, 0x96, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // CF|ZF → 1
-    add("setnbe al", {0x0F, 0x97, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !CF&!ZF → 0
-    add("sets al",   {0x0F, 0x98, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF=1 → 1
-    add("setns al",  {0x0F, 0x99, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !SF → 0
-    add("setp al",   {0x0F, 0x9A, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // PF=1 → 1
-    add("setnp al",  {0x0F, 0x9B, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !PF → 0
-    add("setl al",   {0x0F, 0x9C, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF!=OF → 1
-    add("setnl al",  {0x0F, 0x9D, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF==OF → 0
-    add("setle al",  {0x0F, 0x9E, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // ZF|(SF!=OF) → 1
-    add("setnle al", {0x0F, 0x9F, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !ZF&(SF==OF) → 0
+    add("seto al",   {0x0F, 0x90, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x90 & 0xF)), FL_ALL);  // OF=0 → 0
+    add("setno al",  {0x0F, 0x91, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x91 & 0xF)), FL_ALL);  // !OF → 1
+    add("setb al",   {0x0F, 0x92, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x92 & 0xF)), FL_ALL);  // CF=0 → 0
+    add("setnb al",  {0x0F, 0x93, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x93 & 0xF)), FL_ALL);  // !CF → 1
+    add("sete al",   {0x0F, 0x94, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x94 & 0xF)), FL_ALL);  // ZF=1 → 1
+    add("setne al",  {0x0F, 0x95, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x95 & 0xF)), FL_ALL);  // !ZF → 0
+    add("setbe al",  {0x0F, 0x96, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x96 & 0xF)), FL_ALL);  // CF|ZF → 1
+    add("setnbe al", {0x0F, 0x97, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x97 & 0xF)), FL_ALL);  // !CF&!ZF → 0
+    add("sets al",   {0x0F, 0x98, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x98 & 0xF)), FL_ALL);  // SF=1 → 1
+    add("setns al",  {0x0F, 0x99, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x99 & 0xF)), FL_ALL);  // !SF → 0
+    add("setp al",   {0x0F, 0x9A, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9A & 0xF)), FL_ALL);  // PF=1 → 1
+    add("setnp al",  {0x0F, 0x9B, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9B & 0xF)), FL_ALL);  // !PF → 0
+    add("setl al",   {0x0F, 0x9C, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9C & 0xF)), FL_ALL);  // SF!=OF → 1
+    add("setnl al",  {0x0F, 0x9D, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9D & 0xF)), FL_ALL);  // SF==OF → 0
+    add("setle al",  {0x0F, 0x9E, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9E & 0xF)), FL_ALL);  // ZF|(SF!=OF) → 1
+    add("setnle al", {0x0F, 0x9F, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9F & 0xF)), FL_ALL);  // !ZF&(SF==OF) → 0
 
     // Second set with different flags: CF=1, ZF=0, SF=0, OF=1
     s.rflags = 0x2 | FL_CF | FL_OF;
-    add("seto al (OF=1)",  {0x0F, 0x90, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
-    add("setb al (CF=1)",  {0x0F, 0x92, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
-    add("setl al (SF=OF)", {0x0F, 0x9C, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF=0,OF=1 → 1
+    add("seto al (OF=1)",  {0x0F, 0x90, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x90 & 0xF)), FL_ALL);
+    add("setb al (CF=1)",  {0x0F, 0x92, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x92 & 0xF)), FL_ALL);
+    add("setl al (SF=OF)", {0x0F, 0x9C, 0xC0}, with_flag_inputs(with_gpr_inputs(s, {}), condition_flags_mask(0x9C & 0xF)), FL_ALL);  // SF=0,OF=1 → 1
   }
 
   // =====================================================================
@@ -182,25 +175,25 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // CMOVcc RAX, RBX: 48 0F 4x C3
     add("cmovnb rax,rbx",  {0x48, 0x0F, 0x43, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !CF → taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x43 & 0xF)), FL_ALL);  // !CF → taken
     add("cmovne rax,rbx",  {0x48, 0x0F, 0x45, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !ZF → not taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x45 & 0xF)), FL_ALL);  // !ZF → not taken
     add("cmovbe rax,rbx",  {0x48, 0x0F, 0x46, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // CF|ZF → taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x46 & 0xF)), FL_ALL);  // CF|ZF → taken
     add("cmova rax,rbx",   {0x48, 0x0F, 0x47, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !CF&!ZF → not taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x47 & 0xF)), FL_ALL);  // !CF&!ZF → not taken
     add("cmovs rax,rbx",   {0x48, 0x0F, 0x48, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // SF → taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x48 & 0xF)), FL_ALL);  // SF → taken
     add("cmovns rax,rbx",  {0x48, 0x0F, 0x49, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !SF → not taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x49 & 0xF)), FL_ALL);  // !SF → not taken
     add("cmovp rax,rbx",   {0x48, 0x0F, 0x4A, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // PF → taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x4A & 0xF)), FL_ALL);  // PF → taken
     add("cmovnp rax,rbx",  {0x48, 0x0F, 0x4B, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !PF → not taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x4B & 0xF)), FL_ALL);  // !PF → not taken
     add("cmovge rax,rbx",  {0x48, 0x0F, 0x4D, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // SF==OF → not taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x4D & 0xF)), FL_ALL);  // SF==OF → not taken
     add("cmovle rax,rbx",  {0x48, 0x0F, 0x4E, 0xC3},
-        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // ZF|(SF!=OF) → taken
+        with_flag_inputs(with_gpr_inputs(s, {&ArchState::rbx}), condition_flags_mask(0x4E & 0xF)), FL_ALL);  // ZF|(SF!=OF) → taken
   }
 
   // =====================================================================
@@ -213,7 +206,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rax = 0xDEADBEEFCAFEBABE;
     s.rbx = 0;
     s.rsp = 0x20000;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     // PUSH RAX (50); POP RBX (5B)
     add("push rax; pop rbx", {0x50, 0x5B}, with_gpr_inputs(s, {&ArchState::rax}), FL_ALL);
 
@@ -233,7 +226,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     ArchState s;
     s.rsp = 0x1FF00;
     s.rbp = 0x1FFF0;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     // Use PUSH/LEAVE sequence: PUSH saves RBP on stack, then LEAVE restores it.
     // PUSH RBP (55); MOV RBP,RSP (48 89 E5); LEAVE (C9)
     add("push rbp; mov rbp,rsp; leave", {0x55, 0x48, 0x89, 0xE5, 0xC9}, s, FL_ALL);
@@ -249,7 +242,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     ArchState s;
     s.rax = 0;
     s.rcx = 3;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     // INC RAX; LOOP -5 (back to INC)
     add("loop rcx=3", {0x48, 0xFF, 0xC0, 0xE2, 0xFB}, s, FL_ALL);
 
@@ -274,7 +267,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rdx = 0x88776655;
     s.rbx = 0xDDCCBBAA;
     s.rcx = 0x11223344;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     u8 val[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
     add_mem("cmpxchg8b match", {0x0F, 0xC7, 0x0F}, s, FL_ALL,
             {val, val + 8}, 8);
@@ -295,7 +288,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     ArchState s;
     s.rdi = DATA_ADDR;
     s.rax = 0xDEADBEEF12345678;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     add_mem("movnti [rdi],eax", {0x0F, 0xC3, 0x07}, s, FL_ALL, {}, 4);
 
     // MOVNTI [RDI], RAX: 48 0F C3 07
@@ -326,7 +319,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       // MOVDIR64B RAX, [RDI]: 66 0F 38 F8 07
       // reg=RAX holds destination address, r/m=[RDI] is source
       ArchState s2;
-      s2.rflags = 0x2;
       s2.rdi = DATA_ADDR;         // source
       s2.rax = DATA_ADDR + 0x80;  // destination (64-byte aligned)
 
@@ -347,7 +339,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // STMXCSR [RDI]: 0F AE 1F (mod=00, reg=3, rm=rdi)
     ArchState s;
     s.rdi = DATA_ADDR;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     add_mem("stmxcsr [rdi]", {0x0F, 0xAE, 0x1F}, s, FL_ALL, {}, 4);
 
     // LDMXCSR [RDI]: 0F AE 17 (mod=00, reg=2, rm=rdi)
@@ -374,7 +366,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   {
     ArchState s;
     s.rax = 42;
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     // LFENCE: 0F AE E8
     add("lfence", {0x0F, 0xAE, 0xE8}, with_gpr_inputs(s, {}), FL_ALL);
     // MFENCE: 0F AE F0
@@ -390,7 +382,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "SSE3";
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
@@ -411,7 +402,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 2.5);
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
 
@@ -434,7 +424,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "SSE4.1v";
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
     // XMM0 is implicit mask for BLENDVPS
@@ -462,7 +451,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   {
     // PHMINPOSUW XMM0, XMM1: 66 0F 38 41 C1
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0x0005000300070001, 0x0009000200040008);
     add_xmm("phminposuw xmm0,xmm1", {0x66, 0x0F, 0x38, 0x41, 0xC1}, s, 0x3);
   }
@@ -473,7 +461,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "MOVxPS";
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -510,8 +497,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "String";
   {
     // REP STOSB: fill RCX bytes at [RDI] with AL
-    ArchState s;
-    s.rflags = 0x2;  // DF=0 (forward)
+    ArchState s;  // DF=0 (forward)
     s.rdi = DATA_ADDR;
     s.rax = 0x42;
     s.rcx = 8;
@@ -571,7 +557,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "EMMS";
   {
     ArchState s;
-    s.rflags = 0x2;
     // EMMS: 0F 77
     add("emms", {0x0F, 0x77}, s, FL_ALL);
 
@@ -589,7 +574,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (sets tag valid)
          0x0F, 0x77,              // EMMS (should set all tags empty)
          0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
-        with_xsave_vector_inputs({.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2}, 0x2),
+        with_xsave_vector_inputs({.rax = 0x42, .rdi = DATA_ADDR}, 0x2),
         FL_ALL, 0, false, init_data, 512});
     }
   }
@@ -600,7 +585,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "SSE4.1v";
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     // 16 bytes of test data (aligned)
     u8 data[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -617,7 +601,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     // Use an 8x8 identity-like matrix in XMM1 and some data in XMM0
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x8040201008040201, 0x8040201008040201);
@@ -643,7 +626,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x6A09E667BB67AE85, 0x3C6EF372A54FF53A);
     s.xmm[1] = xmm_from_u64(0x510E527F9B05688C, 0x1F83D9AB5BE0CD19);
     s.xmm[2] = xmm_from_u64(0x428A2F9871374491, 0xB5C0FBCFE9B5DBA5);
@@ -692,7 +674,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // F3 REX.W 0F AE /0 = RDFSBASE r64 (F3 48 0F AE C0: mod=11, reg=000, rm=000=RAX)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rbx = 0x00007F0012345678;  // canonical user-space address
       add("rdfsbase64 round-trip",
           {0xF3, 0x48, 0x0F, 0xAE, 0xD3,   // WRFSBASE RBX
@@ -705,7 +686,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // F3 0F AE /0 = RDFSBASE r32 (F3 0F AE C0)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rbx = 0xDEADBEEF;  // only low 32 bits used
       add("rdfsbase32 round-trip",
           {0xF3, 0x0F, 0xAE, 0xD3,   // WRFSBASE EBX
@@ -718,7 +698,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // F3 REX.W 0F AE /1 = RDGSBASE r64 (F3 48 0F AE C8: reg=001, rm=000=RAX)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rbx = 0x00007FFF87654321;
       add("rdgsbase64 round-trip",
           {0xF3, 0x48, 0x0F, 0xAE, 0xDB,   // WRGSBASE RBX
@@ -729,7 +708,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // WRGSBASE EBX; RDGSBASE EAX — 32-bit GS round-trip
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rbx = 0xCAFEBABE;
       add("rdgsbase32 round-trip",
           {0xF3, 0x0F, 0xAE, 0xDB,   // WRGSBASE EBX
@@ -754,7 +732,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 3;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       s.xmm[0].lo = 0x1234567890ABCDEF;
       s.xmm[0].hi = 0xFEDCBA0987654321;
       s.xmm[1].lo = 0xAAAABBBBCCCCDDDD;
@@ -783,7 +761,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 2;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       s.xmm[0].lo = 0xCAFEBABE12345678;
       s.xmm[0].hi = 0x9876543210FEDCBA;
       s.xmm[5].lo = 0xDEADBEEFDEADBEEF;
@@ -812,7 +790,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 3;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       std::vector<u8> init_data(576, 0);
       // FCW = 0x037F
       init_data[0] = 0x7F;
@@ -849,7 +827,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 3;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       std::vector<u8> init_data(576, 0);
       // XSTATE_BV = 0 (all init)
       TestCase tc;
@@ -869,7 +847,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 3;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       std::vector<u8> init_data(576, 0);
       init_data[0] = 0x7F;
       init_data[1] = 0x03;
@@ -897,7 +875,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.rax = 3;
       s.rdx = 0;
       s.rdi = DATA_ADDR;
-      s.rflags = 0x2;
+      s.rflags = initial_flags();
       s.xmm[8].lo = 0x8888888888888888;
       s.xmm[8].hi = 0x9999999999999999;
       s.xmm[15].lo = 0xAAAAAAAAAAAAAAAA;
@@ -937,7 +915,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1101,L=0,pp=00 → 0x68
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0xDEADBEEF12345678;
       s.rdx = 16;
       // 32-bit: eax = ecx[31:0] with bits above 16 cleared = 0x5678
@@ -948,7 +925,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // BZHI with zero index → result=0, ZF=1
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0xFFFFFFFF;
       s.rdx = 0;
       tests.push_back({"bzhi eax,ecx,edx bit0", cat,
@@ -959,7 +935,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // W=1: byte2 = 0b1_1101_0_00 = 0xE8
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0xFFFFFFFFFFFFFFFF;
       s.rdx = 32;
       tests.push_back({"bzhi rax,rcx,rdx bit32", cat,
@@ -969,7 +944,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // BZHI with index >= operand size → CF=1, result unchanged
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 40;  // >= 32 for W0
       tests.push_back({"bzhi eax,ecx,edx overflow", cat,
@@ -983,7 +957,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1110,L=0,pp=11(F2) → 0x73
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x000000FF;  // source bits
       s.rdx = 0x55555555;  // mask: every other bit
       tests.push_back({"pdep eax,ecx,edx", cat,
@@ -992,7 +965,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // PDEP 64-bit
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x00000000000000FF;
       s.rdx = 0x5555555555555555;
       // W=1: byte2 = 0b1_1110_0_11 = 0xF3
@@ -1005,7 +977,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1110,L=0,pp=10(F3) → 0x72
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0xAAAAAAAA;  // source
       s.rdx = 0x55555555;  // mask: every other bit
       tests.push_back({"pext eax,ecx,edx", cat,
@@ -1014,7 +985,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // PEXT 64-bit
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0xAAAAAAAAAAAAAAAA;
       s.rdx = 0x5555555555555555;
       // W=1: byte2 = 0b1_1110_0_10 = 0xF2
@@ -1030,7 +1000,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Implicit src1 = EDX
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rdx = 100;
       s.rcx = 200;
       tests.push_back({"mulx ebx,eax,ecx 100*200", cat,
@@ -1039,7 +1008,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // MULX with large values to produce high part
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rdx = 0xFFFFFFFF;
       s.rcx = 0xFFFFFFFF;
       tests.push_back({"mulx ebx,eax,ecx max32", cat,
@@ -1048,7 +1016,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // MULX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rdx = 0x100000000;
       s.rcx = 0x100000000;
       tests.push_back({"mulx rbx,rax,rcx 64", cat,
@@ -1061,7 +1028,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1101,L=0,pp=10(F3) → 0x6A
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x80000000;  // negative when treated as signed 32-bit
       s.rdx = 4;
       tests.push_back({"sarx eax,ecx,edx", cat,
@@ -1073,7 +1039,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1101,L=0,pp=01(66) → 0x69
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 8;
       tests.push_back({"shlx eax,ecx,edx", cat,
@@ -1085,7 +1050,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // byte2: W=0,vvvv=1101,L=0,pp=11(F2) → 0x6B
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x12345678;
       s.rdx = 8;
       tests.push_back({"shrx eax,ecx,edx", cat,
@@ -1095,7 +1059,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // SARX 64-bit: W=1, byte2 = 0b1_1101_0_10 = 0xEA
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x8000000000000000;
       s.rdx = 16;
       tests.push_back({"sarx rax,rcx,rdx 64", cat,
@@ -1105,7 +1068,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // SHLX 64-bit: W=1, byte2 = 0b1_1101_0_01 = 0xE9
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x0000000000000001;
       s.rdx = 63;
       tests.push_back({"shlx rax,rcx,rdx 64", cat,
@@ -1115,7 +1077,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // SHRX 64-bit: W=1, byte2 = 0b1_1101_0_11 = 0xEB
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x8000000000000000;
       s.rdx = 32;
       tests.push_back({"shrx rax,rcx,rdx 64", cat,
@@ -1128,7 +1089,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // reg=0(eax dest), rm=1(ecx src), imm=4
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x12345678;
       tests.push_back({"rorx eax,ecx,4", cat,
                        {0xC4, 0xE3, 0x7B, 0xF0, 0xC1, 0x04}, s, FL_ALL});
@@ -1136,7 +1096,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // RORX 64-bit: W=1, byte2 = 0b1_1111_0_11 = 0xFB
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rcx = 0x123456789ABCDEF0;
       tests.push_back({"rorx rax,rcx,8 64", cat,
                        {0xC4, 0xE3, 0xFB, 0xF0, 0xC1, 0x08}, s, FL_ALL});
@@ -1154,7 +1113,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xFF, 0xE0};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rax = CODE_ADDR + 2;  // target = after JMP
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1167,7 +1126,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xFF, 0xE0, 0xCC, 0xCC};  // JMP rax, INT3, INT3
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rax = CODE_ADDR + 4;  // skip the INT3 bytes
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1180,7 +1139,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xFF, 0x27, 0xCC, 0xCC};  // JMP [rdi], INT3, INT3
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       // [DATA_ADDR] = CODE_ADDR + 4 (skip JMP and INT3s)
       u64 target = CODE_ADDR + 4;
@@ -1199,7 +1158,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xFF, 0xD0};  // CALL rax
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rax = CODE_ADDR + 2;  // target = right after CALL (then HLT)
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1212,7 +1171,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xFF, 0x17, 0xCC, 0xCC};  // CALL [rdi], INT3, INT3
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       u64 target2 = CODE_ADDR + 4;
       tc.init_data.resize(8);
@@ -1234,7 +1193,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0xF4,                 // 5: HLT (stop after return)
                  0xC3};                // 6: RET (target of CALL)
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rax = CODE_ADDR + 6;  // point to the RET
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1252,7 +1211,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     };
 
     ArchState s;
-    s.rflags = 0x2;
     s.mxcsr = 0x1F80;  // default MXCSR
 
     // CVTPS2PD xmm0, xmm1: 0F 5A C1 (convert 2 floats → 2 doubles)
@@ -1336,7 +1294,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xFF, 0x37,  // push qword [rdi]
                  0x58};        // pop rax
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       u64 val = 0xDEADBEEFCAFEBABEULL;
       tc.init_data.resize(8);
@@ -1354,7 +1312,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0x50,         // push rax
                  0x8F, 0x07};  // pop qword [rdi]
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0x123456789ABCDEF0ULL;
       tc.flags_mask = FL_ALL;
@@ -1372,7 +1330,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0x66, 0x68, 0x34, 0x12,  // push 0x1234
                  0x66, 0x58};               // pop ax (16-bit)
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
@@ -1386,7 +1344,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0x6A, 0xFF,  // push -1 (sign-extended to 64-bit)
                  0x58};        // pop rax
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
@@ -1400,7 +1358,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0x68, 0x00, 0x00, 0x00, 0x80,  // push 0x80000000
                  0x58};                            // pop rax
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
@@ -1418,7 +1376,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x01, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0x100;
       tc.init_data = {0x34, 0x12, 0x00, 0x00};  // [rdi] = 0x1234
@@ -1434,7 +1392,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x48, 0x01, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0x1000000000ULL;
       tc.init_data = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00};
@@ -1450,7 +1408,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x29, 0x0F};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rcx = 1;
       tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 - 1 = underflow
@@ -1466,7 +1424,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x09, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0xFF00FF00;
       tc.init_data = {0x0F, 0x0F, 0x0F, 0x0F};
@@ -1482,7 +1440,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x21, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0xFF00FF00;
       tc.init_data = {0xAB, 0xCD, 0xEF, 0x12};
@@ -1498,7 +1456,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x31, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0xFFFFFFFF;
       tc.init_data = {0xAA, 0x55, 0xAA, 0x55};
@@ -1514,7 +1472,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0xFF, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.init_data = {0xFF, 0xFF, 0xFF, 0x7F};  // 0x7FFFFFFF → overflow
       tc.flags_mask = FL_ALL;
@@ -1529,7 +1487,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0xFF, 0x0F};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.init_data = {0x00, 0x00, 0x00, 0x00};  // 0 → underflow
       tc.flags_mask = FL_ALL;
@@ -1545,7 +1503,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x0F, 0xC1, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 10;
       tc.init_data = {0x05, 0x00, 0x00, 0x00};  // [rdi] = 5
@@ -1562,7 +1520,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x0F, 0xAB, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 3;  // set bit 3
       tc.init_data = {0x00, 0x00, 0x00, 0x00};  // bit 3 was 0
@@ -1579,7 +1537,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x0F, 0xB3, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 7;  // reset bit 7
       tc.init_data = {0xFF, 0x00, 0x00, 0x00};  // bit 7 was 1
@@ -1596,7 +1554,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xF0, 0x0F, 0xBB, 0x07};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rdi = DATA_ADDR;
       tc.initial.rax = 0;  // toggle bit 0
       tc.init_data = {0x01, 0x00, 0x00, 0x00};  // bit 0 was 1 → 0
@@ -1617,7 +1575,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     };
 
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
 
     // 66 0F D6 C8: MOVQ xmm0, xmm1 (reg-reg: store low qword of xmm1 to xmm0, zero upper)
@@ -1639,7 +1596,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     };
 
     ArchState s;
-    s.rflags = 0x2;
 
     // Set up k1=0xAAAA, k2=0x5555 via KMOVW from GPR
     // We pre-load k-registers using KMOV r32->k then do the operation and read back with KMOV k->r32
@@ -1710,7 +1666,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x41, 0xDA,   // kandw k3, k1, k2
                  0xC5, 0xF8, 0x93, 0xC3};   // kmovw eax, k3
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xAAAA;
       tc.initial.kregs[2] = 0x5555;
       tc.flags_mask = FL_ALL;
@@ -1725,7 +1681,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x41, 0xDA,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x0FF0;
       tc.flags_mask = FL_ALL;
@@ -1740,7 +1696,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x45, 0xDA,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xAAAA;
       tc.initial.kregs[2] = 0x5555;
       tc.flags_mask = FL_ALL;
@@ -1755,7 +1711,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x47, 0xDA,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xFFFF;
       tc.initial.kregs[2] = 0x00FF;
       tc.flags_mask = FL_ALL;
@@ -1771,7 +1727,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x42, 0xDA,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x0FF0;
       tc.flags_mask = FL_ALL;
@@ -1787,7 +1743,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF4, 0x46, 0xDA,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xFF00;
       tc.initial.kregs[2] = 0x00FF;
       tc.flags_mask = FL_ALL;
@@ -1803,7 +1759,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xF8, 0x44, 0xD9,
                  0xC5, 0xF8, 0x93, 0xC3};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xAAAA;
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1821,7 +1777,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0xC5, 0xF5, 0x4B, 0xDA,   // kunpckbw k3, k1, k2 (VEX.L1.66.0F.W0)
                  0xC5, 0xF8, 0x93, 0xC3};  // kmovw eax, k3
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.rax = 0xAB;
       tc.initial.rdx = 0xCD;
       tc.flags_mask = FL_ALL;
@@ -1839,7 +1795,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0xC5, 0xF8, 0x90, 0x0F,   // kmovw k1, [rdi]
                  0xC5, 0xF8, 0x93, 0xC1};  // kmovw eax, k1
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.init_data = {0x34, 0x12};  // 0x1234 in little-endian
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1854,7 +1810,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, DATA_ADDR
                  0xC5, 0xF8, 0x91, 0x0F};  // kmovw [rdi], k1
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[1] = 0xBEEF;
       tc.flags_mask = FL_ALL;
       tc.compare_data_len = 2;
@@ -1872,7 +1828,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xC4, 0xE1, 0xED, 0x41, 0xD2};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[2] = 0x00000000FFFF0000;
       tc.flags_mask = FL_ALL;
       tc.kreg_mask = (1 << 2);
@@ -1886,7 +1842,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.category = cat;
       tc.code = {0xC5, 0xFB, 0x93, 0xC2};
       tc.initial = {};
-      tc.initial.rflags = 0x2;
+      tc.initial.rflags = initial_flags();
       tc.initial.kregs[2] = 0x12345678;
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1899,7 +1855,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   cat = "Vec stores";
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
 
