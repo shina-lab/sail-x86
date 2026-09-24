@@ -1684,4 +1684,150 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       tests.push_back(std::move(tc));
     }
   }
+
+  // Instructions that exist only outside 64-bit mode.  The guest's segment
+  // registers hold CS=0x48 (32-bit code) and 0x10 (flat data) elsewhere; the
+  // GDT also offers 0x38 (read-only data), 0x40 (execute-only code), 0x08
+  // (64-bit code), 0x18 (the TSS), and 0x53/0x5B (user code/data).
+  auto add_fault = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                       int vec) {
+    TestCase tc;
+    tc.name = name;
+    tc.category = cat;
+    tc.code = std::move(code);
+    tc.initial = init;
+    tc.expect_fault = true;
+    tc.expected_vector = vec;
+    tc.compat_mode = true;
+    tests.push_back(std::move(tc));
+  };
+
+  // =====================================================================
+  // PUSH/POP of segment registers (06/07, 0E, 16/17, 1E/1F)
+  // =====================================================================
+  cat = "Compat segment push/pop";
+  {
+    struct { const char *name; u8 op; } pushes[] = {
+      {"es", 0x06}, {"cs", 0x0E}, {"ss", 0x16}, {"ds", 0x1E},
+    };
+    for (auto &p : pushes) {
+      // A 32-bit push may write the selector as a 16-bit move; the stack
+      // page starts zeroed, so popping it back reads the same value either
+      // way, and ESP shows the slot size.
+      add(std::format("compat push {}", p.name), {p.op}, ArchState{});
+      add(std::format("compat push {}; pop eax", p.name), {p.op, 0x58}, ArchState{});
+      add(std::format("compat push {} (66h); pop ax", p.name), {0x66, p.op, 0x66, 0x58}, ArchState{});
+    }
+    // POP loads the selector; MOV r32,Sreg reads it back
+    add("compat push 0x38; pop es; mov eax,es", {0x68, 0x38, 0x00, 0x00, 0x00, 0x07, 0x8C, 0xC0}, ArchState{});
+    add("compat push 0x38; pop ds; mov eax,ds", {0x68, 0x38, 0x00, 0x00, 0x00, 0x1F, 0x8C, 0xD8}, ArchState{});
+    add("compat push 0x10; pop ss; mov eax,ss", {0x68, 0x10, 0x00, 0x00, 0x00, 0x17, 0x8C, 0xD0}, ArchState{});
+    add("compat push 0x5b; pop es; mov eax,es", {0x68, 0x5B, 0x00, 0x00, 0x00, 0x07, 0x8C, 0xC0}, ArchState{});
+    add("compat push 0; pop es (null); mov eax,es", {0x6A, 0x00, 0x07, 0x8C, 0xC0}, ArchState{});
+    add("compat push 0; pop ds (null); mov eax,ds", {0x6A, 0x00, 0x1F, 0x8C, 0xD8}, ArchState{});
+    add("compat push 0x38 (66h); pop ds (66h); mov eax,ds",
+        {0x66, 0x68, 0x38, 0x00, 0x66, 0x1F, 0x8C, 0xD8}, ArchState{});
+    add("compat push 0x10 (66h); pop ss (66h); mov eax,ss",
+        {0x66, 0x68, 0x10, 0x00, 0x66, 0x17, 0x8C, 0xD0}, ArchState{});
+    // A pop into SS is followed by a memory access through the new stack
+    add("compat pop ss; push eax; pop ebx",
+        {0x68, 0x10, 0x00, 0x00, 0x00, 0x17, 0x50, 0x5B}, ArchState{.rax = 0x12345678});
+  }
+
+  // =====================================================================
+  // PUSHA/PUSHAD and POPA/POPAD (60/61)
+  // =====================================================================
+  cat = "Compat PUSHA/POPA";
+  {
+    ArchState s;
+    s.rax = 0x11111111; s.rcx = 0x22222222; s.rdx = 0x33333333; s.rbx = 0x44444444;
+    s.rbp = 0x55555555; s.rsi = 0x66666666; s.rdi = 0x77777777;
+    add("compat pushad", {0x60}, s);
+    // The pops reveal the push order: EDI is on top, then ESI, EBP, the
+    // original ESP, EBX, EDX, ECX (EAX stays on the stack).
+    add("compat pushad; pop eax,ecx,edx,ebx,ebp,esi,edi",
+        {0x60, 0x58, 0x59, 0x5A, 0x5B, 0x5D, 0x5E, 0x5F}, s);
+    add("compat pushad; popad", {0x60, 0x61}, s);
+    add("compat pushaw", {0x66, 0x60}, s);
+    add("compat pushaw; pop ax,cx,dx,bx,bp,si,di",
+        {0x66, 0x60, 0x66, 0x58, 0x66, 0x59, 0x66, 0x5A, 0x66, 0x5B,
+         0x66, 0x5D, 0x66, 0x5E, 0x66, 0x5F}, s);
+    add("compat pushaw; popaw", {0x66, 0x60, 0x66, 0x61}, s);
+    // POPAD from eight pushed immediates: EDI=8th... the fourth (ESP) is skipped
+    std::vector<u8> code;
+    for (u32 v = 1; v <= 8; v++)
+      code.insert(code.end(), {0x68, u8(v), u8(v << 4), u8(v << 4 | v), u8(0xA0 + v)});
+    code.push_back(0x61);
+    add("compat push x8; popad", code, ArchState{});
+    std::vector<u8> code16;
+    for (u32 v = 1; v <= 8; v++)
+      code16.insert(code16.end(), {0x66, 0x68, u8(v), u8(0xB0 + v)});
+    code16.insert(code16.end(), {0x66, 0x61});
+    add("compat push x8 (66h); popaw", code16, ArchState{});
+  }
+
+  // =====================================================================
+  // Far JMP and far CALL with an immediate pointer (EA, 9A).  The 7-byte
+  // instruction is followed by the harness's HLT at CODE_ADDR + 7, or by
+  // "inc eax" (40) which in 64-bit code is a REX prefix on the HLT: the
+  // increment therefore shows whether the new CS kept 32-bit mode.
+  // =====================================================================
+  cat = "Compat far transfer";
+  {
+    auto ptr = [](u8 op, u32 off, u16 sel) {
+      return std::vector<u8>{op, u8(off), u8(off >> 8), u8(off >> 16), u8(off >> 24), u8(sel), u8(sel >> 8)};
+    };
+    auto with_inc = [](std::vector<u8> v) { v.push_back(0x40); return v; };
+    ArchState s;
+    s.rax = 0x10;
+    add("compat jmp far 0x48:hlt", ptr(0xEA, CODE_ADDR + 7, 0x48), s);
+    add("compat jmp far 0x48:inc eax", with_inc(ptr(0xEA, CODE_ADDR + 7, 0x48)), s);
+    add("compat call far 0x48:hlt", ptr(0x9A, CODE_ADDR + 7, 0x48), s);
+    add("compat call far 0x48:inc eax", with_inc(ptr(0x9A, CODE_ADDR + 7, 0x48)), s);
+    // Entering 64-bit code: the model switches on CS.L only under
+    // EFER.LMA, which run_sail sets (with the guest's CR0 and CR3) for
+    // paging-enabled tests.
+    for (u8 op : {u8(0xEA), u8(0x9A)}) {
+      TestCase tc;
+      tc.name = std::format("compat {} far 0x08:inc eax (enters 64-bit code)", op == 0xEA ? "jmp" : "call");
+      tc.category = cat;
+      tc.code = with_inc(ptr(op, CODE_ADDR + 7, 0x08));
+      tc.initial = s;
+      tc.compat_mode = true;
+      tc.enable_paging = true;
+      tests.push_back(std::move(tc));
+    }
+    // call far to a callee that returns with RETF; the caller then runs on
+    //   0: 9A <+10> 48 00   7: 40 (inc eax)   8: EB 02 (to the HLT at 12)
+    //  10: 40 (inc eax)    11: CB (retf)
+    {
+      std::vector<u8> code = ptr(0x9A, CODE_ADDR + 10, 0x48);
+      code.insert(code.end(), {0x40, 0xEB, 0x02, 0x40, 0xCB});
+      add("compat call far 0x48; retf; inc eax", code, s);
+    }
+    // the far pointer's selector is checked before anything is pushed
+    add_fault("compat jmp far null selector #GP(0)", ptr(0xEA, CODE_ADDR + 7, 0x0000), s, 13);
+    add_fault("compat jmp far 0x10 (data segment) #GP", ptr(0xEA, CODE_ADDR + 7, 0x10), s, 13);
+    add_fault("compat jmp far 0x100 (beyond GDT) #GP", ptr(0xEA, CODE_ADDR + 7, 0x100), s, 13);
+    add_fault("compat call far null selector #GP(0)", ptr(0x9A, CODE_ADDR + 7, 0x0000), s, 13);
+    add_fault("compat call far 0x10 (data segment) #GP", ptr(0x9A, CODE_ADDR + 7, 0x10), s, 13);
+  }
+
+  // =====================================================================
+  // INTO (CE) and SALC (D6)
+  // =====================================================================
+  cat = "Compat INTO/SALC";
+  {
+    ArchState s;
+    s.rflags = initial_flags(FL_OF, 0);
+    add("compat into OF=0", {0xCE}, s);
+    ArchState t;
+    t.rflags = initial_flags(FL_OF, FL_OF);
+    add_fault("compat into OF=1 #OF", {0xCE}, t, 4);
+    for (int cf = 0; cf <= 1; cf++) {
+      ArchState c;
+      c.rflags = initial_flags(FL_CF, cf ? FL_CF : 0);
+      add(std::format("compat salc CF={}", cf), {0xD6}, c);
+    }
+  }
 }
