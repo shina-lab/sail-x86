@@ -692,7 +692,8 @@ function decode_execute() = {
         let al_final : byte = al1 + (0x60 & sign_extend(cond2));
         CF = cond2[0];
         v(RAX) = al_final;
-        update_SF_ZF_PF(al_final)
+        update_SF_ZF_PF(al_final);
+        OF = undefined
       },
 
       // 2F: DAS — Decimal Adjust AL After Subtraction (SDM Vol.2A)
@@ -710,7 +711,8 @@ function decode_execute() = {
         let al_final : byte = al1 - (0x60 & sign_extend(cond2));
         CF = (cond2 | (cond1 & (old_cf | borrow1[4])))[0];
         v(RAX) = al_final;
-        update_SF_ZF_PF(al_final)
+        update_SF_ZF_PF(al_final);
+        OF = undefined
       },
 
       // 37: AAA — ASCII Adjust After Addition (SDM Vol.2A)
@@ -724,6 +726,10 @@ function decode_execute() = {
         AF = cond[0];
         CF = cond[0];
         v(RAX) = new_ax[7..0] & 0x0F;
+        OF = undefined;
+        SF = undefined;
+        ZF = undefined;
+        PF = undefined;
       },
 
       // 3F: AAS — ASCII Adjust AL After Subtraction (SDM Vol.2A)
@@ -737,6 +743,10 @@ function decode_execute() = {
         AF = cond[0];
         CF = cond[0];
         v(RAX) = new_ax[7..0] & 0x0F;
+        OF = undefined;
+        SF = undefined;
+        ZF = undefined;
+        PF = undefined;
       },
 
       // 40-47: INC r32/r16 (compat/protected mode only; REX prefix in 64-bit)
@@ -1647,7 +1657,10 @@ function decode_execute() = {
         let divisor = unsigned(imm);
         assert(divisor > 0);
         v(RAX) = to_bits(8, unsigned(temp_al) / divisor) @ to_bits(8, unsigned(temp_al) % divisor);
-        update_SF_ZF_PF(v(8, RAX))
+        update_SF_ZF_PF(v(8, RAX));
+        OF = undefined;
+        AF = undefined;
+        CF = undefined
       },
 
       // D5: AAD — ASCII Adjust AX Before Division (SDM Vol.2A)
@@ -1659,7 +1672,10 @@ function decode_execute() = {
         let temp_ah = v(16, RAX)[15..8];
         let result : byte = to_bits(8, (unsigned(temp_al) + unsigned(temp_ah) * unsigned(imm)) % 256);
         v(RAX) = 0x00 @ result;
-        update_SF_ZF_PF(result)
+        update_SF_ZF_PF(result);
+        OF = undefined;
+        AF = undefined;
+        CF = undefined
       },
 
       // D6: SALC — Set AL to Carry Flag (undocumented, invalid in 64-bit mode)
