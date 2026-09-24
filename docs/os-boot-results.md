@@ -395,3 +395,39 @@ These are diagnostic test patterns, not OS screenshots. The fixtures print
 `GRAPHICS READY` and deliberately halt with IF clear to trigger capture.
 Their simulator exit status 1 is expected; validation checks the marker
 and the actual PNG pixels.
+
+### linux-apic-02
+
+**Reached the serial `sail#` shell with local APIC, I/O APIC and ACPI enabled.**
+Linux enumerates IOAPIC GSI 0–23, routes the timer through pin 2, reports
+`APIC: Switch to symmetric I/O mode setup`, and uses ACPI IRQ routing.
+The command line contains neither `noapic` nor `nolapic`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name linux-apic-02 --timeout 1800 --expect 'sail# ' -- build/system-emu/sail-x86-system -ips 20 -m 64 -b build/bios.bin -cdrom build/os-boot/linux-apic.iso -boot d
+```
+
+Wall time: **1135.057 s**. Instructions: **175,907,340**.
+
+Last serial output:
+
+```text
+microcode: Current revision: 0x00000000
+IPI shorthand broadcast: enabled
+sched_clock: Marking stable (16160969400, 10641050)->(6478759450, 9692851000)
+Freeing unused kernel image (initmem) memory: 736K
+Write protecting the kernel read-only data: 8192k
+Freeing unused kernel image (text/rodata gap) memory: 1404K
+Freeing unused kernel image (rodata/data gap) memory: 1292K
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# 
+```
