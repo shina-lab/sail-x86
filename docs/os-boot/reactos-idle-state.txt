@@ -53,14 +53,14 @@ ReactOS pre-fix idle state after setup process termination (reactos-stall-trace-
   RTC index=09 A=2d B=02 C=50 D=80 time=12:06:17 ticks=12373791 second=377
   IDE channel 1f0 selected=0 IRQ=0 pending=0
   IDE 1f0.0 kind=1 cmd=ec at=168979586712 ns status=40 error=00 features=00 count=00 lba=000000 dh=a0 nIEN=1 IRQ=0 pending=0
-    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=6172 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=6172 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
   IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=1 IRQ=0 pending=0
-    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
   IDE channel 170 selected=0 IRQ=0 pending=0
   IDE 170.0 kind=2 cmd=a0 at=377301780716 ns status=40 error=00 features=00 count=03 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
-    phase=idle buffer=2048/2048 block_end=2048 limit=65534 write_lba=0 packet=1 cdb_pos=12 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+    phase=idle buffer=2048/2048 block_end=2048 limit=65534 write_lba=0 packet=1 cdb_pos=12 CDB=00 00 00 00 00 00 00 00 00 00 00 00
   IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
-    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
 
 Last device interactions before this dump:
 ide1: cmd a0 feat=00 count=03 lba=000000 dh=a0 nien=0 at 372278096359 ns
