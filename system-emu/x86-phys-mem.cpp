@@ -254,6 +254,13 @@ void PhysicalMemory::write64(u64 paddr, u64 val) {
 void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
   if (video_read(paddr, buf, len)) return;
   if (apic_read(paddr, buf, len)) return;
+  // BIOS presence does not make ordinary RAM a ROM access. Keep bulk
+  // loads fast while preserving IVT byte handling and device/ROM priority.
+  if (paddr >= 0x400 && paddr < size && len <= size - paddr &&
+      !in_rom(paddr) && (!len || !in_rom(paddr + len - 1))) {
+    memcpy(buf, ram + paddr, len);
+    return;
+  }
   // If ROM is active, read byte-by-byte for regions that may overlap ROM
   if (rom_data) {
     u8 *dst = static_cast<u8 *>(buf);
@@ -262,7 +269,7 @@ void PhysicalMemory::read_bytes(u64 paddr, void *buf, u64 len) const {
     return;
   }
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
-  memcpy(buf, ram + paddr, avail);
+  if (avail) memcpy(buf, ram + paddr, avail);
   memset(static_cast<u8 *>(buf) + avail, 0xFF, len - avail);
 }
 
@@ -271,5 +278,5 @@ void PhysicalMemory::write_bytes(u64 paddr, const void *buf, u64 len) {
   if (apic_write(paddr, buf, len)) return;
   if (rom_data && in_rom(paddr)) return;
   u64 avail = (paddr < size) ? std::min(len, size - paddr) : 0;
-  memcpy(ram + paddr, buf, avail);
+  if (avail) memcpy(ram + paddr, buf, avail);
 }
