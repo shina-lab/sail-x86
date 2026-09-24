@@ -716,24 +716,58 @@ u64 Model::z__f32_to_f64(u64 a) {
 // x87 80-bit FP arithmetic (using host long double)
 // =========================================================================
 
+static void sync_rounding_mode(u64 cw);
+
+// The precision-control field of the x87 control word (SDM Vol.1 §8.1.5.2,
+// Table 8-2) reduces the significand of FADD, FSUB, FMUL, FDIV and FSQRT
+// results to 24 or 53 bits, and the RC field selects the rounding direction
+// (Vol.1 §4.8.4).  The host's x87 unit applies both when its control word
+// carries the guest's PC and RC bits, so the operation runs between two
+// loads of the control word; the volatile accesses keep the compiler from
+// moving it outside that window.
+static inline u16 host_x87_cw() {
+  u16 cw;
+  asm volatile("fnstcw %0" : "=m"(cw));
+  return cw;
+}
+
+static inline void host_x87_set_cw(u16 cw) {
+  asm volatile("fldcw %0" : : "m"(cw) : "memory");
+}
+
+template <class Op>
+static long double f80_arith(u64 guest_cw, long double a, long double b, Op op) {
+  u16 saved = host_x87_cw();
+  host_x87_set_cw((saved & ~0x0F00) | (guest_cw & 0x0F00));  // PC (9:8) and RC (11:10)
+  volatile long double va = a, vb = b;
+  volatile long double r = op(va, vb);
+  host_x87_set_cw(saved);
+  return r;
+}
+
 void Model::z__f80_add(lbits *rop, lbits a, lbits b) {
-  f80_to_lbits(rop, lbits_to_f80(a) + lbits_to_f80(b));
+  f80_to_lbits(rop, f80_arith(zx87_cw, lbits_to_f80(a), lbits_to_f80(b),
+                              [](long double x, long double y) { return x + y; }));
 }
 
 void Model::z__f80_sub(lbits *rop, lbits a, lbits b) {
-  f80_to_lbits(rop, lbits_to_f80(a) - lbits_to_f80(b));
+  f80_to_lbits(rop, f80_arith(zx87_cw, lbits_to_f80(a), lbits_to_f80(b),
+                              [](long double x, long double y) { return x - y; }));
 }
 
 void Model::z__f80_mul(lbits *rop, lbits a, lbits b) {
-  f80_to_lbits(rop, lbits_to_f80(a) * lbits_to_f80(b));
+  f80_to_lbits(rop, f80_arith(zx87_cw, lbits_to_f80(a), lbits_to_f80(b),
+                              [](long double x, long double y) { return x * y; }));
 }
 
 void Model::z__f80_div(lbits *rop, lbits a, lbits b) {
-  f80_to_lbits(rop, lbits_to_f80(a) / lbits_to_f80(b));
+  f80_to_lbits(rop, f80_arith(zx87_cw, lbits_to_f80(a), lbits_to_f80(b),
+                              [](long double x, long double y) { return x / y; }));
 }
 
 void Model::z__f80_sqrt(lbits *rop, lbits a) {
-  f80_to_lbits(rop, sqrtl(lbits_to_f80(a)));
+  f80_to_lbits(rop, f80_arith(zx87_cw, lbits_to_f80(a), 0.0L,
+                              [](long double x, long double) { return sqrtl(x); }));
 }
 
 void Model::z__f80_abs(lbits *rop, lbits a) {
@@ -768,7 +802,12 @@ void Model::z__f80_from_f64(lbits *rop, u64 a) {
   f80_to_lbits(rop, (long double)fa);
 }
 
+// FST/FSTP m32fp and m64fp: "the significand of the value being stored is
+// rounded to the width of the destination (according to the rounding mode
+// specified by the RC field of the FPU control word)" (SDM Vol.2A FST/FSTP,
+// Description).
 u64 Model::z__f80_to_f32(lbits a) {
+  sync_rounding_mode(zx87_cw);
   float fr = (float)lbits_to_f80(a);
   u32 r;
   memcpy(&r, &fr, 4);
@@ -776,6 +815,7 @@ u64 Model::z__f80_to_f32(lbits a) {
 }
 
 u64 Model::z__f80_to_f64(lbits a) {
+  sync_rounding_mode(zx87_cw);
   double fr = (double)lbits_to_f80(a);
   u64 r;
   memcpy(&r, &fr, 8);
@@ -799,35 +839,26 @@ static void sync_rounding_mode(u64 cw) {
   set_rounding((cw >> 10) & 3);
 }
 
-u64 Model::z__f80_to_int32(lbits a) {
-  long double v = lbits_to_f80(a);
-  sync_rounding_mode(zx87_cw);
-  return (u32)(i32)llrintl(v);
+// FIST/FISTP round per the RC field, FISTTP truncates.  A value too large
+// for the destination, an infinity or a NaN is an invalid operation; with
+// #IA masked the integer indefinite 100..00B is stored (SDM Vol.2A
+// FIST/FISTP and FISTTP, Description; Vol.1 §8.2.1).
+static u64 f80_to_int(long double v, int bits, bool trunc, u64 cw) {
+  if (!trunc) sync_rounding_mode(cw);
+  long double r = trunc ? truncl(v) : rintl(v);
+  long double lim = ldexpl(1.0L, bits - 1);
+  u64 mask = bits == 64 ? ~0ULL : (1ULL << bits) - 1;
+  if (__builtin_isnan(v) || !(r >= -lim && r < lim))
+    return (1ULL << (bits - 1)) & mask;
+  return (u64)(i64)r & mask;
 }
 
-u64 Model::z__f80_to_int64(lbits a) {
-  long double v = lbits_to_f80(a);
-  sync_rounding_mode(zx87_cw);
-  return (u64)llrintl(v);
-}
-
-u64 Model::z__f80_to_int32_trunc(lbits a) {
-  return (u32)(i32)lbits_to_f80(a);
-}
-
-u64 Model::z__f80_to_int64_trunc(lbits a) {
-  return (u64)(i64)lbits_to_f80(a);
-}
-
-u64 Model::z__f80_to_int16(lbits a) {
-  long double v = lbits_to_f80(a);
-  sync_rounding_mode(zx87_cw);
-  return (u16)(i16)llrintl(v);
-}
-
-u64 Model::z__f80_to_int16_trunc(lbits a) {
-  return (u16)(i16)lbits_to_f80(a);
-}
+u64 Model::z__f80_to_int32(lbits a) { return f80_to_int(lbits_to_f80(a), 32, false, zx87_cw); }
+u64 Model::z__f80_to_int64(lbits a) { return f80_to_int(lbits_to_f80(a), 64, false, zx87_cw); }
+u64 Model::z__f80_to_int32_trunc(lbits a) { return f80_to_int(lbits_to_f80(a), 32, true, zx87_cw); }
+u64 Model::z__f80_to_int64_trunc(lbits a) { return f80_to_int(lbits_to_f80(a), 64, true, zx87_cw); }
+u64 Model::z__f80_to_int16(lbits a) { return f80_to_int(lbits_to_f80(a), 16, false, zx87_cw); }
+u64 Model::z__f80_to_int16_trunc(lbits a) { return f80_to_int(lbits_to_f80(a), 16, true, zx87_cw); }
 
 // x87 constants
 void Model::z__f80_zzero(lbits *rop, unit) {
@@ -896,6 +927,9 @@ void Model::z__f80_prem1(lbits *rop, lbits a, lbits b) {
 }
 
 void Model::z__f80_round(lbits *rop, lbits a) {
+  // FRNDINT rounds "depending on the current rounding mode (setting of the
+  // RC field of the FPU control word)" (SDM Vol.2A FRNDINT, Description).
+  sync_rounding_mode(zx87_cw);
   f80_to_lbits(rop, rintl(lbits_to_f80(a)));
 }
 

@@ -131,10 +131,41 @@ function x87_mark_empty(phys) = {
 val x87_read_st : int -> fp80
 function x87_read_st(i) = x87_ST[x87_physical(i)]
 
-// Write a value to ST(i).
+// Write a value to ST(i).  The register then holds a number, so it is no
+// longer tagged empty (SDM Vol.1 §8.1.7: the tag indicates whether a
+// register contains a valid number, zero, a special value, or is empty).
 val x87_write_st : (int, fp80) -> unit
 function x87_write_st(i, v) = {
-  x87_ST[x87_physical(i)] = v
+  let phys = x87_physical(i);
+  x87_ST[phys] = v;
+  x87_mark_valid(phys)
+}
+
+// Tag of a non-empty register from its contents (SDM Vol.1 §8.1.7, Figure
+// 8-7): 00 valid, 01 zero, 10 special (NaN, unsupported, infinity, denormal).
+val x87_class_tag : fp80 -> bits(2)
+function x87_class_tag(v) = {
+  let exp : bits(15) = v[78..64];
+  let mant : qword = v[63..0];
+  if exp == zeros() then (if mant == zeros() then 0b01 else 0b10)
+  else if exp == ones() then 0b10
+  else if mant[63] == bitzero then 0b10
+  else 0b00
+}
+
+// The tag word as FSTENV and FSAVE store it: registers tagged empty stay
+// empty, the others are classified from their contents.
+val x87_tag_word : unit -> word
+function x87_tag_word() = {
+  var tw : word = x87_tw;
+  foreach (i from 0 to 7) {
+    let tag : bits(2) = (tw >> (2 * i))[1..0];
+    if tag != 0b11 then {
+      let cleared : word = tw & ~(0x0003 << (2 * i));
+      tw = cleared | (zero_extend(x87_class_tag(x87_ST[i])) << (2 * i))
+    }
+  };
+  tw
 }
 
 // Push a value onto the x87 stack (decrement TOP, write to new ST(0)).
@@ -202,7 +233,7 @@ function x87_save_env() = {
   var buf : bits(224) = zeros();
   buf[15..0] = x87_cw;
   buf[47..32] = x87_sw;
-  buf[79..64] = x87_tw;
+  buf[79..64] = x87_tag_word();
   buf
 }
 
@@ -215,20 +246,23 @@ function x87_load_env(buf) = {
 }
 
 // Save full x87 state (28 bytes env + 8 x 10 bytes regs) as bits(864).
+// The registers follow the environment in stack order: DEST[ST(i)] :=
+// ST(i) (SDM Vol.2A FSAVE/FNSAVE, Operation).
 val x87_save_state : unit -> bits(864)
 function x87_save_state() = {
   var buf : bits(864) = zeros();
   buf[15..0] = x87_cw;
   buf[47..32] = x87_sw;
-  buf[79..64] = x87_tw;
+  buf[79..64] = x87_tag_word();
   foreach (i from 0 to 7) {
     let lo = 224 + i * 80;
-    buf[(lo + 79) .. lo] = x87_ST[i]
+    buf[(lo + 79) .. lo] = x87_read_st(i)
   };
   buf
 }
 
-// Load full x87 state from bits(864).
+// Load full x87 state from bits(864): ST(i) := SRC[ST(i)] (SDM Vol.2A
+// FRSTOR, Operation), relative to the TOP in the loaded status word.
 val x87_load_state : bits(864) -> unit
 function x87_load_state(buf) = {
   x87_cw = buf[15..0];
@@ -236,7 +270,7 @@ function x87_load_state(buf) = {
   x87_tw = buf[79..64];
   foreach (i from 0 to 7) {
     let lo = 224 + i * 80;
-    x87_ST[i] = buf[(lo + 79) .. lo]
+    x87_ST[x87_physical(i)] = buf[(lo + 79) .. lo]
   }
 }
 

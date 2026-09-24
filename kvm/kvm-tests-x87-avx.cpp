@@ -2076,19 +2076,74 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
     cat = "x87 env";
     {
-      // D9 /5 FLDCW, read back with FNSTCW after a rounding operation.  The
-      // f80 externals do not yet apply the rounding and precision controls,
-      // so only control words whose result equals the default's are used.
+      // D9 /5 FLDCW, read back with FNSTCW after FRNDINT, which rounds per
+      // the RC field (SDM FRNDINT).
       struct { double v; u16 cw; const char *rc; } rcs[] = {
         {2.7, 0x037F, "nearest"}, {2.5, 0x037F, "nearest even"}, {-2.5, 0x037F, "nearest even, negative"},
+        {2.7, 0x077F, "down"}, {-2.7, 0x077F, "down, negative"}, {2.5, 0x077F, "down, tie"},
+        {2.2, 0x0B7F, "up"}, {-2.2, 0x0B7F, "up, negative"}, {-2.5, 0x0B7F, "up, tie"},
+        {2.7, 0x0F7F, "toward zero"}, {-2.7, 0x0F7F, "toward zero, negative"},
       };
       for (auto &r : rcs)
         add_mem(std::format("fldcw {:#06x} ({}); fld {}; frndint; fstp; fnstcw", r.cw, r.rc, r.v),
                 join({{0xD9, 0x6F, 0x08}, FLD_A, {0xD9, 0xFC}, FSTP_16, {0xD9, 0x7F, 0x18}}),
                 s, FL_ALL, pad(join({f64b(r.v), i16b((int16_t)r.cw)}), 16), 26);
+      // The precision-control field rounds the significand of FADD, FSUB,
+      // FMUL, FDIV and FSQRT results to 24 or 53 bits (SDM Vol.1 §8.1.5.2);
+      // stored as binary64, the 24-bit results show trailing zeros.
       add_mem("fldcw 0x027f (double precision); fld1; fld 3; fdivp; fstp",
               join({{0xD9, 0x6F, 0x08}, FLD1, FLD_A, {0xDE, 0xF9}, FSTP_16}),
               s, FL_ALL, pad(join({f64b(3.0), i16b(0x027F)}), 16), 24);
+      add_mem("fldcw 0x007f (single precision); fld1; fld 3; fdivp; fstp",
+              join({{0xD9, 0x6F, 0x08}, FLD1, FLD_A, {0xDE, 0xF9}, FSTP_16}),
+              s, FL_ALL, pad(join({f64b(3.0), i16b(0x007F)}), 16), 24);
+      add_mem("fldcw 0x007f (single precision); fld 1.1; fld 1.1; fmulp; fstp",
+              join({{0xD9, 0x6F, 0x08}, FLD_A, FLD_A, {0xDE, 0xC9}, FSTP_16}),
+              s, FL_ALL, pad(join({f64b(1.1), i16b(0x007F)}), 16), 24);
+      add_mem("fldcw 0x007f (single precision); fld 2; fsqrt; fstp",
+              join({{0xD9, 0x6F, 0x08}, FLD_A, {0xD9, 0xFA}, FSTP_16}),
+              s, FL_ALL, pad(join({f64b(2.0), i16b(0x007F)}), 16), 24);
+      add_mem("fldcw 0x007f (single precision); fld 0.1; fld 0.2; faddp; fstp",
+              join({{0xD9, 0x6F, 0x10}, FLD_A, FLD_B, {0xDE, 0xC1}, FSTP_24}),
+              s, FL_ALL, pad(join({ab(0.1, 0.2), i16b(0x007F)}), 24), 32);
+      // FST/FSTP m32fp and m64fp round per the RC field as well
+      for (u16 cw : {0x077F, 0x0B7F, 0x0F7F})
+        add_mem(std::format("fldcw {:#06x}; fld 0.1; fld 0.2; faddp; fstp m64 (rounded per RC)", cw),
+                join({{0xD9, 0x6F, 0x10}, FLD_A, FLD_B, {0xDE, 0xC1}, FSTP_24}),
+                s, FL_ALL, pad(join({ab(0.1, 0.2), i16b((int16_t)cw)}), 24), 32);
+      for (u16 cw : {0x037F, 0x077F, 0x0B7F, 0x0F7F})
+        add_mem(std::format("fldcw {:#06x}; fld 0.1; fstp m32 (rounded per RC)", cw),
+                join({{0xD9, 0x6F, 0x08}, FLD_A, {0xD9, 0x5F, 0x10}}),
+                s, FL_ALL, pad(join({f64b(0.1), i16b((int16_t)cw)}), 16), 20);
+      add_mem("fldcw 0x0c7f (single precision, toward zero); fld1; fld 3; fdivp; fstp",
+              join({{0xD9, 0x6F, 0x08}, FLD1, FLD_A, {0xDE, 0xF9}, FSTP_16}),
+              s, FL_ALL, pad(join({f64b(3.0), i16b(0x0C7F)}), 16), 24);
+      // Integer stores of values outside the destination's range, of NaN
+      // and of infinity store the integer indefinite 100..00B when #IA is
+      // masked (SDM FIST/FISTP and FISTTP; Vol.1 §8.2.1).
+      for (double v : {70000.0, -40000.0, 3.0e9, -3.0e9, 1.0e19, -1.0e19, qnan, __builtin_inf(), -__builtin_inf()}) {
+        add_mem(std::format("fld {}; fistp m16int [rdi+8]", v),
+                join({FLD_A, {0xDF, 0x5F, 0x08}}), s, FL_ALL, f64b(v), 10);
+        add_mem(std::format("fld {}; fistp m32int [rdi+8]", v),
+                join({FLD_A, {0xDB, 0x5F, 0x08}}), s, FL_ALL, f64b(v), 12);
+        add_mem(std::format("fld {}; fistp m64int [rdi+8]", v),
+                join({FLD_A, {0xDF, 0x7F, 0x08}}), s, FL_ALL, f64b(v), 16);
+        add_mem(std::format("fld {}; fisttp m16int [rdi+8]", v),
+                join({FLD_A, {0xDF, 0x4F, 0x08}}), s, FL_ALL, f64b(v), 10);
+        add_mem(std::format("fld {}; fisttp m32int [rdi+8]", v),
+                join({FLD_A, {0xDB, 0x4F, 0x08}}), s, FL_ALL, f64b(v), 12);
+        add_mem(std::format("fld {}; fisttp m64int [rdi+8]", v),
+                join({FLD_A, {0xDD, 0x4F, 0x08}}), s, FL_ALL, f64b(v), 16);
+      }
+      // In-range values just inside the limits, rounded per RC or truncated
+      for (double v : {32767.4, -32768.4, 2147483647.4, -2147483648.4, 9.0e18, -9.0e18}) {
+        add_mem(std::format("fld {}; fistp m16int [rdi+8] (in range?)", v),
+                join({FLD_A, {0xDF, 0x5F, 0x08}}), s, FL_ALL, f64b(v), 10);
+        add_mem(std::format("fld {}; fistp m32int [rdi+8] (in range?)", v),
+                join({FLD_A, {0xDB, 0x5F, 0x08}}), s, FL_ALL, f64b(v), 12);
+        add_mem(std::format("fld {}; fisttp m64int [rdi+8] (in range?)", v),
+                join({FLD_A, {0xDD, 0x4F, 0x08}}), s, FL_ALL, f64b(v), 16);
+      }
 
       // D9 /6 FNSTENV, 32-bit protected-mode layout at [rdi+8].  The control,
       // status, and tag words are read through GPRs: the pointer fields are
@@ -2104,6 +2159,18 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
       add_mem("fld a; fld b; fstp st(1); fnstenv [rdi+8]; read FCW/FSW/FTW",
               join({FLD_A, FLD_B, {0xDD, 0xD9, 0xD9, 0x77, 0x08}, ENV_WORDS}),
               s, FL_ALL, ab(3.0, 1.5), 0);
+      // The tag word classifies each non-empty register (SDM Vol.1 §8.1.7,
+      // Figure 8-7): valid, zero, special (infinity, NaN, denormal), empty.
+      // FST ST(i) into an empty register makes it non-empty.
+      add_mem("fldz; fnstenv [rdi+8]; read FTW (zero tag)",
+              join({{0xD9, 0xEE}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      add_mem("fld inf; fld nan; fldz; fld a; fnstenv [rdi+8]; read FTW (special tags)",
+              join({FLD_B, {0xDD, 0x47, 0x10}, {0xD9, 0xEE}, FLD_A, {0xD9, 0x77, 0x08}, ENV_WORDS}),
+              s, FL_ALL, join({f64b(3.0), f64b(__builtin_inf()), f64b(qnan)}), 0);
+      add_mem("fld a; fld b; fst st(3); fnstenv [rdi+8]; read FTW (FST marks non-empty)",
+              join({FLD_A, FLD_B, {0xDD, 0xD3}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      add_mem("fld a; fld b; ffree st(1); fnstenv [rdi+8]; read FTW",
+              join({FLD_A, FLD_B, {0xDD, 0xC1}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
       // FNSTENV then masks all exceptions in the control word
       add_mem("fldcw 0x0340; fnstenv [rdi+16]; fnstcw [rdi+48]; read both control words",
               join({{0xD9, 0x6F, 0x08}, {0xD9, 0x77, 0x10}, {0xD9, 0x7F, 0x30},
