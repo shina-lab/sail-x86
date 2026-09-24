@@ -1092,6 +1092,9 @@ public:
     // PIIX_DEVACTB at offset 0x58: APMC_EN bit not set initially
     dev1f3[0x58] = 0x00; dev1f3[0x59] = 0x00;
     dev1f3[0x5A] = 0x00; dev1f3[0x5B] = 0x00;
+    // SeaBIOS's PIIX4 DSDT reads CAEN (0x67 bit 3) to expose COM1.
+    // Match QEMU's platform configuration: COM1 exists, COM2 does not.
+    dev1f3[0x67] = 0x08;
     // PM I/O base at offset 0x40 (PMBA): we use 0xB000
     dev1f3[0x40] = 0x01; dev1f3[0x41] = 0xB0;  // 0xB001 (bit 0 = I/O space)
   }

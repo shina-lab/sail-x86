@@ -9,6 +9,10 @@ int main() {
   pci.write_addr(0x8000080C); assert(pci.read_data() & 0x00800000); // multifunction
   pci.write_addr(0x80000900); assert(pci.read_data() == 0x70108086);
   pci.write_addr(0x80000B00); assert(pci.read_data() == 0x71138086);
+  // SeaBIOS ACPI COM1._STA reads CAEN, while COM2._STA reads CBEN.
+  // Reflect the one UART actually present so an OS can attach its tty.
+  pci.write_addr(0x80000B64);
+  assert((pci.read_data() & 0x88000000) == 0x08000000);
   pci.write_addr(0x80000940); assert(pci.read_data() == 0x80008000);
   // PIIX3 BAR4 must exist even for PIO devices: FreeBSD resets its DMA
   // registers during channel probing. Probe, align, relocate and gate I/O.
