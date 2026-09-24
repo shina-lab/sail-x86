@@ -148,13 +148,14 @@ static void write_idt(u8 *base, u64 idt_addr, u64 handler_addr, u64 fault_info_a
   }
 }
 
-// MSRs the fast system calls read, reset to zero before every test and
-// loaded from TestCase::msrs.  IA32_EFER is handled through the segment
-// state (KVM) and the EFER register (model).
+// MSRs the fast system calls and RDPID read, reset to zero before every
+// test and loaded from TestCase::msrs.  IA32_EFER is handled through the
+// segment state (KVM) and the EFER register (model).
 static constexpr u32 MSR_IA32_EFER = 0xC0000080;
 static constexpr u32 FAST_CALL_MSRS[] = {
   0xC0000081, 0xC0000082, 0xC0000083, 0xC0000084,  // STAR, LSTAR, CSTAR, FMASK
   0x00000174, 0x00000175, 0x00000176,              // SYSENTER_CS, _ESP, _EIP
+  0xC0000103,                                      // IA32_TSC_AUX (RDPID, RDTSCP)
 };
 
 // The model's __rdmsr/__wrmsr externals keep their values here

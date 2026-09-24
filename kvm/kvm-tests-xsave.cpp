@@ -291,4 +291,77 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       s, FL_ALL, 0xFFFFFFFFu, false, init, 0,
                       false, -1, 0xFF});
   }
+
+  // =====================================================================
+  // FXSAVE/FXRSTOR (0F AE /0, /1): the image must be 16-byte aligned, and
+  // FXRSTOR is #GP(0) "for an attempt to set reserved bits in MXCSR"; a
+  // valid image loads MXCSR and XMM0-15 while bits 511:128 of the
+  // registers are kept (a non-VEX instruction on XMM state, Vol.1 §14.8).
+  // =====================================================================
+  cat = "FXRSTOR";
+  {
+    // An FXSAVE-format image: FCW 037F, FSW 0, abridged FTW 0 (all empty),
+    // MXCSR at 0x18, ST0-7 at 0x20 and XMM0-15 at 0xA0 with distinctive
+    // bytes; bytes 464:511 are for software and ignored.
+    auto image = [](u32 mxcsr) {
+      std::vector<u8> img(512, 0);
+      img[0] = 0x7F;
+      img[1] = 0x03;
+      memcpy(img.data() + 0x18, &mxcsr, 4);
+      for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 10; j++) img[0x20 + i * 16 + j] = (u8)(0x10 * i + j + 1);
+      for (int i = 0; i < 16; i++)
+        for (int j = 0; j < 16; j++) img[0xA0 + i * 16 + j] = (u8)(0x11 * (i + 1) + j);
+      for (int j = 464; j < 512; j++) img[j] = 0xEE;
+      return img;
+    };
+    auto fx = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                  std::vector<u8> data, int vec = -2) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = FL_ALL;
+      tc.init_data = std::move(data);
+      if (vec != -2) {
+        tc.expect_fault = true;
+        tc.expected_vector = vec;
+      } else {
+        tc.cmp_mxcsr = true;
+      }
+      tests.push_back(std::move(tc));
+    };
+    const std::vector<u8> fxrstor = {0x0F, 0xAE, 0x0F};          // fxrstor [rdi]
+    const std::vector<u8> fxrstor64 = {0x48, 0x0F, 0xAE, 0x0F};  // fxrstor64 [rdi]
+    const std::vector<u8> fxsave = {0x0F, 0xAE, 0x07};           // fxsave [rdi]
+
+    // Bits 511:128 of the registers are inputs: FXRSTOR must keep them.
+    ArchState s = {.rdi = DATA_ADDR};
+    for (int i = 0; i < 16; i++)
+      for (int q = 2; q < 8; q++)
+        s.xmm[i].q[q] = 0xA5A5A5A5A5A5A5A5ULL ^ (0x0101010101010101ULL * (i * 8 + q));
+
+    fx("fxrstor [rdi] (valid image, MXCSR 7F80: masks + round toward zero)", fxrstor, s, image(0x7F80));
+    fx("fxrstor [rdi] (valid image, MXCSR 1F80)", fxrstor, s, image(0x1F80));
+    fx("fxrstor64 [rdi] (valid image, MXCSR 5F80)", fxrstor64, s, image(0x5F80));
+    // Reserved MXCSR bits: bit 16 (reserved on both vendors) and 31:18
+    fx("fxrstor [rdi] with MXCSR bit 16 set (#GP)", fxrstor, s, image(0x1F80 | 0x10000), 13);
+    fx("fxrstor [rdi] with MXCSR bits 31:18 set (#GP)", fxrstor, s, image(0x1F80 | 0xFFFC0000u), 13);
+    fx("fxrstor64 [rdi] with MXCSR bit 16 set (#GP)", fxrstor64, s, image(0x1F80 | 0x10000), 13);
+    // Misaligned operands
+    ArchState mis = s;
+    mis.rdi = DATA_ADDR + 8;
+    fx("fxrstor [rdi+8] misaligned (#GP)", fxrstor, mis, image(0x1F80), 13);
+    fx("fxsave [rdi+8] misaligned (#GP)", fxsave, mis, std::vector<u8>(512, 0), 13);
+    // An image whose other fields are arbitrary bytes (the coverage run's
+    // pattern) with a valid MXCSR loads like any other.
+    {
+      std::vector<u8> pat(512);
+      for (int j = 0; j < 512; j++) pat[j] = (u8)(j * 7 + 3);
+      u32 mxcsr = 0x1F80;
+      memcpy(pat.data() + 0x18, &mxcsr, 4);
+      fx("fxrstor [rdi] (arbitrary image bytes, valid MXCSR)", fxrstor, s, pat);
+    }
+  }
 }

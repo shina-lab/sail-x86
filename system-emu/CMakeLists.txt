@@ -128,3 +128,8 @@ add_executable(system_test_ide tests/test-ide.cpp)
 target_include_directories(system_test_ide PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_ide COMMAND system_test_ide)
+
+add_executable(system_test_smm tests/test-smm.cpp)
+target_link_libraries(system_test_smm PRIVATE x86_system_model)
+add_dependencies(system_test_smm generated_sail_x86_model)
+add_test(NAME system_smm COMMAND system_test_smm)

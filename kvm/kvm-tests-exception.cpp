@@ -118,6 +118,40 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vaesenc zmm {k1} (no opmask → #UD)",
             {0x62, 0xF2, 0x75, 0x49, 0xDC, 0xC2}, {}, 6);
 
+  // Prefixed forms of 0F 01, 0F AE and 0F C7 encodings that are distinct
+  // instructions of features neither the model nor the guest has: #UD,
+  // not the unprefixed instruction they once executed as.  UINTR: CLUI,
+  // STUI, TESTUI, UIRET (F3 0F 01 EC-EF) and SENDUIPI (F3 0F C7 /6), #UD
+  // with CR4.UINTR = 0 in any case; FRED: ERETS and ERETU (F2/F3 0F 01
+  // CA), #UD on the Xeon, whereas the Threadripper runs them as CLAC (the
+  // SDM's "NP" allows either, §3.1.1.1), so Intel hosts only; WAITPKG:
+  // TPAUSE, UMONITOR and UMWAIT (66/F3/F2 0F AE /6 with mod=11), on hosts
+  // without the feature; and F2 on the NFx opcodes of RDRAND and RDSEED.
+  add_fault("clui (F3 0F 01 EE → #UD, not RDPKRU)", {0xF3, 0x0F, 0x01, 0xEE}, {}, 6);
+  add_fault("stui (F3 0F 01 EF → #UD, not WRPKRU)", {0xF3, 0x0F, 0x01, 0xEF}, {}, 6);
+  add_fault("testui (F3 0F 01 ED → #UD)", {0xF3, 0x0F, 0x01, 0xED}, {}, 6);
+  add_fault("uiret (F3 0F 01 EC → #UD)", {0xF3, 0x0F, 0x01, 0xEC}, {}, 6);
+  {
+    u32 a, b, c, d;
+    __get_cpuid(0, &a, &b, &c, &d);
+    if (b != 0x68747541) {  // not "Auth" of AuthenticAMD
+      add_fault("erets (F2 0F 01 CA → #UD, not CLAC)", {0xF2, 0x0F, 0x01, 0xCA}, {}, 6);
+      add_fault("eretu (F3 0F 01 CA → #UD, not CLAC)", {0xF3, 0x0F, 0x01, 0xCA}, {}, 6);
+    }
+  }
+  add_fault("senduipi rbx (F3 0F C7 /6 → #UD, not RDRAND)", {0xF3, 0x0F, 0xC7, 0xF3}, {}, 6);
+  add_fault("rdrand rbx with F2 (NFx → #UD)", {0xF2, 0x0F, 0xC7, 0xF3}, {}, 6);
+  add_fault("rdseed rbx with F2 (NFx → #UD)", {0xF2, 0x0F, 0xC7, 0xFB}, {}, 6);
+  {
+    u32 a, b, c, d;
+    bool waitpkg = __get_cpuid_count(7, 0, &a, &b, &c, &d) && (c & (1u << 5));
+    if (!waitpkg) {
+      add_fault("tpause ebx (66 0F AE /6 → #UD, not MFENCE)", {0x66, 0x0F, 0xAE, 0xF3}, {}, 6);
+      add_fault("umonitor rbx (F3 0F AE /6 → #UD, not MFENCE)", {0xF3, 0x0F, 0xAE, 0xF3}, {}, 6);
+      add_fault("umwait ebx (F2 0F AE /6 → #UD, not MFENCE)", {0xF2, 0x0F, 0xAE, 0xF3}, {}, 6);
+    }
+  }
+
   // VLDMXCSR/VSTMXCSR are VEX.LZ with vvvv reserved: VEX.L = 1 and
   // vvvv != 1111b are #UD (SDM LDMXCSR/STMXCSR pages).
   add_fault("vldmxcsr [rdi] with VEX.L=1 (#UD)", {0xC5, 0xFC, 0xAE, 0x17},

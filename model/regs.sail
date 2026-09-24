@@ -578,6 +578,7 @@ register has_adx       : bool
 register has_sha       : bool
 register has_rdrand    : bool
 register has_rdseed    : bool
+register has_rdpid     : bool  // CPUID.07H:ECX[22] — RDPID (F3 0F C7 /7)
 register has_crc32     : bool
 register has_movdiri   : bool
 register has_movdir64b : bool
@@ -651,6 +652,7 @@ function enable_features_v1() = {
   has_sha = false;
   has_rdrand = false;
   has_rdseed = false;
+  has_rdpid = false;
   has_crc32 = false;
   has_xsave = false;
   has_avx512 = false;
@@ -701,6 +703,7 @@ function enable_features_v4() = {
   XCR0 = 0x00000000000000E7;
   has_avx512 = true;
   has_rdseed = true;
+  has_rdpid = true;
   has_sha = true;
   has_vpclmulqdq = true;
   has_vaes = true;
